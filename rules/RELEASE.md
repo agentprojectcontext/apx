@@ -39,8 +39,8 @@ The release starts as a draft. After all desktop, daemon and Android jobs upload
 job waits for the `verify.yml` run on `release/v2` for that exact tag commit to pass, then exposes it to update
 clients and announcements. Failed builds or verification leave the draft available for repair. Tags build the
 release artifacts; verification runs on the branch commit once, rather than duplicating the same suites for its tag.
-Linux preflight, all-suite coverage and performance run in parallel, alongside macOS and Windows portability.
-Publication still requires the whole workflow to pass; a failed performance job can be retried without rerunning coverage.
+Its jobs run in parallel parts ([TESTING.md](TESTING.md#ci)); publication still requires the whole workflow to
+pass, and a failed job can be retried on its own.
 
 `release.yml` on a `v2.x.y` tag: for linux x64/arm64, win x64, mac arm64/x64 the desktop installer (AppImage, NSIS
 `.exe`, `.dmg`, plus a `.zip`), the daemon bundle `apx-core-<v>-<os>-<arch>.tar.gz`, a `.sha256` beside each,
@@ -52,6 +52,23 @@ an unsigned app (macOS: right-click › Open, or System Settings › Privacy & S
 The phone app is `dev.apx.mobile` and v1's is `dev.agentprojectcontext.apx`: they install side by side. Its APK
 carries arm64-v8a only by default (`APX_ANDROID_ABIS` adds more) and its versionCode follows the tag (2.1.3 → 20103); Expo push needs the owner's EAS project
 and Firebase app, set once as repo variable/secret ([apps/mobile/README.md](../apps/mobile/README.md#push)).
+
+## Tagging a release
+
+Only a commit `verify` already passed on `release/v2` is tagged (AGENTS.md rule 28). A tag builds every installer
+and the APK in about ten minutes, but publication waits for that commit's verify run: tagging before it ends ties
+the release to a run that may still fail, and a red run leaves a draft that only a new tag (and a new version) fixes.
+
+```bash
+git fetch origin release/v2
+pnpm release:check origin/release/v2               # is its newest verify run green? exits 1 if red, missing or running
+pnpm release:check origin/release/v2 --wait        # …waiting for a run still going
+pnpm release:check --tag v2.10.0 origin/release/v2 # checks, then tags that commit and pushes the tag
+```
+
+`scripts/release-check.ts` reads the newest `verify.yml` run of that exact commit on `release/v2` (`gh run list
+--commit`), the run the publish job will wait for; a rerun that turned it green counts. The publish job's wait stays
+as the second guard, for a tag made by hand.
 
 ## What people are told
 

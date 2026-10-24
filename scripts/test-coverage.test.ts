@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { sourceMapResolver } from "./coverage-source-map.ts";
-import { coverageMarkdown, coveragePart, coverageReport, mergeCoverage, sandboxPorts } from "./test-coverage.ts";
+import {
+  coverageMarkdown,
+  coveragePart,
+  coverageReport,
+  mergeCoverage,
+  missingParts,
+  sandboxPorts,
+} from "./test-coverage.ts";
 
 test("coverage sandboxes use distinct available loopback ports and honor explicit overrides", async () => {
   const ports = await sandboxPorts({});
@@ -270,4 +277,11 @@ test("parts' reports merge into one: a function ran if any part ran it, a file l
   ]);
   // The parts' own reports stay as they were.
   assert.equal(unit[0]?.functions[1]?.covered, false);
+});
+
+test("the merge fails when fewer parts reported than CI ran, and says so", () => {
+  assert.match(missingParts(4, ["--merge", "--expect-parts=5"]) ?? "", /4 of 5 parts/);
+  assert.equal(missingParts(5, ["--merge", "--expect-parts=5"]), undefined);
+  // Without the flag (a local merge) any number of parts is a report.
+  assert.equal(missingParts(1, ["--merge"]), undefined);
 });

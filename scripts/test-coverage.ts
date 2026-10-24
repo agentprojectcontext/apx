@@ -350,6 +350,16 @@ function partDirs(dir: string): string[] {
 }
 
 /**
+ * `--expect-parts=N`: a part whose job never uploaded (cancelled, out of time) leaves no folder at all, so the merge
+ * must know how many to expect; fewer is a failure, not a smaller report.
+ */
+export function missingParts(found: number, argv: readonly string[]): string | undefined {
+  const expected = Number(argv.find((a) => a.startsWith("--expect-parts="))?.slice("--expect-parts=".length));
+  if (!expected || found >= expected) return undefined;
+  return `Coverage merge: ${found} of ${expected} parts reported; the missing ones never uploaded their report.`;
+}
+
+/**
  * Several runs' reports of the same sources as one: a function ran if it ran in any of them. Each CI part reports on
  * its own machine, so only these small reports travel, never the raw V8 data.
  */
@@ -428,12 +438,14 @@ async function main() {
   if (process.argv.includes("--merge")) {
     const dirs = partDirs(path.join(all, "parts"));
     if (!dirs.length) throw new Error(`no coverage parts under ${path.relative(root, all)}/parts`);
+    const short = missingParts(dirs.length, process.argv);
+    if (short) console.error(short);
     const read = <T>(dir: string, name: string) => JSON.parse(fs.readFileSync(path.join(dir, name), "utf8")) as T;
     const statuses = dirs.map((d) => read<PartStatus>(d, "status.json"));
     const reports = dirs
       .filter((d) => fs.existsSync(path.join(d, "functions.json")))
       .map((d) => read<{ files: FileCoverage[] }>(d, "functions.json").files);
-    const failed = statuses.some((s) => s.failed) || reports.length < dirs.length;
+    const failed = statuses.some((s) => s.failed) || reports.length < dirs.length || Boolean(short);
     const suites = [...new Set(statuses.flatMap((s) => s.suites))].sort();
     if (writeFunctions(root, all, mergeCoverage(reports), { failed, suites })) process.exitCode = 1;
     return;
