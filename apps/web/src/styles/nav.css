@@ -70,6 +70,26 @@
 .running__row:hover {
   background: var(--apx-fill-hover);
 }
+/* A working agent's stop takes its time's place while the row is hovered. */
+.running__line {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.running__stop {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  opacity: 0;
+}
+.running__line:hover .running__stop,
+.running__stop:focus-visible {
+  opacity: 1;
+}
+.running__line:hover .running__elapsed {
+  visibility: hidden;
+}
 .running__item {
   display: flex;
   flex: 1;
