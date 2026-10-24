@@ -77,6 +77,17 @@ export function IntegrationsTab({ projectId, query, scope, adding, setAdding }: 
     .filter((i) => !query || `${i.label} ${describe(i, t)}`.toLowerCase().includes(query))
     .filter((i) => scope === "all" || scope === "global" || !i.off_in.includes(scope));
 
+  const dialog = adding && list && (
+    <ConnectDialog
+      list={list}
+      onClose={() => setAdding(false)}
+      onConnected={async (id) => {
+        setAdding(false);
+        await load();
+        setPicked(id);
+      }}
+    />
+  );
   // Inside a project: its integrations, each on or off here.
   if (projectId)
     return (
@@ -104,6 +115,7 @@ export function IntegrationsTab({ projectId, query, scope, adding, setAdding }: 
             ))}
           </div>
         )}
+        {dialog}
       </div>
     );
 
@@ -116,17 +128,6 @@ export function IntegrationsTab({ projectId, query, scope, adding, setAdding }: 
       notify(t("error.change", { error: errText(e) }));
     }
   };
-  const dialog = adding && list && (
-    <ConnectDialog
-      list={list}
-      onClose={() => setAdding(false)}
-      onConnected={async (id) => {
-        setAdding(false);
-        await load();
-        setPicked(id);
-      }}
-    />
-  );
   // Nothing connected yet: the invitation alone, no empty list beside it.
   if (list && !list.some((i) => i.connected))
     return (

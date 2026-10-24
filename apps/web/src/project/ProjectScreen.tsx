@@ -152,7 +152,8 @@ function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: Project
     case "memory":
       return <ProjectMemory project={project} />;
     case "resources":
-      return <ResourcesView project={project} />;
+      // Keyed: what was being added in one project never opens in the next.
+      return <ResourcesView key={project.id} project={project} />;
   }
 }
 

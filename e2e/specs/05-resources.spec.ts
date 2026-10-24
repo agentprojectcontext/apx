@@ -172,6 +172,18 @@ test("integrations: GitHub is connected with a token, then disconnected", async 
   await expect.poll(async () => (await rpc<{ servers: Array<{ name: string }> }>("mcp.list")).servers.length).toBe(0);
 });
 
+test("integrations: Connect opens its dialog inside a project too", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: /^Northwind/ }).click();
+  await page.getByRole("tab", { name: "Recursos" }).click();
+  await page.getByRole("radio", { name: /^Integraciones/ }).click();
+  await page.getByRole("button", { name: "Conectar", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: /^GitHub/ })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+});
+
 test("integrations: the catalog is searched; Home Assistant connects with its address and token", async ({ page }) => {
   await open(page);
   await page.getByRole("button", { name: "Recursos", exact: true }).first().click();
