@@ -151,7 +151,9 @@ served by the sandbox's core, and check the window, the browser it lends to the 
 OpenAI-compatible model (`e2e/fake-llm.ts`, answers "Got it: <what you wrote>"), an emulated Telegram Bot API
 (`APX_TELEGRAM_API`), an APX v1 and Claude Code / Codex sessions to import (`e2e/fixtures.ts`). Specs act as the
 outside world through its control API (`world.telegram(...)`, `world.sentTo(chat)`). Specs run in file order on
-one core, like one owner from the first-run setup on. Any console error or 5xx response fails the test. Specs
+one core, like one owner from the first-run setup on. CI splits them into three parts (`--shard=i/3`), each on a core
+of its own, so a spec may build only on what the `setup` project leaves (`01-setup`, `06-telegram`, `10-whatsapp`,
+replayed first in every part; `playwright.config.ts`), never on another spec: set up anything else in the spec itself. Any console error or 5xx response fails the test. Specs
 are written in Spanish, as the owner uses the panel. WhatsApp is emulated inside the sandbox's core: it starts
 with `--import e2e/baileys-hook.ts`, which resolves the library to an in-memory phone (`e2e/fake-baileys.ts`, driven
 through `world.whatsapp`), so the real adapter runs with no test path in the product.
@@ -178,23 +180,40 @@ once quiet again, and the panel's first load (gzip). Each number has a budget in
 going over fails. Raising a budget is a regression: it needs a reason in the commit body.
 
 ## CI
-`.github/workflows/verify.yml` runs `preflight`, `e2e`, the desktop e2e (under xvfb) and `perf` on every push to
-`release/v2` and every pull request; release tags build installers and publication requires verification of the exact
-commit on `release/v2`, without running the full suite again for the tag. Linux preflight, coverage and
-lightness budgets are separate jobs that start in parallel. Each retains its checks; coverage does not replace
-the package-specific preflight test commands. Coverage runs in parts on machines of their own (`node
-scripts/test-coverage.ts --e2e --part=unit|web|desktop`; the panel's specs stay one part, as they build on each
-other's state in one sandbox); each part reports on its own machine and `coverage-report` merges those reports into the one report (`--merge`: a function ran if any part ran it). The macOS and Windows jobs run only the
-unit tests (Linux's preflight already checks lint, types and the rest), split over several machines by `node
-scripts/test-shard.ts <part>/<parts>`, which reads each package's own `test` script and deals the files out in turn. The performance job builds the same panel with coverage source
-maps before measuring it. A failed job can be retried independently, while publication still requires every job
-to pass. The existing `verify` check remains an aggregate gate requiring Linux checks, every coverage part and its report, and
-every portability part,
-so branch protection that requires it still waits for every check. Reports are kept 14 days: `verify-reports` carries Playwright HTML, failed-test snapshots and coverage;
-`perf-reports` explicitly includes `e2e/.out/perf.json`, even though its directory is hidden. Its
-`autofix` job is off by default: with the repo variable `APX_AUTOFIX=true` and the secret `ANTHROPIC_API_KEY`, a
-failure on main hands the reports to an agent that fixes the cause and opens a pull request (never merged on its
-own, never by weakening a gate).
+`.github/workflows/verify.yml` runs on every push to `release/v2` and every pull request. Every job starts from
+`.github/actions/setup` (Node, `pnpm install`, and when the job needs them Playwright's Chromium and `apps/mobile`'s
+own install, both cached: the browser by Playwright's version, the mobile `node_modules` by its lockfile). The jobs
+start together:
+
+| Job | What | Machines |
+|---|---|---|
+| Static checks and lightness budgets | commits, `pnpm preflight:static` (private terms, schema, lint, typecheck, test quality), mobile types, Android bundle; then `pnpm build:web` with coverage maps and `scripts/perf.ts` | 1 Linux |
+| Unit tests | every package's tests, `node scripts/test-shard.ts <i>/2`, plus the POSIX installer onboarding | 2 Linux |
+| Coverage | `node scripts/test-coverage.ts --e2e --part=…`: unit, panel in three (`--part=web --shard=i/3`), desktop | 5 Linux |
+| Coverage report | merges the parts (`--merge --expect-parts=5`: a function ran if any part ran it; a part that never uploaded fails it) | 1 Linux |
+| Unit tests (portability) | the unit tests only, `test-shard.ts` over 4 Windows and 2 macOS machines | 6 |
+
+Static checks and unit tests together are `pnpm preflight`; coverage does not replace them (it runs the suites
+another way, with instrumentation). The budgets share the static job: a separate one sat in the runner queue for a
+quarter of an hour while taking one minute. `test-shard.ts` reads each package's own `test` script and deals the
+files out in turn; every part runs each package's build step first. The aggregate `verify` job requires every
+other job, so branch protection that requires it waits for all of them; a failed job can be retried on its own.
+
+Windows: tests that wait scale their waits by `TEST_TIME_SCALE=3`, and a failed file runs once more
+(`--rerun-failed`): passing then, it is reported as flaky (a warning annotation and a row in the job summary) and
+the job stays green; failing again, the job is red ([D-145](DECISIONS.md#d-145)). Linux and macOS never rerun.
+`.github/workflows/windows.yml` runs the same Windows parts on every push to `feat/**` and `fix/**` (or by hand),
+so Windows sees a branch before it merges.
+
+Tags: release tags build installers, and publication waits for the verify run of the exact commit on `release/v2`,
+without running the suites again. Tag only a commit that run already passed: `pnpm release:check --tag v2.x.y`
+([RELEASE.md](RELEASE.md#tagging-a-release), AGENTS.md rule 28).
+
+Reports are kept 14 days: `verify-reports` carries Playwright HTML, failed-test snapshots and coverage;
+`perf-reports` explicitly includes `e2e/.out/perf.json`, even though its directory is hidden. The `autofix` job is
+off by default: with the repo variable `APX_AUTOFIX=true` and the secret `ANTHROPIC_API_KEY`, a failure on main
+hands the reports to an agent that fixes the cause and opens a pull request (never merged on its own, never by
+weakening a gate).
 
 ## 6. Embedded browser (real path)
 ```bash

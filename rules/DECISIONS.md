@@ -2148,3 +2148,23 @@ no folders, so the panel, the mobile app, the channels and the "Needs your revie
 buttons; the panel titles it "Accept this action?". Accepting tells the agent to do it now; a late answer wakes it as
 a question's does; the agent can withdraw it. Accepting does not grant the calls it takes: each still passes its own
 check, since the card's text does not bind a tool's arguments. An agent with "always" for that tool gets no second card.
+
+## D-145 — 2026-10-23 — CI in parallel parts, flaky Windows files rerun once and counted, only verified commits tagged
+`verify` took 16–28 minutes: the panel's 229 specs ran in one part (13–21 min) because they shared one sandbox, and
+Linux preflight ran every unit test in series (8.5 of its 11.5 min). The v2.9.0 tag went on a commit whose run then
+failed on a Windows flake, and publication slipped ten hours until a re-tag on a verified commit.
+
+- **The panel runs in three parts**, each with its own core. What specs may share is a Playwright `setup` project
+  (the first-run setup, the owner's Telegram, the WhatsApp line), replayed first in every part; any other state a spec
+  needs, it makes itself. Local runs keep one core and the same order.
+- **Preflight is split, not reduced:** static checks (`pnpm preflight:static`) on one machine, every package's unit
+  tests over two (`test-shard.ts`). The lightness budgets join the static job instead of queueing for a runner.
+- **Windows reruns a failed test file once.** Its runners are slow and noisy enough that waits tuned elsewhere miss
+  (hence also `TEST_TIME_SCALE=3`), and one such miss held a release for ten hours. A file that passes on the rerun
+  is reported, never muted: a warning annotation on the run and a row in the job summary, so every flake is seen and
+  counted from the run's annotations; each is a bug to fix, not a pass. A file that fails twice fails the job. A
+  crash no test reported is never rerun. Linux and macOS, coverage and the panel do not rerun (Playwright's own one
+  retry in CI stays as it was). If the flaky count does not fall, the rerun goes, not the reporting.
+- **Windows before merge:** `windows.yml` runs the Windows parts on pushes to `feat/**` and `fix/**`.
+- **Only a verified commit is tagged** (AGENTS.md rule 28): `pnpm release:check --tag v2.x.y` reads that commit's
+  newest verify run and tags only after it passed. The publish job's wait stays as the second guard.

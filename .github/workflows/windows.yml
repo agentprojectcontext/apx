@@ -1,0 +1,39 @@
+# Windows sees a feature or fix branch before it reaches release/v2: the same unit-test parts as verify's
+# unit-portability job, on every push to feat/** and fix/** (or by hand). It never gates a release; verify does.
+name: windows
+
+on:
+  push:
+    branches: ["feat/**", "fix/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit tests (windows-latest ${{ matrix.part }}/4)
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [1, 2, 3, 4]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      APX_SECRETS: file
+      CI: "true"
+      TEST_TIME_SCALE: "3"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          browser: chromium
+          mobile: ${{ matrix.part == 1 }}
+      # A failed file runs once more; passing then is reported as flaky, failing again fails (DECISIONS.md#d-145).
+      - name: This part of each package's tests
+        shell: bash
+        run: node scripts/test-shard.ts ${{ matrix.part }}/4 --rerun-failed
