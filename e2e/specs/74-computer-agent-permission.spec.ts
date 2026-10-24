@@ -101,8 +101,8 @@ test("an agent asks for the computer, starts and stops it, and the owner takes t
     await expect(computer.getByRole("button", { name: "Usar la computadora acá", exact: true })).toBeVisible();
     await env.client.call("environments.stop", {});
     await expect(computer.getByRole("button", { name: "Encender VM", exact: true })).toBeVisible();
-    // Without room for it, the start is refused where the owner sees it, above the settings.
-    free = 3 * 1024 ** 3;
+    // Without room for it, the start is refused where the owner sees it, above the settings, in their language.
+    free = 5.5 * 1024 ** 3;
     // The core's own refusal, passed on as a 200 so the browser does not log the expected 409 as an error.
     await page.route("**/rpc/environments.enable", async (route) => {
       const reply = await route.fetch();
@@ -110,8 +110,17 @@ test("an agent asks for the computer, starts and stops it, and the owner takes t
     });
     await page.getByRole("button", { name: "Encender VM", exact: true }).click();
     const refused = page.locator(".computer").getByRole("alert");
-    await expect(refused).toContainText("not enough free memory on this computer: 3 GiB free");
+    await expect(refused).toContainText(
+      "No hay memoria libre suficiente en esta Mac: 5,5 GiB libres, y la computadora necesita 4 GiB más 2 GiB",
+    );
+    await expect(refused).not.toContainText("not enough");
     await expect(refused).toBeInViewport();
+    // A smaller VM fits: one click lowers its memory and turns it on.
+    await refused.getByRole("button", { name: "Bajarla a 3 GiB y encender", exact: true }).click();
+    await expect.poll(async () => (await env.client.call("environments.status", {})).phase).toBe("running");
+    expect((await env.client.call("environments.status", {})).resources?.memory_gib).toBe(3);
+    await expect(page.locator(".computer").getByText(/memoria libre/)).toHaveCount(0);
+    await env.client.call("environments.stop", {});
     await page.goto(`${env.core.url}/#project=~default&tab=team`);
     await page.locator(".teamcanvas__node", { hasText: "Scout" }).click({ button: "right" });
     await page.getByRole("menuitem", { name: "Editar" }).click();

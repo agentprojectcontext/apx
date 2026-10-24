@@ -1,6 +1,6 @@
 import "../styles/screens.css";
 import "../styles/computer.css";
-import type { ComputerScreen, Result } from "@apx/protocol";
+import type { ComputerMemoryRefusal, ComputerScreen, Result } from "@apx/protocol";
 import { AgentAvatar, Button, EmptyState, Icons } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
@@ -8,6 +8,8 @@ import { data, useData } from "../data/state.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { useVmDisplay } from "../panel/useVmDisplay.ts";
 import { go, useNav } from "../shell/nav.ts";
+import { ComputerError } from "./ComputerError.tsx";
+import { memoryRefusal } from "./refusal.ts";
 import { computersOf } from "./summary.ts";
 
 type Status = Result<"environments.status">;
@@ -152,18 +154,22 @@ function ComputersScreenBody() {
   const { status, usage, error, setError, refresh } = useComputerStatus();
   const [open, setOpen] = useState<number>();
   const [busy, setBusy] = useState(false);
+  const [refusal, setRefusal] = useState<ComputerMemoryRefusal>();
   const ready = Boolean(status?.ready);
   const inUse = (status?.screens ?? []).filter((s) => s.run || s.control === "human");
   const large = inUse.find((s) => s.screen === open);
-  const power = async (on: boolean) => {
+  const power = async (on: boolean, memory?: number) => {
     setBusy(true);
     setError("");
+    setRefusal(undefined);
     try {
+      if (memory !== undefined) await client.call("environments.configure", { memory_gib: memory });
       if (on) await client.call("environments.enable", { appearance: mode });
       else await client.call("environments.stop", {});
       refresh();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
+      setRefusal(memoryRefusal(failure));
     } finally {
       setBusy(false);
     }
@@ -186,11 +192,12 @@ function ComputersScreenBody() {
           </Button>
         )}
       </header>
-      {(error || status?.error) && (
-        <div className="computer__error" role="alert">
-          {error || status?.error}
-        </div>
-      )}
+      <ComputerError
+        error={error || status?.error || ""}
+        refusal={refusal}
+        busy={busy}
+        onLower={(gib) => void power(true, gib)}
+      />
       {large ? (
         <Large screen={large} ready={ready} onBack={() => setOpen(undefined)} onError={setError} />
       ) : inUse.length && ready ? (

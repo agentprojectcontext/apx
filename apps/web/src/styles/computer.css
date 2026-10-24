@@ -99,6 +99,10 @@
   color: #dc2626;
   font-size: 12px;
 }
+.computer__error > .computer__button {
+  display: block;
+  margin-top: 8px;
+}
 .computer__console {
   position: relative;
   display: flex;

@@ -1,5 +1,6 @@
 import { IconButton, Icons, Select } from "@apx/ui";
 import { useState } from "react";
+import { ComputerError } from "../computers/ComputerError.tsx";
 import { usePack, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ComputerConsole } from "./ComputerConsole.tsx";
@@ -14,7 +15,18 @@ function ComputerPanelBody() {
   const t = useT();
   const thread = useNav((s) => s.threadId);
   const wide = useNav((s) => s.panelWide);
-  const { status, error: controlError, setError, busy, operate, refresh, screen: shown, pick } = useComputer(thread);
+  const {
+    status,
+    error: controlError,
+    refusal,
+    setError,
+    busy,
+    operate,
+    lower,
+    refresh,
+    screen: shown,
+    pick,
+  } = useComputer(thread);
   const [terminalMaximized, setTerminalMaximized] = useState(false);
   const ready = Boolean(status?.ready);
   const screens = status?.screens ?? [];
@@ -99,11 +111,12 @@ function ComputerPanelBody() {
       )}
       {/* Above the desktop or the setup: below the settings a narrow panel hides it. */}
       {/* A viewer's error speaks of a desktop that is up; once it is off, the reason it is off matters instead. */}
-      {((ready && error) || controlError || status?.error) && (
-        <div className="computer__error" role="alert">
-          {(ready && error) || controlError || status?.error}
-        </div>
-      )}
+      <ComputerError
+        error={(ready && error) || controlError || status?.error || ""}
+        refusal={refusal}
+        busy={busy}
+        onLower={(gib) => void lower(gib)}
+      />
       {ready && shown === undefined && (
         <div className="computer__setup">
           <Icons.Monitor size={28} />

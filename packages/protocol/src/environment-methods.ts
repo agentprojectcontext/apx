@@ -37,6 +37,18 @@ export type ComputerScreen = z.infer<typeof ComputerScreen>;
 
 const Ok = z.object({ ok: z.literal(true) });
 
+/**
+ * A start refused for want of free memory, the `detail` of its conflict: what is free, what the VM and the host's
+ * reserve need, and the VM memory that would fit now when a smaller one would still run it.
+ */
+export type ComputerMemoryRefusal = {
+  reason: "memory";
+  free_gib: number;
+  vm_gib: number;
+  reserve_gib: number;
+  fits_gib?: number;
+};
+
 export const environmentMethods = {
   "environments.status": {
     /** With `thread`, `chat` says whether that chat works on the computer and what its agent may do there. */

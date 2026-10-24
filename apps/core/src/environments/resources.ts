@@ -1,4 +1,5 @@
 import os from "node:os";
+import type { ComputerMemoryRefusal } from "@apx/protocol";
 
 const GIB = 1024 ** 3;
 
@@ -51,12 +52,30 @@ export function resolveResources(stored: Partial<ComputerResources>, host: Host)
   };
 }
 
-/** Why the VM may not start now, or undefined: free memory must cover its memory plus the reserve. */
-export function startRefusal(resources: ComputerResources, availableBytes: number): string | undefined {
+/**
+ * Why the VM may not start now, or undefined: free memory must cover its memory plus the reserve. `fits_gib` is the
+ * VM memory that would start now, when one of at least `minGib` would.
+ */
+export function startRefusal(
+  resources: ComputerResources,
+  availableBytes: number,
+  minGib = 2,
+): ComputerMemoryRefusal | undefined {
   const needed = (resources.memory_gib + START_RESERVE_GIB) * GIB;
   if (availableBytes >= needed) return undefined;
-  return `not enough free memory on this computer: ${gib(availableBytes)} GiB free, the VM needs ${resources.memory_gib} GiB plus ${START_RESERVE_GIB} GiB kept for the host. Close apps or lower the VM's memory, then try again`;
+  const fits = Math.floor(availableBytes / GIB - START_RESERVE_GIB);
+  return {
+    reason: "memory",
+    free_gib: Number(gib(availableBytes)),
+    vm_gib: resources.memory_gib,
+    reserve_gib: START_RESERVE_GIB,
+    ...(fits >= minGib && fits < resources.memory_gib ? { fits_gib: fits } : {}),
+  };
 }
+
+/** The refusal in words, for agents and logs; the panel says it from the numbers in each language. */
+export const refusalText = (r: ComputerMemoryRefusal) =>
+  `not enough free memory on this computer: ${r.free_gib} GiB free, the VM needs ${r.vm_gib} GiB plus ${r.reserve_gib} GiB kept for the host. Close apps or lower the VM's memory${r.fits_gib ? ` to ${r.fits_gib} GiB` : ""}, then try again`;
 
 export const gib = (bytes: number) => (Math.floor((bytes / GIB) * 10) / 10).toString();
 

@@ -1,5 +1,6 @@
-import type { Result } from "@apx/protocol";
+import type { ComputerMemoryRefusal, Result } from "@apx/protocol";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { memoryRefusal } from "../computers/refusal.ts";
 import { computersOf } from "../computers/summary.ts";
 import { client } from "../data/client.ts";
 import { data } from "../data/state.ts";
@@ -13,6 +14,14 @@ export function useComputer(thread: string | undefined) {
   const mode = useNav((s) => s.mode);
   const [status, setStatus] = useState<Status>();
   const [error, setError] = useState("");
+  /** A start refused for want of memory, said from its numbers. */
+  const [refusal, setRefusal] = useState<ComputerMemoryRefusal>();
+  /** What the panel shows in its place (a settings save's failure, or nothing). */
+  const report = useCallback((message: string) => {
+    setError(message);
+    setRefusal(undefined);
+  }, []);
+  const last = useRef<ComputerAction>("enable");
   const [busy, setBusy] = useState(false);
   const [picked, setPicked] = useState<number>();
   const generation = useRef(0);
@@ -26,6 +35,7 @@ export function useComputer(thread: string | undefined) {
     if (activeThread.current !== thread) {
       setStatus(undefined);
       setError("");
+      setRefusal(undefined);
       setPicked(undefined);
     }
     activeThread.current = thread;
@@ -84,8 +94,10 @@ export function useComputer(thread: string | undefined) {
       if (!thread || operating.current) return;
       operating.current = true;
       const observed = ++generation.current;
+      if (action === "allow" || action === "enable") last.current = action;
       setBusy(true);
       setError("");
+      setRefusal(undefined);
       try {
         if (action === "allow" && status?.chat?.agent)
           await client.call("environments.permit", { agent: status.chat.agent, on: true });
@@ -95,7 +107,10 @@ export function useComputer(thread: string | undefined) {
         else if (action === "leave") await client.call("environments.release", { thread });
         else if (screen !== undefined) await client.call("environments.control", { screen, mode: action });
       } catch (failure) {
-        if (observed === generation.current) setError(failure instanceof Error ? failure.message : String(failure));
+        if (observed === generation.current) {
+          setError(failure instanceof Error ? failure.message : String(failure));
+          setRefusal(memoryRefusal(failure));
+        }
       } finally {
         try {
           const result = await client.call("environments.status", { thread });
@@ -107,8 +122,21 @@ export function useComputer(thread: string | undefined) {
     },
     [thread, mode, status?.chat?.agent, screen, keep],
   );
+  /** The VM's memory lowered to what fits now, and the refused start tried again. */
+  const lower = useCallback(
+    async (gib: number) => {
+      try {
+        await client.call("environments.configure", { memory_gib: gib });
+      } catch (failure) {
+        setError(failure instanceof Error ? failure.message : String(failure));
+        return;
+      }
+      await operate(last.current);
+    },
+    [operate],
+  );
   const refresh = useCallback(async () => {
     keep(await client.call("environments.status", thread ? { thread } : {}));
   }, [thread, keep]);
-  return { status, error, setError, busy, operate, refresh, screen, pick: setPicked };
+  return { status, error, refusal, setError: report, busy, operate, lower, refresh, screen, pick: setPicked };
 }

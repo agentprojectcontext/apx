@@ -10,6 +10,7 @@ import type { Appearance, VmLifecycle } from "./lifecycle.ts";
 import {
   type ComputerResources,
   type Host,
+  refusalText,
   resolveResources,
   resourceLimits,
   startRefusal,
@@ -321,8 +322,8 @@ export function createComputer(store: Store, config: ComputerConfig) {
       if (!now.supported) throw unavailable("Computer currently requires macOS Apple Silicon");
       if (now.phase === "running" || now.phase === "preparing") return;
       if (now.phase === "stopping") throw conflict("Computer is shutting down; start it again once it is off");
-      const refusal = startRefusal(resources(), await freeMemory());
-      if (refusal) throw conflict(refusal);
+      const refusal = startRefusal(resources(), await freeMemory(), resourceLimits(host).memory_gib.min);
+      if (refusal) throw conflict(refusalText(refusal), refusal);
       ledger.reset();
       touch();
       lifecycle.start(appearance());
