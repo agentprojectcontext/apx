@@ -66,6 +66,13 @@ export type WaKey = {
 /** A file's size as the library hands it: a number, or a protobuf Long. */
 type WaLength = number | { toNumber(): number } | null | undefined;
 type WaFile = { mimetype?: string | null; fileLength?: WaLength };
+type WaCard = { displayName?: string | null; vcard?: string | null };
+type WaPlace = {
+  degreesLatitude?: number | null;
+  degreesLongitude?: number | null;
+  name?: string | null;
+  address?: string | null;
+};
 export type WaContent = {
   conversation?: string | null;
   extendedTextMessage?: { text?: string | null } | null;
@@ -76,6 +83,11 @@ export type WaContent = {
   documentMessage?: (WaFile & { caption?: string | null; fileName?: string | null }) | null;
   audioMessage?: { ptt?: boolean | null; mimetype?: string | null } | null;
   stickerMessage?: WaFile | null;
+  /** A contact card someone shared (one, or several at once). */
+  contactMessage?: WaCard | null;
+  contactsArrayMessage?: { contacts?: (WaCard | null)[] | null } | null;
+  locationMessage?: WaPlace | null;
+  liveLocationMessage?: WaPlace | null;
   /** An emoji on a message (`key.id`); empty text when it was taken off. */
   reactionMessage?: { key?: WaKey | null; text?: string | null } | null;
   ephemeralMessage?: { message?: WaContent | null } | null;
@@ -150,8 +162,38 @@ function textOf(c: WaContent): string | undefined {
     c.imageMessage?.caption ??
     c.videoMessage?.caption ??
     c.documentMessage?.caption ??
-    menuText(c)
+    menuText(c) ??
+    sharedText(c)
   );
+}
+
+/** A shared contact card or place, as words: the agent needs the name and number, not the vCard. */
+function sharedText(c: WaContent): string | undefined {
+  const cards = c.contactMessage ? [c.contactMessage] : (c.contactsArrayMessage?.contacts ?? []);
+  const shown = cards
+    .filter((k): k is WaCard => Boolean(k))
+    .map(cardText)
+    .filter(Boolean);
+  if (shown.length) return shown.join("\n");
+  const place = c.locationMessage ?? c.liveLocationMessage;
+  if (!place) return undefined;
+  const at =
+    typeof place.degreesLatitude === "number" && typeof place.degreesLongitude === "number"
+      ? `${place.degreesLatitude}, ${place.degreesLongitude}`
+      : "";
+  const said = [place.name, place.address, at].map((v) => String(v ?? "").trim()).filter(Boolean);
+  return said.length ? `[location: ${said.join(" · ").slice(0, 300)}]` : undefined;
+}
+function cardText(k: WaCard): string {
+  const lines = String(k.vcard ?? "").split(/\r?\n/);
+  const field = (name: string) =>
+    lines.filter((l) => l.toUpperCase().startsWith(name)).map((l) => l.slice(l.indexOf(":") + 1).trim());
+  const name = k.displayName?.trim() || field("FN")[0] || "";
+  // `TEL;waid=549…:+54 9 …`: the number as written, after the parameters.
+  const phones = [...new Set(field("TEL").filter(Boolean))];
+  const emails = field("EMAIL").filter(Boolean);
+  const said = [name, ...phones, ...emails].filter(Boolean);
+  return said.length ? `[contact: ${said.join(", ").slice(0, 300)}]` : "";
 }
 
 /** A message's picture, video, sticker or document: what it is, the name it is kept under and its declared size. */
