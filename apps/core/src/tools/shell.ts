@@ -78,9 +78,53 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
   if (apxPort && new RegExp(`(127\\.0\\.0\\.1|localhost|\\[::1\\]|0\\.0\\.0\\.0):${apxPort}\\b`).test(c))
     return "always";
   // So does APX's own CLI, which finds the port by itself.
-  if (/(^|[\s;&|(`])([\w./~-]*\/)?(apx|[\w./-]*apps\/terminal\/src\/main\.ts)(\s|$)/.test(c)) return "always";
+  if (runsApxCli(c)) return "always";
   // Only reading, here: where it reads is the folder rule's to judge (commandFolder), not the owner's to approve.
   return readsOnly(c) ? "never" : "ask";
+}
+
+/** Programs that run the command after them: `env apx …`, `xargs apx`, `bash -c "apx …"`, `pnpm exec apx`. */
+const LAUNCHERS = new Set([
+  "env",
+  "command",
+  "exec",
+  "nohup",
+  "time",
+  "nice",
+  "timeout",
+  "xargs",
+  "caffeinate",
+  "sh",
+  "bash",
+  "zsh",
+  "npx",
+  "pnpx",
+  "bunx",
+  "npm",
+  "pnpm",
+  "yarn",
+  "bun",
+  "run",
+  "dlx",
+  "x",
+]);
+
+/**
+ * Whether a command runs APX's CLI: `apx` (or a path to it) as the program of one of its parts, not as a word
+ * after it, so `cd ~/code/apx` or `ls /…/apx` only read a folder of that name.
+ */
+function runsApxCli(command: string): boolean {
+  if (/(^|[\s;&|(`"'])[\w./-]*apps\/terminal\/src\/main\.ts(\s|$|["'])/.test(command)) return true;
+  for (const part of command.replace(/["'\\]/g, "").split(/[;&|\n(`]|\$\(/)) {
+    for (const word of part.trim().split(/\s+/)) {
+      // Variables set for the program, a launcher's flags and its numbers (`timeout 30`) come before it.
+      if (/^\w+=/.test(word) || word.startsWith("-") || /^\d+[smhd]?$/.test(word)) continue;
+      const program = path.basename(word);
+      if (program === "apx" || program === "apx.exe" || program === "apx.cmd") return true;
+      if (!LAUNCHERS.has(program)) break;
+    }
+  }
+  return false;
 }
 
 /**
