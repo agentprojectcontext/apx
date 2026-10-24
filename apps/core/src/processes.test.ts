@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { test } from "node:test";
-import { commandShell, findGitBash, processStart, spawnCommand, stopTree } from "./processes.ts";
+import { commandShell, findGitBash, probeProcess, processStart, spawnCommand, stopTree } from "./processes.ts";
 
 const has = (...files: string[]) => {
   const set = new Set(files.map((f) => f.toLowerCase()));
@@ -89,12 +89,31 @@ test("a command's tree is stopped, and its start time names it while it runs", {
     assert.ok(Number.isInteger(descendant) && descendant > 0);
     assert.ok(await processStart(pid));
     assert.ok(await processStart(descendant));
-    const closed = new Promise((r) => child.on("close", r));
-    stopTree(pid, { graceMs: 0 });
-    await closed;
+    // Settled means gone: the whole tree, with nothing else waited on.
+    await stopTree(pid, { graceMs: 0 });
     assert.equal(await processStart(pid), undefined);
     assert.equal(await processStart(descendant), undefined);
   } finally {
-    stopTree(pid, { graceMs: 0 });
+    await stopTree(pid, { graceMs: 0 });
   }
+});
+
+test("a probe that gets no answer in time says unknown, never that the process is gone", async () => {
+  assert.equal((await probeProcess(process.pid, 1)).state, "unknown");
+  // portable: 1 ms is shorter than any process start, so the probe always times out.
+  await assert.rejects(processStart(process.pid, { attempts: 1, timeoutMs: 1 }), /cannot tell whether process/);
+  assert.deepEqual(await probeProcess(process.pid), { state: "running", start: await processStart(process.pid) });
+});
+
+test("a process that is gone is gone, and a TERM it obeys ends the stop before its grace", async () => {
+  const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+    detached: process.platform !== "win32",
+    stdio: "ignore",
+    windowsHide: true,
+  });
+  const pid = child.pid as number;
+  const started = performance.now();
+  await stopTree(pid, { graceMs: 20_000 });
+  assert.ok(performance.now() - started < 10_000, "the stop waited out its grace");
+  assert.deepEqual(await probeProcess(pid), { state: "gone" });
 });

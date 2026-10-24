@@ -150,7 +150,7 @@ export function acpHarness(opts: {
           io.signal.removeEventListener("abort", onAbort);
         }
       } finally {
-        session.close();
+        await session.close();
         gate.close();
       }
     },

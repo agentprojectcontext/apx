@@ -98,10 +98,12 @@ export function runStep(
     // Its own process group: stopping it also stops what it started. Something that left the group (setsid) may
     // still hold the pipes, so the step ends now instead of waiting for them to close.
     function stop() {
-      if (child.pid) stopTree(child.pid, { graceMs: 0 });
       child.stdout?.destroy();
       child.stderr?.destroy();
-      done(null, timedOut ? "\n[stopped: time limit]" : "\n[stopped]");
+      const why = timedOut ? "\n[stopped: time limit]" : "\n[stopped]";
+      // The next step may use the same folder: it starts once this tree is gone.
+      if (child.pid) void stopTree(child.pid, { graceMs: 0 }).finally(() => done(null, why));
+      else done(null, why);
     }
     const timer = setTimeout(() => {
       timedOut = true;
