@@ -24,12 +24,12 @@ function describe(s: Status, run: string): string {
   const size = r ? ` · ${r.memory_gib} GiB memory, ${r.cpus} CPUs, ${r.disk_gib} GiB disk` : "";
   const why = s.last_stop ? ` (shut down ${STOPPED_BY[s.last_stop.reason]})` : "";
   const mine = s.screens?.find((x) => x.run === run);
-  const held = s.screens?.filter((x) => x.run).length ?? 0;
+  const up = s.screens?.length ?? 0;
   const phase =
     s.phase === "running"
       ? mine
         ? `running; you hold your screen ${mine.display}, and your shell and browser here run on it as your own user, in ~/work`
-        : `running; ${held} of ${s.max_screens ?? 1} agent screens are held`
+        : `running; ${up} of ${s.max_screens ?? 1} agent screens are up`
       : s.phase === "preparing"
         ? `starting (${s.step ?? "guest"})`
         : s.phase === "not_installed"

@@ -16,6 +16,12 @@ export function computersOf(status: Result<"environments.status">): Computers {
   };
 }
 
+/**
+ * Agent screens up now, held by a working run or kept warm after it: what the picker lists and each one takes a slot
+ * of `max_screens`, so every count of screens in use reads this.
+ */
+export const screensUp = (status: Result<"environments.status"> | undefined) => status?.screens?.length ?? 0;
+
 export type Computers = {
   shown: boolean;
   inUse: number;

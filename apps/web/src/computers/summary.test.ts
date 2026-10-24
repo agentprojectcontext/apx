@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agentComputer, computersOf } from "./summary.ts";
+import { agentComputer, computersOf, screensUp } from "./summary.ts";
 
 const status = {
   enabled: true,
@@ -15,6 +15,12 @@ const status = {
     { screen: 2, agent: "roby", display: ":102", control: "agent" as const, changing: false },
   ],
 };
+
+test("a screen kept up after its run ended counts as in use, as the picker lists it", () => {
+  assert.equal(screensUp(status), 2);
+  assert.equal(screensUp({ ...status, screens: [] }), 0);
+  assert.equal(screensUp(undefined), 0);
+});
 
 test("each agent's card tells whether it may use the computer and the screen it is up on", () => {
   const c = computersOf(status);

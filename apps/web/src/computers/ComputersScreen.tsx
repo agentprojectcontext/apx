@@ -10,7 +10,7 @@ import { useVmDisplay } from "../panel/useVmDisplay.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ComputerError } from "./ComputerError.tsx";
 import { memoryRefusal } from "./refusal.ts";
-import { computersOf } from "./summary.ts";
+import { computersOf, screensUp } from "./summary.ts";
 
 type Status = Result<"environments.status">;
 type Usage = Result<"environments.usage">;
@@ -182,7 +182,7 @@ function ComputersScreenBody() {
           <h1 className="page__title">{t("nav.computers")}</h1>
           <p className="page__lead">
             {ready
-              ? t("computers.lead", { held: inUse.length, max: status?.max_screens ?? 1 })
+              ? t("computers.lead", { held: screensUp(status), max: status?.max_screens ?? 1 })
               : t("computers.leadOff")}
           </p>
         </div>

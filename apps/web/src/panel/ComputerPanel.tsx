@@ -1,6 +1,7 @@
 import { IconButton, Icons, Select } from "@apx/ui";
 import { useState } from "react";
 import { ComputerError } from "../computers/ComputerError.tsx";
+import { screensUp } from "../computers/summary.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ComputerConsole } from "./ComputerConsole.tsx";
@@ -38,7 +39,7 @@ function ComputerPanelBody() {
   const chat = status?.chat;
   const allow = Boolean(chat?.agent && chat.permitted === false);
   const r = status?.resources;
-  const held = screens.filter((s) => s.run).length;
+  const held = screensUp(status);
   const stoppedBy = phase === "stopped" && status?.last_stop?.reason;
   const label = (s: (typeof screens)[number]) =>
     t(s.run ? "computer.agentScreenHeld" : "computer.agentScreen", { agent: s.agent_name ?? "", display: s.display });
