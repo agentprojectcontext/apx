@@ -1,6 +1,6 @@
 import type { ChannelInfo, Message, Person, Thread } from "@apx/protocol";
-import { Button, EmptyState, IconButton, Icons, SegmentedControl, Skeleton, Textarea } from "@apx/ui";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { Button, EmptyState, IconButton, Icons, SegmentedControl, Skeleton, StickyScroll, Textarea } from "@apx/ui";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { FilePart } from "../chat/parts/FilePart.tsx";
 import { AudioPart } from "../chat/parts/lazyAudio.tsx";
 import { bubbleFiles, mediaBlocks, withoutFilesNote } from "../chat/parts/mediaGroups.ts";
@@ -47,7 +47,6 @@ export function ChannelConversation(props: {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [recovering, setRecovering] = useState(false);
-  const end = useRef<HTMLDivElement>(null);
   const name = person?.name ?? thread?.title ?? "";
   const agentName = agent?.name ?? channel.agent_id;
 
@@ -58,9 +57,6 @@ export function ChannelConversation(props: {
     if (thread && thread.unread > 0 && load === "ready") void markRead(thread.id);
   }, [thread, load]);
   const count = messages?.length ?? 0;
-  useEffect(() => {
-    if (count) end.current?.scrollIntoView({ block: "end" });
-  }, [count]);
 
   const submit = async () => {
     const words = text.trim();
@@ -158,7 +154,12 @@ export function ChannelConversation(props: {
           {t("ch.contact")}
         </Button>
       </header>
-      <div className="chan__msgs">
+      <StickyScroll
+        resetKey={threadId || (person?.id ?? "")}
+        toBottomLabel={t("chat.toBottom")}
+        className="chan__msgs"
+        contentClassName="chan__msglist"
+      >
         {empty ? (
           <div className="chan__pick">
             <EmptyState variant="dashed" icon={<Icons.MessageCircle />} title={t("ch.empty.title", { name })}>
@@ -170,8 +171,7 @@ export function ChannelConversation(props: {
         ) : (
           (messages ?? []).map((m) => <Bubble key={m.id} m={m} agentName={agentName} />)
         )}
-        <div ref={end} />
-      </div>
+      </StickyScroll>
       <div className="chan__composer">
         <Textarea
           aria-label={writeLabel}

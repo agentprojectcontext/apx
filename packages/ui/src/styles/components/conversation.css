@@ -558,3 +558,21 @@
   gap: 8px;
   padding: 0 4px 2px;
 }
+
+/* A conversation's scroll; the button back to the latest message floats over its end while the reader is up. */
+.apx-stickyscroll {
+  overflow-y: auto;
+}
+.apx-stickyscroll__tobottom {
+  position: sticky;
+  bottom: 12px;
+  height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  pointer-events: none;
+}
+.apx-stickyscroll__tobottom > * {
+  pointer-events: auto;
+  box-shadow: var(--apx-shadow-md);
+}
