@@ -133,6 +133,16 @@ test("parts by name, and memory as macOS and Linux count it", () => {
   const total = 200000 * 16384;
   assert.equal(availableFromVmStat(vmStat, total), (200000 - (50000 - 1000 + 20000 + 10000)) * 16384);
   assert.equal(availableFromVmStat("nothing", total), undefined);
+  // What macOS gives back on demand counts as free (cached files, speculative and purgeable pages); apps' inactive
+  // memory does not, since taking it means compressing them.
+  const busy = [
+    ...vmStat.split("\n"),
+    "Pages inactive:                           40000.",
+    "Pages speculative:                         5000.",
+    "File-backed pages:                        60000.",
+  ].join("\n");
+  assert.equal(availableFromVmStat(busy, total), availableFromVmStat(vmStat, total));
+  assert.ok((availableFromVmStat(busy, total) ?? 0) > 10000 * 16384, "more than the never-used pages alone");
   assert.equal(availableFromMeminfo("MemTotal: 100 kB\nMemAvailable:    2048 kB\n"), 2048 * 1024);
 });
 

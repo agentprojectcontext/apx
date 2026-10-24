@@ -2329,7 +2329,12 @@ guest disk already has, since Lima only grows a disk. The default is a quarter o
 instance gets them as `start` flags), and the disk and host-memory preflights use the same values. A start, the
 owner's or an agent's, is refused while free memory (as the system counts it: `vm_stat` on macOS, `MemAvailable` on
 Linux; `os.freemem()` on macOS counts only never-used pages) is below the VM's memory plus 2 GiB, with a message
-saying both numbers. A watchdog in the core checks every 30 seconds: below 1 GiB free it shuts the VM down, and after
+saying both numbers. On macOS "free" is Activity Monitor's complement of memory used: total minus app memory
+(anonymous pages less purgeable ones), wired and compressed memory. So never-used pages, cached files (inactive and
+speculative file pages) and purgeable memory count as free, since macOS gives them back on demand; inactive memory of
+apps does not, since taking it means compressing or swapping them (the kernel's `memorystatus_level` counts that too
+and would promise RAM a VM cannot get without memory pressure). The refusal carries the numbers and the VM memory that
+would start now, which the panel offers to lower to. A watchdog in the core checks every 30 seconds: below 1 GiB free it shuts the VM down, and after
 the owner's idle minutes (30 by default, 0 for never) without a working run in its chat, a viewer or a guest call, and
 with the agent in control, it shuts it down too. Either way the disk is kept, the reason is kept for the panel
 (`last_stop`) and the owner is told in the chat and the tray. The stop threshold is below the start reserve, so a
