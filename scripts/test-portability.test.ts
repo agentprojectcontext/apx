@@ -59,6 +59,10 @@ test("product: path prefixes and process.exit are found; their own homes and lit
 test("a marked exception passes, on its line or the line above", () => {
   assert.deepEqual(rules(PRODUCT, "process.exit(2); // portable: no handle is open before the arguments parse"), []);
   assert.deepEqual(rules(PRODUCT, "// portable: the askpass child has nothing open\nprocess.exit(1);"), []);
+  // A real-time window is never excused by a comment: only injected timers make it pass.
+  assert.deepEqual(rules(TEST, "// portable: 1 ms is shorter than any start\nawait probe({ timeoutMs: 1 });"), [
+    "short-window",
+  ]);
 });
 
 test("the allowlist only shrinks: a new hit fails, and so does an allowance no file needs any more", () => {

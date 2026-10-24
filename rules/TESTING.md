@@ -81,9 +81,10 @@ class, not the instance.
 counted per file and rule in `scripts/test-portability-allowlist.json`; a new hit fails, and so does an allowance
 a file no longer needs. To shrink it, migrate a file, then run `node scripts/test-quality.ts --shrink`: it lowers
 the counts to what is left and never adds one. A deliberate exception carries `// portable: <why>` on its line or
-the line above; review reads that reason.
+the line above, and review reads that reason; a real-time window under 2 s has none: inject the clock, or the
+runner that would time out.
 
-## 1. Build / typecheck## 1. Build / typecheck
+## 1. Build / typecheck
 ```bash
 pnpm typecheck                     # tsc (TS 7) in every package
 pnpm --filter @apx/web build       # Vite production build

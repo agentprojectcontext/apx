@@ -1,7 +1,7 @@
 // AST lint for AGENTS.md rule 26 (portable tests): what made tests pass on one system and fail on another. Today's
 // hits are in test-portability-allowlist.json as counts per file and rule; the gate fails on a new hit and on an
-// allowance a file no longer needs, so the list only shrinks. A deliberate exception carries `// portable: <why>`
-// on its line or the line above.
+// allowance a file no longer needs, so the list only shrinks. A deliberate exception (never a short real-time
+// window) carries `// portable: <why>` on its line or the line above.
 import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript-parser";
@@ -105,7 +105,9 @@ export function scanPortability(file: string, text: string, kind = portabilityKi
   const add = (node: ts.Node, rule: PortabilityRule) => {
     if (HOMES[rule]?.test(file)) return;
     const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line;
-    if (/\/\/ portable:/.test(lines[line] ?? "") || /^\s*\/\/ portable:/.test(lines[line - 1] ?? "")) return;
+    // A real-time window has no good reason: no comment excuses it, only injected timers do.
+    const marked = /\/\/ portable:/.test(lines[line] ?? "") || /^\s*\/\/ portable:/.test(lines[line - 1] ?? "");
+    if (marked && rule !== "short-window") return;
     findings.push({ file, line: line + 1, rule, reason: REASONS[rule] });
   };
   const visit = (node: ts.Node) => {
