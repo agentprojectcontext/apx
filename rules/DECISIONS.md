@@ -2207,7 +2207,8 @@ change the owner's settings from there (D-140), and an owner's late answer to it
 channel other than Telegram lose their buttons and say to answer in the app; a supervised contact's draft, a request
 from a stranger and a news button are decided in the app. The unverified words sit in the owner's chat as outside
 content, so that chat's next turns see outside content in their context (rule 10) until it leaves the window. Each
-relayed message still starts a new spend window for the breaker (D-080), as the owner's own words did, so the check
-and its answer never pile up into a pause. "Pará" still stops a running turn from any channel: stopping acts for
+relayed message still starts a new spend window for the breaker (D-080), as the owner's own words did: it opens at the
+answer turn, which stands for the owner's own and is not counted, so the check and its answer never pile up into a
+pause. "Pará" still stops a running turn from any channel: stopping acts for
 nobody. Steering a running turn and interrupting it are Telegram's and the app's. A public room the owner speaks in
 stays sealed as before (its turns have no owner tools).

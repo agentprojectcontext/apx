@@ -60,8 +60,6 @@ export function relayOwnerWords(
     });
     store.threads.patch(w.threadId, { preview: previewOf(w.text) });
     store.threads.mergeContext(w.threadId, { reply_to });
-    // What agents spend on it is counted from these words, as from the owner's own (engine/breaker.ts).
-    store.threads.mergeContext(tree(store, w.threadId)[0] ?? w.threadId, { budget_from: new Date().toISOString() });
     const checker = boss.name;
     store.modelLog.append(w.threadId, undefined, [
       { role: "user", content: words },
@@ -120,7 +118,7 @@ export function relayEnded(store: Store, admit: AdmitFn, run: RunRecord): void {
   const check = store.threads.context(run.thread_id).owner_check;
   if (!check || !store.threads.get(check.thread)) return;
   const name = store.agents.get(run.agent_id)?.name ?? run.agent_id;
-  admit({
+  const turn = admit({
     thread_id: check.thread,
     agent_id: check.agent_id,
     trigger: "a2a_result",
@@ -137,4 +135,8 @@ export function relayEnded(store: Store, admit: AdmitFn, run: RunRecord): void {
     text: answerOf(store, run) ?? run.error ?? `(${run.state}, no answer)`,
     reply_to: check.reply_to,
   });
+  // This turn stands for the owner's own, which never counted as unattended: what agents spend is counted after it,
+  // so neither the check nor this answer piles up into a pause (engine/breaker.ts). A new run's started_at is when it
+  // was created, the time the breaker compares.
+  store.threads.mergeContext(tree(store, check.thread)[0] ?? check.thread, { budget_from: turn.started_at });
 }

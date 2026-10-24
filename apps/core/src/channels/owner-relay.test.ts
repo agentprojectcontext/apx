@@ -170,7 +170,8 @@ test("on Telegram an ordinary card still has buttons, and the owner's press appr
 });
 
 test("each message off Telegram starts a new spend window, as the owner's own did", async () => {
-  await env.client.call("agents.set_limits", { runs: 2, tokens: 0 });
+  // One unattended turn is already a pause: neither the check nor its answer may count, as the owner's own turn did not.
+  await env.client.call("agents.set_limits", { runs: 1, tokens: 0 });
   try {
     for (const n of [1, 2, 3]) {
       const before_ = ntfy.published().length;
@@ -184,8 +185,8 @@ test("each message off Telegram starts a new spend window, as the owner's own di
         `answer ${n}`,
       );
       await env.settle("home");
+      assert.equal(trip(env.core.store, "home"), undefined, `no pause after message ${n}`);
     }
-    assert.equal(trip(env.core.store, "home"), undefined, "the check and its answer never pile up into a pause");
   } finally {
     await env.client.call("agents.set_limits", { runs: 30, tokens: 1_500_000 });
   }
