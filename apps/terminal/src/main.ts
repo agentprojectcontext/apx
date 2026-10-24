@@ -265,6 +265,7 @@ try {
   parsed = argumentsOf();
 } catch (err) {
   console.error(failure("Invalid arguments", [err instanceof Error ? err.message : String(err), "Try: apx --help"]));
+  // portable: nothing has opened a handle yet, and nothing after this may run.
   process.exit(2);
 }
 const { values, positionals } = parsed;
