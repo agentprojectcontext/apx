@@ -15,7 +15,7 @@ export function ContextChip({
   spent,
 }: {
   context: { used: number; window?: number } | undefined;
-  spent: { input: number; output: number } | undefined;
+  spent: { input: number; output: number; cached: number } | undefined;
 }) {
   const t = useT();
   const open = useNav((s) => s.panel === "usage");
@@ -25,7 +25,9 @@ export function ContextChip({
       ? t("composer.contextOf", { used: k(context.used), window: k(context.window) })
       : t("composer.contextUsed", { used: k(context.used) })
     : spent != null
-      ? t("composer.spent", { input: k(spent.input), output: k(spent.output) })
+      ? spent.cached
+        ? t("composer.spentCached", { input: k(spent.input), output: k(spent.output), cached: k(spent.cached) })
+        : t("composer.spent", { input: k(spent.input), output: k(spent.output) })
       : t("panel.usage");
   return (
     <Tooltip content={label} side="top">

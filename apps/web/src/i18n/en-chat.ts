@@ -50,6 +50,8 @@ export const enChat = {
   "composer.backToAgentModel": "Back to the agent's",
   "composer.contextOf": "{used} of {window} context used",
   "composer.spent": "In this chat: {input} tokens read (input), {output} written (output)",
+  "composer.spentCached":
+    "In this chat: {input} tokens read (input, {cached} of them from the cache), {output} written (output)",
   "composer.contextUsed": "{used} of context used",
   "usage.context": "{used} of {window} context",
   "usage.empty": "No usage yet",
@@ -64,6 +66,8 @@ export const enChat = {
   "usage.tokens": "Tokens",
   "usage.tokensValue": "{input} in · {output} out",
   "usage.noTokens": "No data from the provider",
+  "usage.cached": "Cached input",
+  "usage.cachedValue": "{cached} of the {input} in",
   "usage.recent": "Latest runs",
   "usage.aux": "Auxiliary model",
   "usage.auxValue": "{tokens} · {purposes}",

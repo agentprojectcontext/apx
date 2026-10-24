@@ -9,14 +9,18 @@ export function contextOf(runs: readonly Run[]): { used: number; window?: number
   return last?.usage?.context ? { used: last.usage.context, window: last.usage.window } : undefined;
 }
 
-/** Tokens this chat has spent, read and written, over every run that reported them; undefined when none did. */
-export function spentOf(runs: readonly Run[]): { input: number; output: number } | undefined {
-  const reported = runs.filter((r) => r.usage);
-  if (!reported.length) return undefined;
-  return reported.reduce(
-    (n, r) => ({ input: n.input + (r.usage?.input ?? 0), output: n.output + (r.usage?.output ?? 0) }),
-    { input: 0, output: 0 },
-  );
+/** Tokens this chat has spent, from the core's totals over all its runs; undefined when none reported any. */
+export function spentOf(
+  totals: { input: number; output: number; cached: number } | undefined,
+): { input: number; output: number; cached: number } | undefined {
+  return totals && totals.input + totals.output ? totals : undefined;
+}
+
+/** Changes when a loaded run of the chat starts or ends: the core's totals are asked again then, not per render. */
+export function usageStamp(runs: readonly Run[]): string {
+  const ended = runs.filter((r) => r.ended_at);
+  const newest = ended.reduce((at, r) => ((r.ended_at ?? "") > at ? (r.ended_at ?? "") : at), "");
+  return `${runs.length}:${ended.length}:${newest}`;
 }
 
 /** Token counts read the same in every language: "38k", "1.0M". */

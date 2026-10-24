@@ -802,12 +802,23 @@ export const appMethods = {
   /**
    * Tokens and turns by model since a date. `billing`: included = the owner's subscription (Claude Code, Codex, an
    * ACP agent); metered = a provider's API, paid per token. `aux`: the auxiliary model's calls outside any turn
-   * (always metered). With `thread`, only that chat's, all it kept.
+   * (always metered). With `thread`, only that chat's, all it kept, and `totals` over every run of it (`seconds` at
+   * work; `cached` prompt tokens are counted inside `input`).
    */
   "usage.summary": {
     params: z.object({ since: z.string().optional(), project: Id.optional(), thread: Id.optional() }).strict(),
     result: z.object({
       since: z.string(),
+      totals: z
+        .object({
+          runs: z.number().int(),
+          failed: z.number().int(),
+          seconds: z.number(),
+          input: z.number().int(),
+          output: z.number().int(),
+          cached: z.number().int(),
+        })
+        .optional(),
       models: z.array(
         z.object({
           model: z.string(),
