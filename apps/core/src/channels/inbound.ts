@@ -15,7 +15,7 @@ import { newsAction } from "../news/entries.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
-import { untrusted } from "../tools/result.ts";
+import { inlineName, untrusted } from "../tools/result.ts";
 import { asksSomething, asksToStop, needsNoAnswer, reactionFor } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
 import { type Held, waitsForHours } from "./held.ts";
@@ -145,7 +145,9 @@ export function createInbound(deps: {
       // A sticker is kept for good the moment it arrives, and read as what it means (a silenced contact's unnamed).
       if (file.sticker) {
         const s = await deps.stickers.keep(cfg.type, file, thread.id, owner || !person.muted);
-        text = `${text}\n[sticker${s?.adult ? " (18+)" : ""}${s?.meaning ? `: ${s.meaning}` : ""}]`.trim();
+        const said = `[sticker${s?.adult ? " (18+)" : ""}${s?.meaning ? `: ${inlineName(s.meaning, 160)}` : ""}]`;
+        // A model wrote its meaning from a picture someone sent: outside text, even in the owner's turn.
+        text = `${text}\n${s?.meaning ? untrusted("sticker", { named_by: "a model that saw it" }, said) : said}`.trim();
       }
     }
     // A silenced contact keeps its files without transcription, a model call or a work-folder copy.

@@ -354,7 +354,9 @@ export function turnInput(opts: {
       ? `[channel turn] ${ownerChannelNote(channel)}`
       : "",
     opts.voice ? `[voice] ${VOICE_STYLE}` : "",
-    opts.stickers?.length ? `[stickers] ${STICKER_NOTE} ${opts.stickers.join("; ")}` : "",
+    opts.stickers?.length
+      ? `[stickers] ${STICKER_NOTE}\n${untrusted("sticker_meanings", { named_by: "a model, from pictures people sent" }, opts.stickers.map((s) => inlineName(s, 160)).join("; "))}`
+      : "",
     opts.mode ? `[mode] ${opts.mode}` : "",
     opts.workspace ? `[workspace] ${opts.workspace}` : "",
     opts.release ? `[release notes] ${opts.release}` : "",

@@ -10,6 +10,7 @@ import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { saveUpload } from "../services/uploads.ts";
+import { inlineName } from "../tools/result.ts";
 import { channelTexts } from "./texts.ts";
 import type { InboundFile } from "./types.ts";
 
@@ -102,7 +103,7 @@ export function createStickers(deps: {
       const adult = /^\W*\[18\+\]/.test(meaning ?? "");
       const saw = meaning?.replace(/^\W*\[18\+\]/, "").replace(/^["'«\s]+|["'».\s]+$/g, "");
       // An animated sticker (or no model that reads images): what the platform says it stands for.
-      const words = saw || s.hint;
+      const words = saw || s.hint ? inlineName(saw || s.hint || "", 160) : undefined;
       if (words) store.stickers.describe(s.id, words);
       // Only a sticker a model saw, and not for adults, goes out without the owner's OK, and only if they let it.
       const waits = adult || !saw || !autoApproves(store);
