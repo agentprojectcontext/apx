@@ -5,7 +5,7 @@ import { AgentAvatar, Button, EmptyState, Icons } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { data, useData } from "../data/state.ts";
-import { useT } from "../i18n/index.ts";
+import { usePack, useT } from "../i18n/index.ts";
 import { useVmDisplay } from "../panel/useVmDisplay.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { computersOf } from "./summary.ts";
@@ -146,7 +146,7 @@ function Large({
 }
 
 /** Every agent screen in use, as a wall; one opens large. With none, whether the computer is off or idle. */
-export function ComputersScreen() {
+function ComputersScreenBody() {
   const t = useT();
   const mode = useNav((s) => s.mode);
   const { status, usage, error, setError, refresh } = useComputerStatus();
@@ -222,4 +222,9 @@ export function ComputersScreen() {
       )}
     </section>
   );
+}
+
+/** Shown once its strings are loaded: they come with it, not with the first screen. */
+export function ComputersScreen() {
+  return usePack("computer") ? <ComputersScreenBody /> : null;
 }

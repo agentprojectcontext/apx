@@ -1,8 +1,16 @@
 // Tiny i18n: English keys and text, translations per language, the language chosen per device. Only the language
 // on screen is loaded (messages.ts); switching loads the other one, then the panel re-renders in it.
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { prefs, usePrefs } from "../data/prefs.ts";
-import { type Language, LOCALES, loadMessages, type MessageKey, type Messages } from "./messages.ts";
+import {
+  type Language,
+  LOCALES,
+  loadMessages,
+  loadPack,
+  type MessageKey,
+  type Messages,
+  type Pack,
+} from "./messages.ts";
 
 export type { Language, MessageKey } from "./messages.ts";
 export { isLanguage, LANGUAGE_NAMES, LANGUAGES, LOCALES } from "./messages.ts";
@@ -11,15 +19,28 @@ export { isLanguage, LANGUAGE_NAMES, LANGUAGES, LOCALES } from "./messages.ts";
 export type Vars = Record<string, string | number>;
 export type T = (key: MessageKey, vars?: Vars) => string;
 
-let shown: { lang: Language; messages: Messages } | undefined;
+let shown: { lang: Language; messages: Messages; packs: ReadonlySet<Pack> } | undefined;
 const listeners = new Set<() => void>();
 let wanted: Language | undefined;
+/** Packs a screen asked for: a language switch loads them again with the language. */
+const asked = new Set<Pack>();
 
 async function show(lang: Language): Promise<void> {
   wanted = lang;
-  const messages = await loadMessages(lang);
+  const packs = [...asked];
+  const [messages, ...extra] = await Promise.all([loadMessages(lang), ...packs.map((p) => loadPack(p, lang))]);
   if (wanted !== lang) return;
-  shown = { lang, messages };
+  shown = { lang, messages: Object.assign({}, messages, ...extra), packs: new Set(packs) };
+  for (const l of listeners) l();
+}
+
+async function addPack(pack: Pack): Promise<void> {
+  asked.add(pack);
+  const lang = shown?.lang;
+  if (!lang || shown?.packs.has(pack)) return;
+  const messages = await loadPack(pack, lang);
+  if (shown?.lang !== lang || shown.packs.has(pack)) return;
+  shown = { lang, messages: { ...shown.messages, ...messages }, packs: new Set([...shown.packs, pack]) };
   for (const l of listeners) l();
 }
 
@@ -59,6 +80,16 @@ function useShown(): typeof shown {
 export function useT(): T {
   const cur = useShown();
   return useCallback((key, vars) => fill(cur?.messages[key] ?? key, vars), [cur]);
+}
+
+/** Loads a screen's own strings with it; false until they are there, so it never shows a bare key. */
+export function usePack(pack: Pack): boolean {
+  const cur = useShown();
+  const ready = Boolean(cur?.packs.has(pack));
+  useEffect(() => {
+    if (!ready) void addPack(pack);
+  }, [pack, ready]);
+  return ready;
 }
 
 /** The language on screen (it follows the preference once its texts are loaded). */

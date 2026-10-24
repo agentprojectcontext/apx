@@ -18,6 +18,19 @@ export function loadMessages(lang: Language): Promise<Messages> {
   return LOADERS[lang]();
 }
 
+/** Strings only one late screen shows: loaded with it (index.ts usePack), never with the first screen. */
+const PACKS = {
+  computer: {
+    en: () => import("./computer-en.ts").then((m) => m.enComputer),
+    es: () => import("./computer-es.ts").then((m) => m.esComputer),
+  },
+} satisfies Record<string, Record<Language, () => Promise<Messages>>>;
+export type Pack = keyof typeof PACKS;
+
+export function loadPack(pack: Pack, lang: Language): Promise<Messages> {
+  return PACKS[pack][lang]();
+}
+
 /** Each language named in itself, for the pickers. */
 export const LANGUAGE_NAMES: Record<Language, string> = { en: "English", es: "Español" };
 

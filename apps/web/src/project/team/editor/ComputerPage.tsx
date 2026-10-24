@@ -4,10 +4,10 @@ import { useState } from "react";
 import { computersOf } from "../../../computers/summary.ts";
 import { client } from "../../../data/client.ts";
 import { data } from "../../../data/state.ts";
-import { useT } from "../../../i18n/index.ts";
+import { usePack, useT } from "../../../i18n/index.ts";
 
 /** Whether the agent may use the isolated Linux computer: off until the owner turns it on, applied at once. */
-export function ComputerPage({
+function ComputerPageBody({
   agent,
   grants,
   onChanged,
@@ -51,4 +51,9 @@ export function ComputerPage({
       )}
     </>
   );
+}
+
+/** Shown once its strings are loaded: they come with it, not with the editor. */
+export function ComputerPage(props: Parameters<typeof ComputerPageBody>[0]) {
+  return usePack("computer") ? <ComputerPageBody {...props} /> : null;
 }

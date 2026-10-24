@@ -1,6 +1,6 @@
 import { IconButton, Icons, Select } from "@apx/ui";
 import { useState } from "react";
-import { useT } from "../i18n/index.ts";
+import { usePack, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ComputerConsole } from "./ComputerConsole.tsx";
 import { ComputerSettings } from "./ComputerSettings.tsx";
@@ -10,7 +10,7 @@ import { useVmDisplay } from "./useVmDisplay.ts";
 import "../styles/computer.css";
 
 /** The shared computer: the chat agent's screen (or another one picked), its lease, and setup when it is off. */
-export function ComputerPanel() {
+function ComputerPanelBody() {
   const t = useT();
   const thread = useNav((s) => s.threadId);
   const wide = useNav((s) => s.panelWide);
@@ -186,4 +186,9 @@ export function ComputerPanel() {
       )}
     </div>
   );
+}
+
+/** Shown once its strings are loaded: they come with it, not with the first screen. */
+export function ComputerPanel() {
+  return usePack("computer") ? <ComputerPanelBody /> : null;
 }

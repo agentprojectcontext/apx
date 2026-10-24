@@ -170,9 +170,6 @@ export const enTeam = {
   "agentedit.page.grantedSub": "What you picked “Always” for when approving in a chat. It runs without asking.",
   "agentedit.page.computer": "Computer",
   "agentedit.page.computerSub": "Whether it may use an isolated Linux computer.",
-  "agentedit.computer": "Isolated computer",
-  "agentedit.computerHint":
-    "Lets this agent start, use and stop its own Linux computer, apart from this Mac: its shell and browser run there in the chat you give the computer. Off for every agent until you turn it on.",
   "agentedit.page.browser": "Browser",
   "agentedit.page.browserSub": "Which profile it opens web pages with.",
   "agentedit.page.profile": "Profile",
