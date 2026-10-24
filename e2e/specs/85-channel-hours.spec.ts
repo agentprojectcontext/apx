@@ -49,7 +49,8 @@ test("attention hours: set in the channel's settings, a contact waits outside th
     .getByRole("button", { name: /Northwind Buyer/ })
     .first()
     .click();
-  await expect(page.getByRole("main").getByText("are you open today?")).toBeVisible();
+  // In the chat itself: the row's preview shows the same words once the list catches up.
+  await expect(page.getByRole("region", { name: buyer.name }).getByText("are you open today?")).toBeVisible();
   expect((await world.sentTo(buyer.id)).length).toBe(1);
   expect(await world.llmCalls()).toBe(calls);
 
