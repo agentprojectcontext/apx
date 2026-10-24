@@ -131,21 +131,6 @@ function scheduleRefetch(): void {
   }, 300);
 }
 
-/** How long a chat shows the computer ready before the chip goes. */
-const READY_SHOWN_MS = 4000;
-
-/** A chat waiting on the computer shows how far it got; ready shows a moment, a failure is the agent's to tell. */
-export function computerProgress(thread: string, stage: "creating" | "loading" | "ready" | "failed"): void {
-  data.set((s) => {
-    const { [thread]: _was, ...rest } = s.computerProgress;
-    return { computerProgress: stage === "failed" ? rest : { ...rest, [thread]: stage } };
-  });
-  if (stage === "ready")
-    setTimeout(() => {
-      if (data.get().computerProgress[thread] === "ready") computerProgress(thread, "failed");
-    }, READY_SHOWN_MS);
-}
-
 function apply(ev: CoreEvent): void {
   switch (ev.type) {
     case "thread.updated":
@@ -237,7 +222,7 @@ function apply(ev: CoreEvent): void {
       data.set({ tabs: ev.tabs });
       return;
     case "computer.progress":
-      computerProgress(ev.thread_id, ev.stage);
+      data.set((s) => ({ computerProgress: { ...s.computerProgress, [ev.thread_id]: ev.stage } }));
       return;
   }
 }

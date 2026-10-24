@@ -1,6 +1,11 @@
 import "../styles/computer.css";
 import { Icons } from "@apx/ui";
+import { useEffect } from "react";
+import { data } from "../data/state.ts";
 import { usePack, useT } from "../i18n/index.ts";
+
+/** How long a chat shows the computer ready before the chip goes. */
+const READY_SHOWN_MS = 4000;
 
 export type ComputerStage = "creating" | "loading" | "ready";
 
@@ -16,6 +21,19 @@ function ComputerProgressBody({ stage }: { stage: ComputerStage }) {
 }
 
 /** Its strings come with the computer's pack, loaded only when a chat waits on it. */
-export function ComputerProgress(props: { stage: ComputerStage }) {
-  return usePack("computer") ? <ComputerProgressBody {...props} /> : null;
+export function ComputerProgress(props: { stage: ComputerStage; thread: string }) {
+  const { stage, thread } = props;
+  // Ready shows a moment, then the chat is clear again.
+  useEffect(() => {
+    if (stage !== "ready") return;
+    const timer = setTimeout(() => {
+      data.set((s) => {
+        if (s.computerProgress[thread] !== "ready") return s;
+        const { [thread]: _done, ...rest } = s.computerProgress;
+        return { computerProgress: rest };
+      });
+    }, READY_SHOWN_MS);
+    return () => clearTimeout(timer);
+  }, [stage, thread]);
+  return usePack("computer") ? <ComputerProgressBody stage={stage} /> : null;
 }

@@ -131,9 +131,9 @@ export function ChatView({
         </div>
       ) : (
         <>
-          {computerStage && (
+          {computerStage && computerStage !== "failed" && (
             <Suspense fallback={null}>
-              <ComputerProgress stage={computerStage} />
+              <ComputerProgress stage={computerStage} thread={thread.id} />
             </Suspense>
           )}
           <ChatComposer key={thread.id} thread={thread} agent={agent} />
