@@ -112,7 +112,8 @@ async function releaseFeed(o: { corrupt?: boolean } = {}) {
   fs.mkdirSync(path.join(src, "apx", "node", "bin"), { recursive: true });
   fs.writeFileSync(path.join(src, "apx", "node", "bin", "node"), "new");
   const name = "apx-core-2.1.0-linux-x64.tar.gz";
-  execFileSync("tar", ["-czf", path.join(src, name), "-C", src, "apx"]);
+  // Relative paths: Git's tar on Windows reads "C:" in a path as a remote host.
+  execFileSync("tar", ["-czf", name, "apx"], { cwd: src });
   const tarball = fs.readFileSync(path.join(src, name));
   const digest = createHash("sha256")
     .update(o.corrupt ? "something else" : tarball)
