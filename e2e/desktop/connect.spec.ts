@@ -6,6 +6,7 @@ import path from "node:path";
 import { _electron, type ElectronApplication, expect, type Page, test } from "@playwright/test";
 import { testConfig } from "../../apps/core/src/config.ts";
 import { createCore } from "../../apps/core/src/server.ts";
+import { tempDir } from "../../apps/core/src/testkit/platform.ts";
 import { saveLocalTarget } from "../../packages/install/src/paths.ts";
 import { installFakeSsh } from "../fake-ssh.ts";
 import { rpc, world } from "../specs/kit.ts";
@@ -43,6 +44,7 @@ echo "$*" >> "$state/calls"
 case " $* " in *" -V "*) echo "OpenSSH_9.6p1, fake" >&2; exit 0 ;; esac
 case "$*" in
   *BatchMode=yes*)
+    if [ -f "$state/down" ]; then echo "ssh: connect to host box port 22: Connection refused" >&2; exit 255; fi
     if [ -f "$state/authorized" ]; then
       case " $* " in *" -N "*) exec "$FAKE_SSH_NODE" "$FAKE_SSH_STATE/proxy.mjs" "$@" ;; esac
       exit 0
@@ -55,6 +57,14 @@ answer=$("$SSH_ASKPASS" "ops@box's password: ") || exit 255
 touch "$state/authorized"
 echo APX_KEY_OK
 `;
+
+async function freePort(): Promise<number> {
+  const listener = net.createServer();
+  await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve));
+  const port = (listener.address() as AddressInfo).port;
+  await new Promise<void>((resolve) => listener.close(() => resolve()));
+  return port;
+}
 
 /** The intro holds the hero alone for a moment; a key skips straight to the question. */
 async function question(page: Page): Promise<Page> {
@@ -382,4 +392,112 @@ test("a local port belonging to another home is not adopted", async () => {
     await app.close();
   }
   expect((await fetch(`${core}/health`)).ok).toBe(true);
+});
+
+/**
+ * A desktop that already chose a server over SSH (the fake ssh, already logged in), and that server's APX: its own
+ * core on another port, started and stopped by the test as an update would.
+ */
+async function sshClient(name: string) {
+  const temp = tempDir(`apx-e2e-${name}-`);
+  const state = temp.path;
+  const dataDir = path.join(home, `${name}-desktop`);
+  const remoteHome = path.join(home, `${name}-core`);
+  const [remotePort, localPort] = [await freePort(), await freePort()];
+  installFakeSsh(state, FAKE_SSH);
+  fs.writeFileSync(path.join(state, "authorized"), "");
+  fs.mkdirSync(dataDir, { recursive: true });
+  fs.writeFileSync(path.join(dataDir, "connection.json"), JSON.stringify({ mode: "ssh", target: "ops@box" }));
+  let remote: Awaited<ReturnType<typeof createCore>> | undefined;
+  let app: ElectronApplication | undefined;
+  return {
+    state,
+    panelUrl: `http://127.0.0.1:${localPort}`,
+    launch: async () => {
+      app = await launch({
+        PATH: `${state}${path.delimiter}${process.env.PATH ?? ""}`,
+        FAKE_SSH_STATE: state,
+        FAKE_SSH_NODE: process.execPath,
+        FAKE_SSH_CORE_PORT: String(remotePort),
+        APX_DESKTOP_DATA: dataDir,
+        APX_PORT: String(localPort),
+      });
+      return app;
+    },
+    serverUp: async () => {
+      remote = await createCore(
+        testConfig({ home: remoteHome, port: remotePort, webDist: path.join(root, "apps/web/dist") }),
+        { quiet: true },
+      );
+    },
+    serverDown: async () => {
+      await remote?.close();
+      remote = undefined;
+    },
+    close: async () => {
+      await app?.close();
+      await remote?.close();
+      await temp.remove();
+    },
+  };
+}
+
+test("an SSH client waits for its server to come back after an update, then opens the panel by itself", async () => {
+  const client = await sshClient("ssh-back");
+  // The server is still restarting: ssh cannot log in yet.
+  fs.writeFileSync(path.join(client.state, "down"), "");
+  try {
+    const app = await client.launch();
+    const waiting = await windowAt(app, (u) => u.includes("#apx-connecting"));
+    await expect(waiting.locator("body")).toContainText("ops@box");
+    await expect(waiting.locator("body")).toContainText("Connection refused");
+    // Logged in again, but the server's APX is not answering yet: still waiting, never the final error.
+    fs.rmSync(path.join(client.state, "down"));
+    await expect(waiting.locator("body")).toContainText(/SSH (connection is up|está lista)/);
+    expect(app.windows().some((p) => p.url().includes("#apx-unreachable"))).toBe(false);
+    await client.serverUp();
+    const panel = await windowAt(app, (u) => u.startsWith(client.panelUrl));
+    await expect(panel.locator("#root > *").first()).toBeVisible();
+  } finally {
+    await client.close();
+  }
+});
+
+test("a panel that reloads while its SSH server restarts waits for it instead of going blank", async () => {
+  const client = await sshClient("ssh-reload");
+  try {
+    await client.serverUp();
+    const app = await client.launch();
+    const panel = await windowAt(app, (u) => u.startsWith(client.panelUrl));
+    await expect(panel.locator("#root > *").first()).toBeVisible();
+    // The update restarts the server's APX, and the panel reloads for its new build meanwhile.
+    await client.serverDown();
+    await panel.evaluate(() => window.location.reload()).catch(() => {});
+    await windowAt(app, (u) => u.includes("#apx-connecting"));
+    await client.serverUp();
+    const back = await windowAt(app, (u) => u.startsWith(client.panelUrl));
+    await expect(back.locator("#root > *").first()).toBeVisible();
+  } finally {
+    await client.close();
+  }
+});
+
+test("Change connection back to the same SSH server shows its panel", async () => {
+  const client = await sshClient("ssh-again");
+  try {
+    await client.serverUp();
+    const app = await client.launch();
+    const panel = await windowAt(app, (u) => u.startsWith(client.panelUrl));
+    await expect(panel.locator("#root > *").first()).toBeVisible();
+    await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("change-connection")?.click());
+    const chooser = await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
+    await chooser.locator("#pick-client").click();
+    await chooser.getByRole("radio", { name: "SSH" }).click();
+    await chooser.locator("#ssh").fill("ops@box");
+    await chooser.locator("#client-go").click();
+    const again = await windowAt(app, (u) => u.startsWith(client.panelUrl));
+    await expect(again.locator("#root > *").first()).toBeVisible();
+  } finally {
+    await client.close();
+  }
 });

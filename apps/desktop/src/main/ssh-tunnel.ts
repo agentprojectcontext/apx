@@ -5,7 +5,16 @@ import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import { stripVTControlCharacters } from "node:util";
 
-export type Tunnel = { url: string; ready: Promise<void>; alive(): boolean; stop(): void };
+export type Tunnel = {
+  url: string;
+  ready: Promise<void>;
+  alive(): boolean;
+  /** ssh's last complaint (not its debug lines) since it last forwarded, e.g. a refused connection. */
+  problem(): string | undefined;
+  /** Drops this ssh and starts another at once (a forward that stays up while nothing answers through it). */
+  restart(): void;
+  stop(): void;
+};
 
 let identity: string | undefined;
 
@@ -49,18 +58,23 @@ export function splitTarget(target: string): [string, string | undefined] {
   return [m?.[1] ?? target, m?.[2]];
 }
 
-/** Keeps the forward up (restarted with backoff) until stop(). */
+/**
+ * Keeps the forward up (restarted with backoff) until stop(). `keepTrying`: a first ssh that fails is retried too (a
+ * server still restarting after an update); without it, `ready` rejects (a one-off probe).
+ */
 export function startTunnel(
   target: string,
   corePort: number,
   log: (line: string) => void,
   changed?: (ready: boolean) => void,
   launch = (args: string[]) => spawn("ssh", args, { stdio: ["ignore", "ignore", "pipe"], windowsHide: true }),
+  keepTrying = false,
 ): Tunnel {
   let child: ChildProcess | undefined;
   let stopped = false;
   let forwarding = false;
   let established = false;
+  let problem: string | undefined;
   let backoff = 1000;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let resolveReady: () => void = () => {};
@@ -69,10 +83,14 @@ export function startTunnel(
     resolveReady = resolve;
     rejectReady = reject;
   });
-  const deadline = setTimeout(() => {
-    rejectReady(new Error("SSH forwarding did not become ready"));
-    stop();
-  }, 20_000);
+  // A tunnel nobody awaits (one that keeps trying) never leaves an unhandled rejection behind.
+  ready.catch(() => {});
+  const deadline = keepTrying
+    ? undefined
+    : setTimeout(() => {
+        rejectReady(new Error("SSH forwarding did not become ready"));
+        stop();
+      }, 20_000);
   const start = () => {
     if (stopped) return;
     forwarding = false;
@@ -84,9 +102,16 @@ export function startTunnel(
       const text = d.toString();
       log(text.trim());
       output = (output + text).slice(-8192);
+      const complaint = text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line && !/^debug\d:/.test(line) && !/^(OpenSSH|Authenticated to|Transferred:)/.test(line))
+        .at(-1);
+      if (complaint && !forwarding) problem = complaint.slice(0, 300);
       if (!forwarding && output.includes(`Local forwarding listening on 127.0.0.1 port ${corePort}.`)) {
         forwarding = true;
         established = true;
+        problem = undefined;
         clearTimeout(deadline);
         resolveReady();
         changed?.(true);
@@ -94,6 +119,8 @@ export function startTunnel(
     });
     child.on("error", (err) => {
       log(`ssh: ${err.message}`);
+      problem = `ssh: ${err.message}`;
+      if (keepTrying) return;
       rejectReady(new Error(`SSH forwarding failed: ${err.message}`));
       clearTimeout(deadline);
     });
@@ -102,14 +129,14 @@ export function startTunnel(
       forwarding = false;
       changed?.(false);
       if (stopped) return;
-      if (!wasForwarding && !established) {
+      if (!wasForwarding && !established && !keepTrying) {
         clearTimeout(deadline);
         rejectReady(new Error(`SSH could not bind local port ${corePort} or connect to the server`));
         return;
       }
       if (Date.now() - startedAt > 60_000) backoff = 1000;
       timer = setTimeout(start, backoff);
-      backoff = Math.min(backoff * 2, 30_000);
+      backoff = Math.min(backoff * 2, 10_000);
     });
   };
   const stop = () => {
@@ -126,6 +153,12 @@ export function startTunnel(
     url: `http://127.0.0.1:${corePort}`,
     ready,
     alive: () => forwarding && !stopped,
+    problem: () => (stopped ? undefined : problem),
+    restart: () => {
+      if (stopped || !child || child.exitCode !== null || child.signalCode !== null) return;
+      backoff = 1000;
+      child.kill();
+    },
     stop,
   };
 }

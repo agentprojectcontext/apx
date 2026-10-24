@@ -21,6 +21,7 @@ import {
   verifyLocalCore,
 } from "./connection.ts";
 import { type EmbeddedCore, isUp, startEmbeddedCore, waitUp } from "./core-process.ts";
+import { type Remote, reachRemote } from "./remote-wait.ts";
 import { appKeyPath, askpassSupported, authorizeKey, ensureAppKey, localSshVersion } from "./ssh-login.ts";
 import {
   installArgs,
@@ -57,11 +58,20 @@ export function createConnector(opts: {
   let conn: Connection | undefined = initialConnection(dataDir);
   let core: EmbeddedCore | undefined;
   let tunnel: Tunnel | undefined;
-  let openedSsh = false;
+  // The remote panel (an address or SSH) is on screen: losing its server from here on waits for it again.
+  let openedRemote = false;
   let connectionRevision = 0;
   // ssh's questions waiting for the owner's answer on the first-run screen (never logged, never kept).
   const pending = new Map<string, (answer: string | undefined) => void>();
   useIdentity(appKeyPath(dataDir));
+
+  // The panel reloads itself (a new build after an update, a lazy chunk that failed): with its server away, Chromium
+  // leaves an empty page, so the window waits for the server again instead.
+  opts.panel.on("did-fail-load", (_e, code, _description, url, isMainFrame) => {
+    if (!isMainFrame || code === -3 || !openedRemote) return;
+    if (url.startsWith("data:") || url.startsWith(`${APP_SCHEME}:`)) return;
+    reconnect();
+  });
 
   const onChooser = (sender: WebContents) =>
     sender === opts.panel && sender.getURL().startsWith(`${APP_SCHEME}://app/`);
@@ -303,42 +313,51 @@ export function createConnector(opts: {
     }
     if (connection.mode === "url") {
       // A remote core gets this computer's browser only once the desktop pairs as a node of its own (not yet).
-      const loaded = await load(connection.url, firstRun);
-      if (!current()) return;
-      if (loaded) return opts.opened(connection.url, undefined);
-      return unreachable(connection.url, "");
+      if (!(await wait({ where: connection.url, url: connection.url }, firstRun, current))) return;
+      openedRemote = true;
+      return opts.opened(connection.url, undefined);
     }
     const target = connection.target;
-    tunnel ??= startTunnel(
-      target,
-      corePort,
-      () => {},
-      (ready) => {
-        if (!openedSsh || !current()) return;
-        if (ready) void open();
-        else {
-          opts.disconnected();
-          void unreachable(`${target} (SSH)`, "The SSH tunnel disconnected.");
-        }
-      },
-    );
-    const activeTunnel = tunnel;
-    try {
-      await activeTunnel.ready;
-      if (!current()) return;
-      const up = await waitUp(activeTunnel.url, 20_000);
-      if (!current()) return;
-      if (up && activeTunnel.alive() && (await load(activeTunnel.url, firstRun)) && activeTunnel.alive()) {
-        if (!current()) return;
-        openedSsh = true;
-        return opts.opened(activeTunnel.url, { url: activeTunnel.url, token: undefined });
-      }
-      if (!current()) return;
-      return unreachable(`${target} (SSH)`, "The SSH tunnel is unavailable.");
-    } catch (error) {
-      if (!current()) return;
-      return unreachable(`${target} (SSH)`, error instanceof Error ? error.message : String(error));
+    if (!tunnel) {
+      const started = startTunnel(
+        target,
+        corePort,
+        () => {},
+        (ready) => {
+          if (!ready && tunnel === started && openedRemote) reconnect();
+        },
+        undefined,
+        true,
+      );
+      tunnel = started;
     }
+    const activeTunnel = tunnel;
+    if (!(await wait({ where: `${target} (SSH)`, url: activeTunnel.url, tunnel: activeTunnel }, firstRun, current)))
+      return;
+    openedRemote = true;
+    return opts.opened(activeTunnel.url, { url: activeTunnel.url, token: undefined });
+  }
+
+  /** Waits for a remote APX, saying so on screen, and loads its panel once it answers. */
+  function wait(remote: Remote, firstRun: boolean, current: () => boolean): Promise<boolean> {
+    return reachRemote(remote, {
+      current,
+      isUp,
+      load: (url) => load(url, firstRun),
+      show: (text) => page(text, "apx-connecting", "#1a1a19", "#c8c8c8"),
+      sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+      now: Date.now,
+      es: app.getLocale().startsWith("es"),
+    });
+  }
+
+  /** The remote panel lost its server: the capabilities it was lent go, and the window waits for it again. */
+  function reconnect(): void {
+    if (conn?.mode !== "url" && conn?.mode !== "ssh") return;
+    connectionRevision++;
+    openedRemote = false;
+    opts.disconnected();
+    void open();
   }
 
   async function load(url: string, firstRun = false): Promise<boolean> {
@@ -352,12 +371,18 @@ export function createConnector(opts: {
     }
   }
 
-  async function unreachable(where: string, hint: string): Promise<void> {
-    const text = `APX not reachable at ${where}. ${hint} To pick another APX: APX menu › Change connection.`;
-    const escaped = text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-    await opts.panel.loadURL(
-      `data:text/html;charset=utf-8,${encodeURIComponent(`<body style="font:14px system-ui;padding:24px;color:#555">${escaped}</body>`)}#apx-unreachable`,
+  function unreachable(where: string, hint: string): Promise<void> {
+    return page(
+      `APX not reachable at ${where}. ${hint} To pick another APX: APX menu › Change connection.`,
+      "apx-unreachable",
     );
+  }
+
+  async function page(text: string, id: string, background = "#fff", color = "#555"): Promise<void> {
+    const escaped = text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+    const body = `<body style="font:14px system-ui;padding:48px 24px 24px;margin:0;color:${color};background:${background}">${escaped}</body>`;
+    // A newer page (the panel, the chooser) may replace this one before it finishes loading.
+    await opts.panel.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(body)}#${id}`).catch(() => {});
   }
 
   return {
@@ -369,7 +394,7 @@ export function createConnector(opts: {
     async change(): Promise<void> {
       connectionRevision++;
       opts.disconnected();
-      openedSsh = false;
+      openedRemote = false;
       forgetConnection(dataDir);
       conn = undefined;
       tunnel?.stop();
@@ -379,7 +404,7 @@ export function createConnector(opts: {
     stop(): void {
       connectionRevision++;
       opts.disconnected();
-      openedSsh = false;
+      openedRemote = false;
       void core?.stop();
       tunnel?.stop();
     },
