@@ -71,7 +71,7 @@ test("a Telegram reply that never connected is delivered by the outbox on its ne
   t.after(async () => {
     await env.core.close();
     await tg.close();
-    env.cleanup();
+    await env.cleanup();
   });
   await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
   const owner = env.core.store.persons.owner();

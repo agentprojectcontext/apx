@@ -77,7 +77,7 @@ try {
   fs.mkdirSync(path.dirname(path.resolve(values.out)), { recursive: true });
   fs.writeFileSync(values.out, JSON.stringify(report, null, 2));
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
   fs.rmSync(dir, { recursive: true, force: true });
 }
 console.log(JSON.stringify({ passed: report.passed, api_calls: apiCalls, error: report.error }));

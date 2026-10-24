@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 /** A PNG signature and a few bytes: what an upload checks an image by. */
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
@@ -57,8 +58,8 @@ test("a widget loads its project's media it names, and nothing else", async () =
     await assert.rejects(agent.call("surfaces.media", { surface: w.id, ref: "cover.png" }));
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(repo, { recursive: true, force: true });
-    fs.rmSync(other, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(repo);
+    await removeDir(other);
   }
 });

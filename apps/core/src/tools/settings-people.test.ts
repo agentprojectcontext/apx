@@ -22,7 +22,7 @@ before(async () => {
 after(async () => {
   await h.env.core.close();
   await tg.close();
-  h.env.cleanup();
+  await h.env.cleanup();
 });
 
 const channel = () => h.env.core.store.settings.read("channels").find((c) => c.id === "tg");

@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { UPLOAD_LIMITS } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { removeDir, waitFor } from "../testkit/platform.ts";
 import { fakeWhatsApp } from "./fake-whatsapp.test-support.ts";
 import type { AdapterIO } from "./types.ts";
 import { toWhatsApp, whatsappAdapter } from "./whatsapp.ts";
@@ -25,14 +26,6 @@ const llm = scriptedLlm((_req, { system, said }) =>
 let env: Awaited<ReturnType<typeof startCore>>;
 let wa: ReturnType<typeof fakeWhatsApp>;
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 4000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 20));
-  }
-  throw new Error(`never: ${what}`);
-};
 const channel = async () => (await env.client.call("channels.list", {})).channels.find((c) => c.id === "whatsapp");
 
 before(async () => {
@@ -47,7 +40,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 // The credentials live in the core's own temp home.
 const envDir = () => env.home;
@@ -57,13 +50,13 @@ test("linking the owner's own phone: a QR waits in the app, and once scanned the
     id: "whatsapp",
     channel: { type: "whatsapp", agent_id: "roby", self_owner: true },
   });
-  await until(async () => Boolean((await channel())?.qr), "a QR to scan");
+  await waitFor(async () => Boolean((await channel())?.qr), "a QR to scan");
   const waiting = await channel();
   assert.equal(waiting?.status, "starting");
   assert.equal(waiting?.label, "WhatsApp");
 
   wa.scan();
-  await until(async () => (await channel())?.status === "running", "linked");
+  await waitFor(async () => (await channel())?.status === "running", "linked");
   const linked = await channel();
   assert.equal(linked?.qr, undefined, "the QR is gone once spent");
   assert.equal(linked?.account, "+5491100000001");
@@ -99,22 +92,22 @@ test("codes keep coming for a few rounds while nobody scans, then linking waits 
     signal: ac.signal,
   });
   for (let i = 0; i < 3; i++) {
-    await until(() => codes.length === i + 1, `code ${i + 1}`);
+    await waitFor(() => codes.length === i + 1, `code ${i + 1}`);
     fake.expire();
   }
-  await until(() => codes.length === 4, "a fourth round");
+  await waitFor(() => codes.length === 4, "a fourth round");
   assert.deepEqual(states, [], "still linking");
   fake.expire();
-  await until(() => states.length === 1, "gave up");
+  await waitFor(() => states.length === 1, "gave up");
   assert.match(states[0] ?? "", /^error:.*press Link/);
   await adapter.stop();
-  fs.rmSync(dir, { recursive: true, force: true });
+  await removeDir(dir);
 });
 
 test("the owner talks in 'Message yourself'; the answer comes back there once, its echo never starts a turn", async () => {
   const calls = llm.calls.length;
   wa.fromOwner("what is on today?");
-  await until(() => wa.textsTo(wa.owner).some((t) => t.includes("Got it: what is on today?")), "the answer");
+  await waitFor(() => wa.textsTo(wa.owner).some((t) => t.includes("Got it: what is on today?")), "the answer");
   await new Promise((r) => setTimeout(r, 150));
   assert.equal(llm.calls.length - calls, 1, "one turn: the echo of the answer is not the owner writing");
   const home = await env.client.call("threads.get", { thread: "home" });
@@ -123,7 +116,7 @@ test("the owner talks in 'Message yourself'; the answer comes back there once, i
 
 test("on WhatsApp the owner's turn keeps notes, writes to people and rooms, and hands the rest off", async () => {
   wa.fromOwner("look up the weather in Bariloche");
-  await until(() => wa.textsTo(wa.owner).some((t) => t.includes("Got it: look up the weather")), "the answer");
+  await waitFor(() => wa.textsTo(wa.owner).some((t) => t.includes("Got it: look up the weather")), "the answer");
   const req = llm.calls.at(-1);
   const names = (req?.tools ?? []).map((t) => t.function.name).sort();
   assert.ok(names.includes("delegate") && names.includes("remember"), names.join(", "));
@@ -139,7 +132,10 @@ test("on WhatsApp the owner's turn keeps notes, writes to people and rooms, and 
 test("a stranger gets nothing from the owner's number; approved, they get answers", async () => {
   const calls = llm.calls.length;
   wa.message(ANA, "hi, is this Ana's friend?");
-  await until(async () => (await env.client.call("pairing.list", {})).requests.some((r) => r.name === "Ana"), "listed");
+  await waitFor(
+    async () => (await env.client.call("pairing.list", {})).requests.some((r) => r.name === "Ana"),
+    "listed",
+  );
   await new Promise((r) => setTimeout(r, 100));
   assert.deepEqual(wa.textsTo(ANA.phone), [], "no code, no answer");
   assert.equal(llm.calls.length, calls);
@@ -150,7 +146,7 @@ test("a stranger gets nothing from the owner's number; approved, they get answer
   await env.client.call("pairing.respond", { code, decision: "contact" });
   wa.message(ANA, "are you there?");
   // A contact's words reach the agent marked as untrusted; the scripted answer repeats them.
-  await until(
+  await waitFor(
     () => wa.textsTo(ANA.phone).some((t) => t.startsWith("Got it:") && t.includes("are you there?")),
     "the contact's answer",
   );
@@ -161,12 +157,12 @@ test("what is sent to a contact shows how far it got: sent, then on their phone,
   const ana = threads.find((t) => t.channel?.id === "whatsapp" && t.title === "Ana");
   assert.ok(ana, "Ana's chat");
   const last = async () => (await env.client.call("threads.get", { thread: ana.id })).messages.at(-1);
-  await until(async () => (await last())?.delivery === "sent", "taken by WhatsApp");
+  await waitFor(async () => (await last())?.delivery === "sent", "taken by WhatsApp");
   const out = wa.sent.filter((x) => x.jid === ANA.phone).at(-1);
   wa.receipt(out?.id ?? "", 3);
-  await until(async () => (await last())?.delivery === "delivered", "on their phone");
+  await waitFor(async () => (await last())?.delivery === "delivered", "on their phone");
   wa.receipt(out?.id ?? "", 4);
-  await until(async () => (await last())?.delivery === "read", "read");
+  await waitFor(async () => (await last())?.delivery === "read", "read");
   wa.receipt(out?.id ?? "", 3);
   await new Promise((r) => setTimeout(r, 50));
   assert.equal((await last())?.delivery, "read", "a late receipt never moves it back");
@@ -174,10 +170,10 @@ test("what is sent to a contact shows how far it got: sent, then on their phone,
   // Their emoji on it shows on it, and wakes nobody.
   const calls = llm.calls.length;
   wa.react(ANA, out?.id ?? "", "❤️");
-  await until(async () => (await last())?.reactions?.[0]?.emoji === "❤️", "their reaction");
+  await waitFor(async () => (await last())?.reactions?.[0]?.emoji === "❤️", "their reaction");
   assert.deepEqual((await last())?.reactions, [{ emoji: "❤️", by: "them" }]);
   wa.react(ANA, out?.id ?? "", "");
-  await until(async () => !(await last())?.reactions, "taken off");
+  await waitFor(async () => !(await last())?.reactions, "taken off");
   assert.equal(llm.calls.length, calls, "no model call");
 });
 
@@ -186,7 +182,7 @@ test("who of the contacts is online: asking starts listening, WhatsApp's word fi
   assert.ok(wa.watched.has(ANA.phone), "subscribed to Ana");
   wa.presence(ANA.phone, "available");
   const ana = (await env.client.call("contacts.list", {})).persons.find((p) => p.name === "Ana");
-  await until(
+  await waitFor(
     async () =>
       (await env.client.call("channels.presence", { channel: "whatsapp" })).people.some(
         (p) => p.person_id === ana?.id && p.online,
@@ -194,7 +190,7 @@ test("who of the contacts is online: asking starts listening, WhatsApp's word fi
     "online",
   );
   wa.presence(ANA.phone, "unavailable", 1_790_000_000);
-  await until(async () => {
+  await waitFor(async () => {
     const p = (await env.client.call("channels.presence", { channel: "whatsapp" })).people[0];
     return p?.online === false && p.last_seen === new Date(1_790_000_000_000).toISOString();
   }, "gone, last seen");
@@ -208,7 +204,7 @@ test("a saved contact with no chat yet gets an empty one, and the agent writes t
   assert.equal((await env.client.call("threads.get", { thread: thread.id })).messages.length, 0, "nothing sent yet");
   assert.equal((await env.client.call("channels.open", { person: carla.id, channel: "whatsapp" })).id, thread.id);
   await env.client.call("threads.send", { thread: thread.id, text: "say hi to Carla" });
-  await until(
+  await waitFor(
     () => wa.textsTo("5491100000004@s.whatsapp.net").some((t) => t.includes("say hi to Carla")),
     "the agent's words reach Carla",
   );
@@ -229,7 +225,7 @@ test("a business's verification code (a template with a copy button) is read, no
   });
   const listed = async (name: string) =>
     (await env.client.call("pairing.list", {})).requests.find((r) => r.name === name)?.text;
-  await until(async () => Boolean((await listed("Northwind Auth")) && (await listed("Acme Pay"))), "both listed");
+  await waitFor(async () => Boolean((await listed("Northwind Auth")) && (await listed("Acme Pay"))), "both listed");
   assert.equal(await listed("Northwind Auth"), "*482913* is your verification code.");
   assert.equal(await listed("Acme Pay"), "Acme Pay\nYour code: 771204");
 });
@@ -251,7 +247,7 @@ test("a business's menu, answered with one of its options, goes back as that but
       },
     },
   });
-  await until(() => taps().length === 1, "the agent answers the buttons");
+  await waitFor(() => taps().length === 1, "the agent answers the buttons");
   assert.deepEqual(taps()[0], { buttonReply: { displayText: "Home", id: "home", index: 1 }, type: "plain" });
 
   wa.message(bot, "", {
@@ -270,19 +266,22 @@ test("a business's menu, answered with one of its options, goes back as that but
       },
     },
   });
-  await until(() => taps().length === 2, "the agent answers the list");
+  await waitFor(() => taps().length === 2, "the agent answers the list");
   assert.deepEqual(taps()[1], {
     listReply: { title: "Claims", listType: 1, singleSelectReply: { selectedRowId: "claim" } },
   });
 
   wa.message(bot, "Type your policy number");
-  await until(() => taps().length === 3, "words are answered in words");
+  await waitFor(() => taps().length === 3, "words are answered in words");
   assert.match(String(taps()[2]?.text), /^Got it: .*Type your policy number/s, "no menu left to tap");
 });
 
 test("someone under their private id is the same person as their number", async () => {
   wa.message(BOB, "hello");
-  await until(async () => (await env.client.call("pairing.list", {})).requests.some((r) => r.name === "Bob"), "listed");
+  await waitFor(
+    async () => (await env.client.call("pairing.list", {})).requests.some((r) => r.name === "Bob"),
+    "listed",
+  );
   const req = (await env.client.call("pairing.list", {})).requests.find((r) => r.name === "Bob");
   assert.equal(req?.external_id, BOB.phone);
 });
@@ -292,7 +291,7 @@ test("a contact's sticker is kept as WhatsApp's, and the agent answers with it a
   const WEBP = Buffer.from("UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==", "base64");
   env.core.store.settings.set("model_aux", "openai/gpt-4o-mini");
   wa.message(ANA, "", { content: { stickerMessage: { mimetype: "image/webp" }, bytes: WEBP.toString("base64") } });
-  await until(() => wa.sent.some((x) => x.jid === ANA.phone && x.content.sticker), "a sticker back");
+  await waitFor(() => wa.sent.some((x) => x.jid === ANA.phone && x.content.sticker), "a sticker back");
   const back = wa.sent.findLast((x) => x.jid === ANA.phone && x.content.sticker);
   assert.deepEqual(back?.content.sticker, WEBP);
   assert.deepEqual(
@@ -335,10 +334,10 @@ test("a contact's video, a document of any type and a too-big file: kept to play
     (await env.client.call("threads.get", { thread: thread()?.id ?? "" })).messages.filter(
       (m) => m.author.kind === "person",
     );
-  await until(
+  await waitFor(
     async () => (await theirs()).some((m) => m.parts.some((p) => p.type === "text" && /over 50 MB/.test(p.text))),
     "all three",
-    8000,
+    { ms: 8000 },
   );
   const parts = (await theirs()).flatMap((m) => m.parts);
   const video = parts.find((p) => p.type === "file" && p.mime === "video/mp4");
@@ -352,7 +351,7 @@ test("a contact's video, a document of any type and a too-big file: kept to play
   assert.match(texts, /Me waiting to be added/);
   assert.match(texts, /The app/);
   assert.doesNotMatch(texts, /cannot read this kind/);
-  await until(
+  await waitFor(
     () => llm.calls.some((c) => /\[file attached: video\.mp4 \(video\/mp4\)/.test(String(c.messages.at(-1)?.content))),
     "the agent told a video came",
   );
@@ -368,7 +367,7 @@ test("groups, and the owner writing to a friend on their phone, never reach the 
 
 test("logged out from the phone: the channel says so and keeps no dead credentials", async () => {
   wa.logOut();
-  await until(async () => (await channel())?.status === "error", "the error");
+  await waitFor(async () => (await channel())?.status === "error", "the error");
   assert.match((await channel())?.error ?? "", /link it again/);
   assert.ok(!fs.existsSync(wa.dir));
 });
@@ -378,9 +377,9 @@ test("removing the channel unlinks the device and drops its folder", async () =>
     id: "whatsapp",
     channel: { type: "whatsapp", agent_id: "roby", self_owner: true },
   });
-  await until(async () => Boolean((await channel())?.qr), "a new QR");
+  await waitFor(async () => Boolean((await channel())?.qr), "a new QR");
   wa.scan();
-  await until(async () => (await channel())?.status === "running", "linked again");
+  await waitFor(async () => (await channel())?.status === "running", "linked again");
   await env.client.call("channels.set", { id: "whatsapp", channel: null });
   assert.equal(wa.loggedOut.value, true);
   assert.ok(!fs.existsSync(wa.dir));
@@ -405,7 +404,7 @@ test("adapter: options go out numbered, a number back presses that option; Markd
   };
   io.qr = (code) => code && fake.scan();
   await adapter.start(io);
-  await until(() => linked, "linked");
+  await waitFor(() => linked, "linked");
   await adapter.send(fake.owner, {
     text: "**Allow** the shell?",
     buttons: [
@@ -415,9 +414,9 @@ test("adapter: options go out numbered, a number back presses that option; Markd
   });
   assert.equal(fake.textsTo(fake.owner)[0], "*Allow* the shell?\n\n*1* — Allow\n*2* — Deny");
   fake.fromOwner("2");
-  await until(() => actions.length === 1, "the option");
+  await waitFor(() => actions.length === 1, "the option");
   assert.deepEqual(actions, ["in:1:deny"]);
   assert.equal(toWhatsApp("# Title\n[docs](https://example.com) ~~old~~"), "*Title*\ndocs (https://example.com) ~old~");
   await adapter.stop();
-  fs.rmSync(dir, { recursive: true, force: true });
+  await removeDir(dir);
 });

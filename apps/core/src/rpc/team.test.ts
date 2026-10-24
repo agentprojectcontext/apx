@@ -6,6 +6,7 @@ import { after, before, test } from "node:test";
 import { AGENT_NAMES } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let home = "";
@@ -30,8 +31,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(repo, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(repo);
 });
 
 test("templates: APX's teams with their lead, and single agents from APX and the v1 vault", async () => {

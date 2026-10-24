@@ -10,6 +10,7 @@ import { testConfig } from "../config.ts";
 import { callTool, say, scriptedLlm } from "../engine/testkit.ts";
 import { createCore } from "../server.ts";
 import { reachableAt } from "../server-wiring.ts";
+import { removeDir, waitFor } from "../testkit/platform.ts";
 
 // The smallest bytes a JPEG check accepts: its magic and an end marker.
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9]);
@@ -57,7 +58,7 @@ after(async () => {
   phone?.close();
   await core.close();
   await new Promise<void>((r) => expo.close(() => r()));
-  fs.rmSync(home, { recursive: true, force: true });
+  await removeDir(home);
 });
 
 async function settle(thread: string) {
@@ -143,7 +144,7 @@ test("a device sets its own push; notices then reach the phone instead of a chan
     enabled: true,
   });
   await owner.call("routines.run", { routine: r.id });
-  for (let i = 0; i < 100 && !pushes.length; i++) await new Promise((res) => setTimeout(res, 20));
+  await waitFor(() => pushes.length, "a push");
   assert.equal(pushes[0]?.to, "ExponentPushToken[abc123]");
   assert.match(String(pushes[0]?.body), /Hola desde la rutina/);
 });

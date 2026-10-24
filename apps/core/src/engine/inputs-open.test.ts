@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { removeDir } from "../testkit/platform.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
 const WIDGET = { name: "w-late", title: "Late", html: "<b>late</b>" };
@@ -37,8 +38,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(root, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(root);
 });
 
 const newThread = (agent: string) => env.client.call("threads.create", { kind: "agent", agent_id: agent });

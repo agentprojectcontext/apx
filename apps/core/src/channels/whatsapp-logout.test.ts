@@ -4,18 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { removeDir, waitFor } from "../testkit/platform.ts";
 import { fakeWhatsApp } from "./fake-whatsapp.test-support.ts";
 import type { AdapterIO } from "./types.ts";
 import { whatsappAdapter } from "./whatsapp.ts";
 
-const until = async (check: () => boolean | Promise<boolean>) => {
-  const end = Date.now() + 4000;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  throw new Error("WhatsApp lifecycle did not settle");
-};
 const io = (codes: string[]): AdapterIO => ({
   receive() {},
   action() {},
@@ -58,9 +51,9 @@ test("logout drains credential writes before deleting the session and cancels th
   });
   try {
     await adapter.start(io(codes));
-    await until(() => codes.length === 1);
+    await waitFor(() => codes.length === 1);
     fake.scan();
-    await until(() => writing);
+    await waitFor(() => writing);
     const forgotten = adapter.forget?.();
     release();
     await forgotten;
@@ -72,7 +65,7 @@ test("logout drains credential writes before deleting the session and cancels th
     const fresh = whatsappAdapter({ dir, lib: async () => fake.lib });
     try {
       await fresh.start(io(codes));
-      await until(() => codes.length === 2);
+      await waitFor(() => codes.length === 2);
       assert.equal(fs.existsSync(path.join(dir, "creds.json")), false);
     } finally {
       await fresh.stop();
@@ -80,7 +73,7 @@ test("logout drains credential writes before deleting the session and cancels th
   } finally {
     release();
     await adapter.stop();
-    fs.rmSync(dir, { recursive: true, force: true });
+    await removeDir(dir);
   }
 });
 
@@ -117,18 +110,18 @@ test("phone revocation drains a pending save before reporting that the old sessi
         error = detail ?? "";
       },
     });
-    await until(() => codes.length === 1);
+    await waitFor(() => codes.length === 1);
     fake.scan();
-    await until(() => writing);
+    await waitFor(() => writing);
     fake.logOut();
     release();
-    await until(() => error.includes("link it again"));
+    await waitFor(() => error.includes("link it again"));
     assert.equal(fs.existsSync(dir), false);
     assert.equal(fake.sockets, 1, "a revoked device must not reconnect after the pending save");
   } finally {
     release();
     await adapter.stop();
-    fs.rmSync(dir, { recursive: true, force: true });
+    await removeDir(dir);
   }
 });
 
@@ -154,7 +147,7 @@ test("logout during socket initialization waits for disk work and never opens th
   });
   try {
     const starting = adapter.start(io([]));
-    await until(() => initializing);
+    await waitFor(() => initializing);
     const forgetting = adapter.forget?.();
     release();
     await Promise.all([starting, forgetting]);
@@ -163,7 +156,7 @@ test("logout during socket initialization waits for disk work and never opens th
   } finally {
     release();
     await adapter.stop();
-    fs.rmSync(dir, { recursive: true, force: true });
+    await removeDir(dir);
   }
 });
 
@@ -196,9 +189,9 @@ test("removing a stopped WhatsApp channel survives core restart without reusing 
   try {
     for (const [id, fake] of fakes) {
       await env.client.call("channels.set", { id, channel: config });
-      await until(async () => Boolean((await channel(id))?.qr));
+      await waitFor(async () => Boolean((await channel(id))?.qr));
       fake.scan();
-      await until(async () => (await channel(id))?.status === "running");
+      await waitFor(async () => (await channel(id))?.status === "running");
     }
     const other = path.join(home, "channels", "work", "creds.json");
     const otherCreds = fs.readFileSync(other);
@@ -219,14 +212,14 @@ test("removing a stopped WhatsApp channel survives core restart without reusing 
     const replacement = fakeWhatsApp("5491100000004@s.whatsapp.net");
     fakes.set("whatsapp", replacement);
     await env.client.call("channels.set", { id: "whatsapp", channel: config });
-    await until(async () => Boolean((await channel("whatsapp"))?.qr));
+    await waitFor(async () => Boolean((await channel("whatsapp"))?.qr));
     replacement.scan();
-    await until(async () => (await channel("whatsapp"))?.status === "running");
+    await waitFor(async () => (await channel("whatsapp"))?.status === "running");
     assert.equal((await channel("whatsapp"))?.account, "+5491100000004");
-    await until(async () => (await channel("work"))?.status === "running");
+    await waitFor(async () => (await channel("work"))?.status === "running");
     assert.deepEqual(fs.readFileSync(other), otherCreds);
   } finally {
     await env.core.close();
-    fs.rmSync(home, { recursive: true, force: true });
+    await removeDir(home);
   }
 });

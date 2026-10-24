@@ -51,6 +51,6 @@ test("the words heard while recording come from whisper.cpp on this machine, and
   } finally {
     services.close();
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

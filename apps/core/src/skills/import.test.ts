@@ -6,6 +6,7 @@ import { after, before, test } from "node:test";
 import zlib from "node:zlib";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { findSkillDirs, type GitRunner, importSkills, parseRepoUrl, previewSkills } from "./import.ts";
 import { readZip, safeEntryPath } from "./zip.ts";
 
@@ -67,8 +68,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(work, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(work);
 });
 
 test("a zip entry never leaves the folder it is read into; links and folders are not files", () => {
@@ -174,7 +175,7 @@ test("a project's skills land in .apc/skills, never through a link", async () =>
     [["deploy", "project"]],
   );
   assert.ok(fs.existsSync(path.join(repo, ".apc", "skills", "deploy", "SKILL.md")));
-  fs.rmSync(path.join(repo, ".apc", "skills"), { recursive: true });
+  await removeDir(path.join(repo, ".apc", "skills"));
   fs.symlinkSync(work, path.join(repo, ".apc", "skills"));
   await assert.rejects(
     env.client.call("skills.import", { source, target: "project", project, pick: ["deploy"] }),

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { z } from "zod";
 import { defineTool } from "../tools/types.ts";
-import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
+import { callTool, inputsOrEnd, say, scriptedLlm, startCore } from "./testkit.ts";
 
 // Two tools reach an owner-only method (secrets.list): one that always needs the owner's OK, one that does not.
 const asked = defineTool({
@@ -48,7 +48,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("only a tool that always asks, once the owner says yes, acts as the owner", async () => {
@@ -60,11 +60,7 @@ test("only a tool that always asks, once the owner says yes, acts as the owner",
   assert.doesNotMatch(JSON.stringify(last?.parts), /listed as the agent|had an owner call/);
 
   await env.client.call("threads.send", { thread, text: "with ok" });
-  let pending: Array<{ id: string }> = [];
-  for (let i = 0; i < 80 && !pending.length; i++) {
-    pending = (await env.client.call("runs.pending", { thread })).inputs;
-    if (!pending.length) await new Promise((r) => setTimeout(r, 25));
-  }
+  const pending: Array<{ id: string }> = await inputsOrEnd(env.client, thread);
   await env.client.call("runs.respond", { input: pending[0]?.id ?? "", decision: "approve" });
   await env.settle(thread);
   last = (await env.client.call("threads.get", { thread })).messages.at(-1);

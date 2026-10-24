@@ -36,7 +36,7 @@ before(async () => {
 after(async () => {
   await env.core.close();
   await new Promise<void>((r) => transcription.close(() => r()));
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("an uploaded voice note keeps its bytes and transcript through send, reload and rewind without a second audio file", async () => {

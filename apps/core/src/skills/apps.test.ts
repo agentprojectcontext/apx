@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 // The test config puts the other apps under APX's home: Claude in claude-home/, Codex in codex-home/, Cursor and the
 // shared folder in .cursor/ and .agents/.
@@ -43,8 +44,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(repo, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(repo);
 });
 
 test("the other apps' skills are listed with their app; a name found twice is one skill with its copies", async () => {

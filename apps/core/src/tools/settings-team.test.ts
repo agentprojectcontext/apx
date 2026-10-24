@@ -12,7 +12,7 @@ before(async () => {
 });
 after(async () => {
   await h.env.core.close();
-  h.env.cleanup();
+  await h.env.cleanup();
 });
 
 const archived = async () => (await h.env.client.call("agents.archived", {})).agents.map((a) => a.id);

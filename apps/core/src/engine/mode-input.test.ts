@@ -10,7 +10,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 /** What the model got for one owner message to the clerk: the turn's input and the system prompt. */

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { type TestContext, test } from "node:test";
 import { UPLOAD_LIMITS } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { scratchRoot } from "../tools/folders.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { telegramAdapter } from "./telegram.ts";
@@ -19,25 +20,17 @@ async function setup(t: TestContext) {
   t.after(async () => {
     await env.core.close();
     await tg.close();
-    env.cleanup();
+    await env.cleanup();
   });
   await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
   env.core.store.persons.link(env.core.store.persons.owner().id, { channel: "tg", external_id: String(OWNER.id) });
   return { ...env, tg, llm };
 }
 
-async function wait(check: () => boolean) {
-  const end = Date.now() + 8000;
-  while (!check()) {
-    if (Date.now() > end) throw new Error("Attachment was not delivered");
-    await new Promise((resolve) => setTimeout(resolve, 25));
-  }
-}
-
 test("Telegram photo pixels and caption reach a turn, its UI parts and stored media", async (t) => {
   const env = await setup(t);
   env.tg.attachment(OWNER, { bytes: JPEG, mime: "image/jpeg", photo: true, caption: "Read this ticket" });
-  await wait(() => env.llm.calls.length > 0);
+  await waitFor(() => env.llm.calls.length > 0, undefined, { ms: 8000 });
   await env.settle("home");
   const item = env.llm.calls[0]?.messages.at(-1);
   assert.equal(item?.role, "user");
@@ -51,13 +44,13 @@ test("Telegram photo pixels and caption reach a turn, its UI parts and stored me
   assert.ok(
     chat.messages.some((m) => m.author.kind === "user" && m.parts.some((p) => p.type === "image" && p.media_id === id)),
   );
-  await wait(() => env.tg.messagesTo(OWNER.id).length > 0);
+  await waitFor(() => env.tg.messagesTo(OWNER.id).length > 0, undefined, { ms: 8000 });
 });
 
 test("Telegram PDF without caption reaches the chat's temp folder and appears as a downloadable file", async (t) => {
   const env = await setup(t);
   env.tg.attachment(OWNER, { bytes: PDF, mime: "application/pdf", name: "receipt.pdf" });
-  await wait(() => env.llm.calls.length > 0);
+  await waitFor(() => env.llm.calls.length > 0, undefined, { ms: 8000 });
   await env.settle("home");
   const input = String(env.llm.calls[0]?.messages.at(-1)?.content);
   assert.doesNotMatch(input, /cannot read this kind/);
@@ -73,7 +66,7 @@ test("a Telegram video is kept whole and shows as a video the chat plays", async
   const env = await setup(t);
   const MP4 = Buffer.concat([Buffer.from("000000186674797069736f6d", "hex"), Buffer.alloc(3 * 1024 * 1024, 1)]);
   env.tg.attachment(OWNER, { bytes: MP4, mime: "video/mp4", video: true, caption: "Look at this" });
-  await wait(() => env.llm.calls.length > 0);
+  await waitFor(() => env.llm.calls.length > 0, undefined, { ms: 8000 });
   await env.settle("home");
   const input = String(env.llm.calls[0]?.messages.at(-1)?.content);
   assert.match(input, /Look at this[\s\S]*\[file attached: video\.mp4 \(video\/mp4\)/);
@@ -95,7 +88,7 @@ test("Telegram oversized and failed downloads preserve captions and explain miss
     declaredSize: UPLOAD_LIMITS.channelBytes + 1,
     caption: "Large receipt",
   });
-  await wait(() => env.llm.calls.length === 1);
+  await waitFor(() => env.llm.calls.length === 1, undefined, { ms: 8000 });
   await env.settle("home");
   assert.match(
     String(env.llm.calls[0]?.messages.at(-1)?.content),
@@ -107,14 +100,14 @@ test("Telegram oversized and failed downloads preserve captions and explain miss
     mime: "application/pdf",
     declaredSize: 1,
   });
-  await wait(() => env.llm.calls.length === 2);
+  await waitFor(() => env.llm.calls.length === 2, undefined, { ms: 8000 });
   await env.settle("home");
   assert.match(String(env.llm.calls[1]?.messages.at(-1)?.content), /attachment could not be downloaded/);
   env.tg.failures.set("getFile", [
     { status: 400, body: { ok: false, error_code: 400, description: "file unavailable" } },
   ]);
   env.tg.attachment(OWNER, { bytes: PDF, mime: "application/pdf", caption: "Missing receipt" });
-  await wait(() => env.llm.calls.length === 3);
+  await waitFor(() => env.llm.calls.length === 3, undefined, { ms: 8000 });
   assert.match(
     String(env.llm.calls[2]?.messages.at(-1)?.content),
     /Missing receipt[\s\S]*attachment could not be downloaded/,
@@ -129,7 +122,7 @@ test("a contact photo stays in its sealed chat with an untrusted origin", async 
     { id: 2002, name: "Contact" },
     { bytes: JPEG, mime: "image/jpeg", photo: true, caption: "Contact ticket" },
   );
-  await wait(() => env.llm.calls.length > 0);
+  await waitFor(() => env.llm.calls.length > 0, undefined, { ms: 8000 });
   const item = env.llm.calls[0]?.messages.at(-1);
   assert.match(String(item?.content), /<channel_message[\s\S]*Contact ticket/);
   assert.doesNotMatch(String(item?.content), /File in your temp folder/);
@@ -149,10 +142,10 @@ test("a muted contact attachment remains visible without waking the agent", asyn
   await env.client.call("contacts.set", { id: contact.id, name: contact.name, muted: true });
   env.core.store.persons.link(contact.id, { channel: "tg", external_id: "3003" });
   env.tg.attachment({ id: 3003, name: "Muted contact" }, { bytes: PDF, mime: "application/pdf", name: "muted.pdf" });
-  await wait(() => Boolean(env.core.store.threads.byConversation("tg", "3003")));
+  await waitFor(() => Boolean(env.core.store.threads.byConversation("tg", "3003")), undefined, { ms: 8000 });
   const thread = env.core.store.threads.byConversation("tg", "3003");
   assert.ok(thread);
-  await wait(() => env.core.store.messages.list(thread.id).length > 0);
+  await waitFor(() => env.core.store.messages.list(thread.id).length > 0, undefined, { ms: 8000 });
   const chat = await env.client.call("threads.get", { thread: thread.id });
   assert.ok(chat.messages.some((m) => m.parts.some((p) => p.type === "file" && p.name === "muted.pdf")));
   assert.equal(chat.runs.length, 0);
@@ -163,7 +156,7 @@ test("transient Telegram metadata failures retry without losing the attachment o
   const env = await setup(t);
   env.tg.failures.set("getFile", [{ status: 503, body: { ok: false, error_code: 503, description: "unavailable" } }]);
   env.tg.attachment(OWNER, { bytes: PDF, mime: "application/pdf", name: "retry.pdf", caption: "Retry receipt" });
-  await wait(() => env.llm.calls.length > 0);
+  await waitFor(() => env.llm.calls.length > 0, undefined, { ms: 8000 });
   await env.settle("home");
   assert.equal(env.llm.calls.length, 1);
   assert.match(String(env.llm.calls[0]?.messages.at(-1)?.content), /Retry receipt/);
@@ -183,12 +176,12 @@ test("a reset file download retries, while persistent network errors report thei
     return original(...args);
   });
   env.tg.attachment(OWNER, { bytes: JPEG, mime: "image/jpeg", photo: true });
-  await wait(() => env.llm.calls.length === 1);
+  await waitFor(() => env.llm.calls.length === 1, undefined, { ms: 8000 });
   await env.settle("home");
   assert.doesNotMatch(String(env.llm.calls[0]?.messages.at(-1)?.content), /could not be downloaded/);
   failures = 10;
   env.tg.attachment(OWNER, { bytes: PDF, mime: "application/pdf", caption: "Network receipt" });
-  await wait(() => env.llm.calls.length === 2);
+  await waitFor(() => env.llm.calls.length === 2, undefined, { ms: 8000 });
   await env.settle("home");
   const input = String(env.llm.calls[1]?.messages.at(-1)?.content);
   assert.match(input, /Network receipt[\s\S]*connection failed \(ECONNRESET\)/);
@@ -202,7 +195,7 @@ test("attachment retries honor Telegram retry_after and refuse waits beyond the 
   ]);
   const start = Date.now();
   env.tg.attachment(OWNER, { bytes: PDF, mime: "application/pdf", name: "rate.pdf" });
-  await wait(() => env.llm.calls.length === 1);
+  await waitFor(() => env.llm.calls.length === 1, undefined, { ms: 8000 });
   assert.ok(Date.now() - start >= 1000);
   await env.settle("home");
   assert.doesNotMatch(String(env.llm.calls[0]?.messages.at(-1)?.content), /could not be downloaded/);
@@ -211,7 +204,7 @@ test("attachment retries honor Telegram retry_after and refuse waits beyond the 
   ]);
   const downloads = env.tg.downloads.length;
   env.tg.attachment(OWNER, { bytes: PDF, mime: "application/pdf" });
-  await wait(() => env.llm.calls.length === 2);
+  await waitFor(() => env.llm.calls.length === 2, undefined, { ms: 8000 });
   assert.equal(env.tg.downloads.length, downloads);
   assert.match(String(env.llm.calls[1]?.messages.at(-1)?.content), /Telegram HTTP 429/);
 });

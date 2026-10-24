@@ -71,7 +71,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 const said = async (thread: string, text: string) => {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { fakeTelegram } from "../channels/fake-telegram.test-support.ts";
 import { telegramAdapter } from "../channels/telegram.ts";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, inputsOrEnd, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
 const TOKEN = "123456:TEST-hours";
 
@@ -45,7 +45,7 @@ before(async () => {
 after(async () => {
   await env.core.close();
   await tg.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 /** The owner asks; `decision` answers the confirmation the call waits on, and returns what the card said. */
@@ -54,11 +54,10 @@ async function ask(text: string, agent = "roby", decision?: "approve" | "deny") 
   await env.client.call("threads.send", { thread: thread.id, text });
   let detail: string | undefined;
   if (decision) {
-    let pending: Array<{ id: string; tool?: string | undefined; detail?: string | undefined }> = [];
-    for (let i = 0; i < 100 && !pending.length; i++) {
-      pending = (await env.client.call("runs.pending", { thread: thread.id })).inputs;
-      if (!pending.length) await new Promise((r) => setTimeout(r, 20));
-    }
+    const pending: Array<{ id: string; tool?: string | undefined; detail?: string | undefined }> = await inputsOrEnd(
+      env.client,
+      thread.id,
+    );
     assert.equal(pending[0]?.tool, "attention_hours");
     detail = pending[0]?.detail;
     await env.client.call("runs.respond", { input: pending[0]?.id ?? "", decision });

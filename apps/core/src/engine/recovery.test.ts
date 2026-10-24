@@ -66,7 +66,7 @@ test("recovery preserves delegation dependencies when SQL returns interrupted ch
   } finally {
     store.runs.interrupted = interrupted;
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -195,7 +195,7 @@ test("a restart closes a cut turn (effect unknown for a started tool), resumes i
     assert.ok(texts(parentNow.messages).includes("Scout came back after the restart."));
   } finally {
     await second.core.close();
-    second.cleanup();
+    await second.cleanup();
   }
 });
 
@@ -272,7 +272,7 @@ for (const kind of ["question", "confirm"] as const) {
     } finally {
       if (second) await second.core.close();
       else await first.core.close();
-      first.cleanup();
+      await first.cleanup();
     }
   });
 }
@@ -298,7 +298,7 @@ test("a turn that was already resumed is not resumed again after another restart
     assert.equal(now.runs[0]?.error, "interrupted by a restart");
   } finally {
     await second.core.close();
-    second.cleanup();
+    await second.cleanup();
   }
 });
 
@@ -372,6 +372,6 @@ test("shutting APX down mid-delegation resumes both turns on boot, and the calle
   } finally {
     if (second) await second.core.close();
     else await first.core.close();
-    first.cleanup();
+    await first.cleanup();
   }
 });

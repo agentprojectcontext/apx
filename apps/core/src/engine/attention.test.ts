@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { z } from "zod";
+import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
@@ -23,14 +24,6 @@ const llm = scriptedLlm((_req, { said, afterTool }) => {
 });
 
 let env: Awaited<ReturnType<typeof startCore>>;
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 4000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 const tray = () => env.client.call("notifications.list", {});
 
 before(async () => {
@@ -38,13 +31,13 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("an agent waiting for the owner's OK is in the tray until answered", async () => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
   await env.client.call("threads.send", { thread: t.id, text: "launch the probe" });
-  await until(async () => (await tray()).notifications.some((n) => n.kind === "input"), "input noticed");
+  await waitFor(async () => (await tray()).notifications.some((n) => n.kind === "input"), "input noticed");
   const n = (await tray()).notifications.find((x) => x.kind === "input");
   assert.equal(n?.level, "warn");
   assert.equal(n?.thread_id, t.id);
@@ -54,7 +47,7 @@ test("an agent waiting for the owner's OK is in the tray until answered", async 
   await env.client.call("threads.read", { thread: t.id });
   assert.equal((await tray()).unread, 1);
   await env.client.call("runs.respond", { input: n?.ref ?? "", decision: "approve" });
-  await until(async () => (await tray()).unread === 0, "answered question leaves the tray");
+  await waitFor(async () => (await tray()).unread === 0, "answered question leaves the tray");
 });
 
 test("a task waiting for the owner, and a routine's news, until seen", async () => {
@@ -81,7 +74,7 @@ test("a task waiting for the owner, and a routine's news, until seen", async () 
     prompt: "daily news",
   });
   const run = await env.client.call("routines.run", { routine: r.id });
-  await until(async () => (await tray()).notifications.some((n) => n.kind === "routine"), "routine noticed");
+  await waitFor(async () => (await tray()).notifications.some((n) => n.kind === "routine"), "routine noticed");
   const n = (await tray()).notifications.find((x) => x.kind === "routine");
   assert.equal(n?.title, "Build report");
   assert.match(n?.body ?? "", /build is green/);
@@ -89,6 +82,6 @@ test("a task waiting for the owner, and a routine's news, until seen", async () 
   assert.equal((await tray()).unread, 0, "opening its chat marks it seen");
 
   await env.client.call("routines.run", { routine: r.id });
-  await until(async () => (await tray()).unread === 1, "second run noticed");
+  await waitFor(async () => (await tray()).unread === 1, "second run noticed");
   assert.equal((await env.client.call("notifications.read", {})).unread, 0);
 });

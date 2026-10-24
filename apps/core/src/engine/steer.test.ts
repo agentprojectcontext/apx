@@ -15,7 +15,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("steer puts the owner's text into the running turn at its next step", async () => {

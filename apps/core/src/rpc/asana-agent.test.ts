@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, inputsOrEnd, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createLog } from "../log.ts";
 
 test("Asana reads are untrusted and agent writes wait for owner approval before REST", async () => {
@@ -54,11 +54,7 @@ test("Asana reads are untrusted and agent writes wait for owner approval before 
     );
     assert.equal(wrongProject.ok, false);
     await env.client.call("threads.send", { thread, text: "write Asana" });
-    let pending: Array<{ id: string }> = [];
-    for (let i = 0; i < 100 && !pending.length; i++) {
-      pending = (await env.client.call("runs.pending", { thread })).inputs;
-      if (!pending.length) await new Promise((r) => setTimeout(r, 20));
-    }
+    const pending: Array<{ id: string }> = await inputsOrEnd(env.client, thread);
     assert.equal(writes, 0);
     assert.ok(pending[0]);
     await env.client.call("runs.respond", { input: pending[0].id, decision: "approve" });
@@ -71,6 +67,6 @@ test("Asana reads are untrusted and agent writes wait for owner approval before 
     assert.ok(!offered().includes("asana_write"));
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

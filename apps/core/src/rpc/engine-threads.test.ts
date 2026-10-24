@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 before(async () => {
@@ -12,7 +13,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("an engine's list holds its own sessions only, and a CLI runs nowhere else", async () => {
@@ -38,5 +39,5 @@ test("an engine's list holds its own sessions only, and a CLI runs nowhere else"
   assert.deepEqual(await ids("claude"), [session.id]);
   const all = (await env.client.call("threads.list", {})).threads.map((t) => t.id);
   assert.ok(all.includes(ran.id), "Roby's chat stays in the Inbox");
-  fs.rmSync(repo, { recursive: true, force: true });
+  await removeDir(repo);
 });

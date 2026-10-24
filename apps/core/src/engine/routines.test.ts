@@ -3,6 +3,7 @@ import { after, before, test } from "node:test";
 import { ApxClient, ApxError } from "@apx/protocol/client";
 import { fakeTelegram } from "../channels/fake-telegram.test-support.ts";
 import { telegramAdapter } from "../channels/telegram.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 const TOKEN = "123456:TEST-token";
@@ -20,17 +21,9 @@ let clock = new Date(2026, 9, 5, 7, 0);
 let env: Awaited<ReturnType<typeof startCore>>;
 let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 4000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 const runsOf = async (routine: string) => (await env.client.call("routines.runs", { routine })).runs;
 const ended = (routine: string, n: number) =>
-  until(async () => {
+  waitFor(async () => {
     const runs = await runsOf(routine);
     return runs.length === n && runs.every((r) => r.delivered !== undefined);
   }, `${n} runs ended`);
@@ -45,12 +38,12 @@ before(async () => {
   await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
   const owner = env.core.store.persons.owner();
   env.core.store.persons.link(owner.id, { channel: "tg", external_id: String(OWNER_CHAT) });
-  await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+  await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
 });
 after(async () => {
   await env.core.close();
   await tg.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("a daily routine runs at its time once, in its own chat, and the owner hears the answer", async () => {
@@ -79,7 +72,7 @@ test("a daily routine runs at its time once, in its own chat, and the owner hear
   assert.equal(thread.archived, undefined, "a run that told something stays in the lists");
   const input = String(llm.calls.at(-1)?.messages.at(-1)?.content);
   assert.match(input, /routine "Invoices" the owner scheduled/);
-  await until(() => tg.messagesTo(OWNER_CHAT).some((m) => /Two new invoices/.test(String(m.body.text))), "delivered");
+  await waitFor(() => tg.messagesTo(OWNER_CHAT).some((m) => /Two new invoices/.test(String(m.body.text))), "delivered");
 
   const again = await env.client.call("routines.list", {});
   assert.equal(again.routines[0]?.next_run_at, new Date(2026, 9, 6, 8, 30).toISOString(), "next is tomorrow");
@@ -119,7 +112,7 @@ test("run now, a failed run is reported, and bad schedules are refused", async (
   await env.client.call("routines.run", { routine: r.id });
   await ended(r.id, 1);
   assert.equal((await runsOf(r.id))[0]?.state, "failed");
-  await until(() => tg.messagesTo(OWNER_CHAT).some((m) => /Breaker/.test(String(m.body.text))), "failure told");
+  await waitFor(() => tg.messagesTo(OWNER_CHAT).some((m) => /Breaker/.test(String(m.body.text))), "failure told");
 
   await assert.rejects(
     env.client.call("routines.set", {

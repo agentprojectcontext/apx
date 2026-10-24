@@ -35,6 +35,6 @@ test("scoped chat processes retain old and nested descendants beyond the global 
     await assert.rejects(env.client.call("threads.list", { root_thread: "missing" }), /thread missing/);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

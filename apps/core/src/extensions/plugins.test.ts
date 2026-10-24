@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { removeDir, waitFor } from "../testkit/platform.ts";
 
 // A plugin that counts the task updates it sees and, asked for context, reports what its sandbox let it do.
 const PLUGIN = `
@@ -51,14 +52,6 @@ const extension = (id: string, plugin: Record<string, unknown>) => {
   );
   return dir;
 };
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 8000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 50));
-  }
-  throw new Error(`never: ${what}`);
-};
 const turnInput = async (text: string) => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
   await env.client.call("threads.send", { thread: t.id, text });
@@ -71,8 +64,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  for (const d of dirs) fs.rmSync(d, { recursive: true, force: true });
+  await env.cleanup();
+  for (const d of dirs) await removeDir(d);
 });
 
 test("a plugin watches what it named and adds context to owner turns, as outside data", async () => {
@@ -82,9 +75,10 @@ test("a plugin watches what it named and adds context to owner turns, as outside
   await env.client.call("extensions.set_secret", { id: "watcher", name: "token", value: "plug-s3cret" });
   const on = await env.client.call("extensions.enable", { id: "watcher", enabled: true });
   assert.equal(on.runs_code, true);
-  await until(
+  await waitFor(
     async () => (await env.client.call("extensions.list", {})).extensions[0]?.plugin?.status === "running",
     "plugin running",
+    { ms: 8000 },
   );
   await env.client.call("tasks.create", { title: "Watch me" });
   await new Promise((r) => setTimeout(r, 300));
@@ -121,11 +115,12 @@ test("one context provider at a time; off, it stops and turns get nothing from i
   assert.equal(off?.plugin?.status, "off");
   assert.doesNotMatch(await turnInput("anyone there?"), /extension context/);
   await env.client.call("extensions.enable", { id: "second", enabled: true });
-  await until(
+  await waitFor(
     async () =>
       (await env.client.call("extensions.list", {})).extensions.find((e) => e.id === "second")?.plugin?.status ===
       "running",
     "second running",
+    { ms: 8000 },
   );
   // With the network, this machine (where APX listens) stays out of reach.
   const input = await turnInput(`now ${env.core.url}/health`);

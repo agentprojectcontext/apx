@@ -68,7 +68,7 @@ before(async () => {
 after(async () => {
   await env.core.close();
   await new Promise<void>((r) => ollama.close(() => r()));
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("a message that matches a skill gets it named for the agent to load, and the chat shows what was weighed", async () => {

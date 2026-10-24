@@ -9,6 +9,7 @@ import { after, before, describe, test } from "node:test";
 import type { ChannelType } from "@apx/protocol";
 import { z } from "zod";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { removeDir, waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeNtfy } from "./fake-ntfy.test-support.ts";
 import { NTFY_OWNER, ntfyAdapter, ntfySecret } from "./ntfy.ts";
@@ -27,15 +28,6 @@ const probe = defineTool({
   title: () => "Probe",
   run: async () => "probed",
 });
-
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 5000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 
 test("the secret splits into the server, the topic and an optional token", () => {
   assert.deepEqual(ntfySecret("https://ntfy.sh/ apx-abc123 tk_xyz"), {
@@ -77,7 +69,7 @@ for (const selfOwner of [true, false])
         channel: { type: TYPE, agent_id: "roby", ...(selfOwner ? { self_owner: true } : {}) },
         token: fake.secret,
       });
-      await until(
+      await waitFor(
         async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running",
         "running",
       );
@@ -85,13 +77,13 @@ for (const selfOwner of [true, false])
     after(async () => {
       await env.core.close();
       await fake.close();
-      env.cleanup();
+      await env.cleanup();
     });
 
     test("the owner talks with the agent and answers a confirmation by its number", async () => {
       if (!selfOwner) {
         fake.write("hola");
-        await until(() => fake.published().length >= 1, "pairing code");
+        await waitFor(() => fake.published().length >= 1, "pairing code");
         const code = /(?<!\d)(\d{6})(?!\d)/.exec(fake.published()[0] ?? "")?.[1] ?? "";
         await env.client.call("pairing.respond", { code, decision: "owner" });
       }
@@ -100,12 +92,12 @@ for (const selfOwner of [true, false])
       assert.ok(owner?.addresses.some((a) => a.channel === "ntfy" && a.external_id === NTFY_OWNER));
 
       fake.write("what is up");
-      await until(() => fake.published().some((t) => t.includes("You said: what is up")), "reply");
+      await waitFor(() => fake.published().some((t) => t.includes("You said: what is up")), "reply");
 
       fake.write("launch the probe");
-      await until(() => fake.published().some((t) => /\n1\. /.test(t)), "numbered options");
+      await waitFor(() => fake.published().some((t) => /\n1\. /.test(t)), "numbered options");
       fake.write("1");
-      await until(() => fake.published().some((t) => t.includes("Done: probed")), "probe ran");
+      await waitFor(() => fake.published().some((t) => t.includes("Done: probed")), "probe ran");
 
       // Its own messages come back on the stream: none of them is read as the owner's.
       const calls = llm.calls.length;
@@ -123,7 +115,7 @@ describe("the adapter alone", () => {
   });
   after(async () => {
     await fake.close();
-    fs.rmSync(dir, { recursive: true, force: true });
+    await removeDir(dir);
   });
 
   const config = { id: "ntfy", type: "signal", label: "ntfy", agent_id: "roby" } as Parameters<typeof ntfyAdapter>[0];
@@ -139,24 +131,24 @@ describe("the adapter alone", () => {
     const ac = new AbortController();
     const a = ntfyAdapter(config, fake.secret, { dir });
     await a.start(io(got, ac));
-    await until(() => fake.subscribes.length === 1, "subscribed");
+    await waitFor(() => fake.subscribes.length === 1, "subscribed");
     fake.write("one");
     fake.picture("cat.png", Buffer.from("png-bytes"));
-    await until(() => got.length === 2, "two in");
+    await waitFor(() => got.length === 2, "two in");
     assert.deepEqual(got[1], {
       text: "",
       files: [{ name: "cat.png", mime: "image/png", data: Buffer.from("png-bytes").toString("base64") }],
     });
     fake.drop();
     fake.write("two");
-    await until(() => got.some((m) => m.text === "two"), "read after reconnecting");
+    await waitFor(() => got.some((m) => m.text === "two"), "read after reconnecting");
     assert.equal(fake.subscribes.at(-1), "m2", "resumes after the last message read");
     await a.stop();
 
     const again: typeof got = [];
     const b = ntfyAdapter(config, fake.secret, { dir });
     await b.start(io(again, new AbortController()));
-    await until(() => fake.subscribes.length >= 3, "subscribed again");
+    await waitFor(() => fake.subscribes.length >= 3, "subscribed again");
     await new Promise((r) => setTimeout(r, 200));
     assert.deepEqual(again, [], "nothing read twice");
     await b.stop();

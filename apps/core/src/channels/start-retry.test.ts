@@ -29,7 +29,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 const info = async (id: string) => (await env.client.call("channels.list", {})).channels.find((c) => c.id === id);

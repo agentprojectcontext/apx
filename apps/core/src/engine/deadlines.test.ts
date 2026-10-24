@@ -3,48 +3,17 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { setImmediate } from "node:timers/promises";
 import { z } from "zod";
 import type { Harness } from "../harness/types.ts";
 import { createLog } from "../log.ts";
 import { realpath } from "../paths.ts";
 import { internalCaller } from "../rpc/internal.ts";
+import { manualTimers, waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
-import type { RunTimers } from "./engine.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 const IDLE_MS = 300;
 // Only the engine deadline and fixture steps use virtual time; HTTP and background I/O remain real.
-function manualTimers() {
-  let now = Date.now();
-  let sequence = 0;
-  const pending = new Map<number, { at: number; callback: () => void }>();
-  const timers: RunTimers = {
-    now: () => now,
-    after(ms, callback) {
-      const id = sequence++;
-      pending.set(id, { at: now + ms, callback });
-      return () => {
-        pending.delete(id);
-      };
-    },
-  };
-  return {
-    ...timers,
-    pending: () => pending.size,
-    tick(ms: number) {
-      const target = now + ms;
-      while (true) {
-        const next = [...pending].sort((a, b) => a[1].at - b[1].at || a[0] - b[0])[0];
-        if (!next || next[1].at > target) break;
-        pending.delete(next[0]);
-        now = next[1].at;
-        next[1].callback();
-      }
-      now = target;
-    },
-  };
-}
 const timers = manualTimers();
 let queuedSteps = 0;
 const sleep = (ms: number, signal: AbortSignal) =>
@@ -119,16 +88,10 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
-async function until(check: () => boolean) {
-  const start = performance.now();
-  while (!check()) {
-    assert.ok(performance.now() - start < 5000, "the run did not reach its next step");
-    await setImmediate();
-  }
-}
+const until = (check: () => boolean) => waitFor(check, "the run's next step", { every: 1 });
 
 async function ended(thread: string, text: string) {
   queuedSteps = 0;

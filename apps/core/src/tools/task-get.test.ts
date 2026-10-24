@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 function recordUsage(thread_id: string, model: string) {

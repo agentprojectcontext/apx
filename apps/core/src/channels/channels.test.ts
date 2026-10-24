@@ -6,6 +6,7 @@ import { z } from "zod";
 import { inQuietHours } from "../domain/notices.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { guardReply } from "./guard.ts";
@@ -80,15 +81,6 @@ const refusing: ChannelAdapter = {
 let env: Awaited<ReturnType<typeof startCore>>;
 let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 4000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
-
 before(async () => {
   tg = await fakeTelegram(TOKEN);
   env = await startCore({
@@ -101,12 +93,12 @@ before(async () => {
     channel: { type: "telegram", agent_id: "roby" },
     token: TOKEN,
   });
-  await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+  await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
 });
 after(async () => {
   await env.core.close();
   await tg.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("formatting: Markdown becomes Telegram HTML; contacts never get paths or keys", () => {
@@ -127,7 +119,7 @@ test("a stranger gets a code; the owner approves it as themselves; then their wo
   assert.equal(info?.token_hint, "123456:••••oken");
 
   tg.message(OWNER, "hola");
-  await until(() => tg.messagesTo(OWNER.id).length === 1, "pairing message");
+  await waitFor(() => tg.messagesTo(OWNER.id).length === 1, "pairing message");
   const code = /(\d{6})/.exec(String(tg.messagesTo(OWNER.id)[0]?.body.text))?.[1] ?? "";
   tg.message(OWNER, "hola otra vez");
   await new Promise((r) => setTimeout(r, 150));
@@ -137,7 +129,7 @@ test("a stranger gets a code; the owner approves it as themselves; then their wo
 
   await env.client.call("pairing.respond", { code, decision: "owner" });
   tg.message(OWNER, "what is up");
-  await until(() => tg.messagesTo(OWNER.id).length === 2, "owner reply");
+  await waitFor(() => tg.messagesTo(OWNER.id).length === 2, "owner reply");
   const reply = tg.messagesTo(OWNER.id)[1]?.body;
   assert.equal(reply?.parse_mode, "HTML");
   assert.match(String(reply?.text), /<b>there<\/b>, you said: what is up/);
@@ -157,7 +149,7 @@ test("a stranger gets a code; the owner approves it as themselves; then their wo
 
 test("while the agent works the owner sees typing, never a streamed draft that would lock their chat", async () => {
   tg.message(OWNER, "stream this");
-  await until(() => tg.messagesTo(OWNER.id).some((m) => /you said: stream this/.test(String(m.body.text))), "reply");
+  await waitFor(() => tg.messagesTo(OWNER.id).some((m) => /you said: stream this/.test(String(m.body.text))), "reply");
   assert.ok(tg.sent.some((m) => m.method === "sendChatAction" && String(m.body.chat_id) === String(OWNER.id)));
   assert.equal(tg.sent.filter((m) => m.method === "sendMessageDraft").length, 0);
 });
@@ -167,22 +159,22 @@ test("a message while the agent works joins its turn; a short stop ends it witho
   const runCount = async () => (await env.client.call("threads.get", { thread: "home" })).runs.length;
   const runsBefore = await runCount();
   tg.message(OWNER, "slow job");
-  await until(() => gate.waiting, "tool running");
+  await waitFor(() => gate.waiting, "tool running");
   tg.message(OWNER, "also add the totals");
-  await until(async () => {
+  await waitFor(async () => {
     const home = await env.client.call("threads.get", { thread: "home" });
     return home.messages.some((m) => m.parts.some((p) => p.type === "text" && p.text === "also add the totals"));
   }, "second message kept");
   gate.open();
-  await until(() => toOwner().some((t) => t.includes("Steered: also add the totals")), "steered answer");
+  await waitFor(() => toOwner().some((t) => t.includes("Steered: also add the totals")), "steered answer");
   assert.equal(await runCount(), runsBefore + 1, "both messages in one turn");
 
   const before = toOwner().length;
   tg.message(OWNER, "slow job");
-  await until(() => gate.waiting, "tool running again");
+  await waitFor(() => gate.waiting, "tool running again");
   tg.message(OWNER, "Pará");
-  await until(() => toOwner().includes("Listo, paré."), "stop acknowledged");
-  await until(() => !gate.waiting, "tool stopped");
+  await waitFor(() => toOwner().includes("Listo, paré."), "stop acknowledged");
+  await waitFor(() => !gate.waiting, "tool stopped");
   await new Promise((r) => setTimeout(r, 200));
   assert.deepEqual(toOwner().slice(before), ["Listo, paré."], "no half answer and no answer to the stop");
   const after = await env.client.call("threads.get", { thread: "home" });
@@ -192,7 +184,7 @@ test("a message while the agent works joins its turn; a short stop ends it witho
 
 test("a confirmation reaches the owner with buttons and a press approves it", async () => {
   tg.message(OWNER, "launch the probe");
-  await until(() => tg.messagesTo(OWNER.id).some((m) => m.body.reply_markup), "buttons");
+  await waitFor(() => tg.messagesTo(OWNER.id).some((m) => m.body.reply_markup), "buttons");
   const ask = tg.messagesTo(OWNER.id).find((m) => m.body.reply_markup);
   const markup = ask?.body.reply_markup as { inline_keyboard: Array<Array<{ callback_data: string }>> };
   const allow = markup.inline_keyboard[0]?.[0]?.callback_data ?? "";
@@ -201,7 +193,7 @@ test("a confirmation reaches the owner with buttons and a press approves it", as
   tg.press(ANA, allow);
   await new Promise((r) => setTimeout(r, 150));
   tg.press(OWNER, allow, ask?.message_id);
-  await until(() => tg.messagesTo(OWNER.id).some((m) => /Done: probed/.test(String(m.body.text))), "probe result");
+  await waitFor(() => tg.messagesTo(OWNER.id).some((m) => /Done: probed/.test(String(m.body.text))), "probe result");
   // Answered right there: the question stays in the chat.
   assert.ok(!tg.sent.some((s) => s.method === "deleteMessage" && s.body.message_id === ask?.message_id));
 });
@@ -209,7 +201,7 @@ test("a confirmation reaches the owner with buttons and a press approves it", as
 test("a confirmation answered in the app is taken out of Telegram; a press on it after says it is gone", async () => {
   const before = tg.messagesTo(OWNER.id).length;
   tg.message(OWNER, "launch the probe");
-  await until(
+  await waitFor(
     () =>
       tg
         .messagesTo(OWNER.id)
@@ -225,11 +217,11 @@ test("a confirmation answered in the app is taken out of Telegram; a press on it
   const allow = markup.inline_keyboard[0]?.[0]?.callback_data ?? "";
   const inputId = allow.split(":")[1] ?? "";
   await env.client.call("runs.respond", { input: inputId, decision: "approve" });
-  await until(
+  await waitFor(
     () => tg.sent.some((s) => s.method === "deleteMessage" && s.body.message_id === ask?.message_id),
     "the question deleted",
   );
-  await until(
+  await waitFor(
     () =>
       tg
         .messagesTo(OWNER.id)
@@ -239,7 +231,7 @@ test("a confirmation answered in the app is taken out of Telegram; a press on it
   );
   const seen = tg.messagesTo(OWNER.id).length;
   tg.press(OWNER, allow, ask?.message_id);
-  await until(
+  await waitFor(
     () =>
       tg
         .messagesTo(OWNER.id)
@@ -262,7 +254,7 @@ test("a multi-choice question is ticked on Telegram, then sent; a question can b
   const ask = async () => {
     const before = tg.messagesTo(OWNER.id).length;
     tg.message(OWNER, "pick the days");
-    await until(
+    await waitFor(
       () =>
         tg
           .messagesTo(OWNER.id)
@@ -287,15 +279,18 @@ test("a multi-choice question is ticked on Telegram, then sent; a question can b
   );
   const data = (label: string) => q.keys.find((k) => k?.text.endsWith(label))?.callback_data ?? "";
   tg.press(OWNER, data("Enviar"), q.id);
-  await until(() => tg.messagesTo(OWNER.id).some((m) => /al menos una opción/.test(String(m.body.text))), "pick some");
+  await waitFor(
+    () => tg.messagesTo(OWNER.id).some((m) => /al menos una opción/.test(String(m.body.text))),
+    "pick some",
+  );
   tg.press(OWNER, data("Mon"), q.id);
-  await until(() => edits(q.id).length === 1, "Mon ticked");
+  await waitFor(() => edits(q.id).length === 1, "Mon ticked");
   tg.press(OWNER, data("Wed"), q.id);
-  await until(() => edits(q.id).length === 2, "Wed ticked");
+  await waitFor(() => edits(q.id).length === 2, "Wed ticked");
   const ticked = (edits(q.id)[1]?.body.reply_markup as Markup | undefined)?.inline_keyboard.map((r) => r[0]?.text);
   assert.deepEqual(ticked?.slice(0, 3), ["☑ Mon", "☐ Tue", "☑ Wed"]);
   tg.press(OWNER, data("Enviar"), q.id);
-  await until(
+  await waitFor(
     () => tg.messagesTo(OWNER.id).some((m) => /Done: The owner answered: Mon, Wed/.test(String(m.body.text))),
     "answer with both",
   );
@@ -304,7 +299,7 @@ test("a multi-choice question is ticked on Telegram, then sent; a question can b
 
   const skip = await ask();
   tg.press(OWNER, skip.keys.find((k) => k?.text === "Omitir")?.callback_data ?? "", skip.id);
-  await until(
+  await waitFor(
     () => tg.messagesTo(OWNER.id).some((m) => /Done: The owner answered: \(omitida\)/.test(String(m.body.text))),
     "skipped",
   );
@@ -312,12 +307,12 @@ test("a multi-choice question is ticked on Telegram, then sent; a question can b
 
 test("a contact gets a sealed agent: no tools, no owner context, and a filtered reply", async () => {
   tg.message(ANA, "hi, who are you");
-  await until(() => tg.messagesTo(ANA.id).length === 1, "pairing for Ana");
+  await waitFor(() => tg.messagesTo(ANA.id).length === 1, "pairing for Ana");
   const code = /(\d{6})/.exec(String(tg.messagesTo(ANA.id)[0]?.body.text))?.[1] ?? "";
   await env.client.call("pairing.respond", { code, decision: "contact", name: "Ana" });
 
   tg.message(ANA, "where do you live");
-  await until(() => tg.messagesTo(ANA.id).length === 2, "contact reply");
+  await waitFor(() => tg.messagesTo(ANA.id).length === 2, "contact reply");
   assert.match(String(tg.messagesTo(ANA.id)[1]?.body.text), /My files are in \[hidden\]/);
   const call = llm.calls.findLast((c) => String(c.messages.at(-1)?.content).includes("where do you live"));
   assert.match(String(call?.messages[0]?.content), /Ana is NOT your owner/);
@@ -330,7 +325,7 @@ test("a contact gets a sealed agent: no tools, no owner context, and a filtered 
 
 test("an account approved as a contact by mistake becomes the owner's: its chat follows, the contact goes", async () => {
   tg.message(SECOND, "hello from my other phone");
-  await until(() => tg.messagesTo(SECOND.id).length === 1, "pairing for the second phone");
+  await waitFor(() => tg.messagesTo(SECOND.id).length === 1, "pairing for the second phone");
   const code = /(\d{6})/.exec(String(tg.messagesTo(SECOND.id)[0]?.body.text))?.[1] ?? "";
   const { person } = await env.client.call("pairing.respond", { code, decision: "contact" });
   const address = person?.addresses[0]?.id ?? "";
@@ -352,7 +347,7 @@ test("an account approved as a contact by mistake becomes the owner's: its chat 
   assert.ok(!threads.some((t) => t.channel?.person_id === person?.id), "no chat points at the removed contact");
 
   tg.message(SECOND, "now I am the owner here");
-  await until(async () => {
+  await waitFor(async () => {
     const home = await env.client.call("threads.get", { thread: "home" });
     return home.messages.some((m) =>
       m.parts.some((x) => x.type === "text" && x.text.includes("now I am the owner here")),
@@ -363,15 +358,15 @@ test("an account approved as a contact by mistake becomes the owner's: its chat 
 test("a removed contact who links the account again as the owner's gets the old chat as their own", async () => {
   const THIRD = { id: 4004, name: "Owner (tablet)" };
   tg.message(THIRD, "hi there");
-  await until(() => tg.messagesTo(THIRD.id).length === 1, "pairing for the tablet");
+  await waitFor(() => tg.messagesTo(THIRD.id).length === 1, "pairing for the tablet");
   let code = /(\d{6})/.exec(String(tg.messagesTo(THIRD.id)[0]?.body.text))?.[1] ?? "";
   const { person } = await env.client.call("pairing.respond", { code, decision: "contact", name: "Tablet" });
   tg.message(THIRD, "hello as a contact");
-  await until(() => tg.messagesTo(THIRD.id).length === 2, "the contact's reply");
+  await waitFor(() => tg.messagesTo(THIRD.id).length === 2, "the contact's reply");
   await env.client.call("contacts.remove", { id: person?.id ?? "" });
 
   tg.message(THIRD, "it is me");
-  await until(() => tg.messagesTo(THIRD.id).length === 3, "a new code");
+  await waitFor(() => tg.messagesTo(THIRD.id).length === 3, "a new code");
   code = /(\d{6})/.exec(String(tg.messagesTo(THIRD.id)[2]?.body.text))?.[1] ?? "";
   await env.client.call("pairing.respond", { code, decision: "owner" });
   const { threads } = await env.client.call("threads.list", {});
@@ -383,12 +378,12 @@ test("groups are ignored and a redelivered update is handled once", async () => 
   const before = tg.messagesTo(-500).length;
   tg.message(OWNER, "in a group", { id: -500, type: "group" });
   const id = tg.message(OWNER, "only once please");
-  await until(() => tg.messagesTo(OWNER.id).some((m) => /only once please/.test(String(m.body.text))), "reply");
+  await waitFor(() => tg.messagesTo(OWNER.id).some((m) => /only once please/.test(String(m.body.text))), "reply");
   const count = () => tg.messagesTo(OWNER.id).filter((m) => /only once please/.test(String(m.body.text))).length;
   // A crash between storing and confirming: a restarted channel gets the same update again.
   tg.redeliver(id, OWNER, "only once please");
   await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" } });
-  await until(() => !tg.queued().includes(id), "the redelivered update was fetched and confirmed");
+  await waitFor(() => !tg.queued().includes(id), "the redelivered update was fetched and confirmed");
   await new Promise((r) => setTimeout(r, 200));
   assert.equal(count(), 1);
   assert.equal(tg.messagesTo(-500).length, before);
@@ -402,11 +397,11 @@ test("a rate-limited send is retried; an ambiguous failure is marked uncertain, 
     },
   ]);
   tg.message(OWNER, "rate limited");
-  await until(() => tg.messagesTo(OWNER.id).some((m) => /rate limited/.test(String(m.body.text))), "retried reply");
+  await waitFor(() => tg.messagesTo(OWNER.id).some((m) => /rate limited/.test(String(m.body.text))), "retried reply");
 
   tg.failures.set("sendMessage", [{ status: 502, body: { ok: false, error_code: 502, description: "Bad Gateway" } }]);
   tg.message(OWNER, "gateway trouble");
-  await until(async () => {
+  await waitFor(async () => {
     const { items } = await env.client.call("channels.outbox", {});
     return items.some((i) => i.state === "uncertain" && /gateway trouble/.test(i.text));
   }, "uncertain");
@@ -431,7 +426,7 @@ test("a confirmation left unanswered in the app follows the owner to Telegram, s
   await env.client.call("threads.send", { thread: t.id, text: "launch the probe" });
   await new Promise((r) => setTimeout(r, 400));
   assert.equal(tg.messagesTo(OWNER.id).length, before, "it waits in the app first");
-  await until(() => tg.messagesTo(OWNER.id).length > before, "follow-up on Telegram", 4000);
+  await waitFor(() => tg.messagesTo(OWNER.id).length > before, "follow-up on Telegram");
   const ask = tg.messagesTo(OWNER.id).at(-1)?.body;
   assert.ok(ask?.reply_markup);
   assert.equal(ask?.disable_notification, true);
@@ -443,12 +438,15 @@ test("a confirmation left unanswered in the app follows the owner to Telegram, s
 
 test("a contact never sees what went wrong inside APX; the owner does", async () => {
   tg.message(ANA, "break please");
-  await until(
+  await waitFor(
     () => tg.messagesTo(ANA.id).some((m) => /can't answer right now|no puedo responder/.test(String(m.body.text))),
     "generic apology",
   );
   assert.ok(!tg.messagesTo(ANA.id).some((m) => /quota|billing/.test(String(m.body.text))));
-  await until(() => tg.messagesTo(OWNER.id).some((m) => /quota exceeded/.test(String(m.body.text))), "owner hears why");
+  await waitFor(
+    () => tg.messagesTo(OWNER.id).some((m) => /quota exceeded/.test(String(m.body.text))),
+    "owner hears why",
+  );
 });
 
 test("a long reply interrupted after its first part resumes from the next part, without repeating", async () => {
@@ -461,7 +459,7 @@ test("a long reply interrupted after its first part resumes from the next part, 
   ]);
   const before = tg.messagesTo(OWNER.id).length;
   tg.message(OWNER, "long answer");
-  await until(() => tg.messagesTo(OWNER.id).some((m) => /END/.test(String(m.body.text))), "the last part");
+  await waitFor(() => tg.messagesTo(OWNER.id).some((m) => /END/.test(String(m.body.text))), "the last part");
   const parts = tg
     .messagesTo(OWNER.id)
     .slice(before)
@@ -512,18 +510,18 @@ test("a routine's news reaches the owner without buttons; the owner's 👍/👎 
   });
   await env.client.call("routines.run", { routine: r.id });
   const rated = () => tg.messagesTo(OWNER.id).find((m) => /Rate me/.test(String(m.body.text)));
-  await until(() => Boolean(rated()), "routine notice");
+  await waitFor(() => Boolean(rated()), "routine notice");
   assert.equal(rated()?.body.text, "Rate me", "the routine's words alone, no title");
   assert.equal(rated()?.body.reply_markup, undefined, "no 👍/👎 buttons");
   const id = env.core.store.nudges.list(1)[0]?.id ?? "";
   const msg = rated()?.message_id ?? 0;
   const before = tg.messagesTo(OWNER.id).length;
   tg.react(OWNER, msg, "👎");
-  await until(() => env.core.store.nudges.get(id)?.feedback === "down", "👎 kept");
+  await waitFor(() => env.core.store.nudges.get(id)?.feedback === "down", "👎 kept");
   tg.react(OWNER, msg, "🔥");
-  await until(() => env.core.store.nudges.get(id)?.feedback === "up", "🔥 counts as useful");
+  await waitFor(() => env.core.store.nudges.get(id)?.feedback === "up", "🔥 counts as useful");
   tg.react(OWNER, msg);
-  await until(() => env.core.store.nudges.get(id)?.feedback === undefined, "taking it off clears it");
+  await waitFor(() => env.core.store.nudges.get(id)?.feedback === undefined, "taking it off clears it");
   // Someone else's reaction never rates the owner's notices, and rating sends nothing back.
   tg.react(ANA, msg, "👍");
   await new Promise((r) => setTimeout(r, 150));
@@ -548,7 +546,7 @@ test("a notice the owner's chosen channel refuses goes to the next channel that 
     await env.client.call("routines.run", { routine: r.id });
     const outbox = () => env.core.store.channels.outbox.recent(20).filter((o) => o.text === "Evening brief");
     // Telegram has the message a moment before its row is marked sent: wait for the row, not the message.
-    await until(() => outbox().some((o) => o.channel === "tg" && o.state === "sent"), "notice sent on Telegram");
+    await waitFor(() => outbox().some((o) => o.channel === "tg" && o.state === "sent"), "notice sent on Telegram");
     assert.ok(tg.messagesTo(OWNER.id).some((m) => m.body.text === "Evening brief"));
     assert.deepEqual(
       outbox()

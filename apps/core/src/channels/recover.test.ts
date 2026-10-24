@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import type { Message } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { removeDir, waitFor } from "../testkit/platform.ts";
 import { fakeWhatsApp } from "./fake-whatsapp.test-support.ts";
 import type { AdapterIO } from "./types.ts";
 import { whatsappAdapter } from "./whatsapp.ts";
@@ -18,14 +19,6 @@ const llm = scriptedLlm((_req, { said }) => say(`Got it: ${said.slice(0, 20)}`))
 let env: Awaited<ReturnType<typeof startCore>>;
 let wa: ReturnType<typeof fakeWhatsApp>;
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 4000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 20));
-  }
-  throw new Error(`never: ${what}`);
-};
 const threadId = () => env.core.store.threads.byConversation("whatsapp", ANA.phone)?.id ?? "";
 const theirs = async (): Promise<Message[]> =>
   (await env.client.call("threads.get", { thread: threadId() })).messages.filter((m) => m.author.kind === "person");
@@ -34,7 +27,7 @@ const texts = (m: Message | undefined) => (m?.parts ?? []).flatMap((p) => (p.typ
 const anaSays = async (text: string, content?: object) => {
   const answers = wa.textsTo(ANA.phone).length;
   const id = wa.message(ANA, text, content ? { content } : {});
-  await until(() => wa.textsTo(ANA.phone).length > answers, `the answer to "${text}"`);
+  await waitFor(() => wa.textsTo(ANA.phone).length > answers, `the answer to "${text}"`);
   return id;
 };
 
@@ -56,15 +49,15 @@ before(async () => {
     id: "whatsapp",
     channel: { type: "whatsapp", agent_id: "roby", self_owner: true },
   });
-  await until(async () => Boolean((await env.client.call("channels.list", {})).channels[0]?.qr), "a QR");
+  await waitFor(async () => Boolean((await env.client.call("channels.list", {})).channels[0]?.qr), "a QR");
   wa.scan();
-  await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "linked");
+  await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "linked");
   const ana = await env.client.call("contacts.set", { name: "Ana" });
   await env.client.call("contacts.address", { channel: "whatsapp", address: "+54 9 11 0000-0002", person: ana.id });
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("a video and a document kept as placeholders get their files from the phone again, with no new turn", async () => {
@@ -156,14 +149,14 @@ test("adapter: after a restart, a message that came under someone's private id i
       signal: new AbortController().signal,
     };
     await adapter.start(io);
-    await until(() => up, "linked");
+    await waitFor(() => up, "linked");
     return adapter;
   };
   const first = await linked();
   const id = fake.message(BOB, "", {
     content: { videoMessage: { mimetype: "video/mp4" }, bytes: MP4.toString("base64") },
   });
-  await until(() => got.includes(id), "Bob's video");
+  await waitFor(() => got.includes(id), "Bob's video");
   await first.stop();
 
   const again = await linked();
@@ -173,5 +166,5 @@ test("adapter: after a restart, a message that came under someone's private id i
   assert.deepEqual(fake.resendAsked, [{ remoteJid: BOB.lid, id, fromMe: false }]);
   assert.equal(got.length, 1, "the message sent again is not news");
   await again.stop();
-  fs.rmSync(dir, { recursive: true, force: true });
+  await removeDir(dir);
 });

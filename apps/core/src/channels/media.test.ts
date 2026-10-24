@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { telegramAdapter } from "./telegram.ts";
 
@@ -44,14 +45,6 @@ const llm = scriptedLlm((_req, { said, afterTool }) => {
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let tg: Awaited<ReturnType<typeof fakeTelegram>>;
-const until = async (check: () => boolean, what: string, ms = 5000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 
 before(async () => {
   await new Promise<void>((r) => media.listen(0, "127.0.0.1", r));
@@ -72,7 +65,7 @@ before(async () => {
   await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
   // The owner pairs once.
   tg.message(OWNER, "hola");
-  await until(() => tg.messagesTo(OWNER.id).length === 1, "pairing code");
+  await waitFor(() => tg.messagesTo(OWNER.id).length === 1, "pairing code");
   const code = /(\d{6})/.exec(String(tg.messagesTo(OWNER.id)[0]?.body.text))?.[1] ?? "";
   await env.client.call("pairing.respond", { code, decision: "owner" });
 });
@@ -80,14 +73,16 @@ after(async () => {
   await env.core.close();
   await tg.close();
   await new Promise<void>((r) => media.close(() => r()));
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("a voice note is heard, the agent draws, and the answer returns as a voice note with its words, and the photo", async () => {
   await env.client.call("threads.voice", { thread: "home", on: true });
   tg.voice(OWNER);
-  await until(() => tg.sent.some((s) => s.method === "sendPhoto"), "the photo", 8000);
-  await until(() => tg.sent.some((s) => s.method === "sendVoice" || s.method === "sendAudio"), "the voice", 8000);
+  await waitFor(() => tg.sent.some((s) => s.method === "sendPhoto"), "the photo", { ms: 8000 });
+  await waitFor(() => tg.sent.some((s) => s.method === "sendVoice" || s.method === "sendAudio"), "the voice", {
+    ms: 8000,
+  });
   // What the voice note says rides with it as its caption, not as a separate message.
   const voice = tg.sent.find((s) => s.method === "sendVoice" || s.method === "sendAudio");
   assert.match(String(voice?.body.caption), /fox, drawn/);
@@ -115,10 +110,10 @@ test("a file the agent attaches on a channel turn reaches the channel, with or w
     await env.client.call("threads.voice", { thread: "home", on: voice });
     const before = tg.filesTo(OWNER.id).filter((s) => s.method === "sendDocument").length;
     tg.message(OWNER, "mandame el reel");
-    await until(
+    await waitFor(
       () => tg.filesTo(OWNER.id).filter((s) => s.method === "sendDocument").length > before,
       `the reel as a document (voice ${voice})`,
-      8000,
+      { ms: 8000 },
     );
     const doc = tg
       .filesTo(OWNER.id)
@@ -133,7 +128,7 @@ test("a channel voice note stays playable when no transcription engine is config
   await env.client.call("services.set", { id: "ears", service: null });
   const before = env.core.store.messages.list("home").length;
   tg.voice(OWNER);
-  await until(() => env.core.store.messages.list("home").length > before, "the voice without transcription");
+  await waitFor(() => env.core.store.messages.list("home").length > before, "the voice without transcription");
   const message = env.core.store.messages
     .list("home")
     .slice(before)

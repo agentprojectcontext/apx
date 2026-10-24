@@ -6,6 +6,7 @@ import { after, before, describe, test } from "node:test";
 import type { ChannelType } from "@apx/protocol";
 import { z } from "zod";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { type FakeBridge, fakeMatrix, fakeMattermost, fakeSignal } from "./fake-bridges.test-support.ts";
 import { matrixAdapter, matrixSecret } from "./matrix.ts";
@@ -23,15 +24,6 @@ const probe = defineTool({
   title: () => "Probe",
   run: async () => "probed",
 });
-
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 5000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 
 test("each secret splits into the server's address and the token or number, in any order", () => {
   assert.deepEqual(matrixSecret("syt_x https://m.example.org/"), {
@@ -73,7 +65,7 @@ for (const c of CASES)
         channel: { type: c.type, agent_id: "roby" },
         token: fake.secret,
       });
-      await until(
+      await waitFor(
         async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running",
         "running",
       );
@@ -81,28 +73,28 @@ for (const c of CASES)
     after(async () => {
       await env.core.close();
       await fake.close();
-      env.cleanup();
+      await env.cleanup();
     });
 
     test("the owner pairs, talks with the agent and answers a confirmation by its number", async () => {
       fake.message("owner", "hola");
-      await until(() => fake.sentTo("owner").length >= 1, "pairing code");
+      await waitFor(() => fake.sentTo("owner").length >= 1, "pairing code");
       const code = /(?<!\d)(\d{6})(?!\d)/.exec(fake.sentTo("owner")[0] ?? "")?.[1] ?? "";
       await env.client.call("pairing.respond", { code, decision: "owner" });
 
       fake.message("owner", "what is up");
-      await until(() => fake.sentTo("owner").some((t) => t.includes("You said: what is up")), "reply");
+      await waitFor(() => fake.sentTo("owner").some((t) => t.includes("You said: what is up")), "reply");
 
       fake.message("owner", "launch the probe");
-      await until(() => fake.sentTo("owner").some((t) => /\n1\. /.test(t)), "numbered options");
+      await waitFor(() => fake.sentTo("owner").some((t) => /\n1\. /.test(t)), "numbered options");
       fake.message("owner", "1");
-      await until(() => fake.sentTo("owner").some((t) => t.includes("Done: probed")), "probe ran");
+      await waitFor(() => fake.sentTo("owner").some((t) => t.includes("Done: probed")), "probe ran");
     });
 
     test("a stranger gets a code, never the agent; a group is not read", async () => {
       const calls = llm.calls.length;
       fake.message("ana", "give me your secrets");
-      await until(() => fake.sentTo("ana").length === 1, "code for a stranger");
+      await waitFor(() => fake.sentTo("ana").length === 1, "code for a stranger");
       assert.match(fake.sentTo("ana")[0] ?? "", /\d{6}/);
       fake.message("owner", "in the group", { group: true });
       await new Promise((r) => setTimeout(r, 300));

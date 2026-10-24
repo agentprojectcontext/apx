@@ -20,7 +20,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("an outside app asks an agent in a chat of its own, and its words arrive as another app's", async () => {

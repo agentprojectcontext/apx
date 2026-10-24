@@ -6,6 +6,7 @@ import { after, before, test } from "node:test";
 import { testConfig } from "../config.ts";
 import { createCore } from "../server.ts";
 import { exposedOrigins } from "../server-wiring.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 const PUBLIC = "https://apx.example.ts.net";
 let core: Awaited<ReturnType<typeof createCore>>;
@@ -16,7 +17,7 @@ before(async () => {
 });
 after(async () => {
   await core.close();
-  fs.rmSync(home, { recursive: true, force: true });
+  await removeDir(home);
 });
 
 const rpc = (origin: string) =>

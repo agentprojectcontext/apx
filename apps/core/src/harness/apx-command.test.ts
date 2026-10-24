@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("the core leaves its own apx for agents' shells, first on their PATH, and it reaches this core", async () => {

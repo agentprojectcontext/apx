@@ -75,7 +75,7 @@ test("recertification updates provenance and cannot cross a prior fork boundary"
     assert.ok(env.core.store.memories.history(saved.id).some((version) => version.note.thread_id === other.id));
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -105,7 +105,7 @@ test("a reviewed claim cannot certify a target outside its private notebook", as
     assert.equal(env.core.store.memories.get(note.id)?.revision, 1);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -125,7 +125,7 @@ for (const action of ["edit", "forget"] as const)
       assert.deepEqual(env.core.store.memories.get(note.id), changed);
     } finally {
       await env.core.close();
-      env.cleanup();
+      await env.cleanup();
     }
   });
 
@@ -149,7 +149,7 @@ test("other project notes cannot crowd out a repairable personal note", async ()
     );
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -174,7 +174,7 @@ test("a direct remember edit also updates its origin before any auxiliary captur
     assert.equal(canUseChatMemory(env.core.store, source, saved), true);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -211,6 +211,6 @@ test("an ineligible worker edit cannot replace a note's fork boundary with its o
     assert.equal(canUseChatMemory(env.core.store, fork, saved), false);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

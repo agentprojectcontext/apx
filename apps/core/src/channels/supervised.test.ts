@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { methodAccess } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { telegramAdapter } from "./telegram.ts";
 
@@ -30,14 +31,6 @@ let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 let nb = "";
 let thread = "";
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 4000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 20));
-  }
-  throw new Error(`never: ${what}`);
-};
 type Markup = { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> };
 const toOwner = () => tg.messagesTo(OWNER.id).map((m) => m.body);
 const lastNotice = () => toOwner().findLast((b) => b.reply_markup);
@@ -54,7 +47,7 @@ const chat = async () =>
 async function noticeFor(from: typeof NB, text: string) {
   const before = toOwner().length;
   tg.message(from, text);
-  await until(
+  await waitFor(
     () =>
       toOwner()
         .slice(before)
@@ -72,7 +65,7 @@ before(async () => {
     channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) },
   });
   await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
-  await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+  await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
   await env.client.call("contacts.address", { channel: "tg", address: String(OWNER.id) });
   const p = await env.client.call("contacts.set", {
     name: NB.name,
@@ -86,7 +79,7 @@ before(async () => {
 after(async () => {
   await env.core.close();
   await tg.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("only the owner may read or decide drafts", () => {
@@ -98,7 +91,7 @@ test("a burst of messages gets one draft, nothing goes to the contact, and the o
   const calls = llm.calls.length;
   tg.message(NB, "hi there");
   tg.message(NB, "can we meet tomorrow?");
-  await until(() => Boolean(lastNotice()), "the notice");
+  await waitFor(() => Boolean(lastNotice()), "the notice");
   const notice = lastNotice();
   const text = String(notice?.text);
   assert.match(text, /Northwind Buyer te escribió por Telegram/);
@@ -132,9 +125,9 @@ test("'Mandar esta' sends the draft as the agent's message in their chat", async
   const [s] = await pending();
   const send = buttons(lastNotice()).find((b) => b.text === "Mandar esta");
   tg.press(OWNER, send?.callback_data ?? "");
-  await until(() => tg.messagesTo(NB.id).length === 1, "sent to the contact");
+  await waitFor(() => tg.messagesTo(NB.id).length === 1, "sent to the contact");
   assert.equal(tg.messagesTo(NB.id)[0]?.body.text, "Draft 1: tomorrow works");
-  await until(() => toOwner().some((b) => b.text === "Listo: se lo mandé a Northwind Buyer."), "the owner is told");
+  await waitFor(() => toOwner().some((b) => b.text === "Listo: se lo mandé a Northwind Buyer."), "the owner is told");
   assert.deepEqual((await chat()).at(-1), { author: "agent", text: "Draft 1: tomorrow works" });
   assert.deepEqual(await pending(), []);
   const tray = await env.client.call("notifications.list", {});
@@ -144,7 +137,7 @@ test("'Mandar esta' sends the draft as the agent's message in their chat", async
   assert.ok(sent?.message_id);
   // Pressed again: nothing goes twice.
   tg.press(OWNER, send?.callback_data ?? "");
-  await until(() => toOwner().some((b) => /ya no está pendiente/.test(String(b.text))), "already decided");
+  await waitFor(() => toOwner().some((b) => /ya no está pendiente/.test(String(b.text))), "already decided");
   assert.equal(tg.messagesTo(NB.id).length, 1);
 });
 
@@ -163,7 +156,7 @@ test("the next draft reads what was sent, and an app can send it edited", async 
   });
   assert.equal(r.suggestion.state, "sent");
   assert.notEqual(r.delivery.state, "failed");
-  await until(() => tg.messagesTo(NB.id).length === 2, "the edited text");
+  await waitFor(() => tg.messagesTo(NB.id).length === 2, "the edited text");
   assert.equal(tg.messagesTo(NB.id)[1]?.body.text, "The owner will send it today.");
   await assert.rejects(env.client.call("contacts.suggestions.send", { id: s?.id ?? "" }), /is sent/);
 });
@@ -172,9 +165,9 @@ test("'Contestar yo': the owner's next words go to the contact as theirs", async
   const notice = await noticeFor(NB, "are you there?");
   const calls = llm.calls.length;
   tg.press(OWNER, buttons(notice).find((b) => b.text === "Contestar yo")?.callback_data ?? "");
-  await until(() => toOwner().some((b) => /Escribí tu respuesta para Northwind Buyer/.test(String(b.text))), "asked");
+  await waitFor(() => toOwner().some((b) => /Escribí tu respuesta para Northwind Buyer/.test(String(b.text))), "asked");
   tg.message(OWNER, "Yes, calling you in 5");
-  await until(() => tg.messagesTo(NB.id).length === 3, "their words sent");
+  await waitFor(() => tg.messagesTo(NB.id).length === 3, "their words sent");
   assert.equal(tg.messagesTo(NB.id)[2]?.body.text, "Yes, calling you in 5");
   assert.deepEqual((await chat()).at(-1), { author: "user", text: "Yes, calling you in 5" });
   assert.deepEqual(await pending(), []);
@@ -184,9 +177,9 @@ test("'Contestar yo': the owner's next words go to the contact as theirs", async
 test("'Contestar yo' then 'cancelar' sends nothing, and the draft stays pending", async () => {
   const notice = await noticeFor(NB, "still there?");
   tg.press(OWNER, buttons(notice).find((b) => b.text === "Contestar yo")?.callback_data ?? "");
-  await until(() => toOwner().filter((b) => /Escribí tu respuesta/.test(String(b.text))).length === 2, "asked");
+  await waitFor(() => toOwner().filter((b) => /Escribí tu respuesta/.test(String(b.text))).length === 2, "asked");
   tg.message(OWNER, "cancelar");
-  await until(() => toOwner().some((b) => b.text === "Listo, no le mando nada."), "canceled");
+  await waitFor(() => toOwner().some((b) => b.text === "Listo, no le mando nada."), "canceled");
   assert.equal(tg.messagesTo(NB.id).length, 3);
   const [s] = await pending();
   assert.equal(s?.state, "pending");
@@ -196,7 +189,7 @@ test("'Contestar yo' then 'cancelar' sends nothing, and the draft stays pending"
 test("'Ignorar' sends nothing and keeps them supervised", async () => {
   const notice = await noticeFor(NB, "hello again");
   tg.press(OWNER, buttons(notice).find((b) => b.text === "Ignorar")?.callback_data ?? "");
-  await until(() => toOwner().some((b) => b.text === "Listo: no le contesto a Northwind Buyer."), "dropped");
+  await waitFor(() => toOwner().some((b) => b.text === "Listo: no le contesto a Northwind Buyer."), "dropped");
   assert.deepEqual(await pending(), []);
   assert.equal(tg.messagesTo(NB.id).length, 3);
   const p = (await env.client.call("contacts.list", {})).persons.find((x) => x.id === nb);
@@ -249,7 +242,7 @@ test("past the hourly cap of drafts their messages are only kept, and the owner 
   for (let i = 0; i < 10; i++) await noticeFor(ACME, `message ${i}`);
   const calls = llm.calls.length;
   tg.message(ACME, "message 10");
-  await until(() => toOwner().some((b) => /Acme Buyer escribe mucho seguido/.test(String(b.text))), "told once");
+  await waitFor(() => toOwner().some((b) => /Acme Buyer escribe mucho seguido/.test(String(b.text))), "told once");
   tg.message(ACME, "message 11");
   await new Promise((r) => setTimeout(r, 300));
   assert.equal(llm.calls.length, calls, "no more model calls");

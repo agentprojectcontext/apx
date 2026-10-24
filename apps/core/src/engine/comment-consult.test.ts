@@ -2,6 +2,7 @@
 // task, and the answer comes back to the asker's chat for the task, which goes on. The answer asks no one further.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { waitFor } from "../testkit/platform.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 const taskId = (text: string) => /task_[0-9a-f]+/.exec(text)?.[0] ?? "";
@@ -24,17 +25,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
-
-const until = async (check: () => boolean, what: string, ms = 5000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 
 test("an agent's @mention on its task asks that teammate, and the answer comes back to its chat for the task", async () => {
   const store = env.core.store;
@@ -44,9 +36,9 @@ test("an agent's @mention on its task asks that teammate, and the answer comes b
     assignee: "vera",
   });
   const chat = () => store.threads.byTask(task.id).find((t) => t.agent_ids[0] === "vera");
-  await until(() => Boolean(chat()), "vera's chat for the task");
+  await waitFor(() => Boolean(chat()), "vera's chat for the task");
   const [consult] = await (async () => {
-    await until(() => store.threads.sessions(task.thread_id).length > 0, "a consult on the task");
+    await waitFor(() => store.threads.sessions(task.thread_id).length > 0, "a consult on the task");
     return store.threads.sessions(task.thread_id);
   })();
   assert.equal(consult?.agent_ids[0], "scout");
@@ -54,7 +46,7 @@ test("an agent's @mention on its task asks that teammate, and the answer comes b
   const asked = store.runs.list(consult?.id ?? "")[0];
   assert.equal(asked?.trigger, "a2a", "an agent asked, not the owner: no new budget window");
   await env.settle(consult?.id ?? "");
-  await until(
+  await waitFor(
     () => store.runs.list(chat()?.id ?? "").some((r) => r.trigger === "a2a" && r.state === "completed"),
     "vera hears the answer",
   );

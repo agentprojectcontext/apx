@@ -8,7 +8,7 @@ before(async () => {
 });
 after(async () => {
   await h.env.core.close();
-  h.env.cleanup();
+  await h.env.cleanup();
 });
 
 const servers = async () => (await h.env.client.call("mcp.list", {})).servers.filter((s) => s.name === "acme-issues");

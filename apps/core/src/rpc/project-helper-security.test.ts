@@ -42,7 +42,7 @@ test("hostile project names, imported context, draft roles and goals remain quot
     assert.ok(!review.suggested_prompt.includes("<system>"));
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -56,7 +56,7 @@ test("model callers cannot review context or enable helper mode", async () => {
     assert.equal((await env.client.call("projects.helper_review", { project: project.id })).enabled, false);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -77,7 +77,7 @@ test("draft dismissal cannot reactivate a dismissed project offer; replaying the
     assert.equal(env.core.store.settings.read("project_helper")[project.id]?.dismissed?.length, 2);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -95,6 +95,6 @@ test("helper accepts the same full custom prompt as agent creation without propo
     assert.ok(!review.missing.includes("instructions"));
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

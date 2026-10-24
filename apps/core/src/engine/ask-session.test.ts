@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { realpath } from "../paths.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 let root = "";
@@ -34,14 +35,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
-
-const until = async (check: () => boolean, ms = 4000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end && !check()) await new Promise((r) => setTimeout(r, 25));
-  return check();
-};
 
 test("a delegate from a chat that asks, asks before writing; the owner's own code chat follows the agent's mode", async () => {
   const chat = await env.client.call("threads.create", {
@@ -58,11 +53,11 @@ test("a delegate from a chat that asks, asks before writing; the owner's own cod
   await env.settle(chat.id);
   const [session] = env.core.store.threads.sessions(chat.id);
   assert.equal(session?.write, "ask", "auto asked, capped at the chat's ask");
-  assert.ok(await until(() => env.core.store.inputs.pending(session?.id ?? "").length === 1), "the owner is asked");
+  await waitFor(() => env.core.store.inputs.pending(session?.id ?? "").length === 1, "the owner asked");
   assert.equal(fs.existsSync(path.join(root, "delegated.txt")), false);
   await env.client.call("runs.respond", {
     input: env.core.store.inputs.pending(session?.id ?? "")[0]?.id ?? "",
     decision: "approve",
   });
-  assert.ok(await until(() => fs.existsSync(path.join(root, "delegated.txt"))), "approved: written");
+  await waitFor(() => fs.existsSync(path.join(root, "delegated.txt")), "the approved file written");
 });

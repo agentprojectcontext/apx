@@ -50,7 +50,7 @@ before(async () => {
 after(async () => {
   await env.core.close();
   await new Promise<void>((r) => ollama.close(() => r()));
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("by words only, a note sharing no word with the question is not found", async () => {

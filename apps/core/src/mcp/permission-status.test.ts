@@ -40,7 +40,7 @@ test("permission status reports only current owner-wide grants without starting 
     assert.equal((await status())?.tool_permission_mode, "ask", "new contracts invalidate old grants");
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -55,6 +55,6 @@ test("a server that does not start answers its tools with why, not as a failed c
     await assert.rejects(env.client.call("mcp.approveTool", { ...target, tool: "echo" }), /ENOENT/);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

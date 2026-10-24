@@ -61,7 +61,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 async function chat(agent: string, project_id?: string) {

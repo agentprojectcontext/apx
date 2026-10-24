@@ -15,7 +15,7 @@ before(async () => {
 });
 after(async () => {
   await h.env.core.close();
-  h.env.cleanup();
+  await h.env.cleanup();
 });
 
 const tellHer = () => ({

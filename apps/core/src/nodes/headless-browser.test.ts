@@ -10,6 +10,7 @@ import { PassThrough } from "node:stream";
 import { after, before, test } from "node:test";
 import type { TabInfo } from "@apx/protocol";
 import { chromium } from "@playwright/test";
+import { removeDir } from "../testkit/platform.ts";
 import { createHeadlessBrowser } from "./headless-browser.ts";
 
 const chrome = chromium.executablePath();
@@ -103,7 +104,7 @@ test("CDP input and output pipe errors reject work and stop Chrome without an un
       isolated.close();
       input.destroy();
       output.destroy();
-      fs.rmSync(isolatedDir, { recursive: true, force: true });
+      await removeDir(isolatedDir);
     }
   }
 });

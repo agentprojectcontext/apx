@@ -41,7 +41,7 @@ async function turnTools(): Promise<Spec[]> {
     }));
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 }
 

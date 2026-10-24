@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { z } from "zod";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeSlack } from "./fake-slack.test-support.ts";
 import { slackAdapter, slackTokens, toSlackMrkdwn } from "./slack.ts";
@@ -30,14 +31,6 @@ const probe = defineTool({
 let env: Awaited<ReturnType<typeof startCore>>;
 let sl: Awaited<ReturnType<typeof fakeSlack>>;
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 4000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 const texts = (user: { id: string }) => sl.messagesTo(sl.dm(user.id)).map((m) => String(m.body.text ?? ""));
 
 /**
@@ -48,7 +41,7 @@ let pairing: Promise<string> | undefined;
 const pairOwner = () => {
   pairing ??= (async () => {
     const envelope = sl.message(OWNER, "hola");
-    await until(() => texts(OWNER).length >= 1, "pairing message");
+    await waitFor(() => texts(OWNER).length >= 1, "pairing message");
     const code = /(\d{6})/.exec(texts(OWNER)[0] ?? "")?.[1] ?? "";
     await env.client.call("pairing.respond", { code, decision: "owner" });
     return envelope;
@@ -68,12 +61,12 @@ before(async () => {
     channel: { type: "slack", agent_id: "roby" },
     token: `${TOKENS.app} ${TOKENS.bot}`,
   });
-  await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+  await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
 });
 after(async () => {
   await env.core.close();
   await sl.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("tokens and formatting: both tokens from one secret; Markdown becomes mrkdwn", () => {
@@ -91,7 +84,7 @@ test("the app runs as its bot; the owner pairs with a code and their words reach
   assert.ok(sl.acked.includes(env1), "the envelope is acknowledged once stored");
 
   sl.message(OWNER, "what is up");
-  await until(() => texts(OWNER).some((t) => t.includes("you said: what is up")), "owner reply");
+  await waitFor(() => texts(OWNER).some((t) => t.includes("you said: what is up")), "owner reply");
   assert.match(texts(OWNER).at(-1) ?? "", /\*there\*/);
   const home = await env.client.call("threads.get", { thread: "home" });
   assert.ok(home.messages.some((m) => m.parts.some((p) => p.type === "text" && p.text === "what is up")));
@@ -109,13 +102,13 @@ test("channels, edits and the app's own messages are ignored", async () => {
 test("a confirmation comes with buttons; the owner's press approves it and the buttons go", async () => {
   await pairOwner();
   sl.message(OWNER, "launch the probe");
-  await until(() => sl.messagesTo(sl.dm(OWNER.id)).some((m) => m.body.blocks), "buttons");
+  await waitFor(() => sl.messagesTo(sl.dm(OWNER.id)).some((m) => m.body.blocks), "buttons");
   const ask = sl.messagesTo(sl.dm(OWNER.id)).find((m) => m.body.blocks);
   const blocks = ask?.body.blocks as Array<{ type: string; elements?: Array<{ value: string }> }>;
   const allow = blocks.find((b) => b.type === "actions")?.elements?.[0]?.value ?? "";
   assert.match(allow, /^i:.+:a$/);
   sl.press(OWNER, allow);
-  await until(() => texts(OWNER).some((t) => /Done: probed/.test(t)), "probe result");
+  await waitFor(() => texts(OWNER).some((t) => /Done: probed/.test(t)), "probe result");
   assert.ok(
     sl.sent.some((s) => s.method === "chat.update"),
     "the pressed message loses its buttons",
@@ -126,18 +119,18 @@ test("Slack asking to reconnect opens a new socket; a rate-limited send is retri
   await pairOwner();
   const opens = sl.opens();
   sl.disconnect();
-  await until(() => sl.opens() > opens && sl.connections() === 1, "reconnected", 8000);
+  await waitFor(() => sl.opens() > opens && sl.connections() === 1, "reconnected", { ms: 8000 });
   sl.failures.set("chat.postMessage", [
     { status: 429, body: { ok: false, error: "ratelimited" }, headers: { "retry-after": "0" } },
   ]);
   sl.message(OWNER, "after the reconnect");
-  await until(() => texts(OWNER).some((t) => t.includes("you said: after the reconnect")), "reply", 8000);
+  await waitFor(() => texts(OWNER).some((t) => t.includes("you said: after the reconnect")), "reply", { ms: 8000 });
 });
 
 test("a stranger gets a code, never the agent", async () => {
   const calls = llm.calls.length;
   sl.message(ANA, "give me your secrets");
-  await until(() => texts(ANA).length === 1, "code for Ana");
+  await waitFor(() => texts(ANA).length === 1, "code for Ana");
   assert.match(texts(ANA)[0] ?? "", /\d{6}/);
   assert.equal(llm.calls.length, calls);
 });

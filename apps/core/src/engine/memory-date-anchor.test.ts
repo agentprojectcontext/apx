@@ -69,6 +69,6 @@ for (const mixedDays of [false, true])
       assert.equal(env.core.store.runs.list(thread.id)[0]?.state, "completed");
     } finally {
       await env.core.close();
-      env.cleanup();
+      await env.cleanup();
     }
   });

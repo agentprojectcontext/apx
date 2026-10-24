@@ -4,6 +4,7 @@ import { z } from "zod";
 import { openDb } from "../db/db.ts";
 import { memorySourceWindow } from "../domain/memory-evidence.ts";
 import { qb, sql } from "../domain/sql.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
@@ -14,13 +15,6 @@ function gate() {
     release = resolve;
   });
   return { wait, release };
-}
-async function until(check: () => boolean) {
-  for (let i = 0; i < 300; i++) {
-    if (check()) return;
-    await new Promise((r) => setTimeout(r, 10));
-  }
-  assert.fail("memory contract did not settle");
 }
 
 for (const action of ["quota", "forget"] as const)
@@ -60,7 +54,7 @@ for (const action of ["quota", "forget"] as const)
         await env.client.call("memory.remove", { id: note.id });
       }
       response.release();
-      await until(() => env.core.store.memoryWork.recent().every((j) => j.state !== "working"));
+      await waitFor(() => env.core.store.memoryWork.recent().every((j) => j.state !== "working"));
       assert.equal((await env.client.call("memory.list", {})).memories.length, 0);
       if (action === "quota") {
         assert.equal(reviews, 0);
@@ -69,7 +63,7 @@ for (const action of ["quota", "forget"] as const)
     } finally {
       response.release();
       await env.core.close();
-      env.cleanup();
+      await env.cleanup();
     }
   });
 
@@ -150,7 +144,7 @@ test("the canonical memory handlers reject uncertified synthesis and retirement"
     assert.equal((await env.client.call("memory.list", {})).memories.length, 2);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -186,7 +180,7 @@ test("a source window excludes a later run even when every timestamp is identica
     );
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -212,18 +206,18 @@ test("invalid extraction is retried instead of poisoning a durable checkpoint", 
     const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Checkpoint" });
     await env.client.call("threads.send", { thread: t.id, text: preference });
     await env.settle(t.id);
-    await until(() => env.core.store.memoryWork.recent().some((j) => !!j.error));
+    await waitFor(() => env.core.store.memoryWork.recent().some((j) => !!j.error));
     const job = env.core.store.memoryWork.recent().find((j) => j.kind === "capture");
     assert.ok(job);
     assert.deepEqual(JSON.parse(job.result ?? "{}"), {});
     env.core.store.memoryWork.defer(job.id, "retry", new Date(0).toISOString());
     await env.client.call("memory.maintenance", {});
-    await until(() => env.core.store.memories.list({ agent_id: "roby", limit: 100 }).length > 0);
+    await waitFor(() => env.core.store.memories.list({ agent_id: "roby", limit: 100 }).length > 0);
     assert.equal(extracts, 2);
     assert.equal(env.core.store.memories.list({ agent_id: "roby", limit: 100 })[0]?.text, preference);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -241,7 +235,9 @@ test("transient work consumes no capture calls while its original chat remains s
       text: `Download the Acme resource and check the resulting artifact. ${"Transient control row. ".repeat(500)}`,
     });
     await env.settle(t.id);
-    await until(() => env.core.store.memoryWork.recent().some((j) => j.kind === "capture" && j.state === "completed"));
+    await waitFor(() =>
+      env.core.store.memoryWork.recent().some((j) => j.kind === "capture" && j.state === "completed"),
+    );
     assert.equal(captures, 0);
     assert.ok(env.core.store.memorySources.forRun(sent.run.id).length);
     assert.equal((await env.client.call("memory.list", {})).memories.length, 0);
@@ -249,7 +245,7 @@ test("transient work consumes no capture calls while its original chat remains s
     assert.ok(recalled.some((e) => e.run_id === sent.run.id));
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -296,11 +292,11 @@ test("a quoted output fallback cannot become a standing preference even if the h
     for (const text of [preference, `Prepará informe ejecutivo nuevo. ${fallback}`]) {
       await env.client.call("threads.send", { thread: t.id, text });
       await env.settle(t.id);
-      await until(() => env.core.store.memoryWork.recent().every((j) => j.state === "completed"));
+      await waitFor(() => env.core.store.memoryWork.recent().every((j) => j.state === "completed"));
     }
     assert.equal((await env.client.call("memory.list", {})).memories.length, 0);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
