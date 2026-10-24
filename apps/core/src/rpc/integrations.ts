@@ -12,6 +12,7 @@ import {
   GOOGLE_INTEGRATIONS,
   integrationSecret,
   isGoogleId,
+  refusesAccount,
   serverFor,
 } from "../integrations/catalog.ts";
 import { type Connectable, findConnectable } from "../integrations/find.ts";
@@ -25,7 +26,15 @@ const expand = (v: string) => (v.startsWith("~/") ? `${os.homedir()}${v.slice(1)
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const ASANA = { id: "asana", label: "Asana", description: "Tasks and projects of your workspace." };
 
-export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp: Mcp; google: Google; asana: Asana }) {
+export function integrationHandlers(deps: {
+  store: Store;
+  secrets: Secrets;
+  mcp: Mcp;
+  google: Google;
+  asana: Asana;
+  /** What asks a remote server whether it takes the owner's account (tests pass a fake). */
+  fetch?: typeof fetch;
+}) {
   const { store, secrets, mcp, google, asana } = deps;
   const connected = (id: string) => mcp.config.global().some((d) => d.name === id);
   /** What was typed in an integration's plain fields (a team id, a folder), to edit it later. */
@@ -159,7 +168,22 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
         e.fields.filter((f) => !f.secret).map((f) => [f.name, expand(values[f.name]?.trim() || kept[f.name] || "")]),
       );
       store.settings.set(`integration_values:${e.id}`, JSON.stringify(plain));
-      mcp.config.setGlobal(e.id, serverFor(e, plain));
+      // The values themselves, only for asking the server here: what is stored keeps secrets by reference.
+      const real = (v: string) =>
+        v.replace(/\{([a-z]+)\}/g, (_m, name: string) =>
+          e.fields.find((f) => f.name === name)?.secret
+            ? (secrets.resolve(`secret://${integrationSecret(e.id, name)}`) ?? "")
+            : (plain[name] ?? ""),
+        );
+      const refused =
+        e.fallback && "url" in e.server
+          ? await refusesAccount(
+              real(e.server.url),
+              Object.fromEntries(Object.entries(e.server.headers).map(([k, v]) => [k, real(v)])),
+              deps.fetch,
+            )
+          : false;
+      mcp.config.setGlobal(e.id, serverFor(e, plain, refused));
       mcp.drop({ scope: "global", name: e.id });
       return { connected: true as const };
     },

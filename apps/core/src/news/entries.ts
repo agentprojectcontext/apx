@@ -117,7 +117,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "channel-hours",
-    since: "2.9.1",
+    since: "2.10.0",
     title: "Attention hours for contacts",
     applies: (f) => f.contacts,
     text:
@@ -137,7 +137,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "super-agent-settings",
-    since: "2.9.1",
+    since: "2.10.0",
     title: "Settings changed from chat",
     applies: (f) => f.contacts,
     text:
@@ -162,7 +162,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "stickers",
-    since: "2.9.1",
+    since: "2.10.0",
     title: "Stickers kept and sent back",
     applies: (f) => f.contacts,
     text:
@@ -182,7 +182,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "more-apps",
-    since: "2.9.1",
+    since: "2.10.0",
     title: "Fifty more integrations",
     applies: (f) => f.integrations > 0,
     text:
@@ -202,7 +202,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "more-channels",
-    since: "2.9.1",
+    since: "2.10.0",
     title: "New channels",
     applies: (f) => f.channels > 0,
     text:
@@ -219,7 +219,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "teams-line",
-    since: "2.9.1",
+    since: "2.10.0",
     title: "Microsoft Teams and LINE",
     applies: (f) => f.channels > 0,
     text:

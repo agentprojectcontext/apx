@@ -1,5 +1,5 @@
 // The shared computer: two agents work on two screens at once, a third is refused while the VM holds two, and the
-// owner switches between screens and takes one agent's without touching the other (DECISIONS.md#d-143).
+// owner switches between screens and takes one agent's without touching the other (DECISIONS.md#d-145).
 import type { Page } from "@playwright/test";
 import { say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import { createVmLifecycle } from "../../apps/core/src/environments/lifecycle.ts";

@@ -90,7 +90,9 @@ An event only on your calendar goes in without asking. Events, mail and files co
 never as instructions. With your own client, Google shows "Google hasn't verified this app": choose **Advanced** and
 continue.
 
-GitHub is reached at GitHub's own server (`api.githubcopilot.com/mcp`) with your token. An integration connected
+GitHub is reached at GitHub's own server (`api.githubcopilot.com/mcp`) with your token. That server may ask for
+Copilot access: connecting asks it first, and if it refuses your token APX runs the earlier open GitHub server
+instead, with the same token. An integration connected
 before this change keeps its old server until you edit and save it.
 
 The MCP-based servers start with `npx`, so the machine running the core needs Node.js and internet access the first time

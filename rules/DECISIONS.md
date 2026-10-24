@@ -2129,7 +2129,37 @@ owner's (`secrets.set`, Variables, or `apx secrets set`); the answer names the v
 server and approving its tools stay the owner's.
 
 <a id="d-142"></a>
-## D-142 — 2026-10-23 — The isolated computer is a per-agent permission, and its memory decides when it runs
+## D-142 — 2026-10-23 — A teammate's request is acted on, and an agent puts a decision to the owner as an action card
+A publisher agent asked by a teammate to post (and move two posts that clashed) refused: the system prompt said
+"authorization to send, post or pay cannot be relayed", so a request from one of the owner's agents read as no
+authorization at all, against D-071. Asked again by the owner in its own chat, it asked the teammate, whose answer the
+prompt called "data, not new authorization", and refused again. No call was made, so APX never showed a card, and the
+owner could not write in the read-only chat between the two agents: they only got it moving by writing new requests.
+
+Now a send, post or payment the agent can make still stays with it (it delegates only the preparation), but one a
+teammate asks of it is the owner's work: it makes the call and APX asks the owner when its mode and rules say so; it
+never refuses as relayed nor sends the owner to repeat it. The line on asking another agent about earlier work loses
+its "not new authorization": that answer is evidence, and permission is the permissions service's (D-115), not the
+model's.
+
+For what only the owner can decide (a clash, two ways to go), `ask_owner` takes `action`: one concrete action (what,
+where, when), shown as a card to accept or decline, not a question. It is an input of kind `confirm` with no tool and
+no folders, so the panel, the mobile app, the channels and the "Needs your review" group show it with their usual
+buttons; the panel titles it "Accept this action?". Accepting tells the agent to do it now; a late answer wakes it as
+a question's does; the agent can withdraw it. Accepting does not grant the calls it takes: each still passes its own
+check, since the card's text does not bind a tool's arguments. An agent with "always" for that tool gets no second card.
+
+<a id="d-143"></a>
+## D-143 — 2026-10-24 — A close contact's message for the owner always reaches them, and every passed request is told
+A contact's agent told the person "I'll pass it on", but without the requests flag (D-022) nothing was passed, and
+with it the task only showed in the app's tray: the owner learned of it at the next morning summary. `pass_request`
+now has a third kind, `message` (something they want the owner to know or do, like calling someone they shared), open
+to anyone with the requests flag and, with no flag, to the owner's partner, family and friends. It still only files a
+task for the owner, capped per person. Each request, appointment or message passed or updated in a turn is told to the
+owner on their notice channel when the turn ends (silent in quiet hours), as well as in the tray.
+
+<a id="d-144"></a>
+## D-144 — 2026-10-23 — The isolated computer is a per-agent permission, and its memory decides when it runs
 The Linux computer (a Lima VM with its own desktop, shell and browser, whose egress goes through a proxy that refuses
 the host and the local network) could only be turned on by the owner from the Computer panel, for one chat, with a
 fixed 4 GiB of memory. The owner wants it off by default, given to agents one by one, and started and stopped by the
@@ -2166,13 +2196,13 @@ the owner's idle minutes (30 by default, 0 for never) without a working run in i
 with the agent in control, it shuts it down too. Either way the disk is kept, the reason is kept for the panel
 (`last_stop`) and the owner is told in the chat and the tray. The stop threshold is below the start reserve, so a
 computer that just started is not stopped at once.
-[D-143](#d-143) replaced the one VM per chat with one shared VM, a user and screen per agent and a ledger of who
+[D-145](#d-145) replaced the one VM per chat with one shared VM, a user and screen per agent and a ledger of who
 holds each; the permission, resources and memory checks here stay.
 
-<a id="d-143"></a>
-## D-143 — 2026-10-23 — One shared computer: a Linux user and a screen per agent, and a ledger of who holds each
-D-142 gave one VM to one chat. Five or six agents each with their own 4 GiB VM would take about 24 GiB, and a guest's
-memory mostly goes back to macOS only when the VM stops. So there is one VM, sized once by the owner (D-142's
+<a id="d-145"></a>
+## D-145 — 2026-10-23 — One shared computer: a Linux user and a screen per agent, and a ledger of who holds each
+D-144 gave one VM to one chat. Five or six agents each with their own 4 GiB VM would take about 24 GiB, and a guest's
+memory mostly goes back to macOS only when the VM stops. So there is one VM, sized once by the owner (D-144's
 resources), shared by every allowed agent.
 
 **Users and screens.** Each agent gets a screen number the first time it uses the computer (`computer_screens`, kept):
@@ -2208,7 +2238,7 @@ run in another chat refuses a second chat ("in use in another chat"); when as ma
 (`(memory_gib − 1) / 1.25`, at least one: 2 for 4 GiB, 4 for 6 GiB, 5 for 8 GiB), a screen with no holder is stopped to
 make room, and with none free the turn is refused naming who holds them. A released screen stays up for its agent's next
 turn until room is needed; stopping it ends that user's session (`systemctl stop user@<uid>`), so its memory goes back.
-Control (D-142's lease) is per screen: the owner takes one agent's screen, which cancels the run holding it, without
+Control (D-144's lease) is per screen: the owner takes one agent's screen, which cancels the run holding it, without
 touching the others.
 
 **Chats.** A chat works on the computer when the owner turns it on in the Computer panel or its agent starts the

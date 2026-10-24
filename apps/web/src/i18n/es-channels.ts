@@ -152,13 +152,20 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.rulesHint": "Va último en el prompt, así que le gana a la cautela del agente.",
   "ch.may": "Qué puede hacer esta conversación",
   "ch.perm.appointments": "Tomar pedidos de turno",
-  "ch.perm.appointmentsHint": "Los anota como tarea para que los confirmes.",
+  "ch.perm.appointmentsHint":
+    "Cuando pide un turno (día y hora), queda como tarea para que lo confirmes y te aviso por tu canal en el momento. No reserva nada.",
   "ch.perm.requests": "Tomar pedidos",
-  "ch.perm.requestsHint": "Una compra o un favor queda como tarea para vos.",
+  "ch.perm.requestsHint":
+    "Cuando pide algo que solo vos podés hacer (una compra, un favor, llamar a alguien), queda como tarea y te aviso en el momento. Tu agente nunca lo hace por vos.",
   "ch.perm.notes": "Contestar desde mis notas",
-  "ch.perm.notesHint": "Solo tus notas generales, de lectura.",
+  "ch.perm.notesHint":
+    "Tu agente puede buscar en tus notas generales para responderle (horarios, precios). Solo lectura; nunca las notas de tus agentes ni nada privado.",
+  "ch.may.help": "Sobre qué puede hacer esta conversación",
+  "ch.may.helpTitle": "Qué le permite cada opción a tu agente con esta persona",
+  "ch.may.close":
+    "Tu pareja, familia y amigos siempre pueden dejarte un mensaje para que te lo pase, aunque todo esté apagado.",
   "ch.anyHour": "Responder a cualquier hora",
-  "ch.anyHourHint": "Aunque sea fuera del horario de atención del canal.",
+  "ch.anyHourHint": "Le responde aunque sea fuera del horario de atención del canal.",
   "ch.mute": "Silenciar",
   "ch.unmute": "Quitar silencio",
   "ch.supervise": "Supervisar",

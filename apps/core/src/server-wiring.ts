@@ -240,6 +240,8 @@ type HandlerDeps = {
   /** Who may reach this core (this computer, the network, the tailnet). */
   access: Parameters<typeof accessHandlers>[0];
   webhooks: Parameters<typeof webhookHandlers>[0];
+  /** What asks an integration's remote server about the owner's account (tests pass a fake). */
+  integrationFetch?: typeof fetch | undefined;
   /** The owner's shells in a chat's folder. */
   terminals: Parameters<typeof terminalHandlers>[1];
 };
@@ -286,7 +288,14 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...mcpHandlers(d.mcp, d.store, (name) =>
       name === "asana" ? d.asana.connected() : isGoogleId(name) && d.google.connected(name),
     ),
-    ...integrationHandlers({ store: d.store, secrets: d.secrets, mcp: d.mcp, google: d.google, asana: d.asana }),
+    ...integrationHandlers({
+      store: d.store,
+      secrets: d.secrets,
+      mcp: d.mcp,
+      google: d.google,
+      asana: d.asana,
+      ...(d.integrationFetch ? { fetch: d.integrationFetch } : {}),
+    }),
     ...asanaHandlers(d.store, d.asana),
     ...resourceHandlers({
       store: d.store,
