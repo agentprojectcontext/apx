@@ -284,7 +284,8 @@ export function createExecutor(o: {
       };
     }
     // What the owner set up changes at their own word: not at another agent's, a contact's or a job's (DECISIONS.md#d-140).
-    if (tool.ownerSetting?.(args) && !ownerAsked(run.input?.origin)) {
+    const askedIn = (id: string) => store.runs.get(store.inputs.get(id)?.run_id ?? "")?.input?.origin;
+    if (tool.ownerSetting?.(args) && !ownerAsked(run.input?.origin, askedIn)) {
       card("error", "only when the owner asks");
       return {
         ok: false,

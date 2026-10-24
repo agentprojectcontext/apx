@@ -73,8 +73,20 @@ export type Origin =
 export const ownerOrigin = (o: Origin | undefined): o is Extract<Origin, { kind: "user" | "channel" }> =>
   o?.kind === "user" || (o?.kind === "channel" && o.role === "owner");
 
-/** The owner asked for this run: their own message, or their answer to something the agent asked them. */
-export const ownerAsked = (o: Origin | undefined): boolean => ownerOrigin(o) || o?.kind === "input_answer";
+/**
+ * The owner asked for this run: their own message, or their answer to something asked in a run they had asked for.
+ * An answer to a question another agent's, a contact's or a job's run raised is not their word on that run's request.
+ * `askedIn` gives the origin of the run that raised an input.
+ */
+export function ownerAsked(
+  o: Origin | undefined,
+  askedIn: (inputId: string) => Origin | undefined,
+  depth = 0,
+): boolean {
+  if (ownerOrigin(o)) return true;
+  if (o?.kind !== "input_answer" || depth >= 10) return false;
+  return ownerAsked(askedIn(o.input_id), askedIn, depth + 1);
+}
 
 /** A file or image the owner attached to the message that started the run. */
 export type Attachment = { media_id: string; kind: "image" | "audio" | "file"; mime: string; name: string };
