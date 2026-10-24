@@ -16,8 +16,9 @@ import { useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
 import { AttachChips } from "./AttachChips.tsx";
 import { ContextChip } from "./ContextChip.tsx";
-import { contextOf, spentOf } from "./context.ts";
+import { contextOf, spentOf, usageStamp } from "./context.ts";
 import { useSlashMenu } from "./SlashMenu.tsx";
+import { useThreadUsage } from "./usage.ts";
 import { useAttachments } from "./useAttachments.ts";
 import { useDictation } from "./useDictation.ts";
 import { useFileDrop } from "./useFileDrop.ts";
@@ -82,6 +83,7 @@ export function ChatComposer({
         .sort((a, b) => b.started_at.localeCompare(a.started_at)),
     [runsById, thread.id],
   );
+  const usage = useThreadUsage(fresh ? undefined : thread.id, usageStamp(runs));
 
   // A new chat is made once: what is sent while it is being made waits.
   const making = useRef(false);
@@ -213,7 +215,7 @@ export function ChatComposer({
             )}
             {!direct && <ChatModel thread={thread} agent={agent} />}
             <span className="composer__spacer" />
-            <ContextChip context={contextOf(runs)} spent={spentOf(runs)} />
+            <ContextChip context={contextOf(runs)} spent={spentOf(usage?.totals)} />
             {mic.state !== "unsupported" && (
               <IconButton
                 size="sm"

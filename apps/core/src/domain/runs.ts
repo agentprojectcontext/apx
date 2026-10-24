@@ -375,6 +375,37 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
         output: Number(r.o),
       }));
     },
+    /** Every run of one chat, however many the apps loaded: count, failures, seconds at work and tokens. */
+    threadTotals(threadId: string): {
+      runs: number;
+      failed: number;
+      seconds: number;
+      input: number;
+      output: number;
+      cached: number;
+    } {
+      const r = one(
+        qb
+          .selectFrom("runs")
+          .select((eb) => [
+            eb.fn.countAll<number>().as("n"),
+            raw<number>`coalesce(sum(state = 'failed'), 0)`.as("f"),
+            raw<number>`coalesce(sum((julianday(ended_at) - julianday(started_at)) * 86400), 0)`.as("s"),
+            raw<number>`coalesce(sum(json_extract(usage, '$.input')), 0)`.as("i"),
+            raw<number>`coalesce(sum(json_extract(usage, '$.output')), 0)`.as("o"),
+            raw<number>`coalesce(sum(json_extract(usage, '$.cached')), 0)`.as("c"),
+          ])
+          .where("thread_id", "=", threadId),
+      );
+      return {
+        runs: Number(r?.n ?? 0),
+        failed: Number(r?.f ?? 0),
+        seconds: Math.round(Number(r?.s ?? 0) * 10) / 10,
+        input: Number(r?.i ?? 0),
+        output: Number(r?.o ?? 0),
+        cached: Number(r?.c ?? 0),
+      };
+    },
     /** Runs in this thread's sub-threads admitted or at work (not those queued or waiting for the owner). */
     activeDelegations(parentThreadId: string): number {
       const r = one(

@@ -1,9 +1,9 @@
-import type { AuxPurpose, Message, Result, Run } from "@apx/protocol";
+import type { AuxPurpose, Message, Run } from "@apx/protocol";
 import { Badge, EmptyState, Icons } from "@apx/ui";
-import { useEffect, useMemo, useState } from "react";
-import { contextOf } from "../chat/composer/context.ts";
+import { useMemo } from "react";
+import { contextOf, usageStamp } from "../chat/composer/context.ts";
+import { useThreadUsage } from "../chat/composer/usage.ts";
 import { formatNumber, formatSeconds, shortWhen } from "../common/format.ts";
-import { client } from "../data/client.ts";
 import { baseRef } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
@@ -51,22 +51,11 @@ export function UsagePanel() {
         .sort((a, b) => b.started_at.localeCompare(a.started_at)),
     [runsById, threadId],
   );
-  // The auxiliary model's calls about this chat (its title, summaries, a room's filter): asked again after each run.
-  const [aux, setAux] = useState<Result<"usage.summary">["aux"]>([]);
-  const ended = runs.filter((r) => r.ended_at).length;
-  useEffect(() => {
-    setAux([]);
-    if (!threadId || !ended) return;
-    let live = true;
-    client
-      .call("usage.summary", { thread: threadId })
-      .then((r) => live && setAux(r.aux))
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, [threadId, ended]);
-  if (!threadId || !runs.length) {
+  // The core's figures over every run of the chat (the panel loads only the newest), asked again as runs end.
+  const usage = useThreadUsage(threadId, usageStamp(runs));
+  const totals = usage?.totals;
+  const aux = usage?.aux ?? [];
+  if (!threadId || !(runs.length || totals?.runs)) {
     return (
       <div className="sidepanel__body">
         <EmptyState icon={<Icons.Zap />} title={t("usage.empty")}>
@@ -75,15 +64,6 @@ export function UsagePanel() {
       </div>
     );
   }
-  const total = runs.reduce((acc, r) => acc + (secs(r) ?? 0), 0);
-  const tokens = runs.reduce(
-    (acc, r) => ({ input: acc.input + (r.usage?.input ?? 0), output: acc.output + (r.usage?.output ?? 0) }),
-    {
-      input: 0,
-      output: 0,
-    },
-  );
-  const failed = runs.filter((r) => r.state === "failed").length;
   const last = [...messages].reverse().find((m) => m.model)?.model;
   const model = last ? baseRef(last) : "—";
   // Claude Code, Codex and ACP agents run on the owner's subscription; our own loop pays a provider per token.
@@ -92,15 +72,25 @@ export function UsagePanel() {
   const rows: [string, string][] = [
     [t("usage.model"), model],
     [t("usage.billing"), model === "—" ? "—" : t(included ? "usage.billing.included" : "usage.billing.metered")],
-    [t("usage.runs"), `${formatNumber(runs.length)}${failed ? t("usage.runsFailed", { n: failed }) : ""}`],
-    [t("usage.agentTime"), formatSeconds(total)],
+    [
+      t("usage.runs"),
+      totals ? `${formatNumber(totals.runs)}${totals.failed ? t("usage.runsFailed", { n: totals.failed }) : ""}` : "…",
+    ],
+    [t("usage.agentTime"), totals ? formatSeconds(totals.seconds) : "…"],
     [
       t("usage.tokens"),
-      tokens.input + tokens.output
-        ? t("usage.tokensValue", { input: formatNumber(tokens.input), output: formatNumber(tokens.output) })
-        : t("usage.noTokens"),
+      !totals
+        ? "…"
+        : totals.input + totals.output
+          ? t("usage.tokensValue", { input: formatNumber(totals.input), output: formatNumber(totals.output) })
+          : t("usage.noTokens"),
     ],
   ];
+  if (totals?.cached)
+    rows.push([
+      t("usage.cached"),
+      t("usage.cachedValue", { cached: formatNumber(totals.cached), input: formatNumber(totals.input) }),
+    ]);
   const auxIn = aux.reduce((n, a) => n + a.input, 0);
   const auxOut = aux.reduce((n, a) => n + a.output, 0);
   if (auxIn + auxOut)
