@@ -260,7 +260,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "linux-computer",
-    since: "2.10.2",
+    since: "2.11.0",
     title: "A Linux computer your agents share",
     applies: (f) => f.computer,
     text:
