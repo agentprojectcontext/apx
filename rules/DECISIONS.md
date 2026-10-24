@@ -2148,3 +2148,12 @@ no folders, so the panel, the mobile app, the channels and the "Needs your revie
 buttons; the panel titles it "Accept this action?". Accepting tells the agent to do it now; a late answer wakes it as
 a question's does; the agent can withdraw it. Accepting does not grant the calls it takes: each still passes its own
 check, since the card's text does not bind a tool's arguments. An agent with "always" for that tool gets no second card.
+
+<a id="d-143"></a>
+## D-143 — 2026-10-24 — A close contact's message for the owner always reaches them, and every passed request is told
+A contact's agent told the person "I'll pass it on", but without the requests flag (D-022) nothing was passed, and
+with it the task only showed in the app's tray: the owner learned of it at the next morning summary. `pass_request`
+now has a third kind, `message` (something they want the owner to know or do, like calling someone they shared), open
+to anyone with the requests flag and, with no flag, to the owner's partner, family and friends. It still only files a
+task for the owner, capped per person. Each request, appointment or message passed or updated in a turn is told to the
+owner on their notice channel when the turn ends (silent in quiet hours), as well as in the tray.

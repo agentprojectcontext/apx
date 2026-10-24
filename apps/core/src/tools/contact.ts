@@ -1,7 +1,7 @@
 // The only tools a contact's chat can ever have, each behind a flag the owner turns on for that person (all off by
 // default). They never act for the owner: one leaves a task for the owner to look at, the other reads the owner's own
 // global notes. See DECISIONS.md#d-022
-import { methods, type PersonPerms, type Task } from "@apx/protocol";
+import { methods, type Person, type PersonRelation, type Task } from "@apx/protocol";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { untrusted } from "./result.ts";
@@ -9,6 +9,9 @@ import { defineTool, type Tool } from "./types.ts";
 
 /** Requests one contact may leave waiting for the owner at a time: their chat cannot flood the owner's tasks. */
 const OPEN_REQUESTS_PER_PERSON = 5;
+/** What a contact may leave for the owner: a request, an appointment, or a message to pass on. */
+const KINDS = ["request", "appointment", "message"] as const;
+type Kind = (typeof KINDS)[number];
 
 /** Only the request originally submitted here, never the owner's later task notes. */
 function submittedRequest(store: Store, task: Task, thread: string) {
@@ -18,10 +21,11 @@ function submittedRequest(store: Store, task: Task, thread: string) {
   const step = store.runs
     .steps(run.id)
     .find((s) => s.tool === "pass_request" && s.state === "ok" && s.result?.includes(task.id));
-  if (!step || (step.args.kind !== "request" && step.args.kind !== "appointment")) return undefined;
+  const kind = KINDS.find((k) => k === step?.args.kind);
+  if (!step || !kind) return undefined;
   return {
     task: task.id,
-    kind: step.args.kind,
+    kind,
     summary: step.args.summary,
     when: step.args.when,
     details: step.args.details,
@@ -31,11 +35,21 @@ function submittedRequest(store: Store, task: Task, thread: string) {
 
 export const CONTACT_TOOLS: ReadonlySet<string> = new Set(["pass_request", "search_owner_notes"]);
 
-/** Which of them a contact's turn gets, from that person's flags. */
-export function contactToolNames(perms: PersonPerms | undefined): Set<string> {
+/** People close enough that a message they leave for the owner always reaches them (DECISIONS.md#d-143). */
+const CLOSE: ReadonlySet<PersonRelation> = new Set(["partner", "family", "friend"]);
+
+/** Whether this person may leave that kind of request for the owner. */
+function mayPass(person: Pick<Person, "perms" | "relation">, kind: Kind): boolean {
+  if (kind === "appointment") return person.perms.appointments;
+  if (kind === "request") return person.perms.requests;
+  return person.perms.requests || (person.relation !== undefined && CLOSE.has(person.relation));
+}
+
+/** Which of them a contact's turn gets, from that person's flags and relation. */
+export function contactToolNames(person: Pick<Person, "perms" | "relation"> | undefined): Set<string> {
   const names = new Set<string>();
-  if (perms?.requests || perms?.appointments) names.add("pass_request");
-  if (perms?.notes) names.add("search_owner_notes");
+  if (person && KINDS.some((k) => mayPass(person, k))) names.add("pass_request");
+  if (person?.perms.notes) names.add("search_owner_notes");
   return names;
 }
 
@@ -44,9 +58,9 @@ export function contactTools(store: Store): Tool[] {
     defineTool({
       name: "pass_request",
       description:
-        "Pass a contact's request to your owner. First omit task to check existing requests. If matches are returned, compare with this conversation: use their task id for the same request (confirmation, changed time, extra details); task:null only for a genuinely new request. Never merge unrelated requests. This leaves or updates a task, never performs the request. Tell the person it was passed on, not done.",
+        "Pass a contact's request to your owner (kind message: something they want your owner to know or do, like calling someone back or contacting someone they shared). First omit task to check existing requests. If matches are returned, compare with this conversation: use their task id for the same request (confirmation, changed time, extra details); task:null only for a genuinely new request. Never merge unrelated requests. This leaves or updates a task, never performs the request. Tell the person it was passed on, not done.",
       args: z.object({
-        kind: z.enum(["request", "appointment"]),
+        kind: z.enum(KINDS),
         summary: z.string().trim().min(3).max(160).describe("what they ask, in a few words"),
         when: z.string().trim().max(80).optional().describe("for an appointment: the day and time they ask for"),
         details: z.string().trim().max(1000).optional(),
@@ -69,8 +83,7 @@ export function contactTools(store: Store): Tool[] {
         const person = personId ? store.persons.get(personId) : undefined;
         if (!person) throw new Error("this chat is not with a known contact");
         // The flag is checked again here: the tool list is built per turn, the owner may have just turned it off.
-        const allowed = a.kind === "appointment" ? person.perms.appointments : person.perms.requests;
-        if (!allowed) throw new Error(`your owner does not take ${a.kind}s from ${person.name} here`);
+        if (!mayPass(person, a.kind)) throw new Error(`your owner does not take ${a.kind}s from ${person.name} here`);
         const eligible = (t: Task) =>
           t.person_id === person.id &&
           t.state === "open" &&
@@ -81,13 +94,13 @@ export function contactTools(store: Store): Tool[] {
           .list({ person: person.id, state: "open", from_thread: ctx.thread.id, limit: 50 })
           .filter(eligible)
           .flatMap((t) => submittedRequest(store, t, ctx.thread.id) ?? [])
-          .filter((r) => (r.kind === "appointment" ? person.perms.appointments : person.perms.requests));
+          .filter((r) => mayPass(person, r.kind));
         const checked = store.runs
           .steps(ctx.run.id)
           .some((s) => s.tool === "pass_request" && s.state === "ok" && s.result?.startsWith("No task changed."));
         if (requests.length && (a.task === undefined || (a.task === null && !checked)))
           return `No task changed. Compare these requests with the conversation. Call pass_request again with the matching task id and current summary; use task:null only for an unrelated new request.\n${untrusted("contact_requests", {}, JSON.stringify(requests))}`;
-        const label = a.kind === "appointment" ? "Appointment" : "Request";
+        const label = { appointment: "Appointment", request: "Request", message: "Message" }[a.kind];
         const title = `${label} from ${person.name}: ${a.summary}`.slice(0, 200);
         const description = [a.when ? `When: ${a.when}` : "", a.details ?? ""].filter(Boolean).join("\n");
         if (a.task) {

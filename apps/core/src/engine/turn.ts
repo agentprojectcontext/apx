@@ -566,7 +566,7 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   // see the contact-only tools.
   const forContact =
     turn.audience.kind === "contact"
-      ? new Set([...contactToolNames(turn.audience.person?.perms), ...(turn.web ? WEB_TOOLS : [])])
+      ? new Set([...contactToolNames(turn.audience.person), ...(turn.web ? WEB_TOOLS : [])])
       : new Set<string>();
   const narrowed = inherit(
     turn.agent,

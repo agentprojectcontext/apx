@@ -304,7 +304,22 @@ export function createChannels(deps: {
    */
   function afterRun(run: RunRecord): void {
     stopTyping(run.id);
+    passedOn(run);
     void reply(run).catch((err) => log.warn({ run: run.id, err: errorMessage(err, 200) }, "channel reply not sent"));
+  }
+
+  /** What a contact left for the owner in this turn (a request, an appointment, a message) reaches them now. */
+  function passedOn(run: RunRecord): void {
+    const thread = store.threads.get(run.thread_id);
+    const audience = thread ? audienceOf(store, thread) : undefined;
+    if (audience?.kind !== "contact" || audience.room) return;
+    const texts = channelTexts(store);
+    for (const s of store.runs.steps(run.id)) {
+      if (s.tool !== "pass_request" || s.state !== "ok" || !/^(passed on|updated)/.test(s.result ?? "")) continue;
+      const rest = [s.args.when, s.args.details].filter((v) => typeof v === "string" && v).join("\n");
+      const text = texts.passedOn(audience.name, String(s.args.kind), String(s.args.summary ?? ""), rest);
+      notifyOwner({ text: text.slice(0, 1500) }, "notice", run.thread_id);
+    }
   }
 
   async function reply(run: RunRecord): Promise<void> {
