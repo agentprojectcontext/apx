@@ -1,6 +1,6 @@
 import type { ChannelInfo, Message, Person, Thread } from "@apx/protocol";
 import { Button, EmptyState, IconButton, Icons, SegmentedControl, Skeleton, Textarea } from "@apx/ui";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { FilePart } from "../chat/parts/FilePart.tsx";
 import { AudioPart } from "../chat/parts/lazyAudio.tsx";
 import { bubbleFiles, mediaBlocks, withoutFilesNote } from "../chat/parts/mediaGroups.ts";
@@ -9,6 +9,7 @@ import { loadThread, markRead, send } from "../data/actions.ts";
 import { openContactChat, type PresenceState, recoverFiles, sendDirect } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { MediaGroup } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { addressText, ContactFace } from "./ContactRow.tsx";
 import { DeliveryTicks, ReactionList } from "./MessageMarks.tsx";
@@ -18,9 +19,6 @@ import { isSignal } from "./signal.ts";
 /** What a file that never arrived left in its message (the core asks for it again: channels.recover). */
 const LOST_FILE =
   /\[(?:(?:photo|video|file|sticker) — APX cannot read this kind of message yet|attachment could not be downloaded: [^\]\n]*)\]/;
-
-// Pictures and videos load with the first message that has them, as in the chat.
-const MediaGroup = lazy(() => import("../chat/parts/MediaGroup.tsx"));
 
 /**
  * The chat with one contact. Their words on the left; what was sent to them (by the agent or by the owner) on the

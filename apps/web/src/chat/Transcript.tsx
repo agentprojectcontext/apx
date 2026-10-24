@@ -10,13 +10,14 @@ import {
   SystemNote,
   withMentions,
 } from "@apx/ui";
-import { lazy, type ReactNode, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ReactionList } from "../channels/MessageMarks.tsx";
 import { dayLabel, sameDay } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { blobOf, isWorking, routineName, threadAgent } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
+import { MediaGroup } from "../lazy.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
 import { MessageActions } from "./MessageActions.tsx";
@@ -26,9 +27,6 @@ import { bubbleFiles, mediaBlocks, withoutFilesNote } from "./parts/mediaGroups.
 import { NoticePart } from "./parts/NoticePart.tsx";
 import { quotedIndex, quoteParts, splitQuote } from "./quote.ts";
 import { Regenerate, UserMessage } from "./Rewind.tsx";
-
-// Pictures and videos load with the first message that has them, not with the chat.
-const MediaGroup = lazy(() => import("./parts/MediaGroup.tsx"));
 
 const EMPTY: Msg[] = [];
 /** Distance from the bottom (px) under which new content keeps the view pinned to the end. */

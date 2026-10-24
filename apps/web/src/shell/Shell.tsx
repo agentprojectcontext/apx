@@ -1,10 +1,27 @@
 import type { CSSProperties } from "react";
-import { lazy, Suspense, useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { applyDesktopPrefs } from "../config/desktopPrefs.ts";
 import { useSlice } from "../data/createStore.ts";
 import { usePrefs } from "../data/prefs.ts";
 import { data } from "../data/state.ts";
 import { useThreadDialog } from "../data/threadAdmin.ts";
+import {
+  AppScreen,
+  ChannelScreen,
+  CommandPalette,
+  ConfigModal,
+  CornerCards,
+  EngineSessions,
+  InstallArtifactDialog,
+  LiveLayer,
+  PhoneDialog,
+  ProjectScreen,
+  ResourcesScreen,
+  TaskPeek,
+  TasksScreen,
+  ThreadDialogs,
+  WidgetChatHost,
+} from "../lazy.ts";
 import { useAnyLive } from "../surfaces/liveAny.ts";
 import { useApxFiles } from "../surfaces/openedFiles.ts";
 import { widgetChatOpen } from "../surfaces/widgetChatOpen.ts";
@@ -18,27 +35,6 @@ import { Topbar } from "./Topbar.tsx";
 import { UpdateDialogHost } from "./UpdatePill.tsx";
 import { ShellLayout } from "./useShellLayout.ts";
 import { useViewportWidth } from "./useViewportWidth.ts";
-
-// Loaded when first opened: the chat is what the panel opens on, the rest waits for its first visit.
-const AppScreen = lazy(() => import("../apps/AppScreen.tsx").then((m) => ({ default: m.AppScreen })));
-const ChannelScreen = lazy(() => import("../channels/ChannelScreen.tsx").then((m) => ({ default: m.ChannelScreen })));
-const ConfigModal = lazy(() => import("../config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal })));
-const TaskPeek = lazy(() => import("../tasks/TaskPeek.tsx").then((m) => ({ default: m.TaskPeek })));
-const EngineSessions = lazy(() => import("../engines/EngineSessions.tsx").then((m) => ({ default: m.EngineSessions })));
-const ProjectScreen = lazy(() => import("../project/ProjectScreen.tsx").then((m) => ({ default: m.ProjectScreen })));
-const ResourcesScreen = lazy(() =>
-  import("../project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen })),
-);
-const InstallArtifactDialog = lazy(() =>
-  import("../surfaces/InstallArtifact.tsx").then((m) => ({ default: m.InstallArtifactDialog })),
-);
-const LiveLayer = lazy(() => import("../surfaces/LiveLayer.tsx").then((m) => ({ default: m.LiveLayer })));
-const CornerCards = lazy(() => import("./CornerCards.tsx").then((m) => ({ default: m.CornerCards })));
-const CommandPalette = lazy(() => import("./CommandPalette.tsx").then((m) => ({ default: m.CommandPalette })));
-const ThreadDialogs = lazy(() => import("../inbox/ThreadDialogs.tsx").then((m) => ({ default: m.ThreadDialogs })));
-const WidgetChatHost = lazy(() => import("../surfaces/WidgetChat.tsx").then((m) => ({ default: m.WidgetChatHost })));
-const PhoneDialog = lazy(() => import("./PhoneDialog.tsx").then((m) => ({ default: m.PhoneDialog })));
-const TasksScreen = lazy(() => import("../tasks/TasksScreen.tsx").then((m) => ({ default: m.TasksScreen })));
 
 /** Topbar · Sidebar · main (chat workspace, a project, an app or a placeholder view). See SPEC §1. */
 export function Shell() {

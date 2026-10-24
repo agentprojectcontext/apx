@@ -1,16 +1,14 @@
 import { AgentAvatar, EngineIcon, Icons, Popover, SegmentedControl, Spinner } from "@apx/ui";
-import { Fragment, lazy, Suspense, useMemo, useState } from "react";
+import { Fragment, Suspense, useMemo, useState } from "react";
 import { elapsed } from "../common/format.ts";
 import { useNow } from "../common/useNow.ts";
 import { blobOf, isWorking, projectName, threadAgent } from "../data/identity.ts";
 import { isBackground, queuedTurnsOf } from "../data/jobs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { JobList } from "../lazy.ts";
 import { go, showsChat, useNav } from "./nav.ts";
 import { QueuedTurns } from "./QueuedTurns.tsx";
-
-// The jobs list shows only once its tab is opened: not part of the first screen's script.
-const JobList = lazy(() => import("./JobList.tsx").then((m) => ({ default: m.JobList })));
 
 /** Topbar pill: agents working (or waiting for you) · background jobs. The popover jumps to each chat or transcript. */
 export function RunningIndicator() {

@@ -1,25 +1,25 @@
 import { IconButton, Icons, ResizeHandle } from "@apx/ui";
-import { lazy, type ReactNode, Suspense } from "react";
+import { type ReactNode, Suspense } from "react";
 import { setPrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import {
+  AgentPanel,
+  BrowserPanel,
+  ChangesPanel,
+  ChatFiles,
+  DocumentPanel,
+  ProcessesPanel,
+  TerminalPanel,
+  UsagePanel,
+  WidgetPanel,
+} from "../lazy.ts";
 import { LAYOUT } from "../shell/layout.ts";
 import { go, nav, useNav } from "../shell/nav.ts";
 import { useShellLayout } from "../shell/useShellLayout.ts";
 import { coverNativeViews } from "./nativeCover.ts";
 import { panelDef } from "./panels.tsx";
 import { useWorkspace } from "./workspace.ts";
-
-// The folder's panels and the browser load when first opened, not with the chat.
-const BrowserPanel = lazy(() => import("./BrowserPanel.tsx").then((m) => ({ default: m.BrowserPanel })));
-const ChatFiles = lazy(() => import("./ChatFiles.tsx").then((m) => ({ default: m.ChatFiles })));
-const UsagePanel = lazy(() => import("./UsagePanel.tsx").then((m) => ({ default: m.UsagePanel })));
-const ChangesPanel = lazy(() => import("./ChangesPanel.tsx").then((m) => ({ default: m.ChangesPanel })));
-const ProcessesPanel = lazy(() => import("./ProcessesPanel.tsx").then((m) => ({ default: m.ProcessesPanel })));
-const TerminalPanel = lazy(() => import("./TerminalPanel.tsx").then((m) => ({ default: m.TerminalPanel })));
-const WidgetPanel = lazy(() => import("./WidgetPanel.tsx").then((m) => ({ default: m.WidgetPanel })));
-const AgentPanel = lazy(() => import("./AgentPanel.tsx").then((m) => ({ default: m.AgentPanel })));
-const DocumentPanel = lazy(() => import("./DocumentPanel.tsx").then((m) => ({ default: m.DocumentPanel })));
 
 /** Right column next to the chat ("side panel"). The chat header's switcher picks its kind. */
 export function SidePanel() {

@@ -1,5 +1,5 @@
 import { ContextMenu, Icons, NavItem, ResizeHandle } from "@apx/ui";
-import { lazy, Suspense, useEffect, useMemo } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { markAllRead } from "../data/actions.ts";
 import { loadChannels } from "../data/channels.ts";
 import { inInbox } from "../data/identity.ts";
@@ -7,19 +7,13 @@ import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { unreadListed } from "../inbox/groupThreads.ts";
+import { AppsDock, CornerCards, DesktopInstallNotice } from "../lazy.ts";
 import { AccountRow } from "./AccountRow.tsx";
 import { ChannelsNav } from "./ChannelsNav.tsx";
 import { ExternalSessionsNav } from "./ExternalSessionsNav.tsx";
 import { LAYOUT } from "./layout.ts";
 import { go, useNav } from "./nav.ts";
 import { ProjectsNav } from "./ProjectsNav.tsx";
-
-// Not needed for the first paint.
-const CornerCards = lazy(() => import("./CornerCards.tsx").then((m) => ({ default: m.CornerCards })));
-const AppsDock = lazy(() => import("./AppsDock.tsx").then((m) => ({ default: m.AppsDock })));
-const DesktopInstallNotice = lazy(() =>
-  import("./DesktopInstallNotice.tsx").then((m) => ({ default: m.DesktopInstallNotice })),
-);
 
 /** Inbox · Tasks · Resources (pinned) · Channels · Projects · External sessions · Apps · account (with Settings). `rail` = 60px icons. */
 export function Sidebar({ rail, width }: { rail: boolean; width: number }) {

@@ -1,11 +1,9 @@
 import type { CatalogEngine, ModelChoice, ModelRef } from "@apx/protocol";
 import { Button, Icons, Popover } from "@apx/ui";
-import { lazy, type ReactNode, Suspense, useState } from "react";
+import { type ReactNode, Suspense, useState } from "react";
 import { choiceLabel, effectiveChoice, inCatalog, refLabel, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
-
-// The list shows only once a picker opens: not part of the first load (the composer has a picker).
-const ModelList = lazy(() => import("./ModelList.tsx").then((m) => ({ default: m.ModelList })));
+import { ModelList } from "../../lazy.ts";
 
 /**
  * The select-like button a picker opens from (a plain element: the Popover merges its trigger props into it).
