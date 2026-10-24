@@ -169,7 +169,7 @@ export function builtinTools(
     ...limitTools(store),
     ...skillTools(store, { home, apps: skillApps }),
     ...memoryTools(store),
-    ...mediaTools(store, home),
+    ...mediaTools(store, home, vm),
     ...phoneTools(),
     ...computerTools(store),
     ...taskTools(store),

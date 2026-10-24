@@ -574,6 +574,8 @@ function channelKindOf(store: Store, o: Origin, replyChannel?: string | null) {
 }
 
 const VM_BROWSER_TOOLS = new Set(["browser_open", "browser_snapshot", "browser_text", "browser_click", "browser_type"]);
+/** Host tools a chat on the computer keeps: they read nothing of the Mac, call the owner's service and show in the chat. */
+const VM_HOST_TOOLS = new Set(["make_image"]);
 
 /** What the stickers people sent on a channel's platform mean, the most used first: the agent may answer with one. */
 function stickersOf(store: Store, channel: string): string[] {
@@ -608,7 +610,9 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   const imessageOn = deps.store.settings.read("imessage").on;
   const offered = deps.tools.filter(
     (t) =>
-      (t.name === COMPUTER_TOOL ? computerOn : !inVm || t.name === "shell" || VM_BROWSER_TOOLS.has(t.name)) &&
+      (t.name === COMPUTER_TOOL
+        ? computerOn
+        : !inVm || t.name === "shell" || VM_BROWSER_TOOLS.has(t.name) || VM_HOST_TOOLS.has(t.name)) &&
       (memoryOn || !MEMORY_TOOLS.has(t.name)) &&
       (imessageOn || !IMESSAGE_TOOLS.has(t.name)) &&
       (!t.needsCap || (inVm && t.needsCap === BROWSER_CAP) || Boolean(deps.hasCap?.(t.needsCap))) &&

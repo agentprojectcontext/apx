@@ -172,6 +172,45 @@ test("a failed guest browser never reaches a connected host browser node", async
   }
 });
 
+test("a chat on the computer keeps make_image, which takes only earlier drawings as references there", async () => {
+  const home = tempDir("apx-vm-test-").path;
+  const offered: string[][] = [];
+  const llm = scriptedLlm((req, { afterTool }) => {
+    offered.push(req.tools.map((tool) => tool.function.name));
+    return afterTool
+      ? say("done")
+      : callTool("img", "make_image", { prompt: "a tower with drones", references: ["/etc/hosts"] });
+  });
+  const env = await startCore({ home, llm, computer: { limaHome: path.join(home, "no-vms"), instance: "missing" } });
+  try {
+    await env.client.call("services.set", {
+      id: "img",
+      service: {
+        kind: "image",
+        dialect: "openai-images",
+        label: "Images",
+        base_url: "http://127.0.0.1:9",
+        enabled: true,
+        needs_key: false,
+      },
+    });
+    await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.bind", { thread: "home" });
+    await env.client.call("threads.send", { thread: "home", text: "Draw a tower with drones" });
+    const result = await env.settle("home");
+    assert.ok(offered[0]?.includes("make_image"), String(offered[0]));
+    assert.ok(!offered[0]?.includes("send_file"), "host file tools stay out");
+    const parts = result.messages.flatMap((message) => message.parts);
+    assert.ok(
+      parts.some((part) => part.type === "tool" && part.status === "error" && /med_ ids/.test(part.detail ?? "")),
+    );
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});
+
 test("a VM-bound chat restarted on a core whose computer is not set up offers only guest tools, never the host's", async () => {
   const home = tempDir("apx-vm-restart-").path;
   const first = await startCore({

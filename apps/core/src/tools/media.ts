@@ -10,7 +10,7 @@ import { defineTool, type Tool } from "./types.ts";
 /** A media id APX gave out (an earlier drawing), not a file path. */
 const MEDIA_ID = /^med_[0-9a-f]{16}$/;
 
-export function mediaTools(store: Store, home: string): Tool[] {
+export function mediaTools(store: Store, home: string, vm?: { hasThread(id: string): boolean }): Tool[] {
   return [
     documentTool(store, home),
     defineTool({
@@ -64,13 +64,20 @@ export function mediaTools(store: Store, home: string): Tool[] {
       }),
       effect: "external",
       when: () => store.settings.read("services").some((s) => s.kind === "image" && s.enabled),
+      // On the computer a path names a file in the guest, which the core cannot read: only earlier drawings work there.
+      check(a, ctx) {
+        if (vm?.hasThread(ctx.thread.id) && (a.references ?? []).some((r) => !MEDIA_ID.test(r)))
+          throw new Error("on the computer, references are med_ ids of earlier drawings, not file paths");
+      },
       outside: (a, ctx) =>
-        readsOutside(
-          store,
-          home,
-          ctx.thread,
-          ((a.references as string[] | undefined) ?? []).filter((r) => !MEDIA_ID.test(r)),
-        ),
+        vm?.hasThread(ctx.thread.id)
+          ? []
+          : readsOutside(
+              store,
+              home,
+              ctx.thread,
+              ((a.references as string[] | undefined) ?? []).filter((r) => !MEDIA_ID.test(r)),
+            ),
       deadlineMs: 11 * 60_000,
       title: (a) => `Drew: ${String(a.prompt ?? "").slice(0, 80)}`,
       async run({ references: refs, ...a }, ctx) {

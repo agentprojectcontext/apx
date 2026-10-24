@@ -2410,7 +2410,8 @@ Control (D-151's lease) is per screen: the owner takes one agent's screen, which
 touching the others.
 
 **Chats.** A chat works on the computer when the owner turns it on in the Computer panel or its agent starts the
-computer from it (`computer_chats`); its turns then offer only the guest tools and `computer`, as before.
+computer from it (`computer_chats`); its turns then offer only the guest tools and `computer`, as before, plus
+`make_image`, which reads nothing of the Mac (there its references are only `med_` ids of earlier drawings).
 `computer stop` from an agent is now "leave": the chat goes back to the Mac and its screen is freed; it no longer shuts
 the VM down for the others. The owner's "Shut down for everyone" does, cancelling the runs that hold screens. The
 watchdog stops the VM below 1 GiB of free host memory (telling each chat it took a screen from) or once no screen is held,
