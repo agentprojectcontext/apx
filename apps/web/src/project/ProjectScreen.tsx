@@ -25,8 +25,9 @@ import { ProjectFiles } from "./files/ProjectFiles.tsx";
 import { ProjectArtifacts } from "./ProjectArtifacts.tsx";
 import { ProjectMemory } from "./ProjectMemory.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
-import { kindIcon, kindLabel, ProjectSettings } from "./ProjectSettings.tsx";
+import { ProjectSettings } from "./ProjectSettings.tsx";
 import { ProjectAgents } from "./ProjectTeam.tsx";
+import { kindIcon, kindLabel } from "./projectKind.ts";
 import { useProjectCounts } from "./useProjectCounts.ts";
 
 /** A project: header (tile, name, path, New chat) + underline tabs. SPEC §2.9. */

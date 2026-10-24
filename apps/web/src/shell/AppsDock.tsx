@@ -9,7 +9,7 @@ import { ArtifactPropertiesDialog } from "../surfaces/ArtifactProperties.tsx";
 import { artifactMenu } from "../surfaces/artifactMenu.tsx";
 import { openInstall } from "../surfaces/installRequest.ts";
 import { useRunningApps } from "../surfaces/livePool.ts";
-import { createArtifact } from "../surfaces/WidgetChat.tsx";
+import { createArtifact } from "../surfaces/widgetChatActions.ts";
 import { go, useNav } from "./nav.ts";
 import { SidebarSection } from "./SidebarSection.tsx";
 import "../styles/artifacts.css";

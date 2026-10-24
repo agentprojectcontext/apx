@@ -9,7 +9,7 @@ import { go } from "../shell/nav.ts";
 import { ArtifactMemoryButton } from "./ArtifactMemory.tsx";
 import { popOut } from "./artifactWindows.ts";
 import { ShareMenu } from "./ShareMenu.tsx";
-import { openWidgetChat } from "./WidgetChat.tsx";
+import { openWidgetChat } from "./widgetChatActions.ts";
 
 /**
  * A widget's actions wherever its header shows (chat card, widget panel, board tile): its chat with the agent that

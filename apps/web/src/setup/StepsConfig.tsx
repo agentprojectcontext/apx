@@ -12,7 +12,7 @@ import { useProviders } from "../data/providers.ts";
 import { useSetup } from "../data/setup.ts";
 import { type DataState, useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { kindOptions, NO_KIND } from "../project/ProjectSettings.tsx";
+import { kindOptions, NO_KIND } from "../project/projectKind.ts";
 import { BotCard } from "./BotCard.tsx";
 import { type Draft, type StepProps, withStarters } from "./draft.ts";
 import { EmbedderCard } from "./EmbedderCard.tsx";
