@@ -1,10 +1,18 @@
 import { Button, Icons, Tooltip } from "@apx/ui";
 import { useEffect } from "react";
-import { agentComputer } from "../../computers/summary.ts";
-import { refreshComputers } from "../../data/actions.ts";
-import { useData } from "../../data/state.ts";
+import { agentComputer } from "../../computers/agent.ts";
+import { computersOf } from "../../computers/summary.ts";
+import { client } from "../../data/client.ts";
+import { data, useData } from "../../data/state.ts";
 import { usePack, useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
+
+/** The computer as the sidebar and the agents' cards show it, read again (an agent's screen comes and goes). */
+async function refreshComputers(): Promise<void> {
+  try {
+    data.set({ computers: computersOf(await client.call("environments.status", {})) });
+  } catch {}
+}
 
 /**
  * The agent's card row for the isolated computer: whether it may use it and where it works, with the way to turn it

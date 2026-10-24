@@ -17,13 +17,6 @@ import { data, upsertMessage } from "./state.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** The computer as the sidebar and the agents' cards show it, read again (an agent's screen comes and goes). */
-export async function refreshComputers(): Promise<void> {
-  try {
-    data.set({ computers: computersOf(await client.call("environments.status", {})) });
-  } catch {}
-}
-
 /** Agents, projects, threads, surfaces and browser tabs in one round. Throws if the core is unreachable. */
 export async function bootstrap(): Promise<void> {
   const [agents, projects, threads, surfaces, computer] = await Promise.all([

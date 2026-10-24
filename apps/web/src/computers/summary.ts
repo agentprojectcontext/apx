@@ -16,12 +16,6 @@ export function computersOf(status: Result<"environments.status">): Computers {
   };
 }
 
-/**
- * Agent screens up now, held by a working run or kept warm after it: what the picker lists and each one takes a slot
- * of `max_screens`, so every count of screens in use reads this.
- */
-export const screensUp = (status: Result<"environments.status"> | undefined) => status?.screens?.length ?? 0;
-
 export type Computers = {
   shown: boolean;
   inUse: number;
@@ -31,10 +25,3 @@ export type Computers = {
 };
 
 export const NO_COMPUTERS: Computers = { shown: false, inUse: 0, supported: false, allowed: [], screens: [] };
-
-/** One agent and the computer, for its card: not allowed, allowed with no screen up, or up on its screen. */
-export function agentComputer(c: Computers, agent: string) {
-  const up = c.screens.find((s) => s.agent === agent);
-  if (up) return { state: "running" as const, screen: up.screen, held: up.held };
-  return { state: c.allowed.includes(agent) ? ("allowed" as const) : ("off" as const) };
-}

@@ -1,7 +1,7 @@
 import { IconButton, Icons, Select } from "@apx/ui";
 import { useState } from "react";
+import { screensUp } from "../computers/agent.ts";
 import { ComputerError } from "../computers/ComputerError.tsx";
-import { screensUp } from "../computers/summary.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ComputerConsole } from "./ComputerConsole.tsx";

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agentComputer, computersOf, screensUp } from "./summary.ts";
+import { agentComputer, screensUp } from "./agent.ts";
+import { computersOf } from "./summary.ts";
 
 const status = {
   enabled: true,

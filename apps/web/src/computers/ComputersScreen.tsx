@@ -8,9 +8,10 @@ import { data, useData } from "../data/state.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { useVmDisplay } from "../panel/useVmDisplay.ts";
 import { go, useNav } from "../shell/nav.ts";
+import { screensUp } from "./agent.ts";
 import { ComputerError } from "./ComputerError.tsx";
 import { memoryRefusal } from "./refusal.ts";
-import { computersOf, screensUp } from "./summary.ts";
+import { computersOf } from "./summary.ts";
 
 type Status = Result<"environments.status">;
 type Usage = Result<"environments.usage">;
