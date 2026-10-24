@@ -62,6 +62,11 @@ export type ThreadContext = {
   consult?: { task: string; card: string; review?: boolean; asker?: { agent: string; thread: string } };
   /** On a task's conversation: the close (its place in the task's history) already reported to whoever created it. */
   close_reported?: number;
+  /**
+   * An owner-check sub-thread: the owner's chat whose channel words it checks, that chat's agent, and where its answer
+   * goes out (DECISIONS.md#d-144).
+   */
+  owner_check?: { thread: string; agent_id: string; reply_to: { channel: string; conversation: string } };
   /** A task chat an agent's turn started: the chat it came from, whose unattended limits its turns count against. */
   asked_from?: string;
   /** A task chat that stalled: when APX last asked its agent to go on, and the stop since then the owner was told of. */

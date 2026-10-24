@@ -83,6 +83,7 @@ const es = {
   suggestionDropped: (name: string) => `Listo: no le contesto a ${name}.`,
   suggestionGone: "Esa sugerencia ya no está pendiente (ya se decidió o llegó un mensaje más nuevo).",
   inputGone: "Eso ya no está pendiente: se respondió en otro lado o venció.",
+  inApp: "Esto se responde en la app de APX (el panel, el escritorio o tu teléfono vinculado), no por este canal.",
   writeNow: (name: string, minutes: number) =>
     `Escribí tu respuesta para ${name}: lo próximo que me mandes acá se lo envío tal cual (durante ${minutes} minutos). Mandá «cancelar» para no enviarle nada.`,
   writeCanceled: "Listo, no le mando nada.",
@@ -168,6 +169,7 @@ const en: typeof es = {
   suggestionDropped: (name) => `Done: I won't answer ${name}.`,
   suggestionGone: "That suggestion is no longer pending (it was decided, or a newer message came in).",
   inputGone: "That is no longer pending: it was answered elsewhere or it expired.",
+  inApp: "Answer this in the APX app (the panel, the desktop or your paired phone), not on this channel.",
   writeNow: (name, minutes) =>
     `Write your answer for ${name}: the next thing you send me here goes to them as it is (for ${minutes} minutes). Send "cancel" to send nothing.`,
   writeCanceled: "Done, I'm sending nothing.",

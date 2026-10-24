@@ -45,5 +45,9 @@ override is closed — see [`DECISIONS.md#d-005`](DECISIONS.md#d-005)).
 - `apps/core/src/config.ts` bind/token logic and any auth code.
 - The embedded browser: profiles, cookie import, CDP control, take-control handoff.
 - Tools with side effects (send, pay, shell, filesystem writes) and anything that lets model output trigger them.
+- A tool that acts as the owner (`callAsOwner`): where it sits in `tools/settings-reach.ts` (`ownerSetting`,
+  `keepsCard`, `TOTAL_SKIPS`) decides whether Total skips its card ([D-143](DECISIONS.md#d-143)).
+- Who counts as the owner on a channel and where an owner card may be answered: `channels/inbound.ts`,
+  `engine/owner-relay.ts`, `OWNER_ACTS_ON`, `app_only` inputs ([D-144](DECISIONS.md#d-144)).
 - Harness integrations touching the user's Claude/Codex logins (never read or copy their tokens).
 - Anything that could make v2 read or write v1's home (`~/.apx`).

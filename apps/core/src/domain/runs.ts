@@ -88,6 +88,13 @@ export function ownerAsked(
   return ownerAsked(askedIn(o.input_id), askedIn, depth + 1);
 }
 
+/** The session of the sub-thread where the super-agent checks words a channel could not vouch for (DECISIONS.md#d-144). */
+export const OWNER_CHECK = "owner-check";
+
+/** A turn on the super-agent's answer to such words: it goes on with that chat's conversation, on its channel. */
+export const answersChecked = (o: Origin | undefined): boolean =>
+  o?.kind === "delegation_result" && o.session === OWNER_CHECK;
+
 /** A file or image the owner attached to the message that started the run. */
 export type Attachment = { media_id: string; kind: "image" | "audio" | "file"; mime: string; name: string };
 export type RunInput = {

@@ -7,7 +7,7 @@
 import { type ChannelInfo, type CoreEvent, noticeText, type Part } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import type { AuxAbout } from "../domain/aux-calls.ts";
-import type { OutboxRow, Presentation } from "../domain/channels.ts";
+import { type OutboxRow, ownerActsOn, type Presentation } from "../domain/channels.ts";
 import { inQuietHours, noticePrefs } from "../domain/notices.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
@@ -153,13 +153,25 @@ export function createChannels(deps: {
         thread_id: threadId,
         kind,
         body: {
-          ...body,
+          ...shownOn(l.config.id, body),
           ...(inQuietHours(prefs) ? { silent: true } : {}),
         },
       });
       return true;
     }
     return false;
+  }
+
+  /**
+   * Something for the owner as a channel shows it: buttons only where the owner may answer there, so off Telegram and
+   * for a card only the app answers they give way to where it is answered (DECISIONS.md#d-144).
+   */
+  function shownOn(channel: string, body: Presentation): Presentation {
+    const appOnly = body.input_id ? store.inputs.get(body.input_id)?.app_only : undefined;
+    const type = configs().find((c) => c.id === channel)?.type;
+    if (!body.buttons?.length || (ownerActsOn(type) && !appOnly)) return body;
+    const { buttons: _b, ...rest } = body;
+    return { ...rest, text: `${body.text}\n\n${channelTexts(store).inApp}` };
   }
 
   /**
@@ -457,7 +469,7 @@ export function createChannels(deps: {
       conversation: to.conversation,
       thread_id: threadId,
       kind: "input",
-      body: { ...inputPresentation(part, channelTexts(store)), input_id: part.input_id },
+      body: shownOn(to.channel, { ...inputPresentation(part, channelTexts(store)), input_id: part.input_id }),
     });
   }
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { z } from "zod";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, say, scriptedLlm, startCore, throughOwnerCheck } from "../engine/testkit.ts";
 import { defineTool } from "../tools/types.ts";
 import { discordAdapter } from "./discord.ts";
 import { fakeDiscord } from "./fake-discord.test-support.ts";
@@ -11,14 +11,16 @@ const TOKEN = "MTIzNDU2.fake.discord-token";
 const OWNER = { id: "111", name: "Owner" };
 const ANA = { id: "222", name: "Ana" };
 
-const llm = scriptedLlm((req, { said, afterTool }) => {
-  if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
-  if (said.includes("launch the probe")) return callTool("p1", "probe", {});
-  if (said.includes("long answer")) return say(`${"word ".repeat(500)}END`);
-  if (said.includes("raise your hands")) return say("REACT 🙌");
-  if (said.includes("give me a dino")) return say("REACT 🦖");
-  return say(`Hello, you said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
-});
+const llm = scriptedLlm(
+  throughOwnerCheck((req, { said, afterTool }) => {
+    if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
+    if (said.includes("launch the probe")) return callTool("p1", "probe", {});
+    if (said.includes("long answer")) return say(`${"word ".repeat(500)}END`);
+    if (said.includes("raise your hands")) return say("REACT 🙌");
+    if (said.includes("give me a dino")) return say("REACT 🦖");
+    return say(`Hello, you said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
+  }),
+);
 
 const probe = defineTool({
   name: "probe",
@@ -107,19 +109,24 @@ test("servers' channels and other bots are ignored", async () => {
   assert.equal(dc.messagesTo("777").length, 0);
 });
 
-test("a confirmation comes with buttons; the owner's press approves it and the buttons go", async () => {
+test("a confirmation reaches Discord without buttons; a forged press changes nothing and only the app approves it", async () => {
   dc.message(OWNER, "launch the probe");
-  await until(() => dc.messagesTo(dc.dm(OWNER.id)).some((m) => m.body.components), "buttons");
-  const ask = dc.messagesTo(dc.dm(OWNER.id)).find((m) => m.body.components);
-  const rows = ask?.body.components as Array<{ components: Array<{ custom_id: string }> }>;
-  const allow = rows[0]?.components[0]?.custom_id ?? "";
-  assert.match(allow, /^i:.+:a$/);
-  dc.press(OWNER, allow);
-  await until(() => texts(OWNER).some((t) => /Done: probed/.test(t)), "probe result");
-  assert.ok(
-    dc.sent.some((s) => s.method === "callback"),
-    "the press was acknowledged",
+  await until(() => texts(OWNER).some((t) => t.includes("no por este canal")), "card with the in-app text");
+  assert.ok(!dc.messagesTo(dc.dm(OWNER.id)).some((m) => m.body.components), "no buttons off Telegram");
+  const input = (await env.client.call("runs.pending", {})).inputs[0]?.id ?? "";
+  assert.ok(input, "the confirmation waits");
+
+  const told = texts(OWNER).filter((t) => t.includes("no por este canal")).length;
+  dc.press(OWNER, `i:${input}:a`);
+  await until(
+    () => texts(OWNER).filter((t) => t.includes("no por este canal")).length === told + 1,
+    "the press is told to go to the app",
   );
+  assert.equal(env.core.store.inputs.get(input)?.state, "pending", "a press on the channel decides nothing");
+  assert.ok(!texts(OWNER).some((t) => /Done: probed/.test(t)));
+
+  await env.client.call("runs.respond", { input, decision: "approve" });
+  await until(() => texts(OWNER).some((t) => /Done: probed/.test(t)), "probe result");
 });
 
 test("a long answer goes in parts under Discord's limit; a dropped connection comes back", async () => {

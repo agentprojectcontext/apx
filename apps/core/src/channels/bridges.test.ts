@@ -1,11 +1,11 @@
 // Matrix, Mattermost and Signal, each against its fake server: the same story as the other channels. The owner pairs
 // with a code, their words reach the agent and the answer comes back; a stranger gets a code and never the agent; a
-// group is not read; a confirmation comes as numbered options and the number answers it.
+// group is not read; a confirmation comes without options and only the app answers it.
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import type { ChannelType } from "@apx/protocol";
 import { z } from "zod";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, say, scriptedLlm, startCore, throughOwnerCheck } from "../engine/testkit.ts";
 import { defineTool } from "../tools/types.ts";
 import { type FakeBridge, fakeMatrix, fakeMattermost, fakeSignal } from "./fake-bridges.test-support.ts";
 import { matrixAdapter, matrixSecret } from "./matrix.ts";
@@ -57,11 +57,13 @@ const CASES: Array<{ type: ChannelType; fake: () => Promise<FakeBridge>; adapter
 
 for (const c of CASES)
   describe(c.type, () => {
-    const llm = scriptedLlm((req, { said, afterTool }) => {
-      if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
-      if (said.includes("launch the probe")) return callTool("p1", "probe", {});
-      return say(`You said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
-    });
+    const llm = scriptedLlm(
+      throughOwnerCheck((req, { said, afterTool }) => {
+        if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
+        if (said.includes("launch the probe")) return callTool("p1", "probe", {});
+        return say(`You said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
+      }),
+    );
     let env: Awaited<ReturnType<typeof startCore>>;
     let fake: FakeBridge;
 
@@ -84,7 +86,7 @@ for (const c of CASES)
       env.cleanup();
     });
 
-    test("the owner pairs, talks with the agent and answers a confirmation by its number", async () => {
+    test("the owner pairs and talks; a confirmation reaches them without options and a typed number does not answer it, only the app does", async () => {
       fake.message("owner", "hola");
       await until(() => fake.sentTo("owner").length >= 1, "pairing code");
       const code = /(?<!\d)(\d{6})(?!\d)/.exec(fake.sentTo("owner")[0] ?? "")?.[1] ?? "";
@@ -94,9 +96,20 @@ for (const c of CASES)
       await until(() => fake.sentTo("owner").some((t) => t.includes("You said: what is up")), "reply");
 
       fake.message("owner", "launch the probe");
-      await until(() => fake.sentTo("owner").some((t) => /\n1\. /.test(t)), "numbered options");
+      await until(() => fake.sentTo("owner").some((t) => t.includes("no por este canal")), "card without options");
+      const card = fake.sentTo("owner").find((t) => t.includes("no por este canal")) ?? "";
+      assert.ok(!/\n1\. /.test(card), "no numbered options off Telegram");
+      const { inputs } = await env.client.call("runs.pending", {});
+      const input = inputs[0]?.id ?? "";
+      assert.ok(input, "the confirmation waits");
+
       fake.message("owner", "1");
+      await new Promise((r) => setTimeout(r, 300));
+      assert.equal(env.core.store.inputs.get(input)?.state, "pending", "a typed number answers nothing");
+
+      await env.client.call("runs.respond", { input, decision: "approve" });
       await until(() => fake.sentTo("owner").some((t) => t.includes("Done: probed")), "probe ran");
+      await until(() => fake.sentTo("owner").some((t) => t.includes("You said: 1")), "the number was relayed as words");
     });
 
     test("a stranger gets a code, never the agent; a group is not read", async () => {

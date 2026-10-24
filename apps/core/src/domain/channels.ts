@@ -8,6 +8,13 @@ import { type Selectable, sql } from "kysely";
 import type { OutboxTable, PairingTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
+/**
+ * The channels whose owner messages act directly. Elsewhere the platform's word for who wrote is weaker (a topic, a
+ * nick, a From line, a linked phone), so the owner's words reach the super-agent to check first (DECISIONS.md#d-144).
+ */
+const OWNER_ACTS_ON: ReadonlySet<string> = new Set(["telegram"]);
+export const ownerActsOn = (type: string | undefined): boolean => type !== undefined && OWNER_ACTS_ON.has(type);
+
 /** What an adapter hands over for one platform message. */
 export type Inbound = {
   /** The platform's id for this message (dedupes a redelivery). */

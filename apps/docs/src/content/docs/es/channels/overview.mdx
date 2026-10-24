@@ -34,6 +34,18 @@ teléfono.
 Si preferís tener un canal aparte, poné **Tus mensajes** en **Chat propio** en la configuración de ese canal. Tus
 mensajes desde ahí tienen entonces su propio chat.
 
+## Qué canales actúan con tu palabra
+
+La mayoría de estas apps no pueden probar quién escribió: ntfy conoce solo un tema, IRC un apodo, y un número de SMS o
+el remitente de un mail se pueden falsificar. Por eso solo **Telegram** actúa directo con tu palabra. En cualquier otro
+canal, lo que llega como tuyo va primero a tu super-agente, que lo revisa: si duda de que seas vos, o el pedido es
+riesgoso (mandar, pagar, borrar, una configuración), te pregunta en la app. Su respuesta vuelve después al agente de
+ese canal, que hace lo decidido y te contesta ahí.
+
+Las confirmaciones y preguntas se responden **en la app**: el panel, el escritorio o tu teléfono vinculado. En Telegram
+sus botones siguen andando, salvo un cambio a tu configuración (un contacto, un canal, un servidor MCP…), que aprobás
+solo en la app. En los otros canales la tarjeta llega sin botones y te dice dónde responderla.
+
 ## A quién le contesta
 
 APX te contesta a vos y a las personas que aprobás. Cualquier otra es un desconocido, y vos elegís qué pasa cuando
@@ -139,8 +151,9 @@ terminal muestra más:
 <Terminal command="apx channels outbox">{`10-08T09:14  sent      telegram  reply   Tu pedido salió esta mañana…
 10-08T09:02  sent      telegram  notice  Resumen de la mañana: 3 tareas vencen hoy…`}</Terminal>
 
-En **Avisos para vos**, **Las confirmaciones te siguen** manda a tu canal, con botones, una pregunta que un agente
-hizo en la app y nadie contestó (al minuto, a los 2 o a los 10 minutos, o nunca). El horario de silencio y el tope
+En **Avisos para vos**, **Las confirmaciones te siguen** manda a tu canal una pregunta que un agente hizo en la app y
+nadie contestó (al minuto, a los 2 o a los 10 minutos, o nunca), con botones en Telegram; en los demás te recuerda
+responderla en la app ([qué canales actúan con tu palabra](#qué-canales-actúan-con-tu-palabra)). El horario de silencio y el tope
 diario están en **Configuración › Interrupciones**.
 
 ## Notas de voz

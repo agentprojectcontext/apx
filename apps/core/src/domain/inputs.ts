@@ -13,6 +13,8 @@ export type InputRecord = PendingInput & {
   args?: Record<string, unknown>;
   /** A folder card for changing files outside the agent's project, not for reading them. */
   folders_write?: true;
+  /** Answered only in the app (panel, desktop, paired phone), never on a channel (DECISIONS.md#d-144). */
+  app_only?: true;
 };
 
 const toInput = (r: Selectable<PendingInputsTable>): InputRecord => ({
@@ -38,6 +40,7 @@ const toInput = (r: Selectable<PendingInputsTable>): InputRecord => ({
   ...(r.change ? { change: JSON.parse(r.change) as FileChange } : {}),
   ...(r.options ? { options: JSON.parse(r.options) as string[] } : {}),
   ...(r.multi ? { multi: true } : {}),
+  ...(r.app_only ? { app_only: true as const } : {}),
   state: r.state as InputState,
   ...opt("answer", r.answer),
   created_at: r.created_at,
@@ -64,6 +67,7 @@ export const publicInput = ({
   args: _a,
   approval: _p,
   folders_write: _w,
+  app_only: _o,
   ...rest
 }: InputRecord): PendingInput => rest;
 
@@ -86,6 +90,7 @@ export function inputsRepo({ one, all, run }: Sql) {
       waitMs: number;
       approval?: ApprovalTarget | undefined;
       folders?: { dirs: string[]; keep: boolean; write?: boolean } | undefined;
+      app_only?: boolean | undefined;
     }): InputRecord {
       const id = newId("inp");
       run(
@@ -107,6 +112,7 @@ export function inputsRepo({ one, all, run }: Sql) {
           options: i.options?.length ? JSON.stringify(i.options) : null,
           multi: i.multi && i.options?.length ? 1 : null,
           folders: i.folders ? JSON.stringify(i.folders) : null,
+          app_only: i.app_only ? 1 : null,
           state: "pending",
           created_at: now(),
           expires_at: new Date(Date.now() + i.waitMs).toISOString(),

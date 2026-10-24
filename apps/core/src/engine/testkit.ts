@@ -50,6 +50,26 @@ export function scriptedLlm(script: Script): Llm & { calls: LlmRequest[] } {
   };
 }
 
+const CLAIMED = 'claims="your owner"';
+
+/**
+ * For a channel where the owner's words reach the super-agent first (DECISIONS.md#d-144): the check says go ahead, and
+ * the chat's turn on its answer sees the owner's words as `said` and as its last message, as a direct message's did.
+ */
+export function throughOwnerCheck(script: Script): Script {
+  return (req, ctx) => {
+    if (ctx.afterTool) return script(req, ctx);
+    if (ctx.said.includes(CLAIMED) && ctx.said.includes("Judge first")) return say("It is the owner: go ahead.");
+    if (!ctx.said.includes("<delegation_result")) return script(req, ctx);
+    const kept = req.messages.findLast((m) => m.role === "user" && String(m.content).includes(CLAIMED));
+    const body = /\n([\s\S]*)\n<\/channel_message>/.exec(String(kept?.content ?? ""))?.[1];
+    if (body === undefined) return script(req, ctx);
+    const at = req.messages.findLastIndex((m) => m.role === "user" && !String(m.content).startsWith("<system_note>"));
+    const messages = req.messages.map((m, i) => (i === at ? { role: "user" as const, content: body } : m));
+    return script({ ...req, messages }, { ...ctx, said: body });
+  };
+}
+
 export const say = (content: string): { message: AssistantItem } => ({ message: { role: "assistant", content } });
 export const callTool = (id: string, name: string, args: object): { message: AssistantItem } => ({
   message: {

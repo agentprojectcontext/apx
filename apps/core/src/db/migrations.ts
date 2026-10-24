@@ -877,4 +877,6 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE stickers ADD COLUMN pending INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE stickers ADD COLUMN adult INTEGER NOT NULL DEFAULT 0;
   `,
+  // A card only the app answers: a change to the owner's settings is never approved on a channel (DECISIONS.md#d-144).
+  `ALTER TABLE pending_inputs ADD COLUMN app_only INTEGER;`,
 ];

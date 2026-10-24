@@ -2165,7 +2165,9 @@ mode would skip it (`keepsCard`): `card`, nothing skips it; `grant`, only the ow
 `settings-reach.ts` `TOTAL_SKIPS` lists the tools that act as the owner and may run unasked in Total (routines, an Asana
 write), with their reason; every other tool in `BY_TOOL` keeps its card, and `owner-setting.test.ts` fails otherwise.
 `callAsOwner` is given only when this call passed its card (answered, or the owner's grant) or ran unasked under a mode
-or rule on a tool that keeps no card.
+or rule on a tool that keeps no card. The MCP server card (D-141) shows each value whole, never cut at 300 characters
+(`Setting.whole`), and says in a plain line which saved variables go, as which env or header, to which address or
+command.
 
 `browser_use_my_login` runs without a card only when the agent's browser is declared shared. Every agent's profile is
 `shared` unless the owner picks another (the column's default, and the seed's), so the stored value says nothing about
@@ -2173,3 +2175,39 @@ a choice, and copying the owner's logins on a default is what the review found. 
 "Always for this agent" on its card: the tool keeps its card in Total (`grant`) for a shared profile, and an isolated
 one keeps it whatever is granted (`card`). A setting of its own would have meant a new field in the protocol, the
 editor and every agent file for one tool; the card already asks, and its answer is the explicit choice.
+
+<a id="d-144"></a>
+## D-144 — 2026-10-23 — Only the app approves, and the owner's words on other channels go through the super-agent
+A review found that the owner's identity on most channels is the platform's word, and that word is weak: ntfy knows
+only a topic, IRC a nick without an account, an SMS sender's number and a mail's From can be forged, an email channel
+may trust unverified mail. Whoever passed as the owner there got an owner run (`inbound.ts` sent their words as the
+owner's) and could answer the cards APX sent to that chat (a button, a number, a text answer), and since D-141 that
+reaches `mcp.set`: a command run on the owner's machine.
+
+The owner's rule. A card about the owner's settings (`ownerSetting`) is approved only in the app: the panel, the
+desktop or the paired phone. Its input is stored `app_only`; `runs.respond` refuses it when the call came from a
+channel (the channel manager sets `channel` on its calls, never a request), a channel shows it without buttons and
+says where to answer it, and a press on it is refused. Telegram stays the one channel whose owner messages act
+directly (`OWNER_ACTS_ON` in `domain/channels.ts`), its other cards answered there as before; that reading of the
+owner's words ("Telegram is the exception for direct owner runs, but setting approvals still happen only in the
+app") is a judgment call, flagged as such. On every other channel the owner's words trigger nothing directly: no owner
+run, no answer to a card or question, no button, no draft sent to a supervised contact. The words are kept in the
+owner's chat as a sender's (untrusted, marked as claiming to be the owner, not verified) and become a conversation
+with the super-agent, even when the channel's agent is the super-agent itself: `engine/owner-relay.ts` opens the
+"owner-check" sub-thread of that chat and starts the super-agent there, with the channel and what its platform can
+vouch for. It judges whether it really is the owner and whether the request is risky, may ask the owner in the app
+(`ask_owner`: a question or an action card, D-142; its run's answers go to the app, never to that channel), and its
+answer comes back to the channel's chat as a delegated result (`delegation_result`, the sub-thread's session), whose
+agent then does what was decided and answers on the channel. Nothing new carries it: the run enters through `admit`
+like a delegation, the answer returns on the delegation result's path, and the owner is asked through inputs.
+
+What follows from it. The relayed run's origin is another agent's, so it is not owner-asked: the super-agent cannot
+change the owner's settings from there (D-140), and an owner's late answer to its question does not make it so either
+(an `input_answer` counts only when the run that asked was owner-asked). Cards and notices with buttons sent to a
+channel other than Telegram lose their buttons and say to answer in the app; a supervised contact's draft, a request
+from a stranger and a news button are decided in the app. The unverified words sit in the owner's chat as outside
+content, so that chat's next turns see outside content in their context (rule 10) until it leaves the window. Each
+relayed message still starts a new spend window for the breaker (D-080), as the owner's own words did, so the check
+and its answer never pile up into a pause. "Pará" still stops a running turn from any channel: stopping acts for
+nobody. Steering a running turn and interrupting it are Telegram's and the app's. A public room the owner speaks in
+stays sealed as before (its turns have no owner tools).
