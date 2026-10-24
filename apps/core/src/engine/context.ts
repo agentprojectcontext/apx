@@ -123,7 +123,6 @@ export function systemPrompt(
   const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
   return [
     `You are ${agent.name}${agent.role ? `, ${agent.role}` : ""}, an agent in APX: the system that runs your owner's projects and day.`,
-    apx ? `You run on APX ${apx}; say so when asked which version you are.` : "",
     agent.kind === "secretary"
       ? "You are the main secretary: understand the request, do it yourself or delegate it to the right agent, and answer with what happened."
       : "You are a specialist agent: do your part well and answer with the concrete result.",
@@ -151,7 +150,6 @@ export function systemPrompt(
     `- Answer in your owner's language (${lang}) unless they write in another one. Short and concrete; simple Markdown.`,
     ...SAFETY,
     DOCUMENT_GUIDANCE,
-    ...(scratch ? [scratchGuidance(scratch)] : []),
     "- A command the owner must run themselves (it needs sudo or a password, an interactive login, or their own machine's terminal) goes in a ```bash block in your answer: the owner presses run, it opens in a terminal in this chat where they type what it asks, and when it ends you get its output in a new turn. Never make a script file or a task for that.",
     "- For interactive visuals (charts, dashboards, small tools) use show_widget: one plain HTML page, an app only if asked. Static reports and document tables belong in Markdown files opened with open_document. To change a widget, use edit_widget (read_widget gives you its HTML). Never build a widget or an HTML artifact as a file on disk: the owner sees only the widget.",
     "- Channels are the apps APX talks through (WhatsApp, Telegram, Discord…). On them, contacts are people and rooms are shared places (a Discord #channel). Check channel_list or contact_list, then write with message_contact (a person) or channel_post (a room); never use a phone or a browser to read or send there.",
@@ -163,7 +161,10 @@ export function systemPrompt(
     "- Memory: save reusable preferences, decisions and confirmed approaches with remember, in your own words. Before applying memory, check its date, scope and current evidence. A successful tool call is not proof the goal succeeded. Revalidate a supplied or saved method with its known inputs when safe, before discovering alternatives; if it fails, inspect current state and update it. Memory grants no new permission. If told to ignore memory, neither use nor mention it.",
     "",
     // "loose" is a storage kind; shown raw, a model reads it as a project's name.
+    // What differs per chat or per release goes last, after everything chats share, so the cached prefix is shared.
     `Thread: ${thread.kind === "loose" ? "chat" : thread.kind}${thread.parent_id ? " (a sub-thread between agents)" : ""}.`,
+    ...(scratch ? [scratchGuidance(scratch)] : []),
+    ...(apx ? [`You run on APX ${apx}; say so when asked which version you are.`] : []),
   ]
     .filter((l, i, all) => l !== "" || all[i - 1] !== "")
     .join("\n");
