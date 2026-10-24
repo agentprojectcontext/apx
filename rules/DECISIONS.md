@@ -2280,3 +2280,16 @@ now has a third kind, `message` (something they want the owner to know or do, li
 to anyone with the requests flag and, with no flag, to the owner's partner, family and friends. It still only files a
 task for the owner, capped per person. Each request, appointment or message passed or updated in a turn is told to the
 owner on their notice channel when the turn ends (silent in quiet hours), as well as in the tray.
+
+<a id="d-150"></a>
+## D-150 — 2026-10-24 — WhatsApp and Signal act on the owner's word, like Telegram
+D-144 sent the owner's words on every channel but Telegram through the super-agent's check. On WhatsApp that left the
+owner unanswered when writing from their own number: the check asked them in the app, the chat waited, and the agent
+later doubted the link between the number and the owner. WhatsApp and Signal are not weak the way D-144's list is: the
+sender is the account whose end-to-end keys signed the message, which nobody forges by typing a name, a topic or a
+From line; the remaining risk (someone holding the owner's unlocked phone) is the same as Telegram's. So both join
+`OWNER_ACTS_ON` (`domain/channels.ts`): the owner's words there start an owner run, and cards and notices come with
+their options (numbered on WhatsApp). What D-144 keeps stands: a change to the owner's settings is approved only in
+the app (`app_only`), and the channels whose sender can be forged (ntfy, IRC, SMS, email, Twitch) and the rest still go
+through the super-agent first. Discord, Slack and the other account-based platforms stay as D-144 left them until the
+owner asks otherwise.

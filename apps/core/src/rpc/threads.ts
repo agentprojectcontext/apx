@@ -188,7 +188,7 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     const owner = ch.role === "owner";
     // In a room the owner's words were said there (`direct`), unlike what they tell the agent from the app.
     const room = Boolean(store.threads.context(threadId).room);
-    // Off Telegram the platform cannot vouch for who wrote: the super-agent checks it first (DECISIONS.md#d-144).
+    // Where the platform cannot vouch for who wrote, the super-agent checks it first (DECISIONS.md#d-144).
     const type = store.settings.read("channels").find((c) => c.id === ch.id)?.type;
     if (owner && !room && !ownerActsOn(type)) {
       const agent = store.agents.get(agentId);

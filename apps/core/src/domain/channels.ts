@@ -9,10 +9,11 @@ import type { OutboxTable, PairingTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
 /**
- * The channels whose owner messages act directly. Elsewhere the platform's word for who wrote is weaker (a topic, a
- * nick, a From line, a linked phone), so the owner's words reach the super-agent to check first (DECISIONS.md#d-144).
+ * The channels whose owner messages act directly: the platform proves the sending account (WhatsApp and Signal by its
+ * end-to-end keys). Elsewhere its word for who wrote is weaker (a topic, a nick, a From line), so the owner's words
+ * reach the super-agent to check first (DECISIONS.md#d-144, DECISIONS.md#d-150).
  */
-const OWNER_ACTS_ON: ReadonlySet<string> = new Set(["telegram"]);
+const OWNER_ACTS_ON: ReadonlySet<string> = new Set(["telegram", "whatsapp", "signal"]);
 export const ownerActsOn = (type: string | undefined): boolean => type !== undefined && OWNER_ACTS_ON.has(type);
 
 /** What an adapter hands over for one platform message. */

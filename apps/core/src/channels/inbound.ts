@@ -112,7 +112,7 @@ export function createInbound(deps: {
     if (!person) return stranger(cfg, m, rowId);
     if (person.role === "blocked") return "ignored";
     const owner = person.role === "owner";
-    // Off Telegram the owner's words only reach the super-agent to check: they answer and approve nothing here.
+    // Where the platform cannot vouch for the owner, their words only reach the super-agent to check: they answer and approve nothing here.
     const direct = owner && ownerActsOn(cfg.type);
     const thread = owner ? ownerThread(cfg, m.conversation) : contactThread(cfg, m.conversation, person);
     // A supervised contact costs a draft, not an answer: suggestions.ts keeps its own hourly cap.
@@ -573,7 +573,7 @@ export function createInbound(deps: {
     const t = channelTexts(store);
     const reply = (text: string) =>
       delivery.enqueue({ channel, conversation: a.conversation, kind: "notice", body: { text } });
-    // Off Telegram a press is no proof the owner made it: what it would decide is decided in the app (DECISIONS.md#d-144).
+    // Where the platform cannot vouch for the owner, a press is no proof they made it: what it would decide is decided in the app (DECISIONS.md#d-144).
     if (!ownerActsOn(deps.configs().find((c) => c.id === channel)?.type)) {
       reply(t.inApp);
       return;

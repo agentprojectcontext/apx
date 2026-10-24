@@ -163,7 +163,7 @@ export function createChannels(deps: {
   }
 
   /**
-   * Something for the owner as a channel shows it: buttons only where the owner may answer there, so off Telegram and
+   * Something for the owner as a channel shows it: buttons only where the owner may answer there, so where the platform cannot vouch for them and
    * for a card only the app answers they give way to where it is answered (DECISIONS.md#d-144).
    */
   function shownOn(channel: string, body: Presentation): Presentation {

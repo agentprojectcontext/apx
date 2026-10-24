@@ -1,10 +1,12 @@
 // Matrix, Mattermost and Signal, each against its fake server: the same story as the other channels. The owner pairs
 // with a code, their words reach the agent and the answer comes back; a stranger gets a code and never the agent; a
-// group is not read; a confirmation comes without options and only the app answers it.
+// group is not read. Matrix and Mattermost cannot vouch for the owner, so a confirmation comes without options and only
+// the app answers it; Signal proves the sending account, so its options are answered there (DECISIONS.md#d-150).
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import type { ChannelType } from "@apx/protocol";
 import { z } from "zod";
+import { ownerActsOn } from "../domain/channels.ts";
 import { callTool, say, scriptedLlm, startCore, throughOwnerCheck } from "../engine/testkit.ts";
 import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
@@ -78,7 +80,7 @@ for (const c of CASES)
       await env.cleanup();
     });
 
-    test("the owner pairs and talks; a confirmation reaches them without options and a typed number does not answer it, only the app does", async () => {
+    const pairOwner = async () => {
       fake.message("owner", "hola");
       await waitFor(() => fake.sentTo("owner").length >= 1, "pairing code");
       const code = /(?<!\d)(\d{6})(?!\d)/.exec(fake.sentTo("owner")[0] ?? "")?.[1] ?? "";
@@ -86,26 +88,44 @@ for (const c of CASES)
 
       fake.message("owner", "what is up");
       await waitFor(() => fake.sentTo("owner").some((t) => t.includes("You said: what is up")), "reply");
+    };
 
-      fake.message("owner", "launch the probe");
-      await waitFor(() => fake.sentTo("owner").some((t) => t.includes("no por este canal")), "card without options");
-      const card = fake.sentTo("owner").find((t) => t.includes("no por este canal")) ?? "";
-      assert.ok(!/\n1\. /.test(card), "no numbered options off Telegram");
-      const { inputs } = await env.client.call("runs.pending", {});
-      const input = inputs[0]?.id ?? "";
-      assert.ok(input, "the confirmation waits");
+    if (ownerActsOn(c.type))
+      test("the owner pairs and talks; a confirmation reaches them with options and their typed number answers it", async () => {
+        await pairOwner();
+        const calls = llm.calls.length;
+        fake.message("owner", "launch the probe");
+        await waitFor(() => fake.sentTo("owner").some((t) => /\n1\. /.test(t)), "card with options");
+        assert.ok(
+          llm.calls.slice(calls).every((r) => !JSON.stringify(r.messages).includes("Judge first")),
+          "no check by the super-agent first",
+        );
+        fake.message("owner", "1");
+        await waitFor(() => fake.sentTo("owner").some((t) => t.includes("Done: probed")), "probe ran");
+      });
+    else
+      test("the owner pairs and talks; a confirmation reaches them without options and a typed number does not answer it, only the app does", async () => {
+        await pairOwner();
 
-      fake.message("owner", "1");
-      await new Promise((r) => setTimeout(r, 300));
-      assert.equal(env.core.store.inputs.get(input)?.state, "pending", "a typed number answers nothing");
+        fake.message("owner", "launch the probe");
+        await waitFor(() => fake.sentTo("owner").some((t) => t.includes("no por este canal")), "card without options");
+        const card = fake.sentTo("owner").find((t) => t.includes("no por este canal")) ?? "";
+        assert.ok(!/\n1\. /.test(card), "no numbered options off Telegram");
+        const { inputs } = await env.client.call("runs.pending", {});
+        const input = inputs[0]?.id ?? "";
+        assert.ok(input, "the confirmation waits");
 
-      await env.client.call("runs.respond", { input, decision: "approve" });
-      await waitFor(() => fake.sentTo("owner").some((t) => t.includes("Done: probed")), "probe ran");
-      await waitFor(
-        () => fake.sentTo("owner").some((t) => t.includes("You said: 1")),
-        "the number was relayed as words",
-      );
-    });
+        fake.message("owner", "1");
+        await new Promise((r) => setTimeout(r, 300));
+        assert.equal(env.core.store.inputs.get(input)?.state, "pending", "a typed number answers nothing");
+
+        await env.client.call("runs.respond", { input, decision: "approve" });
+        await waitFor(() => fake.sentTo("owner").some((t) => t.includes("Done: probed")), "probe ran");
+        await waitFor(
+          () => fake.sentTo("owner").some((t) => t.includes("You said: 1")),
+          "the number was relayed as words",
+        );
+      });
 
     test("a stranger gets a code, never the agent; a group is not read", async () => {
       const calls = llm.calls.length;
