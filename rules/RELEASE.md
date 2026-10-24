@@ -33,7 +33,8 @@ v2 is published into v1's public repo (`agentprojectcontext/apx`), which every v
    fast-forwards to it and v1's old `main` stays as branch `v1`. Both histories survive and `main` holds v2. Set
    `APX_V2_LATEST=true` from then on, before the next tag: its builds then drop the "Beta" mark and it becomes
    GitHub's "Latest". `v1` must carry v1's docs with the no-longer-maintained banner and `DOCS_BASE`, since v2's
-   `pages.yml` builds them into `/apx/v1/` (v1's own `pages.yml` leaves `main` with the merge).
+   `pages.yml` builds them into `/apx/v1/` (v1's own `pages.yml` leaves `main` with the merge). `v1` is pushed first: `verify` leaves the commits it holds out of the
+   commit check, or the unification's push would bring v1's whole history to it.
 
 ## What a release carries
 

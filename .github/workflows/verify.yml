@@ -36,6 +36,7 @@ jobs:
       # repo's older history is rewritten on the way out instead (rules/RELEASE.md#history).
       # Only the commits this run brings (DECISIONS.md#d-087): a pull request's own (its HEAD is the merge GitHub makes
       # to test it, with the account's own email), a push's new ones; a new branch or tag, what release/v2 lacks.
+      # v1's history, which main's unification brings in, was public long before and stays out (branch v1).
       - name: Commits (public-safe authors and messages)
         if: github.repository == 'agentprojectcontext/apx'
         env:
@@ -43,9 +44,9 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           if [ -n "$BASE" ] && [ "$BASE" != 0000000000000000000000000000000000000000 ] && git cat-file -e "$BASE^{commit}"; then
-            pnpm check:commits "$BASE..$HEAD_SHA"
+            pnpm check:commits "$BASE..$HEAD_SHA" --not origin/v1
           else
-            pnpm check:commits "$HEAD_SHA" --not origin/release/v2
+            pnpm check:commits "$HEAD_SHA" --not origin/release/v2 origin/v1
           fi
       - name: Static checks (private terms, schema, lint, typecheck, test quality)
         run: pnpm preflight:static
