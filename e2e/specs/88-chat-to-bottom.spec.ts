@@ -12,7 +12,10 @@ test("scrolled up, a button goes back to the latest message and hides there", as
   const scroller = page.getByRole("main").locator(".chat__scroll");
   const toBottom = page.getByRole("button", { name: "Ir al último mensaje" });
   const atEnd = () => scroller.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight < 2);
-  await expect(page.getByText("Line 60 of the Northwind notes")).toBeInViewport();
+  // The fake model's answer echoes the last line ("Got it: Line 60 …"): the owner's own message is the one to see.
+  await expect(
+    page.locator(".transcript__usertext").filter({ hasText: "Line 60 of the Northwind notes" }),
+  ).toBeInViewport();
   await expect.poll(atEnd).toBe(true);
   await expect(toBottom).toBeHidden();
 
