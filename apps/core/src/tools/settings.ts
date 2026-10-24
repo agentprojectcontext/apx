@@ -37,6 +37,7 @@ const AREA: Readonly<Record<string, string>> = {
   services: "the media services",
   surfaces: "a widget",
   stickers: "the stickers",
+  environments: "the isolated computer",
 };
 
 /** What a call does, for its card's title in each language: a look, a change, or a removal, and in which area. */
@@ -156,7 +157,7 @@ export function settingsTools(
     defineTool({
       name: "apx_settings",
       description:
-        "Read and change what the owner sets up in APX for them (contacts, channels, their profile, notices, projects, memory…). No args: the areas; method: an area's methods, or a method's fields; method + params: run it. Each change waits for the owner's OK.",
+        "Read and change what the owner sets up in APX for them (contacts, channels, their profile, notices, projects, memory, which agents may use the isolated computer…). No args: the areas; method: an area's methods, or a method's fields; method + params: run it. Each change waits for the owner's OK.",
       args,
       effect: "local",
       // What the owner set up is theirs: every change waits for their yes.
@@ -191,7 +192,7 @@ export function settingsTools(
           return [
             "Areas and their methods; call with method: an area for what each does, a method for its fields.",
             ...[...areas()].map(([area, verbs]) => `- ${area}: ${verbs.join(", ")}`),
-            "Agents' definitions, routines and the shared limits have tools of their own. Keys, sign-ins, models, what agents may do and this computer stay the owner's, in Settings.",
+            "Agents' definitions, routines and the shared limits have tools of their own. Keys, sign-ins, models, how far agents may act and the machine APX runs on stay the owner's, in Settings.",
           ].join("\n");
         const area = areas().get(a.method);
         if (area)

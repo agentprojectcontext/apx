@@ -3,6 +3,7 @@
 // owner's, like an agent's autonomy (DECISIONS.md#d-060).
 import { readTemplates, singlesOf } from "../apc/templates.ts";
 import { activeProfile, listProfiles, textIn } from "../engine/profiles.ts";
+import { computerApproval } from "../environments/computer.ts";
 import { inlineName } from "./result.ts";
 import { agentName, ownersField, type Params, projectName, quoted, type Setting, str } from "./settings-kit.ts";
 
@@ -10,7 +11,37 @@ const AUTONOMY = "how far agents may act stays the owner's (DECISIONS.md#d-060)"
 const names = (store: Parameters<typeof agentName>[0], ids: unknown) =>
   (Array.isArray(ids) ? ids : []).map((a) => agentName(store, a)).join(", ");
 
+/** Whether an agent may use the isolated computer for good: the agent's own Computer settings page. */
+const mayUseComputer = (store: Parameters<typeof agentName>[0], agent: string) =>
+  store.approvals.allows(computerApproval, undefined, agent);
+
 export const TEAM: Readonly<Record<string, Setting>> = {
+  "environments.status": {
+    does: "which agents may use the isolated Linux computer (apart from this Mac, one screen each) and their screens",
+    read: (_p, { store }) => {
+      const screens = store.settings.read("computer_screens");
+      const allowed = store.agents.list().filter((a) => mayUseComputer(store, a.id));
+      const lines = allowed.map(
+        (a) => `- ${inlineName(a.name)} [${a.id}]${screens[a.id] ? `, screen ${screens[a.id]}` : ""}`,
+      );
+      return [
+        lines.length ? "May use the computer:" : "No agent may use the computer yet.",
+        ...lines,
+        "Each agent's card and its settings (Computer page) show it; the owner watches the screens in Computers.",
+      ].join("\n");
+    },
+  },
+  "environments.permit": {
+    does: "let an agent use the isolated computer for good, or take it away (agent, on)",
+    named: ["agent"],
+    says: (p, { store }) =>
+      p.on
+        ? `Let ${agentName(store, p.agent)} use the isolated computer`
+        : `Take the isolated computer away from ${agentName(store, p.agent)}`,
+    now: (p, { store }) =>
+      store.agents.get(str(p.agent)) ? { agent: p.agent, on: mayUseComputer(store, str(p.agent)) } : undefined,
+    words: { on: (v) => (v ? "It starts its own screen when it needs one" : "Its grants for single chats end too") },
+  },
   "agents.archived": {
     does: "the archived agents, to bring back or delete for good",
     read: (_p, { store }) =>

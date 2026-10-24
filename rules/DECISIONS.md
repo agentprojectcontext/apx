@@ -2308,7 +2308,9 @@ chat (`session`). No agent has it until the owner gives it, whatever its autonom
 skips; it offers "for this chat" and "always for this agent", never "only this time", since a permission covers the
 turns that follow. A chat bound to the computer whose agent lost the permission refuses its turns before any model
 call, as it does without a backend: never host tools instead. The owner's `environments.enable` and `bind` refuse an
-agent without it; the panel offers "Allow <agent> and turn on".
+agent without it; the panel offers "Allow <agent> and turn on". The owner can also ask the super-agent: `environments.permit` and
+a read of who may use it (`environments.status`) are in `apx_settings` (D-138), and each change waits on the owner's
+card in every mode, like their other settings; `environments.status` lists the allowed agents for each agent's card.
 
 **The tool.** `computer` (status, start, stop) is one conditional tool (rule 15): offered in an owner's native chat to
 an allowed agent, and, once the owner has set the computer up on this core, to any agent there so it can ask. A fresh

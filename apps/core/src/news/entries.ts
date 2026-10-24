@@ -266,8 +266,8 @@ export const NEWS: readonly NewsEntry[] = [
     text:
       "Agents can now work on a Linux computer they share, a VM apart from the owner's Mac with no way into the Mac " +
       "or the local network. Each agent gets its own user, files and screen with a desktop and browser. It is off " +
-      "for every agent until the owner allows one, in the agent's settings or from the card the agent shows when it " +
-      "asks. An allowed agent starts it itself; it does not start without enough free memory, and APX shuts it down " +
+      "for every agent until the owner allows one: in the agent's card or settings, from the card the agent shows " +
+      "when it asks, or by asking the super-agent. An allowed agent starts it itself; it does not start without enough free memory, and APX shuts it down " +
       "when the Mac runs short or nobody uses it, keeping its files. The new Computers view shows every agent's " +
       "screen at once; memory, CPUs and disk are set in the Computer panel.",
     actions: [
@@ -276,6 +276,12 @@ export const NEWS: readonly NewsEntry[] = [
         prompt:
           "Tell me in a few lines what you could do for me on an isolated Linux computer that you cannot do here, " +
           "and how much memory it would take from this Mac. Do not start it unless I say so.",
+      },
+      {
+        label: { en: "Turn it on for an agent", es: "Activarla para un agente" },
+        prompt:
+          "Tell me which of my agents may use the isolated Linux computer now, and offer to turn it on for the one " +
+          "I pick, with my OK on the card.",
       },
     ],
   },

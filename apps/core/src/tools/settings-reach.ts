@@ -55,7 +55,6 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "tools.revoke": POWER,
   "mcp.trust": POWER,
   "mcp.approveTool": POWER,
-  "environments.permit": POWER,
   "environments.enable": POWER,
   "environments.bind": POWER,
   "telemetry.set": POWER,
