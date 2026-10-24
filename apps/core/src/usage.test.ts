@@ -49,8 +49,10 @@ test("the computer's memory, CPU and disks, and the core's own share, come witho
   assert.ok(u.core.rss_mb > 0);
   assert.equal(u.home, undefined);
   assert.equal(u.vm, undefined, "no VM: no slot");
+  // A share needs a window of at least a second (see the CPU window test below).
+  await new Promise((resolve) => setTimeout(resolve, 1100));
   const again = await owner.call("system.usage", {});
-  assert.equal(typeof again.host.cpu_pct, "number", "a second read knows the CPU since the first");
+  assert.equal(typeof again.host.cpu_pct, "number", "a later read knows the CPU since the first");
 });
 
 test("asked for disk, the first answer is measuring; the next has the home by part, biggest first", async () => {
@@ -132,4 +134,14 @@ test("parts by name, and memory as macOS and Linux count it", () => {
   assert.equal(availableFromVmStat(vmStat, total), (200000 - (50000 - 1000 + 20000 + 10000)) * 16384);
   assert.equal(availableFromVmStat("nothing", total), undefined);
   assert.equal(availableFromMeminfo("MemTotal: 100 kB\nMemAvailable:    2048 kB\n"), 2048 * 1024);
+});
+
+test("a CPU share is measured over at least a second, so a read right after another does not reset it", async () => {
+  const usage = createUsage({ home });
+  const first = await usage.read({ disk: false });
+  const second = await usage.read({ disk: false });
+  assert.equal(first.host.cpu_pct, undefined, "no window yet");
+  assert.equal(second.host.cpu_pct, undefined, "a window of a few ms says nothing");
+  await new Promise((resolve) => setTimeout(resolve, 1100));
+  assert.equal(typeof (await usage.read({ disk: false })).host.cpu_pct, "number");
 });

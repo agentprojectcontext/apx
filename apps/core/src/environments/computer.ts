@@ -55,6 +55,7 @@ export const computerApproval: ApprovalTarget = {
 export type StopReason = "owner" | "agent" | "idle" | "memory";
 
 const NATIVE_CHATS = new Set(["home", "agent", "loose", "code"]);
+const MONITOR_TTL_MS = 5_000;
 
 /**
  * One shared Linux VM for every allowed agent: each works as its own user on its own screen, the core keeps who
@@ -71,6 +72,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
     activity = Date.now();
   };
   const leases = new Map<number, ComputerControl>();
+  let probe: { at: number; value: Promise<ComputerUsage | undefined> } | undefined;
   /** An agent's screen starts in the agent's hands; the owner may take it to watch closely, type or sign in. */
   const control = (screen: number) => {
     let lease = leases.get(screen);
@@ -372,8 +374,13 @@ export function createComputer(store: Store, config: ComputerConfig) {
     },
     usage: async (): Promise<ComputerUsage | undefined> => config.usage?.(),
     /** The resource monitor's VM slot: the VM's numbers once the owner set it up, nothing on an install without one. */
-    monitored: async (): Promise<ComputerUsage | undefined> =>
-      store.settings.get("computer_enabled") === "true" || chats().length ? config.usage?.() : undefined,
+    monitored: (): Promise<ComputerUsage | undefined> => {
+      if (store.settings.get("computer_enabled") !== "true" && !chats().length) return Promise.resolve(undefined);
+      // One probe for every caller, reused a few seconds: each one is a Lima call and an SSH read in the guest.
+      if (!probe || Date.now() - probe.at > MONITOR_TTL_MS)
+        probe = { at: Date.now(), value: Promise.resolve(config.usage?.()).catch(() => undefined) };
+      return probe.value;
+    },
     revokeDevice: guest.revokeDevice,
     display: (screen: number, device?: string) => {
       if (!ledger.running().has(screen) && !ledger.claims().some((c) => c.screen === screen))

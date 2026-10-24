@@ -188,6 +188,8 @@ export type UsageOptions = {
 
 export type Usage = { read(o: { disk: boolean }): Promise<SystemUsage> };
 
+const CPU_WINDOW_MS = 1000;
+
 export function createUsage(o: UsageOptions): Usage {
   const platform = o.platform ?? process.platform;
   const ttl = o.homeTtlMs ?? 5 * 60_000;
@@ -196,6 +198,8 @@ export function createUsage(o: UsageOptions): Usage {
   let measuring: Promise<void> | undefined;
   let prevHost = cpuBusy();
   let prevCore = { cpu: process.cpuUsage(), at: performance.now() };
+  let hostPct: number | undefined;
+  let corePct: number | undefined;
 
   const home = (): HomeUsage => {
     const stale = !last?.measured_at || Date.now() - Date.parse(last.measured_at) > ttl;
@@ -218,15 +222,19 @@ export function createUsage(o: UsageOptions): Usage {
         disks(o.home, platform),
         vmNow(o.vm),
       ]);
-      const host = cpuBusy();
-      const dTotal = host.total - prevHost.total;
-      const hostPct = dTotal > 0 ? Math.round(((host.busy - prevHost.busy) / dTotal) * 100) : undefined;
-      prevHost = host;
+      // A share over a few ms says nothing, and every caller reads here: a window is closed only once it spans a
+      // second, and until then each read gets the last share measured.
       const now = { cpu: process.cpuUsage(), at: performance.now() };
-      const wallUs = (now.at - prevCore.at) * 1000;
-      const usedUs = now.cpu.user - prevCore.cpu.user + now.cpu.system - prevCore.cpu.system;
-      const corePct = wallUs > 50_000 ? Math.round((usedUs / wallUs) * 100) : undefined;
-      prevCore = now;
+      if (now.at - prevCore.at >= CPU_WINDOW_MS) {
+        const host = cpuBusy();
+        const dTotal = host.total - prevHost.total;
+        hostPct = dTotal > 0 ? Math.round(((host.busy - prevHost.busy) / dTotal) * 100) : undefined;
+        prevHost = host;
+        const wallUs = (now.at - prevCore.at) * 1000;
+        const usedUs = now.cpu.user - prevCore.cpu.user + now.cpu.system - prevCore.cpu.system;
+        corePct = Math.round((usedUs / wallUs) * 100);
+        prevCore = now;
+      }
       const mem = process.memoryUsage();
       return {
         at: new Date().toISOString(),

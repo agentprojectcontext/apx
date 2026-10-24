@@ -22,6 +22,8 @@ import {
 import { computerUsage, diskImageBytes } from "./usage.ts";
 
 const GIB = 1024 ** 3;
+/** Each Lima call the resource monitor makes: below its 3 s wait for the VM's numbers. */
+const PROBE_MS = 1_200;
 
 /** What the owner set for the VM, held to this host's limits; read at each start, so a change applies on the next one. */
 export const ownerResources = (store: Store): ComputerResources =>
@@ -35,7 +37,9 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
   const prepared = path.join(root, "desktop-ready-v3");
   const env = { PATH: withUsualDirs(process.env.PATH ?? ""), HOME: os.homedir(), LIMA_HOME: limaHome };
   const privateBinary = path.join(root, `lima-${LIMA_VERSION}/bin/limactl`);
-  let executable = fs.existsSync(privateBinary) ? privateBinary : (findProgram("limactl", env.PATH) ?? privateBinary);
+  let executable =
+    external?.executable?.() ??
+    (fs.existsSync(privateBinary) ? privateBinary : (findProgram("limactl", env.PATH) ?? privateBinary));
   const binary = () => executable;
   const run = limaProcess(binary, env);
   const egress = vmEgress(limaHome, instance, run);
@@ -48,9 +52,9 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
     }
   };
   const imageBytes = () => diskImageBytes(path.join(limaHome, instance));
-  const running = async () => {
+  const running = async (timeout?: number) => {
     if (!installed() || !fs.existsSync(binary())) return false;
-    const result = await run(["list", "--json", instance]);
+    const result = await run(["list", "--json", instance], timeout ? { timeout } : {});
     return result
       .split("\n")
       .filter(Boolean)
@@ -137,10 +141,11 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
     usage: () =>
       computerUsage({
         name: instance,
-        running,
+        // Inside the monitor's own wait, so a probe that hangs is killed rather than left behind.
+        running: () => running(PROBE_MS),
         assigned: () => (installed() ? applied() : ownerResources(store)),
         imageBytes,
-        meminfo: () => run(["shell", instance, "--", "cat", "/proc/meminfo"], { timeout: 4_000 }),
+        meminfo: () => run(["shell", instance, "--", "cat", "/proc/meminfo"], { timeout: PROBE_MS }),
       }),
   };
 }
