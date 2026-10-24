@@ -25,6 +25,8 @@ export function limitTools(store: Store): Tool[] {
       when: (thread) => tree(store, thread.id).length > 1,
       effect: "local",
       confirm: (a) => (a.runs !== undefined || a.tokens !== undefined || a.go_on ? "always" : "never"),
+      // How far agents go without the owner is theirs to change, on their card in every mode (DECISIONS.md#d-143).
+      ownerSetting: (a) => a.runs !== undefined || a.tokens !== undefined || Boolean(a.go_on),
       deadlineMs: 15_000,
       title: (a) =>
         a.go_on

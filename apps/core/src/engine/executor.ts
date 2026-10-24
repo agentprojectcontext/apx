@@ -13,7 +13,7 @@ import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { TurnIO } from "../harness/index.ts";
 import { MCP_CALL, MCP_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
-import { authorize, decide } from "../tools/policy.ts";
+import { authorize, decide, keepsCard } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk, judgeCommand } from "../tools/shell.ts";
 import type { CheckContext, Confirm, ScopedThread, Tool, ToolContext } from "../tools/types.ts";
@@ -367,12 +367,19 @@ export function createExecutor(o: {
       }
     }
     if (wide && !proposes) wideOk = true;
-    // A call that always asks has its own grant, apart from the tool's ordinary one (DECISIONS.md#d-089).
-    const target = level === "always" && tool.approval ? strictApproval(tool.approval) : tool.approval;
+    const keeps = keepsCard(tool, args, agent);
+    // A call that always asks has its own grant, apart from the tool's ordinary one (DECISIONS.md#d-089); one that
+    // keeps its card whatever is granted offers none (DECISIONS.md#d-143).
+    const target =
+      keeps === "card"
+        ? undefined
+        : level === "always" && tool.approval
+          ? strictApproval(tool.approval)
+          : tool.approval;
     if (
       gate.kind === "confirm" &&
       // The owner just said yes to this very call on its folder card: manual's ask for every change is answered.
-      !(lent.asked && gate.why === "asks_every") &&
+      !(lent.asked && gate.why === "asks_every" && !keeps) &&
       !(target && store.approvals.allows(target, thread.id, agent.id, args)) &&
       !o.inputs.takeGrant(thread.id, agent.id, name, raw, target?.key)
     ) {
@@ -427,8 +434,9 @@ export function createExecutor(o: {
       },
       upsertPart: display.upsert,
       call: (method, params) => o.call(method, params, { run, callId }),
-      // Only after the owner's OK on a tool that always asks for it (the confirmation above ran for this call).
-      ...(level === "always"
+      // A tool that always asks acts as the owner once this call passed its card (answered or granted above), or
+      // where the mode or rule let it run unasked and it keeps no card (DECISIONS.md#d-143).
+      ...(level === "always" && (gate.kind === "confirm" || !keeps)
         ? { callAsOwner: (method, params) => o.call(method, params, { run, callId, owner: true }) }
         : {}),
       delegate: o.delegate,

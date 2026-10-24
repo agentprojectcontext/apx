@@ -93,8 +93,10 @@ export function requestTools(store: Store): Tool[] {
         name: z.string().trim().min(1).max(80).optional().describe("how to call them, when the owner said it"),
       }),
       effect: "external",
-      // Letting someone in is the owner's act: it runs once they approve this call. Ignoring changes nothing outside.
+      // Letting someone in is the owner's act: on their own word, on their card in every mode (DECISIONS.md#d-143).
+      // Ignoring changes nothing outside.
       confirm: (a) => (a.decision === "answer" ? "always" : "never"),
+      ownerSetting: (a) => a.decision === "answer",
       deadlineMs: 30_000,
       title: (a) => (a.decision === "answer" ? `Let ${String(a.who)} in` : `Ignored ${String(a.who)}`),
       async run(a, ctx) {

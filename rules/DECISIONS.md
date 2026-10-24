@@ -2148,3 +2148,28 @@ no folders, so the panel, the mobile app, the channels and the "Needs your revie
 buttons; the panel titles it "Accept this action?". Accepting tells the agent to do it now; a late answer wakes it as
 a question's does; the agent can withdraw it. Accepting does not grant the calls it takes: each still passes its own
 check, since the card's text does not bind a tool's arguments. An agent with "always" for that tool gets no second card.
+
+<a id="d-143"></a>
+## D-143 — 2026-10-23 — Total keeps its power, except over what the owner set up and their logins
+A review found that Total (D-047) and an agent's rule `auto` let calls that act as the owner run with no card: letting a
+stranger in (`answer_contact_request`), changing how far agents go alone (`agent_limits`), copying the owner's browser
+cookies (`browser_use_my_login`). The executor handed `callAsOwner` to any call whose tool "always" asks, once the
+policy said allow, so "the owner approves it every time" (the tool's own description) was false on Total.
+
+The owner's rule: Total keeps its power, with these limits. A change to something the owner set up asks on its card in
+every mode: D-140's `ownerSetting` now marks every tool that acts through `callAsOwner` on their setup, not only
+`SUPER_AGENT_TOOLS` (`answer_contact_request` when it lets someone in, `agent_limits` when it changes or lets go on), so
+accepting a contact request also needs the owner's own word (`ownerAsked`). Such a card offers no "always" answer, and
+no grant skips it. Routines change freely: `routine_set` keeps no card in Total. A tool can also keep its card where the
+mode would skip it (`keepsCard`): `card`, nothing skips it; `grant`, only the owner's grant does.
+`settings-reach.ts` `TOTAL_SKIPS` lists the tools that act as the owner and may run unasked in Total (routines, an Asana
+write), with their reason; every other tool in `BY_TOOL` keeps its card, and `owner-setting.test.ts` fails otherwise.
+`callAsOwner` is given only when this call passed its card (answered, or the owner's grant) or ran unasked under a mode
+or rule on a tool that keeps no card.
+
+`browser_use_my_login` runs without a card only when the agent's browser is declared shared. Every agent's profile is
+`shared` unless the owner picks another (the column's default, and the seed's), so the stored value says nothing about
+a choice, and copying the owner's logins on a default is what the review found. The declaration is the owner's own
+"Always for this agent" on its card: the tool keeps its card in Total (`grant`) for a shared profile, and an isolated
+one keeps it whatever is granted (`card`). A setting of its own would have meant a new field in the protocol, the
+editor and every agent file for one tool; the card already asks, and its answer is the explicit choice.

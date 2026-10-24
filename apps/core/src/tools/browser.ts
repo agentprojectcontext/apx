@@ -212,7 +212,7 @@ export function browserTools(store: Store, home: string): Tool[] {
       needsCap: BROWSER_CAP,
       name: "browser_use_my_login",
       description:
-        "When a site asks to log in and the owner is likely already logged in there in their own browser (Chrome, Brave, Arc, Edge, Zen, Firefox): ask to copy that site's session cookies into your browser profile, then reload the tab. The owner approves it every time. Try this before browser_handoff for sites like Gmail, GitHub or Notion.",
+        "When a site asks to log in and the owner is likely already logged in there in their own browser (Chrome, Brave, Arc, Edge, Zen, Firefox): ask to copy that site's session cookies into your browser profile, then reload the tab. It waits for the owner's OK on a card in every mode, unless they said always for you and your browser profile is the shared one. Try this before browser_handoff for sites like Gmail, GitHub or Notion.",
       args: z.object({
         domain: z
           .string()
@@ -221,6 +221,9 @@ export function browserTools(store: Store, home: string): Tool[] {
       }),
       effect: "local",
       confirm: "always",
+      // The owner's logins leave their browser only on their word: a grant counts only for the shared profile, which
+      // every agent's profile is unless the owner chose another (DECISIONS.md#d-143).
+      keepsCard: (_a, agent) => (profileFor(agent) === "shared" ? "grant" : "card"),
       deadlineMs: 150_000,
       title: (a) => `Used your session on ${String(a.domain)}`,
       async run(a, ctx) {

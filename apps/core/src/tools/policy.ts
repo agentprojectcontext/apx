@@ -4,7 +4,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
 import { SUPER_AGENT_TOOLS } from "./agent-set.ts";
 import type { Reach } from "./folders.ts";
-import type { Confirm, Effect, Tool, UntrustedWhy } from "./types.ts";
+import type { Confirm, Effect, KeepsCard, Tool, UntrustedWhy } from "./types.ts";
 
 /** Why the owner is asked: always, outside content in the turn, the action's kind, or an agent that asks for all. */
 export type ConfirmWhy = "always" | "untrusted" | "needs_ok" | "asks_every" | "rule" | UntrustedWhy;
@@ -113,14 +113,26 @@ export function authorize(tool: Tool, args: Record<string, unknown>, agent: Agen
   if (tool.scratch?.(args)) return decide(level === "always" ? "always" : "never", "none", agent, untrusted);
   // A call that only reads here is risk read whatever the tool may do otherwise (DECISIONS.md#d-098).
   const d = decide(level, tool.reads?.(args) ? "none" : tool.effect, agent, untrusted, tool.workspace);
-  // What the owner set up changes on their card alone: no mode or rule of the agent's skips it (DECISIONS.md#d-140).
-  if (d.kind === "allow" && tool.ownerSetting?.(args))
-    return { kind: "confirm", why: "always", reason: "a change to what you set up always waits for you" };
+  // What the owner set up changes on their card alone: no mode or rule of the agent's skips it (DECISIONS.md#d-140,
+  // DECISIONS.md#d-143), nor what keeps its card in Total.
+  const keeps = keepsCard(tool, args, agent);
+  if (d.kind === "allow" && keeps)
+    return {
+      kind: "confirm",
+      why: "always",
+      reason: keeps === "card" ? "a change to what you set up always waits for you" : KEPT_CARD,
+    };
   // The tool names what outside content could do through this call, so the card says it (DECISIONS.md#d-121).
   return d.kind === "confirm" && d.why === "untrusted" && level === "untrusted" && tool.untrustedWhy
     ? { ...d, why: tool.untrustedWhy, reason: URL_DATA }
     : d;
 }
+
+const KEPT_CARD = "it waits for you whatever the agent's mode, unless you said always for this agent";
+
+/** Whether Total or the agent's rule `auto` would skip a card this call keeps (DECISIONS.md#d-143). */
+export const keepsCard = (tool: Tool, args: Record<string, unknown>, agent: AgentRecord): KeepsCard | undefined =>
+  tool.ownerSetting?.(args) ? "card" : tool.keepsCard?.(args, agent);
 
 const URL_DATA = "the URL carries data, and content from outside (web, another agent or a message) is in this turn";
 
