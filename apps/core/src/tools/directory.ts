@@ -15,6 +15,10 @@ const ROOM_MODE = {
   read: "reads only",
 } as const;
 
+/** Whether any channel is on (iMessage included): the channel and contact tools are offered only then. */
+export const channelsOn = (store: Store) =>
+  store.settings.read("channels").some((c) => c.enabled) || store.settings.read("imessage").on;
+
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** "Mon–Fri 09:00–18:00", runs of three days or more as a range. */
@@ -40,6 +44,7 @@ export function directoryTools(store: Store): Tool[] {
         "List the channels APX talks through for the owner (WhatsApp, Telegram, Discord, Slack…), whether each is up, and its rooms: shared places inside a channel, such as a Discord #channel, as opposed to contacts, who are people (contact_list). Check it before saying you cannot reach a channel or a room.",
       args: z.object({}),
       effect: "none",
+      when: () => channelsOn(store),
       deadlineMs: 5_000,
       title: () => "Looked at the channels",
       async run(_a, ctx) {
@@ -61,6 +66,7 @@ export function directoryTools(store: Store): Tool[] {
         "Find the owner's contacts: their names, nicknames, relation, the channels each one is on and the owner's note about them. `query` narrows by name. Use it before writing to someone (message_contact) when you are not sure who they are.",
       args: z.object({ query: z.string().trim().max(80).optional() }),
       effect: "none",
+      when: () => channelsOn(store),
       deadlineMs: 5_000,
       title: () => "Looked at the contacts",
       async run(a) {

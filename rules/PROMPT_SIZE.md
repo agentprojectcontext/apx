@@ -8,14 +8,15 @@ it that way.
 
 Measured on a fresh install: the secretary, a new chat, default settings, no skills or MCP servers added.
 
-| Part | Budget | Now (2026-10-17) |
+| Part | Budget | Now (2026-10-23) |
 |---|---|---|
-| System prompt | 10,000 chars (about 2,300 tokens) | 5,962 chars (2026-10-22: the web's routing in, memory and document details moved to their tools) |
-| Tool definitions (48, without the browser) | 30,000 chars (about 7,100 tokens) | 28,179 chars, about 6,600 tokens (2026-10-23: suggest_connection, attention_hours and apx_settings in; apx_settings reaching every owner area cost 10 chars, its methods are read on demand) |
+| System prompt | 10,000 chars (about 2,300 tokens) | 5,301 chars (duplicated rules said once; the channels rule only with a channel on) |
+| Tool definitions (39, without the browser) | 30,000 chars (about 7,100 tokens) | 21,947 chars, about 5,200 tokens (attention_hours folded into apx_settings; the channel and contact tools and make_image only once a channel or an image service is on; repeats of system rules out of descriptions) |
 | Browser tools (8, lent by the desktop app) | — | 811 tokens |
 
-Together the two stay at about 9,500 tokens, still well under Hermes and OpenClaw (about 13,000): the room above
-today's size is for what a new owner needs to find their way, not for padding.
+Together the two stay at about 6,400 tokens, half of Hermes and OpenClaw (about 13,000): the room above today's size
+is for what a new owner needs to find their way, not for padding. A channel turned on adds its seven tools (about
+3,900 chars) and the rule for them; an image service adds make_image (about 600).
 
 `apps/core/src/engine/prompt-budget.test.ts` fails past the budget; it fixes the temp folder and the build it names,
 so every machine measures the same. Raising it is allowed with a reason in the commit and the numbers here updated;
@@ -36,7 +37,9 @@ How to stay within it:
 - APX's own skills (`apps/core/src/skills/apx/`, how to change APX itself) are always there, so the catalog names
   them in one sentence (about 50 tokens) instead of a line each; their bodies load only with `load_skill`.
 - What changes per turn (time, roster, memory, matched skills) goes in the turn's input, never in the system prompt:
-  the system prompt stays byte-stable so the provider's prompt cache keeps it.
+  the system prompt stays byte-stable so the provider's prompt cache keeps it. What differs per chat or per release (the
+  chat's temp folder, the APX version) closes the prompt, so every chat shares the cached prefix before it.
+- A tool that needs something set up (a channel, an image service) is offered once it is (`when` on the tool).
 - `pnpm tools:review` checks that a model still picks the right tool after a description changes, and prints the
   largest tools.
 

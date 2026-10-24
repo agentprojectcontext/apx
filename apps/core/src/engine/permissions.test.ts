@@ -7,6 +7,8 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import type { PendingInput } from "@apx/protocol";
+import { fakeTelegram } from "../channels/fake-telegram.test-support.ts";
+import { telegramAdapter } from "../channels/telegram.ts";
 import { realpath } from "../paths.ts";
 import { scratchDir } from "../tools/folders.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
@@ -22,13 +24,21 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
 let env: Awaited<ReturnType<typeof startCore>>;
+let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 /** Another of the owner's folders, with a video and a picture in it, as a reel in another project. */
 let elsewhere: string;
 let video: string;
 let picture: string;
 let project: string;
 before(async () => {
-  env = await startCore({ llm });
+  // A channel is on, so message_contact is offered.
+  tg = await fakeTelegram("123456:TEST-perms");
+  env = await startCore({ llm, channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) } });
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "roby" },
+    token: "123456:TEST-perms",
+  });
   elsewhere = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-reels-")));
   video = path.join(elsewhere, "reel-es.mp4");
   picture = path.join(elsewhere, "cover.png");
@@ -40,6 +50,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
+  await tg.close();
   env.cleanup();
   fs.rmSync(elsewhere, { recursive: true, force: true });
 });

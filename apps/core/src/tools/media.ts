@@ -2,6 +2,7 @@
 // answers on a channel also go as voice notes.
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
+import { channelsOn } from "./directory.ts";
 import { documentTool } from "./documents.ts";
 import { readsOutside } from "./folders.ts";
 import { defineTool, type Tool } from "./types.ts";
@@ -15,7 +16,7 @@ export function mediaTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "send_file",
       description:
-        "Attach an existing file you can read directly to your reply in this chat. Use when the owner asks to see or download a file, image, video, audio or document here. Images appear inline; videos play in the chat; files can be downloaded. Path relative to your work folder, or absolute; maximum 20 MB per file. Call once per file. Never claim a file was attached unless this tool succeeds. Do not substitute a website link for an attachment.",
+        "Attach an existing file you can read directly to your reply in this chat. Use when the owner asks to see or download a file, image, video, audio or document here. Images appear inline; videos play in the chat; files can be downloaded. Path relative to your work folder, or absolute; maximum 20 MB per file. Call once per file; a website link is no substitute.",
       args: z.object({ path: z.string().trim().min(1).max(1000) }),
       // Only to this chat, the owner's: contacts and rooms never get it (CONTACT_TOOLS).
       effect: "local",
@@ -41,6 +42,7 @@ export function mediaTools(store: Store, home: string): Tool[] {
         "Turn spoken answers on or off for this chat: on a channel like Telegram your answers then also arrive as voice notes. Use it when the owner asks to hear you (or to stop).",
       args: z.object({ on: z.boolean() }),
       effect: "local",
+      when: () => channelsOn(store),
       deadlineMs: 5_000,
       title: (a) => (a.on ? "Turned on spoken answers" : "Turned off spoken answers"),
       async run(a, ctx) {
@@ -61,6 +63,7 @@ export function mediaTools(store: Store, home: string): Tool[] {
         references: z.array(z.string().min(1)).max(4).optional(),
       }),
       effect: "external",
+      when: () => store.settings.read("services").some((s) => s.kind === "image" && s.enabled),
       outside: (a, ctx) =>
         readsOutside(
           store,

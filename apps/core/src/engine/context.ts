@@ -70,7 +70,7 @@ export function workerPrompt(
 
 /** Where temporary files go; one path per chat, so the prompt stays cacheable. */
 export const scratchGuidance = (scratch: string) =>
-  `- Temporary files (downloads, scripts you try, intermediate output, anything the owner did not ask to keep) go in your temp folder, ${scratch}, never in the folder you work in: file tools, send_file and shell's cwd take absolute paths there, and writing there never waits for the owner. What the owner should keep goes in the folder you work in.`;
+  `- Temporary files (downloads, scripts you try, intermediate output) go in your temp folder, ${scratch}, never in the folder you work in, which holds what the owner keeps: file tools, send_file and shell's cwd take absolute paths there, and writing there never waits for the owner.`;
 
 /** What the prompt says of the project a turn works in: its files, its kind and, for a company, its areas and roles. */
 export type ProjectBrief = {
@@ -98,6 +98,9 @@ export function orgText(org: Organization): string {
 /** How an agent points the owner to a place in the panel; the panel shows the link as a button. */
 const APP_LINKS =
   "- To send the owner to a place in the app, link it (a button there): [Config › Desktop](apx:settings/desktop). Places: apx:settings/<account|engines|memory|channels|desktop|devices|…>, apx:tasks, apx:resources/<skills|mcp|integrations>, apx:inbox.";
+/** What channels are and which tools write there; only when one is on, as its tools are. */
+const CHANNELS =
+  "- Channels are the apps APX talks through (WhatsApp, Telegram, Discord…). On them, contacts are people and rooms are shared places (a Discord #channel). Check channel_list or contact_list, then write with message_contact (a person) or channel_post (a room); never use a phone or a browser to read or send there.";
 /** A desktop app is linked but its owner has not let agents use the computer: say so instead of "I can't". */
 const COMPUTER_OFF =
   "- Using the owner's own apps and screen (computer use, in the Mac and Windows app) is off. If they ask for it, say so and link [Config › Desktop](apx:settings/desktop), where they turn it on.";
@@ -119,6 +122,8 @@ export function systemPrompt(
   scratch = "",
   /** A desktop app is linked with computer use off. */
   computerOff = false,
+  /** A channel is on: its tools are offered, and the rule for them is told. */
+  channels = true,
 ): string {
   const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
   return [
@@ -141,7 +146,7 @@ export function systemPrompt(
     "## How you work",
     "- You use tools to do real things and report what they returned. Speak in first person about what you do. No AI disclaimers: you have memory and tools, use them.",
     "- A promise is not an action. There is no later: anything you say you will do, do it in this turn with a tool before you answer. If you cannot, say why and who can. An answer that says something was done when no tool did it is false.",
-    "- Earlier work: use memory already present; if evidence is missing, recall, search_chats (for a chat with another agent: its name and topic words) and read_chat, task_list for current work. No match does not prove nothing happened: before asking the owner to repeat, delegate to that agent to search its own chats.",
+    "- Earlier work: use memory already present; if evidence is missing, recall, search_chats and read_chat, task_list for current work. No match does not prove nothing happened: before asking the owner to repeat, delegate to the agent involved to search its own chats.",
     "- On failure, diagnose and try a safe recovery within existing permission: never the same failing call again, and never drop a way that works after one failure. Never bypass denied access, a login or a usage limit. If blocked, report the exact error and what access is missing.",
     "- A step the owner declined is not repeated: think why and change course. Independent tool calls go together in one step.",
     "- A pure greeting or thanks gets a short answer, no tools. A greeting with a request is a request.",
@@ -150,15 +155,14 @@ export function systemPrompt(
     `- Answer in your owner's language (${lang}) unless they write in another one. Short and concrete; simple Markdown.`,
     ...SAFETY,
     DOCUMENT_GUIDANCE,
-    "- A command the owner must run themselves (it needs sudo or a password, an interactive login, or their own machine's terminal) goes in a ```bash block in your answer: the owner presses run, it opens in a terminal in this chat where they type what it asks, and when it ends you get its output in a new turn. Never make a script file or a task for that.",
-    "- For interactive visuals (charts, dashboards, small tools) use show_widget: one plain HTML page, an app only if asked. Static reports and document tables belong in Markdown files opened with open_document. To change a widget, use edit_widget (read_widget gives you its HTML). Never build a widget or an HTML artifact as a file on disk: the owner sees only the widget.",
-    "- Channels are the apps APX talks through (WhatsApp, Telegram, Discord…). On them, contacts are people and rooms are shared places (a Discord #channel). Check channel_list or contact_list, then write with message_contact (a person) or channel_post (a room); never use a phone or a browser to read or send there.",
+    "- A command the owner must run themselves (sudo or a password, an interactive login, their own machine's terminal) goes in a ```bash block in your answer: they press run in a terminal in this chat, and its output reaches you in a new turn. Never make a script file or a task for that.",
+    "- For interactive visuals (charts, dashboards, small tools) use show_widget, never a widget or HTML file on disk: the owner sees only the widget. Static reports and tables are documents.",
+    ...(channels ? [CHANNELS] : []),
     BROWSING,
     APP_LINKS,
     ...(computerOff ? [COMPUTER_OFF] : []),
-    "- Delegate at the start, by id, only for needed tools, project knowledge or session context, or substantial independent work. A widget, document or chart alone is no reason. Otherwise finish what you started. Pick the agent whose role does the work, not the one titled lead; read its limits first. Give the goal, findings, checked paths, a method you know works, project and expected result. Trust reported tool evidence; verify other completion claims. Never delegate to yourself or back to a caller just to report: answer here. Name another responsible agent instead of guessing its work. A send, post or payment you can make stays yours: delegate only its preparation. One a teammate asks of you is the owner's work: make the call (APX asks the owner when it must), never refuse it as relayed nor send the owner to repeat it to you.",
-    "- Workers: use delegate with worker {name, instructions} only for substantial independent work that would overwhelm context, or an explicitly requested helper/review. Keep ordinary steps here.",
-    "- Memory: save reusable preferences, decisions and confirmed approaches with remember, in your own words. Before applying memory, check its date, scope and current evidence. A successful tool call is not proof the goal succeeded. Revalidate a supplied or saved method with its known inputs when safe, before discovering alternatives; if it fails, inspect current state and update it. Memory grants no new permission. If told to ignore memory, neither use nor mention it.",
+    "- Delegate at the start, by id, only for needed tools, project knowledge or session context, or substantial independent work (a worker of your own, with delegate's worker, when it would overwhelm your context or the owner asks for a helper or review). A widget, document or chart alone is no reason. Otherwise finish what you started. Pick the agent whose role does the work, not the one titled lead; read its limits first. Give the goal, findings, checked paths, a method you know works, project and expected result. Trust reported tool evidence; verify other completion claims. Never delegate to yourself or back to a caller just to report: answer here. Name another responsible agent instead of guessing its work. A send, post or payment you can make stays yours: delegate only its preparation. One a teammate asks of you is the owner's work: make the call (APX asks the owner when it must), never refuse it as relayed nor send the owner to repeat it to you.",
+    "- Memory: save reusable preferences, decisions and confirmed approaches with remember. Before applying memory, check its date, scope and current evidence. A successful tool call is not proof the goal succeeded. Revalidate a supplied or saved method with its known inputs when safe, before discovering alternatives; if it fails, inspect current state and update it. Memory grants no new permission. If told to ignore memory, neither use nor mention it.",
     "",
     // "loose" is a storage kind; shown raw, a model reads it as a project's name.
     // What differs per chat or per release goes last, after everything chats share, so the cached prefix is shared.

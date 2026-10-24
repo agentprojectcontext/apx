@@ -46,15 +46,16 @@ export function surfaceTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "show_widget",
       description:
-        "One self-contained HTML, inline CSS/JS/SVG. Default to a simple widget; an app only when asked or it must keep records. Add <script src='/_apx/kit@1.js'></script> and use ax-* classes (ax-page, ax-card, ax-stat, ax-table); load apx-artifacts first for more than a quick view, an app, memory or live data. Network only to connect origins. Project media: data-apx-src='clip.mp4' or 'media:ID' on img/video, or apx.media(ref). Same name replaces it; edit_widget edits parts. pin adds it to the board. Never HTML files on disk. window.apx.sendPrompt(text) writes to this chat.",
+        "One self-contained HTML, inline CSS/JS/SVG. Default to a simple widget; an app only when asked or it must keep records. Add <script src='/_apx/kit@1.js'></script> and use ax-* classes (ax-page, ax-card, ax-stat, ax-table); load apx-artifacts first for more than a quick view, an app, memory or live data. Network only to connect origins. Project media: data-apx-src='clip.mp4' or 'media:ID' on img/video, or apx.media(ref). Same name replaces it; edit_widget edits parts. pin adds it to the board. window.apx.sendPrompt(text) writes to this chat.",
       args: z.object({
         name: z.string().describe("stable kebab-case name, e.g. monthly-sales"),
         title: z.string().describe("human title"),
         html: z.string().describe("full HTML body"),
         pin: z.boolean().optional(),
         app: z.boolean().optional().describe("Fullscreen app listed in Apps."),
+        // Checked against SurfaceOrigin in check(): its pattern in the schema costs every turn.
         connect: z
-          .array(SurfaceOrigin)
+          .array(z.string().max(300))
           .max(5)
           .optional()
           .describe('origins it may reach, e.g. ["https://api.example.com"]'),
@@ -62,6 +63,10 @@ export function surfaceTools(store: Store, home: string): Tool[] {
       effect: "local",
       // A widget that reaches out could carry what is in the chat to that origin: asked while outside content is in play.
       confirm: (a) => (a.connect?.length ? "untrusted" : "never"),
+      check(a) {
+        const bad = (a.connect ?? []).filter((o) => !SurfaceOrigin.safeParse(o).success);
+        if (bad.length) throw new Error(`connect takes https:// or wss:// origins without a path: ${bad.join(", ")}`);
+      },
       deadlineMs: 10_000,
       title: (a) => `Made the widget ${String(a.title ?? a.name)}`,
       async run(a, ctx) {

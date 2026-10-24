@@ -176,7 +176,7 @@ test("two chats and two releases share the prompt up to its last lines, so the p
   );
   assert.ok(
     shared.endsWith(
-      "Thread: chat.\n- Temporary files (downloads, scripts you try, intermediate output, anything the owner did not ask to keep) go in your temp folder, /tmp/apx-scratch-1/thr_",
+      "Thread: chat.\n- Temporary files (downloads, scripts you try, intermediate output) go in your temp folder, /tmp/apx-scratch-1/thr_",
     ),
   );
   assert.ok(shared.length > a.length - 600, `only the last lines differ (${a.length - shared.length} chars)`);

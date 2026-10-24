@@ -8,6 +8,7 @@ import path from "node:path";
 import { z } from "zod";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
+import { channelsOn } from "./directory.ts";
 import { folderAccess, readsOutside, workDir } from "./folders.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
@@ -130,7 +131,7 @@ export function messageTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "message_contact",
       description:
-        'Send a message to a person through APX\'s channels (WhatsApp, Telegram, Discord) when the owner asks: to a contact (\'tell Alex…\') or to the owner with to="me". to: a name or id, or "me"; channel: whatsapp, telegram or discord (default: where they last talked); files: paths in your work folder, any file you can read for to="me" (20 MB at most). Plain text, no Markdown, in first person as the owner\'s assistant, with nothing the owner did not say; it goes out at once and cannot be taken back. The result shows the end of that chat: check it before saying it went. A room (a Discord #channel) is channel_post\'s. Never use a phone or a browser to send.',
+        'Send a message to a person on the owner\'s channels: a contact (\'tell Alex…\') or the owner (to="me"). to: a name, id or "me"; channel: default where they last talked; files: paths in your work folder, any file you can read for to="me" (20 MB at most). Plain text, no Markdown, in first person as the owner\'s assistant, only what the owner asked for. Once sent it cannot be taken back; the result shows the end of that chat: check it before saying it went.',
       args: z.object({
         to: z.string().trim().min(1).max(120),
         text: z.string().trim().min(1).max(4000),
@@ -138,6 +139,7 @@ export function messageTools(store: Store, home: string): Tool[] {
         files: z.array(z.string().min(1).max(500)).max(5).optional(),
       }),
       effect: "message",
+      when: () => channelsOn(store),
       // Words go to someone else: asked while outside content is in the turn, unless the agent's autonomy is total.
       confirm: "untrusted",
       outside: (a, ctx) => readsOutside(store, home, ctx.thread, (a.files as string[] | undefined) ?? []),
@@ -161,7 +163,7 @@ export function messageTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "channel_post",
       description:
-        'Post in a room of the owner\'s channels (a Discord #channel) when the owner asks. Rooms are public. room: its name as channel_list shows it; channel: only when two channels have a room of that name; files: paths in your work folder (20 MB at most). Plain text, no Markdown, no @everyone; to mention someone of the room, write their @handle as read_chat shows it. Only what the owner asked for; it goes out at once and cannot be taken back. read_chat("#name") reads a room; message_contact writes to a person.',
+        "Post in a room of the owner's channels (a Discord #channel); rooms are public. room: its name as channel_list shows it; channel: only when two channels have a room of that name; files: paths in your work folder (20 MB at most). Plain text, no Markdown, no @everyone; mention someone with their @handle as read_chat shows it. Only what the owner asked for; once posted it cannot be taken back.",
       args: z.object({
         room: z.string().trim().min(1).max(80),
         text: z.string().trim().min(1).max(4000),
@@ -169,6 +171,7 @@ export function messageTools(store: Store, home: string): Tool[] {
         files: z.array(z.string().min(1).max(500)).max(5).optional(),
       }),
       effect: "message",
+      when: () => channelsOn(store),
       // A public post: asked while outside content is in the turn, unless the agent's autonomy is total.
       confirm: "untrusted",
       deadlineMs: 15_000,

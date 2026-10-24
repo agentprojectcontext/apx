@@ -91,7 +91,7 @@ export function chatTools(store: Store): Tool[] {
     defineTool({
       name: "search_chats",
       description:
-        "Search what was said and done in the owner's chats (channel rooms like Discord #general, other agents' threads, earlier chats, routine runs, this chat before your view): Use topic keywords; agent names filter chat participants. Messages with every topic word, best match first, then tool calls whose tool or arguments hold them (what was published, sent or read). Then read_chat to see one. If unavailable, ask the named agent with delegate before asking the owner to repeat context.",
+        "Search what was said and done in the owner's chats (channel rooms like Discord #general, other agents' threads, earlier chats, routine runs, this chat before your view): Use topic keywords; agent names filter chat participants. Messages with every topic word, best match first, then tool calls whose tool or arguments hold them (what was published, sent or read). Then read_chat to see one.",
       args: z.object({
         query: z.string().min(2).describe("words to find"),
         limit: z.number().int().min(1).max(20).optional().describe("how many messages (default 10)"),
