@@ -131,12 +131,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
     permit(agent: string, on: boolean) {
       if (!store.agents.get(agent)) throw badRequest(`no agent ${agent}`);
       if (on) store.approvals.grant(computerApproval, "always", "", agent);
-      else {
-        store.approvals.revoke(computerApproval.key, undefined, agent);
-        for (const g of store.approvals.list())
-          if (g.key === computerApproval.key && g.thread_id && store.threads.get(g.thread_id)?.agent_ids[0] === agent)
-            store.approvals.revoke(g.key, g.thread_id);
-      }
+      else store.approvals.revokeAgent(computerApproval.key, agent);
       return { ok: true as const };
     },
     /** Set up once by the owner: from then on agents in their chats may ask to use it. */

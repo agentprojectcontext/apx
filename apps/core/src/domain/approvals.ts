@@ -14,6 +14,9 @@ export type ApprovalTarget = {
   permanent: boolean;
   project_id?: string | undefined;
 };
+/** Grants that are one agent's even "for this chat": another agent in that chat is not covered (DECISIONS.md#d-151). */
+const PER_AGENT = new Set([COMPUTER_GRANT]);
+
 /** The computer is a permission, not one call: this chat or for good (DECISIONS.md#d-151). */
 export const approvalScopes = (a: ApprovalTarget): ApprovalScope[] =>
   a.key === COMPUTER_GRANT ? ["session", "always"] : ["once", "session", "always"];
@@ -113,12 +116,13 @@ export function approvalsRepo(q: Sql) {
     createHash("sha256")
       .update(JSON.stringify([thread, agent, tool, canonical(args), binding ?? ""]))
       .digest("hex");
-  const sessionKey = (key: string, thread: string) => JSON.stringify([key, thread]);
+  const sessionKey = (key: string, thread: string, agent?: string) =>
+    JSON.stringify(PER_AGENT.has(key) ? [key, thread, agent ?? ""] : [key, thread]);
   // "For this chat" lasts as long as the chat, a core restart included; archiving or deleting it ends it.
   const sessions = new Map<string, ToolApproval>();
   try {
     for (const g of ToolApproval.array().parse(JSON.parse(settings.get("tool_session_grants") ?? "[]")))
-      if (g.thread_id) sessions.set(sessionKey(g.key, g.thread_id), g);
+      if (g.thread_id) sessions.set(sessionKey(g.key, g.thread_id, g.agent_id), g);
   } catch {}
   const saveSessions = () => settings.set("tool_session_grants", JSON.stringify([...sessions.values()]));
   const read = (): ToolApproval[] => {
@@ -143,7 +147,7 @@ export function approvalsRepo(q: Sql) {
             (!g.agent_id || g.agent_id === agent) &&
             (!g.condition || matchesCondition(g.condition, args)),
         ) ||
-        (!!thread && sessions.has(sessionKey(a.key, thread)))
+        (!!thread && sessions.has(sessionKey(a.key, thread, agent)))
       );
     },
     grant(a: ApprovalTarget, scope: ApprovalScope, thread: string, agent?: string): void {
@@ -156,7 +160,7 @@ export function approvalsRepo(q: Sql) {
         ...(a.project_id ? { project_id: a.project_id } : {}),
         scope,
         ...(scope === "session" ? { thread_id: thread } : {}),
-        ...(scope === "always" && agent ? { agent_id: agent } : {}),
+        ...((scope === "always" || PER_AGENT.has(a.key)) && agent ? { agent_id: agent } : {}),
         granted_at: new Date().toISOString(),
         ...(scope === "always" && thread ? { from_thread: thread } : {}),
         // A folder grant names its folder where the owner sees and narrows grants.
@@ -165,7 +169,7 @@ export function approvalsRepo(q: Sql) {
           : {}),
       };
       if (scope === "session") {
-        sessions.set(sessionKey(a.key, thread), g);
+        sessions.set(sessionKey(a.key, thread, agent), g);
         saveSessions();
       } else write([...read().filter((r) => r.key !== a.key || r.agent_id !== g.agent_id), g]);
       for (const listener of listeners) listener();
@@ -235,6 +239,13 @@ export function approvalsRepo(q: Sql) {
       if (!agent)
         for (const [k, g] of sessions) if (g.key === key && (!thread || g.thread_id === thread)) sessions.delete(k);
       saveSessions();
+    },
+    /** Every grant of one agent under a key, for good and for single chats. */
+    revokeAgent(key: string, agent: string): void {
+      write(read().filter((g) => g.key !== key || g.agent_id !== agent));
+      for (const [k, g] of sessions) if (g.key === key && g.agent_id === agent) sessions.delete(k);
+      saveSessions();
+      for (const listener of listeners) listener();
     },
     endSession(thread: string): void {
       const before = sessions.size;
