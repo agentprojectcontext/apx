@@ -40,7 +40,8 @@ function projectOf(store: Store, dir: string): string | undefined {
   for (const p of store.projects.list()) {
     if (!p.path) continue;
     const root = path.resolve(p.path);
-    if (isInside(root, dir) && root.length > (best?.len ?? -1)) best = { id: p.id, len: root.length };
+    if (path.isAbsolute(dir) && isInside(root, dir) && root.length > (best?.len ?? -1))
+      best = { id: p.id, len: root.length };
   }
   return best?.id;
 }

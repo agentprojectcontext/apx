@@ -28,7 +28,7 @@ const obj = (v: unknown): Record<string, unknown> =>
   v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 const strings = (v: unknown) => Object.fromEntries(Object.entries(obj(v)).map(([k, x]) => [k, String(x)]));
-const within = (dir: string, root: string) => isInside(root, dir);
+const within = (dir: string, root: string) => path.isAbsolute(dir) && isInside(root, dir);
 
 const readJson = (file: string): unknown => {
   try {

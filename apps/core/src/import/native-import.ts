@@ -28,7 +28,7 @@ type Done = { thread: string; items: number; made?: boolean };
 type Where = { home: string; thread: string; project_id: string | undefined; owner: string };
 
 /** Whether `dir` is `root` or inside it. */
-const within = (dir: string, root: string) => isInside(root, dir);
+const within = (dir: string, root: string) => path.isAbsolute(dir) && isInside(root, dir);
 
 /**
  * The engine's work on this machine grouped by project, newest first: Codex's own projects when its app keeps them,
