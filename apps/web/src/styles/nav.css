@@ -820,3 +820,44 @@
     padding-right: 36px;
   }
 }
+
+/* ── Usage gauge (topbar) ──────────────────────────────────────────────────── */
+.usage-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--apx-control-radius);
+  background: transparent;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.usage-btn:hover {
+  background: var(--apx-fill-hover);
+  color: var(--apx-fg);
+}
+.usage-btn__gauge {
+  width: 22px;
+  height: 4px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill-strong);
+  overflow: hidden;
+}
+.usage-btn__gauge > span {
+  display: block;
+  height: 100%;
+  background: var(--apx-brand);
+}
+.usage-btn.is-warning .usage-btn__gauge > span {
+  background: var(--apx-warning);
+}
+.usage-btn.is-danger .usage-btn__gauge > span {
+  background: var(--apx-danger);
+}
+.usage-btn.is-danger {
+  color: var(--apx-danger-soft-fg);
+}

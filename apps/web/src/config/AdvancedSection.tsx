@@ -1,9 +1,9 @@
 import { Badge, Button, Icons, Skeleton } from "@apx/ui";
-import { useCallback, useEffect, useState } from "react";
-import { client } from "../data/client.ts";
+import { useEffect } from "react";
 import { loadHealth } from "../data/engines.ts";
 import { useData } from "../data/state.ts";
 import { isKey, useT } from "../i18n/index.ts";
+import { UsageOverview } from "../shell/UsagePanels.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 import { TelemetryBlock } from "./TelemetryBlock.tsx";
 
@@ -88,7 +88,8 @@ export function AdvancedSection() {
       ) : (
         <Skeleton shape="block" height={120} />
       )}
-      <MemoryUsage />
+      <SubHead>{t("sysUsage.title")}</SubHead>
+      <UsageOverview />
       <TelemetryBlock />
     </>
   );
@@ -98,49 +99,4 @@ function uptime(s: number): string {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   return h ? `${h} h ${m} min` : `${m} min`;
-}
-
-type Usage = { label: string; mb: number };
-const size = (mb: number) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`);
-
-/** What APX takes in RAM, process by process (the core too), to tell which one grows. */
-function MemoryUsage() {
-  const t = useT();
-  const [rows, setRows] = useState<Usage[]>();
-  const read = useCallback(async () => {
-    const [app, health] = await Promise.all([
-      window.apxDesktop?.memory?.().catch(() => undefined),
-      client.call("system.health", {}).catch(() => undefined),
-    ]);
-    const core = health?.rss_mb ? [{ label: t("desktop.memory.core"), mb: health.rss_mb }] : [];
-    const own = (app?.items ?? []).map((i) => ({
-      label: `${t(`desktop.memory.${i.kind}`)}${i.site ? ` · ${i.site}` : ""}`,
-      mb: i.mb,
-    }));
-    setRows([...core, ...own].sort((a, b) => b.mb - a.mb));
-  }, [t]);
-  useEffect(() => {
-    void read();
-    const id = setInterval(() => void read(), 10_000);
-    return () => clearInterval(id);
-  }, [read]);
-  if (!rows?.length) return null;
-  const total = rows.reduce((n, r) => n + r.mb, 0);
-  return (
-    <>
-      <SubHead>{t("desktop.memory")}</SubHead>
-      <p className="config__lead">{t("desktop.memoryHint", { total: size(total) })}</p>
-      <ul className="res__list">
-        {rows.slice(0, 12).map((r, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: two helpers can share a label
-          <li key={i} className="res__row">
-            <div className="res__main">
-              <div className="res__name">{r.label}</div>
-            </div>
-            <span className="res__desc">{size(r.mb)}</span>
-          </li>
-        ))}
-      </ul>
-    </>
-  );
 }

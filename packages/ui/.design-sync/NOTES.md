@@ -14,6 +14,8 @@
 - Preview content uses generic names only (Acme, Northwind, Globex, Roby, Ledger, Scout…). Never real client/project names.
 
 ## Pending re-sync
+- Meter is new (single or stacked bar with a legend) and the icon set gained Gauge, Cpu, HardDrive and MemoryStick:
+  neither is in the Claude Design project yet.
 - MarkdownView now renders safe pipe tables; its remote preview and bundle need a re-sync.
 - Lint fixes (DECISIONS.md#d-005) changed markup in Avatar, AgentAvatar, Checkbox, Switch, SegmentedControl (now a
   Base UI RadioGroup), DayDivider, VoiceNote and the list keys of ActionGroup/StepList/EntityCard/Menu/Kbd/

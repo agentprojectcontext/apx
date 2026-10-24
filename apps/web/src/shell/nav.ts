@@ -87,6 +87,8 @@ export type NavState = {
   configChannel: ChannelKind | undefined;
   /** "Open on your phone" dialog. */
   phone: boolean;
+  /** The usage dialog (memory, CPU, disk; the computer's and APX's). */
+  usageDialog: boolean;
   /** The ⌘K palette is open. */
   palette: boolean;
   /** Phone-width windows show the chat list or the chat, not both: true while the list is in front. */
@@ -184,6 +186,7 @@ export const nav = createStore<NavState>({
   config: null,
   configChannel: undefined,
   phone: false,
+  usageDialog: false,
   palette: false,
   listInFront: false,
   resourcesTab: "skills",
@@ -466,6 +469,9 @@ export const go = {
   },
   phone(open: boolean) {
     nav.set({ phone: open });
+  },
+  usageDialog(open: boolean) {
+    nav.set({ usageDialog: open });
   },
   /** An agent's block beside the chat: its settings, prompt and routines, with Edit. */
   agent(agentId: string) {
