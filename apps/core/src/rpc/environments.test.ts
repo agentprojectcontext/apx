@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import type { ChildProcess } from "node:child_process";
 import { once } from "node:events";
 import fs from "node:fs";
 import path from "node:path";
@@ -8,9 +9,10 @@ import WebSocket from "ws";
 import { testConfig } from "../config.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createComputer } from "../environments/computer.ts";
+import { DISPLAY_CAP } from "../environments/guest-operations.ts";
 import { createVmLifecycle } from "../environments/lifecycle.ts";
 import { createCore } from "../server.ts";
-import { removeDir, tempDir } from "../testkit/platform.ts";
+import { removeDir, tempDir, waitFor } from "../testkit/platform.ts";
 
 /** A guest that is up, or not, as the test says; preparing it only flips it on. */
 function fakeLifecycle(state = { running: true }, modes: string[] = []) {
@@ -127,10 +129,11 @@ test("display tickets are single-use, bounded and revoked at shutdown without sp
     assert.equal(typeof vm.connectDisplay(first.ticket).open, "function");
     assert.throws(() => vm.connectDisplay(first.ticket), /expired/i);
     assert.throws(() => vm.display(4), /not running/i);
-    const pending = Array.from({ length: 12 }, () => vm.display(1));
-    assert.throws(() => vm.display(1), /too many/i);
+    // A viewer asked for again (a reconnect, a re-render) replaces the one asked for before: never the cap.
+    const pending = Array.from({ length: 30 }, () => vm.display(1));
+    assert.throws(() => vm.connectDisplay(pending[0]?.ticket ?? ""), /expired/i, "the oldest gave way");
     await vm.close();
-    assert.throws(() => vm.connectDisplay(pending[0]?.ticket ?? ""), /expired/i);
+    assert.throws(() => vm.connectDisplay(pending.at(-1)?.ticket ?? ""), /expired/i);
   } finally {
     await vm.close();
     await env.core.close();
@@ -518,5 +521,34 @@ test("revoking a device invalidates pending display tickets, closes its live dis
     socket?.close();
     await core.close();
     await removeDir(home);
+  }
+});
+
+test("a viewer that reconnects again and again never hits the cap: the same device's oldest one gives way", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const dir = tempDir("apx-vm-viewer-").path;
+  // A viewer that stays open until it is ended, as a desktop's does.
+  const viewer = path.join(dir, "viewer.sh");
+  fs.writeFileSync(viewer, "#!/bin/sh\nexec sleep 60\n", { mode: 0o755 });
+  const vm = createComputer(env.core.store, {
+    limaHome: path.join(env.home, "no-vms"),
+    instance: "missing",
+    executable: () => viewer,
+  });
+  const children: ChildProcess[] = [];
+  try {
+    await vm.ledger.claim("roby", "home", "run_test");
+    for (let i = 0; i < DISPLAY_CAP * 3; i++) {
+      const { ticket } = vm.display(1);
+      children.push(vm.connectDisplay(ticket).open());
+    }
+    await waitFor(() => children.filter((c) => c.exitCode === null && c.signalCode === null).length <= DISPLAY_CAP);
+    assert.equal(children.at(-1)?.exitCode, null, "the newest one is the one shown");
+  } finally {
+    await vm.close();
+    for (const child of children) child.kill("SIGKILL");
+    await env.core.close();
+    env.cleanup();
+    await removeDir(dir);
   }
 });

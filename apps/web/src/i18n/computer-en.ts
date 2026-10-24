@@ -77,6 +77,7 @@ export const enComputer = {
     "Commands you send here run as {agent}'s Linux user, in ~/work. Take control of the screen first. For an interactive shell, use the terminal on its desktop.",
   "computer.offline": "The VM is off.",
   "computer.connectionFailed": "Could not connect to the VM desktop.",
+  "computer.tooManyViewers": "Too many screens are open on other devices. Close one there, then reconnect.",
   "agentedit.computer": "Isolated computer",
   "computer.progress.creating": "Creating virtual machine",
   "computer.progress.loading": "Loading virtual machine",

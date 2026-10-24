@@ -77,6 +77,8 @@ export const esComputer: Record<ComputerKey, string> = {
     "Los comandos que mandes acá corren con el usuario Linux de {agent}, en ~/work. Primero tomá el control de la pantalla. Para una shell interactiva, usá la terminal de su escritorio.",
   "computer.offline": "VM apagada.",
   "computer.connectionFailed": "No se pudo conectar al escritorio de la VM.",
+  "computer.tooManyViewers":
+    "Hay demasiadas pantallas abiertas en otros dispositivos. Cerrá una ahí y volvé a conectar.",
   "agentedit.computer": "Computadora aislada",
   "computer.progress.creating": "Creando máquina virtual",
   "computer.progress.loading": "Cargando máquina virtual",

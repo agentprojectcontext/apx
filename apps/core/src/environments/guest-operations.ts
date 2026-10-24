@@ -10,6 +10,19 @@ import { browserArgs, screenArgs, screenUser } from "./worker.ts";
 
 type Command = { code: number; output: string };
 type Ticket = { expires: number; screen: number; device?: string };
+type Stream = { device?: string | undefined; screen: number; at: number };
+
+/** Viewers open at once (tickets not used yet included), across every device. */
+export const DISPLAY_CAP = 12;
+
+/** A viewer's whole process group (limactl and the ssh under it), so none is left holding its pipes. */
+export function endViewer(child: ChildProcess, signal: NodeJS.Signals = "SIGTERM") {
+  try {
+    if (child.pid) process.kill(-child.pid, signal);
+  } catch {
+    child.kill(signal);
+  }
+}
 
 /** Commands, the visible browser and the viewer of each screen, each as that screen's own user. */
 export function guestOperations(
@@ -21,7 +34,7 @@ export function guestOperations(
   const env = config.env ?? { PATH: process.env.PATH, HOME: process.env.HOME, LIMA_HOME: config.limaHome };
   const binary = config.executable ?? (() => "limactl");
   const tickets = new Map<string, Ticket>();
-  const streams = new Map<ChildProcess, { device?: string | undefined; screen: number }>();
+  const streams = new Map<ChildProcess, Stream>();
   const checkDevice = (id?: string) => {
     if (id && !store.devices.get(id)) throw unauthorized("device revoked");
   };
@@ -86,7 +99,7 @@ export function guestOperations(
       for (const [ticket, value] of tickets) if (value.screen === screen) tickets.delete(ticket);
       for (const [child, value] of streams)
         if (value.screen === screen) {
-          child.kill("SIGKILL");
+          endViewer(child, "SIGKILL");
           streams.delete(child);
         }
     },
@@ -104,7 +117,7 @@ export function guestOperations(
       for (const [ticket, value] of tickets) if (value.device === id) tickets.delete(ticket);
       for (const [child, value] of streams)
         if (value.device === id) {
-          child.kill("SIGKILL");
+          endViewer(child, "SIGKILL");
           streams.delete(child);
         }
     },
@@ -114,7 +127,18 @@ export function guestOperations(
       screenUser(screen);
       const now = Date.now();
       for (const [key, value] of tickets) if (value.expires < now) tickets.delete(key);
-      if (tickets.size + streams.size >= 12) throw conflict("too many display sessions");
+      if (tickets.size + streams.size >= DISPLAY_CAP) {
+        // Full: this device gives way to itself (a reconnect, a re-render), oldest first: a ticket it never used,
+        // else its oldest viewer of this screen, else of another screen. Another device's is never taken.
+        const unused = [...tickets].filter(([, t]) => t.device === device).sort((a, b) => a[1].expires - b[1].expires);
+        const mine = [...streams].filter(([, v]) => v.device === device).sort((a, b) => a[1].at - b[1].at);
+        const oldest = mine.find(([, v]) => v.screen === screen) ?? mine[0];
+        if (unused[0]) tickets.delete(unused[0][0]);
+        else if (oldest) {
+          streams.delete(oldest[0]);
+          endViewer(oldest[0], "SIGKILL");
+        } else throw conflict("too many display sessions", { reason: "display_sessions" });
+      }
       const ticket = randomBytes(24).toString("hex");
       tickets.set(ticket, { screen, expires: now + 30_000, ...(device ? { device } : {}) });
       return { ticket, expires_in: 30 };
@@ -139,13 +163,16 @@ export function guestOperations(
               "--",
               ...screenArgs(entry.screen, "nc", "-U", `/run/user/${u.uid}/apx-vnc.sock`),
             ],
-            { env, stdio: ["pipe", "pipe", "ignore"] },
+            // Its own process group: ending it ends the ssh under it too (endViewer).
+            { env, stdio: ["pipe", "pipe", "ignore"], detached: true },
           );
-          streams.set(child, { device: entry.device, screen: entry.screen });
-          child.once("close", () => {
-            streams.delete(child);
-            viewed = Date.now();
-          });
+          streams.set(child, { device: entry.device, screen: entry.screen, at: Date.now() });
+          // Gone once it exits: a child still holding its pipes must not keep a viewer counted.
+          const gone = () => {
+            if (streams.delete(child)) viewed = Date.now();
+          };
+          child.once("exit", gone);
+          child.once("close", gone);
           return child;
         },
       };

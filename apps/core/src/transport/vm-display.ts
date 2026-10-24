@@ -1,6 +1,7 @@
 import type { Server } from "node:http";
 import { WebSocketServer } from "ws";
 import type { Computer } from "../environments/computer.ts";
+import { endViewer } from "../environments/guest-operations.ts";
 import type { Gate } from "./guard.ts";
 import { rfbInput } from "./rfb-input.ts";
 
@@ -19,7 +20,7 @@ export function attachVmDisplay(server: Server, vm: Computer, gate: Gate) {
       wss.handleUpgrade(req, socket, head, (ws) => {
         const child = open();
         const stop = () => {
-          child.kill();
+          endViewer(child);
           ws.terminate();
         };
         const deadline = setTimeout(stop, 30 * 60_000);
@@ -42,7 +43,7 @@ export function attachVmDisplay(server: Server, vm: Computer, gate: Gate) {
         });
         ws.on("close", () => {
           clearTimeout(deadline);
-          child.kill();
+          endViewer(child);
         });
         ws.on("error", stop);
         child.stdin?.on("error", stop);
