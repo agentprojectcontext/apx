@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { once } from "node:events";
 import fs from "node:fs";
 import { createServer } from "node:net";
@@ -82,6 +82,51 @@ test("only a confirmed SSH listener becomes ready, and stopping cancels reconnec
   } finally {
     tunnel.stop();
   }
+});
+
+test("a tunnel that keeps trying retries a first ssh that fails, says why meanwhile, and starts again on request", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const refused =
+    "process.stderr.write('debug1: Connecting to box\\nssh: connect to host box port 22: Connection refused\\n'); process.exit(255);";
+  const forwards =
+    "process.stderr.write('debug1: Local forwarding listening on 127.0.0.1 port 7440.\\n'); setInterval(() => {}, 1000);";
+  const children: ChildProcess[] = [];
+  const tunnel = startTunnel(
+    "ops@box",
+    7440,
+    () => {},
+    undefined,
+    () => {
+      const script = children.length === 0 ? refused : forwards;
+      const child = spawn(process.execPath, ["-e", script], { stdio: ["ignore", "ignore", "pipe"], windowsHide: true });
+      children.push(child);
+      return child;
+    },
+    true,
+  );
+  try {
+    await once(children[0] as ChildProcess, "close");
+    assert.equal(tunnel.alive(), false);
+    assert.equal(tunnel.problem(), "ssh: connect to host box port 22: Connection refused");
+    t.mock.timers.tick(1000);
+    assert.equal(children.length, 2);
+    await tunnel.ready;
+    assert.equal(tunnel.alive(), true);
+    assert.equal(tunnel.problem(), undefined);
+
+    // Up, yet nothing answers through it: the owner of the tunnel drops this ssh and a new one starts.
+    tunnel.restart();
+    await once(children[1] as ChildProcess, "exit");
+    assert.equal(tunnel.alive(), false);
+    t.mock.timers.tick(1000);
+    assert.equal(children.length, 3);
+    await once((children[2] as ChildProcess).stderr as NodeJS.ReadableStream, "data");
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(tunnel.alive(), true);
+  } finally {
+    tunnel.stop();
+  }
+  assert.equal(tunnel.alive(), false);
 });
 
 test("the server gets this app's version when it is a release, and the app's feed when it has one", () => {
