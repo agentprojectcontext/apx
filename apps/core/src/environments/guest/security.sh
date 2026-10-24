@@ -22,20 +22,9 @@ if [ -d /home/apx/work ] && [ ! -f /etc/apx-computer/work-imported ]; then
   tar -C /home/apx/work -cf - . | sudo -n -u "$worker" -H sh -c 'cd /home/apx-worker/work && tar --skip-old-files -xf -'
   touch /etc/apx-computer/work-imported
 fi
-cat > /etc/apx-computer/egress.nft <<'RULES'
-table inet apx_computer {
-  chain output {
-    type filter hook output priority -150; policy accept;
-    meta skuid 1001 oifname "lo" accept
-    meta skuid 1001 reject with icmpx type admin-prohibited
-    meta skuid 2001-2999 oifname "lo" accept
-    meta skuid 2001-2999 reject with icmpx type admin-prohibited
-  }
-  chain forward {
-    type filter hook forward priority -150; policy drop;
-  }
-}
-RULES
+# The egress rules were written just before this script (guest-security.ts egressRules).
+[ -s /etc/apx-computer/egress.nft ]
+chown root:root /etc/apx-computer/egress.nft
 chmod 600 /etc/apx-computer/egress.nft
 install -d -m 755 /usr/local/libexec
 cat > /usr/local/libexec/apx-computer-firewall <<'SCRIPT'

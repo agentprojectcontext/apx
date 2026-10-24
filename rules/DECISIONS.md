@@ -2358,6 +2358,11 @@ make the tunnel's forward fail and put the computer in error for every agent. An
 has a screen: stopping a screen turns its linger off, and a boot unit clears agents' linger before logind starts, so
 units an agent enabled do not come back with the computer.
 
+**No resolver on loopback.** The probe user and agents may reach loopback, but never port 53 on it: a resolver there
+(systemd-resolved's stub on 127.0.0.53) would look up names, LAN names included, past the proxy's public-only policy
+and carry data out in queries. Names are the proxy's to resolve. The egress rules are written by the core
+(`egressRules`) before the security script runs.
+
 **Loopback between agents.** A service an agent runs on 127.0.0.1 or ::1 is reachable only by that agent. Every
 process of an agent runs in its own cgroup, `user.slice/user-<uid>.slice`: its desktop and terminal through its user
 manager, and its commands, browser and the core's helpers through `systemd-run --scope --uid --slice` (plain `sudo -u`
