@@ -126,6 +126,10 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     change: `since` the release it ships in, `applies` only to owners it helps, a text for the super-agent to tell in
     its own words and one or two actions it can take ([What people are told](rules/RELEASE.md#what-people-are-told)).
     Commit subjects reach everyone as a list; news are the few things the super-agent offers to do. `[review]`
+28. **Only a verified commit is tagged.** A `v2.x.y` tag goes on a commit of `release/v2` whose `verify` run already
+    passed: `pnpm release:check --tag v2.x.y [ref]` checks that run and only then tags and pushes
+    ([RELEASE.md](rules/RELEASE.md#tagging-a-release)). Never tag a commit whose run is red, missing or still going;
+    fix it on the branch and tag the next one. `[gate]` `release:check`, and the publish job's own wait.
 
 ### Code comments
 

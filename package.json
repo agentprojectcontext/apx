@@ -31,6 +31,7 @@
     "perf": "pnpm build:web && node --no-warnings scripts/perf.ts",
     "tools:review": "node --no-warnings scripts/tool-review.ts",
     "verify": "pnpm preflight && pnpm test:coverage:all && node --no-warnings scripts/perf.ts",
+    "release:check": "node scripts/release-check.ts",
     "package": "node scripts/package.ts",
     "package:mac": "node scripts/package.ts mac",
     "package:linux": "node scripts/package.ts linux",

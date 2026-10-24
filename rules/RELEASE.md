@@ -53,6 +53,23 @@ The phone app is `dev.apx.mobile` and v1's is `dev.agentprojectcontext.apx`: the
 carries arm64-v8a only by default (`APX_ANDROID_ABIS` adds more) and its versionCode follows the tag (2.1.3 → 20103); Expo push needs the owner's EAS project
 and Firebase app, set once as repo variable/secret ([apps/mobile/README.md](../apps/mobile/README.md#push)).
 
+## Tagging a release
+
+Only a commit `verify` already passed on `release/v2` is tagged (AGENTS.md rule 28). A tag builds every installer
+and the APK in about ten minutes, but publication waits for that commit's verify run: tagging before it ends ties
+the release to a run that may still fail, and a red run leaves a draft that only a new tag (and a new version) fixes.
+
+```bash
+git fetch origin release/v2
+pnpm release:check origin/release/v2               # is its newest verify run green? exits 1 if red, missing or running
+pnpm release:check origin/release/v2 --wait        # …waiting for a run still going
+pnpm release:check --tag v2.10.0 origin/release/v2 # checks, then tags that commit and pushes the tag
+```
+
+`scripts/release-check.ts` reads the newest `verify.yml` run of that exact commit on `release/v2` (`gh run list
+--commit`), the run the publish job will wait for; a rerun that turned it green counts. The publish job's wait stays
+as the second guard, for a tag made by hand.
+
 ## What people are told
 
 The same commits since the previous v2 tag, each subject as a sentence, reach people three ways: the Discord
