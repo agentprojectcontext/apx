@@ -1,7 +1,7 @@
 // Every write the panel makes. Components call these; they never call the client directly.
 import type { ApprovalScope, Message, Part, SurfaceState, Thread } from "@apx/protocol";
 import { ApxError, secureRequestKey } from "@apx/protocol/client";
-import { computersOf } from "../computers/summary.ts";
+import { computersOf, NO_COMPUTERS } from "../computers/summary.ts";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { type Attached, setThreadModel } from "./composer.ts";
@@ -17,6 +17,13 @@ import { data, upsertMessage } from "./state.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+/** The computer as the sidebar and the agents' cards show it, read again (an agent's screen comes and goes). */
+export async function refreshComputers(): Promise<void> {
+  try {
+    data.set({ computers: computersOf(await client.call("environments.status", {})) });
+  } catch {}
+}
+
 /** Agents, projects, threads, surfaces and browser tabs in one round. Throws if the core is unreachable. */
 export async function bootstrap(): Promise<void> {
   const [agents, projects, threads, surfaces, computer] = await Promise.all([
@@ -29,8 +36,7 @@ export async function bootstrap(): Promise<void> {
       .call("environments.status", {})
       .then((status) => ({ chats: status.enabled ? (status.chats ?? []) : [], computers: computersOf(status) }))
       .catch((error: unknown) => {
-        if (error instanceof ApxError && error.code === "unknown_method")
-          return { chats: [], computers: { shown: false, inUse: 0 } };
+        if (error instanceof ApxError && error.code === "unknown_method") return { chats: [], computers: NO_COMPUTERS };
         return { chats: data.get().vmThreads, computers: data.get().computers };
       }),
   ]);

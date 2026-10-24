@@ -78,6 +78,15 @@ export const esComputer: Record<ComputerKey, string> = {
   "computer.offline": "VM apagada.",
   "computer.connectionFailed": "No se pudo conectar al escritorio de la VM.",
   "agentedit.computer": "Computadora aislada",
+  "agent.computer": "Computadora",
+  "agent.computer.hint":
+    "Una computadora Linux aparte de esta Mac, compartida por los agentes que permitas: cada uno trabaja en su propia pantalla, con su shell y su navegador.",
+  "agent.computer.off": "Apagada para este agente",
+  "agent.computer.allowed": "Permitida (detenida)",
+  "agent.computer.running": "En la pantalla {screen}",
+  "agent.computer.working": "Trabajando en la pantalla {screen}",
+  "agent.computer.turnOn": "Activar",
+  "agent.computer.open": "Ver computadoras",
   "agentedit.computerHint":
     "Deja que este agente encienda, use y apague su propia computadora Linux, aparte de esta Mac: su shell y su navegador corren ahí en el chat al que le des la computadora. Apagado para todos los agentes hasta que lo actives.",
 };

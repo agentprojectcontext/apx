@@ -77,6 +77,15 @@ export const enComputer = {
   "computer.offline": "The VM is off.",
   "computer.connectionFailed": "Could not connect to the VM desktop.",
   "agentedit.computer": "Isolated computer",
+  "agent.computer": "Computer",
+  "agent.computer.hint":
+    "A Linux computer apart from this Mac, shared by the agents you allow: each one works on its own screen with its own shell and browser.",
+  "agent.computer.off": "Off for this agent",
+  "agent.computer.allowed": "Allowed (stopped)",
+  "agent.computer.running": "On screen {screen}",
+  "agent.computer.working": "Working on screen {screen}",
+  "agent.computer.turnOn": "Turn on",
+  "agent.computer.open": "Open computers",
   "agentedit.computerHint":
     "Lets this agent start, use and stop its own Linux computer, apart from this Mac: its shell and browser run there in the chat you give the computer. Off for every agent until you turn it on.",
 } as const;

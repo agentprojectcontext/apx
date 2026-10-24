@@ -208,13 +208,17 @@ export function createComputer(store: Store, config: ComputerConfig) {
           applied.cpus !== wanted.cpus ||
           (applied.disk_gib ?? 0) < wanted.disk_gib);
       const stopped = store.settings.get("computer_last_stop");
+      const allowed = store.agents
+        .list()
+        .filter((a) => store.approvals.allows(computerApproval, undefined, a.id))
+        .map((a) => a.id);
       return {
         enabled: config.lifecycle ? Boolean(chats().length || vm.offered()) : true,
         ready,
         name: config.instance,
         chats: chats(),
-        allowed_agents: store.agents.list().filter((a) => store.approvals.allows(computerApproval, undefined, a.id))
-          .length,
+        allowed_agents: allowed.length,
+        allowed,
         screens: screens.map(screen),
         max_screens: cap(),
         ...(forThread

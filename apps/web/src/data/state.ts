@@ -14,6 +14,7 @@ import type {
   Thread,
 } from "@apx/protocol";
 import { useMemo } from "react";
+import { type Computers, NO_COMPUTERS } from "../computers/summary.ts";
 import { createStore, useSlice } from "./createStore.ts";
 
 export type Connection = "connecting" | "online" | "offline";
@@ -49,7 +50,7 @@ export type DataState = {
   /** The chats on the shared computer, including browser messages saved before guest tags existed. */
   vmThreads: string[];
   /** The Computers view shows once the owner allowed an agent the computer, on a host that can run it (D-152). */
-  computers: { shown: boolean; inUse: number };
+  computers: Computers;
   /** Agent engines (native / Claude Code / Codex): installed → logged in → default. */
   engines: EngineStatus[];
   enginesLoad: EnginesLoad;
@@ -77,7 +78,7 @@ export const data = createStore<DataState>({
   surfaceStates: {},
   tabs: [],
   vmThreads: [],
-  computers: { shown: false, inUse: 0 },
+  computers: NO_COMPUTERS,
   engines: [],
   enginesLoad: "idle",
   health: undefined,

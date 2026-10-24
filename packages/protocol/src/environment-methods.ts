@@ -60,6 +60,8 @@ export const environmentMethods = {
       chats: z.array(z.string()).optional(),
       /** Agents the owner allowed to use it, for good: the Computers view shows once there is one. */
       allowed_agents: z.number().int().optional(),
+      /** Those agents by id: each agent's card says whether it may use the computer. */
+      allowed: z.array(z.string()).optional(),
       /** Every agent screen that is up or held, while the computer runs. */
       screens: z.array(ComputerScreen).optional(),
       /** How many agent screens the VM's memory holds at once. */

@@ -71,6 +71,9 @@ test("chats go on the computer only for allowed agents; outside clients run noth
     await env.client.call("environments.bind", { thread: other.id });
     const status = await env.client.call("environments.status", { thread: other.id });
     assert.deepEqual(status.chat, { thread: other.id, on: true, agent: "scout", agent_name: "Scout", permitted: true });
+    // Each agent's card reads whether it may use the computer from here.
+    assert.deepEqual([...(status.allowed ?? [])].sort(), ["roby", "scout"]);
+    assert.equal(status.allowed_agents, 2);
     await assert.rejects(env.client.call("terminal.open", { thread: "home", cols: 80, rows: 24 }), /VM terminal/i);
     const agent = new ApxClient({ url: env.core.url, actor: "agent" });
     await assert.rejects(agent.call("environments.command", { thread: "home", command: "pwd" }), /bound native run/i);

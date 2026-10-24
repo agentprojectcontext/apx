@@ -16,6 +16,7 @@ import { useLanguage, useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
 import { AgentActivity } from "./AgentActivity.tsx";
 import { AgentBudgetField } from "./AgentBudgetField.tsx";
+import { AgentComputer } from "./AgentComputer.tsx";
 import { AgentEditor } from "./AgentEditor.tsx";
 import { AgentRoutines } from "./AgentRoutines.tsx";
 import { engineOf } from "./useTeamInfo.tsx";
@@ -47,7 +48,7 @@ export function AgentDetail({
   const t = useT();
   const [pending, setPending] = useState<string>();
   const [tab, setTab] = useState("summary");
-  const [editing, setEditing] = useState<false | "identity" | "prompt">(false);
+  const [editing, setEditing] = useState<false | "identity" | "prompt" | "computer">(false);
   /** Bumped when the editor closes, so the prompt shown is read again. */
   const [edits, setEdits] = useState(0);
   const threads = useData((s) => s.threads);
@@ -150,6 +151,7 @@ export function AgentDetail({
       <dd>
         <AgentBudgetField agentId={agent.id} />
       </dd>
+      <AgentComputer key={agent.id} agent={agent.id} onTurnOn={() => setEditing("computer")} />
       {fromFile && (
         <>
           <dt>{t("team.file")}</dt>
