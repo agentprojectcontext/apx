@@ -61,6 +61,10 @@ test("a saved contact with no chat: listed, an empty chat to ask the agent to wr
   await expect(answer.getByRole("img", { name: "Leído" })).toBeVisible();
   await world.whatsapp.react({ phone: NORA, name: "Nora" }, "");
   await expect(answer.getByRole("img", { name: /Su reacción/ })).toHaveCount(0);
+  // Loaded straight into the Inbox, never through its channel, the chat still comes with its styles.
+  await page.reload();
+  await expect(answer).toBeVisible();
+  expect(await answer.evaluate((el) => getComputedStyle(el).display)).toBe("flex");
 });
 
 test("who is online and what is set for a contact show on their row", async ({ page }) => {
@@ -83,7 +87,7 @@ test("who is online and what is set for a contact show on their row", async ({ p
   await expect(row.getByRole("img", { name: "En línea" })).toBeHidden({ timeout: 8000 });
 });
 
-test("a muted, supervised contact's card keeps Save inside it", async ({ page }) => {
+test("a muted, supervised contact's card keeps its three buttons on one row, Save inside it", async ({ page }) => {
   const { persons } = await rpc<{ persons: Array<{ id: string; name: string }> }>("contacts.list");
   const nora = persons.find((p) => p.name === "Nora");
   await rpc("contacts.set", { id: nora?.id, name: "Nora", muted: true, supervised: true });
@@ -93,8 +97,14 @@ test("a muted, supervised contact's card keeps Save inside it", async ({ page })
   await page.locator(".chan__rows").getByRole("button", { name: /Nora/ }).click();
   const card = page.getByRole("complementary", { name: "Contacto" });
   if (!(await card.isVisible())) await page.getByRole("button", { name: "Abrir el contacto de Nora" }).click();
-  await expect(card.getByRole("button", { name: "Dejar de supervisar" })).toBeVisible();
+  const supervise = card.getByRole("button", { name: "Dejar de supervisar" });
+  await expect(supervise).toBeVisible();
   const save = await card.getByRole("button", { name: "Guardar" }).boundingBox();
+  const mute = await card.getByRole("button", { name: "Quitar silencio" }).boundingBox();
   const edge = await card.boundingBox();
   expect(save && edge && save.x + save.width <= edge.x + edge.width).toBe(true);
+  expect(save && mute && Math.abs(save.y - mute.y) < 4).toBe(true);
+  // A label cut short still says what it does in its tooltip.
+  await supervise.hover();
+  await expect(page.locator(".apx-tooltip")).toContainText("te llega la respuesta sugerida");
 });

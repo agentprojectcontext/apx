@@ -537,13 +537,29 @@
   padding: 0;
   list-style: none;
 }
+/* One row however long the labels run: the toggles shrink to an ellipsis (their tooltip says it all), Save never does. */
 .chan__cardfoot {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   padding: 12px 16px;
   border-top: 1px solid var(--apx-border);
+}
+.chan__cardfoot > .apx-btn--ghost {
+  min-width: 0;
+  padding-inline: 8px;
+}
+.chan__cardfoot > .apx-btn:not(.apx-btn--ghost) {
+  flex-shrink: 0;
+}
+.chan__cardfoot > .apx-btn--ghost .apx-btn__label {
+  overflow: hidden;
+}
+.chan__cardfoot-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Narrow: one column at a time — the list, or the chat (with back), or the card over it. */

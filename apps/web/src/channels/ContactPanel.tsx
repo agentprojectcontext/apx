@@ -145,14 +145,16 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
         <ItsMine person={person} onDone={onClose} />
       </div>
       <footer className="chan__cardfoot">
-        <Button
-          size="sm"
-          variant="ghost"
-          leadingIcon={<Icons.BellOff size={14} />}
-          onClick={() => void saveContact(person.id, { name: person.name, muted: !person.muted })}
-        >
-          {person.muted ? t("ch.unmute") : t("ch.mute")}
-        </Button>
+        <Tooltip content={person.muted ? t("ch.unmuteHint") : t("ch.muteHint")}>
+          <Button
+            size="sm"
+            variant="ghost"
+            leadingIcon={<Icons.BellOff size={14} />}
+            onClick={() => void saveContact(person.id, { name: person.name, muted: !person.muted })}
+          >
+            <span className="chan__cardfoot-text">{person.muted ? t("ch.unmute") : t("ch.mute")}</span>
+          </Button>
+        </Tooltip>
         <Tooltip content={t("ch.superviseHint")}>
           <Button
             size="sm"
@@ -160,13 +162,15 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
             leadingIcon={<Icons.Eye size={14} />}
             onClick={() => void saveContact(person.id, { name: person.name, supervised: !person.supervised })}
           >
-            {person.supervised ? t("ch.unsupervise") : t("ch.supervise")}
+            <span className="chan__cardfoot-text">{person.supervised ? t("ch.unsupervise") : t("ch.supervise")}</span>
           </Button>
         </Tooltip>
         <span className="chan__spacer" />
-        <Button size="sm" disabled={!dirty || !d.name.trim()} loading={busy} onClick={() => void save()}>
-          {t("common.save")}
-        </Button>
+        <Tooltip content={t("ch.saveHint")}>
+          <Button size="sm" disabled={!dirty || !d.name.trim()} loading={busy} onClick={() => void save()}>
+            {t("common.save")}
+          </Button>
+        </Tooltip>
       </footer>
     </aside>
   );

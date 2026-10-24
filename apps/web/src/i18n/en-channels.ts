@@ -167,6 +167,9 @@ export const enChannels = {
   "ch.anyHourHint": "They are answered even outside the channel's attention hours.",
   "ch.mute": "Silence",
   "ch.unmute": "Unsilence",
+  "ch.muteHint": "Their messages are kept but not answered, transcribed or sent to a model.",
+  "ch.unmuteHint": "Their messages are answered again, as the rules above say.",
+  "ch.saveHint": "Save the changes to this contact.",
   "ch.supervise": "Supervise",
   "ch.unsupervise": "Stop supervising",
   "ch.superviseHint":
