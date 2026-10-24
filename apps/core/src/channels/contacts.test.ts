@@ -6,6 +6,7 @@ import { TELEGRAM_REACTIONS, telegramAdapter, telegramReaction } from "./telegra
 
 const TOKEN = "123456:TEST-contacts";
 const MAG = { id: 2201, name: "Northwind Buyer" };
+const OWNER = { id: 2200, name: "Owner" };
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (
@@ -15,6 +16,8 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   )
     return callTool("r2", "pass_request", { kind: "request", summary: "buy oat milk again", task: null });
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 120)}`);
+  if (said.includes("call the dentist"))
+    return callTool("p1", "pass_request", { kind: "message", summary: "call the dentist she shared", task: null });
   if (said.includes("buy oat milk"))
     return callTool("r1", "pass_request", { kind: "request", summary: "buy oat milk" });
   if (said.includes("your owner like")) return callTool("n1", "search_owner_notes", { query: "coffee" });
@@ -74,6 +77,10 @@ before(async () => {
   env = await startCore({ llm, channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) } });
   await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
   await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+  tg.message(OWNER, "hola");
+  await until(() => tg.messagesTo(OWNER.id).length === 1, "owner's pairing code");
+  const code = /(\d{6})/.exec(String(tg.messagesTo(OWNER.id)[0]?.body.text))?.[1] ?? "";
+  await env.client.call("pairing.respond", { code, decision: "owner" });
   thread = await pairContact();
   person = (await env.client.call("contacts.list", {})).persons.find((p) => p.name === MAG.name)?.id ?? "";
   assert.ok(person);
@@ -352,6 +359,30 @@ test("permissions: none by default; requests become a task for the owner; notes 
   tg.message(MAG, "what does your owner like to drink?");
   await until(() => String(llm.calls.at(-1)?.messages.at(-1)?.content).includes("coffee black"), "notes read");
   await env.client.call("contacts.set", { id: person, name: MAG.name, perms: { requests: false, notes: false } });
+});
+
+test("a close contact's message for the owner needs no flag, becomes a task and reaches the owner's channel", async () => {
+  const was = (await env.client.call("contacts.list", {})).persons.find((p) => p.id === person)?.relation ?? null;
+  const calls = llm.calls.length;
+  tg.message(MAG, "hi there");
+  await until(() => llm.calls.length > calls, "a new turn");
+  assert.deepEqual(toolsOf(-1), [], "not close, no flags: no tools");
+
+  await env.client.call("contacts.set", { id: person, name: MAG.name, relation: "partner" });
+  const told = tg.messagesTo(OWNER.id).length;
+  tg.message(MAG, "tell him to call the dentist please");
+  await until(
+    () =>
+      tg
+        .messagesTo(OWNER.id)
+        .slice(told)
+        .some((m) => /call the dentist she shared/.test(String(m.body.text))),
+    "the owner is told",
+  );
+  const task = (await env.client.call("tasks.list", {})).tasks.find((t) => t.title.includes("call the dentist"));
+  assert.equal(task?.awaits_owner, true);
+  assert.equal(task?.person_id, person);
+  await env.client.call("contacts.set", { id: person, name: MAG.name, relation: was });
 });
 
 test("a contact cannot flood the owner: past 5 requests waiting, pass_request refuses", async () => {

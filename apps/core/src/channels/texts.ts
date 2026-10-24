@@ -31,6 +31,8 @@ const es = {
   failed: (why: string) => `No pude terminar: ${why}`,
   contactFailed: "Ahora no puedo responder; ya le avisé a mi dueño.",
   contactFailedOwner: (name: string, why: string) => `No pude responderle a ${name}: ${why}`,
+  passedOn: (name: string, kind: string, summary: string, rest: string) =>
+    `${name} ${kind === "appointment" ? "pidió un turno" : kind === "message" ? "te dejó un mensaje" : "te pidió algo"}: ${summary}${rest ? `\n${rest}` : ""}\nQuedó en tus tareas.`,
   reactFailed: (emoji: string, where: string) =>
     `No pude reaccionar con ${emoji} en ${where}: no hay un mensaje suyo al que reaccionar o el canal no tiene reacciones. No se envió nada.`,
   reactRefused: (emoji: string, where: string, why: string) =>
@@ -119,6 +121,8 @@ const en: typeof es = {
   failed: (why) => `I couldn't finish: ${why}`,
   contactFailed: "I can't answer right now; I've let my owner know.",
   contactFailedOwner: (name, why) => `I couldn't answer ${name}: ${why}`,
+  passedOn: (name, kind, summary, rest) =>
+    `${name} ${kind === "appointment" ? "asked for an appointment" : kind === "message" ? "left you a message" : "asked you for something"}: ${summary}${rest ? `\n${rest}` : ""}\nIt's in your tasks.`,
   reactFailed: (emoji, where) =>
     `I couldn't react with ${emoji} in ${where}: there is no message of theirs to react to, or the channel has no reactions. Nothing was sent.`,
   reactRefused: (emoji, where, why) =>
