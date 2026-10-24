@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import type { Part } from "@apx/protocol";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { workspaceOf } from "./delegation.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
@@ -64,7 +65,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("a worker runs as the caller under the instructions it wrote, with only the tools it named and no delegate", async () => {
@@ -143,8 +144,8 @@ async function withProject(body: (root: string, project: string) => Promise<void
     await body(root, project.id);
   } finally {
     subpathProjectRoot = undefined;
-    fs.rmSync(root, { recursive: true, force: true });
-    fs.rmSync(outside, { recursive: true, force: true });
+    await removeDir(root);
+    await removeDir(outside);
   }
 }
 

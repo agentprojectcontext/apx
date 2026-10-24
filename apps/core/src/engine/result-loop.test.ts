@@ -9,6 +9,7 @@ import { after, before, test } from "node:test";
 import type { Part } from "@apx/protocol";
 import type { Harness, TurnIO } from "../harness/index.ts";
 import { realpath } from "../paths.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { outcomeOf } from "./run-outcome.ts";
 import { reviveStalled, STALL_AFTER_MS } from "./task-stall.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
@@ -51,17 +52,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
-
-const until = async (check: () => boolean, what: string, ms = 8000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 
 test("a Claude Code session reads a delegate's late result framed, with what to do with it", async () => {
   const repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-loop-")));
@@ -73,7 +65,9 @@ test("a Claude Code session reads a delegate's late result framed, with what to 
     engine: "claude",
   });
   await env.client.call("threads.send", { thread: t.id, text: "delegate please" });
-  await until(() => inputs.some((i) => i.includes("<delegation_result")), "the result reached the session");
+  await waitFor(() => inputs.some((i) => i.includes("<delegation_result")), "the result reached the session", {
+    ms: 8000,
+  });
   const framed = inputs.find((i) => i.includes("<delegation_result")) ?? "";
   assert.match(framed, /All found\./);
   assert.match(framed, /This is the result of a task you delegated earlier\. Tell the owner what matters/);
@@ -102,7 +96,7 @@ test("a result turn that says nothing is tried once more, then the owner's tray 
   await env.client.call("threads.send", { thread: t.id, text: "ask echo" });
   const results = () =>
     env.core.store.runs.list(t.id).filter((r) => r.input?.origin.kind === "delegation_result" && r.ended_at);
-  await until(() => results().length === 2, "the dropped result was tried twice");
+  await waitFor(() => results().length === 2, "the dropped result was tried twice", { ms: 8000 });
   await env.settle(t.id);
   const [second, first] = results();
   assert.equal(second?.input?.retry_of, first?.id);
@@ -110,7 +104,7 @@ test("a result turn that says nothing is tried once more, then the owner's tray 
   // The chat's one unread notice (its earlier turn's) now says the result was dropped.
   const notice = () =>
     env.core.store.notifications.list({ unreadOnly: true, limit: 50 }).filter((n) => n.thread_id === t.id);
-  await until(() => notice()[0]?.level === "warn", "the owner was told, as a warning");
+  await waitFor(() => notice()[0]?.level === "warn", "the owner was told, as a warning", { ms: 8000 });
   assert.equal(notice().length, 1);
   assert.match(notice()[0]?.body ?? "", /Echo/);
 });

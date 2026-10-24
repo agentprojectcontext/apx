@@ -82,6 +82,6 @@ for (const sharedContext of [false, true])
       else assert.ok(notes.some((n) => /PDF/.test(n.text)));
     } finally {
       await env.core.close();
-      env.cleanup();
+      await env.cleanup();
     }
   });

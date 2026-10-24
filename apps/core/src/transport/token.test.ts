@@ -7,6 +7,7 @@ import { ApxClient, ApxError } from "@apx/protocol/client";
 import { testConfig } from "../config.ts";
 import { say, scriptedLlm } from "../engine/testkit.ts";
 import { createCore } from "../server.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 const TOKEN = "core-token-for-tests";
 let core: Awaited<ReturnType<typeof createCore>>;
@@ -21,7 +22,7 @@ before(async () => {
 });
 after(async () => {
   await core.close();
-  fs.rmSync(home, { recursive: true, force: true });
+  await removeDir(home);
 });
 
 test("with a core token, an outside app's client token is enough; without either the core refuses", async () => {
@@ -54,7 +55,7 @@ test("a local core without a token still accepts repeated socket calls", async (
     socket.close();
     await socket.closed;
     await local.close();
-    fs.rmSync(localHome, { recursive: true, force: true });
+    await removeDir(localHome);
   }
 });
 

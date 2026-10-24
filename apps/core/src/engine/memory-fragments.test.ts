@@ -88,6 +88,6 @@ test("a topic inside a long owner message is recalled by a persisted fragment, o
   } finally {
     if (!closed) await env.core.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));
-    env.cleanup();
+    await env.cleanup();
   }
 });

@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { AGENTS_MD_LIMIT } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 function makeProject(root: string) {
   fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
@@ -78,14 +79,14 @@ test("one folder is one project: a BOM is read, a changed or unreadable project.
     makeProject(clone);
     const copy = (await env.client.call("projects.register", { path: clone })).project.id;
     assert.notEqual(copy, "p_abc123def456");
-    fs.rmSync(root, { recursive: true, force: true });
+    await removeDir(root);
     await env.client.call("projects.sync", {});
     assert.deepEqual(await at(clone), [[copy, "Northwind", "company"]]);
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(root, { recursive: true, force: true });
-    fs.rmSync(clone, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(root);
+    await removeDir(clone);
   }
 });
 
@@ -104,7 +105,7 @@ test("a project removed from APX does not take over its folder from the project 
     await env.client.call("projects.unregister", { project: "p_abc123def456" });
 
     // Acme moves into Northwind's old folder: it keeps its own id, Northwind's record is not brought back.
-    fs.rmSync(other, { recursive: true, force: true });
+    await removeDir(other);
     meta(root, "bbb222bbb222", "Acme");
     const moved = await env.client.call("projects.register", { path: root });
     assert.equal(moved.project.id, "p_bbb222bbb222");
@@ -112,9 +113,9 @@ test("a project removed from APX does not take over its folder from the project 
     assert.equal(env.core.store.projects.get("p_bbb222bbb222")?.path, root);
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(root, { recursive: true, force: true });
-    fs.rmSync(other, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(root);
+    await removeDir(other);
   }
 });
 
@@ -135,8 +136,8 @@ test("an agent file saved with a BOM is edited in place, not given a second fron
     assert.match(text, /Decide\.\n$/);
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(root, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(root);
   }
 });
 
@@ -189,11 +190,11 @@ test("a registered project's agents come from its files; edits and removals foll
     const empty = fs.mkdtempSync(path.join(os.tmpdir(), "apx-notapc-"));
     const err = await env.client.call("projects.register", { path: empty }).catch((e: unknown) => e);
     assert.ok(err instanceof ApxError && /not an APC project/.test(err.message));
-    fs.rmSync(empty, { recursive: true, force: true });
+    await removeDir(empty);
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(root, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(root);
   }
 });
 
@@ -257,8 +258,8 @@ test("editing from APX writes the agent's file: create, edit, rename (same id) a
     assert.equal(s.agents, 3, "the archived file is not read back as an agent");
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(root, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(root);
   }
 });
 
@@ -302,8 +303,8 @@ test("an archived agent is listed apart, comes back with its file, or is deleted
     assert.equal((await env.client.call("projects.sync", { project: "p_abc123def456" })).agents, 1);
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(root, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(root);
   }
 });
 
@@ -352,9 +353,9 @@ test("review fixes: an old slug can be reused after a rename; a clone with the s
     fs.rmSync(outside);
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(root, { recursive: true, force: true });
-    fs.rmSync(clone, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(root);
+    await removeDir(clone);
   }
 });
 
@@ -397,8 +398,8 @@ test("an agent's tools and skills are set from APX: a project agent's file says 
     assert.ok(offered.includes("web_search") && !offered.includes("shell"), offered.join(","));
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(root, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(root);
   }
 });
 
@@ -467,7 +468,7 @@ test("a long AGENTS.md reaches its agents whole; only one past the safety limit 
     assert.ok(!String(llm.calls.at(-1)?.messages[0]?.content).includes("are not shown here"));
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(root, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(root);
   }
 });

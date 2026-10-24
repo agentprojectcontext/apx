@@ -40,7 +40,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 const lastToolResult = () => String(llm.calls.at(-1)?.messages.at(-1)?.content);

@@ -4,9 +4,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import type { PendingInput } from "@apx/protocol";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, inputOrEnd, pendingInput, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { refusal } from "./folders.ts";
 import { commandFolder } from "./shell.ts";
 
@@ -41,8 +41,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(northwind, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(northwind);
 });
 
 const folders = () => env.core.store.projects.get(project)?.read_only_folders;
@@ -69,13 +69,7 @@ async function run(
       })
     ).id;
   await env.client.call("threads.send", { thread, text: JSON.stringify(call) });
-  let input: PendingInput | undefined;
-  for (let i = 0; i < 60 && !input; i++) {
-    input = (await env.client.call("runs.pending", { thread })).inputs[0];
-    const busy = (await env.client.call("threads.get", { thread })).runs.some((r) => !r.ended_at);
-    if (!input && !busy && i > 2) break;
-    if (!input) await new Promise((r) => setTimeout(r, 25));
-  }
+  const input = await inputOrEnd(env.client, thread);
   if (input && o.decision)
     await env.client.call("runs.respond", {
       input: input.id,
@@ -185,11 +179,7 @@ test("a folder that cannot be kept (a home holding APX's) is offered for this ca
     .id;
   const call = { name: "shell", args: { command: `ls ${sh(path.dirname(env.home))}` } };
   await env.client.call("threads.send", { thread, text: JSON.stringify(call) });
-  let input: PendingInput | undefined;
-  for (let i = 0; i < 100 && !input; i++) {
-    input = (await env.client.call("runs.pending", { thread })).inputs[0];
-    if (!input) await new Promise((r) => setTimeout(r, 25));
-  }
+  const input = await pendingInput(env.client, thread);
   assert.deepEqual(input?.approval_scopes, ["once"]);
   await assert.rejects(
     env.client.call("runs.respond", { input: input?.id ?? "", decision: "approve", scope: "project" }),
@@ -225,7 +215,7 @@ test("auto reads another project's file and runs a reading command there with no
     assert.match(apx.said, /APX's own folder/);
     assert.equal(folders(), undefined);
   } finally {
-    fs.rmSync(other, { recursive: true, force: true });
+    await removeDir(other);
     await env.client.call("agents.update", { agent: "fausto", autonomy: "manual" });
   }
 });
@@ -282,7 +272,7 @@ test("auto changes the owner's other projects and their worktrees with no card, 
     assert.match(apx.said, /APX's own folder/);
     assert.equal(fs.existsSync(path.join(inHome, "x.md")), false);
   } finally {
-    fs.rmSync(acme, { recursive: true, force: true });
+    await removeDir(acme);
     await env.client.call("agents.update", { agent: "fausto", autonomy: "manual" });
   }
 });
@@ -308,7 +298,7 @@ test("always for this agent lets it change that folder from then on, and no othe
   } finally {
     for (const g of env.core.store.approvals.list()) env.core.store.approvals.revoke(g.key, undefined, g.agent_id);
     fs.rmSync(path.join(docs, "a.md"), { force: true });
-    fs.rmSync(path.join(docs, "deep"), { recursive: true, force: true });
+    await removeDir(path.join(docs, "deep"));
     for (const agent of ["fausto", "kevin"]) await env.client.call("agents.update", { agent, autonomy: "manual" });
   }
 });

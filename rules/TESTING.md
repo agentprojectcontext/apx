@@ -56,6 +56,34 @@ command and static checks; they do not require rerunning application suites unle
   for changed code, add tests for uncovered changed behavior and state remaining gaps. Never infer full coverage
   from zero skips, a historic green run or the test-quality gate. Keep reports and machine-specific logs out of rules.
 
+## Portable tests
+
+AGENTS.md rule 26. CI runs the unit tests on macOS and Windows as well as Linux; a test that holds only on the
+machine it was written on is a broken test. The helpers live in `apps/core/src/testkit/platform.ts` (and
+`engine/testkit.ts` for a sandbox core):
+
+| Need | Use | Never |
+|---|---|---|
+| Wait until something is true | `waitFor(check, what, { ms })`: fails after `ms` of wall-clock time × `TEST_TIME_SCALE` | A loop of N tries, or a local `until` |
+| A run's input or its end | `pendingInput(client, thread)`, `inputOrEnd(…)` | Polling `runs.pending` by hand |
+| Idle, cap, deadline, burst | `manualTimers()` passed as `runTimers`; `tick(ms)`, or `autoAdvance` when runs chain | A window of real milliseconds |
+| A temp folder | `tempDir(prefix)` → `{ path, remove() }`; `removeDir(dir)` for a folder made otherwise | `fs.rmSync(dir, { recursive: true })` |
+| A child to be gone | `await stopped(child)` (or the product's `await stopTree(pid)`) before removing its folder | Removing the folder while it runs |
+| Compare paths | `isInside`, `samePath` (`paths.ts`), `assertPath` in tests | ``startsWith(`${root}/`)``, `===` on paths |
+| End a process | `exitWhenClosed(code)` (`@apx/protocol/exit`) | `process.exit` with handles open |
+
+`TEST_TIME_SCALE` (default 1) stretches every `waitFor`, `stopped` and `removeDir` budget on a slow runner; it
+never changes what a test decides. A failure seen only on Windows is first classified: product (the probe read a
+timeout as "gone", a path compared case-sensitively) or test (a real-time window, a folder still held). Fix the
+class, not the instance.
+
+`pnpm check:tests` runs `scripts/test-portability.ts`, an AST lint for these classes. Today's remaining hits are
+counted per file and rule in `scripts/test-portability-allowlist.json`; a new hit fails, and so does an allowance
+a file no longer needs. To shrink it, migrate a file, then run `node scripts/test-quality.ts --shrink`: it lowers
+the counts to what is left and never adds one. A deliberate exception carries `// portable: <why>` on its line or
+the line above, and review reads that reason; a real-time window under 2 s has none: inject the clock, or the
+runner that would time out.
+
 ## 1. Build / typecheck
 ```bash
 pnpm typecheck                     # tsc (TS 7) in every package

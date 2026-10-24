@@ -44,7 +44,7 @@ before(async () => {
 after(async () => {
   await env.core.close();
   await new Promise<void>((r) => expo.close(() => r()));
-  env.cleanup();
+  await env.cleanup();
 });
 
 async function turn(text: string) {

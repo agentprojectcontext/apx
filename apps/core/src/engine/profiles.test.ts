@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { watchSignals } from "../domain/signals.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 const llm = scriptedLlm(() => say("ok"));
@@ -14,7 +15,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 const get = () => env.client.call("profiles.list", {});
@@ -135,7 +136,7 @@ test("an imported v1 routine of the same job is adopted, not doubled", async () 
     assert.equal(routines.length, 5);
   } finally {
     await fresh.core.close();
-    fresh.cleanup();
+    await fresh.cleanup();
   }
 });
 
@@ -203,7 +204,7 @@ test("a profile installs from a folder, can run, and removing it while it runs l
     assert.equal((await get()).active.id, null);
     assert.equal((await env.client.call("profiles.remove", { id: "secretary" })).removed, false, "APX's own stay");
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    await removeDir(dir);
     await set({});
   }
 });

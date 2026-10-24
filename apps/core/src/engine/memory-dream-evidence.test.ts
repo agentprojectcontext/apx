@@ -1,14 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { waitFor } from "../testkit/platform.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
-
-async function until(check: () => boolean) {
-  for (let i = 0; i < 300; i++) {
-    if (check()) return;
-    await new Promise((r) => setTimeout(r, 10));
-  }
-  assert.fail("dream did not settle");
-}
 
 test("dream reads the correction's evidence and retries unknown identifiers before checkpointing", async () => {
   let attempts = 0;
@@ -77,7 +70,7 @@ test("dream reads the correction's evidence and retries unknown identifiers befo
     env.core.store.settings.set("memory_dream_snapshot:roby:", legacyFingerprint);
     await env.client.call("memory.set_settings", { mode: "notes", auto_dream: true, auto_compact: false });
     await env.client.call("memory.maintenance", { dream: true });
-    await until(() => env.core.store.memoryWork.recent().some((j) => j.kind === "dream" && !!j.error));
+    await waitFor(() => env.core.store.memoryWork.recent().some((j) => j.kind === "dream" && !!j.error));
     const job = env.core.store.memoryWork.recent().find((j) => j.kind === "dream");
     assert.ok(job);
     assert.deepEqual(JSON.parse(job.result ?? "{}"), {});
@@ -88,7 +81,7 @@ test("dream reads the correction's evidence and retries unknown identifiers befo
     });
     env.core.store.memoryWork.defer(job.id, "legacy retry", new Date(0).toISOString());
     await env.client.call("memory.maintenance", {});
-    await until(() =>
+    await waitFor(() =>
       env.core.store.memoryWork
         .recent()
         .some(
@@ -101,7 +94,7 @@ test("dream reads the correction's evidence and retries unknown identifiers befo
     assert.equal(attempts, 1);
     env.core.store.memoryWork.defer(job.id, "retry", new Date(0).toISOString());
     await env.client.call("memory.maintenance", {});
-    await until(() => env.core.store.memoryWork.get(job.id)?.state === "completed");
+    await waitFor(() => env.core.store.memoryWork.get(job.id)?.state === "completed");
     assert.equal(JSON.parse(env.core.store.memoryWork.get(job.id)?.result ?? "{}").retired, 1);
     assert.ok(env.core.store.memories.get(old.id)?.forgotten_at);
     assert.equal(attempts, 2);
@@ -110,6 +103,6 @@ test("dream reads the correction's evidence and retries unknown identifiers befo
     assert.equal(env.core.store.memories.history(old.id)[0]?.reason, `superseded:${replacement.id}`);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

@@ -9,6 +9,7 @@ import type { Message } from "@apx/protocol";
 import { z } from "zod";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { scratchRoot } from "./folders.ts";
 import { untrusted } from "./result.ts";
 import { defineTool } from "./types.ts";
@@ -60,8 +61,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(root, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(root);
 });
 
 const asked = (messages: Message[]) =>

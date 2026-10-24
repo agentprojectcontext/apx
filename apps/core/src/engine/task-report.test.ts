@@ -79,7 +79,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 /** Waits until the thread has `n` runs, all ended, and nothing more arrives for a moment. */

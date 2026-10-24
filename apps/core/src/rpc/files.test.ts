@@ -7,6 +7,7 @@ import { after, before, test } from "node:test";
 import { ApxClient, ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { scratchRoot } from "../tools/folders.ts";
 
 /** Named pipes are a POSIX file kind; Windows has none to list or refuse. */
@@ -44,9 +45,9 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(repo, { recursive: true, force: true });
-  fs.rmSync(outside, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(repo);
+  await removeDir(outside);
 });
 
 test("a folder lists its folders first; .git and links that leave the folder are left out", async () => {
@@ -179,7 +180,7 @@ test("a chat's temp folder is browsed apart, and what the owner keeps is copied 
   assert.equal(fs.readFileSync(path.join(repo, "AGENTS.md"), "utf8"), "# Acme\n");
   await assert.rejects(env.client.call("files.keep", { thread: t.id, path: "../x" }), /outside the folder/);
   await assert.rejects(env.client.call("files.tree", { project, scratch: true }), /a chat's/);
-  fs.rmSync(path.join(repo, "out"), { recursive: true });
+  await removeDir(path.join(repo, "out"));
   fs.rmSync(path.join(repo, "AGENTS 2.md"));
 });
 

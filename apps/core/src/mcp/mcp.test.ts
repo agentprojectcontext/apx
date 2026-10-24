@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { scratchRoot } from "../tools/folders.ts";
 
 const SERVER = path.join(import.meta.dirname, "fake-server.test-support.mjs");
@@ -46,8 +47,8 @@ before(async () => {
 after(async () => {
   delete process.env.OTHER_API_KEY;
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(root, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(root);
 });
 
 const toolsSeen = () => (llm.calls.at(-1)?.tools ?? []).map((t) => t.function.name);

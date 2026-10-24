@@ -6,11 +6,12 @@ import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { harnessOf, isCliRef } from "../domain/refs.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { isWindowsShim, type OneshotId, oneshotHarness, oneshotStatus } from "./oneshot.ts";
 import type { TurnIO } from "./types.ts";
 
 const root = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-oneshot-test-")));
-after(() => fs.rmSync(root, { recursive: true, force: true }));
+after(() => removeDir(root));
 const fixture = fileURLToPath(new URL("./fake-oneshot.test-support.mjs", import.meta.url));
 
 test("discovery does not confuse a GUI installation with headless availability or claim authentication", async () => {

@@ -42,7 +42,7 @@ before(async () => {
 after(async () => {
   release();
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 async function settled(thread: string, count: number) {

@@ -23,7 +23,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 const pendingIn = async (thread: string) => {

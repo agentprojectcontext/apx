@@ -7,8 +7,9 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient, type ApxSocket } from "@apx/protocol/client";
 import { testConfig } from "../config.ts";
-import { callTool, say, scriptedLlm } from "../engine/testkit.ts";
+import { callTool, inputOrEnd, say, scriptedLlm } from "../engine/testkit.ts";
 import { createCore } from "../server.ts";
+import { removeDir, waitFor } from "../testkit/platform.ts";
 import { UNTRUSTED_MARK } from "../tools/result.ts";
 
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9]);
@@ -71,7 +72,7 @@ before(async () => {
 after(async () => {
   desktop?.close();
   await core.close();
-  fs.rmSync(home, { recursive: true, force: true });
+  await removeDir(home);
 });
 
 async function settle(thread: string) {
@@ -183,11 +184,7 @@ test("after 60 actions in one turn the owner is asked whether to go on, and the 
     const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
     const before = calls.filter((c) => c === "computer.snapshot").length;
     await owner.call("threads.send", { thread, text: "keep looking" });
-    let input: { id: string; prompt?: string; options?: string[] } | undefined;
-    for (let i = 0; i < 300 && !input; i++) {
-      input = (await owner.call("runs.pending", { thread })).inputs[0];
-      if (!input) await new Promise((r) => setTimeout(r, 20));
-    }
+    const input: { id: string; prompt?: string; options?: string[] } | undefined = await inputOrEnd(owner, thread);
     assert.match(input?.prompt ?? "", /60 acciones/);
     assert.equal(calls.filter((c) => c === "computer.snapshot").length - before, 60, "it waits after 60");
     await owner.call("runs.respond", { input: input?.id ?? "", text: "Seguir" });
@@ -204,7 +201,7 @@ test("the emergency stop ends the turn using the computer, that time only", asyn
     const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
     const before = calls.length;
     await owner.call("threads.send", { thread, text: "keep looking" });
-    for (let i = 0; i < 200 && calls.length - before < 3; i++) await new Promise((r) => setTimeout(r, 10));
+    await waitFor(() => calls.length - before >= 3, "three more calls");
     desktop?.emit("computer", "computer.stopped", {});
     await settle(thread);
     const used = calls.length - before;

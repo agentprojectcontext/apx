@@ -7,6 +7,7 @@ import { after, before, test } from "node:test";
 import zlib from "node:zlib";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 const line = (o: unknown) => `${JSON.stringify(o)}\n`;
@@ -166,8 +167,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(acme, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(acme);
 });
 
 test("Codex's projects are listed by their own name, without sub-agents' threads", async () => {

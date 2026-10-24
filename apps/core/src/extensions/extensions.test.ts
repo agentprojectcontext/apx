@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 const SERVER = path.join(import.meta.dirname, "..", "mcp", "fake-server.test-support.mjs");
 
@@ -45,8 +46,8 @@ before(async () => {
 after(async () => {
   delete process.env.OTHER_API_KEY;
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(src, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(src);
 });
 
 const skillNames = async () => (await env.client.call("skills.list", {})).skills.map((s) => s.name);

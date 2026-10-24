@@ -6,6 +6,7 @@ import { after, before, test } from "node:test";
 import { ApxClient, ApxError } from "@apx/protocol/client";
 import { testConfig } from "../config.ts";
 import { createCore } from "../server.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 let core: Awaited<ReturnType<typeof createCore>>;
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-broker-"));
@@ -15,7 +16,7 @@ before(async () => {
 });
 after(async () => {
   await core.close();
-  fs.rmSync(home, { recursive: true, force: true });
+  await removeDir(home);
 });
 
 test("browser.* fails fast with `unavailable` when no node offers the capability; listing tabs is just empty", async () => {

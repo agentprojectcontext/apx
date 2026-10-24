@@ -4,17 +4,10 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { type FakeTwitch, fakeTwitch } from "./fake-irc.test-support.ts";
 import { twitchAdapter, twitchSecret } from "./twitch.ts";
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 5000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const CHANNEL = "#acme_stream";
@@ -57,16 +50,19 @@ describe("twitch channel", () => {
       channel: { type: "twitch", agent_id: "roby", rooms: ROOMS },
       token: `apxbot oauth:${tw.token} ${CHANNEL}`,
     });
-    await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+    await waitFor(
+      async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running",
+      "running",
+    );
   });
   after(async () => {
     await env.core.close();
     await tw.close();
-    env.cleanup();
+    await env.cleanup();
   });
 
   test("the chat is offered as a room; only an @mention is answered, in the chat, as a reply to it", async () => {
-    await until(
+    await waitFor(
       async () => (await env.client.call("channels.rooms", { channel: "twitch" })).rooms.some((r) => r.id === CHANNEL),
       "offered",
     );
@@ -74,7 +70,7 @@ describe("twitch channel", () => {
     await pause(200);
     assert.equal(posts().length, 0, "not called, not answered");
     const asked = tw.message("viewer", "@apxbot when is the next stream?");
-    await until(() => posts().length === 1, "answered when @mentioned");
+    await waitFor(() => posts().length === 1, "answered when @mentioned");
     assert.equal(posts()[0]?.tags["reply-parent-msg-id"], asked);
     const room = env.core.store.threads.byConversation("twitch", CHANNEL);
     const kept = env.core.store.messages
@@ -86,11 +82,14 @@ describe("twitch channel", () => {
 
   test("RECONNECT connects again and the chat keeps working", async () => {
     tw.reconnect();
-    await until(() => tw.connections() === 2, "connected again");
-    await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+    await waitFor(() => tw.connections() === 2, "connected again");
+    await waitFor(
+      async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running",
+      "running",
+    );
     await pause(100);
     tw.message("viewer2", "@apxbot still there?");
-    await until(() => posts().length === 2, "answered after reconnecting");
+    await waitFor(() => posts().length === 2, "answered after reconnecting");
   });
 });
 

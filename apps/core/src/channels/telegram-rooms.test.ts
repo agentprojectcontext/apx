@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { OWNER_ID } from "../domain/persons.ts";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { callsBot, telegramAdapter } from "./telegram.ts";
 
@@ -11,24 +12,24 @@ const OWNER = { id: 1001, name: "Owner", username: "owner_acme" };
 const ANA = { id: 2002, name: "Ana", username: "ana_acme" };
 const GROUPS = { team: -1001234500001, all: -1001234500002, unlisted: -1001234500009 };
 
+// Answers the room's last message (the turn also carries the earlier ones) and quotes it, so a test finds its answer
+// by what it says.
 const llm = scriptedLlm((req, { said }) => {
-  if (said.includes("ping ana")) return say("Sure @ana_acme, and @ben_acme too");
-  return say(`Group answer to: ${String(req.messages.at(-1)?.content).slice(-60)}`);
+  const room = [
+    ...String(req.messages.at(-1)?.content).matchAll(/<room_message(?:\s[^>]*)?>([\s\S]*?)<\/room_message>/g),
+  ];
+  const last = (room.at(-1)?.[1] ?? said).trim();
+  if (last.includes("ping ana")) return say("Sure @ana_acme, and @ben_acme too");
+  return say(`Group answer to: ${last.slice(-60)}`);
 });
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 4000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const posts = (chat: number) => tg.messagesTo(chat).map((m) => m.body);
+/** The bot's post answering `text` in `chat` (the fake model quotes what it answers). */
+const answerTo = (chat: number, text: string) => posts(chat).find((p) => String(p.text).includes(text));
 const roomThread = (chat: number) => env.core.store.threads.byConversation("tg", String(chat));
 const kept = (chat: number) => {
   const t = roomThread(chat);
@@ -60,7 +61,7 @@ async function setRooms(owner_only = false) {
       },
     },
   });
-  await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+  await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
 }
 
 before(async () => {
@@ -78,7 +79,7 @@ before(async () => {
 after(async () => {
   await env.core.close();
   await tg.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("a group message calls the bot by @mention, a command to it, or a reply to its message", () => {
@@ -98,7 +99,7 @@ test("a group message calls the bot by @mention, a command to it, or a reply to 
 
 test("an unlisted group is neither kept nor answered, but it is offered in the rooms picker", async () => {
   tg.message(ANA, "hello @apx_test_bot", { id: GROUPS.unlisted, type: "supergroup", title: "Northwind" });
-  await until(async () => {
+  await waitFor(async () => {
     const { rooms } = await env.client.call("channels.rooms", { channel: "tg" });
     return rooms.some((r) => r.id === String(GROUPS.unlisted) && r.name === "Northwind");
   }, "offered");
@@ -111,27 +112,27 @@ test("the bot added to a group offers it; removed, it is offered no more", async
   const offered = async (id: number) =>
     (await env.client.call("channels.rooms", { channel: "tg" })).rooms.some((r) => r.id === String(id));
   tg.membership({ id: -1001234500077, title: "Globex" }, "member");
-  await until(() => offered(-1001234500077), "offered on join");
+  await waitFor(() => offered(-1001234500077), "offered on join");
   tg.membership({ id: -1001234500077, title: "Globex" }, "kicked");
-  await until(async () => !(await offered(-1001234500077)), "dropped on removal");
+  await waitFor(async () => !(await offered(-1001234500077)), "dropped on removal");
 });
 
 test("a mention group keeps every message and answers only when called, in the group, as a reply", async () => {
   const chat = { id: GROUPS.team, type: "supergroup", title: "Acme team" };
   tg.message(ANA, "anyone tried the beta?", chat);
-  await until(() => kept(GROUPS.team).length === 1, "kept");
+  await waitFor(() => kept(GROUPS.team).length === 1, "kept");
   await pause(150);
   assert.equal(posts(GROUPS.team).length, 0, "not called, not answered");
 
   const text = "@apx_test_bot what is Acme Notes?";
   const asked = tg.message(ANA, text, chat, mention(text));
-  await until(() => posts(GROUPS.team).length === 1, "answered when @mentioned");
+  await waitFor(() => posts(GROUPS.team).length === 1, "answered when @mentioned");
   assert.ok(kept(GROUPS.team).includes("what is Acme Notes?"), "the bot's own @mention is dropped from the text");
   assert.deepEqual(posts(GROUPS.team)[0]?.reply_parameters, { message_id: asked, allow_sending_without_reply: true });
   assert.equal(tg.messagesTo(ANA.id).length, 0, "the answer goes to the group, not to the person");
 
   tg.message(ANA, "thanks!", chat, { reply_to_message: { from: { id: BOT.id, first_name: "bot" } } });
-  await until(() => posts(GROUPS.team).length === 2, "answered as a reply to it");
+  await waitFor(() => posts(GROUPS.team).length === 2, "answered as a reply to it");
 });
 
 test("a group's turn is sealed: no tools, a Telegram group, the owner's notes", async () => {
@@ -145,14 +146,19 @@ test("a group's turn is sealed: no tools, a Telegram group, the owner's notes", 
 
 test("an always group answers every message without a mention", async () => {
   tg.message(ANA, "how does sync work?", { id: GROUPS.all, type: "group", title: "Acme everyone" });
-  await until(() => posts(GROUPS.all).length === 1, "answered without a mention");
+  await waitFor(() => answerTo(GROUPS.all, "how does sync work?"), "answered without a mention");
 });
 
 test("only the people the owner's turn names are pinged; any other @handle pings nobody", async () => {
-  const before_ = posts(GROUPS.all).length;
   tg.message(OWNER, "ping ana", { id: GROUPS.all, type: "group", title: "Acme everyone" });
-  await until(() => posts(GROUPS.all).length === before_ + 1, "answered");
-  const text = String(posts(GROUPS.all).at(-1)?.text);
+  // Found by what it says, not by count: an earlier test's late answer must not stand in for this one.
+  const text = await waitFor(
+    () =>
+      posts(GROUPS.all)
+        .map((p) => String(p.text))
+        .find((t) => t.startsWith("Sure ")),
+    "answered",
+  );
   assert.match(text, /Sure @ana_acme,/, "a person of the group, named by the owner's turn, is pinged");
   assert.match(text, /@​ben_acme/, "a handle nobody in the group has pings nobody");
 });
@@ -160,17 +166,16 @@ test("only the people the owner's turn names are pinged; any other @handle pings
 test("owner only: in groups only the owner gets answers", async () => {
   await setRooms(true);
   const chat = { id: GROUPS.all, type: "group", title: "Acme everyone" };
-  const before_ = posts(GROUPS.all).length;
   tg.message(ANA, "and offline?", chat);
-  await until(() => kept(GROUPS.all).includes("and offline?"), "kept");
-  await pause(150);
-  assert.equal(posts(GROUPS.all).length, before_, "someone else is read, not answered");
+  await waitFor(() => kept(GROUPS.all).includes("and offline?"), "kept");
   tg.message(OWNER, "status of the beta?", chat);
-  await until(() => posts(GROUPS.all).length === before_ + 1, "the owner is answered");
+  await waitFor(() => answerTo(GROUPS.all, "status of the beta?"), "the owner is answered");
+  // Checked after a later message was answered, so an answer to Ana had as long to come.
+  assert.equal(answerTo(GROUPS.all, "and offline?"), undefined, "someone else is read, not answered");
   await setRooms(false);
 });
 
 test("private chats are unchanged: the owner's direct message reaches the owner's chat", async () => {
   tg.message(OWNER, "hello in private");
-  await until(() => tg.messagesTo(OWNER.id).some((m) => /hello in private/.test(String(m.body.text))), "answered");
+  await waitFor(() => tg.messagesTo(OWNER.id).some((m) => /hello in private/.test(String(m.body.text))), "answered");
 });

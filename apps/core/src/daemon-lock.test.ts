@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { acquireDaemonLock } from "./daemon-lock.ts";
+import { removeDir } from "./testkit/platform.ts";
 
 const temp = () => fs.mkdtempSync(path.join(os.tmpdir(), "apx-daemon-lock-"));
 
@@ -58,6 +59,6 @@ test("the operating system releases ownership after a daemon crashes", { timeout
     acquireDaemonLock(home).release();
   } finally {
     child.kill();
-    fs.rmSync(home, { recursive: true, force: true });
+    await removeDir(home);
   }
 });

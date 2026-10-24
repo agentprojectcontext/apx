@@ -94,6 +94,12 @@ export type ClientOptions = {
   signal?: AbortSignal;
 };
 
+/**
+ * Reads safe to send again after the connection reset before an answer: no effect, nothing one-time. Named by
+ * convention so the client needs no registry; a test checks that no method with an effect matches.
+ */
+export const isRepeatableRead = (method: string) => /\.(get|list|pending|status|search)$/.test(method);
+
 export class ApxClient {
   readonly #opts: Required<Omit<ClientOptions, "token" | "clientToken" | "signal">> & {
     token?: string;
@@ -141,8 +147,8 @@ export class ApxClient {
       res = await fetch(url, request);
     } catch (error) {
       const code = (error as { cause?: { code?: unknown } } | undefined)?.cause?.code;
-      // Only a chat read is safe to repeat here; effects and one-time results must never be replayed.
-      if (method !== "threads.get" || request.signal.aborted || (code !== "ECONNRESET" && code !== "UND_ERR_SOCKET"))
+      // Only a read is safe to repeat here; effects and one-time results must never be replayed.
+      if (!isRepeatableRead(method) || request.signal.aborted || (code !== "ECONNRESET" && code !== "UND_ERR_SOCKET"))
         throw error;
       res = await fetch(url, request);
     }

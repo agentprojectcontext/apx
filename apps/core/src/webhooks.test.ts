@@ -76,7 +76,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("the listener hands a channel's webhook to its adapter, bytes as they came, and nothing else gets through", async () => {

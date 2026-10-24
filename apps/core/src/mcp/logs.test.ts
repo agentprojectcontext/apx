@@ -30,7 +30,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("mcp.logs shows what a server printed before it failed, with its secret masked", async () => {

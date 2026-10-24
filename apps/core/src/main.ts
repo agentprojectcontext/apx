@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { getDefaultAutoSelectFamilyAttemptTimeout, setDefaultAutoSelectFamilyAttemptTimeout } from "node:net";
+import { exitWhenClosed } from "@apx/protocol/exit";
 import { legacyHome, loadConfig } from "./config.ts";
 import { acquireDaemonLock } from "./daemon-lock.ts";
 import { moveLegacyHome } from "./home.ts";
@@ -28,13 +29,13 @@ const core = await createCore(config, {
   restart: () =>
     void restartAfterClose(
       () => core.close(),
-      (code) => process.exit(code),
+      (code) => exitWhenClosed(code),
     ),
 });
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, async () => {
     await core.close();
-    process.exit(0);
+    exitWhenClosed(0);
   });
 }

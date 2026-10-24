@@ -104,7 +104,7 @@ test("nota voz muestra volumen real, conserva audio y texto, reproduce después 
     // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
     await page.goto("about:blank");
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 });

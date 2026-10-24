@@ -11,6 +11,7 @@ import WebSocket from "ws";
 import { createDesktopInstaller } from "../../../../packages/install/src/desktop.ts";
 import { testConfig } from "../config.ts";
 import { createCore } from "../server.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 test("desktop installation is local, human-only and single-flight across HTTP and WS", async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-desktop-rpc-"));
@@ -122,6 +123,6 @@ test("desktop installation is local, human-only and single-flight across HTTP an
   } finally {
     socket.close();
     await core.close();
-    fs.rmSync(home, { recursive: true, force: true });
+    await removeDir(home);
   }
 });

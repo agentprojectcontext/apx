@@ -9,21 +9,13 @@ import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, test } from "node:test";
 import type { ChannelType } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { removeDir, waitFor } from "../testkit/platform.ts";
 import { imessageAdapter } from "./imessage.ts";
 import { type AdapterIO, ChannelRefused } from "./types.ts";
 
 // The protocol may not list imessage yet: the adapter then runs under another type's name.
 const TYPE = "imessage" satisfies ChannelType;
 const ANA = "+15550000002";
-
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 5000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 
 /** Messages' own tables, as much of them as the channel reads, and a way to add a message to them. */
 function messagesDb(file: string) {
@@ -99,17 +91,23 @@ describe("through the channels", () => {
     add = messagesDb(db);
     add(ANA, "an old message, never answered");
     await env.client.call("channels.set", { id: "imessage", channel: { type: TYPE, agent_id: "roby" } });
-    await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+    await waitFor(
+      async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running",
+      "running",
+    );
   });
   after(async () => {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   });
 
   test("a stranger is only listed; approved, they get answers; groups, own words and reactions are not read", async () => {
     const calls = llm.calls.length;
     add(ANA, "hi, it's Ana");
-    await until(async () => (await env.client.call("pairing.list", {})).requests.some((r) => r.name === ANA), "listed");
+    await waitFor(
+      async () => (await env.client.call("pairing.list", {})).requests.some((r) => r.name === ANA),
+      "listed",
+    );
     await new Promise((r) => setTimeout(r, 150));
     assert.deepEqual(sent, [], "no code, no answer, history untouched");
     assert.equal(llm.calls.length, calls);
@@ -118,7 +116,7 @@ describe("through the channels", () => {
     await env.client.call("pairing.respond", { code, decision: "contact" });
     add(ANA, "are you there?");
     // A contact's words reach the agent marked as untrusted; the scripted answer repeats them.
-    await until(
+    await waitFor(
       () => textsTo(ANA).some((t) => t.startsWith("Got it:") && t.includes("are you there?")),
       "the contact's answer",
     );
@@ -142,7 +140,7 @@ describe("the adapter alone", () => {
     fs.mkdirSync(path.dirname(db), { recursive: true });
     add = messagesDb(db);
   });
-  after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  after(() => removeDir(dir));
 
   const config = { id: "imessage", type: "signal", label: "iMessage", agent_id: "roby" } as Parameters<
     typeof imessageAdapter
@@ -165,7 +163,7 @@ describe("the adapter alone", () => {
     await a.start(io(got));
     add(ANA, "￼", { file: { path: "~/Library/Messages/Attachments/cat.png", mime: "image/png" } });
     add(ANA, "a photo￼", { file: { path: "~/Library/Messages/Attachments/x.heic", mime: "image/heic" } });
-    await until(() => got.length === 2, "two in");
+    await waitFor(() => got.length === 2, "two in");
     assert.deepEqual(got, [
       { text: "", files: [{ name: "cat.png", mime: "image/png", data: Buffer.from("png-bytes").toString("base64") }] },
       { text: "a photo\n[attachments not kept: x.heic (image/heic)]" },
@@ -176,7 +174,7 @@ describe("the adapter alone", () => {
     const b = adapter();
     await b.start(io(again));
     add(ANA, "new one");
-    await until(() => again.length === 1, "only the new one");
+    await waitFor(() => again.length === 1, "only the new one");
     assert.deepEqual(again, [{ text: "new one" }]);
     await b.stop();
   });

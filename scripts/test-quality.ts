@@ -3,6 +3,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript-parser";
+import {
+  ALLOWLIST_FILE,
+  checkAllowlist,
+  type PortabilityFinding,
+  portabilityKind,
+  readAllowlist,
+  scanPortability,
+  shrinkAllowlist,
+} from "./test-portability.ts";
 
 export type TestFinding = { file: string; line: number; reason: string };
 const disabled = new Set(["skip", "todo", "only", "fixme"]);
@@ -146,9 +155,29 @@ export function checkTests(root: string): TestFinding[] {
   return testFiles(root).flatMap((file) => scanTestSource(path.relative(root, file), fs.readFileSync(file, "utf8")));
 }
 
+export function checkPortability(root: string): PortabilityFinding[] {
+  return repositoryFiles(root).flatMap((file) =>
+    portabilityKind(file) ? scanPortability(file, fs.readFileSync(path.join(root, file), "utf8")) : [],
+  );
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const findings = checkTests(path.resolve(import.meta.dirname, ".."));
+  const root = path.resolve(import.meta.dirname, "..");
+  const findings = checkTests(root);
   for (const finding of findings) console.error(`${finding.file}:${finding.line}: ${finding.reason}`);
-  if (findings.length) process.exitCode = 1;
-  else console.log("Test quality: no disabled/exclusive/empty tests or unawaited Node assertions.");
+  const portable = checkPortability(root);
+  const allow = readAllowlist();
+  if (process.argv.includes("--shrink")) {
+    const kept = shrinkAllowlist(allow, portable);
+    const note = (JSON.parse(fs.readFileSync(ALLOWLIST_FILE, "utf8")) as { _note?: string })._note;
+    fs.writeFileSync(ALLOWLIST_FILE, `${JSON.stringify({ _note: note, ...kept }, null, 2)}\n`);
+  }
+  const { extra, stale } = checkAllowlist(portable, process.argv.includes("--shrink") ? readAllowlist() : allow);
+  for (const f of extra) console.error(`${f.file}:${f.line}: ${f.reason} (${f.rule}; AGENTS.md rule 26)`);
+  for (const s of stale) console.error(`${s}: lower it in scripts/test-portability-allowlist.json (or run --shrink)`);
+  if (findings.length || extra.length || stale.length) process.exitCode = 1;
+  else
+    console.log(
+      "Test quality: no disabled/exclusive/empty tests or unawaited Node assertions; portable (rule 26) beyond the allowlist.",
+    );
 }

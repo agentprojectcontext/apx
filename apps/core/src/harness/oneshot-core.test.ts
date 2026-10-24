@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { oneshotHarness } from "./oneshot.ts";
 import type { TurnIO } from "./types.ts";
 
@@ -69,8 +70,8 @@ for (const id of ["aider", "antigravity"] as const) {
       assert.equal(env.core.store.runs.steps(denied?.id ?? "").length, 0);
     } finally {
       await env.core.close();
-      env.cleanup();
-      fs.rmSync(folder, { recursive: true, force: true });
+      await env.cleanup();
+      await removeDir(folder);
     }
   });
 }

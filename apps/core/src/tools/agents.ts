@@ -8,6 +8,7 @@ import type { ProjectRecord } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { budgetLeft } from "../engine/breaker.ts";
 import { sessionOf } from "../engine/delegation.ts";
+import { isInside } from "../paths.ts";
 import { cap, fromTeam } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
@@ -222,7 +223,7 @@ function projectOf(store: Store, ref: string, agent: AgentRecord): ProjectRecord
     .filter((p) => {
       if (!p.path || !absolute) return false;
       const root = path.resolve(p.path);
-      return absolute === root || absolute.startsWith(`${root}${path.sep}`);
+      return isInside(root, absolute);
     })
     .sort((x, y) => (y.path?.length ?? 0) - (x.path?.length ?? 0))[0];
   const found = all.find((p) => p.id === q) ?? all.find((p) => p.name.toLowerCase() === q.toLowerCase()) ?? pathProject;

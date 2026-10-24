@@ -405,6 +405,9 @@ export function exposedOrigins(config: Pick<CoreConfig, "host" | "publicUrl">, p
   return [...origins];
 }
 
+/** How long the core keeps an idle HTTP connection open for its next request. */
+export const KEEP_ALIVE_MS = 65_000;
+
 /** HTTP + WebSocket transports over one dispatcher; resolves once the port is bound. */
 export async function listen(
   config: CoreConfig,
@@ -433,6 +436,10 @@ export async function listen(
       (token) => d.store.devices.byToken(token),
     ),
   );
+  // Idle connections stay open far longer than a client reuses one (fetch: about 4 s), so a client never reuses a
+  // connection the core is closing; Node's 5 s default reset calls after a stall. See HISTORY.md#loopback-keep-alive.
+  server.keepAliveTimeout = KEEP_ALIVE_MS;
+  server.headersTimeout = KEEP_ALIVE_MS + 1000;
   const wss = attachWs(server, {
     dispatch: d.dispatch,
     identity: d.identity,

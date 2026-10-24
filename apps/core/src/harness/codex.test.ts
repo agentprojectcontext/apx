@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { realpath } from "../paths.ts";
+import { type TempDir, tempDir } from "../testkit/platform.ts";
 import { codexHarness } from "./codex.ts";
 import { fakeProgram } from "./fake-program.test-support.ts";
 import type { TurnIO } from "./types.ts";
@@ -13,9 +12,11 @@ import { linkedWorktreeWritableDirs } from "./worktree.ts";
 /** A main checkout with a linked worktree, made with real git; nothing from a calling git (GIT_*) reaches it. */
 type Fixture = { root: string; main: string; worktree: string; common: string; gitDir: string; expected: string[] };
 let fx: Fixture;
+let tmp: TempDir;
 
 before(() => {
-  const root = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-codex-wt-")));
+  tmp = tempDir("apx-codex-wt-");
+  const root = tmp.path;
   const env: Record<string, string> = { GIT_CONFIG_NOSYSTEM: "1" };
   for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !k.startsWith("GIT_")) env[k] = v;
   const git = (cwd: string, ...args: string[]) =>
@@ -39,7 +40,8 @@ before(() => {
     expected: [gitDir, ...["objects", "refs", "logs"].map((d) => path.join(common, d))],
   };
 });
-after(() => fs.rmSync(fx.root, { recursive: true, force: true }));
+// The SDK's codex may still be exiting when its turn returns; removeDir waits out Windows holding the folder.
+after(() => tmp.remove());
 
 /** A `codex` that records its arguments and answers like `codex exec --experimental-json`; `makes` are files its
  * image_gen would leave in its thread's folder under CODEX_HOME. */

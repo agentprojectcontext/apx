@@ -23,7 +23,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 async function record(file: string, cwd = work, author: "agent" | "user" = "agent") {

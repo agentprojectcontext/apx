@@ -6,6 +6,7 @@ import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore, texts } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { scratchRoot } from "../tools/folders.ts";
 import type { Harness, TurnIO } from "./index.ts";
 
@@ -70,7 +71,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 /** A Claude Code or Codex session of the owner's, in a fresh project folder. */
@@ -260,7 +261,7 @@ test("Claude Code reads the folder's CLAUDE.md through APX, never through a link
   fs.writeFileSync(path.join(dir, "secret.txt"), "private");
   fs.symlinkSync(path.join(dir, "secret.txt"), path.join(dir, "CLAUDE.md"));
   assert.equal(folderClaudeMd(dir), "");
-  fs.rmSync(dir, { recursive: true });
+  await removeDir(dir);
 });
 
 test("what an engine session read from outside stays with it: its next turns start untrusted", async () => {
@@ -327,7 +328,7 @@ test("an outside agent reads its project's read-only folders without asking and 
   const t = await env.settle(t0.id);
   const answer = t.messages.at(-1)?.parts.find((p) => p.type === "text");
   assert.equal(answer?.type === "text" ? answer.text : "", "[true,true,false,false]");
-  fs.rmSync(ref, { recursive: true, force: true });
+  await removeDir(ref);
 });
 
 test("an outside agent's commands follow the shell tool's folder rule and reach: total reads and writes anywhere, never a read-only folder", async () => {
@@ -361,7 +362,7 @@ test("an outside agent's commands follow the shell tool's folder rule and reach:
   } finally {
     await env.client.call("agents.update", { agent: "roby", autonomy: null });
     await env.client.call("projects.update", { project: t0.project_id ?? "", read_only_folders: [] });
-    fs.rmSync(ref, { recursive: true, force: true });
-    fs.rmSync(away, { recursive: true, force: true });
+    await removeDir(ref);
+    await removeDir(away);
   }
 });

@@ -7,18 +7,11 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, describe, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { removeDir, waitFor } from "../testkit/platform.ts";
 import { type FakeNextcloud, fakeNextcloud } from "./fake-nextcloud.test-support.ts";
 import { nextcloudAdapter, nextcloudSecret } from "./nextcloud.ts";
 import type { AdapterIO } from "./types.ts";
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 5000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const ROOMS = {
@@ -63,36 +56,39 @@ describe("nextcloud channel", () => {
       channel: { type: "nextcloud", agent_id: "roby", rooms: ROOMS },
       token: nc.secret,
     });
-    await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+    await waitFor(
+      async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running",
+      "running",
+    );
   });
   after(async () => {
     await env.core.close();
     await nc.close();
-    env.cleanup();
-    fs.rmSync(dir, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(dir);
   });
 
   test("history is not answered; the owner pairs, is answered, and a system message is skipped", async () => {
     await pause(300);
     assert.equal(texts(nc.dm("owner")).length, 0, "nothing said before the channel started is answered");
     nc.message("owner", "hola");
-    await until(() => texts(nc.dm("owner")).length >= 1, "pairing code");
+    await waitFor(() => texts(nc.dm("owner")).length >= 1, "pairing code");
     const code = /(?<!\d)(\d{6})(?!\d)/.exec(texts(nc.dm("owner"))[0] ?? "")?.[1] ?? "";
     await env.client.call("pairing.respond", { code, decision: "owner" });
     nc.message("owner", "call started", { system: true });
     nc.message("owner", "what is up");
-    await until(() => texts(nc.dm("owner")).some((t) => t.includes("You said: what is up")), "reply");
+    await waitFor(() => texts(nc.dm("owner")).some((t) => t.includes("You said: what is up")), "reply");
     assert.ok(!texts(nc.dm("owner")).some((t) => t.includes("call started")));
   });
 
   test("a new person's first message is read, though their conversation appeared after the start", async () => {
     nc.message("ana", "hi there");
-    await until(() => texts(nc.dm("ana")).length === 1, "code for a stranger");
+    await waitFor(() => texts(nc.dm("ana")).length === 1, "code for a stranger");
     assert.match(texts(nc.dm("ana"))[0] ?? "", /\d{6}/);
   });
 
   test("group conversations are offered; a listed one is answered when the bot is @mentioned, as a reply", async () => {
-    await until(async () => {
+    await waitFor(async () => {
       const { rooms } = await env.client.call("channels.rooms", { channel: "nextcloud" });
       return rooms.some((r) => r.id === "grpnorthwind" && r.name === "Northwind");
     }, "offered");
@@ -100,7 +96,7 @@ describe("nextcloud channel", () => {
     await pause(300);
     assert.equal(texts("grpacme").length, 0, "not called, not answered");
     const asked = nc.message("ana", "what is Acme Notes?", { room: "grpacme", mention: true });
-    await until(() => texts("grpacme").length === 1, "answered when @mentioned");
+    await waitFor(() => texts("grpacme").length === 1, "answered when @mentioned");
     assert.equal(nc.sentTo("grpacme")[0]?.replyTo, asked);
     nc.message("ana", "hello", { room: "grpnorthwind", mention: true });
     await pause(300);
@@ -123,12 +119,12 @@ test("the place reached survives a restart, and reactions go on and come off", a
   let adapter = nextcloudAdapter(config, nc.secret, { dir, roomsEveryMs: 100 });
   await adapter.start(io());
   nc.message("owner", "first");
-  await until(() => got.includes("first"), "first");
+  await waitFor(() => got.includes("first"), "first");
   await adapter.stop();
   nc.message("owner", "while stopped");
   adapter = nextcloudAdapter(config, nc.secret, { dir, roomsEveryMs: 100 });
   await adapter.start(io());
-  await until(() => got.includes("while stopped"), "caught up after the restart");
+  await waitFor(() => got.includes("while stopped"), "caught up after the restart");
   assert.deepEqual(got, ["first", "while stopped"]);
 
   await adapter.react?.(nc.dm("owner"), "101", "👍");
@@ -141,5 +137,5 @@ test("the place reached survives a restart, and reactions go on and come off", a
   await adapter.forget?.();
   assert.equal(fs.existsSync(path.join(dir, "nextcloud-state.json")), false);
   await nc.close();
-  fs.rmSync(dir, { recursive: true, force: true });
+  await removeDir(dir);
 });

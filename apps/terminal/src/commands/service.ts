@@ -4,6 +4,7 @@ import { type ChildProcess, execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { exitWhenClosed } from "@apx/protocol/exit";
 import { apxHome, corePort, coreUp, serviceConnection } from "./local.ts";
 import {
   appRoot,
@@ -341,8 +342,8 @@ async function supervise(home: string): Promise<void> {
       process.once(signal, () => {
         stopped = true;
         clearTimeout(retry);
-        // Only if a stop hangs; unref'd, so a clean stop never waits for it.
-        setTimeout(() => process.exit(), 15_000).unref();
+        // Ends on its own after a clean stop; by force only if the stop hangs.
+        exitWhenClosed(0, 15_000);
         void stopCore(child, log).then(resolve);
       });
   });

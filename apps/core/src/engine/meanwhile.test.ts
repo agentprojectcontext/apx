@@ -10,7 +10,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 /** The owner's message as the model got it this turn, context header included. */

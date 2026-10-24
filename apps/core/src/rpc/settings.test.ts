@@ -9,7 +9,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("a stored setting that does not read falls back to its default instead of reaching the app", async () => {

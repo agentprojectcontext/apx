@@ -54,7 +54,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("v1 model refs read as v2's: engine renamed, model kept with its colons, effort only for the ChatGPT plan", () => {

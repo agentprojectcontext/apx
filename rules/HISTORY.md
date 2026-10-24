@@ -14,6 +14,30 @@ finishes on a slow network. Read-only attachment fetches also retry transient fa
 their uncertainty policy and are never retried blindly.
 **Where:** `apps/core/src/main.ts`, `apps/core/src/channels/telegram.ts`.
 
+<a id="loopback-keep-alive"></a>
+### Idle HTTP connections outlive a client's reuse window
+**Rule:** the core keeps an idle HTTP connection open for 65 s (`KEEP_ALIVE_MS`), far longer than fetch reuses one
+(about 4 s), and the client sends a read again once when the connection resets before any answer.
+**Why:** with Node's 5 s default, a client that stalled for a few seconds (a loaded Windows runner, a laptop waking)
+reused a connection the core had just closed and got `ECONNRESET`. Only reads named `.get`, `.list`, `.pending`,
+`.status` or `.search` are repeated; a test checks that no method with an effect has such a name. Effects and
+one-time results are never replayed.
+**Where:** `apps/core/src/server-wiring.ts`, `packages/protocol/src/client.ts`.
+
+<a id="portable-tests"></a>
+### Tests that hold on every system
+**Rule:** AGENTS.md rule 26. Idle, cap, deadline and burst behaviour runs on injected timers; waits have a
+wall-clock budget; temp folders are removed after the processes using them exited; paths compare with
+`isInside`/`samePath`; product code ends through `exitWhenClosed`.
+**Why:** most failed verification runs one week failed only on Windows runners, each from one of a few classes: a
+real-time window a slow runner overran, a wait counted in tries, a folder removed while a child still held it
+(`EPERM`, which `rmSync`'s retries did not cover), a process probe that timed out read as "not running", paths
+compared as case-sensitive strings (`RUNNER~1` vs `runneradmin`), `process.exit` with a handle still closing (a
+libuv assertion) and a reused keep-alive connection. Each instance had been fixed alone and the class came back
+elsewhere; `scripts/test-portability.ts` now finds the classes, with today's remaining hits allowlisted.
+**Where:** `apps/core/src/testkit/platform.ts`, `apps/core/src/processes.ts`, `apps/core/src/paths.ts`,
+`packages/protocol/src/exit.ts`, `scripts/test-portability.ts`.
+
 <a id="workspace-ts-stripping"></a>
 ### Workspace packages ship `.ts` and resolve through symlinks
 **Rule:** internal packages export `./src/*.ts` directly; keep them as pnpm workspace links.

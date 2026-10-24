@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, inputsOrEnd, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { FAKE_GOOGLE_SECRET, fakeGoogle } from "../integrations/fake-google.test-support.ts";
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
@@ -35,7 +35,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
   await google.close();
 });
 
@@ -93,11 +93,7 @@ test("an event only on the owner's calendar goes in without asking; inviting som
   });
 
   await env.client.call("threads.send", { thread, text: "meet Ana" });
-  let pending: Array<{ id: string }> = [];
-  for (let i = 0; i < 80 && !pending.length; i++) {
-    pending = (await env.client.call("runs.pending", { thread })).inputs;
-    if (!pending.length) await new Promise((r) => setTimeout(r, 25));
-  }
+  const pending: Array<{ id: string }> = await inputsOrEnd(env.client, thread);
   assert.equal(pending.length, 1, "the invitation waits");
   assert.equal(google.created.length, 1, "nothing sent before the owner says yes");
   await env.client.call("runs.respond", { input: pending[0]?.id ?? "", decision: "approve" });

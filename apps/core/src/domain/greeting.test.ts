@@ -29,7 +29,7 @@ test("after the setup the super-agent greets once, in the owner's language, and 
     assert.ok(sent.slice(said + 1).some((m) => m.role === "user" && String(m.content).includes("Soy Ada")));
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -41,6 +41,6 @@ test("a chat already under way is not greeted", async () => {
     assert.deepEqual(await env.client.call("setup.greet", { language: "en" }), { thread: "home", sent: false });
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

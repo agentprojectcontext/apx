@@ -703,7 +703,7 @@ async function episode(scenario: LearningScenario, repetition: number): Promise<
     result.trace = episodeTrace(env);
     await env.core.close();
     await tg.close();
-    env.cleanup();
+    await env.cleanup();
     fs.rmSync(dir, { recursive: true, force: true });
     result.elapsed_ms = Date.now() - started;
   }

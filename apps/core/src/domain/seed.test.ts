@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { AGENT_NAMES } from "@apx/protocol";
 import { testConfig } from "../config.ts";
 import { createCore } from "../server.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 test("a fresh install names its super-agent from the list, unless the install says which name", async () => {
   for (const agentName of [undefined, "Ada"]) {
@@ -13,7 +14,7 @@ test("a fresh install names its super-agent from the list, unless the install sa
     const core = await createCore(testConfig({ home, agentName }), { quiet: true });
     const boss = core.store.agents.list().find((a) => a.kind === "secretary");
     await core.close();
-    fs.rmSync(home, { recursive: true, force: true });
+    await removeDir(home);
     if (agentName) assert.equal(boss?.name, agentName);
     else assert.ok((AGENT_NAMES as readonly string[]).includes(boss?.name ?? ""), `unexpected name ${boss?.name}`);
   }

@@ -25,7 +25,7 @@ test("terminal jobs keep their agent and chat visible after the turn ends", asyn
     assert.equal(result.job.agent_name, agent?.name);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -68,6 +68,6 @@ test("jobs.list names what each queued turn carries, never its text", async () =
     assert.ok(!JSON.stringify(running).includes("Part checked."));
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

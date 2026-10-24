@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { openDb } from "../db/db.ts";
 import { duplicateMemory } from "../domain/memory-content.ts";
 import { qb, sql } from "../domain/sql.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { notesText } from "../tools/memory.ts";
 import { supportMemoryClaims } from "./memory-testkit.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
@@ -13,14 +14,6 @@ function gate() {
     release = resolve;
   });
   return { wait, release };
-}
-
-async function until(check: () => Promise<boolean>) {
-  for (let i = 0; i < 200; i++) {
-    if (await check()) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  assert.fail("condition did not become true");
 }
 
 for (const action of ["off", "archive", "delete"] as const)
@@ -58,12 +51,12 @@ for (const action of ["off", "archive", "delete"] as const)
         env.core.store.memories.removeAgentNotes("scout");
       }
       response.release();
-      await until(async () => !(await env.client.call("memory.status", {})).jobs.some((j) => j.state === "working"));
+      await waitFor(async () => !(await env.client.call("memory.status", {})).jobs.some((j) => j.state === "working"));
       assert.equal((await env.client.call("memory.list", {})).memories.length, 0);
     } finally {
       response.release();
       await env.core.close();
-      env.cleanup();
+      await env.cleanup();
     }
   });
 
@@ -84,11 +77,11 @@ test("forged auxiliary quotes and assistant claims cannot become durable facts",
     const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
     await env.client.call("threads.send", { thread: thread.id, text: "Can you investigate the deployment?" });
     await env.settle(thread.id);
-    await until(async () => (await env.client.call("memory.status", {})).jobs.every((j) => j.state === "completed"));
+    await waitFor(async () => (await env.client.call("memory.status", {})).jobs.every((j) => j.state === "completed"));
     assert.equal((await env.client.call("memory.list", {})).memories.length, 0);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -138,7 +131,7 @@ test("queue survives restart, expired final leases fail, and reservations stay i
     await restarted.core.close();
   } finally {
     if (!closed) await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -167,7 +160,7 @@ test("consolidation rejects duplicate IDs, opposing signs and reordered preferen
     assert.equal(duplicateMemory("Prefer email over SMS", "Prefer SMS over email"), false);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -204,7 +197,7 @@ test("deleting an agent removes private revision text as well as live notes", as
     assert.equal((await env.client.call("memory.history", { id: note.id })).versions.length, 0);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -252,7 +245,7 @@ test("an interrupted capture resumes once after restart without duplicate memori
     const home = env.home;
     await env.core.close();
     env = await startCore({ home, llm, aux: true, memoryMaintenance: true });
-    await until(async () =>
+    await waitFor(async () =>
       (await env.client.call("memory.status", {})).jobs
         .filter((j) => j.kind === "capture")
         .every((j) => j.state === "completed"),
@@ -264,6 +257,6 @@ test("an interrupted capture resumes once after restart without duplicate memori
     assert.equal((await env.client.call("memory.list", {})).memories.length, 1);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

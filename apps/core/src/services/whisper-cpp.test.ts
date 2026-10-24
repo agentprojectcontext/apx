@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { createLog } from "../log.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { createWhisperCpp } from "./whisper-cpp.ts";
 
 const FAKE = path.join(import.meta.dirname, "fake-whisper-server.test-support.mjs");
@@ -29,7 +30,7 @@ test("whisper.cpp starts on the first voice note and is reused", async () => {
     );
   } finally {
     w.close();
-    fs.rmSync(dir, { recursive: true, force: true });
+    await removeDir(dir);
   }
 });
 

@@ -18,7 +18,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 /** Model calls made with tools on, in one thread. */

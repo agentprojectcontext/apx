@@ -8,7 +8,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 for (const transport of ["http", "ws"] as const) {

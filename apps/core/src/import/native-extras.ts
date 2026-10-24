@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { parseFrontmatter } from "../apc/frontmatter.ts";
+import { isInside } from "../paths.ts";
 import { sessionText } from "./native-read.ts";
 import type { NativeEngine, NativeHomes, NativeSession } from "./native-sessions.ts";
 
@@ -27,8 +28,7 @@ const obj = (v: unknown): Record<string, unknown> =>
   v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 const strings = (v: unknown) => Object.fromEntries(Object.entries(obj(v)).map(([k, x]) => [k, String(x)]));
-const within = (dir: string, root: string) =>
-  path.resolve(dir) === path.resolve(root) || path.resolve(dir).startsWith(`${path.resolve(root)}${path.sep}`);
+const within = (dir: string, root: string) => path.isAbsolute(dir) && isInside(root, dir);
 
 const readJson = (file: string): unknown => {
   try {

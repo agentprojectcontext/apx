@@ -90,7 +90,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("first run seeds a secretary and the Home thread", async () => {

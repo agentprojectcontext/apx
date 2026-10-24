@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { z } from "zod";
 import { memorySourceWindow } from "../domain/memory-evidence.ts";
 import { observedFileResult } from "../domain/memory-verification.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { scratchDir } from "../tools/folders.ts";
 import { defineTool } from "../tools/types.ts";
 import { procedureOf } from "./memory-procedure.ts";
@@ -13,14 +14,6 @@ import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 const quote = "Prefiero CSV para informes internos y PDF para clientes.";
 const wrong = "Prefiero PDF para informes internos además CSV para clientes.";
 const correct = "Prefiero CSV para informes internos y PDF para clientes.";
-
-async function waitFor(check: () => boolean | Promise<boolean>) {
-  for (let i = 0; i < 300; i++) {
-    if (await check()) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  assert.fail("memory work did not settle");
-}
 
 test("semantic review rejects reversed relationships even when the same words pass lexical checks", async () => {
   let reviews = 0;
@@ -48,7 +41,7 @@ test("semantic review rejects reversed relationships even when the same words pa
     assert.equal(env.core.store.memories.list({ scope: "agent", agent_id: "roby", limit: 100 }).length, 0);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -99,7 +92,7 @@ test("a capture checkpoint resumes validation after quota exhaustion without ext
     assert.equal(reviews, 1);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -146,7 +139,7 @@ test("a recovered tool call alone never becomes a verified procedure", async () 
     );
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -168,7 +161,7 @@ test("a historical source is still available after seventy later owner turns", a
     );
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -206,7 +199,7 @@ test("capture joins two authorized owner statements and preserves both sources",
     assert.equal(note.evidence?.length, 2);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -286,7 +279,7 @@ test("real file tools record the readback evidence after recovering from an erro
     assert.deepEqual(note?.evidence?.[0]?.verification?.step_ids, ["write", "read"]);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -347,6 +340,6 @@ test("a fresh confirmation records proof even when the method has an unverified 
     assert.match(verified?.text ?? "", /`export_asset` `route-b`/);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

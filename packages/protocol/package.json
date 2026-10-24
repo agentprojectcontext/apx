@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
-    "./cdp": "./src/cdp.ts"
+    "./cdp": "./src/cdp.ts",
+    "./exit": "./src/exit.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",

@@ -69,7 +69,7 @@ test("the owner continues a stopped session once, retaining its workspace, cap a
   } finally {
     socket.close();
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -95,7 +95,7 @@ test("stale, busy, completed, archived and unrelated sessions cannot be continue
     assert.equal(env.core.store.messages.list(sub.id).length, 0);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -153,7 +153,7 @@ for (const budget of ["none", "chain", "agent"] as const)
       if (held) assert.equal(store.runs.get(held.id)?.state, "queued", "the click authorizes only its own turn");
     } finally {
       await env.core.close();
-      env.cleanup();
+      await env.cleanup();
     }
   });
 
@@ -192,6 +192,6 @@ test("models and external clients cannot continue sessions; concurrent owner cli
     assert.equal(env.core.store.runs.list(sub.id).length, 2);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

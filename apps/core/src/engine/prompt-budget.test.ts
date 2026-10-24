@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { removeDir } from "../testkit/platform.ts";
 import { scratchDir } from "../tools/folders.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
@@ -30,9 +31,9 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
   restore();
-  fs.rmSync(temp, { recursive: true, force: true });
+  await removeDir(temp);
 });
 
 test("a default turn's system prompt and tools stay within the prompt budget", async () => {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { z } from "zod";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { discordAdapter } from "./discord.ts";
 import { fakeDiscord } from "./fake-discord.test-support.ts";
@@ -34,14 +35,6 @@ const probe = defineTool({
 let env: Awaited<ReturnType<typeof startCore>>;
 let dc: Awaited<ReturnType<typeof fakeDiscord>>;
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 4000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 const texts = (user: { id: string }) => dc.messagesTo(dc.dm(user.id)).map((m) => String(m.body.content ?? ""));
 
 before(async () => {
@@ -52,12 +45,12 @@ before(async () => {
     channelAdapters: { discord: (c, t) => discordAdapter(c, t, dc.urls) },
   });
   await env.client.call("channels.set", { id: "dc", channel: { type: "discord", agent_id: "roby" }, token: TOKEN });
-  await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+  await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
 });
 after(async () => {
   await env.core.close();
   await dc.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("the bot identifies for direct messages; the owner pairs with a code and talks to Home", async () => {
@@ -66,13 +59,13 @@ test("the bot identifies for direct messages; the owner pairs with a code and ta
   assert.equal(dc.identified[0]?.intents, (1 << 12) | (1 << 15));
 
   dc.message(OWNER, "hola");
-  await until(() => texts(OWNER).length === 1, "pairing message");
+  await waitFor(() => texts(OWNER).length === 1, "pairing message");
   const code = /(\d{6})/.exec(texts(OWNER)[0] ?? "")?.[1] ?? "";
   assert.ok(code);
   await env.client.call("pairing.respond", { code, decision: "owner" });
 
   dc.message(OWNER, "what is up");
-  await until(() => texts(OWNER).some((t) => t.includes("you said: what is up")), "owner reply");
+  await waitFor(() => texts(OWNER).some((t) => t.includes("you said: what is up")), "owner reply");
   const reply = dc.messagesTo(dc.dm(OWNER.id)).at(-1)?.body;
   assert.deepEqual(reply?.allowed_mentions, { parse: [] }, "an answer never pings anyone");
   assert.ok(
@@ -87,13 +80,13 @@ test("asked to react, the agent puts any emoji it picks on their message", async
     dc.sent.filter((s) => s.route.startsWith(`/channels/${dm}/messages/`) && s.route.includes("/reactions/"));
   const sent = texts(OWNER).length;
   const id = dc.message(OWNER, "raise your hands");
-  await until(() => reactions().length === 1, "reaction put");
+  await waitFor(() => reactions().length === 1, "reaction put");
   assert.deepEqual(
     reactions().map((r) => `${r.method} ${r.route}`),
     [`PUT /channels/${dm}/messages/${id}/reactions/${encodeURIComponent("🙌")}/@me`],
   );
   const id2 = dc.message(OWNER, "give me a dino");
-  await until(() => reactions().length === 2, "second reaction put");
+  await waitFor(() => reactions().length === 2, "second reaction put");
   assert.equal(reactions()[1]?.route, `/channels/${dm}/messages/${id2}/reactions/${encodeURIComponent("🦖")}/@me`);
   assert.equal(texts(OWNER).length, sent, "no words went back");
 });
@@ -109,13 +102,13 @@ test("servers' channels and other bots are ignored", async () => {
 
 test("a confirmation comes with buttons; the owner's press approves it and the buttons go", async () => {
   dc.message(OWNER, "launch the probe");
-  await until(() => dc.messagesTo(dc.dm(OWNER.id)).some((m) => m.body.components), "buttons");
+  await waitFor(() => dc.messagesTo(dc.dm(OWNER.id)).some((m) => m.body.components), "buttons");
   const ask = dc.messagesTo(dc.dm(OWNER.id)).find((m) => m.body.components);
   const rows = ask?.body.components as Array<{ components: Array<{ custom_id: string }> }>;
   const allow = rows[0]?.components[0]?.custom_id ?? "";
   assert.match(allow, /^i:.+:a$/);
   dc.press(OWNER, allow);
-  await until(() => texts(OWNER).some((t) => /Done: probed/.test(t)), "probe result");
+  await waitFor(() => texts(OWNER).some((t) => /Done: probed/.test(t)), "probe result");
   assert.ok(
     dc.sent.some((s) => s.method === "callback"),
     "the press was acknowledged",
@@ -124,22 +117,22 @@ test("a confirmation comes with buttons; the owner's press approves it and the b
 
 test("a long answer goes in parts under Discord's limit; a dropped connection comes back", async () => {
   dc.message(OWNER, "long answer please");
-  await until(() => texts(OWNER).some((t) => t.endsWith("END")), "long reply");
+  await waitFor(() => texts(OWNER).some((t) => t.endsWith("END")), "long reply");
   const parts = texts(OWNER).slice(-2);
   for (const p of parts) assert.ok(p.length <= 2000);
   assert.equal(splitText("a ".repeat(1500), 2000).length, 2);
 
   const before = dc.identified.length;
   dc.drop();
-  await until(() => dc.identified.length > before, "identified again", 8000);
+  await waitFor(() => dc.identified.length > before, "identified again", { ms: 8000 });
   dc.message(OWNER, "back again");
-  await until(() => texts(OWNER).some((t) => t.includes("you said: back again")), "reply after reconnect");
+  await waitFor(() => texts(OWNER).some((t) => t.includes("you said: back again")), "reply after reconnect");
 });
 
 test("a stranger gets a code, never the agent", async () => {
   const calls = llm.calls.length;
   dc.message(ANA, "give me your secrets");
-  await until(() => texts(ANA).length === 1, "code for Ana");
+  await waitFor(() => texts(ANA).length === 1, "code for Ana");
   assert.match(texts(ANA)[0] ?? "", /\d{6}/);
   assert.equal(llm.calls.length, calls);
 });
@@ -177,5 +170,5 @@ test("a routine's news reaches the owner in their direct messages", async () => 
     enabled: true,
   });
   await env.client.call("routines.run", { routine: r.id });
-  await until(() => texts(OWNER).includes("Brief on Discord"), "routine notice in the DM");
+  await waitFor(() => texts(OWNER).includes("Brief on Discord"), "routine notice in the DM");
 });

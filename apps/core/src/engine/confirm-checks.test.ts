@@ -17,7 +17,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 /** Has the clerk make one call; denies the confirmation if one comes. What the model got back, and whether it asked. */

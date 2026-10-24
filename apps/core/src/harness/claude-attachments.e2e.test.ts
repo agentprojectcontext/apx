@@ -5,6 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { mediaData } from "../services/uploads.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { scratchRoot } from "../tools/folders.ts";
 import { claudeHarness } from "./claude.ts";
 
@@ -95,9 +96,9 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   } finally {
     if (env) {
       await env.core.close();
-      env.cleanup();
+      await env.cleanup();
     }
     // The SDK's process may still be leaving the folder, and Windows cannot delete a folder in use.
-    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 50, retryDelay: 200 });
+    await removeDir(dir);
   }
 });

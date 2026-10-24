@@ -30,7 +30,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("a commitment names the person and who owes it, and is reminded once on its day", async () => {

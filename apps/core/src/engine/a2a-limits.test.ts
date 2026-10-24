@@ -7,39 +7,42 @@ import type { ApxSocket } from "@apx/protocol/client";
 import { z } from "zod";
 import { fakeTelegram } from "../channels/fake-telegram.test-support.ts";
 import { telegramAdapter } from "../channels/telegram.ts";
+import { autoAdvance, type ManualTimers, manualTimers, scaled, sleepOn, waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
-// Wide enough that a loaded CI runner's pauses between steps never look like a stall: a Windows runner once took
-// longer than 800 ms over a 200 ms step. The cap stays six idle windows.
+// Run windows and the fixtures' steps are on virtual time: a slow machine can never make a step look like a stall.
+// The cap is six idle windows.
 const IDLE_MS = 1500;
 const CAP_MS = 9000;
-const sleep = (ms: number, signal?: AbortSignal) =>
-  new Promise<void>((resolve, reject) => {
-    const t = setTimeout(resolve, ms);
-    signal?.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(t);
-        reject(signal.reason);
-      },
-      { once: true },
-    );
-  });
+/** Fixture sleeps under way: while one is, the clock may move on (see autoAdvance). */
+let sleeping = 0;
+const sleepFor = (timers: ManualTimers) => async (ms: number, signal?: AbortSignal) => {
+  sleeping++;
+  try {
+    await sleepOn(timers, ms, signal);
+  } finally {
+    sleeping--;
+  }
+};
+const timers = manualTimers();
+const sleep = sleepFor(timers);
 
-/** One step of a long job: a quarter of the idle window. */
-const slowStep = defineTool({
-  name: "slow_step",
-  description: "test tool",
-  args: z.object({ n: z.number() }),
-  effect: "none",
-  deadlineMs: 5_000,
-  title: () => "Slow step",
-  run: async (_a, ctx) => {
-    await sleep(IDLE_MS / 4, ctx.signal);
-    return "step done";
-  },
-});
+/** One step of a long job: a quarter of the idle window, on the core's clock. */
+const slowStepOn = (sleepy: ReturnType<typeof sleepFor>) =>
+  defineTool({
+    name: "slow_step",
+    description: "test tool",
+    args: z.object({ n: z.number() }),
+    effect: "none",
+    deadlineMs: 5_000,
+    title: () => "Slow step",
+    run: async (_a, ctx) => {
+      await sleepy(IDLE_MS / 4, ctx.signal);
+      return "step done";
+    },
+  });
+const slowStep = slowStepOn(sleep);
 
 /** One step of a build: it changes something, a different thing each time. */
 const buildStep = defineTool({
@@ -83,7 +86,7 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
   }
   // A command longer than the idle window, silent while it runs.
   if (system.startsWith("You are Renderer"))
-    return afterTool ? say("Rendered.") : callTool("r1", "shell", { command: "sleep 1 && echo rendered" });
+    return afterTool ? say("Rendered.") : callTool("r1", "shell", { command: "sleep 3 && echo rendered" });
   if (said.includes("<delegation_result")) return say("The delegate is back.");
   if (afterTool) return say("Done.");
   const ask = said.match(/^delegate (\w+)( inline)?$/);
@@ -97,28 +100,29 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let operator: ApxSocket;
+let stopClock = () => {};
 before(async () => {
-  env = await startCore({ llm, extraTools: [slowStep, buildStep], turnIdleMs: IDLE_MS, a2aCapMs: CAP_MS });
+  env = await startCore({
+    llm,
+    extraTools: [slowStep, buildStep],
+    turnIdleMs: IDLE_MS,
+    a2aCapMs: CAP_MS,
+    runTimers: timers,
+  });
+  stopClock = autoAdvance(timers, { waiting: () => sleeping > 0, state: () => llm.calls.length });
 });
 beforeEach(async () => {
   operator = await env.client.connect("operator");
 });
 afterEach(() => operator?.close());
 after(async () => {
+  stopClock();
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
-/** Long enough for two capped parts and the caller's wake-up, whatever the windows above. */
-async function until<T>(get: () => T | undefined | false, what: string, ms = CAP_MS * 4): Promise<T> {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    const v = get();
-    if (v) return v;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-}
+/** Real time for two capped parts and the caller's wake-up; the windows themselves pass on the virtual clock. */
+const until = <T>(get: () => T | undefined | false, what: string) => waitFor(get, what, { ms: 30_000 });
 
 /** The owner's chat with the caller, after it delegated: the chat and the session it opened. */
 async function delegated(text: string) {
@@ -151,11 +155,12 @@ const card = (threadId: string) =>
     .find((p): p is Extract<Part, { type: "subthread" }> => p.type === "subthread");
 
 test("a delegated run that keeps making progress works past its idle window", async () => {
+  const start = timers.now();
   const { sub } = await delegated("delegate steady");
   const [run] = await ended(sub, 1);
   assert.equal(run?.state, "completed");
   assert.equal(run?.end_reason, "normal");
-  assert.ok(Date.parse(run?.ended_at ?? "") - Date.parse(run?.started_at ?? "") > IDLE_MS, "longer than one window");
+  assert.ok(timers.now() - start > IDLE_MS, "longer than one window");
 });
 
 test("a caller waiting on a delegate at work is held too, past its own idle window", async () => {
@@ -170,6 +175,10 @@ test("a caller waiting on a delegate at work is held too, past its own idle wind
 
 test("a command running longer than the idle window counts as progress", async () => {
   const { sub } = await delegated("delegate renderer");
+  // Two idle windows pass while the command runs; it is still running after them.
+  await until(() => env.core.store.jobs.running().length, "the command running");
+  timers.tick(IDLE_MS * 2);
+  assert.equal(env.core.store.jobs.running().length, 1, "the command outlived both windows");
   const [run] = await ended(sub, 1);
   assert.equal(run?.state, "completed", run?.error);
   assert.equal(run?.end_reason, "normal");
@@ -308,8 +317,9 @@ test("the caller can stop a session it started, and the tool is offered only whi
   const [run] = await ended(sub, 1);
   assert.equal(run?.state, "canceled");
   assert.match(offered("stop forever"), /stop_session/);
-  // Stopped by its caller: nobody is woken and APX does not go on with it.
-  await new Promise((r) => setTimeout(r, IDLE_MS));
+  // Stopped by its caller: nobody is woken and APX does not go on with it, an idle window later either.
+  timers.tick(IDLE_MS);
+  await new Promise((r) => setTimeout(r, scaled(200)));
   assert.equal(runsOf(sub).length, 1);
   assert.equal(card(thread)?.state, "canceled");
 });
@@ -318,11 +328,13 @@ test("the owner hears of the limit on the channel their chat lives on, in their 
   const TOKEN = "123456:TEST-limits";
   const OWNER = 1001;
   const tg = await fakeTelegram(TOKEN);
+  // On the same clock as the first core: the scripted model's sleeps are on it.
   const own = await startCore({
     llm,
     extraTools: [slowStep],
     turnIdleMs: IDLE_MS,
     a2aCapMs: CAP_MS,
+    runTimers: timers,
     channelAdapters: {
       telegram: (c: Parameters<typeof telegramAdapter>[0], token: string | undefined) =>
         telegramAdapter(c, token, tg.url),
@@ -331,7 +343,7 @@ test("the owner hears of the limit on the channel their chat lives on, in their 
   t.after(async () => {
     await own.core.close();
     await tg.close();
-    own.cleanup();
+    await own.cleanup();
   });
   await own.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
   own.core.store.persons.link(own.core.store.persons.owner().id, { channel: "tg", external_id: String(OWNER) });
@@ -341,7 +353,6 @@ test("the owner hears of the limit on the channel their chat lives on, in their 
   const sent = await until(
     () => tg.messagesTo(OWNER).find((m) => String(m.body.text).includes("se quedó sin tiempo")),
     "the notice on Telegram",
-    30_000,
   );
   assert.match(String(sent.body.text), /^Quiet se quedó sin tiempo con «Quiet task» y su último tramo no avanzó/);
   // APX going on with it on its own (the first part) is not news for the owner's phone.

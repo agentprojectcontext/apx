@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import type { Store } from "../domain/store.ts";
 import { expandHome, insideReal, isInside, real, realpath } from "../paths.ts";
+import { namedPaths } from "./command-paths.ts";
 
 /**
  * APX's own folder for a project, so one project's files never land among another's: the project's folder when APX
@@ -108,13 +109,23 @@ export const artifactSources = (home: string, projectId: string | undefined) =>
 
 /**
  * Whether a command names APX's own folder, leaving out this project's artifact sources, which its agents may build in.
+ * Read as text (either slash; any case on Windows) and as the paths it names, resolved, so a link or a Windows short
+ * name (RUNNER~1) for the same folder counts too.
  */
 export function namesApxHome(command: string, home: string, projectId: string | undefined): boolean {
-  // A command may write a path with either slash (Git Bash on Windows): both spellings count.
-  const both = (p: string) => [...new Set([p, p.split(path.sep).join("/"), p.split("/").join(path.sep)])];
-  let rest = command;
-  for (const src of both(artifactSources(home, projectId))) rest = rest.split(src).join("");
-  return both(home).some((h) => rest.includes(h)) || /\.apx(2\b|\/v2\b)/.test(rest);
+  const sources = artifactSources(home, projectId);
+  const fold = (p: string) => (process.platform === "win32" ? p.toLowerCase() : p);
+  const both = (p: string) => [...new Set([p, p.split(path.sep).join("/"), p.split("/").join(path.sep)].map(fold))];
+  let rest = fold(command);
+  for (const src of both(sources)) rest = rest.split(src).join("");
+  if (both(home).some((h) => rest.includes(h)) || /\.apx(2\b|[\\/]v2\b)/i.test(rest)) return true;
+  const [apx, own] = [real(home), real(sources)];
+  return namedPaths(command).some((n) => {
+    const to = n.kind === "path" || n.kind === "cd" ? n.to?.path : undefined;
+    if (!to || !path.isAbsolute(to)) return false;
+    const at = real(path.resolve(to));
+    return isInside(apx, at) && !isInside(own, at);
+  });
 }
 
 /** Every chat's temp folder sits here; one per APX home, so a test core never shares the owner's. */

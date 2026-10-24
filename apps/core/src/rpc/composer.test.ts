@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { scratchRoot } from "../tools/folders.ts";
 
 const llm = scriptedLlm((_req, { said }) =>
@@ -21,7 +22,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("a text file is read into the turn as outside content and shown with the message", async () => {
@@ -161,8 +162,8 @@ test("an attachment destination symlink cannot write outside the temp folder", a
   const local = await startCore({ llm: scriptedLlm(() => say("ok")) });
   t.after(async () => {
     await local.core.close();
-    local.cleanup();
-    fs.rmSync(outside, { recursive: true, force: true });
+    await local.cleanup();
+    await removeDir(outside);
   });
   fs.mkdirSync(path.join(scratchRoot(local.home), "home"), { recursive: true });
   fs.symlinkSync(outside, path.join(scratchRoot(local.home), "home", "attachments"), "dir");

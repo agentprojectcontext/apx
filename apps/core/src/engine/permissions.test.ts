@@ -8,6 +8,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import type { PendingInput } from "@apx/protocol";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { scratchDir } from "../tools/folders.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
@@ -40,8 +41,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(elsewhere, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(elsewhere);
 });
 
 const lastSeen = () => String(llm.calls.at(-1)?.messages.at(-1)?.content);

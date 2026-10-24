@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient, ApxError } from "@apx/protocol/client";
 import { z } from "zod";
+import { removeDir } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
@@ -71,8 +72,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(root, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(root);
 });
 
 const newThread = (agent: string) => env.client.call("threads.create", { kind: "agent", agent_id: agent });

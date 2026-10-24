@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let repo = "";
@@ -16,8 +17,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(repo, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(repo);
 });
 
 test("connecting an integration stores its token and adds its server; it can be off in a project; disconnecting removes both", async () => {
@@ -117,6 +118,6 @@ test("GitHub asks its own server first: a token it refuses gets the earlier open
     assert.equal((await github())?.transport, "http", "no answer is no refusal: GitHub's own server stays");
   } finally {
     await core.core.close();
-    core.cleanup();
+    await core.cleanup();
   }
 });

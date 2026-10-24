@@ -61,6 +61,6 @@ test("task_get never exposes sealed client conversations to the global secretary
     assert.doesNotMatch(result, /Sealed session|Sealed consult|Private customer evidence|client_private/);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

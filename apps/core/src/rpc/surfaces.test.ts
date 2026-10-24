@@ -5,6 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { ArtifactBundle } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { kitVersionOf } from "./surfaces.ts";
 
 const PAGE = `<meta name="apx-live" content="15m"><script src="/_apx/kit@1.2.js"></script><h1>Orders</h1>`;
@@ -119,8 +120,8 @@ test("an artifact's store and database work through the protocol, export without
     );
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(root, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(root);
   }
 });
 
@@ -159,7 +160,7 @@ test("an artifact's file says who made it, and an installed one keeps its maker 
     assert.equal(again.manifest.author, "Ada");
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(root, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(root);
   }
 });

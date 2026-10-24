@@ -83,7 +83,7 @@ test("ordinary owner messages become grounded private memories and reach another
     assert.equal((await env.client.call("memory.history", { id: saved.id })).versions.length, 0);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -111,7 +111,7 @@ test("automatic recall reads historical own chats without an auxiliary model, bu
     assert.doesNotMatch(await ask("Which prefix do Northwind invoices use?"), /lavender/);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -170,7 +170,7 @@ test("autoDream consolidates equivalent notes, keeps provenance and supports und
     assert.equal(duplicateMemory("Invoices use 12", "Invoices use 13"), false);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -193,7 +193,7 @@ test("memory snapshots are invalidated by edits without changing the stored owne
     assert.match(JSON.stringify(env.core.store.modelLog.list(thread.id)), /lavender/);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -224,7 +224,7 @@ test("invalidating legacy memory removes multiline context and preserves the ori
     assert.equal(legacy[0]?.item.content, content);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -281,6 +281,6 @@ test("capture and backfill keep only durable owner statements when the model quo
     assert.deepEqual(saved, [...lasting].sort());
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

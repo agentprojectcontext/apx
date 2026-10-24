@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("when no model answers, the chat says so as an error with the reasons below, never as an answer", async () => {

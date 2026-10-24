@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
+import { isInside } from "../paths.ts";
 import type { NativeEngine } from "./native-sessions.ts";
 
 export type NativeImage = { mime: string; bytes: Buffer };
@@ -205,7 +206,7 @@ export function writtenPages(items: NativeItem[], cwd: string): string[] {
         const raw = (m[1] ?? "").replace(/\\\\/g, "\\");
         if (!PAGE.test(raw)) continue;
         const abs = path.resolve(root, raw);
-        if (abs.startsWith(`${root}${path.sep}`) && fs.existsSync(abs) && fs.statSync(abs).isFile()) found.add(abs);
+        if (isInside(root, abs) && fs.existsSync(abs) && fs.statSync(abs).isFile()) found.add(abs);
       }
   return [...found].sort();
 }

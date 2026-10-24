@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { waitFor } from "../testkit/platform.ts";
 import { createModelInstaller, installHint, type Machine, modelFile, recommend } from "./local-whisper.ts";
 
 const m = (over: Partial<Machine>): Machine => ({
@@ -50,13 +51,13 @@ test("installing downloads the model in the background with its progress, then s
   });
   cut = true;
   installer.install("base");
-  for (let i = 0; i < 100 && !installer.progress()?.error; i++) await new Promise((r) => setTimeout(r, 20));
+  await waitFor(() => installer.progress()?.error, "the stalled download cut");
   assert.match(installer.progress()?.error ?? "", /stalled/, "a connection that stops sending is cut");
   assert.ok(!fs.existsSync(modelFile(dir, "base")) && !fs.existsSync(`${modelFile(dir, "base")}.part`));
   cut = false;
   installer.install("base");
   assert.equal(installer.progress()?.model, "base");
-  for (let i = 0; i < 100 && !ready.length; i++) await new Promise((r) => setTimeout(r, 20));
+  await waitFor(() => ready.length, "the model ready");
   assert.deepEqual(ready, [`base:${modelFile(dir, "base")}`]);
   assert.equal(fs.statSync(modelFile(dir, "base")).size, body.length);
   assert.equal(installer.progress(), undefined);

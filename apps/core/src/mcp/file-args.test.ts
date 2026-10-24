@@ -133,7 +133,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("an agent hands on only its chat's kept files and paths in its own folders", async () => {
