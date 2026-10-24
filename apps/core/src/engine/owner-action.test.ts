@@ -26,7 +26,7 @@ before(async () => {
 after(async () => {
   for (const env of [live, late]) {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 

@@ -16,7 +16,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
 import { engineOf, harnessOf, isCliRef } from "../domain/refs.ts";
-import type { Origin, RunRecord } from "../domain/runs.ts";
+import { answersChecked, type Origin, type RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
 import { AGENT_WORKSPACE } from "../environments/worker.ts";
@@ -33,6 +33,7 @@ import { askedSkill } from "../skills/picker.ts";
 import type { RuntimeHomes } from "../skills/runtimes.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
+import { channelsOn } from "../tools/directory.ts";
 import { harnessDir, readOnlyFolders, scratchDir, workDir } from "../tools/folders.ts";
 import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
 import { MCP_CALL, MCP_SEARCH, mcpBridge } from "../tools/mcp-bridge.ts";
@@ -157,7 +158,6 @@ const HANDOFF_TOOLS = new Set([
   "channel_post",
   "channel_list",
   "contact_list",
-  "attention_hours",
   "apx_settings",
   "read_chat",
 ]);
@@ -583,7 +583,7 @@ function stickersOf(store: Store, channel: string): string[] {
 /** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; a contact's, by their flags. */
 async function turnTools(deps: TurnDeps, turn: Turn) {
   const inVm = deps.vm?.hasThread(turn.thread.id);
-  // Offered to an agent the owner allowed, or, once the owner set the computer up, to ask for it (DECISIONS.md#d-144).
+  // Offered to an agent the owner allowed, or, once the owner set the computer up, to ask for it (DECISIONS.md#d-151).
   const computerOn = Boolean(
     deps.vm?.serves(turn.thread.id) &&
       (deps.vm.permitted(turn.agent.id, turn.thread.id) || (!inVm && deps.vm.offered())),
@@ -631,7 +631,10 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   // A worker asks no one, and keeps to the tools its caller named for it (when it named any).
   const named = turn.worker?.tools?.length ? new Set(turn.worker.tools) : undefined;
   const o = turn.input.origin;
-  const handoff = o.kind === "channel" && o.role === "owner" && HANDOFF_ONLY.has(channelKindOf(deps.store, o) ?? "");
+  // The answer to the owner's words the super-agent checked is still their turn on that chat (DECISIONS.md#d-144).
+  const ownerOnChannel = (o.kind === "channel" && o.role === "owner") || answersChecked(o);
+  const replyChannel = turn.input.reply_to === null ? null : turn.input.reply_to?.channel;
+  const handoff = ownerOnChannel && HANDOFF_ONLY.has(channelKindOf(deps.store, o, replyChannel) ?? "");
   const only = handoff ? new Set([...HANDOFF_TOOLS].filter((n) => !named || named.has(n))) : named;
   const tools = policy.tools.filter(
     (t) =>
@@ -689,6 +692,7 @@ function systemFor(
     build ? apxBuild(build) : "",
     scratch,
     computerOff,
+    channelsOn(store),
   );
 }
 

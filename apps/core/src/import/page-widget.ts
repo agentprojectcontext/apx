@@ -2,6 +2,7 @@
 // from disk by URL), images and videos turned into folder references the widget host loads (data-apx-src).
 import fs from "node:fs";
 import path from "node:path";
+import { isInside, samePath } from "../paths.ts";
 
 const PAGE_BYTES = 2 * 1024 * 1024;
 const WIDGET_CHARS = 400_000;
@@ -12,14 +13,14 @@ const remote = (ref: string) => /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(ref);
 function local(root: string, dir: string, ref: string): string | undefined {
   if (!ref || remote(ref)) return undefined;
   const abs = path.resolve(dir, decodeURI(ref.split(/[?#]/)[0] ?? ""));
-  return abs.startsWith(`${root}${path.sep}`) && fs.existsSync(abs) && fs.statSync(abs).isFile() ? abs : undefined;
+  return isInside(root, abs) && fs.existsSync(abs) && fs.statSync(abs).isFile() ? abs : undefined;
 }
 
 /** The page as a widget's HTML and its title; throws a reason the owner can act on. */
 export function pageAsWidget(projectRoot: string, file: string): { html: string; title: string } {
   const root = path.resolve(projectRoot);
   const abs = path.resolve(root, file);
-  if (!abs.startsWith(`${root}${path.sep}`)) throw new Error(`${file} is not in the project's folder`);
+  if (samePath(root, abs) || !isInside(root, abs)) throw new Error(`${file} is not in the project's folder`);
   if (!/\.html?$/i.test(abs)) throw new Error(`${file} is not an HTML page`);
   if (!fs.existsSync(abs)) throw new Error(`${file} is not there`);
   if (fs.statSync(abs).size > PAGE_BYTES) throw new Error(`${file} is too big for a widget`);

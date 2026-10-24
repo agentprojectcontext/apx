@@ -216,6 +216,6 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
     await page.goto("about:blank");
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

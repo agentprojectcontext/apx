@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { telegramAdapter } from "./telegram.ts";
 
@@ -27,14 +28,6 @@ let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 let clock = new Date("2026-10-22T02:30:00Z");
 const persons: Record<string, string> = {};
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 4000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 const texts = (who: { id: number }) => tg.messagesTo(who.id).map((m) => String(m.body.text));
 const kept = async (thread: string, text: string) =>
   (await env.client.call("threads.get", { thread })).messages.some(
@@ -45,7 +38,7 @@ const threadOf = async (name: string) =>
 
 async function pair(who: { id: number; name: string }, decision: "owner" | "contact") {
   tg.message(who, "hello");
-  await until(() => texts(who).length === 1, "pairing code");
+  await waitFor(() => texts(who).length === 1, "pairing code");
   const code = /(\d{6})/.exec(texts(who)[0] ?? "")?.[1] ?? "";
   const { person } = await env.client.call("pairing.respond", {
     code,
@@ -73,7 +66,7 @@ before(async () => {
     channel: { type: "telegram", agent_id: "roby", hours: HOURS },
     token: TOKEN,
   });
-  await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+  await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
   await pair(OWNER, "owner");
   await pair(BUYER, "contact");
   await pair(FAMILY, "contact");
@@ -81,7 +74,7 @@ before(async () => {
 after(async () => {
   await env.core.close();
   await tg.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("the channel keeps its hours as the owner set them", async () => {
@@ -95,7 +88,7 @@ test("a contact who writes after the hours is kept unanswered, with no model cal
   tg.message(BUYER, "are you open tomorrow?");
   tg.message(BUYER, "and can you send the price list?");
   let thread = "";
-  await until(async () => {
+  await waitFor(async () => {
     thread = await threadOf(BUYER.name);
     return thread !== "" && (await kept(thread, "and can you send the price list?"));
   }, "kept");
@@ -109,7 +102,7 @@ test("a contact who writes after the hours is kept unanswered, with no model cal
 test("the owner is answered at any hour", async () => {
   const sent = texts(OWNER).length;
   tg.message(OWNER, "still up?");
-  await until(() => texts(OWNER).length > sent, "the owner's answer");
+  await waitFor(() => texts(OWNER).length > sent, "the owner's answer");
   assert.match(texts(OWNER).at(-1) ?? "", /Reply: still up\?/);
 });
 
@@ -117,7 +110,7 @@ test("a contact the owner answers at any hour is answered after the hours too", 
   await env.client.call("contacts.set", { id: persons[FAMILY.name] ?? "", name: FAMILY.name, any_hour: true });
   const sent = texts(FAMILY).length;
   tg.message(FAMILY, "dinner on Sunday?");
-  await until(() => texts(FAMILY).length > sent, "an answer at night");
+  await waitFor(() => texts(FAMILY).length > sent, "an answer at night");
   assert.equal(env.core.store.channels.held.get(await threadOf(FAMILY.name)), undefined);
 });
 
@@ -134,7 +127,7 @@ test("once the hours begin the chat gets one turn that answers all of the night'
   clock = new Date("2026-10-22T11:00:00Z"); // 08:00
   const sent = texts(BUYER).length;
   env.core.scheduler.tick();
-  await until(() => texts(BUYER).length > sent, "the morning answer");
+  await waitFor(() => texts(BUYER).length > sent, "the morning answer");
   assert.deepEqual(texts(BUYER).slice(sent), ["Good morning, answering 2 messages."]);
   const thread = await threadOf(BUYER.name);
   assert.equal(env.core.store.channels.held.get(thread), undefined);
@@ -150,11 +143,11 @@ test("a message in the hours before the clock opens the chat is answered once, b
   clock = new Date("2026-10-23T01:30:00Z"); // 22:30
   tg.message(BUYER, "one more question");
   const thread = await threadOf(BUYER.name);
-  await until(() => Boolean(env.core.store.channels.held.get(thread)), "held");
+  await waitFor(() => Boolean(env.core.store.channels.held.get(thread)), "held");
   clock = new Date("2026-10-23T11:05:00Z"); // 08:05, before any tick
   const sent = texts(BUYER).length;
   tg.message(BUYER, "hello again");
-  await until(() => texts(BUYER).length > sent, "the answer");
+  await waitFor(() => texts(BUYER).length > sent, "the answer");
   assert.equal(env.core.store.channels.held.get(thread), undefined);
   env.core.scheduler.tick();
   await new Promise((r) => setTimeout(r, 200));
@@ -167,13 +160,13 @@ test("a supervised contact gets its draft once the hours begin, not at night", a
   clock = new Date("2026-10-24T02:00:00Z"); // 23:00
   tg.message(BUYER, "is the order ready?");
   const thread = await threadOf(BUYER.name);
-  await until(async () => await kept(thread, "is the order ready?"), "kept");
+  await waitFor(async () => await kept(thread, "is the order ready?"), "kept");
   await new Promise((r) => setTimeout(r, 300));
   const drafts = async () => (await env.client.call("contacts.suggestions.list", { person: id })).suggestions.length;
   assert.equal(await drafts(), 0, "no draft at night");
   clock = new Date("2026-10-24T11:00:00Z");
   env.core.scheduler.tick();
-  await until(async () => (await drafts()) === 1, "a draft in the morning");
+  await waitFor(async () => (await drafts()) === 1, "a draft in the morning");
   await env.client.call("contacts.set", { id, name: BUYER.name, supervised: false });
 });
 
@@ -182,7 +175,7 @@ test("a silenced contact's chat stops waiting: nothing is answered for them", as
   clock = new Date("2026-10-25T02:00:00Z");
   tg.message(BUYER, "last one tonight");
   const thread = await threadOf(BUYER.name);
-  await until(() => Boolean(env.core.store.channels.held.get(thread)), "held");
+  await waitFor(() => Boolean(env.core.store.channels.held.get(thread)), "held");
   await env.client.call("contacts.set", { id, name: BUYER.name, muted: true });
   clock = new Date("2026-10-25T11:00:00Z");
   const calls = llm.calls.length;
@@ -197,14 +190,14 @@ test("a chat waiting overnight still opens after the core restarts", async () =>
   clock = new Date("2026-10-26T02:00:00Z");
   tg.message(BUYER, "are you open on Monday?");
   const thread = await threadOf(BUYER.name);
-  await until(() => Boolean(env.core.store.channels.held.get(thread)), "held");
+  await waitFor(() => Boolean(env.core.store.channels.held.get(thread)), "held");
   const dir = env.home;
   await env.core.close();
   clock = new Date("2026-10-26T11:00:00Z");
   const sent = texts(BUYER).length;
   env = await startOn(dir);
-  await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+  await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
   env.core.scheduler.tick();
-  await until(() => texts(BUYER).length > sent, "answered after the restart");
+  await waitFor(() => texts(BUYER).length > sent, "answered after the restart");
   assert.equal(env.core.store.channels.held.get(thread), undefined);
 });

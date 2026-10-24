@@ -74,6 +74,6 @@ test("agente adjunta JPG, MP4 y audio: visibles, reproducibles y descargables tr
     // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
     await page.goto("about:blank");
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

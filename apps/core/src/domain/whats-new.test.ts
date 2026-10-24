@@ -76,7 +76,7 @@ test("a new install starts quiet; the next release is told once, unread, with no
     assert.match(history, /A chat turn gets 60 steps/, "the model reads the notes as what it said");
   } finally {
     await third.core.close();
-    third.cleanup();
+    await third.cleanup();
   }
 });
 
@@ -99,7 +99,7 @@ test("an install that skipped releases is told each one; going back and up again
     assert.equal(ctx.release?.previous, "2.3.30", "its commits run from the release the install was on");
   } finally {
     await again.core.close();
-    again.cleanup();
+    await again.cleanup();
   }
 });
 
@@ -124,7 +124,7 @@ test("an install in use before release notes existed is told the release it star
     assert.equal(ctx.release?.previous, "2.3.32", "its commits run from the release before");
   } finally {
     await second.core.close();
-    second.cleanup();
+    await second.cleanup();
   }
 });
 
@@ -148,6 +148,6 @@ test("each new release goes on in the same news chat, retitled, instead of openi
     assert.ok(said.some((t) => /updated to 2\.3\.32/.test(t)) && said.some((t) => /updated to 2\.3\.33/.test(t)));
   } finally {
     await third.core.close();
-    third.cleanup();
+    await third.cleanup();
   }
 });

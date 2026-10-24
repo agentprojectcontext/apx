@@ -35,7 +35,7 @@ function submittedRequest(store: Store, task: Task, thread: string) {
 
 export const CONTACT_TOOLS: ReadonlySet<string> = new Set(["pass_request", "search_owner_notes"]);
 
-/** People close enough that a message they leave for the owner always reaches them (DECISIONS.md#d-143). */
+/** People close enough that a message they leave for the owner always reaches them (DECISIONS.md#d-149). */
 const CLOSE: ReadonlySet<PersonRelation> = new Set(["partner", "family", "friend"]);
 
 /** Whether this person may leave that kind of request for the owner. */

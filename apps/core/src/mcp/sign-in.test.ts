@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { removeDir, waitFor } from "../testkit/platform.ts";
 import { signInUrl } from "./sign-in.ts";
 
 const SERVER = path.join(import.meta.dirname, "fake-sign-in-server.test-support.mjs");
@@ -23,8 +24,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(dir, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(dir);
 });
 
 /** One of the owner's servers that signs in like mcp-remote; `opened()` counts the browsers it would have opened. */
@@ -59,14 +60,16 @@ const turn = async (text: string) => {
   return String(llm.calls.at(-1)?.messages.at(-1)?.content);
 };
 const statusOf = async (name: string) => (await env.client.call("mcp.list", {})).servers.find((s) => s.name === name);
-async function until(name: string, status: string) {
-  for (let i = 0; i < 200; i++) {
-    const s = await statusOf(name);
-    if (s?.status === status) return s;
-    await new Promise((r) => setTimeout(r, 50));
-  }
-  assert.fail(`${name} never became ${status}: ${JSON.stringify(await statusOf(name))}`);
-}
+/** The server once it has `status`. */
+const becomes = (name: string, status: string) =>
+  waitFor(
+    async () => {
+      const s = await statusOf(name);
+      return s?.status === status && s;
+    },
+    `${name} to become ${status}`,
+    { ms: 10_000 },
+  );
 
 test("a sign-in request on stderr is found with its page, and only once the URL is whole", () => {
   const url = "https://admin.example.com/authorize?response_type=code&client_id=abc";
@@ -93,7 +96,7 @@ test("a server that asks to sign in does not hold the turn, is not retried, and 
 
   // The owner finishes on the page the first start opened: that same process becomes the connection.
   shop.signIn();
-  await until("shop", "ready");
+  await becomes("shop", "ready");
   assert.match(await turn("use echo"), /echo: hi/);
   assert.equal(shop.opened(), 1);
 });
@@ -101,14 +104,14 @@ test("a server that asks to sign in does not hold the turn, is not retried, and 
 test("waiting for a sign-in outlives the connection, and only the owner's Sign in starts it again", async () => {
   const shop = await addServer("store");
   await turn("find echo");
-  await until("store", "needs-sign-in");
+  await becomes("store", "needs-sign-in");
   assert.equal(shop.opened(), 1);
 
   // The same definition again drops the live connection, as a restart does: it still waits on the owner, and the
   // process left waiting on its page is ended, not kept for minutes.
   assert.equal(shop.running(), true);
   await env.client.call("mcp.set", { name: "store", server: shop.server });
-  for (let i = 0; i < 100 && shop.running(); i++) await new Promise((r) => setTimeout(r, 50));
+  await waitFor(() => !shop.running(), "the shop server stopped");
   assert.equal(shop.running(), false);
   await turn("find echo");
   const after = await statusOf("store");
@@ -124,7 +127,7 @@ test("waiting for a sign-in outlives the connection, and only the owner's Sign i
   assert.ok(server.sign_in_url);
   assert.equal(shop.opened(), 2);
   shop.signIn();
-  await until("store", "ready");
+  await becomes("store", "ready");
 });
 
 test("a test that runs into a sign-in hands its copy to agents instead of closing it", async () => {
@@ -134,7 +137,7 @@ test("a test that runs into a sign-in hands its copy to agents instead of closin
   assert.match(tested.error ?? "", /asked you to sign in/);
   assert.equal((await statusOf("market"))?.status, "needs-sign-in");
   shop.signIn();
-  await until("market", "ready");
+  await becomes("market", "ready");
   assert.equal(shop.opened(), 1);
 });
 

@@ -1,6 +1,6 @@
 // The core's ledger of the shared computer's screens: which agent's working run holds which screen, kept in settings so
 // a restart finds it, and swept of runs that are over. Each agent has one screen of its own (its Linux user and
-// display); how many run at once is capped by the VM's memory (DECISIONS.md#d-145).
+// display); how many run at once is capped by the VM's memory (DECISIONS.md#d-152).
 import { TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { conflict } from "../errors.ts";

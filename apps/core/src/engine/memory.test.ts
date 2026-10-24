@@ -6,9 +6,10 @@ import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { ftsQuery, looksSecret } from "../domain/memories.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { UNTRUSTED_MARK } from "../tools/result.ts";
 import { recallFor } from "./recall.ts";
-import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
+import { callTool, inputsOrEnd, say, scriptedLlm, startCore } from "./testkit.ts";
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 300)}`);
@@ -41,8 +42,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(repo, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(repo);
 });
 
 const lastInput = () => String(llm.calls.at(-1)?.messages.at(-1)?.content);
@@ -230,11 +231,10 @@ test("asked to let an agent forget a note, the owner reads what the note says, i
   try {
     const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
     await env.client.call("threads.send", { thread: t.id, text: `forget note ${note.id}` });
-    let inputs: Awaited<ReturnType<typeof env.client.call<"runs.pending">>>["inputs"] = [];
-    for (let i = 0; i < 100 && !inputs.length; i++) {
-      inputs = (await env.client.call("runs.pending", { thread: t.id })).inputs;
-      await new Promise((r) => setTimeout(r, 20));
-    }
+    const inputs: Awaited<ReturnType<typeof env.client.call<"runs.pending">>>["inputs"] = await inputsOrEnd(
+      env.client,
+      t.id,
+    );
     assert.equal(inputs[0]?.tool, "forget");
     assert.equal(inputs[0]?.detail, `Invoices to Acme go out on the 5th.\n(${note.id})`);
     await env.client.call("runs.respond", { input: inputs[0]?.id ?? "", decision: "deny" });

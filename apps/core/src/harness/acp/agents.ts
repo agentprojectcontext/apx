@@ -78,7 +78,8 @@ export type AcpSession = {
   currentModel: string | undefined;
   /** Picks a model by id; true when the agent accepted it. */
   setModel(id: string): Promise<boolean>;
-  close(): void;
+  /** Stops the agent's process tree; settles once it is gone. */
+  close(): Promise<void>;
 };
 
 type NewSessionResult = {
@@ -143,13 +144,13 @@ export async function openSession(
     },
   });
   const alive = () => child.exitCode === null && child.signalCode === null;
-  const close = () => {
+  const close = async () => {
     if (!alive() || !child.pid) return;
-    stopTree(child.pid, { alive });
+    await stopTree(child.pid, { alive });
   };
-  const stop = () => close();
+  const stop = () => void close();
   o.signal?.addEventListener("abort", stop, { once: true });
-  if (o.signal?.aborted) close();
+  if (o.signal?.aborted) void close();
   try {
     const init = await rpc.request<{ agentCapabilities?: { loadSession?: boolean } }>(
       "initialize",
@@ -206,12 +207,12 @@ export async function openSession(
       },
       close() {
         o.signal?.removeEventListener("abort", stop);
-        close();
+        return close();
       },
     };
   } catch (err) {
     o.signal?.removeEventListener("abort", stop);
-    close();
+    await close();
     throw err;
   }
 }

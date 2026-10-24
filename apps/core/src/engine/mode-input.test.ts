@@ -10,7 +10,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 /** What the model got for one owner message to the clerk: the turn's input and the system prompt. */
@@ -42,11 +42,9 @@ test("an agent is told its mode in each turn's input, and that APX asks the owne
 
 test("the agent is told to save confirmed approaches in its own words, and remember says how a note is written", async () => {
   const { system } = await seen("hello");
-  assert.match(
-    system,
-    /save reusable preferences, decisions and confirmed approaches with remember, in your own words/,
-  );
+  assert.match(system, /save reusable preferences, decisions and confirmed approaches with remember\./);
   const call = llm.calls.findLast((c) => String(c.messages.at(-1)?.content).includes("hello"));
   const remember = JSON.stringify(call?.tools?.find((t) => JSON.stringify(t).includes('"remember"')));
   assert.match(remember, /a Why only if stated, a How to apply only if supported/);
+  assert.match(remember, /in your own words/);
 });

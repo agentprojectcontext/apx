@@ -41,9 +41,12 @@ export function inlineName(name: string, max = 60): string {
 // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what is stripped.
 const oneLine = (text: string) => text.replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ");
 
-/** Marks text that came from outside (web, contacts, outside apps, widgets) as data, not instructions. */
+/**
+ * Marks text that came from outside (web, contacts, outside apps, widgets) as data, not instructions. Every `<` in it
+ * is escaped, so it cannot open any envelope of its own (a contact writing `<agent_message trust="team">`).
+ */
 export function untrusted(source: string, attrs: Record<string, string>, body: string): string {
-  return envelope(source, attrs, body, UNTRUSTED_MARK);
+  return envelope(source, attrs, body.replace(/</g, "&lt;"), UNTRUSTED_MARK);
 }
 
 /**

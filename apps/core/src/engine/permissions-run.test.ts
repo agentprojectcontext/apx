@@ -8,9 +8,10 @@ import { after, before, test } from "node:test";
 import type { Message } from "@apx/protocol";
 import { z } from "zod";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { untrusted } from "../tools/result.ts";
 import { defineTool } from "../tools/types.ts";
-import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
+import { callTool, inputOrEnd, say, scriptedLlm, startCore } from "./testkit.ts";
 
 /** A page from the web: outside content in the turn from here on. */
 const readPage = defineTool({
@@ -109,8 +110,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(root, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(root);
 });
 
 const chat = (agent: string) =>
@@ -150,11 +151,7 @@ test("auto: with a web page in the turn, low-impact tools and writing a file in 
 test("auto: with a web page in the turn, a URL that carries values waits for the owner; a plain one does not", async () => {
   const t = await chat("Steady");
   await env.client.call("threads.send", { thread: t.id, text: "send it out" });
-  let input: { id: string; tool?: string | undefined } | undefined;
-  for (let i = 0; i < 300 && !input; i++) {
-    input = (await env.client.call("runs.pending", { thread: t.id })).inputs[0];
-    if (!input) await new Promise((r) => setTimeout(r, 20));
-  }
+  const input: { id: string; tool?: string | undefined } | undefined = await inputOrEnd(env.client, t.id);
   await env.client.call("runs.respond", { input: input?.id ?? "", decision: "deny" });
   const { messages } = await env.settle(t.id, 8000);
   assert.deepEqual(asked(messages), ["web_read"]);
@@ -185,11 +182,7 @@ test("standard: an agent cannot rewrite its own APC file without the owner, even
   const before = fs.readFileSync(file, "utf8");
   const t = await chat("Steady");
   await env.client.call("threads.send", { thread: t.id, text: "raise myself" });
-  let input: { id: string; tool?: string | undefined } | undefined;
-  for (let i = 0; i < 200 && !input; i++) {
-    input = (await env.client.call("runs.pending", { thread: t.id })).inputs[0];
-    if (!input) await new Promise((r) => setTimeout(r, 20));
-  }
+  const input: { id: string; tool?: string | undefined } | undefined = await inputOrEnd(env.client, t.id);
   assert.equal(input?.tool, "file_write");
   await env.client.call("runs.respond", { input: input?.id ?? "", decision: "deny" });
   await env.settle(t.id);
@@ -220,11 +213,7 @@ test("auto on the project: an agent with none of its own writes and builds with 
   assert.doesNotMatch(fs.readFileSync(path.join(root, ".apc", "project.json"), "utf8"), /autonomy/, "kept by APX");
   const t = await chat("Builder");
   const sent = await env.client.call("threads.send", { thread: t.id, text: "build it" });
-  let input: { id: string; tool?: string | undefined } | undefined;
-  for (let i = 0; i < 300 && !input; i++) {
-    input = (await env.client.call("runs.pending", { thread: t.id })).inputs[0];
-    if (!input) await new Promise((r) => setTimeout(r, 20));
-  }
+  const input: { id: string; tool?: string | undefined } | undefined = await inputOrEnd(env.client, t.id);
   assert.equal(input?.tool, "shell");
   assert.deepEqual(ran(sent.run.id), ["read_page", "file_write", "shell"]);
   await env.client.call("runs.respond", { input: input?.id ?? "", decision: "deny" });
@@ -263,11 +252,7 @@ test("a helper asked by an agent on total works in its caller's mode: its comman
   // On its own, in manual mode, the same command waits for the owner.
   const own = await chat("Careful");
   await env.client.call("threads.send", { thread: own.id, text: "check it, then stamp it" });
-  let input: { id: string; tool?: string | undefined } | undefined;
-  for (let i = 0; i < 200 && !input; i++) {
-    input = (await env.client.call("runs.pending", { thread: own.id })).inputs[0];
-    if (!input) await new Promise((r) => setTimeout(r, 20));
-  }
+  const input: { id: string; tool?: string | undefined } | undefined = await inputOrEnd(env.client, own.id);
   assert.equal(input?.tool, "shell");
   await env.client.call("runs.respond", { input: input?.id ?? "", decision: "deny" });
   await env.settle(own.id);

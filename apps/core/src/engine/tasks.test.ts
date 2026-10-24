@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { realpath } from "../paths.ts";
+import { removeDir, waitFor } from "../testkit/platform.ts";
 import { mentioned } from "./office.ts";
 import { pickUpTasks } from "./task-work.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
@@ -91,8 +92,8 @@ before(async () => {
 after(async () => {
   releaseBridge();
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(repo, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(repo);
 });
 
 test("a task keeps its history: created, moved, assigned, done, reopened", async () => {
@@ -204,7 +205,7 @@ test("the owner writing in a task's conversation reaches its agent's working tur
     [t.thread_id, ...env.core.store.threads.byTask(t.id).map((s) => s.id)]
       .flatMap((id) => env.core.store.runs.list(id))
       .filter((r) => r.agent_id === "vera");
-  for (let i = 0; i < 200 && vera()[0]?.state !== "working"; i++) await new Promise((r) => setTimeout(r, 10));
+  await waitFor(() => vera()[0]?.state === "working", "Vera at work");
   const working = vera()[0];
   assert.equal(working?.state, "working");
   const sent = await env.client.call("threads.send", {
@@ -283,7 +284,7 @@ test("interrupting from a task stops the work chat's turn and starts one with th
     project,
     assignee: "vera",
   });
-  for (let i = 0; i < 200 && workRuns(t.id)[0]?.state !== "working"; i++) await new Promise((r) => setTimeout(r, 10));
+  await waitFor(() => workRuns(t.id)[0]?.state === "working", "the task at work");
   const working = workRuns(t.id)[0];
   assert.equal(working?.state, "working");
   const sent = await env.client.call("threads.send", {
@@ -489,7 +490,7 @@ test("an agent's tasks go to its thread's project and it sees no other project's
   await env.client.call("threads.send", { thread: t.id, text: "peek at the other projects" });
   await env.settle(t.id);
   assert.doesNotMatch(String(llm.calls.at(-1)?.messages.at(-1)?.content), /Globex only/);
-  fs.rmSync(p2, { recursive: true, force: true });
+  await removeDir(p2);
 });
 
 test("outside any project the super-agent sees every project's board, each task with its project and last activity", async () => {
@@ -537,7 +538,7 @@ test("an agent of one project is not assigned another project's task", async () 
     env.client.call("tasks.create", { title: "Elsewhere", project, assignee: milton.id }),
     (e: unknown) => e instanceof ApxError && /another project/.test(e.message),
   );
-  fs.rmSync(p2, { recursive: true, force: true });
+  await removeDir(p2);
 });
 
 test("long exact ids are mentioned whole and emails never summon an agent", () => {

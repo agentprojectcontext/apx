@@ -32,7 +32,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("saving an artifact's page with the file tools shows it, and editing it makes a new version", async () => {

@@ -4,19 +4,21 @@ import {
   AgentAvatar,
   DayDivider,
   EmptyState,
-  IconButton,
   Icons,
   Message,
+  StickyScroll,
+  type StickyScrollHandle,
   SystemNote,
   withMentions,
 } from "@apx/ui";
-import { lazy, type ReactNode, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, Suspense, useEffect, useMemo, useRef } from "react";
 import { ReactionList } from "../channels/MessageMarks.tsx";
 import { dayLabel, sameDay } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { blobOf, isWorking, routineName, threadAgent } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
+import { MediaGroup } from "../lazy.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
 import { MessageActions } from "./MessageActions.tsx";
@@ -27,27 +29,23 @@ import { NoticePart } from "./parts/NoticePart.tsx";
 import { quotedIndex, quoteParts, splitQuote } from "./quote.ts";
 import { Regenerate, UserMessage } from "./Rewind.tsx";
 
-// Pictures and videos load with the first message that has them, not with the chat.
-const MediaGroup = lazy(() => import("./parts/MediaGroup.tsx"));
-
 const EMPTY: Msg[] = [];
-/** Distance from the bottom (px) under which new content keeps the view pinned to the end. */
-const STICK_PX = 120;
 
-/** `comments`: a task's conversation, read as comments (no skill chips on the agents' answers). */
-export function Transcript({ thread, comments = false }: { thread: Thread; comments?: boolean }) {
+/**
+ * `comments`: a task's conversation, read as comments (no skill chips on the agents' answers). `via`: only what came
+ * on or went out on that channel (a channel's part of Home).
+ */
+export function Transcript({ thread, comments = false, via }: { thread: Thread; comments?: boolean; via?: string }) {
   const t = useT();
   const lang = useLanguage();
-  const messages = useData((s) => s.messages[thread.id] ?? EMPTY);
+  const all = useData((s) => s.messages[thread.id] ?? EMPTY);
+  const messages = useMemo(() => (via ? all.filter((m) => m.via === via) : all), [all, via]);
   const agents = useShownAgents();
   const engineLabel = useEngineLabel(thread.engine);
   const engine = thread.engine && engineLabel ? { id: thread.engine, label: engineLabel } : undefined;
   const showTools = useNav((s) => s.tools);
   const agent = threadAgent(thread, agents);
-  const scroller = useRef<HTMLDivElement>(null);
-  const content = useRef<HTMLDivElement>(null);
-  const stick = useRef(true);
-  const [away, setAway] = useState(false);
+  const scroll = useRef<StickyScrollHandle>(null);
   // Each answer says who gave it when more than one agent speaks here: a group, a sub-thread, a task, or a chat where
   // another agent's answer arrived (a delegation's result).
   const multiAgent = useMemo(
@@ -70,58 +68,19 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
     return out;
   }, [messages, lang]);
 
-  // Thread switch: jump to the end.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs per thread id on purpose
-  useLayoutEffect(() => {
-    stick.current = true;
-    setAway(false);
-    const el = scroller.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [thread.id]);
-
-  // New content: follow it only if the reader was already at the bottom.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-run when content changes
-  useLayoutEffect(() => {
-    const el = scroller.current;
-    if (el && stick.current) el.scrollTop = el.scrollHeight;
-  }, [messages, thread.state]);
-
-  // Late growth (widgets sizing themselves, images): stay pinned if the reader was at the end.
-  useEffect(() => {
-    const el = scroller.current;
-    const inner = content.current;
-    if (!el || !inner) return;
-    const ro = new ResizeObserver(() => {
-      if (stick.current) el.scrollTop = el.scrollHeight;
-    });
-    ro.observe(inner);
-    return () => ro.disconnect();
-  }, []);
-
   // A search result points at one message ("msg:<id>"): scroll to it once it is loaded, and light it for a moment.
   const focus = useNav((s) => s.focus);
   // biome-ignore lint/correctness/useExhaustiveDependencies: tried again as the thread's messages arrive
   useEffect(() => {
     if (!focus?.startsWith("msg:")) return;
-    const row = content.current?.querySelector<HTMLElement>(`[data-msg="${CSS.escape(focus.slice(4))}"]`);
+    const row = scroll.current?.content()?.querySelector<HTMLElement>(`[data-msg="${CSS.escape(focus.slice(4))}"]`);
     if (!row) return;
-    stick.current = false;
+    scroll.current?.release();
     nav.set({ focus: undefined });
     row.scrollIntoView({ block: "center" });
     row.classList.add("is-flash");
     row.addEventListener("animationend", () => row.classList.remove("is-flash"), { once: true });
   }, [focus, rows]);
-
-  const onScroll = () => {
-    const el = scroller.current;
-    if (!el) return;
-    stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX;
-    setAway(!stick.current);
-  };
-  const toBottom = () => {
-    const el = scroller.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  };
 
   // A reply's quote leads back to the message it was taken from.
   const texts = useMemo(() => messages.map(textOf), [messages]);
@@ -138,110 +97,102 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
   const reactionsOf = (m: Msg) =>
     m.reactions?.length ? <ReactionList list={m.reactions} agentName={agent?.name ?? ""} /> : undefined;
   return (
-    <div className="chat__scroll" ref={scroller} onScroll={onScroll}>
-      <div className="transcript" ref={content}>
-        {rows.length === 0 && !working && (
-          <EmptyState
-            icon={<Icons.MessageCircle />}
-            title={t("chat.with", { name: engineLabel ?? agent?.name ?? thread.title })}
-          >
-            {t("chat.startHint")}
-          </EmptyState>
-        )}
-        {rows.map(({ key, day, msg }) => (
-          <div key={key} className="transcript__row" data-msg={key}>
-            {day && <DayDivider label={day} />}
-            {thread.kind === "routine" && msg.author.kind === "user" && key === rows[0]?.key ? (
-              <RoutinePrompt name={routineName(thread)} text={textOf(msg)} />
-            ) : msg.author.kind === "user" ? (
-              <>
-                <UserMedia message={msg} from="user" />
-                <UserMessage
-                  thread={thread}
-                  message={msg}
-                  messages={messages}
-                  text={textOf(msg)}
+    <StickyScroll
+      ref={scroll}
+      resetKey={thread.id}
+      toBottomLabel={t("chat.toBottom")}
+      className="chat__scroll"
+      contentClassName="transcript"
+    >
+      {rows.length === 0 && !working && (
+        <EmptyState
+          icon={<Icons.MessageCircle />}
+          title={t("chat.with", { name: engineLabel ?? agent?.name ?? thread.title })}
+        >
+          {t("chat.startHint")}
+        </EmptyState>
+      )}
+      {rows.map(({ key, day, msg }) => (
+        <div key={key} className="transcript__row" data-msg={key}>
+          {day && <DayDivider label={day} />}
+          {thread.kind === "routine" && msg.author.kind === "user" && key === rows[0]?.key ? (
+            <RoutinePrompt name={routineName(thread)} text={textOf(msg)} />
+          ) : msg.author.kind === "user" ? (
+            <>
+              <UserMedia message={msg} from="user" />
+              <UserMessage
+                thread={thread}
+                message={msg}
+                messages={messages}
+                text={textOf(msg)}
+                reactions={reactionsOf(msg)}
+              >
+                <UserFiles message={msg} />
+                <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
+              </UserMessage>
+            </>
+          ) : msg.author.kind === "system" ? (
+            <SystemMessage message={msg} />
+          ) : msg.author.kind === "person" ? (
+            <>
+              {/* A sticker or a photo alone: what anyone put on it shows on the picture, there is no bubble. */}
+              <UserMedia
+                message={msg}
+                from="agent"
+                reactions={textOf(msg) || bubbleFiles(msg.parts).length > 0 ? undefined : reactionsOf(msg)}
+              />
+              {(textOf(msg) || bubbleFiles(msg.parts).length > 0) && (
+                <Message
+                  from="agent"
+                  variant="bubble"
+                  avatar={<AgentAvatar name={msg.author.name} size={24} />}
+                  meta={<span className="transcript__person">{msg.author.name}</span>}
                   reactions={reactionsOf(msg)}
+                  actions={<MessageActions thread={thread} message={msg} text={textOf(msg)} speechKey={msg.id} />}
                 >
                   <UserFiles message={msg} />
                   <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
-                </UserMessage>
-              </>
-            ) : msg.author.kind === "system" ? (
-              <SystemMessage message={msg} />
-            ) : msg.author.kind === "person" ? (
-              <>
-                {/* A sticker or a photo alone: what anyone put on it shows on the picture, there is no bubble. */}
-                <UserMedia
-                  message={msg}
-                  from="agent"
-                  reactions={textOf(msg) || bubbleFiles(msg.parts).length > 0 ? undefined : reactionsOf(msg)}
-                />
-                {(textOf(msg) || bubbleFiles(msg.parts).length > 0) && (
-                  <Message
-                    from="agent"
-                    variant="bubble"
-                    avatar={<AgentAvatar name={msg.author.name} size={24} />}
-                    meta={<span className="transcript__person">{msg.author.name}</span>}
-                    reactions={reactionsOf(msg)}
-                    actions={<MessageActions thread={thread} message={msg} text={textOf(msg)} speechKey={msg.id} />}
-                  >
-                    <UserFiles message={msg} />
-                    <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
-                  </Message>
-                )}
-              </>
-            ) : msg.author.kind === "surface" ? (
-              <SystemNote icon={<Icons.LayoutGrid size={12} />} className="transcript__fromsurface">
-                {t("chat.fromWidget")} <b>{msg.author.title}</b>: {textOf(msg)}
-              </SystemNote>
-            ) : (
-              <AgentTurn
-                thread={thread}
-                message={msg}
-                agent={agents[msg.author.id]}
-                showAvatar={multiAgent}
-                showTools={showTools}
-                showSkills={!comments}
-                engine={engine}
-                actions={<Regenerate thread={thread} message={msg} messages={messages} />}
-              />
-            )}
-          </div>
-        ))}
-        {working && (
-          <div className="transcript__activity">
-            <ActivityPill
-              tone="brand"
-              label={t("chat.agentWorking", { name: agent?.name ?? t("chat.theAgent") })}
-              from={agent && <AgentAvatar name={agent.name} blob={blobOf(agent)} size={22} />}
+                </Message>
+              )}
+            </>
+          ) : msg.author.kind === "surface" ? (
+            <SystemNote icon={<Icons.LayoutGrid size={12} />} className="transcript__fromsurface">
+              {t("chat.fromWidget")} <b>{msg.author.title}</b>: {textOf(msg)}
+            </SystemNote>
+          ) : (
+            <AgentTurn
+              thread={thread}
+              message={msg}
+              agent={agents[msg.author.id]}
+              showAvatar={multiAgent}
+              showTools={showTools}
+              showSkills={!comments}
+              engine={engine}
+              actions={<Regenerate thread={thread} message={msg} messages={messages} />}
             />
-          </div>
-        )}
-        {thread.state === "queued" && (
-          <div className="transcript__activity">
-            <ActivityPill label={t("chat.agentQueued", { name: agent?.name ?? t("chat.theAgent") })} />
-          </div>
-        )}
-        {thread.state === "input-required" && (
-          <div className="transcript__activity">
-            <ActivityPill tone="danger" label={t("chat.agentWaiting", { name: agent?.name ?? t("chat.theAgent") })} />
-          </div>
-        )}
-      </div>
-      {away && (
-        <div className="chat__tobottom">
-          <IconButton
-            label={t("chat.toBottom")}
-            tooltipSide="top"
-            icon={<Icons.ArrowDown size={16} />}
-            variant="secondary"
-            shape="circle"
-            onClick={toBottom}
+          )}
+        </div>
+      ))}
+      {working && (
+        <div className="transcript__activity">
+          <ActivityPill
+            tone="brand"
+            label={t("chat.agentWorking", { name: agent?.name ?? t("chat.theAgent") })}
+            from={agent && <AgentAvatar name={agent.name} blob={blobOf(agent)} size={22} />}
           />
         </div>
       )}
-    </div>
+      {thread.state === "queued" && (
+        <div className="transcript__activity">
+          <ActivityPill label={t("chat.agentQueued", { name: agent?.name ?? t("chat.theAgent") })} />
+        </div>
+      )}
+      {thread.state === "input-required" && (
+        <div className="transcript__activity">
+          <ActivityPill tone="danger" label={t("chat.agentWaiting", { name: agent?.name ?? t("chat.theAgent") })} />
+        </div>
+      )}
+    </StickyScroll>
   );
 }
 

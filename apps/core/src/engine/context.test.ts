@@ -162,6 +162,26 @@ test("an agent knows which APX it runs on, and a checkout reads as a development
   assert.match(prompt, /You run on APX 2\.1\.1 \(commit 75d71df\)/);
 });
 
+test("two chats and two releases share the prompt up to its last lines, so the provider caches one prefix", () => {
+  const agent = { id: "roby", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
+    typeof systemPrompt
+  >[0];
+  const of = (apx: string, scratch: string) =>
+    systemPrompt(agent, { kind: "loose" }, "es", undefined, "", "", undefined, apx, scratch);
+  const a = of("2.1.1 (commit 75d71df)", "/tmp/apx-scratch-1/thr_a");
+  const b = of("2.1.2 (commit 0123456)", "/tmp/apx-scratch-1/thr_b");
+  const shared = a.slice(
+    0,
+    [...a].findIndex((ch, i) => ch !== b[i]),
+  );
+  assert.ok(
+    shared.endsWith(
+      "Thread: chat.\n- Temporary files (downloads, scripts you try, intermediate output) go in your temp folder, /tmp/apx-scratch-1/thr_",
+    ),
+  );
+  assert.ok(shared.length > a.length - 600, `only the last lines differ (${a.length - shared.length} chars)`);
+});
+
 test("an agent can link places in the app, and hears that computer use is off only when a desktop app has it off", () => {
   const agent = { id: "roby", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
     typeof systemPrompt

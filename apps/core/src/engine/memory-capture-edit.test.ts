@@ -103,6 +103,6 @@ for (const scenario of ["manual-edit", "global-pending", "global-deleted", "owne
       }
     } finally {
       await env.core.close();
-      env.cleanup();
+      await env.cleanup();
     }
   });

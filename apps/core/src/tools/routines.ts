@@ -64,7 +64,7 @@ export function routineTools(store: Store): Tool[] {
     defineTool({
       name: "routine_set",
       description:
-        "Create a routine (name, prompt, one of cron/every_min/at) or change one (routine: id or name; only what you give changes; prompt replaces it whole: read it with routine_list). enabled: on/off; run_now: run it now, also on create or change. Make one call: each waits for the owner.",
+        "Create a routine (name, prompt, one of cron/every_min/at) or change one (routine: id or name; only what you give changes; prompt replaces it whole: read it with routine_list). enabled: on/off; run_now: run it now, also on create or change. Each change waits for the owner's OK, so make it one call.",
       args: z.object({
         routine: z.string().trim().min(1).max(120).optional().describe("omit to create one"),
         name: z.string().trim().min(1).max(120).optional(),

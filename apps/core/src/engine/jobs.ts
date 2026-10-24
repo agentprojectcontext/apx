@@ -23,7 +23,7 @@ const MAX_BACKGROUND_MS = 6 * 3600_000;
 export function createJobs(deps: { store: Store; home: string; log: Log; admit: AdmitFn }) {
   const { store, log } = deps;
   const dir = path.join(deps.home, "jobs");
-  const procs = new Map<string, { kill(): void; done: Promise<JobRecord> }>();
+  const procs = new Map<string, { kill(): Promise<void>; done: Promise<JobRecord> }>();
   const fileOf = (id: string) => path.join(dir, `${id}.log`);
 
   function read(id: string, offset?: number, max = 8000): { output: string; size: number; offset: number } {
@@ -105,11 +105,14 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
       const child = spawnCommand(o.command, { cwd: o.cwd, env, stdio: ["ignore", "pipe", "pipe"] });
       if (child.pid) {
         store.jobs.setPid(job.id, child.pid);
-        void processStart(child.pid).then((started) => {
-          try {
-            if (started) store.jobs.setProcStart(job.id, started);
-          } catch {}
-        });
+        void processStart(child.pid).then(
+          (started) => {
+            try {
+              if (started) store.jobs.setProcStart(job.id, started);
+            } catch {}
+          },
+          (err) => log.warn({ job: job.id, err: String(err) }, "job start time unknown: a restart will not stop it"),
+        );
       }
       child.stdout?.on("data", write);
       child.stderr?.on("data", write);
@@ -135,15 +138,15 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
         });
         child.on("close", (code) => end(killed ? "canceled" : code === 0 ? "completed" : "failed", code ?? undefined));
       });
-      const kill = () => {
+      const kill = async () => {
         killed = true;
-        if (child.pid) stopTree(child.pid, { alive: () => child.exitCode === null });
+        if (child.pid) await stopTree(child.pid, { alive: () => child.exitCode === null });
       };
       procs.set(job.id, { kill, done });
       if (o.background) {
         lifetime = setTimeout(() => {
           write(Buffer.from(`\n[stopped by APX after ${MAX_BACKGROUND_MS / 3600_000} h]\n`));
-          kill();
+          void kill();
         }, MAX_BACKGROUND_MS);
         lifetime.unref();
       }
@@ -153,7 +156,7 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
     cancel(id: string): boolean {
       const p = procs.get(id);
       if (!p) return false;
-      p.kill();
+      void p.kill();
       return true;
     },
 
@@ -167,8 +170,14 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
       for (const j of store.jobs.running()) {
         const { pid, proc_start: start } = j;
         if (pid && start) {
+          // Only a process proven to be the same is stopped; once proven, a probe that cannot tell still counts as it.
           const same = async () => (await processStart(pid)) === start;
-          void same().then((yes) => yes && stopTree(pid, { alive: same }));
+          void same().then(
+            async (yes) => {
+              if (yes) await stopTree(pid, { alive: () => same().catch(() => true) });
+            },
+            (err) => log.warn({ job: j.id, pid, err: String(err) }, "could not tell whether a cut job still runs"),
+          );
         }
         fs.appendFileSync(fileOf(j.id), "\n[stopped by a restart of APX]\n");
         store.jobs.finish(j.id, "failed");
@@ -177,10 +186,7 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
 
     /** Shutdown: every command still running is stopped. */
     stopAll(): Promise<unknown> {
-      const waits = [...procs.values()].map((p) => {
-        p.kill();
-        return p.done;
-      });
+      const waits = [...procs.values()].map((p) => Promise.all([p.kill(), p.done]));
       return Promise.allSettled(waits);
     },
   };

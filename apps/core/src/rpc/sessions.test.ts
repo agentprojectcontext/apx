@@ -6,6 +6,7 @@ import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import type { Harness, TurnIO } from "../harness/types.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 const seen: TurnIO[] = [];
 const claude: Harness = {
@@ -85,8 +86,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(repo, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(repo);
 });
 
 test("the owner's own sessions are listed, titled, without APX's own runs", async () => {

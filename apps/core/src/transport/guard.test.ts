@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { testConfig } from "../config.ts";
 import { createCore } from "../server.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 let core: Awaited<ReturnType<typeof createCore>>;
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-guard-"));
@@ -18,7 +19,7 @@ before(async () => {
 });
 after(async () => {
   await core.close();
-  for (const d of [home, dist, `${dist}-old`]) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of [home, dist, `${dist}-old`]) await removeDir(d);
 });
 
 const rpc = (headers: Record<string, string>, body = "{}") =>

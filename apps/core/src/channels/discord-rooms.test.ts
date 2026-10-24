@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { OWNER_ID } from "../domain/persons.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { canWrite, discordAdapter } from "./discord.ts";
 import { fakeDiscord } from "./fake-discord.test-support.ts";
 import { calledByName, roomDecision } from "./rooms.ts";
@@ -45,14 +46,6 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
 let env: Awaited<ReturnType<typeof startCore>>;
 let dc: Awaited<ReturnType<typeof fakeDiscord>>;
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 4000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 const posts = (room: string) => dc.messagesTo(room).map((m) => m.body);
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const roomThread = (room: string) => env.core.store.threads.byConversation("dc", room);
@@ -93,17 +86,17 @@ before(async () => {
     },
     token: TOKEN,
   });
-  await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+  await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
 });
 after(async () => {
   await env.core.close();
   await dc.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("with rooms the bot also reads servers; an unlisted room does not exist for it", async () => {
   // "running" can come a moment before the gateway's identify frame reaches the fake server.
-  await until(() => dc.identified.length > 0, "identified");
+  await waitFor(() => dc.identified.length > 0, "identified");
   assert.equal(dc.identified.at(-1)?.intents, (1 << 12) | (1 << 15) | (1 << 9));
   dc.message(ANA, "roby are you there?", { room: "9999" });
   await pause(200);
@@ -113,23 +106,23 @@ test("with rooms the bot also reads servers; an unlisted room does not exist for
 
 test("a mention room keeps everything and answers only when called: by name, @mention or a reply to it", async () => {
   dc.message(ANA, "anyone tried the beta?", { room: ROOMS.general });
-  await until(() => kept(ROOMS.general).length === 1, "kept");
+  await waitFor(() => kept(ROOMS.general).length === 1, "kept");
   await pause(150);
   assert.equal(posts(ROOMS.general).length, 0, "not called, not answered");
   assert.equal(roomThread(ROOMS.general)?.title, "#general");
 
   const asked = dc.message(BEN, "Roby, what is Acme Notes?", { room: ROOMS.general });
-  await until(() => posts(ROOMS.general).length === 1, "answered by name");
+  await waitFor(() => posts(ROOMS.general).length === 1, "answered by name");
   const reply = posts(ROOMS.general)[0];
   assert.deepEqual(reply?.message_reference, { message_id: asked, fail_if_not_exists: false }, "as a reply");
   assert.deepEqual(reply?.allowed_mentions, { parse: [] });
 
   dc.message(ANA, "and on Linux?", { room: ROOMS.general, mention: true });
-  await until(() => posts(ROOMS.general).length === 2, "answered by @mention");
+  await waitFor(() => posts(ROOMS.general).length === 2, "answered by @mention");
   assert.ok(kept(ROOMS.general).includes("and on Linux?"), "the bot's own @mention is dropped from the text");
   await pause(1100); // Ben's pause between answers
   dc.message(BEN, "thanks!", { room: ROOMS.general, replyToBot: true });
-  await until(() => posts(ROOMS.general).length === 3, "answered as a reply to it");
+  await waitFor(() => posts(ROOMS.general).length === 3, "answered as a reply to it");
 });
 
 test("a room's turn is sealed and public: the owner's notes, the rules last, the room's talk as data, no tools", async () => {
@@ -152,18 +145,18 @@ test("a room's turn is sealed and public: the owner's notes, the rules last, the
 
 test("read rooms never answer; always rooms answer everyone, within a pause per person", async () => {
   dc.message(ANA, "roby deploy failed again", { room: ROOMS.logs });
-  await until(() => kept(ROOMS.logs).length === 1, "kept in a read room");
+  await waitFor(() => kept(ROOMS.logs).length === 1, "kept in a read room");
   await pause(150);
   assert.equal(posts(ROOMS.logs).length, 0);
 
   dc.message(ANA, "how does sync work?", { room: ROOMS.help });
-  await until(() => posts(ROOMS.help).length === 1, "always answers");
+  await waitFor(() => posts(ROOMS.help).length === 1, "always answers");
   dc.message(ANA, "and offline?", { room: ROOMS.help });
   await pause(250);
   assert.equal(posts(ROOMS.help).length, 1, "the same person within the pause is kept, not answered");
   await pause(900);
   dc.message(ANA, "and on the phone?", { room: ROOMS.help });
-  await until(() => posts(ROOMS.help).length === 2, "after the pause it answers again");
+  await waitFor(() => posts(ROOMS.help).length === 2, "after the pause it answers again");
 });
 
 test("one person's quick messages get one answer, to the last of them", async () => {
@@ -172,7 +165,7 @@ test("one person's quick messages get one answer, to the last of them", async ()
   dc.message(BEN, "hi", { room: ROOMS.help });
   dc.message(BEN, "I have a question", { room: ROOMS.help });
   const last = dc.message(BEN, "can I export to PDF?", { room: ROOMS.help });
-  await until(() => posts(ROOMS.help).length === before_ + 1, "one answer");
+  await waitFor(() => posts(ROOMS.help).length === before_ + 1, "one answer");
   await pause(200);
   assert.equal(posts(ROOMS.help).length, before_ + 1);
   assert.deepEqual(posts(ROOMS.help).at(-1)?.message_reference, { message_id: last, fail_if_not_exists: false });
@@ -184,11 +177,11 @@ test("one person's quick messages get one answer, to the last of them", async ()
 
 test("a useful room asks the cheap model about uncalled messages and speaks only on its yes", async () => {
   dc.message(ANA, "lol nice", { room: ROOMS.ideas });
-  await until(() => kept(ROOMS.ideas).length === 1, "kept");
+  await waitFor(() => kept(ROOMS.ideas).length === 1, "kept");
   await pause(150);
   assert.equal(posts(ROOMS.ideas).length, 0, "the judge said no");
   dc.message(BEN, "how do I install it on a Mac?", { room: ROOMS.ideas });
-  await until(() => posts(ROOMS.ideas).length === 1, "the judge said yes");
+  await waitFor(() => posts(ROOMS.ideas).length === 1, "the judge said yes");
   // Both questions to the cheap model are counted, as the room's filter.
   const { aux } = await env.client.call("usage.summary", {});
   const room = aux.find((a) => a.purpose === "room");
@@ -202,7 +195,7 @@ test("owner only: in rooms only the owner gets answers", async () => {
       id: "dc",
       channel: { type: "discord", agent_id: "roby", rooms: { ...(cur?.rooms ?? { rooms: [] }), owner_only } },
     });
-    await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "up");
+    await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "up");
   };
   await set(true);
   await pause(1100);
@@ -211,7 +204,7 @@ test("owner only: in rooms only the owner gets answers", async () => {
   await pause(250);
   assert.equal(posts(ROOMS.help).length, n);
   dc.message(OWNER, "roby, status?", { room: ROOMS.help });
-  await until(() => posts(ROOMS.help).length === n + 1, "the owner is answered");
+  await waitFor(() => posts(ROOMS.help).length === n + 1, "the owner is answered");
   const call = llm.calls.at(-1);
   assert.match(String(call?.messages.at(-1)?.content), /<room_message from="[^"]*" owner="yes"/);
   // The owner too gets a sealed turn in a public room: by default only the web, to look things up when they ask.
@@ -227,13 +220,13 @@ test("research: none for members by default; off closes it to the owner too, eve
       id: "dc",
       channel: { type: "discord", agent_id: "roby", rooms: cur?.rooms ?? { rooms: [] }, research: level },
     });
-    await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "up");
+    await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "up");
   };
   const toolsFor = async (who: { id: string; name: string }, text: string) => {
     await pause(1100);
     const n = posts(ROOMS.help).length;
     dc.message(who, text, { room: ROOMS.help });
-    await until(() => posts(ROOMS.help).length === n + 1, `answered: ${text}`);
+    await waitFor(() => posts(ROOMS.help).length === n + 1, `answered: ${text}`);
     const call = llm.calls.findLast((c) => String(c.messages.at(-1)?.content).includes(text));
     return (call?.tools ?? []).map((t) => t.function.name).sort();
   };
@@ -274,7 +267,7 @@ test("the owner's agent posts in a room when asked, even a read room, with no pi
   // Before anything from outside is in the chat: a room's talk in context makes the next send ask first.
   await env.client.call("threads.send", { thread: "home", text: "post the release note in logs" });
   await env.settle("home");
-  await until(() => posts(ROOMS.logs).length === 1, "posted in #logs");
+  await waitFor(() => posts(ROOMS.logs).length === 1, "posted in #logs");
   assert.equal(posts(ROOMS.logs)[0]?.content, "v2.1 is out @\u200beveryone");
   assert.ok(kept(ROOMS.logs).includes("v2.1 is out @\u200beveryone"), "kept in the room's chat");
   assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /sent to #logs on Discord/);
@@ -286,7 +279,7 @@ test("the owner's agent posts in a room when asked, even a read room, with no pi
   await env.client.call("threads.send", { thread: "home", text: "announce the beta in ideas" });
   // The room's talk the last post returned is in context: this send asks first.
   const asked = async () => (await env.client.call("runs.pending", { thread: "home" })).inputs[0];
-  await until(async () => Boolean(await asked()), "asked");
+  await waitFor(async () => Boolean(await asked()), "asked");
   await env.client.call("runs.respond", { input: (await asked())?.id ?? "", decision: "approve" });
   await env.settle("home");
   assert.match(
@@ -298,13 +291,13 @@ test("the owner's agent posts in a room when asked, even a read room, with no pi
 test("from the app the owner tells the agent what to post in a room: it goes out there, pinging only who it names", async () => {
   // Someone else's @mention reads as their @username, and makes them someone the room's answers can mention.
   dc.message(OWNER, "<@222> could you look at the issues?", { room: ROOMS.logs, mentions: [ANA] });
-  await until(() => kept(ROOMS.logs).includes("@ana could you look at the issues?"), "kept with the username");
+  await waitFor(() => kept(ROOMS.logs).includes("@ana could you look at the issues?"), "kept with the username");
   const room = roomThread(ROOMS.logs);
   assert.ok(room);
   const n = posts(ROOMS.logs).length;
   await env.client.call("threads.send", { thread: room.id, text: "thank ana for the issues" });
   await env.settle(room.id);
-  await until(() => posts(ROOMS.logs).length === n + 1, "posted in the room, not answered in the app");
+  await waitFor(() => posts(ROOMS.logs).length === n + 1, "posted in the room, not answered in the app");
   const post = posts(ROOMS.logs).at(-1);
   assert.equal(post?.content, "Thanks <@222> for the issues, and @nobody too!");
   assert.deepEqual(post?.allowed_mentions, { parse: [], users: ["222"] });
@@ -317,7 +310,7 @@ test("from the app the owner tells the agent what to post in a room: it goes out
 
   // "I'll write": the owner's words go out as they are, through the bot, with the same mentions.
   await env.client.call("channels.send", { thread: room.id, text: "@ana see you at the release" });
-  await until(() => posts(ROOMS.logs).length === n + 2, "posted as is");
+  await waitFor(() => posts(ROOMS.logs).length === n + 2, "posted as is");
   assert.equal(posts(ROOMS.logs).at(-1)?.content, "<@222> see you at the release");
 
   // The next turn reads the room's talk (the owner's words said there included) apart from their words from the app.
@@ -335,10 +328,10 @@ test("a member's turn in a room pings nobody, even someone who wrote there", asy
   await pause(1100);
   const n = posts(ROOMS.help).length;
   dc.message(ANA, "hello all", { room: ROOMS.help });
-  await until(() => posts(ROOMS.help).length === n + 1, "Ana answered");
+  await waitFor(() => posts(ROOMS.help).length === n + 1, "Ana answered");
   await pause(1100);
   dc.message(BEN, "roby greet ana please", { room: ROOMS.help });
-  await until(() => posts(ROOMS.help).length === n + 2, "Ben answered");
+  await waitFor(() => posts(ROOMS.help).length === n + 2, "Ben answered");
   assert.equal(posts(ROOMS.help).at(-1)?.content, "Hi @ana!");
   assert.deepEqual(posts(ROOMS.help).at(-1)?.allowed_mentions, { parse: [] });
 });

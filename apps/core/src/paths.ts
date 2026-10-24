@@ -15,7 +15,7 @@ export function realpath(p: string): string {
 
 /** A path under the user's home as "~/…", the way the panel shows it; any other path as it is. */
 export function tildeHome(p: string, home = os.homedir()): string {
-  return p === home || p.startsWith(`${home}${path.sep}`) ? `~${p.slice(home.length)}` : p;
+  return path.isAbsolute(p) && isInside(home, p) ? `~${p.slice(home.length)}` : p;
 }
 
 /** "~/…" back to the user's home; any other path as it is. */
@@ -23,12 +23,29 @@ export function expandHome(p: string, home = os.homedir()): string {
   return /^~(?=$|[/\\])/.test(p) ? path.join(home, p.slice(1)) : p;
 }
 
+// Windows paths name the same file in any case.
+const fold = (x: string) => (process.platform === "win32" ? x.toLowerCase() : x);
+
 export function isInside(root: string, p: string): boolean {
-  // Windows paths name the same file in any case.
-  const fold = (x: string) => (process.platform === "win32" ? x.toLowerCase() : x);
   const r = fold(path.resolve(root));
   const target = fold(path.resolve(path.resolve(root), p));
   return target === r || target.startsWith(r.endsWith(path.sep) ? r : `${r}${path.sep}`);
+}
+
+/** Whether two paths name the same place as written (resolved, any case on Windows); `real` first for links. */
+export function samePath(a: string, b: string): boolean {
+  return fold(path.resolve(a)) === fold(path.resolve(b));
+}
+
+/**
+ * `p` relative to `root`, with `/`, when it is inside it; for paths a command or a log wrote on either system (`\\` or
+ * `/`, a drive letter in any case), so it never touches the disk.
+ */
+export function relativeWritten(root: string, p: string): string | undefined {
+  const r = root.replace(/\\/g, "/").replace(/\/+$/, "");
+  const n = p.replace(/\\/g, "/");
+  const key = (x: string) => (/^[a-z]:\//i.test(r) ? x.toLowerCase() : x);
+  return r && key(n).startsWith(`${key(r)}/`) ? n.slice(r.length + 1) : undefined;
 }
 
 /** The real location of a path that may not exist yet: its nearest existing ancestor resolved, the rest appended. */

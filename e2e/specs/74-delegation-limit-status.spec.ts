@@ -126,6 +126,6 @@ test("a limit notice follows live work, continues only a stopped session, and st
     // Detach the browser before stopping its server so reconnects cannot race fixture cleanup.
     await page.goto("about:blank");
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

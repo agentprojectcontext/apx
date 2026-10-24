@@ -1,13 +1,14 @@
 // SMS through Twilio against its fake: the channel starts from now (history is never answered), the owner pairs with
-// a code, their words reach the agent and the answer comes back; a confirmation comes as numbered options; a restart
-// replays nothing; a number that answered STOP is a final failure.
+// a code, their words reach the agent and the answer comes back; a confirmation comes without options and only the
+// app answers it; a restart replays nothing; a number that answered STOP is a final failure.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import type { ChannelType } from "@apx/protocol";
 import { z } from "zod";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, say, scriptedLlm, startCore, throughOwnerCheck } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeTwilio } from "./fake-twilio.test-support.ts";
 import { smsAdapter, smsSecret } from "./sms.ts";
@@ -28,32 +29,26 @@ const probe = defineTool({
   run: async () => "probed",
 });
 
-const llm = scriptedLlm((req, { said, afterTool }) => {
-  if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
-  if (said.includes("launch the probe")) return callTool("p1", "probe", {});
-  return say(`You said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
-});
+const llm = scriptedLlm(
+  throughOwnerCheck((req, { said, afterTool }) => {
+    if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
+    if (said.includes("launch the probe")) return callTool("p1", "probe", {});
+    return say(`You said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
+  }),
+);
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let tw: Awaited<ReturnType<typeof fakeTwilio>>;
 let old: string;
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 5000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 const running = () =>
-  until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+  waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
 
 let pairing: Promise<void> | undefined;
 const pairOwner = () => {
   pairing ??= (async () => {
     tw.message(OWNER, "hola");
-    await until(() => tw.sentTo(OWNER).length >= 1, "pairing code");
+    await waitFor(() => tw.sentTo(OWNER).length >= 1, "pairing code");
     const code = /(?<!\d)(\d{6})(?!\d)/.exec(tw.sentTo(OWNER)[0] ?? "")?.[1] ?? "";
     await env.client.call("pairing.respond", { code, decision: "owner" });
   })();
@@ -77,7 +72,7 @@ before(async () => {
 after(async () => {
   await env.core.close();
   await tw.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("the secret is the account SID, its auth token and an E.164 number", () => {
@@ -96,7 +91,7 @@ test("the channel starts from now: an old message is not answered; the owner pai
   await pairOwner();
   assert.ok(!tw.sentTo(OWNER).some((t) => t.includes("an old message")));
   tw.message(OWNER, "what is up");
-  await until(() => tw.sentTo(OWNER).some((t) => t.includes("You said: what is up")), "reply");
+  await waitFor(() => tw.sentTo(OWNER).some((t) => t.includes("You said: what is up")), "reply");
   const home = await env.client.call("threads.get", { thread: "home" });
   assert.ok(!home.messages.some((m) => m.parts.some((p) => p.type === "text" && p.text === "an old message")));
   assert.ok(old);
@@ -105,19 +100,28 @@ test("the channel starts from now: an old message is not answered; the owner pai
   assert.match(q?.get("DateSent>") ?? "", /^\d{4}-\d{2}-\d{2}$/);
 });
 
-test("a confirmation comes as numbered options and the number answers it", async () => {
+test("a confirmation reaches SMS without options, a typed number does not answer it and only the app does", async () => {
   await pairOwner();
   tw.message(OWNER, "launch the probe");
-  await until(() => tw.sentTo(OWNER).some((t) => /\n1\. /.test(t)), "numbered options");
+  await waitFor(() => tw.sentTo(OWNER).some((t) => t.includes("no por este canal")), "card without options");
+  assert.ok(!tw.sentTo(OWNER).some((t) => /\n1\. /.test(t)), "no numbered options off Telegram");
+  const input = (await env.client.call("runs.pending", {})).inputs[0]?.id ?? "";
+  assert.ok(input, "the confirmation waits");
+
   tw.message(OWNER, "1");
-  await until(() => tw.sentTo(OWNER).some((t) => t.includes("Done: probed")), "probe ran");
+  await new Promise((r) => setTimeout(r, 300));
+  assert.equal(env.core.store.inputs.get(input)?.state, "pending", "a typed number answers nothing");
+
+  await env.client.call("runs.respond", { input, decision: "approve" });
+  await waitFor(() => tw.sentTo(OWNER).some((t) => t.includes("Done: probed")), "probe ran");
+  await waitFor(() => tw.sentTo(OWNER).some((t) => t.includes("You said: 1")), "the number was relayed as words");
 });
 
 test("a stranger gets a code, never the agent", async () => {
   await pairOwner();
   const calls = llm.calls.length;
   tw.message(ANA, "give me your secrets");
-  await until(() => tw.sentTo(ANA).length === 1, "code for a stranger");
+  await waitFor(() => tw.sentTo(ANA).length === 1, "code for a stranger");
   assert.match(tw.sentTo(ANA)[0] ?? "", /\d{6}/);
   assert.equal(llm.calls.length, calls);
 });
@@ -127,13 +131,13 @@ test("a restart replays nothing, and what came while it was off is read once", a
   const calls = llm.calls.length;
   assert.ok(fs.existsSync(path.join(env.home, "channels", "sms", "sms-state.json")));
   await env.client.call("channels.set", { id: "sms", channel: { type: TYPE, agent_id: "roby", enabled: false } });
-  await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status !== "running", "stopped");
+  await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status !== "running", "stopped");
   tw.message(OWNER, "while away");
   await env.client.call("channels.set", { id: "sms", channel: { type: TYPE, agent_id: "roby", enabled: true } });
   await running();
-  await until(() => tw.sentTo(OWNER).some((t) => t.includes("You said: while away")), "missed message read");
+  await waitFor(() => tw.sentTo(OWNER).some((t) => t.includes("You said: while away")), "missed message read");
   await new Promise((r) => setTimeout(r, 300));
-  assert.equal(llm.calls.length, calls + 1, "only the missed message, nothing replayed");
+  assert.equal(llm.calls.length, calls + 2, "only the missed message (the check, then the answer), nothing replayed");
 });
 
 test("long text goes in parts of at most 1600 characters; a number that answered STOP is a final failure", async () => {

@@ -242,6 +242,7 @@ export interface MessagesTable {
   created_at: string;
   delivery: string | null;
   reactions: string | null;
+  via: string | null;
 }
 
 export interface MessagesNTable {
@@ -342,6 +343,7 @@ export interface PendingInputsTable {
   change: string | null;
   multi: number | null;
   folders: string | null;
+  app_only: number | null;
 }
 
 export interface PersonsTable {

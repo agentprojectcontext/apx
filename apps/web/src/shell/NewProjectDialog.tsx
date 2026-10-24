@@ -6,7 +6,7 @@ import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { createProject } from "../data/setup.ts";
 import { useT } from "../i18n/index.ts";
-import { kindOptions, NO_KIND } from "../project/ProjectSettings.tsx";
+import { kindOptions, NO_KIND } from "../project/projectKind.ts";
 import { go } from "./nav.ts";
 
 type Where = "folder" | "apx" | "import";

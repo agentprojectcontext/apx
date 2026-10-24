@@ -9,7 +9,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("the owner adds a provider from the app: its key is stored, never returned, and its models are usable", async () => {
@@ -104,6 +104,6 @@ test("built-in providers keep their brand's name and kind, even saved back as an
     assert.equal(openai?.enabled, false);
   } finally {
     await own.core.close();
-    own.cleanup();
+    await own.cleanup();
   }
 });

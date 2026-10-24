@@ -4,6 +4,7 @@ import { z } from "zod";
 import { memoryEligibleChat } from "../domain/chat-access.ts";
 import { supportMemoryClaims } from "../engine/memory-testkit.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { telegramAdapter } from "./telegram.ts";
@@ -42,28 +43,20 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let tg: Awaited<ReturnType<typeof fakeTelegram>>;
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 5000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 const pair = async (who: { id: number; name: string }, decision: "owner" | "contact") => {
   const before = tg.messagesTo(who.id).length;
   tg.message(who, "hola");
-  await until(() => tg.messagesTo(who.id).length > before, "a pairing code");
+  await waitFor(() => tg.messagesTo(who.id).length > before, "a pairing code");
   const code = /(\d{6})/.exec(String(tg.messagesTo(who.id).at(-1)?.body.text))?.[1] ?? "";
   await env.client.call("pairing.respond", { code, decision });
 };
 /** Sends as `who` and waits for an answer to reach them. */
 const say_ = async (who: { id: number; name: string }, text: string, answer: RegExp) => {
   tg.message(who, text);
-  await until(() => tg.messagesTo(who.id).some((m) => answer.test(String(m.body.text))), `an answer to ${text}`);
+  await waitFor(() => tg.messagesTo(who.id).some((m) => answer.test(String(m.body.text))), `an answer to ${text}`);
 };
 const settleJobs = () =>
-  until(async () => {
+  waitFor(async () => {
     const { jobs } = await env.client.call("memory.status", {});
     if (jobs.some((j) => j.state === "failed")) assert.fail(JSON.stringify(jobs));
     return jobs.every((j) => j.state === "completed");
@@ -98,7 +91,7 @@ before(async () => {
 after(async () => {
   await env.core.close();
   await tg.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("an owner correction on Telegram becomes a note in the agent's words, quoting the message", async () => {
@@ -119,7 +112,7 @@ test("a download asked on Telegram and confirmed with a closing word leaves a pr
   const before = runs().length;
   tg.message(OWNER, "Buenísimo");
   // A closing word starts no turn; memory still hears it.
-  await until(async () => (await notes()).some((m) => m.kind === "procedure"), "the procedure note");
+  await waitFor(async () => (await notes()).some((m) => m.kind === "procedure"), "the procedure note");
   assert.equal(runs().length, before, "the closer got no turn of its own");
   const note = (await notes()).find((m) => m.kind === "procedure");
   assert.equal(note?.evidence?.[0]?.quote, REQUEST);

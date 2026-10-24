@@ -9,9 +9,9 @@ messages or spends money on the owner's behalf).
 | Language | TypeScript strict, `erasableSyntaxOnly`, `noUncheckedIndexedAccess`, TS 7 compiler |
 | Package manager | pnpm 11 workspaces (`apps/*`, `packages/*`), one lockfile |
 | Surfaces | core (daemon), terminal (CLI), web (React 19 + Vite 8), desktop (Electron), mobile (Expo, Android), docs (Astro) |
-| Contract | `packages/protocol` (zod) — HTTP `/rpc/<method>` + WS frames |
+| Contract | `packages/protocol` (zod) — HTTP `/rpc/<method>` + WS frames; platforms' webhooks reach a listener of their own outside it (`apps/core/src/transport/hooks.ts`, [D-139](DECISIONS.md#d-139)) |
 | Persistence | SQLite (`node:sqlite`, WAL) in `~/.apx/v2/apx.db`; append-only migrations in `apps/core/src/db/migrations.ts` |
-| Auth | loopback by default; browser origins limited to the panel's own (`transport/guard.ts`); `APX_TOKEN` required off-loopback (HTTP header or WS `?token=`); a paired device (`apx pair`, `devices.*`) carries its own token, which passes like the core's |
+| Auth | loopback by default; browser origins limited to the panel's own (`transport/guard.ts`); `APX_TOKEN` required off-loopback (HTTP header or WS `?token=`); a paired device (`apx pair`, `devices.*`) carries its own token, which passes like the core's; the webhook listener (`transport/hooks.ts`) takes no token: each channel adapter's `webhook()` verifies its platform's signature (Teams' Bot Framework JWT, LINE's HMAC) over the bytes as they came |
 | Agentic surfaces | harnesses: our own tool loop over providers (OpenAI-compatible, Anthropic Messages, ChatGPT plan), Claude Code, Codex and ACP agents; browser and computer tools via the desktop node; widgets (sandboxed iframes); delegation between agents (a2a sub-threads) |
 | Tests | `node:test` (packages, `scripts/`, mobile logic), Jest Expo + React Native Testing Library (mounted mobile hooks/screens), Playwright (`e2e/`, web and desktop) |
 | Lint / format | Biome 2 |
@@ -23,9 +23,9 @@ messages or spends money on the owner's behalf).
 | Gate | Command | Enforces |
 |---|---|---|
 | Typecheck | `pnpm typecheck` | Contract types across all clients; erasable TS only (rule 5) |
-| Lint | `pnpm lint` | Biome recommended + no `console` outside CLI/scripts, `import type`, no `!` assertions; dependency direction (rule 4: `domain` never imports `transport`/`rpc`/`channels`, `rpc` never imports `transport`, `packages/*` never import `apps/*`) |
+| Lint | `pnpm lint` | Biome recommended + no `console` outside CLI/scripts, `import type`, no `!` assertions; dependency direction (rule 4: `domain` never imports `transport`/`rpc`/`channels`, `rpc` never imports `transport`, `packages/*` never import `apps/*`); the panel's first screen never imports a late-loaded module (rule 27) |
 | Tests | `pnpm test` | Router, idempotency, safe bind, HTTP ≡ WS, origin/token gate, static path safety, agent runs (streaming, cancel, interrupted turns), delegation (sync + async wake-up), artifacts isolation, node routing, cookie mapping/decryption; prompt budget (rule 23: a default turn's system prompt and tools within [`PROMPT_SIZE.md`](PROMPT_SIZE.md)) |
-| Test quality | `pnpm check:tests` | AST checks for disabled/exclusive/empty tests, literal-only assertions and unobserved Node/Jest promise assertions; does not establish behavioral coverage (rule 24) |
+| Test quality | `pnpm check:tests` | AST checks for disabled/exclusive/empty tests, literal-only assertions and unobserved Node/Jest promise assertions; portability (rule 26: real-time windows, counted waits, raw temp folders and removal, path prefixes, `process.exit`), with an allowlist that only shrinks; does not establish behavioral coverage (rule 24) |
 | Execution coverage | `pnpm test:coverage:all` | Unit, mounted mobile, browser and desktop suites must pass; repository build mappings must be present, including intermediate library maps. Reports include unexecuted functions; only `pnpm test:coverage:all:strict` also fails on remaining execution gaps |
 | Private data | `pnpm check:private` | Rule 17 — local denylist (never committed) + public shapes (phone numbers, `/Users`/`/Volumes` paths); `pnpm check:commits` runs it over commit messages and authors |
 | Schema | `pnpm check:schema` | `db/schema.ts` (the typed queries' tables) matches the migrations |
@@ -43,7 +43,13 @@ override is closed — see [`DECISIONS.md#d-005`](DECISIONS.md#d-005)).
 
 - Anything in `packages/protocol/src/frames.ts` or a method's params/result (breaks every client).
 - `apps/core/src/config.ts` bind/token logic and any auth code.
+- The webhook listener (`apps/core/src/transport/hooks.ts`) and each channel adapter's `webhook()` verification: they
+  take requests from the internet once a public address is on.
 - The embedded browser: profiles, cookie import, CDP control, take-control handoff.
 - Tools with side effects (send, pay, shell, filesystem writes) and anything that lets model output trigger them.
+- A tool that acts as the owner (`callAsOwner`): where it sits in `tools/settings-reach.ts` (`ownerSetting`,
+  `keepsCard`, `TOTAL_SKIPS`) decides whether Total skips its card ([D-143](DECISIONS.md#d-143)).
+- Who counts as the owner on a channel and where an owner card may be answered: `channels/inbound.ts`,
+  `engine/owner-relay.ts`, `OWNER_ACTS_ON`, `app_only` inputs ([D-144](DECISIONS.md#d-144)).
 - Harness integrations touching the user's Claude/Codex logins (never read or copy their tokens).
 - Anything that could make v2 read or write v1's home (`~/.apx`).

@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Part } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
+import { isInside } from "../paths.ts";
 import { saveUpload } from "../services/uploads.ts";
 import { codexState } from "./codex-state.ts";
 import { type NativeFile, type NativeItem, sessionFile, sessionItems, writtenPages } from "./native-read.ts";
@@ -27,7 +28,7 @@ type Done = { thread: string; items: number; made?: boolean };
 type Where = { home: string; thread: string; project_id: string | undefined; owner: string };
 
 /** Whether `dir` is `root` or inside it. */
-const within = (dir: string, root: string) => dir === root || dir.startsWith(`${root}${path.sep}`);
+const within = (dir: string, root: string) => path.isAbsolute(dir) && isInside(root, dir);
 
 /**
  * The engine's work on this machine grouped by project, newest first: Codex's own projects when its app keeps them,

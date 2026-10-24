@@ -2,7 +2,14 @@
 // contact's sealed thread, or a pairing code for a stranger. Button presses decide only when the owner presses them.
 
 import { type Thread, UPLOAD_LIMITS } from "@apx/protocol";
-import type { Inbound, InboundAction, InboundReaction, OutboxRow, Presentation } from "../domain/channels.ts";
+import {
+  type Inbound,
+  type InboundAction,
+  type InboundReaction,
+  type OutboxRow,
+  ownerActsOn,
+  type Presentation,
+} from "../domain/channels.ts";
 import { type MediaRecord, partOfMedia } from "../domain/media.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
@@ -15,7 +22,7 @@ import { newsAction } from "../news/entries.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
-import { untrusted } from "../tools/result.ts";
+import { inlineName, untrusted } from "../tools/result.ts";
 import { asksSomething, asksToStop, needsNoAnswer, reactionFor } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
 import { type Held, waitsForHours } from "./held.ts";
@@ -105,6 +112,8 @@ export function createInbound(deps: {
     if (!person) return stranger(cfg, m, rowId);
     if (person.role === "blocked") return "ignored";
     const owner = person.role === "owner";
+    // Where the platform cannot vouch for the owner, their words only reach the super-agent to check: they answer and approve nothing here.
+    const direct = owner && ownerActsOn(cfg.type);
     const thread = owner ? ownerThread(cfg, m.conversation) : contactThread(cfg, m.conversation, person);
     // A supervised contact costs a draft, not an answer: suggestions.ts keeps its own hourly cap.
     const supervised = !owner && !person.muted && person.supervised;
@@ -145,7 +154,9 @@ export function createInbound(deps: {
       // A sticker is kept for good the moment it arrives, and read as what it means (a silenced contact's unnamed).
       if (file.sticker) {
         const s = await deps.stickers.keep(cfg.type, file, thread.id, owner || !person.muted);
-        text = `${text}\n[sticker${s?.adult ? " (18+)" : ""}${s?.meaning ? `: ${s.meaning}` : ""}]`.trim();
+        const said = `[sticker${s?.adult ? " (18+)" : ""}${s?.meaning ? `: ${inlineName(s.meaning, 160)}` : ""}]`;
+        // A model wrote its meaning from a picture someone sent: outside text, even in the owner's turn.
+        text = `${text}\n${s?.meaning ? untrusted("sticker", { named_by: "a model that saw it" }, said) : said}`.trim();
       }
     }
     // A silenced contact keeps its files without transcription, a model call or a work-folder copy.
@@ -173,7 +184,7 @@ export function createInbound(deps: {
     }
     // After "I'll answer" on a draft, even an "ok" is the owner's answer to that contact.
     if (
-      owner &&
+      direct &&
       !attachments.length &&
       !m.voice &&
       text.trim() &&
@@ -181,8 +192,8 @@ export function createInbound(deps: {
     )
       return "done";
     if (!attachments.length && closesChat(thread.id, text)) {
-      const kept = keepQuiet(thread.id, cfg.id, owner ? undefined : person, text.trim());
-      if (owner) deps.ownerReplied?.(kept);
+      const kept = keepQuiet(thread.id, cfg.id, direct ? undefined : person, text.trim());
+      if (direct) deps.ownerReplied?.(kept);
       theirLast(thread.id, cfg.id, m, kept);
       const emoji = cfg.closers === "react" ? reactionFor(text) : undefined;
       if (emoji && (await deps.react(cfg.id, m.conversation, m.ref ?? m.external_id, emoji).catch(() => false)))
@@ -204,7 +215,7 @@ export function createInbound(deps: {
       return "done";
     }
     if (
-      owner &&
+      direct &&
       !m.files?.length &&
       (await answerPending(thread.id, text, rowId, { channel: cfg.id, conversation: m.conversation }))
     )
@@ -231,6 +242,12 @@ export function createInbound(deps: {
     );
     theirLast(thread.id, cfg.id, m, sent.message.id);
     return "done";
+  }
+
+  /** The owner as a channel call names them: the router then knows the answer came on a channel. */
+  function asOwner(at: { channel: string; conversation: string }) {
+    const name = store.persons.get(OWNER_ID)?.name ?? "owner";
+    return { id: at.channel, conversation: at.conversation, person_id: OWNER_ID, name, role: "owner" as const };
   }
 
   /** Tells the owner what an unreviewed contact wrote, with the choice to answer them or stop the reports. */
@@ -429,6 +446,7 @@ export function createInbound(deps: {
       const kept = store.messages.add({
         thread_id: threadId,
         author: person ? { kind: "person", id: person.id, name: person.name, channel } : { kind: "user" },
+        via: channel,
         parts: [
           { type: "text", text },
           ...attachments.flatMap((id) => {
@@ -541,7 +559,12 @@ export function createInbound(deps: {
       store.runs.setReplyTo(question.run_id, to);
     }
     deps.answeredHere(question.id, to, "text");
-    await call("runs.respond", { input: question.id, text: words }, { actor: "human" }, `channel:${rowId}:respond`);
+    await call(
+      "runs.respond",
+      { input: question.id, text: words },
+      { actor: "human", channel: asOwner(to) },
+      `channel:${rowId}:respond`,
+    );
     return true;
   }
 
@@ -551,6 +574,11 @@ export function createInbound(deps: {
     const t = channelTexts(store);
     const reply = (text: string) =>
       delivery.enqueue({ channel, conversation: a.conversation, kind: "notice", body: { text } });
+    // Where the platform cannot vouch for the owner, a press is no proof they made it: what it would decide is decided in the app (DECISIONS.md#d-144).
+    if (!ownerActsOn(deps.configs().find((c) => c.id === channel)?.type)) {
+      reply(t.inApp);
+      return;
+    }
     const button = parseButton(a.data);
     if (!button) return;
     // Pressed once, its message stops offering it; ticking an option or sending none keeps the buttons.
@@ -646,6 +674,11 @@ export function createInbound(deps: {
       reply(t.inputGone);
       return;
     }
+    if (input.app_only) {
+      if (a.ref) void deps.setButtons(channel, a.conversation, a.ref, []);
+      reply(t.inApp);
+      return;
+    }
     const picked = ticked.get(input.id) ?? new Set<number>();
     if (button.kind === "toggle") {
       if (input.options?.[button.index] === undefined) return;
@@ -675,7 +708,11 @@ export function createInbound(deps: {
     }
     deps.answeredHere(input.id, at, "button");
     if (button.kind === "input") {
-      await call("runs.respond", { input: input.id, decision: button.answer }, { actor: "human" });
+      await call(
+        "runs.respond",
+        { input: input.id, decision: button.answer },
+        { actor: "human", channel: asOwner(at) },
+      );
       reply(button.answer === "approve" ? t.approved : t.denied);
       return;
     }
@@ -689,7 +726,7 @@ export function createInbound(deps: {
               .join(", ")
           : input.options?.[button.index];
     if (!text) return;
-    await call("runs.respond", { input: input.id, text }, { actor: "human" });
+    await call("runs.respond", { input: input.id, text }, { actor: "human", channel: asOwner(at) });
     ticked.delete(input.id);
     reply(t.answered(text));
   }

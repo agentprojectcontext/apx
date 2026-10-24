@@ -8,6 +8,7 @@ import { testConfig } from "../config.ts";
 import { say, scriptedLlm } from "../engine/testkit.ts";
 import { createCore } from "../server.ts";
 import { reachableAt } from "../server-wiring.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 const TOKEN = "core-token-for-devices";
 let core: Awaited<ReturnType<typeof createCore>>;
@@ -24,7 +25,7 @@ before(async () => {
 });
 after(async () => {
   await core.close();
-  fs.rmSync(home, { recursive: true, force: true });
+  await removeDir(home);
 });
 
 const unauthorized = (e: unknown) => e instanceof ApxError && e.code === "unauthorized";

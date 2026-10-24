@@ -5,6 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 test("unregister keeps files and history, stops queued watchers, and registering restores the same project", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
@@ -39,8 +40,8 @@ test("unregister keeps files and history, stops queued watchers, and registering
     await assert.rejects(env.client.call("projects.unregister", { project: "~default" }));
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(root, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(root);
   }
 });
 
@@ -72,8 +73,8 @@ test("a project is created with a name and kind: without a folder in APX's home,
     await assert.rejects(env.client.call("projects.create", { path: "work/relative" }), /not a full path/);
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(outside, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(outside);
   }
 });
 
@@ -106,8 +107,8 @@ test("register with init writes only what is missing, never over a file, and aga
     assert.ok(!fs.existsSync(path.join(outside, "missing")));
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(outside, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(outside);
   }
 });
 
@@ -141,6 +142,6 @@ test("clients hear once when a project or an agent changes, and nothing from a r
     assert.equal(heard.length, 1, "a description");
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

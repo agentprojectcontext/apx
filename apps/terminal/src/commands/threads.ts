@@ -1,4 +1,6 @@
 // apx threads / runs / agents / secrets: reading and steering what the core holds.
+import os from "node:os";
+import path from "node:path";
 import {
   AGENTS_MD_LIMIT,
   ApprovalScope,
@@ -402,8 +404,12 @@ export async function usage(client: ApxClient, [days]: string[]): Promise<void> 
 /** The skills other agent apps get for APX: the core keeps them current at every start; this does it now. */
 export async function runtimeSkills(client: ApxClient, dryRun: boolean): Promise<void> {
   const r = await client.call("skills.runtimes", { dry_run: dryRun });
-  const home = process.env.HOME ?? "";
-  const tilde = (p: string) => (home && p.startsWith(`${home}/`) ? `~${p.slice(home.length)}` : p);
+  const home = os.homedir();
+  // path.relative compares as the system does (any case on Windows).
+  const tilde = (p: string) => {
+    const rel = path.relative(home, p);
+    return rel && !rel.startsWith("..") && !path.isAbsolute(rel) ? `~${path.sep}${rel}` : p;
+  };
   const verb = dryRun
     ? { create: "would create", update: "would update", remove: "would remove" }
     : { create: "created", update: "updated", remove: "removed" };

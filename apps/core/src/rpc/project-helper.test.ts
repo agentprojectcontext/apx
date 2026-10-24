@@ -31,7 +31,7 @@ test("create: optional preparation, dismissal and off never block execution or r
     assert.equal((await env.client.call("threads.get", { thread: thread.id })).messages.length, 2);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -82,7 +82,7 @@ test("existing context is reused silently; preparing a brief preserves project a
     assert.equal((await env.client.call("threads.get", { thread: thread.id })).messages.length, 2);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -119,7 +119,7 @@ test("manual agent review is available off, only proposes for empty prompts, and
     assert.equal(env.core.store.agents.get(created.id)?.prompt, "Never replace my custom prompt.");
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -145,7 +145,7 @@ test("imported conversations provide context without a new questionnaire or repe
     assert.equal((await env.client.call("projects.helper_review", { project: imported.project.id })).offer, false);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -164,6 +164,6 @@ test("helper settings reject invalid projects and cannot change permissions", as
     );
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

@@ -1,5 +1,6 @@
 import path from "node:path";
 import type { Author, Task } from "@apx/protocol";
+import { ownerActsOn } from "../domain/channels.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { type Attachment, ownerOrigin, publicRun, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -8,6 +9,7 @@ import { tree } from "../engine/breaker.ts";
 import type { Admit, Engine } from "../engine/engine.ts";
 import { goOn } from "../engine/go-on.ts";
 import { MAX_ACTIVE_DELEGATIONS } from "../engine/limits.ts";
+import { relayOwnerWords } from "../engine/owner-relay.ts";
 import { answersOwner } from "../engine/task-inbox.ts";
 import { addComment, assignedTaskOf, consultMentioned, sessionFor, startHeld } from "../engine/task-work.ts";
 import type { Upkeep } from "../engine/upkeep.ts";
@@ -111,6 +113,7 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       const message = store.messages.add({
         thread_id: threadId,
         author,
+        via: admit.origin?.kind === "channel" ? admit.origin.channel : undefined,
         parts: [
           { type: "text", text },
           ...files.map((f) =>
@@ -184,13 +187,27 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     files: Attachment[],
   ) {
     const owner = ch.role === "owner";
+    // In a room the owner's words were said there (`direct`), unlike what they tell the agent from the app.
+    const room = Boolean(store.threads.context(threadId).room);
+    // Where the platform cannot vouch for who wrote, the super-agent checks it first (DECISIONS.md#d-144).
+    const type = store.settings.read("channels").find((c) => c.id === ch.id)?.type;
+    if (owner && !room && !ownerActsOn(type)) {
+      const agent = store.agents.get(agentId);
+      if (!agent) throw notFound(`agent ${agentId}`);
+      const sent = relayOwnerWords(store, engine.admit, {
+        threadId,
+        agent,
+        channel: ch,
+        text,
+        attachments: files,
+      });
+      return { message: sent.message, run: publicRun(sent.run) };
+    }
     if (owner && mode === "interrupt") engine.interrupt(threadId);
     // Answers go back where this message came from, until the owner writes somewhere else.
     store.threads.mergeContext(threadId, {
       reply_to: { channel: ch.id, conversation: ch.conversation, ...(ch.message ? { message: ch.message } : {}) },
     });
-    // In a room the owner's words were said there (`direct`), unlike what they tell the agent from the app.
-    const room = Boolean(store.threads.context(threadId).room);
     return post(
       threadId,
       text,

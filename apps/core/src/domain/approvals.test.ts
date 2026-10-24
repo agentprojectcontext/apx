@@ -9,7 +9,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("a condition matches paths by prefix, URLs by domain, and names in a list", () => {
@@ -63,6 +63,6 @@ test("a grant for this chat outlives a core restart, and ends when the chat is a
     assert.ok(!again.core.store.approvals.allows(target, thread, "roby"));
   } finally {
     await again.core.close();
-    first.cleanup();
+    await first.cleanup();
   }
 });

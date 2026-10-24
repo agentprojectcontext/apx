@@ -1,7 +1,6 @@
 import type { Part } from "@apx/protocol";
-import { lazy, Suspense } from "react";
-
-const Player = lazy(() => import("./AudioPart.tsx").then((m) => ({ default: m.AudioPart })));
+import { Suspense } from "react";
+import { AudioPlayer as Player } from "../../lazy.ts";
 
 /** The voice-note player, loaded with the first one on screen rather than with the panel. */
 export function AudioPart({ part }: { part: Extract<Part, { type: "audio" }> }) {

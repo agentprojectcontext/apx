@@ -1,15 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { waitFor } from "../testkit/platform.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 const preference = "I always prefer CSV for internal reports.";
-async function until(check: () => boolean) {
-  for (let attempt = 0; attempt < 300; attempt++) {
-    if (check()) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  assert.fail("source-reference capture did not settle");
-}
 
 test("capture retries unknown source IDs before checkpointing and discards invalid legacy references", async () => {
   let extracts = 0;
@@ -43,7 +37,7 @@ test("capture retries unknown source IDs before checkpointing and discards inval
     const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
     const sent = await env.client.call("threads.send", { thread: thread.id, text: preference });
     await env.settle(thread.id);
-    await until(() =>
+    await waitFor(() =>
       env.core.store.memoryWork
         .recent()
         .some((job) => job.kind === "capture" && (job.error || job.state === "completed")),
@@ -58,7 +52,7 @@ test("capture retries unknown source IDs before checkpointing and discards inval
     assert.equal(env.core.store.memories.list({ agent_id: "roby", limit: 10 }).length, 0);
     env.core.store.memoryWork.defer(job.id, "retry", new Date(0).toISOString());
     await env.client.call("memory.maintenance", {});
-    await until(() => env.core.store.memoryWork.get(job.id)?.state === "completed");
+    await waitFor(() => env.core.store.memoryWork.get(job.id)?.state === "completed");
     const notes = env.core.store.memories.list({ agent_id: "roby", limit: 10 });
     assert.equal(notes.length, 1);
     assert.equal(notes[0]?.text, preference);
@@ -77,17 +71,17 @@ test("capture retries unknown source IDs before checkpointing and discards inval
     });
     env.core.store.memoryWork.checkpoint(legacyId, { extracted: invalid, reviewed: ["stale-certificate"] });
     await env.client.call("memory.maintenance", {});
-    await until(() => !!env.core.store.memoryWork.get(legacyId)?.error);
+    await waitFor(() => !!env.core.store.memoryWork.get(legacyId)?.error);
     assert.deepEqual(JSON.parse(env.core.store.memoryWork.get(legacyId)?.result ?? "{}"), {});
     env.core.store.memoryWork.defer(legacyId, "retry", new Date(0).toISOString());
     await env.client.call("memory.maintenance", {});
-    await until(() => env.core.store.memoryWork.get(legacyId)?.state === "completed");
+    await waitFor(() => env.core.store.memoryWork.get(legacyId)?.state === "completed");
     assert.equal(extracts, 3);
     assert.equal(reviews, 1);
     assert.equal(env.core.store.memoryWork.get(legacyId)?.reservation, 1);
     assert.deepEqual(env.core.store.memories.list({ agent_id: "roby", limit: 10 }), notes);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

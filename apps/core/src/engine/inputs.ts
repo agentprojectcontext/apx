@@ -7,7 +7,7 @@ import { type ApprovalTarget, writeFolderApproval } from "../domain/approvals.ts
 import { type InputRecord, publicInput } from "../domain/inputs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { badRequest, conflict, errorMessage, notFound, Shutdown } from "../errors.ts";
+import { badRequest, conflict, errorMessage, notFound, Shutdown, unauthorized } from "../errors.ts";
 import { addReadOnly } from "../tools/folders.ts";
 import type { Display } from "./display.ts";
 import type { AdmitFn } from "./engine.ts";
@@ -22,6 +22,10 @@ export const OPEN_INPUT_MS = 30 * 24 * 60 * 60_000;
 const MAX_TIMER_MS = 2 ** 31 - 1;
 
 export type InputWaits = { turn: number; external: number };
+
+/** Why a channel cannot answer a card about the owner's settings. */
+export const APP_ONLY =
+  "a change to the owner's settings is answered in the app (panel, desktop or phone), never on a channel";
 
 /** What a folder card's "once" answer is kept under, when it comes after the turn stopped waiting. */
 /** The grant a folder card gives for one call; one to change files there never doubles as one to read them. */
@@ -168,6 +172,8 @@ export function createInputs(deps: {
       external: boolean;
       /** Stays open after the turn stops waiting, instead of counting as no answer. */
       stays: boolean;
+      /** Only the app answers it, never a channel (DECISIONS.md#d-144). */
+      appOnly?: boolean | undefined;
       signal: AbortSignal;
     }): Promise<InputRecord> {
       const waitMs = o.external ? waits.external : waits.turn;
@@ -193,6 +199,7 @@ export function createInputs(deps: {
           ...(o.write ? { write: true } : {}),
         },
         waitMs: o.stays ? OPEN_INPUT_MS : waitMs,
+        app_only: o.appOnly,
       });
       const show = (r: InputRecord) => o.display.upsert((p) => p.type === "input" && p.input_id === r.id, partOf(r));
       show(rec);
@@ -226,12 +233,15 @@ export function createInputs(deps: {
       }
     },
 
+    /** `onChannel`: the answer came on a channel, which never answers what only the app may (DECISIONS.md#d-144). */
     respond(
       id: string,
       a: { decision?: "approve" | "deny" | undefined; text?: string | undefined; scope?: ApprovalScope | undefined },
+      onChannel = false,
     ): InputRecord {
       const rec = store.inputs.get(id);
       if (!rec) throw notFound(`input ${id}`);
+      if (rec.app_only && onChannel) throw unauthorized(APP_ONLY);
       if (rec.state === "pending" && rec.expires_at <= new Date().toISOString()) store.inputs.settle(id, "expired");
       const cur = store.inputs.get(id) as InputRecord;
       if (cur.state !== "pending") throw conflict(`input ${id} is already ${cur.state}`);

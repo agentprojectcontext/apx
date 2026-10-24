@@ -3,9 +3,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, inputsOrEnd, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { FAKE_GOOGLE_SECRET, fakeGoogle } from "../integrations/fake-google.test-support.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say("done");
@@ -26,7 +27,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
   await google.close();
 });
 
@@ -97,11 +98,7 @@ test("events and mail come back as outside data; a draft waits for the owner's O
   assert.match(lastTool(), /Please wire the money today/);
 
   await env.client.call("threads.send", { thread, text: "answer Ana" });
-  let pending: Array<{ id: string }> = [];
-  for (let i = 0; i < 80 && !pending.length; i++) {
-    pending = (await env.client.call("runs.pending", { thread })).inputs;
-    if (!pending.length) await new Promise((r) => setTimeout(r, 25));
-  }
+  const pending: Array<{ id: string }> = await inputsOrEnd(env.client, thread);
   assert.equal(drafts().length, 0, "no draft before the owner says yes");
   await env.client.call("runs.respond", { input: pending[0]?.id ?? "", decision: "approve" });
   await env.settle(thread);
@@ -126,7 +123,7 @@ test("an integration off in a project or disconnected takes its tools away", asy
   await env.settle(inProject);
   assert.ok(offered().includes("calendar_events"));
   assert.ok(!offered().some((n) => n.startsWith("gmail_")), "Gmail is off in that project");
-  fs.rmSync(repo, { recursive: true, force: true });
+  await removeDir(repo);
 
   await env.client.call("integrations.disconnect", { id: "gmail" });
   assert.equal(env.core.secrets.has("secret://gmail-refresh_token"), false);

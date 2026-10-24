@@ -65,7 +65,9 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
 
 1. **One contract.** Every client↔core call is a method in `packages/protocol/src/methods.ts` handled through
    `apps/core/src/rpc/router.ts`. No second route into a handler (no ad-hoc HTTP endpoints, no direct
-   module calls from transports). `[review]`, `[gate]` types.
+   module calls from transports). The one listener outside it is the webhook listener (`apps/core/src/transport/hooks.ts`,
+   [D-139](rules/DECISIONS.md#d-139)): platforms that POST a channel's messages are no clients, and each channel's
+   `webhook()` verifies its platform's signature. `[review]`, `[gate]` types.
 2. **Agents talk through one function.** Agent↔agent messaging is `threads.send` via the router; tools,
    terminal, routines and API all call it. Never add a parallel a2a path. `[review]`
 3. **Apps hold no domain logic.** terminal/web/desktop/mobile call the protocol; logic lives in `apps/core`.
@@ -126,6 +128,25 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     change: `since` the release it ships in, `applies` only to owners it helps, a text for the super-agent to tell in
     its own words and one or two actions it can take ([What people are told](rules/RELEASE.md#what-people-are-told)).
     Commit subjects reach everyone as a list; news are the few things the super-agent offers to do. `[review]`
+28. **Only a verified commit is tagged.** A `v2.x.y` tag goes on a commit of `release/v2` whose `verify` run already
+    passed: `pnpm release:check --tag v2.x.y [ref]` checks that run and only then tags and pushes
+    ([RELEASE.md](rules/RELEASE.md#tagging-a-release)). Never tag a commit whose run is red, missing or still going;
+    fix it on the branch and tag the next one. `[gate]` `release:check`, and the publish job's own wait.
+
+26. **Portable tests.** Never let real time decide an outcome: idle, cap, deadline and burst behaviour runs on
+    injected timers (`manualTimers`, `runTimers`). Waits use `waitFor` with a wall-clock budget, never a count of
+    iterations. Temp folders come from `tempDir()` and are removed only after every child the test started has
+    exited. Tests and product code never compare paths as strings: use `isInside`/`samePath`. Product code never
+    calls `process.exit` while handles are open (`exitWhenClosed`). A failure seen only on Windows is classified as
+    product or test before it is changed ([TESTING.md](rules/TESTING.md#portable-tests)). `[gate]` `pnpm check:tests`
+    (allowlisted debt only shrinks).
+
+27. **The first load is a budget, and only `lazy.ts` loads code late.** Panel code not on the first screen is imported
+    only through `apps/web/src/lazy.ts`, each module declared there once (the language chunks and the marks are the
+    named exceptions); the first screen (`App`, `main`, `shell/`, `inbox/`, `chat/`) never imports a lazy module
+    statically. What it downloads (entry, CSS, language chunk and their static imports) stays within
+    `scripts/perf-budget.json`, with no zod in it. When `pnpm perf` fails, split the module it names; raising a budget
+    needs a reason in the commit ([D-147](rules/DECISIONS.md#d-147)). `[gate]` biome + perf.
 
 ### Code comments
 

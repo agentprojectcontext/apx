@@ -118,6 +118,6 @@ test("a core starting on a v2.7.0 store retires its noisy captures once, restora
     assert.ok(live.includes(notes.durable.id));
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

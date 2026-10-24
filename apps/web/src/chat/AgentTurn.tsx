@@ -1,6 +1,6 @@
 import type { Agent, Message as Msg, Part, Thread } from "@apx/protocol";
 import { AgentAvatar, EngineIcon, MarkdownView, Message, MessageMeta } from "@apx/ui";
-import { lazy, type ReactNode, Suspense } from "react";
+import { type ReactNode, Suspense } from "react";
 import { DeliveryTicks, ReactionList } from "../channels/MessageMarks.tsx";
 import { isSignal } from "../channels/signal.ts";
 import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
@@ -8,6 +8,7 @@ import { blobOf } from "../data/identity.ts";
 import { baseRef, effortLabel, splitRef } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { ChoicesPart, ConnectPart, InputPart, MediaGroup, SurfacePart } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { copyableQuote } from "./CopyableQuote.tsx";
 import { runnableCode } from "./codeRunner.tsx";
@@ -23,14 +24,6 @@ import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { SubthreadPart } from "./parts/SubthreadPart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
 import { taskCodeSpan } from "./TaskChip.tsx";
-
-// A widget's frame loads with the first message that has one, not with the chat.
-const SurfacePart = lazy(() => import("./parts/SurfacePart.tsx").then((m) => ({ default: m.SurfacePart })));
-const ChoicesPart = lazy(() => import("./parts/ChoicesPart.tsx").then((m) => ({ default: m.ChoicesPart })));
-// It brings the integrations' forms: loaded only when an agent offers one.
-const ConnectPart = lazy(() => import("./parts/ConnectPart.tsx").then((m) => ({ default: m.ConnectPart })));
-const MediaGroup = lazy(() => import("./parts/MediaGroup.tsx"));
-const InputPart = lazy(() => import("./parts/InputPart.tsx").then((m) => ({ default: m.InputPart })));
 
 type ToolPart = Extract<Part, { type: "tool" }>;
 type SkillsPick = Extract<Part, { type: "skills" }>;

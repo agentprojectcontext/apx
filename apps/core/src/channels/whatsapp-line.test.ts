@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { fakeWhatsApp } from "./fake-whatsapp.test-support.ts";
 import { whatsappAdapter } from "./whatsapp.ts";
 
@@ -15,7 +16,7 @@ const lastUser = (req: { messages: Array<{ role: string; content?: unknown }> })
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 160)}`);
   if (said.includes("answer the one who wrote")) {
-    const who = /(?:request|contact) (\S+):/.exec(lastUser(req))?.[1] ?? "";
+    const who = /- (?:request|contact) (\S+):/.exec(lastUser(req))?.[1] ?? "";
     return callTool("a1", "answer_contact_request", { who, decision: "answer" });
   }
   return say(`Got it: ${said}`);
@@ -24,14 +25,6 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
 let env: Awaited<ReturnType<typeof startCore>>;
 const wa = fakeWhatsApp();
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 4000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 20));
-  }
-  throw new Error(`never: ${what}`);
-};
 const channel = async () => (await env.client.call("channels.list", {})).channels.find((c) => c.id === "whatsapp");
 const owner = async () => (await env.client.call("contacts.list", {})).persons.find((p) => p.role === "owner");
 const configure = async (patch: Record<string, unknown>) => {
@@ -39,7 +32,7 @@ const configure = async (patch: Record<string, unknown>) => {
     id: "whatsapp",
     channel: { type: "whatsapp", agent_id: "roby", ...patch },
   });
-  await until(async () => (await channel())?.status === "running", "running again");
+  await waitFor(async () => (await channel())?.status === "running", "running again");
 };
 const answered = (to: string, words: string) => () =>
   wa.textsTo(to).some((t) => t.includes(`Got it:`) && t.includes(words));
@@ -53,13 +46,13 @@ before(async () => {
     },
   });
   await env.client.call("channels.set", { id: "whatsapp", channel: { type: "whatsapp", agent_id: "roby" } });
-  await until(async () => Boolean((await channel())?.qr), "a QR");
+  await waitFor(async () => Boolean((await channel())?.qr), "a QR");
   wa.scan();
-  await until(async () => (await channel())?.status === "running", "linked");
+  await waitFor(async () => (await channel())?.status === "running", "linked");
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("a line of its own is nobody: its 'Message yourself' gets no answer and the owner has no address on it yet", async () => {
@@ -72,13 +65,13 @@ test("a line of its own is nobody: its 'Message yourself' gets no answer and the
 
 test("the owner writes from their phone, gets a code, and once it is typed in APX their words are answered", async () => {
   wa.message(ME, "it's me");
-  await until(() => wa.textsTo(ME.phone).length === 1, "the code");
+  await waitFor(() => wa.textsTo(ME.phone).length === 1, "the code");
   const sent = wa.textsTo(ME.phone)[0] ?? "";
   assert.match(sent, /WhatsApp/, "the code says where to type it: this channel, not another");
   const code = /(\d{6})/.exec(sent)?.[1] ?? "";
   await env.client.call("pairing.respond", { code, decision: "owner" });
   wa.message(ME, "what is on today?");
-  await until(answered(ME.phone, "what is on today?"), "the owner's answer");
+  await waitFor(answered(ME.phone, "what is on today?"), "the owner's answer");
 });
 
 test("the owner's number can also be typed in by hand", async () => {
@@ -90,7 +83,7 @@ test("the owner's number can also be typed in by hand", async () => {
   assert.equal(p.role, "owner");
   assert.ok(p.addresses.some((a) => a.external_id === ME.phone));
   wa.message(ME, "typed by hand");
-  await until(answered(ME.phone, "typed by hand"), "answered as the owner");
+  await waitFor(answered(ME.phone, "typed by hand"), "answered as the owner");
 });
 
 const personAt = async (phone: string) =>
@@ -100,9 +93,9 @@ test("strangers 'ask': whoever writes shows in their own chat, unanswered and re
   await configure({ strangers: "ask" });
   const reports = () => wa.textsTo(ME.phone).filter((t) => t.includes("+5491100000002"));
   wa.message(ANA, "can you help me?");
-  await until(() => reports().length === 1, "the owner is told");
+  await waitFor(() => reports().length === 1, "the owner is told");
   assert.match(reports()[0] ?? "", /can you help me\?/);
-  assert.match(reports()[0] ?? "", /\*1\* — /);
+  assert.match(reports()[0] ?? "", /\*1\* — /, "WhatsApp proves the owner's number, so they answer there");
   const ana = await personAt(ANA.phone);
   assert.deepEqual([ana?.role, ana?.muted, ana?.unreviewed], ["contact", true, true], "kept as an unreviewed contact");
   const thread = await env.client.call("channels.open", { person: ana?.id ?? "", channel: "whatsapp" });
@@ -114,39 +107,41 @@ test("strangers 'ask': whoever writes shows in their own chat, unanswered and re
     "her words are in her chat",
   );
   wa.message(ANA, "it's urgent");
-  await until(() => reports().length === 2, "each message is reported");
+  await waitFor(() => reports().length === 2, "each message is reported");
   assert.deepEqual(wa.textsTo(ANA.phone), [], "nothing reaches her before the owner says so");
   wa.message(ME, "1");
-  await until(async () => (await personAt(ANA.phone))?.muted === false, "answered from now on");
+  await waitFor(async () => (await personAt(ANA.phone))?.muted === false, "answered from now on");
   assert.equal((await personAt(ANA.phone))?.unreviewed, false);
   wa.message(ANA, "still there?");
-  await until(answered(ANA.phone, "still there?"), "her next message answered");
+  await waitFor(answered(ANA.phone, "still there?"), "her next message answered");
 });
 
-test("strangers 'ask': the owner can say it to the agent, which sees who waits by id and number, not by the name they chose", async () => {
+test("strangers 'ask': the owner can say it to the agent on WhatsApp, which sees who waits by id and number, not by the name they chose", async () => {
   wa.message(BOB, "hi there");
-  await until(async () => (await personAt(BOB.phone))?.unreviewed === true, "kept");
+  await waitFor(async () => (await personAt(BOB.phone))?.unreviewed === true, "kept");
   const calls = llm.calls.length;
   wa.message(ME, "yes, answer the one who wrote");
-  await until(() => llm.calls.length > calls, "the turn");
+  await waitFor(() => llm.calls.length > calls, "the turn");
   const input = lastUser(llm.calls[calls] as { messages: Array<{ role: string; content?: unknown }> });
+  assert.ok(!input.includes("Judge first"), "the owner's own number is not checked by the super-agent first");
   assert.match(input, /\[waiting\][\s\S]*contact \S+: someone on WhatsApp \+5491100000003/);
   assert.ok(!input.includes("Bob"), "the name a stranger chose is not the owner's words");
   // Letting someone in is the owner's act: the agent's call waits for their OK, asked on the same chat.
-  await until(() => wa.textsTo(ME.phone).some((t) => t.includes("answer_contact_request")), "the confirmation");
+  await waitFor(() => wa.textsTo(ME.phone).some((t) => t.includes("answer_contact_request")), "the confirmation");
+  assert.equal((await personAt(BOB.phone))?.muted, true, "not before the owner's OK");
   wa.message(ME, "1");
-  await until(async () => (await personAt(BOB.phone))?.muted === false, "Bob let in");
+  await waitFor(async () => (await personAt(BOB.phone))?.muted === false, "Bob let in");
   wa.message(BOB, "hi again");
-  await until(answered(BOB.phone, "hi again"), "Bob answered");
+  await waitFor(answered(BOB.phone, "hi again"), "Bob answered");
 });
 
 test("strangers 'ask': ignoring someone keeps them silenced, their messages kept and no longer reported", async () => {
   const dan = { phone: "5491100000005@s.whatsapp.net", name: "Dan" };
   const reports = () => wa.textsTo(ME.phone).filter((t) => t.includes("+5491100000005"));
   wa.message(dan, "promo for you");
-  await until(() => reports().length === 1, "reported");
+  await waitFor(() => reports().length === 1, "reported");
   wa.message(ME, "2");
-  await until(async () => (await personAt(dan.phone))?.unreviewed === false, "reviewed");
+  await waitFor(async () => (await personAt(dan.phone))?.unreviewed === false, "reviewed");
   assert.equal((await personAt(dan.phone))?.muted, true);
   wa.message(dan, "another promo");
   await new Promise((r) => setTimeout(r, 200));
@@ -168,7 +163,7 @@ test("changing who answers, where the owner's words go or what strangers get kee
 test("strangers 'answer': a new person is answered at once, as a contact", async () => {
   await configure({ strangers: "answer" });
   wa.message(CARO, "hello?");
-  await until(answered(CARO.phone, "hello?"), "answered");
+  await waitFor(answered(CARO.phone, "hello?"), "answered");
   const { persons } = await env.client.call("contacts.list", {});
   assert.equal(persons.find((p) => p.name === "Caro")?.role, "contact");
 });
@@ -177,7 +172,7 @@ test("the line turned out to be the owner's own phone: 'Message yourself' is the
   await configure({ strangers: "pair", self_owner: true });
   assert.ok((await owner())?.addresses.some((a) => a.external_id === wa.owner));
   wa.fromOwner("from my own phone");
-  await until(answered(wa.owner, "from my own phone"), "answered in Message yourself");
+  await waitFor(answered(wa.owner, "from my own phone"), "answered in Message yourself");
   await configure({ strangers: "pair", self_owner: false });
   assert.ok(!(await owner())?.addresses.some((a) => a.external_id === wa.owner));
 });

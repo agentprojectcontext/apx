@@ -1,6 +1,6 @@
 // Loopback between agents: every agent's processes live in its own slice (worker.ts screenArgs, its user manager), so
 // a listener is known by the slice of its socket; a new connection to it on lo is refused unless it comes from that
-// same agent. Other listeners (the egress proxy, the guest's own services) are untouched (DECISIONS.md#d-145).
+// same agent. Other listeners (the egress proxy, the guest's own services) are untouched (DECISIONS.md#d-152).
 import { screenUser } from "./worker.ts";
 
 /** The guest file the firewall loads after the egress rules; rewritten whenever an agent gets a screen. */

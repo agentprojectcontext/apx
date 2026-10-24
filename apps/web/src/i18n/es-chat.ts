@@ -52,6 +52,8 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "composer.backToAgentModel": "Volver al del agente",
   "composer.contextOf": "{used} de {window} de contexto usado",
   "composer.spent": "En este chat: {input} tokens de entrada (lo que leyó) y {output} de salida (lo que escribió)",
+  "composer.spentCached":
+    "En este chat: {input} tokens de entrada (lo que leyó, {cached} de ellos desde la caché) y {output} de salida (lo que escribió)",
   "composer.contextUsed": "{used} de contexto usado",
   "usage.context": "{used} de {window} de contexto",
   "usage.empty": "Sin consumo todavía",
@@ -66,6 +68,8 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "usage.tokens": "Tokens",
   "usage.tokensValue": "{input} entrada · {output} salida",
   "usage.noTokens": "Sin datos del proveedor",
+  "usage.cached": "Entrada en caché",
+  "usage.cachedValue": "{cached} de los {input} de entrada",
   "usage.recent": "Últimas corridas",
   "usage.aux": "Modelo auxiliar",
   "usage.auxValue": "{tokens} · {purposes}",

@@ -9,7 +9,10 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fakeTelegram } from "../apps/core/src/channels/fake-telegram.test-support.ts";
+import { telegramAdapter } from "../apps/core/src/channels/telegram.ts";
 import { say, scriptedLlm, startCore } from "../apps/core/src/engine/testkit.ts";
+import { CODEX_IMAGE_SERVICE } from "../apps/core/src/services/codex-images.ts";
 import { browserTools } from "../apps/core/src/tools/browser.ts";
 import { toSpec } from "../apps/core/src/tools/types.ts";
 
@@ -25,11 +28,18 @@ const scenarios = JSON.parse(
   fs.readFileSync(path.join(import.meta.dirname, "tool-review.scenarios.json"), "utf8"),
 ) as Scenario[];
 
-/** The tools of an owner's turn with Roby, as the model receives them (the desktop app lends the browser ones). */
+/**
+ * The tools of an owner's turn with Roby, as the model receives them (the desktop app lends the browser ones), with a
+ * channel and an image service on so the tools that wait for them are reviewed too.
+ */
 async function turnTools(): Promise<Spec[]> {
   const llm = scriptedLlm(() => say("ok"));
-  const env = await startCore({ llm });
+  const token = "123456:REVIEW";
+  const tg = await fakeTelegram(token);
+  const env = await startCore({ llm, channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) } });
   try {
+    await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token });
+    env.core.store.settings.write("services", [{ ...CODEX_IMAGE_SERVICE, id: "codex" }]);
     const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
     await env.client.call("threads.send", { thread: t.id, text: "hola" });
     await env.settle(t.id);
@@ -41,7 +51,8 @@ async function turnTools(): Promise<Spec[]> {
     }));
   } finally {
     await env.core.close();
-    env.cleanup();
+    await tg.close();
+    await env.cleanup();
   }
 }
 

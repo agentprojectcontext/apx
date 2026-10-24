@@ -1,16 +1,14 @@
 import type { Result } from "@apx/protocol";
 import { Button, EmptyState, Icons, MarkdownView, SegmentedControl, Skeleton } from "@apx/ui";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useMarkdownLabels } from "../../common/useMarkdownLabels.ts";
 import { client } from "../../data/client.ts";
 import { downloadFile, type FileWhere } from "../../data/files.ts";
 import { notify } from "../../data/notices.ts";
 import { useT } from "../../i18n/index.ts";
+import { CodeView } from "../../lazy.ts";
 import { FileHead } from "./FileHead.tsx";
 import { errText, whereKey } from "./FilesPane.tsx";
-
-// The editor (and its languages) loads when the first text file opens, not with the panel.
-const CodeView = lazy(() => import("./CodeView.tsx").then((m) => ({ default: m.CodeView })));
 
 type Read = Result<"files.read">;
 type Mode = "view" | "source" | "split";

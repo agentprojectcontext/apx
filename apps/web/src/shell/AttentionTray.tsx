@@ -5,6 +5,7 @@ import { shortWhen } from "../common/format.ts";
 import { pairingChannel } from "../data/channels.ts";
 import { readNotifications, useAttention } from "../data/notifications.ts";
 import { useT } from "../i18n/index.ts";
+import { loadOsNotices } from "../lazy.ts";
 import { go } from "./nav.ts";
 import { noticeTask } from "./noticeTarget.ts";
 
@@ -42,7 +43,7 @@ export function AttentionTray() {
   useEffect(() => {
     let stop: (() => void) | undefined;
     let gone = false;
-    void import("./osNotices.ts").then((m) => {
+    void loadOsNotices().then((m) => {
       if (!gone) stop = m.startOsNotices();
     });
     return () => {

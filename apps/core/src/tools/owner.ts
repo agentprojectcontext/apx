@@ -98,7 +98,7 @@ export function ownerTools(store: Store): Tool[] {
     defineTool({
       name: "notify_owner",
       description:
-        "Tell the owner something now, on their phone or channel, from work they are not watching (a task, a long job). Only what needs them: a decision, a blocker, a result they are waiting for. One or two lines. Their interruption budget may hold it for later or keep it in the tray only. Not in a routine (its answer already reaches them) nor between agents.",
+        "Tell the owner something now, on their phone or channel, from work they are not watching (a task, a long job): only a decision, a blocker or a result they wait for, in one or two lines. Their notice budget may hold it for later. Not in a routine (its answer reaches them) nor between agents.",
       args: z.object({
         text: z.string().min(1).max(1000),
         critical: z

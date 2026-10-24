@@ -32,7 +32,7 @@ export const screenSlice = (screen: number) => `user-${screenUser(screen).uid}.s
 /**
  * Drop privileges to a screen's user before any browser, shell or desktop input is interpreted, inside that user's
  * own slice: run through sudo alone, it would stay in the admin's SSH session and its sockets would carry no agent
- * (DECISIONS.md#d-145).
+ * (DECISIONS.md#d-152).
  */
 export const screenArgs = (screen: number, ...args: string[]) => {
   const u = screenUser(screen);

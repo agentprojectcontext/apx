@@ -1,12 +1,9 @@
 import type { Part } from "@apx/protocol";
 import { ActionGroup, Button, Icons } from "@apx/ui";
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import { isKey, useT } from "../../i18n/index.ts";
+import { DelegationActions, GoOn } from "../../lazy.ts";
 import { appPlace } from "../appLinks.ts";
-
-const DelegationActions = lazy(() => import("./DelegationActions.tsx").then((m) => ({ default: m.DelegationActions })));
-
-const GoOn = lazy(() => import("./GoOn.tsx").then((m) => ({ default: m.GoOn })));
 
 type NoticeData = Extract<Part, { type: "notice" }>;
 

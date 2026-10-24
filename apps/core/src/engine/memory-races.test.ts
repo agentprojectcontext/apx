@@ -103,7 +103,7 @@ test("automatic semantic recall finds an owner episode without shared words and 
   } finally {
     await env.core.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -161,7 +161,7 @@ test("semantic search cannot return a note forgotten while the embedding call wa
     release();
     await env.core.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -204,6 +204,6 @@ test("a prepared own-chat snapshot rechecks forgotten sources and recall setting
     assert.equal(snapshot?.render(), undefined);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

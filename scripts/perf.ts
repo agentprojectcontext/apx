@@ -6,8 +6,8 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import zlib from "node:zlib";
 import { fakeLlm } from "../e2e/fake-llm.ts";
+import { bootFiles, bootProblems, bootReport, sumKb } from "./bundle.ts";
 import { compileCacheEnv } from "./compile-cache.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -66,16 +66,10 @@ function walSequence(file: string): number | undefined {
   }
 }
 
-/** What the panel loads before it shows anything: the files index.html names (lazy screens come later), gzipped. */
-function initialBundleKb(): number {
-  const dist = path.join(root, "apps/web/dist");
-  if (!fs.existsSync(path.join(dist, "index.html"))) return Number.NaN;
-  const html = fs.readFileSync(path.join(dist, "index.html"), "utf8");
-  let total = 0;
-  for (const [, file] of html.matchAll(/(?:src|href)="\/?(assets\/[^"]+\.(?:js|css))"/g))
-    total += zlib.gzipSync(fs.readFileSync(path.join(dist, file ?? ""))).length;
-  return total / 1024;
-}
+const dist = path.join(root, "apps/web/dist");
+
+/** Lazy screens that must stay their own chunk: one static import from the first screen would merge it into the entry. */
+const LAZY_SCREENS = ["ProjectScreen", "ConfigModal", "ChannelScreen", "ResourcesScreen"];
 
 // A core already on the port would answer for ours: the numbers, and its models, would be someone else's.
 if (
@@ -209,7 +203,9 @@ try {
   const after = await usage(pid);
   results.rss_after_turns_mb = after.rss;
   results.rss_growth_mb = after.rss - idle1.rss;
-  results.initial_bundle_gzip_kb = initialBundleKb();
+  const boot = bootFiles(dist);
+  results.initial_bundle_gzip_kb = boot ? sumKb(dist, boot.initial) : Number.NaN;
+  results.boot_gzip_kb = boot ? sumKb(dist, boot.files) : Number.NaN;
 
   console.log(`\nAPX perf (${TURNS} turns, fake model)\n`);
   for (const [k, v] of Object.entries(results)) {
@@ -220,6 +216,13 @@ try {
       `${over ? "✘" : "✓"} ${k.padEnd(20)} ${v.toFixed(1).padStart(9)}${limit !== undefined ? `  (budget ${limit})` : ""}`,
     );
   }
+  const bundleOver = ["initial_bundle_gzip_kb", "boot_gzip_kb"].some(
+    (k) => (results[k] ?? 0) > (budget[k] ?? Infinity),
+  );
+  const problems = boot ? bootProblems(dist, boot, LAZY_SCREENS) : ["apps/web/dist is missing: run pnpm build:web"];
+  for (const problem of problems) console.log(`✘ ${problem}`);
+  if (problems.length) failed = true;
+  if (boot && (bundleOver || problems.length)) console.log(`\nFirst load, per chunk:\n${bootReport(dist, boot)}`);
   const out = path.join(root, "e2e/.out");
   fs.mkdirSync(out, { recursive: true });
   fs.writeFileSync(

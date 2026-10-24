@@ -3,18 +3,11 @@
 // addressed; a nick in use gets an underscore; SASL carries the password; long text stays within IRC's 512 bytes.
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
-import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { say, scriptedLlm, startCore, throughOwnerCheck } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { type FakeIrc, fakeIrc } from "./fake-irc.test-support.ts";
 import { ircAdapter, ircLine, ircSecret, parseIrcLine, plainIrc, splitBytes } from "./irc.ts";
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 5000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const ROOMS = {
@@ -89,10 +82,12 @@ test("the secret is the server's address, the nick and an optional password", ()
 });
 
 describe("irc channel", () => {
-  const llm = scriptedLlm((req, { said }) => {
-    if (said.includes("long please")) return say(`${"word ".repeat(300)}end`);
-    return say(`You said: ${String(req.messages.at(-1)?.content).split("\n").at(-1)?.slice(-60)}`);
-  });
+  const llm = scriptedLlm(
+    throughOwnerCheck((req, { said }) => {
+      if (said.includes("long please")) return say(`${"word ".repeat(300)}end`);
+      return say(`You said: ${String(req.messages.at(-1)?.content).split("\n").at(-1)?.slice(-60)}`);
+    }),
+  );
   let env: Awaited<ReturnType<typeof startCore>>;
   let irc: FakeIrc;
   const texts = (to: string) => irc.sentTo(to).map((s) => s.text);
@@ -105,34 +100,37 @@ describe("irc channel", () => {
       channel: { type: "irc", agent_id: "roby", rooms: ROOMS },
       token: `${irc.url} apxbot`,
     });
-    await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+    await waitFor(
+      async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running",
+      "running",
+    );
   });
   after(async () => {
     await env.core.close();
     await irc.close();
-    env.cleanup();
+    await env.cleanup();
   });
 
   test("a nick in use gets an underscore, and the listed room is joined", async () => {
     assert.equal(irc.nick(), "apxbot_");
-    await until(() => irc.joined.has("#acme"), "joined #acme");
+    await waitFor(() => irc.joined.has("#acme"), "joined #acme");
     assert.ok(irc.lines.includes("CAP REQ :message-tags account-tag"));
     assert.equal((await env.client.call("channels.list", {})).channels[0]?.account, "apxbot_");
   });
 
   test("the owner pairs by private message and is answered there", async () => {
     irc.message("owner", "hola");
-    await until(() => texts("owner").length >= 1, "pairing code");
+    await waitFor(() => texts("owner").length >= 1, "pairing code");
     const code = /(?<!\d)(\d{6})(?!\d)/.exec(texts("owner")[0] ?? "")?.[1] ?? "";
     await env.client.call("pairing.respond", { code, decision: "owner" });
     irc.message("owner", "what is up");
-    await until(() => texts("owner").some((t) => t.includes("You said: what is up")), "reply");
+    await waitFor(() => texts("owner").some((t) => t.includes("You said: what is up")), "reply");
   });
 
   test("a long answer goes as several lines, each within 512 bytes as relayed", async () => {
     const before_ = texts("owner").length;
     irc.message("owner", "long please");
-    await until(() => texts("owner").some((t) => t.endsWith("end")), "long reply", 8000);
+    await waitFor(() => texts("owner").some((t) => t.endsWith("end")), "long reply", { ms: 8000 });
     const lines = texts("owner").slice(before_);
     assert.ok(lines.length > 1);
     for (const l of lines)
@@ -144,7 +142,7 @@ describe("irc channel", () => {
     await pause(200);
     assert.equal(texts("#acme").length, 0, "not called, not answered");
     irc.message("ana", "apxbot_: what is Acme Notes?", { room: "#ACME" });
-    await until(() => texts("#acme").length === 1, "answered when addressed");
+    await waitFor(() => texts("#acme").length === 1, "answered when addressed");
     const room = env.core.store.threads.byConversation("irc", "#acme");
     const kept = env.core.store.messages
       .list(room?.id ?? "")
@@ -156,7 +154,7 @@ describe("irc channel", () => {
 
   test("an unlisted room is offered in the rooms picker and never answered", async () => {
     irc.message("ana", "apxbot_: hello", { room: "#northwind" });
-    await until(
+    await waitFor(
       async () =>
         (await env.client.call("channels.rooms", { channel: "irc" })).rooms.some((r) => r.id === "#northwind"),
       "offered",

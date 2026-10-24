@@ -42,7 +42,7 @@ export type ComputerConfig = {
   host?: Host;
 };
 
-/** The grant that lets one agent use the computer: for good, or for one chat (DECISIONS.md#d-144). */
+/** The grant that lets one agent use the computer: for good, or for one chat (DECISIONS.md#d-151). */
 export const computerApproval: ApprovalTarget = {
   key: COMPUTER_GRANT,
   server: "apx",
@@ -56,7 +56,7 @@ const NATIVE_CHATS = new Set(["home", "agent", "loose", "code"]);
 
 /**
  * One shared Linux VM for every allowed agent: each works as its own user on its own screen, the core keeps who
- * holds which screen, and a chat on the computer never falls back to host tools (DECISIONS.md#d-145).
+ * holds which screen, and a chat on the computer never falls back to host tools (DECISIONS.md#d-152).
  */
 export function createComputer(store: Store, config: ComputerConfig) {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,40}$/.test(config.instance)) throw badRequest("invalid VM name");

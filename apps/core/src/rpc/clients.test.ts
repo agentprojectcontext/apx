@@ -20,7 +20,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("an outside app asks an agent in a chat of its own, and its words arrive as another app's", async () => {
@@ -57,6 +57,20 @@ test("a token is never kept for replays, and a reused key never hands out anothe
     app.call("threads.send", { thread: "home", text: "x" }, "shared-key-2"),
     /only use the chats it started/,
   );
+});
+
+test("over the socket a client token is an outside app too, whatever its hello claims", async () => {
+  const made = await env.client.call("clients.create", { name: "Socket app", scopes: ["chat"] });
+  const sock = await new ApxClient({ url: env.core.url, token: made.token, actor: "human" }).connect();
+  try {
+    assert.equal(sock.welcome?.auth?.actor, "agent");
+    await assert.rejects(sock.call("memory.list", {}), /outside what Socket app may do/);
+    await assert.rejects(sock.call("threads.send", { thread: "home", text: "hi" }), /only use the chats it started/);
+  } finally {
+    sock.close();
+  }
+  await assert.rejects(new ApxClient({ url: env.core.url, token: "apxc_0000" }).connect());
+  await env.client.call("clients.revoke", { id: made.client.id });
 });
 
 test("a revoked or made-up token gets nothing", async () => {

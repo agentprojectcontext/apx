@@ -94,7 +94,7 @@ test("parallel writes preserve final disk order and share the recorded patch bud
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 const said = async (thread: string, text: string) => {

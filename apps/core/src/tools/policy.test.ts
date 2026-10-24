@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
+import { browserTools } from "./browser.ts";
 import { allowedTools, authorize, inherit } from "./policy.ts";
 import { shellTools } from "./shell.ts";
 import { type Confirm, defineTool, type Effect } from "./types.ts";
@@ -209,4 +210,24 @@ test("shell: a command that only reads here never waits, outside content in the 
     assert.equal(run(c, agent({ autonomy: "accept_edits" })), "confirm", c);
   }
   assert.equal(run("git push origin main", agent()), "confirm");
+});
+
+test("total and a rule 'auto' skip a card, except one a call keeps (DECISIONS.md#d-143)", () => {
+  const always = tool("routine_like", "local", "always");
+  const kept = defineTool({ ...base("login_like", "local", "always"), keepsCard: () => "grant" as const });
+  const setting = defineTool({ ...base("setting_like", "local", "always"), ownerSetting: () => true });
+  for (const who of [agent({ autonomy: "total" }), agent({ rules: { irreversible: "auto" } })]) {
+    assert.equal(authorize(always, {}, who, true).kind, "allow");
+    assert.equal(authorize(kept, {}, who, false).kind, "confirm");
+    assert.equal(authorize(setting, {}, who, false).kind, "confirm");
+  }
+});
+
+test("copying the owner's logins keeps its card in total, a grant counting only for the shared profile", () => {
+  const login = browserTools({} as never, "/path/to/home").find((t) => t.name === "browser_use_my_login");
+  assert.ok(login?.keepsCard);
+  const total = (browser_profile: AgentRecord["browser_profile"]) => agent({ autonomy: "total", browser_profile });
+  assert.equal(authorize(login, { domain: "example.com" }, total("shared"), false).kind, "confirm");
+  assert.equal(login.keepsCard({ domain: "example.com" }, total("shared")), "grant");
+  assert.equal(login.keepsCard({ domain: "example.com" }, total("isolated")), "card");
 });

@@ -64,6 +64,6 @@ test("a remembered permission in a new chat cannot grant an external action", as
     assert.deepEqual((await env.client.call("tools.approvals", {})).approvals, []);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

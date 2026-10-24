@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { z } from "zod";
 import { failureReason, noiseStep, procedureSupported, stepGist } from "../domain/procedure-steps.ts";
 import type { Step } from "../domain/runs.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { scratchDir } from "../tools/folders.ts";
 import { hookLine } from "../tools/memory.ts";
 import { defineTool, type Tool } from "../tools/types.ts";
@@ -11,14 +12,6 @@ import { supportMemoryClaims } from "./memory-testkit.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 type Env = Awaited<ReturnType<typeof startCore>>;
-
-async function until(check: () => Promise<boolean> | boolean, what: string) {
-  for (let i = 0; i < 300; i++) {
-    if (await check()) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  assert.fail(`timed out waiting for ${what}`);
-}
 
 const fake = (name: string, run: (a: Record<string, unknown>) => string): Tool =>
   defineTool({
@@ -92,7 +85,7 @@ test("a confirmed reel download keeps the site, the command and what failed firs
     await env.settle(chat.id);
     await env.client.call("threads.send", { thread: chat.id, text: "genial, funcionó" });
     await env.settle(chat.id);
-    await until(async () => (await procedures(env)).length === 1, "the confirmed procedure");
+    await waitFor(async () => (await procedures(env)).length === 1, "the confirmed procedure");
     const [note] = await procedures(env);
     assert.ok(note);
     const text = note.text;
@@ -115,7 +108,7 @@ test("a confirmed reel download keeps the site, the command and what failed firs
     assert.match(hook, /\(procedure, [^)]*\) "bajame este reel <instagram\.com>": snapinsta\.to → page script → curl/);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 

@@ -1,4 +1,4 @@
-import { noticeEn } from "@apx/protocol";
+import { noticeEn } from "@apx/protocol/notices";
 import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
 import { enEngines } from "./en-engines.ts";

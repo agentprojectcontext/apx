@@ -53,6 +53,18 @@ export type AccessState = z.infer<typeof AccessState>;
  */
 export const HookMode = z.enum(["off", "tailscale", "ngrok", "custom"]);
 export type HookMode = z.infer<typeof HookMode>;
+/** Why the public address is not up; the panel says each in the owner's language. */
+export const HookError = z.enum([
+  "tailscale_missing",
+  "tailscale_offline",
+  "funnel_failed",
+  "ngrok_missing",
+  "ngrok_timeout",
+  "ngrok_failed",
+  "ngrok_stopped",
+  "failed",
+]);
+export type HookError = z.infer<typeof HookError>;
 export const WebhooksState = z.object({
   mode: HookMode,
   /** The base platforms reach, as `<url>/hooks/<channel id>`; none while off or not up yet. */
@@ -67,7 +79,9 @@ export const WebhooksState = z.object({
   /** The owner's reserved ngrok domain, when they gave one. */
   domain: z.string().optional(),
   /** Why the address is not up (Funnel not allowed in the tailnet, ngrok not signed in…). */
-  error: z.string().optional(),
+  error: HookError.optional(),
+  /** What the tool itself said, when it said something (ngrok's own error line, an exit code). */
+  error_detail: z.string().optional(),
   tailscale: z.object({ installed: z.boolean(), connected: z.boolean() }),
   ngrok: z.object({ installed: z.boolean() }),
 });

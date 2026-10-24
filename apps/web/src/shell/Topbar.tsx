@@ -1,20 +1,18 @@
 import { AgentAvatar, IconButton, Icons, Kbd, Menu } from "@apx/ui";
-import { Fragment, lazy, Suspense } from "react";
+import { Fragment, Suspense } from "react";
 import logoUrl from "../assets/logo.png";
 import { useChannels } from "../data/channels.ts";
 import { blobOf, findProject, projectName, secretary } from "../data/identity.ts";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { UsageButton } from "../lazy.ts";
 import { AttentionTray } from "./AttentionTray.tsx";
 import { useDesktopClass } from "./desktop.ts";
 import { LanguageMenu, useLanguageItems } from "./LanguageMenu.tsx";
 import { go, PROJECT_TABS, useNav, useNavHistory } from "./nav.ts";
 import { RunningIndicator } from "./RunningIndicator.tsx";
 import { UpdatePill, WhatsNewPill } from "./UpdatePill.tsx";
-
-// The gauge shows a number only after its first read: loading it after the first screen moves nothing that was shown.
-const UsageButton = lazy(() => import("./UsageButton.tsx").then((m) => ({ default: m.UsageButton })));
 
 /** SPEC §1.5: Inbox / project / chat · Projects / project / tab · External sessions / engine / chat · Apps · Tasks. */
 function useCrumbs(): string[] {

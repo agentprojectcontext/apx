@@ -1,6 +1,6 @@
 // The shared Linux computer as an agent sees it: its state, starting it (and taking the agent's own screen) and
 // leaving it. Offered only in an owner's native chat, to an agent the owner allowed or, once the owner set the
-// computer up, to one that may ask (DECISIONS.md#d-144, DECISIONS.md#d-145).
+// computer up, to one that may ask (DECISIONS.md#d-151, DECISIONS.md#d-152).
 import { z } from "zod";
 import { type Computer, computerApproval } from "../environments/computer.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";

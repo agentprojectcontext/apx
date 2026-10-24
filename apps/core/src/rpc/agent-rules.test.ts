@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let root: string;
@@ -15,8 +16,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(root, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(root);
 });
 
 test("an agent's orchestrator mark and rules by risk are written to its file and read back", async () => {

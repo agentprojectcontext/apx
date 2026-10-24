@@ -1,15 +1,13 @@
 import type { Job, TerminalInfo, Thread } from "@apx/protocol";
 import { EmptyState, IconButton, Icons, Skeleton } from "@apx/ui";
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { watchEvents } from "../data/live.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
+import { TerminalView } from "../lazy.ts";
 import { useNav } from "../shell/nav.ts";
 import { plain } from "./terminalText.ts";
-
-// xterm.js loads with the first terminal opened, not with the panel.
-const TerminalView = lazy(() => import("./TerminalView.tsx"));
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 

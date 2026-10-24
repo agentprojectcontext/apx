@@ -7,6 +7,7 @@ import { methods } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createAsana } from "../integrations/asana.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { asanaTools } from "../tools/asana.ts";
 
 const TOKEN = "example-asana-pat";
@@ -101,8 +102,8 @@ test("native Asana lifecycle, pagination, writes and idempotency through the run
     await assert.rejects(env.client.call("asana.read", { request: { operation: "workspaces" } }));
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(repo, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(repo);
   }
 });
 
@@ -146,7 +147,7 @@ test("Asana tools are conditional, writes require owner authority and request sc
     );
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -170,6 +171,6 @@ test("Asana errors never expose a remote error body and writes are not retried",
     assert.equal(calls, 1);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

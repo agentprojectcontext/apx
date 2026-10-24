@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
+import { removeDir } from "../testkit/platform.ts";
 import { commandEnv } from "./env.ts";
 
 const run = promisify(execFile);
@@ -26,7 +27,7 @@ test("an agent's command is told nobody answers prompts, and the owner's own val
 
 test("pnpm run by an agent reinstalls a changed node_modules instead of aborting for a missing terminal", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-env-"));
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeDir(dir));
   fs.mkdirSync(path.join(dir, "lib"));
   fs.writeFileSync(path.join(dir, "lib", "package.json"), JSON.stringify({ name: "lib", version: "1.0.0" }));
   const manifest = (deps: Record<string, string>) =>

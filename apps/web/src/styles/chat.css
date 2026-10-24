@@ -64,20 +64,6 @@
   min-height: 0;
   overflow-y: auto;
 }
-/* Back to the latest message, floating over the end of the transcript while the reader is scrolled up. */
-.chat__tobottom {
-  position: sticky;
-  bottom: 12px;
-  height: 0;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  pointer-events: none;
-}
-.chat__tobottom > * {
-  pointer-events: auto;
-  box-shadow: var(--apx-shadow-md);
-}
 .transcript {
   display: flex;
   flex-direction: column;

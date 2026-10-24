@@ -175,7 +175,10 @@ export function ChannelScreen() {
         <p className="chan__foot">{t("ch.foot", { agent: agents[channel.agent_id]?.name ?? channel.agent_id })}</p>
       </aside>
       {ownerOpen && ownerTarget ? (
-        <OpenChat threadId={ownerTarget} />
+        <OpenChat
+          threadId={ownerTarget}
+          {...(ownerTarget === "home" ? { via: { channel: channel.id, label: channel.label } } : {})}
+        />
       ) : roomOpen && picked ? (
         <OpenChat threadId={picked} />
       ) : current ? (
@@ -205,8 +208,11 @@ export function ChannelScreen() {
   );
 }
 
-/** The owner's chat or a room's, opened right here (the same chat as in the Inbox), so the channel stays in view. */
-function OpenChat({ threadId }: { threadId: string }) {
+/**
+ * The owner's chat or a room's, opened right here (the same chat as in the Inbox), so the channel stays in view. Home
+ * shows only this channel's part of it (`via`); all of it is in Home itself.
+ */
+function OpenChat({ threadId, via }: { threadId: string; via?: { channel: string; label: string } }) {
   const shown = useNav((s) => s.threadId);
   const panel = useNav((s) => s.panel);
   useEffect(() => {
@@ -214,7 +220,7 @@ function OpenChat({ threadId }: { threadId: string }) {
   }, [shown, threadId]);
   return (
     <div className="chan__owner">
-      <ChatView wideHeader={false} />
+      <ChatView wideHeader={false} {...(via ? { via } : {})} />
       {panel != null && <SidePanel />}
     </div>
   );

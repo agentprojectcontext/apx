@@ -6,6 +6,7 @@ import { after, before, test } from "node:test";
 import type { Message } from "@apx/protocol";
 import { ownerQuestionProblem } from "../domain/owner-question.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 const STAND_INS = [
@@ -78,8 +79,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(repo, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(repo);
 });
 
 const inputParts = (messages: Message[]) =>

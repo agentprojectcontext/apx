@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { z } from "zod";
 import { defineTool } from "../tools/types.ts";
-import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
+import { callTool, inputsOrEnd, say, scriptedLlm, startCore } from "./testkit.ts";
 
 const ran: string[] = [];
 const llm = scriptedLlm((req, { said, afterTool }) => {
@@ -49,7 +49,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 /** Sends text in a new chat with the clerk; answers its confirmation, if one comes, with `decision`. */
@@ -63,11 +63,10 @@ async function ask(
     ? { id: thread }
     : await env.client.call("threads.create", { kind: "loose", agent_id: "clerk", title: "Desk" });
   await env.client.call("threads.send", { thread: t.id, text });
-  let pending: Awaited<ReturnType<typeof env.client.call<"runs.pending">>>["inputs"] = [];
-  for (let i = 0; i < 40 && !pending.length; i++) {
-    pending = (await env.client.call("runs.pending", { thread: t.id })).inputs;
-    if (!pending.length) await new Promise((r) => setTimeout(r, 20));
-  }
+  const pending: Awaited<ReturnType<typeof env.client.call<"runs.pending">>>["inputs"] = await inputsOrEnd(
+    env.client,
+    t.id,
+  );
   const input = pending[0];
   if (input && decision)
     await env.client.call("runs.respond", { input: input.id, decision, ...(scope ? { scope } : {}) });

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import http from "node:http";
 import { afterEach, test } from "node:test";
-import { ApxClient, ApxError, ApxSocket } from "./client.ts";
+import { ApxClient, ApxError, ApxSocket, isRepeatableRead } from "./client.ts";
 import { PROTOCOL_VERSION } from "./constants.ts";
-import type { MethodName } from "./methods.ts";
+import { type MethodName, methods } from "./methods.ts";
 
 test("a chat read survives one dropped response without retrying a one-time effect", async (t) => {
   const reads: Array<{ headers: http.IncomingHttpHeaders; body: string }> = [];
@@ -47,7 +47,18 @@ test("a chat read survives one dropped response without retrying a one-time effe
   assert.equal(effects, 1);
 });
 
-test("chat reads retry socket resets at most once within one deadline and request", async (t) => {
+test("a read is named so only when it has no effect, and so may be sent again", () => {
+  const named = Object.entries(methods).filter(([name]) => isRepeatableRead(name));
+  assert.ok(named.length > 20);
+  assert.deepEqual(
+    named.filter(([, m]) => m.effect).map(([name]) => name),
+    [],
+  );
+  for (const name of ["threads.get", "runs.pending", "channels.list", "secrets.reveal", "threads.read"])
+    assert.equal(isRepeatableRead(name), name !== "secrets.reveal" && name !== "threads.read", name);
+});
+
+test("reads retry socket resets at most once within one deadline and request", async (t) => {
   const timeout = AbortSignal.timeout;
   let deadlines = 0;
   t.mock.method(AbortSignal, "timeout", (ms: number) => {
@@ -67,6 +78,8 @@ test("chat reads retry socket resets at most once within one deadline and reques
     assert.equal(requests.length, 2);
     assert.equal(requests[1], requests[0]);
     assert.equal(deadlines - before, 1);
+    await assert.rejects(client.call("runs.pending", { thread: "th_acme" }), (e) => e === error);
+    assert.equal(requests.length, 4);
   }
 });
 
@@ -487,4 +500,22 @@ test("socket call and handshake deadlines reject, and closing before welcome rej
     assert.equal(FakeWebSocket.latest.readyState, FakeWebSocket.CLOSED, `${kind} must release the connection`);
     next.close();
   }
+});
+
+test("setting up the public address or remote access waits longer than the core does (rule 9)", async (t) => {
+  const asked: number[] = [];
+  const timeout = AbortSignal.timeout;
+  t.mock.method(AbortSignal, "timeout", (ms: number) => {
+    asked.push(ms);
+    return timeout(ms);
+  });
+  t.mock.method(globalThis, "fetch", async () => Response.json({ ok: true, result: {} }));
+  const client = new ApxClient({ url: "http://core.example.com" });
+  await client.call("webhooks.set", { mode: "off" });
+  await client.call("access.set", { mode: "local" });
+  await client.call("webhooks.get", {});
+  // ngrok has 15 s to answer; Tailscale runs up to three commands of 5 s each.
+  assert.ok((asked[0] ?? 0) > 15_000 + 15_000, `webhooks.set: ${asked[0]} ms`);
+  assert.ok((asked[1] ?? 0) > 3 * 5_000, `access.set: ${asked[1]} ms`);
+  assert.equal(asked[2], 15_000, "a read keeps the default");
 });

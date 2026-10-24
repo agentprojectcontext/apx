@@ -15,7 +15,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 const POST = `printf '%s|%s|%s|%s' "$APX_STATUS" "$APX_SKIPPED" "$APX_PRE_OUTPUT" "$APX_LLM_OUTPUT" > post.txt`;
@@ -114,6 +114,15 @@ test("steps: calling rules, defused envelopes, a timeout stops the command", asy
   });
   assert.equal(slow.timedOut, true);
   assert.doesNotMatch(slow.output, /late/);
+  // A stopped step says so and has no exit code, even though its shell closed before the tree was gone.
+  assert.match(slow.output, /\[stopped: time limit\]$/);
+  assert.equal(slow.exit, null);
+  const owner = new AbortController();
+  const canceled = runStep("echo hi; sleep 5", { cwd: env.home, env: {}, signal: owner.signal });
+  setTimeout(() => owner.abort(), 200);
+  const stopped = await canceled;
+  assert.match(stopped.output, /^hi\n\n\[stopped\]$/);
+  assert.equal(stopped.exit, null);
 });
 
 test("a step that leaves its group (setsid) still ends at its limit; a NUL in the output does not break the run", async () => {

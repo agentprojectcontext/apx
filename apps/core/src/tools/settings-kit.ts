@@ -24,6 +24,8 @@ export type Setting = {
   says?: (p: Params, d: SettingsDeps) => string;
   /** The params that first line already says (the record it names), left off the lines under it. */
   named?: readonly string[];
+  /** A field the owner reads in words, not as before → after, by its path ("channel.hours"); undefined: it is dropped. */
+  words?: Readonly<Record<string, (v: unknown, d: SettingsDeps) => string>>;
   /** The record as it is now, so the card shows each field before and after, and an equal one asks nobody. */
   now?: (p: Params, d: SettingsDeps) => Params | undefined;
   /** The whole record the method needs, from what the agent gave and what the record already has. */
@@ -32,6 +34,8 @@ export type Setting = {
   refuse?: (p: Params, d: SettingsDeps) => string | undefined;
   /** What the agent reads back once it ran (default: the method's result). */
   shows?: (result: unknown) => string;
+  /** Its card shows every value whole: a cut could hide what it runs or where a key goes. */
+  whole?: true;
 };
 
 export const str = (v: unknown) => (typeof v === "string" ? v : "");

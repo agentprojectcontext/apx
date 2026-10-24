@@ -8,6 +8,7 @@ import type { ProjectRecord } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { budgetLeft } from "../engine/breaker.ts";
 import { sessionOf } from "../engine/delegation.ts";
+import { isInside } from "../paths.ts";
 import { cap, fromTeam } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
@@ -125,20 +126,11 @@ export function agentTools(store: Store): Tool[] {
           agent: z.string().optional().describe("agent id or unique name"),
           worker: z
             .object({
-              name: z.string().min(1).max(40).describe("short name for the helper (Researcher, Reviewer)"),
-              instructions: z
-                .string()
-                .min(1)
-                .max(8000)
-                .describe("its system prompt: role, how to work, what its report must contain"),
-              tools: z
-                .array(z.string())
-                .max(60)
-                .optional()
-                .describe("only these of your tools (optional; default all)"),
+              name: z.string().min(1).max(40),
+              instructions: z.string().min(1).max(8000).describe("its system prompt: role, method, what to report"),
+              tools: z.array(z.string()).max(60).optional().describe("a subset of yours (default all)"),
             })
-            .optional()
-            .describe("to start a worker instead of asking an agent"),
+            .optional(),
           session: z.string().max(60).optional().describe("session name: continues it, or names the new one"),
           project: z
             .string()
@@ -146,7 +138,7 @@ export function agentTools(store: Store): Tool[] {
             .optional()
             .describe("project name, id, or a path inside it: the agent works in that folder"),
           write: WritePolicy.optional().describe("in its folder; never more than yours"),
-          task: z.string().min(1).describe("clear, self-contained task with everything the other agent needs"),
+          task: z.string().min(1),
           wait_s: z.number().int().min(0).max(120).optional().describe("seconds to wait inside this turn (default 60)"),
         })
         .refine((a) => !(a.agent && a.worker), { message: "give agent or worker, not both; omit the unused field" }),
@@ -222,7 +214,7 @@ function projectOf(store: Store, ref: string, agent: AgentRecord): ProjectRecord
     .filter((p) => {
       if (!p.path || !absolute) return false;
       const root = path.resolve(p.path);
-      return absolute === root || absolute.startsWith(`${root}${path.sep}`);
+      return isInside(root, absolute);
     })
     .sort((x, y) => (y.path?.length ?? 0) - (x.path?.length ?? 0))[0];
   const found = all.find((p) => p.id === q) ?? all.find((p) => p.name.toLowerCase() === q.toLowerCase()) ?? pathProject;

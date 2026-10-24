@@ -61,7 +61,7 @@ test("old history in the current chat is recalled by meaning without visible tur
     assert.doesNotMatch(text, /lunch arrangements/);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -83,7 +83,7 @@ test("an older semantic match keeps its rank ahead of more than four recent dist
     assert.match(snapshot?.render() ?? "", /Northwind feedback/);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -107,7 +107,7 @@ test("visible textual matches cannot crowd out an older current-chat source befo
     assert.doesNotMatch(snapshot?.render() ?? "", /maintenance ticket/);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -142,7 +142,7 @@ test("queued and running owner messages in the current chat are never historical
   } finally {
     release();
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -176,7 +176,7 @@ test("old and new episodes are indexed independently of an exhausted extraction 
     assert.equal(env.core.store.memoryWork.reserve("capture:backlog:79", 20), false);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -217,7 +217,7 @@ test("episode scan skips discarded batches, rolls back interrupted progress and 
     }
   } finally {
     if (!closed) await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -252,6 +252,6 @@ test("recall brings back how the agent did an earlier request: its completed too
     assert.doesNotMatch(text, /hunter2/);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

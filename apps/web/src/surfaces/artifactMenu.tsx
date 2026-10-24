@@ -9,7 +9,7 @@ import { go } from "../shell/nav.ts";
 import { popOut } from "./artifactWindows.ts";
 import { dropLive } from "./livePool.ts";
 import { shareEntries } from "./ShareMenu.tsx";
-import { openWidgetChat } from "./WidgetChat.tsx";
+import { openWidgetChat } from "./widgetChatActions.ts";
 
 /** The artifact as an .apxart file to keep, share or load in another APX: alone, or with what it remembers. */
 export function downloadEntry(s: SurfaceSummary, t: typeof tr): MenuEntry {

@@ -75,7 +75,7 @@ test("agent discovery exposes scope and the resolved project orchestrator withou
     assert.doesNotMatch(found, /Global: no fixed project/);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -114,7 +114,7 @@ test("an agent that names one teammate in list_agents reads its instructions too
     assert.doesNotMatch(await listed("Engineering"), /Its instructions/);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -163,6 +163,6 @@ test("a marked sub-team lead leads its reports, not the project; a parent by ful
     assert.match(out, /id: acme-ada\).*Reports to: reels \(id: acme-reels\)/);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

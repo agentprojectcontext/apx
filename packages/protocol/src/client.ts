@@ -76,6 +76,9 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "sessions.digest") return 11 * 60_000;
   // The owner's phone is asked again under each of a chat's addresses, then each file is downloaded (server: 150 s).
   if (method === "channels.recover") return 170_000;
+  // The public address may wait 15 s for ngrok, or on three Tailscale commands of up to 5 s each.
+  if (method === "webhooks.set") return 45_000;
+  if (method === "access.set") return 30_000;
   if (method === "runs.wait") return ((params as { timeout_s?: number })?.timeout_s ?? 60) * 1000 + 10_000;
   return fallback;
 }
@@ -95,6 +98,12 @@ export type ClientOptions = {
   /** Cancels calls and live sockets of this client, on top of each call's own deadline. */
   signal?: AbortSignal;
 };
+
+/**
+ * Reads safe to send again after the connection reset before an answer: no effect, nothing one-time. Named by
+ * convention so the client needs no registry; a test checks that no method with an effect matches.
+ */
+export const isRepeatableRead = (method: string) => /\.(get|list|pending|status|search)$/.test(method);
 
 export class ApxClient {
   readonly #opts: Required<Omit<ClientOptions, "token" | "clientToken" | "signal">> & {
@@ -143,8 +152,8 @@ export class ApxClient {
       res = await fetch(url, request);
     } catch (error) {
       const code = (error as { cause?: { code?: unknown } } | undefined)?.cause?.code;
-      // Only a chat read is safe to repeat here; effects and one-time results must never be replayed.
-      if (method !== "threads.get" || request.signal.aborted || (code !== "ECONNRESET" && code !== "UND_ERR_SOCKET"))
+      // Only a read is safe to repeat here; effects and one-time results must never be replayed.
+      if (!isRepeatableRead(method) || request.signal.aborted || (code !== "ECONNRESET" && code !== "UND_ERR_SOCKET"))
         throw error;
       res = await fetch(url, request);
     }

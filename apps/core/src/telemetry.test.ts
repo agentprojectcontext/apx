@@ -21,7 +21,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("an install reports each lifecycle step once, in order, and a failed one is tried again", async () => {

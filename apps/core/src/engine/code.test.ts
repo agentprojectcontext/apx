@@ -6,6 +6,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
@@ -32,8 +33,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(repo, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(repo);
 });
 
 const lastSeen = () => String(llm.calls.at(-1)?.messages.at(-1)?.content);

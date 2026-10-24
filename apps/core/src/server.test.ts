@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
 import { assertSafeBind, testConfig } from "./config.ts";
 import { createCore } from "./server.ts";
+import { removeDir } from "./testkit/platform.ts";
 
 let core: Awaited<ReturnType<typeof createCore>>;
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-test-"));
@@ -15,7 +17,7 @@ before(async () => {
 });
 after(async () => {
   await core.close();
-  fs.rmSync(home, { recursive: true, force: true });
+  await removeDir(home);
 });
 
 test("health over HTTP carries code_sha and a stable home id", async () => {
@@ -24,6 +26,18 @@ test("health over HTTP carries code_sha and a stable home id", async () => {
   assert.equal(h.name, "apx-core");
   assert.ok(h.code_sha.length > 0);
   assert.equal(h.home_id, fs.readFileSync(path.join(home, "home-id"), "utf8").trim());
+});
+
+test("an idle connection stays open far longer than a client reuses one", async () => {
+  const agent = new http.Agent({ keepAlive: true });
+  const res = await new Promise<http.IncomingMessage>((resolve, reject) =>
+    http.get(`${core.url}/health`, { agent }, resolve).on("error", reject),
+  );
+  res.resume();
+  agent.destroy();
+  // fetch keeps a connection for about 4 s; Node's default here (5 s) let a stalled client reuse a closing one.
+  const timeout = Number(/timeout=(\d+)/.exec(String(res.headers["keep-alive"]))?.[1]);
+  assert.ok(timeout >= 60, `keep-alive ${res.headers["keep-alive"]}`);
 });
 
 test("the socket and HTTP reach the same handler", async () => {

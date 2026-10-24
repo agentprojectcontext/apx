@@ -63,6 +63,7 @@ export function jobHandlers(store: Store, engine: Engine) {
       const from = since ?? (thread ? "" : new Date(Date.now() - 30 * 86_400_000).toISOString());
       return {
         since: from,
+        ...(thread ? { totals: store.runs.threadTotals(thread) } : {}),
         aux: thread ? store.auxCalls.ofThread(thread) : store.auxCalls.since(from, project),
         models: store.runs.usage(from, project, thread).map((u) => ({
           model: u.model,

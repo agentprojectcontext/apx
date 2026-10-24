@@ -143,6 +143,7 @@ function Hours({ channel, save }: { channel: ChannelInfo; save(patch: Partial<Ch
   const set = (patch: Partial<ChannelHours>) => hours && void save({ hours: { ...hours, ...patch } });
   const time = (key: "from" | "to", label: string) => (
     <Input
+      className="chhours__time"
       aria-label={label}
       type="time"
       value={hours?.[key] ?? ""}

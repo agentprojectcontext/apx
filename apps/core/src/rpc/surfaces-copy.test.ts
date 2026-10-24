@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 test("a widget is copied into another project as the owner's, never over one there by its name", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
@@ -27,7 +28,7 @@ test("a widget is copied into another project as the owner's, never over one the
     assert.equal((await env.client.call("surfaces.copy", { surface: copy.id, project_id: null })).name, "sales-2");
   } finally {
     await env.core.close();
-    env.cleanup();
-    fs.rmSync(root, { recursive: true, force: true });
+    await env.cleanup();
+    await removeDir(root);
   }
 });

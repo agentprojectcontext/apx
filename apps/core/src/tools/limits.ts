@@ -16,7 +16,7 @@ export function limitTools(store: Store): Tool[] {
     defineTool({
       name: "agent_limits",
       description:
-        "How far agents may go on their own (delegations, results waking you) since the owner last wrote in this conversation before it pauses, what they spent, and whether it is paused now. This is not the owner's notice budget. Only when the owner asks: runs/tokens change the limit for every chat (0: none), go_on lets this paused conversation go on (reset: a fresh budget; release: no limit until the owner writes here again). Each change waits for the owner.",
+        "How far agents may go on their own (delegations, results waking you) since the owner last wrote in this conversation before it pauses, what they spent, and whether it is paused now. This is not the owner's notice budget. Only when the owner asks: runs/tokens change the limit for every chat (0: none), go_on lets this paused conversation go on (reset: a fresh budget; release: no limit until the owner writes here again). Each change waits for the owner's OK.",
       args: z.object({
         runs: z.number().int().min(0).max(10_000).optional().describe("turns without the owner"),
         tokens: z.number().int().min(0).max(1_000_000_000).optional().describe("fresh tokens without the owner"),
@@ -25,6 +25,8 @@ export function limitTools(store: Store): Tool[] {
       when: (thread) => tree(store, thread.id).length > 1,
       effect: "local",
       confirm: (a) => (a.runs !== undefined || a.tokens !== undefined || a.go_on ? "always" : "never"),
+      // How far agents go without the owner is theirs to change, on their card in every mode (DECISIONS.md#d-143).
+      ownerSetting: (a) => a.runs !== undefined || a.tokens !== undefined || Boolean(a.go_on),
       deadlineMs: 15_000,
       title: (a) =>
         a.go_on

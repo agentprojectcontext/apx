@@ -11,7 +11,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("a deleted widget is gone, with its memory, and a second delete says it is not there", async () => {

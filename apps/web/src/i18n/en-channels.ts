@@ -51,6 +51,8 @@ export const enChannels = {
   "ch.acceptContact": "Accept as contact",
   "ch.itsMeHint": "Type the code the bot sent you in your Telegram: that is how APX knows this chat is yours.",
   "ch.ownerHome": "Your chat with the bot — your messages go to Home",
+  "ch.homePart": "Only what you and {agent} said on {channel}. Home has every channel.",
+  "ch.openHome": "Open Home",
   "ch.ownerOwn": "Your chat with the bot",
   "ch.ownerOwnNone": "Your own chat starts when you write to the bot",
   "ch.waOwnerHome": "“Message yourself” — your messages go to Home",
@@ -302,6 +304,14 @@ export const enChannels = {
   "hooks.mayChange":
     "This ngrok address is new: paste it into the platform. If ngrok gives another one after a restart, this says so again.",
   "hooks.failed": "The public address could not change: {error}",
+  "hooks.err.funnel_failed":
+    "Tailscale Funnel did not start: it may need turning on for this device in the tailnet's policy.",
+  "hooks.err.ngrok_timeout": "ngrok did not give an address in time.",
+  "hooks.err.ngrok_failed":
+    "ngrok could not open the address. Is it signed in (“ngrok config add-authtoken <your token>”)?",
+  "hooks.err.ngrok_stopped": "ngrok stopped. APX starts it again on its own.",
+  "hooks.err.failed": "The public address could not be set up.",
+  "hooks.errDetail": "What it said: {detail}",
   "tm.lead":
     "Talk with your agents from Microsoft Teams, in personal chats and the channels you list. Teams delivers to a public address, set below.",
   "tm.step1":

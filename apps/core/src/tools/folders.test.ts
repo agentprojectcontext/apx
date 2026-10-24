@@ -6,6 +6,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 import {
   artifactSources,
   folderAccess,
@@ -42,9 +43,9 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(repo, { recursive: true, force: true });
-  fs.rmSync(sibling, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(repo);
+  await removeDir(sibling);
 });
 
 const dirs = (thread: { cwd?: string; project_id?: string }) => [
@@ -254,8 +255,8 @@ test("a project's read-only folders are read by file_read and shell, never chang
     assert.deepEqual(folderAccess(env.core.store, env.home, t, file), { refused: refusal.outside(file), offer: ref });
   } finally {
     await env.client.call("projects.update", { project, read_only_folders: [] });
-    fs.rmSync(ref, { recursive: true, force: true });
-    fs.rmSync(away, { recursive: true, force: true });
+    await removeDir(ref);
+    await removeDir(away);
   }
 });
 
@@ -286,7 +287,7 @@ test("a read-only folder must be an absolute folder on disk, apart from APX's ho
       /holds the project's folder/,
     );
   } finally {
-    fs.rmSync(outer, { recursive: true, force: true });
+    await removeDir(outer);
   }
 });
 
@@ -385,7 +386,7 @@ test("in a project with a read-only folder, commands read it freely and only wri
   } finally {
     await env.client.call("projects.update", { project, read_only_folders: [] });
     fs.unlinkSync(path.join(repo, "l"));
-    fs.rmSync(ref, { recursive: true, force: true });
+    await removeDir(ref);
   }
   // Without a read-only folder there is nothing to protect: the owner is asked as before (commandRisk), not refused.
   for (const c of ["echo hi > $OUT", "touch {a,b}", "cd $X && touch y"]) assert.ok(!("refused" in verdict(c)), c);
@@ -436,7 +437,7 @@ test("a refusal outside every folder names a next step that exists", async () =>
 test("a linked git worktree of the project beside its folder is the project's, unless the thread keeps to one", async (t) => {
   const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, stdio: "ignore" });
   const base = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-wt-")));
-  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  t.after(() => removeDir(base));
   const main = path.join(base, "northwind");
   const beside = path.join(base, "northwind-issue-7");
   fs.mkdirSync(main);
@@ -472,4 +473,24 @@ test("an agent builds in its project's artifact sources, never in an artifact's 
   assert.equal(namesApxHome(`cd ${dir} && npm run build`, sh(env.home), "p_acme"), false);
   assert.equal(namesApxHome(`cd ${dir} && cat ${sh(env.home)}/apx.db`, sh(env.home), "p_acme"), true);
   assert.equal(namesApxHome(`ls ${sh(artifactSources(env.home, "p_other"))}`, sh(env.home), "p_acme"), true);
+});
+
+test("APX's home counts however a command spells it: through a link, in another case on Windows, as .apx\\v2", () => {
+  const base = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-home-names-")));
+  const home = path.join(base, "home");
+  fs.mkdirSync(path.join(home, "artifact-sources", "p_acme"), { recursive: true });
+  const alias = path.join(base, "alias");
+  fs.symlinkSync(home, alias, process.platform === "win32" ? "junction" : "dir");
+  try {
+    // The same folder by another name: a link (on Windows also its short 8.3 name, which resolves the same way).
+    assert.equal(namesApxHome(`cat ${sh(alias)}/apx.db`, home, "p_acme"), true);
+    assert.equal(namesApxHome(`cat ${sh(home)}/apx.db`, alias, "p_acme"), true);
+    assert.equal(namesApxHome(`cd ${sh(alias)}/artifact-sources/p_acme && npm run build`, home, "p_acme"), false);
+    assert.equal(namesApxHome("type %USERPROFILE%\\.apx\\v2\\apx.db", home, "p_acme"), true);
+    assert.equal(namesApxHome(`cat ${sh(base)}/elsewhere.txt`, home, "p_acme"), false);
+    if (process.platform === "win32")
+      assert.equal(namesApxHome(`type ${home.toUpperCase()}\\apx.db`, home, "p_acme"), true);
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
 });

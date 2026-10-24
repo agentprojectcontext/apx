@@ -112,7 +112,7 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
     // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
     await page.goto("about:blank");
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -142,6 +142,6 @@ test("cambios: los archivos de la carpeta temporal se listan aparte, con su diff
     // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
     await page.goto("about:blank");
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

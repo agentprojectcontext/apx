@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { pairingRef } from "../channels/inbound.ts";
 import type { Store } from "../domain/store.ts";
+import { channelsOn } from "./directory.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
@@ -62,9 +63,10 @@ export function requestTools(store: Store): Tool[] {
     defineTool({
       name: "contact_requests",
       description:
-        'People who wrote to the owner on a channel (WhatsApp, Telegram) and wait for the owner\'s OK before anyone answers them: their request code or contact id, where they wrote from, the name they gave and what they wrote. Use it when the owner speaks about someone who wrote ("answer her", "who wrote?", "ignore that one").',
+        'People who wrote to the owner on a channel and wait for the owner\'s OK before anyone answers them: request code or contact id, where they wrote from, the name they gave and what they wrote. Use it when the owner speaks about someone who wrote ("answer her", "who wrote?").',
       args: z.object({}),
       effect: "none",
+      when: () => channelsOn(store),
       deadlineMs: 5_000,
       title: () => "Looked at who is waiting",
       async run() {
@@ -86,15 +88,18 @@ export function requestTools(store: Store): Tool[] {
     defineTool({
       name: "answer_contact_request",
       description:
-        "Carry out the owner's decision on someone waiting (see contact_requests): answer = they become a contact answered in their own sealed chat (no tools, no memory); ignore = nobody answers them. Only when the owner said so in their own words.",
+        "Carry out the owner's decision, in their own words, on someone waiting (contact_requests): answer = they become a contact answered in their own sealed chat (no tools, no memory); ignore = nobody answers them.",
       args: z.object({
         who: z.string().trim().min(4).max(40).describe("the request code or contact id contact_requests shows"),
         decision: z.enum(["answer", "ignore"]),
         name: z.string().trim().min(1).max(80).optional().describe("how to call them, when the owner said it"),
       }),
       effect: "external",
-      // Letting someone in is the owner's act: it runs once they approve this call. Ignoring changes nothing outside.
+      when: () => channelsOn(store),
+      // Letting someone in is the owner's act: on their own word, on their card in every mode (DECISIONS.md#d-143).
+      // Ignoring changes nothing outside.
       confirm: (a) => (a.decision === "answer" ? "always" : "never"),
+      ownerSetting: (a) => a.decision === "answer",
       deadlineMs: 30_000,
       title: (a) => (a.decision === "answer" ? `Let ${String(a.who)} in` : `Ignored ${String(a.who)}`),
       async run(a, ctx) {

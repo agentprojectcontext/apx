@@ -6,6 +6,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let repo = "";
@@ -31,9 +32,9 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(repo, { recursive: true, force: true });
-  fs.rmSync(plain, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(repo);
+  await removeDir(plain);
 });
 
 test("a folder outside git says so instead of failing", async () => {
@@ -177,7 +178,7 @@ test("a folder holding several repositories lists them, and each one is worked b
     );
     await assert.rejects(env.client.call("git.status", { project: id, repo: "../" }), /outside the project/);
   } finally {
-    fs.rmSync(mono, { recursive: true, force: true });
+    await removeDir(mono);
   }
 });
 
@@ -188,6 +189,6 @@ test("a repository with no commits yet has an empty history", async () => {
     const id = (await env.client.call("projects.register", { path: fresh, init: true })).project.id;
     assert.deepEqual(await env.client.call("git.log", { project: id }), { commits: [], more: false });
   } finally {
-    fs.rmSync(fresh, { recursive: true, force: true });
+    await removeDir(fresh);
   }
 });

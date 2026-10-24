@@ -77,6 +77,6 @@ test("documentos: txt como Markdown, apertura explícita, fuente, descarga y rec
     // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
     await page.goto("about:blank");
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

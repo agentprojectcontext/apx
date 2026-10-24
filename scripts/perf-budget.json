@@ -5,5 +5,6 @@
   "rpc_p95_ms": 10,
   "turn_p95_ms": 60,
   "rss_after_turns_mb": 180,
-  "initial_bundle_gzip_kb": 275
+  "initial_bundle_gzip_kb": 275,
+  "boot_gzip_kb": 330
 }

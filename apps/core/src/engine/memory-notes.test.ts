@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { z } from "zod";
 import { absoluteDates, factSupported } from "../domain/memory-content.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { confirmsSuccess } from "./memory-procedure.ts";
 import { supportMemoryClaims } from "./memory-testkit.ts";
@@ -10,16 +11,8 @@ import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 type Env = Awaited<ReturnType<typeof startCore>>;
 
-async function until(check: () => Promise<boolean> | boolean, what: string) {
-  for (let i = 0; i < 300; i++) {
-    if (await check()) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  assert.fail(`timed out waiting for ${what}`);
-}
-
 const settleJobs = (env: Env) =>
-  until(async () => {
+  waitFor(async () => {
     const { jobs } = await env.client.call("memory.status", {});
     if (jobs.some((job) => job.state === "failed")) assert.fail(JSON.stringify(jobs));
     return jobs.every((job) => job.state === "completed");
@@ -135,7 +128,7 @@ test("automatic capture saves the agent's synthesis with the owner's quote as ev
     assert.notEqual(note?.text, note?.evidence?.[0]?.quote, "the note is the agent's words, the quote is evidence");
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -203,7 +196,7 @@ test("a download that worked after a failed try leaves a procedure note, and 'li
     assert.equal((await procedures(env)).length, 0, "a tool response is not a verified download");
     await env.client.call("threads.send", { thread: chat.id, text: "Genial, funcionó" });
     await env.settle(chat.id);
-    await until(async () => (await procedures(env)).length === 1, "the procedure note");
+    await waitFor(async () => (await procedures(env)).length === 1, "the procedure note");
     const [note] = await procedures(env);
     assert.ok(note);
     assert.equal(note.scope, "agent");
@@ -236,12 +229,12 @@ test("a download that worked after a failed try leaves a procedure note, and 'li
     assert.match(
       index,
       new RegExp(
-        `\\[${note.id}\\] \\(procedure, [^)]*\\) "descargá este reel <videos\\.example\\.com>": reelsaver\\.example\\.com`,
+        `\\[${note.id}\\] \\(procedure, [^)]*\\) "descargá este reel &lt;videos\\.example\\.com>": reelsaver\\.example\\.com`,
       ),
     );
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -283,14 +276,14 @@ test("the owner confirming it worked keeps the previous turn's procedure; a 'gre
     assert.equal((await procedures(env)).length, 0, "a positive opener over a complaint confirms nothing");
     await env.client.call("threads.send", { thread: chat.id, text: "genial, funcionó" });
     await env.settle(chat.id);
-    await until(async () => (await procedures(env)).length === 1, "the confirmed procedure");
+    await waitFor(async () => (await procedures(env)).length === 1, "the confirmed procedure");
     const [note] = await procedures(env);
     assert.equal(note?.evidence?.[0]?.quote, request, "the note is about the turn that did the work");
     assert.match(note?.text ?? "", /`download_file` `reelsaver\.example\.com`/);
     assert.equal(note?.tainted, true, "a procedure is read as data: its arguments may come from what a step read");
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -352,7 +345,7 @@ test("the index lists the agent's own notes once per thread, within its cap, and
     assert.match(lastInput(llm), /Northwind ledger entries now close with a short review/, "an edited note comes back");
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -377,7 +370,7 @@ test("a notebook of notes saved with outside content keeps the index within its 
     assert.ok(block.length <= INDEX_CHARS, `index ${block.length} chars, cap ${INDEX_CHARS}`);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -429,7 +422,7 @@ test("a dream retires a note a newer correction supersedes and writes relative d
     assert.equal(env.core.store.memories.get(dated.id)?.text, `Acme's deploy was moved to ${day}.`);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -483,6 +476,6 @@ test("a dream that would forget too much of the notebook at once is refused whol
     );
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

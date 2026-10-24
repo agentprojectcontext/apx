@@ -10,7 +10,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 /** A task straight in the store, as an import or an older version may have left it. */

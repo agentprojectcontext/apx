@@ -71,7 +71,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 const said = async (thread: string, text: string) => {
@@ -106,7 +106,7 @@ test("a widget reaches only the origins it declares for live data, in the chat a
   assert.equal((await env.client.call("surfaces.get", { surface: id })).connect, undefined);
 
   // Only a bare https or wss origin: no plain http, no path.
-  assert.match(await said(t.id, "bad origin"), /invalid arguments for show_widget: connect\.0/);
+  assert.match(await said(t.id, "bad origin"), /connect takes https:\/\/ or wss:\/\/ origins without a path/);
 });
 
 test("an agent reads a widget and changes a piece of it; where the owner put it stays", async () => {

@@ -67,7 +67,7 @@ test("legacy owner, agent and routine inputs survive invalidation without multil
     assert.match(JSON.stringify(env.core.store.modelLog.list(thread.id)), /lavender/);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -105,6 +105,6 @@ test("unverifiable legacy framing removes its whole run, preserving unrelated hi
     );
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

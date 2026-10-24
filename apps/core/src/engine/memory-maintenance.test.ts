@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { openDb } from "../db/db.ts";
 import { qb, sql } from "../domain/sql.ts";
 import { createLog } from "../log.ts";
+import { waitFor } from "../testkit/platform.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { createMemoryMaintenance } from "./memory-maintenance.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
@@ -32,7 +33,7 @@ test("discarded owner messages keep scan checkpoints without creating empty capt
     );
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -71,7 +72,7 @@ test("disabled capture keeps historical recall without queueing work and resumes
     assert.equal(env.core.store.memoryWork.searchEpisodes("Northwind", [thread.id]).length, 2);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -87,10 +88,6 @@ test("work queued while a maintenance pass runs is picked up when that pass ends
     return say('{"memories":[]}');
   });
   const env = await startCore({ llm, aux: true, memoryMaintenance: true });
-  const until = async (check: () => boolean) => {
-    for (let i = 0; i < 300 && !check(); i++) await new Promise((r) => setTimeout(r, 10));
-    assert.ok(check());
-  };
   const captures = () => env.core.store.memoryWork.recent().filter((j) => j.kind === "capture");
   try {
     await env.client.call("memory.set_settings", {
@@ -106,16 +103,16 @@ test("work queued while a maintenance pass runs is picked up when that pass ends
       const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
       await env.client.call("threads.send", { thread: thread.id, text });
       await env.settle(thread.id);
-      await until(() => extractions === 1);
+      await waitFor(() => extractions === 1);
     }
     assert.equal(captures().length, 2);
     release();
-    await until(() => captures().every((j) => j.state === "completed"));
+    await waitFor(() => captures().every((j) => j.state === "completed"));
     assert.equal(extractions, 2);
   } finally {
     release();
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -192,6 +189,6 @@ test("episode, capture, dream and its timestamp roll back together before indexi
     await maintenance.stop();
     await upkeep.stop();
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

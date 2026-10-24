@@ -1,5 +1,5 @@
 import { Button, EmptyState, Icons, Skeleton } from "@apx/ui";
-import { lazy, Suspense, useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useContactChat } from "../channels/useContactChat.ts";
 import { usePageVisible } from "../common/useInView.ts";
 import { loadThread, markRead } from "../data/actions.ts";
@@ -8,18 +8,24 @@ import { retryNow } from "../data/live.ts";
 import { isNewChat, useNewChat } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { ContactChat, ScreenLive } from "../lazy.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ChatHeader } from "./ChatHeader.tsx";
 import { ChatComposer } from "./composer/ChatComposer.tsx";
 import { Transcript } from "./Transcript.tsx";
 
-// Computer use shows only in the desktop app: the browser never loads it.
-const ScreenLive = lazy(() => import("./ScreenLive.tsx").then((m) => ({ default: m.ScreenLive })));
 const COMPUTER = Boolean(window.apxDesktop?.onComputerActivity);
-// A contact's chat brings the channel's conversation and card: loaded when one is opened, not on the first screen.
-const ContactChat = lazy(() => import("../channels/ContactChat.tsx").then((m) => ({ default: m.ContactChat })));
 
-export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean; compact?: boolean }) {
+/** `via`: a channel's part of the chat (Home seen from that channel), read there; the whole chat is written in. */
+export function ChatView({
+  wideHeader,
+  compact = false,
+  via,
+}: {
+  wideHeader: boolean;
+  compact?: boolean;
+  via?: { channel: string; label: string };
+}) {
   const t = useT();
   const threadId = useNav((s) => s.threadId);
   const ready = useData((s) => s.ready);
@@ -108,8 +114,16 @@ export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean;
   return (
     <section className="chat" aria-label={thread.title}>
       <ChatHeader thread={thread} agent={shown} wide={wideHeader} compact={compact} />
-      <Transcript thread={thread} />
-      {readOnly ? (
+      <Transcript thread={thread} {...(via ? { via: via.channel } : {})} />
+      {via ? (
+        <div className="chat__readonly">
+          <Icons.Filter size={14} />
+          {t("ch.homePart", { agent: shown?.name ?? thread.title, channel: via.label })}
+          <Button size="sm" variant="secondary" onClick={() => go.thread(thread.id)}>
+            {t("ch.openHome")}
+          </Button>
+        </div>
+      ) : readOnly ? (
         <div className="chat__readonly">
           <Icons.Users size={14} />
           {t("chat.readOnly")}

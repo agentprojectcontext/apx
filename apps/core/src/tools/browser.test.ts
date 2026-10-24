@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient, type ApxSocket } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 
 /** The browser_open calls each scripted chat makes, one per step. */
 const BROWSE: Array<[string, object[]]> = [
@@ -97,7 +98,7 @@ before(async () => {
 after(async () => {
   desktop.close();
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("browser_snapshot waits the seconds asked before reading the page", async () => {
@@ -173,7 +174,7 @@ test("the turn holds the tab it used while it runs and lets it go when it ends",
   const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
   await env.client.call("threads.send", { thread, text: "look" });
   await env.settle(thread);
-  for (let i = 0; i < 50 && holds.length < 2; i++) await new Promise((r) => setTimeout(r, 20));
+  await waitFor(() => holds.length >= 2, "two holds");
   const run = holds[0]?.run ?? "";
   assert.ok(run);
   assert.deepEqual(holds, [

@@ -73,8 +73,27 @@ export type Origin =
 export const ownerOrigin = (o: Origin | undefined): o is Extract<Origin, { kind: "user" | "channel" }> =>
   o?.kind === "user" || (o?.kind === "channel" && o.role === "owner");
 
-/** The owner asked for this run: their own message, or their answer to something the agent asked them. */
-export const ownerAsked = (o: Origin | undefined): boolean => ownerOrigin(o) || o?.kind === "input_answer";
+/**
+ * The owner asked for this run: their own message, or their answer to something asked in a run they had asked for.
+ * An answer to a question another agent's, a contact's or a job's run raised is not their word on that run's request.
+ * `askedIn` gives the origin of the run that raised an input.
+ */
+export function ownerAsked(
+  o: Origin | undefined,
+  askedIn: (inputId: string) => Origin | undefined,
+  depth = 0,
+): boolean {
+  if (ownerOrigin(o)) return true;
+  if (o?.kind !== "input_answer" || depth >= 10) return false;
+  return ownerAsked(askedIn(o.input_id), askedIn, depth + 1);
+}
+
+/** The session of the sub-thread where the super-agent checks words a channel could not vouch for (DECISIONS.md#d-144). */
+export const OWNER_CHECK = "owner-check";
+
+/** A turn on the super-agent's answer to such words: it goes on with that chat's conversation, on its channel. */
+export const answersChecked = (o: Origin | undefined): boolean =>
+  o?.kind === "delegation_result" && o.session === OWNER_CHECK;
 
 /** A file or image the owner attached to the message that started the run. */
 export type Attachment = { media_id: string; kind: "image" | "audio" | "file"; mime: string; name: string };
@@ -355,6 +374,37 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
         input: Number(r.i),
         output: Number(r.o),
       }));
+    },
+    /** Every run of one chat, however many the apps loaded: count, failures, seconds at work and tokens. */
+    threadTotals(threadId: string): {
+      runs: number;
+      failed: number;
+      seconds: number;
+      input: number;
+      output: number;
+      cached: number;
+    } {
+      const r = one(
+        qb
+          .selectFrom("runs")
+          .select((eb) => [
+            eb.fn.countAll<number>().as("n"),
+            raw<number>`coalesce(sum(state = 'failed'), 0)`.as("f"),
+            raw<number>`coalesce(sum((julianday(ended_at) - julianday(started_at)) * 86400), 0)`.as("s"),
+            raw<number>`coalesce(sum(json_extract(usage, '$.input')), 0)`.as("i"),
+            raw<number>`coalesce(sum(json_extract(usage, '$.output')), 0)`.as("o"),
+            raw<number>`coalesce(sum(json_extract(usage, '$.cached')), 0)`.as("c"),
+          ])
+          .where("thread_id", "=", threadId),
+      );
+      return {
+        runs: Number(r?.n ?? 0),
+        failed: Number(r?.f ?? 0),
+        seconds: Math.round(Number(r?.s ?? 0) * 10) / 10,
+        input: Number(r?.i ?? 0),
+        output: Number(r?.o ?? 0),
+        cached: Number(r?.c ?? 0),
+      };
     },
     /** Runs in this thread's sub-threads admitted or at work (not those queued or waiting for the owner). */
     activeDelegations(parentThreadId: string): number {

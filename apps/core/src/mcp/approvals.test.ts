@@ -4,8 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, inputOrEnd, pendingInput, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createLog } from "../log.ts";
+import { removeDir } from "../testkit/platform.ts";
 import { createMcp } from "./manager.ts";
 
 const SERVER = path.join(import.meta.dirname, "fake-server.test-support.mjs");
@@ -44,19 +45,10 @@ async function setup() {
     project,
     clean: async () => {
       await env.core.close();
-      env.cleanup();
-      fs.rmSync(root, { recursive: true, force: true });
+      await env.cleanup();
+      await removeDir(root);
     },
   };
-}
-
-async function pending(client: ApxClient, thread: string) {
-  for (let i = 0; i < 150; i++) {
-    const r = await client.call("runs.pending", { thread });
-    if (r.inputs[0]) return r.inputs[0];
-    await new Promise((r) => setTimeout(r, 20));
-  }
-  throw new Error("no confirmation");
 }
 
 const chat = (e: Awaited<ReturnType<typeof setup>>, agent = "roby") =>
@@ -67,7 +59,7 @@ test("through mcp_call an MCP tool still waits for the owner, who is asked about
   try {
     const t = await chat(e);
     await e.client.call("threads.send", { thread: t.id, text: "bridge" });
-    const i = await pending(e.client, t.id);
+    const i = await pendingInput(e.client, t.id);
     assert.equal(i.tool, "mcp_notes_echo");
     await e.client.call("runs.respond", { input: i.id, decision: "approve" });
     const { messages } = await e.settle(t.id);
@@ -82,14 +74,14 @@ test("one approval runs exactly once; no permanent grant is created", async () =
   try {
     const t = await chat(e);
     await e.client.call("threads.send", { thread: t.id, text: "read" });
-    const i = await pending(e.client, t.id);
+    const i = await pendingInput(e.client, t.id);
     assert.deepEqual(i.approval_scopes, ["once", "session", "always"]);
     const r = await e.client.call("runs.respond", { input: i.id, decision: "approve" });
     assert.equal(r.approval_scope, "once");
     await e.settle(t.id);
     assert.deepEqual((await e.client.call("tools.approvals", {})).approvals, []);
     await e.client.call("threads.send", { thread: t.id, text: "read again" });
-    assert.notEqual((await pending(e.client, t.id)).id, i.id);
+    assert.notEqual((await pendingInput(e.client, t.id)).id, i.id);
   } finally {
     await e.clean();
   }
@@ -100,7 +92,7 @@ test("session approval covers changed arguments and later turns, not another cha
   try {
     const t = await chat(e);
     await e.client.call("threads.send", { thread: t.id, text: "read" });
-    const i = await pending(e.client, t.id);
+    const i = await pendingInput(e.client, t.id);
     await e.client.call("runs.respond", { input: i.id, decision: "approve", scope: "session" });
     await e.settle(t.id);
     await e.client.call("threads.send", { thread: t.id, text: "different arguments" });
@@ -110,10 +102,10 @@ test("session approval covers changed arguments and later turns, not another cha
     assert.equal(grants[0]?.scope, "session");
     const other = await chat(e);
     await e.client.call("threads.send", { thread: other.id, text: "read" });
-    await pending(e.client, other.id);
+    await pendingInput(e.client, other.id);
     await e.client.call("tools.revoke", { key: grants[0]?.key ?? "", thread: t.id });
     await e.client.call("threads.send", { thread: t.id, text: "read after revoke" });
-    await pending(e.client, t.id);
+    await pendingInput(e.client, t.id);
   } finally {
     await e.clean();
   }
@@ -125,7 +117,7 @@ test("always from a chat is that agent's, in every chat and after a restart; oth
   try {
     const t = await chat(e);
     await e.client.call("threads.send", { thread: t.id, text: "read" });
-    const i = await pending(e.client, t.id);
+    const i = await pendingInput(e.client, t.id);
     await e.client.call("runs.respond", { input: i.id, decision: "approve", scope: "always" });
     await e.settle(t.id);
     const again = await chat(e);
@@ -134,7 +126,7 @@ test("always from a chat is that agent's, in every chat and after a restart; oth
     const a = await e.client.call("agents.create", { slug: "reader", name: "Reader" });
     const other = await chat(e, a.id);
     await e.client.call("threads.send", { thread: other.id, text: "read" });
-    const asked = await pending(e.client, other.id);
+    const asked = await pendingInput(e.client, other.id);
     await e.client.call("runs.respond", { input: asked.id, decision: "deny" });
     await e.settle(other.id);
     await e.core.close();
@@ -147,8 +139,8 @@ test("always from a chat is that agent's, in every chat and after a restart; oth
   } finally {
     if (next) await next.core.close();
     else await e.core.close();
-    e.cleanup();
-    fs.rmSync(e.root, { recursive: true, force: true });
+    await e.cleanup();
+    await removeDir(e.root);
   }
 });
 
@@ -183,7 +175,7 @@ test("a denied approval or a question cannot acquire broader scope; agents canno
   try {
     const t = await chat(e);
     await e.client.call("threads.send", { thread: t.id, text: "read" });
-    const i = await pending(e.client, t.id);
+    const i = await pendingInput(e.client, t.id);
     await assert.rejects(
       e.client.call("runs.respond", { input: i.id, decision: "deny", scope: "always" }),
       /requires approving/,
@@ -207,9 +199,9 @@ test("a permanent approval releases the agent's other chats already waiting on t
     const first = await chat(e);
     const second = await chat(e);
     await e.client.call("threads.send", { thread: first.id, text: "first reader" });
-    const i = await pending(e.client, first.id);
+    const i = await pendingInput(e.client, first.id);
     await e.client.call("threads.send", { thread: second.id, text: "second reader" });
-    const other = await pending(e.client, second.id);
+    const other = await pendingInput(e.client, second.id);
     await e.client.call("runs.respond", { input: i.id, decision: "approve", scope: "always" });
     await e.settle(first.id);
     await e.settle(second.id);
@@ -226,7 +218,7 @@ test("a chat grant outlives a restart (DECISIONS.md#d-109); delayed one-shot gra
   try {
     const t = await chat(e);
     await e.client.call("threads.send", { thread: t.id, text: "read" });
-    const i = await pending(e.client, t.id);
+    const i = await pendingInput(e.client, t.id);
     await e.client.call("runs.respond", { input: i.id, decision: "approve", scope: "session" });
     await e.settle(t.id);
     e.core.store.approvals.grantOnce(t.id, "roby", "mcp_notes_echo", { text: "same" }, "original-contract");
@@ -251,8 +243,8 @@ test("a chat grant outlives a restart (DECISIONS.md#d-109); delayed one-shot gra
   } finally {
     if (next) await next.core.close();
     else await e.core.close();
-    e.cleanup();
-    fs.rmSync(e.root, { recursive: true, force: true });
+    await e.cleanup();
+    await removeDir(e.root);
   }
 });
 
@@ -269,7 +261,7 @@ test("changing a server revokes its grants and demands approval again", async ()
     assert.equal((await e.client.call("tools.approvals", {})).approvals.length, 0);
     const t = await chat(e);
     await e.client.call("threads.send", { thread: t.id, text: "read" });
-    await pending(e.client, t.id);
+    await pendingInput(e.client, t.id);
   } finally {
     await e.clean();
   }
@@ -343,7 +335,7 @@ test("archiving a chat ends its session approval and expired confirmations stay 
   try {
     const t = await chat(e);
     await e.client.call("threads.send", { thread: t.id, text: "read" });
-    const i = await pending(e.client, t.id);
+    const i = await pendingInput(e.client, t.id);
     await e.client.call("runs.respond", { input: i.id, decision: "approve", scope: "session" });
     await e.settle(t.id);
     await e.client.call("threads.update", { thread: t.id, archived: true });
@@ -407,11 +399,7 @@ test("an agent that asks the owner for a tool cannot hand it to another one", as
     const roby = await chat(e);
     await e.client.call("threads.send", { thread: roby.id, text: "grant" });
     // On autonomy ask the owner confirms the grant itself.
-    let input: { id: string } | undefined;
-    for (let i = 0; i < 200 && !input; i++) {
-      input = (await e.client.call("runs.pending", { thread: roby.id })).inputs[0];
-      if (!input) await new Promise((r) => setTimeout(r, 20));
-    }
+    const input: { id: string } | undefined = await inputOrEnd(e.client, roby.id);
     await e.client.call("runs.respond", { input: input?.id ?? "", decision: "approve" });
     await e.settle(roby.id);
     // Only the read-only tool it runs freely passes on; the one it must ask for stays with the owner.

@@ -1,6 +1,6 @@
 // LINE against its fake: the secret; the channel's story through the manager, fed signed webhook deliveries (the owner
-// pairs with a code sent with the reply token and is answered; a confirmation comes as quick replies and a postback
-// answers it; a listed group is answered when the bot is @mentioned; a redelivered event is handled once; LINE's
+// pairs with a code sent with the reply token and is answered; a confirmation comes without quick replies and only
+// the app answers it; a listed group is answered when the bot is @mentioned; a redelivered event is handled once; LINE's
 // Verify gets a 200; a bad signature reaches nobody); and the adapter alone: a stale reply token falls back to push, a
 // picture is read, and a channel without a public address says so until one exists.
 import assert from "node:assert/strict";
@@ -11,7 +11,8 @@ import { after, before, describe, test } from "node:test";
 import type { ChannelType } from "@apx/protocol";
 import { z } from "zod";
 import type { Inbound } from "../domain/channels.ts";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, say, scriptedLlm, startCore, throughOwnerCheck } from "../engine/testkit.ts";
+import { removeDir, waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeLine } from "./fake-line.test-support.ts";
 import { lineAdapter, lineSecret } from "./line.ts";
@@ -23,14 +24,6 @@ const ANA = `U${"b".repeat(32)}`;
 const GROUP = `C${"c".repeat(32)}`;
 const ADDRESS = "https://acme.example/hooks/line";
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 5000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 test("the secret is the channel secret (32 hex) and a long-lived channel access token", () => {
@@ -55,11 +48,13 @@ describe("line channel", () => {
     title: () => "Probe",
     run: async () => "probed",
   });
-  const llm = scriptedLlm((req, { said, afterTool }) => {
-    if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
-    if (said.includes("launch the probe")) return callTool("p1", "probe", {});
-    return say(`You said: ${said.split("\n").at(-1)?.slice(-60)}`);
-  });
+  const llm = scriptedLlm(
+    throughOwnerCheck((req, { said, afterTool }) => {
+      if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
+      if (said.includes("launch the probe")) return callTool("p1", "probe", {});
+      return say(`You said: ${said.split("\n").at(-1)?.slice(-60)}`);
+    }),
+  );
   let env: Awaited<ReturnType<typeof startCore>>;
   let line: Awaited<ReturnType<typeof fakeLine>>;
   const hook = (req: ReturnType<typeof line.hook>) => env.core.channels.webhook("line", req);
@@ -97,43 +92,52 @@ describe("line channel", () => {
       },
       token: line.secret,
     });
-    await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+    await waitFor(
+      async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running",
+      "running",
+    );
   });
   after(async () => {
     await env.core.close();
     await line.close();
-    env.cleanup();
+    await env.cleanup();
   });
 
   test("the owner pairs with a code sent with the reply token, and is answered", async () => {
     assert.equal((await env.client.call("channels.list", {})).channels[0]?.account, "Acme Bot");
     assert.equal((await hook(line.hook([line.text(OWNER, "hola")]))).status, 200);
-    await until(() => line.sentTo(OWNER).length >= 1, "pairing code");
+    await waitFor(() => line.sentTo(OWNER).length >= 1, "pairing code");
     assert.equal(line.sent.find((s) => s.to === OWNER)?.via, "reply", "the code went with the free reply token");
     const code = /(?<!\d)(\d{6})(?!\d)/.exec(line.sentTo(OWNER)[0] ?? "")?.[1] ?? "";
     await env.client.call("pairing.respond", { code, decision: "owner" });
     await hook(line.hook([line.text(OWNER, "what is up")]));
-    await until(() => line.sentTo(OWNER).some((t) => t.includes("You said: what is up")), "reply");
+    await waitFor(() => line.sentTo(OWNER).some((t) => t.includes("You said: what is up")), "reply");
     assert.equal(line.sent.at(-1)?.via, "reply");
     assert.ok(line.loading.includes(OWNER), "the loading animation showed while the agent worked");
   });
 
-  test("a confirmation comes as quick replies, and the postback answers it", async () => {
+  test("a confirmation reaches LINE without quick replies; a postback changes nothing and only the app approves it", async () => {
     await hook(line.hook([line.text(OWNER, "launch the probe")]));
-    let items: Array<{ action: { type: string; label: string; data: string } }> = [];
-    await until(() => {
-      const m = line.sent.flatMap((s) => s.messages).find((x) => x.quickReply);
-      items = (m?.quickReply as { items: typeof items } | undefined)?.items ?? [];
-      return items.length > 0;
-    }, "quick replies");
-    assert.ok(items.every((i) => i.action.type === "postback" && i.action.label.length <= 20));
-    await hook(line.hook([line.postback(OWNER, items[0]?.action.data ?? "")]));
-    await until(() => line.sentTo(OWNER).some((t) => t.includes("Done: probed")), "probe ran");
+    await waitFor(() => line.sentTo(OWNER).some((t) => t.includes("no por este canal")), "card with the in-app text");
+    assert.ok(!line.sent.flatMap((s) => s.messages).some((m) => m.quickReply), "no quick replies off Telegram");
+    const input = (await env.client.call("runs.pending", {})).inputs[0]?.id ?? "";
+    assert.ok(input, "the confirmation waits");
+
+    const told = line.sentTo(OWNER).filter((t) => t.includes("no por este canal")).length;
+    await hook(line.hook([line.postback(OWNER, `i:${input}:a`)]));
+    await waitFor(
+      () => line.sentTo(OWNER).filter((t) => t.includes("no por este canal")).length === told + 1,
+      "the postback is told to go to the app",
+    );
+    assert.equal(env.core.store.inputs.get(input)?.state, "pending", "a postback on the channel decides nothing");
+
+    await env.client.call("runs.respond", { input, decision: "approve" });
+    await waitFor(() => line.sentTo(OWNER).some((t) => t.includes("Done: probed")), "probe ran");
   });
 
   test("a listed group is offered, and answered when the bot is @mentioned, quoting what it answers", async () => {
     await hook(line.hook([line.join(GROUP)]));
-    await until(async () => {
+    await waitFor(async () => {
       const { rooms } = await env.client.call("channels.rooms", { channel: "line" });
       return rooms.some((r) => r.id === GROUP && r.name === "Acme team");
     }, "offered");
@@ -142,7 +146,7 @@ describe("line channel", () => {
     assert.equal(line.sentTo(GROUP).length, 0, "not called, not answered");
     const asked = line.text(ANA, "what is Acme Notes?", { group: GROUP, mention: true });
     await hook(line.hook([asked]));
-    await until(() => line.sentTo(GROUP).length === 1, "answered when @mentioned");
+    await waitFor(() => line.sentTo(GROUP).length === 1, "answered when @mentioned");
     const quote = `quote-${(asked.message as { id: string }).id}`;
     assert.equal(line.sent.find((s) => s.to === GROUP)?.messages[0]?.quoteToken, quote);
   });
@@ -151,10 +155,10 @@ describe("line channel", () => {
     const calls = llm.calls.length;
     const e = line.text(OWNER, "only once");
     await hook(line.hook([e]));
-    await until(() => line.sentTo(OWNER).some((t) => t.includes("You said: only once")), "answered");
+    await waitFor(() => line.sentTo(OWNER).some((t) => t.includes("You said: only once")), "answered");
     assert.equal((await hook(line.hook([{ ...e, deliveryContext: { isRedelivery: true } }]))).status, 200);
     await pause(300);
-    assert.equal(llm.calls.length, calls + 1);
+    assert.equal(llm.calls.length, calls + 2, "the check, then the answer");
     assert.equal((await hook(line.hook([]))).status, 200);
   });
 
@@ -189,7 +193,7 @@ describe("line adapter", () => {
   });
   after(async () => {
     await line.close();
-    fs.rmSync(dir, { recursive: true, force: true });
+    await removeDir(dir);
   });
 
   test("a stale reply token falls back to push; a picture is read; the profile names the sender", async () => {
@@ -231,7 +235,7 @@ describe("line adapter", () => {
     await a.start(io([], statuses, () => address));
     assert.match(statuses[0] ?? "", /^error: Turn on a public address/);
     address = ADDRESS;
-    await until(() => statuses.at(-1) === "running", "recovered");
+    await waitFor(() => statuses.at(-1) === "running", "recovered");
     await a.stop();
     const bad = lineAdapter(config, `${line.secret.split(" ")[0]} ${"x".repeat(60)}`, { dir, api: line.api });
     await assert.rejects(bad.start(io([], [], () => ADDRESS)), { name: "ChannelRefused" });

@@ -4,6 +4,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Loaded: ${String(req.messages.at(-1)?.content).slice(0, 200)}`);
@@ -30,7 +31,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("agents see a one-line catalog and load the body on demand; files outside the skill are refused", async () => {
@@ -76,7 +77,7 @@ test("APX's own skills: named in one sentence, loaded on demand, always on, read
   const loaded = String(llm.calls.at(-1)?.messages.at(-1)?.content);
   assert.match(loaded, /apx mcps add/);
   assert.doesNotMatch(loaded, /Edit ~\/\.apx\/mcps\.json/);
-  fs.rmSync(dir, { recursive: true, force: true });
+  await removeDir(dir);
 });
 
 test("an empty file argument loads SKILL.md, and a folder lists its files instead of failing", async () => {
@@ -112,5 +113,5 @@ test("v1 skills are copied once: folders without inner links, linked skills stay
   assert.equal(realpath(path.join(to, "linked")), realpath(outside));
   assert.match(fs.readFileSync(path.join(to, "brief-writer", "SKILL.md"), "utf8"), /one-page briefs/);
   assert.deepEqual(importSkills(v1, to), []);
-  for (const n of ["linked", "plain"]) fs.rmSync(path.join(to, n), { recursive: true, force: true });
+  for (const n of ["linked", "plain"]) await removeDir(path.join(to, n));
 });

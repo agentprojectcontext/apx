@@ -24,7 +24,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 const lastText = async () => {
@@ -345,7 +345,7 @@ test("read_chat expands an old message beyond the latest page and honors forgott
     assert.doesNotMatch(await ask(), /violet labels/);
   } finally {
     await isolated.core.close();
-    isolated.cleanup();
+    await isolated.cleanup();
   }
 });
 
@@ -384,6 +384,6 @@ test("search reaches this chat's own earlier steps outside the model's view, wit
     assert.doesNotMatch(text, /Owner: how did snapinsta work/, "messages of visible runs are already in context");
   } finally {
     await isolated.core.close();
-    isolated.cleanup();
+    await isolated.cleanup();
   }
 });

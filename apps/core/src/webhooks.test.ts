@@ -5,7 +5,8 @@ import { after, before, test } from "node:test";
 import type { TailscaleRun } from "./access.ts";
 import type { ChannelAdapter, HookRequest } from "./channels/types.ts";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";
-import { type NgrokProcess, type NgrokStart, ngrokLine } from "./webhooks.ts";
+import { waitFor } from "./testkit/platform.ts";
+import { createWebhooks, NGROK_WAIT_MS, type NgrokProcess, type NgrokStart, ngrokLine } from "./webhooks.ts";
 
 const got: HookRequest[] = [];
 let hookUrl: (() => string | undefined) | undefined;
@@ -26,7 +27,7 @@ const hookAdapter = (): ChannelAdapter => ({
 });
 
 const tsCalls: string[][] = [];
-const tailscale: TailscaleRun = (args) => {
+const tailscale: TailscaleRun = async (args) => {
   tsCalls.push(args);
   if (args[0] === "status")
     return { ok: true, out: JSON.stringify({ Self: { DNSName: "acme.tailnet-1234.ts.net." } }) };
@@ -76,7 +77,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("the listener hands a channel's webhook to its adapter, bytes as they came, and nothing else gets through", async () => {
@@ -143,7 +144,8 @@ test("ngrok: its address is used; the owner is told only when it is new; a reser
   const down = await env.client.call("webhooks.get", {});
   assert.equal(down.url, undefined, "ngrok stopped: no address");
   assert.equal(down.url_may_change, false);
-  assert.match(down.error ?? "", /ngrok stopped/);
+  assert.equal(down.error, "ngrok_stopped");
+  assert.equal(down.error_detail, "exit 1");
   assert.ok(ngrokLines, "the log was read");
   await env.client.call("webhooks.set", { mode: "off" });
 });
@@ -173,4 +175,70 @@ test("a Teams group chat's long id can be listed as a room", async () => {
     channel: { type: "teams", agent_id: "roby", rooms: { rooms: [{ id, name: "Acme team", mode: "mention" }] } },
   });
   assert.equal(list.channels.find((c) => c.id === "teams")?.rooms?.rooms[0]?.id, id);
+});
+
+test("what this computer has is asked once a while, not on every look the panel takes", async () => {
+  const before = tsCalls.filter((c) => c[0] === "status").length;
+  for (let i = 0; i < 5; i++) await env.client.call("webhooks.get", {});
+  assert.ok(tsCalls.filter((c) => c[0] === "status").length - before <= 1, "one tailscale status at most");
+});
+
+test("a tunnel that dies while ngrok is chosen comes back on its own, later each time", async () => {
+  const waits: number[] = [];
+  let exit: ((code: number | null) => void) | undefined;
+  let starts = 0;
+  const hooks = createWebhooks({
+    store: env.core.store,
+    port: () => 1234,
+    log: { info: () => {}, warn: () => {}, error: () => {} },
+    ngrok: () => {
+      starts++;
+      return {
+        onLine: (fn) => setTimeout(() => fn('{"msg":"started tunnel","url":"https://abc-123.ngrok-free.app"}'), 1),
+        onExit: (fn) => {
+          exit = fn;
+        },
+        stop: () => {},
+      };
+    },
+    retryMs: (attempt) => {
+      waits.push(attempt);
+      return 5;
+    },
+  });
+  try {
+    assert.equal((await hooks.set({ mode: "ngrok" })).url, "https://abc-123.ngrok-free.app");
+    exit?.(1);
+    assert.equal(hooks.base(), undefined);
+    await waitFor(() => starts >= 2, "ngrok started again", { every: 5 });
+    await waitFor(() => hooks.base(), "the address back", { every: 5 });
+    assert.equal(starts, 2, "started again");
+    assert.equal(hooks.base(), "https://abc-123.ngrok-free.app");
+    exit?.(1);
+    await waitFor(() => starts >= 3, "ngrok started a third time", { every: 5 });
+    assert.deepEqual(waits, [0, 0], "an address that came back starts the waits over");
+    await hooks.set({ mode: "off" });
+    exit?.(1);
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(starts, 3, "off: never started again");
+  } finally {
+    hooks.close();
+  }
+});
+
+test("a core whose ngrok is slow to answer starts its channels without waiting for it", async () => {
+  const first = await startCore({ llm: scriptedLlm(() => say("ok")), tailscale, ngrok });
+  await first.client.call("webhooks.set", { mode: "ngrok" });
+  await first.core.close();
+  const silent: NgrokStart = () => ({ onLine: () => {}, onExit: () => {}, stop: () => {} });
+  const t0 = Date.now();
+  const second = await startCore({ llm: scriptedLlm(() => say("ok")), tailscale, ngrok: silent, home: first.home });
+  try {
+    assert.ok(Date.now() - t0 < NGROK_WAIT_MS / 3, `started in ${Date.now() - t0} ms`);
+    const st = await second.client.call("webhooks.get", {});
+    assert.deepEqual([st.mode, st.url], ["ngrok", undefined]);
+  } finally {
+    await second.core.close();
+    await second.cleanup();
+  }
 });

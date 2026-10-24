@@ -93,29 +93,77 @@ export function spawnCommand(
   });
 }
 
+/** How long a stop waits for the tree to be gone after its last signal; past it, the caller goes on. */
+const STOP_WAIT_MS = 5000;
+
+const exists = (pid: number) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === "EPERM";
+  }
+};
+
+/** Whether `gone()` came true within `ms`. */
+async function until(gone: () => boolean, ms: number): Promise<boolean> {
+  const end = Date.now() + ms;
+  while (!gone()) {
+    if (Date.now() >= end) return false;
+    await new Promise((r) => setTimeout(r, 25).unref());
+  }
+  return true;
+}
+
 /**
- * Stops a process and everything it started. Unix: TERM to its group, KILL after `graceMs` (0: KILL now) if `alive`
- * still says so. Windows has no TERM a console program obeys: the tree is killed at once.
+ * Stops a process and everything it started, and settles once it is gone (or after STOP_WAIT_MS), so a caller can
+ * remove the folder it ran in. Unix: TERM to its group, KILL after `graceMs` (0: KILL now) if `alive` still says so.
+ * Windows has no TERM a console program obeys: the tree is killed at once.
  */
-export function stopTree(pid: number, o: { graceMs?: number; alive?: () => boolean | Promise<boolean> } = {}): void {
+export async function stopTree(
+  pid: number,
+  o: { graceMs?: number; alive?: () => boolean | Promise<boolean> } = {},
+): Promise<void> {
   if (process.platform === "win32") {
-    execFile("taskkill", ["/pid", String(pid), "/T", "/F"], { windowsHide: true }, () => {});
+    await new Promise<void>((resolve) =>
+      execFile("taskkill", ["/pid", String(pid), "/T", "/F"], { windowsHide: true }, () => resolve()),
+    );
+    await until(() => !exists(pid), STOP_WAIT_MS);
     return;
   }
+  const group = () => exists(-pid);
   const grace = o.graceMs ?? 3000;
   try {
     process.kill(-pid, grace === 0 ? "SIGKILL" : "SIGTERM");
   } catch {}
-  if (grace === 0) return;
-  setTimeout(async () => {
+  if (grace > 0 && !(await until(() => !group(), grace))) {
     try {
-      if (!o.alive || (await o.alive())) process.kill(-pid, "SIGKILL");
+      if (o.alive && !(await o.alive())) return;
+      process.kill(-pid, "SIGKILL");
     } catch {}
-  }, grace).unref();
+  }
+  await until(() => !group(), STOP_WAIT_MS);
 }
 
-/** When the process started, as the system says it: with the pid, it says the process is still the one APX started. */
-export function processStart(pid: number): Promise<string | undefined> {
+/**
+ * What the system says of a process: `running` with when it started (with the pid, it says the process is still the
+ * one APX started), `gone`, or `unknown` when the probe itself failed or timed out (a cold PowerShell can take
+ * seconds): never read as gone.
+ */
+export type ProcessProbe = { state: "running"; start: string } | { state: "gone" } | { state: "unknown"; why: string };
+
+/** Runs the probe program; the system's own by default, a stand-in in tests. Same callback as execFile's. */
+export type ProbeRun = (
+  file: string,
+  args: string[],
+  timeoutMs: number,
+  done: (err: (Error & { code?: number | string | null; killed?: boolean }) | null, out: string) => void,
+) => void;
+
+const systemProbe: ProbeRun = (file, args, timeoutMs, done) =>
+  execFile(file, args, { encoding: "utf8", timeout: timeoutMs, windowsHide: true }, (err, out) => done(err, out));
+
+export function probeProcess(pid: number, timeoutMs = 10_000, run: ProbeRun = systemProbe): Promise<ProcessProbe> {
   const [file, args] =
     process.platform === "win32"
       ? [
@@ -124,13 +172,36 @@ export function processStart(pid: number): Promise<string | undefined> {
             "-NoProfile",
             "-NonInteractive",
             "-Command",
-            `(Get-Process -Id ${pid}).StartTime.ToUniversalTime().ToString('o')`,
+            // Exit 3 only when there is no such process, so any other failure stays unknown.
+            `$p = Get-Process -Id ${pid} -ErrorAction SilentlyContinue; if (-not $p) { exit 3 }; $p.StartTime.ToUniversalTime().ToString('o')`,
           ],
         ]
       : ["ps", ["-p", String(pid), "-o", "lstart="]];
+  const noSuch = process.platform === "win32" ? 3 : 1;
   return new Promise((resolve) =>
-    execFile(file, args, { encoding: "utf8", timeout: 10_000, windowsHide: true }, (err, out) =>
-      resolve(err ? undefined : out.trim() || undefined),
-    ),
+    run(file, args as string[], timeoutMs, (err, out) => {
+      const start = out?.trim();
+      if (!err) resolve(start ? { state: "running", start } : { state: "gone" });
+      else if (err.code === noSuch && !err.killed) resolve({ state: "gone" });
+      else resolve({ state: "unknown", why: err.killed ? `no answer in ${timeoutMs} ms` : err.message });
+    }),
   );
+}
+
+/**
+ * When the process started, or undefined once the system says it is gone. A probe that cannot tell is asked again,
+ * with more time; still unknown, it throws rather than answer "gone".
+ */
+export async function processStart(
+  pid: number,
+  o: { attempts?: number; timeoutMs?: number; run?: ProbeRun } = {},
+): Promise<string | undefined> {
+  let why = "";
+  for (let i = 0; i < (o.attempts ?? 3); i++) {
+    const p = await probeProcess(pid, (o.timeoutMs ?? 10_000) * (i + 1), o.run);
+    if (p.state === "running") return p.start;
+    if (p.state === "gone") return undefined;
+    why = p.why;
+  }
+  throw new Error(`cannot tell whether process ${pid} runs: ${why}`);
 }

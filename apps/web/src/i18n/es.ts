@@ -1,7 +1,7 @@
 import { esHelper } from "./es-helper.ts";
 // UI strings, Spanish (Rioplatense, voseo). A missing key falls back to English.
 
-import { noticeEs } from "@apx/protocol";
+import { noticeEs } from "@apx/protocol/notices";
 import type { MessageKey } from "./en.ts";
 import { esChannels } from "./es-channels.ts";
 import { esChat } from "./es-chat.ts";
@@ -1473,7 +1473,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "stk.none": "Todavía no llegó ningún sticker por {channel}.",
   "stk.meaning": "Qué significa",
   "stk.unnamed": "Sin nombre todavía",
-  "stk.counts": "Llegó {seen} · enviado {sent}",
+  "stk.counts": "Recibido {seen} · enviado {sent}",
   "stk.usable": "Puede usarlo",
   "stk.forget": "Olvidar este sticker",
   "stk.auto": "Aprobar stickers nuevos automáticamente",

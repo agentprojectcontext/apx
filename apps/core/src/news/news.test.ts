@@ -15,6 +15,8 @@ import { NEWS, type NewsEntry, newsAction } from "./entries.ts";
 import { createNews } from "./news.ts";
 
 const quiet: Log = { info: () => {}, warn: () => {}, error: () => {} };
+/** The entries the upgrade tests below count on: one that every owner gets would be told on each of them. */
+const SOME_NEWS = NEWS.filter((e) => e.id !== "super-agent-settings");
 
 function setup(o: { entries?: readonly NewsEntry[]; models?: string[]; fail?: boolean; noGoogle?: boolean } = {}) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-news-"));
@@ -37,7 +39,7 @@ function setup(o: { entries?: readonly NewsEntry[]; models?: string[]; fail?: bo
       return true;
     },
     log: quiet,
-    ...(o.entries ? { entries: o.entries } : {}),
+    entries: o.entries ?? SOME_NEWS,
   });
   const done = () => {
     db.close();
@@ -252,6 +254,15 @@ test("attention hours news reach only an owner whom contacts write to on a chann
     assert.equal(applies(), false, "a saved contact nobody hears from on a channel");
     store.persons.link(saved.id, { channel: "tg", external_id: "2201" });
     assert.equal(applies(), true);
+  } finally {
+    done();
+  }
+});
+
+test("settings changed from chat reach every owner, with no contacts or channels yet", () => {
+  const { news, done } = setup({ entries: NEWS });
+  try {
+    assert.equal(news.list().find((n) => n.id === "super-agent-settings")?.applies, true);
   } finally {
     done();
   }

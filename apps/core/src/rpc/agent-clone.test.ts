@@ -6,6 +6,7 @@ import { after, before, test } from "node:test";
 import { AGENT_NAMES } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 const repos: string[] = [];
@@ -33,8 +34,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  for (const r of repos) fs.rmSync(r, { recursive: true, force: true });
+  await env.cleanup();
+  for (const r of repos) await removeDir(r);
 });
 
 const team = async (project: string) =>

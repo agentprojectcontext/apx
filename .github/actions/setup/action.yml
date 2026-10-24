@@ -1,0 +1,67 @@
+# What every verify job starts with after checkout: Node, the pnpm install and, when the job needs them, Playwright's
+# Chromium and the mobile app's own install, both cached (rules/TESTING.md#ci).
+name: Set up APX
+description: Node, pnpm install, and optionally a cached Chromium and the mobile app's npm install
+
+inputs:
+  browser:
+    description: "none; chromium (the browser only); linux (with its system packages and the sandbox profile)"
+    default: none
+  mobile:
+    description: "true: apps/mobile's own npm install (cached by its lockfile)"
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "24.11"
+        cache: pnpm
+    - shell: bash
+      run: pnpm install --frozen-lockfile
+
+    - name: Playwright version
+      id: playwright
+      if: inputs.browser != 'none'
+      shell: bash
+      run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+    # Each OS keeps its browsers in its own folder; the key is per OS, so only that one is ever saved.
+    - name: Cached Chromium
+      if: inputs.browser != 'none'
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/ms-playwright
+          ~/Library/Caches/ms-playwright
+          ~/AppData/Local/ms-playwright
+        key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+    # A cached browser is not downloaded again; on Linux its system packages still are.
+    - name: Chromium
+      if: inputs.browser != 'none'
+      shell: bash
+      run: pnpm exec playwright install ${{ inputs.browser == 'linux' && '--with-deps' || '' }} chromium
+    - name: Sandboxed browser readiness
+      if: inputs.browser == 'linux'
+      shell: bash
+      run: |
+        chrome=$(node --input-type=module -e 'import { chromium } from "@playwright/test"; console.log(chromium.executablePath())')
+        test -x "$chrome"
+        printf 'abi <abi/4.0>,\ninclude <tunables/global>\nprofile apx-test-chromium "%s" flags=(unconfined) {\n  userns,\n}\n' "$chrome" | sudo tee /etc/apparmor.d/apx-test-chromium >/dev/null
+        sudo apparmor_parser -r /etc/apparmor.d/apx-test-chromium
+        node --test apps/core/src/nodes/headless-browser.test.ts
+
+    # node_modules itself, keyed by the lockfile and Node: a hit needs no npm ci at all.
+    - name: Cached mobile install
+      id: mobile
+      if: inputs.mobile == 'true'
+      uses: actions/cache@v4
+      with:
+        path: apps/mobile/node_modules
+        key: mobile-${{ runner.os }}-node24.11-${{ hashFiles('apps/mobile/package-lock.json') }}
+    - name: Mobile test dependencies (its own install)
+      if: inputs.mobile == 'true' && steps.mobile.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: apps/mobile
+      run: npm ci --no-audit --no-fund

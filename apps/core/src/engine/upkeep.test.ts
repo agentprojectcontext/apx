@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import type { LogEntry } from "../domain/model-log.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { projectHistory } from "./context.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
@@ -35,17 +36,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
-
-const until = async (check: () => Promise<boolean>, ms = 3000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error("condition never met");
-};
 
 const entry = (seq: number, run: string, item: object): LogEntry => ({ seq, run_id: run, item });
 
@@ -82,7 +74,7 @@ test("a new chat gets a title from the auxiliary model; one the owner gave stays
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
   await env.client.call("threads.send", { thread: t.id, text: "Help me plan the Northwind launch for March" });
   await env.settle(t.id);
-  await until(async () => (await env.client.call("threads.get", { thread: t.id })).thread.title !== "Roby");
+  await waitFor(async () => (await env.client.call("threads.get", { thread: t.id })).thread.title !== "Roby");
   assert.equal((await env.client.call("threads.get", { thread: t.id })).thread.title, "Northwind launch plan");
   // No run holds that call: its tokens are kept apart, with the chat it was about.
   const { aux } = await env.client.call("usage.summary", { thread: t.id });

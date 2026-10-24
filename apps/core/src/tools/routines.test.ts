@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, inputsOrEnd, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
 // Each owner message names the tool call the scripted model makes; the tool's result comes back as the answer.
 const CALLS: Record<string, [string, object]> = {
@@ -25,7 +25,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 const lastSeen = () => String(llm.calls.at(-1)?.messages.at(-1)?.content);
@@ -34,11 +34,7 @@ async function ask(text: string, decision?: "approve" | "deny"): Promise<string>
   const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Routines" });
   await env.client.call("threads.send", { thread: thread.id, text });
   if (decision) {
-    let pending: Array<{ id: string; tool?: string | undefined }> = [];
-    for (let i = 0; i < 100 && !pending.length; i++) {
-      pending = (await env.client.call("runs.pending", { thread: thread.id })).inputs;
-      if (!pending.length) await new Promise((r) => setTimeout(r, 20));
-    }
+    const pending: Array<{ id: string; tool?: string | undefined }> = await inputsOrEnd(env.client, thread.id);
     assert.equal(pending[0]?.tool, "routine_set");
     await env.client.call("runs.respond", { input: pending[0]?.id ?? "", decision });
   }

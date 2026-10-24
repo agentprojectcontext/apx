@@ -8,6 +8,7 @@ import { whatsappAdapter } from "../channels/whatsapp.ts";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { v1Schedule } from "../import/v1-setup.ts";
 import { realpath } from "../paths.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let repo = "";
@@ -242,8 +243,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(repo, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(repo);
 });
 
 test("the setup finds v1 and counts what it has, reading only real projects", async () => {

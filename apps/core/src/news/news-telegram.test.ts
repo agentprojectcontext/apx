@@ -3,6 +3,7 @@ import { after, before, test } from "node:test";
 import { fakeTelegram } from "../channels/fake-telegram.test-support.ts";
 import { telegramAdapter } from "../channels/telegram.ts";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 
 const TOKEN = "123456:TEST-news";
 const OWNER = { id: 3301, name: "Acme Owner" };
@@ -15,36 +16,30 @@ const llm = scriptedLlm((_req, { said }) => {
 let env: Awaited<ReturnType<typeof startCore>>;
 let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 4000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
-
 before(async () => {
   tg = await fakeTelegram(TOKEN);
   env = await startCore({ llm, channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) } });
   await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
-  await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+  await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
   tg.message(OWNER, "hola");
-  await until(() => tg.messagesTo(OWNER.id).length === 1, "pairing message");
+  await waitFor(() => tg.messagesTo(OWNER.id).length === 1, "pairing message");
   const code = /(\d{6})/.exec(String(tg.messagesTo(OWNER.id)[0]?.body.text))?.[1] ?? "";
   await env.client.call("pairing.respond", { code, decision: "owner" });
 });
 after(async () => {
   await env.core.close();
   await tg.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("news reach the owner's channel with buttons; a press asks the super-agent as the owner", async () => {
   env.core.store.surfaces.upsert({ name: "weather", title: "Weather", html: "<p>sunny</p>", created_by: "roby" });
-  // Calendar connected and the channels news already heard: this is about the widget news alone.
+  // Calendar connected and the news every owner or a channel's owner gets already heard: this is about the widgets'.
   env.core.store.settings.set("google_account:google-calendar", "owner@example.com");
-  env.core.store.settings.set("news_seen", JSON.stringify(["more-channels", "teams-line"]));
+  env.core.store.settings.set(
+    "news_seen",
+    JSON.stringify(["more-channels", "teams-line", "super-agent-settings", "owner-check"]),
+  );
   const { entries } = await env.client.call("system.news", {});
   const kit = entries.find((e) => e.id === "artifacts-kit");
   assert.equal(kit?.applies, true);
@@ -56,7 +51,7 @@ test("news reach the owner's channel with buttons; a press asks the super-agent 
   assert.equal(r.voiced, true);
   assert.equal(r.sent, true);
   assert.equal(llm.calls.length, calls + 1);
-  await until(() => tg.messagesTo(OWNER.id).some((m) => /widgets remember now/.test(String(m.body.text))), "news");
+  await waitFor(() => tg.messagesTo(OWNER.id).some((m) => /widgets remember now/.test(String(m.body.text))), "news");
   const sent = tg.messagesTo(OWNER.id).find((m) => /widgets remember now/.test(String(m.body.text)));
   const markup = sent?.body.reply_markup as { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> };
   const buttons = markup.inline_keyboard.flat();
@@ -68,7 +63,7 @@ test("news reach the owner's channel with buttons; a press asks the super-agent 
   assert.deepEqual((await env.client.call("system.news_tell", {})).told, [], "nothing left to tell");
 
   tg.press(OWNER, buttons[0]?.callback_data ?? "", sent?.message_id);
-  await until(
+  await waitFor(
     () => tg.messagesTo(OWNER.id).some((m) => /On it: Review my widgets/.test(String(m.body.text))),
     "answer",
   );

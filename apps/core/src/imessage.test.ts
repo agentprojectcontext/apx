@@ -4,8 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { after, before, test } from "node:test";
-import { callTool, say, scriptedLlm, startCore } from "./engine/testkit.ts";
+import { callTool, inputsOrEnd, say, scriptedLlm, startCore } from "./engine/testkit.ts";
 import { appleDate, attributedText, type IMessageOps, systemIMessage } from "./imessage.ts";
+import { removeDir } from "./testkit/platform.ts";
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-imessage-"));
 const db = path.join(dir, "chat.db");
@@ -34,7 +35,7 @@ before(() => {
   add.run(null, null, 0, 800_000_300 * NS, 2);
   d.close();
 });
-after(() => fs.rmSync(dir, { recursive: true, force: true }));
+after(() => removeDir(dir));
 
 test("recent messages come oldest first, text from either column, filtered by person", async () => {
   const ops = systemIMessage({ db });
@@ -104,18 +105,14 @@ test("the tools are offered only once the owner turns iMessage on; reading is ou
     assert.match(String(read?.content), /<imessages [^>]*untrusted/);
 
     await env.client.call("threads.send", { thread, text: "text Lucía that I am late" });
-    let pending: Array<{ id: string }> = [];
-    for (let i = 0; i < 80 && !pending.length; i++) {
-      pending = (await env.client.call("runs.pending", { thread })).inputs;
-      if (!pending.length) await new Promise((r) => setTimeout(r, 25));
-    }
+    const pending: Array<{ id: string }> = await inputsOrEnd(env.client, thread);
     assert.equal(sent.length, 0, "nothing goes out before the owner says yes");
     await env.client.call("runs.respond", { input: pending[0]?.id ?? "", decision: "approve" });
     await env.settle(thread);
     assert.deepEqual(sent, [["+5491100000009", "Llego 10:15"]]);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -125,6 +122,6 @@ test("a machine without Messages has no iMessage to turn on", async () => {
     assert.deepEqual(await env.client.call("imessage.set", { on: true }), { available: false, on: false });
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

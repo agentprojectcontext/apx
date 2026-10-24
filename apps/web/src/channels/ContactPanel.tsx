@@ -2,10 +2,11 @@ import type { Person } from "@apx/protocol";
 import { PERSON_RELATIONS } from "@apx/protocol/client";
 import { Button, Help, IconButton, Icons, Input, Select, Switch, Textarea, Tooltip } from "@apx/ui";
 import { useState } from "react";
-import { claimAddress, saveContact } from "../data/channels.ts";
+import { claimAddress, saveContact, useChannels } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { RELATION_KEY } from "./people.ts";
+import { ownerOn } from "./StartRows.tsx";
 
 /**
  * A contact's card beside their chat: name and nickname, how they relate to the owner, who they are and the rules for
@@ -173,14 +174,16 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
 
 /**
  * An address approved as a contact by mistake that is really the owner's: "This account is mine" gives it (and its
- * chats on that channel) to the owner, after saying what will happen.
+ * chats on that channel) to the owner, after saying what will happen. Once the owner has an account on that channel
+ * the question is settled, so it is not offered.
  */
 function ItsMine({ person, onDone }: { person: Person; onDone(): void }) {
   const t = useT();
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const address = person.addresses[0];
-  if (!address) return null;
+  const settled = useChannels((s) => ownerOn(s.persons, address?.channel ?? ""));
+  if (!address || settled) return null;
   const claim = async () => {
     setBusy(true);
     const ok = await claimAddress(address.id);

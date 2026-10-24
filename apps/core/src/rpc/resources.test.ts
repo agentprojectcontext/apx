@@ -7,6 +7,7 @@ import { ApxClient } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
 import { skillsFor } from "../skills/skills.ts";
+import { removeDir } from "../testkit/platform.ts";
 
 const SERVER = path.join(import.meta.dirname, "..", "mcp", "fake-server.test-support.mjs");
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -30,8 +31,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
-  fs.rmSync(repo, { recursive: true, force: true });
+  await env.cleanup();
+  await removeDir(repo);
 });
 
 test("a global skill turned off in one project is off only there; agents there no longer see it", async () => {

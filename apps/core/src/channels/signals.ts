@@ -6,7 +6,7 @@ import type { ChannelInfo } from "@apx/protocol";
 import { partOfMedia } from "../domain/media.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
-import type { RunRecord } from "../domain/runs.ts";
+import { answersChecked, type RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { isSkip } from "../engine/routines.ts";
@@ -56,7 +56,8 @@ export function createSignals(deps: {
    * none when it answers in the app only.
    */
   async function handle(run: RunRecord, out: string, to: To | undefined): Promise<boolean> {
-    if (run.state !== "completed" || !CONVERSATION.has(run.input?.origin.kind ?? "")) return false;
+    const origin = run.input?.origin;
+    if (run.state !== "completed" || !(CONVERSATION.has(origin?.kind ?? "") || answersChecked(origin))) return false;
     if (isSkip(out)) {
       // In the app alone the words never show (the panel hides them); a channel's chat drops them.
       if (to) hideWords(run.message_id);

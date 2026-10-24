@@ -3,8 +3,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { say, scriptedLlm, startCore, texts } from "../../engine/testkit.ts";
+import { pendingInput, say, scriptedLlm, startCore, texts } from "../../engine/testkit.ts";
 import { realpath } from "../../paths.ts";
+import { tempDir } from "../../testkit/platform.ts";
 import { openSession } from "./agents.ts";
 
 const FAKE = path.join(import.meta.dirname, "fake-agent.test-support.mjs");
@@ -19,7 +20,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("an ACP agent's session runs the turn: model picked, its edit asks the owner, its tool shown, session kept", async () => {
@@ -36,14 +37,10 @@ test("an ACP agent's session runs the turn: model picked, its edit asks the owne
   });
   await env.client.call("threads.model", { thread: t.id, model_choice: { model: "acp:fake/m2", router: false } });
   const sent = await env.client.call("threads.send", { thread: t.id, text: "edit the notes" });
-  let inputs: Awaited<ReturnType<typeof env.client.call<"runs.pending">>>["inputs"] = [];
-  for (let i = 0; i < 200 && !inputs.length; i++) {
-    inputs = (await env.client.call("runs.pending", { thread: t.id })).inputs;
-    await new Promise((r) => setTimeout(r, 20));
-  }
-  assert.equal(inputs[0]?.tool, "edit");
-  assert.match(inputs[0]?.prompt ?? "", /usar Edit notes.md/);
-  await env.client.call("runs.respond", { input: inputs[0]?.id ?? "", decision: "approve" });
+  const input = await pendingInput(env.client, t.id);
+  assert.equal(input.tool, "edit");
+  assert.match(input.prompt ?? "", /usar Edit notes.md/);
+  await env.client.call("runs.respond", { input: input.id, decision: "approve" });
   const done = await env.client.call("runs.wait", { run: sent.run.id, timeout_s: 10 });
   assert.equal(done.state, "completed");
   assert.equal(done.harness, "acp");
@@ -57,22 +54,16 @@ test("an ACP agent's session runs the turn: model picked, its edit asks the owne
 
   // The next turn loads the same session.
   const again = await env.client.call("threads.send", { thread: t.id, text: "again" });
-  for (let i = 0; i < 200; i++) {
-    const p = (await env.client.call("runs.pending", { thread: t.id })).inputs[0];
-    if (p) {
-      await env.client.call("runs.respond", { input: p.id, decision: "deny" });
-      break;
-    }
-    await new Promise((r) => setTimeout(r, 20));
-  }
+  const asked = await pendingInput(env.client, t.id);
+  await env.client.call("runs.respond", { input: asked.id, decision: "deny" });
   await env.client.call("runs.wait", { run: again.run.id, timeout_s: 10 });
   const after2 = await env.settle(t.id);
   assert.ok(texts(after2.messages).includes("model=m2 edit=rejected instructions=false"));
 });
 
 test("a CLI nobody signed in to ends the session with how to sign in, and APX never signs it in itself", async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-acp-auth-"));
-  const log = path.join(dir, "auth.log");
+  const dir = tempDir("apx-acp-auth-");
+  const log = path.join(dir.path, "auth.log");
   const agent = {
     id: "fake",
     label: "Fake ACP",
@@ -89,8 +80,7 @@ test("a CLI nobody signed in to ends the session with how to sign in, and APX ne
     // Its auth method opens the owner's browser from turns and model listings nobody watches.
     assert.equal(fs.existsSync(log), false);
   } finally {
-    // The CLI works outside the folder removed here: it is told to stop, not waited for, and Windows keeps a running
-    // process's folder (Node's native rmSync does not retry that).
-    fs.rmSync(dir, { recursive: true, force: true });
+    // openSession settles only once the CLI is gone, so nothing holds the folder any more.
+    await dir.remove();
   }
 });

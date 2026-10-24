@@ -68,7 +68,7 @@ async function withServices(
   } finally {
     services.close();
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 }
 

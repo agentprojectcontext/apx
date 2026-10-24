@@ -26,7 +26,10 @@ export function serveAppScheme(partition: string, root: string): void {
   session.fromPartition(partition).protocol.handle(APP_SCHEME, (req) => {
     const rel = decodeURIComponent(new URL(req.url).pathname).replace(/^\/+/, "") || "index.html";
     const file = path.resolve(root, rel);
-    if (file !== root && !file.startsWith(`${root}${path.sep}`)) return new Response("not found", { status: 404 });
+    // path.relative compares as the system does (any case on Windows).
+    const up = path.relative(root, file);
+    if (up === ".." || up.startsWith(`..${path.sep}`) || path.isAbsolute(up))
+      return new Response("not found", { status: 404 });
     return net.fetch(pathToFileURL(file).href).catch(() => new Response("not found", { status: 404 }));
   });
 }

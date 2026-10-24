@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
   await google.close();
 });
 
@@ -66,7 +66,7 @@ test("a mail routine calls its agent only when mail outside ads and social came 
   assert.equal(llm.calls.length, calls + 1);
   const input = String(llm.calls.at(-1)?.messages.at(-1)?.content);
   assert.match(input, /Tell me only the mail that needs me soon\./);
-  assert.match(input, /<emails count="1" trust="untrusted">\n\{"id":"ana","from":"Ana <ana@example\.com>"/);
+  assert.match(input, /<emails count="1" trust="untrusted">\n\{"id":"ana","from":"Ana &lt;ana@example\.com>"/);
   assert.match(input, /"gmail_important":true/);
   assert.doesNotMatch(input, /50% off|New follower/);
   assert.equal(told?.model_called, true);

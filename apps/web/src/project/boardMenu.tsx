@@ -6,7 +6,7 @@ import { blobOf, projectEntries, realProjectId, teamOf } from "../data/identity.
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { openInstall } from "../surfaces/installRequest.ts";
-import { askForWidget } from "../surfaces/WidgetChat.tsx";
+import { askForWidget } from "../surfaces/widgetChatActions.ts";
 
 export type BoardChoices = {
   /** The header's "+": loading one, and asking an agent for a new one. */

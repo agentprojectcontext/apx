@@ -19,7 +19,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 const search = (query: string) => env.client.call("threads.search", { query });

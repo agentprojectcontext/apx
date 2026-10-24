@@ -100,16 +100,28 @@ export function boardText(tasks: Task[], where: (t: Task) => string | undefined,
 const handsOff = "never" as const;
 
 const commitmentArgs = {
-  person: z.string().max(80).optional().describe("a commitment's contact"),
-  owed_by: z.enum(["owner", "person"]).optional().describe('who promised it: "owner" (default) or "person"'),
-  due_at: z.string().max(40).optional().describe("2026-10-05 or an ISO moment"),
+  person: z.string().max(80).optional(),
+  owed_by: z.enum(["owner", "person"]).optional(),
+  due_at: z.string().max(40).optional(),
 };
 
 const shapeArgs = {
-  kind: TaskKind.optional().describe('"commitment": owed to or by a person; "errand": small, on the way'),
-  priority: TaskPriority.optional().describe("default normal"),
-  tags: z.array(TaskTag).max(12).optional().describe("short labels (client, area…)"),
+  kind: TaskKind.optional(),
+  priority: TaskPriority.optional(),
+  tags: z.array(TaskTag).max(12).optional(),
 };
+
+/** What the shared fields mean, told once on task_create: task_update takes them as they are. */
+const ABOUT: Record<string, string> = {
+  person: "a commitment's contact",
+  owed_by: 'who promised it: "owner" (default) or "person"',
+  due_at: "2026-10-05 or an ISO moment",
+  kind: '"commitment": owed to or by a person; "errand": small, on the way',
+  priority: "default normal",
+  tags: "short labels (client, area…)",
+};
+const described = <T extends Record<string, z.ZodType>>(fields: T): T =>
+  Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, ABOUT[k] ? v.describe(ABOUT[k]) : v])) as T;
 
 /** One argument's check, as the methods run it; a failure names the argument ("assignee: agent x not found"). */
 function field<T>(name: string, check: () => T): T {
@@ -224,15 +236,15 @@ export function taskTools(store: Store): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "Subtasks: assignee+description. Work your role hands out: create it; reviews, QA or another area's work: propose. Delegates propose to caller. Global: assignee's project. Promises: person,owed_by,due_at.",
+        "Create a task, with an assignee and a description so it starts (subtasks too). Your role's own work: create it; reviews, QA or another area's work: propose it. A delegate proposes to its caller; a global agent's task goes to the assignee's project. A promise: person, owed_by, due_at.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
         description: z.string().max(5000).optional(),
         assignee: z.string().max(80).optional(),
         project: z.string().min(1).max(80).optional().describe("project id; super-agent only"),
         status: z.string().max(40).optional(),
-        ...shapeArgs,
-        ...commitmentArgs,
+        ...described(shapeArgs),
+        ...described(commitmentArgs),
         start_at: z.string().max(40).optional().describe("work begins"),
         propose: z.boolean().optional().describe("a chip the owner accepts before work starts"),
       }),
@@ -261,7 +273,8 @@ export function taskTools(store: Store): Tool[] {
     }),
     defineTool({
       name: "task_update",
-      description: "Update task fields; assignee:null unassigns it. Finish or drop with task_close.",
+      description:
+        "Update a task's fields (they mean what task_create's do); assignee:null unassigns it. Finish or drop with task_close.",
       args: z.object({
         task: z.string().min(1).max(64),
         status: z.string().max(40).optional(),

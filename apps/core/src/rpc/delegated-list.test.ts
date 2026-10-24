@@ -20,7 +20,7 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("a chat's delegated chats come with it, a few per chat, with how many there are", async () => {

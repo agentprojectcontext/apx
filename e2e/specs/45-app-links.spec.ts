@@ -30,6 +30,6 @@ test("un enlace del agente a Config › Escritorio es un botón que abre esa sec
     // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
     await page.goto("about:blank");
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

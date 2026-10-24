@@ -15,7 +15,7 @@ before(async () => {
 });
 after(async () => {
   await h.env.core.close();
-  h.env.cleanup();
+  await h.env.cleanup();
 });
 
 const tellHer = () => ({
@@ -34,10 +34,16 @@ test("only the super-agent is offered apx_settings", async () => {
 });
 
 test("reading what it can change, the contacts and a method's fields asks nobody", async () => {
-  const list = (await h.ask({})).answer;
+  // No args is an index by area, short enough to read every time; an area lists what each method does.
+  const index = (await h.ask({})).answer;
+  assert.match(index, /^- contacts: list, set, remove, address, claim$/m);
+  assert.match(index, /^- memory: .*set_settings/m);
+  assert.ok(index.length < 2_000, `the index is ${index.length} chars`);
+  const list = (await h.ask({ method: "contacts" })).answer;
   assert.match(list, /- contacts\.set: /);
-  assert.match(list, /- channels\.set: /);
-  assert.match(list, /- memory\.set_settings: /);
+  assert.match(list, /- contacts\.list \(read\): /);
+  assert.doesNotMatch(list, /channels\.set/);
+  assert.match((await h.ask({ method: "channels" })).answer, /- channels\.set: .*hours/);
   assert.match((await h.ask({ method: "contacts.list" })).answer, new RegExp(`Northwind Sister \\[${northwind}\\]`));
   assert.match((await h.ask({ method: "contacts.set" })).answer, /contacts\.set takes: .*"rules"/);
 });

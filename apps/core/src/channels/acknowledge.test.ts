@@ -3,6 +3,7 @@ import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import type { AssistantItem } from "../providers/types.ts";
 import { splitSpoken } from "../services/audio.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { telegramAdapter } from "./telegram.ts";
 
@@ -25,34 +26,26 @@ const llm = scriptedLlm((_req, { said, afterTool }) => {
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let tg: Awaited<ReturnType<typeof fakeTelegram>>;
-const until = async (check: () => boolean, what: string, ms = 5000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 
 before(async () => {
   tg = await fakeTelegram(TOKEN);
   env = await startCore({ llm, channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) } });
   await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
   tg.message(OWNER, "hola");
-  await until(() => tg.messagesTo(OWNER.id).length === 1, "pairing code");
+  await waitFor(() => tg.messagesTo(OWNER.id).length === 1, "pairing code");
   const code = /(\d{6})/.exec(String(tg.messagesTo(OWNER.id)[0]?.body.text))?.[1] ?? "";
   await env.client.call("pairing.respond", { code, decision: "owner" });
 });
 after(async () => {
   await env.core.close();
   await tg.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("on Telegram the owner hears 'on it' as soon as the agent starts working, then the answer without it", async () => {
   const before = tg.messagesTo(OWNER.id).length;
   tg.message(OWNER, "what is pending?");
-  await until(() => tg.messagesTo(OWNER.id).some((m) => /Three open tasks/.test(String(m.body.text))), "the answer");
+  await waitFor(() => tg.messagesTo(OWNER.id).some((m) => /Three open tasks/.test(String(m.body.text))), "the answer");
   const sent = tg
     .messagesTo(OWNER.id)
     .slice(before)

@@ -83,7 +83,7 @@ test("arrastrar MP4 5,3 MB y PDF grande permite enviar; rechazo muestra motivo c
   } finally {
     await page.goto("about:blank");
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -162,6 +162,6 @@ test("adjuntos usuario y agente muestran imágenes y descargan archivos después
     // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
     await page.goto("about:blank");
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

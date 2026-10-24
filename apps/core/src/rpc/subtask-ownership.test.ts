@@ -52,7 +52,7 @@ test("agent subtasks require an assignee and a specification before any task or 
     assert.equal(env.core.store.threads.list({ include_subthreads: true }).length, before);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -98,7 +98,7 @@ test("a complete agent subtask starts exactly once; agents cannot erase its owne
     assert.equal(env.core.store.runs.list(session.id).length, 1);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -122,7 +122,7 @@ test("owner drafts and agent top-level drafts remain possible; explicit parent c
     assert.deepEqual(env.core.store.threads.byTask(draft.id), []);
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -156,7 +156,7 @@ test("moving an agent subtask cannot silently clear its project-scoped assignee"
     assert.equal(moved.assignee, undefined, "the owner can deliberately move and unassign work");
   } finally {
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });
 
@@ -172,6 +172,6 @@ test("model clients cannot bypass subtask ownership through HTTP or WebSocket", 
   } finally {
     socket.close();
     await env.core.close();
-    env.cleanup();
+    await env.cleanup();
   }
 });

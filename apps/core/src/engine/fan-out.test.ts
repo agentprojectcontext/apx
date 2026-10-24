@@ -2,6 +2,7 @@
 // a turn become proposals the owner picks from, and delegating to a third agent asks the owner first.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { waitFor } from "../testkit/platform.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 const TEAM = ["scout", "vera", "nora", "omar"];
@@ -29,17 +30,8 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
-
-const until = async (check: () => boolean, what: string, ms = 5000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 
 async function say_(agent: string, text: string) {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: agent });
@@ -66,12 +58,12 @@ test("tasks the super-agent hands to a third agent and on become proposals: no c
   // Accepted, it starts like any task just given.
   const accepted = await env.client.call("tasks.update", { task: nora?.id ?? "", proposed: false });
   assert.equal(accepted.proposed, undefined);
-  await until(() => env.core.store.threads.byTask(nora?.id ?? "").length === 1, "its work started");
+  await waitFor(() => env.core.store.threads.byTask(nora?.id ?? "").length === 1, "its work started");
 });
 
 test("delegating to a third agent in one turn still asks the owner first", async () => {
   const thread = await say_("roby", "ask everyone");
-  await until(() => env.core.store.inputs.pending(thread).length === 1, "the owner was asked");
+  await waitFor(() => env.core.store.inputs.pending(thread).length === 1, "the owner was asked");
   assert.match(env.core.store.inputs.pending(thread)[0]?.prompt ?? "", /repartir trabajo entre varios agentes/);
   await env.client.call("runs.respond", {
     input: env.core.store.inputs.pending(thread)[0]?.id ?? "",

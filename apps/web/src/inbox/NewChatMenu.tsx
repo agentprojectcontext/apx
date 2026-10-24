@@ -1,12 +1,12 @@
 import type { Agent } from "@apx/protocol";
 import { Icons, type SelectOption } from "@apx/ui";
-import { type ReactElement, useMemo } from "react";
-import { useAgentOptions } from "../common/pickers/AgentSelect.tsx";
-import { SearchSelect } from "../common/pickers/SearchSelect.tsx";
+import { type ReactElement, Suspense, useMemo } from "react";
+import { useAgentOptions } from "../common/pickers/agentOptions.tsx";
 import { inProject, isListed, realProjectId } from "../data/identity.ts";
 import { newChatId } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { SearchSelect } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 
 /** Agents the owner talked to lately, shown first. */
@@ -86,15 +86,18 @@ export function NewChatMenu({ projectId, trigger }: { projectId: string | undefi
     go.thread(newChatId({ agent: agent.id, ...(agent.project_id ? { project: agent.project_id } : {}) }));
   };
 
+  // The combobox loads after the first paint; until then the button shows, without its list.
   return (
-    <SearchSelect
-      trigger={trigger}
-      label={t("chat.newWith")}
-      searchPlaceholder={t("pickers.searchAgent")}
-      emptyLabel={t("pickers.noMatch")}
-      value={null}
-      options={options}
-      onValueChange={pick}
-    />
+    <Suspense fallback={trigger}>
+      <SearchSelect
+        trigger={trigger}
+        label={t("chat.newWith")}
+        searchPlaceholder={t("pickers.searchAgent")}
+        emptyLabel={t("pickers.noMatch")}
+        value={null}
+        options={options}
+        onValueChange={pick}
+      />
+    </Suspense>
   );
 }

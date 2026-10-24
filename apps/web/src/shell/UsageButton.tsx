@@ -1,11 +1,9 @@
 import { Icons, Popover } from "@apx/ui";
-import { lazy, Suspense, useState } from "react";
+import { Suspense, useState } from "react";
 import { useUsage } from "../data/usage.ts";
 import { useT } from "../i18n/index.ts";
+import { UsageSummary } from "../lazy.ts";
 import { useVisible } from "./useVisible.ts";
-
-// The dropdown's content loads when first opened: the button alone is on the first screen.
-const UsageSummary = lazy(() => import("./UsagePanels.tsx").then((m) => ({ default: m.UsageSummary })));
 
 /** Topbar gauge: how full the computer's RAM is. Opens a compact view of RAM, CPU, disk and APX's top consumers. */
 export function UsageButton() {

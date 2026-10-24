@@ -1,5 +1,5 @@
 // The Computers view: every agent screen in use as a wall of view-only tiles; one opens large with its lease and its
-// chat (DECISIONS.md#d-145).
+// chat (DECISIONS.md#d-152).
 import type { Page } from "@playwright/test";
 import { say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import { createVmLifecycle } from "../../apps/core/src/environments/lifecycle.ts";

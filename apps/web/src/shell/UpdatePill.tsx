@@ -1,12 +1,10 @@
 import { Button, Dialog, Icons } from "@apx/ui";
-import { lazy, Suspense, useState } from "react";
+import { Suspense, useState } from "react";
 import { useData } from "../data/state.ts";
 import { newerOf, openUpdate, useUpdates } from "../data/updates.ts";
 import { useT } from "../i18n/index.ts";
+import { UpdateDialog } from "../lazy.ts";
 import { go } from "./nav.ts";
-
-// The dialog loads when it is first opened, not with the top bar.
-const UpdateDialog = lazy(() => import("./UpdateDialog.tsx").then((m) => ({ default: m.UpdateDialog })));
 
 /**
  * In the top bar, only when there is something: a newer panel to reload, a newer desktop app, or a newer APX for the

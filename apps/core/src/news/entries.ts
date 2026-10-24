@@ -125,7 +125,7 @@ export const NEWS: readonly NewsEntry[] = [
       "outside them gets no answer then, and the agent answers everything they sent, once, when the hours begin. " +
       "The owner is always answered, and a contact can be marked to be answered at any hour. The owner sets them in " +
       "each channel's settings and on the contact's card, or asks the super-agent, who sets both with " +
-      "attention_hours once the owner approves each change.",
+      "apx_settings once the owner approves each change.",
     actions: [
       {
         label: { en: "Suggest my hours", es: "Sugerime un horario" },
@@ -139,7 +139,8 @@ export const NEWS: readonly NewsEntry[] = [
     id: "super-agent-settings",
     since: "2.10.0",
     title: "Settings changed from chat",
-    applies: (f) => f.contacts,
+    // The owner's profile, notices, projects and memory are every owner's: contacts are only part of it.
+    applies: () => true,
     text:
       "The super-agent can now change, with apx_settings, almost anything the owner sets up in the panel: a " +
       "contact (who they are, the rules to answer them, their relation), a channel (who answers it, strangers, " +
@@ -149,10 +150,10 @@ export const NEWS: readonly NewsEntry[] = [
       "their yes. Saving a key, sign-ins, models, what agents may do and this computer stay the owner's, in Settings.",
     actions: [
       {
-        label: { en: "Review my contacts", es: "Revisemos mis contactos" },
+        label: { en: "What can you change?", es: "¿Qué podés cambiar?" },
         prompt:
-          "Go through my contacts with me: tell me who has no note saying who they are or no rules for how to " +
-          "answer them, and fill them in as I tell you.",
+          "Tell me in a few lines what you can change in my APX settings from chat, then ask me what I would like " +
+          "to adjust, and change it as I tell you.",
       },
       {
         label: { en: "Set my quiet hours", es: "Configurá mis horas de silencio" },
@@ -237,8 +238,29 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "owner-check",
+    since: "2.10.0",
+    title: "Channel messages checked first",
+    applies: (f) => f.channels > 0,
+    text:
+      "On every channel but Telegram, WhatsApp and Signal, a message that comes as the owner no longer acts by " +
+      "itself: those apps cannot always prove who wrote. The super-agent reads it first, asks the owner in the app " +
+      "when it is unsure or the request is risky, and then the channel's agent does what was decided and answers " +
+      "there. Confirmations and questions are answered in the app (the panel, the desktop or the paired phone); on " +
+      "Telegram, WhatsApp and Signal they still can be, except a change to the owner's settings, which is approved " +
+      "only in the app.",
+    actions: [
+      {
+        label: { en: "How it works for me", es: "Cómo me queda a mí" },
+        prompt:
+          "Tell me in a few lines which of my channels act on my word directly and which go through you first, and " +
+          "where I approve things now.",
+      },
+    ],
+  },
+  {
     id: "linux-computer",
-    since: "2.9.1",
+    since: "2.10.2",
     title: "A Linux computer your agents share",
     applies: (f) => f.computer,
     text:

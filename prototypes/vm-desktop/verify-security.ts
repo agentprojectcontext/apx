@@ -70,7 +70,7 @@ print('Verified worker privileges, administrator boundaries, direct egress rejec
   await new Promise<void>((resolve) => canary.close(() => resolve()));
 }
 
-// Loopback between agents (DECISIONS.md#d-145): agent A (screen 1) listens on 127.0.0.1 and ::1; agent B (screen 2)
+// Loopback between agents (DECISIONS.md#d-152): agent A (screen 1) listens on 127.0.0.1 and ::1; agent B (screen 2)
 // is refused on both, while A reaches its own listener.
 const admin = (args: string[], input?: string) =>
   run(["shell", status.name, "--", ...args], { input, timeout: 60_000 });
