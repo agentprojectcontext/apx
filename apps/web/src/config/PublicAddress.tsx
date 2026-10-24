@@ -1,4 +1,4 @@
-import type { HookMode, WebhooksState } from "@apx/protocol";
+import type { HookError, HookMode, WebhooksState } from "@apx/protocol";
 import { Badge, Button, Icons, Input, SegmentedControl, SettingRow, Skeleton } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
@@ -13,6 +13,17 @@ const MODES: Array<{ id: HookMode; label: MessageKey; body: MessageKey }> = [
   { id: "custom", label: "hooks.custom", body: "hooks.customBody" },
 ];
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+/** What each reason the address is not up says; the missing or disconnected tool already has its hint above. */
+const ERRORS: Record<HookError, MessageKey | undefined> = {
+  tailscale_missing: undefined,
+  tailscale_offline: undefined,
+  ngrok_missing: undefined,
+  funnel_failed: "hooks.err.funnel_failed",
+  ngrok_timeout: "hooks.err.ngrok_timeout",
+  ngrok_failed: "hooks.err.ngrok_failed",
+  ngrok_stopped: "hooks.err.ngrok_stopped",
+  failed: "hooks.err.failed",
+};
 
 /**
  * The public address a channel that delivers to a webhook (Teams, LINE) needs: how it is made (Tailscale Funnel, ngrok,
@@ -123,7 +134,17 @@ export function PublicAddress({ channelId }: { channelId: string }) {
           </div>
         </SettingRow>
       )}
-      {state.error && <div className="tgcard__error">{state.error}</div>}
+      {state.error && ERRORS[state.error] && (
+        <div className="tgcard__error">
+          {t(ERRORS[state.error] as MessageKey)}
+          {state.error_detail && (
+            <>
+              {" "}
+              <code>{t("hooks.errDetail", { detail: state.error_detail })}</code>
+            </>
+          )}
+        </div>
+      )}
       {state.mode !== "off" && (
         <SettingRow title={t("hooks.address")} description={t("hooks.addressHint")}>
           <div className="config__headactions">

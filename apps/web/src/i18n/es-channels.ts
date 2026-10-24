@@ -313,6 +313,14 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "hooks.mayChange":
     "Esta dirección de ngrok es nueva: pegala en la plataforma. Si ngrok da otra después de un reinicio, te lo vuelve a avisar acá.",
   "hooks.failed": "No se pudo cambiar la dirección pública: {error}",
+  "hooks.err.funnel_failed":
+    "Tailscale Funnel no arrancó: quizás haya que habilitarlo para esta computadora en la política del tailnet.",
+  "hooks.err.ngrok_timeout": "ngrok no dio una dirección a tiempo.",
+  "hooks.err.ngrok_failed":
+    "ngrok no pudo abrir la dirección. ¿Tiene la sesión iniciada (“ngrok config add-authtoken <tu token>”)?",
+  "hooks.err.ngrok_stopped": "ngrok se detuvo. APX lo vuelve a arrancar solo.",
+  "hooks.err.failed": "No se pudo armar la dirección pública.",
+  "hooks.errDetail": "Lo que dijo: {detail}",
   "tm.lead":
     "Hablá con tus agentes desde Microsoft Teams, en chats personales y en los canales que listes. Teams entrega a una dirección pública, que configurás abajo.",
   "tm.step1":

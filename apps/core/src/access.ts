@@ -1,6 +1,6 @@
 // Who may reach this core, from the panel: this computer only, the local network, or the owner's tailnet. The choice
 // is saved in core.env (the core reads it when it starts), so a change restarts a supervised core.
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -16,8 +16,8 @@ import { CallError } from "./errors.ts";
 
 const MAC_TAILSCALE = "/Applications/Tailscale.app/Contents/MacOS/Tailscale";
 
-/** Runs the tailscale CLI; never throws (a failure is ok:false). */
-export type TailscaleRun = (args: string[]) => { ok: boolean; out: string };
+/** Runs the tailscale CLI without blocking the core; never rejects (a failure is ok:false). */
+export type TailscaleRun = (args: string[]) => Promise<{ ok: boolean; out: string }>;
 
 export type AccessState = {
   /** What this running core does now. */
@@ -41,23 +41,24 @@ export function findTailscale(env: NodeJS.ProcessEnv = process.env): string | un
 
 export const tailscaleRunner =
   (bin: string): TailscaleRun =>
-  (args) => {
-    try {
-      return {
-        ok: true,
-        out: execFileSync(bin, args, {
+  (args) =>
+    new Promise((resolve) => {
+      execFile(
+        bin,
+        args,
+        {
           encoding: "utf8",
           timeout: 5000,
           windowsHide: true,
           // The macOS app binary otherwise tries to open its GUI when started by a daemon.
           env: { ...process.env, TAILSCALE_BE_CLI: "1" },
-        }),
-      };
-    } catch (err) {
-      const e = err as { stdout?: string; stderr?: string; message: string };
-      return { ok: false, out: `${e.stdout ?? ""}${e.stderr ?? ""}` || e.message };
-    }
-  };
+        },
+        (err, stdout, stderr) =>
+          resolve(
+            err ? { ok: false, out: `${stdout ?? ""}${stderr ?? ""}` || err.message } : { ok: true, out: stdout },
+          ),
+      );
+    });
 
 export function createAccess(deps: {
   home: string;
@@ -83,17 +84,17 @@ export function createAccess(deps: {
     const bin = findTailscale();
     return bin ? tailscaleRunner(bin) : undefined;
   };
-  const tailscaleName = (run: TailscaleRun | undefined): string | undefined => {
-    const st = run?.(["status", "--json"]);
+  const tailscaleName = async (run: TailscaleRun | undefined): Promise<string | undefined> => {
+    const st = await run?.(["status", "--json"]);
     return st?.ok ? tailscaleDnsName(st.out) : undefined;
   };
 
-  function state(): AccessState {
+  async function state(): Promise<AccessState> {
     const vars = read();
     const mode = accessOf({ APX_HOST: deps.running.host, APX_PUBLIC_URL: deps.running.publicUrl });
     const saved = accessOf(vars);
     const run = tailscaleRun();
-    const dns = tailscaleName(run);
+    const dns = await tailscaleName(run);
     return {
       mode,
       saved,
@@ -107,17 +108,17 @@ export function createAccess(deps: {
   return {
     state,
     /** Saves the choice and, when the running core differs, restarts it if a supervisor will bring it back. */
-    set(mode: AccessMode): AccessState & { restarting: boolean } {
+    async set(mode: AccessMode): Promise<AccessState & { restarting: boolean }> {
       const current = read();
       const run = tailscaleRun();
       let tailscaleUrl: string | undefined;
       if (mode === "tailscale") {
         if (!run) throw new CallError({ code: "bad_request", message: "Tailscale is not installed on this computer" });
-        const dns = tailscaleName(run);
+        const dns = await tailscaleName(run);
         if (!dns)
           throw new CallError({ code: "bad_request", message: "Tailscale is not connected (or MagicDNS is off)" });
         tailscaleUrl = `https://${dns}`;
-        const served = run(["serve", "--bg", "--https=443", `http://127.0.0.1:${deps.port()}`]);
+        const served = await run(["serve", "--bg", "--https=443", `http://127.0.0.1:${deps.port()}`]);
         if (!served.ok)
           throw new CallError({
             code: "bad_request",
@@ -125,13 +126,13 @@ export function createAccess(deps: {
           });
       } else if (current.APX_PUBLIC_URL && run) {
         // Only undo what APX set up: other serve configs on this machine are not APX's.
-        run(["serve", "--https=443", "off"]);
+        await run(["serve", "--https=443", "off"]);
       }
       const plan = planExposure(current, mode === "local" ? "off" : mode, tailscaleUrl ? { tailscaleUrl } : {});
       fs.mkdirSync(deps.home, { recursive: true });
       fs.writeFileSync(file, serializeCoreEnv(plan.vars), { mode: 0o600 });
       fs.chmodSync(file, 0o600);
-      const now = state();
+      const now = await state();
       const restarting = now.restart_needed && Boolean(deps.restart);
       // After the answer has gone out: the panel learns it first, then sees the core come back.
       if (restarting) setTimeout(() => deps.restart?.(), 400).unref();

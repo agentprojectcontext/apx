@@ -136,7 +136,7 @@ export async function startCore(opts: {
       ...(opts.runTimers ? { runTimers: opts.runTimers } : {}),
       ...(opts.desktop ? { desktop: opts.desktop } : {}),
       imessage: opts.imessage ?? null,
-      tailscale: opts.tailscale ?? (() => ({ ok: false, out: "not connected" })),
+      tailscale: opts.tailscale ?? (async () => ({ ok: false, out: "not connected" })),
       ...(opts.ngrok ? { ngrok: opts.ngrok } : {}),
       ...(opts.clock ? { clock: opts.clock } : {}),
       ...(opts.unseenAfterMs !== undefined ? { unseenAfterMs: opts.unseenAfterMs } : {}),

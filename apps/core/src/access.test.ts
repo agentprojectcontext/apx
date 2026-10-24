@@ -7,7 +7,7 @@ import { parseCoreEnv } from "@apx/protocol";
 import { createAccess, type TailscaleRun, tailscaleRunner } from "./access.ts";
 
 const fakeTailscale = (calls: string[][], connected = true): TailscaleRun => {
-  return (args) => {
+  return async (args) => {
     calls.push(args);
     if (args[0] === "status")
       return connected
@@ -34,8 +34,8 @@ function setup(o: { tailscale?: TailscaleRun; restart?: () => void; running?: { 
 test("the local network: saved with a token, and a supervised core restarts to take it", async () => {
   let restarted = 0;
   const s = setup({ tailscale: fakeTailscale([]), restart: () => restarted++ });
-  assert.equal(s.access.state().mode, "local");
-  const r = s.access.set("lan");
+  assert.equal((await s.access.state()).mode, "local");
+  const r = await s.access.set("lan");
   assert.deepEqual([r.mode, r.saved, r.restart_needed, r.restarting], ["local", "lan", true, true]);
   assert.equal(s.env().APX_HOST, "0.0.0.0");
   assert.ok(s.env().APX_TOKEN);
@@ -47,42 +47,48 @@ test("the local network: saved with a token, and a supervised core restarts to t
   s.done();
 });
 
-test("Tailscale: serves the core on the tailnet's https name, and back to local undoes only that", () => {
+test("Tailscale: serves the core on the tailnet's https name, and back to local undoes only that", async () => {
   const calls: string[][] = [];
   const s = setup({ tailscale: fakeTailscale(calls) });
-  const r = s.access.set("tailscale");
+  const r = await s.access.set("tailscale");
   assert.equal(r.saved, "tailscale");
   assert.equal(r.restarting, false, "nothing restarts an unsupervised core");
   assert.equal(s.env().APX_PUBLIC_URL, "https://box.tail0.ts.net");
   const serves = () => calls.filter((c) => c[0] === "serve");
   assert.deepEqual(serves(), [["serve", "--bg", "--https=443", "http://127.0.0.1:7440"]]);
   const token = s.env().APX_TOKEN;
-  s.access.set("local");
+  await s.access.set("local");
   assert.deepEqual(serves().at(-1), ["serve", "--https=443", "off"]);
   assert.equal(s.env().APX_PUBLIC_URL, undefined);
   assert.equal(s.env().APX_TOKEN, token, "the token stays");
   s.done();
 });
 
-test("Tailscale missing or disconnected is refused with a reason, and nothing is saved", () => {
+test("Tailscale missing or disconnected is refused with a reason, and nothing is saved", async () => {
   const disconnected = setup({ tailscale: fakeTailscale([], false) });
-  assert.throws(() => disconnected.access.set("tailscale"), /not connected/);
+  await assert.rejects(disconnected.access.set("tailscale"), /not connected/);
   assert.equal(fs.existsSync(path.join(disconnected.home, "core.env")), false);
-  assert.equal(disconnected.access.state().tailscale.installed, true);
-  assert.equal(disconnected.access.state().tailscale.connected, false);
+  assert.equal((await disconnected.access.state()).tailscale.installed, true);
+  assert.equal((await disconnected.access.state()).tailscale.connected, false);
   disconnected.done();
 });
 
-test("what runs now is told apart from what was saved", () => {
+test("what runs now is told apart from what was saved", async () => {
   const s = setup({ tailscale: fakeTailscale([]), running: { host: "0.0.0.0" } });
-  assert.deepEqual(s.access.state().urls, ["http://192.0.2.10:7440"]);
-  assert.equal(s.access.state().mode, "lan");
-  assert.equal(s.access.state().restart_needed, true, "core.env does not say lan yet");
+  const now = await s.access.state();
+  assert.deepEqual(now.urls, ["http://192.0.2.10:7440"]);
+  assert.equal(now.mode, "lan");
+  assert.equal(now.restart_needed, true, "core.env does not say lan yet");
   s.done();
 });
 
-test("the Tailscale subprocess receives CLI mode when launched outside a shell", () => {
+test("the Tailscale subprocess receives CLI mode when launched outside a shell, without blocking the core", async () => {
   const run = tailscaleRunner(process.execPath);
-  const result = run(["-e", "process.stdout.write(process.env.TAILSCALE_BE_CLI ?? 'missing')"]);
+  let ticked = false;
+  setImmediate(() => {
+    ticked = true;
+  });
+  const result = await run(["-e", "process.stdout.write(process.env.TAILSCALE_BE_CLI ?? 'missing')"]);
   assert.deepEqual(result, { ok: true, out: "1" });
+  assert.ok(ticked, "the event loop ran while the CLI did");
 });
