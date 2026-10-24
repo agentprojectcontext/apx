@@ -69,12 +69,6 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
         ? "Cambió los límites de los agentes"
         : "Revisó los límites de los agentes",
   contact_list: () => "Revisó los contactos",
-  attention_hours: (a) =>
-    a.hours !== undefined
-      ? `Cambió el horario de ${str(a.channel ?? "un canal")}`
-      : Array.isArray(a.contacts) && a.contacts.length && a.any_hour !== undefined
-        ? `${a.any_hour ? "Dejó pasar a toda hora a" : "Ya no deja pasar a toda hora a"} ${a.contacts.join(", ").slice(0, 60)}`
-        : "Revisó el horario de atención",
   apx_settings: (a) => {
     const { act, area } = settingAct(a);
     const what = SETTING_AREA[area] ?? "la configuración";

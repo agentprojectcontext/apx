@@ -1,9 +1,9 @@
 // apx_settings, the people the owner talks to and how: contacts, channels and their stickers, the owner's own profile
 // and when they are notified. A channel's sign-in and what its sealed chats may do stay the owner's (DECISIONS.md#d-138).
-import type { Person } from "@apx/protocol";
+import type { ChannelHours, Person } from "@apx/protocol";
 import { autoApproves } from "../channels/stickers.ts";
 import { noticePrefs } from "../domain/notices.ts";
-import { ownerIdentity } from "../domain/owner.ts";
+import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
 import { hoursText } from "./directory.ts";
 import { inlineName } from "./result.ts";
@@ -66,6 +66,12 @@ function channelLine(store: Store, c: Channel): string {
   return `- ${inlineName(c.label ?? c.id)} [${c.id}] (${bits.join(", ")})${rooms ? `; rooms: ${rooms}` : ""}`;
 }
 
+/** A channel's hours as the owner reads them on the card; none: back to any hour. */
+const hoursWords = (v: unknown, { store }: { store: Store }) =>
+  v
+    ? `Answers contacts ${hoursText(v as ChannelHours)} (${ownerTimeZone(store) ?? "this computer's time zone"}); outside them they wait until the hours begin`
+    : "Answers contacts at any hour";
+
 const SIGN_IN = "it carries the channel's sign-in, which the owner types in Settings › Channels";
 
 const stickerOf = (p: Params, store: Store) => (typeof p.id === "string" ? store.stickers.get(p.id) : undefined);
@@ -103,12 +109,13 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
     },
   },
   "contacts.set": {
-    does: "change a contact (id and only what changes: note says who they are, rules how to answer them) or add one",
+    does: "change a contact (id and only what changes: note says who they are, rules how to answer them, any_hour true answers them outside their channel's hours) or add one",
     says: (p, { store }) => {
       const cur = personOf(p, store);
       return cur ? `Change the contact ${inlineName(cur.name)}` : `Add the contact ${inlineName(str(p.name))}`;
     },
     now: (p, { store }) => personOf(p, store),
+    words: { any_hour: (v) => (v ? "Answered at any hour" : "Waits for the hours like everyone") },
     keep: (p, { store }) => {
       const cur = personOf(p, store);
       return cur && p.name === undefined ? { ...p, name: cur.name } : p;
@@ -151,7 +158,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
         .join("\n") || "no channels set up.",
   },
   "channels.set": {
-    does: "change a channel already set up (id, and under channel only what changes: agent_id, strangers, rooms…); its sign-in, mail account and research stay the owner's",
+    does: "change a channel already set up (id, and under channel only what changes: agent_id, strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour…); its sign-in, mail account and research stay the owner's",
     says: (p, { store }) => `Change the channel ${inlineName(channelOf(store, p.id)?.label ?? str(p.id))}`,
     refuse: (p, { store }) => {
       const now = channelNow(store, p.id);
@@ -170,10 +177,13 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
       const channel = channelNow(store, p.id);
       return channel ? { id: p.id, channel } : undefined;
     },
-    keep: (p, { store }) =>
-      p.channel && typeof p.channel === "object"
-        ? { ...p, channel: merged(channelNow(store, p.id), p.channel as Params) }
-        : p,
+    words: { "channel.hours": hoursWords },
+    keep: (p, { store }) => {
+      if (!p.channel || typeof p.channel !== "object") return p;
+      // hours: null is "any hour": the channel is saved without them.
+      const { hours, ...channel } = merged(channelNow(store, p.id), p.channel as Params);
+      return { ...p, channel: hours === null ? channel : { ...channel, ...(hours ? { hours } : {}) } };
+    },
     shows: () => "saved; channels.list shows it now",
   },
   "imessage.set": {

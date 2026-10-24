@@ -2109,7 +2109,7 @@ always show its card (do it or not), and that no other agent can get the super-a
 skipped the card on Total (D-047) or under the agent's own rule for that risk, and a message another agent posted in the
 super-agent's chat (origin `agent`) reached a turn that had the tools.
 
-A tool marks such calls with `ownerSetting` (`agent_set`, `attention_hours`, `apx_settings`, the tools only the
+A tool marks such calls with `ownerSetting` (`agent_set` and `apx_settings`, the tools only the
 super-agent has; `owner-setting.test.ts` fails on one without it). `authorize` turns an allow into a card for them in
 every mode and under every rule; plan mode still refuses them. The executor refuses them, before anyone is asked,
 unless the run's origin is the owner's own: their message in the app or on a channel as the owner, or their answer to a
