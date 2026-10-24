@@ -3,6 +3,8 @@
 import os
 import pwd
 import selectors
+import sys
+from pathlib import Path
 import signal
 import subprocess
 from apx_vm_session import desktop_environment
@@ -10,7 +12,10 @@ from apx_vm_session import desktop_environment
 incoming, command = os.pipe()
 reply, outgoing = os.pipe()
 environment = desktop_environment()
-with open("/tmp/apx-browser.log", "ab", buffering=0) as log:
+# Each screen user's own log: a shared one in /tmp would belong to the first agent and lock out the rest.
+log_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(pwd.getpwuid(os.getuid()).pw_dir) / ".cache/apx/browser.log"
+log_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+with open(log_path, "ab", buffering=0) as log:
     child = subprocess.Popen(
         ["/bin/bash", "-c", 'exec 3<&"$1" 4>&"$2"; shift 2; exec "$@"', "apx-browser",
          str(incoming), str(outgoing), "/usr/bin/chromium", "--remote-debugging-pipe",

@@ -56,3 +56,7 @@ export const screenArgs = (screen: number, ...args: string[]) => {
 };
 
 export const workerArgs = (...args: string[]) => asUser(VM_WORKER, 1001, args);
+
+/** A screen's visible browser, logging in its user's own home: a shared /tmp log would be the first agent's alone. */
+export const browserArgs = (screen: number) =>
+  screenArgs(screen, "/usr/local/bin/apx-browser", `${screenUser(screen).home}/.cache/apx/browser.log`);

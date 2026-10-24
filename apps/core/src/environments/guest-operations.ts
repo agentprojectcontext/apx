@@ -6,7 +6,7 @@ import { createHeadlessBrowser } from "../nodes/headless-browser.ts";
 import type { ComputerConfig } from "./computer.ts";
 import type { ComputerControl } from "./control.ts";
 import { guestExecutor, stopGuestProcesses } from "./guest-exec.ts";
-import { screenArgs, screenUser } from "./worker.ts";
+import { browserArgs, screenArgs, screenUser } from "./worker.ts";
 
 type Command = { code: number; output: string };
 type Ticket = { expires: number; screen: number; device?: string };
@@ -43,11 +43,10 @@ export function guestOperations(
         keepAlive: () => true,
         launch() {
           config.lifecycle?.assertRunning();
-          const child = spawn(
-            binary(),
-            ["shell", config.instance, "--", ...screenArgs(screen, "/usr/local/bin/apx-browser")],
-            { env, stdio: ["pipe", "pipe", "ignore"] },
-          );
+          const child = spawn(binary(), ["shell", config.instance, "--", ...browserArgs(screen)], {
+            env,
+            stdio: ["pipe", "pipe", "ignore"],
+          });
           return { child, input: child.stdout, output: child.stdin };
         },
       },

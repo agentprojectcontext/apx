@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { agentLoopbackRules } from "./loopback.ts";
-import { screenArgs, screenSlice, workerArgs } from "./worker.ts";
+import { browserArgs, screenArgs, screenSlice, workerArgs } from "./worker.ts";
 
 test("each agent's loopback listeners refuse new connections from any other agent, and nothing else changes", () => {
   const rules = agentLoopbackRules([2, 1, 2]);
@@ -54,4 +54,13 @@ test("an agent's processes run as its user inside its own slice; the probe user 
     "op",
   ]);
   assert.deepEqual(workerArgs("id").slice(0, 4), ["sudo", "-n", "-u", "apx-worker"]);
+});
+
+test("each screen's browser logs in its own user's home, never in a folder other agents share", () => {
+  const one = browserArgs(1);
+  const two = browserArgs(2);
+  assert.equal(one.at(-2), "/usr/local/bin/apx-browser");
+  assert.equal(one.at(-1), "/home/apx-a1/.cache/apx/browser.log");
+  assert.equal(two.at(-1), "/home/apx-a2/.cache/apx/browser.log");
+  assert.ok(![...one, ...two].some((arg) => arg.startsWith("/tmp/")));
 });
