@@ -1,5 +1,5 @@
 import { AgentAvatar, IconButton, Icons, Kbd, Menu } from "@apx/ui";
-import { Fragment } from "react";
+import { Fragment, lazy, Suspense } from "react";
 import logoUrl from "../assets/logo.png";
 import { useChannels } from "../data/channels.ts";
 import { blobOf, findProject, projectName, secretary } from "../data/identity.ts";
@@ -12,7 +12,9 @@ import { LanguageMenu, useLanguageItems } from "./LanguageMenu.tsx";
 import { go, PROJECT_TABS, useNav, useNavHistory } from "./nav.ts";
 import { RunningIndicator } from "./RunningIndicator.tsx";
 import { UpdatePill, WhatsNewPill } from "./UpdatePill.tsx";
-import { UsageButton } from "./UsageButton.tsx";
+
+// The gauge shows a number only after its first read: loading it after the first screen moves nothing that was shown.
+const UsageButton = lazy(() => import("./UsageButton.tsx").then((m) => ({ default: m.UsageButton })));
 
 /** SPEC §1.5: Inbox / project / chat · Projects / project / tab · External sessions / engine / chat · Apps · Tasks. */
 function useCrumbs(): string[] {
@@ -103,7 +105,9 @@ export function Topbar() {
         <WhatsNewPill />
         <UpdatePill />
         <RunningIndicator />
-        <UsageButton />
+        <Suspense fallback={null}>
+          <UsageButton />
+        </Suspense>
         <AttentionTray />
         <div className="topbar__extras">
           <IconButton
