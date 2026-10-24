@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { computerApproval, createComputer } from "./computer.ts";
 
 test("a computer grant for one chat covers only the agent it was given to, and taking it away ends it in every chat", async () => {
@@ -17,6 +18,37 @@ test("a computer grant for one chat covers only the agent it was given to, and t
     assert.equal(vm.permitted("scout", chat.id), false, "revoked even where it is not the chat's first agent");
   } finally {
     await vm.close();
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("an agent whose permission is taken away mid-turn cannot drive the guest browser for the rest of it", async () => {
+  let go: () => void = () => {};
+  const revoked = new Promise<void>((resolve) => {
+    go = resolve;
+  });
+  let asked = false;
+  const llm = scriptedLlm(async (_req, { afterTool }) => {
+    if (afterTool) return say("Stopped");
+    asked = true;
+    await revoked;
+    return callTool("open", "browser_open", { url: "https://example.com" });
+  });
+  const env = await startCore({ llm, computer: { limaHome: "/unused", instance: "missing" } });
+  try {
+    await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.bind", { thread: "home" });
+    await env.client.call("threads.send", { thread: "home", text: "Open a page" });
+    await waitFor(() => asked, "the turn to start");
+    await env.client.call("environments.permit", { agent: "roby", on: false });
+    go();
+    const result = await env.settle("home");
+    const card = result.messages.flatMap((m) => m.parts).find((p) => p.type === "tool" && p.tool === "browser_open");
+    assert.equal(card?.type === "tool" && card.status, "error");
+    assert.match(card?.type === "tool" ? (card.detail ?? "") : "", /may not use the computer/);
+  } finally {
     await env.core.close();
     await env.cleanup();
   }

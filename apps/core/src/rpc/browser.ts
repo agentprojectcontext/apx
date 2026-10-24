@@ -3,7 +3,7 @@ import type { Bus } from "../bus.ts";
 import { TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Computer } from "../environments/computer.ts";
-import { conflict, unavailable } from "../errors.ts";
+import { conflict, unauthorized, unavailable } from "../errors.ts";
 import type { NodeBroker } from "../nodes/broker.ts";
 import { createBrowserHolds } from "../nodes/browser-holds.ts";
 import type { HeadlessBrowser } from "../nodes/headless-browser.ts";
@@ -57,6 +57,8 @@ export function browserHandlers(
         const run = ctx.agent && store.runs.get(ctx.agent.run_id);
         if (run?.state !== "working" || run.thread_id !== thread || run.agent_id !== ctx.agent?.id)
           throw conflict("VM browser does not belong to this active run");
+        // Checked on every call: the owner may take the permission away while the turn runs.
+        if (!vm.permitted(run.agent_id, thread)) throw unauthorized("this agent may not use the computer");
         return (await vm.browser(run.id).handle(method, params)) as never;
       }
       const out = await (local()
