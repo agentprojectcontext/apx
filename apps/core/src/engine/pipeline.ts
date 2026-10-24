@@ -74,6 +74,7 @@ export function runStep(
     let out = "";
     let timedOut = false;
     let settled = false;
+    let stopping = false;
     // A NUL cannot travel in an environment variable (spawn would throw): it is dropped.
     const env = Object.fromEntries(Object.entries(o.env).map(([k, v]) => [k, v.replaceAll("\0", "")]));
     const done = (exit: number | null, extra = "") => {
@@ -98,6 +99,7 @@ export function runStep(
     // Its own process group: stopping it also stops what it started. Something that left the group (setsid) may
     // still hold the pipes, so the step ends now instead of waiting for them to close.
     function stop() {
+      stopping = true;
       child.stdout?.destroy();
       child.stderr?.destroy();
       const why = timedOut ? "\n[stopped: time limit]" : "\n[stopped]";
@@ -111,8 +113,9 @@ export function runStep(
     }, o.timeoutMs ?? STEP_TIMEOUT_MS);
     if (o.signal.aborted) stop();
     else o.signal.addEventListener("abort", stop, { once: true });
-    child.on("error", (err) => done(null, `\n${err.message}`));
-    child.on("close", (code) => done(code));
+    // Once stopping, the step ends when the whole tree is gone, with why, not when the shell closes.
+    child.on("error", (err) => !stopping && done(null, `\n${err.message}`));
+    child.on("close", (code) => !stopping && done(code));
   });
 }
 
