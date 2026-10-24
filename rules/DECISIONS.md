@@ -509,7 +509,7 @@ alone. Closing the terminal before the command ends tells nobody. Only a human o
 cannot press run for itself.
 
 <a id="d-047"></a>
-## D-047 — 2026-10-07 — Total autonomy asks for nothing; low-impact tools stop asking in standard
+## D-047 — 2026-10-07 — Total autonomy asks for nothing; low-impact tools stop asking in standard (amended by D-140)
 D-012 kept `always` confirmations even under total autonomy, so an agent the owner set to run on its own still stopped
 for them. Total is the owner's explicit choice: now nothing waits for them there, `always` included (destructive
 shell commands, commands that reach APX's own API, iMessage, answering a contact, using the owner's browser login).
@@ -2109,7 +2109,7 @@ always show its card (do it or not), and that no other agent can get the super-a
 skipped the card on Total (D-047) or under the agent's own rule for that risk, and a message another agent posted in the
 super-agent's chat (origin `agent`) reached a turn that had the tools.
 
-A tool marks such calls with `ownerSetting` (`agent_set`, `attention_hours`, `apx_settings`, the tools only the
+A tool marks such calls with `ownerSetting` (`agent_set` and `apx_settings`, the tools only the
 super-agent has; `owner-setting.test.ts` fails on one without it). `authorize` turns an allow into a card for them in
 every mode and under every rule; plan mode still refuses them. The executor refuses them, before anyone is asked,
 unless the run's origin is the owner's own: their message in the app or on a channel as the owner, or their answer to a
@@ -2198,3 +2198,22 @@ checks what opening the inbox fetches, the late parts included.
 
 Measured on the built panel and in the e2e sandbox (JS heap after opening the inbox, median of 5): first load
 379.3 → 324.7 KB gz, entry 272.8 → 260.7 KB gz, heap 11.1 → 7.3 MB.
+
+<a id="d-148"></a>
+## D-148 — 2026-10-23 — An agent offers to connect what a request needs, never from a sealed chat
+Asked for something an app or channel the owner has not connected would do (open a Figma file, send it on WhatsApp),
+an agent could only say it could not. `suggest_connection` looks the request up through `integrations.find`, a method
+open to agents that returns only names, descriptions, kinds and whether each is connected: the integrations catalog,
+Google, Asana and the channel kinds (`integrations/find.ts`). A name match outranks a description match, and a
+connected one comes first.
+
+- **When the card appears:** only when the best match is not connected. Up to three of the unconnected matches go on a
+  "Suggested connections" card in the answer; Connect opens that integration's form in the chat, a channel opens its
+  setup in Settings › Channels. The agent is told what it showed and to stop there until the owner says it is
+  connected. An already connected match gets no card: the agent is told to use it. No match: the agent says APX does
+  not connect to it yet.
+- **Never in sealed chats:** a contact's or a room's turn gets only the tools the owner allowed for that person, and
+  `suggest_connection` is not one of them, so nobody but the owner is ever offered a connection. It stays in the
+  owner's turns even when no channel is on (unlike the channel tools), since connecting the first one is its job.
+- **What agents see:** labels and descriptions of what APX can connect and a connected flag; never credentials,
+  accounts or settings. Connecting stays the owner's act on the card or in Settings.

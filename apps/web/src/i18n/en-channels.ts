@@ -302,6 +302,14 @@ export const enChannels = {
   "hooks.mayChange":
     "This ngrok address is new: paste it into the platform. If ngrok gives another one after a restart, this says so again.",
   "hooks.failed": "The public address could not change: {error}",
+  "hooks.err.funnel_failed":
+    "Tailscale Funnel did not start: it may need turning on for this device in the tailnet's policy.",
+  "hooks.err.ngrok_timeout": "ngrok did not give an address in time.",
+  "hooks.err.ngrok_failed":
+    "ngrok could not open the address. Is it signed in (“ngrok config add-authtoken <your token>”)?",
+  "hooks.err.ngrok_stopped": "ngrok stopped. APX starts it again on its own.",
+  "hooks.err.failed": "The public address could not be set up.",
+  "hooks.errDetail": "What it said: {detail}",
   "tm.lead":
     "Talk with your agents from Microsoft Teams, in personal chats and the channels you list. Teams delivers to a public address, set below.",
   "tm.step1":

@@ -392,13 +392,15 @@
   display: none;
 }
 .chan__msgs {
-  display: flex;
   flex: 1;
+  min-height: 0;
+}
+.chan__msglist {
+  display: flex;
+  min-height: 100%;
   flex-direction: column;
   gap: 10px;
-  min-height: 0;
   padding: 20px 24px;
-  overflow-y: auto;
 }
 .chan__bubble {
   display: flex;
@@ -574,7 +576,7 @@
   .chan__back {
     display: inline-grid;
   }
-  .chan__msgs {
+  .chan__msglist {
     padding: 14px;
   }
   .chan__composer {

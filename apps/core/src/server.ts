@@ -591,10 +591,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const url = transport.url;
   selfUrl = url;
   engine.start();
-  // Before the channels: one that delivers to a webhook starts knowing its public address.
   const hookListener = await listenHooks({ port: config.hooksPort, deliver: channels.webhook, log });
   hooksPort = hookListener.port;
-  await webhooks.start();
+  // Not awaited: ngrok may take 15 s, and a channel reads its public address when it needs it (hookBase).
+  void webhooks.start();
   await channels.start();
   // After the channels: the message goes out on one (it waits in the outbox until that one is up).
   if (config.news)

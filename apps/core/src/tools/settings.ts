@@ -51,10 +51,20 @@ export function settingAct(a: { method?: unknown; params?: unknown }): {
   return { act: /\.(remove|delete|unregister)$/.test(method) ? "remove" : "change", area };
 }
 
+/** The methods of each area ("contacts" → list, set…), the index the agent drills down from. */
+function areas(): Map<string, string[]> {
+  const by = new Map<string, string[]>();
+  for (const m of Object.keys(SETTINGS)) {
+    const [area = "", verb = ""] = m.split(".");
+    by.set(area, [...(by.get(area) ?? []), verb]);
+  }
+  return by;
+}
+
 /** A setting's method, or why there is none by that name. */
 function settingOf(method: string): { name: MethodName; setting: Setting } | string {
   const setting = SETTINGS[method];
-  if (!setting || !isMethodName(method)) return `no setting "${method}": call apx_settings with no args for the list`;
+  if (!setting || !isMethodName(method)) return `no setting "${method}": call apx_settings with no args for the areas`;
   return { name: method, setting };
 }
 
@@ -69,18 +79,36 @@ const shown = (v: unknown) => {
   return `"${s.length > 300 ? `${s.slice(0, 300)}…` : s}"`;
 };
 
+type Words = Readonly<Record<string, (v: unknown) => string>>;
+
 /** The card's lines: each field that changes, before → after, nested settings by their path ("channel.strangers"). */
-function changedFields(now: Params | undefined, p: Params, path = "", named: readonly string[] = []): string[] {
-  return Object.entries(p).flatMap(([k, v]) => {
+function changedFields(
+  now: Params | undefined,
+  p: Params,
+  path = "",
+  named: readonly string[] = [],
+  words: Words = {},
+): string[] {
+  const lines = Object.entries(p).flatMap(([k, v]) => {
     // The record's own id names it on the card's first line; only another id is a change.
     if (!path && k === "id" && (!now || same(now.id, v))) return [];
     if (!path && named.includes(k)) return [];
-    if (!now) return [`${path}${k}: ${shown(v)}`];
+    const word = words[`${path}${k}`];
+    if (!now) return [word ? word(v) : `${path}${k}: ${shown(v)}`];
     const was = now[k];
     if (same(was, v)) return [];
-    const inner = plain(v) && (plain(was) || empty(was)) ? changedFields(plain(was) ? was : {}, v, `${path}${k}.`) : [];
+    if (word) return [word(v)];
+    const inner =
+      plain(v) && (plain(was) || empty(was)) ? changedFields(plain(was) ? was : {}, v, `${path}${k}.`, [], words) : [];
     return inner.length ? inner : [`${path}${k}: ${shown(was)} → ${shown(v)}`];
   });
+  // Inside a record given back whole (a channel), a worded field left out is dropped (its hours): a change too.
+  const dropped = Object.entries(words).flatMap(([w, word]) => {
+    const k = w.slice(path.length);
+    const gone = path && now && w.startsWith(path) && !k.includes(".") && !empty(now[k]) && !(k in p);
+    return gone ? [word(undefined)] : [];
+  });
+  return [...lines, ...dropped];
 }
 
 export function settingsTools(
@@ -107,7 +135,8 @@ export function settingsTools(
     const s = SETTINGS[a.method ?? ""];
     const p = filled(a);
     const now = s?.now?.(p, deps);
-    return { says: s?.says?.(p, deps) ?? a.method, lines: changedFields(now, p, "", s?.named), known: !!now };
+    const words = Object.fromEntries(Object.entries(s?.words ?? {}).map(([k, w]) => [k, (v: unknown) => w(v, deps)]));
+    return { says: s?.says?.(p, deps) ?? a.method, lines: changedFields(now, p, "", s?.named, words), known: !!now };
   };
   /** A change to a record that already is so: answered without asking the owner. */
   const unchanged = (a: Args) => {
@@ -119,7 +148,7 @@ export function settingsTools(
     defineTool({
       name: "apx_settings",
       description:
-        "Read and change what the owner sets up in APX for them (contacts, channels, their profile, notices, projects, memory…). No args: what you can read and change. method alone: its fields. method + params: run it; a change waits for the owner's OK.",
+        "Read and change what the owner sets up in APX for them (contacts, channels, their profile, notices, projects, memory…). No args: the areas; method: an area's methods, or a method's fields; method + params: run it. Each change waits for the owner's OK.",
       args,
       effect: "local",
       // What the owner set up is theirs: every change waits for their yes.
@@ -134,7 +163,7 @@ export function settingsTools(
       },
       // Before the owner is asked: nobody approves a call the method would refuse, or a field that stays theirs.
       check(a) {
-        if (!a.method) return;
+        if (!a.method || areas().has(a.method)) return;
         const s = settingOf(a.method);
         if (typeof s === "string") throw new Error(s);
         if (s.setting.read || !a.params) return;
@@ -152,9 +181,16 @@ export function settingsTools(
       async run(a, ctx) {
         if (!a.method)
           return [
-            ...Object.entries(SETTINGS).map(([m, s]) => `- ${m}${s.read ? " (read)" : ""}: ${s.does}`),
-            "Agents' definitions, routines, the shared limits and channel hours have tools of their own. Keys, sign-ins, models, what agents may do and this computer stay the owner's, in Settings.",
+            "Areas and their methods; call with method: an area for what each does, a method for its fields.",
+            ...[...areas()].map(([area, verbs]) => `- ${area}: ${verbs.join(", ")}`),
+            "Agents' definitions, routines and the shared limits have tools of their own. Keys, sign-ins, models, what agents may do and this computer stay the owner's, in Settings.",
           ].join("\n");
+        const area = areas().get(a.method);
+        if (area)
+          return area
+            .map((verb) => `${a.method}.${verb}`)
+            .map((m) => `- ${m}${SETTINGS[m]?.read ? " (read)" : ""}: ${SETTINGS[m]?.does}`)
+            .join("\n");
         const s = settingOf(a.method);
         if (typeof s === "string") return s;
         if (s.setting.read) return s.setting.read(a.params ?? {}, deps);

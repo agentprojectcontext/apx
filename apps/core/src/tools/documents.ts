@@ -10,7 +10,7 @@ export function documentTool(store: Store, home: string) {
   return defineTool({
     name: "open_document",
     description:
-      "Show a .md, .markdown or .txt file you can read in the chat's side panel (rendered, source and download), as a snapshot of it now (400 KB at most); .txt renders as Markdown too. For a long report, plan or reference, or when the owner asks; not after every edit. Do not repeat the whole document in your answer. Never say it opened unless this succeeds: if it fails, give the path.",
+      "Show a .md, .markdown or .txt file you can read in the chat's side panel (rendered, source and download), as a snapshot of it now (400 KB at most); .txt renders as Markdown too. Not after every edit, and do not repeat the document in your answer; if it fails, give the path.",
     args: z.object({
       path: z.string().trim().min(1).max(1000),
       title: z.string().trim().min(1).max(120).optional(),

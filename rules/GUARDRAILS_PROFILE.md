@@ -9,9 +9,9 @@ messages or spends money on the owner's behalf).
 | Language | TypeScript strict, `erasableSyntaxOnly`, `noUncheckedIndexedAccess`, TS 7 compiler |
 | Package manager | pnpm 11 workspaces (`apps/*`, `packages/*`), one lockfile |
 | Surfaces | core (daemon), terminal (CLI), web (React 19 + Vite 8), desktop (Electron), mobile (Expo, Android), docs (Astro) |
-| Contract | `packages/protocol` (zod) — HTTP `/rpc/<method>` + WS frames |
+| Contract | `packages/protocol` (zod) — HTTP `/rpc/<method>` + WS frames; platforms' webhooks reach a listener of their own outside it (`apps/core/src/transport/hooks.ts`, [D-139](DECISIONS.md#d-139)) |
 | Persistence | SQLite (`node:sqlite`, WAL) in `~/.apx/v2/apx.db`; append-only migrations in `apps/core/src/db/migrations.ts` |
-| Auth | loopback by default; browser origins limited to the panel's own (`transport/guard.ts`); `APX_TOKEN` required off-loopback (HTTP header or WS `?token=`); a paired device (`apx pair`, `devices.*`) carries its own token, which passes like the core's |
+| Auth | loopback by default; browser origins limited to the panel's own (`transport/guard.ts`); `APX_TOKEN` required off-loopback (HTTP header or WS `?token=`); a paired device (`apx pair`, `devices.*`) carries its own token, which passes like the core's; the webhook listener (`transport/hooks.ts`) takes no token: each channel adapter's `webhook()` verifies its platform's signature (Teams' Bot Framework JWT, LINE's HMAC) over the bytes as they came |
 | Agentic surfaces | harnesses: our own tool loop over providers (OpenAI-compatible, Anthropic Messages, ChatGPT plan), Claude Code, Codex and ACP agents; browser and computer tools via the desktop node; widgets (sandboxed iframes); delegation between agents (a2a sub-threads) |
 | Tests | `node:test` (packages, `scripts/`, mobile logic), Jest Expo + React Native Testing Library (mounted mobile hooks/screens), Playwright (`e2e/`, web and desktop) |
 | Lint / format | Biome 2 |
@@ -43,6 +43,8 @@ override is closed — see [`DECISIONS.md#d-005`](DECISIONS.md#d-005)).
 
 - Anything in `packages/protocol/src/frames.ts` or a method's params/result (breaks every client).
 - `apps/core/src/config.ts` bind/token logic and any auth code.
+- The webhook listener (`apps/core/src/transport/hooks.ts`) and each channel adapter's `webhook()` verification: they
+  take requests from the internet once a public address is on.
 - The embedded browser: profiles, cookie import, CDP control, take-control handoff.
 - Tools with side effects (send, pay, shell, filesystem writes) and anything that lets model output trigger them.
 - Harness integrations touching the user's Claude/Codex logins (never read or copy their tokens).

@@ -74,6 +74,9 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "sessions.digest") return 11 * 60_000;
   // The owner's phone is asked again under each of a chat's addresses, then each file is downloaded (server: 150 s).
   if (method === "channels.recover") return 170_000;
+  // The public address may wait 15 s for ngrok, or on three Tailscale commands of up to 5 s each.
+  if (method === "webhooks.set") return 45_000;
+  if (method === "access.set") return 30_000;
   if (method === "runs.wait") return ((params as { timeout_s?: number })?.timeout_s ?? 60) * 1000 + 10_000;
   return fallback;
 }

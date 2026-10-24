@@ -501,3 +501,21 @@ test("socket call and handshake deadlines reject, and closing before welcome rej
     next.close();
   }
 });
+
+test("setting up the public address or remote access waits longer than the core does (rule 9)", async (t) => {
+  const asked: number[] = [];
+  const timeout = AbortSignal.timeout;
+  t.mock.method(AbortSignal, "timeout", (ms: number) => {
+    asked.push(ms);
+    return timeout(ms);
+  });
+  t.mock.method(globalThis, "fetch", async () => Response.json({ ok: true, result: {} }));
+  const client = new ApxClient({ url: "http://core.example.com" });
+  await client.call("webhooks.set", { mode: "off" });
+  await client.call("access.set", { mode: "local" });
+  await client.call("webhooks.get", {});
+  // ngrok has 15 s to answer; Tailscale runs up to three commands of 5 s each.
+  assert.ok((asked[0] ?? 0) > 15_000 + 15_000, `webhooks.set: ${asked[0]} ms`);
+  assert.ok((asked[1] ?? 0) > 3 * 5_000, `access.set: ${asked[1]} ms`);
+  assert.equal(asked[2], 15_000, "a read keeps the default");
+});

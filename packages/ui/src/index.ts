@@ -79,6 +79,7 @@ export { Skeleton, type SkeletonProps } from "./components/Skeleton";
 export { Spinner, type SpinnerProps } from "./components/Spinner";
 export { StatusIcon, type StatusIconProps, type StepStatus } from "./components/StatusIcon";
 export { type Step, StepList, type StepListProps } from "./components/StepList";
+export { StickyScroll, type StickyScrollHandle, type StickyScrollProps } from "./components/StickyScroll";
 export { SubthreadCard, type SubthreadCardProps } from "./components/SubthreadCard";
 export { type Suggestion, SuggestTextarea, type SuggestTextareaProps } from "./components/SuggestTextarea";
 export { Switch, type SwitchProps } from "./components/Switch";
