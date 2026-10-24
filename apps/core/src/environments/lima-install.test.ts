@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { test } from "node:test";
+import { removeDir, tempDir } from "../testkit/platform.ts";
 import { installLima } from "./lima-install.ts";
 
 test("a tampered Lima download never installs or leaves partial files", async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-lima-install-"));
+  const root = tempDir("apx-lima-install-").path;
   const download: typeof fetch = async () => new Response("tampered archive");
   try {
     await assert.rejects(
@@ -15,12 +14,12 @@ test("a tampered Lima download never installs or leaves partial files", async ()
     );
     assert.deepEqual(fs.readdirSync(root), []);
   } finally {
-    fs.rmSync(root, { recursive: true, force: true });
+    await removeDir(root);
   }
 });
 
 test("a canceled runtime download cleans its staging directory", async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-lima-cancel-"));
+  const root = tempDir("apx-lima-cancel-").path;
   const controller = new AbortController();
   const download: typeof fetch = async () => {
     controller.abort();
@@ -33,6 +32,6 @@ test("a canceled runtime download cleans its staging directory", async () => {
     );
     assert.deepEqual(fs.readdirSync(root), []);
   } finally {
-    fs.rmSync(root, { recursive: true, force: true });
+    await removeDir(root);
   }
 });

@@ -1,9 +1,8 @@
-import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import type { Page } from "@playwright/test";
 import { say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import { createVmLifecycle } from "../../apps/core/src/environments/lifecycle.ts";
+import { tempDir } from "../../apps/core/src/testkit/platform.ts";
 import { expect, test } from "./kit.ts";
 
 async function mockVmDisplay(page: Page) {
@@ -57,7 +56,7 @@ test("Computer installs only on enable, shows the chat agent's screen, follows A
     });
     return say("ok");
   });
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-computer-ui-"));
+  const home = tempDir("apx-computer-ui-").path;
   const env = await startCore({
     home,
     llm,

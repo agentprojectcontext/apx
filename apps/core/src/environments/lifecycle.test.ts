@@ -1,14 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { waitFor } from "../testkit/platform.ts";
 import { createVmLifecycle, type VmDriver } from "./lifecycle.ts";
 
-async function until(check: () => Promise<boolean>) {
-  const deadline = Date.now() + 2000;
-  while (!(await check())) {
-    if (Date.now() > deadline) assert.fail("computer did not reach expected state");
-    await new Promise((resolve) => setTimeout(resolve, 1));
-  }
-}
 function fixture() {
   let running = false;
   let installed = false;
@@ -42,16 +36,16 @@ test("computer is inert before activation; stop releases the guest and restart p
     assert.equal((await vm.status()).phase, "not_installed");
     assert.deepEqual(calls, []);
     vm.start("light");
-    await until(async () => (await vm.status()).phase === "running");
+    await waitFor(async () => (await vm.status()).phase === "running");
     await vm.appearance("dark");
     assert.deepEqual(calls, ["prepare:light", "appearance:dark"]);
     vm.stop();
     assert.throws(() => vm.assertRunning(), /not ready/);
-    await until(async () => (await vm.status()).phase === "stopped");
+    await waitFor(async () => (await vm.status()).phase === "stopped");
     assert.equal(driver.installed(), true);
     assert.equal(await driver.running(), false);
     vm.start("dark");
-    await until(async () => (await vm.status()).phase === "running");
+    await waitFor(async () => (await vm.status()).phase === "running");
     assert.deepEqual(calls, ["prepare:light", "appearance:dark", "stop", "prepare:dark"]);
   } finally {
     await vm.close();
@@ -85,7 +79,7 @@ test("stop aborts installation and remains exclusive until cleanup completes", a
     assert.throws(() => vm.start("dark"), /already running/);
     assert.equal((await vm.status()).phase, "stopping");
     release();
-    await until(async () => (await vm.status()).phase === "not_installed");
+    await waitFor(async () => (await vm.status()).phase === "not_installed");
     assert.equal((await vm.status()).error, undefined);
   } finally {
     release();
@@ -101,12 +95,12 @@ test("preparation failure cleans partial guests; failed shutdown never claims RA
   const vm = createVmLifecycle(driver);
   try {
     vm.start("light");
-    await until(async () => (await vm.status()).phase === "error");
+    await waitFor(async () => (await vm.status()).phase === "error");
     assert.match((await vm.status()).error ?? "", /download failed/);
     assert.deepEqual(calls, ["stop"]);
     driver.running = async () => true;
     vm.stop();
-    await until(async () => /memory has not been released/.test((await vm.status()).error ?? ""));
+    await waitFor(async () => /memory has not been released/.test((await vm.status()).error ?? ""));
     assert.equal((await vm.status()).phase, "error");
   } finally {
     await vm.close();
@@ -138,7 +132,7 @@ test("an interrupted first setup is recoverable instead of exposing an incomplet
     assert.match((await vm.status()).error ?? "", /interrupted/);
     assert.throws(() => vm.assertRunning(), /not ready/);
     vm.start("light");
-    await until(async () => (await vm.status()).phase === "running");
+    await waitFor(async () => (await vm.status()).phase === "running");
     assert.equal((await vm.status()).error, undefined);
   } finally {
     await vm.close();
@@ -157,7 +151,7 @@ test("driver status failures remain recoverable and cannot reject application bo
     assert.match((await vm.status()).error ?? "", /Lima unavailable/);
     vm.start("light");
     driver.running = async () => true;
-    await until(async () => (await vm.status()).phase === "running");
+    await waitFor(async () => (await vm.status()).phase === "running");
   } finally {
     await vm.close();
   }

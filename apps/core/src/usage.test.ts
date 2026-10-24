@@ -2,12 +2,12 @@
 // background, kept, cut at its deadline) and the VM's slot, filled by whatever provider the core was given.
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
 import { testConfig } from "./config.ts";
 import { createCore } from "./server.ts";
+import { removeDir, tempDir, waitFor } from "./testkit/platform.ts";
 import { availableFromMeminfo, availableFromVmStat, createUsage, measureHome, partOf } from "./usage.ts";
 
 const MB = 1048576;
@@ -23,7 +23,7 @@ function write(rel: string, bytes: number) {
 }
 
 before(async () => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-usage-"));
+  home = tempDir("apx-usage-").path;
   core = await createCore(testConfig({ home }), { quiet: true, vmUsage: () => vm });
   owner = new ApxClient({ url: core.url });
   write("models/ggml-base.bin", 3 * MB);
@@ -33,7 +33,7 @@ before(async () => {
 });
 after(async () => {
   await core.close();
-  fs.rmSync(home, { recursive: true, force: true });
+  await removeDir(home);
 });
 
 test("the computer's memory, CPU and disks, and the core's own share, come without the home's size unless asked", async () => {
@@ -56,11 +56,10 @@ test("the computer's memory, CPU and disks, and the core's own share, come witho
 test("asked for disk, the first answer is measuring; the next has the home by part, biggest first", async () => {
   const first = await owner.call("system.usage", { disk: true });
   assert.ok(first.home);
-  let h = first.home;
-  for (let i = 0; i < 200 && (h.measuring || !h.measured_at); i++) {
-    await new Promise((r) => setTimeout(r, 20));
-    h = (await owner.call("system.usage", { disk: true })).home ?? h;
-  }
+  const h = await waitFor(async () => {
+    const home = (await owner.call("system.usage", { disk: true })).home;
+    return home && !home.measuring && home.measured_at ? home : undefined;
+  }, "the home measured");
   assert.equal(h.measuring, false);
   const by: Record<string, number> = Object.fromEntries(h.parts.map((p) => [p.id, p.mb]));
   assert.ok((by.models ?? 0) >= 3, `models: ${by.models}`);
@@ -92,24 +91,22 @@ test("the VM's slot carries what its provider says, and a provider that fails le
 
 test("a home measure kept within its time is not walked again; a stale one is", async () => {
   const usage = createUsage({ home, homeTtlMs: 60_000 });
-  const wait = async () => {
-    for (let i = 0; i < 200; i++) {
+  const wait = () =>
+    waitFor(async () => {
       const h = (await usage.read({ disk: true })).home;
-      if (h && !h.measuring && h.measured_at) return h;
-      await new Promise((r) => setTimeout(r, 10));
-    }
-    throw new Error("never measured");
-  };
+      return h && !h.measuring && h.measured_at ? h : undefined;
+    }, "the home measured");
   const one = await wait();
   write("models/more.bin", 4 * MB);
   const two = (await usage.read({ disk: true })).home;
   assert.equal(two?.measured_at, one.measured_at, "kept, not walked on each call");
   assert.equal(two?.measuring, false);
+  // Past its time at once: once a measure is kept, a later read starts the next walk.
   const stale = createUsage({ home, homeTtlMs: 0 });
-  await stale.read({ disk: true });
-  for (let i = 0; i < 200 && (await stale.read({ disk: true })).home?.measuring; i++)
-    await new Promise((r) => setTimeout(r, 10));
-  assert.equal((await stale.read({ disk: true })).home?.measuring, true, "past its time, a read walks again");
+  await waitFor(async () => {
+    const h = (await stale.read({ disk: true })).home;
+    return h?.measured_at && h.measuring;
+  }, "a read past its time walking again");
 });
 
 test("a walk past its deadline stops and says it is partial", async () => {

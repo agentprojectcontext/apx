@@ -174,7 +174,6 @@
     "packages/install/src/desktop.test.ts": 1,
     "scripts/browser-coverage.test.ts": 1,
     "scripts/bundle-update.test.ts": 1,
-    "scripts/coverage-maps.test.ts": 4,
     "scripts/e2e-fake-desktop-trash.test.ts": 2
   },
   "raw-rm": {
@@ -236,7 +235,6 @@
     "packages/install/src/desktop.test.ts": 1,
     "scripts/browser-coverage.test.ts": 1,
     "scripts/bundle-update.test.ts": 1,
-    "scripts/coverage-maps.test.ts": 4,
     "scripts/e2e-fake-desktop-trash.test.ts": 2
   },
   "short-window": {

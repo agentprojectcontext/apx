@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { maxScreens } from "./screens.ts";
 
 /** Each chat's turn waits until the test lets it end, so the screens it holds stay held. */
@@ -25,14 +26,6 @@ function heldTurns() {
       for (const end of waiting.values()) end();
     },
   };
-}
-
-async function until(check: () => boolean | Promise<boolean>, what: string) {
-  const deadline = Date.now() + 4000;
-  while (!(await check())) {
-    assert.ok(Date.now() < deadline, what);
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
 }
 
 test("the VM's memory decides how many agent screens run at once", () => {
@@ -72,7 +65,7 @@ test("two agents hold two screens at once; a third is refused while the VM holds
       env.client.call("threads.send", { thread: chats[agent] ?? "", text: `chat ${agent}` });
     await send("roby");
     await send("scout");
-    await until(() => turns.started("roby") && turns.started("scout"), "both turns started");
+    await waitFor(() => turns.started("roby") && turns.started("scout"), "both turns started");
     const status = await env.client.call("environments.status", {});
     assert.equal(status.max_screens, 2);
     assert.deepEqual(
@@ -106,7 +99,7 @@ test("two agents hold two screens at once; a third is refused while the VM holds
       ["scout"],
     );
     await send("vera");
-    await until(() => turns.started("vera"), "the third turn started");
+    await waitFor(() => turns.started("vera"), "the third turn started");
     assert.deepEqual(screens, ["start 1", "start 2", "stop 1", "start 3"]);
     assert.deepEqual(
       (await env.client.call("environments.status", {})).screens?.map((s) => [s.screen, s.agent ?? ""]),

@@ -1,14 +1,13 @@
-import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
+import { tempDir } from "../../apps/core/src/testkit/platform.ts";
 import type { Part } from "../../packages/protocol/src/index.ts";
 import { expect, test } from "./kit.ts";
 
 test("guest browser cards, including old messages, stay in the VM; an open panel replaces the preview", async ({
   page,
 }) => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-browser-card-"));
+  const home = tempDir("apx-browser-card-").path;
   const env = await startCore({
     home,
     llm: scriptedLlm(() => say("ok")),

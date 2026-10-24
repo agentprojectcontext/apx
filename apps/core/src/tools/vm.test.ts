@@ -1,6 +1,4 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { COMPUTER_GRANT, type PendingInput } from "@apx/protocol";
@@ -8,6 +6,7 @@ import { ApxClient } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createVmLifecycle } from "../environments/lifecycle.ts";
 import type { LlmRequest } from "../providers/llm.ts";
+import { tempDir, waitFor } from "../testkit/platform.ts";
 
 const GIB = 1024 ** 3;
 
@@ -38,16 +37,8 @@ function fakeComputer(home: string, free = { bytes: 12 * GIB }) {
 const toolNames = (req: LlmRequest) => req.tools.map((t) => t.function.name);
 const results = (req: LlmRequest) => req.messages.filter((m) => m.role === "tool").map((m) => String(m.content));
 
-async function until(check: () => Promise<boolean>, what: string) {
-  const deadline = Date.now() + 4000;
-  while (!(await check())) {
-    assert.ok(Date.now() < deadline, what);
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-}
-
 test("an agent the owner did not allow sees no computer tool, and its chat cannot be given the computer", async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-vm-tool-"));
+  const home = tempDir("apx-vm-tool-").path;
   const seen: string[][] = [];
   const llm = scriptedLlm((req) => {
     seen.push(toolNames(req));
@@ -70,7 +61,7 @@ test("an agent the owner did not allow sees no computer tool, and its chat canno
 });
 
 test("once set up, an agent asks with a card; allowed for good, it starts the shared computer, takes its own screen and leaves", async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-vm-tool-"));
+  const home = tempDir("apx-vm-tool-").path;
   const vm = fakeComputer(home);
   const seen: string[][] = [];
   const llm = scriptedLlm((req) => {
@@ -85,14 +76,14 @@ test("once set up, an agent asks with a card; allowed for good, it starts the sh
     // The owner set the computer up once, for the secretary in Home, and shut it down.
     await env.client.call("environments.permit", { agent: "roby", on: true });
     await env.client.call("environments.enable", { thread: "home", appearance: "light" });
-    await until(async () => (await env.client.call("environments.status", {})).phase === "running", "owner start");
+    await waitFor(async () => (await env.client.call("environments.status", {})).phase === "running", "owner start");
     await env.client.call("environments.stop", {});
-    await until(async () => (await env.client.call("environments.status", {})).phase === "stopped", "owner stop");
+    await waitFor(async () => (await env.client.call("environments.status", {})).phase === "stopped", "owner stop");
 
     const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "scout" });
     await env.client.call("threads.send", { thread: chat.id, text: "Try the site on Linux" });
     let input: PendingInput | undefined;
-    await until(async () => {
+    await waitFor(async () => {
       input = (await env.client.call("runs.pending", { thread: chat.id })).inputs[0];
       return Boolean(input);
     }, "a card asking for the computer");
@@ -129,7 +120,7 @@ test("once set up, an agent asks with a card; allowed for good, it starts the sh
 });
 
 test("starting refuses when free memory cannot hold the VM and its reserve, and says why", async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-vm-tool-"));
+  const home = tempDir("apx-vm-tool-").path;
   const free = { bytes: 5 * GIB };
   const vm = fakeComputer(home, free);
   const llm = scriptedLlm((req) =>
@@ -151,7 +142,7 @@ test("starting refuses when free memory cannot hold the VM and its reserve, and 
     assert.deepEqual(vm.calls, []);
     free.bytes = 7 * GIB;
     await env.client.call("environments.enable", { thread: "home", appearance: "light" });
-    await until(async () => (await env.client.call("environments.status", {})).phase === "running", "start");
+    await waitFor(async () => (await env.client.call("environments.status", {})).phase === "running", "start");
   } finally {
     await env.core.close();
     env.cleanup();
@@ -159,7 +150,7 @@ test("starting refuses when free memory cannot hold the VM and its reserve, and 
 });
 
 test("only the owner or the allowed agent's own run starts and stops it; taking the permission away ends its turns", async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-vm-tool-"));
+  const home = tempDir("apx-vm-tool-").path;
   const llm = scriptedLlm(() => say("ok"));
   const env = await startCore({ home, llm, computer: fakeComputer(home).config });
   try {
@@ -182,7 +173,7 @@ test("only the owner or the allowed agent's own run starts and stops it; taking 
 });
 
 test("the owner's resources are held to the host's limits, and the disk only grows", async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-vm-tool-"));
+  const home = tempDir("apx-vm-tool-").path;
   const config = { ...fakeComputer(home).config, applied: () => ({ memory_gib: 4, cpus: 2, disk_gib: 32 }) };
   const env = await startCore({ home, llm: scriptedLlm(() => say("ok")), computer: config });
   try {

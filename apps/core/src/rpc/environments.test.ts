@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
@@ -11,6 +10,7 @@ import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createComputer } from "../environments/computer.ts";
 import { createVmLifecycle } from "../environments/lifecycle.ts";
 import { createCore } from "../server.ts";
+import { removeDir, tempDir } from "../testkit/platform.ts";
 
 /** A guest that is up, or not, as the test says; preparing it only flips it on. */
 function fakeLifecycle(state = { running: true }, modes: string[] = []) {
@@ -54,7 +54,7 @@ test("the computer is off by default over HTTP and WS; agent clients cannot acqu
 });
 
 test("chats go on the computer only for allowed agents; outside clients run nothing and the host terminal stays shut", async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-vm-test-"));
+  const home = tempDir("apx-vm-test-").path;
   const env = await startCore({
     home,
     llm: scriptedLlm(() => say("ok")),
@@ -82,7 +82,7 @@ test("chats go on the computer only for allowed agents; outside clients run noth
 });
 
 test("native VM turns expose guest shell and browser tools and never fall back to host when Lima is unavailable", async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-vm-test-"));
+  const home = tempDir("apx-vm-test-").path;
   const marker = path.join(home, "must-not-exist");
   const llm = scriptedLlm((req, { afterTool }) => {
     assert.deepEqual(
@@ -136,7 +136,7 @@ test("display tickets are single-use, bounded and revoked at shutdown without sp
 });
 
 test("a failed guest browser never reaches a connected host browser node", async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-vm-browser-"));
+  const home = tempDir("apx-vm-browser-").path;
   const llm = scriptedLlm((_req, { afterTool }) =>
     afterTool ? say("Guest browser unavailable") : callTool("open", "browser_open", { url: "https://example.com" }),
   );
@@ -167,7 +167,7 @@ test("a failed guest browser never reaches a connected host browser node", async
 });
 
 test("a VM-bound chat restarted on a core whose computer is not set up offers only guest tools, never the host's", async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-vm-restart-"));
+  const home = tempDir("apx-vm-restart-").path;
   const first = await startCore({
     home,
     llm: scriptedLlm(() => say("ok")),
@@ -213,7 +213,7 @@ test("only the owner shuts the shared computer down; it cancels the turns holdin
     });
     return say("Stopped");
   });
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-computer-control-"));
+  const home = tempDir("apx-computer-control-").path;
   const env = await startCore({
     home,
     llm,
@@ -294,7 +294,7 @@ test("only the owner shuts the shared computer down; it cancels the turns holdin
 });
 
 test("shutdown terminates an in-flight guest command's local SSH process", async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-computer-command-"));
+  const home = tempDir("apx-computer-command-").path;
   const pidFile = path.join(home, "ssh.pid");
   const binary = path.join(home, "guest.mjs");
   fs.writeFileSync(
@@ -457,7 +457,7 @@ test("VM availability does not advertise browser tools to an ordinary chat witho
 });
 
 test("revoking a device invalidates pending display tickets, closes its live display and refuses existing RPC sockets", async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-display-revoke-"));
+  const home = tempDir("apx-display-revoke-").path;
   const binary = path.join(home, "display.mjs");
   fs.writeFileSync(binary, `#!${process.execPath}\nsetInterval(() => {}, 10000);\n`, { mode: 0o755 });
   const token = "test-core-display-token";
@@ -514,6 +514,6 @@ test("revoking a device invalidates pending display tickets, closes its live dis
     display?.terminate();
     socket?.close();
     await core.close();
-    fs.rmSync(home, { recursive: true, force: true });
+    await removeDir(home);
   }
 });
