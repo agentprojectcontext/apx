@@ -70,6 +70,8 @@ export type ToolContext = {
    * continue without it, the question stays open after the turn stops waiting and its answer wakes the agent.
    */
   askOwner(prompt: string, options?: string[], canContinue?: boolean, multi?: boolean): Promise<InputRecord>;
+  /** Puts one concrete action to the owner as a card to accept or decline, and waits as askOwner does. */
+  proposeAction(action: string, canContinue?: boolean): Promise<InputRecord>;
   /** Takes back this agent's own open question: it ends `withdrawn` and the owner is not told anything new. */
   withdrawQuestion(inputId: string): InputRecord;
   /** Runs a shell command as a terminal job of this run: waits for it (up to timeoutMs) unless `background`. */

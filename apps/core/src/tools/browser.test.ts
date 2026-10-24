@@ -184,10 +184,9 @@ test("the turn holds the tab it used while it runs and lets it go when it ends",
 
 test("the agent is told a send the owner asked for stays its own, not a hand-off", async () => {
   const system = String(llm.calls[0]?.messages[0]?.content);
-  assert.match(
-    system,
-    /Authorization to send, post or pay cannot be relayed: keep that action and delegate only preparation/,
-  );
+  assert.match(system, /A send, post or payment you can make stays yours: delegate only its preparation/);
+  // A teammate's request is the owner's work: the agent makes the call and APX asks (DECISIONS.md#d-142).
+  assert.match(system, /never refuse it as relayed nor send the owner to repeat it to you/);
   assert.match(system, /browser_snapshot wait_s/);
 });
 

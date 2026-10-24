@@ -75,7 +75,14 @@ export function createInputs(deps: {
   function wake(r: InputRecord): void {
     settleCard(r);
     let text: string;
+    const note = r.answer ? ` Their note: ${r.answer}` : "";
     if (r.kind === "question") text = `You asked the owner: "${r.prompt}". Their answer: ${r.answer ?? "(empty)"}`;
+    // An action card (no tool): the owner accepted or declined the action itself.
+    else if (!r.tool && !r.folders)
+      text =
+        r.state === "approved"
+          ? `The owner accepted the action you proposed: "${r.prompt}". Do it now, as proposed.${note}`
+          : `The owner declined the action you proposed: "${r.prompt}". Do not do it.${note}`;
     else if (r.state === "approved") {
       const binding = r.approval?.key ?? (r.folders ? folderBinding(r.folders, r.folders_write) : undefined);
       if (r.tool && (!r.approval_scope || r.approval_scope === "once"))
@@ -269,7 +276,8 @@ export function createInputs(deps: {
      */
     withdraw(id: string, agentId: string): InputRecord {
       const rec = store.inputs.get(id);
-      if (rec?.kind !== "question" || rec.agent_id !== agentId) throw notFound(`question ${id} of yours`);
+      const own = rec && rec.agent_id === agentId && (rec.kind === "question" || (!rec.tool && !rec.folders));
+      if (!own) throw notFound(`question ${id} of yours`);
       const settled = store.inputs.settle(id, "withdrawn");
       if (!settled) throw conflict(`question ${id} is already ${store.inputs.get(id)?.state ?? "closed"}`);
       const listener = waiting.get(id);

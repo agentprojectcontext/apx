@@ -1,5 +1,6 @@
 // Tools that talk to the owner or page through what the turn already produced.
 import { z } from "zod";
+import type { InputRecord } from "../domain/inputs.ts";
 import { ownerQuestionProblem } from "../domain/owner-question.ts";
 import type { Store } from "../domain/store.ts";
 import { untrusted } from "./result.ts";
@@ -15,6 +16,18 @@ const NOTIFY_STATE = {
   relay: "handed to the super-agent, who tells the owner in its next team news; do not send it again",
   no_channel: "in the owner's tray (they have no channel set up)",
 } as const;
+
+/** What the agent learns from an action card: accepted means do it now, its calls still pass their own checks. */
+function actionResult(r: InputRecord): string {
+  const note = r.answer ? ` Their note: ${r.answer}` : "";
+  if (r.state === "approved")
+    return `The owner accepted this action: do it now, as proposed.${note} If a call in it still waits for their OK, APX asks them for it.`;
+  if (r.state === "denied") return `The owner declined this action: do not do it.${note}`;
+  if (r.state === "pending")
+    return `The owner has not answered yet. The card stays open in the chat (id ${r.id}) and their answer will reach you in a new turn; if it is no longer needed, take it back with ask_owner withdraw=${r.id}. End this turn now: say briefly what waits on them and do not do the action.`;
+  if (r.state === "withdrawn") return "The proposal was withdrawn. Continue without it.";
+  return "The owner did not answer in time: do not do the action.";
+}
 
 export function ownerTools(store: Store): Tool[] {
   return [
@@ -33,28 +46,47 @@ export function ownerTools(store: Store): Tool[] {
             .describe(
               "true only if you can reasonably go on without the answer: then a late answer is not waited for.",
             ),
+          action: z
+            .string()
+            .min(1)
+            .max(1000)
+            .optional()
+            .describe(
+              "Instead of a question: the one concrete action you would take (what, where, when), for the owner to accept or decline. Not for a single call: APX asks for those.",
+            ),
           withdraw: z.string().min(1).max(64).optional().describe("Instead: id of your open question to take back"),
         })
         // Checked before anything is written or sent: a stand-in question would reach the owner's phone.
         .superRefine((a, c) => {
           if (a.withdraw) return;
-          const why = a.question ? ownerQuestionProblem(a.question) : "give a question, or withdraw";
+          if (a.action && (a.question || a.options || a.multi)) {
+            c.addIssue({ code: "custom", path: ["action"], message: "an action takes no question or options" });
+            return;
+          }
+          const text = a.action ?? a.question;
+          const why = text ? ownerQuestionProblem(text) : "give a question or an action, or withdraw";
           if (why)
             c.addIssue({
               code: "custom",
-              path: ["question"],
-              message: `not sent: ${why}. Ask one specific question with what the owner needs to decide, or do not ask.`,
+              path: [a.action ? "action" : "question"],
+              message: `not sent: ${why}. ${a.action ? "Name the one action the owner accepts" : "Ask one specific question with what the owner needs to decide"}, or do not ask.`,
             });
         }),
       effect: "none",
       // The wait is bounded by the input's own deadline; this only covers a stuck write.
       deadlineMs: 16 * 60_000,
-      title: (a) => (a.withdraw ? "Took back a question" : `Asked you: ${String(a.question ?? "").slice(0, 60)}`),
+      title: (a) =>
+        a.withdraw
+          ? "Took back a question"
+          : a.action
+            ? `Proposed: ${String(a.action).slice(0, 60)}`
+            : `Asked you: ${String(a.question ?? "").slice(0, 60)}`,
       async run(a, ctx) {
         if (a.withdraw) {
           const r = ctx.withdrawQuestion(a.withdraw);
           return `Question ${r.id} withdrawn; the owner is not asked again.`;
         }
+        if (a.action) return actionResult(await ctx.proposeAction(a.action, a.can_continue));
         const r = await ctx.askOwner(a.question ?? "", a.options, a.can_continue, a.multi);
         if (r.state === "answered") return `The owner answered: ${r.answer ?? ""}`;
         if (r.state === "pending")

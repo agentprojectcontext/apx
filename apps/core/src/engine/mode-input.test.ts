@@ -32,6 +32,7 @@ test("an agent is told its mode in each turn's input, and that APX asks the owne
     /^\[mode\] Auto: read anything; edit files and run commands in your work folder, the owner.s other projects/m,
   );
   assert.match(auto.input, /APX asks them: make the call, never ask_owner for permission/);
+  assert.match(auto.input, /A choice only the owner can make .*: ask_owner with the action you propose/);
   assert.doesNotMatch(auto.system, /\[mode\]/, "the mode can change, so it stays out of the cached system prompt");
 
   await env.client.call("agents.update", { agent: "clerk", autonomy: "plan" });

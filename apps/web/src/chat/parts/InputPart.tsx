@@ -17,6 +17,9 @@ const DONE: Record<Exclude<Extract<Part, { type: "input" }>["state"], "pending">
 
 type InputPartData = Extract<Part, { type: "input" }>;
 
+/** A confirmation with no tool and no folders: the agent proposes an action and the owner accepts it or not. */
+const isAction = (part: InputPartData) => part.kind === "confirm" && !part.tool && !part.folders;
+
 const DONE_ICON = {
   approved: Icons.Check,
   answered: Icons.Check,
@@ -36,11 +39,14 @@ export function InputPart({ part }: { part: InputPartData }) {
 function SettledInput({ part, state }: { part: InputPartData; state: Exclude<InputPartData["state"], "pending"> }) {
   const t = useT();
   const Icon = DONE_ICON[state];
+  const action = isAction(part);
   const what = part.folders
     ? t("input.askedFolder")
-    : part.kind === "confirm"
-      ? t("input.asked", { tool: part.tool ?? t("input.anAction") })
-      : t("input.askedQuestion");
+    : action
+      ? t("input.askedAction")
+      : part.kind === "confirm"
+        ? t("input.asked", { tool: part.tool ?? t("input.anAction") })
+        : t("input.askedQuestion");
   return (
     <ActionGroup
       className={`turn__tools inputline is-${state}`}
@@ -50,7 +56,7 @@ function SettledInput({ part, state }: { part: InputPartData; state: Exclude<Inp
           {what}
           <span className={`inputline__state is-${state}`}>
             <Icon size={12} />
-            {t(DONE[state])}
+            {t(action && state === "approved" ? "input.accepted" : DONE[state])}
             {part.approval_scope === "session" && ` · ${t("input.sessionScope")}`}
             {part.approval_scope === "always" && ` · ${t("input.agentScope")}`}
             {part.approval_scope === "project" && ` · ${t("input.projectScope")}`}
@@ -116,6 +122,7 @@ function PendingInput({ part }: { part: InputPartData }) {
   const [text, setText] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const action = isAction(part);
   const tick = (o: string) => setPicked((p) => (p.includes(o) ? p.filter((x) => x !== o) : [...p, o]));
   const send = async (a: { decision?: "approve" | "deny"; text?: string; scope?: ApprovalScope }) => {
     setBusy(true);
@@ -127,7 +134,7 @@ function PendingInput({ part }: { part: InputPartData }) {
       <div className="inputcard__head">
         {part.kind === "confirm" ? <Icons.Hand size={16} /> : <Icons.MessageCircle size={16} />}
         <span className="inputcard__title">
-          {t(part.kind === "confirm" ? "input.confirmTitle" : "input.questionTitle")}
+          {t(action ? "input.actionTitle" : part.kind === "confirm" ? "input.confirmTitle" : "input.questionTitle")}
         </span>
       </div>
       <Prompt part={part} />
@@ -166,7 +173,7 @@ function PendingInput({ part }: { part: InputPartData }) {
       {part.kind === "confirm" && !part.folders && (
         <div className="inputcard__actions">
           <Button size="sm" loading={busy} onClick={() => send({ decision: "approve" })}>
-            {t(part.approval_scopes ? "input.approveOnce" : "input.approve")}
+            {t(action ? "input.accept" : part.approval_scopes ? "input.approveOnce" : "input.approve")}
           </Button>
           {part.approval_scopes?.includes("session") && (
             <Button
