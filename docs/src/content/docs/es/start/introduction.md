@@ -46,6 +46,6 @@ muchas superficies.
 
 ## A dónde ir después
 
-- [Instalación](/apx/docs/es/start/installation/) — instalá APX en tu máquina.
-- [Inicio rápido](/apx/docs/es/start/quick-start/) — desde `apx init` hasta tu primera ejecución.
-- [Arquitectura](/apx/docs/es/start/architecture/) — la estratificación core / host / interfaces.
+- [Instalación](/apx/v1/es/start/installation/) — instalá APX en tu máquina.
+- [Inicio rápido](/apx/v1/es/start/quick-start/) — desde `apx init` hasta tu primera ejecución.
+- [Arquitectura](/apx/v1/es/start/architecture/) — la estratificación core / host / interfaces.

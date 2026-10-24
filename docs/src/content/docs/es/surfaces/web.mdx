@@ -379,7 +379,7 @@ en **Base**.
 ### Skills
 
 La pestaña **Skills** incrusta el mismo gestor de skills que se usa en Settings (mirá
-[Skills](/apx/docs/es/capabilities/skills/)), fijado al scope de este proyecto — habilitar,
+[Skills](/apx/v1/es/capabilities/skills/)), fijado al scope de este proyecto — habilitar,
 deshabilitar, agregar e inspeccionar skills sin salir del proyecto.
 
 ### Structure <Badge text="Proyectos de empresa" variant="note" />
@@ -489,7 +489,7 @@ mock), te deja elegir un default o un modo de cadena-con-fallback, reordenar la 
 configurar credenciales por motor y correr una reproducción de prueba en vivo. La sección STT
 configura el modelo y el idioma de Whisper para la entrada de micrófono.
 
-Mirá [Voz](/apx/docs/es/surfaces/voice/) para la referencia completa de la CLI.
+Mirá [Voz](/apx/v1/es/surfaces/voice/) para la referencia completa de la CLI.
 
 ![Módulo Voices — lista de proveedores TTS con badges de estado y selector de default](../../../../assets/shots/30-voice.png)
 
@@ -500,7 +500,7 @@ corriendo (clientes WebSocket conectados), te deja editar el atajo global y
 alternar si el daemon responde a los mensajes de desktop. No podés iniciar ni detener
 el proceso de Electron desde el panel web — usá `apx desktop start / stop`.
 
-Mirá [Desktop](/apx/docs/es/surfaces/desktop/) para la referencia completa de la CLI.
+Mirá [Desktop](/apx/v1/es/surfaces/desktop/) para la referencia completa de la CLI.
 
 ### Deck <Badge text="Vista previa" variant="caution" />
 
@@ -508,7 +508,7 @@ El módulo Deck (`/m/deck`) expondrá el payload de `GET /api/deck/manifest`: sa
 proyecto activo, plugins registrados y la grilla de widgets/desktop, y te dejará
 habilitar o deshabilitar widgets individuales desde esta vista.
 
-Mirá [Deck](/apx/docs/es/surfaces/deck/) para la referencia de la CLI de vinculación.
+Mirá [Deck](/apx/v1/es/surfaces/deck/) para la referencia de la CLI de vinculación.
 
 <Aside type="note">
   La superficie de administración de Deck es una **demo por ahora** — la vista del manifiesto y la grilla
@@ -561,7 +561,7 @@ Sub-secciones:
 | `/settings/super-agent` | Agents | Nombre, avatar, personalidad y prompt extra; modelo propio, modo de permisos, guardas (riesgo por acción, detección de loops, freno de gasto) y límite de pasos por canal |
 | `/settings/engines` | Agents | Proveedores de modelos (agregar, editar, alternar) |
 | `/settings/memory` | Agents | Memory (RAG) — config de embeddings y retrieval |
-| `/settings/skills` | Agents | Gestor de skills + RAG (Skill Inspector) — mirá [Skills](/apx/docs/es/capabilities/skills/) |
+| `/settings/skills` | Agents | Gestor de skills + RAG (Skill Inspector) — mirá [Skills](/apx/v1/es/capabilities/skills/) |
 | `/settings/telegram` | Channels | Token del bot de Telegram y canales |
 | `/settings/devices` | Channels | Lista de dispositivos vinculados |
 | `/settings/voice` | Modules | TTS/STT — igual que el módulo Voices del riel |
@@ -629,7 +629,7 @@ en el endpoint real, no en `index.html`.
 
 ## Próximos pasos
 
-- [Desktop](/apx/docs/es/surfaces/desktop/) — la ventana flotante de Electron
-- [Voz](/apx/docs/es/surfaces/voice/) — CLI y proveedores de TTS/STT
-- [Deck](/apx/docs/es/surfaces/deck/) — vinculación de la app companion
-- [Skills](/apx/docs/es/capabilities/skills/) — el gestor de skills, los scopes y el Skill Inspector (RAG)
+- [Desktop](/apx/v1/es/surfaces/desktop/) — la ventana flotante de Electron
+- [Voz](/apx/v1/es/surfaces/voice/) — CLI y proveedores de TTS/STT
+- [Deck](/apx/v1/es/surfaces/deck/) — vinculación de la app companion
+- [Skills](/apx/v1/es/capabilities/skills/) — el gestor de skills, los scopes y el Skill Inspector (RAG)

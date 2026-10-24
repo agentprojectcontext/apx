@@ -10,7 +10,7 @@ import Screenshot from '../../../../components/Screenshot.astro';
 import Terminal from '../../../../components/Terminal.astro';
 
 El binario `apx` es el punto de entrada principal para todo lo que hace APX. Se comunica con el
-[daemon](/apx/docs/es/surfaces/daemon/) local sobre HTTP (`127.0.0.1:7430`) y lo arranca automáticamente en el primer uso, así que
+[daemon](/apx/v1/es/surfaces/daemon/) local sobre HTTP (`127.0.0.1:7430`) y lo arranca automáticamente en el primer uso, así que
 nunca necesitás iniciar el daemon por separado.
 
 <Terminal command="apx --help" caption="apx --help — todos los grupos de comandos de un vistazo">
@@ -100,7 +100,7 @@ nunca necesitás iniciar el daemon por separado.
 | `apx project config unset <project> <key>` | Elimina una clave con notación de puntos de la config del proyecto. |
 | `apx project config edit <project>` | Abre la config del proyecto en `$EDITOR` para un reemplazo completo al guardar. |
 
-Mirá [Proyectos](/apx/docs/es/concepts/projects/) para conocer el layout completo de `.apc/`.
+Mirá [Proyectos](/apx/v1/es/concepts/projects/) para conocer el layout completo de `.apc/`.
 
 ---
 
@@ -117,7 +117,7 @@ Mirá [Proyectos](/apx/docs/es/concepts/projects/) para conocer el layout comple
 | `apx agent vault rm <slug>` | Marca una plantilla del vault como eliminada (los defaults incluidos se ocultan, no se borran). |
 | `apx agent vault restore <slug>` | Levanta la marca de eliminación para que un default incluido previamente removido vuelva a aparecer. |
 
-Mirá [Agentes](/apx/docs/es/concepts/agents/).
+Mirá [Agentes](/apx/v1/es/concepts/agents/).
 
 ---
 
@@ -145,7 +145,7 @@ Mirá [Agentes](/apx/docs/es/concepts/agents/).
 | `apx permission show` | Muestra el modo de permisos de herramientas actual de APX. |
 | `apx permission set <mode>` | Establece el modo de permisos: `total`, `automatico` o `permiso`. |
 
-Mirá [Configuración](/apx/docs/es/concepts/configuration/).
+Mirá [Configuración](/apx/v1/es/concepts/configuration/).
 
 ---
 
@@ -179,7 +179,7 @@ Las sesiones de APX son archivos Markdown locales bajo `~/.apx/projects/<id>/age
 | `apx session ask <id> "<q>"` | Hace una pregunta libre sobre la transcripción de una sesión. `--max-chunks N`. |
 | `apx sessions list` | Lista de sesiones entre motores. `--engine claude\|codex\|apx`, `--project P`, `--dir D`. |
 
-Mirá [Sesiones](/apx/docs/es/concepts/sessions/).
+Mirá [Sesiones](/apx/v1/es/concepts/sessions/).
 
 ---
 
@@ -197,7 +197,7 @@ Mirá [Sesiones](/apx/docs/es/concepts/sessions/).
 | `apx mcp logs <name>` | Muestra el log de arranque/init y la cola de stderr de un servidor. |
 | `apx mcp check` | Audita el orden de merge entre fuentes y los conflictos. |
 
-Mirá [MCPs](/apx/docs/es/capabilities/mcp/).
+Mirá [MCPs](/apx/v1/es/capabilities/mcp/).
 
 ---
 
@@ -212,7 +212,7 @@ Mirá [MCPs](/apx/docs/es/capabilities/mcp/).
 | `apx daemon logs [--tail N]` | Imprime el final del log de stdout del daemon. |
 | `apx log [-f] [--tail N] [--errors]` | Log unificado de todos los módulos (recomendado sobre `daemon logs`). |
 
-Mirá [Daemon](/apx/docs/es/surfaces/daemon/).
+Mirá [Daemon](/apx/v1/es/surfaces/daemon/).
 
 ---
 
@@ -236,7 +236,7 @@ Mirá [Daemon](/apx/docs/es/surfaces/daemon/).
 | `apx telegram roles` | Lista o administra los mapas de capacidades rol→herramientas. |
 | `apx telegram owner <channel> <user_id>` | Establece quién es dueño de un canal. |
 
-Mirá [Telegram](/apx/docs/es/capabilities/telegram/).
+Mirá [Telegram](/apx/v1/es/capabilities/telegram/).
 
 ---
 
@@ -261,7 +261,7 @@ Mirá [Telegram](/apx/docs/es/capabilities/telegram/).
 | `apx conversations list <agent>` | Lista las conversaciones exec/chat almacenadas de un agente. |
 | `apx conversations get <agent> <id>` | Imprime una conversación. |
 
-Mirá [TUI](/apx/docs/es/surfaces/tui/).
+Mirá [TUI](/apx/v1/es/surfaces/tui/).
 
 ---
 
@@ -274,7 +274,7 @@ Mirá [TUI](/apx/docs/es/surfaces/tui/).
 
 Runtimes soportados: `claude-code`, `codex`, `opencode`, `aider`, `cursor-agent`, `gemini-cli`, `qwen-code`.
 
-Mirá [Runtimes](/apx/docs/es/engine/runtimes/).
+Mirá [Runtimes](/apx/v1/es/engine/runtimes/).
 
 ---
 
@@ -304,7 +304,7 @@ Mirá [Runtimes](/apx/docs/es/engine/runtimes/).
 
 **Schedules:** `every:60s`, `every:5m`, `every:1h`, `once:<iso-8601>`.
 
-Mirá [Rutinas](/apx/docs/es/capabilities/routines/).
+Mirá [Rutinas](/apx/v1/es/capabilities/routines/).
 
 ---
 
@@ -322,7 +322,7 @@ Mirá [Rutinas](/apx/docs/es/capabilities/routines/).
 | `apx task reopen <id>` | Reabre una tarea hecha o descartada. |
 | `apx task patch <id>` | Actualiza campos: `--title T`, `--body B`, `--due D`, `--agent A`, `--tag t`. |
 
-Mirá [Tareas](/apx/docs/es/capabilities/tasks/).
+Mirá [Tareas](/apx/v1/es/capabilities/tasks/).
 
 ---
 

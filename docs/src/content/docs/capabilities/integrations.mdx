@@ -9,7 +9,7 @@ import { Aside, Steps } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
 
 APX ships an **Integrations** panel in the web admin: a catalog of third-party service plugins
-that agents can call as tools once you connect them. This is different from [MCP](/apx/docs/capabilities/mcp/) —
+that agents can call as tools once you connect them. This is different from [MCP](/apx/v1/capabilities/mcp/) —
 an integration owns a credential and a small typed lifecycle (configure, validate, status,
 deactivate), while an MCP server is a raw tool endpoint you point APX at.
 
@@ -53,8 +53,8 @@ Open **Project → Integrations → Plugins**. Each entry is one of:
 
 <Aside type="tip">
   Telegram and WhatsApp are intentionally **not** in this catalog — they are channels, configured
-  under their own [Telegram](/apx/docs/capabilities/telegram/) and
-  [WhatsApp](/apx/docs/capabilities/whatsapp/) surfaces, not service plugins. WhatsApp in
+  under their own [Telegram](/apx/v1/capabilities/telegram/) and
+  [WhatsApp](/apx/v1/capabilities/whatsapp/) surfaces, not service plugins. WhatsApp in
   particular cannot be one: a WhatsApp Web session is a device singleton, so there is one account
   per install rather than one per project.
 </Aside>
@@ -118,7 +118,7 @@ directly if a specific agent's allow-list includes them.
 
 ## See also
 
-- [Capabilities — MCP Servers](/apx/docs/capabilities/mcp/) — the more general way to give agents
+- [Capabilities — MCP Servers](/apx/v1/capabilities/mcp/) — the more general way to give agents
   tool access to an external service
-- [Concepts — Agents](/apx/docs/concepts/agents/) — how agents declare and consume tools
-- [Capabilities — Telegram](/apx/docs/capabilities/telegram/) — the channel surface, not a plugin
+- [Concepts — Agents](/apx/v1/concepts/agents/) — how agents declare and consume tools
+- [Capabilities — Telegram](/apx/v1/capabilities/telegram/) — the channel surface, not a plugin

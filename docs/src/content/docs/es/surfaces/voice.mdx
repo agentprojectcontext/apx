@@ -11,8 +11,8 @@ import Terminal from '../../../../components/Terminal.astro';
 
 APX tiene una capa de voz unificada: una fachada TTS (texto a voz) para hablar texto
 y un sidecar STT (voz a texto) basado en Whisper para transcribir el audio del micrófono.
-La CLI `apx voice` expone ambos. La [ventana de Desktop](/apx/docs/es/surfaces/desktop/)
-y el [Deck](/apx/docs/es/surfaces/deck/) usan los mismos motores subyacentes.
+La CLI `apx voice` expone ambos. La [ventana de Desktop](/apx/v1/es/surfaces/desktop/)
+y el [Deck](/apx/v1/es/surfaces/deck/) usan los mismos motores subyacentes.
 
 ## Comandos
 
@@ -138,7 +138,7 @@ Cambiá el proveedor activo con:
 apx config set --global voice.tts.provider piper
 ```
 
-También podés gestionar los proveedores desde el [panel Web](/apx/docs/es/surfaces/web/)
+También podés gestionar los proveedores desde el [panel Web](/apx/v1/es/surfaces/web/)
 bajo **Voces** (`/m/voice`).
 
 ## Rutas de configuración
@@ -256,7 +256,7 @@ hay `base_url` configurado:
 - El formato de respuesta por defecto para endpoints custom es `wav` (OpenAI
   estándar usa `mp3` por defecto).
 
-Agregá y gestioná proveedores custom desde el [panel Web](/apx/docs/es/surfaces/web/)
+Agregá y gestioná proveedores custom desde el [panel Web](/apx/v1/es/surfaces/web/)
 bajo **Voces** (`/m/voice`) — Agregar/Quitar un proveedor custom, editar
 `base_url` y los campos avanzados de modelo/voz ahí en vez de editar el JSON a mano.
 
@@ -306,7 +306,7 @@ Los tags son una señal exclusiva de TTS:
   no soporta tags, esta misma función limpia cualquier marcador suelto antes
   de la síntesis para que nunca se lean en voz alta literalmente.
 
-Desde el módulo **Voces** del [panel Web](/apx/docs/es/surfaces/web/), cada
+Desde el módulo **Voces** del [panel Web](/apx/v1/es/surfaces/web/), cada
 fila de proveedor con capacidad de tags muestra un toggle compacto de
 **Emotions** para activar/desactivar la capacidad por motor sin abrir el
 diálogo completo de configuración.
@@ -347,7 +347,7 @@ Respuesta:
 }
 ```
 
-La [ventana de Desktop](/apx/docs/es/surfaces/desktop/) y el Deck
+La [ventana de Desktop](/apx/v1/es/surfaces/desktop/) y el Deck
 usan internamente este endpoint. El campo `channel` (`voice`, `deck`,
 `desktop`, `telegram`) controla el formato de la respuesta: los canales voice/deck reciben
 respuestas cortas y aptas para hablar; telegram recibe texto formateado en Markdown.
@@ -365,7 +365,7 @@ obligarte a elegir entre CTranslate2/MLX/whisper.cpp vos mismo:
 | Solo CPU | `faster` (CPU) | `small` |
 
 `transcription.local.backend` puede ser `auto` (default, usa la tabla de
-arriba), `mlx` o `faster`. Desde el módulo **Voces** del [panel Web](/apx/docs/es/surfaces/web/),
+arriba), `mlx` o `faster`. Desde el módulo **Voces** del [panel Web](/apx/v1/es/surfaces/web/),
 la card de STT muestra un bloque de **Hardware detectado** (badge de
 aceleración — Metal/CUDA/Vulkan-ROCm/CPU — más nombre de GPU y memoria total)
 y un selector de **Aceleración/Motor** para elegir el backend explícitamente;
@@ -433,6 +433,6 @@ convertí con `ffmpeg -f s16le -ar 24000 -ac 1 -i raw.pcm out.wav`.
 
 ## Relacionado
 
-- [Desktop](/apx/docs/es/surfaces/desktop/) — ventana flotante que usa TTS/STT
-- [Deck](/apx/docs/es/surfaces/deck/) — modo de voz de la app companion
-- [Panel Web → módulo Voces](/apx/docs/es/surfaces/web/#voices) — UI para la configuración de proveedores
+- [Desktop](/apx/v1/es/surfaces/desktop/) — ventana flotante que usa TTS/STT
+- [Deck](/apx/v1/es/surfaces/deck/) — modo de voz de la app companion
+- [Panel Web → módulo Voces](/apx/v1/es/surfaces/web/#voices) — UI para la configuración de proveedores

@@ -14,7 +14,7 @@ resuelve el modelo de destino, selecciona el adaptador correspondiente y llama a
 lanza ningún proceso externo.
 
 Esto es distinto de `apx run`, que delega a un CLI de codificación externo. Mirá
-[Runtimes](/apx/docs/es/engine/runtimes/) para ese camino.
+[Runtimes](/apx/v1/es/engine/runtimes/) para ese camino.
 
 ## Motores soportados
 
@@ -140,7 +140,7 @@ proyecto con su propio `Model:` tiene el mismo interruptor (`model_fallback: fal
 Una cuenta con el **límite de uso** agotado se saltea durante una hora en vez de reintentarse en cada
 turno, y los turnos que nadie mira (a2a, rutinas) frenan en vez de caer por la cadena, salvo que
 hayan arrancado en un modelo que elegiste vos con el fallback prendido — ver
-[la página del super-agente](/apx/docs/es/capabilities/super-agent/). Para el plan de ChatGPT, el
+[la página del super-agente](/apx/v1/es/capabilities/super-agent/). Para el plan de ChatGPT, el
 esfuerzo de razonamiento es un ajuste del modelo, no otro modelo: el panel muestra un control
 **Esfuerzo** al lado de cada selector de modelo y muestra el par como `gpt-5.6-luna · high`. Se
 guarda como sufijo del id — `chatgpt-codex:gpt-5.6-luna@medium` (`minimal|low|medium|high|xhigh`),
@@ -245,5 +245,5 @@ en `~/.apx/config.json` es `engines`.
 
 ## Relacionado
 
-- [Runtimes](/apx/docs/es/engine/runtimes/) — CLIs de codificación externos vía `apx run`
-- [Configuración](/apx/docs/es/concepts/configuration/) — referencia completa de `~/.apx/config.json`
+- [Runtimes](/apx/v1/es/engine/runtimes/) — CLIs de codificación externos vía `apx run`
+- [Configuración](/apx/v1/es/concepts/configuration/) — referencia completa de `~/.apx/config.json`

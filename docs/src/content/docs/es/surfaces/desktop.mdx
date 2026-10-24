@@ -89,7 +89,7 @@ con un spinner mientras corren y un tilde al completarse.
   caption="Desktop — card de conversación con respuesta del agente y scrubber de audio" />
 
 <Aside type="note">
-  Cuando el motor de TTS configurado soporta [tags de emoción inline](/apx/docs/es/surfaces/voice/#tags-de-emoción-capacidad-por-motor)
+  Cuando el motor de TTS configurado soporta [tags de emoción inline](/apx/v1/es/surfaces/voice/#tags-de-emoción-capacidad-por-motor)
   (un proveedor `custom:<slug>` o `gemini`), la respuesta del agente se sintetiza
   por segmento con los marcadores `[tag]` intactos para que el motor que habla
   pueda usarlos — pero el texto del bubble que leés siempre tiene esos
@@ -110,7 +110,7 @@ Sobrescribilo en `~/.apx/config.json`:
 }
 ```
 
-También podés editar el atajo en el [Panel web](/apx/docs/es/surfaces/web/)
+También podés editar el atajo en el [Panel web](/apx/v1/es/surfaces/web/)
 bajo **Desktop** (`/desktop`) sin editar JSON. Reiniciá la ventana para que
 el nuevo atajo tenga efecto.
 
@@ -173,7 +173,7 @@ sirve de vuelta vía `GET /api/voice/tts?path=…`. La ventana descarga esa URL 
 la reproduce con la Web Audio API.
 
 <Aside type="tip">
-  La calidad del TTS depende de tu proveedor configurado. Mirá [Voz](/apx/docs/es/surfaces/voice/)
+  La calidad del TTS depende de tu proveedor configurado. Mirá [Voz](/apx/v1/es/surfaces/voice/)
   para configurar Piper (local, sin clave) o un motor en la nube.
 </Aside>
 
@@ -192,7 +192,7 @@ ventana se reconecta automáticamente).
 
 **No hay reproducción de audio**
 - La ventana requiere un proveedor de TTS. Ejecutá `apx voice providers` para ver
-  qué está configurado, y luego seguí la [guía de configuración de Voz](/apx/docs/es/surfaces/voice/).
+  qué está configurado, y luego seguí la [guía de configuración de Voz](/apx/v1/es/surfaces/voice/).
 
 **El atajo no funciona**
 - Otra app puede ser dueña de esa combinación de teclas. Cambiala en la config y reiniciá.
@@ -201,6 +201,6 @@ ventana se reconecta automáticamente).
 
 ## Relacionado
 
-- [Voz](/apx/docs/es/surfaces/voice/) — proveedores de TTS/STT y la CLI `apx voice`
-- [Panel web](/apx/docs/es/surfaces/web/) — administrá el módulo Desktop desde el navegador
-- [Deck](/apx/docs/es/surfaces/deck/) — app compañera para tu teléfono
+- [Voz](/apx/v1/es/surfaces/voice/) — proveedores de TTS/STT y la CLI `apx voice`
+- [Panel web](/apx/v1/es/surfaces/web/) — administrá el módulo Desktop desde el navegador
+- [Deck](/apx/v1/es/surfaces/deck/) — app compañera para tu teléfono

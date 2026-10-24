@@ -10,7 +10,7 @@ import Screenshot from '../../../components/Screenshot.astro';
 import Terminal from '../../../components/Terminal.astro';
 
 The `apx` binary is the main entry point for everything APX does. It talks to the local
-[daemon](/apx/docs/surfaces/daemon/) over HTTP (`127.0.0.1:7430`) and auto-starts it on first use, so
+[daemon](/apx/v1/surfaces/daemon/) over HTTP (`127.0.0.1:7430`) and auto-starts it on first use, so
 you never need to boot the daemon separately.
 
 <Terminal command="apx --help" caption="apx --help — all command groups at a glance">
@@ -100,7 +100,7 @@ you never need to boot the daemon separately.
 | `apx project config unset <project> <key>` | Remove a dotted key from the project's config. |
 | `apx project config edit <project>` | Open project config in `$EDITOR` for a full replace on save. |
 
-See [Projects](/apx/docs/concepts/projects/) for the full `.apc/` layout.
+See [Projects](/apx/v1/concepts/projects/) for the full `.apc/` layout.
 
 ---
 
@@ -117,7 +117,7 @@ See [Projects](/apx/docs/concepts/projects/) for the full `.apc/` layout.
 | `apx agent vault rm <slug>` | Tombstone a vault template (bundled defaults are hidden, not erased). |
 | `apx agent vault restore <slug>` | Lift a tombstone so a previously-removed bundled default reappears. |
 
-See [Agents](/apx/docs/concepts/agents/).
+See [Agents](/apx/v1/concepts/agents/).
 
 ---
 
@@ -145,7 +145,7 @@ See [Agents](/apx/docs/concepts/agents/).
 | `apx permission show` | Show the current APX tool permission mode. |
 | `apx permission set <mode>` | Set permission mode: `total`, `automatico`, or `permiso`. |
 
-See [Configuration](/apx/docs/concepts/configuration/).
+See [Configuration](/apx/v1/concepts/configuration/).
 
 ---
 
@@ -179,7 +179,7 @@ APX sessions are local Markdown files under `~/.apx/projects/<id>/agents/<slug>/
 | `apx session ask <id> "<q>"` | Ask a free-form question about a session transcript. `--max-chunks N`. |
 | `apx sessions list` | Cross-engine session list. `--engine claude\|codex\|apx`, `--project P`, `--dir D`. |
 
-See [Sessions](/apx/docs/concepts/sessions/).
+See [Sessions](/apx/v1/concepts/sessions/).
 
 ---
 
@@ -197,7 +197,7 @@ See [Sessions](/apx/docs/concepts/sessions/).
 | `apx mcp logs <name>` | Show a server's spawn/init event log and stderr tail. |
 | `apx mcp check` | Audit multi-source merge order and conflicts. |
 
-See [MCPs](/apx/docs/capabilities/mcp/).
+See [MCPs](/apx/v1/capabilities/mcp/).
 
 ---
 
@@ -212,7 +212,7 @@ See [MCPs](/apx/docs/capabilities/mcp/).
 | `apx daemon logs [--tail N]` | Print the daemon stdout log tail. |
 | `apx log [-f] [--tail N] [--errors]` | Unified log for all modules (recommended over `daemon logs`). |
 
-See [Daemon](/apx/docs/surfaces/daemon/).
+See [Daemon](/apx/v1/surfaces/daemon/).
 
 ---
 
@@ -236,7 +236,7 @@ See [Daemon](/apx/docs/surfaces/daemon/).
 | `apx telegram roles` | List or manage role→tools capability maps. |
 | `apx telegram owner <channel> <user_id>` | Set who owns a channel. |
 
-See [Telegram](/apx/docs/capabilities/telegram/).
+See [Telegram](/apx/v1/capabilities/telegram/).
 
 ---
 
@@ -261,7 +261,7 @@ See [Telegram](/apx/docs/capabilities/telegram/).
 | `apx conversations list <agent>` | List stored exec/chat conversations for an agent. |
 | `apx conversations get <agent> <id>` | Print one conversation. |
 
-See [TUI](/apx/docs/surfaces/tui/).
+See [TUI](/apx/v1/surfaces/tui/).
 
 ---
 
@@ -274,7 +274,7 @@ See [TUI](/apx/docs/surfaces/tui/).
 
 Supported runtimes: `claude-code`, `codex`, `opencode`, `aider`, `cursor-agent`, `gemini-cli`, `qwen-code`.
 
-See [Runtimes](/apx/docs/engine/runtimes/).
+See [Runtimes](/apx/v1/engine/runtimes/).
 
 ---
 
@@ -304,7 +304,7 @@ See [Runtimes](/apx/docs/engine/runtimes/).
 
 **Schedules:** `every:60s`, `every:5m`, `every:1h`, `once:<iso-8601>`.
 
-See [Routines](/apx/docs/capabilities/routines/).
+See [Routines](/apx/v1/capabilities/routines/).
 
 ---
 
@@ -322,7 +322,7 @@ See [Routines](/apx/docs/capabilities/routines/).
 | `apx task reopen <id>` | Reopen a done or dropped task. |
 | `apx task patch <id>` | Update fields: `--title T`, `--body B`, `--due D`, `--agent A`, `--tag t`. |
 
-See [Tasks](/apx/docs/capabilities/tasks/).
+See [Tasks](/apx/v1/capabilities/tasks/).
 
 ---
 

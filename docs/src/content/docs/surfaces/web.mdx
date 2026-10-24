@@ -375,7 +375,7 @@ global rather than per-project, so it is listed only in **Base**.
 ### Skills
 
 The **Skills** tab embeds the same skills manager used in Settings (see
-[Skills](/apx/docs/capabilities/skills/)), locked to this project's scope — enable,
+[Skills](/apx/v1/capabilities/skills/)), locked to this project's scope — enable,
 disable, add, and inspect skills without leaving the project.
 
 ### Structure <Badge text="Company projects" variant="note" />
@@ -484,7 +484,7 @@ mock), lets you pick a default or chain-with-fallback mode, reorder the chain,
 configure per-engine credentials, and run a live test playback. The STT section
 configures the Whisper model and language for mic input.
 
-See [Voice](/apx/docs/surfaces/voice/) for the full CLI reference.
+See [Voice](/apx/v1/surfaces/voice/) for the full CLI reference.
 
 ![Voices module — TTS provider list with status badges and default picker](../../../assets/shots/30-voice.png)
 
@@ -495,7 +495,7 @@ running (connected WebSocket clients), lets you edit the global shortcut, and
 toggle whether the daemon responds to desktop messages. You cannot start or stop
 the Electron process from the web panel — use `apx desktop start / stop`.
 
-See [Desktop](/apx/docs/surfaces/desktop/) for the full CLI reference.
+See [Desktop](/apx/v1/surfaces/desktop/) for the full CLI reference.
 
 ### Deck <Badge text="Preview" variant="caution" />
 
@@ -503,7 +503,7 @@ The Deck module (`/m/deck`) will surface the `GET /api/deck/manifest` payload: d
 health, active project, registered plugins, and the widget/desktop grid, and let
 you enable or disable individual widgets from this view.
 
-See [Deck](/apx/docs/surfaces/deck/) for the pairing CLI reference.
+See [Deck](/apx/v1/surfaces/deck/) for the pairing CLI reference.
 
 <Aside type="note">
   The Deck admin surface is a **demo for now** — the manifest view and widget
@@ -556,7 +556,7 @@ Sub-sections:
 | `/settings/super-agent` | Agents | Name, avatar, personality and extra prompt; own model, permission mode, guards (risk grading, loop detection, spend breaker) and step limits per channel |
 | `/settings/engines` | Agents | Model providers (add, edit, toggle) |
 | `/settings/memory` | Agents | Memory (RAG) — embeddings + retrieval config |
-| `/settings/skills` | Agents | Skills manager + RAG (Skill Inspector) — see [Skills](/apx/docs/capabilities/skills/) |
+| `/settings/skills` | Agents | Skills manager + RAG (Skill Inspector) — see [Skills](/apx/v1/capabilities/skills/) |
 | `/settings/telegram` | Channels | Telegram bot token and channels |
 | `/settings/devices` | Channels | Paired devices list |
 | `/settings/voice` | Modules | TTS/STT — same as the Voices rail module |
@@ -624,7 +624,7 @@ the real endpoint, not `index.html`.
 
 ## Next steps
 
-- [Desktop](/apx/docs/surfaces/desktop/) — the Electron floating window
-- [Voice](/apx/docs/surfaces/voice/) — TTS/STT CLI and providers
-- [Deck](/apx/docs/surfaces/deck/) — companion app pairing
-- [Skills](/apx/docs/capabilities/skills/) — the skills manager, scopes, and the Skill Inspector (RAG)
+- [Desktop](/apx/v1/surfaces/desktop/) — the Electron floating window
+- [Voice](/apx/v1/surfaces/voice/) — TTS/STT CLI and providers
+- [Deck](/apx/v1/surfaces/deck/) — companion app pairing
+- [Skills](/apx/v1/capabilities/skills/) — the skills manager, scopes, and the Skill Inspector (RAG)

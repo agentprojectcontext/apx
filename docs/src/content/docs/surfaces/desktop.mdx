@@ -89,7 +89,7 @@ with a spinner while running and a checkmark on completion.
   caption="Desktop — conversation card with agent reply and audio scrubber" />
 
 <Aside type="note">
-  When the configured TTS engine supports [inline emotion tags](/apx/docs/surfaces/voice/#emotion-tags-per-engine-capability)
+  When the configured TTS engine supports [inline emotion tags](/apx/v1/surfaces/voice/#emotion-tags-per-engine-capability)
   (a `custom:<slug>` provider or `gemini`), the agent's reply is synthesized
   per-segment with the `[tag]` markers intact so the speaking engine can act
   on them — but the bubble text you read is always stripped of the markers.
@@ -109,7 +109,7 @@ Override it in `~/.apx/config.json`:
 }
 ```
 
-You can also edit the shortcut in the [Web panel](/apx/docs/surfaces/web/)
+You can also edit the shortcut in the [Web panel](/apx/v1/surfaces/web/)
 under **Desktop** (`/desktop`) without editing JSON. Restart the window for
 the new shortcut to take effect.
 
@@ -172,7 +172,7 @@ served back via `GET /api/voice/tts?path=…`. The window fetches that URL and
 plays it with the Web Audio API.
 
 <Aside type="tip">
-  TTS quality depends on your configured provider. See [Voice](/apx/docs/surfaces/voice/)
+  TTS quality depends on your configured provider. See [Voice](/apx/v1/surfaces/voice/)
   to configure Piper (local, no key) or a cloud engine.
 </Aside>
 
@@ -191,7 +191,7 @@ window reconnects automatically).
 
 **No audio playback**
 - The window requires a TTS provider. Run `apx voice providers` to see
-  what's configured, then follow the [Voice setup guide](/apx/docs/surfaces/voice/).
+  what's configured, then follow the [Voice setup guide](/apx/v1/surfaces/voice/).
 
 **Shortcut doesn't work**
 - Another app may own that key combo. Change it in config and restart.
@@ -200,6 +200,6 @@ window reconnects automatically).
 
 ## Related
 
-- [Voice](/apx/docs/surfaces/voice/) — TTS/STT providers and the `apx voice` CLI
-- [Web panel](/apx/docs/surfaces/web/) — manage the Desktop module from the browser
-- [Deck](/apx/docs/surfaces/deck/) — companion app for your phone
+- [Voice](/apx/v1/surfaces/voice/) — TTS/STT providers and the `apx voice` CLI
+- [Web panel](/apx/v1/surfaces/web/) — manage the Desktop module from the browser
+- [Deck](/apx/v1/surfaces/deck/) — companion app for your phone

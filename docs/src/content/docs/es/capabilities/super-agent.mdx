@@ -20,7 +20,7 @@ con las claves `super_agent.*` en `~/.apx/config.json`, y los tipos de routine t
 
 <Aside type="note">
   Este diseño está registrado en `spec/decisions/002-super-agent-is-mode-not-name.md`.
-  Mirá [Configuration](/apx/docs/es/concepts/configuration/) para la referencia completa de las claves `super_agent.*`.
+  Mirá [Configuration](/apx/v1/es/concepts/configuration/) para la referencia completa de las claves `super_agent.*`.
 </Aside>
 
 ## Habilitarlo
@@ -114,7 +114,7 @@ El modelo siempre puede expandir su superficie llamando a `load_skill`.
 | `call_agent` | Darle trabajo a un agente de proyecto, en el mismo proceso. Corre con sus propias tools, así que hace el trabajo en vez de describirlo, y el intercambio queda como una conversación agente-a-agente que podés leer y continuar |
 | `send_to_agent` | Escribirle a otro agente — uno de proyecto, el super-agente o un runtime de código — y recibir su respuesta. Con `background: true` el trabajo queda corriendo y al que mandó lo despiertan cuando termina, así un intercambio largo ya no le retiene el turno. Ver [Trabajo que queda corriendo](#trabajo-que-queda-corriendo) |
 | `call_mcp` | Llamar cualquier herramienta de un servidor MCP registrado |
-| `call_runtime` | Delegar a un [runtime](/apx/docs/es/engine/runtimes/#delegar-desde-el-super-agente-call_runtime) externo (Claude Code / Codex …), de forma síncrona o en segundo plano |
+| `call_runtime` | Delegar a un [runtime](/apx/v1/es/engine/runtimes/#delegar-desde-el-super-agente-call_runtime) externo (Claude Code / Codex …), de forma síncrona o en segundo plano |
 | `run_subagent` | Lanzar un sub-agente aislado (contexto fresco, mismas tools menos las de interacción con el usuario) que trabaja una tarea auto-contenida hasta completarla y devuelve el resultado — máximo un nivel de anidamiento |
 | `run_shell` | Ejecutar un comando de shell (limitado por el modo de permisos) |
 | `send_telegram` | Enviar un mensaje vía el plugin de Telegram |
@@ -286,7 +286,7 @@ Cuando no se puede llegar al teléfono, la alerta se le relaya al dueño por
 Telegram con lo que traía — nunca una adivinanza del mensaje, nunca silencio.
 
 El broker de memoria corre antes de cada llamada que no sea tool-free e inyecta un bloque `[MEMORIA RELEVANTE]`
-en el system prompt. Mirá [Memory system](/apx/docs/es/capabilities/memory-system/) para los detalles.
+en el system prompt. Mirá [Memory system](/apx/v1/es/capabilities/memory-system/) para los detalles.
 
 ## Identidad — `apx identity`
 
@@ -508,7 +508,7 @@ apx model order ollama openrouter groq
 apx model status          # prueba todos los proveedores; muestra cuál se usaría ahora
 ```
 
-Mirá [Configuration](/apx/docs/es/concepts/configuration/) para el schema completo de `super_agent.model_fallback`.
+Mirá [Configuration](/apx/v1/es/concepts/configuration/) para el schema completo de `super_agent.model_fallback`.
 
 ### Routing por contenido
 
@@ -538,6 +538,6 @@ case-insensitive). Un `when` vacío matchea todos los turnos — útil como catc
 
 ## Siguiente
 
-- [Memory system](/apx/docs/es/capabilities/memory-system/) — cómo el agente recupera contexto relevante entre canales.
-- [Routines](/apx/docs/es/capabilities/routines/) — programá el super-agent o un `exec_agent` simple en un cron.
-- [Configuration](/apx/docs/es/concepts/configuration/) — referencia completa de `super_agent.*` e `identity.json`.
+- [Memory system](/apx/v1/es/capabilities/memory-system/) — cómo el agente recupera contexto relevante entre canales.
+- [Routines](/apx/v1/es/capabilities/routines/) — programá el super-agent o un `exec_agent` simple en un cron.
+- [Configuration](/apx/v1/es/concepts/configuration/) — referencia completa de `super_agent.*` e `identity.json`.

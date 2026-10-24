@@ -14,7 +14,7 @@ en `127.0.0.1:7430` que posee todo lo que necesita persistir entre comandos: el 
 el ciclo de vida de los plugins, el scheduler, los archivos de conversación y el endpoint del super-agente.
 
 Cada superficie — la CLI `apx`, la TUI, el panel de administración web, el puente MCP, la ventana de Desktop — se comunica con
-el daemon sobre HTTP. Mirá [Arquitectura](/apx/docs/es/start/architecture/) para el panorama completo.
+el daemon sobre HTTP. Mirá [Arquitectura](/apx/v1/es/start/architecture/) para el panorama completo.
 
 <Terminal command="apx daemon status" caption="apx daemon status — puerto, pid, uptime, plugins, proyectos">
 {`✓ daemon running
@@ -155,7 +155,7 @@ Cuando una rutina se dispara, el scheduler:
    principal y luego ejecuta los `post_commands`.
 4. Escribe de vuelta los timestamps actualizados `last_run` / `next_run` en el store de rutinas.
 
-Mirá [Rutinas](/apx/docs/es/capabilities/routines/) para conocer la spec completa y los flags de `apx routine add`.
+Mirá [Rutinas](/apx/v1/es/capabilities/routines/) para conocer la spec completa y los flags de `apx routine add`.
 
 ---
 
@@ -190,7 +190,7 @@ los datos core, solo para el índice regenerable. El layout:
 
 <Aside type="note">
   Nada de lo que está bajo `~/.apx/` se commitea a git. Las definiciones de proyecto y la memoria curada viven en el
-  repo bajo `.apc/`. Mirá [Arquitectura](/apx/docs/es/start/architecture/) para el razonamiento de la división de almacenamiento.
+  repo bajo `.apc/`. Mirá [Arquitectura](/apx/v1/es/start/architecture/) para el razonamiento de la división de almacenamiento.
 </Aside>
 
 ---

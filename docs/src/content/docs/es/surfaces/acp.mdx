@@ -23,7 +23,7 @@ apx acp
 
 El comando sirve el protocolo por stdin/stdout hasta que el cliente cierra el pipe. Nunca lo
 ejecutás a mano en una terminal — lo lanza tu editor. Como toda superficie, es un adaptador fino
-sobre el [daemon](/apx/docs/es/surfaces/daemon/) local (que arranca solo en el primer uso): cada prompt
+sobre el [daemon](/apx/v1/es/surfaces/daemon/) local (que arranca solo en el primer uso): cada prompt
 se vuelve un turno streaming del super-agente en el canal `code`, así que las sesiones ACP reciben
 el system prompt de codificación y el set de herramientas de git/código.
 
@@ -66,7 +66,7 @@ todavía no es un proyecto APC, corré `apx init` ahí primero.
 | `session/new` | Resuelve el proyecto APC para el `cwd` del cliente y lo registra en el daemon si hace falta |
 | `session/prompt` | Transmite un turno del super-agente; las respuestas resuelven con `stopReason: "end_turn"` |
 | `session/update` | `agent_message_chunk` para texto, `tool_call` / `tool_call_update` para actividad de herramientas |
-| `session/request_permission` | Se emite cuando el [modo de permisos](/apx/docs/es/capabilities/super-agent/) de APX exige confirmación; Permitir/Rechazar responde la acción pendiente |
+| `session/request_permission` | Se emite cuando el [modo de permisos](/apx/v1/es/capabilities/super-agent/) de APX exige confirmación; Permitir/Rechazar responde la acción pendiente |
 | `session/cancel` | Aborta el turno en vuelo y lo resuelve con `stopReason: "cancelled"` |
 
 El contexto multi-turno se guarda en memoria por sesión: cada turno completado alimenta al

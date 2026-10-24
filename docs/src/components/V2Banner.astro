@@ -1,7 +1,7 @@
 ---
 /**
  * V2Banner.astro — Starlight's Banner slot, on every page: a one-line note that
- * APX v2 beta is out (served at /apx/v2/), then the page's own `banner`
+ * APX v1 is no longer maintained and APX v2 replaces it (/apx/v2/), then the page's own `banner`
  * frontmatter, if it has one, through Starlight's default component.
  */
 import Default from '@astrojs/starlight/components/Banner.astro';
@@ -12,8 +12,9 @@ const upgrade = es ? '/apx/v2/es/start/from-v1/#actualizar-desde-v1' : '/apx/v2/
 ---
 
 <div class="apx-v2-banner">
-	<span class="tag">Beta</span>
-	<a href={v2}>{es ? 'La beta de APX v2 ya está disponible' : 'APX v2 beta is available'}</a>
+	<span class="tag">{es ? 'Sin soporte' : 'Deprecated'}</span>
+	<span>{es ? 'APX v1 ya no se mantiene.' : 'APX v1 is no longer maintained.'}</span>
+	<a href={v2}>{es ? 'Conocé APX v2' : 'Meet APX v2'}</a>
 	<span class="sep" aria-hidden="true">·</span>
 	<a href={upgrade}>{es ? 'Actualizar desde v1' : 'Upgrade from v1'} →</a>
 </div>
@@ -27,14 +28,14 @@ const upgrade = es ? '/apx/v2/es/start/from-v1/#actualizar-desde-v1' : '/apx/v2/
 		justify-content: center;
 		gap: 0.25rem 0.75rem;
 		padding: 0.5rem var(--sl-nav-pad-x, 1rem);
-		background: var(--sl-color-accent-low);
-		color: var(--sl-color-accent-high);
+		background: var(--sl-color-orange-low);
+		color: var(--sl-color-orange-high);
 		font-size: var(--sl-text-sm);
 		line-height: 1.4;
 		text-align: center;
 	}
 	.apx-v2-banner a {
-		color: var(--sl-color-accent-high);
+		color: var(--sl-color-orange-high);
 		font-weight: 600;
 		text-decoration: none;
 	}
@@ -44,7 +45,7 @@ const upgrade = es ? '/apx/v2/es/start/from-v1/#actualizar-desde-v1' : '/apx/v2/
 	.tag {
 		padding: 0.1rem 0.45rem;
 		border-radius: 999px;
-		background: var(--sl-color-accent);
+		background: var(--sl-color-orange);
 		color: var(--sl-color-black);
 		font-family: var(--sl-font-mono);
 		font-size: var(--sl-text-xs);

@@ -3,11 +3,13 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import remarkGfm from 'remark-gfm';
 
+const base = process.env.DOCS_BASE || '/apx/v1';
+
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://agentprojectcontext.github.io',
-	// Docs publish under /apx/docs/ — the landing owns /apx/ (see pages.yml).
-	base: '/apx/docs',
+	// Published under /apx/v1/ by v2's pages.yml; the site's 404 page sends the old /apx/docs/ links here.
+	base,
 	// GFM (tables, strikethrough, …) is applied internally for .md but is not
 	// exposed on markdown.remarkPlugins, so MDX (which extends this list) misses
 	// it. Add it explicitly so tables render in both .md and .mdx.
@@ -30,8 +32,8 @@ export default defineConfig({
 			customCss: ['./src/styles/custom.css'],
 			// Social card (green APX banner) for link previews.
 			head: [
-				{ tag: 'meta', attrs: { property: 'og:image', content: 'https://agentprojectcontext.github.io/apx/docs/og.png' } },
-				{ tag: 'meta', attrs: { name: 'twitter:image', content: 'https://agentprojectcontext.github.io/apx/docs/og.png' } },
+				{ tag: 'meta', attrs: { property: 'og:image', content: `https://agentprojectcontext.github.io${base}/og.png` } },
+				{ tag: 'meta', attrs: { name: 'twitter:image', content: `https://agentprojectcontext.github.io${base}/og.png` } },
 				{ tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
 			],
 			social: [
@@ -48,10 +50,10 @@ export default defineConfig({
 			},
 			editLink: {
 				baseUrl:
-					'https://github.com/agentprojectcontext/apx/edit/main/docs/',
+					'https://github.com/agentprojectcontext/apx/edit/v1/docs/',
 			},
 			lastUpdated: true,
-			// Every page carries a note that APX v2 beta is out (/apx/v2/).
+			// Every page says v1 is no longer maintained and points at APX v2 (/apx/v2/).
 			components: { Banner: './src/components/V2Banner.astro' },
 			sidebar: [
 				{
