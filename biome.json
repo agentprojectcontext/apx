@@ -173,6 +173,7 @@
                       "**/ResourcesScreen.tsx",
                       "**/RunnableCode.tsx",
                       "**/ScreenLive.tsx",
+                      "**/SearchSelect.tsx",
                       "**/SurfacePart.tsx",
                       "**/TaskPeek.tsx",
                       "**/TasksScreen.tsx",
