@@ -18,9 +18,10 @@ function fake(o: { free: number; inUse?: boolean; watched?: boolean; lastActivit
       watched: () => o.watched ?? false,
       lastActivity: () => o.lastActivity,
       status: async () => ({ phase }) as never,
-      halt: async (reason: StopReason) => {
+      halt: async (reason: StopReason, cancel: (thread: string) => void = () => {}) => {
         halted.push(reason);
         phase = "stopped";
+        cancel("home");
         return [{ screen: 1, agent: "roby", thread: "home", run: "run_1", at: new Date().toISOString() }];
       },
     },
@@ -32,10 +33,20 @@ test("the watchdog stops the shared computer when the host runs short of memory,
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   try {
     const f = fake({ free: 0.5 * GIB, lastActivity: Date.now() });
-    const dog = computerWatchdog({ store: env.core.store, vm: f.vm, freeMemory: f.freeMemory, everyMs: 3_600_000 });
+    const cancelled: string[] = [];
+    const dog = computerWatchdog({
+      store: env.core.store,
+      vm: f.vm,
+      freeMemory: f.freeMemory,
+      everyMs: 3_600_000,
+      cancel: (thread) => {
+        cancelled.push(thread);
+      },
+    });
     await dog.tick();
     await dog.stop();
     assert.deepEqual(f.halted, ["memory"]);
+    assert.deepEqual(cancelled, ["home"], "the turn holding a screen stops with the computer");
     const notice = env.core.store.messages
       .list("home")
       .flatMap((m) => m.parts)

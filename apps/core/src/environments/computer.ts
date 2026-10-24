@@ -244,6 +244,8 @@ export function createComputer(store: Store, config: ComputerConfig) {
       if (!(await running())) return undefined;
       // A screen the owner has in hand is not given to its agent until they hand it back.
       control(ledger.slot(agent)).assert("agent");
+      // Use from the moment a screen is asked for, so the idle watchdog never stops it while it starts.
+      touch();
       const claim = await ledger.claim(agent, thread, run);
       touch();
       return claim;
@@ -337,7 +339,8 @@ export function createComputer(store: Store, config: ComputerConfig) {
     lastActivity: () => Math.max(activity, guest.lastViewed()),
     watched: () => guest.watching(),
     /** Someone holds a screen, or the owner has one of the agents' screens in hand. */
-    inUse: () => ledger.claims().length > 0 || [...leases.values()].some((lease) => lease.human()),
+    inUse: () =>
+      ledger.pending() > 0 || ledger.claims().length > 0 || [...leases.values()].some((lease) => lease.human()),
     /** Every agent screen that is up follows APX's light or dark mode. */
     async appearance(look: Appearance) {
       const changed = store.settings.get("vm_appearance") !== look;

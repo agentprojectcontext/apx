@@ -21,6 +21,8 @@ export function computerWatchdog(o: {
   store: Store;
   vm: Pick<Computer, "status" | "halt" | "lastActivity" | "watched" | "mayRun" | "inUse">;
   freeMemory: () => Promise<number>;
+  /** Ends a turn holding a screen when the computer stops under it, as the owner's shutdown does. */
+  cancel?: (thread: string) => void;
   everyMs?: number;
   now?: () => number;
   onError?: (message: string) => void;
@@ -51,7 +53,7 @@ export function computerWatchdog(o: {
     if (status.phase !== "running") return;
     const free = await o.freeMemory();
     if (free < STOP_BELOW_GIB * GIB) {
-      const holders = await o.vm.halt("memory");
+      const holders = await o.vm.halt("memory", o.cancel);
       return tell(
         holders.map((c) => c.thread),
         SAID.memory(free),
@@ -61,7 +63,7 @@ export function computerWatchdog(o: {
     const minutes = o.store.settings.read("computer").idle_minutes;
     if (!minutes || o.vm.inUse() || o.vm.watched()) return;
     if (now() - o.vm.lastActivity() < minutes * 60_000) return;
-    await o.vm.halt("idle");
+    await o.vm.halt("idle", o.cancel);
     tell([], SAID.idle(minutes), { variant: "idle", minutes: String(minutes) });
   };
   const tick = () => {

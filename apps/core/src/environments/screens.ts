@@ -20,6 +20,8 @@ export type ScreenStarter = {
 export function screenLedger(store: Store, o: { cap: () => number; screens: ScreenStarter }) {
   /** Desktops up in the guest; unknown after a restart until a claim starts one again (starting is idempotent). */
   const running = new Set<number>();
+  /** Claims waiting for their screen to start: use, though not yet in the ledger. */
+  let pending = 0;
   let queue: Promise<unknown> = Promise.resolve();
   const serial = <T>(work: () => Promise<T>): Promise<T> => {
     const next = queue.then(work, work);
@@ -59,12 +61,14 @@ export function screenLedger(store: Store, o: { cap: () => number; screens: Scre
     forRun: (run: string) => claims().find((c) => c.run === run),
     forThread: (thread: string) => claims().find((c) => c.thread === thread),
     running: () => new Set(running),
+    pending: () => pending,
     /**
      * Gives the agent's run its screen, starting its desktop. Refused while the agent's screen works for another chat,
      * or when every screen the VM can hold is held; a screen left running with no holder makes room.
      */
-    claim: (agent: string, thread: string, run: string) =>
-      serial(async (): Promise<Claim> => {
+    claim: (agent: string, thread: string, run: string) => {
+      pending++;
+      return serial(async (): Promise<Claim> => {
         const now = claims();
         const own = now.find((c) => c.run === run);
         if (own) return own;
@@ -91,7 +95,10 @@ export function screenLedger(store: Store, o: { cap: () => number; screens: Scre
         const claim = { screen, agent, thread, run, at: new Date().toISOString() };
         write([...claims(), claim]);
         return claim;
-      }),
+      }).finally(() => {
+        pending--;
+      });
+    },
     /** The run is over or left the computer: its screen stays up for its next turn, until room is needed. */
     release(run: string) {
       const all = store.settings.read("computer_claims");

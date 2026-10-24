@@ -131,3 +131,36 @@ test("claims of runs that are over are swept, as after a restart", async () => {
     env.cleanup();
   }
 });
+
+test("a screen still starting counts as use, so the idle watchdog never stops the computer under it", async () => {
+  let started: () => void = () => {};
+  const env = await startCore({
+    llm: scriptedLlm(() => say("ok")),
+    computer: {
+      limaHome: "/unused",
+      instance: "missing",
+      screens: {
+        start: () =>
+          new Promise<void>((resolve) => {
+            started = resolve;
+          }),
+        stop: async () => {},
+      },
+    },
+  });
+  try {
+    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.bind", { thread: "home" });
+    const vm = env.core.computer;
+    const before = vm.lastActivity();
+    const claiming = vm.claim("roby", "home", "run_starting");
+    await waitFor(() => vm.inUse(), "a claim in progress to count as use");
+    assert.ok(vm.lastActivity() >= before, "touched before the screen starts");
+    started();
+    await claiming;
+  } finally {
+    started();
+    await env.core.close();
+    await env.cleanup();
+  }
+});

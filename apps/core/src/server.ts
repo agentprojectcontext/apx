@@ -303,6 +303,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     store,
     vm,
     freeMemory: vm.freeMemory,
+    cancel: (thread) => {
+      engine.cancel(thread);
+    },
     onError: (err) => log.warn({ err }, "computer watchdog check failed"),
   });
   // APX's own profiles, then the ones the owner installed (theirs win an id).
