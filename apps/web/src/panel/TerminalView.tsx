@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { client } from "../data/client.ts";
 import { watchEvents } from "../data/live.ts";
 import { useT } from "../i18n/index.ts";
+import { createInputQueue } from "./terminalInput.ts";
 
 /** The panel's colors for the terminal, read from the design tokens so it follows light and dark. */
 function theme(host: HTMLElement) {
@@ -61,8 +62,9 @@ export default function TerminalView({ terminal }: { terminal: TerminalInfo }) {
       .catch(() => {
         ready = true;
       });
+    const type = createInputQueue((data) => client.call("terminal.input", { terminal: terminal.id, data }));
     const typed = term.onData((data) => {
-      if (terminal.alive) void client.call("terminal.input", { terminal: terminal.id, data }).catch(() => {});
+      if (terminal.alive) type(data);
     });
     let last = "";
     let timer: ReturnType<typeof setTimeout> | undefined;
