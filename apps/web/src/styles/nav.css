@@ -198,13 +198,14 @@
   border-right: 1px solid var(--apx-border);
   overflow: hidden;
 }
-/* Inbox, Tasks and Resources stay pinned on top, the account at the bottom; the middle scrolls. */
+/* Inbox, Tasks and Resources stay pinned on top, the account at the bottom; the middle scrolls between two fixed lines. */
 .sidebar__top {
   flex: none;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 10px 8px 4px;
+  padding: 10px 8px 8px;
+  border-bottom: 1px solid var(--apx-border);
 }
 .sidebar__scroll {
   flex: 1;
@@ -212,7 +213,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 0 4px 12px 8px;
+  padding: 6px 4px 12px 8px;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
@@ -261,7 +262,8 @@
     height 0.12s,
     top 0.12s;
 }
-.sidebar__grip + .sidebar__divider {
+.sidebar__grip + .sidebar__divider,
+.sidebar__scroll > .sidebar__divider:first-child {
   display: none;
 }
 /* The last section has no divider under it: its edge shows only while used. */
