@@ -509,7 +509,7 @@ alone. Closing the terminal before the command ends tells nobody. Only a human o
 cannot press run for itself.
 
 <a id="d-047"></a>
-## D-047 — 2026-10-07 — Total autonomy asks for nothing; low-impact tools stop asking in standard
+## D-047 — 2026-10-07 — Total autonomy asks for nothing; low-impact tools stop asking in standard (amended by D-140)
 D-012 kept `always` confirmations even under total autonomy, so an agent the owner set to run on its own still stopped
 for them. Total is the owner's explicit choice: now nothing waits for them there, `always` included (destructive
 shell commands, commands that reach APX's own API, iMessage, answering a contact, using the owner's browser login).
@@ -2148,3 +2148,22 @@ no folders, so the panel, the mobile app, the channels and the "Needs your revie
 buttons; the panel titles it "Accept this action?". Accepting tells the agent to do it now; a late answer wakes it as
 a question's does; the agent can withdraw it. Accepting does not grant the calls it takes: each still passes its own
 check, since the card's text does not bind a tool's arguments. An agent with "always" for that tool gets no second card.
+
+<a id="d-148"></a>
+## D-148 — 2026-10-23 — An agent offers to connect what a request needs, never from a sealed chat
+Asked for something an app or channel the owner has not connected would do (open a Figma file, send it on WhatsApp),
+an agent could only say it could not. `suggest_connection` looks the request up through `integrations.find`, a method
+open to agents that returns only names, descriptions, kinds and whether each is connected: the integrations catalog,
+Google, Asana and the channel kinds (`integrations/find.ts`). A name match outranks a description match, and a
+connected one comes first.
+
+- **When the card appears:** only when the best match is not connected. Up to three of the unconnected matches go on a
+  "Suggested connections" card in the answer; Connect opens that integration's form in the chat, a channel opens its
+  setup in Settings › Channels. The agent is told what it showed and to stop there until the owner says it is
+  connected. An already connected match gets no card: the agent is told to use it. No match: the agent says APX does
+  not connect to it yet.
+- **Never in sealed chats:** a contact's or a room's turn gets only the tools the owner allowed for that person, and
+  `suggest_connection` is not one of them, so nobody but the owner is ever offered a connection. It stays in the
+  owner's turns even when no channel is on (unlike the channel tools), since connecting the first one is its job.
+- **What agents see:** labels and descriptions of what APX can connect and a connected flag; never credentials,
+  accounts or settings. Connecting stays the owner's act on the card or in Settings.
