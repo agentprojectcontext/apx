@@ -1,0 +1,102 @@
+# The GitHub Pages site, once main holds v2 (RELEASE.md#where-v2-lives):
+#   /apx/      → redirects to /apx/v2/
+#   /apx/v2/   → v2's home and docs (apps/docs on release/v2), with install.sh and install.ps1 beside them
+#   /apx/v1/   → v1's docs (docs/ on the v1 branch), marked as no longer maintained
+# /apx/v2/install.sh stays where it is: installed apps and the docs give that address. v1's old /apx/docs/… links
+# land on /apx/v1/… through the site's 404 page, the only redirect GitHub Pages serves for a missing path.
+# release/v2's site.yml asks for this workflow when the docs or the install scripts change there.
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.repository == 'agentprojectcontext/apx'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: release/v2
+          path: v2
+      - uses: actions/checkout@v5
+        with:
+          ref: v1
+          path: v1
+
+      # v1's docs are their own project (own lockfile, --ignore-workspace) on Node 22 with the pnpm they name.
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: v1/docs/package.json
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Build v1 docs
+        working-directory: v1/docs
+        env:
+          DOCS_BASE: /apx/v1
+        run: |
+          pnpm install --frozen-lockfile --ignore-workspace
+          pnpm build
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Build v2 site
+        working-directory: v2/apps/docs
+        env:
+          DOCS_BASE: /apx/v2
+        run: |
+          PNPM="$(node -p "require('./package.json').packageManager")"
+          npx --yes "$PNPM" install --frozen-lockfile
+          npx --yes "$PNPM" build
+          test -f dist/install.sh && test -f dist/install.ps1
+
+      - name: Assemble the site
+        run: |
+          mkdir -p _site/v1 _site/v2
+          touch _site/.nojekyll
+          cp -R v2/apps/docs/dist/. _site/v2/
+          cp -R v1/docs/dist/. _site/v1/
+          cat > _site/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>APX</title>
+          <meta http-equiv="refresh" content="0; url=/apx/v2/">
+          <link rel="canonical" href="https://agentprojectcontext.github.io/apx/v2/">
+          <a href="/apx/v2/">APX</a>
+          HTML
+          # v2's 404 page, with v1's old /apx/docs/ addresses sent on to /apx/v1/ first.
+          node -e '
+            const fs = require("node:fs");
+            const page = fs.readFileSync("_site/v2/404.html", "utf8");
+            const hop = `<script>if(location.pathname.startsWith("/apx/docs/"))location.replace("/apx/v1/"+location.pathname.slice(10)+location.search+location.hash)</script>`;
+            fs.writeFileSync("_site/404.html", page.replace("<head>", "<head>" + hop));
+          '
+          grep -q '/apx/v1/' _site/404.html
+
+      - uses: actions/configure-pages@v6
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v5

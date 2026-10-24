@@ -797,30 +797,6 @@ a.card:hover,
   color: var(--fg);
 }
 
-/* Beta mark */
-.beta {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  margin-left: 8px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  color: var(--accent-2);
-  font: 600 11px / 1 var(--mono);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  vertical-align: middle;
-}
-.beta--lg {
-  height: 30px;
-  padding: 0 12px;
-  font-size: 14px;
-  letter-spacing: 0.04em;
-  transform: translateY(-0.35em);
-}
-
 /* New in v2 */
 .news {
   display: grid;

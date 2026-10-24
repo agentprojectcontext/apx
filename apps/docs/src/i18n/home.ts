@@ -2,7 +2,6 @@
 export type Lang = "en" | "es";
 
 const en = {
-  beta: "Beta",
   newIn: {
     eyebrow: "New in v2",
     title: "More than a chat window.",
@@ -53,7 +52,7 @@ const en = {
     ],
   },
   download: {
-    eyebrow: "Download the beta",
+    eyebrow: "Download",
     title: "Get APX v2.",
     lead: "The desktop app brings its own core. On a server or a VM, one line installs the core alone.",
     desktop: "Desktop app",
@@ -67,7 +66,7 @@ const en = {
     server: "Linux and macOS servers",
     windows: "Windows, in PowerShell",
     unsigned: {
-      title: "The beta apps are not signed yet",
+      title: "The apps are not signed yet",
       body: "Your system warns you the first time. That is expected; here is how to go on.",
       items: [
         [
@@ -89,11 +88,11 @@ const en = {
       ["Upgrade from v1", "/start/from-v1/#upgrade-from-v1"],
     ],
   },
-  title: "APX v2 beta: meet your crew",
+  title: "APX v2: meet your crew",
   description:
     "Documentation for APX v2: a crew of AI agents that lives on your machine. Install it, meet Home, add a project and put your agents to work.",
   nav: { start: "Start", ideas: "Core ideas", office: "Office", channels: "Channels", cli: "CLI" },
-  pill: { strong: "APX v2 beta", rest: "· tell us what breaks" },
+  pill: { strong: "APX v2 is out", rest: "· see what is new" },
   meet: "Meet",
   your: "your",
   words: ["crew.", "super-agent.", "office.", "routines.", "channels."],
@@ -279,7 +278,6 @@ const en = {
 export type HomeText = typeof en;
 
 const es: HomeText = {
-  beta: "Beta",
   newIn: {
     eyebrow: "Lo nuevo en v2",
     title: "Más que una ventana de chat.",
@@ -330,7 +328,7 @@ const es: HomeText = {
     ],
   },
   download: {
-    eyebrow: "Bajate la beta",
+    eyebrow: "Descargá",
     title: "Instalá APX v2.",
     lead: "La app de escritorio trae su propio core. En un servidor o una VM, una línea instala solo el core.",
     desktop: "App de escritorio",
@@ -344,7 +342,7 @@ const es: HomeText = {
     server: "Servidores Linux y macOS",
     windows: "Windows, en PowerShell",
     unsigned: {
-      title: "Las apps de la beta todavía no están firmadas",
+      title: "Las apps todavía no están firmadas",
       body: "Tu sistema te avisa la primera vez. Es lo esperado; así seguís.",
       items: [
         [
@@ -366,11 +364,11 @@ const es: HomeText = {
       ["Actualizar desde v1", "/es/start/from-v1/#actualizar-desde-v1"],
     ],
   },
-  title: "APX v2 beta: conocé a tu crew",
+  title: "APX v2: conocé a tu crew",
   description:
     "Documentación de APX v2: un crew de agentes de IA que vive en tu máquina. Instalalo, conocé a Home, sumá un proyecto y poné a trabajar a tus agentes.",
   nav: { start: "Empezar", ideas: "Ideas clave", office: "Oficina", channels: "Canales", cli: "CLI" },
-  pill: { strong: "APX v2 beta", rest: "· contanos qué se rompe" },
+  pill: { strong: "Salió APX v2", rest: "· mirá lo nuevo" },
   meet: "Conocé",
   your: "a tu",
   words: ["crew.", "super-agente.", "oficina.", "turno noche.", "equipo."],

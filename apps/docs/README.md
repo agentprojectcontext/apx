@@ -14,8 +14,8 @@ pnpm build        # static site in dist/ (DOCS_SITE / DOCS_BASE set where it is 
 pnpm shots        # retake every screenshot against a demo core (see below)
 ```
 
-It is published at `https://agentprojectcontext.github.io/apx/v2/` (`DOCS_BASE=/apx/v2`, built by v1's Pages
-workflow from `release/v2`). The build also copies `scripts/install/install.sh` and `install.ps1` to the site's root,
+It is published at `https://agentprojectcontext.github.io/apx/v2/` (`DOCS_BASE=/apx/v2`, built by the Pages
+workflow on `main` from `release/v2`). The build also copies `scripts/install/install.sh` and `install.ps1` to the site's root,
 so `<site>/install.sh` is the stable install URL while v2's releases are not GitHub's "Latest". `<base>docs/`
 redirects to the first page.
 

@@ -13,8 +13,8 @@ APX es un proceso en segundo plano, el **core**, más las apps que le hablan. El
 escritorio trae su propio core, una instalación de servidor corre el core sin pantalla, y desde el código corrés todo
 tal cual está.
 
-<Aside type="note" title="APX v2 está en beta">
-Salen versiones seguido y hay bordes sin pulir. Tus datos quedan en `~/.apx/v2` entre actualizaciones, y los archivos
+<Aside type="note" title="Actualizaciones">
+Salen versiones seguido y APX se actualiza solo. Tus datos quedan en `~/.apx/v2` entre actualizaciones, y los archivos
 de APX v1 no se tocan nunca. Contanos qué se rompe en [GitHub](https://github.com/agentprojectcontext/apx/issues) o en
 [Discord](https://discord.gg/vxdZuT5WuE).
 </Aside>
@@ -51,7 +51,7 @@ agentes, y vive en la barra de menú o en la bandeja del sistema.
    | Windows | `APX-<versión>-win-x64.exe` |
    | Linux | `APX-<versión>-linux-x64.AppImage` (o `-arm64`) |
 
-2. Instalala y abrila. Las apps de la beta todavía no están firmadas, así que tu sistema te avisa la primera vez
+2. Instalala y abrila. Las apps todavía no están firmadas, así que tu sistema te avisa la primera vez
    (mirá más abajo).
 
    - **macOS**: abrí el `.dmg` y arrastrá **APX** a **Aplicaciones**. La primera vez, hacé clic derecho en APX dentro
@@ -79,7 +79,7 @@ agentes, y vive en la barra de menú o en la bandeja del sistema.
 Lo podés cambiar después desde el menú APX › Cambiar conexión.
 
 <Aside type="caution" title="Apps sin firmar">
-Para que el aviso desaparezca, macOS necesita un Apple Developer ID y Windows un certificado Authenticode; la beta
+Para que el aviso desaparezca, macOS necesita un Apple Developer ID y Windows un certificado Authenticode; APX
 todavía no tiene ninguno. Los instaladores son los que arma el
 [workflow de releases](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true), cada uno con su
 `.sha256` al lado para chequear la descarga. Si macOS dice **"APX" está dañado y no puede abrirse**, es la marca de
