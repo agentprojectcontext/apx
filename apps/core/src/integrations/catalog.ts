@@ -23,6 +23,11 @@ export type IntegrationEntry = {
    * secret://<id>-<field>).
    */
   server: StdioServer | RemoteServer;
+  /**
+   * A server that may refuse an account the app accepts elsewhere: connecting asks it first, with the owner's values,
+   * and on a refusal (401/403) the entry runs `server` from `fallback` instead.
+   */
+  fallback?: StdioServer;
 };
 
 type StdioServer = { command: string; args: string[]; env: Record<string, string> };
@@ -104,8 +109,13 @@ export const CATALOG: IntegrationEntry[] = [
         url: "https://github.com/settings/tokens",
       },
     ],
-    // GitHub's own server; the npm one it replaces is no longer maintained.
+    // GitHub's own server; it may ask for Copilot access, so an account it refuses gets the earlier open one.
     server: { url: "https://api.githubcopilot.com/mcp/", headers: { Authorization: "Bearer {token}" } },
+    fallback: {
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-github"],
+      env: { GITHUB_PERSONAL_ACCESS_TOKEN: "{token}" },
+    },
   },
   {
     id: "notion",
@@ -273,7 +283,7 @@ export const CATALOG: IntegrationEntry[] = [
 export const integrationSecret = (id: string, field: string) => `${id}-${field}`;
 
 /** The server of an entry with the owner's values in: secrets by reference, the rest as typed. */
-export function serverFor(e: IntegrationEntry, values: Record<string, string>) {
+export function serverFor(e: IntegrationEntry, values: Record<string, string>, refused = false) {
   const fill = (s: string, trim = false) =>
     s.replace(/\{([a-z]+)\}/g, (_m, name: string) => {
       const f = e.fields.find((x) => x.name === name);
@@ -284,6 +294,35 @@ export function serverFor(e: IntegrationEntry, values: Record<string, string>) {
       return trim ? v.replace(/\/+$/, "") : v;
     });
   const filled = (r: Record<string, string>) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, fill(v)]));
-  if ("url" in e.server) return { url: fill(e.server.url, true), headers: filled(e.server.headers) };
-  return { command: e.server.command, args: e.server.args.map((a) => fill(a)), env: filled(e.server.env) };
+  const server = refused && e.fallback ? e.fallback : e.server;
+  if ("url" in server) return { url: fill(server.url, true), headers: filled(server.headers) };
+  return { command: server.command, args: server.args.map((a) => fill(a)), env: filled(server.env) };
+}
+
+/**
+ * Whether a remote server refuses the owner's account (401/403 to an MCP initialize): `headers` carry the real values.
+ * Anything else (it answers, it cannot be reached in time) is not a refusal: the entry keeps its own server.
+ */
+export async function refusesAccount(
+  url: string,
+  headers: Record<string, string>,
+  fetchFn: typeof fetch = fetch,
+): Promise<boolean> {
+  try {
+    const r = await fetchFn(url, {
+      method: "POST",
+      headers: { ...headers, "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "apx", version: "2" } },
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    await r.body?.cancel();
+    return r.status === 401 || r.status === 403;
+  } catch {
+    return false;
+  }
 }
