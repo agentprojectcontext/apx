@@ -1,7 +1,7 @@
 import { esHelper } from "./es-helper.ts";
 // UI strings, Spanish (Rioplatense, voseo). A missing key falls back to English.
 
-import { noticeEs } from "@apx/protocol";
+import { noticeEs } from "@apx/protocol/notices";
 import type { MessageKey } from "./en.ts";
 import { esChannels } from "./es-channels.ts";
 import { esChat } from "./es-chat.ts";
