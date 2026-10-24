@@ -15,6 +15,10 @@ import type { Log } from "../log.ts";
 import type { NodeBroker } from "../nodes/broker.ts";
 import { type Dispatch, NODE_METHODS } from "../rpc/router.ts";
 import { type Gate, localRequest, mayBeNode, refuse } from "./guard.ts";
+import type { ClientLookup } from "./http.ts";
+
+/** How an outside app's client token starts (domain/clients.ts). */
+const CLIENT_TOKEN = "apxc_";
 
 const MAX_PAYLOAD = FILE_PAYLOAD_BYTES;
 
@@ -36,15 +40,22 @@ export function attachWs(
     bus: Bus;
     gate: Gate;
     deviceOf?: (token: string) => { id: string; name: string } | undefined;
+    clientOf?: ClientLookup;
   },
 ) {
   const { dispatch, identity, log, broker, bus, gate } = deps;
+  /** An outside app's client token: its client, or a refusal when it is unknown or revoked (as over HTTP). */
+  const clientFor = (key: string | null) => (key?.startsWith(CLIENT_TOKEN) ? deps.clientOf?.(key) : undefined);
+  const unknownClient = (key: string | null) => Boolean(key?.startsWith(CLIENT_TOKEN)) && !clientFor(key);
   const wss = new WebSocketServer({
     server,
     path: "/ws",
     maxPayload: MAX_PAYLOAD,
     verifyClient: ({ req }, done) => {
-      const why = refuse(req, gate, new URL(req.url ?? "/", "http://core").searchParams.get("token"));
+      const key = new URL(req.url ?? "/", "http://core").searchParams.get("token");
+      const why = unknownClient(key)
+        ? "unknown or revoked client token"
+        : refuse(req, gate, key, Boolean(clientFor(key)));
       if (why) log.warn({ origin: req.headers.origin, why }, "socket refused");
       done(!why, 403, why);
     },
@@ -69,7 +80,7 @@ export function attachWs(
     };
     const allowed = () => {
       if (ws.readyState !== ws.OPEN) return false;
-      if (!refuse(req, gate, key)) return true;
+      if (!unknownClient(key) && !refuse(req, gate, key, Boolean(clientFor(key)))) return true;
       // Credentials can be revoked while a socket is open; remove capability access before closing it.
       detach();
       ws.close(1008, "missing or bad token");
@@ -102,7 +113,12 @@ export function attachWs(
           ws.close(1008, "browser pages cannot register as nodes");
           return;
         }
-        hello = frame;
+        if (frame.role === "node" && clientFor(key)) {
+          ws.close(1008, "an outside app cannot register as a node");
+          return;
+        }
+        // An outside app is a model, whatever its hello says it is.
+        hello = clientFor(key) ? { ...frame, actor: "agent" } : frame;
         if (frame.role === "operator") operators.set(ws, send);
         if (frame.role === "node") {
           broker.attach({
@@ -118,9 +134,9 @@ export function attachWs(
           protocol: PROTOCOL_VERSION,
           session,
           server: { version: identity.version, code_sha: identity.code_sha },
-          methods: methodsFor(frame),
+          methods: methodsFor(hello),
           limits: { max_payload: MAX_PAYLOAD },
-          auth: { role: frame.role, actor: frame.actor },
+          auth: { role: hello.role, actor: hello.actor },
         });
         return;
       }
@@ -136,6 +152,7 @@ export function attachWs(
         return;
       }
       const device = key?.startsWith("apxd_") ? deps.deviceOf?.(key) : undefined;
+      const client = clientFor(key);
       const out = await dispatch(
         frame.method,
         frame.params,
@@ -144,6 +161,7 @@ export function attachWs(
           local: localRequest(req),
           role: hello.role,
           actor: hello.actor,
+          ...(client ? { client } : {}),
           session,
           log,
           ...(device ? { device } : {}),
