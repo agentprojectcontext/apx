@@ -1,3 +1,4 @@
+import "../styles/screens.css";
 import type { Thread } from "@apx/protocol";
 import { useState } from "react";
 import { useChannels } from "../data/channels.ts";
