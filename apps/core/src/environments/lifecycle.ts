@@ -78,6 +78,8 @@ export function createVmLifecycle(driver: VmDriver) {
   };
   return {
     status,
+    /** This host can run the computer (macOS on Apple Silicon). */
+    supported: driver.supported,
     /** The phase last seen, without probing the guest; undefined before the first status. */
     seen: () => phase,
     assertRunning() {

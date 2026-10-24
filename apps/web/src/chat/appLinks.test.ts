@@ -26,6 +26,9 @@ test("an app link says what it opens, so its button can show the place's icon an
   assert.deepEqual(kindOf("apx:inbox"), { kind: "inbox" });
   assert.deepEqual(kindOf("apx:chat/thr_1"), { kind: "chat", id: "thr_1" });
   assert.deepEqual(kindOf("apx:project/prj_1/tasks"), { kind: "project", id: "prj_1" });
+  // An agent that could not start the computer points the owner to its panel.
+  assert.deepEqual(kindOf("apx:computer"), { kind: "computer" });
+  assert.deepEqual(kindOf("apx:computers"), { kind: "computer" });
 });
 
 test("an app link to no known place opens nothing", () => {

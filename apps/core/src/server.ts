@@ -491,6 +491,16 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       afterWorkTurn(store, engine.admit, run);
     },
   });
+  // The agent that started the computer and ended its turn hears once it is up, or why not (environments/ready.ts).
+  vm.onReady((e) => {
+    engine.admit({
+      thread_id: e.thread,
+      agent_id: e.agent,
+      trigger: "system",
+      origin: { kind: "computer_ready", ready: e.ready, ...(e.error ? { error: e.error } : {}) },
+      text: "",
+    });
+  });
   const scheduler = officeScheduler({
     store,
     admit: (a) => engine.admit(a),

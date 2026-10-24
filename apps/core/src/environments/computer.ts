@@ -7,6 +7,7 @@ import { availableMemory } from "../usage.ts";
 import { type ComputerControl, computerControl } from "./control.ts";
 import { guestOperations } from "./guest-operations.ts";
 import type { Appearance, VmLifecycle } from "./lifecycle.ts";
+import { type ReadyEvent, readyWaiters } from "./ready.ts";
 import {
   type ComputerResources,
   type Host,
@@ -74,6 +75,11 @@ export function createComputer(store: Store, config: ComputerConfig) {
   };
   const leases = new Map<number, ComputerControl>();
   let probe: { at: number; value: Promise<ComputerUsage | undefined> } | undefined;
+  let wake: (e: ReadyEvent) => void = () => {};
+  const ready = readyWaiters({
+    phase: async () => (config.lifecycle ? await config.lifecycle.status() : { phase: "running" }),
+    wake: (e) => wake(e),
+  });
   /** An agent's screen starts in the agent's hands; the owner may take it to watch closely, type or sign in. */
   const control = (screen: number) => {
     let lease = leases.get(screen);
@@ -147,6 +153,14 @@ export function createComputer(store: Store, config: ComputerConfig) {
     },
     /** Set up once by the owner: from then on agents in their chats may ask to use it. */
     offered: () => Boolean(config.lifecycle) && store.settings.get("computer_enabled") === "true",
+    /** This host can run it: agents in the owner's chats may start it (asking first) before it was ever set up. */
+    available: () => Boolean(config.lifecycle?.supported),
+    /** The chat's agent gets a turn once the computer it started is up (or failed): it never waits in the chat. */
+    whenReady: (thread: string, agent: string) => ready.add(thread, agent),
+    /** Who admits that turn: the engine, wired once it exists. */
+    onReady(fn: (e: ReadyEvent) => void) {
+      wake = fn;
+    },
     /** The visible browser on the screen this run holds. */
     browser: (run: string) => {
       touch();
@@ -401,6 +415,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
       return guest.command(by.screen, command, "human");
     },
     async close() {
+      ready.close();
       await Promise.all([guest.disconnect(true), config.lifecycle?.close()]);
     },
   };

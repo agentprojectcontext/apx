@@ -3,12 +3,13 @@
 // computer up, to one that may ask (DECISIONS.md#d-151, DECISIONS.md#d-152).
 import { z } from "zod";
 import { type Computer, computerApproval } from "../environments/computer.ts";
-import { CLAIM_MS } from "../environments/screens.ts";
 import { errorMessage } from "../errors.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 
 export const COMPUTER_TOOL = "computer";
 const START_DEADLINE_MS = 300_000;
+/** How long a start waits for a computer already coming up before it hands the wait to the ready turn. */
+const FIRST_LOOK_MS = 3_000;
 
 type Status = Awaited<ReturnType<Computer["status"]>>;
 
@@ -59,7 +60,7 @@ export function vmTools(vm: Computer | undefined): Tool[] {
     defineTool({
       name: COMPUTER_TOOL,
       description:
-        "The Linux computer the agents share (a VM apart from the owner's Mac; you get your own user, files and screen with a desktop and browser): status, start (moves this chat there; your shell and browser then run on your screen) or stop (this chat back on the Mac, your screen freed). Starting needs free memory; the first use asks the owner to allow you.",
+        "The Linux computer the agents share (a VM apart from the owner's Mac; you get your own user, files and screen with a desktop and browser): status, start (moves this chat there; your shell and browser then run on your screen) or stop (this chat back on the Mac, your screen freed). When the owner asks you to use it, start it yourself: the first use asks them to allow you, and starting needs free memory.",
       args: z.object({ action: z.enum(["status", "start", "stop"]) }),
       effect: "local",
       reads: (a) => a.action === "status",
@@ -88,24 +89,38 @@ export function vmTools(vm: Computer | undefined): Tool[] {
         }
         const later = (s: Status) =>
           `${describe(s, ctx.run.id)} It is still starting: check again with status in a minute.`;
-        // Each start may wait for a screen (CLAIM_MS); what is left of the call's deadline goes to the VM booting.
+        // Each start may wait for a screen (screens.ts CLAIM_MS), twice at most, within the call's deadline.
         const take = async () => {
           try {
             await ctx.call("environments.start", { thread });
             return true;
           } catch (error) {
-            if (/did not start in time/.test(errorMessage(error))) return false;
+            const why = errorMessage(error);
+            if (/did not start in time/.test(why)) return false;
+            if (/not enough free memory/.test(why)) return why;
             throw error;
           }
         };
-        if (!(await take())) return later(await vm.status(thread));
-        let s = await settle(vm, ctx, ["preparing"], START_DEADLINE_MS - 2 * CLAIM_MS - 20_000);
+        const taken = await take();
+        if (typeof taken === "string")
+          return `Not started: ${taken}. Tell the owner why in their language, with those numbers, and give them [Computer](apx:computer) to lower its memory or close apps; do not try again until they say so.`;
+        if (!taken) return later(await vm.status(thread));
+        let s = await settle(vm, ctx, ["preparing"], FIRST_LOOK_MS);
+        if (s.phase === "preparing") {
+          // A boot or a first setup takes minutes: this turn ends, and the chat gets a turn the moment it is up.
+          vm.whenReady(thread, ctx.agent.id);
+          const first =
+            s.step === "runtime" || s.step === "guest"
+              ? " Its first setup downloads Linux and takes several minutes."
+              : "";
+          return `The computer is starting.${first} You get a turn in this chat the moment it is ready: tell the owner in one short line, in their language, that you will let them know, and end your turn now; do not check on it meanwhile.`;
+        }
         // Started just now: the screen is taken once the computer runs.
         if (s.phase === "running" && !s.screens?.some((x) => x.run === ctx.run.id)) {
           if (!(await take())) return later(await vm.status(thread));
           s = await vm.status(thread);
         }
-        return s.phase === "preparing" ? later(s) : describe(s, ctx.run.id);
+        return describe(s, ctx.run.id);
       },
     }),
   ];

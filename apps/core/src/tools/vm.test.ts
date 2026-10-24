@@ -10,16 +10,20 @@ import { tempDir, waitFor } from "../testkit/platform.ts";
 
 const GIB = 1024 ** 3;
 
-/** A guest that boots and stops at once; `free` is the host's free memory the start check reads. */
-function fakeComputer(home: string, free = { bytes: 12 * GIB }) {
+/**
+ * A guest that boots and stops at once (or once `boot` resolves); `free` is the host's free memory the start check
+ * reads.
+ */
+function fakeComputer(home: string, free = { bytes: 12 * GIB }, o: { supported?: boolean; boot?: Promise<void> } = {}) {
   let running = false;
   const calls: string[] = [];
   const lifecycle = createVmLifecycle({
-    supported: true,
+    supported: o.supported ?? true,
     installed: () => true,
     running: async () => running,
     prepare: async () => {
       calls.push("start");
+      await o.boot;
       running = true;
     },
     stop: async () => {
@@ -37,7 +41,7 @@ function fakeComputer(home: string, free = { bytes: 12 * GIB }) {
 const toolNames = (req: LlmRequest) => req.tools.map((t) => t.function.name);
 const results = (req: LlmRequest) => req.messages.filter((m) => m.role === "tool").map((m) => String(m.content));
 
-test("an agent the owner did not allow sees no computer tool, and its chat cannot be given the computer", async () => {
+test("on a host that runs it, an agent not allowed yet has the tool to ask; the owner cannot give its chat the computer", async () => {
   const home = tempDir("apx-vm-tool-").path;
   const seen: string[][] = [];
   const llm = scriptedLlm((req) => {
@@ -45,10 +49,15 @@ test("an agent the owner did not allow sees no computer tool, and its chat canno
     return say("ok");
   });
   const env = await startCore({ home, llm, computer: fakeComputer(home).config });
+  const elsewhere = await startCore({ llm, computer: fakeComputer(home, undefined, { supported: false }).config });
   try {
     await env.client.call("threads.send", { thread: "home", text: "Hello" });
     await env.settle("home");
-    assert.equal(seen[0]?.includes("computer"), false);
+    // Never set up: still offered, so asked to use it the agent starts it (and asks) instead of saying it cannot.
+    assert.equal(seen[0]?.includes("computer"), true);
+    await elsewhere.client.call("threads.send", { thread: "home", text: "Hello" });
+    await elsewhere.settle("home");
+    assert.equal(seen[1]?.includes("computer"), false, "a host that cannot run it offers no tool");
     await assert.rejects(env.client.call("environments.enable", { thread: "home", appearance: "light" }), /allow it/);
     await assert.rejects(env.client.call("environments.bind", { thread: "home" }), /may not use the computer/);
     const status = await env.client.call("environments.status", { thread: "home" });
@@ -57,6 +66,8 @@ test("an agent the owner did not allow sees no computer tool, and its chat canno
   } finally {
     await env.core.close();
     env.cleanup();
+    await elsewhere.core.close();
+    elsewhere.cleanup();
   }
 });
 
@@ -138,7 +149,10 @@ test("starting refuses when free memory cannot hold the VM and its reserve, and 
     await env.client.call("environments.bind", { thread: "home" });
     await env.client.call("threads.send", { thread: "home", text: "Start your computer" });
     await env.settle("home");
-    assert.match(results(llm.calls.at(-1) as LlmRequest)[0] ?? "", /not enough free memory on this computer/);
+    const refused = results(llm.calls.at(-1) as LlmRequest)[0] ?? "";
+    assert.match(refused, /not enough free memory on this computer/);
+    // Told how to say it to the owner, with the way to fix it: never left to retry in a loop.
+    assert.match(refused, /in their language.+\[Computer\]\(apx:computer\).+do not try again/);
     assert.deepEqual(vm.calls, []);
     free.bytes = 7 * GIB;
     await env.client.call("environments.enable", { thread: "home", appearance: "light" });
@@ -236,6 +250,40 @@ test("a screen that does not start in time leaves the agent a clear 'still start
     await env.settle("home");
     assert.match(results(llm.calls.at(-1) as LlmRequest)[0] ?? "", /still starting: check again with status/);
   } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});
+
+test("a computer that takes minutes to come up ends the turn, and its chat gets one turn the moment it is ready", async () => {
+  const home = tempDir("apx-vm-tool-").path;
+  let boot = () => {};
+  const vm = fakeComputer(home, undefined, { boot: new Promise<void>((resolve) => (boot = resolve)) });
+  const llm = scriptedLlm((req, { said }) => {
+    if (said.includes("is ready")) return say("Lista, sigo con la tienda");
+    return results(req).length ? say("Ahora te aviso") : callTool("start", "computer", { action: "start" });
+  });
+  const env = await startCore({ home, llm, computer: vm.config });
+  try {
+    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("threads.send", { thread: "home", text: "Probá la tienda en la computadora" });
+    await env.settle("home", 15_000);
+    assert.match(
+      results(llm.calls.at(-1) as LlmRequest)[0] ?? "",
+      /You get a turn in this chat the moment it is ready/,
+    );
+    const calls = llm.calls.length;
+    boot();
+    const answered = async () => {
+      const t = await env.client.call("threads.get", { thread: "home" });
+      return t.messages.some((m) => m.parts.some((p) => p.type === "text" && p.text.includes("Lista, sigo")));
+    };
+    await waitFor(answered, "the turn once the computer is ready");
+    assert.equal(llm.calls.length, calls + 1, "one turn, no checking in between");
+    const { runs } = await env.client.call("threads.get", { thread: "home" });
+    assert.ok(runs.some((r) => r.trigger === "system"));
+  } finally {
+    boot();
     await env.core.close();
     env.cleanup();
   }

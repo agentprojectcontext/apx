@@ -203,7 +203,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   if (store.settings.read("computer_chats").includes(thread.id) && !deps.vm)
     return preflightFailure("the assigned VM backend is unavailable; host fallback is forbidden");
   if (deps.vm?.hasThread(thread.id)) {
-    if (thread.engine || start.input.origin.kind !== "user")
+    // The owner's words, or the turn that carries them on once the computer they asked for is up.
+    if (thread.engine || (start.input.origin.kind !== "user" && start.input.origin.kind !== "computer_ready"))
       return preflightFailure("a computer chat takes the owner's own turns with APX's own harness only");
     // A stopped computer is the agent's to start; a chat whose agent may not use it never runs on the host instead.
     if (!deps.vm.permitted(agent.id, thread.id))
@@ -586,7 +587,7 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   // Offered to an agent the owner allowed, or, once the owner set the computer up, to ask for it (DECISIONS.md#d-151).
   const computerOn = Boolean(
     deps.vm?.serves(turn.thread.id) &&
-      (deps.vm.permitted(turn.agent.id, turn.thread.id) || (!inVm && deps.vm.offered())),
+      (deps.vm.permitted(turn.agent.id, turn.thread.id) || (!inVm && deps.vm.available())),
   );
   const sealed = turn.audience.kind === "contact";
   const callers = callersOf(deps.store, turn.thread.id);

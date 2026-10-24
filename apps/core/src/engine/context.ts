@@ -278,6 +278,10 @@ export function frameInput(origin: Origin, text: string): string {
       return `${untrusted("terminal_output", { terminal: origin.terminal_id, exit_code: String(origin.exit_code ?? "none") }, text)}\nThe owner ran the command you suggested (${origin.command.slice(0, 120)}) in their terminal and it has ended; this is the end of what it printed. Go on from there: say whether it worked and what comes next.`;
     case "go_on":
       return `The owner let agents go on after a pause (${origin.mode === "reset" ? "a fresh budget" : "no limit until they write here again"}). What reached you while paused is above as system notes: carry on with it, then tell the owner what happened.`;
+    case "computer_ready":
+      return origin.ready
+        ? "APX: the shared Linux computer you started in this chat is ready; your screen comes up with this turn. Tell the owner in one short line that it is ready, then carry on with what they asked you to do on it; if they asked nothing yet, ask what they need there."
+        : `APX: the shared Linux computer you started in this chat did not start (${(origin.error ?? "unknown").slice(0, 300)}). Tell the owner briefly in their language, and point them to [Computer](apx:computer) to look at it.`;
     case "stalled_task":
       return `APX: your task "${origin.title.slice(0, 120)}" (${origin.task_id}) is still open, but nothing has run on it since your last turn. Check where it stands: if part of it is yours to do, go on with it; if it waits on the owner, mark it with task_update awaits_owner=true and say what they need to do; if it is done, close it with task_close.`;
     case "task_result":

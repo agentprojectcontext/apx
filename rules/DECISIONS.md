@@ -2313,8 +2313,14 @@ a read of who may use it (`environments.status`) are in `apx_settings` (D-138), 
 card in every mode, like their other settings; `environments.status` lists the allowed agents for each agent's card.
 
 **The tool.** `computer` (status, start, stop) is one conditional tool (rule 15): offered in an owner's native chat to
-an allowed agent, and, once the owner has set the computer up on this core, to any agent there so it can ask. A fresh
-install offers it to no one, so the default turn's budget (rule 23) is unchanged. It acts through `environments.start`
+an allowed agent, and on a host that can run it (macOS on Apple Silicon) to any agent there, so that asked to use it
+the agent starts it and asks for the permission instead of saying it is not there. A host that cannot run it offers it
+to no one; the prompt-budget test's default turn has no computer, so its budget (rule 23) is unchanged. A start that
+needs a boot or the first setup does not keep the turn waiting: the tool tells the agent to say once that it will let
+the owner know and end its turn, and the core gives the chat one turn (origin `computer_ready`) the moment the computer
+is up, or did not start (`environments/ready.ts`, polled in the core every 2 s, at most 25 minutes); that turn carries
+on with what the owner asked. A refusal for memory comes back to the agent with its numbers and the `apx:computer`
+link to give the owner, never to retry. It acts through `environments.start`
 and `environments.stop` (rule 1), which accept the owner or a working run of that very chat whose agent is allowed;
 an agent's stop does not cancel its own run. Starting from a chat that is not the computer's moves the computer there
 when it is off and its old chat has no working run; the old chat gets its host tools back from its next turn. In the

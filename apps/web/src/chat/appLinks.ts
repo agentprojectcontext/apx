@@ -1,6 +1,6 @@
 // Where an app link an agent wrote goes (apx:settings/desktop, apx:tasks…): a place of the panel, or nothing for a
 // link it does not know (shown as its label).
-import { CONFIG_SECTIONS, type ConfigSection, go, RESOURCE_TABS, type ResourceTab } from "../shell/nav.ts";
+import { CONFIG_SECTIONS, type ConfigSection, go, nav, RESOURCE_TABS, type ResourceTab } from "../shell/nav.ts";
 
 const isIn = <T extends string>(list: readonly T[], v: string | undefined): v is T =>
   v !== undefined && (list as readonly string[]).includes(v);
@@ -13,7 +13,8 @@ export type AppPlace =
   | { kind: "resources"; tab: ResourceTab; open: () => void }
   | { kind: "inbox"; open: () => void }
   | { kind: "chat"; id: string; open: () => void }
-  | { kind: "project"; id: string; open: () => void };
+  | { kind: "project"; id: string; open: () => void }
+  | { kind: "computer"; open: () => void };
 
 /** The place an `apx:` link names; undefined when it names none. */
 export function appPlace(href: string): AppPlace | undefined {
@@ -34,6 +35,13 @@ export function appPlace(href: string): AppPlace | undefined {
     }
     case "inbox":
       return { kind: "inbox", open: () => go.inbox() };
+    // The computer's panel beside the chat the link is in (its memory, its screen), or the Computers view.
+    case "computer":
+    case "computers":
+      return {
+        kind: "computer",
+        open: () => (nav.get().threadId && where === "computer" ? go.panel("computer") : go.view("computers")),
+      };
     case "thread":
     case "chat":
       return a ? { kind: "chat", id: a, open: () => go.inboxThread(a) } : undefined;

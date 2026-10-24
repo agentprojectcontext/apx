@@ -48,6 +48,8 @@ export type Origin =
   | { kind: "go_on"; mode: "reset" | "release" }
   /** APX found the agent's task open with nothing running on it, and asks it once to go on (engine/task-stall.ts). */
   | { kind: "stalled_task"; task_id: string; title: string }
+  /** The computer the agent started in this chat is up, or did not start (environments/ready.ts). */
+  | { kind: "computer_ready"; ready: boolean; error?: string }
   /** A task an agent created and gave to another one was closed by that one (DECISIONS.md#d-076). */
   | { kind: "task_result"; task_id: string; title: string; state: "done" | "dropped"; agent_id: string; name: string }
   | {

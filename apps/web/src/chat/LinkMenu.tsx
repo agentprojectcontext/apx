@@ -67,6 +67,7 @@ const PLACE_ICON: Record<AppPlace["kind"], ReactNode> = {
   inbox: <Icons.Inbox size={13} />,
   chat: <Icons.MessageSquare size={13} />,
   project: <Icons.Folder size={13} />,
+  computer: <Icons.Monitor size={13} />,
 };
 
 /** What a click on an app link does, in words: where it goes, by name when the panel knows it. */
@@ -96,6 +97,8 @@ function usePlaceHint(place: AppPlace | undefined): string {
       return chat ? t("link.go.chatNamed", { name: chat }) : t("link.go.chat");
     case "project":
       return project ? t("link.go.projectNamed", { name: project }) : t("link.go.project");
+    case "computer":
+      return t("nav.computers");
     default:
       return "";
   }
