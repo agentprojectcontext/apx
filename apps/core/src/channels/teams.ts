@@ -391,7 +391,9 @@ export function teamsAdapter(
       }
       // The connector answers go to is the one the token names, never one only the body claims.
       if (typeof a !== "object" || !a || v.claims.serviceurl !== a.serviceUrl) return { status: 401 };
-      if (v.endorsements && a.channelId && !v.endorsements.includes(a.channelId)) return { status: 401 };
+      // A key endorsed for some channels signs only activities that name one of them, never one that names none.
+      if (v.endorsements && (typeof a.channelId !== "string" || !v.endorsements.includes(a.channelId)))
+        return { status: 401 };
       heardAt = Date.now();
       lookAtAddress();
       if (keysFailed) {
