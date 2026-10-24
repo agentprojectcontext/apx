@@ -53,6 +53,8 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.acceptContact": "Aceptar como contacto",
   "ch.itsMeHint": "Escribí el código que te mandó el bot en tu Telegram: así APX sabe que ese chat es tuyo.",
   "ch.ownerHome": "Tu chat con el bot — tus mensajes van a Home",
+  "ch.homePart": "Solo lo que hablaron vos y {agent} por {channel}. En Home está todo, de todos los canales.",
+  "ch.openHome": "Abrir Home",
   "ch.ownerOwn": "Tu chat con el bot",
   "ch.ownerOwnNone": "Tu chat propio empieza cuando le escribas al bot",
   "ch.waOwnerHome": "“Mensaje a mí mismo” — tus mensajes van a Home",

@@ -56,6 +56,7 @@ export function relayOwnerWords(
     const message = store.messages.add({
       thread_id: w.threadId,
       author: { kind: "person", id: w.channel.person_id, name: w.channel.name, channel: w.channel.id },
+      via: w.channel.id,
       parts: [{ type: "text", text: w.text }, ...w.attachments.flatMap((f) => partOf(store, f.media_id))],
     });
     store.threads.patch(w.threadId, { preview: previewOf(w.text) });

@@ -587,6 +587,8 @@ export const Message = z.object({
   delivery: MessageDelivery.optional(),
   /** Emoji put on it on a channel, at most one per side. */
   reactions: z.array(MessageReaction).optional(),
+  /** The channel (its id) it came on or went out on; a chat everyone writes into (Home) shows each channel's part. */
+  via: z.string().optional(),
   created_at: z.string(),
 });
 export type Message = z.infer<typeof Message>;

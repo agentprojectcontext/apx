@@ -115,7 +115,25 @@ test("the owner talks in 'Message yourself'; the answer comes back there once, i
     "one turn, with no check first: the echo of the answer is not the owner writing",
   );
   const home = await env.client.call("threads.get", { thread: "home" });
-  assert.ok(home.messages.some((m) => m.parts.some((p) => p.type === "text" && p.text === "what is on today?")));
+  const asked = home.messages.find((m) => m.parts.some((p) => p.type === "text" && p.text === "what is on today?"));
+  const answer = home.messages.find((m) =>
+    m.parts.some((p) => p.type === "text" && p.text.includes("Got it: what is on today?")),
+  );
+  // Home holds every channel's words: each says which one, so WhatsApp shows only its own part of it.
+  assert.deepEqual([asked?.via, answer?.via], ["whatsapp", "whatsapp"]);
+  await env.client.call("threads.send", { thread: "home", text: "and from the app" });
+  await waitFor(async () => {
+    const all = (await env.client.call("threads.get", { thread: "home" })).messages;
+    return all.some((m) => m.parts.some((p) => p.type === "text" && p.text.includes("Got it: and from the app")));
+  }, "the app's answer");
+  const later = (await env.client.call("threads.get", { thread: "home" })).messages.filter((m) =>
+    m.parts.some((p) => p.type === "text" && p.text.includes("and from the app")),
+  );
+  assert.deepEqual(
+    later.map((m) => m.via),
+    [undefined, undefined],
+    "what is said in the app is no channel's",
+  );
 });
 
 test("on WhatsApp the owner's turn keeps notes, writes to people and rooms, and hands the rest off", async () => {

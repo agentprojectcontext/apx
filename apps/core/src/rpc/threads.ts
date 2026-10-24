@@ -113,6 +113,7 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       const message = store.messages.add({
         thread_id: threadId,
         author,
+        via: admit.origin?.kind === "channel" ? admit.origin.channel : undefined,
         parts: [
           { type: "text", text },
           ...files.map((f) =>

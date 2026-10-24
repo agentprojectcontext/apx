@@ -19,6 +19,7 @@ const toMessage = (r: Selectable<MessagesTable>): Message => ({
   ...opt("model", r.model),
   ...(r.delivery ? { delivery: r.delivery as MessageDelivery } : {}),
   ...(r.reactions ? { reactions: JSON.parse(r.reactions) as MessageReaction[] } : {}),
+  ...opt("via", r.via),
   created_at: r.created_at,
 });
 
@@ -646,6 +647,8 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
       parts: Part[];
       run_id?: string;
       model?: string;
+      /** The channel it came on. */
+      via?: string | undefined;
       /** History brought from elsewhere: its own time, and no live event per message. */
       at?: string;
       quiet?: boolean;
@@ -664,6 +667,7 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
         parts: m.parts,
         ...(m.run_id ? { run_id: m.run_id } : {}),
         ...(m.model ? { model: m.model } : {}),
+        ...(m.via ? { via: m.via } : {}),
         created_at: m.at ?? now(),
       };
       run(
@@ -675,6 +679,7 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
           parts: JSON.stringify(message.parts),
           run_id: message.run_id ?? null,
           model: message.model ?? null,
+          via: message.via ?? null,
           created_at: message.created_at,
         }),
       );
@@ -695,6 +700,7 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
         ...message,
         ...(stored?.delivery ? { delivery: stored.delivery } : {}),
         ...(stored?.reactions ? { reactions: stored.reactions } : {}),
+        ...(stored?.via ? { via: stored.via } : {}),
       };
       bus.emit({ type: "message.updated", message: out });
       return out;
@@ -719,9 +725,21 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
           parts: m.parts,
           ...opt("run_id", m.run_id),
           ...opt("model", m.model),
+          via: m.via,
           at: m.created_at,
           quiet: true,
         });
+    },
+    /** A message queued to go out on a channel: which one, and that it has not left yet. */
+    sentOn(id: string, channel: string): void {
+      const was = repo.get(id);
+      if (!was || was.via === channel) {
+        repo.setDelivery(id, "pending");
+        return;
+      }
+      const delivery = was.delivery ?? "pending";
+      run(qb.updateTable("messages").set({ via: channel, delivery }).where("id", "=", id));
+      bus.emit({ type: "message.updated", message: { ...was, via: channel, delivery } });
     },
     /** How far a message sent on a channel got; announced when it moves forward. */
     setDelivery(id: string, state: MessageDelivery): void {

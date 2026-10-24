@@ -242,6 +242,7 @@ export interface MessagesTable {
   created_at: string;
   delivery: string | null;
   reactions: string | null;
+  via: string | null;
 }
 
 export interface MessagesNTable {

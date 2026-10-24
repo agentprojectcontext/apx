@@ -110,7 +110,7 @@ export function createDelivery(deps: {
     enqueue(o: Parameters<Store["channels"]["outbox"]["add"]>[0]): string {
       // A link into the app means nothing on a channel: its label goes.
       const row = store.channels.outbox.add({ ...o, body: { ...o.body, text: withoutAppLinks(o.body.text) } });
-      if (o.message_id) store.messages.setDelivery(o.message_id, "pending");
+      if (o.message_id) store.messages.sentOn(o.message_id, o.channel);
       kick();
       return row.id;
     },

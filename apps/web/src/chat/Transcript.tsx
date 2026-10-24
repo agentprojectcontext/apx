@@ -31,11 +31,15 @@ import { Regenerate, UserMessage } from "./Rewind.tsx";
 
 const EMPTY: Msg[] = [];
 
-/** `comments`: a task's conversation, read as comments (no skill chips on the agents' answers). */
-export function Transcript({ thread, comments = false }: { thread: Thread; comments?: boolean }) {
+/**
+ * `comments`: a task's conversation, read as comments (no skill chips on the agents' answers). `via`: only what came
+ * on or went out on that channel (a channel's part of Home).
+ */
+export function Transcript({ thread, comments = false, via }: { thread: Thread; comments?: boolean; via?: string }) {
   const t = useT();
   const lang = useLanguage();
-  const messages = useData((s) => s.messages[thread.id] ?? EMPTY);
+  const all = useData((s) => s.messages[thread.id] ?? EMPTY);
+  const messages = useMemo(() => (via ? all.filter((m) => m.via === via) : all), [all, via]);
   const agents = useShownAgents();
   const engineLabel = useEngineLabel(thread.engine);
   const engine = thread.engine && engineLabel ? { id: thread.engine, label: engineLabel } : undefined;

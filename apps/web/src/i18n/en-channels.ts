@@ -51,6 +51,8 @@ export const enChannels = {
   "ch.acceptContact": "Accept as contact",
   "ch.itsMeHint": "Type the code the bot sent you in your Telegram: that is how APX knows this chat is yours.",
   "ch.ownerHome": "Your chat with the bot — your messages go to Home",
+  "ch.homePart": "Only what you and {agent} said on {channel}. Home has every channel.",
+  "ch.openHome": "Open Home",
   "ch.ownerOwn": "Your chat with the bot",
   "ch.ownerOwnNone": "Your own chat starts when you write to the bot",
   "ch.waOwnerHome": "“Message yourself” — your messages go to Home",

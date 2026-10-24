@@ -16,7 +16,16 @@ import { Transcript } from "./Transcript.tsx";
 
 const COMPUTER = Boolean(window.apxDesktop?.onComputerActivity);
 
-export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean; compact?: boolean }) {
+/** `via`: a channel's part of the chat (Home seen from that channel), read there; the whole chat is written in. */
+export function ChatView({
+  wideHeader,
+  compact = false,
+  via,
+}: {
+  wideHeader: boolean;
+  compact?: boolean;
+  via?: { channel: string; label: string };
+}) {
   const t = useT();
   const threadId = useNav((s) => s.threadId);
   const ready = useData((s) => s.ready);
@@ -105,8 +114,16 @@ export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean;
   return (
     <section className="chat" aria-label={thread.title}>
       <ChatHeader thread={thread} agent={shown} wide={wideHeader} compact={compact} />
-      <Transcript thread={thread} />
-      {readOnly ? (
+      <Transcript thread={thread} {...(via ? { via: via.channel } : {})} />
+      {via ? (
+        <div className="chat__readonly">
+          <Icons.Filter size={14} />
+          {t("ch.homePart", { agent: shown?.name ?? thread.title, channel: via.label })}
+          <Button size="sm" variant="secondary" onClick={() => go.thread(thread.id)}>
+            {t("ch.openHome")}
+          </Button>
+        </div>
+      ) : readOnly ? (
         <div className="chat__readonly">
           <Icons.Users size={14} />
           {t("chat.readOnly")}

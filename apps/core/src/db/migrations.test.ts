@@ -187,6 +187,52 @@ test("answers sent before outbox items named their message get linked and show s
   }
 });
 
+test("Home's past messages learn the channel they came on or went out on; what was said in the app has none", () => {
+  const { db, cleanup } = upgradeFrom("ALTER TABLE messages ADD COLUMN via", (db) => {
+    db.prepare(
+      "INSERT INTO threads (id, kind, title, agent_ids, created_at, updated_at) VALUES ('home', 'loose', 'Home', '[]', ?, ?)",
+    ).run("2026-10-01", "2026-10-01");
+    const msg = db.prepare(
+      "INSERT INTO messages (id, thread_id, seq, author, parts, created_at) VALUES (?, 'home', ?, ?, '[]', '2026-10-01')",
+    );
+    const user = JSON.stringify({ kind: "user" });
+    const agent = JSON.stringify({ kind: "agent", id: "roby" });
+    msg.run("m_wa", 1, user);
+    msg.run("m_wa_answer", 2, agent);
+    msg.run("m_tg", 3, user);
+    msg.run("m_app", 4, user);
+    msg.run("m_app_answer", 5, agent);
+    msg.run("m_claimed", 6, JSON.stringify({ kind: "person", id: "p", name: "Owner?", channel: "sms" }));
+    const run = db.prepare(
+      "INSERT INTO runs (id, thread_id, agent_id, state, started_at, created_at, input) VALUES (?, 'home', 'roby', 'completed', '2026-10-01', '2026-10-01', ?)",
+    );
+    const origin = (o: object) => JSON.stringify({ text: "", origin: o });
+    run.run("r_wa", origin({ kind: "channel", channel: "whatsapp", role: "owner", message_id: "m_wa" }));
+    run.run("r_tg", origin({ kind: "channel", channel: "tg", role: "owner", message_id: "m_tg" }));
+    run.run("r_app", origin({ kind: "user", message_id: "m_app" }));
+    db.prepare(
+      "INSERT INTO outbox (id, channel, conversation, thread_id, kind, body, state, next_at, created_at, updated_at, message_id) VALUES ('o1', 'whatsapp', 'me', 'home', 'reply', '{}', 'sent', '2026-10-01', '2026-10-01', '2026-10-01', 'm_wa_answer')",
+    ).run();
+  });
+  try {
+    const rows = db.prepare("SELECT id, via FROM messages ORDER BY seq").all();
+    assert.deepEqual(
+      rows.map((r) => [r.id, r.via]),
+      [
+        ["m_wa", "whatsapp"],
+        ["m_wa_answer", "whatsapp"],
+        ["m_tg", "tg"],
+        ["m_app", null],
+        ["m_app_answer", null],
+        ["m_claimed", "sms"],
+      ],
+    );
+  } finally {
+    db.close();
+    cleanup();
+  }
+});
+
 test("Codex runs stored with their session's running total get each turn's share back", () => {
   const { db, cleanup } = upgradeFrom("CREATE TEMP TABLE codex_runs", (db) => {
     const thread = db.prepare(

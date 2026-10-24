@@ -446,6 +446,7 @@ export function createInbound(deps: {
       const kept = store.messages.add({
         thread_id: threadId,
         author: person ? { kind: "person", id: person.id, name: person.name, channel } : { kind: "user" },
+        via: channel,
         parts: [
           { type: "text", text },
           ...attachments.flatMap((id) => {

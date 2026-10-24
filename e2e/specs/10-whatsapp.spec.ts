@@ -52,6 +52,14 @@ test("the owner links a line with the QR, then their own phone by writing to it"
   await until(async () =>
     (await world.whatsapp.sentTo(ME.phone)).some((t) => t.includes("Got it: Remind me to call the bank")),
   );
+  // Both channels write into Home: WhatsApp's view of it shows only what was said there, Home shows it all.
+  const chat = page.getByRole("main");
+  await expect(chat.getByText("Got it: Remind me to call the bank").first()).toBeVisible();
+  await expect(chat.getByText("Remind me to stretch")).toHaveCount(0);
+  await expect(chat.getByText(/Solo lo que hablaron vos y .+ por WhatsApp/)).toBeVisible();
+  await chat.getByRole("button", { name: "Abrir Home" }).click();
+  await expect(page.getByRole("main").getByText("Remind me to stretch").first()).toBeVisible();
+  await expect(page.getByRole("main").getByText("Remind me to call the bank").first()).toBeVisible();
 });
 
 test("strangers 'ask me': whoever writes is an unreviewed contact, the owner hears who and what; unsilenced, they get answers", async ({
