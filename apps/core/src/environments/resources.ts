@@ -1,5 +1,3 @@
-import { execFile } from "node:child_process";
-import fs from "node:fs";
 import os from "node:os";
 
 const GIB = 1024 ** 3;
@@ -61,38 +59,6 @@ export function startRefusal(resources: ComputerResources, availableBytes: numbe
 }
 
 export const gib = (bytes: number) => (Math.floor((bytes / GIB) * 10) / 10).toString();
-
-/** Memory apps can still take. macOS: total minus app memory, wired and compressed (as Activity Monitor counts). */
-export function availableFromVmStat(out: string, totalBytes: number): number | undefined {
-  const pageSize = Number(/page size of (\d+) bytes/.exec(out)?.[1] ?? 4096);
-  const pages = (label: string) => Number(new RegExp(`${label}:\\s+(\\d+)`).exec(out)?.[1] ?? Number.NaN);
-  const used =
-    pages("Anonymous pages") -
-    pages("Pages purgeable") +
-    pages("Pages wired down") +
-    pages("Pages occupied by compressor");
-  return Number.isFinite(used) ? Math.max(0, totalBytes - used * pageSize) : undefined;
-}
-
-export function availableFromMeminfo(text: string): number | undefined {
-  const kb = /^MemAvailable:\s+(\d+) kB/m.exec(text)?.[1];
-  return kb ? Number(kb) * 1024 : undefined;
-}
-
-/** os.freemem() on macOS counts only never-used pages, far below what can be taken: read what the system reports. */
-export async function availableMemory(platform = process.platform): Promise<number> {
-  try {
-    if (platform === "darwin") {
-      const out = await new Promise<string>((resolve, reject) =>
-        execFile("vm_stat", [], { timeout: 2_000 }, (error, stdout) => (error ? reject(error) : resolve(stdout))),
-      );
-      return availableFromVmStat(out, os.totalmem()) ?? os.freemem();
-    }
-    if (platform === "linux")
-      return availableFromMeminfo(await fs.promises.readFile("/proc/meminfo", "utf8")) ?? os.freemem();
-  } catch {}
-  return os.freemem();
-}
 
 /** cpus, memory and disk as an instance's lima.yaml holds them ("4GiB", "24GiB"). */
 export function configuredResources(yaml: string): Partial<ComputerResources> {

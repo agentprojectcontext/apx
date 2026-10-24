@@ -4,8 +4,6 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import {
-  availableFromMeminfo,
-  availableFromVmStat,
   configuredResources,
   defaultResources,
   limaCreateArgs,
@@ -57,19 +55,6 @@ test("Lima gets only the flags that changed, and a disk is never shrunk", () => 
     disk_gib: 24,
   });
   assert.deepEqual(configuredResources("memory: 6144MiB\n"), { memory_gib: 6 });
-});
-
-test("free host memory is read as the system counts it", () => {
-  const vmStat = [
-    "Mach Virtual Memory Statistics: (page size of 16384 bytes)",
-    "Pages wired down:                         50000.",
-    "Pages occupied by compressor:             10000.",
-    "Anonymous pages:                         200000.",
-    "Pages purgeable:                          20000.",
-  ].join("\n");
-  assert.equal(availableFromVmStat(vmStat, 16 * GIB), 16 * GIB - (200000 - 20000 + 50000 + 10000) * 16384);
-  assert.equal(availableFromVmStat("nothing", 16 * GIB), undefined);
-  assert.equal(availableFromMeminfo("MemTotal: 100 kB\nMemAvailable:   2048 kB\n"), 2048 * 1024);
 });
 
 test("the VM's usage reads its guest memory when it runs, and leaves out what it cannot read", async () => {

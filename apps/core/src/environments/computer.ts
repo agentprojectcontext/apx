@@ -3,11 +3,11 @@ import type { ApprovalTarget } from "../domain/approvals.ts";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
 import { badRequest, conflict, unavailable } from "../errors.ts";
+import { availableMemory } from "../usage.ts";
 import { type ComputerControl, computerControl } from "./control.ts";
 import { guestOperations } from "./guest-operations.ts";
 import type { Appearance, VmLifecycle } from "./lifecycle.ts";
 import {
-  availableMemory,
   type ComputerResources,
   type Host,
   resolveResources,
@@ -365,6 +365,9 @@ export function createComputer(store: Store, config: ComputerConfig) {
       if (!chats().includes(id)) store.settings.write("computer_chats", [...chats(), id]);
     },
     usage: async (): Promise<ComputerUsage | undefined> => config.usage?.(),
+    /** The resource monitor's VM slot: the VM's numbers once the owner set it up, nothing on an install without one. */
+    monitored: async (): Promise<ComputerUsage | undefined> =>
+      store.settings.get("computer_enabled") === "true" || chats().length ? config.usage?.() : undefined,
     revokeDevice: guest.revokeDevice,
     display: (screen: number, device?: string) => {
       if (!ledger.running().has(screen) && !ledger.claims().some((c) => c.screen === screen))

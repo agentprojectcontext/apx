@@ -593,7 +593,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       updates,
       telemetry,
       news,
-      usage: createUsage({ home: config.home, vm: opts.vmUsage }),
+      usage: createUsage({ home: config.home, vm: opts.vmUsage ?? (() => vm.monitored()) }),
       panel: () => panelEntry(servedPanel(config)),
       profileRoots,
       templateRoots,

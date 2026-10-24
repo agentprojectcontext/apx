@@ -111,7 +111,8 @@ function run(cmd: string, args: string[]): Promise<string> {
   );
 }
 
-async function availableMemory(platform: NodeJS.Platform): Promise<number> {
+/** What apps can still take now; also the shared computer's start check and watchdog read it. */
+export async function availableMemory(platform: NodeJS.Platform = process.platform): Promise<number> {
   const total = os.totalmem();
   try {
     if (platform === "darwin") return availableFromVmStat(await run("vm_stat", []), total) ?? os.freemem();
