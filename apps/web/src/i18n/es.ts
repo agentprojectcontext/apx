@@ -385,6 +385,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "running.stop": "Detener",
   "running.stop.title": "¿Detener a {agent}?",
   "running.stop.body": "Lo que está haciendo en «{title}» se corta ahora. Lo que ya hizo queda en el chat.",
+  "running.stop.waitingBody":
+    "Deja de esperar tu respuesta en «{title}» y lo que te preguntó se cierra. Lo que ya hizo queda en el chat.",
   "nav.moreProjects": "{n} más",
   "nav.moreSessions": "{n} sesiones externas más",
   "running.nothingNow": "Nada corriendo en segundo plano.",

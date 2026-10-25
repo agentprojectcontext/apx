@@ -34,7 +34,7 @@ export function RunningIndicator() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("agents");
   // Asked outside the popover, which closes once the dialog takes the focus.
-  const [stopping, setStopping] = useState<{ id: string; agent: string; title: string }>();
+  const [stopping, setStopping] = useState<{ id: string; agent: string; title: string; waiting: boolean }>();
   const active = useMemo(
     () =>
       Object.values(threads)
@@ -157,7 +157,7 @@ export function RunningIndicator() {
                           since && <span className="running__elapsed">{elapsed(since, now)}</span>
                         )}
                       </button>
-                      {isWorking(th.state) && (
+                      {(isWorking(th.state) || th.state === "input-required") && (
                         <IconButton
                           size="sm"
                           className="running__stop"
@@ -165,7 +165,12 @@ export function RunningIndicator() {
                           icon={<Icons.Square size={12} />}
                           onClick={() => {
                             setOpen(false);
-                            setStopping({ id: th.id, agent: who, title: th.title });
+                            setStopping({
+                              id: th.id,
+                              agent: who,
+                              title: th.title,
+                              waiting: th.state === "input-required",
+                            });
                           }}
                         />
                       )}
@@ -216,7 +221,7 @@ export function RunningIndicator() {
             </>
           }
         >
-          {t("running.stop.body", { title: stopping.title })}
+          {t(stopping.waiting ? "running.stop.waitingBody" : "running.stop.body", { title: stopping.title })}
         </Dialog>
       )}
     </>

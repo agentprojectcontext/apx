@@ -377,6 +377,8 @@ export const en = {
   "running.stop": "Stop",
   "running.stop.title": "Stop {agent}?",
   "running.stop.body": "What it is doing in “{title}” stops now. What it already did stays in the chat.",
+  "running.stop.waitingBody":
+    "It stops waiting for your answer in “{title}”, and what it asked you closes. What it already did stays in the chat.",
   "nav.moreProjects": "{n} more",
   "nav.moreSessions": "{n} more external sessions",
   "running.nothingNow": "Nothing running in the background.",
