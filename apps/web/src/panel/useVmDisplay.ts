@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { useT } from "../i18n/index.ts";
 
+/** A viewer that drops is opened again this many times in a row, a little later each time. */
+const RECONNECTS = 4;
+const RECONNECT_MS = 1500;
+
 /** Whether the page is in view: a hidden tab lets its viewers go, and opens them again when shown. */
 function usePageShown() {
   const [shown, setShown] = useState(() => typeof document === "undefined" || document.visibilityState !== "hidden");
@@ -29,6 +33,8 @@ export function useVmDisplay(screenNumber: number | undefined, ready: boolean, m
   const [epoch, setEpoch] = useState(0);
   const [state, setState] = useState("connecting");
   const [error, setError] = useState("");
+  /** Drops in a row without a connection between them: a viewer that keeps failing stops trying and says so. */
+  const drops = useRef(0);
   useEffect(() => {
     if (screenNumber === undefined || !screen.current || !ready || !shown) return;
     const t = tRef.current;
@@ -56,14 +62,22 @@ export function useVmDisplay(screenNumber: number | undefined, ready: boolean, m
       connection.current = viewer;
       viewer.background = getComputedStyle(host).backgroundColor;
       viewer.addEventListener("connect", () => {
+        drops.current = 0;
         if (!abort.signal.aborted) setState("connected");
       });
       viewer.addEventListener("disconnect", () => {
         disconnected = true;
-        if (!abort.signal.aborted) {
-          setState("disconnected");
-          setError(t("computer.connectionFailed"));
+        if (abort.signal.aborted) return;
+        // A desktop that drops (a restart of its viewer, a moment without network) is opened again, a few times.
+        if (drops.current < RECONNECTS) {
+          drops.current++;
+          setState("connecting");
+          const timer = setTimeout(() => setEpoch((n) => n + 1), RECONNECT_MS * drops.current);
+          abort.signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
+          return;
         }
+        setState("disconnected");
+        setError(t("computer.connectionFailed"));
       });
       viewer.addEventListener("securityfailure", () => {
         if (!abort.signal.aborted) setError(t("computer.connectionFailed"));
@@ -89,5 +103,13 @@ export function useVmDisplay(screenNumber: number | undefined, ready: boolean, m
       connection.current.viewOnly = !manual;
     }
   });
-  return { screen, state, error, reconnect: () => setEpoch((n) => n + 1) };
+  return {
+    screen,
+    state,
+    error,
+    reconnect: () => {
+      drops.current = 0;
+      setEpoch((n) => n + 1);
+    },
+  };
 }
