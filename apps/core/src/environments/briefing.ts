@@ -40,7 +40,7 @@ export function computerBriefing(s: Status, agent: string, thread: string): stri
     return `Computer: ${s.setup ? "being set up for the first time" : "starting"}; ${here}. You get a turn in a chat on it the moment it is ready.`;
   if (s.phase !== "running") {
     const why = s.last_stop ? ` (stopped ${STOPPED[s.last_stop.reason]})` : "";
-    return `Computer: ${s.phase === "error" ? `in error: ${(s.error ?? "unknown").slice(0, 160)}` : `off${why}`}; ${here}. Start it with the computer tool when the owner's request needs it.`;
+    return `Computer: ${s.phase === "error" ? `in error: ${(s.error ?? "unknown").slice(0, 160)}` : `off${why}`}; ${here}. Start it only for work the owner wants on it; if they did not say, ask them first.`;
   }
   const now = s.running_resources ?? s.resources;
   const lines = [`Computer: running${now ? ` with ${sizes(now)}` : ""}; ${here}.`];
@@ -62,3 +62,7 @@ export function computerBriefing(s: Status, agent: string, thread: string): stri
     lines.push(`The owner set ${sizes(s.resources)} for its next start.`);
   return lines.join(" ");
 }
+
+/** Home stays on the Mac (DECISIONS.md#d-154): an agent allowed the computer reaches it through a task's own chat. */
+export const HOME_COMPUTER =
+  "Computer: not used from Home. For work the owner wants on it, create a task (yours or an allowed agent's): its chat can start it. If they did not say where, ask them first.";

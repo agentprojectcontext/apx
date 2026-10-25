@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { computerChat, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { scaled, tempDir } from "../testkit/platform.ts";
 import { createVmLifecycle } from "./lifecycle.ts";
 import { managedVmConfig } from "./managed.ts";
@@ -30,9 +30,10 @@ test("system.usage carries the shared computer's numbers once the owner set it u
     computer: { limaHome: "/unused", instance: "missing", lifecycle, usage: async () => numbers },
   });
   try {
+    const chat = await computerChat(env);
     assert.equal((await env.client.call("system.usage", {})).vm, undefined, "a computer nobody set up has no slot");
     await env.client.call("environments.permit", { agent: "roby", on: true });
-    await env.client.call("environments.enable", { thread: "home", appearance: "light" });
+    await env.client.call("environments.enable", { thread: chat, appearance: "light" });
     assert.deepEqual((await env.client.call("system.usage", {})).vm, numbers);
   } finally {
     await env.core.close();

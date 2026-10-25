@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, computerChat, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { waitFor } from "../testkit/platform.ts";
 import { computerApproval, createComputer } from "./computer.ts";
 
@@ -37,14 +37,15 @@ test("an agent whose permission is taken away mid-turn cannot drive the guest br
   });
   const env = await startCore({ llm, computer: { limaHome: "/unused", instance: "missing" } });
   try {
+    const chat = await computerChat(env);
     await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
     await env.client.call("environments.permit", { agent: "roby", on: true });
-    await env.client.call("environments.bind", { thread: "home" });
-    await env.client.call("threads.send", { thread: "home", text: "Open a page" });
+    await env.client.call("environments.bind", { thread: chat });
+    await env.client.call("threads.send", { thread: chat, text: "Open a page" });
     await waitFor(() => asked, "the turn to start");
     await env.client.call("environments.permit", { agent: "roby", on: false });
     go();
-    const result = await env.settle("home");
+    const result = await env.settle(chat);
     const card = result.messages.flatMap((m) => m.parts).find((p) => p.type === "tool" && p.tool === "browser_open");
     assert.equal(card?.type === "tool" && card.status, "error");
     assert.match(card?.type === "tool" ? (card.detail ?? "") : "", /may not use the computer/);

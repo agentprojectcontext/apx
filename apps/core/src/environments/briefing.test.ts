@@ -39,7 +39,7 @@ test("off or starting, the briefing says so and what the agent does about it", (
   const off = { ...base, phase: "stopped" as const, ready: false, last_stop: { reason: "idle" as const, at: "" } };
   assert.match(
     computerBriefing(off as never, "roby", "home"),
-    /^Computer: off \(stopped after its idle minutes\); this chat works on it\. Start it with the computer tool/,
+    /^Computer: off \(stopped after its idle minutes\); this chat works on it\. Start it only for work the owner wants on it; if they did not say, ask them first\./,
   );
   const starting = { ...base, phase: "preparing" as const, setup: true, chat: { thread: "t2", on: false } };
   assert.match(

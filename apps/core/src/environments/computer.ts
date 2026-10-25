@@ -56,7 +56,8 @@ export const computerApproval: ApprovalTarget = {
 
 export type StopReason = "owner" | "agent" | "idle" | "memory";
 
-const NATIVE_CHATS = new Set(["home", "agent", "loose", "code"]);
+// Home is not among them: what reaches the owner there (channels, task results) needs the Mac's tools (D-154).
+const NATIVE_CHATS = new Set(["agent", "loose", "code"]);
 const MONITOR_TTL_MS = 5_000;
 
 /**
@@ -158,8 +159,6 @@ export function createComputer(store: Store, config: ComputerConfig) {
     offered: () => Boolean(config.lifecycle) && store.settings.get("computer_enabled") === "true",
     /** Coming up now: work for the owner that keeps the Mac awake. */
     starting: () => config.lifecycle?.seen() === "preparing",
-    /** This host can run it: agents in the owner's chats may start it (asking first) before it was ever set up. */
-    available: () => Boolean(config.lifecycle?.supported),
     /** The chat's agent gets a turn once the computer it started is up (or failed): it never waits in the chat. */
     whenReady: (thread: string, agent: string, now?: { setup?: boolean | undefined }) => ready.add(thread, agent, now),
     /**
@@ -258,7 +257,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
         allowed,
         screens: screens.map(screen),
         max_screens: cap(),
-        ...(forThread
+        ...(forThread && vm.serves(forThread)
           ? {
               chat: {
                 thread: forThread,
@@ -419,7 +418,12 @@ export function createComputer(store: Store, config: ComputerConfig) {
     /** Refuses a chat the computer cannot serve: not the owner's native chat, or its agent not allowed. */
     admit(id: string) {
       const t = nativeChat(id);
-      if (!t) throw badRequest("use an owner's native chat");
+      if (!t)
+        throw badRequest(
+          store.threads.get(id)?.kind === "home"
+            ? "Home stays on this Mac; use the computer from another chat or a task"
+            : "use an owner's native chat",
+        );
       const agent = t.agent_ids[0];
       if (agent && !vm.permitted(agent, id))
         throw conflict(`${store.agents.get(agent)?.name ?? agent} may not use the computer; allow it first`);

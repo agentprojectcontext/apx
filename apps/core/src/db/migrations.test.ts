@@ -362,3 +362,21 @@ test("stored modes take the five modes' names: ask is manual, standard and edits
     cleanup();
   }
 });
+
+test("a Home left on the computer comes back to the Mac; other chats on it stay", () => {
+  const { db, cleanup } = upgradeFrom("WHERE key = 'setting:computer_chats'", (db) => {
+    const thread = db.prepare(
+      "INSERT INTO threads (id, kind, title, agent_ids, created_at, updated_at) VALUES (?, ?, 'Chat', '[]', '2026-10-24', '2026-10-24')",
+    );
+    thread.run("home", "home");
+    thread.run("th_shop", "loose");
+    db.prepare("INSERT INTO meta (key, value) VALUES ('setting:computer_chats', ?)").run('["home","th_shop"]');
+  });
+  try {
+    const chats = db.prepare("SELECT value FROM meta WHERE key = 'setting:computer_chats'").get()?.value;
+    assert.deepEqual(JSON.parse(String(chats)), ["th_shop"]);
+  } finally {
+    db.close();
+    cleanup();
+  }
+});

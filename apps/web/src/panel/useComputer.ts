@@ -83,6 +83,8 @@ export function useComputer(thread: string | undefined) {
   }, [mode, status?.ready, status?.phase]);
   const screens = status?.screens ?? [];
   const own = status?.chat?.screen;
+  // A chat the computer does not serve (Home) starts it without going on it.
+  const served = Boolean(status?.chat);
   const screen =
     picked !== undefined && screens.some((s) => s.screen === picked)
       ? picked
@@ -101,11 +103,12 @@ export function useComputer(thread: string | undefined) {
       try {
         if (action === "allow" && status?.chat?.agent)
           await client.call("environments.permit", { agent: status.chat.agent, on: true });
+        const on = served ? { thread } : {};
         if (action === "allow" || action === "enable")
-          await client.call("environments.enable", { thread, appearance: mode });
+          await client.call("environments.enable", { ...on, appearance: mode });
         // The owner's own choice to start it with less memory left for the Mac than the reserve.
         else if (action === "anyway")
-          await client.call("environments.enable", { thread, appearance: mode, past_reserve: true });
+          await client.call("environments.enable", { ...on, appearance: mode, past_reserve: true });
         else if (action === "stop") await client.call("environments.stop", {});
         else if (action === "leave") await client.call("environments.release", { thread });
         else if (screen !== undefined) await client.call("environments.control", { screen, mode: action });
@@ -123,7 +126,7 @@ export function useComputer(thread: string | undefined) {
         if (observed === generation.current) setBusy(false);
       }
     },
-    [thread, mode, status?.chat?.agent, screen, keep],
+    [thread, served, mode, status?.chat?.agent, screen, keep],
   );
   /** The VM's memory lowered to what fits now, and the refused start tried again. */
   const lower = useCallback(

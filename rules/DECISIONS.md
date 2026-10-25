@@ -2351,6 +2351,7 @@ with the agent in control, it shuts it down too. Either way the disk is kept, th
 computer that just started is not stopped at once.
 [D-152](#d-152) replaced the one VM per chat with one shared VM, a user and screen per agent and a ledger of who
 holds each; the permission, resources and memory checks here stay.
+[D-154](#d-154) offers `computer` only to allowed agents and keeps Home on the Mac.
 
 <a id="d-152"></a>
 ## D-152 — 2026-10-23 — One shared computer: a Linux user and a screen per agent, and a ledger of who holds each
@@ -2450,3 +2451,26 @@ lid closed, the setting off): the core watches a tick every 10 s, and one 30 s o
 idle deadline fires across one gets a fresh window once instead of being stopped; a model call cut by it was already
 retried once as a network failure. Rejected: `pmset`/IOKit assertions through a native module, a dependency for what
 `caffeinate` does; keeping the display awake too (`-d`), which the owner never asked for.
+
+<a id="d-154"></a>
+## D-154 — 2026-10-25 — Home stays on the Mac, a chat on the computer keeps APX's own work, and only an allowed agent sees the computer
+Home went on the computer when the super-agent started it from there, and stayed bound after the VM shut down idle.
+Every later turn in Home (the owner's channel messages, task results) then had only the guest's shell and browser:
+asked to create a task it had no task tools, asked to publish with the owner's logins it used the VM's browser, and a
+question about issues booted the VM again to run `curl`.
+
+**Home.** Home is not a chat the computer serves (`NATIVE_CHATS` no longer has it): `bind`, `enable` and the agent's
+`start` refuse it, the `computer` tool is not offered there and `environments.status` gives Home no `chat`, so the panel
+starts the computer without moving Home. An allowed agent in Home reads one line saying work on the computer goes in a
+task, whose chat can start it. A migration takes Home out of `computer_chats`.
+
+**What a chat on the computer keeps.** Besides the guest's shell and browser and `make_image`, it keeps the tools that
+read nothing of the Mac's files or screen: tasks, delegation (`delegate`, `list_sessions`, `stop_session`), memory,
+`list_agents`, `read_output`, `web_search` and `web_read` (which refuses private and loopback addresses). A delegate or a
+task's agent runs in its own chat with its own tools: the owner asked for delegation from these chats, and the
+computer's boundary is that its agent's shell and browser never touch the Mac, not that its agent cannot ask another.
+
+**Asking.** D-151 offered `computer` to every agent on a host that can run it, so that it asked for the permission. The
+owner wants an agent without the permission never to bring the computer up: it is offered only to an allowed agent.
+Allowed, the agent uses it only for work the owner wants there and, when they did not say where, asks first; the web
+goes through `web_search`, `web_read` and the owner's browser on the Mac unless they ask for the computer.

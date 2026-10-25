@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { computerChat, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { waitFor } from "../testkit/platform.ts";
 import { maxScreens, screenLedger } from "./screens.ts";
 
@@ -150,11 +150,12 @@ test("a screen still starting counts as use, so the idle watchdog never stops th
     },
   });
   try {
+    const chat = await computerChat(env);
     await env.client.call("environments.permit", { agent: "roby", on: true });
-    await env.client.call("environments.bind", { thread: "home" });
+    await env.client.call("environments.bind", { thread: chat });
     const vm = env.core.computer;
     const before = vm.lastActivity();
-    const claiming = vm.claim("roby", "home", "run_starting");
+    const claiming = vm.claim("roby", chat, "run_starting");
     await waitFor(() => vm.inUse(), "a claim in progress to count as use");
     assert.ok(vm.lastActivity() >= before, "touched before the screen starts");
     started();

@@ -214,6 +214,10 @@ export async function startCore(opts: {
 }
 
 /** The first input a run in `thread` waits on (a confirmation, a question); fails after `ms` (× TEST_TIME_SCALE). */
+/** A chat of Roby's the computer serves: Home stays on the Mac (DECISIONS.md#d-154). */
+export const computerChat = async (env: { client: ApxClient }): Promise<string> =>
+  (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+
 export const pendingInput = (client: ApxClient, thread: string, ms = 10_000): Promise<PendingInput> =>
   waitFor(async () => (await client.call("runs.pending", { thread })).inputs[0], `an input in ${thread}`, { ms });
 

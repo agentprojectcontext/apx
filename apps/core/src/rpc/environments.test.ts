@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
 import WebSocket from "ws";
 import { testConfig } from "../config.ts";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, computerChat, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createComputer } from "../environments/computer.ts";
 import { DISPLAY_CAP } from "../environments/guest-operations.ts";
 import { createVmLifecycle } from "../environments/lifecycle.ts";
@@ -32,6 +32,25 @@ function fakeLifecycle(state = { running: true }, modes: string[] = []) {
     },
   });
 }
+
+/** The core's own tools a chat on the computer keeps beside the guest's (DECISIONS.md#d-154). */
+const KEPT = [
+  "delegate",
+  "forget",
+  "list_agents",
+  "list_sessions",
+  "read_output",
+  "recall",
+  "remember",
+  "task_close",
+  "task_comment",
+  "task_create",
+  "task_get",
+  "task_list",
+  "task_update",
+  "web_read",
+  "web_search",
+];
 
 test("the computer is off by default over HTTP and WS; agent clients cannot acquire a screen", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
@@ -63,10 +82,11 @@ test("chats go on the computer only for allowed agents; outside clients run noth
     computer: { limaHome: path.join(home, "no-vms"), instance: "missing" },
   });
   try {
+    const chat = await computerChat(env);
     await assert.rejects(env.client.call("environments.bind", { thread: "unknown" }), /owner/i);
-    await assert.rejects(env.client.call("environments.bind", { thread: "home" }), /may not use the computer/i);
+    await assert.rejects(env.client.call("environments.bind", { thread: chat }), /may not use the computer/i);
     await env.client.call("environments.permit", { agent: "roby", on: true });
-    await env.client.call("environments.bind", { thread: "home" });
+    await env.client.call("environments.bind", { thread: chat });
     // The computer is shared: another allowed agent's chat goes on it too.
     const other = await env.client.call("threads.create", { kind: "loose", agent_id: "scout" });
     await env.client.call("environments.permit", { agent: "scout", on: true });
@@ -76,10 +96,10 @@ test("chats go on the computer only for allowed agents; outside clients run noth
     // Each agent's card reads whether it may use the computer from here.
     assert.deepEqual([...(status.allowed ?? [])].sort(), ["roby", "scout"]);
     assert.equal(status.allowed_agents, 2);
-    await assert.rejects(env.client.call("terminal.open", { thread: "home", cols: 80, rows: 24 }), /VM terminal/i);
+    await assert.rejects(env.client.call("terminal.open", { thread: chat, cols: 80, rows: 24 }), /VM terminal/i);
     const agent = new ApxClient({ url: env.core.url, actor: "agent" });
-    await assert.rejects(agent.call("environments.command", { thread: "home", command: "pwd" }), /bound native run/i);
-    assert.deepEqual((await env.client.call("terminal.list", { thread: "home" })).terminals, []);
+    await assert.rejects(agent.call("environments.command", { thread: chat, command: "pwd" }), /bound native run/i);
+    assert.deepEqual((await env.client.call("terminal.list", { thread: chat })).terminals, []);
   } finally {
     await env.core.close();
     env.cleanup();
@@ -92,17 +112,27 @@ test("native VM turns expose guest shell and browser tools and never fall back t
   const llm = scriptedLlm((req, { afterTool }) => {
     assert.deepEqual(
       req.tools.map((tool) => tool.function.name).sort(),
-      ["shell", "computer", "browser_open", "browser_snapshot", "browser_text", "browser_click", "browser_type"].sort(),
+      [
+        "shell",
+        "computer",
+        "browser_open",
+        "browser_snapshot",
+        "browser_text",
+        "browser_click",
+        "browser_type",
+        ...KEPT,
+      ].sort(),
     );
     return afterTool ? say("The VM is unavailable") : callTool("vm-call", "shell", { command: `touch '${marker}'` });
   });
   const env = await startCore({ home, llm, computer: { limaHome: path.join(home, "no-vms"), instance: "missing" } });
   try {
+    const chat = await computerChat(env);
     await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
     await env.client.call("environments.permit", { agent: "roby", on: true });
-    await env.client.call("environments.bind", { thread: "home" });
-    await env.client.call("threads.send", { thread: "home", text: "Create a file in the VM" });
-    const result = await env.settle("home");
+    await env.client.call("environments.bind", { thread: chat });
+    await env.client.call("threads.send", { thread: chat, text: "Create a file in the VM" });
+    const result = await env.settle(chat);
     assert.equal(fs.existsSync(marker), false);
     const parts = result.messages.flatMap((message) => message.parts);
     assert.ok(
@@ -154,11 +184,12 @@ test("a failed guest browser never reaches a connected host browser node", async
     throw new Error("host browser must not be called by a VM chat");
   });
   try {
+    const chat = await computerChat(env);
     await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
     await env.client.call("environments.permit", { agent: "roby", on: true });
-    await env.client.call("environments.bind", { thread: "home" });
-    await env.client.call("threads.send", { thread: "home", text: "Open a page inside the VM" });
-    const result = await env.settle("home");
+    await env.client.call("environments.bind", { thread: chat });
+    await env.client.call("threads.send", { thread: chat, text: "Open a page inside the VM" });
+    const result = await env.settle(chat);
     const browser = result.messages
       .flatMap((message) => message.parts)
       .find((part) => part.type === "tool" && part.tool === "browser_open");
@@ -183,6 +214,7 @@ test("a chat on the computer keeps make_image, which takes only earlier drawings
   });
   const env = await startCore({ home, llm, computer: { limaHome: path.join(home, "no-vms"), instance: "missing" } });
   try {
+    const chat = await computerChat(env);
     await env.client.call("services.set", {
       id: "img",
       service: {
@@ -196,9 +228,9 @@ test("a chat on the computer keeps make_image, which takes only earlier drawings
     });
     await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
     await env.client.call("environments.permit", { agent: "roby", on: true });
-    await env.client.call("environments.bind", { thread: "home" });
-    await env.client.call("threads.send", { thread: "home", text: "Draw a tower with drones" });
-    const result = await env.settle("home");
+    await env.client.call("environments.bind", { thread: chat });
+    await env.client.call("threads.send", { thread: chat, text: "Draw a tower with drones" });
+    const result = await env.settle(chat);
     assert.ok(offered[0]?.includes("make_image"), String(offered[0]));
     assert.ok(!offered[0]?.includes("send_file"), "host file tools stay out");
     const parts = result.messages.flatMap((message) => message.parts);
@@ -218,8 +250,9 @@ test("a VM-bound chat restarted on a core whose computer is not set up offers on
     llm: scriptedLlm(() => say("ok")),
     computer: { limaHome: path.join(home, "no-vms"), instance: "missing" },
   });
+  const chat = await computerChat(first);
   await first.client.call("environments.permit", { agent: "roby", on: true });
-  await first.client.call("environments.bind", { thread: "home" });
+  await first.client.call("environments.bind", { thread: chat });
   await first.core.close();
   const offered: string[] = [];
   const llm = scriptedLlm((req) => {
@@ -228,11 +261,13 @@ test("a VM-bound chat restarted on a core whose computer is not set up offers on
   });
   const second = await startCore({ home, llm });
   try {
-    await second.client.call("threads.send", { thread: "home", text: "Run a command" });
-    await second.settle("home");
+    await second.client.call("threads.send", { thread: chat, text: "Run a command" });
+    await second.settle(chat);
     assert.ok(offered.length > 0);
     assert.deepEqual(
-      offered.filter((name) => name !== "shell" && name !== "computer" && !name.startsWith("browser_")),
+      offered.filter(
+        (name) => name !== "shell" && name !== "computer" && !name.startsWith("browser_") && !KEPT.includes(name),
+      ),
       [],
     );
   } finally {
@@ -267,31 +302,32 @@ test("only the owner shuts the shared computer down; it cancels the turns holdin
   const agent = new ApxClient({ url: env.core.url, actor: "agent" });
   const socket = await env.client.connect();
   try {
+    const chat = await computerChat(env);
     await env.client.call("environments.permit", { agent: "roby", on: true });
-    await env.client.call("environments.bind", { thread: "home" });
-    await assert.rejects(agent.call("environments.enable", { thread: "home", appearance: "light" }), {
+    await env.client.call("environments.bind", { thread: chat });
+    await assert.rejects(agent.call("environments.enable", { thread: chat, appearance: "light" }), {
       code: "unauthorized",
     });
     await assert.rejects(agent.call("environments.stop", {}), { code: "unauthorized" });
     await assert.rejects(agent.call("environments.appearance", { appearance: "dark" }), { code: "unauthorized" });
     await env.client.call("environments.status", {});
-    await env.client.call("threads.send", { thread: "home", text: "Work inside the computer" });
+    await env.client.call("threads.send", { thread: chat, text: "Work inside the computer" });
     const deadline = Date.now() + 2000;
     while (!signal) {
       assert.ok(Date.now() < deadline, "native turn did not start");
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
     const held = (await env.client.call("environments.status", {})).screens?.find((s) => s.agent === "roby");
-    assert.equal(held?.thread, "home");
+    assert.equal(held?.thread, chat);
     const ticket = await env.client.call("environments.display", { screen: 1 });
     await socket.call("environments.stop", {});
-    await env.settle("home");
+    await env.settle(chat);
     assert.equal(signal.aborted, true);
     assert.equal(state.running, false);
-    assert.equal(env.core.store.runs.list("home")[0]?.state, "canceled");
+    assert.equal(env.core.store.runs.list(chat)[0]?.state, "canceled");
     assert.equal((await env.client.call("environments.status", {})).last_stop?.reason, "owner");
     await assert.rejects(
-      env.client.call("environments.command", { thread: "home", command: "pwd", screen: 1 }),
+      env.client.call("environments.command", { thread: chat, command: "pwd", screen: 1 }),
       /stopped|not ready/,
     );
     await assert.rejects(
@@ -312,24 +348,28 @@ test("only the owner shuts the shared computer down; it cancels the turns holdin
       /403/,
     );
     // Stopped, the chat keeps to the computer: the agent may start it again, and still has no host tool.
-    await env.client.call("threads.send", { thread: "home", text: "Try another command" });
-    await env.settle("home");
-    assert.deepEqual(offered.at(-1), [
-      "browser_click",
-      "browser_open",
-      "browser_snapshot",
-      "browser_text",
-      "browser_type",
-      "computer",
-      "shell",
-    ]);
-    await socket.call("environments.enable", { thread: "home", appearance: "dark" });
+    await env.client.call("threads.send", { thread: chat, text: "Try another command" });
+    await env.settle(chat);
+    assert.deepEqual(
+      offered.at(-1),
+      [
+        "browser_click",
+        "browser_open",
+        "browser_snapshot",
+        "browser_text",
+        "browser_type",
+        "computer",
+        "shell",
+        ...KEPT,
+      ].sort(),
+    );
+    await socket.call("environments.enable", { thread: chat, appearance: "dark" });
     const readyDeadline = Date.now() + 2000;
     while (!(await env.client.call("environments.status", {})).ready) {
       assert.ok(Date.now() < readyDeadline);
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
-    assert.equal((await socket.call("environments.status", { thread: "home" })).chat?.on, true);
+    assert.equal((await socket.call("environments.status", { thread: chat })).chat?.on, true);
     assert.deepEqual(modes, ["dark"]);
   } finally {
     socket.close();
@@ -360,11 +400,12 @@ test("shutdown terminates an in-flight guest command's local SSH process", async
   });
   let pid: number | undefined;
   try {
+    const chat = await computerChat(env);
     await env.client.call("environments.status", {});
     // The owner takes an agent's screen that is up, and types there.
-    await env.core.computer.ledger.claim("roby", "home", "run_test");
+    await env.core.computer.ledger.claim("roby", chat, "run_test");
     await env.client.call("environments.control", { screen: 1, mode: "human" });
-    const command = env.client.call("environments.command", { thread: "home", command: "long guest work", screen: 1 });
+    const command = env.client.call("environments.command", { thread: chat, command: "long guest work", screen: 1 });
     const rejected = assert.rejects(command, /VM command failed/);
     const deadline = Date.now() + 3000;
     while (!fs.existsSync(pidFile)) {
@@ -399,22 +440,23 @@ test("taking an agent's screen cancels the run holding it, persists an interrupt
   });
   const env = await startCore({ llm, computer: { limaHome: "/unused", instance: "missing" } });
   try {
+    const chat = await computerChat(env);
     await env.client.call("environments.permit", { agent: "roby", on: true });
-    await env.client.call("environments.bind", { thread: "home" });
+    await env.client.call("environments.bind", { thread: chat });
     await assert.rejects(
-      env.client.call("environments.command", { thread: "home", command: "pwd", screen: 1 }),
+      env.client.call("environments.command", { thread: chat, command: "pwd", screen: 1 }),
       /Take control/,
     );
     await assert.rejects(
-      env.client.call("environments.command", { thread: "home", command: "pwd" }),
+      env.client.call("environments.command", { thread: chat, command: "pwd" }),
       /name the agent screen/,
     );
     const agent = new ApxClient({ url: env.core.url, actor: "agent" });
     await assert.rejects(agent.call("environments.control", { screen: 1, mode: "human" }), { code: "unauthorized" });
-    await env.client.call("threads.send", { thread: "home", text: "Work in the VM" });
+    await env.client.call("threads.send", { thread: chat, text: "Work in the VM" });
     await active;
     await env.client.call("environments.control", { screen: 1, mode: "human" });
-    const result = await env.settle("home");
+    const result = await env.settle(chat);
     assert.equal(result.runs[0]?.state, "canceled");
     assert.ok(
       result.messages.some((m) => m.parts.some((p) => p.type === "notice" && p.code === "computer.interrupted")),
@@ -422,10 +464,10 @@ test("taking an agent's screen cancels the run holding it, persists an interrupt
     const screen = async () => (await env.client.call("environments.status", {})).screens?.find((s) => s.screen === 1);
     assert.equal((await screen())?.control, "human");
     const count = llm.calls.length;
-    await env.client.call("threads.send", { thread: "home", text: "Try while owner controls" });
-    await env.settle("home");
+    await env.client.call("threads.send", { thread: chat, text: "Try while owner controls" });
+    await env.settle(chat);
     assert.equal(llm.calls.length, count);
-    assert.equal(env.core.store.threads.get("home")?.state, "failed");
+    assert.equal(env.core.store.threads.get(chat)?.state, "failed");
     await env.client.call("environments.control", { screen: 1, mode: "agent" });
     assert.equal((await screen())?.control, "agent");
   } finally {
@@ -443,7 +485,8 @@ test("task conversations cannot redirect a VM-bound request into an unbound work
     await env.client.call("environments.permit", { agent: "roby", on: true });
     const task = await env.client.call("tasks.create", { title: "Acme work", assignee: "roby" });
     await assert.rejects(env.client.call("environments.bind", { thread: task.thread_id }), /owner.*native chat/);
-    assert.equal((await env.client.call("environments.status", { thread: task.thread_id })).chat?.on, false);
+    const status = await env.client.call("environments.status", { thread: task.thread_id });
+    assert.equal(status.chat, undefined, "a chat the computer does not serve has no place on it");
   } finally {
     await env.core.close();
     env.cleanup();

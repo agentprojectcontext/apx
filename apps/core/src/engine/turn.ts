@@ -19,7 +19,7 @@ import { engineOf, harnessOf, isCliRef } from "../domain/refs.ts";
 import { answersChecked, type Origin, type RunRecord, runsOnComputer } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
-import { computerBriefing } from "../environments/briefing.ts";
+import { computerBriefing, HOME_COMPUTER } from "../environments/briefing.ts";
 import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { CallError, Canceled, DeadlineExceeded, errorMessage, Shutdown, Superseded } from "../errors.ts";
 import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
@@ -465,10 +465,14 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
   const roster = rosterBlock(agent, store.agents.list(), thread);
   // An agent allowed the computer reads its state each turn, as the owner sees it in the panel.
   const vm = deps.vm;
-  const computer =
-    vm && !sealed && vm.serves(thread.id) && vm.permitted(agent.id, thread.id)
+  const allowed = vm && !sealed && vm.permitted(agent.id, thread.id);
+  const computer = !allowed
+    ? undefined
+    : vm.serves(thread.id)
       ? computerBriefing(await vm.status(thread.id, true), agent.id, thread.id)
-      : undefined;
+      : thread.kind === "home"
+        ? HOME_COMPUTER
+        : undefined;
   // A worker delegates to no one: it needs no roster.
   const rosterChanged =
     !sealed && !turn.worker && (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);
@@ -609,8 +613,25 @@ function channelKindOf(store: Store, o: Origin, replyChannel?: string | null) {
 }
 
 const VM_BROWSER_TOOLS = new Set(["browser_open", "browser_snapshot", "browser_text", "browser_click", "browser_type"]);
-/** Host tools a chat on the computer keeps: they read nothing of the Mac, call the owner's service and show in the chat. */
-const VM_HOST_TOOLS = new Set(["make_image"]);
+/**
+ * Host tools a chat on the computer keeps: they read nothing of the Mac's files or screen. APX's own work (tasks,
+ * delegation, memory) and web look-ups run in the core as they do elsewhere (DECISIONS.md#d-154).
+ */
+const VM_HOST_TOOLS = new Set([
+  "make_image",
+  ...MEMORY_TOOLS,
+  ...SESSION_TOOLS,
+  "list_agents",
+  "read_output",
+  "task_create",
+  "task_get",
+  "task_list",
+  "task_update",
+  "task_comment",
+  "task_close",
+  "web_search",
+  "web_read",
+]);
 
 /** What the stickers people sent on a channel's platform mean, the most used first: the agent may answer with one. */
 function stickersOf(store: Store, channel: string): string[] {
@@ -621,11 +642,8 @@ function stickersOf(store: Store, channel: string): string[] {
 /** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; a contact's, by their flags. */
 async function turnTools(deps: TurnDeps, turn: Turn) {
   const inVm = deps.vm?.hasThread(turn.thread.id);
-  // Offered to an agent the owner allowed, or, once the owner set the computer up, to ask for it (DECISIONS.md#d-151).
-  const computerOn = Boolean(
-    deps.vm?.serves(turn.thread.id) &&
-      (deps.vm.permitted(turn.agent.id, turn.thread.id) || (!inVm && deps.vm.available())),
-  );
+  // Offered only to an agent the owner allowed: one without it never asks to use it (DECISIONS.md#d-154).
+  const computerOn = Boolean(deps.vm?.serves(turn.thread.id) && deps.vm.permitted(turn.agent.id, turn.thread.id));
   const sealed = turn.audience.kind === "contact";
   const callers = callersOf(deps.store, turn.thread.id);
   // MCP tools are reached through mcp_search and mcp_call; their servers start only when one is first used.

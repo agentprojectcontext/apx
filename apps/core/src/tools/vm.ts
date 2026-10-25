@@ -1,8 +1,8 @@
 // The shared Linux computer as an agent sees it: its state, starting it (and taking the agent's own screen) and
-// leaving it. Offered only in an owner's native chat, to an agent the owner allowed or, once the owner set the
-// computer up, to one that may ask (DECISIONS.md#d-151, DECISIONS.md#d-152).
+// leaving it. Offered only in an owner's native chat other than Home, to an agent the owner allowed
+// (DECISIONS.md#d-152, DECISIONS.md#d-154).
 import { z } from "zod";
-import { type Computer, computerApproval } from "../environments/computer.ts";
+import type { Computer } from "../environments/computer.ts";
 import { errorMessage } from "../errors.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 
@@ -83,7 +83,7 @@ export function vmTools(vm: Computer | undefined): Tool[] {
     defineTool({
       name: COMPUTER_TOOL,
       description:
-        "The Linux computer the agents share (a VM apart from the owner's Mac; you get your own user, files and screen with a desktop and browser): status, start (moves this chat there; your shell and browser then run on your screen) or stop (this chat back on the Mac, your screen freed). When the owner asks you to use it, start it yourself: the first use asks them to allow you, and starting needs free memory.",
+        "The Linux computer the agents share (a VM apart from the owner's Mac; you get your own user, files and screen with a desktop and browser): status, start (moves this chat there; your shell and browser then run on your screen) or stop (this chat back on the Mac, your screen freed). Only for work the owner wants on it: if they did not say where, ask them first (the computer or this Mac). The web (look-ups, sites, their logins) goes through web_search, web_read and their browser on this Mac unless they ask for the computer. Starting needs free memory.",
       args: z.object({ action: z.enum(["status", "start", "stop"]) }),
       effect: "local",
       reads: (a) => a.action === "status",
@@ -97,14 +97,9 @@ export function vmTools(vm: Computer | undefined): Tool[] {
             : "Checked the computer",
       async run(a, ctx) {
         const thread = ctx.thread.id;
-        if (!vm.permitted(ctx.agent.id, thread)) {
-          const r = vm.resources();
-          const no = await ctx.requestGrant(
-            `${ctx.agent.name} asks to use the shared Linux computer (${r.memory_gib} GiB memory, ${r.cpus} CPUs), with its own user and screen. In this chat its shell and browser would run there, not on this Mac.`,
-            computerApproval,
-          );
-          if (no) return no;
-        }
+        // Taken away during this turn: the owner decided, so it is not asked again.
+        if (!vm.permitted(ctx.agent.id, thread))
+          return "Not allowed: the owner no longer lets you use the computer. Carry on with this Mac's tools.";
         if (a.action === "status") return describe(await vm.status(thread), ctx.run.id);
         if (a.action === "stop") {
           await ctx.call("environments.release", { thread });
