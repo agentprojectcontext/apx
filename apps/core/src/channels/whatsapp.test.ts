@@ -148,7 +148,8 @@ test("on WhatsApp the owner's turn keeps notes, writes to people and rooms, and 
     !names.some((n) => n.startsWith("shell") || n.startsWith("browser_") || n.startsWith("task_")),
     names.join(", "),
   );
-  assert.match(String(req?.messages.at(-1)?.content), /hand the rest off/);
+  assert.match(String(req?.messages[0]?.content), /When your owner writes on whatsapp: .*hand the rest off/);
+  assert.match(String(req?.messages.at(-1)?.content), /^\[context: [^\]]* · channel: whatsapp · mode: Auto\]/);
 });
 
 test("a stranger gets nothing from the owner's number; approved, they get answers", async () => {

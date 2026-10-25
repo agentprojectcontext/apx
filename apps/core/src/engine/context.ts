@@ -9,6 +9,7 @@ import type { Autonomy, Organization, PromptPart, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { answersChecked, type Origin } from "../domain/runs.ts";
 import type { ReleaseContext } from "../domain/threads.ts";
+import { HOME_COMPUTER } from "../environments/briefing.ts";
 import type { AssistantItem, ChatItem } from "../providers/types.ts";
 import { RELEASE_REPO } from "../release-notes.ts";
 import { DOCUMENT_GUIDANCE } from "../tools/documents.ts";
@@ -44,6 +45,7 @@ export function workerPrompt(
   project?: { name: string; context?: string | undefined; memory?: string | undefined } | undefined,
   skills = "",
   scratch = "",
+  sections: Sections = {},
 ): string {
   const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
   return [
@@ -63,6 +65,7 @@ export function workerPrompt(
     BROWSING,
     DOCUMENT_GUIDANCE,
     ...(scratch ? [scratchGuidance(scratch)] : []),
+    ...sectionLines(sections, scratch),
   ]
     .filter((l, i, all) => l !== "" || all[i - 1] !== "")
     .join("\n");
@@ -124,6 +127,8 @@ export function systemPrompt(
   computerOff = false,
   /** A channel is on: its tools are offered, and the rule for them is told. */
   channels = true,
+  /** What this chat's turns carry, told once (sectionLines). */
+  sections: Sections = {},
 ): string {
   const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
   return [
@@ -164,8 +169,10 @@ export function systemPrompt(
     "- Delegate at the start, by id, only for needed tools, project knowledge or session context, or substantial independent work (a worker of your own, with delegate's worker, when it would overwhelm your context or the owner asks for a helper or review). A widget, document or chart alone is no reason. Otherwise finish what you started. Pick the agent whose role does the work, not the one titled lead; read its limits first. Give the goal, findings, checked paths, a method you know works, project and expected result. Trust reported tool evidence; verify other completion claims. Never delegate to yourself or back to a caller just to report: answer here. Name another responsible agent instead of guessing its work. A send, post or payment you can make stays yours: delegate only its preparation. One a teammate asks of you is the owner's work: make the call (APX asks the owner when it must), never refuse it as relayed nor send the owner to repeat it to you.",
     "- Memory: save reusable preferences, decisions and confirmed approaches with remember. Before applying memory, check its date, scope and current evidence. A successful tool call is not proof the goal succeeded. Revalidate a supplied or saved method with its known inputs when safe, before discovering alternatives; if it fails, inspect current state and update it. Memory grants no new permission. If told to ignore memory, neither use nor mention it.",
     "",
-    // "loose" is a storage kind; shown raw, a model reads it as a project's name.
-    // What differs per chat or per release goes last, after everything chats share, so the cached prefix is shared.
+    // What differs per chat or per release goes last, after everything chats share, so the cached prefix is shared:
+    // what the chat's turns carry, then its kind ("loose" is a storage kind: shown raw, it reads as a project's name).
+    ...sectionLines(sections, scratch),
+    "",
     `Thread: ${thread.kind === "loose" ? "chat" : thread.kind}${thread.parent_id ? " (a sub-thread between agents)" : ""}.`,
     ...(scratch ? [scratchGuidance(scratch)] : []),
     ...(apx ? [`You run on APX ${apx}; say so when asked which version you are.`] : []),
@@ -198,11 +205,13 @@ export function workspaceBlock(
   thread: Pick<Thread, "cwd" | "write">,
   readOnly: string[] = [],
   workFolder?: string,
+  told: Sections = {},
 ): string | undefined {
   // Named beside read-only folders, else an agent takes the only path it sees for the project's own.
   const own = !(thread.cwd && thread.write) && readOnly.length && workFolder;
+  const writes = thread.write && (told.write === thread.write ? thread.write : WRITES[thread.write]);
   const lines = [
-    thread.cwd && thread.write ? `Folder: ${thread.cwd} · writes: ${WRITES[thread.write]}` : "",
+    thread.cwd && writes ? `Folder: ${thread.cwd} · writes: ${writes}` : "",
     own ? `Folder you work in (yours to change): ${workFolder}` : "",
     readOnly.length ? `Read-only folders (read with file tools or shell, never change): ${readOnly.join(", ")}` : "",
   ].filter(Boolean);
@@ -218,12 +227,77 @@ const MODES: Record<Autonomy, string> = {
   total: "Total: nothing waits for the owner.",
 };
 
+const MODE_NAMES: Record<Autonomy, string> = {
+  auto: "Auto",
+  accept_edits: "Accept edits",
+  manual: "Manual",
+  plan: "Plan",
+  total: "Total",
+};
+const ASK_RULE =
+  "When a call needs the owner's OK, APX asks them: make the call, never ask_owner for permission. A choice only the owner can make (a clash, two ways): ask_owner with the action you propose.";
+
 /**
  * What the agent may do on its own in this turn's mode. APX itself shows the owner a card when a call needs their OK,
  * so the agent never asks first (DECISIONS.md#d-106).
  */
 export function modeBlock(mode: Autonomy): string {
-  return `${MODES[mode]} When a call needs the owner's OK, APX asks them: make the call, never ask_owner for permission. A choice only the owner can make (a clash, two ways): ask_owner with the action you propose.`;
+  return `${MODES[mode]} ${ASK_RULE}`;
+}
+
+/**
+ * The fixed instructions a chat's turns call for, told once at the end of its system prompt (which the provider
+ * caches) instead of in every turn: each turn then carries only the datum (`mode: Auto`, `channel: whatsapp`). A turn
+ * that needs one the prompt did not tell gets the whole text in its input instead (turnBlocks), so none is lost.
+ */
+export type Sections = {
+  /** The permission mode this chat's turns run in. */
+  mode?: Autonomy | undefined;
+  /** Phone chat apps this chat's turns come from ("whatsapp", "telegram"…): how an answer there looks. */
+  chats?: string[] | undefined;
+  /** Of those, the ones the owner writes to this chat from (Home): one conversation, and how to answer there. */
+  ownerChats?: string[] | undefined;
+  /** Answers on a channel also go as voice notes. */
+  voice?: boolean | undefined;
+  /** A channel of this chat has stickers the agent may send. */
+  stickers?: boolean | undefined;
+  /** The agent may use the computer: from Home only through a task; in a chat it can serve, for the owner's work. */
+  computer?: "home" | "chat" | undefined;
+  /** This chat works on the shared Linux computer. */
+  onComputer?: boolean | undefined;
+  /** A code thread's write policy. */
+  write?: NonNullable<Thread["write"]> | undefined;
+};
+
+export const COMPUTER_WORKSPACE = (dir: string) =>
+  `Shared Linux computer: ${dir}, as your own unprivileged user on your own screen. Shell and browser tools run there; web access uses the protected proxy. When it is off, start it with the computer tool.`;
+const COMPUTER_ASK = "Start it only for work the owner wants on it; if they did not say, ask them first.";
+
+/** The system prompt's closing sections for what this chat's turns carry; none of them changes per turn. */
+export function sectionLines(s: Sections, workspace = ""): string[] {
+  const others = (s.ownerChats ?? []).filter((c) => c !== "whatsapp");
+  return [
+    ...(s.mode ? ["", `## Permission mode: ${MODE_NAMES[s.mode]}`, `- ${MODES[s.mode]}`, `- ${ASK_RULE}`] : []),
+    ...(s.write ? ["", "## Your folder", `- Writes there: ${WRITES[s.write]}.`] : []),
+    ...(s.onComputer ? ["", "## The computer", `- ${COMPUTER_WORKSPACE(workspace)}`, `- ${COMPUTER_ASK}`] : []),
+    ...(s.computer === "home" ? ["", "## The computer", `- ${HOME_COMPUTER}`] : []),
+    ...(s.computer === "chat" && !s.onComputer ? ["", "## The computer", `- ${COMPUTER_ASK}`] : []),
+    ...(s.chats?.length
+      ? [
+          "",
+          `## Phone chats (channel: ${s.chats.join(", ")})`,
+          `- ${CHAT_STYLE}`,
+          ...(s.ownerChats?.includes("whatsapp")
+            ? [`- When your owner writes on whatsapp: ${ownerChannelNote("whatsapp")}`]
+            : []),
+          ...(others.length
+            ? [`- When your owner writes on ${others.join(" or ")}: ${ownerChannelNote(others.join(" or "))}`]
+            : []),
+          ...(s.voice ? [`- When the context says voice: ${VOICE_STYLE}`] : []),
+          ...(s.stickers ? [`- ${STICKER_NOTE}`] : []),
+        ]
+      : []),
+  ];
 }
 
 /** The other agents in scope here (global ones and the thread's project team): whom to delegate to, or to name. */
@@ -301,7 +375,7 @@ export function frameInput(origin: Origin, text: string): string {
 }
 
 /** Chat apps show plain text on a phone. */
-const CHAT_CHANNELS = new Set(["telegram", "whatsapp", "slack", "discord", "imessage"]);
+export const CHAT_CHANNELS = new Set(["telegram", "whatsapp", "slack", "discord", "imessage"]);
 const CHAT_STYLE = `Plain text on a phone: no Markdown tables, headers or bold; short, under about six sentences unless asked for more. Your answer must carry the whole result. When the message needs no answer (a thanks, an ok, a laugh, a goodbye, a request to stop answering), answer only ${SKIP_ANSWER}: nothing is sent, and the chat ends there. To react to their last message with an emoji instead of words (or when asked to react), answer only REACT and the emoji, e.g. "REACT ❤️".`;
 
 const HANDOFF_NOTE =
@@ -321,7 +395,7 @@ const ownerChannelNote = (channel: string) =>
     : `${SAME_CHAT(channel)} ${ATTACH_NOTE(channel)} ${ACK_NOTE}`;
 
 const STICKER_NOTE =
-  'To answer with a sticker instead of words, answer only STICKER and what it shows, e.g. "STICKER thumbs up". Only these exist here:';
+  'To answer with a sticker instead of words, answer only STICKER and what it shows, e.g. "STICKER thumbs up". Only the stickers the turn lists exist.';
 
 const VOICE_STYLE =
   "Your first paragraph is sent as a voice note (about 20 seconds): make it a sayable summary in plain words. Lists, links, code and details go after a blank line, as text.";
@@ -356,8 +430,10 @@ export type TurnOpts = {
   workspace?: string | undefined;
   /** The computer, for an agent allowed it: its state, the agent's screen and whose hands it is in (computerBriefing). */
   computer?: string | undefined;
-  /** The permission mode this turn runs in, and what waits for the owner there (modeBlock). */
-  mode?: string | undefined;
+  /** The permission mode this turn runs in. */
+  mode?: Autonomy | undefined;
+  /** What the system prompt already told (sectionLines): those turns carry only the datum. */
+  told?: Sections | undefined;
   /** In the chat that told what an update brought: which release, and where its commits are (releaseBlock). */
   release?: string | undefined;
 };
@@ -390,24 +466,35 @@ export function turnBlocks(opts: TurnOpts): InputBlock[] {
     ...(opts.timeZone ? { timeZone: opts.timeZone } : {}),
   });
   const channel = opts.channel ?? "app";
+  const told = opts.told ?? {};
+  const chat = CHAT_CHANNELS.has(channel);
+  // Each fixed text the system prompt told for this channel is left out here; one it did not is sent whole.
+  const toldChat = chat && Boolean(told.chats?.includes(channel));
+  const ownerOnChat =
+    chat && ((opts.origin.kind === "channel" && opts.origin.role === "owner") || answersChecked(opts.origin));
+  const toldMode = Boolean(opts.mode) && told.mode === opts.mode;
+  const toldVoice = toldChat && Boolean(told.voice);
+  const facts = [
+    `${when}${opts.timeZone ? ` (${opts.timeZone})` : ""}`,
+    `channel: ${channel}`,
+    toldMode && opts.mode ? `mode: ${MODE_NAMES[opts.mode]}` : "",
+    opts.voice && toldVoice ? "voice" : "",
+  ].filter(Boolean);
   const head: Array<[string, string]> = [
-    ["context", `[context: ${when}${opts.timeZone ? ` (${opts.timeZone})` : ""} · channel: ${channel}]`],
-    ["channel style", CHAT_CHANNELS.has(channel) ? `[channel style] ${CHAT_STYLE}` : ""],
+    ["context", `[context: ${facts.join(" · ")}]`],
+    ["channel style", chat && !toldChat ? `[channel style] ${CHAT_STYLE}` : ""],
     [
       "channel turn",
-      CHAT_CHANNELS.has(channel) &&
-      ((opts.origin.kind === "channel" && opts.origin.role === "owner") || answersChecked(opts.origin))
-        ? `[channel turn] ${ownerChannelNote(channel)}`
-        : "",
+      ownerOnChat && !told.ownerChats?.includes(channel) ? `[channel turn] ${ownerChannelNote(channel)}` : "",
     ],
-    ["voice", opts.voice ? `[voice] ${VOICE_STYLE}` : ""],
+    ["voice", opts.voice && !toldVoice ? `[voice] ${VOICE_STYLE}` : ""],
     [
       "stickers",
       opts.stickers?.length
-        ? `[stickers] ${STICKER_NOTE}\n${untrusted("sticker_meanings", { named_by: "a model, from pictures people sent" }, opts.stickers.map((s) => inlineName(s, 160)).join("; "))}`
+        ? `[stickers] ${toldChat && told.stickers ? "" : `${STICKER_NOTE}\n`}${untrusted("sticker_meanings", { named_by: "a model, from pictures people sent" }, opts.stickers.map((s) => inlineName(s, 160)).join("; "))}`
         : "",
     ],
-    ["mode", opts.mode ? `[mode] ${opts.mode}` : ""],
+    ["mode", opts.mode && !toldMode ? `[mode] ${modeBlock(opts.mode)}` : ""],
     ["workspace", opts.workspace ? `[workspace] ${opts.workspace}` : ""],
     ["computer", opts.computer ? `[computer] ${opts.computer}` : ""],
     ["release notes", opts.release ? `[release notes] ${opts.release}` : ""],

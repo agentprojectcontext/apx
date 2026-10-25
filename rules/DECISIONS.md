@@ -2477,6 +2477,7 @@ owner wants an agent without the permission never to bring the computer up: it i
 Allowed, the agent uses it only for work the owner wants there and, when they did not say where, asks first; the web
 goes through `web_search`, `web_read` and the owner's browser on the Mac unless they ask for the computer.
 
+<a id="d-155"></a>
 ## D-155 — 2026-10-25 — The computer's script-binary tests run where scripts can be spawned
 The computer's driver (Lima, its guest SSH, the display viewer) runs only on an Apple Silicon Mac; on every other
 system the product never spawns it ("unsupported platforms never call the VM driver"). Four of its tests stand in for
@@ -2485,3 +2486,18 @@ system the product never spawns it ("unsupported platforms never call the VM dri
 runs on Windows. They are registered only where `RUNS_SCRIPTS` (testkit/platform.ts) holds, each marked
 `// portable:`; Linux and macOS CI still run them. A disk-size test that assumed sparse files now asserts what the
 filesystem holds, and the sparse bound only where the filesystem keeps holes (not NTFS).
+
+<a id="d-156"></a>
+## D-156 — 2026-10-25 — A turn carries data; the fixed instructions its chat calls for are told once, in the system prompt
+Up to 17 tagged blocks opened every turn, and several were the same instructions each time: the permission mode's text
+(about 450 characters), how to write on a phone chat, the owner's channel note, the voice note, the sticker note, the
+computer's rules and a code folder's write policy. Each turn's input stays in the history, so they were paid again on
+every later call of the chat. They are now closing sections of the system prompt (`sectionLines` in
+`engine/context.ts`), present only when the chat's turns call for them: the mode always, a phone chat's rules where a
+chat app's turns land (Home, a contact's chat), voice when the chat answers with voice notes, stickers when a channel
+has some. The turn keeps only the datum in its `[context]` line (`channel: whatsapp · mode: Auto · voice`). A turn
+whose chat's prompt did not tell a text (another channel, another mode) gets it whole in its input, as before, so no
+instruction is lost. The trade: the mode used to stay out of the system prompt because it can change; changing an
+agent's mode, a code chat's write policy or voice notes now changes that chat's prompt once, a cache miss on one call,
+where before every turn paid for the text. They come after everything chats share, before the chat's kind, temp
+folder and version, so the cached prefix is still shared.

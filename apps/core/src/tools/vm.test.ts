@@ -71,9 +71,11 @@ test("Home never goes on the computer: an allowed super-agent there keeps its to
   const home = tempDir("apx-vm-tool-").path;
   const seen: string[][] = [];
   const inputs: string[] = [];
+  const systems: string[] = [];
   const llm = scriptedLlm((req) => {
     seen.push(toolNames(req));
     inputs.push(JSON.stringify(req.messages.filter((m) => m.role === "user").at(-1)?.content ?? ""));
+    systems.push(String(req.messages[0]?.content ?? ""));
     return say("ok");
   });
   const env = await startCore({ home, llm, computer: fakeComputer(home).config });
@@ -90,7 +92,8 @@ test("Home never goes on the computer: an allowed super-agent there keeps its to
     assert.equal(seen[0]?.includes("computer"), false, "no computer tool in Home");
     for (const kept of ["task_create", "delegate", "remember", "web_search", "web_read"])
       assert.ok(seen[0]?.includes(kept), kept);
-    assert.match(inputs[0] ?? "", /Computer: not used from Home/);
+    assert.match(systems[0] ?? "", /Computer: not used from Home/);
+    assert.doesNotMatch(inputs[0] ?? "", /Computer: not used from Home/, "said once, in the cached system prompt");
     // Started from Home's panel, the computer comes up and Home stays on this Mac.
     await env.client.call("environments.enable", { appearance: "light" });
     assert.deepEqual((await env.client.call("environments.status", {})).chats, []);

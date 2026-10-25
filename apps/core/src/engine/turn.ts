@@ -59,16 +59,19 @@ import {
 import { gitChanges } from "./changes.ts";
 import { memoryQuery, recallChats } from "./chat-recall.ts";
 import {
+  CHAT_CHANNELS,
+  COMPUTER_WORKSPACE,
   frameInput,
   HISTORY_BUDGET_CHARS,
   type InputBlock,
   joinInput,
-  modeBlock,
   orgText,
   type ProjectBrief,
   project,
   releaseBlock,
   rosterBlock,
+  type Sections,
+  sectionLines,
   systemParts,
   systemPrompt,
   turnBlocks,
@@ -343,6 +346,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
           deps.build,
           deps.vm?.hasThread(thread.id) ? AGENT_WORKSPACE : scratchDir(store, deps.home, thread),
           Boolean(deps.desktopLinked?.()) && !deps.hasCap?.(COMPUTER_CAP),
+          prepared.told,
         );
   const io = (): TurnIO => ({
     agent: policy.agent,
@@ -472,14 +476,15 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
     : project(entries, HISTORY_BUDGET_CHARS, ctxState.compaction);
   const { from } = projected;
   const roster = rosterBlock(agent, store.agents.list(), thread);
+  const told = sectionsFor(deps, turn, mode);
   // An agent allowed the computer reads its state each turn, as the owner sees it in the panel.
   const vm = deps.vm;
   const allowed = vm && !sealed && vm.permitted(agent.id, thread.id);
   const computer = !allowed
     ? undefined
     : vm.serves(thread.id)
-      ? computerBriefing(await vm.status(thread.id, true), agent.id, thread.id)
-      : thread.kind === "home"
+      ? computerBriefing(await vm.status(thread.id, true), agent.id, thread.id, told.computer === "chat")
+      : thread.kind === "home" && told.computer !== "home"
         ? HOME_COMPUTER
         : undefined;
   // A worker delegates to no one: it needs no roster.
@@ -574,10 +579,14 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
             channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
             voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
             stickers: o.kind === "channel" ? stickersOf(store, o.channel) : undefined,
-            mode: modeBlock(mode),
+            // A contact turn with no tools makes no call that could wait: it needs no mode.
+            mode: turn.audience.kind === "contact" && !told.mode ? undefined : mode,
+            told,
             workspace: deps.vm?.hasThread(thread.id)
-              ? `Shared Linux computer: ${AGENT_WORKSPACE}, as your own unprivileged user on your own screen. Shell and browser tools run there; web access uses the protected proxy. When it is off, start it with the computer tool.`
-              : workspaceBlock(thread, readOnlyFolders(store, thread), workDir(store, deps.home, thread)),
+              ? told.onComputer
+                ? `Shared Linux computer: ${AGENT_WORKSPACE}`
+                : COMPUTER_WORKSPACE(AGENT_WORKSPACE)
+              : workspaceBlock(thread, readOnlyFolders(store, thread), workDir(store, deps.home, thread), told),
             computer,
             release: ownerTurn ? releaseBlock(store.threads.context(thread.id).release) : undefined,
             feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
@@ -615,7 +624,37 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
   const skills = sealed ? "" : skillCatalog(available);
   // A room's turn has no history of its own: only its run is in view.
   const inView = room ? new Set([run.id]) : windowRuns(entries, from, run.id);
-  return { history, input, blocks, skills, picked, inView };
+  return { history, input, blocks, skills, picked, inView, told };
+}
+
+/** The fixed instructions this chat's turns call for, told once in its system prompt (context.ts sectionLines). */
+function sectionsFor(deps: TurnDeps, turn: Turn, mode: Autonomy): Sections {
+  const { store, vm } = deps;
+  const { thread, agent, audience } = turn;
+  if (thread.engine || (audience.kind === "contact" && audience.room)) return {};
+  const contact = audience.kind === "contact";
+  const on = store.settings.read("channels").filter((c) => c.enabled);
+  const typeOf = (id: string) => on.find((c) => c.id === id)?.type ?? id;
+  // A contact's chat hears from its own channel; Home from every one the owner writes on.
+  const types = contact
+    ? [typeOf(thread.channel?.id ?? "")]
+    : thread.kind === "home"
+      ? [...new Set([...on.map((c) => c.type), ...(store.settings.read("imessage").on ? ["imessage"] : [])])]
+      : [];
+  const chats = types.filter((t) => CHAT_CHANNELS.has(t));
+  // A contact with no tools makes no call that could wait for the owner.
+  const acts = !contact || turn.web || contactToolNames(audience.person).size > 0;
+  const allowed = !contact && vm?.permitted(agent.id, thread.id);
+  return {
+    mode: acts ? mode : undefined,
+    chats,
+    ownerChats: contact ? [] : chats,
+    voice: chats.length > 0 && Boolean(store.threads.context(thread.id).voice_replies),
+    stickers: chats.some((t) => store.stickers.known(t, 1).length > 0),
+    computer: allowed ? (vm?.serves(thread.id) ? "chat" : thread.kind === "home" ? "home" : undefined) : undefined,
+    onComputer: Boolean(vm?.hasThread(thread.id)),
+    write: thread.cwd && thread.write ? thread.write : undefined,
+  };
 }
 
 /** The kind of channel a message came on ("telegram"), for how the answer should look; none for the app. */
@@ -735,6 +774,7 @@ function systemFor(
   build?: { version: string; code_sha: string },
   scratch = "",
   computerOff = false,
+  told: Sections = {},
 ): { text: string; parts: PromptPart[] } {
   const lang = store.settings.get("owner_language") || "es";
   const plain = (text: string) => ({ text, parts: systemParts(text, []) });
@@ -742,13 +782,13 @@ function systemFor(
     return plain(
       turn.audience.room
         ? roomPrompt(turn.agent, turn.audience.room, lang, turn.web)
-        : contactPrompt(turn.agent, turn.audience, lang, turn.web),
+        : contactPrompt(turn.agent, turn.audience, lang, turn.web, sectionLines(told)),
     );
   // The thread's project when it has one (a global agent working there needs its AGENTS.md too).
   const projectId = turn.thread.project_id ?? turn.agent.project_id;
   if (turn.worker) {
     const project = projectId ? store.projects.get(projectId) : undefined;
-    const text = workerPrompt(turn.worker, turn.agent, lang, project, skills, scratch);
+    const text = workerPrompt(turn.worker, turn.agent, lang, project, skills, scratch, told);
     return {
       text,
       parts: systemParts(text, [
@@ -773,6 +813,7 @@ function systemFor(
     scratch,
     computerOff,
     channelsOn(store),
+    told,
   );
   return {
     text,

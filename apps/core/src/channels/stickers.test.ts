@@ -71,7 +71,8 @@ test("a sticker is kept the moment it arrives, named once, and the agent reads i
   const turn = llm.calls.find((c) => !naming(String(c.messages[0]?.content ?? "")));
   const input = String(turn?.messages.at(-1)?.content);
   assert.match(input, new RegExp(`\\[sticker: ${BEAR}\\]`));
-  assert.match(input, /\[stickers\] To answer with a sticker/);
+  assert.match(input, /\[stickers\] <sticker_meanings /);
+  assert.match(String(turn?.messages[0]?.content), /To answer with a sticker instead of words, answer only STICKER/);
 
   // The agent answered "STICKER heart balloon": that sticker went back as a sticker, never as words.
   assert.equal(tg.filesTo(OWNER.id).at(-1)?.method, "sendSticker");
@@ -161,7 +162,7 @@ test("what a model wrote a sticker means stays outside text on one line, in the 
   const next = String(
     llm.calls.findLast((c) => !naming(String(c.messages[0]?.content ?? "")))?.messages.at(-1)?.content,
   );
-  assert.match(next, /\[stickers\] To answer with a sticker[^\n]*\n<sticker_meanings [^>]*trust="untrusted">/);
+  assert.match(next, /\[stickers\] <sticker_meanings [^>]*trust="untrusted">/);
 });
 
 test("with approval on, each new sticker waits for the owner's OK; approved, the agent may send it", async () => {
