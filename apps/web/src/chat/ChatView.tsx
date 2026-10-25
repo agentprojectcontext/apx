@@ -21,13 +21,17 @@ export function ChatView({
   wideHeader,
   compact = false,
   via,
+  threadId: shownThread,
 }: {
+  /** The chat to show, where the nav's is not the one (a side chat beside another view). */
+  threadId?: string;
   wideHeader: boolean;
   compact?: boolean;
   via?: { channel: string; label: string };
 }) {
   const t = useT();
-  const threadId = useNav((s) => s.threadId);
+  const navThread = useNav((s) => s.threadId);
+  const threadId = shownThread ?? navThread;
   const ready = useData((s) => s.ready);
   const stored = useData((s) => (threadId ? s.threads[threadId] : undefined));
   // A new chat is shown from here alone until its first message makes it in the core.

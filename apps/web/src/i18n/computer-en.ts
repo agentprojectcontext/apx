@@ -60,6 +60,7 @@ export const enComputer = {
   "computer.noScreen": "No agent screen is running",
   "computer.screenOff": "{agent}'s screen is not running. It starts when {agent} works on the computer in this chat.",
   "computers.lead": "{held} of {max} screens in use",
+  "computers.chat": "Chat",
   "computers.open": "Open",
   "computers.turnOn": "Turn on screen",
   "computers.turnOff": "Turn off screen",

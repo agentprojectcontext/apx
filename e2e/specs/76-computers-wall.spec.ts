@@ -85,9 +85,24 @@ test("the Computers view shows two screens in use as two tiles, and opens one la
     await wall.getByRole("button", { name: "Abrir la pantalla de Scout", exact: true }).click();
     await expect(tiles).toHaveCount(0);
     await expect(wall.locator(".computers__large")).toContainText("Revisar el sitio de Acme");
+    // One toolbar holds everything; the wall's bar is gone and the chat opens beside the desktop.
+    const bar = wall.locator(".computer__controlbar");
+    await expect(wall.locator(".computers__bar")).toHaveCount(0);
+    await expect(bar).toContainText("Todas las pantallas");
+    await expect(bar).toContainText("Scout");
+    await expect(bar).toContainText("Agente trabajando");
+    await expect(bar.getByRole("button", { name: "Tomar control", exact: true })).toBeVisible();
+    await expect(bar.getByRole("button", { name: "Más", exact: true })).toBeVisible();
+    await bar.getByRole("button", { name: "Chat", exact: true }).click();
+    const side = wall.locator(".computers__chat");
+    await expect(side).toContainText("Trabajá en la computadora");
+    await expect(side.getByRole("textbox")).toBeVisible();
+    await side.getByRole("button", { name: "Cerrar", exact: true }).click();
+    await expect(side).toHaveCount(0);
     await wall.getByRole("button", { name: "Tomar control", exact: true }).click();
     await expect(wall.getByRole("button", { name: "Devolver control al agente", exact: true })).toBeVisible();
     await expect(wall.locator(".computers__large")).toContainText("Tenés el control");
+    await wall.getByRole("button", { name: "Chat", exact: true }).click();
     await wall.getByRole("button", { name: "Abrir chat", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`thread=${chats.scout}`));
   } finally {
@@ -136,6 +151,7 @@ test("a screen kept up after its run shows on the wall as idle, opens large with
     await expect(tile).toContainText("Lint del repo");
     await expect(tile).toContainText("En espera");
     await wall.getByRole("button", { name: "Abrir la pantalla de Roby", exact: true }).click();
+    await wall.getByRole("button", { name: "Chat", exact: true }).click();
     await wall.getByRole("button", { name: "Abrir chat", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`thread=${chat.id}`));
 

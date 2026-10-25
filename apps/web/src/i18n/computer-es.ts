@@ -61,6 +61,7 @@ export const esComputer: Record<ComputerKey, string> = {
   "computer.screenOff":
     "La pantalla de {agent} no está encendida. Se enciende cuando {agent} trabaja en la computadora en este chat.",
   "computers.lead": "{held} de {max} pantallas en uso",
+  "computers.chat": "Chat",
   "computers.open": "Abrir",
   "computers.turnOn": "Encender pantalla",
   "computers.turnOff": "Apagar pantalla",

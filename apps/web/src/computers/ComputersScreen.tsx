@@ -2,8 +2,9 @@ import "../styles/screens.css";
 import "../styles/computer.css";
 import type { ComputerMemoryRefusal, ComputerScreen, Result } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
-import { AgentAvatar, Button, EmptyState, Icons } from "@apx/ui";
+import { AgentAvatar, Button, EmptyState, IconButton, Icons, Menu } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
+import { ChatView } from "../chat/ChatView.tsx";
 import { client } from "../data/client.ts";
 import { data, useData } from "../data/state.ts";
 import { usePack, useT } from "../i18n/index.ts";
@@ -164,23 +165,31 @@ function OffTile({
   );
 }
 
-/** One screen large, with its lease and the way to its agent's chat. */
+/** One screen large: one toolbar, the desktop, and its agent's chat beside it on demand. */
 function Large({
   screen,
   chatOf,
   ready,
+  busyOff,
   onBack,
   onError,
+  onOff,
+  onStopAll,
 }: {
   screen: ComputerScreen;
   /** Its agent's chat when no run holds it now. */
   chatOf?: string | undefined;
   ready: boolean;
+  busyOff: boolean;
   onBack(): void;
   onError(message: string): void;
+  /** Absent while a run holds the screen. */
+  onOff?: (() => void) | undefined;
+  onStopAll(): void;
 }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const manual = screen.control === "human" && !screen.changing;
   const view = useVmDisplay(screen.screen, ready, manual);
   // Taking control ends the agent's run, and with it the claim: the chat it opened with stays reachable.
@@ -204,24 +213,64 @@ function Large({
           {t("computers.all")}
         </Button>
         <Holder screen={screen} title={chat.title ?? fallbackTitle} />
-        {thread && (
-          <Button size="sm" variant="secondary" onClick={() => go.thread(thread)}>
-            {t("computers.openChat")}
+        <div className="computers__actions">
+          {thread && (
+            <Button
+              size="sm"
+              variant="secondary"
+              aria-pressed={chatOpen}
+              leadingIcon={<Icons.MessageCircle size={14} />}
+              onClick={() => setChatOpen((o) => !o)}
+            >
+              {t("computers.chat")}
+            </Button>
+          )}
+          <Button size="sm" loading={busy} onClick={() => void control()}>
+            {t(manual ? "computer.returnControl" : "computer.takeControl")}
           </Button>
-        )}
-        <Button size="sm" loading={busy} onClick={() => void control()}>
-          {t(manual ? "computer.returnControl" : "computer.takeControl")}
-        </Button>
-      </div>
-      <div className="computer__desktop">
-        <section className="computer__screen" ref={view.screen} aria-label={t("computer.screen")} />
-        {!manual && <div className="computer__locked" role="img" aria-label={t("computer.takeControlHint")} />}
-      </div>
-      {view.error && (
-        <div className="computer__error" role="alert">
-          {view.error}
+          <Menu
+            align="end"
+            trigger={<IconButton size="sm" label={t("common.more")} icon={<Icons.Ellipsis size={14} />} />}
+            items={[
+              ...(onOff ? [{ label: t("computers.turnOff"), disabled: busyOff, onSelect: onOff }] : []),
+              { label: t("computer.stop"), danger: true, onSelect: onStopAll },
+            ]}
+          />
         </div>
-      )}
+      </div>
+      <div className="computers__body">
+        <div className="computers__main">
+          <div className="computer__desktop">
+            <section className="computer__screen" ref={view.screen} aria-label={t("computer.screen")} />
+            {!manual && <div className="computer__locked" role="img" aria-label={t("computer.takeControlHint")} />}
+          </div>
+          {view.error && (
+            <div className="computer__error" role="alert">
+              {view.error}
+            </div>
+          )}
+        </div>
+        {chatOpen && thread && (
+          <aside className="computers__chat" aria-label={t("computers.chat")}>
+            <div className="computers__chathead">
+              <span>{t("computers.chat")}</span>
+              <IconButton
+                size="sm"
+                label={t("computers.openChat")}
+                icon={<Icons.Maximize2 size={14} />}
+                onClick={() => go.thread(thread)}
+              />
+              <IconButton
+                size="sm"
+                label={t("common.close")}
+                icon={<Icons.X size={14} />}
+                onClick={() => setChatOpen(false)}
+              />
+            </div>
+            <ChatView wideHeader={false} compact threadId={thread} />
+          </aside>
+        )}
+      </div>
     </div>
   );
 }
@@ -279,14 +328,6 @@ function ComputersScreenBody() {
   const starting = status?.phase === "preparing" || status?.phase === "stopping";
   return (
     <section className="page computers" aria-label={t("nav.computers")}>
-      {ready && (
-        <header className="computers__bar">
-          <span>{t("computers.lead", { held: screensUp(status), max: status?.max_screens ?? 1 })}</span>
-          <Button size="sm" variant="secondary" loading={busy} onClick={() => void power(false)}>
-            {t("computer.stop")}
-          </Button>
-        </header>
-      )}
       <ComputerError
         error={error || status?.error || ""}
         refusal={refusal}
@@ -299,32 +340,49 @@ function ComputersScreenBody() {
           screen={large}
           chatOf={chatOf(large)}
           ready={ready}
+          busyOff={screenBusy === large.agent}
           onBack={() => setOpen(undefined)}
           onError={setError}
+          onOff={
+            large.run || !large.agent
+              ? undefined
+              : () => void screenOf(large.agent ?? "", false).then(() => setOpen(undefined))
+          }
+          onStopAll={() => void power(false)}
         />
       ) : ready ? (
-        <div className="computers__wall" data-count={inUse.length + off.length}>
-          {inUse.map((screen) => (
-            <Tile
-              key={screen.screen}
-              screen={screen}
-              title={threads[chatOf(screen) ?? ""]?.title}
-              ready={ready}
-              busy={screenBusy === screen.agent}
-              onOpen={() => setOpen(screen.screen)}
-              onOff={screen.run || !screen.agent ? undefined : () => void screenOf(screen.agent ?? "", false)}
-            />
-          ))}
-          {off.map((agent) => (
-            <OffTile
-              key={agent}
-              agent={agent}
-              busy={screenBusy === agent}
-              full={full?.agent === agent ? full : undefined}
-              onOn={() => void screenOf(agent, true)}
-            />
-          ))}
-        </div>
+        <>
+          {ready && (
+            <header className="computers__bar">
+              <span>{t("computers.lead", { held: screensUp(status), max: status?.max_screens ?? 1 })}</span>
+              <Button size="sm" variant="secondary" loading={busy} onClick={() => void power(false)}>
+                {t("computer.stop")}
+              </Button>
+            </header>
+          )}
+          <div className="computers__wall" data-count={inUse.length + off.length}>
+            {inUse.map((screen) => (
+              <Tile
+                key={screen.screen}
+                screen={screen}
+                title={threads[chatOf(screen) ?? ""]?.title}
+                ready={ready}
+                busy={screenBusy === screen.agent}
+                onOpen={() => setOpen(screen.screen)}
+                onOff={screen.run || !screen.agent ? undefined : () => void screenOf(screen.agent ?? "", false)}
+              />
+            ))}
+            {off.map((agent) => (
+              <OffTile
+                key={agent}
+                agent={agent}
+                busy={screenBusy === agent}
+                full={full?.agent === agent ? full : undefined}
+                onOn={() => void screenOf(agent, true)}
+              />
+            ))}
+          </div>
+        </>
       ) : (
         <EmptyState
           size="lg"

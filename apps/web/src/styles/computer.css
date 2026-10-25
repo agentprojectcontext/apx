@@ -370,6 +370,49 @@
   flex: 1;
   min-height: 360px;
 }
+.computers__large .computer__controlbar > .computers__holder {
+  flex: 1;
+}
+.computers__body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 12px;
+}
+.computers__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.computers__chat {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 360px;
+  min-height: 0;
+  margin-top: 8px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  overflow: hidden;
+}
+.computers__chat > .chat {
+  flex: 1;
+  min-height: 0;
+}
+.computers__chathead {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px 6px 12px;
+  border-bottom: 1px solid var(--apx-border);
+  font-size: var(--apx-text-sm);
+  font-weight: 600;
+}
+.computers__chathead > span {
+  flex: 1;
+}
 
 /* The chip a chat shows while the computer its agent started comes up. */
 .chat__computer {
