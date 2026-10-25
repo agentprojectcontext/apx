@@ -237,6 +237,12 @@ export const en = {
   "star.title": "Like APX?",
   "star.desc": "A star on GitHub helps more people find it. It takes a second.",
   "star.cta": "Star on GitHub",
+  "welcome.title": "APX v2 is the release now",
+  "welcome.desc":
+    "Out of beta and here to stay. Thanks for coming along: this is a minute of the super-agent and its team at work.",
+  "welcome.video": "APX v2: the super-agent and its team at work",
+  "welcome.youtube": "Watch on YouTube",
+  "welcome.cta": "Let's go",
   "board.title": "Board",
   "board.empty": "Widgets pinned to this project show here, live. Create one with an agent or load one that exists.",
   "board.more": "Create another widget or load one that exists.",

@@ -243,6 +243,12 @@ export const es: Partial<Record<MessageKey, string>> = {
   "star.title": "¿Te gusta APX?",
   "star.desc": "Una estrella en GitHub ayuda a que más gente lo encuentre. Es un segundo.",
   "star.cta": "Dar una estrella",
+  "welcome.title": "APX v2 ya es la versión oficial",
+  "welcome.desc":
+    "Salió de la beta y llegó para quedarse. Gracias por acompañar: este es un minuto del superagente y su equipo trabajando.",
+  "welcome.video": "APX v2: el superagente y su equipo trabajando",
+  "welcome.youtube": "Ver en YouTube",
+  "welcome.cta": "Vamos",
   "board.title": "Tablero",
   "board.empty":
     "Los widgets fijados a este proyecto aparecen acá, en vivo. Creá uno con un agente o cargá uno que ya existe.",

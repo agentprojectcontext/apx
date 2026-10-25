@@ -153,6 +153,7 @@
                       "**/ContactChat.tsx",
                       "**/CoreBehind.tsx",
                       "**/CornerCards.tsx",
+                      "**/WelcomeV2.tsx",
                       "**/DelegationActions.tsx",
                       "**/DesktopInstallNotice.tsx",
                       "**/DocumentActions.tsx",

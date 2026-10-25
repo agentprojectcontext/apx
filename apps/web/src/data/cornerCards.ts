@@ -10,6 +10,8 @@ type Closed = {
   update: string;
   /** "v1 is still running", closed for this session only. */
   v1: boolean;
+  /** The welcome to v2 as the release, said once. */
+  welcome: boolean;
 };
 
 const KEY = "apx.corner";
@@ -22,9 +24,10 @@ function load(): Closed {
       star: raw.star === true,
       update: "",
       v1: false,
+      welcome: raw.welcome === true,
     };
   } catch {
-    return { discord: false, star: false, update: "", v1: false };
+    return { discord: false, star: false, update: "", v1: false, welcome: false };
   }
 }
 
@@ -35,8 +38,8 @@ export const useClosedCards = <T>(select: (s: Closed) => T): T => useSlice(store
 export function closeCard(patch: Partial<Closed>): void {
   store.set(patch);
   try {
-    const { discord, star } = store.get();
-    localStorage.setItem(KEY, JSON.stringify({ discord, star }));
+    const { discord, star, welcome } = store.get();
+    localStorage.setItem(KEY, JSON.stringify({ discord, star, welcome }));
   } catch {
     // Storage blocked: closed for this session only.
   }
