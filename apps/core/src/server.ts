@@ -507,7 +507,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     busy: () =>
       store.runs.interrupted().some((r) => r.state === "working") || store.jobs.running().length > 0 || vm.starting(),
     enabled: () => store.settings.read("desktop").keep_awake,
-    ...(opts.keepAwake ? { spawn: opts.keepAwake } : {}),
+    // A test's stand-in for caffeinate holds on any system, so the wiring is tested off macOS too.
+    ...(opts.keepAwake ? { spawn: opts.keepAwake, platform: "darwin" as const } : {}),
   });
   bus.on((e) => {
     if (e.type === "run.updated" || e.type === "job.updated" || e.type === "computer.progress") awake.update();

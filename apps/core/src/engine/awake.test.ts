@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { test } from "node:test";
+import { waitFor } from "../testkit/platform.ts";
 import { keepAwake, SLEEP_GAP_MS, sleepWatch } from "./awake.ts";
+import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 function spawner() {
   const spawned: { args: string[]; killed: boolean; child: EventEmitter & { kill(): boolean; exitCode: null } }[] = [];
@@ -113,3 +115,33 @@ test("a tick that comes 30 s late means the Mac slept, and only a sleep since th
   assert.equal(watch.sleptSince(timers.now() - 1), false, "a later window saw no sleep");
   watch.close();
 });
+
+/** A model that answers only once the test lets it, so a turn stays working as long as the test needs. */
+function heldModel() {
+  const answers: (() => void)[] = [];
+  const llm = scriptedLlm(() => new Promise((resolve) => answers.push(() => resolve(say("Listo")))));
+  return { llm, waiting: () => answers.length, answer: () => answers.shift()?.() };
+}
+
+for (const on of [true, false])
+  test(`a core's working turn ${on ? "holds the Mac awake until it ends" : "never holds it once the owner turned it off"}`, async () => {
+    const model = heldModel();
+    const { spawned, spawn } = spawner();
+    const env = await startCore({ llm: model.llm, keepAwake: spawn });
+    try {
+      const prefs = await env.client.call("desktop.get", {});
+      await env.client.call("desktop.set", { ...prefs, keep_awake: on });
+      await env.client.call("threads.send", { thread: "home", text: "Hola" });
+      await waitFor(() => model.waiting() > 0, "the model call");
+      if (on) await waitFor(() => spawned.length === 1, "the hold");
+      assert.equal(spawned.length, on ? 1 : 0);
+      assert.deepEqual(spawned[0]?.args.slice(0, 2), on ? ["-i", "-w"] : undefined);
+      model.answer();
+      await waitFor(() => env.core.store.runs.list("home", 1)[0]?.ended_at, "the run's end");
+      if (on) await waitFor(() => spawned[0]?.killed, "the release");
+      assert.equal(spawned.length, on ? 1 : 0, "one hold for the whole turn");
+    } finally {
+      await env.core.close();
+      await env.cleanup();
+    }
+  });
