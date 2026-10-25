@@ -10,7 +10,8 @@ function heldTurns() {
   const started = new Set<string>();
   const llm = scriptedLlm(async (req) => {
     const said = String(req.messages.findLast((m) => m.role === "user")?.content ?? "");
-    const key = /chat (\w+)/.exec(said)?.[1] ?? "";
+    // The owner's words are the input's last line ("chat roby"); APX's own lines above them say "chat" too.
+    const key = /^chat (\w+)$/.exec(said.split("\n").at(-1) ?? "")?.[1] ?? "";
     started.add(key);
     await new Promise<void>((resolve) => {
       waiting.set(key, resolve);

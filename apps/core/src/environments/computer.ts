@@ -193,10 +193,15 @@ export function createComputer(store: Store, config: ComputerConfig) {
       const seen = config.lifecycle.seen();
       return seen === undefined || seen === "running" || seen === "error";
     },
-    async status(forThread?: string) {
-      const lifecycle = await config.lifecycle?.status();
+    /** `known`: what the core saw last, without asking the guest (a turn's briefing, every turn). */
+    async status(forThread?: string, known = false) {
+      const lifecycle = known ? config.lifecycle?.known() : await config.lifecycle?.status();
+      const phaseOf: Partial<Awaited<ReturnType<VmLifecycle["status"]>>> =
+        lifecycle ?? (known && !config.lifecycle ? { phase: "running" } : {});
       let ready = false;
       if (lifecycle) ready = lifecycle.phase === "running";
+      // A lab or a test guest has no lifecycle: up as far as the core knows, without asking it.
+      else if (known) ready = true;
       else
         try {
           const lines = await guest.exec(["list", "--json", config.instance]);
@@ -279,7 +284,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
         ...(restart ? { restart: true } : {}),
         idle_minutes: store.settings.read("computer").idle_minutes,
         ...(stopped ? { last_stop: JSON.parse(stopped) as { reason: StopReason; at: string } } : {}),
-        ...(lifecycle ?? {}),
+        ...phaseOf,
       };
     },
     /**

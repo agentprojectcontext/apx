@@ -1,10 +1,22 @@
 // What an agent allowed the computer reads about it each turn, in its input (never the system prompt, which stays
 // byte-stable): built from the same status the panel and the Computers view show, so it believes what the owner sees.
-import type { Computer } from "./computer.ts";
+import type { ComputerScreen } from "@apx/protocol";
 
-type Status = Awaited<ReturnType<Computer["status"]>>;
+type Sizes = { memory_gib?: number | undefined; cpus?: number | undefined; disk_gib?: number | undefined };
+/** What it reads of the computer's status (`Computer.status`, as last seen). */
+type Status = {
+  phase?: string | undefined;
+  setup?: boolean | undefined;
+  error?: string | undefined;
+  last_stop?: { reason: "idle" | "memory" | "agent" | "owner" } | undefined;
+  resources?: Sizes | undefined;
+  running_resources?: Sizes | undefined;
+  restart?: boolean | undefined;
+  chat?: { on: boolean } | undefined;
+  screens?: ComputerScreen[] | undefined;
+};
 
-const sizes = (r: { memory_gib?: number | undefined; cpus?: number | undefined; disk_gib?: number | undefined }) =>
+const sizes = (r: Sizes) =>
   [
     r.memory_gib !== undefined && `${r.memory_gib} GiB memory`,
     r.cpus !== undefined && `${r.cpus} CPUs`,

@@ -86,6 +86,19 @@ export function createVmLifecycle(driver: VmDriver) {
   };
   return {
     status,
+    /** What the last status saw, without asking the guest (a turn's briefing reads it; the panel polls `status`). */
+    known() {
+      if (closed)
+        return { phase: "error" as const, supported: driver.supported, error: "Computer controller is closed" };
+      if (!driver.supported) return { phase: "unsupported" as const, supported: false };
+      return {
+        ...(phase ? { phase } : {}),
+        supported: true,
+        ...progress,
+        ...(phase === "preparing" && setup ? { setup: true } : {}),
+        ...(error ? { error } : {}),
+      };
+    },
     /** This host can run the computer (macOS on Apple Silicon). */
     supported: driver.supported,
     /** The phase last seen, without probing the guest; undefined before the first status. */

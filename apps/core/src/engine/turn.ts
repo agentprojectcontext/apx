@@ -467,7 +467,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
   const vm = deps.vm;
   const computer =
     vm && !sealed && vm.serves(thread.id) && vm.permitted(agent.id, thread.id)
-      ? computerBriefing(await vm.status(thread.id), agent.id, thread.id)
+      ? computerBriefing(await vm.status(thread.id, true), agent.id, thread.id)
       : undefined;
   // A worker delegates to no one: it needs no roster.
   const rosterChanged =
