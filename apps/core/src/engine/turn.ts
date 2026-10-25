@@ -7,6 +7,7 @@ import {
   type HarnessId,
   type MethodName,
   type Params,
+  type PromptPart,
   type Result,
   type Routine,
   type Thread,
@@ -60,13 +61,17 @@ import { memoryQuery, recallChats } from "./chat-recall.ts";
 import {
   frameInput,
   HISTORY_BUDGET_CHARS,
+  type InputBlock,
+  joinInput,
   modeBlock,
+  orgText,
   type ProjectBrief,
   project,
   releaseBlock,
   rosterBlock,
+  systemParts,
   systemPrompt,
-  turnInput,
+  turnBlocks,
   workerPrompt,
   workspaceBlock,
 } from "./context.ts";
@@ -86,6 +91,7 @@ import { type MailSource, POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCo
 import { type ProfileRoot, profileBlock } from "./profiles.ts";
 import { resetLabel } from "./provider-limit.ts";
 import { recallFor } from "./recall.ts";
+import { keepContext } from "./received.ts";
 import { closeTurnLog, RESUME_NOTE } from "./recovery.ts";
 import { askedPick, type SkillPicker } from "./skill-pick.ts";
 
@@ -326,12 +332,9 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     // Harnesses and delegations see the agent as it acts here (its project's and callers' mode), never its bare record.
     delegate: (to, task, waitMs) => deps.delegate({ run, agent: policy.agent, display }, to, task, waitMs),
   });
-  const io = (): TurnIO => ({
-    agent: policy.agent,
-    thread,
-    run,
-    system: thread.engine
-      ? DIRECT_NOTE
+  const system = () =>
+    thread.engine
+      ? { text: DIRECT_NOTE, parts: systemParts(DIRECT_NOTE, []) }
       : systemFor(
           store,
           turn,
@@ -340,7 +343,12 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
           deps.build,
           deps.vm?.hasThread(thread.id) ? AGENT_WORKSPACE : scratchDir(store, deps.home, thread),
           Boolean(deps.desktopLinked?.()) && !deps.hasCap?.(COMPUTER_CAP),
-        ),
+        );
+  const io = (): TurnIO => ({
+    agent: policy.agent,
+    thread,
+    run,
+    system: system().text,
     history,
     input,
     tools: tools.map(toSpec),
@@ -363,6 +371,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     log: (items) => store.modelLog.append(thread.id, run.id, items),
   });
 
+  keepContext(store, { run, system: system(), input, blocks: prepared.blocks, tools, history });
   try {
     const engine = enginePick(deps, turn, start, history);
     if (deps.vm?.hasThread(thread.id) && engine.harness !== "native")
@@ -532,54 +541,58 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
   const memoryBlock =
     memorySettings(store).mode !== "off" ? [recalled.text, chats?.render()].filter(Boolean).join("\n") : "";
   const images = (turn.input.attachments ?? []).filter((a) => a.kind === "image");
+  const message = (text: string): InputBlock[] => [{ name: "message", text }];
   // A resumed turn already has its message in the history: it only learns why it stopped.
+  const blocks: InputBlock[] = turn.input.resume_of
+    ? message(String(systemNote(RESUME_NOTE).content))
+    : room
+      ? message(
+          roomInput(store, {
+            threadId: thread.id,
+            runId: run.id,
+            agentName: agent.name,
+            from: o.kind === "channel" ? o.name : "your owner",
+            owner: o.kind !== "channel" || o.role === "owner",
+            text: said,
+            app: o.kind === "user",
+          }),
+        )
+      : direct
+        ? // An engine session gets no header, but a result or outside text still says what it is and what to do.
+          message(o.kind === "go_on" ? said : frameInput(o, files ? `${said}\n\n${files}` : said))
+        : turnBlocks({
+            origin: turn.input.origin,
+            text: files ? `${said}\n\n${files}` : said,
+            now: new Date(),
+            roster: rosterChanged ? roster.text : undefined,
+            memory: memoryBlock,
+            skills: picked?.block || undefined,
+            task: taskBlock(store, thread),
+            extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
+            waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
+            timeZone: ownerTimeZone(store),
+            channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
+            voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
+            stickers: o.kind === "channel" ? stickersOf(store, o.channel) : undefined,
+            mode: modeBlock(mode),
+            workspace: deps.vm?.hasThread(thread.id)
+              ? `Shared Linux computer: ${AGENT_WORKSPACE}, as your own unprivileged user on your own screen. Shell and browser tools run there; web access uses the protected proxy. When it is off, start it with the computer tool.`
+              : workspaceBlock(thread, readOnlyFolders(store, thread), workDir(store, deps.home, thread)),
+            computer,
+            release: ownerTurn ? releaseBlock(store.threads.context(thread.id).release) : undefined,
+            feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
+            // The owner's channel lands in Home: what went out on it meanwhile is what they may be answering.
+            meanwhile:
+              thread.kind === "home" && (o.kind === "user" || (o.kind === "channel" && o.role === "owner"))
+                ? sentMeanwhile(store, thread.id, run.id)
+                : undefined,
+          });
   const input: ChatItem & { role: "user" } = turn.input.resume_of
     ? (systemNote(RESUME_NOTE) as ChatItem & { role: "user" })
     : {
         role: "user",
         ...(images.length ? { images: images.map((a) => ({ media_id: a.media_id, mime: a.mime })) } : {}),
-        content: room
-          ? roomInput(store, {
-              threadId: thread.id,
-              runId: run.id,
-              agentName: agent.name,
-              from: o.kind === "channel" ? o.name : "your owner",
-              owner: o.kind !== "channel" || o.role === "owner",
-              text: said,
-              app: o.kind === "user",
-            })
-          : direct
-            ? // An engine session gets no header, but a result or outside text still says what it is and what to do.
-              o.kind === "go_on"
-              ? said
-              : frameInput(o, files ? `${said}\n\n${files}` : said)
-            : turnInput({
-                origin: turn.input.origin,
-                text: files ? `${said}\n\n${files}` : said,
-                now: new Date(),
-                roster: rosterChanged ? roster.text : undefined,
-                memory: memoryBlock,
-                skills: picked?.block || undefined,
-                task: taskBlock(store, thread),
-                extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
-                waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
-                timeZone: ownerTimeZone(store),
-                channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
-                voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
-                stickers: o.kind === "channel" ? stickersOf(store, o.channel) : undefined,
-                mode: modeBlock(mode),
-                workspace: deps.vm?.hasThread(thread.id)
-                  ? `Shared Linux computer: ${AGENT_WORKSPACE}, as your own unprivileged user on your own screen. Shell and browser tools run there; web access uses the protected proxy. When it is off, start it with the computer tool.`
-                  : workspaceBlock(thread, readOnlyFolders(store, thread), workDir(store, deps.home, thread)),
-                computer,
-                release: ownerTurn ? releaseBlock(store.threads.context(thread.id).release) : undefined,
-                feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
-                // The owner's channel lands in Home: what went out on it meanwhile is what they may be answering.
-                meanwhile:
-                  thread.kind === "home" && (o.kind === "user" || (o.kind === "channel" && o.role === "owner"))
-                    ? sentMeanwhile(store, thread.id, run.id)
-                    : undefined,
-              }),
+        content: room || direct ? (blocks[0] as InputBlock).text : joinInput(blocks),
       };
   const history = room
     ? []
@@ -602,7 +615,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
   const skills = sealed ? "" : skillCatalog(available);
   // A room's turn has no history of its own: only its run is in view.
   const inView = room ? new Set([run.id]) : windowRuns(entries, from, run.id);
-  return { history, input, skills, picked, inView };
+  return { history, input, blocks, skills, picked, inView };
 }
 
 /** The kind of channel a message came on ("telegram"), for how the answer should look; none for the app. */
@@ -713,6 +726,7 @@ export function apxBuild(b: { version: string; code_sha: string }): string {
 const DIRECT_NOTE =
   "You are running inside APX, the owner's local assistant app; they talk to you directly in this chat. APX's own tools (mcp__apx__*) are there if useful.";
 
+/** The system prompt and its parts (what the owner or a project wrote in it, and APX's own text: systemParts). */
 function systemFor(
   store: Store,
   turn: Turn,
@@ -721,37 +735,58 @@ function systemFor(
   build?: { version: string; code_sha: string },
   scratch = "",
   computerOff = false,
-): string {
+): { text: string; parts: PromptPart[] } {
   const lang = store.settings.get("owner_language") || "es";
+  const plain = (text: string) => ({ text, parts: systemParts(text, []) });
   if (turn.audience.kind === "contact")
-    return turn.audience.room
-      ? roomPrompt(turn.agent, turn.audience.room, lang, turn.web)
-      : contactPrompt(turn.agent, turn.audience, lang, turn.web);
+    return plain(
+      turn.audience.room
+        ? roomPrompt(turn.agent, turn.audience.room, lang, turn.web)
+        : contactPrompt(turn.agent, turn.audience, lang, turn.web),
+    );
   // The thread's project when it has one (a global agent working there needs its AGENTS.md too).
   const projectId = turn.thread.project_id ?? turn.agent.project_id;
-  if (turn.worker)
-    return workerPrompt(
-      turn.worker,
-      turn.agent,
-      lang,
-      projectId ? store.projects.get(projectId) : undefined,
-      skills,
-      scratch,
-    );
+  if (turn.worker) {
+    const project = projectId ? store.projects.get(projectId) : undefined;
+    const text = workerPrompt(turn.worker, turn.agent, lang, project, skills, scratch);
+    return {
+      text,
+      parts: systemParts(text, [
+        ["instructions", turn.worker.instructions],
+        ["agents_md", project?.context],
+        ["skills", skills],
+      ]),
+    };
+  }
   const role = turn.agent.kind === "secretary" ? profileBlock(store, roots) : "";
-  return systemPrompt(
+  const project = projectBrief(store, projectId);
+  const owner = ownerIdentity(store);
+  const text = systemPrompt(
     turn.agent,
     turn.thread,
     lang,
-    projectBrief(store, projectId),
+    project,
     skills,
     role,
-    ownerIdentity(store),
+    owner,
     build ? apxBuild(build) : "",
     scratch,
     computerOff,
     channelsOn(store),
   );
+  return {
+    text,
+    parts: systemParts(text, [
+      ["profile", role],
+      ["personality", turn.agent.personality],
+      ["instructions", turn.agent.prompt],
+      ["owner", owner.about],
+      ["agents_md", project?.context],
+      ["org", project?.org ? orgText(project.org) : undefined],
+      ["project_memory", project?.memory],
+      ["skills", skills],
+    ]),
+  };
 }
 
 /**

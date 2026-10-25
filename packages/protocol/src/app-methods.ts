@@ -51,6 +51,7 @@ import {
   RoomMode,
   RouterConfig,
   Run,
+  RunContext,
   ServiceInfo,
   ServiceKind,
   ServiceSettings,
@@ -1677,6 +1678,13 @@ export const appMethods = {
     params: z.object({ run: Id }).strict(),
     result: Run,
     effect: false,
+  },
+  /** What the model received on the run's first call; only the latest runs are kept (RUN_CONTEXTS_KEPT). */
+  "runs.context": {
+    params: z.object({ run: Id }).strict(),
+    result: RunContext,
+    effect: false,
+    access: "human",
   },
   /** Waits until the run ends or `timeout_s` passes, and returns it as it is then. */
   "runs.wait": {

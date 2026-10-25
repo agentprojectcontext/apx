@@ -380,6 +380,11 @@ export interface ProjectsTable {
   context_chars: number | null;
 }
 
+export interface PromptTextsTable {
+  hash: string;
+  text: string;
+}
+
 export interface RoutineRunsTable {
   run_id: string;
   routine_id: string;
@@ -409,6 +414,15 @@ export interface RoutinesTable {
   anchor: Generated<number>;
   origin: string | null;
   max_steps: number | null;
+}
+
+export interface RunContextsTable {
+  run_id: string;
+  seq: number;
+  system_hash: string;
+  input: string;
+  tools: string;
+  sizes: string;
 }
 
 export interface RunsTable {
@@ -598,8 +612,10 @@ export interface Database {
   pending_inputs: PendingInputsTable;
   persons: PersonsTable;
   projects: ProjectsTable;
+  prompt_texts: PromptTextsTable;
   routine_runs: RoutineRunsTable;
   routines: RoutinesTable;
+  run_contexts: RunContextsTable;
   runs: RunsTable;
   steps: StepsTable;
   stickers: StickersTable;

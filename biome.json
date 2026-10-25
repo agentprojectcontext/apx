@@ -177,6 +177,7 @@
                       "**/ProjectSettings.tsx",
                       "**/QrSvg.tsx",
                       "**/QuickChat.tsx",
+                      "**/ReceivedDialog.tsx",
                       "**/ResourcesScreen.tsx",
                       "**/RunnableCode.tsx",
                       "**/ScreenLive.tsx",

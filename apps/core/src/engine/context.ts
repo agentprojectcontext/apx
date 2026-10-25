@@ -5,7 +5,7 @@ import type { LogEntry } from "../domain/model-log.ts";
 // - input: this turn's item, with what changes per turn (time, roster when it changed) and the origin envelope.
 
 import { createHash } from "node:crypto";
-import type { Autonomy, Organization, Thread } from "@apx/protocol";
+import type { Autonomy, Organization, PromptPart, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { answersChecked, type Origin } from "../domain/runs.ts";
 import type { ReleaseContext } from "../domain/threads.ts";
@@ -174,6 +174,15 @@ export function systemPrompt(
     .join("\n");
 }
 
+/**
+ * The system prompt by part: each piece the owner or a project wrote (instructions, AGENTS.md…) that is in it, and
+ * "base" for APX's own text around them, so the parts add up to its length.
+ */
+export function systemParts(system: string, pieces: Array<[string, string | undefined]>): PromptPart[] {
+  const parts = pieces.flatMap(([name, text]) => (text && system.includes(text) ? [{ name, chars: text.length }] : []));
+  return [{ name: "base", chars: system.length - parts.reduce((n, p) => n + p.chars, 0) }, ...parts];
+}
+
 const WRITES: Record<NonNullable<Thread["write"]>, string> = {
   ask: "ask (a change runs as your mode and rules allow; what they leave to the owner waits for an OK)",
   auto: "auto (Claude Code and Codex edit inside this folder without asking, unless you work in manual or plan mode; git config, .apc/ and AGENTS.md always ask; APX's own tools follow your mode and rules)",
@@ -317,7 +326,7 @@ const STICKER_NOTE =
 const VOICE_STYLE =
   "Your first paragraph is sent as a voice note (about 20 seconds): make it a sayable summary in plain words. Lists, links, code and details go after a blank line, as text.";
 
-export function turnInput(opts: {
+export type TurnOpts = {
   origin: Origin;
   text: string;
   now: Date;
@@ -351,38 +360,73 @@ export function turnInput(opts: {
   mode?: string | undefined;
   /** In the chat that told what an update brought: which release, and where its commits are (releaseBlock). */
   release?: string | undefined;
-}): string {
+};
+
+/** One named block of a turn's input ("message" is what was said, framed by who said it). */
+export type InputBlock = { name: string; text: string };
+
+export const turnInput = (opts: TurnOpts): string => joinInput(turnBlocks(opts));
+
+/** The blocks as the model reads them: the per-turn header lines, a blank line, then the message. */
+export function joinInput(blocks: InputBlock[]): string {
+  const head = blocks.filter((b) => b.name !== "message").map((b) => b.text);
+  return `${head.join("\n")}\n\n${blocks.find((b) => b.name === "message")?.text ?? ""}`;
+}
+
+/** Each block's share of joinInput's text, separators included, so the parts add up to its length. */
+export function inputSizes(blocks: InputBlock[]): PromptPart[] {
+  const head = blocks.filter((b) => b.name !== "message");
+  return blocks.map((b) => ({
+    name: b.name,
+    chars: b.text.length + (b.name === "message" ? 0 : b === head.at(-1) ? 2 : 1),
+  }));
+}
+
+/** What changes per turn, as named blocks, then the framed message. */
+export function turnBlocks(opts: TurnOpts): InputBlock[] {
   const when = opts.now.toLocaleString("en-US", {
     dateStyle: "full",
     timeStyle: "short",
     ...(opts.timeZone ? { timeZone: opts.timeZone } : {}),
   });
   const channel = opts.channel ?? "app";
-  const head = [
-    `[context: ${when}${opts.timeZone ? ` (${opts.timeZone})` : ""} · channel: ${channel}]`,
-    CHAT_CHANNELS.has(channel) ? `[channel style] ${CHAT_STYLE}` : "",
-    CHAT_CHANNELS.has(channel) &&
-    ((opts.origin.kind === "channel" && opts.origin.role === "owner") || answersChecked(opts.origin))
-      ? `[channel turn] ${ownerChannelNote(channel)}`
-      : "",
-    opts.voice ? `[voice] ${VOICE_STYLE}` : "",
-    opts.stickers?.length
-      ? `[stickers] ${STICKER_NOTE}\n${untrusted("sticker_meanings", { named_by: "a model, from pictures people sent" }, opts.stickers.map((s) => inlineName(s, 160)).join("; "))}`
-      : "",
-    opts.mode ? `[mode] ${opts.mode}` : "",
-    opts.workspace ? `[workspace] ${opts.workspace}` : "",
-    opts.computer ? `[computer] ${opts.computer}` : "",
-    opts.release ? `[release notes] ${opts.release}` : "",
-    opts.roster ? `[agents]\n${opts.roster}` : "",
-    opts.memory ? `[memory: notes saved earlier]\n${opts.memory}` : "",
-    opts.skills ? `[skills for this message]\n${opts.skills}` : "",
-    opts.task ? `[task]\n${opts.task}` : "",
-    opts.extension ? `[extension context]\n${opts.extension}` : "",
-    opts.waiting ? `[waiting]\n${opts.waiting}` : "",
-    opts.feedback ? `[owner feedback]\n${opts.feedback}` : "",
-    opts.meanwhile ? `[sent to the owner since your last turn here, on their channel]\n${opts.meanwhile}` : "",
-  ].filter(Boolean);
-  return `${head.join("\n")}\n\n${frameInput(opts.origin, opts.text)}`;
+  const head: Array<[string, string]> = [
+    ["context", `[context: ${when}${opts.timeZone ? ` (${opts.timeZone})` : ""} · channel: ${channel}]`],
+    ["channel style", CHAT_CHANNELS.has(channel) ? `[channel style] ${CHAT_STYLE}` : ""],
+    [
+      "channel turn",
+      CHAT_CHANNELS.has(channel) &&
+      ((opts.origin.kind === "channel" && opts.origin.role === "owner") || answersChecked(opts.origin))
+        ? `[channel turn] ${ownerChannelNote(channel)}`
+        : "",
+    ],
+    ["voice", opts.voice ? `[voice] ${VOICE_STYLE}` : ""],
+    [
+      "stickers",
+      opts.stickers?.length
+        ? `[stickers] ${STICKER_NOTE}\n${untrusted("sticker_meanings", { named_by: "a model, from pictures people sent" }, opts.stickers.map((s) => inlineName(s, 160)).join("; "))}`
+        : "",
+    ],
+    ["mode", opts.mode ? `[mode] ${opts.mode}` : ""],
+    ["workspace", opts.workspace ? `[workspace] ${opts.workspace}` : ""],
+    ["computer", opts.computer ? `[computer] ${opts.computer}` : ""],
+    ["release notes", opts.release ? `[release notes] ${opts.release}` : ""],
+    ["agents", opts.roster ? `[agents]\n${opts.roster}` : ""],
+    ["memory", opts.memory ? `[memory: notes saved earlier]\n${opts.memory}` : ""],
+    ["skills", opts.skills ? `[skills for this message]\n${opts.skills}` : ""],
+    ["task", opts.task ? `[task]\n${opts.task}` : ""],
+    ["extension", opts.extension ? `[extension context]\n${opts.extension}` : ""],
+    ["waiting", opts.waiting ? `[waiting]\n${opts.waiting}` : ""],
+    ["owner feedback", opts.feedback ? `[owner feedback]\n${opts.feedback}` : ""],
+    [
+      "meanwhile",
+      opts.meanwhile ? `[sent to the owner since your last turn here, on their channel]\n${opts.meanwhile}` : "",
+    ],
+  ];
+  return [
+    ...head.filter(([, text]) => text).map(([name, text]) => ({ name, text })),
+    { name: "message", text: frameInput(opts.origin, opts.text) },
+  ];
 }
 
 type Group = { run: string | undefined; items: ChatItem[]; seq: number };
