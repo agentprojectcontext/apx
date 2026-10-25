@@ -156,6 +156,8 @@ export function createComputer(store: Store, config: ComputerConfig) {
     },
     /** Set up once by the owner: from then on agents in their chats may ask to use it. */
     offered: () => Boolean(config.lifecycle) && store.settings.get("computer_enabled") === "true",
+    /** Coming up now: work for the owner that keeps the Mac awake. */
+    starting: () => config.lifecycle?.seen() === "preparing",
     /** This host can run it: agents in the owner's chats may start it (asking first) before it was ever set up. */
     available: () => Boolean(config.lifecycle?.supported),
     /** The chat's agent gets a turn once the computer it started is up (or failed): it never waits in the chat. */

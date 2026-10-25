@@ -1439,6 +1439,9 @@ export const en = {
   "desktop.clear": "Remove",
   "desktop.login": "Start with the computer",
   "desktop.loginHint": "APX opens when you log in.",
+  "desktop.awake": "Keep the Mac awake while agents work",
+  "desktop.awakeHint":
+    "It does not sleep during a turn, a command or a computer starting; the screen may still turn off.",
   "desktop.cu": "Computer use",
   "desktop.cu.switch": "Let agents use this computer",
   "desktop.cu.switchHint":

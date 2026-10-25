@@ -19,6 +19,8 @@ export type NewsFacts = {
   integrations: number;
   /** This core can run the isolated Linux computer (a Mac with Apple Silicon) and the owner has a project to try there. */
   computer: boolean;
+  /** This core runs on a Mac and the owner has work there (a project). */
+  mac: boolean;
 };
 
 export type NewsAction = {
@@ -285,6 +287,23 @@ export const NEWS: readonly NewsEntry[] = [
       },
     ],
   },
+  {
+    id: "mac-awake",
+    since: "2.11.0",
+    title: "The Mac stays awake while agents work",
+    applies: (f) => f.mac,
+    text:
+      "While an agent works on a turn, a command runs or the Linux computer starts, the owner's Mac no longer goes " +
+      "to sleep on its own; it may sleep again as soon as nothing runs, and the screen can still turn off. If the " +
+      "Mac sleeps anyway (the lid closed), work it interrupted gets another chance instead of being marked stuck. " +
+      "The owner turns it off in Settings, Desktop.",
+    actions: [
+      {
+        label: { en: "When does it apply?", es: "¿Cuándo se aplica?" },
+        prompt: "Tell me in two lines when APX keeps my Mac awake now and how I turn that off if I prefer it to sleep.",
+      },
+    ],
+  },
 ];
 
 /** The catalog integrations among the owner's global MCP servers. */
@@ -313,6 +332,7 @@ export const newsFacts = (store: Store): NewsFacts => ({
   channels: store.settings.read("channels").length,
   integrations: connectedIntegrations(store),
   computer: process.platform === "darwin" && process.arch === "arm64" && store.projects.list().length > 0,
+  mac: process.platform === "darwin" && store.projects.list().length > 0,
 });
 
 /** The action a channel button stands for. */

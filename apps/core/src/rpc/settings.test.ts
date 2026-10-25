@@ -21,6 +21,7 @@ test("a stored setting that does not read falls back to its default instead of r
     shortcut: "Alt+Space",
     launch_at_login: true,
     computer_use: false,
+    keep_awake: true,
   });
   assert.deepEqual(
     (await env.client.call("tasks.list", {})).columns.map((c) => c.id),
@@ -36,12 +37,19 @@ test("one bad field of the desktop prefs falls back alone; a saved value reads b
     shortcut: "Alt+Space",
     launch_at_login: false,
     computer_use: false,
+    keep_awake: true,
   });
-  await env.client.call("desktop.set", { shortcut: "Alt+K", launch_at_login: true, computer_use: true });
+  await env.client.call("desktop.set", {
+    shortcut: "Alt+K",
+    launch_at_login: true,
+    computer_use: true,
+    keep_awake: false,
+  });
   assert.deepEqual(await env.client.call("desktop.get", {}), {
     shortcut: "Alt+K",
     launch_at_login: true,
     computer_use: true,
+    keep_awake: false,
   });
 });
 

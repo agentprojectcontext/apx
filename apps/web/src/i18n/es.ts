@@ -1450,6 +1450,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "desktop.clear": "Quitar",
   "desktop.login": "Abrir al iniciar la compu",
   "desktop.loginHint": "APX se abre al iniciar sesión.",
+  "desktop.awake": "Mantener la Mac despierta mientras trabajan los agentes",
+  "desktop.awakeHint":
+    "No se duerme durante un turno, un comando o una computadora que arranca; la pantalla igual puede apagarse.",
   "desktop.cu": "Uso de la computadora",
   "desktop.cu.switch": "Dejar que los agentes usen esta computadora",
   "desktop.cu.switchHint":

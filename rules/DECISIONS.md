@@ -2437,3 +2437,16 @@ still snapshots is unmeasured; still snapshots are the fallback if live tiles pr
 leave; `stop` is the owner's, for everyone; `status` lists the screens with their holder, the cap and, for a chat,
 whether it is on the computer and its agent's screen. The guest disk marker moved to `desktop-ready-v3`, so an existing
 guest is secured and provisioned again on its next start.
+
+<a id="d-153"></a>
+## D-153 — 2026-10-25 — The Mac stays awake while APX works, and a sleep it took anyway is not a stuck turn
+An owner leaves a turn, a command or a computer coming up and walks away; the Mac sleeps, the work stops, and on wake
+its timers all fire at once, so a turn that had worked for minutes is stopped as "no progress". While a run is
+working, a terminal job runs or the computer is coming up, the core holds `caffeinate -i -w <core pid>` (macOS only):
+`-i` keeps the system from idle sleep (the display may still sleep), `-w` ends it with the core even when the core dies
+without closing, and the core lets it go as soon as nothing works and when it closes. It is the owner's setting, on by
+default (`desktop.set` `keep_awake`, the Desktop settings). Other platforms do nothing. A sleep can still happen (the
+lid closed, the setting off): the core watches a tick every 10 s, and one 30 s or more late is a sleep. A turn whose
+idle deadline fires across one gets a fresh window once instead of being stopped; a model call cut by it was already
+retried once as a network failure. Rejected: `pmset`/IOKit assertions through a native module, a dependency for what
+`caffeinate` does; keeping the display awake too (`-d`), which the owner never asked for.

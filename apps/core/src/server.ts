@@ -46,6 +46,7 @@ import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { announceRelease } from "./domain/whats-new.ts";
 import { createAttention } from "./engine/attention.ts";
+import { keepAwake, sleepWatch } from "./engine/awake.ts";
 import { createEngine, type RunTimers } from "./engine/engine.ts";
 import type { InputWaits } from "./engine/inputs.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
@@ -161,6 +162,10 @@ export type CoreOptions = {
   /** The most a delegated run may work in all (tests shorten it). */
   a2aCapMs?: number;
   runTimers?: RunTimers;
+  /** Whether the Mac slept since a moment (tests decide); by default the core watches its own timers. */
+  sleptSince?: (since: number) => boolean;
+  /** How the core holds the Mac awake (tests count it); by default `caffeinate` on macOS. */
+  keepAwake?: Parameters<typeof keepAwake>[0]["spawn"];
   /** The scheduler's clock; tests move it to make routines due. */
   clock?: () => Date;
   /** How long a finished turn's chat may stay unread before the tray notices it (tests shorten it). */
@@ -455,7 +460,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     notifyOwner: (body, threadId) => channels.notifyOwner(body, "notice", threadId),
     log,
   });
+  const sleep = opts.sleptSince ? undefined : sleepWatch(opts.runTimers);
   const engine = createEngine({
+    sleptSince: opts.sleptSince ?? ((since) => sleep?.sleptSince(since) ?? false),
     vm,
     store,
     harnesses,
@@ -495,6 +502,19 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       afterWorkTurn(store, engine.admit, run);
     },
   });
+  // The Mac stays awake while APX works for the owner: a turn, a command, or a computer coming up (engine/awake.ts).
+  const awake = keepAwake({
+    busy: () =>
+      store.runs.interrupted().some((r) => r.state === "working") || store.jobs.running().length > 0 || vm.starting(),
+    enabled: () => store.settings.read("desktop").keep_awake,
+    ...(opts.keepAwake ? { spawn: opts.keepAwake } : {}),
+  });
+  bus.on((e) => {
+    if (e.type === "run.updated" || e.type === "job.updated" || e.type === "computer.progress") awake.update();
+  });
+  // A computer's start and end come with no event of their own here: looked at now and then too.
+  const awakeTick = setInterval(() => awake.update(), 30_000);
+  awakeTick.unref();
   // The agent that started the computer and ended its turn hears once it is up, or why not (environments/ready.ts).
   vm.onReady(
     (e) => {
@@ -676,6 +696,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     telemetry,
     computer: vm,
     async close() {
+      awake.close();
+      sleep?.close();
+      clearInterval(awakeTick);
       await watchdog.stop();
       await vm.close();
       await desktopInstaller.close();

@@ -6,7 +6,7 @@ import { useT } from "../i18n/index.ts";
 import { computerUseHere, stopKeys } from "./desktopPrefs.ts";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 
-type Prefs = { shortcut: string; launch_at_login: boolean; computer_use: boolean };
+type Prefs = { shortcut: string; launch_at_login: boolean; computer_use: boolean; keep_awake: boolean };
 
 const SYMBOL: Record<string, string> = { CommandOrControl: "⌘", Alt: "⌥", Shift: "⇧", Control: "⌃", Space: "Space" };
 
@@ -35,7 +35,9 @@ export function DesktopSection() {
   useEffect(() => {
     void client
       .call("desktop.get", {})
-      .then(setPrefs, () => setPrefs({ shortcut: "Alt+Space", launch_at_login: true, computer_use: false }));
+      .then(setPrefs, () =>
+        setPrefs({ shortcut: "Alt+Space", launch_at_login: true, computer_use: false, keep_awake: true }),
+      );
   }, []);
 
   const save = async (next: Prefs) => {
@@ -97,6 +99,16 @@ export function DesktopSection() {
           aria-label={t("desktop.login")}
         />
       </SettingRow>
+      {window.apxDesktop?.platform === "darwin" && (
+        <SettingRow title={t("desktop.awake")} description={t("desktop.awakeHint")}>
+          <Switch
+            size="sm"
+            checked={prefs.keep_awake}
+            onCheckedChange={(on) => void save({ ...prefs, keep_awake: on })}
+            aria-label={t("desktop.awake")}
+          />
+        </SettingRow>
+      )}
       {computerUseHere() && (
         <ComputerUse on={prefs.computer_use} onChange={(on) => void save({ ...prefs, computer_use: on })} />
       )}

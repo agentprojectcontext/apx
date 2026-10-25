@@ -102,6 +102,10 @@ export async function startCore(opts: {
   turnIdleMs?: number;
   a2aCapMs?: number;
   runTimers?: RunTimers;
+  /** Whether the Mac slept since a moment; never, unless a test says so. */
+  sleptSince?: (since: number) => boolean;
+  /** How the core holds the Mac awake; by default nothing is spawned. */
+  keepAwake?: (cmd: string, args: string[]) => { kill(): boolean; once(event: "exit", listener: () => void): unknown };
   desktop?: DesktopOps;
   /** Messages on a Mac; none by default, so a test never reads the machine's own. */
   imessage?: IMessageOps | null;
@@ -167,6 +171,8 @@ export async function startCore(opts: {
       ...(opts.turnIdleMs ? { turnIdleMs: opts.turnIdleMs } : {}),
       ...(opts.a2aCapMs ? { a2aCapMs: opts.a2aCapMs } : {}),
       ...(opts.runTimers ? { runTimers: opts.runTimers } : {}),
+      sleptSince: opts.sleptSince ?? (() => false),
+      keepAwake: opts.keepAwake ?? (() => ({ kill: () => true, once: () => undefined })),
       ...(opts.desktop ? { desktop: opts.desktop } : {}),
       imessage: opts.imessage ?? null,
       tailscale: opts.tailscale ?? (async () => ({ ok: false, out: "not connected" })),
