@@ -2328,7 +2328,9 @@ an agent's stop does not cancel its own run. Starting from a chat that is not th
 when it is off and its old chat has no working run; the old chat gets its host tools back from its next turn. In the
 computer's chat a stopped computer no longer refuses the turn: the agent gets the guest tools and `computer`, and
 starts it when it needs it. Known limit: an agent that starts the computer from another chat keeps that turn's host
-tools until the turn ends; its shell and browser move to the guest at once.
+tools until the turn ends; its shell and browser move to the guest at once, and the owner's screen tools
+(`computer.snapshot`, `click`, `type`, `key`, `open`) refuse from then on: they would look at and act on the owner's
+Mac, not the agent's screen.
 
 **Memory.** Memory, CPUs and disk are owner settings (`environments.configure`), held to the host: memory 2 GiB up to
 the host's minus 4 GiB (at most 32), CPUs up to half the host's (at most 8), disk 16–256 GiB and never below what the

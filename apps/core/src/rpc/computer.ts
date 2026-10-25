@@ -23,6 +23,8 @@ export function computerHandlers(
   store: Store,
   home: string,
   engine: { cancel(thread: string): number },
+  /** Whether a chat works on the shared Linux computer: its agent's screen is there, never the owner's. */
+  onComputer: (thread: string) => boolean = () => false,
 ) {
   /** The turns using the computer now (run → its chat, last use), and those the owner stopped. */
   const using = new Map<string, { thread: string; at: number }>();
@@ -43,6 +45,13 @@ export function computerHandlers(
   const enter = (ctx: CallContext) => {
     const a = ctx.agent;
     if (!a) return;
+    // Started on the Mac, a turn may move to the Linux computer midway: from then on the owner's screen is not its own.
+    if (onComputer(a.thread_id))
+      throw new CallError({
+        code: "conflict",
+        message:
+          "this chat works on your Linux computer now: the screen tools see and act on the owner's Mac, not your screen. Use browser_snapshot for a page, and shell on your screen for the rest",
+      });
     if (stopped.has(a.run_id))
       throw new CallError({
         code: "conflict",
