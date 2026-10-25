@@ -837,7 +837,10 @@ function failRun(
   closeTurnLog(store, t.run, why);
   const deadline = t.signal.reason instanceof DeadlineExceeded;
   const end = canceled ? "canceled" : limit ? "provider_limit" : deadline ? "deadline" : "failed";
-  const run = store.runs.setState(t.run, canceled ? "canceled" : "failed", message, {
+  // The model that failed, so the run says which one even though no answer set it.
+  const tried = !canceled && t.err instanceof ProviderError ? t.err.models[0] : undefined;
+  const failedRun = tried && !t.run.model ? store.runs.patch(t.run, { model: tried }) : t.run;
+  const run = store.runs.setState(failedRun, canceled ? "canceled" : "failed", message, {
     reason: end,
     resets_at: limit?.resetsAt,
   });

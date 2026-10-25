@@ -205,11 +205,15 @@ export function createLlm(opts: {
       }
       // Every model's reason, not only the last one's: the owner needs to see why the first choice failed.
       const reasons = failed.map((f) => `${f.model}: ${f.why}`).join("\n");
-      if (limited.length && !broken) throw limitError(limited, reasons);
-      throw new ProviderError(
-        broken?.kind ?? last?.kind ?? "auth",
-        reasons || last?.message || "no usable model provider",
-      );
+      const err =
+        limited.length && !broken
+          ? limitError(limited, reasons)
+          : new ProviderError(
+              broken?.kind ?? last?.kind ?? "auth",
+              reasons || last?.message || "no usable model provider",
+            );
+      err.models = [...new Set(failed.map((f) => f.model))];
+      throw err;
     },
   };
 }

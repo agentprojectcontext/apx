@@ -58,6 +58,15 @@ function wire(items: TransportRequest["messages"]): unknown[] {
   });
 }
 
+function parses(json: string): boolean {
+  try {
+    JSON.parse(json);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export const openaiChat: Transport = async (req) => {
   const stream = Boolean(req.onText);
   const { res, touch, done } = await post(
@@ -129,6 +138,11 @@ export const openaiChat: Transport = async (req) => {
     }
     // An empty answer (filtered, cut, provider hiccup) is a failure to retry, never a silent "done".
     if (!text && !calls.length) throw new ProviderError("empty", "empty stream");
+    // A stream that stopped without a finish reason in the middle of a tool call's arguments was cut: retried, never
+    // run with half its input. A finished call with bad JSON still reaches the tool, whose error the model can fix.
+    const cut = finish === "other" && calls.find((c) => c.function.arguments.trim() && !parses(c.function.arguments));
+    if (cut)
+      throw new ProviderError("empty", `stream cut inside the arguments of ${cut.function.name || "a tool call"}`);
     const message: AssistantItem = {
       role: "assistant",
       content: text || null,

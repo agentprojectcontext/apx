@@ -7,7 +7,9 @@ let env: Awaited<ReturnType<typeof startCore>>;
 before(async () => {
   env = await startCore({
     llm: scriptedLlm(() => {
-      throw new ProviderError("rate_limit", "fake/fake-1: HTTP 429: You reached the Free usage limit");
+      const err = new ProviderError("rate_limit", "fake/fake-1: HTTP 429: You reached the Free usage limit");
+      err.models = ["fake/fake-1"];
+      throw err;
     }),
   });
 });
@@ -26,4 +28,5 @@ test("when no model answers, the chat says so as an error with the reasons below
   assert.match(notice?.type === "notice" ? (notice.detail ?? "") : "", /HTTP 429/);
   assert.ok(!last?.parts.some((p) => p.type === "text"), "no text part pretends to be the agent's answer");
   assert.equal(t.runs[0]?.state, "failed");
+  assert.equal(t.runs[0]?.model, "fake/fake-1", "a failed run names the model that failed");
 });

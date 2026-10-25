@@ -116,6 +116,38 @@ test("tool calls stream in fragments and keep provider extras", async () => {
   assert.equal(out.finish, "tool_calls");
 });
 
+test("a stream cut inside a tool call's arguments is retried, never handed to the tool half written", async () => {
+  let n = 0;
+  const llm = createLlm({
+    providers: () => providers.slice(0, 1),
+    secrets,
+    firstByteMs: 1000,
+    retryDelayMs: 5,
+    fetchImpl: (async () => {
+      n++;
+      const call = (args: string) => ({
+        choices: [
+          { delta: { tool_calls: [{ index: 0, id: "c1", function: { name: "file_write", arguments: args } }] } },
+        ],
+      });
+      if (n === 1) return sse([call('{"path": "a.md"')]);
+      return sse([
+        call('{"path": "a.md", "content": "hi"}'),
+        { choices: [{ delta: {}, finish_reason: "tool_calls" }] },
+      ]);
+    }) as unknown as typeof fetch,
+  });
+  const out = await llm.complete({
+    models: ["pa/m1"],
+    messages: [],
+    tools: [],
+    signal: new AbortController().signal,
+    onText: () => {},
+  });
+  assert.equal(n, 2);
+  assert.equal(out.message.tool_calls?.[0]?.function.arguments, '{"path": "a.md", "content": "hi"}');
+});
+
 test("anthropic conversion: leading system, later notes as user text, tool calls and results as blocks", () => {
   const { system, messages } = toAnthropic([
     { role: "system", content: "S" },
@@ -318,6 +350,7 @@ test("a server that cuts a long chat to its small context does not answer it; th
     (err: Error) => {
       assert.match(err.message, /^pa\/m1: .*quota/m);
       assert.match(err.message, /^pa\/m2: the server read only 4k tokens of this chat \(50k tokens\)/m);
+      assert.deepEqual((err as ProviderError).models, ["pa/m1", "pa/m2"], "a failed run can name the models it tried");
       return true;
     },
   );

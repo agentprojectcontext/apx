@@ -63,6 +63,8 @@ export type ErrorKind =
 export class ProviderError extends Error {
   readonly kind: ErrorKind;
   readonly resetsAt: string | undefined;
+  /** The models a whole chain tried before giving up, in order; empty for a single call's error. */
+  models: string[] = [];
   constructor(kind: ErrorKind, message: string, resetsAt?: string) {
     super(message);
     this.name = "ProviderError";
