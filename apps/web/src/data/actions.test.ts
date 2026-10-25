@@ -205,6 +205,8 @@ test("new chats preserve code policy, cache their transcript and reject malforme
   assert.equal(data.get().threadLoad[created.id], "ready");
   await actions.makeChat(newChatId({ agent: "roby" }));
   assert.equal(calls.length, 2);
+  // No title of its own, so the core names it after its agent and upkeep can give it a real one.
+  assert.deepEqual(calls[1], ["threads.create", { kind: "loose", agent_id: "roby" }]);
   await assert.rejects(actions.makeChat("bad-id"), /not a new chat/);
   assert.equal(calls.length, 2);
 });

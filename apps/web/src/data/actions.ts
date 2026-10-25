@@ -213,12 +213,12 @@ export async function makeChat(id: string): Promise<Thread> {
     thread = await createThread({
       agentId: spec.agent,
       ...(spec.project ? { projectId: spec.project } : {}),
-      // A code session is named after its folder by the core.
+      // A code session is named after its folder by the core; a plain chat after its agent, until upkeep titles it.
       ...(spec.engine
         ? { engine: spec.engine, title: t("engine.newTitle", { engine: engine?.label ?? spec.engine }) }
         : spec.code
           ? { code: { write: "ask" as const } }
-          : { title: t("chat.new") }),
+          : {}),
     });
   } catch (e) {
     notify(t("error.createChat", { error: errText(e) }));
