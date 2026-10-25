@@ -148,12 +148,12 @@ function ComputerPanelBody() {
                       : "computer.enableTitle",
             )}
           </strong>
-          <p>
-            {phase === "stopped"
-              ? t("computer.stoppedHint")
-              : t("computer.setupHint", { memory: r?.memory_gib ?? 4, disk: (r?.disk_gib ?? 24) + 2 })}
-          </p>
-          {stoppedBy && stoppedBy !== "owner" && <p role="status">{t(`computer.lastStop.${stoppedBy}`)}</p>}
+          {/* Off: one sentence, for why it is off; never set up yet: what it takes. */}
+          {phase === "stopped" ? (
+            <p role="status">{t(`computer.lastStop.${stoppedBy || "owner"}`)}</p>
+          ) : (
+            <p>{t("computer.setupHint", { memory: r?.memory_gib ?? 4, disk: (r?.disk_gib ?? 24) + 2 })}</p>
+          )}
           {allow && !preparing && <p>{t("computer.notAllowed", { agent: chat?.agent_name ?? "" })}</p>}
           {preparing && (
             <p role="status">

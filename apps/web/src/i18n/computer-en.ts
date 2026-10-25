@@ -25,8 +25,6 @@ export const enComputer = {
   "computer.unsupported": "Computer currently requires macOS Apple Silicon",
   "computer.setupHint":
     "Optional Linux desktop with browser and terminal, apart from this Mac. Downloads Lima only if missing, plus Linux and desktop packages. No Docker. {memory} GiB of memory while it runs; keep about {disk} GiB of disk free. Appearance follows APX.",
-  "computer.stoppedHint":
-    "VM is off and its memory has been released. Files stay saved; starting it reuses the existing installation.",
   "computer.closeHint": "Closing this panel keeps the computer running. It shuts down by itself once no agent uses it.",
   "computer.stepRuntime": "Preparing VM components…",
   "computer.stepGuest": "Downloading or starting Linux…",
@@ -45,9 +43,10 @@ export const enComputer = {
   "computer.idleMinutes": "After {n} min",
   "computer.idleNever": "Never",
   "computer.restartHint": "The new resources apply the next time it starts.",
-  "computer.lastStop.idle": "It was shut down after a while without use. Its files are kept.",
-  "computer.lastStop.memory": "It was shut down because this Mac ran short of memory. Its files are kept.",
-  "computer.lastStop.agent": "An agent shut it down. Its files are kept.",
+  "computer.lastStop.owner": "You turned it off. Its files are kept, and it starts again as it was.",
+  "computer.lastStop.idle": "It turned off after a while without use, to give its memory back. Its files are kept.",
+  "computer.lastStop.memory": "It turned off because this Mac ran short of memory. Its files are kept.",
+  "computer.lastStop.agent": "An agent turned it off. Its files are kept.",
   "computer.agentScreen": "{agent} · {display}",
   "computer.agentScreenHeld": "{agent} · {display} · working",
   "computer.pickScreen": "Screen",

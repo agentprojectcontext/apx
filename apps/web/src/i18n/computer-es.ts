@@ -25,8 +25,6 @@ export const esComputer: Record<ComputerKey, string> = {
   "computer.unsupported": "Computadora requiere macOS Apple Silicon por ahora",
   "computer.setupHint":
     "Escritorio Linux opcional con navegador y terminal, aparte de esta Mac. Descarga Lima solo si falta, Linux y paquetes del escritorio. Sin Docker. {memory} GiB de memoria mientras está encendida; dejá unos {disk} GiB libres de disco. Apariencia según APX.",
-  "computer.stoppedHint":
-    "VM apagada, memoria liberada. Archivos guardados; al encender reutiliza instalación existente.",
   "computer.closeHint": "Cerrar este panel la deja encendida. Se apaga sola cuando ningún agente la usa.",
   "computer.stepRuntime": "Preparando componentes de VM…",
   "computer.stepGuest": "Descargando o iniciando Linux…",
@@ -45,7 +43,8 @@ export const esComputer: Record<ComputerKey, string> = {
   "computer.idleMinutes": "A los {n} min",
   "computer.idleNever": "Nunca",
   "computer.restartHint": "Los recursos nuevos se aplican la próxima vez que se encienda.",
-  "computer.lastStop.idle": "Se apagó después de un rato sin uso. Sus archivos quedan guardados.",
+  "computer.lastStop.owner": "La apagaste. Sus archivos quedan guardados y vuelve a arrancar como estaba.",
+  "computer.lastStop.idle": "Se apagó tras un rato sin uso, para devolver su memoria. Sus archivos quedan guardados.",
   "computer.lastStop.memory": "Se apagó porque a esta Mac le faltaba memoria. Sus archivos quedan guardados.",
   "computer.lastStop.agent": "Un agente la apagó. Sus archivos quedan guardados.",
   "computer.agentScreen": "{agent} · {display}",
