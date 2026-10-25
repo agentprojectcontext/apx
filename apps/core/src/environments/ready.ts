@@ -67,6 +67,14 @@ export function readyWaiters(o: {
       arm();
     },
     waiting: () => waiting.size,
+    /** Nobody waits any more (the computer was stopped, the run canceled): no turn, and the chip goes. */
+    cancel(thread?: string) {
+      for (const key of [...waiting.keys()])
+        if (!thread || key === thread) {
+          waiting.delete(key);
+          tell(key, "failed");
+        }
+    },
     close() {
       closed = true;
       cancel?.();

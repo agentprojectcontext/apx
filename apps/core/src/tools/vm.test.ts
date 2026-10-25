@@ -417,3 +417,60 @@ test("the owner starts the computer, the agent only looks: once it is up the age
     env.cleanup();
   }
 });
+
+test("the computer already coming up for no chat: the agent's start waits on it and it carries on on its screen", async () => {
+  const home = tempDir("apx-vm-tool-").path;
+  let boot = () => {};
+  const vm = fakeComputer(home, undefined, { boot: new Promise<void>((resolve) => (boot = resolve)) });
+  const llm = scriptedLlm((req, { said }) => {
+    if (said.includes("is ready")) return say("Lista, sigo.");
+    return results(req).length ? say("Ahora te aviso.") : callTool("start", "computer", { action: "start" });
+  });
+  const env = await startCore({ home, llm, computer: vm.config });
+  try {
+    await env.client.call("environments.permit", { agent: "roby", on: true });
+    // Started from the Computers view, for no chat in particular.
+    await env.client.call("environments.enable", { appearance: "light" });
+    await env.client.call("threads.send", { thread: "home", text: "Probá la tienda en la computadora" });
+    await env.settle("home", 15_000);
+    assert.match(
+      results(llm.calls.at(-1) as LlmRequest)[0] ?? "",
+      /You get a turn in this chat the moment it is ready/,
+    );
+    boot();
+    await waitFor(async () => {
+      const t = await env.client.call("threads.get", { thread: "home" });
+      return t.messages.some((m) => m.parts.some((p) => p.type === "text" && p.text.includes("Lista, sigo")));
+    }, "the agent's turn once the computer is up");
+    assert.equal((await env.client.call("environments.status", { thread: "home" })).chat?.screen, 1);
+  } finally {
+    boot();
+    await env.core.close();
+    env.cleanup();
+  }
+});
+
+test("the owner stops the computer while the agent waits for it: the agent is not woken to hear it", async () => {
+  const home = tempDir("apx-vm-tool-").path;
+  let boot = () => {};
+  const vm = fakeComputer(home, undefined, { boot: new Promise<void>((resolve) => (boot = resolve)) });
+  const llm = scriptedLlm((req) =>
+    results(req).length ? say("Te aviso.") : callTool("look", "computer", { action: "status" }),
+  );
+  const env = await startCore({ home, llm, computer: vm.config });
+  try {
+    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.enable", { thread: "home", appearance: "light" });
+    await env.client.call("threads.send", { thread: "home", text: "Usá la computadora" });
+    await env.settle("home", 15_000);
+    assert.equal(env.core.computer?.waiting(), 1, "waiting on it");
+    const stopped = env.client.call("environments.stop", {});
+    boot();
+    await stopped;
+    assert.equal(env.core.computer?.waiting(), 0, "the wait ended with the owner's stop");
+  } finally {
+    boot();
+    await env.core.close();
+    env.cleanup();
+  }
+});

@@ -67,3 +67,27 @@ test("the waiting chat is told whether Linux is being set up or booting, then th
   await flush();
   assert.deepEqual(stages, ["creating", "loading", "ready"]);
 });
+
+test("a wait the owner ends (the computer stopped, the run canceled) wakes nobody and clears its chip", async () => {
+  const timers = manualTimers();
+  const heard: ReadyEvent[] = [];
+  const stages: ReadyStage[] = [];
+  let phase = "preparing";
+  const w = readyWaiters({
+    phase: async () => ({ phase }),
+    wake: (e) => heard.push(e),
+    progress: (_thread, stage) => stages.push(stage),
+    timers,
+  });
+  w.add("thr_1", "scout");
+  w.add("thr_2", "roby");
+  w.cancel("thr_1");
+  assert.equal(w.waiting(), 1);
+  w.cancel();
+  phase = "running";
+  timers.tick(READY_POLL_MS);
+  await flush();
+  assert.deepEqual(heard, []);
+  assert.deepEqual(stages, ["loading", "loading", "failed", "failed"]);
+  assert.equal(w.waiting(), 0);
+});

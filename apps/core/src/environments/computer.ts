@@ -166,6 +166,10 @@ export function createComputer(store: Store, config: ComputerConfig) {
     afterTurn(thread: string, agent: string) {
       if (chats().includes(thread) && config.lifecycle?.seen() === "preparing") ready.add(thread, agent);
     },
+    /** The owner canceled the chat's run: it no longer waits for the computer. */
+    forgetWait: (thread: string) => ready.cancel(thread),
+    /** How many chats wait for it to come up. */
+    waiting: () => ready.waiting(),
     /** Who admits that turn (the engine, wired once it exists), and who shows the chat how far it got. */
     onReady(fn: (e: ReadyEvent) => void, stage: (thread: string, stage: ReadyStage) => void = () => {}) {
       wake = fn;
@@ -371,6 +375,8 @@ export function createComputer(store: Store, config: ComputerConfig) {
     async halt(reason: StopReason, cancel: (thread: string) => void = () => {}) {
       if (!config.lifecycle) throw unavailable("this VM has no lifecycle controller");
       const holders = ledger.claims();
+      // Stopped on purpose: whoever waited for it to come up is not woken to be told it did not.
+      ready.cancel();
       config.lifecycle.stop();
       store.settings.set("computer_last_stop", JSON.stringify({ reason, at: new Date().toISOString() }));
       for (const claim of holders) cancel(claim.thread);

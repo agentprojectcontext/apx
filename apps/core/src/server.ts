@@ -299,7 +299,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   bus.on((e) => {
     if (e.type === "run.updated" && TERMINAL.has(e.run.state)) {
       vm.release(e.run.id);
-      if (e.run.state !== "canceled") vm.afterTurn(e.run.thread_id, e.run.agent_id);
+      if (e.run.state === "canceled") vm.forgetWait(e.run.thread_id);
+      else vm.afterTurn(e.run.thread_id, e.run.agent_id);
     }
   });
   const watchdog = computerWatchdog({
