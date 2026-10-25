@@ -77,6 +77,7 @@ export const ProjectSettings = lazy(() =>
 
 export const JobList = lazy(() => import("./shell/JobList.tsx").then((m) => ({ default: m.JobList })));
 
+export const CoreBehind = lazy(() => import("./shell/CoreBehind.tsx").then((m) => ({ default: m.CoreBehind })));
 export const UpdateDialog = lazy(() => import("./shell/UpdateDialog.tsx").then((m) => ({ default: m.UpdateDialog })));
 
 // The side panel's tabs load when first opened, not with the chat.

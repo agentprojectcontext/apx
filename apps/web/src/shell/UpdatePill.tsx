@@ -1,9 +1,9 @@
-import { Button, Dialog, Icons } from "@apx/ui";
-import { Suspense, useState } from "react";
+import { Icons } from "@apx/ui";
+import { Suspense } from "react";
 import { useData } from "../data/state.ts";
 import { newerOf, openUpdate, useUpdates } from "../data/updates.ts";
 import { useT } from "../i18n/index.ts";
-import { UpdateDialog } from "../lazy.ts";
+import { CoreBehind, UpdateDialog } from "../lazy.ts";
 import { go } from "./nav.ts";
 
 /**
@@ -16,7 +16,12 @@ export function UpdatePill() {
   const app = useUpdates((s) => s.app);
   const stale = useUpdates((s) => s.panelStale);
   const coreBehind = useUpdates((s) => s.coreBehind);
-  if (coreBehind) return <CoreBehind version={coreBehind} />;
+  if (coreBehind)
+    return (
+      <Suspense fallback={null}>
+        <CoreBehind version={coreBehind} />
+      </Suspense>
+    );
   if (stale)
     return (
       <button
@@ -64,40 +69,6 @@ export function WhatsNewPill() {
       <Icons.Sparkles size={12} />
       <span className="updatepill__label">{t("update.whatsNew")}</span>
     </button>
-  );
-}
-
-/**
- * The core answering this panel runs an older release than the app: usually the one install.sh put in ~/.apx/v2/app,
- * which a service keeps running and the desktop app's own update never touches. Methods the panel uses may be missing.
- */
-function CoreBehind({ version }: { version: string }) {
-  const t = useT();
-  const [open, setOpen] = useState(false);
-  const app = import.meta.env.VITE_APX_VERSION;
-  return (
-    <>
-      <button type="button" className="updatepill" aria-label={t("update.coreBehind")} onClick={() => setOpen(true)}>
-        <Icons.TriangleAlert size={12} />
-        <span className="updatepill__label">{t("update.coreBehind")}</span>
-      </button>
-      {open && (
-        <Dialog
-          open
-          onOpenChange={setOpen}
-          title={t("update.coreBehindTitle")}
-          footer={<Button onClick={() => setOpen(false)}>{t("common.close")}</Button>}
-        >
-          <p>{t("update.coreBehindBody", { core: version, app })}</p>
-          <p>{t("update.coreBehindUpdate")}</p>
-          <pre className="updatepill__cmd">
-            curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
-          </pre>
-          <p>{t("update.coreBehindAppOnly")}</p>
-          <pre className="updatepill__cmd">apx service uninstall</pre>
-        </Dialog>
-      )}
-    </>
   );
 }
 

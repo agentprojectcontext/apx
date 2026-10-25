@@ -151,6 +151,7 @@
                       "**/ConnectPart.tsx",
                       "**/ConnectScreen.tsx",
                       "**/ContactChat.tsx",
+                      "**/CoreBehind.tsx",
                       "**/CornerCards.tsx",
                       "**/DelegationActions.tsx",
                       "**/DesktopInstallNotice.tsx",
