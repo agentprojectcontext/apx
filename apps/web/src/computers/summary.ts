@@ -9,10 +9,9 @@ export function computersOf(status: Result<"environments.status">): Computers {
     shown: status.supported === true && ((status.allowed_agents ?? 0) > 0 || status.enabled),
     inUse: (status.screens ?? []).filter((s) => s.run).length,
     supported: status.supported === true,
+    // Read by the agents' cards (computers/agent.ts), kept as the core sent them.
     allowed: status.allowed ?? [],
-    screens: (status.screens ?? []).flatMap((s) =>
-      s.agent ? [{ agent: s.agent, screen: s.screen, held: !!s.run }] : [],
-    ),
+    screens: status.screens ?? [],
   };
 }
 
@@ -21,7 +20,7 @@ export type Computers = {
   inUse: number;
   supported: boolean;
   allowed: string[];
-  screens: Array<{ agent: string; screen: number; held: boolean }>;
+  screens: Array<{ agent?: string | undefined; screen: number; run?: string | undefined }>;
 };
 
 export const NO_COMPUTERS: Computers = { shown: false, inUse: 0, supported: false, allowed: [], screens: [] };

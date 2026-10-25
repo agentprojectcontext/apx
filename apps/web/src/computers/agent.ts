@@ -11,6 +11,6 @@ export const screensUp = (status: Result<"environments.status"> | undefined) => 
 /** One agent and the computer, for its card: not allowed, allowed with no screen up, or up on its screen. */
 export function agentComputer(c: Computers, agent: string) {
   const up = c.screens.find((s) => s.agent === agent);
-  if (up) return { state: "running" as const, screen: up.screen, held: up.held };
+  if (up) return { state: "running" as const, screen: up.screen, held: Boolean(up.run) };
   return { state: c.allowed.includes(agent) ? ("allowed" as const) : ("off" as const) };
 }

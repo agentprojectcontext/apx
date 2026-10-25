@@ -17,17 +17,6 @@ import { data, upsertMessage } from "./state.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** The owner hands an agent's screen back, from the notice of the turn it blocked. */
-export async function returnScreen(screen: number): Promise<boolean> {
-  try {
-    await client.call("environments.control", { screen, mode: "agent" });
-    return true;
-  } catch (e) {
-    notify(errText(e), "error");
-    return false;
-  }
-}
-
 /** Agents, projects, threads, surfaces and browser tabs in one round. Throws if the core is unreachable. */
 export async function bootstrap(): Promise<void> {
   const [agents, projects, threads, surfaces, computer] = await Promise.all([

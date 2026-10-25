@@ -158,6 +158,8 @@
                       "**/DocumentPanel.tsx",
                       "**/EngineSessions.tsx",
                       "**/GoOn.tsx",
+                      "**/ComputerNotice.tsx",
+                      "**/HandBack.tsx",
                       "**/InputPart.tsx",
                       "**/InstallArtifact.tsx",
                       "**/JobList.tsx",

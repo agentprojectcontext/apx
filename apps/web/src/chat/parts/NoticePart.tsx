@@ -1,9 +1,8 @@
 import type { Part } from "@apx/protocol";
 import { ActionGroup, Button, Icons } from "@apx/ui";
-import { Suspense, useState } from "react";
-import { returnScreen } from "../../data/actions.ts";
+import { Suspense } from "react";
 import { isKey, useT } from "../../i18n/index.ts";
-import { DelegationActions, GoOn } from "../../lazy.ts";
+import { ComputerNotice, DelegationActions, GoOn } from "../../lazy.ts";
 import { appPlace } from "../appLinks.ts";
 
 type NoticeData = Extract<Part, { type: "notice" }>;
@@ -15,6 +14,13 @@ type NoticeData = Extract<Part, { type: "notice" }>;
  */
 export function NoticePart({ part }: { part: NoticeData }) {
   const t = useT();
+  // The computer's notices say themselves with its own strings, loaded with them.
+  if (part.code.startsWith("computer."))
+    return (
+      <Suspense fallback={null}>
+        <ComputerNotice part={part} />
+      </Suspense>
+    );
   // A `variant` picks one wording of the code (`notice.<code>.<variant>`).
   const key = `notice.${part.code}${part.vars?.variant ? `.${part.vars.variant}` : ""}`;
   // The core's English text carries details (e.g. the error); the translation is used when it is the plain case.
@@ -51,9 +57,6 @@ export function NoticePart({ part }: { part: NoticeData }) {
       <div className="notice notice--error" role="alert">
         {text}
         {part.detail && <pre className="notice__detail">{part.detail}</pre>}
-        {part.code === "computer.manual" && typeof part.vars?.screen === "number" && (
-          <HandBack screen={part.vars.screen} />
-        )}
       </div>
     );
   const Icon = part.level === "warn" ? Icons.TriangleAlert : Icons.Info;
@@ -84,25 +87,5 @@ export function NoticePart({ part }: { part: NoticeData }) {
         {link}
       </div>
     </ActionGroup>
-  );
-}
-
-/** The owner holds the agent's screen: one click gives it back, and the agent can be asked again. */
-function HandBack({ screen }: { screen: number }) {
-  const t = useT();
-  const [state, setState] = useState<"idle" | "busy" | "done">("idle");
-  return (
-    <Button
-      size="sm"
-      variant="secondary"
-      className="notice__action"
-      disabled={state !== "idle"}
-      onClick={() => {
-        setState("busy");
-        void returnScreen(screen).then((ok) => setState(ok ? "done" : "idle"));
-      }}
-    >
-      {t(state === "done" ? "notice.computer.manual.done" : "notice.computer.manual.action")}
-    </Button>
   );
 }

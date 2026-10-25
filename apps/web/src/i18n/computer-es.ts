@@ -86,6 +86,18 @@ export const esComputer: Record<ComputerKey, string> = {
     "No hay memoria libre suficiente en esta Mac: {free} GiB libres, y la computadora necesita {vm} GiB más {reserve} GiB que se dejan para la Mac. Cerrá apps o bajale la memoria, y probá de nuevo.",
   "computer.lowerMemory": "Bajarla a {gib} GiB y encender",
   "computer.startAnyway": "Encender igual",
+  "notice.computer.interrupted": "Interrumpido: tomaste control de la computadora.",
+  "notice.computer.unavailable": "Computadora no disponible. El motivo está abajo.",
+  "notice.computer.notOwners":
+    "{agent} trabaja en la computadora acá: un mensaje de un contacto, un widget u otra app no corre en ella.",
+  "notice.computer.notAllowed": "{agent} todavía no puede usar la computadora. Permitíselo desde su panel.",
+  "notice.computer.notAllowed.link": "Abrir computadora",
+  "notice.computer.manual": "Tenés la pantalla de {agent} en tus manos. Devolvésela y volvé a pedírselo a {agent}.",
+  "notice.computer.stopped.memory":
+    "La computadora se apagó: quedaban solo {free} GiB de memoria libre. Su disco se conserva.",
+  "notice.computer.stopped.idle": "La computadora se apagó tras {minutes} minutos sin uso. Su disco se conserva.",
+  "computer.handBack": "Devolver control al agente",
+  "computer.handBack.done": "Control devuelto",
   "agent.computer": "Computadora",
   "agent.computer.hint":
     "Una computadora Linux aparte de esta Mac, compartida por los agentes que permitas: cada uno trabaja en su propia pantalla, con su shell y su navegador.",

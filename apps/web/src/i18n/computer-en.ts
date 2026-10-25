@@ -85,6 +85,17 @@ export const enComputer = {
     "Not enough free memory on this Mac: {free} GiB free, and the computer needs {vm} GiB plus {reserve} GiB kept for the Mac. Close apps or lower its memory, then try again.",
   "computer.lowerMemory": "Lower it to {gib} GiB and turn on",
   "computer.startAnyway": "Start anyway",
+  "notice.computer.interrupted": "Interrupted: you took control of Computer.",
+  "notice.computer.unavailable": "Computer unavailable. Why is below.",
+  "notice.computer.notOwners":
+    "{agent} works on the computer here: a contact's, a widget's or another app's message does not run on it.",
+  "notice.computer.notAllowed": "{agent} may not use the computer yet. Allow it from the computer's panel.",
+  "notice.computer.notAllowed.link": "Open computer",
+  "notice.computer.manual": "{agent}'s screen is in your hands. Hand it back, then ask {agent} again.",
+  "notice.computer.stopped.memory": "Computer shut down: only {free} GiB of memory was free. Its disk is kept.",
+  "notice.computer.stopped.idle": "Computer shut down after {minutes} minutes unused. Its disk is kept.",
+  "computer.handBack": "Return control to the agent",
+  "computer.handBack.done": "Control returned",
   "agent.computer": "Computer",
   "agent.computer.hint":
     "A Linux computer apart from this Mac, shared by the agents you allow: each one works on its own screen with its own shell and browser.",

@@ -152,7 +152,11 @@ test("Computer installs only on enable, shows the chat agent's screen, follows A
     await expect(computer.locator(".computer__desktop")).toBeHidden();
     await computer.getByRole("button", { name: "Restaurar terminal", exact: true }).click();
     await expect(computer.locator(".computer__desktop")).toBeVisible();
-    await computer.getByRole("button", { name: "Devolver control al agente", exact: true }).click();
+    // Asked while the owner has its screen, the agent's turn says so, and its notice hands the screen back.
+    await env.client.call("threads.send", { thread: "home", text: "Seguí vos" });
+    const blocked = page.locator(".notice--error", { hasText: "Tenés la pantalla de Roby en tus manos" });
+    await blocked.getByRole("button", { name: "Devolver control al agente", exact: true }).click();
+    await expect(blocked.getByRole("button", { name: "Control devuelto", exact: true })).toBeDisabled();
     await expect(computer.locator(".computer__locked")).toBeVisible();
     await expect(computer.getByRole("button", { name: "Enviar", exact: true })).toBeDisabled();
     await page.getByRole("button", { name: "Modo oscuro", exact: true }).click();
