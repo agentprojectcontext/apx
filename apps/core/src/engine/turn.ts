@@ -584,7 +584,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
             told,
             workspace: deps.vm?.hasThread(thread.id)
               ? told.onComputer
-                ? `Shared Linux computer: ${AGENT_WORKSPACE}`
+                ? `Folder: ${AGENT_WORKSPACE}, on the shared Linux computer`
                 : COMPUTER_WORKSPACE(AGENT_WORKSPACE)
               : workspaceBlock(thread, readOnlyFolders(store, thread), workDir(store, deps.home, thread), told),
             computer,

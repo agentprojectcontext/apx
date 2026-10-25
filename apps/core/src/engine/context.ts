@@ -478,8 +478,11 @@ export function turnBlocks(opts: TurnOpts): InputBlock[] {
     toldMode && opts.mode ? `mode: ${MODE_NAMES[opts.mode]}` : "",
     opts.voice && toldVoice ? "voice" : "",
   ].filter(Boolean);
+  // One header: the line of facts, then the folder and the computer, each already saying what it is.
   const head: Array<[string, string]> = [
     ["context", `[context: ${facts.join(" · ")}]`],
+    ["workspace", opts.workspace ?? ""],
+    ["computer", opts.computer ?? ""],
     ["channel style", chat && !toldChat ? `[channel style] ${CHAT_STYLE}` : ""],
     [
       "channel turn",
@@ -487,8 +490,6 @@ export function turnBlocks(opts: TurnOpts): InputBlock[] {
     ],
     ["voice", opts.voice && !toldVoice ? `[voice] ${VOICE_STYLE}` : ""],
     ["mode", opts.mode && !toldMode ? `[mode] ${modeBlock(opts.mode)}` : ""],
-    ["workspace", opts.workspace ? `[workspace] ${opts.workspace}` : ""],
-    ["computer", opts.computer ? `[computer] ${opts.computer}` : ""],
     ["release notes", opts.release ? `[release notes] ${opts.release}` : ""],
     ["agents", opts.roster ? `[agents]\n${opts.roster}` : ""],
     ["memory", opts.memory ? `[memory: notes saved earlier]\n${opts.memory}` : ""],

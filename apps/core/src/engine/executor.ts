@@ -318,7 +318,7 @@ export function createExecutor(o: {
       card("error", "read-only thread");
       const why =
         tool.name === "shell"
-          ? "this command is not a plain read (see [workspace] in the turn's context for what runs)"
+          ? 'this command is not a plain read (see "Your folder" in your instructions for what runs)'
           : "only actions that read may run here";
       return { ok: false, text: `refused: this code thread is read-only; ${why}` };
     }

@@ -53,3 +53,21 @@ test("the sections are only those a chat's turns call for: none for a plain chat
   assert.match(sectionLines({ computer: "home" }).join("\n"), /Computer: not used from Home/);
   assert.match(sectionLines({ write: "read-only" }).join("\n"), /Writes there: read-only \(nothing here may change/);
 });
+
+test("a turn opens with one context header: the facts line, then the folder and the computer", () => {
+  const input = turnInput({
+    origin: { kind: "user" },
+    text: "hola",
+    now: new Date(0),
+    mode: "auto",
+    told: { mode: "auto", write: "auto" },
+    workspace: "Folder: ~/work/acme · writes: auto",
+    computer: "Computer: off; this chat works on this Mac.",
+    roster: "Agents you can delegate to:\n- Scout (id: scout)",
+  });
+  assert.match(
+    input,
+    /^\[context: [^\]]* · channel: app · mode: Auto\]\nFolder: ~\/work\/acme · writes: auto\nComputer: off; this chat works on this Mac\.\n\[agents\]\n/,
+  );
+  assert.doesNotMatch(input, /\[workspace\]|\[computer\]|\[mode\]/);
+});
