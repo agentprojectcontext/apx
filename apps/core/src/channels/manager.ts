@@ -14,6 +14,7 @@ import { OWNER_ID } from "../domain/persons.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
+import type { RunTimers } from "../engine/engine.ts";
 import { inputPartOf } from "../engine/inputs.ts";
 import type { Draft } from "../engine/suggest.ts";
 import { errorMessage } from "../errors.ts";
@@ -98,6 +99,8 @@ export function createChannels(deps: {
   ownerReplied?: (messageId: string) => void;
   /** The time attention hours are read against (tests move it). */
   now?: () => Date;
+  /** When a question waiting in the app follows the owner to their channel (tests move it). */
+  followUpTimers?: RunTimers;
   /** The public address webhooks reach (`<base>`, without `/hooks/…`), while the owner has one on. */
   hookBase?: () => string | undefined;
 }) {
@@ -109,7 +112,15 @@ export function createChannels(deps: {
   /** Runs whose "on it" line already went out: the words written before their first tool call. */
   const acked = new Map<string, string>();
   const announced = new Set<string>();
-  const escalations = new Map<string, ReturnType<typeof setTimeout>>();
+  const escalations = new Map<string, () => void>();
+  const followUpTimers: RunTimers = deps.followUpTimers ?? {
+    now: () => Date.now(),
+    after(ms, callback) {
+      const timer = setTimeout(callback, ms);
+      timer.unref();
+      return () => clearTimeout(timer);
+    },
+  };
   let unsubscribe: () => void = () => {};
   /** Settings changes of one channel apply one after another (two quick saves never leave two pollers). */
   const changing = new Map<string, Promise<unknown>>();
@@ -283,17 +294,13 @@ export function createChannels(deps: {
   function followUp(part: Extract<Part, { type: "input" }>, threadId: string, waited = 0): void {
     const after = noticePrefs(store).inputs_after_s;
     if (!after || escalations.has(part.input_id)) return;
-    const timer = setTimeout(
-      () => {
-        escalations.delete(part.input_id);
-        if (stopped || store.inputs.get(part.input_id)?.state !== "pending" || announced.has(part.input_id)) return;
-        const body = { ...inputPresentation(part, channelTexts(store)), input_id: part.input_id };
-        if (notifyOwner(body, "input", threadId)) announced.add(part.input_id);
-      },
-      Math.max(0, after * 1000 - waited),
-    );
-    timer.unref?.();
-    escalations.set(part.input_id, timer);
+    const cancel = followUpTimers.after(Math.max(0, after * 1000 - waited), () => {
+      escalations.delete(part.input_id);
+      if (stopped || store.inputs.get(part.input_id)?.state !== "pending" || announced.has(part.input_id)) return;
+      const body = { ...inputPresentation(part, channelTexts(store)), input_id: part.input_id };
+      if (notifyOwner(body, "input", threadId)) announced.add(part.input_id);
+    });
+    escalations.set(part.input_id, cancel);
   }
 
   /**
@@ -310,7 +317,7 @@ export function createChannels(deps: {
       const thread = store.threads.get(input.thread_id);
       if (!thread || audienceOf(store, thread).kind !== "owner") continue;
       if (input.run_id && replyTo(input.run_id, true)) continue;
-      followUp(inputPartOf(input), input.thread_id, Date.now() - Date.parse(input.created_at));
+      followUp(inputPartOf(input), input.thread_id, followUpTimers.now() - Date.parse(input.created_at));
     }
   }
 
@@ -766,7 +773,7 @@ export function createChannels(deps: {
       stopped = true;
       delivery.stop();
       for (const iv of typing.values()) clearInterval(iv);
-      for (const t of escalations.values()) clearTimeout(t);
+      for (const cancel of escalations.values()) cancel();
       escalations.clear();
       unsubscribe();
       unsubscribe = () => {};

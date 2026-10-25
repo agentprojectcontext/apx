@@ -184,6 +184,9 @@ export type UsageOptions = {
   homeTtlMs?: number;
   homeDeadlineMs?: number;
   platform?: NodeJS.Platform;
+  /** The clock CPU windows are measured on, and the CPUs' cumulative times (tests move both). */
+  now?: () => number;
+  cpuTimes?: () => { busy: number; total: number };
 };
 
 export type Usage = { read(o: { disk: boolean }): Promise<SystemUsage> };
@@ -194,10 +197,12 @@ export function createUsage(o: UsageOptions): Usage {
   const platform = o.platform ?? process.platform;
   const ttl = o.homeTtlMs ?? 5 * 60_000;
   const deadline = o.homeDeadlineMs ?? 30_000;
+  const clock = o.now ?? (() => performance.now());
+  const cpuTimes = o.cpuTimes ?? cpuBusy;
   let last: Omit<HomeUsage, "measuring"> | undefined;
   let measuring: Promise<void> | undefined;
-  let prevHost = cpuBusy();
-  let prevCore = { cpu: process.cpuUsage(), at: performance.now() };
+  let prevHost = cpuTimes();
+  let prevCore = { cpu: process.cpuUsage(), at: clock() };
   let hostPct: number | undefined;
   let corePct: number | undefined;
 
@@ -224,9 +229,9 @@ export function createUsage(o: UsageOptions): Usage {
       ]);
       // A share over a few ms says nothing, and every caller reads here: a window is closed only once it spans a
       // second, and until then each read gets the last share measured.
-      const now = { cpu: process.cpuUsage(), at: performance.now() };
+      const now = { cpu: process.cpuUsage(), at: clock() };
       if (now.at - prevCore.at >= CPU_WINDOW_MS) {
-        const host = cpuBusy();
+        const host = cpuTimes();
         const dTotal = host.total - prevHost.total;
         hostPct = dTotal > 0 ? Math.round(((host.busy - prevHost.busy) / dTotal) * 100) : undefined;
         prevHost = host;

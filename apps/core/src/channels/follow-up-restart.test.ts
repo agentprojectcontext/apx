@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { z } from "zod";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { removeDir, tempDir, waitFor } from "../testkit/platform.ts";
+import { manualTimers, removeDir, tempDir, waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { telegramAdapter } from "./telegram.ts";
@@ -26,11 +26,14 @@ const probe = defineTool({
 test("a question still waiting in the app after a restart follows the owner to Telegram once, when its time comes", async () => {
   const home = tempDir("apx-follow-up-").path;
   const tg = await fakeTelegram(TOKEN);
+  // One clock across the restarts: the owner's two minutes pass when the test says so.
+  const timers = manualTimers();
   const boot = () =>
     startCore({
       home,
       llm,
       extraTools: [probe],
+      followUpTimers: timers,
       channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) },
     });
   let env = await boot();
@@ -51,12 +54,15 @@ test("a question still waiting in the app after a restart follows the owner to T
     const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
     await env.client.call("threads.send", { thread: t.id, text: "launch the probe" });
     await waitFor(async () => (await env.client.call("runs.pending", { thread: t.id })).inputs.length > 0, "the card");
-    await env.client.call("notices.set", { inputs_after_s: 1 });
     const before = tg.messagesTo(OWNER.id).length;
+    timers.tick(60_000);
 
-    // The core restarts: the wait it had in mind is gone, the question is not.
+    // The core restarts a minute in: the wait it had in mind is gone, the question is not, and keeps its time left.
     await env.core.close();
     env = await boot();
+    const left = (timers.nextAt() ?? 0) - timers.now();
+    assert.ok(left > 59_000 && left <= 61_000, `one minute left, not ${left} ms`);
+    timers.tick(61_000);
     await waitFor(() => tg.messagesTo(OWNER.id).length > before, "the follow-up after the restart");
     assert.ok(tg.messagesTo(OWNER.id).at(-1)?.body.reply_markup, "with its buttons");
 
@@ -64,7 +70,8 @@ test("a question still waiting in the app after a restart follows the owner to T
     await env.core.close();
     env = await boot();
     await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "again");
-    await new Promise((r) => setTimeout(r, 1500));
+    assert.equal(timers.pending(), 0, "no follow-up waits for it");
+    timers.tick(10 * 60_000);
     assert.equal(tg.messagesTo(OWNER.id).length, before + 1);
   } finally {
     await env.core.close();
