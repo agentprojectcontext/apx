@@ -58,7 +58,11 @@ function describe(s: Status, run: string): string {
             ? `in error: ${s.error ?? "unknown"}`
             : `${s.phase ?? "off"}${why}`;
   const owner = mine?.control === "human" ? " The owner has your screen in hand now." : "";
-  const chat = s.chat?.on ? "" : " This chat works on this Mac; starting the computer moves it there.";
+  const chat = s.chat?.on
+    ? s.phase === "preparing"
+      ? " This chat works on it: you get a turn here the moment it is ready, on your own screen. Tell the owner once that you will go on then, and end your turn; do not check on it meanwhile."
+      : ""
+    : " This chat works on this Mac; starting the computer moves it there.";
   return `Computer (shared by the agents): ${phase}${size}.${owner}${chat}`;
 }
 

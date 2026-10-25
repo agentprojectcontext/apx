@@ -297,7 +297,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   );
   // A screen is held for one run: once the run is over, the screen is free for another agent.
   bus.on((e) => {
-    if (e.type === "run.updated" && TERMINAL.has(e.run.state)) vm.release(e.run.id);
+    if (e.type === "run.updated" && TERMINAL.has(e.run.state)) {
+      vm.release(e.run.id);
+      if (e.run.state !== "canceled") vm.afterTurn(e.run.thread_id, e.run.agent_id);
+    }
   });
   const watchdog = computerWatchdog({
     store,

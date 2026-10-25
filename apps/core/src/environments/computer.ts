@@ -159,6 +159,13 @@ export function createComputer(store: Store, config: ComputerConfig) {
     available: () => Boolean(config.lifecycle?.supported),
     /** The chat's agent gets a turn once the computer it started is up (or failed): it never waits in the chat. */
     whenReady: (thread: string, agent: string, now?: { setup?: boolean | undefined }) => ready.add(thread, agent, now),
+    /**
+     * A turn in a chat on the computer ended while the computer comes up (the owner started it, or the agent only
+     * looked): the chat's agent gets its turn once it is ready, whatever it called, and takes its screen then.
+     */
+    afterTurn(thread: string, agent: string) {
+      if (chats().includes(thread) && config.lifecycle?.seen() === "preparing") ready.add(thread, agent);
+    },
     /** Who admits that turn (the engine, wired once it exists), and who shows the chat how far it got. */
     onReady(fn: (e: ReadyEvent) => void, stage: (thread: string, stage: ReadyStage) => void = () => {}) {
       wake = fn;

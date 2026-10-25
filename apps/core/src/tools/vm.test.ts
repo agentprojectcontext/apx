@@ -376,3 +376,40 @@ test("on the computer, the owner's own agents' results run in its chat; a contac
     env.cleanup();
   }
 });
+
+test("the owner starts the computer, the agent only looks: once it is up the agent is on its screen and carries on", async () => {
+  const home = tempDir("apx-vm-tool-").path;
+  let boot = () => {};
+  const vm = fakeComputer(home, undefined, { boot: new Promise<void>((resolve) => (boot = resolve)) });
+  let screenInReadyTurn: number | undefined;
+  const llm = scriptedLlm(async (req, { said }) => {
+    if (said.includes("is ready")) {
+      screenInReadyTurn = (await env.client.call("environments.status", { thread: "home" })).screens?.find(
+        (s) => s.agent === "roby" && s.run,
+      )?.screen;
+      return say("Ya estoy en mi pantalla, sigo con la tienda.");
+    }
+    return results(req).length ? say("Está arrancando, te aviso.") : callTool("look", "computer", { action: "status" });
+  });
+  const env = await startCore({ home, llm, computer: vm.config });
+  try {
+    await env.client.call("environments.permit", { agent: "roby", on: true });
+    // The owner turns it on for this chat from its panel; it takes a while to come up.
+    await env.client.call("environments.enable", { thread: "home", appearance: "light" });
+    await env.client.call("threads.send", { thread: "home", text: "Usá la computadora para probar la tienda" });
+    await env.settle("home", 15_000);
+    assert.match(results(llm.calls.at(-1) as LlmRequest)[0] ?? "", /you get a turn here the moment it is ready/);
+    boot();
+    await waitFor(async () => {
+      const t = await env.client.call("threads.get", { thread: "home" });
+      return t.messages.some((m) =>
+        m.parts.some((p) => p.type === "text" && p.text.includes("Ya estoy en mi pantalla")),
+      );
+    }, "the agent's turn once the computer is up");
+    assert.equal(screenInReadyTurn, 1, "its own screen, taken for that turn");
+  } finally {
+    boot();
+    await env.core.close();
+    env.cleanup();
+  }
+});
