@@ -56,11 +56,17 @@ test("guest browser cards, including old messages, stay in the VM; an open panel
   try {
     await env.client.call("setup.finish", {});
     await env.client.call("environments.permit", { agent: "roby", on: true });
-    await env.client.call("environments.bind", { thread: "home" });
-    add("home", "Legacy guest page", "h1");
-    add("home", "Tagged guest page", "vm-1", "vm");
+    // Home stays on this Mac (DECISIONS.md#d-154): Roby works on the computer in a chat of its own.
+    const chat = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "roby",
+      title: "En la computadora",
+    });
+    await env.client.call("environments.bind", { thread: chat.id });
+    add(chat.id, "Legacy guest page", "h1");
+    add(chat.id, "Tagged guest page", "vm-1", "vm");
     await page.setViewportSize({ width: 1600, height: 1000 });
-    await page.goto(`${env.core.url}/#thread=home`);
+    await page.goto(`${env.core.url}/#thread=${chat.id}`);
     const legacy = page.getByRole("button", { name: "Computadora: Legacy guest page", exact: true });
     await expect(legacy).toBeVisible();
     await expect(page.getByRole("button", { name: "Computadora: Tagged guest page", exact: true })).toBeVisible();
@@ -74,7 +80,7 @@ test("guest browser cards, including old messages, stay in the VM; an open panel
     await page.locator(".computer").getByRole("button", { name: "Cerrar panel", exact: true }).click();
     await expect(page.locator(".computer")).toHaveCount(0);
     await expect(page).not.toHaveURL(/panel=computer/);
-    expect((await env.client.call("environments.status", {})).chats).toEqual(["home"]);
+    expect((await env.client.call("environments.status", {})).chats).toEqual([chat.id]);
     await legacy.click();
     await expect(page.locator(".computer")).toBeVisible();
     expect(hostCalls.filter((method) => method !== "browser.tabs")).toEqual([]);
