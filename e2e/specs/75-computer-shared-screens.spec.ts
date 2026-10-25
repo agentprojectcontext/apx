@@ -41,7 +41,8 @@ test("two agents hold two screens at once, a third waits for room, and the owner
   const started = new Set<string>();
   const llm = scriptedLlm(async (req) => {
     const said = String(req.messages.findLast((m) => m.role === "user")?.content ?? "");
-    const who = /chat (\w+)/.exec(said)?.[1] ?? "";
+    // The owner's words are the input's last line ("chat roby"); APX's own lines above them say "chat" too.
+    const who = /^chat (\w+)$/.exec(said.split("\n").at(-1) ?? "")?.[1] ?? "";
     started.add(who);
     await new Promise<void>((resolve) => {
       ends.set(who, resolve);
