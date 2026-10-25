@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
 import { COMPUTER_GRANT } from "@apx/protocol";
-import { ApxClient } from "@apx/protocol/client";
+import { ApxClient, type ApxError } from "@apx/protocol/client";
 import { callTool, computerChat, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createVmLifecycle } from "../environments/lifecycle.ts";
 import type { LlmRequest } from "../providers/llm.ts";
@@ -547,6 +547,47 @@ test("an agent allowed the computer reads its state each turn in its input; one 
     assert.doesNotMatch(inputs.at(-1) ?? "", /\[computer\]/);
     // The system prompt never carries it: it stays the same turn after turn.
     assert.doesNotMatch(String(llm.calls.at(-2)?.messages[0]?.content ?? ""), /\[computer\]/);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});
+
+test("the owner turns an allowed agent's screen on with no run, never past the cap, and off again", async () => {
+  const home = tempDir("apx-vm-tool-").path;
+  const env = await startCore({ home, llm: scriptedLlm(() => say("ok")), computer: fakeComputer(home).config });
+  const screens = async () =>
+    (await env.client.call("environments.status", {})).screens?.map((s) => [s.screen, s.agent, Boolean(s.run)]);
+  try {
+    for (const agent of ["roby", "scout", "vera"]) await env.client.call("environments.permit", { agent, on: true });
+    await assert.rejects(env.client.call("environments.screen", { agent: "roby", on: true }), /turn it on first/);
+    await env.client.call("environments.enable", { appearance: "light" });
+    await waitFor(async () => (await env.client.call("environments.status", {})).phase === "running", "running");
+
+    await env.client.call("environments.screen", { agent: "roby", on: true });
+    await env.client.call("environments.screen", { agent: "scout", on: true });
+    assert.deepEqual(await screens(), [
+      [1, "roby", false],
+      [2, "scout", false],
+    ]);
+    // Two screens is what a 4 GiB computer holds: a third is refused, saying which are up, and none is taken.
+    await assert.rejects(env.client.call("environments.screen", { agent: "vera", on: true }), (e: ApxError) => {
+      assert.deepEqual(e.detail, { reason: "screens_full", max: 2, up: ["Roby", "Scout"] });
+      return true;
+    });
+    await env.client.call("environments.screen", { agent: "roby", on: false });
+    assert.deepEqual(await screens(), [[2, "scout", false]]);
+    await env.client.call("environments.screen", { agent: "vera", on: true });
+    assert.deepEqual(await screens(), [
+      [2, "scout", false],
+      [3, "vera", false],
+    ]);
+    // Only an agent the owner allowed.
+    await env.client.call("environments.permit", { agent: "roby", on: false });
+    await assert.rejects(
+      env.client.call("environments.screen", { agent: "roby", on: true }),
+      /may not use the computer/,
+    );
   } finally {
     await env.core.close();
     env.cleanup();

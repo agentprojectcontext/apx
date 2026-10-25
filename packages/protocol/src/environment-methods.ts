@@ -159,6 +159,18 @@ export const environmentMethods = {
     replay: false,
     access: "human",
   },
+  /**
+   * The owner turns an allowed agent's screen on (to watch it, take it in hand, sign in somewhere) or off, while the
+   * computer runs and no run of it works there. Past the cap a start is refused (`detail.reason` "screens_full", with
+   * `max` and the names `up`), never taking another screen's place.
+   */
+  "environments.screen": {
+    params: z.object({ agent: Id, on: z.boolean() }).strict(),
+    result: Ok,
+    effect: true,
+    replay: false,
+    access: "human",
+  },
   /** The owner takes one agent's screen (stopping the run holding it) or hands it back. */
   "environments.control": {
     params: z.object({ screen: Screen, mode: z.enum(["agent", "human"]) }).strict(),

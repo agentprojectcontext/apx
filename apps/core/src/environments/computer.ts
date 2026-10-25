@@ -312,6 +312,17 @@ export function createComputer(store: Store, config: ComputerConfig) {
     release(run: string) {
       ledger.release(run);
     },
+    /** The owner turns an allowed agent's screen on or off while the computer runs, with no run of the agent. */
+    async screen(agent: string, on: boolean) {
+      if (!store.agents.get(agent)) throw badRequest(`no agent ${agent}`);
+      if (!(await running())) throw unavailable("the computer is off; turn it on first");
+      if (on && !vm.permitted(agent))
+        throw conflict(`${store.agents.get(agent)?.name ?? agent} may not use the computer`);
+      touch();
+      if (on) await ledger.up(agent);
+      else await ledger.down(agent);
+      return { ok: true as const };
+    },
     humanControl: (screen: number) => control(screen).human(),
     /** The owner takes or returns one screen; taking an agent's cancels the run holding it. */
     async control(screen: number, mode: "agent" | "human", cancel: (thread: string) => number) {

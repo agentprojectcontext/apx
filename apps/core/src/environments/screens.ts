@@ -118,6 +118,42 @@ export function screenLedger(store: Store, o: { cap: () => number; screens: Scre
         pending--;
       });
     },
+    /**
+     * The owner turns an agent's screen on with no run: to watch it, take it in hand, sign in somewhere. It never takes
+     * another screen's place: past the cap it is refused, naming the screens that are up.
+     */
+    up: (agent: string, signal?: AbortSignal) => {
+      const deadline = AbortSignal.timeout(o.claimMs ?? CLAIM_MS);
+      const limit = signal ? AbortSignal.any([signal, deadline]) : deadline;
+      return serial(async (): Promise<number> => {
+        const screen = slot(agent);
+        if (running.has(screen)) return screen;
+        const cap = o.cap();
+        if (running.size >= cap) {
+          const up = [...running].map((s) => name(ledger.agentOf(s) ?? ""));
+          throw conflict(`all ${cap} screens the computer can hold are up (${up.join(", ")})`, {
+            reason: "screens_full",
+            max: cap,
+            up,
+          });
+        }
+        await Promise.race([o.screens.start(screen, limit), aborted(limit)]).catch((error: unknown) => {
+          throw deadline.aborted ? unavailable(`${name(agent)}'s screen did not start in time; try again`) : error;
+        });
+        running.add(screen);
+        return screen;
+      });
+    },
+    /** The owner turns an agent's screen off, giving its memory back: not while a run of it works there. */
+    down: (agent: string) =>
+      serial(async () => {
+        const screen = store.settings.read("computer_screens")[agent];
+        if (screen === undefined || !running.has(screen)) return;
+        if (claims().some((c) => c.screen === screen))
+          throw conflict(`${name(agent)} is working on its screen; stop that turn first`);
+        await o.screens.stop(screen);
+        running.delete(screen);
+      }),
     /** The run is over or left the computer: its screen stays up for its next turn, until room is needed. */
     release(run: string) {
       const all = store.settings.read("computer_claims");

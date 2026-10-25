@@ -108,6 +108,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "mcp.tools": PANEL,
   "environments.appearance": PANEL,
   "environments.display": PANEL,
+  "environments.screen": PANEL,
   "channels.recover": PANEL,
   "surfaces.import": PANEL,
   "sessions.resume": PANEL,

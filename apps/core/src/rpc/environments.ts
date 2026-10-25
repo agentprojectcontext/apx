@@ -56,6 +56,7 @@ export function environmentHandlers(store: Store, vm?: Computer, cancel: Engine[
       return { resources: computer.resources(), idle_minutes: next.idle_minutes };
     },
     "environments.permit": ({ agent, on }) => enabled().permit(agent, on),
+    "environments.screen": ({ agent, on }) => enabled().screen(agent, on),
     "environments.usage": async () => (await vm?.usage()) ?? { running: false },
     "environments.control": ({ screen, mode }) => enabled().control(screen, mode, (thread) => cancel(thread)),
     "environments.stop": async () => {
