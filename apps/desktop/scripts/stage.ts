@@ -8,8 +8,8 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { nodeOs, targetOf } from "@apx/protocol";
-import { build } from "esbuild";
 import { CLIENT_FILE, clientFromJson, clientFromPair } from "../../core/src/integrations/google-client.ts";
+import { stageProtocol } from "./stage-protocol.ts";
 
 const repo = path.resolve(import.meta.dirname, "../../..");
 const target = targetOf(process.env.APX_TARGET, process.platform, process.arch);
@@ -89,35 +89,7 @@ for (const scope of ["@anthropic-ai", "@openai"]) {
 fs.rmSync(path.join(out, "node_modules", ".bin"), { recursive: true, force: true });
 
 // After npm (which prunes what package.json does not list).
-const protocol = path.join(out, "node_modules/@apx/protocol");
-await build({
-  entryPoints: {
-    index: path.join(repo, "packages/protocol/src/index.ts"),
-    client: path.join(repo, "packages/protocol/src/client.ts"),
-    cdp: path.join(repo, "packages/protocol/src/cdp.ts"),
-  },
-  outdir: protocol,
-  bundle: true,
-  splitting: true,
-  format: "esm",
-  platform: "node",
-  target: "node22",
-  external: ["zod"],
-  logLevel: "warning",
-});
-fs.writeFileSync(
-  path.join(protocol, "package.json"),
-  JSON.stringify(
-    {
-      name: "@apx/protocol",
-      version,
-      type: "module",
-      exports: { ".": "./index.js", "./client": "./client.js", "./cdp": "./cdp.js" },
-    },
-    null,
-    2,
-  ),
-);
+await stageProtocol(path.join(repo, "packages/protocol"), path.join(out, "node_modules/@apx/protocol"), version);
 
 let sha = process.env.GITHUB_SHA?.slice(0, 12) ?? "";
 if (!sha) {
