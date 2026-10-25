@@ -190,7 +190,10 @@ test("the agent is told a send the owner asked for stays its own, not a hand-off
   assert.match(system, /never refuse it as relayed, nor send the owner to repeat it to you/);
   // How to drive the browser is in its tools, not in every prompt.
   const open = llm.calls[0]?.tools.find((t) => t.function.name === "browser_open");
-  assert.match(String(open?.function.description), /browser_snapshot gives refs for browser_click and browser_type \(wait_s/);
+  assert.match(
+    String(open?.function.description),
+    /browser_snapshot gives refs for browser_click and browser_type \(wait_s/,
+  );
 });
 
 test("browser_open loads in the tab the chat already uses, and new_tab opens another", async () => {
