@@ -1413,6 +1413,8 @@ naming the file's path, omitted lines and a `file_read` offset and limit. Line-b
 tool's per-line output limit. The persisted counter and owner-facing notice cover **AGENTS.md only**: its full length
 is kept as `projects.context_chars` and sent as `Project.agents_md_chars` only past the limit, shown in project
 settings and by `apx projects list`. `.apc/memory.md` shares the cap and agent-facing marker, but has no CLI/UI notice.
+What reaches the prompt whole is superseded by [D-156](#d-156): every call now carries an AGENTS.md's first 8,000
+characters and the headings of the rest; the 200,000 limit, its marker and the owner's notice stay as they are.
 
 
 <a id="d-111"></a>
@@ -2501,3 +2503,15 @@ instruction is lost. The trade: the mode used to stay out of the system prompt b
 agent's mode, a code chat's write policy or voice notes now changes that chat's prompt once, a cache miss on one call,
 where before every turn paid for the text. They come after everything chats share, before the chat's kind, temp
 folder and version, so the cached prefix is still shared.
+
+<a id="d-156"></a>
+## D-156 — 2026-10-25 — Every call carries a project's AGENTS.md up to 8,000 characters, and says what it left out
+Supersedes the part of [D-110](#d-110) that sent a project's AGENTS.md whole. A 20,000-character AGENTS.md made up
+three quarters of each call's system prompt in that project, on every step of every turn, for rules most turns never
+touch. The prompt now carries its start up to 8,000 characters (`AGENTS_MD_PROMPT_CHARS`, cut at a heading, else at a
+line end), then one line naming where it goes on (the line and how many characters are left), the headings of the
+part left out (up to 1,500 characters of them) and `file_read` with the file's path and that line, to read before
+acting on anything those parts may cover. What D-110 fixed still holds: nothing is cut silently, the agent knows what
+it did not get and how to read it. A project that wants a rule in every call puts it near the top. The 200,000 safety
+limit, its marker and the owner's notice are unchanged; `.apc/memory.md` still reaches the agents whole. The owner
+sees what a call carried in the chat (runs.context).

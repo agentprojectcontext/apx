@@ -59,6 +59,7 @@ import {
 import { gitChanges } from "./changes.ts";
 import { memoryQuery, recallChats } from "./chat-recall.ts";
 import {
+  agentsMdOf,
   CHAT_CHANNELS,
   COMPUTER_WORKSPACE,
   frameInput,
@@ -791,7 +792,7 @@ function systemFor(
       text,
       parts: systemParts(text, [
         ["instructions", turn.worker.instructions],
-        ["agents_md", project?.context],
+        ["agents_md", project?.context && agentsMdOf(project)],
         ["skills", skills],
       ]),
     };
@@ -820,7 +821,7 @@ function systemFor(
       ["personality", turn.agent.personality],
       ["instructions", turn.agent.prompt],
       ["owner", owner.about],
-      ["agents_md", project?.context],
+      ["agents_md", project?.context && agentsMdOf(project)],
       ["org", project?.org ? orgText(project.org) : undefined],
       ["project_memory", project?.memory],
       ["skills", skills],

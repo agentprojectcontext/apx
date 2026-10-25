@@ -22,9 +22,9 @@ is for what a new owner needs to find their way, not for padding. A channel turn
 so every machine measures the same. Raising it is allowed with a reason in the commit and the numbers here updated;
 trimming something else first is better.
 
-A project's own files (its AGENTS.md and `.apc/memory.md`) are not part of this budget: they reach its agents whole,
-and how long they are is the project's choice, kept by its own rules (this repo's AGENTS.md stays lean on purpose).
-Only past a safety limit of 200,000 characters are they cut, with a marker the agent and the owner see
+A project's own files are not part of this budget. Its AGENTS.md reaches every call up to 8,000 characters, with the
+headings of the rest and where to read them ([D-156](DECISIONS.md#d-156)); `.apc/memory.md` reaches its agents whole.
+Past a safety limit of 200,000 characters both are cut, with a marker the agent and the owner see
 ([D-110](DECISIONS.md#d-110)).
 
 How to stay within it:
