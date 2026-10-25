@@ -14,6 +14,7 @@ import { OWNER_ID } from "../domain/persons.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
+import { inputPartOf } from "../engine/inputs.ts";
 import type { Draft } from "../engine/suggest.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
@@ -109,6 +110,7 @@ export function createChannels(deps: {
   const acked = new Map<string, string>();
   const announced = new Set<string>();
   const escalations = new Map<string, ReturnType<typeof setTimeout>>();
+  let unsubscribe: () => void = () => {};
   /** Settings changes of one channel apply one after another (two quick saves never leave two pollers). */
   const changing = new Map<string, Promise<unknown>>();
   let stopped = false;
@@ -278,17 +280,38 @@ export function createChannels(deps: {
   });
 
   /** A confirmation nobody answered in the app after a while also goes to the owner's channel. */
-  function followUp(part: Extract<Part, { type: "input" }>, threadId: string): void {
+  function followUp(part: Extract<Part, { type: "input" }>, threadId: string, waited = 0): void {
     const after = noticePrefs(store).inputs_after_s;
     if (!after || escalations.has(part.input_id)) return;
-    const timer = setTimeout(() => {
-      escalations.delete(part.input_id);
-      if (stopped || store.inputs.get(part.input_id)?.state !== "pending" || announced.has(part.input_id)) return;
-      const body = { ...inputPresentation(part, channelTexts(store)), input_id: part.input_id };
-      if (notifyOwner(body, "input", threadId)) announced.add(part.input_id);
-    }, after * 1000);
+    const timer = setTimeout(
+      () => {
+        escalations.delete(part.input_id);
+        if (stopped || store.inputs.get(part.input_id)?.state !== "pending" || announced.has(part.input_id)) return;
+        const body = { ...inputPresentation(part, channelTexts(store)), input_id: part.input_id };
+        if (notifyOwner(body, "input", threadId)) announced.add(part.input_id);
+      },
+      Math.max(0, after * 1000 - waited),
+    );
     timer.unref?.();
     escalations.set(part.input_id, timer);
+  }
+
+  /**
+   * After a restart: a question asked in the app that still waits follows the owner when its time comes (at once if it
+   * already came), unless it already went out on a channel.
+   */
+  function resumeFollowUps(): void {
+    for (const input of store.inputs.pending()) {
+      if (announced.has(input.id)) continue;
+      if (store.channels.outbox.hasInput(input.id)) {
+        announced.add(input.id);
+        continue;
+      }
+      const thread = store.threads.get(input.thread_id);
+      if (!thread || audienceOf(store, thread).kind !== "owner") continue;
+      if (input.run_id && replyTo(input.run_id, true)) continue;
+      followUp(inputPartOf(input), input.thread_id, Date.now() - Date.parse(input.created_at));
+    }
   }
 
   // ── replies, confirmations, typing ────────────────────────────────────
@@ -726,11 +749,14 @@ export function createChannels(deps: {
     },
     /** Boot: sends cut by a restart become "uncertain", messages not handled yet are handled, channels start. */
     async start(): Promise<void> {
+      stopped = false;
       const cut = store.channels.outbox.reconcile();
       if (cut) log.warn({ items: cut }, "channel sends cut by the last restart are marked uncertain");
-      deps.bus.on(onEvent);
+      unsubscribe();
+      unsubscribe = deps.bus.on(onEvent);
       inbound.resume();
       await Promise.allSettled(configs().map(startOne));
+      resumeFollowUps();
       delivery.kick();
       void stickers.nameUnnamed().catch((err) => log.warn({ err: errorMessage(err, 200) }, "stickers not named"));
     },
@@ -741,6 +767,9 @@ export function createChannels(deps: {
       delivery.stop();
       for (const iv of typing.values()) clearInterval(iv);
       for (const t of escalations.values()) clearTimeout(t);
+      escalations.clear();
+      unsubscribe();
+      unsubscribe = () => {};
       typing.clear();
       await Promise.allSettled([...live.keys()].map(stopOne));
     },

@@ -32,7 +32,8 @@ export const APP_ONLY =
 export const folderBinding = (folders: string[], write = false) =>
   `${write ? "write-folders" : "folders"}:${folders.join("\n")}`;
 
-const partOf = (r: InputRecord): Part => ({
+/** A stored question or confirmation as the chat shows it. */
+export const inputPartOf = (r: InputRecord): Extract<Part, { type: "input" }> => ({
   type: "input",
   input_id: r.id,
   kind: r.kind,
@@ -71,7 +72,7 @@ export function createInputs(deps: {
     if (!msg) return;
     store.messages.update({
       ...msg,
-      parts: msg.parts.map((p) => (p.type === "input" && p.input_id === r.id ? partOf(r) : p)),
+      parts: msg.parts.map((p) => (p.type === "input" && p.input_id === r.id ? inputPartOf(r) : p)),
     });
   }
 
@@ -201,7 +202,8 @@ export function createInputs(deps: {
         waitMs: o.stays ? OPEN_INPUT_MS : waitMs,
         app_only: o.appOnly,
       });
-      const show = (r: InputRecord) => o.display.upsert((p) => p.type === "input" && p.input_id === r.id, partOf(r));
+      const show = (r: InputRecord) =>
+        o.display.upsert((p) => p.type === "input" && p.input_id === r.id, inputPartOf(r));
       show(rec);
       store.runs.setState(o.run, "input-required");
       store.threads.patch(o.run.thread_id, { state: "input-required" });

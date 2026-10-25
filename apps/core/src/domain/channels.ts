@@ -336,6 +336,18 @@ export function channelsRepo({ one, all, run }: Sql) {
         const r = outRow(id);
         return r ? toOut(r) : undefined;
       },
+      /** Whether an owner's card (a confirmation or question) already went out, or waits to, on some channel. */
+      hasInput(inputId: string): boolean {
+        return Boolean(
+          one(
+            qb
+              .selectFrom("outbox")
+              .select("id")
+              .where("kind", "=", "input")
+              .where(sql<string>`json_extract(body, '$.input_id')`, "=", inputId),
+          ),
+        );
+      },
       /** Queued items whose time came, oldest first. */
       due(limit = 20): OutboxRow[] {
         return all(
