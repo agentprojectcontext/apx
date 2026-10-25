@@ -32,15 +32,26 @@ type Event = {
     arguments?: string;
     summary?: unknown[];
     encrypted_content?: string;
+    content?: Array<{ type?: string; text?: string; refusal?: string }>;
   };
   response?: {
     status?: string;
+    incomplete_details?: { reason?: string };
     usage?: { input_tokens?: number; output_tokens?: number; input_tokens_details?: { cached_tokens?: number } };
     error?: { message?: string };
   };
   error?: { message?: string };
   message?: string;
 };
+
+/** Why a round came back with nothing, so the owner sees more than "empty stream". */
+function emptyWhy(ended: Event["response"] | undefined): string {
+  if (!ended) return "empty stream: it ended before the response finished";
+  const reason = ended.incomplete_details?.reason;
+  if (ended.status && ended.status !== "completed")
+    return `empty stream: the response ended ${ended.status}${reason ? ` (${reason})` : ""}`;
+  return "empty stream";
+}
 
 const text = (role: "user" | "assistant", t: string) => ({
   type: "message",
@@ -136,6 +147,10 @@ export const chatgptResponses: Transport = async (req) => {
     const calls: ToolCall[] = [];
     const args = new Map<string, { call_id: string; name: string; arguments: string }>();
     const reasoning: Reasoning[] = [];
+    // A model may send its message only whole (no deltas), or a refusal: both still answer the turn.
+    let whole = "";
+    let refusal = "";
+    let ended: Event["response"] | undefined;
     for await (const data of sseData(res, touch)) {
       let ev: Event;
       try {
@@ -158,8 +173,13 @@ export const chatgptResponses: Transport = async (req) => {
           if (a) a.arguments += ev.delta ?? "";
           break;
         }
+        case "response.refusal.delta":
+          refusal += ev.delta ?? "";
+          break;
         case "response.output_item.done":
-          if (it?.type === "reasoning" && it.encrypted_content)
+          if (it?.type === "message")
+            whole += (it.content ?? []).map((c) => (c.type === "refusal" ? c.refusal : c.text) ?? "").join("");
+          else if (it?.type === "reasoning" && it.encrypted_content)
             reasoning.push({ model: req.model, summary: it.summary ?? [], encrypted_content: it.encrypted_content });
           else if (it?.type === "function_call") {
             const a = it.id ? args.get(it.id) : undefined;
@@ -178,6 +198,7 @@ export const chatgptResponses: Transport = async (req) => {
           const cached = u?.input_tokens_details?.cached_tokens;
           if (u) usage = { input: u.input_tokens ?? 0, output: u.output_tokens ?? 0, ...(cached ? { cached } : {}) };
           if (ev.type === "response.incomplete" || ev.response?.status === "incomplete") finish = "length";
+          ended = ev.response ?? {};
           break;
         }
         case "response.failed":
@@ -188,7 +209,8 @@ export const chatgptResponses: Transport = async (req) => {
         }
       }
     }
-    if (!out && !calls.length) throw new ProviderError("empty", "empty stream");
+    out ||= whole || refusal;
+    if (!out && !calls.length) throw new ProviderError("empty", emptyWhy(ended));
     const message: AssistantItem = {
       role: "assistant",
       content: out || null,
