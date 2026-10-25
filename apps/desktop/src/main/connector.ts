@@ -21,7 +21,7 @@ import {
   verifyLocalCore,
 } from "./connection.ts";
 import { type EmbeddedCore, isUp, startEmbeddedCore, waitUp } from "./core-process.ts";
-import { type Remote, reachRemote } from "./remote-wait.ts";
+import { type Remote, reachRemote, waitingHtml } from "./remote-wait.ts";
 import { appKeyPath, askpassSupported, authorizeKey, ensureAppKey, localSshVersion } from "./ssh-login.ts";
 import {
   installArgs,
@@ -340,14 +340,19 @@ export function createConnector(opts: {
 
   /** Waits for a remote APX, saying so on screen, and loads its panel once it answers. */
   function wait(remote: Remote, firstRun: boolean, current: () => boolean): Promise<boolean> {
+    const es = app.getLocale().startsWith("es");
     return reachRemote(remote, {
       current,
       isUp,
       load: (url) => load(url, firstRun),
-      show: (text) => page(text, "apx-connecting", "#1a1a19", "#c8c8c8"),
+      // A newer page (the panel, the chooser) may replace this one before it finishes loading.
+      show: (w) =>
+        opts.panel
+          .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(waitingHtml(w, es))}#apx-connecting`)
+          .catch(() => {}),
       sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
       now: Date.now,
-      es: app.getLocale().startsWith("es"),
+      es,
     });
   }
 
@@ -378,9 +383,9 @@ export function createConnector(opts: {
     );
   }
 
-  async function page(text: string, id: string, background = "#fff", color = "#555"): Promise<void> {
+  async function page(text: string, id: string): Promise<void> {
     const escaped = text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-    const body = `<body style="font:14px system-ui;padding:48px 24px 24px;margin:0;color:${color};background:${background}">${escaped}</body>`;
+    const body = `<body style="font:14px system-ui;padding:48px 24px 24px;margin:0;color:#555;background:#fff">${escaped}</body>`;
     // A newer page (the panel, the chooser) may replace this one before it finishes loading.
     await opts.panel.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(body)}#${id}`).catch(() => {});
   }

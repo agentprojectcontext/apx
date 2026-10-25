@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { RETRY_MS, type Remote, reachRemote, SILENT_MS, type WaitDeps, waitingText } from "./remote-wait.ts";
+import {
+  RETRY_MS,
+  type Remote,
+  reachRemote,
+  SILENT_MS,
+  type WaitDeps,
+  waiting,
+  waitingHtml,
+  waitingText,
+} from "./remote-wait.ts";
 
 /** A fake world: the server answers from `upAt` (ms) on; sleeping moves the clock. */
 function world(opts: { upAt?: number; loads?: boolean[]; current?: () => boolean } = {}) {
@@ -15,8 +24,8 @@ function world(opts: { upAt?: number; loads?: boolean[]; current?: () => boolean
       loaded.push(url);
       return loads.shift() ?? true;
     },
-    show: async (text) => {
-      shown.push(text);
+    show: async (w) => {
+      shown.push(waitingText(w));
     },
     sleep: async (ms) => {
       clock += ms;
@@ -75,6 +84,16 @@ test("changing connection ends the wait without loading anything", async () => {
 
 test("the waiting text says how to pick another APX, in the app's language", () => {
   const remote: Remote = { where: "ops@box (SSH)", url: "http://127.0.0.1:7440" };
-  assert.match(waitingText(remote, true, false), /APX menu › Change connection/);
-  assert.match(waitingText(remote, true, true), /menú APX › Cambiar conexión/);
+  assert.match(waitingText(waiting(remote, true, false)), /APX menu › Change connection/);
+  assert.match(waitingText(waiting(remote, true, true)), /menú APX › Cambiar conexión/);
+});
+
+test("the waiting page keeps ssh's words apart and escaped", () => {
+  const ssh = { alive: () => false, problem: () => "ssh: <host> refused", restart: () => {} };
+  const html = waitingHtml(
+    waiting({ where: "ops@box (SSH)", url: "http://127.0.0.1:7440", tunnel: ssh }, false, true),
+    true,
+  );
+  assert.match(html, /<h1>Conectando con APX<\/h1>/);
+  assert.match(html, /class="detail"><span>Detalle<\/span>ssh: &lt;host&gt; refused/);
 });
