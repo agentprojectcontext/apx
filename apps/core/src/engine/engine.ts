@@ -473,6 +473,8 @@ export function createEngine(deps: {
     }
     n += stopRunning(threadId);
     for (const child of store.threads.children(threadId)) n += cancel(child);
+    // A chat left waiting on the owner with no turn running (an open question, a restart) still stops.
+    if (!busy.has(threadId)) n += inputs.close(threadId);
     if (n && !busy.has(threadId)) store.threads.patch(threadId, { state: "canceled" });
     return n;
   }

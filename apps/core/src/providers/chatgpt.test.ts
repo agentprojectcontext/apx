@@ -48,6 +48,26 @@ const server = http.createServer((req, res) => {
         return json(401, { error: { message: "Provided authentication token is expired.", code: "token_expired" } });
       res.writeHead(200, { "content-type": "text/event-stream" });
       const send = (e: object) => res.write(`data: ${JSON.stringify(e)}\n\n`);
+      // Rounds that bring no text deltas: a whole message, a stream cut short, a response left incomplete.
+      if (body.model === "gpt-whole") {
+        send({
+          type: "response.output_item.done",
+          item: { type: "message", content: [{ type: "output_text", text: "Done." }] },
+        });
+        send({ type: "response.completed", response: { status: "completed" } });
+        return res.end();
+      }
+      if (body.model === "gpt-cut") {
+        send({ type: "response.output_item.done", item: { type: "reasoning", summary: [], encrypted_content: "e" } });
+        return res.end();
+      }
+      if (body.model === "gpt-short") {
+        send({
+          type: "response.incomplete",
+          response: { status: "incomplete", incomplete_details: { reason: "max_output_tokens" } },
+        });
+        return res.end();
+      }
       const afterTool = (body.input as Array<{ type: string }>).some((i) => i.type === "function_call_output");
       if (afterTool) {
         send({ type: "response.output_text.delta", delta: "Three " });
@@ -223,6 +243,35 @@ test("the plan's model runs in APX's loop: tools as functions, reasoning replaye
   assert.ok(
     !toInput([...messages, first.message], "gpt-6-sol").input.some((i) => (i as { type: string }).type === "reasoning"),
   );
+});
+
+test("a round with no text deltas still answers, or says why it came back empty", async () => {
+  const secrets = secretsIn("empty");
+  const login = createChatgptLogin({ secrets, issuer: base });
+  const v1 = path.join(dir, "v1e.json");
+  fs.writeFileSync(
+    v1,
+    JSON.stringify({ tokens: { access_token: jwt({ ...account, exp: 9_999_999_999 }), refresh_token: "r" } }),
+  );
+  login.importV1(v1);
+  const llm = createLlm({
+    providers: () => [
+      { id: "chatgpt", transport: "chatgpt-responses", base_url: `${base}/codex`, key: "oauth:chatgpt", models: [] },
+    ],
+    secrets,
+    firstByteMs: 5000,
+    signIns: { "oauth:chatgpt": login },
+  });
+  const ask = (model: string) =>
+    llm.complete({
+      models: [`chatgpt/${model}`],
+      messages: [{ role: "user", content: "hi" }],
+      tools: [],
+      signal: AbortSignal.timeout(10_000),
+    });
+  assert.equal((await ask("gpt-whole")).message.content, "Done.");
+  await assert.rejects(ask("gpt-cut"), /ended before the response finished/);
+  await assert.rejects(ask("gpt-short"), /ended incomplete \(max_output_tokens\)/);
 });
 
 test("a token the plan refuses before its expiry is renewed once and the call goes on; a refused renewal asks to sign in", async () => {

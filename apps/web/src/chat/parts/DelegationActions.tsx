@@ -74,7 +74,7 @@ export function DelegationActions({ session }: { session: string }) {
       <Button size="sm" variant="ghost" className="noticeline__link" onClick={() => go.subthread(session)}>
         {t("notice.delegation.limit.open")}
       </Button>
-      {state === "working" || state === "queued" ? (
+      {state === "working" || state === "queued" || state === "waiting" ? (
         <Button
           size="sm"
           variant="ghost"
