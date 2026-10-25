@@ -7,6 +7,7 @@ import {
   type ProbeRun,
   probeProcess,
   processStart,
+  shellNote,
   spawnCommand,
   stopTree,
 } from "./processes.ts";
@@ -46,6 +47,24 @@ test("Windows finds Git Bash in its usual folders, also from a mingw64 git on th
     findGitBash({ PATH: "E:\\Git\\mingw64\\bin" }, has("E:\\Git\\mingw64\\bin\\git.exe", "E:\\Git\\bin\\bash.exe")),
     "E:\\Git\\bin\\bash.exe",
   );
+});
+
+test("the shell tool tells the model Git Bash on Windows wants POSIX, not cmd or PowerShell; elsewhere nothing", () => {
+  const bash = commandShell(
+    "win32",
+    { PROGRAMFILES: "C:\\Program Files" },
+    has("C:\\Program Files\\Git\\bin\\bash.exe"),
+  );
+  assert.match(shellNote(bash, "win32"), /Git Bash on Windows: POSIX syntax only.*no dir, type/);
+  assert.equal(
+    shellNote(
+      commandShell("linux", {}, () => false),
+      "linux",
+    ),
+    "",
+  );
+  const ps = commandShell("win32", {}, () => false);
+  assert.equal(shellNote(ps, "win32"), "");
 });
 
 test("Windows without Git Bash runs PowerShell with the command encoded, quotes intact", () => {

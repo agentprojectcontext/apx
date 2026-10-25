@@ -77,6 +77,15 @@ export function commandShell(
   };
 }
 
+/**
+ * What the shell tool adds about its shell. On Windows the folders read like C:\…, so a model left to guess writes
+ * cmd or PowerShell (dir, type, cd /d, Get-ChildItem), which Git Bash refuses.
+ */
+export function shellNote(sh: CommandShell = commandShell(), platform: NodeJS.Platform = process.platform): string {
+  if (platform !== "win32" || sh.name !== "sh") return "";
+  return " It runs in Git Bash on Windows: POSIX syntax only, never cmd or PowerShell (no dir, type, cd /d, Get-ChildItem); a drive is /c/… or C:/…; run Python as python, since python3 is often only the Microsoft Store stub.";
+}
+
 /** Starts `command` in this system's shell; on Unix in its own process group, so stopTree also stops what it starts. */
 export function spawnCommand(
   command: string,
