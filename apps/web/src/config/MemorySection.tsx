@@ -5,7 +5,7 @@ import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { MemoryAutomation } from "./MemoryAutomation.tsx";
-import { ModelRefPicker } from "./models/ModelPickers.tsx";
+import { ModelRefPicker } from "./models/ModelRefPicker.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 import { ServicesSection } from "./ServicesSection.tsx";
 

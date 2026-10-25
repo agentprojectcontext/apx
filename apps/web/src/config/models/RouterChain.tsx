@@ -2,7 +2,7 @@ import type { ModelRef } from "@apx/protocol";
 import { Badge, IconButton, Icons } from "@apx/ui";
 import { forAgents, inCatalog, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
-import { ModelRefPicker } from "./ModelPickers.tsx";
+import { ModelRefPicker } from "./ModelRefPicker.tsx";
 import { RefSelect } from "./RefSelect.tsx";
 
 const move = (list: ModelRef[], i: number, delta: number): ModelRef[] => {
