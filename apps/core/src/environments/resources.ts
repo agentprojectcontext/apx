@@ -81,6 +81,13 @@ export function startRefusal(
 export const refusalText = (r: ComputerMemoryRefusal) =>
   `not enough free memory on this computer: ${r.free_gib} GiB free, the VM needs ${r.vm_gib} GiB plus ${r.reserve_gib} GiB kept for the host. Close apps or lower the VM's memory${r.fits_gib ? ` to ${r.fits_gib} GiB` : ""}, then try again`;
 
+/** Why the guest disk cannot grow to its size on a volume with `freeBytes` left, or undefined; what it holds counts. */
+export function diskRefusal(diskGib: number, imageBytes: number, freeBytes: number): string | undefined {
+  const growth = Math.max(0, diskGib * GIB - imageBytes);
+  if (freeBytes >= growth + DISK_RESERVE_GIB * GIB) return undefined;
+  return `Computer needs ${Math.ceil(growth / GIB) + DISK_RESERVE_GIB} GiB free on its VM disk volume (${diskGib} GiB guest disk plus reserve)`;
+}
+
 export const gib = (bytes: number) => (Math.floor((bytes / GIB) * 10) / 10).toString();
 
 /** cpus, memory and disk as an instance's lima.yaml holds them ("4GiB", "24GiB"). */

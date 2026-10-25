@@ -41,6 +41,17 @@ export async function secureGuest(run: LimaRun, instance: string, signal?: Abort
   await verifyGuest(run, instance, signal);
 }
 
+/** A computer set up before a boundary was added gets it now: the security script is safe to run again. */
+export async function ensureSecured(prepared: boolean, run: LimaRun, instance: string, signal?: AbortSignal) {
+  const secured =
+    prepared &&
+    (await verifyGuest(run, instance, signal).then(
+      () => true,
+      () => false,
+    ));
+  if (!secured) await secureGuest(run, instance, signal);
+}
+
 /** No marker alone grants readiness: validate privileges, home boundary and installed firewall over SSH. */
 export async function verifyGuest(run: LimaRun, instance: string, signal?: AbortSignal) {
   const output = await run(

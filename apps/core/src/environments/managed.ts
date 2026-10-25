@@ -5,7 +5,7 @@ import type { Store } from "../domain/store.ts";
 import { findProgram, withUsualDirs } from "../programs.ts";
 import type { ComputerConfig } from "./computer.ts";
 import { vmEgress } from "./egress-tunnel.ts";
-import { secureGuest, verifyGuest } from "./guest-security.ts";
+import { ensureSecured, verifyGuest } from "./guest-security.ts";
 import { createVmLifecycle } from "./lifecycle.ts";
 import { installLima, LIMA_VERSION } from "./lima-install.ts";
 import { limaProcess } from "./lima-process.ts";
@@ -13,7 +13,7 @@ import { GUEST_ASSETS, provisionDesktop, screenDriver } from "./provision.ts";
 import {
   type ComputerResources,
   configuredResources,
-  DISK_RESERVE_GIB,
+  diskRefusal,
   limaCreateArgs,
   limaEditArgs,
   resolveResources,
@@ -90,11 +90,8 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
       fs.mkdirSync(limaHome, { recursive: true, mode: 0o700 });
       const wanted = ownerResources(store);
       const space = fs.statfsSync(limaHome);
-      const growth = Math.max(0, wanted.disk_gib * GIB - imageBytes());
-      if (space.bavail * space.bsize < growth + DISK_RESERVE_GIB * GIB)
-        throw new Error(
-          `Computer needs ${Math.ceil(growth / GIB) + DISK_RESERVE_GIB} GiB free on its VM disk volume (${wanted.disk_gib} GiB guest disk plus reserve)`,
-        );
+      const disk = diskRefusal(wanted.disk_gib, imageBytes(), space.bavail * space.bsize);
+      if (disk) throw new Error(disk);
       if (os.totalmem() < (wanted.memory_gib + 4) * GIB)
         throw new Error(
           `Computer needs a host with at least ${wanted.memory_gib + 4} GiB RAM for a ${wanted.memory_gib} GiB VM`,
@@ -120,14 +117,7 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
       );
       signal.throwIfAborted();
       progress({ step: "desktop" });
-      // A computer set up before a boundary was added gets it now: the security script is safe to run again.
-      const secured =
-        fs.existsSync(prepared) &&
-        (await verifyGuest(run, instance, signal).then(
-          () => true,
-          () => false,
-        ));
-      if (!secured) await secureGuest(run, instance, signal);
+      await ensureSecured(fs.existsSync(prepared), run, instance, signal);
       await egress.connect();
       signal.throwIfAborted();
       await provisionDesktop(run, instance, signal, external?.demo);

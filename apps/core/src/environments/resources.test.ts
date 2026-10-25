@@ -6,6 +6,7 @@ import { removeDir, tempDir } from "../testkit/platform.ts";
 import {
   configuredResources,
   defaultResources,
+  diskRefusal,
   limaCreateArgs,
   limaEditArgs,
   refusalText,
@@ -52,6 +53,14 @@ test("a start needs the VM's memory plus the reserve free", () => {
   assert.equal(startRefusal(r, 5.5 * GIB, 2, true), undefined);
   assert.equal(startRefusal(r, 3.5 * GIB)?.anyway, undefined, "not even the VM's memory is free");
   assert.ok(startRefusal(r, 3.5 * GIB, 2, true));
+});
+
+test("the guest disk needs room to grow to its size plus the reserve, counting what it already holds", () => {
+  assert.equal(diskRefusal(24, 0, 26 * GIB), undefined);
+  assert.match(diskRefusal(24, 0, 25 * GIB) ?? "", /needs 26 GiB free .*24 GiB guest disk/);
+  assert.equal(diskRefusal(24, 20 * GIB, 6 * GIB), undefined, "only the 4 GiB it still grows count");
+  assert.match(diskRefusal(24, 20 * GIB, 5 * GIB) ?? "", /needs 6 GiB free/);
+  assert.equal(diskRefusal(24, 30 * GIB, 2 * GIB), undefined, "a disk already past its size grows no more");
 });
 
 test("Lima gets only the flags that changed, and a disk is never shrunk", () => {
