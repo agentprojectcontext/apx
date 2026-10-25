@@ -204,6 +204,9 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "agentedit.personalityHint": "Cómo se expresa, aparte de lo que hace. Va antes de sus instrucciones.",
   "agentedit.avatar": "Blobo (avatar)",
   "agentedit.promptSave": "⌘S guarda y sigue; ⇧⌘S guarda y cierra.",
+  "agentedit.promptSize": "{chars} caracteres, unos {tokens} tokens, que van en cada llamada al modelo.",
+  "agentedit.promptLong":
+    "{chars} caracteres, unos {tokens} tokens, que van en cada llamada al modelo: es largo. Lo que solo necesitan algunas tareas queda mejor en una skill o en el AGENTS.md del proyecto.",
   "agentedit.saveClose": "Guardar y cerrar",
   "agentedit.unknownTools": "Tools que APX no conoce",
   "agentedit.unknownToolsHint":

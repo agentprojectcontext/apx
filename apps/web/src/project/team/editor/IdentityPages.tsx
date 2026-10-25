@@ -285,8 +285,13 @@ function OrgQuickCreate(props: {
   );
 }
 
+/** Past this, instructions weigh on every model call: the editor says so (rules/PROMPT_SIZE.md). */
+const PROMPT_LONG_CHARS = 4_000;
+
 export function PromptPage({ draft: d, edit, isSuper }: PageProps & { isSuper: boolean }) {
   const t = useT();
+  const chars = d.prompt.length;
+  const size = { chars: chars.toLocaleString(), tokens: Math.round(chars / 4).toLocaleString() };
   return (
     <div className="agentedit__prompt">
       <Textarea
@@ -296,6 +301,9 @@ export function PromptPage({ draft: d, edit, isSuper }: PageProps & { isSuper: b
         value={d.prompt}
         onChange={(e) => edit({ prompt: e.currentTarget.value })}
       />
+      <span className={`agentedit__hint${chars > PROMPT_LONG_CHARS ? " is-long" : ""}`} role="status">
+        {t(chars > PROMPT_LONG_CHARS ? "agentedit.promptLong" : "agentedit.promptSize", size)}
+      </span>
       <span className="agentedit__hint">{isSuper ? t("agent.edit.superPromptHint") : t("agentedit.promptSave")}</span>
     </div>
   );
