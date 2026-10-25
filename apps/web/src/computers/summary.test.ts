@@ -36,7 +36,16 @@ test("each agent's card tells whether it may use the computer and the screen it 
 test("a screen's chat is the run's that holds it, else its agent's chat on the computer", () => {
   const threads = { home: { agent_ids: ["roby"] }, t2: { agent_ids: ["scout"] } };
   const kept = { ...status, chats: ["t2", "home"] };
-  assert.equal(screenChat({ ...kept, screens: [{ ...status.screens[0], thread: "t9" }] }, threads, "scout"), "t9");
+  const held = {
+    screen: 1,
+    agent: "scout",
+    display: ":101",
+    control: "agent" as const,
+    changing: false,
+    run: "r",
+    thread: "t9",
+  };
+  assert.equal(screenChat({ ...kept, screens: [held] }, threads, "scout"), "t9");
   // Roby's screen stays up after its run: its chat is the one on the computer.
   assert.equal(screenChat(kept, threads, "roby"), "home");
   assert.equal(screenChat(kept, threads, "writer"), undefined);
