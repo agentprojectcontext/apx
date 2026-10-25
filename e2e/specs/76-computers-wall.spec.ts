@@ -138,7 +138,8 @@ test("a screen kept up after its run shows on the wall as idle, opens large with
     await expect(page).toHaveURL(new RegExp(`thread=${chat.id}`));
 
     // In another chat of Roby's, on this Mac: its screen is that chat's, one click away.
-    await page.goto(`${env.core.url}/#thread=home&panel=computer`);
+    const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Otro chat" });
+    await page.goto(`${env.core.url}/#thread=${other.id}&panel=computer`);
     const computer = page.locator(".computer");
     await expect(
       computer.getByText("Este chat corre en esta Mac. La pantalla de Roby en la computadora es de su otro chat."),

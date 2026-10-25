@@ -1,5 +1,5 @@
-// An agent asks for the isolated computer with a card, starts and stops it itself, and the owner turns the
-// permission off from the agent's settings (DECISIONS.md#d-151).
+// An agent the owner allowed starts and stops the isolated computer itself, a start without room says so in the owner's
+// language, and the owner turns the permission off from the agent's settings (DECISIONS.md#d-151, #d-154).
 
 import type { Page } from "@playwright/test";
 import { callTool, say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
@@ -67,22 +67,25 @@ test("an agent asks for the computer, starts and stops it, and the owner takes t
   });
   try {
     await env.client.call("setup.finish", {});
+    // Home stays on this Mac (DECISIONS.md#d-154): Roby works on the computer in a chat of its own.
+    const robyChat = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "roby",
+      title: "Probar en Linux",
+    });
     // The owner set the computer up once for the secretary, and shut it down.
     await env.client.call("environments.permit", { agent: "roby", on: true });
-    await env.client.call("environments.enable", { thread: "home", appearance: "light" });
+    await env.client.call("environments.enable", { thread: robyChat.id, appearance: "light" });
     await expect.poll(async () => (await env.client.call("environments.status", {})).phase).toBe("running");
     await env.client.call("environments.stop", {});
     await expect.poll(async () => (await env.client.call("environments.status", {})).phase).toBe("stopped");
 
+    // Only an agent the owner allowed is offered the computer (DECISIONS.md#d-154): they allow Scout first.
+    await env.client.call("environments.permit", { agent: "scout", on: true });
     const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "scout" });
     await page.goto(`${env.core.url}/#thread=${chat.id}`);
     await page.getByRole("textbox", { name: /Escribile a/ }).fill("Probá el sitio en Linux");
     await page.keyboard.press("Enter");
-
-    const card = page.locator(".inputcard.is-pending");
-    await expect(card).toContainText("asks to use the shared Linux computer");
-    await expect(card.getByRole("button", { name: "Aceptar una vez", exact: true })).toHaveCount(0);
-    await card.getByRole("button", { name: "Aceptar siempre para este agente", exact: true }).click();
     await expect(page.getByText("Probé el sitio en Linux y dejé la computadora.")).toBeVisible();
     expect(calls).toEqual(["start", "stop", "start"]);
     const status = await env.client.call("environments.status", { thread: chat.id });

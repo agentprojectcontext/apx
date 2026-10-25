@@ -41,8 +41,14 @@ test("the chat shows the computer being created, then ready, and the agent carri
   });
   try {
     await env.client.call("setup.finish", {});
+    // Home stays on this Mac (DECISIONS.md#d-154): Roby works on the computer in a chat of its own.
+    const robyChat = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "roby",
+      title: "Probar en Linux",
+    });
     await env.client.call("environments.permit", { agent: "roby", on: true });
-    await page.goto(`${env.core.url}/#thread=home`);
+    await page.goto(`${env.core.url}/#thread=${robyChat.id}`);
     await page.getByRole("textbox", { name: /Escribile a/ }).fill("Probá la tienda en la computadora");
     await page.keyboard.press("Enter");
 

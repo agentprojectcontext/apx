@@ -80,10 +80,16 @@ test("Computer installs only on enable, shows the chat agent's screen, follows A
     await page.setViewportSize({ width: 1600, height: 1000 });
     await mockVmDisplay(page);
     await env.client.call("setup.finish", {});
+    // Home stays on this Mac (DECISIONS.md#d-154): Roby works on the computer in a chat of its own.
+    const robyChat = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "roby",
+      title: "Probar en Linux",
+    });
     await page.addInitScript((origin) => {
       if (location.origin === origin) localStorage.setItem("apx.mode", "light");
     }, env.core.url);
-    await page.goto(`${env.core.url}/#thread=home&panel=computer`);
+    await page.goto(`${env.core.url}/#thread=${robyChat.id}&panel=computer`);
     const computer = page.locator(".computer");
     // Off for every agent: turning it on for this chat first allows its agent.
     const allow = computer.getByRole("button", { name: "Permitir a Roby y activar", exact: true });
@@ -97,7 +103,7 @@ test("Computer installs only on enable, shows the chat agent's screen, follows A
     await expect(computer.getByText("La pantalla de Roby no está encendida.", { exact: false })).toBeVisible();
     await expect(computer.getByText("0 de 2 pantallas de agentes en uso")).toBeVisible();
     // Roby works on the computer: the panel shows its screen, in its hands until the owner takes it.
-    await env.client.call("threads.send", { thread: "home", text: "Work on the computer" });
+    await env.client.call("threads.send", { thread: robyChat.id, text: "Work on the computer" });
     await expect(computer.getByRole("combobox", { name: "Pantalla" })).toHaveText(/Roby · :101 · trabajando/);
     expect(calls).toContain("screen 1:light");
     await expect(computer.locator(".computer__locked")).toBeVisible();
@@ -153,7 +159,7 @@ test("Computer installs only on enable, shows the chat agent's screen, follows A
     await computer.getByRole("button", { name: "Restaurar terminal", exact: true }).click();
     await expect(computer.locator(".computer__desktop")).toBeVisible();
     // Asked while the owner has its screen, the agent's turn says so, and its notice hands the screen back.
-    await env.client.call("threads.send", { thread: "home", text: "Seguí vos" });
+    await env.client.call("threads.send", { thread: robyChat.id, text: "Seguí vos" });
     const blocked = page.locator(".notice--error", { hasText: "Tenés la pantalla de Roby en tus manos" });
     await blocked.getByRole("button", { name: "Devolver control al agente", exact: true }).click();
     await expect(blocked.getByRole("button", { name: "Control devuelto", exact: true })).toBeDisabled();
@@ -212,8 +218,14 @@ test("a late status poll cannot undo shutdown, and an optional VM error cannot b
   });
   try {
     await env.client.call("setup.finish", {});
+    // Home stays on this Mac (DECISIONS.md#d-154): Roby works on the computer in a chat of its own.
+    const robyChat = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "roby",
+      title: "Probar en Linux",
+    });
     await env.client.call("environments.permit", { agent: "roby", on: true });
-    await env.client.call("environments.bind", { thread: "home" });
+    await env.client.call("environments.bind", { thread: robyChat.id });
     const stale = await env.client.call("environments.status", {});
     await mockVmDisplay(page);
     await page.route("**/rpc/environments.status", async (route) => {
@@ -234,7 +246,7 @@ test("a late status poll cannot undo shutdown, and an optional VM error cannot b
       });
       await route.fulfill({ json: { ok: true, result: stale } });
     });
-    await page.goto(`${env.core.url}/#thread=home&panel=computer`);
+    await page.goto(`${env.core.url}/#thread=${robyChat.id}&panel=computer`);
     const computer = page.locator(".computer");
     await expect(computer.getByRole("button", { name: "Apagar para todos", exact: true })).toBeVisible();
     hold = true;
