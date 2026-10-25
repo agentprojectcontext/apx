@@ -63,6 +63,19 @@ test("an unanswered question stays open after the turn ends, and the late answer
   assert.equal((await env.client.call("threads.get", { thread: t.id })).thread.state, "idle");
 });
 
+test("stopping a chat that only waits on an open question closes it, so it stops waiting", async () => {
+  const t = await newThread("roby");
+  await env.client.call("threads.send", { thread: t.id, text: "ask me later" });
+  await env.settle(t.id);
+  const [input] = (await env.client.call("runs.pending", { thread: t.id })).inputs;
+  assert.equal((await env.client.call("threads.get", { thread: t.id })).thread.state, "input-required");
+
+  await env.client.call("threads.cancel", { thread: t.id });
+  assert.deepEqual((await env.client.call("runs.pending", { thread: t.id })).inputs, []);
+  assert.notEqual((await env.client.call("threads.get", { thread: t.id })).thread.state, "input-required");
+  await assert.rejects(env.client.call("runs.respond", { input: input?.id ?? "", text: "blue" }));
+});
+
 test("a question the agent can go on without closes when the turn stops waiting", async () => {
   const t = await newThread("roby");
   await env.client.call("threads.send", { thread: t.id, text: "ask me if you like" });

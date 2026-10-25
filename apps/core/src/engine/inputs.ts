@@ -330,6 +330,18 @@ export function createInputs(deps: {
       for (const r of store.inputs.pending()) watch(r);
     },
 
+    /** The owner stops a chat no turn runs in: what it still asked them closes, so it stops waiting; how many. */
+    close(threadId: string): number {
+      let n = 0;
+      for (const r of store.inputs.pending(threadId)) {
+        const settled = store.inputs.settle(r.id, "expired");
+        if (!settled) continue;
+        settleCard(settled);
+        n++;
+      }
+      return n;
+    },
+
     pending: (thread?: string) => store.inputs.pending(thread).map(publicInput),
   };
 }
