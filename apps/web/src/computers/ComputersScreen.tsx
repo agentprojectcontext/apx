@@ -8,7 +8,7 @@ import { data, useData } from "../data/state.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { useVmDisplay } from "../panel/useVmDisplay.ts";
 import { go, useNav } from "../shell/nav.ts";
-import { screensUp } from "./agent.ts";
+import { screenChat, screensUp } from "./agent.ts";
 import { ComputerError } from "./ComputerError.tsx";
 import { memoryRefusal } from "./refusal.ts";
 import { computersOf } from "./summary.ts";
@@ -57,6 +57,7 @@ function Holder({ screen, title }: { screen: ComputerScreen; title?: string | un
   const t = useT();
   const agent = useData((s) => (screen.agent ? s.agents[screen.agent] : undefined));
   const mine = screen.control === "human";
+  const state = mine ? "computers.youControl" : screen.run ? "computers.agentDrives" : "computers.screenIdle";
   return (
     <div className="computers__holder">
       <AgentAvatar name={screen.agent_name ?? ""} blob={agent?.blob} size={22} animated={false} />
@@ -64,15 +65,23 @@ function Holder({ screen, title }: { screen: ComputerScreen; title?: string | un
         <strong>{screen.agent_name}</strong>
         <span>{(screen.title ?? title) || t("computers.untitled")}</span>
       </div>
-      <span className={`computers__state ${mine ? "is-human" : ""}`}>
-        {t(mine ? "computers.youControl" : "computers.agentDrives")}
-      </span>
+      <span className={`computers__state ${mine ? "is-human" : screen.run ? "" : "is-idle"}`}>{t(state)}</span>
     </div>
   );
 }
 
 /** One screen in use, small and view-only: a viewer with low quality and high compression. */
-function Tile({ screen, ready, onOpen }: { screen: ComputerScreen; ready: boolean; onOpen(): void }) {
+function Tile({
+  screen,
+  title,
+  ready,
+  onOpen,
+}: {
+  screen: ComputerScreen;
+  title?: string | undefined;
+  ready: boolean;
+  onOpen(): void;
+}) {
   const t = useT();
   const view = useVmDisplay(screen.screen, ready, false, true);
   return (
@@ -82,7 +91,7 @@ function Tile({ screen, ready, onOpen }: { screen: ComputerScreen; ready: boolea
       onClick={onOpen}
       aria-label={t("computers.openScreen", { agent: screen.agent_name ?? "" })}
     >
-      <Holder screen={screen} />
+      <Holder screen={screen} title={title} />
       <div className="computers__thumb">
         <section className="computer__screen" ref={view.screen} aria-label={t("computer.screen")} />
       </div>
@@ -93,11 +102,14 @@ function Tile({ screen, ready, onOpen }: { screen: ComputerScreen; ready: boolea
 /** One screen large, with its lease and the way to its agent's chat. */
 function Large({
   screen,
+  chatOf,
   ready,
   onBack,
   onError,
 }: {
   screen: ComputerScreen;
+  /** Its agent's chat when no run holds it now. */
+  chatOf?: string | undefined;
   ready: boolean;
   onBack(): void;
   onError(message: string): void;
@@ -108,7 +120,8 @@ function Large({
   const view = useVmDisplay(screen.screen, ready, manual);
   // Taking control ends the agent's run, and with it the claim: the chat it opened with stays reachable.
   const [chat] = useState(() => ({ thread: screen.thread, title: screen.title }));
-  const thread = screen.thread ?? chat.thread;
+  const thread = screen.thread ?? chat.thread ?? chatOf;
+  const fallbackTitle = useData((s) => (chatOf ? s.threads[chatOf]?.title : undefined));
   const control = async () => {
     setBusy(true);
     try {
@@ -125,7 +138,7 @@ function Large({
         <Button size="sm" variant="secondary" leadingIcon={<Icons.ChevronLeft size={14} />} onClick={onBack}>
           {t("computers.all")}
         </Button>
-        <Holder screen={screen} title={chat.title} />
+        <Holder screen={screen} title={chat.title ?? fallbackTitle} />
         {thread && (
           <Button size="sm" variant="secondary" onClick={() => go.thread(thread)}>
             {t("computers.openChat")}
@@ -157,8 +170,11 @@ function ComputersScreenBody() {
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<ComputerMemoryRefusal>();
   const ready = Boolean(status?.ready);
-  const inUse = (status?.screens ?? []).filter((s) => s.run || s.control === "human");
+  // Every screen that is up, as the counter and the panel's picker count them: working, idle, or in the owner's hands.
+  const inUse = status?.screens ?? [];
   const large = inUse.find((s) => s.screen === open);
+  const threads = useData((s) => s.threads);
+  const chatOf = (screen: ComputerScreen) => screenChat(status, threads, screen.agent);
   const power = async (on: boolean, memory?: number, pastReserve = false) => {
     setBusy(true);
     setError("");
@@ -202,11 +218,23 @@ function ComputersScreenBody() {
         onAnyway={() => void power(true, undefined, true)}
       />
       {large ? (
-        <Large screen={large} ready={ready} onBack={() => setOpen(undefined)} onError={setError} />
+        <Large
+          screen={large}
+          chatOf={chatOf(large)}
+          ready={ready}
+          onBack={() => setOpen(undefined)}
+          onError={setError}
+        />
       ) : inUse.length && ready ? (
         <div className="computers__wall" data-count={inUse.length}>
           {inUse.map((screen) => (
-            <Tile key={screen.screen} screen={screen} ready={ready} onOpen={() => setOpen(screen.screen)} />
+            <Tile
+              key={screen.screen}
+              screen={screen}
+              title={threads[chatOf(screen) ?? ""]?.title}
+              ready={ready}
+              onOpen={() => setOpen(screen.screen)}
+            />
           ))}
         </div>
       ) : (

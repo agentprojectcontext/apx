@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agentComputer, screensUp } from "./agent.ts";
+import { agentComputer, screenChat, screensUp } from "./agent.ts";
 import { computersOf } from "./summary.ts";
 
 const status = {
@@ -31,4 +31,14 @@ test("each agent's card tells whether it may use the computer and the screen it 
   assert.deepEqual(agentComputer(c, "writer"), { state: "off" });
   assert.equal(c.supported, true);
   assert.equal(computersOf({ ...status, supported: false }).supported, false);
+});
+
+test("a screen's chat is the run's that holds it, else its agent's chat on the computer", () => {
+  const threads = { home: { agent_ids: ["roby"] }, t2: { agent_ids: ["scout"] } };
+  const kept = { ...status, chats: ["t2", "home"] };
+  assert.equal(screenChat({ ...kept, screens: [{ ...status.screens[0], thread: "t9" }] }, threads, "scout"), "t9");
+  // Roby's screen stays up after its run: its chat is the one on the computer.
+  assert.equal(screenChat(kept, threads, "roby"), "home");
+  assert.equal(screenChat(kept, threads, "writer"), undefined);
+  assert.equal(screenChat(undefined, threads, "roby"), undefined);
 });

@@ -311,6 +311,9 @@
   color: var(--apx-fg);
   font-weight: 600;
 }
+.computers__state.is-idle {
+  color: var(--apx-fg-subtle);
+}
 .computers__large {
   display: flex;
   flex-direction: column;

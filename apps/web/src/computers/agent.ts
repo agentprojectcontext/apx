@@ -14,3 +14,17 @@ export function agentComputer(c: Computers, agent: string) {
   if (up) return { state: "running" as const, screen: up.screen, held: Boolean(up.run) };
   return { state: c.allowed.includes(agent) ? ("allowed" as const) : ("off" as const) };
 }
+
+/**
+ * The chat an agent's screen works for: the one its run holds it in, else the agent's chat on the computer (a screen
+ * kept up after its run, or seen from another chat of the same agent).
+ */
+export function screenChat(
+  status: Result<"environments.status"> | undefined,
+  threads: Readonly<Record<string, { agent_ids: string[] } | undefined>>,
+  agent: string | undefined,
+): string | undefined {
+  const held = status?.screens?.find((s) => s.agent === agent && s.thread)?.thread;
+  if (held || !agent) return held;
+  return (status?.chats ?? []).find((id) => threads[id]?.agent_ids[0] === agent);
+}

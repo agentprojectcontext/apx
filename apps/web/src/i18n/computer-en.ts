@@ -52,6 +52,9 @@ export const enComputer = {
   "computer.pickScreen": "Screen",
   "computer.screensHeld": "{held} of {max} agent screens in use",
   "computer.chatOnMac": "{agent} works on this Mac in this chat.",
+  "computer.chatOnMacElsewhere":
+    "This chat runs on this Mac. {agent}'s screen on the computer belongs to its other chat.",
+  "computer.openOtherChat": "Open that chat",
   "computer.useHere": "Use the computer here",
   "computer.allowAndUse": "Allow {agent} and use it here",
   "computer.noScreen": "No agent screen is running",
@@ -66,6 +69,7 @@ export const enComputer = {
   "computers.untitled": "Untitled chat",
   "computers.youControl": "You have control",
   "computers.agentDrives": "Agent working",
+  "computers.screenIdle": "Idle",
   "computers.openScreen": "Open {agent}'s screen",
   "computers.all": "All screens",
   "computers.openChat": "Open chat",

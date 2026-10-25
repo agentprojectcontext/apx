@@ -52,6 +52,9 @@ export const esComputer: Record<ComputerKey, string> = {
   "computer.pickScreen": "Pantalla",
   "computer.screensHeld": "{held} de {max} pantallas de agentes en uso",
   "computer.chatOnMac": "{agent} trabaja en esta Mac en este chat.",
+  "computer.chatOnMacElsewhere":
+    "Este chat corre en esta Mac. La pantalla de {agent} en la computadora es de su otro chat.",
+  "computer.openOtherChat": "Abrir ese chat",
   "computer.useHere": "Usar la computadora acá",
   "computer.allowAndUse": "Permitir a {agent} y usarla acá",
   "computer.noScreen": "No hay pantallas de agentes encendidas",
@@ -66,6 +69,7 @@ export const esComputer: Record<ComputerKey, string> = {
   "computers.untitled": "Chat sin título",
   "computers.youControl": "Tenés el control",
   "computers.agentDrives": "Agente trabajando",
+  "computers.screenIdle": "En espera",
   "computers.openScreen": "Abrir la pantalla de {agent}",
   "computers.all": "Todas las pantallas",
   "computers.openChat": "Abrir chat",

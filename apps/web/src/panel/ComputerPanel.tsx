@@ -1,7 +1,8 @@
 import { IconButton, Icons, Select } from "@apx/ui";
 import { useState } from "react";
-import { screensUp } from "../computers/agent.ts";
+import { screenChat, screensUp } from "../computers/agent.ts";
 import { ComputerError } from "../computers/ComputerError.tsx";
+import { useData } from "../data/state.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ComputerConsole } from "./ComputerConsole.tsx";
@@ -43,6 +44,10 @@ function ComputerPanelBody() {
   const now = ready ? status?.running_resources : undefined;
   const badge = { cpus: now?.cpus ?? r?.cpus ?? 0, memory: now?.memory_gib ?? r?.memory_gib ?? 0 };
   const held = screensUp(status);
+  const threads = useData((s) => s.threads);
+  // This chat is on the Mac while its agent's screen on the computer works for another of its chats.
+  const otherChat = chat && !chat.on ? screenChat(status, threads, chat.agent) : undefined;
+  const elsewhere = otherChat && otherChat !== thread ? otherChat : undefined;
   const stoppedBy = phase === "stopped" && status?.last_stop?.reason;
   const label = (s: (typeof screens)[number]) =>
     t(s.run ? "computer.agentScreenHeld" : "computer.agentScreen", { agent: s.agent_name ?? "", display: s.display });
@@ -102,7 +107,14 @@ function ComputerPanelBody() {
       )}
       {ready && chat && !chat.on && chat.agent && (
         <div className="computer__controlbar">
-          <span>{t("computer.chatOnMac", { agent: chat.agent_name ?? "" })}</span>
+          <span>
+            {t(elsewhere ? "computer.chatOnMacElsewhere" : "computer.chatOnMac", { agent: chat.agent_name ?? "" })}
+          </span>
+          {elsewhere && (
+            <button type="button" className="computer__button" onClick={() => go.thread(elsewhere)}>
+              {t("computer.openOtherChat")}
+            </button>
+          )}
           <button
             type="button"
             className="computer__button"

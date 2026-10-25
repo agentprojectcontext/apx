@@ -95,3 +95,60 @@ test("the Computers view shows two screens in use as two tiles, and opens one la
     env.cleanup();
   }
 });
+
+test("a screen kept up after its run shows on the wall as idle, opens large with its chat, and another chat points to it", async ({
+  page,
+}) => {
+  const lifecycle = createVmLifecycle({
+    supported: true,
+    installed: () => true,
+    running: async () => true,
+    prepare: async () => {},
+    stop: async () => {},
+    appearance: async () => {},
+  });
+  const env = await startCore({
+    llm: scriptedLlm(() => say("Listo")),
+    computer: { limaHome: "/unused", instance: "missing", lifecycle, executable: () => "/usr/bin/false" },
+  });
+  try {
+    await env.client.call("setup.finish", {});
+    await env.client.call("environments.permit", { agent: "roby", on: true });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Lint del repo" });
+    await env.client.call("environments.bind", { thread: chat.id });
+    await env.client.call("threads.send", { thread: chat.id, text: "Corré el lint" });
+    await env.settle(chat.id);
+    // The run is over; Roby's screen stays up.
+    const status = await env.client.call("environments.status", {});
+    expect(status.screens?.map((s) => [s.screen, Boolean(s.run)])).toEqual([[1, false]]);
+
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await mockVmDisplay(page);
+    await page.goto(`${env.core.url}/#view=computers`);
+    const wall = page.locator(".computers");
+    await expect(wall.getByText("1 de 2 pantallas de agentes en uso.", { exact: false })).toBeVisible();
+    const tile = wall.locator(".computers__tile");
+    await expect(tile).toHaveCount(1);
+    await expect(tile).toContainText("Roby");
+    await expect(tile).toContainText("Lint del repo");
+    await expect(tile).toContainText("En espera");
+    await expect(wall.getByText("Ningún agente está usando la computadora")).toHaveCount(0);
+    await wall.getByRole("button", { name: "Abrir la pantalla de Roby", exact: true }).click();
+    await wall.getByRole("button", { name: "Abrir chat", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`thread=${chat.id}`));
+
+    // In another chat of Roby's, on this Mac: its screen is that chat's, one click away.
+    await page.goto(`${env.core.url}/#thread=home&panel=computer`);
+    const computer = page.locator(".computer");
+    await expect(
+      computer.getByText("Este chat corre en esta Mac. La pantalla de Roby en la computadora es de su otro chat."),
+    ).toBeVisible();
+    await expect(computer.getByRole("button", { name: "Usar la computadora acá", exact: true })).toBeVisible();
+    await computer.getByRole("button", { name: "Abrir ese chat", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`thread=${chat.id}`));
+  } finally {
+    await page.goto("about:blank");
+    await env.core.close();
+    env.cleanup();
+  }
+});
