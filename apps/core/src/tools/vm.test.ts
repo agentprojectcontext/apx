@@ -474,3 +474,40 @@ test("the owner stops the computer while the agent waits for it: the agent is no
     env.cleanup();
   }
 });
+
+test("control the owner took ends with the computer: stopped and started again, the agent goes on", async () => {
+  const home = tempDir("apx-vm-tool-").path;
+  const llm = scriptedLlm(() => say("Sigo con la instalación"));
+  const env = await startCore({ home, llm, computer: fakeComputer(home).config });
+  const running = async () => (await env.client.call("environments.status", {})).phase === "running";
+  // Newest first.
+  const lastRun = async () => (await env.client.call("threads.get", { thread: "home" })).runs[0];
+  try {
+    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.enable", { thread: "home", appearance: "light" });
+    await waitFor(running, "running");
+    await env.client.call("threads.send", { thread: "home", text: "Hola" });
+    await env.settle("home");
+    // The owner takes Roby's screen; while it is up and in their hands, Roby's turn says so and offers it back.
+    await env.client.call("environments.control", { screen: 1, mode: "human" });
+    await env.client.call("threads.send", { thread: "home", text: "Instalá el repo" });
+    await waitFor(async () => (await lastRun())?.state === "failed", "the turn the owner's hands block");
+    const notice = env.core.store.messages
+      .list("home")
+      .flatMap((m) => m.parts)
+      .findLast((p) => p.type === "notice");
+    assert.equal(notice?.type === "notice" && notice.code, "computer.manual");
+    assert.equal(notice?.type === "notice" && notice.vars?.screen, 1);
+
+    // Stopped and started again, the screen is Roby's: nobody has to find a way to hand it back.
+    await env.client.call("environments.stop", {});
+    await waitFor(async () => (await env.client.call("environments.status", {})).phase === "stopped", "stopped");
+    await env.client.call("environments.enable", { thread: "home", appearance: "light" });
+    await waitFor(running, "running again");
+    await env.client.call("threads.send", { thread: "home", text: "Instalá el repo" });
+    await waitFor(async () => (await lastRun())?.state === "completed", "the agent goes on");
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});

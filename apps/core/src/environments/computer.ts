@@ -86,7 +86,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
   const control = (screen: number) => {
     let lease = leases.get(screen);
     if (!lease) {
-      lease = computerControl(store, `vm_control:${screen}`);
+      lease = computerControl();
       leases.set(screen, lease);
     }
     return lease;
@@ -114,6 +114,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
       },
       stop: async (screen) => {
         guest.closeScreen(screen);
+        leases.get(screen)?.reset();
         await config.screens?.stop(screen);
       },
     },
@@ -286,8 +287,16 @@ export function createComputer(store: Store, config: ComputerConfig) {
     async claim(agent: string, thread: string, run: string, signal?: AbortSignal) {
       if (!vm.hasThread(thread)) throw conflict("this chat does not work on the computer");
       if (!(await running())) return undefined;
-      // A screen the owner has in hand is not given to its agent until they hand it back.
-      control(ledger.slot(agent)).assert("agent");
+      // A screen the owner has in hand, and up, is not given to its agent until they hand it back.
+      const slot = ledger.slot(agent);
+      const lease = control(slot);
+      if (!ledger.running().has(slot)) lease.reset();
+      else if (lease.status().control === "human")
+        throw conflict("the owner has this agent's screen in hand; they hand it back from the computer's panel", {
+          reason: "manual",
+          screen: slot,
+        });
+      lease.assert("agent");
       // Use from the moment a screen is asked for, so the idle watchdog never stops it while it starts.
       touch();
       const claim = await ledger.claim(agent, thread, run, signal);
@@ -357,6 +366,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
       const refusal = startRefusal(resources(), await freeMemory(), resourceLimits(host).memory_gib.min, pastReserve);
       if (refusal) throw conflict(refusalText(refusal), refusal);
       ledger.reset();
+      for (const lease of leases.values()) lease.reset();
       touch();
       lifecycle.start(appearance());
       store.settings.set("computer_enabled", "true");
@@ -378,6 +388,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
       // Stopped on purpose: whoever waited for it to come up is not woken to be told it did not.
       ready.cancel();
       config.lifecycle.stop();
+      for (const lease of leases.values()) lease.reset();
       store.settings.set("computer_last_stop", JSON.stringify({ reason, at: new Date().toISOString() }));
       for (const claim of holders) cancel(claim.thread);
       ledger.reset();

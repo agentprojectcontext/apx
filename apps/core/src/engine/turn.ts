@@ -20,7 +20,7 @@ import { answersChecked, type Origin, type RunRecord, runsOnComputer } from "../
 import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
 import { AGENT_WORKSPACE } from "../environments/worker.ts";
-import { Canceled, DeadlineExceeded, errorMessage, Shutdown, Superseded } from "../errors.ts";
+import { CallError, Canceled, DeadlineExceeded, errorMessage, Shutdown, Superseded } from "../errors.ts";
 import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
 import { systemNote } from "../harness/native.ts";
 import type { Log } from "../log.ts";
@@ -182,7 +182,11 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   if (!thread || !agent || !start.input)
     return store.runs.setState(start, "failed", !start.input ? "run has no input" : "thread or agent is gone");
   /** A coded refusal says itself in the owner's language; an unexpected one shows its reason under the notice. */
-  const preflightFailure = (error: string, code?: "computer.notOwners" | "computer.notAllowed") => {
+  const preflightFailure = (
+    error: string,
+    code?: "computer.notOwners" | "computer.notAllowed" | "computer.manual",
+    extra: Record<string, string | number> = {},
+  ) => {
     store.messages.add({
       thread_id: thread.id,
       author: { kind: "agent", id: agent.id },
@@ -194,7 +198,11 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
               level: "error",
               code,
               text: error,
-              vars: { agent: agent.name, ...(code === "computer.notAllowed" ? { link: "apx:computer" } : {}) },
+              vars: {
+                agent: agent.name,
+                ...(code === "computer.notAllowed" ? { link: "apx:computer" } : {}),
+                ...extra,
+              },
             }
           : {
               type: "notice",
@@ -228,6 +236,10 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     try {
       await deps.vm.claim(agent.id, thread.id, start.id, signal);
     } catch (error) {
+      const detail = error instanceof CallError ? (error.shape.detail as { reason?: unknown; screen?: unknown }) : {};
+      // The owner holds its screen: the notice hands it back in one click.
+      if (detail?.reason === "manual" && typeof detail.screen === "number")
+        return preflightFailure(errorMessage(error), "computer.manual", { screen: detail.screen });
       return preflightFailure(error instanceof Error ? error.message : String(error));
     }
   }

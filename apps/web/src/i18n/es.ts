@@ -23,6 +23,9 @@ export const es: Partial<Record<MessageKey, string>> = {
     "{agent} trabaja en la computadora acá: un mensaje de un contacto, un widget u otra app no corre en ella.",
   "notice.computer.notAllowed": "{agent} todavía no puede usar la computadora. Permitíselo desde su panel.",
   "notice.computer.notAllowed.link": "Abrir computadora",
+  "notice.computer.manual": "Tenés la pantalla de {agent} en tus manos. Devolvésela y volvé a pedírselo.",
+  "notice.computer.manual.action": "Devolver control al agente",
+  "notice.computer.manual.done": "Control devuelto",
   "notice.computer.stopped.memory":
     "La computadora se apagó: quedaban solo {free} GiB de memoria libre. Su disco se conserva.",
   "notice.computer.stopped.idle": "La computadora se apagó tras {minutes} minutos sin uso. Su disco se conserva.",

@@ -2366,7 +2366,9 @@ as a screenless probe user the setup checks the boundary with. The firewall rule
 cover uids 2001–2999 too, and every user's session waits for the firewall. A desktop is reached only through its user's
 private socket: Xtigervnc listens on `$XDG_RUNTIME_DIR/apx-vnc.sock` (mode 600) and X clients need that user's cookie,
 so one agent can neither watch nor type into another's screen. The core opens a viewer by running
-`nc -U` on that socket as that user. The proxy is the same for all.
+`nc -U` on that socket as that user. The proxy is the same for all. The owner's control of a screen lasts as long as
+the screen: it stopping, the computer stopping or starting, and a restart of the core all give it back to its agent,
+and a turn blocked by a screen that is up and in the owner's hands says so with a one-click hand-back.
 
 **The proxy's port and agents' sessions.** The guest's proxy port, 127.0.0.1:3128, is held by PID 1 from boot
 (`apx-proxy.socket`), before any user's session, and `systemd-socket-proxyd` relays it to the host's tunnel through

@@ -6,7 +6,7 @@ import { computerControl } from "./control.ts";
 test("takeover fences delayed CDP writes permanently for that lease, even after returning control", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   try {
-    const control = computerControl(env.core.store);
+    const control = computerControl();
     let resume: () => void = () => {};
     const pause = new Promise<void>((resolve) => {
       resume = resolve;
@@ -36,7 +36,10 @@ test("takeover fences delayed CDP writes permanently for that lease, even after 
     assert.throws(() => control.assert("agent"));
     await control.change("human", async () => {});
     assert.equal(control.human(), true);
-    assert.equal(computerControl(env.core.store).human(), true);
+    // A restart starts every screen in its agent's hands.
+    assert.equal(computerControl().human(), false);
+    control.reset();
+    assert.equal(control.human(), false, "a screen that stops gives it back");
   } finally {
     await env.core.close();
     env.cleanup();

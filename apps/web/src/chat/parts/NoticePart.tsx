@@ -1,6 +1,7 @@
 import type { Part } from "@apx/protocol";
 import { ActionGroup, Button, Icons } from "@apx/ui";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
+import { returnScreen } from "../../data/actions.ts";
 import { isKey, useT } from "../../i18n/index.ts";
 import { DelegationActions, GoOn } from "../../lazy.ts";
 import { appPlace } from "../appLinks.ts";
@@ -50,6 +51,9 @@ export function NoticePart({ part }: { part: NoticeData }) {
       <div className="notice notice--error" role="alert">
         {text}
         {part.detail && <pre className="notice__detail">{part.detail}</pre>}
+        {part.code === "computer.manual" && typeof part.vars?.screen === "number" && (
+          <HandBack screen={part.vars.screen} />
+        )}
       </div>
     );
   const Icon = part.level === "warn" ? Icons.TriangleAlert : Icons.Info;
@@ -80,5 +84,25 @@ export function NoticePart({ part }: { part: NoticeData }) {
         {link}
       </div>
     </ActionGroup>
+  );
+}
+
+/** The owner holds the agent's screen: one click gives it back, and the agent can be asked again. */
+function HandBack({ screen }: { screen: number }) {
+  const t = useT();
+  const [state, setState] = useState<"idle" | "busy" | "done">("idle");
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      className="notice__action"
+      disabled={state !== "idle"}
+      onClick={() => {
+        setState("busy");
+        void returnScreen(screen).then((ok) => setState(ok ? "done" : "idle"));
+      }}
+    >
+      {t(state === "done" ? "notice.computer.manual.done" : "notice.computer.manual.action")}
+    </Button>
   );
 }
