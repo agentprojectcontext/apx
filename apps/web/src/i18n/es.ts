@@ -18,11 +18,14 @@ export const es: Partial<Record<MessageKey, string>> = {
   "panel.computer": "Computadora",
   "panel.computer.hint": "Ver computadora Linux del agente",
   "notice.computer.interrupted": "Interrumpido: tomaste control de la computadora.",
-  "notice.computer.unavailable": "Computadora no disponible. Encendela y devolvé control al agente; después reintentá.",
+  "notice.computer.unavailable": "Computadora no disponible. El motivo está abajo.",
+  "notice.computer.notOwners":
+    "{agent} trabaja en la computadora acá: un mensaje de un contacto, un widget u otra app no corre en ella.",
+  "notice.computer.notAllowed": "{agent} todavía no puede usar la computadora. Permitíselo desde su panel.",
+  "notice.computer.notAllowed.link": "Abrir computadora",
   "notice.computer.stopped.memory":
-    "La computadora se apagó: a esta Mac le quedaban solo {free} GiB de memoria libre. Su disco se conserva; encendela de nuevo cuando haya lugar.",
-  "notice.computer.stopped.idle":
-    "La computadora se apagó después de {minutes} minutos sin uso, para liberar memoria. Su disco se conserva.",
+    "La computadora se apagó: quedaban solo {free} GiB de memoria libre. Su disco se conserva.",
+  "notice.computer.stopped.idle": "La computadora se apagó tras {minutes} minutos sin uso. Su disco se conserva.",
   "computer.screen": "Escritorio VM en vivo",
   "desktopInstall.title": "Usá APX como aplicación de escritorio",
   "desktopInstall.idle":

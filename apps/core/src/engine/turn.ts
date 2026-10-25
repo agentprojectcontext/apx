@@ -16,7 +16,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
 import { engineOf, harnessOf, isCliRef } from "../domain/refs.ts";
-import { answersChecked, type Origin, type RunRecord } from "../domain/runs.ts";
+import { answersChecked, type Origin, type RunRecord, runsOnComputer } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
 import { AGENT_WORKSPACE } from "../environments/worker.ts";
@@ -181,19 +181,28 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   const agent = store.agents.get(start.agent_id);
   if (!thread || !agent || !start.input)
     return store.runs.setState(start, "failed", !start.input ? "run has no input" : "thread or agent is gone");
-  const preflightFailure = (error: string) => {
+  /** A coded refusal says itself in the owner's language; an unexpected one shows its reason under the notice. */
+  const preflightFailure = (error: string, code?: "computer.notOwners" | "computer.notAllowed") => {
     store.messages.add({
       thread_id: thread.id,
       author: { kind: "agent", id: agent.id },
       run_id: start.id,
       parts: [
-        {
-          type: "notice",
-          level: "error",
-          code: "computer.unavailable",
-          text: "Computer is unavailable. Start it and return control to the agent, then retry.",
-          detail: error,
-        },
+        code
+          ? {
+              type: "notice",
+              level: "error",
+              code,
+              text: error,
+              vars: { agent: agent.name, ...(code === "computer.notAllowed" ? { link: "apx:computer" } : {}) },
+            }
+          : {
+              type: "notice",
+              level: "error",
+              code: "computer.unavailable",
+              text: "Computer unavailable. Why is below.",
+              detail: error,
+            },
       ],
     });
     store.threads.patch(thread.id, { state: "failed" });
@@ -203,12 +212,18 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   if (store.settings.read("computer_chats").includes(thread.id) && !deps.vm)
     return preflightFailure("the assigned VM backend is unavailable; host fallback is forbidden");
   if (deps.vm?.hasThread(thread.id)) {
-    // The owner's words, or the turn that carries them on once the computer they asked for is up.
-    if (thread.engine || (start.input.origin.kind !== "user" && start.input.origin.kind !== "computer_ready"))
-      return preflightFailure("a computer chat takes the owner's own turns with APX's own harness only");
+    if (thread.engine) return preflightFailure("a computer chat runs only on APX's own harness");
+    if (!runsOnComputer(start.input.origin))
+      return preflightFailure(
+        `${agent.name} works on the computer in this chat: a message from a contact, a widget or another app does not run there`,
+        "computer.notOwners",
+      );
     // A stopped computer is the agent's to start; a chat whose agent may not use it never runs on the host instead.
     if (!deps.vm.permitted(agent.id, thread.id))
-      return preflightFailure(`${agent.name} may not use the computer; the owner allows it in the agent's settings`);
+      return preflightFailure(
+        `${agent.name} may not use the computer; the owner allows it in the agent's settings`,
+        "computer.notAllowed",
+      );
     // Its own screen for this run while the computer runs: refused when another chat holds it or every screen is held.
     try {
       await deps.vm.claim(agent.id, thread.id, start.id, signal);

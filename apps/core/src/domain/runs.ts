@@ -71,6 +71,33 @@ export type Origin =
       outcome?: { level: "warn" | "error"; why: string };
     };
 
+/**
+ * What speaks for the owner in a chat on the computer, and so may run there: their words (from the app or as the owner
+ * on a channel), their answers, what they set running, and their own agents' results. A contact, a widget or an
+ * outside app's agent never runs on it (DECISIONS.md#d-151).
+ */
+export const runsOnComputer = (o: Origin): boolean => {
+  switch (o.kind) {
+    case "user":
+    case "input_answer":
+    case "computer_ready":
+    case "go_on":
+    case "job":
+    case "terminal":
+    case "routine":
+    case "stalled_task":
+    case "task_result":
+    case "delegation_result":
+      return true;
+    case "channel":
+      return o.role === "owner";
+    case "agent":
+      return o.id !== "external" && !o.id.startsWith("client:");
+    default:
+      return false;
+  }
+};
+
 /** The owner speaking: from the app, or on a channel as the owner (never a contact). */
 export const ownerOrigin = (o: Origin | undefined): o is Extract<Origin, { kind: "user" | "channel" }> =>
   o?.kind === "user" || (o?.kind === "channel" && o.role === "owner");

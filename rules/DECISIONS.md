@@ -2320,7 +2320,9 @@ needs a boot or the first setup does not keep the turn waiting: the tool tells t
 the owner know and end its turn, and the core gives the chat one turn (origin `computer_ready`) the moment the computer
 is up, or did not start (`environments/ready.ts`, polled in the core every 2 s, at most 25 minutes); that turn carries
 on with what the owner asked. A refusal for memory comes back to the agent with its numbers and the `apx:computer`
-link to give the owner, never to retry. It acts through `environments.start`
+link to give the owner, never to retry. In the computer's chat what speaks for the owner runs on it (`runsOnComputer`): their words, from the app or as the
+owner on a channel, their answers, their routines and commands, and their own agents' results; a contact, a widget or
+an outside app's agent does not, and its refusal says so in the owner's language. It acts through `environments.start`
 and `environments.stop` (rule 1), which accept the owner or a working run of that very chat whose agent is allowed;
 an agent's stop does not cancel its own run. Starting from a chat that is not the computer's moves the computer there
 when it is off and its old chat has no working run; the old chat gets its host tools back from its next turn. In the

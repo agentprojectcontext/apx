@@ -316,3 +316,63 @@ test("the computer's status says what it runs with now and, apart, what the owne
     env.cleanup();
   }
 });
+
+test("on the computer, the owner's own agents' results run in its chat; a contact's message is refused in words", async () => {
+  const home = tempDir("apx-vm-tool-").path;
+  const llm = scriptedLlm(() => say("Te cuento lo que hizo Scout"));
+  const env = await startCore({ home, llm, computer: fakeComputer(home).config });
+  try {
+    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.enable", { thread: "home", appearance: "light" });
+    await waitFor(async () => (await env.client.call("environments.status", {})).phase === "running", "running");
+    const { engine, store } = env.core;
+    // A task Roby gave Scout is closed: its report comes back to Roby's chat, which works on the computer.
+    engine.admit({
+      thread_id: "home",
+      agent_id: "roby",
+      trigger: "a2a_result",
+      origin: {
+        kind: "task_result",
+        task_id: "task_1",
+        title: "Acme report",
+        state: "done",
+        agent_id: "scout",
+        name: "Scout",
+      },
+      text: "Done",
+    });
+    const reported = await env.settle("home");
+    assert.equal(reported.runs.at(-1)?.state, "completed");
+
+    const runs = async () => (await env.client.call("threads.get", { thread: "home" })).runs;
+    const before = (await runs()).length;
+    engine.admit({
+      thread_id: "home",
+      agent_id: "roby",
+      trigger: "channel",
+      origin: {
+        kind: "hours_began",
+        channel: "telegram",
+        conversation: "c1",
+        person_id: "p1",
+        name: "Northwind",
+        since: "",
+      },
+      text: "",
+    });
+    const failed = await waitFor(async () => {
+      const now = await runs();
+      return now.length > before && now.every((r) => r.ended_at) ? now : undefined;
+    }, "the contact's turn");
+    assert.equal(failed.find((r) => r.trigger === "channel")?.state, "failed");
+    const notice = store.messages
+      .list("home")
+      .flatMap((m) => m.parts)
+      .findLast((p) => p.type === "notice");
+    assert.equal(notice?.type === "notice" && notice.code, "computer.notOwners");
+    assert.equal(notice?.type === "notice" && notice.vars?.agent, "Roby");
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});

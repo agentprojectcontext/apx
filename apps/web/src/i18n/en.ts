@@ -17,11 +17,13 @@ export const en = {
   "panel.computer": "Computer",
   "panel.computer.hint": "See the agent's Linux computer",
   "notice.computer.interrupted": "Interrupted: you took control of Computer.",
-  "notice.computer.unavailable": "Computer unavailable. Start it and return control to the agent, then retry.",
-  "notice.computer.stopped.memory":
-    "Computer was shut down: this Mac had only {free} GiB of memory free. Its disk is kept; start it again when there is room.",
-  "notice.computer.stopped.idle":
-    "Computer was shut down after {minutes} minutes without use, to free its memory. Its disk is kept.",
+  "notice.computer.unavailable": "Computer unavailable. Why is below.",
+  "notice.computer.notOwners":
+    "{agent} works on the computer here: a contact's, a widget's or another app's message does not run on it.",
+  "notice.computer.notAllowed": "{agent} may not use the computer yet. Allow it from the computer's panel.",
+  "notice.computer.notAllowed.link": "Open computer",
+  "notice.computer.stopped.memory": "Computer shut down: only {free} GiB of memory was free. Its disk is kept.",
+  "notice.computer.stopped.idle": "Computer shut down after {minutes} minutes unused. Its disk is kept.",
   "computer.screen": "Live VM desktop",
   "desktopInstall.title": "Use APX as a desktop app",
   "desktopInstall.idle": "Install on this computer running APX. Your chats, agents and settings stay ready to use.",
