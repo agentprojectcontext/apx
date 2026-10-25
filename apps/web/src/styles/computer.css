@@ -254,31 +254,75 @@
 .computers__wall[data-count="1"] {
   grid-template-columns: minmax(280px, 900px);
 }
+.computers__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 24px;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}
 .computers__tile {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   padding: 10px;
   border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-lg);
   background: var(--apx-surface);
-  text-align: left;
-  cursor: pointer;
 }
 .computers__tile:hover {
   border-color: var(--apx-border-strong);
 }
 .computers__thumb {
   position: relative;
+  display: block;
+  padding: 0;
+  border: 0;
   aspect-ratio: 16 / 10;
   overflow: hidden;
   border-radius: var(--apx-radius-md);
   background: var(--apx-fill-strong);
-  pointer-events: none;
+  cursor: pointer;
+}
+.computers__thumb.is-off {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px dashed var(--apx-border);
+  background: transparent;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-sm);
+  cursor: default;
 }
 .computers__thumb .computer__screen {
   position: absolute;
   inset: 0;
+  pointer-events: none;
+}
+.computers__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+.computers__foot .computers__holder {
+  flex: 1;
+}
+.computers__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+.computers__full {
+  margin: 0;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
 }
 .computers__holder {
   display: flex;
@@ -299,7 +343,8 @@
   text-overflow: ellipsis;
 }
 .computers__state {
-  margin-left: auto;
+  margin-left: 4px;
+  flex: none;
   padding: 2px 8px;
   border-radius: var(--apx-radius-pill);
   background: var(--apx-fill);

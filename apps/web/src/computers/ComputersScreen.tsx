@@ -1,6 +1,7 @@
 import "../styles/screens.css";
 import "../styles/computer.css";
 import type { ComputerMemoryRefusal, ComputerScreen, Result } from "@apx/protocol";
+import { ApxError } from "@apx/protocol/client";
 import { AgentAvatar, Button, EmptyState, Icons } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
@@ -14,12 +15,19 @@ import { memoryRefusal } from "./refusal.ts";
 import { computersOf } from "./summary.ts";
 
 type Status = Result<"environments.status">;
-type Usage = Result<"environments.usage">;
+type ScreensFull = { max: number; up: string[] };
+
+/** The cap a screen start ran into, from the refusal's detail; else undefined. */
+function screensFull(failure: unknown): ScreensFull | undefined {
+  const d = failure instanceof ApxError ? (failure.detail as Record<string, unknown> | undefined) : undefined;
+  if (!d || typeof d !== "object" || d.reason !== "screens_full") return undefined;
+  const up = Array.isArray(d.up) ? d.up.filter((n): n is string => typeof n === "string") : [];
+  return { max: typeof d.max === "number" ? d.max : up.length, up };
+}
 
 /** Polled while this view is open: every viewer below lives only as long as the view does. */
 function useComputerStatus() {
   const [status, setStatus] = useState<Status>();
-  const [usage, setUsage] = useState<Usage>();
   const [error, setError] = useState("");
   const now = useRef<() => void>(() => {});
   useEffect(() => {
@@ -31,9 +39,6 @@ function useComputerStatus() {
         if (abort.signal.aborted) return;
         setStatus(next);
         data.set({ vmThreads: next.chats ?? [], computers: computersOf(next) });
-        // What the VM takes is read from the guest: only while nothing is shown, for the empty state.
-        if (next.ready && !next.screens?.some((s) => s.run))
-          setUsage(await client.withSignal(abort.signal).call("environments.usage", {}));
       } catch (failure) {
         if (!abort.signal.aborted) setError(failure instanceof Error ? failure.message : String(failure));
       } finally {
@@ -50,7 +55,7 @@ function useComputerStatus() {
       clearTimeout(timer);
     };
   }, []);
-  return { status, usage, error, setError, refresh: () => now.current() };
+  return { status, error, setError, refresh: () => now.current() };
 }
 
 function Holder({ screen, title }: { screen: ComputerScreen; title?: string | undefined }) {
@@ -75,27 +80,87 @@ function Tile({
   screen,
   title,
   ready,
+  busy,
   onOpen,
+  onOff,
 }: {
   screen: ComputerScreen;
   title?: string | undefined;
   ready: boolean;
+  busy: boolean;
   onOpen(): void;
+  /** Absent while a run holds the screen. */
+  onOff?: (() => void) | undefined;
 }) {
   const t = useT();
   const view = useVmDisplay(screen.screen, ready, false, true);
   return (
-    <button
-      type="button"
-      className="computers__tile"
-      onClick={onOpen}
-      aria-label={t("computers.openScreen", { agent: screen.agent_name ?? "" })}
-    >
-      <Holder screen={screen} title={title} />
-      <div className="computers__thumb">
+    <div className="computers__tile">
+      <button
+        type="button"
+        className="computers__thumb"
+        onClick={onOpen}
+        aria-label={t("computers.openScreen", { agent: screen.agent_name ?? "" })}
+      >
         <section className="computer__screen" ref={view.screen} aria-label={t("computer.screen")} />
+      </button>
+      <div className="computers__foot">
+        <Holder screen={screen} title={title} />
+        <div className="computers__actions">
+          <Button size="sm" variant="secondary" onClick={onOpen}>
+            {t("computers.open")}
+          </Button>
+          {onOff && (
+            <Button size="sm" variant="secondary" loading={busy} onClick={onOff}>
+              {t("computers.turnOff")}
+            </Button>
+          )}
+        </div>
       </div>
-    </button>
+    </div>
+  );
+}
+
+/** An allowed agent whose screen is not up: a calm placeholder with the way to turn it on. */
+function OffTile({
+  agent,
+  busy,
+  full,
+  onOn,
+}: {
+  agent: string;
+  busy: boolean;
+  full?: ScreensFull | undefined;
+  onOn(): void;
+}) {
+  const t = useT();
+  const record = useData((s) => s.agents[agent]);
+  const name = record?.name ?? agent;
+  return (
+    <div className="computers__tile is-off">
+      <div className="computers__thumb is-off">
+        <Icons.Monitor size={28} />
+        <span>{t("computers.screenOff")}</span>
+      </div>
+      <div className="computers__foot">
+        <div className="computers__holder">
+          <AgentAvatar name={name} blob={record?.blob} size={22} animated={false} />
+          <div>
+            <strong>{name}</strong>
+          </div>
+        </div>
+        <div className="computers__actions">
+          <Button size="sm" loading={busy} onClick={onOn}>
+            {t("computers.turnOn")}
+          </Button>
+        </div>
+      </div>
+      {full && (
+        <p className="computers__full" role="alert">
+          {t("computers.full", { max: full.max, up: full.up.join(", ") })}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -165,7 +230,7 @@ function Large({
 function ComputersScreenBody() {
   const t = useT();
   const mode = useNav((s) => s.mode);
-  const { status, usage, error, setError, refresh } = useComputerStatus();
+  const { status, error, setError, refresh } = useComputerStatus();
   const [open, setOpen] = useState<number>();
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<ComputerMemoryRefusal>();
@@ -175,6 +240,24 @@ function ComputersScreenBody() {
   const large = inUse.find((s) => s.screen === open);
   const threads = useData((s) => s.threads);
   const chatOf = (screen: ComputerScreen) => screenChat(status, threads, screen.agent);
+  const [screenBusy, setScreenBusy] = useState<string>();
+  const [full, setFull] = useState<{ agent: string } & ScreensFull>();
+  const agents = useData((s) => s.agents);
+  const screenOf = async (agent: string, on: boolean) => {
+    setScreenBusy(agent);
+    setError("");
+    setFull(undefined);
+    try {
+      await client.call("environments.screen", { agent, on });
+      refresh();
+    } catch (failure) {
+      const cap = screensFull(failure);
+      if (cap) setFull({ agent, ...cap });
+      else setError(failure instanceof Error ? failure.message : String(failure));
+    } finally {
+      setScreenBusy(undefined);
+    }
+  };
   const power = async (on: boolean, memory?: number, pastReserve = false) => {
     setBusy(true);
     setError("");
@@ -192,24 +275,18 @@ function ComputersScreenBody() {
       setBusy(false);
     }
   };
+  const off = (status?.allowed ?? []).filter((id) => agents[id] && !inUse.some((s) => s.agent === id));
   const starting = status?.phase === "preparing" || status?.phase === "stopping";
   return (
     <section className="page computers" aria-label={t("nav.computers")}>
-      <header className="page__head page__head--row">
-        <div>
-          <h1 className="page__title">{t("nav.computers")}</h1>
-          <p className="page__lead">
-            {ready
-              ? t("computers.lead", { held: screensUp(status), max: status?.max_screens ?? 1 })
-              : t("computers.leadOff")}
-          </p>
-        </div>
-        {ready && (
-          <Button variant="secondary" loading={busy} onClick={() => void power(false)}>
+      {ready && (
+        <header className="computers__bar">
+          <span>{t("computers.lead", { held: screensUp(status), max: status?.max_screens ?? 1 })}</span>
+          <Button size="sm" variant="secondary" loading={busy} onClick={() => void power(false)}>
             {t("computer.stop")}
           </Button>
-        )}
-      </header>
+        </header>
+      )}
       <ComputerError
         error={error || status?.error || ""}
         refusal={refusal}
@@ -225,15 +302,26 @@ function ComputersScreenBody() {
           onBack={() => setOpen(undefined)}
           onError={setError}
         />
-      ) : inUse.length && ready ? (
-        <div className="computers__wall" data-count={inUse.length}>
+      ) : ready ? (
+        <div className="computers__wall" data-count={inUse.length + off.length}>
           {inUse.map((screen) => (
             <Tile
               key={screen.screen}
               screen={screen}
               title={threads[chatOf(screen) ?? ""]?.title}
               ready={ready}
+              busy={screenBusy === screen.agent}
               onOpen={() => setOpen(screen.screen)}
+              onOff={screen.run || !screen.agent ? undefined : () => void screenOf(screen.agent ?? "", false)}
+            />
+          ))}
+          {off.map((agent) => (
+            <OffTile
+              key={agent}
+              agent={agent}
+              busy={screenBusy === agent}
+              full={full?.agent === agent ? full : undefined}
+              onOn={() => void screenOf(agent, true)}
             />
           ))}
         </div>
@@ -241,21 +329,14 @@ function ComputersScreenBody() {
         <EmptyState
           size="lg"
           icon={<Icons.Monitor />}
-          title={t(ready ? "computers.idle" : starting ? "computer.preparing" : "computers.off")}
+          title={t(starting ? "computer.preparing" : "computers.off")}
           action={
-            ready ? undefined : (
-              <Button loading={busy || starting} onClick={() => void power(true)}>
-                {t("computer.start")}
-              </Button>
-            )
+            <Button loading={busy || starting} onClick={() => void power(true)}>
+              {t("computer.start")}
+            </Button>
           }
         >
-          {ready && usage?.memory_assigned_mb
-            ? t("computers.memory", {
-                used: usage.memory_used_mb ?? 0,
-                assigned: usage.memory_assigned_mb,
-              })
-            : t("computers.offHint")}
+          {t("computers.offHint")}
         </EmptyState>
       )}
     </section>

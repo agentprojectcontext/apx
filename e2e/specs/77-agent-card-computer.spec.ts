@@ -49,7 +49,7 @@ test("an agent's card shows the computer off, turns it on in its settings, then 
 
     await expect(row).toContainText("Permitida (detenida)");
     await row.getByRole("button", { name: "Ver computadoras", exact: true }).click();
-    await expect(page.getByRole("main")).toContainText("Computadoras");
+    await expect(page.getByRole("main")).toContainText("La computadora está apagada");
     await expect(nav).toBeVisible();
   } finally {
     await page.goto("about:blank");

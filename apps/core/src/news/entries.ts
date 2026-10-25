@@ -270,8 +270,8 @@ export const NEWS: readonly NewsEntry[] = [
       "or the local network. Each agent gets its own user, files and screen with a desktop and browser. It is off " +
       "for every agent until the owner allows one: in the agent's card or settings, from the card the agent shows " +
       "when it asks, or by asking the super-agent. An allowed agent starts it itself; it does not start without enough free memory, and APX shuts it down " +
-      "when the Mac runs short or nobody uses it, keeping its files. The new Computers view shows every agent's " +
-      "screen at once; memory, CPUs and disk are set in the Computer panel.",
+      "when the Mac runs short or nobody uses it, keeping its files. The new Computers view shows every allowed agent's " +
+      "screen at once, and the owner can turn any of them on or off from there; memory, CPUs and disk are set in the Computer panel.",
     actions: [
       {
         label: { en: "What could you do there?", es: "¿Qué harías ahí?" },
