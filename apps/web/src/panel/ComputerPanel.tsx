@@ -120,6 +120,7 @@ function ComputerPanelBody() {
         refusal={refusal}
         busy={busy}
         onLower={(gib) => void lower(gib)}
+        onAnyway={() => void operate("anyway")}
       />
       {ready && shown === undefined && (
         <div className="computer__setup">

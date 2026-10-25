@@ -47,6 +47,8 @@ export type ComputerMemoryRefusal = {
   vm_gib: number;
   reserve_gib: number;
   fits_gib?: number;
+  /** Only the reserve is missing: the owner may start it anyway. */
+  anyway?: boolean;
 };
 
 export const environmentMethods = {
@@ -121,9 +123,12 @@ export const environmentMethods = {
     effect: true,
     access: "human",
   },
-  /** The owner starts the shared VM, putting a chat on it when named. */
+  /**
+   * The owner starts the shared VM, putting a chat on it when named. `past_reserve`: start it anyway when only the
+   * host's reserve beside the VM's memory is missing (the owner's alone; an agent's start always keeps it).
+   */
   "environments.enable": {
-    params: z.object({ thread: ThreadId.optional(), appearance: Look }).strict(),
+    params: z.object({ thread: ThreadId.optional(), appearance: Look, past_reserve: z.boolean().optional() }).strict(),
     result: Ok,
     effect: true,
     replay: false,

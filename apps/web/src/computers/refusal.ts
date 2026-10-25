@@ -14,5 +14,6 @@ export function memoryRefusal(failure: unknown): ComputerMemoryRefusal | undefin
     vm_gib: d.vm_gib,
     reserve_gib: d.reserve_gib,
     ...(num(d.fits_gib) ? { fits_gib: d.fits_gib } : {}),
+    ...(d.anyway === true ? { anyway: true } : {}),
   };
 }

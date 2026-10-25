@@ -154,8 +154,8 @@ test("starting refuses when free memory cannot hold the VM and its reserve, and 
     // Told how to say it to the owner, with the way to fix it: never left to retry in a loop.
     assert.match(refused, /in their language.+\[Computer\]\(apx:computer\).+do not try again/);
     assert.deepEqual(vm.calls, []);
-    free.bytes = 7 * GIB;
-    await env.client.call("environments.enable", { thread: "home", appearance: "light" });
+    // The owner starts it anyway: only the VM's own 4 GiB must be free, and 5 GiB are.
+    await env.client.call("environments.enable", { thread: "home", appearance: "light", past_reserve: true });
     await waitFor(async () => (await env.client.call("environments.status", {})).phase === "running", "start");
   } finally {
     await env.core.close();
@@ -172,6 +172,10 @@ test("only the owner or the allowed agent's own run starts and stops it; taking 
     await assert.rejects(agent.call("environments.start", { thread: "home" }), { code: "unauthorized" });
     await assert.rejects(agent.call("environments.release", { thread: "home" }), { code: "unauthorized" });
     await assert.rejects(agent.call("environments.permit", { agent: "roby", on: true }), { code: "unauthorized" });
+    // Starting past the host's reserve is the owner's alone.
+    await assert.rejects(agent.call("environments.enable", { appearance: "light", past_reserve: true }), {
+      code: "unauthorized",
+    });
     await env.client.call("environments.permit", { agent: "roby", on: true });
     await env.client.call("environments.bind", { thread: "home" });
     await env.client.call("environments.permit", { agent: "roby", on: false });

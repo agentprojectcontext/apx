@@ -86,6 +86,7 @@ export const esComputer: Record<ComputerKey, string> = {
   "computer.noMemory":
     "No hay memoria libre suficiente en esta Mac: {free} GiB libres, y la computadora necesita {vm} GiB más {reserve} GiB que se dejan para la Mac. Cerrá apps o bajale la memoria, y probá de nuevo.",
   "computer.lowerMemory": "Bajarla a {gib} GiB y encender",
+  "computer.startAnyway": "Encender igual",
   "agent.computer": "Computadora",
   "agent.computer.hint":
     "Una computadora Linux aparte de esta Mac, compartida por los agentes que permitas: cada uno trabaja en su propia pantalla, con su shell y su navegador.",

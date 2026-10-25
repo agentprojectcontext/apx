@@ -85,6 +85,7 @@ export const enComputer = {
   "computer.noMemory":
     "Not enough free memory on this Mac: {free} GiB free, and the computer needs {vm} GiB plus {reserve} GiB kept for the Mac. Close apps or lower its memory, then try again.",
   "computer.lowerMemory": "Lower it to {gib} GiB and turn on",
+  "computer.startAnyway": "Start anyway",
   "agent.computer": "Computer",
   "agent.computer.hint":
     "A Linux computer apart from this Mac, shared by the agents you allow: each one works on its own screen with its own shell and browser.",

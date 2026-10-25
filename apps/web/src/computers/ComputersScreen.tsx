@@ -159,13 +159,14 @@ function ComputersScreenBody() {
   const ready = Boolean(status?.ready);
   const inUse = (status?.screens ?? []).filter((s) => s.run || s.control === "human");
   const large = inUse.find((s) => s.screen === open);
-  const power = async (on: boolean, memory?: number) => {
+  const power = async (on: boolean, memory?: number, pastReserve = false) => {
     setBusy(true);
     setError("");
     setRefusal(undefined);
     try {
       if (memory !== undefined) await client.call("environments.configure", { memory_gib: memory });
-      if (on) await client.call("environments.enable", { appearance: mode });
+      if (on)
+        await client.call("environments.enable", { appearance: mode, ...(pastReserve ? { past_reserve: true } : {}) });
       else await client.call("environments.stop", {});
       refresh();
     } catch (failure) {
@@ -198,6 +199,7 @@ function ComputersScreenBody() {
         refusal={refusal}
         busy={busy}
         onLower={(gib) => void power(true, gib)}
+        onAnyway={() => void power(true, undefined, true)}
       />
       {large ? (
         <Large screen={large} ready={ready} onBack={() => setOpen(undefined)} onError={setError} />

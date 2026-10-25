@@ -115,6 +115,8 @@ test("an agent asks for the computer, starts and stops it, and the owner takes t
     );
     await expect(refused).not.toContainText("not enough");
     await expect(refused).toBeInViewport();
+    // Only the Mac's reserve is missing: the owner may start it anyway.
+    await expect(refused.getByRole("button", { name: "Encender igual", exact: true })).toBeVisible();
     // A smaller VM fits: one click lowers its memory and turns it on.
     await refused.getByRole("button", { name: "Bajarla a 3 GiB y encender", exact: true }).click();
     await expect.poll(async () => (await env.client.call("environments.status", {})).phase).toBe("running");

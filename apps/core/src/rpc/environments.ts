@@ -30,7 +30,8 @@ export function environmentHandlers(store: Store, vm?: Computer, cancel: Engine[
   return {
     "environments.status": ({ thread }) =>
       vm?.status(thread) ?? { enabled: false, ready: false, name: "", workspace: "" },
-    "environments.enable": ({ thread, appearance }) => enabled().enable(thread, appearance),
+    "environments.enable": ({ thread, appearance, past_reserve }) =>
+      enabled().enable(thread, appearance, past_reserve === true),
     "environments.start": ({ thread }, ctx) => {
       const run = caller(thread, ctx);
       return run ? enabled().start(thread, run.agent_id, run.id) : enabled().enable(thread, look());

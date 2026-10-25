@@ -60,9 +60,11 @@ export function startRefusal(
   resources: ComputerResources,
   availableBytes: number,
   minGib = 2,
+  /** The owner's "start anyway": the VM's own memory must still be free, the reserve beside it is not asked. */
+  pastReserve = false,
 ): ComputerMemoryRefusal | undefined {
-  const needed = (resources.memory_gib + START_RESERVE_GIB) * GIB;
-  if (availableBytes >= needed) return undefined;
+  const reserve = pastReserve ? 0 : START_RESERVE_GIB;
+  if (availableBytes >= (resources.memory_gib + reserve) * GIB) return undefined;
   const fits = Math.floor(availableBytes / GIB - START_RESERVE_GIB);
   return {
     reason: "memory",
@@ -70,6 +72,8 @@ export function startRefusal(
     vm_gib: resources.memory_gib,
     reserve_gib: START_RESERVE_GIB,
     ...(fits >= minGib && fits < resources.memory_gib ? { fits_gib: fits } : {}),
+    // Only the reserve is missing: the owner may start it anyway.
+    ...(availableBytes >= resources.memory_gib * GIB ? { anyway: true } : {}),
   };
 }
 

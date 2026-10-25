@@ -44,10 +44,14 @@ test("a start needs the VM's memory plus the reserve free", () => {
   assert.equal(startRefusal(r, 6 * GIB), undefined);
   const refused = startRefusal(r, 5.5 * GIB);
   // The numbers, for the panel to say in each language, and the VM memory that would start now.
-  assert.deepEqual(refused, { reason: "memory", free_gib: 5.5, vm_gib: 4, reserve_gib: 2, fits_gib: 3 });
+  assert.deepEqual(refused, { reason: "memory", free_gib: 5.5, vm_gib: 4, reserve_gib: 2, fits_gib: 3, anyway: true });
   assert.match(refused ? refusalText(refused) : "", /5\.5 GiB free, the VM needs 4 GiB plus 2 GiB.+memory to 3 GiB/);
   // Nothing smaller than the least a VM may have would start either: no offer to lower it.
   assert.equal(startRefusal(r, 3.5 * GIB)?.fits_gib, undefined);
+  // The owner's "start anyway" asks only for the VM's own memory, never less.
+  assert.equal(startRefusal(r, 5.5 * GIB, 2, true), undefined);
+  assert.equal(startRefusal(r, 3.5 * GIB)?.anyway, undefined, "not even the VM's memory is free");
+  assert.ok(startRefusal(r, 3.5 * GIB, 2, true));
 });
 
 test("Lima gets only the flags that changed, and a disk is never shrunk", () => {

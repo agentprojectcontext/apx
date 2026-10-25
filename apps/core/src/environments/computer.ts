@@ -319,11 +319,11 @@ export function createComputer(store: Store, config: ComputerConfig) {
       return { ok: true as const };
     },
     /** The owner starts the computer, putting a chat on it when named (its agent must be allowed first). */
-    async enable(id: string | undefined, look: Appearance) {
+    async enable(id: string | undefined, look: Appearance, pastReserve = false) {
       // The chat goes on the computer only once it can run: a start refused for memory leaves it on this Mac.
       if (id) vm.admit(id);
       store.settings.set("vm_appearance", look);
-      await vm.boot();
+      await vm.boot(pastReserve);
       if (id) vm.bind(id);
       return { ok: true as const };
     },
@@ -339,15 +339,18 @@ export function createComputer(store: Store, config: ComputerConfig) {
       vm.bind(id);
       return { ok: true as const };
     },
-    /** Starts the shared VM unless it runs, is starting, or free host memory cannot hold it. */
-    async boot() {
+    /**
+     * Starts the shared VM unless it runs, is starting, or free host memory cannot hold it with the host's reserve;
+     * `pastReserve` (the owner's alone, from `environments.enable`) asks only for the VM's own memory.
+     */
+    async boot(pastReserve = false) {
       const lifecycle = config.lifecycle;
       if (!lifecycle) throw unavailable("this VM has no lifecycle controller");
       const now = await lifecycle.status();
       if (!now.supported) throw unavailable("Computer currently requires macOS Apple Silicon");
       if (now.phase === "running" || now.phase === "preparing") return;
       if (now.phase === "stopping") throw conflict("Computer is shutting down; start it again once it is off");
-      const refusal = startRefusal(resources(), await freeMemory(), resourceLimits(host).memory_gib.min);
+      const refusal = startRefusal(resources(), await freeMemory(), resourceLimits(host).memory_gib.min, pastReserve);
       if (refusal) throw conflict(refusalText(refusal), refusal);
       ledger.reset();
       touch();

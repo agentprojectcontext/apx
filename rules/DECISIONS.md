@@ -2342,7 +2342,9 @@ saying both numbers. On macOS "free" is Activity Monitor's complement of memory 
 speculative file pages) and purgeable memory count as free, since macOS gives them back on demand; inactive memory of
 apps does not, since taking it means compressing or swapping them (the kernel's `memorystatus_level` counts that too
 and would promise RAM a VM cannot get without memory pressure). The refusal carries the numbers and the VM memory that
-would start now, which the panel offers to lower to. A watchdog in the core checks every 30 seconds: below 1 GiB free it shuts the VM down, and after
+would start now, which the panel offers to lower to. When only the reserve is missing (the VM's own memory is free), the owner may
+"Start anyway" (`environments.enable` with `past_reserve`): that one start asks for the VM's memory alone, an agent's
+start never skips the reserve, and the watchdog still shuts the VM down below 1 GiB free. A watchdog in the core checks every 30 seconds: below 1 GiB free it shuts the VM down, and after
 the owner's idle minutes (30 by default, 0 for never) without a working run in its chat, a viewer or a guest call, and
 with the agent in control, it shuts it down too. Either way the disk is kept, the reason is kept for the panel
 (`last_stop`) and the owner is told in the chat and the tray. The stop threshold is below the start reserve, so a

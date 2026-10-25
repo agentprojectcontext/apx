@@ -7,7 +7,7 @@ import { data } from "../data/state.ts";
 import { useNav } from "../shell/nav.ts";
 
 type Status = Result<"environments.status">;
-export type ComputerAction = "enable" | "allow" | "stop" | "leave" | "human" | "agent";
+export type ComputerAction = "enable" | "allow" | "anyway" | "stop" | "leave" | "human" | "agent";
 
 /** The shared computer as the chat in view sees it, polled; `screen` is the one shown: the chat agent's, or one picked. */
 export function useComputer(thread: string | undefined) {
@@ -103,6 +103,9 @@ export function useComputer(thread: string | undefined) {
           await client.call("environments.permit", { agent: status.chat.agent, on: true });
         if (action === "allow" || action === "enable")
           await client.call("environments.enable", { thread, appearance: mode });
+        // The owner's own choice to start it with less memory left for the Mac than the reserve.
+        else if (action === "anyway")
+          await client.call("environments.enable", { thread, appearance: mode, past_reserve: true });
         else if (action === "stop") await client.call("environments.stop", {});
         else if (action === "leave") await client.call("environments.release", { thread });
         else if (screen !== undefined) await client.call("environments.control", { screen, mode: action });

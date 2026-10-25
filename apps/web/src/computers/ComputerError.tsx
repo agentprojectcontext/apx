@@ -10,10 +10,12 @@ export function ComputerError(props: {
   refusal?: ComputerMemoryRefusal | undefined;
   busy?: boolean;
   onLower?(gib: number): void;
+  /** Start it anyway, past the host's reserve: offered when only the reserve is missing. */
+  onAnyway?(): void;
 }) {
   const t = useT();
   const lang = useLanguage();
-  const { refusal, onLower } = props;
+  const { refusal, onLower, onAnyway } = props;
   const n = (v: number) => new Intl.NumberFormat(lang, { maximumFractionDigits: 1 }).format(v);
   if (!refusal && !props.error) return null;
   return (
@@ -29,6 +31,11 @@ export function ComputerError(props: {
           onClick={() => refusal.fits_gib !== undefined && onLower(refusal.fits_gib)}
         >
           {t("computer.lowerMemory", { gib: n(refusal.fits_gib) })}
+        </button>
+      )}
+      {refusal?.anyway && onAnyway && (
+        <button type="button" className="computer__button" disabled={props.busy} onClick={onAnyway}>
+          {t("computer.startAnyway")}
         </button>
       )}
     </div>
