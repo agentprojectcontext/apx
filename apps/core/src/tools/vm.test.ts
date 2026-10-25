@@ -511,3 +511,33 @@ test("control the owner took ends with the computer: stopped and started again, 
     env.cleanup();
   }
 });
+
+test("an agent allowed the computer reads its state each turn in its input; one not allowed reads nothing of it", async () => {
+  const home = tempDir("apx-vm-tool-").path;
+  const inputs: string[] = [];
+  const llm = scriptedLlm((req) => {
+    inputs.push(String(req.messages.findLast((m) => m.role === "user")?.content ?? ""));
+    return say("ok");
+  });
+  const env = await startCore({ home, llm, computer: fakeComputer(home).config });
+  try {
+    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.enable", { thread: "home", appearance: "light" });
+    await waitFor(async () => (await env.client.call("environments.status", {})).phase === "running", "running");
+    await env.client.call("threads.send", { thread: "home", text: "Hola" });
+    await env.settle("home");
+    assert.match(
+      inputs.at(-1) ?? "",
+      /\[computer\] Computer: running with 4 GiB memory, 2 CPUs, 24 GiB disk; this chat works on it\. Your screen: :101 \(screen 1\), working in this chat\. Control: yours\.\n/,
+    );
+    const other = await env.client.call("threads.create", { kind: "loose", agent_id: "scout" });
+    await env.client.call("threads.send", { thread: other.id, text: "Hola" });
+    await env.settle(other.id);
+    assert.doesNotMatch(inputs.at(-1) ?? "", /\[computer\]/);
+    // The system prompt never carries it: it stays the same turn after turn.
+    assert.doesNotMatch(String(llm.calls.at(-2)?.messages[0]?.content ?? ""), /\[computer\]/);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});

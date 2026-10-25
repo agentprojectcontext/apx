@@ -345,6 +345,8 @@ export function turnInput(opts: {
   stickers?: string[] | undefined;
   /** A code thread's folder and what may change there, the project's read-only folders (workspaceBlock). */
   workspace?: string | undefined;
+  /** The computer, for an agent allowed it: its state, the agent's screen and whose hands it is in (computerBriefing). */
+  computer?: string | undefined;
   /** The permission mode this turn runs in, and what waits for the owner there (modeBlock). */
   mode?: string | undefined;
   /** In the chat that told what an update brought: which release, and where its commits are (releaseBlock). */
@@ -369,6 +371,7 @@ export function turnInput(opts: {
       : "",
     opts.mode ? `[mode] ${opts.mode}` : "",
     opts.workspace ? `[workspace] ${opts.workspace}` : "",
+    opts.computer ? `[computer] ${opts.computer}` : "",
     opts.release ? `[release notes] ${opts.release}` : "",
     opts.roster ? `[agents]\n${opts.roster}` : "",
     opts.memory ? `[memory: notes saved earlier]\n${opts.memory}` : "",

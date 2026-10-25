@@ -19,6 +19,7 @@ import { engineOf, harnessOf, isCliRef } from "../domain/refs.ts";
 import { answersChecked, type Origin, type RunRecord, runsOnComputer } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
+import { computerBriefing } from "../environments/briefing.ts";
 import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { CallError, Canceled, DeadlineExceeded, errorMessage, Shutdown, Superseded } from "../errors.ts";
 import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
@@ -462,6 +463,12 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
     : project(entries, HISTORY_BUDGET_CHARS, ctxState.compaction);
   const { from } = projected;
   const roster = rosterBlock(agent, store.agents.list(), thread);
+  // An agent allowed the computer reads its state each turn, as the owner sees it in the panel.
+  const vm = deps.vm;
+  const computer =
+    vm && !sealed && vm.serves(thread.id) && vm.permitted(agent.id, thread.id)
+      ? computerBriefing(await vm.status(thread.id), agent.id, thread.id)
+      : undefined;
   // A worker delegates to no one: it needs no roster.
   const rosterChanged =
     !sealed && !turn.worker && (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);
@@ -560,6 +567,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
                 workspace: deps.vm?.hasThread(thread.id)
                   ? `Shared Linux computer: ${AGENT_WORKSPACE}, as your own unprivileged user on your own screen. Shell and browser tools run there; web access uses the protected proxy. When it is off, start it with the computer tool.`
                   : workspaceBlock(thread, readOnlyFolders(store, thread), workDir(store, deps.home, thread)),
+                computer,
                 release: ownerTurn ? releaseBlock(store.threads.context(thread.id).release) : undefined,
                 feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
                 // The owner's channel lands in Home: what went out on it meanwhile is what they may be answering.
