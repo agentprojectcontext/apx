@@ -456,8 +456,15 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
+/* Sized by the chat column, not the window: beside a side panel the column is far narrower than 70vw. */
+.apx-msg.is-editing .apx-msg__col {
+  flex: 1;
+}
+.apx-msg.is-editing .apx-msg__bare {
+  align-self: stretch;
+}
 .rewind__edit {
-  width: min(560px, 70vw);
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 8px;
