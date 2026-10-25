@@ -395,7 +395,7 @@ const ownerChannelNote = (channel: string) =>
     : `${SAME_CHAT(channel)} ${ATTACH_NOTE(channel)} ${ACK_NOTE}`;
 
 const STICKER_NOTE =
-  'To answer with a sticker instead of words, answer only STICKER and what it shows, e.g. "STICKER thumbs up". Only the stickers the turn lists exist.';
+  'To answer with a sticker instead of words, answer only STICKER and what it shows, e.g. "STICKER thumbs up"; only the ones sticker_list returns for this channel exist.';
 
 const VOICE_STYLE =
   "Your first paragraph is sent as a voice note (about 20 seconds): make it a sayable summary in plain words. Lists, links, code and details go after a blank line, as text.";
@@ -424,8 +424,6 @@ export type TurnOpts = {
   channel?: string | undefined;
   /** The chat gets spoken answers: the first paragraph becomes a voice note. */
   voice?: boolean | undefined;
-  /** What the stickers people sent on this channel mean: the agent may answer with one. */
-  stickers?: string[] | undefined;
   /** A code thread's folder and what may change there, the project's read-only folders (workspaceBlock). */
   workspace?: string | undefined;
   /** The computer, for an agent allowed it: its state, the agent's screen and whose hands it is in (computerBriefing). */
@@ -488,12 +486,6 @@ export function turnBlocks(opts: TurnOpts): InputBlock[] {
       ownerOnChat && !told.ownerChats?.includes(channel) ? `[channel turn] ${ownerChannelNote(channel)}` : "",
     ],
     ["voice", opts.voice && !toldVoice ? `[voice] ${VOICE_STYLE}` : ""],
-    [
-      "stickers",
-      opts.stickers?.length
-        ? `[stickers] ${toldChat && told.stickers ? "" : `${STICKER_NOTE}\n`}${untrusted("sticker_meanings", { named_by: "a model, from pictures people sent" }, opts.stickers.map((s) => inlineName(s, 160)).join("; "))}`
-        : "",
-    ],
     ["mode", opts.mode && !toldMode ? `[mode] ${modeBlock(opts.mode)}` : ""],
     ["workspace", opts.workspace ? `[workspace] ${opts.workspace}` : ""],
     ["computer", opts.computer ? `[computer] ${opts.computer}` : ""],

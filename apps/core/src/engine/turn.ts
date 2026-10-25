@@ -35,7 +35,7 @@ import { askedSkill } from "../skills/picker.ts";
 import type { RuntimeHomes } from "../skills/runtimes.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
-import { channelsOn } from "../tools/directory.ts";
+import { channelsOn, STICKER_TOOL, stickersFor } from "../tools/directory.ts";
 import { harnessDir, readOnlyFolders, scratchDir, workDir } from "../tools/folders.ts";
 import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
 import { MCP_CALL, MCP_SEARCH, mcpBridge } from "../tools/mcp-bridge.ts";
@@ -168,6 +168,7 @@ const HANDOFF_TOOLS = new Set([
   "channel_post",
   "channel_list",
   "contact_list",
+  STICKER_TOOL,
   "apx_settings",
   "read_chat",
 ]);
@@ -578,7 +579,6 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
             timeZone: ownerTimeZone(store),
             channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
             voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
-            stickers: o.kind === "channel" ? stickersOf(store, o.channel) : undefined,
             // A contact turn with no tools makes no call that could wait: it needs no mode.
             mode: turn.audience.kind === "contact" && !told.mode ? undefined : mode,
             told,
@@ -685,12 +685,6 @@ const VM_HOST_TOOLS = new Set([
   "web_read",
 ]);
 
-/** What the stickers people sent on a channel's platform mean, the most used first: the agent may answer with one. */
-function stickersOf(store: Store, channel: string): string[] {
-  const type = store.settings.read("channels").find((c) => c.id === channel)?.type;
-  return type ? store.stickers.known(type, 12).flatMap((s) => (s.meaning ? [s.meaning] : [])) : [];
-}
-
 /** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; a contact's, by their flags. */
 async function turnTools(deps: TurnDeps, turn: Turn) {
   const inVm = deps.vm?.hasThread(turn.thread.id);
@@ -713,11 +707,15 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   // tool with `when` (an account's) only where it says.
   const memoryOn = memorySettings(deps.store).mode !== "off";
   const imessageOn = deps.store.settings.read("imessage").on;
+  // Offered only on a turn from a channel with stickers to send; the tool reads that channel itself.
+  const stickersHere = stickersFor(deps.store, turn.input.origin, 1).length > 0;
   const offered = deps.tools.filter(
     (t) =>
       (t.name === COMPUTER_TOOL
         ? computerOn
-        : !inVm || t.name === "shell" || VM_BROWSER_TOOLS.has(t.name) || VM_HOST_TOOLS.has(t.name)) &&
+        : t.name === STICKER_TOOL
+          ? stickersHere
+          : !inVm || t.name === "shell" || VM_BROWSER_TOOLS.has(t.name) || VM_HOST_TOOLS.has(t.name)) &&
       (memoryOn || !MEMORY_TOOLS.has(t.name)) &&
       (imessageOn || !IMESSAGE_TOOLS.has(t.name)) &&
       (!t.needsCap || (inVm && t.needsCap === BROWSER_CAP) || Boolean(deps.hasCap?.(t.needsCap))) &&
@@ -727,7 +725,7 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   // see the contact-only tools.
   const forContact =
     turn.audience.kind === "contact"
-      ? new Set([...contactToolNames(turn.audience.person), ...(turn.web ? WEB_TOOLS : [])])
+      ? new Set([...contactToolNames(turn.audience.person), ...(turn.web ? WEB_TOOLS : []), STICKER_TOOL])
       : new Set<string>();
   const narrowed = inherit(
     turn.agent,
