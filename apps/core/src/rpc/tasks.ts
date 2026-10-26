@@ -251,7 +251,8 @@ export function taskHandlers(
           by: by(ctx),
           from: ctx.agent ? { thread: ctx.agent.thread_id, run: ctx.agent.run_id } : undefined,
         });
-        if (!proposed && task.assignee) startTaskWork(store, engine.admit, task, task.assignee, askerOf(ctx));
+        if (!proposed && task.assignee)
+          startTaskWork(store, engine.admit, task, task.assignee, askerOf(ctx), { transfer: true });
         return task;
       });
       if (proposed) {
@@ -323,7 +324,8 @@ export function taskHandlers(
           },
           by(ctx),
         ) as Task;
-        if (updated.assignee && starting) startTaskWork(store, engine.admit, updated, updated.assignee, askerOf(ctx));
+        if (updated.assignee && starting)
+          startTaskWork(store, engine.admit, updated, updated.assignee, askerOf(ctx), { transfer: true });
         return updated;
       });
       // Put in review (or given another checker while in review): whoever checks it hears now.

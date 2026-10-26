@@ -34,7 +34,12 @@ export type Asker =
 export function sessionFor(store: Store, task: Task, agentId: string, source?: Thread): Thread {
   const mine = store.threads.byTask(task.id).filter((t) => t.agent_ids[0] === agentId);
   const last = mine.at(-1);
-  if (last) return last;
+  if (last && !source) return last;
+  if (source) {
+    const sessions = store.threads.byTask(task.id).flatMap((t) => store.threads.family(t.id));
+    if (source.task_id === task.id || store.threads.busy(sessions))
+      throw conflict("this task still has active work: finish it before transferring execution");
+  }
   const thread = store.threads.create({
     kind: "loose",
     title: task.title,
@@ -129,11 +134,12 @@ export function startTaskWork(
   task: Task,
   agentId: string,
   asker: Asker,
+  options: { transfer?: boolean; now?: Date } = {},
 ): RunRecord | undefined {
   // How far agents hand work on is the breaker's, as the owner set it (DECISIONS.md#d-082).
   if (task.state !== "open" || !task.description.trim() || !store.agents.get(agentId)) return undefined;
   // A start time still ahead: the office clock starts it then (startScheduled). A proposal waits for the owner.
-  if (startsLater(task) || task.proposed) return undefined;
+  if (startsLater(task, options.now) || task.proposed) return undefined;
   if (asker.kind === "agent" && (trip(store, asker.thread_id) || agentTrip(store, asker.thread_id, agentId))) {
     hold(store, task, agentId, asker);
     return undefined;
@@ -142,8 +148,11 @@ export function startTaskWork(
   const text = ownWords ? [task.title, task.description].filter(Boolean).join("\n\n") : "Work on this task.";
   const author: Author =
     asker.kind === "agent" ? { kind: "agent", id: asker.id } : ownWords ? { kind: "user" } : { kind: "system" };
-  const self = asker.kind === "agent" && asker.id === agentId;
-  if (self) checkSelfHandoff(store, asker, task.project_id);
+  const self =
+    options.transfer &&
+    asker.kind === "agent" &&
+    asker.id === agentId &&
+    checkSelfHandoff(store, asker, task.project_id);
   const source = self ? store.threads.get(asker.thread_id) : undefined;
   const work = ask(store, admit, task, agentId, text, asker, author, sessionFor(store, task, agentId, source));
   if (self) markHandoff(store, task, asker, work);
@@ -374,7 +383,7 @@ export function startScheduled(store: Store, admit: AdmitFn, now: Date): RunReco
         store.threads.byTask(t.id).length === 0,
     )
     .slice(0, PICKUP_AT_ONCE)
-    .flatMap((t) => startTaskWork(store, admit, t, t.assignee ?? "", askerOfCreation(store, t)) ?? []);
+    .flatMap((t) => startTaskWork(store, admit, t, t.assignee ?? "", askerOfCreation(store, t), { now }) ?? []);
 }
 
 /** Who gave the task, for a start that comes later: the owner, or the agent and chat it was created from. */

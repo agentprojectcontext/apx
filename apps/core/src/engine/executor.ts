@@ -534,6 +534,12 @@ export function createExecutor(o: {
    * what it changes changeable; outside those the owner is asked, and only a read-only folder or APX's own is refused.
    */
   const approve: TurnIO["approve"] = async (req) => {
+    const allow = () => {
+      const run = o.run();
+      if (handedOff(store, run)) return false;
+      store.threads.mergeContext(thread.id, { external_grant_run: run.id });
+      return true;
+    };
     if (handedOff(store, o.run())) return false;
     const base = o.workDir;
     const scope = o.permissions.scope(agent, thread);
@@ -559,7 +565,7 @@ export function createExecutor(o: {
     const reads = reading || (req.kind === "execute" && level === "never");
     const effect = reads ? "none" : req.kind === "edit" && workspace ? "local" : "external";
     const decision = decide(level, effect, agent, untrusted, workspace);
-    if (decision.kind === "allow") return true;
+    if (decision.kind === "allow") return allow();
     if (decision.kind === "deny") return false;
     const answer = await o.inputs.ask({
       run: o.run(),
@@ -575,7 +581,7 @@ export function createExecutor(o: {
       stays: false,
       signal,
     });
-    return answer.state === "approved" && !handedOff(store, o.run());
+    return answer.state === "approved" && allow();
   };
 
   const seen = new Set<string>();

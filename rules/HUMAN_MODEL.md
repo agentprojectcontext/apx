@@ -180,9 +180,13 @@ notice when there is no text. Tools that touch core state call protocol methods 
   Immediate self-assignment transfers execution to the task session: the source turn can only acknowledge it,
   including after recovery. Existing request/findings travel as bounded untrusted context, and a code chat's
   folder/write restriction stays in force. A turn that already delegated work, or whose chat still has active
-  helpers/jobs or queued turns, cannot spawn a self-task executor; it keeps the existing work instead. Drafts,
-  proposals, future starts and other-agent assignments do not stop the source. A self-handoff's closing report
-  returns to the source chat. See [Execution handoff](HISTORY.md#task-execution-handoff).
+  helpers/jobs, running tools or queued turns, cannot spawn a self-task executor; it keeps the existing work instead.
+  After an external harness authorizes a native tool, that turn stays in the source because completion cannot be
+  reliably drained. Codex, without a native-call permission intercept, also keeps immediate self-work in the source.
+  A transfer creates a fresh workspace-restricted session rather than reusing old permissions. Drafts, proposals,
+  clock-driven starts and other-agent assignments do not stop the source. Closure reports to the current transfer's
+  source even for `task_update`, separately from a different historical creator's notification.
+  See [Execution handoff](HISTORY.md#task-execution-handoff).
 - **Cross-project tasks** (`domain/tasks.ts`, `rpc/tasks.ts`, `tools/tasks.ts`): outside any project, the super-agent's
   `task_create` uses the assignee's project by default, or an explicit project id. Ordinary agents and a super-agent
   inside a project keep their thread's scope. To have a destination project's orchestrator prepare the task instead,

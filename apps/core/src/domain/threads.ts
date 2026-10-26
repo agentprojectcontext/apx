@@ -74,6 +74,8 @@ export type ThreadContext = {
   task_handoff?: { task: string; run: string };
   /** The source of a self-task's existing findings, without copying trusted instructions or permissions. */
   handoff_from?: { thread: string; run: string };
+  /** Native tool permissions cannot be revoked or reliably correlated with completion by every harness. */
+  external_grant_run?: string;
   /** A task chat that stalled: when APX last asked its agent to go on, and the stop since then the owner was told of. */
   stall?: { revived_at: string; told?: string };
   /** Tasks agents gave from this chat while it was paused: each starts once the owner lets agents go on. */
