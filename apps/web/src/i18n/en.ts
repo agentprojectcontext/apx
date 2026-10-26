@@ -13,6 +13,7 @@ import { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
 import type { ReceivedKey } from "./received-en.ts";
 import type { SysUsageKey } from "./sysusage-en.ts";
+import type { enThreadDialogs } from "./thread-dialogs-en.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
@@ -448,7 +449,6 @@ export const en = {
   "inbox.filter.show": "Show",
   "inbox.filter.routines": "Routine news",
   "inbox.markAllRead": "Mark all as read",
-  "inbox.markAllRead.body": "Mark {n} chats as read? Their unread indicators will be cleared.",
   "inbox.unread": "Unread",
   "inbox.offline.title": "Offline",
   "inbox.offline.body": "Chats show up when the core is back.",
@@ -1822,13 +1822,6 @@ export const en = {
   "thread.menu.homeLocked": "The main chat can't be archived or deleted",
   "thread.menu.taskLocked": "This chat belongs to a task: delete the task",
   "thread.pinned": "Pinned",
-  "thread.rename.title": "Rename chat",
-  "thread.rename.label": "Name",
-  "thread.rename.hint": "Leave it empty to go back to the automatic title.",
-  "thread.delete.title": "Delete chat",
-  "thread.delete.body": "This action can't be undone.",
-  "thread.delete.what": "“{title}” and all its messages will be deleted.",
-  "thread.delete.confirm": "Delete",
   "inbox.when.pinned": "Pinned",
   "inbox.archived": "Archived",
   "error.updateChat": "Could not update the chat: {error}",
@@ -1843,4 +1836,10 @@ export const en = {
 } as const;
 
 /** Every key the panel may show: these, and those of the packs loaded with their screens (messages.ts PACKS). */
-export type MessageKey = keyof typeof en | ComputerKey | ReceivedKey | SysUsageKey | keyof typeof enEmailSignatures;
+export type MessageKey =
+  | keyof typeof en
+  | ComputerKey
+  | ReceivedKey
+  | SysUsageKey
+  | keyof typeof enEmailSignatures
+  | keyof typeof enThreadDialogs;

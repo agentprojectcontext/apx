@@ -268,7 +268,7 @@ export async function cancel(threadId: string): Promise<void> {
 }
 
 /** Marking chats read in bulk asks first, regardless of which list or menu opened it. */
-export async function markAllRead(threadIds: readonly string[]): Promise<void> {
+export function markAllRead(threadIds: readonly string[]): void {
   openMarkReadDialog(threadIds);
 }
 

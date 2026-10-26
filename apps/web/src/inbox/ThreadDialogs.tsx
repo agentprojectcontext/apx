@@ -4,13 +4,15 @@ import { useState } from "react";
 import { markRead } from "../data/actions.ts";
 import { useData } from "../data/state.ts";
 import { closeThreadDialog, deleteThread, updateThread, useThreadDialog } from "../data/threadAdmin.ts";
-import { useT } from "../i18n/index.ts";
+import { usePack, useT } from "../i18n/index.ts";
 import { go, nav } from "../shell/nav.ts";
 
 /** Chat management dialogs; mounted once, loaded on first use. */
 export function ThreadDialogs() {
   const open = useThreadDialog();
+  const ready = usePack("threads");
   const thread = useData((s) => (open && open.kind !== "markRead" ? s.threads[open.thread] : undefined));
+  if (!ready) return null;
   if (open?.kind === "markRead") return <MarkReadDialog threads={open.threads} />;
   if (!open || !thread) return null;
   return open.kind === "rename" ? (

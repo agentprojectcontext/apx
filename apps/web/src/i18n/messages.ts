@@ -20,6 +20,10 @@ export function loadMessages(lang: Language): Promise<Messages> {
 
 /** Strings only one late screen shows: loaded with it (index.ts usePack), never with the first screen. */
 const PACKS = {
+  threads: {
+    en: () => import("./thread-dialogs-en.ts").then((m) => m.enThreadDialogs),
+    es: () => import("./thread-dialogs-es.ts").then((m) => m.esThreadDialogs),
+  },
   signatures: {
     en: () => import("./en-email-signatures.ts").then((m) => m.enEmailSignatures),
     es: () => import("./es-email-signatures.ts").then((m) => m.esEmailSignatures),
