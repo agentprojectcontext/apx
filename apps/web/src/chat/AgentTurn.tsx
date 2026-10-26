@@ -17,6 +17,8 @@ import { MessageActions } from "./MessageActions.tsx";
 import { BrowserPart } from "./parts/BrowserPart.tsx";
 import { ChangesPart } from "./parts/ChangesPart.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
+import { ImageGenerationPreview } from "./parts/ImageGenerationPreview.tsx";
+import { isGeneratingImage } from "./parts/imageGeneration.ts";
 import { AudioPart } from "./parts/lazyAudio.tsx";
 import { type MediaBlock, mediaBlocks } from "./parts/mediaGroups.ts";
 import { NoticePart } from "./parts/NoticePart.tsx";
@@ -58,13 +60,17 @@ export function AgentTurn({
   const t = useT();
   const mdLabels = useMarkdownLabels();
   const tools = showTools ? message.parts.filter((p): p is ToolPart => p.type === "tool") : [];
-  const waiting = useData((s) => (message.run_id ? s.runs[message.run_id]?.state === "input-required" : false));
+  const runState = useData((s) => (message.run_id ? s.runs[message.run_id]?.state : undefined));
+  const waiting = runState === "input-required";
   const skills = showSkills ? message.parts.find((p): p is SkillsPick => p.type === "skills") : undefined;
   const projectId = useData((s) => s.threads[message.thread_id]?.project_id);
   // Pictures and videos side by side become one grid or one carousel; everything else is a block of its own.
   const blocks: { key: string; part: Part; media?: Exclude<MediaBlock, { kind: "part" }> }[] = mediaBlocks(
     message.parts,
-    (p) => p.type === "tool" || p.type === "skills" || (p.type === "text" && (!p.text.trim() || isSignal(p.text))),
+    (p) =>
+      (p.type === "tool" && !isGeneratingImage(p, runState)) ||
+      p.type === "skills" ||
+      (p.type === "text" && (!p.text.trim() || isSignal(p.text))),
   ).map((b) =>
     b.kind === "part"
       ? { key: b.part.type === "text" ? `x:${b.index}` : cardKey(b.part, b.index), part: b.part }
@@ -103,6 +109,7 @@ export function AgentTurn({
       {skills && <SkillsPart part={skills} projectId={projectId} />}
       {tools.length > 0 && <ToolGroup parts={tools} waiting={waiting} />}
       {blocks.map(({ key, part, media }, i) => {
+        if (isGeneratingImage(part, runState)) return <ImageGenerationPreview key={key} />;
         const last = i === blocks.length - 1;
         return (
           <Message

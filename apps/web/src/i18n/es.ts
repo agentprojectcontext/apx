@@ -785,6 +785,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "link.go.chatNamed": "Abrir la conversación «{name}»",
   "link.go.project": "Abrir el proyecto",
   "link.go.projectNamed": "Abrir el proyecto {name}",
+  "media.generating": "Generando imágenes",
   "media.previous": "Anterior",
   "media.next": "Siguiente",
   "media.download": "Descargar",
