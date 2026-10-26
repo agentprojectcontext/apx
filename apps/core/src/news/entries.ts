@@ -52,6 +52,20 @@ export type NewsEntry = {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "email-preferences",
+    since: "2.11.1",
+    title: "Keep connection settings separate from email preferences",
+    applies: (f) => f.google.gmail || f.email,
+    text: "Integrations now separate editing a connection from configuring preferences. Gmail's local email signature is in Configure integration, alongside project availability. No Gmail settings are changed or signatures imported.",
+    actions: [
+      {
+        label: { en: "Review email preferences", es: "Revisar preferencias de email" },
+        prompt:
+          "Show me where to configure my email signature without reconnecting my account. Do not change anything yet.",
+      },
+    ],
+  },
+  {
     id: "task-chat-actions",
     since: "2.11.1",
     title: "Manage tasks from their chat group",

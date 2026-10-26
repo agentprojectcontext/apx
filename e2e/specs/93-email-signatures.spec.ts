@@ -1,5 +1,35 @@
-import type { EmailSignatureEntry } from "../../packages/protocol/src/index.ts";
+import type { EmailSignatureEntry, Result } from "../../packages/protocol/src/index.ts";
 import { expect, open, openSettings, rpc, test } from "./kit.ts";
+
+test("Gmail connection editing is separate from integration preferences", async ({ page }) => {
+  await rpc("setup.finish");
+  const catalog = await rpc<Result<"integrations.list">>("integrations.list");
+  await page.route("**/rpc/integrations.list", async (route) => {
+    await route.fulfill({
+      json: {
+        ok: true,
+        result: {
+          integrations: catalog.integrations.map((i) =>
+            i.id === "gmail"
+              ? { ...i, connected: true, oauth: { ...i.oauth, account: "user@example.com" } }
+              : { ...i, connected: false },
+          ),
+        },
+      },
+    });
+  });
+  await open(page);
+  await page.getByRole("button", { name: "Recursos", exact: true }).first().click();
+  await page.getByRole("radio", { name: /^Integraciones/ }).click();
+  await page.getByRole("button", { name: "Configurar integración", exact: true }).click();
+  const preferences = page.getByRole("dialog", { name: "Configurar integración", exact: true });
+  await expect(preferences.getByLabel("Firma en texto plano", { exact: true })).toBeVisible();
+  await expect(preferences.getByRole("combobox", { name: "Cuenta de email" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Editar conexión", exact: true }).click();
+  await expect(page.getByRole("dialog").getByLabel("Firma en texto plano", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toBeVisible();
+});
 
 test("email signatures are editable in Account without contacting a mail server", async ({ page }) => {
   await rpc("setup.finish");

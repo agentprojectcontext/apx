@@ -10,21 +10,32 @@ type Target = Pick<EmailSignatureEntry, "transport" | "account" | "sender"> & { 
 const keyOf = (e: Pick<Target, "transport" | "account" | "sender">) =>
   JSON.stringify([e.transport, e.transport === "gmail" ? e.account.toLowerCase() : e.account, e.sender.toLowerCase()]);
 
-export function EmailSignatures() {
-  return usePack("signatures") ? <EmailSignaturesBody /> : null;
+export function EmailSignatures({ target }: { target?: Target }) {
+  return usePack("signatures") ? (
+    <EmailSignaturesBody key={target ? keyOf(target) : "accounts"} fixedTarget={target} />
+  ) : null;
 }
 
-function EmailSignaturesBody() {
+function EmailSignaturesBody({ fixedTarget: initialTarget }: { fixedTarget?: Target }) {
+  const [fixedTarget] = useState(initialTarget);
   const t = useT();
   const [signatures, setSignatures] = useState<EmailSignatureEntry[]>();
   const [targets, setTargets] = useState<Target[]>([]);
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState(fixedTarget ? keyOf(fixedTarget) : "");
   const [draft, setDraft] = useState({ text: "", html: "", enabled: true });
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const load = useCallback(async () => {
     setFailed(false);
     try {
+      if (fixedTarget) {
+        const saved = await client.call("email.signatures_get", {});
+        setSignatures(saved.signatures);
+        setTargets([fixedTarget]);
+        const entry = saved.signatures.find((e) => keyOf(e) === keyOf(fixedTarget));
+        setDraft({ text: entry?.text ?? "", html: entry?.html ?? "", enabled: entry?.enabled ?? true });
+        return;
+      }
       const [saved, google, channels] = await Promise.all([
         client.call("email.signatures_get", {}),
         client.call("integrations.list", {}),
@@ -50,7 +61,7 @@ function EmailSignaturesBody() {
     } catch {
       setFailed(true);
     }
-  }, []);
+  }, [fixedTarget]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -64,9 +75,7 @@ function EmailSignaturesBody() {
     if (!target || !signatures || busy) return;
     setBusy(true);
     try {
-      // Refresh the other accounts so an edit in this form does not replace an older snapshot of them.
-      const latest = await client.call("email.signatures_get", {});
-      const others = latest.signatures.filter((e) => keyOf(e) !== selected);
+      const expected = signatures.find((e) => keyOf(e) === selected) ?? null;
       const entry: EmailSignatureEntry = {
         transport: target.transport,
         account: target.account,
@@ -75,7 +84,16 @@ function EmailSignaturesBody() {
         enabled: draft.enabled,
         ...(draft.html.trim() ? { html: draft.html } : {}),
       };
-      const result = await client.call("email.signatures_set", { signatures: remove ? others : [...others, entry] });
+      if (remove) {
+        if (!expected) return;
+        await client.call("email.signature_remove", {
+          key: { transport: target.transport, account: target.account, sender: target.sender },
+          expected,
+        });
+      } else {
+        await client.call("email.signature_upsert", { signature: entry, expected });
+      }
+      const result = await client.call("email.signatures_get", {});
       setSignatures(result.signatures);
       if (remove) setDraft({ text: "", html: "", enabled: true });
       notify(t("signature.saved"));
@@ -98,7 +116,7 @@ function EmailSignaturesBody() {
       ) : (
         <>
           <p className="pform__hint">{t("signature.importHint")}</p>
-          {!targets.length ? (
+          {fixedTarget ? null : !targets.length ? (
             <p>{t("signature.noAccounts")}</p>
           ) : (
             <SettingRow title={t("signature.account")}>
