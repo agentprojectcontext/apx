@@ -58,6 +58,14 @@ export function fileName(item: Pick<MediaItem, "name" | "mime">): string {
   return base.toLowerCase().endsWith(`.${ext}`) ? base : `${base}.${ext}`;
 }
 
+/** Android infers the gallery collection from the URI extension, not the attachment's MIME or caption. */
+export function galleryFileName(item: Pick<MediaItem, "kind" | "mime" | "name">): string | undefined {
+  const mime = item.mime.split(";")[0]?.trim().toLowerCase() ?? "";
+  const ext = EXT[mime];
+  if (!ext || (item.kind !== "image" && item.kind !== "video") || mime.split("/")[0] !== item.kind) return undefined;
+  return `asset.${ext}`;
+}
+
 /** The media in a part, if it holds any (a document snapshot stays a document). */
 export function mediaOf(part: Part, key: string): MediaItem | undefined {
   if (part.type === "image") {
