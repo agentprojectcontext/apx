@@ -276,6 +276,40 @@ test("the panel runs the app menu's About, update and connection items (Windows 
   await app.close();
 });
 
+test("a direct remote connection blocks unsupported updates through the real native bridge", async () => {
+  fs.writeFileSync(path.join(home, "desktop", "connection.json"), JSON.stringify({ mode: "url", url: core }));
+  const app = await launch({ APX_RELEASES: "off" });
+  try {
+    const panel = await windowAt(app, (url) => url.startsWith(core));
+    await app.evaluate(({ dialog }) => {
+      const state = globalThis as typeof globalThis & { updateDialogs?: Electron.MessageBoxOptions[] };
+      state.updateDialogs = [];
+      dialog.showMessageBox = ((...args: unknown[]) => {
+        state.updateDialogs?.push(args[args.length - 1] as Electron.MessageBoxOptions);
+        return Promise.resolve({ response: 2, checkboxChecked: false });
+      }) as typeof dialog.showMessageBox;
+    });
+    const result = await panel.evaluate(() =>
+      (
+        window as { apxDesktop?: { installUpdate(): Promise<{ ok: boolean; error?: string }> } }
+      ).apxDesktop?.installUpdate(),
+    );
+    expect(result?.ok).toBe(false);
+    expect(result?.error).toContain("does not support coordinated updates");
+    const dialogs = await app.evaluate(
+      () => (globalThis as typeof globalThis & { updateDialogs?: Electron.MessageBoxOptions[] }).updateDialogs,
+    );
+    expect(dialogs).toHaveLength(1);
+    expect(dialogs?.[0]?.buttons).toHaveLength(3);
+    expect(dialogs?.[0]?.detail).toMatch(/not applied|no se aplicó/);
+    expect(fs.existsSync(path.join(home, "desktop", "pending-update.json"))).toBe(false);
+    await panel.evaluate(() => (window as { apxDesktop?: { restartToUpdate(): void } }).apxDesktop?.restartToUpdate());
+    expect(app.process().exitCode).toBeNull();
+  } finally {
+    await app.close();
+  }
+});
+
 test("a server that only takes a password asks for it in the terminal view, then this app's key logs in and opens it", async () => {
   fs.rmSync(path.join(home, "desktop", "connection.json"), { force: true });
   const state = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-ssh-"));

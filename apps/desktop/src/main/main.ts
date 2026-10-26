@@ -31,6 +31,7 @@ import { createConnector } from "./connector.ts";
 import { createCursor } from "./cursor.ts";
 import { editMenu } from "./edit-menu.ts";
 import { artifactOwners, itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
+import { nativeUpdates } from "./native-updates.ts";
 import { startNodeLink } from "./node-link.ts";
 import { openedIn, openedQueue } from "./opened-files.ts";
 import { createQuick, type DesktopPrefs } from "./quick.ts";
@@ -359,12 +360,14 @@ app.whenReady().then(() => {
     isOwnWindow: (sender) =>
       sender === panel.webContents || popout.isPanel(sender) || quick.isQuick(sender) || artifactWindows.owns(sender),
     disconnected: () => {
+      updater.connect(undefined);
       link?.stop();
       link = undefined;
       if (computerOn) computer.stop();
       computerOn = false;
       armStop();
     },
+    updating: (connection) => updater.connect(connection),
     opened: (url, node) => {
       base = url;
       quick.start();
@@ -377,7 +380,6 @@ app.whenReady().then(() => {
       });
     },
   });
-  app.on("will-quit", () => connector.stop());
   // Tests quit the app themselves (APX_QUIT_CONFIRM=off); a shutdown or a logout never waits on a question.
   if (process.env.APX_QUIT_CONFIRM !== "off")
     askBeforeQuit = () => confirmQuit(win, { es: app.getLocale().startsWith("es"), runsCore: connector.runsCore() });
@@ -389,15 +391,22 @@ app.whenReady().then(() => {
   });
 
   // A newer APX: the panel and the app menu show it; the app downloads it and it goes in at the next restart.
-  const updater = createDesktopUpdater({
-    quit: () => {
-      quitting = true;
-      app.quit();
-    },
-    changed: (s) => {
-      setMenu(s);
-      panel.webContents.send("desktop:update-changed", s);
-    },
+  const updater = nativeUpdates(
+    createDesktopUpdater({
+      quit: () => {
+        quitting = true;
+        app.quit();
+      },
+      changed: (s) => {
+        setMenu(s);
+        panel.webContents.send("desktop:update-changed", s);
+      },
+    }),
+    win,
+    { change: () => connector.change() },
+  );
+  panel.webContents.on("did-fail-load", (_event, code, _description, _url, mainFrame) => {
+    if (mainFrame && code !== -3) updater.panelUnavailable();
   });
   const updateMenu = createUpdateMenu({
     updater,
@@ -477,6 +486,13 @@ app.whenReady().then(() => {
     if (e.sender !== panel.webContents) return undefined;
     return check === true ? updater.check() : updater.status();
   });
+  ipcMain.on("desktop:update-auth", (e, token: unknown) => {
+    if (e.sender !== panel.webContents || (token !== undefined && (typeof token !== "string" || token.length > 8192)))
+      return;
+    try {
+      updater.authenticate(token, new URL(e.sender.getURL()).origin);
+    } catch {}
+  });
   ipcMain.handle("desktop:update-install", (e) => (e.sender === panel.webContents ? updater.install() : undefined));
   // Windows and Linux show no menu bar (frameless): the panel's account menu runs these app menu items instead.
   ipcMain.on("desktop:menu-action", (e, id: unknown) => {
@@ -491,6 +507,7 @@ app.whenReady().then(() => {
   app.on("will-quit", () => {
     updater.stop();
     updater.quitting();
+    connector.stop();
   });
 
   void connector.open();

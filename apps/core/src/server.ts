@@ -551,6 +551,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     root: path.resolve(import.meta.dirname, "../../.."),
     log,
     enabled: config.updates !== "off",
+    stateFile: path.join(config.home, "update-coordination.json"),
     byApp: config.updates === "app",
     supervised: config.supervised,
     version: identity.version,

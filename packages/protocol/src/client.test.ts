@@ -257,6 +257,7 @@ test("every long-running method gives its server time to finish and other method
     ["skills.import", {}, 90_000],
     ["system.update", {}, 1_500_000],
     ["system.updates", {}, 120_000],
+    ["system.update_prepare", {}, 120_000],
     ["harness.call", {}, 1_020_000],
     ["models.list", {}, 150_000],
     ["threads.compact", {}, 120_000],

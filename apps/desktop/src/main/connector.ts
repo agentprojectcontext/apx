@@ -50,6 +50,7 @@ export function createConnector(opts: {
   /** Revoke capabilities before a connection changes or the app quits. */
   disconnected: () => void;
   /** The panel loaded from this address; `node` is the core the desktop lends its browser to, when it can reach it. */
+  updating: (connection: { identity: string; url: string; local: boolean; token?: string }) => void;
   opened: (url: string, node: { url: string; token: string | undefined } | undefined) => void;
 }) {
   const dataDir = app.getPath("userData");
@@ -281,6 +282,7 @@ export function createConnector(opts: {
       return;
     }
     if (connection.mode === "local") {
+      opts.updating({ identity: "local", url: opts.coreUrl, local: true, token: localCoreToken() });
       // Installed, APX starts its own core unless one already answers; a checkout tries the panel's dev server first.
       if (app.isPackaged && !core) {
         const up = await isUp(opts.coreUrl);
@@ -312,6 +314,7 @@ export function createConnector(opts: {
       return unreachable(opts.coreUrl, app.isPackaged ? `See ${localCoreLogFile()}.` : "Start it with pnpm dev.");
     }
     if (connection.mode === "url") {
+      opts.updating({ identity: `url:${connection.url}`, url: connection.url, local: false });
       // A remote core gets this computer's browser only once the desktop pairs as a node of its own (not yet).
       if (!(await wait({ where: connection.url, url: connection.url }, firstRun, current))) return;
       openedRemote = true;
@@ -332,6 +335,7 @@ export function createConnector(opts: {
       tunnel = started;
     }
     const activeTunnel = tunnel;
+    opts.updating({ identity: `ssh:${target}`, url: activeTunnel.url, local: false });
     if (!(await wait({ where: `${target} (SSH)`, url: activeTunnel.url, tunnel: activeTunnel }, firstRun, current)))
       return;
     openedRemote = true;
