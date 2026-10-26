@@ -14,6 +14,7 @@ import { parseNewChat, takeNewChatModel } from "./newChat.ts";
 import { notify } from "./notices.ts";
 import { hasNoticesFor } from "./notifications.ts";
 import { data, upsertMessage } from "./state.ts";
+import { openMarkReadDialog } from "./threadAdmin.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -266,9 +267,9 @@ export async function cancel(threadId: string): Promise<void> {
   }
 }
 
-/** Marks every one of these chats read (the Inbox's or a project's "Mark all as read"). */
-export async function markAllRead(threadIds: readonly string[]): Promise<void> {
-  await Promise.all(threadIds.map((id) => markRead(id)));
+/** Marking chats read in bulk asks first, regardless of which list or menu opened it. */
+export function markAllRead(threadIds: readonly string[]): void {
+  openMarkReadDialog(threadIds);
 }
 
 export async function markRead(threadId: string): Promise<void> {

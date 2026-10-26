@@ -6,7 +6,7 @@ import { data } from "./state.ts";
 const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
 Object.defineProperty(globalThis, "window", {
   configurable: true,
-  value: { location: { origin: "http://panel.example.test" } },
+  value: Object.assign(new EventTarget(), { location: { origin: "http://panel.example.test" } }),
 });
 const actions = await import("./actions.ts");
 const { newChatId } = await import("./newChat.ts");
@@ -224,10 +224,23 @@ test("new chat titles remain automatic while explicit names and code session set
   ]);
 });
 
+test("bulk read requests and cancellation leave unread counts and the server untouched", async (t) => {
+  const { closeThreadDialog } = await import("./threadAdmin.ts");
+  const calls = rpc(t, {});
+  data.set({ threads: { unread: { ...thread("unread"), unread: 3 }, read: thread("read") } });
+  const before = data.get().threads;
+  await actions.markAllRead(["unread", "read", "missing"]);
+  assert.deepEqual(calls, []);
+  assert.deepEqual(data.get().threads, before);
+  closeThreadDialog();
+  assert.deepEqual(calls, []);
+  assert.deepEqual(data.get().threads, before);
+});
+
 test("read actions avoid already-read or missing chats and mark unread chats locally before the server responds", async (t) => {
   const calls = rpc(t, { "threads.read": {} });
   data.set({ threads: { unread: { ...thread("unread"), unread: 3 }, read: thread("read") } });
-  await actions.markAllRead(["unread", "read", "missing"]);
+  await Promise.all(["unread", "read", "missing"].map((id) => actions.markRead(id)));
   assert.deepEqual(calls, [["threads.read", { thread: "unread" }]]);
   assert.equal(data.get().threads.unread?.unread, 0);
 });

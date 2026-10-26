@@ -76,7 +76,7 @@ test("AI usage shows account windows, unavailable engines and a narrow-screen ac
   await expect(claude.locator(".apx-meter")).toHaveCount(0);
   await expect(claude).toContainText("Sin fuente de cuota compatible");
   await expect(summary.getByText(/Sin datos no significa consumo ilimitado/)).toHaveCount(0);
-  await summary.getByRole("button", { name: "Ayuda sobre consumo IA", exact: true }).click();
+  await summary.getByRole("button", { name: "Ayuda sobre cuotas de IA", exact: true }).click();
   await expect(page.locator(".apx-help__panel")).toContainText("Sin datos no significa consumo ilimitado");
   await page.keyboard.press("Escape");
   const beforeRefresh = calls;
@@ -124,7 +124,7 @@ test("Claude displays real account windows and its CLI source", async ({ page })
   await expect(summary.getByText("13% disponible")).toBeVisible();
   await expect(summary.getByRole("img", { name: "Claude · Semanal: 87% usado" })).toBeVisible();
   await expect(summary.getByText("Fuente: cuota del plan de Claude (/usage)")).toHaveCount(0);
-  const help = summary.getByRole("button", { name: "Ayuda sobre consumo de Claude", exact: true });
+  const help = summary.getByRole("button", { name: "Ayuda sobre cuotas de Claude", exact: true });
   await help.focus();
   await page.keyboard.press("Enter");
   await expect(page.locator(".apx-help__panel")).toContainText("Fuente: cuota del plan de Claude (/usage)");

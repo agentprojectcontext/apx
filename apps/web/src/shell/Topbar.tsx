@@ -6,12 +6,12 @@ import { blobOf, findProject, projectName, secretary } from "../data/identity.ts
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { EngineUsageButton, UsageButton } from "../lazy.ts";
+import { EngineUsageButton, RunningIndicator, UsageButton } from "../lazy.ts";
 import { AttentionTray } from "./AttentionTray.tsx";
 import { useDesktopClass } from "./desktop.ts";
 import { go, PROJECT_TABS, useNav, useNavHistory } from "./nav.ts";
-import { RunningIndicator } from "./RunningIndicator.tsx";
 import { UpdatePill, WhatsNewPill } from "./UpdatePill.tsx";
+import { useTopbarFit } from "./useTopbarFit.ts";
 
 /** SPEC §1.5: Inbox / project / chat · Projects / project / tab · External sessions / engine / chat · Apps · Tasks. */
 function useCrumbs(): string[] {
@@ -48,6 +48,7 @@ function useCrumbs(): string[] {
 export function Topbar() {
   const t = useT();
   const desktop = useDesktopClass();
+  const rightRef = useTopbarFit();
   const crumbs = useCrumbs();
   const canBack = useNavHistory((s) => s.canBack);
   const canForward = useNavHistory((s) => s.canForward);
@@ -103,9 +104,21 @@ export function Topbar() {
           <Kbd keys={["⌘", "K"]} data-shortcut-modifier />
         </button>
       </Tooltip>
-      <div className="topbar__right">
+      <div className="topbar__right" ref={rightRef}>
         <div className="topbar__activity">
-          <RunningIndicator />
+          <Suspense
+            fallback={
+              <IconButton
+                size="sm"
+                className="running"
+                label={t("running.label")}
+                icon={<Icons.Bot size={14} />}
+                disabled
+              />
+            }
+          >
+            <RunningIndicator />
+          </Suspense>
           <AttentionTray />
           <WhatsNewPill />
           <UpdatePill />

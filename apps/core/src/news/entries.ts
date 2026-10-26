@@ -50,6 +50,23 @@ export type NewsEntry = {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "email-signature-settings",
+    since: "2.11.1",
+    title: "Let your agent configure your email signature",
+    applies: (f) => f.google.gmail || f.email,
+    text:
+      "The super-agent can now read and change individual local APX email signatures with your approval. " +
+      "Each signature must match a configured Gmail account or SMTP mailbox. Other signatures are preserved, " +
+      "and a concurrent edit requires a fresh read. This does not import or change Gmail settings or send mail.",
+    actions: [
+      {
+        label: { en: "Configure my signature", es: "Configurar mi firma" },
+        prompt:
+          "Help me configure my local APX email signature. Read my configured mailboxes and ask which signature to use before changing anything.",
+      },
+    ],
+  },
+  {
     id: "email-signatures",
     since: "2.11.0",
     title: "Email signatures by sender",

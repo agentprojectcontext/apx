@@ -49,7 +49,7 @@
   display: inline-flex;
   width: 60px;
 }
-@container topbar (max-width: 1499px) {
+.topbar__right:is([data-fit="3"], [data-fit="4"]) {
   .engine-usage-trigger__loading {
     width: 14px;
   }
