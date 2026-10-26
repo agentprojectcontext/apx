@@ -14,6 +14,7 @@
 - Preview content uses generic names only (Acme, Northwind, Globex, Roby, Ledger, Scout…). Never real client/project names.
 
 ## Pending re-sync
+- AgentAvatar's eye canvas now keeps its full size inside icon buttons; re-sync the shared CSS bundle.
 - Meter is new (single or stacked bar with a legend) and the icon set gained Gauge, Cpu, HardDrive and MemoryStick:
   neither is in the Claude Design project yet.
 - MarkdownView now renders safe pipe tables; its remote preview and bundle need a re-sync.

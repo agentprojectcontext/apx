@@ -81,7 +81,7 @@
   user-select: none;
   -webkit-user-drag: none;
 }
-.apx-blob__eyes {
+.apx-blob .apx-blob__eyes {
   position: absolute;
   inset: 0;
   width: 100%;

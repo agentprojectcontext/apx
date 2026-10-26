@@ -23,11 +23,13 @@ export function AgentFace({
   size,
   editable = false,
   online = false,
+  animated = false,
 }: {
   agent: Agent;
   size: number;
   editable?: boolean;
   online?: boolean;
+  animated?: boolean;
 }) {
   const t = useT();
   const hint = useAgentHint(agent, editable);
@@ -36,7 +38,7 @@ export function AgentFace({
       name={agent.name}
       blob={blobOf(agent)}
       size={size}
-      animated={false}
+      animated={animated}
       status={online ? "online" : undefined}
       statusLabel={t("presence.online")}
     />
