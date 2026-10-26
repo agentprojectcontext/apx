@@ -1,4 +1,5 @@
-// Usage: what the computer has and what APX takes of it (topbar gauge, its dropdown, the dialog, Advanced).
+// Usage: what the computer has and what APX takes of it (its dropdown, the dialog, Advanced): loaded with them
+// (usePack in index.ts). The topbar gauge's and menus' two strings stay in en.ts.
 export const enSysUsage = {
   "sysUsage.title": "Usage",
   "sysUsage.description": "What this computer has, and how much of it APX takes.",
@@ -43,3 +44,5 @@ export const enSysUsage = {
   "sysUsage.refresh": "Refresh",
   "sysUsage.unavailable": "Could not read usage: {error}",
 } as const;
+
+export type SysUsageKey = keyof typeof enSysUsage;

@@ -24,6 +24,10 @@ const PACKS = {
     en: () => import("./computer-en.ts").then((m) => m.enComputer),
     es: () => import("./computer-es.ts").then((m) => m.esComputer),
   },
+  usage: {
+    en: () => import("./sysusage-en.ts").then((m) => m.enSysUsage),
+    es: () => import("./sysusage-es.ts").then((m) => m.esSysUsage),
+  },
 } satisfies Record<string, Record<Language, () => Promise<Messages>>>;
 export type Pack = keyof typeof PACKS;
 

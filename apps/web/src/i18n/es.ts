@@ -10,7 +10,6 @@ import { esFiles } from "./es-files.ts";
 import { esOffice } from "./es-office.ts";
 import { esResources } from "./es-resources.ts";
 import { esSetup } from "./es-setup.ts";
-import { esSysUsage } from "./es-sysusage.ts";
 import { esTeam } from "./es-team.ts";
 import { esTelemetry } from "./es-telemetry.ts";
 
@@ -45,7 +44,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   ...esResources,
   ...esEngines,
   ...esTelemetry,
-  ...esSysUsage,
+  "sysUsage.title": "Consumo",
+  "sysUsage.button": "Consumo: {pct}% de la memoria en uso",
   // Palabras compartidas
   "common.agent": "Agente",
   "common.app": "App",

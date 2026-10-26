@@ -41,6 +41,18 @@ test("the first load is the entry, its static imports and the heavier language w
   assert.equal(bootFiles(path.join(dir, "missing")), undefined);
 });
 
+test("a late string pack named after a language is not taken for that language", (t) => {
+  const dir = dist({
+    ...panel,
+    "assets/index-A.js": `${panel["assets/index-A.js"]}const k=()=>import("./es-pack-I.js");`,
+    "assets/es-pack-I.js": "export const p={};",
+  });
+  t.after(() => removeDir(dir));
+  const boot = bootFiles(dir);
+  assert.ok(boot);
+  assert.deepEqual(boot.languages.es?.sort(), ["assets/es-E.js", "assets/notices-G.js"]);
+});
+
 test("zod or a lazy screen pulled onto the first load is named", (t) => {
   // The language imports the protocol's barrel, and a static import merged ProjectScreen into the entry.
   const { "assets/ProjectScreen-F.js": _merged, ...rest } = panel;

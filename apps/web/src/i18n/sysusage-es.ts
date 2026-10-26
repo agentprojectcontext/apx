@@ -1,4 +1,4 @@
-import type { enSysUsage } from "./en-sysusage.ts";
+import type { enSysUsage } from "./sysusage-en.ts";
 
 export const esSysUsage: Record<keyof typeof enSysUsage, string> = {
   "sysUsage.title": "Consumo",

@@ -3,11 +3,15 @@ import { Button, Dialog, IconButton, Icons, Meter, Skeleton } from "@apx/ui";
 import "../styles/usage.css";
 import { refreshUsage, useUsage } from "../data/usage.ts";
 import { type DesktopMemory, homeDisk, type ProcessRow, processRows, ramSplit, size } from "../data/usageModel.ts";
-import { type T, useT } from "../i18n/index.ts";
+import { type T, usePack, useT } from "../i18n/index.ts";
 import { go, useNav } from "./nav.ts";
 
 /** The topbar dropdown: RAM, CPU, disk free, APX's top consumers and the VM, with a way to the full dialog. */
-export function UsageSummary({ onClose }: { onClose: () => void }) {
+export function UsageSummary(props: { onClose: () => void }) {
+  return usePack("usage") ? <Summary {...props} /> : null;
+}
+
+function Summary({ onClose }: { onClose: () => void }) {
   const t = useT();
   const { usage, desktop, error } = useUsage({ detail: true, every: 5_000 });
   if (!usage) return error ? <p className="usage__error">{t("sysUsage.unavailable", { error })}</p> : <Loading />;
@@ -38,7 +42,12 @@ export function UsageSummary({ onClose }: { onClose: () => void }) {
 }
 
 /** The full breakdown from the account menu: every process, every volume, the APX folder by part, the VM. */
+// Its strings load with it (usePack in index.ts): none of them is on the first screen.
 export function UsageDialog() {
+  return usePack("usage") ? <UsageDialogBody /> : null;
+}
+
+function UsageDialogBody() {
   const t = useT();
   const open = useNav((s) => s.usageDialog);
   return (
@@ -104,6 +113,10 @@ function UsageDetail() {
 
 /** Settings › Advanced: memory and disk at a glance, and the dialog for the rest. */
 export function UsageOverview() {
+  return usePack("usage") ? <Overview /> : null;
+}
+
+function Overview() {
   const t = useT();
   const { usage, desktop } = useUsage({ detail: false, every: 10_000 });
   if (!usage) return <Loading />;

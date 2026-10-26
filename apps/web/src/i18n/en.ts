@@ -8,9 +8,9 @@ import { enHelper } from "./en-helper.ts";
 import { enOffice } from "./en-office.ts";
 import { enResources } from "./en-resources.ts";
 import { enSetup } from "./en-setup.ts";
-import { enSysUsage } from "./en-sysusage.ts";
 import { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
+import type { SysUsageKey } from "./sysusage-en.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
@@ -43,7 +43,8 @@ export const en = {
   ...enResources,
   ...enEngines,
   ...enTelemetry,
-  ...enSysUsage,
+  "sysUsage.title": "Usage",
+  "sysUsage.button": "Usage: {pct}% of memory in use",
   // Shared words
   "common.agent": "Agent",
   "common.app": "App",
@@ -1837,4 +1838,4 @@ export const en = {
 } as const;
 
 /** Every key the panel may show: these, and those of the packs loaded with their screens (messages.ts PACKS). */
-export type MessageKey = keyof typeof en | ComputerKey;
+export type MessageKey = keyof typeof en | ComputerKey | SysUsageKey;
