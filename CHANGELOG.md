@@ -1,3 +1,10 @@
+# [1.127.0](https://github.com/agentprojectcontext/apx/compare/v1.126.0...v1.127.0) (2026-10-26)
+
+
+### Features
+
+* **web:** v1 says it is no longer maintained and leads to APX v2, now the release ([1442924](https://github.com/agentprojectcontext/apx/commit/14429244a67335b4c4526cc2c5ab026b4d105f10))
+
 # [1.126.0](https://github.com/agentprojectcontext/apx/compare/v1.125.0...v1.126.0) (2026-10-15)
 
 
