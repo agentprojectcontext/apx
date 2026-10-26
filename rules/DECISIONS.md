@@ -2515,3 +2515,13 @@ acting on anything those parts may cover. What D-110 fixed still holds: nothing 
 it did not get and how to read it. A project that wants a rule in every call puts it near the top. The 200,000 safety
 limit, its marker and the owner's notice are unchanged; `.apc/memory.md` still reaches the agents whole. The owner
 sees what a call carried in the chat (runs.context).
+
+Superseded by [D-158](#d-158): AGENTS.md reaches the prompt whole again.
+
+<a id="d-158"></a>
+## D-158 — 2026-10-26 — A project's AGENTS.md reaches the prompt whole again
+Supersedes [D-157](#d-157). Cutting AGENTS.md at 8,000 characters left out the rules near its end: in APX's own repo
+the agent never saw the worktree rule, and kept opening duplicate worktrees. A project's rules are its author's to
+size; the agent gets all of them, as Claude Code and Codex do with theirs. The cost is small because AGENTS.md sits in
+the byte-stable prefix (rule 12) that providers cache. The 200,000 safety limit, its marker and the owner's notice
+from [D-110](#d-110) stay.

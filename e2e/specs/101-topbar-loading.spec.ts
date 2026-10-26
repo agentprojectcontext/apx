@@ -22,6 +22,16 @@ const report = {
 
 test("el consumo IA mantiene tarjetas skeleton al cargar, actualizar y reabrir", async ({ page }) => {
   await rpc("setup.finish");
+  await rpc("engines.set_usage", { engine: "codex", enabled: true });
+  for (const engine of ["claude", "opencode", "antigravity"])
+    await rpc("engines.set_usage", { engine, enabled: false });
+  const code = gate();
+  let codeRequested = false;
+  await page.route(/\/assets\/sysusage-es-[^/]+\.js$/, async (route) => {
+    codeRequested = true;
+    await code.wait;
+    await route.continue();
+  });
   let pending = gate();
   let calls = 0;
   let response = report;
@@ -33,13 +43,22 @@ test("el consumo IA mantiene tarjetas skeleton al cargar, actualizar y reabrir",
   });
   await open(page);
   const trigger = page.getByTestId("engine-usage-button");
+  expect(codeRequested).toBe(false);
+  await expect.poll(() => calls).toBe(1);
+  await expect(trigger).toHaveAttribute("aria-busy", "true");
+  await expect(trigger.locator(".apx-skeleton")).toBeVisible();
+  await expect(trigger).toHaveText("");
   await trigger.click();
+  await expect.poll(() => codeRequested).toBe(true);
   const preview = page.getByTestId("usage-loading");
   await expect(preview).toBeVisible();
-  await expect(preview.getByRole("heading", { name: "Codex", exact: true })).toBeVisible();
+  await expect(preview.getByRole("heading")).toHaveCount(0);
+  await expect(preview.locator("section")).toHaveCount(1);
   expect((await preview.boundingBox())?.height).toBeGreaterThanOrEqual(300);
   await expect(preview.locator(".apx-skeleton").first()).toBeVisible();
   const summary = page.getByTestId("engine-usage-summary");
+  await expect(summary).toHaveCount(0);
+  code.release();
   await expect(summary).toHaveAttribute("aria-busy", "true");
   await expect(summary.getByRole("button", { name: "Actualizar" })).toBeDisabled();
   await expect(summary.locator(".apx-meter")).toHaveCount(0);
@@ -69,6 +88,44 @@ test("el consumo IA mantiene tarjetas skeleton al cargar, actualizar y reabrir",
   pending.release();
   await expect(summary.getByText("20% disponible")).toBeVisible();
 });
+
+for (const outcome of ["ready", "empty", "failed"] as const) {
+  test(`el botón de IA carga al arrancar sin abrirse y termina en ${outcome}`, async ({ page }) => {
+    await rpc("setup.finish");
+    const pending = gate();
+    let calls = 0;
+    await page.route("**/rpc/engines.usage", async (route) => {
+      calls++;
+      await pending.wait;
+      await route.fulfill({
+        json:
+          outcome === "failed"
+            ? { ok: false, error: { code: "unavailable", message: "Not available" } }
+            : { ok: true, result: outcome === "empty" ? { ...report, engines: [] } : report },
+      });
+    });
+    await open(page);
+    const trigger = page.getByTestId("engine-usage-button");
+    await expect.poll(() => calls).toBe(1);
+    await expect(trigger).toHaveAttribute("aria-busy", "true");
+    for (const width of [1836, 1280, 390, 320]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(trigger.locator(".apx-skeleton")).toBeVisible();
+      const overflow = await page.locator(".topbar").evaluate((bar) => bar.scrollWidth - bar.clientWidth);
+      expect(overflow, `loading overflow ${width}`).toBeLessThanOrEqual(1);
+    }
+    await page.setViewportSize({ width: 1836, height: 900 });
+    await expect(trigger).toHaveText("");
+    await expect(page.getByTestId("engine-usage-summary")).toHaveCount(0);
+    pending.release();
+    await expect(trigger).toHaveAttribute("aria-busy", "false");
+    await expect(trigger.locator(".apx-skeleton")).toHaveCount(0);
+    await expect(page.getByTestId("engine-usage-quick")).toHaveCount(outcome === "ready" ? 1 : 0);
+    if (outcome === "ready") await expect(page.getByTestId("engine-usage-quick")).toHaveText("63%");
+    await expect(page.getByTestId("engine-usage-summary")).toHaveCount(0);
+    expect(calls).toBe(1);
+  });
+}
 
 test("el consumo de sistema tiene preview también mientras llega el código lazy y la lectura detallada", async ({
   page,
@@ -163,23 +220,37 @@ test("cuatro engines se ven de un vistazo y colapsan en una barra ocupada y con 
       button.innerHTML =
         '<svg width="14" height="14"></svg>' +
         (name === "running" ? "" : '<span class="updatepill__label">Update available</span>');
-      right.prepend(button);
+      if (name === "updatepill") (right.querySelector(".topbar__activity") ?? right).append(button);
+      else right.prepend(button);
     }
   });
   for (const platform of ["", "is-desktop is-win", "is-desktop is-linux", "is-desktop is-mac"]) {
     await page.locator(".topbar").evaluate((bar, suffix) => {
       bar.setAttribute("class", `topbar ${suffix}`);
     }, platform);
-    for (const width of platform ? [1600, 1440, 1280, 980] : [1600, 1440, 1280, 900, 600, 390, 320]) {
+    for (const width of platform
+      ? [2400, 1920, 1836, 1600, 1440, 1280, 980]
+      : [2400, 1920, 1836, 1600, 1440, 1280, 900, 600, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
-      const metrics = await page.locator(".topbar").evaluate((bar) => ({
-        overflow: bar.scrollWidth - bar.clientWidth,
-        overlap:
-          (bar.querySelector(".topbar__search")?.getBoundingClientRect().right ?? 0) -
-          (bar.querySelector(".topbar__right")?.getBoundingClientRect().left ?? 0),
-      }));
+      const metrics = await page.locator(".topbar").evaluate((bar) => {
+        const search = bar.querySelector(".topbar__search")?.getBoundingClientRect();
+        const right = bar.querySelector(".topbar__right")?.getBoundingClientRect();
+        const controls = [...bar.querySelectorAll(".topbar__left > button, .topbar__right button, .topbar__search")]
+          .map((button) => button.getBoundingClientRect())
+          .filter((rect) => rect.width > 0 && rect.height > 0);
+        return {
+          overflow: bar.scrollWidth - bar.clientWidth,
+          overlap: search && right ? search.right - right.left : 999,
+          center: search ? Math.abs(search.left + search.width / 2 - innerWidth / 2) : 999,
+          collisions: controls.flatMap((a, i) =>
+            controls.slice(i + 1).filter((b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1),
+          ).length,
+        };
+      });
       expect(metrics.overflow, `${platform} overflow ${width}`).toBeLessThanOrEqual(1);
       expect(metrics.overlap, `${platform} overlap ${width}`).toBeLessThanOrEqual(0);
+      expect(metrics.center, `${platform} center ${width}`).toBeLessThanOrEqual(1);
+      expect(metrics.collisions, `${platform} controls ${width}`).toBe(0);
       await expect(page.getByTestId("engine-usage-button")).toBeVisible();
       if (width < 1400) await expect(quick.first()).toBeHidden();
     }

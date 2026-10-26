@@ -9,6 +9,7 @@ export * from "./core-env.ts";
 export { DesktopInstallStatus } from "./desktop-install.ts";
 export * from "./device-methods.ts";
 export * from "./domain.ts";
+export * from "./email-signatures.ts";
 export * from "./engine-usage.ts";
 export * from "./environment-methods.ts";
 export * from "./events.ts";

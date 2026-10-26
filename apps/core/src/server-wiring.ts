@@ -40,6 +40,7 @@ import { composerHandlers } from "./rpc/composer.ts";
 import { computerHandlers } from "./rpc/computer.ts";
 import { desktopInstallHandlers } from "./rpc/desktop-install.ts";
 import { deviceHandlers } from "./rpc/devices.ts";
+import { emailSignatureHandlers } from "./rpc/email-signatures.ts";
 import { embeddingHandlers } from "./rpc/embeddings.ts";
 import { environmentHandlers } from "./rpc/environments.ts";
 import { extensionHandlers } from "./rpc/extensions.ts";
@@ -273,6 +274,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...jobHandlers(d.store, d.engine),
     ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
     ...channelHandlers(d.store, d.channels),
+    ...emailSignatureHandlers(d.store),
     ...mediaHandlers(d.services),
     ...transcriptionHandlers(d.services, d.localModels),
     ...embeddingHandlers(d.localEmbeds, () => d.memory.engine()),

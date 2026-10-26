@@ -9,6 +9,7 @@ import { notify } from "../data/notices.ts";
 import { initialsOf, setPrefs, usePrefs } from "../data/prefs.ts";
 import { isLanguage, LANGUAGE_NAMES, LANGUAGES, useLanguage, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
+import { EmailSignatures } from "./EmailSignatures.tsx";
 import { SectionHead } from "./SectionHead.tsx";
 import "../styles/theme-switch.css";
 
@@ -89,6 +90,7 @@ export function AccountSection() {
           </SettingRow>
         </>
       )}
+      <EmailSignatures />
       <SettingRow title={t("account.cloud")} description={t("account.cloudHint")}>
         <Badge>{t("common.soon")}</Badge>
       </SettingRow>

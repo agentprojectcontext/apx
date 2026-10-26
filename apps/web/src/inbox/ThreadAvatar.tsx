@@ -11,6 +11,7 @@ export function ThreadAvatar({
   slot = size,
   editable = false,
   online = false,
+  animated,
 }: {
   thread: Thread;
   agent: Agent | undefined;
@@ -18,6 +19,7 @@ export function ThreadAvatar({
   slot?: number;
   editable?: boolean;
   online?: boolean;
+  animated?: boolean;
 }) {
   const agents = useShownAgents();
   const parent = useData((s) => (thread.parent_id ? s.threads[thread.parent_id] : undefined));
@@ -33,7 +35,13 @@ export function ThreadAvatar({
         faces.map((face, i) => (
           <span key={face?.id ?? i} className={group && i > 0 ? "threadavatar__group" : undefined}>
             {face ? (
-              <AgentFace agent={face} size={group ? slot : size} editable={editable} online={online} />
+              <AgentFace
+                agent={face}
+                size={group ? slot : size}
+                editable={editable}
+                online={online}
+                animated={animated}
+              />
             ) : (
               <AgentAvatar name={thread.title} size={size} animated={false} />
             )}

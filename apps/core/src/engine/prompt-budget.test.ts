@@ -18,7 +18,7 @@ const BUDGET = { system: 10_000, tools: 30_000 };
  * The same for an owner who set things up: a WhatsApp channel with stickers, the computer allowed, instructions of
  * their own, an "about" and a project with a 20k-char AGENTS.md. Feature growth shows here first.
  */
-const REALISTIC = { system: 16_500, tools: 29_000, input: 600 };
+const REALISTIC = { system: 7_500, tools: 29_000, input: 600 };
 
 const llm = scriptedLlm(() => say("ok"));
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -79,7 +79,8 @@ const agentsMd = (chars: number) => {
 test("a realistic owner's turns stay within their own budget", async () => {
   const wa = fakeWhatsApp();
   const project = fs.mkdtempSync(path.join(temp, "acme-"));
-  fs.writeFileSync(path.join(project, "AGENTS.md"), agentsMd(20_000));
+  const rules = agentsMd(20_000);
+  fs.writeFileSync(path.join(project, "AGENTS.md"), rules);
   const real = await startCore({
     llm,
     channelAdapters: {
@@ -121,10 +122,10 @@ test("a realistic owner's turns stay within their own budget", async () => {
     await real.settle(t.id);
     const call = llm.calls.at(-1);
     const scratch = scratchDir(store, real.home, t);
-    const system = String(call?.messages[0]?.content ?? "").replace(
-      scratch,
-      `/tmp/apx-scratch-01234567/${t.id}`,
-    ).length;
+    const prompt = String(call?.messages[0]?.content ?? "");
+    // The project's AGENTS.md reaches it whole and is not APX's to budget (DECISIONS.md#d-158).
+    assert.ok(prompt.includes(rules), "the whole AGENTS.md");
+    const system = prompt.replace(rules, "").replace(scratch, `/tmp/apx-scratch-01234567/${t.id}`).length;
     const tools = JSON.stringify(call?.tools ?? []).length;
     assert.ok(system <= REALISTIC.system, `system prompt: ${system} chars, budget ${REALISTIC.system}`);
     assert.ok(tools <= REALISTIC.tools, `tools: ${tools} chars, budget ${REALISTIC.tools}`);

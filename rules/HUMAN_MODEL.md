@@ -80,6 +80,12 @@ these choices independently of model power, filters disabled engines before acco
 results after an opt-out. Defaults are off except for a linked ChatGPT plan (metadata only); its quota source still
 requires the separately linked Codex CLI. Explicit choices survive linking or disconnecting the plan.
 
+The super-agent's `apx_settings` email area discovers configured Gmail/SMTP identities and reads one local
+signature by transport, account and sender. Human-only `email.signature_upsert` and `email.signature_remove`
+run through the same owner-confirmed settings flow, with the exact last-read entry as a concurrency precondition
+(`null` only when creating). Writes preserve other signatures and validate configured senders, including removals; an unconfigured mailbox's
+signature stays in the owner's Account settings for manual cleanup. No Gmail settings access, import or remote mutation is added.
+
 ## 4. State and persistence
 
 `~/.apx/v2/apx.db` (SQLite, WAL): projects, agents, threads (incl. a2a sub-threads), messages (what the UI shows),

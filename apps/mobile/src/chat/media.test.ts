@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Message } from "../protocol";
-import { extensionOf, fileName, mediaRows, mosaicRows, sizeText } from "./media.ts";
+import { extensionOf, fileName, galleryFileName, mediaRows, mosaicRows, sizeText } from "./media.ts";
 
 type Part = Message["parts"][number];
 
@@ -67,6 +67,30 @@ test("a saved copy keeps its own extension, or gets one from its type", () => {
   assert.equal(extensionOf("image/jpeg"), "jpg");
   assert.equal(extensionOf("application/x-unknown", "noext"), "bin");
   assert.equal(sizeText(5_624_722), "5.4 MB");
+});
+
+test("gallery copies use an Android-recognized extension and URI-safe name, not an image caption", () => {
+  for (const name of [
+    "photo.bin",
+    "photo",
+    "photo.txt",
+    "foto de Córdoba.png",
+    "content://media/external/images/24",
+    "https://example.com/photo?token=x",
+  ]) {
+    assert.equal(galleryFileName({ kind: "image", mime: "image/jpeg", name }), "asset.jpg");
+  }
+  assert.equal(galleryFileName({ kind: "image", mime: "IMAGE/PNG; charset=binary", name: "photo.jpg" }), "asset.png");
+  assert.equal(galleryFileName({ kind: "image", mime: "image/webp", name: "photo" }), "asset.webp");
+  assert.equal(galleryFileName({ kind: "video", mime: "video/mp4", name: "clip.bin" }), "asset.mp4");
+  assert.equal(galleryFileName({ kind: "video", mime: "video/quicktime", name: "clip" }), "asset.mov");
+});
+
+test("documents and unrecognized gallery formats use Files instead of a generic MediaStore collection", () => {
+  assert.equal(galleryFileName({ kind: "file", mime: "application/pdf", name: "photo.jpg" }), undefined);
+  assert.equal(galleryFileName({ kind: "audio", mime: "audio/mpeg", name: "sound.mp3" }), undefined);
+  assert.equal(galleryFileName({ kind: "image", mime: "image/x-unknown", name: "photo.bin" }), undefined);
+  assert.equal(galleryFileName({ kind: "video", mime: "image/png", name: "clip.mp4" }), undefined);
 });
 
 test("a local copy keeps the file's own name, made safe, with an extension", () => {

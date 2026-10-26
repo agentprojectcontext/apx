@@ -134,6 +134,13 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     ([RELEASE.md](rules/RELEASE.md#tagging-a-release)). Never tag a commit whose run is red, missing or still going;
     fix it on the branch and tag the next one. `[gate]` `release:check`, and the publish job's own wait.
 
+29. **One worktree per task, and look before making one.** Other sessions work in this checkout at the same time.
+    Before creating a worktree, run `git worktree list` and `git branch --list 'feat/*' 'fix/*' 'docs/*'`: if one
+    already covers the task, continue there or ask the session that owns it, never open a second one to reproduce,
+    baseline or retry the same thing. Worktrees live in `.worktrees/<name>` on a named branch (no detached HEAD);
+    once the branch is merged into `staging`, remove the worktree and delete its branch in the same turn. Never remove
+    one that has uncommitted changes or recent commits from another session. `[review]`
+
 26. **Portable tests.** Never let real time decide an outcome: idle, cap, deadline and burst behaviour runs on
     injected timers (`manualTimers`, `runTimers`). Waits use `waitFor` with a wall-clock budget, never a count of
     iterations. Temp folders come from `tempDir()` and are removed only after every child the test started has

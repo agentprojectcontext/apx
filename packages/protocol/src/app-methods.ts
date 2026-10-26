@@ -1070,7 +1070,9 @@ export const appMethods = {
    * room, through the bot's account, the room's people named as @handle mentioned) and kept in the chat.
    */
   "channels.send": {
-    params: z.object({ thread: Id, text: z.string().trim().min(1).max(4000) }).strict(),
+    params: z
+      .object({ thread: Id, text: z.string().trim().min(1).max(4000), omit_signature: z.boolean().optional() })
+      .strict(),
     result: z.object({ ok: z.literal(true) }),
     effect: true,
     access: "human",
@@ -1087,6 +1089,7 @@ export const appMethods = {
       .object({
         person: Id,
         text: z.string().trim().min(1).max(4000),
+        omit_signature: z.boolean().optional(),
         /** A channel id or type ("whatsapp"); absent: the one the contact used last. */
         channel: z.string().max(60).optional(),
         /** Files to send with it (media ids): images as images, anything else as a document. */

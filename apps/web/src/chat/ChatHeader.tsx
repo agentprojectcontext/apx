@@ -85,7 +85,7 @@ export function ChatHeader({
           onClick={() => thread.parent_id && go.thread(thread.parent_id)}
         />
       )}
-      <ThreadAvatar thread={thread} agent={agent} size={32} slot={36} editable online={!sub} />
+      <ThreadAvatar thread={thread} agent={agent} size={32} slot={36} editable online={!sub} animated />
       <div className="chat__titles">
         <div className="chat__title">
           {agent && !engine ? (

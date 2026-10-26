@@ -32,7 +32,11 @@ export function createOutgoing(deps: {
    * chat as the owner's words, and noted for the agent so its next answer knows what was said. In a room nothing
    * comes back: the post is not kept as one message.
    */
-  function sendAsOwner(threadId: string, text: string): { outbox: string; message_id: string } | undefined {
+  function sendAsOwner(
+    threadId: string,
+    text: string,
+    options: { omit_signature?: boolean | undefined } = {},
+  ): { outbox: string; message_id: string } | undefined {
     const thread = store.threads.get(threadId);
     const ch = thread?.channel;
     // In a room the owner's words go out as they are, through the bot's account (it is the only one APX has there).
@@ -62,7 +66,7 @@ export function createOutgoing(deps: {
       thread_id: threadId,
       message_id: sent.id,
       kind: "reply",
-      body: { text },
+      body: { text, ...(options.omit_signature !== undefined ? { omit_signature: options.omit_signature } : {}) },
     });
     return { outbox, message_id: sent.id };
   }
@@ -114,7 +118,12 @@ export function createOutgoing(deps: {
     personId: string,
     text: string,
     /** `by`: the agent writing; none: the owner themselves. `files`: media ids sent with it. */
-    o: { channel?: string | undefined; by?: string | undefined; files?: string[] | undefined },
+    o: {
+      channel?: string | undefined;
+      by?: string | undefined;
+      files?: string[] | undefined;
+      omit_signature?: boolean | undefined;
+    },
   ): Posted {
     const { pick, owner, thread } = chatWith(personId, o.channel);
     // The chat's agent answers the contact's reply knowing it wrote this first (the owner's own chat logs its turns).

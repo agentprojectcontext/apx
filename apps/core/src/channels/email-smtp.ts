@@ -2,6 +2,7 @@
 // AUTH PLAIN or LOGIN, one message per connection. Failures say whether the message may have been delivered: until
 // the final "." nothing was accepted (retry); a lost answer after it may mean it went out (uncertain).
 import { randomUUID } from "node:crypto";
+import { emailMimeBody } from "../domain/email-body.ts";
 import { errorMessage } from "../errors.ts";
 import { type Endpoint, MailSocket, MailTimeout } from "./email-socket.ts";
 import { neverSent } from "./net.ts";
@@ -175,6 +176,7 @@ export type OutMail = {
   to: string;
   subject: string;
   text: string;
+  html?: string | undefined;
   inReplyTo?: string | undefined;
   references?: string[] | undefined;
   /** RFC 3834: answers written by a machine say so, so other robots do not answer them back. */
@@ -198,12 +200,7 @@ export function composeMail(m: OutMail): { id: string; data: Buffer } {
     "X-Auto-Response-Suppress: All",
     "MIME-Version: 1.0",
   ];
-  const textPart = [
-    "Content-Type: text/plain; charset=utf-8",
-    "Content-Transfer-Encoding: base64",
-    "",
-    base64Lines(Buffer.from(m.text.replace(/\r?\n/g, "\r\n"))),
-  ].join("\r\n");
+  const textPart = emailMimeBody({ text: m.text, html: m.html });
   if (!m.files?.length) return { id, data: Buffer.from(`${head.join("\r\n")}\r\n${textPart}\r\n`) };
   const boundary = `apx-${randomUUID()}`;
   const parts = [

@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { ChannelEmail } from "@apx/protocol";
+import { type EmailSignature, renderEmailDraft, withEmailSignature } from "../domain/email-signature.ts";
 import { errorMessage } from "../errors.ts";
 import { Imap, ImapRefused } from "./email-imap.ts";
 import { decodeWords, header, messageIds, parseAddress, parseMail, stripQuoted } from "./email-mime.ts";
@@ -105,7 +106,14 @@ const baseSubject = (s: string) =>
     .toLowerCase();
 const isAddress = (s: string) => /^[^\s<>@,;"]+@[^\s<>@,;"]+\.[^\s<>@,;"]+$/.test(s);
 
-export function emailAdapter(config: Parameters<AdapterFactory>[0], secret: string | undefined, opts: { dir: string }) {
+export function emailAdapter(
+  config: Parameters<AdapterFactory>[0],
+  secret: string | undefined,
+  opts: {
+    dir: string;
+    signature?: (() => EmailSignature | undefined) | undefined;
+  },
+) {
   const mail: ChannelEmail | undefined = config.email;
   const ac = new AbortController();
   const options = numberedOptions();
@@ -293,12 +301,16 @@ export function emailAdapter(config: Parameters<AdapterFactory>[0], secret: stri
       const to = conversation.toLowerCase();
       if (!isAddress(to)) throw new SendError("fatal", `"${conversation.slice(0, 80)}" is not an email address`);
       const thread = state.threads[to];
-      const text = options.text(to, p.text, p.buttons);
+      const body = renderEmailDraft(
+        withEmailSignature({ content: { text: options.text(to, p.text, p.buttons) } }, opts.signature?.(), {
+          omit: p.omit_signature,
+        }),
+      );
       const out = composeMail({
         from: { address: mail.address, name: mail.name },
         to,
         subject: thread ? reSubject(thread.subject) : mail.name || "APX",
-        text,
+        ...body,
         inReplyTo: thread?.ids.at(-1),
         references: thread?.ids,
         autoSubmitted: thread ? "auto-replied" : "auto-generated",

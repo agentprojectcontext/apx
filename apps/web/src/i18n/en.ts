@@ -2,6 +2,7 @@ import { noticeEn } from "@apx/protocol/notices";
 import type { ComputerKey } from "./computer-en.ts";
 import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
+import type { enEmailSignatures } from "./en-email-signatures.ts";
 import { enEngines } from "./en-engines.ts";
 import { enFiles } from "./en-files.ts";
 import { enHelper } from "./en-helper.ts";
@@ -44,9 +45,8 @@ export const en = {
   ...enResources,
   ...enEngines,
   ...enTelemetry,
-  "engineUsage.button": "Usage",
   "engineUsage.title": "AI usage",
-  "engineUsage.quick": "{engine}: {pct}% available · {window} (most constrained window)",
+  "engineUsage.quick": "{engine}: {pct}% available · {window}",
   "sysUsage.title": "Usage",
   "sysUsage.button": "Usage: {pct}% of memory in use",
   // Shared words
@@ -1843,4 +1843,4 @@ export const en = {
 } as const;
 
 /** Every key the panel may show: these, and those of the packs loaded with their screens (messages.ts PACKS). */
-export type MessageKey = keyof typeof en | ComputerKey | ReceivedKey | SysUsageKey;
+export type MessageKey = keyof typeof en | ComputerKey | ReceivedKey | SysUsageKey | keyof typeof enEmailSignatures;
