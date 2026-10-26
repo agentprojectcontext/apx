@@ -4,6 +4,67 @@ import { callTool, say, scriptedLlm, startCore } from "../../apps/core/src/engin
 import type { Message, Task, Thread } from "../../packages/protocol/src/index.ts";
 import { expect, open, rpc, test } from "./kit.ts";
 
+for (const mode of ["dark", "light"] as const) {
+  test(`task status hover keeps ${mode} surfaces and readable semantic colors`, async ({ page }) => {
+    await page.addInitScript((value) => localStorage.setItem("apx.mode", value), mode);
+    await rpc("setup.finish", {});
+    const { project } = await rpc<{ project: { id: string } }>("projects.create", { name: "Task hint project" });
+    const agent = await rpc<{ id: string }>("agents.create", {
+      project_id: project.id,
+      slug: "builder",
+      name: "Builder",
+    });
+    const task = await rpc<Task>("tasks.create", {
+      title: `Task hint ${mode}`,
+      description: "Check the task status hint.",
+      status: "doing",
+      project: project.id,
+      assignee: agent.id,
+    });
+    await expect
+      .poll(async () => (await rpc<{ sessions: Thread[] }>("tasks.get", { task: task.id })).sessions.length)
+      .toBe(1);
+    await rpc("tasks.close", { task: task.id, state: "done" });
+    await open(page);
+    const title = page.locator(".taskbundle__title").filter({ hasText: task.title });
+    await title.hover();
+    const hint = page.locator(".apx-tooltip[data-open]");
+    await expect(hint).toHaveText("Hecha");
+    const colors = await hint.evaluate((el) => {
+      const rgb = (value: string) => {
+        const channels = value.match(/[\d.]+/g);
+        if (!channels || channels.length < 3) throw new Error(`Unsupported color: ${value}`);
+        return channels.map(Number);
+      };
+      const luminance = (color: number[]) =>
+        color.slice(0, 3).reduce((sum, channel, i) => {
+          const v = channel / 255;
+          return (
+            sum +
+            (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4) * ([0.2126, 0.7152, 0.0722][i] ?? Number.NaN)
+          );
+        }, 0);
+      const surface = rgb(getComputedStyle(el).backgroundColor);
+      const badgeElement = el.querySelector(".apx-badge");
+      if (!badgeElement) throw new Error("Missing task status badge");
+      const badge = getComputedStyle(badgeElement);
+      const fill = rgb(badge.backgroundColor);
+      const alpha = fill[3] ?? 1;
+      const background = fill.slice(0, 3).map((v, i) => v * alpha + (surface[i] ?? Number.NaN) * (1 - alpha));
+      const foreground = luminance(rgb(badge.color));
+      const backdrop = luminance(background);
+      return {
+        surface: luminance(surface),
+        contrast: (Math.max(foreground, backdrop) + 0.05) / (Math.min(foreground, backdrop) + 0.05),
+      };
+    });
+    expect(colors.contrast).toBeGreaterThanOrEqual(4.5);
+    if (mode === "dark") expect(colors.surface).toBeLessThan(0.1);
+    else expect(colors.surface).toBeGreaterThan(0.6);
+    await expect(hint.locator(".apx-badge__dot")).toBeVisible();
+  });
+}
+
 test("task context actions keep status live and archived conversations remain readable", async ({ page }) => {
   const health = await rpc<{ code_sha: string }>("system.health", {});
   expect(health.code_sha).toBe(execFileSync("git", ["rev-parse", "--short=12", "HEAD"], { encoding: "utf8" }).trim());
