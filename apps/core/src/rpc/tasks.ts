@@ -21,8 +21,10 @@ import {
   visibleTask,
 } from "../domain/tasks.ts";
 import { ancestors } from "../engine/ancestry.ts";
+import { agentTrip, trip } from "../engine/breaker.ts";
 import type { Engine } from "../engine/engine.ts";
 import { ownerMentionProblem } from "../engine/office.ts";
+import { checkSelfHandoff } from "../engine/task-handoff.ts";
 import { awaitAgent } from "../engine/task-inbox.ts";
 import { reportClose } from "../engine/task-report.ts";
 import {
@@ -128,6 +130,29 @@ export function taskHandlers(
     return t;
   };
 
+  const checkTransfer = (
+    ctx: CallContext,
+    candidate: {
+      assignee?: string | null;
+      description?: string;
+      project_id?: string;
+      proposed?: boolean;
+      start_at?: string;
+    },
+  ) => {
+    if (
+      !ctx.agent ||
+      candidate.assignee !== ctx.agent.id ||
+      !candidate.description?.trim() ||
+      candidate.proposed ||
+      startsLater(candidate) ||
+      trip(store, ctx.agent.thread_id) ||
+      agentTrip(store, ctx.agent.thread_id, ctx.agent.id)
+    )
+      return;
+    checkSelfHandoff(store, askerOf(ctx), candidate.project_id);
+  };
+
   return {
     "tasks.list": ({ project, state, assignee, commitments, person, limit }, ctx) => {
       const scope = agentScope(ctx);
@@ -194,12 +219,19 @@ export function taskHandlers(
       const start = dueOf(p.start_at);
       const forced = ctx.agent ? proposalReason(store, parent, p.assignee, ctx.agent.id) : undefined;
       const proposed = Boolean(p.propose) || Boolean(forced);
+      checkTransfer(ctx, {
+        assignee: p.assignee,
+        description: p.description,
+        project_id: project,
+        proposed,
+        start_at: start ?? undefined,
+      });
       // The task's conversation: the assignee answers there, or the super-agent until someone is assigned.
       const home = store.threads.get(HOME_THREAD_ID);
       const agent = p.assignee ?? home?.agent_ids[0] ?? "roby";
       const created = store.tx(() => {
         const thread = store.threads.create({ kind: "task", title: p.title, agent_ids: [agent], project_id: project });
-        return store.tasks.create({
+        const task = store.tasks.create({
           title: p.title,
           description: p.description,
           project_id: project,
@@ -219,12 +251,13 @@ export function taskHandlers(
           by: by(ctx),
           from: ctx.agent ? { thread: ctx.agent.thread_id, run: ctx.agent.run_id } : undefined,
         });
+        if (!proposed && task.assignee) startTaskWork(store, engine.admit, task, task.assignee, askerOf(ctx));
+        return task;
       });
       if (proposed) {
         noticeTaskProposed(store, created);
         return created;
       }
-      if (created.assignee) startTaskWork(store, engine.admit, created, created.assignee, askerOf(ctx));
       if (created.status === "review") reviewRequested(store, engine.admit, created);
       return created;
     },
@@ -260,11 +293,20 @@ export function taskHandlers(
         !startsLater({ ...cur, start_at: dueOf(start_at) ?? undefined }) &&
         store.threads.byTask(cur.id).length === 0;
       const starting = !unassign && keeper && (keeper !== cur.assignee || completing || unscheduled || accepting);
-      if (starting) refuseHandOn(ctx);
+      if (starting) {
+        refuseHandOn(ctx);
+        checkTransfer(ctx, {
+          ...cur,
+          ...c,
+          assignee: keeper,
+          project_id: target,
+          start_at: start_at === undefined ? cur.start_at : (dueOf(start_at) ?? undefined),
+        });
+      }
       const changed = store.tx(() => {
         noticeTaskWaiting(store, cur, c.awaits_owner ?? cur.awaits_owner);
         if (moving) store.threads.moveTo(cur.thread_id, target);
-        return store.tasks.change(
+        const updated = store.tasks.change(
           task,
           {
             ...c,
@@ -281,6 +323,8 @@ export function taskHandlers(
           },
           by(ctx),
         ) as Task;
+        if (updated.assignee && starting) startTaskWork(store, engine.admit, updated, updated.assignee, askerOf(ctx));
+        return updated;
       });
       // Put in review (or given another checker while in review): whoever checks it hears now.
       const reviewing = changed.state === "open" && changed.status === "review";
@@ -291,8 +335,6 @@ export function taskHandlers(
         (cur.status !== "review" || (checker !== undefined && checker !== (cur.reviewer ?? null)))
       )
         reviewRequested(store, engine.admit, changed);
-      // Completing a waiting task starts it too; editing one already worked never starts another turn.
-      if (changed.assignee && starting) startTaskWork(store, engine.admit, changed, changed.assignee, askerOf(ctx));
       return changed;
     },
     "tasks.close": ({ task, state, note, rework }, ctx) => {

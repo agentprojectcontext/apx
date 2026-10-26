@@ -172,6 +172,12 @@ notice when there is no text. Tools that touch core state call protocol methods 
   For the owner's drafts, an assigned task waits without automatic work until
   its description contains non-whitespace text. Completing the description starts work if it never began;
   later edits do not restart it. Unassigned ideas remain valid. Hourly pickup skips incomplete descriptions.
+  Immediate self-assignment transfers execution to the task session: the source turn can only acknowledge it,
+  including after recovery. Existing request/findings travel as bounded untrusted context, and a code chat's
+  folder/write restriction stays in force. A turn that already delegated work, or whose chat still has active
+  helpers/jobs or queued turns, cannot spawn a self-task executor; it keeps the existing work instead. Drafts,
+  proposals, future starts and other-agent assignments do not stop the source. A self-handoff's closing report
+  returns to the source chat. See [Execution handoff](HISTORY.md#task-execution-handoff).
 - **Cross-project tasks** (`domain/tasks.ts`, `rpc/tasks.ts`, `tools/tasks.ts`): outside any project, the super-agent's
   `task_create` uses the assignee's project by default, or an explicit project id. Ordinary agents and a super-agent
   inside a project keep their thread's scope. To have a destination project's orchestrator prepare the task instead,

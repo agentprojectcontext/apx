@@ -39,7 +39,7 @@ export type TurnIO = {
     callId: string,
     name: string,
     args: Record<string, unknown>,
-  ): Promise<{ ok: boolean; text: string; images?: Array<{ media_id: string; mime: string }> }>;
+  ): Promise<{ ok: boolean; text: string; images?: Array<{ media_id: string; mime: string }>; endTurn?: boolean }>;
   /** Appends items to what the model saw in this turn (native writes as it goes, so a crash keeps them). */
   log(items: ChatItem[]): void;
   /** What the owner added while the turn runs (steer); a loop that can take it mid-turn calls this between steps. */

@@ -236,7 +236,7 @@ export function taskTools(store: Store): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "Create a task, with an assignee and a description so it starts (subtasks too). Your role's own work: create it; reviews, QA or another area's work: propose it. A delegate proposes to its caller; a global agent's task goes to the assignee's project. A promise: person, owed_by, due_at.",
+        "Create a task, with an assignee and a description so it starts (subtasks too). Immediate self-assignment transfers execution: end this turn; do not duplicate work. Do this before delegating helpers. Your role's own work: create it; reviews, QA or another area's work: propose it. A delegate proposes to its caller; a global agent's task goes to the assignee's project. A promise: person, owed_by, due_at.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
         description: z.string().max(5000).optional(),
@@ -268,6 +268,8 @@ export function taskTools(store: Store): Tool[] {
             ? " When they close it, their report comes here."
             : "";
         if (t.assignee && waits(t.id, ctx)) return `created ${t.id} in ${t.status}${under}. ${PAUSED(t.assignee)}`;
+        if (store.threads.context(ctx.thread.id).task_handoff?.run === ctx.run.id)
+          return `created ${t.id} in ${t.status}${under}. Execution transferred to its task session with the existing findings. End this turn; do not do more work here. Its closing report comes back here.`;
         return `created ${t.id} in ${t.status}${under}.${t.assignee ? ` ${t.assignee} starts on it ${t.start_at && t.start_at > new Date().toISOString() ? `at ${t.start_at}` : "now"}.${back}` : ""}`;
       },
     }),
@@ -296,7 +298,11 @@ export function taskTools(store: Store): Tool[] {
         const t = await ctx.call("tasks.update", { task, ...c });
         const pending = t.assignee && !t.description.trim() && t.chats === 0 ? ` ${UNSPECIFIED}` : "";
         const paused = !pending && t.assignee && waits(t.id, ctx) ? ` ${PAUSED(t.assignee)}` : "";
-        return `updated: ${taskLines([t], (x) => line(x))}${pending}${paused}`;
+        const transferred =
+          store.threads.context(ctx.thread.id).task_handoff?.run === ctx.run.id
+            ? " Execution transferred to its task session. End this turn; do not do more work here."
+            : "";
+        return `updated: ${taskLines([t], (x) => line(x))}${pending}${paused}${transferred}`;
       },
     }),
     defineTool({

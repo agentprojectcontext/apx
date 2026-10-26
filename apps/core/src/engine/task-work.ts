@@ -16,6 +16,7 @@ import { agentTrip, heldNotice, trip } from "./breaker.ts";
 import { reportCard } from "./delegation.ts";
 import type { AdmitFn } from "./engine.ts";
 import { mentioned, mentionsOwner, taskCommentAttention } from "./office.ts";
+import { checkSelfHandoff, markHandoff } from "./task-handoff.ts";
 import { answersOwner, ownerTurnEnded } from "./task-inbox.ts";
 import { closedIn, reportClose } from "./task-report.ts";
 
@@ -30,7 +31,7 @@ export type Asker =
   | { kind: "agent"; id: string; name: string; thread_id: string; run_id: string; depth: number };
 
 /** The agent's chat for this task: its latest one, or a new one. */
-export function sessionFor(store: Store, task: Task, agentId: string): Thread {
+export function sessionFor(store: Store, task: Task, agentId: string, source?: Thread): Thread {
   const mine = store.threads.byTask(task.id).filter((t) => t.agent_ids[0] === agentId);
   const last = mine.at(-1);
   if (last) return last;
@@ -40,6 +41,7 @@ export function sessionFor(store: Store, task: Task, agentId: string): Thread {
     agent_ids: [agentId],
     project_id: task.project_id,
     task_id: task.id,
+    ...(source?.cwd && source.write ? { cwd: source.cwd, write: source.write } : {}),
   });
   // Lists show how many chats a task has.
   store.tasks.touched(task.id, agentId, "update");
@@ -140,7 +142,12 @@ export function startTaskWork(
   const text = ownWords ? [task.title, task.description].filter(Boolean).join("\n\n") : "Work on this task.";
   const author: Author =
     asker.kind === "agent" ? { kind: "agent", id: asker.id } : ownWords ? { kind: "user" } : { kind: "system" };
-  return ask(store, admit, task, agentId, text, asker, author);
+  const self = asker.kind === "agent" && asker.id === agentId;
+  if (self) checkSelfHandoff(store, asker, task.project_id);
+  const source = self ? store.threads.get(asker.thread_id) : undefined;
+  const work = ask(store, admit, task, agentId, text, asker, author, sessionFor(store, task, agentId, source));
+  if (self) markHandoff(store, task, asker, work);
+  return work;
 }
 
 /** Reopens a delivery and records the correction request and its run together, or leaves it unchanged. */
@@ -343,7 +350,7 @@ export function proposalReason(
 const MAX_REVIEW_ROUNDS = 2;
 
 /** Whether a task's start time is still ahead: its work waits until then. */
-export const startsLater = (task: Task, now = new Date()): boolean =>
+export const startsLater = (task: Pick<Task, "start_at">, now = new Date()): boolean =>
   Boolean(task.start_at && task.start_at > now.toISOString());
 
 /** Assigned tasks whose start time came and whose work never began, a few at a time (the office clock, each tick). */

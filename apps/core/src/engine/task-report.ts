@@ -50,7 +50,7 @@ function reportOf(store: Store, task: Task, closer: string, note: unknown, fresh
 
 /**
  * Wakes the agent that created the task, in the chat it created it from, once another agent closed it. Nobody is
- * woken when the owner created or closed it, or its creator closed it; a chat that was answering another agent is
+ * woken when the owner created or closed it, or its creator closed it without an execution handoff; a chat answering another agent is
  * not woken (DECISIONS.md#d-074). Past the unattended limits the report waits there for the owner.
  */
 export function reportClose(
@@ -64,11 +64,16 @@ export function reportClose(
   if (!task || !close) return undefined;
   const creator = store.agents.get(task.created_by);
   const closer = store.agents.get(close.event.by);
-  if (!creator || !closer || creator.id === closer.id) return undefined;
+  if (!creator || !closer) return undefined;
   if (store.threads.context(task.thread_id).close_reported === close.index) return undefined;
   const from = close.created?.data ?? {};
   const thread = typeof from.from_thread === "string" ? store.threads.get(from.from_thread) : undefined;
   if (!thread || thread.kind === "a2a" || thread.task_id === task.id) return undefined;
+  const transferred = store.threads.byTask(task.id).some((session) => {
+    const source = store.threads.context(session.id).handoff_from;
+    return source?.thread === thread.id && source.run === from.from_run;
+  });
+  if (creator.id === closer.id && !transferred) return undefined;
   store.threads.mergeContext(task.thread_id, { close_reported: close.index });
   const origin: Origin = {
     kind: "task_result",

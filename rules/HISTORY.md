@@ -6,6 +6,20 @@ The long *why* behind rules the code enforces: quirks, fixes and workarounds tha
 
 ## Runtime
 
+<a id="task-execution-handoff"></a>
+### A self-task transfers execution, not just a board entry
+**Rule:** an immediate self-assignment transfers execution to the task session. The source run stops using tools;
+its final response only acknowledges the transfer. A turn with delegated work, or a chat with active helpers,
+jobs or queued turns, keeps working there instead of creating another executor. Drafts, proposals, future starts,
+held starts and other-agent assignments retain their independent behavior.
+**Why:** starting a new task session while the original chat kept working duplicated both research and writers.
+A prompt-only instruction cannot stop later calls in the same batch or an external harness's own tools. The
+run-scoped gate applies before execution and approval, including recovery of that run, without serializing all
+of an agent's chats. The destination retains bounded untrusted findings and the source workspace restriction;
+its closing report returns to the original chat even when both sessions use the same agent.
+**Where:** `engine/task-handoff.ts`, `engine/task-work.ts`, `engine/executor.ts`, `harness/native.ts`,
+`rpc/tasks.ts` and `engine/task-report.ts` under `apps/core/src/`.
+
 <a id="connection-attempt-timeout"></a>
 ### Give dual-stack connections enough time
 **Rule:** the core entry point gives each address attempt at least two seconds, preserving longer configured values.

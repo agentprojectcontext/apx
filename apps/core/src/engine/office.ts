@@ -10,6 +10,7 @@ import { noticeTaskWaiting } from "../domain/task-attention.ts";
 import { previewOf } from "../domain/threads.ts";
 import { inlineName, untrusted } from "../tools/result.ts";
 import { taskWords } from "../tools/tasks.ts";
+import { handoffBrief } from "./task-handoff.ts";
 
 const MAX_MENTIONS = 3;
 /** As much of a plan as the task block carries: all a plan may hold (tasks.update caps it there). */
@@ -86,7 +87,7 @@ export function taskBlock(
   const plan = t.plan?.trim()
     ? `Plan kept on the task:\n${untrusted("task_plan", {}, t.plan.trim().slice(0, PLAN_CHARS))}`
     : "";
-  const head = [`Task ${t.id}:`, taskWords(t, words), state, plan].filter(Boolean);
+  const head = [`Task ${t.id}:`, taskWords(t, words), state, plan, handoffBrief(store, thread.id)].filter(Boolean);
   const lookup =
     "task_get shows its latest comments and sessions; read_chat reads a session. Read them before redoing work.";
   if (parent)

@@ -70,6 +70,10 @@ export type ThreadContext = {
   owner_check?: { thread: string; agent_id: string; reply_to: { channel: string; conversation: string } };
   /** A task chat an agent's turn started: the chat it came from, whose unattended limits its turns count against. */
   asked_from?: string;
+  /** An immediate self-task takes execution from this run only; later owner turns stay independent. */
+  task_handoff?: { task: string; run: string };
+  /** The source of a self-task's existing findings, without copying trusted instructions or permissions. */
+  handoff_from?: { thread: string; run: string };
   /** A task chat that stalled: when APX last asked its agent to go on, and the stop since then the owner was told of. */
   stall?: { revived_at: string; told?: string };
   /** Tasks agents gave from this chat while it was paused: each starts once the owner lets agents go on. */
@@ -408,12 +412,13 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       return out;
     },
     /** Whether a turn is queued or running, or a terminal job runs, in any of these threads. */
-    busy(ids: string[]): boolean {
+    busy(ids: string[], exceptRun?: string): boolean {
       const run = one(
         qb
           .selectFrom("runs")
           .select("id")
           .where("thread_id", "in", ids)
+          .where("id", "!=", exceptRun ?? "")
           .where("state", "in", ["queued", "submitted", "working", "input-required"])
           .limit(1),
       );
