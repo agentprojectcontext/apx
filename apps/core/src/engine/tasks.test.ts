@@ -6,7 +6,7 @@ import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { realpath } from "../paths.ts";
 import { removeDir, waitFor } from "../testkit/platform.ts";
-import { mentioned } from "./office.ts";
+import { mentioned, taskBlock } from "./office.ts";
 import { pickUpTasks } from "./task-work.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
@@ -605,4 +605,17 @@ test("deleting a task takes its history and conversation; subtasks and the agent
   // The same key replays the answer; a new one finds nothing left.
   assert.deepEqual(await env.client.call("tasks.delete", { task: t.id }, "task-del-1"), r);
   await assert.rejects(env.client.call("tasks.delete", { task: t.id }), /not found|task/);
+});
+
+test("a task's chat asks the owner once where code work goes and reuses a worktree before adding one", async () => {
+  const t = await env.client.call("tasks.create", { title: "Fix the export button", project });
+  const block = taskBlock(env.core.store, { id: "th_probe", task_id: t.id, kind: "loose" }) ?? "";
+  assert.match(block, /ask_owner with options "Worktree now", "Worktree always", "Here now", "Here always", "Other"/);
+  assert.match(block, /save an "always" with remember \(scope project\) and do not ask again/);
+  assert.match(
+    block,
+    /first git worktree list and the branches on this task's subject, and go on in the one that exists/,
+  );
+  assert.match(block, /under \.worktrees\/ at the project root \(never a parent folder, \.apc or \.claude\)/);
+  assert.match(block, /never detached\. Remove it and its branch once merged/);
 });

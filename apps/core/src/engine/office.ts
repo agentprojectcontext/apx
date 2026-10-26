@@ -61,6 +61,12 @@ export function taskCommentAttention(store: Store, task: Task, text: string, by:
   store.tasks.change(task.id, { awaits_owner: waiting }, by);
 }
 
+// Where a task's code work goes is the owner's call, asked once and kept when they answer "always".
+const CODE_PLACE = [
+  'Before you change code for this task, unless a note says where code work goes in this project (recall "worktree"), ask_owner with options "Worktree now", "Worktree always", "Here now", "Here always", "Other"; save an "always" with remember (scope project) and do not ask again.',
+  "In a worktree: first git worktree list and the branches on this task's subject, and go on in the one that exists. Only if none, add one under .worktrees/ at the project root (never a parent folder, .apc or .claude) on a named branch (feat/…, fix/…), never detached. Remove it and its branch once merged, never with uncommitted changes.",
+].join("\n");
+
 /**
  * The task a chat works on, as each turn there reads it: what it is, where it stands, who worked it before, and how to
  * keep it up to date. Its title and description may come from an agent (who may have read a web page), so unless the
@@ -102,6 +108,7 @@ export function taskBlock(
     "This is your chat for this task; what you say here stays here. Comment on the task with task_comment when others should know: a step done and verified, a block, something to review or decide. Two or three lines, never a transcript.",
     "Keep its plan on the task with task_update plan (the steps, marked done as you go): it is what the next turn reads, whatever this chat forgets. Keep the task up to date with task_update (doing while you work on it, review when it is ready to be checked: the owner checks it unless you name a reviewer agent) and task_close when it is done: the answer of the turn that closes it is posted as your report to whoever created the task.",
     "Mention @owner in a task_comment or in your answer when you need the owner. To ask a teammate, use delegate: its answer comes back to you (an @mention of an agent asks no one).",
+    CODE_PLACE,
   ]
     .filter(Boolean)
     .join("\n");

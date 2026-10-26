@@ -64,6 +64,15 @@ test("a task an agent leaves with nobody on it says it will not start, so the ag
   assert.match(said, /created task_\w+ in backlog, with nobody on it: it will not start\. Assign it/);
 });
 
+test("task_create tells the agent to look for the same open task before making another", async () => {
+  await list("create: Check the board first");
+  const create = llm.calls.at(-1)?.tools.find((tool) => tool.function.name === "task_create");
+  assert.match(
+    create?.function.description ?? "",
+    /^First task_list: if an open task is the same or close, continue that one\./,
+  );
+});
+
 test("task tools report that assigned work with no description is waiting, never started", async () => {
   const invoke = (name: string, args: object) => list(`tool: ${JSON.stringify({ name, args })}`);
   const created = await invoke("task_create", { title: "Waiting specification", assignee: "vera" });
