@@ -73,6 +73,7 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   pickFolder: (): Promise<string | undefined> => ipcRenderer.invoke("panel:pick-folder"),
   memory: (): Promise<unknown> => ipcRenderer.invoke("desktop:memory"),
   /** Whether a newer APX app is out (check: ask the release feed now). */
+  updateAuth: (token?: string) => ipcRenderer.send("desktop:update-auth", token),
   updateStatus: (check?: boolean): Promise<unknown> => ipcRenderer.invoke("desktop:update-status", check === true),
   /** Downloads the newer app and leaves it ready for the next restart (or opens it for the owner to drag in). */
   installUpdate: (): Promise<unknown> => ipcRenderer.invoke("desktop:update-install"),

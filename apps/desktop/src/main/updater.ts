@@ -87,6 +87,7 @@ const digest = (file: string) => createHash("sha256").update(fs.readFileSync(fil
 async function fetchChecked(release: Release, asset: ReleaseAsset, file: string): Promise<void> {
   const sum = release.assets.find((a) => a.name === `${asset.name}.sha256`);
   try {
+    if (!sum) throw new Error(`${asset.name} has no .sha256`);
     await download(asset.url, file);
     if (sum) {
       const sumFile = `${file}.sha256`;
@@ -127,6 +128,7 @@ export function createDesktopUpdater(opts: { quit(): void; changed(status: Deskt
   let staged: Staged | undefined;
   let downloading: Promise<InstallAnswer> | undefined;
   let swapping = false;
+  let generation = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   const current = (): DesktopUpdate => ({ ...status, downloading: Boolean(downloading), ready: staged?.version });
@@ -155,17 +157,35 @@ export function createDesktopUpdater(opts: { quit(): void; changed(status: Deskt
   }
 
   /** Downloads the newer APX and leaves it ready (or, where it cannot go in by itself, opens it for the owner). */
-  function install(): Promise<InstallAnswer> {
-    if (staged) return Promise.resolve({ ok: true, ready: true });
-    downloading ??= prepare().finally(() => {
-      downloading = undefined;
-      publish();
-    });
+  function install(target?: string, deferOpen = false): Promise<InstallAnswer> {
+    if (!enabled) return Promise.resolve({ ok: false, error: "No newer APX for this computer." });
+    if (staged && staged.version === (target ?? staged.version)) return Promise.resolve({ ok: true, ready: true });
+    staged = undefined;
+    const started = generation;
+    downloading ??= prepare(target, deferOpen)
+      .then((answer) => {
+        if (started !== generation) {
+          staged = undefined;
+          return { ok: false as const, error: "The APX connection changed. Retry the update." };
+        }
+        return answer;
+      })
+      .finally(() => {
+        downloading = undefined;
+        publish();
+      });
     publish();
     return downloading;
   }
 
-  async function prepare(): Promise<InstallAnswer> {
+  async function prepare(target?: string, deferOpen = false): Promise<InstallAnswer> {
+    if (target && feed) {
+      const release = newerReleases(await fetchReleases(feed), "0.0.0").find((r) => r.version === target);
+      const platform = platformOf(process.platform, process.arch);
+      const asset = release && platform ? desktopAssetFor(release.assets, target, platform) : undefined;
+      if (!release || !asset) return { ok: false, error: "The selected release has no installer for this computer." };
+      found = { release, asset, notes: release.notes };
+    }
     if (!found) await check();
     if (!found) return { ok: false, error: status.error ?? "No newer APX for this computer." };
     const { release, asset } = found;
@@ -178,8 +198,20 @@ export function createDesktopUpdater(opts: { quit(): void; changed(status: Deskt
       else {
         const file = path.join(app.getPath("downloads"), asset.name);
         await fetchChecked(release, asset, file);
-        const opened = await shell.openPath(file);
-        if (opened) shell.showItemInFolder(file);
+        const open = async () => {
+          const opened = await shell.openPath(file);
+          if (opened) shell.showItemInFolder(file);
+        };
+        if (deferOpen) {
+          staged = {
+            version: release.version,
+            restart: () => {
+              void open();
+            },
+          };
+          return { ok: true, ready: true };
+        }
+        await open();
         return { ok: true, ready: false };
       }
       return { ok: true, ready: true };
@@ -230,15 +262,22 @@ export function createDesktopUpdater(opts: { quit(): void; changed(status: Deskt
   async function stageAppImage(release: Release, asset: ReleaseAsset, target: string): Promise<Staged> {
     const file = path.join(path.dirname(target), `.${asset.name}.download`);
     await fetchChecked(release, asset, file);
-    // The running AppImage keeps its open file; the new one takes its name and is what starts next time.
+    // Keep the verified bytes separate until the native coordinator authorizes activation.
     fs.chmodSync(file, 0o755);
-    fs.renameSync(file, target);
+    let applied = false;
+    const activate = () => {
+      if (applied) return;
+      fs.renameSync(file, target);
+      applied = true;
+    };
     return {
       version: release.version,
       restart: () => {
+        activate();
         app.relaunch({ execPath: target, args: [] });
         opts.quit();
       },
+      onQuit: activate,
     };
   }
 
@@ -262,6 +301,11 @@ export function createDesktopUpdater(opts: { quit(): void; changed(status: Deskt
     status: current,
     check,
     install,
+    discard() {
+      generation++;
+      staged = undefined;
+      publish();
+    },
     /** Quits and opens the newer APX. */
     restart() {
       staged?.restart();

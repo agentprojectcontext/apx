@@ -26,6 +26,8 @@ export type NewsFacts = {
   /** The owner has Codex sessions whose account limits the panel can query. */
   codex: boolean;
   claude?: boolean;
+  /** At least one paired Desktop can use coordinated remote updates. */
+  desktop?: boolean;
 };
 
 export type NewsAction = {
@@ -49,6 +51,25 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  {
+    id: "coordinated-desktop-update",
+    since: "2.11.1",
+    title: "Update the server before your Desktop apps",
+    applies: (f) => Boolean(f.desktop),
+    text:
+      "Desktop now coordinates remote updates over the authenticated APX connection, without SSH. " +
+      "A shared release is checked for server and client packages; the remote core updates once, and each app " +
+      "can apply that release only after confirming the server is running it. Offline apps reconcile when they reconnect. " +
+      "The local integrated core still updates with its Desktop bundle. Older or unsupported servers block the app update " +
+      "with native recovery guidance; this is not an atomic update of every device.",
+    actions: [
+      {
+        label: { en: "Review my update setup", es: "Revisar mis actualizaciones" },
+        prompt:
+          "Help me check how my APX core is installed and explain the coordinated update flow before I update from the Desktop menu.",
+      },
+    ],
+  },
   {
     id: "email-signature-settings",
     since: "2.11.1",
@@ -384,6 +405,7 @@ const signedIn = (store: Store, id: string) => Boolean(store.settings.get(`googl
 
 export const newsFacts = (store: Store): NewsFacts => ({
   artifacts: store.surfaces.list().length,
+  desktop: store.devices.list().some((d) => d.platform === "desktop"),
   codex: store.threads.list({ engine: "codex", limit: 1 }).length > 0,
   claude: store.threads.list({ engine: "claude", limit: 1 }).length > 0,
   google: {

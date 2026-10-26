@@ -231,8 +231,16 @@ export const appMethods = {
    * the owner restarts APX.
    */
   "system.update": {
-    params: z.object({}).strict(),
-    result: z.object({ ok: z.boolean(), restart: z.boolean(), log: z.string() }),
+    params: z
+      .object({
+        target: z
+          .string()
+          .regex(/^\d+\.\d+\.\d+$/)
+          .max(40)
+          .optional(),
+      })
+      .strict(),
+    result: z.object({ ok: z.boolean(), restart: z.boolean(), log: z.string(), target: z.string().optional() }),
     effect: true,
     access: "human",
   },

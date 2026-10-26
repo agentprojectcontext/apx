@@ -6,6 +6,7 @@ import type { DesktopUpdate } from "../apx-desktop.d.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
 import { releaseBefore } from "./release.ts";
+import { updateTarget } from "./update-target.ts";
 
 type Status = Result<"system.updates">;
 type State = {
@@ -127,30 +128,9 @@ async function applyAppUpdate(): Promise<void> {
   else store.set({ phase: r.ready ? "ready" : "done" });
 }
 
-/** The server first, then this app: the app restarts last, and its new panel talks to a core already up to date. */
+/** Desktop owns remote coordination even when this panel disconnects during the server restart. */
 async function applyBoth(): Promise<void> {
-  try {
-    const r = await client.call("system.update", {});
-    if (!r.ok) return store.set({ phase: "failed", log: r.log });
-    if (r.restart) await coreBack();
-  } catch (e) {
-    return store.set({ phase: "failed", log: e instanceof Error ? e.message : String(e) });
-  }
   await applyAppUpdate();
-}
-
-/** Waits for a core that restarts after updating to answer again (two minutes at most). */
-async function coreBack(): Promise<void> {
-  const until = Date.now() + 120_000;
-  await new Promise((r) => setTimeout(r, 1500));
-  while (Date.now() < until) {
-    try {
-      await client.call("system.health", {});
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-  }
 }
 
 /** The desktop app quits and opens the newer one it has ready. */
@@ -170,12 +150,7 @@ export function newerOf(
   coreElsewhere = window.apxDesktop?.coreLocal === false,
   inApp = Boolean(window.apxDesktop),
 ): { target: State["target"]; version?: string } | undefined {
-  const appVersion = app?.ready ?? app?.latest;
-  const coreBehind = status?.behind && !(status.source === "app" && inApp && !coreElsewhere) ? status : undefined;
-  if (appVersion && coreBehind && coreElsewhere) return { target: "both", version: appVersion };
-  if (appVersion) return { target: "app", version: appVersion };
-  if (coreBehind) return { target: "core", version: coreBehind.source === "git" ? undefined : coreBehind.latest };
-  return undefined;
+  return updateTarget(status, app, coreElsewhere, inApp);
 }
 
 /** The core is the desktop app's: from here the update can only be pointed at, not done. */

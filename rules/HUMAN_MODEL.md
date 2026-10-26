@@ -14,7 +14,10 @@ boundary changes.
 | **mobile** | `apps/mobile` (Expo) | Operator + node (camera, notify). | App lifecycle. |
 
 Desktop supervises only a bundled child for its explicitly local home/port. URL and SSH connections never grant
-implicit lifecycle control over the server; client restart/update does not update the server. Production daemon
+implicit lifecycle control over the server. Explicit remote updates use the owner-authenticated shared release plan:
+the core installs once, confirms its running target after restart, then Desktop clients may activate their own package.
+The native coordinator and recovery work without the remote panel; offline clients reconcile on reconnect, not atomically.
+A bundled local core still updates with Desktop. See [Update coordination](UPDATE_COORDINATION.md). Production daemon
 startup holds an OS-released SQLite lock per canonical home, independent of port. Local service identities are
 home-specific; `APX_URL` does not redirect OS service commands. See [Desktop lifecycle](DESKTOP_LIFECYCLE.md).
 

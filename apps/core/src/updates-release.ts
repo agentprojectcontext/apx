@@ -24,8 +24,8 @@ export async function checkReleases(feed: string, version: string, fetchImpl: ty
   return { newer: newerReleases(await fetchReleases(feed, fetchImpl), version) };
 }
 
-async function download(url: string, file: string, fetchImpl: typeof fetch): Promise<void> {
-  const r = await fetchImpl(url, { signal: AbortSignal.timeout(15 * 60_000) });
+async function download(url: string, file: string, fetchImpl: typeof fetch, signal: AbortSignal): Promise<void> {
+  const r = await fetchImpl(url, { signal });
   if (!r.ok || !r.body) throw new Error(`download ${path.basename(file)}: HTTP ${r.status}`);
   await pipeline(Readable.fromWeb(r.body as import("node:stream/web").ReadableStream), fs.createWriteStream(file));
 }
@@ -113,15 +113,16 @@ export async function installRelease(o: {
   fs.mkdirSync(work, { recursive: true });
   try {
     const file = path.join(work, name);
-    await download(asset.url, file, o.fetch);
-    await download(sum.url, `${file}.sha256`, o.fetch);
+    const signal = AbortSignal.timeout(15 * 60_000);
+    await download(asset.url, file, o.fetch, signal);
+    await download(sum.url, `${file}.sha256`, o.fetch, signal);
     const want = parseSha256(fs.readFileSync(`${file}.sha256`, "utf8"));
     const got = await sha256(file);
     if (!want || want !== got) throw new Error(`${name} does not match its .sha256 (expected ${want}, got ${got})`);
 
     const unpacked = path.join(work, "unpacked");
     fs.mkdirSync(unpacked);
-    const tar = await o.run(tarCommand(), ["-xzf", file, "-C", unpacked], 10 * 60_000);
+    const tar = await o.run(tarCommand(), ["-xzf", file, "-C", unpacked], 5 * 60_000);
     if (tar.code !== 0) throw new Error(`unpacking ${name}: ${tar.out.trim().slice(-300)}`);
     const node = path.join(unpacked, "apx", ...BUNDLE.node(o.platform.os === "win"));
     if (!fs.existsSync(node)) throw new Error(`${name} has no Node inside`);
