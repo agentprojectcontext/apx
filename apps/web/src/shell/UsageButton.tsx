@@ -21,6 +21,7 @@ export function UsageButton() {
     <Popover
       align="end"
       width={340}
+      className="usage-popover"
       open={open}
       onOpenChange={setOpen}
       label={t("sysUsage.title")}

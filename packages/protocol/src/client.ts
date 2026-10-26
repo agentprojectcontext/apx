@@ -39,6 +39,7 @@ export class ApxError extends Error {
 function clientDeadline(method: string, params: unknown, fallback: number): number {
   if (method === "environments.control") return 20_000;
   if (method === "environments.command") return 60_000;
+  if (method === "engines.usage") return 35_000;
   if (method === "browser.handoff") return ((params as { timeout_s?: number })?.timeout_s ?? 300) * 1000 + 20_000;
   if (method === "browser.import_cookies") return 130_000;
   if (method === "mcp.call") return 180_000;

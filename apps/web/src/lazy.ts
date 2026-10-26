@@ -57,6 +57,7 @@ export const ComputersScreen = lazy(() =>
 export const UsageDialog = lazy(() => import("./shell/UsagePanels.tsx").then((m) => ({ default: m.UsageDialog })));
 export const UsageSummary = lazy(() => import("./shell/UsagePanels.tsx").then((m) => ({ default: m.UsageSummary })));
 // The memory gauge shows a number only after its first read: loading it after the first screen moves nothing shown.
+export const EngineUsageButton = lazy(() => import("./shell/EngineUsageButton.tsx"));
 export const UsageButton = lazy(() => import("./shell/UsageButton.tsx").then((m) => ({ default: m.UsageButton })));
 
 // The sidebar's extras: not needed for the first paint.

@@ -6,7 +6,7 @@ import { blobOf, findProject, projectName, secretary } from "../data/identity.ts
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { UsageButton } from "../lazy.ts";
+import { EngineUsageButton, UsageButton } from "../lazy.ts";
 import { AttentionTray } from "./AttentionTray.tsx";
 import { useDesktopClass } from "./desktop.ts";
 import { LanguageMenu, useLanguageItems } from "./LanguageMenu.tsx";
@@ -104,6 +104,7 @@ export function Topbar() {
         <UpdatePill />
         <RunningIndicator />
         <Suspense fallback={null}>
+          <EngineUsageButton />
           <UsageButton />
         </Suspense>
         <AttentionTray />

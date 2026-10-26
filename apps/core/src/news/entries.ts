@@ -21,6 +21,8 @@ export type NewsFacts = {
   computer: boolean;
   /** This core runs on a Mac and the owner has work there (a project). */
   mac: boolean;
+  /** The owner has Codex sessions whose account limits the panel can query. */
+  codex: boolean;
 };
 
 export type NewsAction = {
@@ -44,6 +46,24 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  {
+    id: "engine-usage",
+    since: "2.11.0",
+    title: "Account limits in the top bar",
+    applies: (f) => f.codex,
+    text:
+      "The panel's AI usage button shows Codex account quota windows, the share remaining and reset times when " +
+      "its local CLI can report them. These are account limits, not token totals from APX chats. Claude, OpenCode " +
+      "and Antigravity have explicit unavailable states and guidance rather than estimated subscription balances. " +
+      "The check runs on the core's computer, without starting a model turn or reading credentials in APX.",
+    actions: [
+      {
+        label: { en: "Where are my limits?", es: "¿Dónde veo mis límites?" },
+        prompt:
+          "Explain where the AI usage button is in the panel and how account limits differ from the tokens shown in my chats.",
+      },
+    ],
+  },
   {
     id: "artifacts-kit",
     since: "2.8.0",
@@ -321,6 +341,7 @@ const signedIn = (store: Store, id: string) => Boolean(store.settings.get(`googl
 
 export const newsFacts = (store: Store): NewsFacts => ({
   artifacts: store.surfaces.list().length,
+  codex: store.threads.list({ engine: "codex", limit: 1 }).length > 0,
   google: {
     calendar: signedIn(store, "google-calendar"),
     gmail: signedIn(store, "gmail"),

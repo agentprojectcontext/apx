@@ -68,6 +68,11 @@ gets the types. There is no other way into a handler.
   (Telegram, WhatsApp, Discord, Slack, iMessage, email, Signal, Matrix, Mattermost) and enters through `threads.send`.
 - `apps/*` never import each other; `packages/*` never import `apps/*`.
 
+The top bar's AI usage panel calls owner-only `engines.usage`. The core probes CLI availability on its own
+computer and asks the local Codex app-server only for account rate-limit metadata, with a bounded child lifetime,
+validated windows and a short shared cache. It starts no model turn and APX reads no engine credentials. Other
+engines explicitly report unsupported or unavailable limits; session token counts are not account balances.
+
 ## 4. State and persistence
 
 `~/.apx/v2/apx.db` (SQLite, WAL): projects, agents, threads (incl. a2a sub-threads), messages (what the UI shows),
