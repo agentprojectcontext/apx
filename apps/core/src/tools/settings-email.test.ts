@@ -191,6 +191,33 @@ test("even Total requires owner approval, and an edit during approval fails clos
   }
 });
 
+test("removal refuses disconnected accounts and foreign senders without losing signatures", async () => {
+  const client = h.env.client;
+  const store = h.env.core.store;
+  const before = await all();
+  store.settings.set("google_account:gmail", "");
+  try {
+    await assert.rejects(
+      client.call("email.signature_remove", { key: key(gmail), expected: gmail }),
+      /configured Gmail account or SMTP/,
+    );
+    assert.deepEqual(await all(), before);
+  } finally {
+    store.settings.set("google_account:gmail", gmail.account);
+  }
+  const foreign = { ...smtp, sender: "alias@example.com" };
+  await client.call("email.signatures_set", { signatures: [...before, foreign] });
+  try {
+    await assert.rejects(
+      client.call("email.signature_remove", { key: key(foreign), expected: foreign }),
+      /configured Gmail account or SMTP/,
+    );
+    assert.deepEqual(await all(), [...before, foreign]);
+  } finally {
+    await client.call("email.signatures_set", { signatures: before });
+  }
+});
+
 test("idempotent retry cannot overwrite a later signature edit", async () => {
   const client = h.env.client;
   const edited = { ...gmail, text: "First" };

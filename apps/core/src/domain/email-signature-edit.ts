@@ -24,7 +24,7 @@ export function editSignature(
   expected: EmailSignatureEntry | null,
   next: EmailSignatureEntry | null,
 ): void {
-  if (next && !signatureIdentities(store).some((id) => sameSignatureKey(id, key)))
+  if (!signatureIdentities(store).some((id) => sameSignatureKey(id, key)))
     throw badRequest("Signature must match a configured Gmail account or SMTP mailbox sender");
   const entries = store.settings.read("email_signatures");
   const current = entries.find((entry) => sameSignatureKey(entry, key)) ?? null;

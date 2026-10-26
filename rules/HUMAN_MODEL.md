@@ -83,8 +83,8 @@ requires the separately linked Codex CLI. Explicit choices survive linking or di
 The super-agent's `apx_settings` email area discovers configured Gmail/SMTP identities and reads one local
 signature by transport, account and sender. Human-only `email.signature_upsert` and `email.signature_remove`
 run through the same owner-confirmed settings flow, with the exact last-read entry as a concurrency precondition
-(`null` only when creating). Writes preserve other signatures and validate configured senders; removal can clean up
-an existing signature after its mailbox is disconnected. No Gmail settings access, import or remote mutation is added.
+(`null` only when creating). Writes preserve other signatures and validate configured senders, including removals; an unconfigured mailbox's
+signature stays in the owner's Account settings for manual cleanup. No Gmail settings access, import or remote mutation is added.
 
 ## 4. State and persistence
 
