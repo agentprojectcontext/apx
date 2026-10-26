@@ -1,5 +1,6 @@
 // Gmail's REST API: searching and reading the owner's mail, writing a draft, and sending a draft the owner approved.
 // Nothing here sends a new message on its own: a message leaves only as a draft that exists first.
+import { emailMimeBody } from "../domain/email-body.ts";
 import { pageText } from "../tools/web.ts";
 import type { Google } from "./google.ts";
 
@@ -75,6 +76,7 @@ export function rawMessage(m: {
   cc?: string[] | undefined;
   subject: string;
   body: string;
+  html?: string | undefined;
   inReplyTo?: string | undefined;
   references?: string | undefined;
 }): string {
@@ -84,10 +86,7 @@ export function rawMessage(m: {
     `Subject: ${word(one(m.subject))}`,
     ...(m.inReplyTo ? [`In-Reply-To: ${one(m.inReplyTo)}`, `References: ${one(m.references || m.inReplyTo)}`] : []),
     "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=UTF-8",
-    "Content-Transfer-Encoding: base64",
-    "",
-    Buffer.from(m.body, "utf8").toString("base64").replace(/.{76}/g, "$&\r\n"),
+    emailMimeBody({ text: m.body, html: m.html }),
   ];
   return Buffer.from(lines.join("\r\n"), "utf8").toString("base64url");
 }

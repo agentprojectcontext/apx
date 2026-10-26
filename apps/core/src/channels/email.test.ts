@@ -145,6 +145,34 @@ describe("sending mail", () => {
     assert.ok(dotStuff(Buffer.from(".a\n.b")).toString().startsWith("..a\r\n..b\r\n.\r\n"));
   });
 
+  test("HTML alternatives survive SMTP with reply headers and attachments", async () => {
+    const html = "<p>Hello</p><b>Acme</b>";
+    const out = composeMail({
+      from: { address: USER },
+      to: "user@example.org",
+      subject: "Reply",
+      text: "Hello\nAcme",
+      html,
+      inReplyTo: "<original@example.org>",
+      autoSubmitted: "auto-replied",
+      files: [{ name: "notes.txt", mime: "text/plain", data: Buffer.from("notes") }],
+    });
+    await smtpSend(
+      ep(),
+      { user: USER, pass: PASS },
+      { from: USER, to: ["user@example.org"], data: out.data },
+      AbortSignal.timeout(5000),
+    );
+    const got = smtp.sent.at(-1);
+    assert.ok(got);
+    const parsed = parseMail(Buffer.from(got.raw, "latin1"));
+    assert.equal(parsed.text.replace(/\r\n/g, "\n"), "Hello\nAcme");
+    assert.equal(parsed.attachments[0]?.name, "notes.txt");
+    assert.match(got.raw, /Content-Type: multipart\/alternative/);
+    assert.ok(got.raw.includes(Buffer.from(html).toString("base64")));
+    assert.equal(read(got).h("in-reply-to"), "<original@example.org>");
+  });
+
   test("a lost answer after the message is uncertain; a refusal is final; busy is retried", async () => {
     const send = () =>
       smtpSend(
