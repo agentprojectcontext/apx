@@ -4,12 +4,14 @@ import { enComputer } from "./computer-en.ts";
 import { esComputer } from "./computer-es.ts";
 import { en as base } from "./en.ts";
 import { es as esBase } from "./es.ts";
+import { enReceived } from "./received-en.ts";
+import { esReceived } from "./received-es.ts";
 import { enSysUsage } from "./sysusage-en.ts";
 import { esSysUsage } from "./sysusage-es.ts";
 
 // A pack's strings belong to the language as much as the main chunk's.
-const en = { ...base, ...enComputer, ...enSysUsage };
-const es = { ...esBase, ...esComputer, ...esSysUsage };
+const en = { ...base, ...enComputer, ...enReceived, ...enSysUsage };
+const es = { ...esBase, ...esComputer, ...esReceived, ...esSysUsage };
 
 // Each language is loaded alone, so a key it lacks would show as the bare key.
 test("every English text has its Spanish translation", () => {

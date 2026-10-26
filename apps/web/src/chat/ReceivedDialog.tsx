@@ -5,7 +5,7 @@ import type { PromptPart, RunContext } from "@apx/protocol";
 import { Dialog, Skeleton } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
-import { type MessageKey, useT } from "../i18n/index.ts";
+import { type MessageKey, usePack, useT } from "../i18n/index.ts";
 
 const PART: Record<string, MessageKey> = {
   base: "received.part.base",
@@ -22,7 +22,12 @@ const PART: Record<string, MessageKey> = {
 
 const tokens = (chars: number) => Math.round(chars / 4);
 
-export function ReceivedDialog({ run, onClose }: { run: string; onClose: () => void }) {
+/** Its strings come with it (a pack of their own): until they do, nothing shows. */
+export function ReceivedDialog(props: { run: string; onClose: () => void }) {
+  return usePack("received") ? <ReceivedBody {...props} /> : null;
+}
+
+function ReceivedBody({ run, onClose }: { run: string; onClose: () => void }) {
   const t = useT();
   const [got, setGot] = useState<RunContext | { error: string }>();
   useEffect(() => {

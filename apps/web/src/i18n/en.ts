@@ -10,6 +10,7 @@ import { enResources } from "./en-resources.ts";
 import { enSetup } from "./en-setup.ts";
 import { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
+import type { ReceivedKey } from "./received-en.ts";
 import type { SysUsageKey } from "./sysusage-en.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
@@ -1838,4 +1839,4 @@ export const en = {
 } as const;
 
 /** Every key the panel may show: these, and those of the packs loaded with their screens (messages.ts PACKS). */
-export type MessageKey = keyof typeof en | ComputerKey | SysUsageKey;
+export type MessageKey = keyof typeof en | ComputerKey | ReceivedKey | SysUsageKey;

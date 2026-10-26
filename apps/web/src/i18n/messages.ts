@@ -24,6 +24,10 @@ const PACKS = {
     en: () => import("./computer-en.ts").then((m) => m.enComputer),
     es: () => import("./computer-es.ts").then((m) => m.esComputer),
   },
+  received: {
+    en: () => import("./received-en.ts").then((m) => m.enReceived),
+    es: () => import("./received-es.ts").then((m) => m.esReceived),
+  },
   usage: {
     en: () => import("./sysusage-en.ts").then((m) => m.enSysUsage),
     es: () => import("./sysusage-es.ts").then((m) => m.esSysUsage),
