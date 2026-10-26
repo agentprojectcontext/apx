@@ -2,11 +2,21 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { test } from "node:test";
+import { afterEach, beforeEach, test } from "node:test";
 import { setImmediate } from "node:timers/promises";
 import { CoreEvent, Message, Run } from "@apx/protocol";
 import { chat, latestConversation } from "./chat.ts";
 import { printed, recordingClient } from "./testing.ts";
+
+// Mock owner clients must not inherit the test runner's agent identity; the guard case sets its own.
+const inheritedAgent = process.env.APX_AGENT;
+beforeEach(() => {
+  delete process.env.APX_AGENT;
+});
+afterEach(() => {
+  if (inheritedAgent === undefined) delete process.env.APX_AGENT;
+  else process.env.APX_AGENT = inheritedAgent;
+});
 
 function fixture(answers: Record<string, unknown>) {
   const recorded = recordingClient(answers);
