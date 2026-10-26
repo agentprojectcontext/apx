@@ -193,6 +193,8 @@ test("an agent-created task shows its real generic kickoff with the formatted de
     expect((await env.client.call("threads.get", { thread: session })).messages).toEqual(initial.messages);
     expect(await env.client.call("runs.list", { agent: "roby" })).toEqual(runs);
   } finally {
+    await page.goto("about:blank");
+    await env.core.close();
     await env.cleanup();
   }
 });
