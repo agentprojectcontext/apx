@@ -24,6 +24,7 @@ export const esSysUsage: Record<keyof typeof enSysUsage, string> = {
   "engineUsage.fiveHours": "5 horas",
   "engineUsage.weekly": "Semanal",
   "engineUsage.codexSource": "Fuente: límites de cuenta de Codex",
+  "engineUsage.claudeSource": "Fuente: cuota del plan de Claude (/usage)",
   "engineUsage.window": "Ventana de {minutes} minutos",
   "engineUsage.resets": "Se renueva {at}",
   "engineUsage.notInstalled": "CLI no encontrada",
@@ -32,7 +33,7 @@ export const esSysUsage: Record<keyof typeof enSysUsage, string> = {
   "engineUsage.unavailable": "Límites de cuenta no disponibles",
   "engineUsage.source": "Fuente: {source}",
   "engineUsage.claudeNote":
-    "Claude Desktop y Claude Code: consultá Configuración → Uso en Claude. APX no lee tus credenciales.",
+    "Cuota del plan de Claude mediante Claude Code 2.1.273 o posterior. Iniciá sesión en el CLI; APX no lee tus credenciales.",
   "engineUsage.opencodeNote": "OpenCode usa la cuenta del proveedor elegido; no tiene un saldo único.",
   "engineUsage.antigravityNote":
     "Consultá tu cuota por modelo en Antigravity. Acá todavía no hay una integración de cuota compatible.",

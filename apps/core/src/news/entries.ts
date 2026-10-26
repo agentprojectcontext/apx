@@ -23,6 +23,7 @@ export type NewsFacts = {
   mac: boolean;
   /** The owner has Codex sessions whose account limits the panel can query. */
   codex: boolean;
+  claude?: boolean;
 };
 
 export type NewsAction = {
@@ -50,11 +51,12 @@ export const NEWS: readonly NewsEntry[] = [
     id: "engine-usage",
     since: "2.11.0",
     title: "Account limits in the top bar",
-    applies: (f) => f.codex,
+    applies: (f) => f.codex || f.claude === true,
     text:
-      "The panel's AI usage button shows Codex account quota windows, the share remaining and reset times when " +
-      "its local CLI can report them. These are account limits, not token totals from APX chats. Claude, OpenCode " +
-      "and Antigravity have explicit unavailable states and guidance rather than estimated subscription balances. " +
+      "The panel's AI usage button shows Codex and Claude account quota windows, the share remaining and reset times " +
+      "when their local CLIs can report them. Claude Code 2.1.273 or later supplies structured /usage reports. " +
+      "These are account limits, not token totals from APX chats. OpenCode and Antigravity have explicit " +
+      "unavailable states and guidance rather than estimated subscription balances. " +
       "The check runs on the core's computer, without starting a model turn or reading credentials in APX. " +
       "Each engine card has a compact Usage switch independent of model power. Quota checks default off except " +
       "for a linked ChatGPT plan; an explicit choice is remembered. Codex quota metadata still requires its " +
@@ -345,6 +347,7 @@ const signedIn = (store: Store, id: string) => Boolean(store.settings.get(`googl
 export const newsFacts = (store: Store): NewsFacts => ({
   artifacts: store.surfaces.list().length,
   codex: store.threads.list({ engine: "codex", limit: 1 }).length > 0,
+  claude: store.threads.list({ engine: "claude", limit: 1 }).length > 0,
   google: {
     calendar: signedIn(store, "google-calendar"),
     gmail: signedIn(store, "gmail"),

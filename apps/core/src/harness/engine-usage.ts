@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import type { EngineStatus, EngineUsageReport, EngineUsageWindow } from "@apx/protocol";
 import { z } from "zod";
+import { readClaudeUsage } from "./claude-usage.ts";
 import { which } from "./detect.ts";
 import { commandEnv } from "./env.ts";
 
@@ -135,6 +136,8 @@ export function createEngineUsage(deps: {
   status: () => Promise<EngineStatus[]>;
   binary?: () => Promise<string | undefined>;
   read?: typeof readCodexUsage;
+  claudeBinary?: () => Promise<string | undefined>;
+  readClaude?: typeof readClaudeUsage;
   now?: () => Date;
   enabled?: (id: string) => boolean;
 }) {
@@ -143,45 +146,50 @@ export function createEngineUsage(deps: {
     const statuses = (await deps.status()).filter(
       (engine) => engine.id !== "native" && (deps.enabled?.(engine.id) ?? true),
     );
-    const engines: EngineUsageReport["engines"] = [];
-    for (const engine of statuses) {
-      if (!engine.installed) {
-        engines.push({
-          id: engine.id,
-          label: engine.label,
-          cli_installed: false,
-          available: false,
-          source: "none",
-          status: "unavailable",
-          reason: "cli_not_found",
-          windows: [],
-        });
-      } else if (engine.id !== "codex") {
-        engines.push({
-          id: engine.id,
-          label: engine.label,
-          cli_installed: true,
-          available: false,
-          source: "none",
-          status: "unavailable",
-          reason: "unsupported",
-          windows: [],
-        });
-      } else {
-        const binary = await (deps.binary ?? (() => which("codex")))();
-        const windows = binary ? await (deps.read ?? readCodexUsage)(binary) : undefined;
-        engines.push({
-          id: engine.id,
-          label: engine.label,
-          cli_installed: true,
-          available: Boolean(windows),
-          source: "codex_app_server",
-          status: windows ? "ok" : "unavailable",
-          windows: windows ?? [],
-          ...(windows ? {} : { reason: "not_available" as const }),
-        });
-      }
-    }
+    const engines: EngineUsageReport["engines"] = await Promise.all(
+      statuses.map(async (engine) => {
+        if (!engine.installed) {
+          return {
+            id: engine.id,
+            label: engine.label,
+            cli_installed: false,
+            available: false,
+            source: "none",
+            status: "unavailable",
+            reason: "cli_not_found",
+            windows: [],
+          };
+        } else if (engine.id !== "codex" && engine.id !== "claude") {
+          return {
+            id: engine.id,
+            label: engine.label,
+            cli_installed: true,
+            available: false,
+            source: "none",
+            status: "unavailable",
+            reason: "unsupported",
+            windows: [],
+          };
+        } else {
+          const claude = engine.id === "claude";
+          const binary = await (claude
+            ? (deps.claudeBinary ?? (() => which("claude")))
+            : (deps.binary ?? (() => which("codex"))))();
+          const read = claude ? (deps.readClaude ?? readClaudeUsage) : (deps.read ?? readCodexUsage);
+          const windows = binary ? await read(binary) : undefined;
+          return {
+            id: engine.id,
+            label: engine.label,
+            cli_installed: true,
+            available: Boolean(windows),
+            source: claude ? "claude_cli" : "codex_app_server",
+            status: windows ? "ok" : "unavailable",
+            windows: windows ?? [],
+            ...(windows ? {} : { reason: "not_available" as const }),
+          };
+        }
+      }),
+    );
     return { checked_at: (deps.now?.() ?? new Date()).toISOString(), engines };
   };
   return () => {

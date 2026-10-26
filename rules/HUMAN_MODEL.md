@@ -69,8 +69,11 @@ gets the types. There is no other way into a handler.
 - `apps/*` never import each other; `packages/*` never import `apps/*`.
 
 The top bar's AI usage panel calls owner-only `engines.usage`. The core probes CLI availability on its own
-computer and asks the local Codex app-server only for account rate-limit metadata, with a bounded child lifetime,
-validated windows and a short shared cache. It starts no model turn and APX reads no engine credentials. Other
+computer and asks the local Codex app-server or Claude Code's structured `/usage` report for account rate-limit
+metadata, with bounded child lifetimes, validated windows and a short shared cache. Claude requires version 2.1.273
+or later and runs isolated with safe mode, zero model turns, no session persistence, hooks, tools or MCP servers.
+Only global session and weekly limits are used; model-specific quotas are not substituted. It starts no model turn
+and APX reads no engine credentials. Other
 engines explicitly report unsupported or unavailable limits; session token counts are not account balances.
 The owner can turn quota visibility on or off with the compact Usage switch on each engine card. The core stores
 these choices independently of model power, filters disabled engines before account probes and hides pending/cached

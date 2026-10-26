@@ -169,6 +169,9 @@ function EngineBlock({ engine }: { engine: Report["engines"][number] }) {
       {engine.available && engine.source === "codex_app_server" && (
         <p className="usage__note">{t("engineUsage.codexSource")}</p>
       )}
+      {engine.available && engine.source === "claude_cli" && (
+        <p className="usage__note">{t("engineUsage.claudeSource")}</p>
+      )}
       {note && <p className="usage__note">{t(note)}</p>}
     </section>
   );

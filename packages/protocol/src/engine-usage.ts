@@ -13,7 +13,7 @@ export const EngineUsage = z.object({
   cli_installed: z.boolean(),
   available: z.boolean(),
   status: z.enum(["ok", "unavailable"]),
-  source: z.enum(["codex_app_server", "none"]),
+  source: z.enum(["codex_app_server", "claude_cli", "none"]),
   windows: z.array(EngineUsageWindow),
   reason: z.enum(["unsupported", "cli_not_found", "not_available"]).optional(),
 });

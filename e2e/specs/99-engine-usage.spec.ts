@@ -87,6 +87,42 @@ test("AI usage shows account windows, unavailable engines and a narrow-screen ac
   await expect(summary).toHaveCount(0);
 });
 
+test("Claude displays real account windows and its CLI source", async ({ page }) => {
+  await rpc("setup.finish");
+  await page.route("**/rpc/engines.usage", async (route) => {
+    await route.fulfill({
+      json: {
+        ok: true,
+        result: {
+          ...report,
+          engines: [
+            {
+              id: "claude",
+              label: "Claude",
+              cli_installed: true,
+              available: true,
+              status: "ok",
+              source: "claude_cli",
+              windows: [
+                { id: "primary", used_percent: 15, window_minutes: 300 },
+                { id: "secondary", used_percent: 87, window_minutes: 10080 },
+              ],
+            },
+          ],
+        },
+      },
+    });
+  });
+  await open(page);
+  await page.getByTestId("engine-usage-button").click();
+  const summary = page.getByTestId("engine-usage-summary");
+  await expect(summary.getByText("85% disponible")).toBeVisible();
+  await expect(summary.getByText("13% disponible")).toBeVisible();
+  await expect(summary.getByRole("img", { name: "Claude · Semanal: 87% usado" })).toBeVisible();
+  await expect(summary).toContainText("Fuente: cuota del plan de Claude (/usage)");
+  await expect(summary).not.toContainText("Sin fuente de cuota compatible");
+});
+
 test("AI usage recovers from a failed request without showing an invented balance", async ({ page }) => {
   await rpc("setup.finish");
   let fail = true;

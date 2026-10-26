@@ -23,6 +23,7 @@ export const enSysUsage = {
   "engineUsage.fiveHours": "5 hours",
   "engineUsage.weekly": "Weekly",
   "engineUsage.codexSource": "Source: Codex account limits",
+  "engineUsage.claudeSource": "Source: Claude plan limits (/usage)",
   "engineUsage.window": "{minutes}-minute window",
   "engineUsage.resets": "Resets {at}",
   "engineUsage.notInstalled": "CLI not found",
@@ -31,7 +32,7 @@ export const enSysUsage = {
   "engineUsage.unavailable": "Account limits unavailable",
   "engineUsage.source": "Source: {source}",
   "engineUsage.claudeNote":
-    "Claude Desktop and Claude Code: check Settings → Usage in Claude. APX does not read your credentials.",
+    "Claude plan limits through Claude Code 2.1.273 or later. Sign in to the CLI; APX does not read your credentials.",
   "engineUsage.opencodeNote":
     "OpenCode uses the account of the selected provider; there is no single OpenCode balance.",
   "engineUsage.antigravityNote":
