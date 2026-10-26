@@ -205,8 +205,23 @@ test("new chats preserve code policy, cache their transcript and reject malforme
   assert.equal(data.get().threadLoad[created.id], "ready");
   await actions.makeChat(newChatId({ agent: "roby" }));
   assert.equal(calls.length, 2);
+  assert.deepEqual(calls[1], ["threads.create", { kind: "loose", agent_id: "roby" }]);
   await assert.rejects(actions.makeChat("bad-id"), /not a new chat/);
   assert.equal(calls.length, 2);
+});
+
+test("new chat titles remain automatic while explicit names and code session settings are preserved", async (t) => {
+  const calls = rpc(t, { "threads.create": thread("created") });
+  await actions.makeChat(newChatId({ agent: "roby", project: "prj_1" }));
+  await actions.makeChat(newChatId({ agent: "roby", project: "prj_1", code: true }));
+  await actions.makeChat(newChatId({ agent: "roby", engine: "codex" }));
+  await actions.createThread({ agentId: "roby", title: "Budget" });
+  assert.deepEqual(calls, [
+    ["threads.create", { kind: "loose", agent_id: "roby", project_id: "prj_1" }],
+    ["threads.create", { kind: "code", agent_id: "roby", project_id: "prj_1", write: "ask" }],
+    ["threads.create", { kind: "code", agent_id: "roby", engine: "codex", title: "engine.newTitle" }],
+    ["threads.create", { kind: "loose", agent_id: "roby", title: "Budget" }],
+  ]);
 });
 
 test("read actions avoid already-read or missing chats and mark unread chats locally before the server responds", async (t) => {
