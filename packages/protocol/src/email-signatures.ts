@@ -92,7 +92,21 @@ export const EmailSignatures = z
     return new Set(keys).size === keys.length;
   }, "Duplicate signature account and sender");
 
+export const EmailSignatureKey = EmailSignatureEntry.pick({ transport: true, account: true, sender: true });
+
 export const emailSignatureMethods = {
+  "email.signature_upsert": {
+    params: z.object({ signature: EmailSignatureEntry, expected: EmailSignatureEntry.nullable() }).strict(),
+    result: z.object({ signature: EmailSignatureEntry }),
+    effect: true,
+    access: "human",
+  },
+  "email.signature_remove": {
+    params: z.object({ key: EmailSignatureKey, expected: EmailSignatureEntry }).strict(),
+    result: z.object({ removed: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
   "email.signatures_get": {
     params: z.object({}).strict(),
     result: z.object({ signatures: EmailSignatures }),

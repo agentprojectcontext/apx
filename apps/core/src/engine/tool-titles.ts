@@ -26,6 +26,7 @@ const TASK_STATE: Record<string, string> = {
 
 /** What apx_settings changed, by the area of its method ("Cambió un canal"). */
 const SETTING_AREA: Record<string, string> = {
+  email: "una firma de email",
   contacts: "un contacto",
   channels: "un canal",
   imessage: "iMessage",
