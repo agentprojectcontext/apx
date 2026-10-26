@@ -70,6 +70,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.stop": MACHINE,
   "browser.control": MACHINE,
   "system.update": MACHINE,
+  "system.update_prepare": MACHINE,
   "system.import_v1": MACHINE,
   "setup.finish": MACHINE,
   "setup.greet": MACHINE,
