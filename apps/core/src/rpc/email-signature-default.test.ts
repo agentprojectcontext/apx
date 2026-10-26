@@ -6,6 +6,42 @@ import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
 const fallback = { enabled: true, text: "Acme global", html: "<b>Acme global</b>" };
 
+for (const transport of ["gmail", "smtp"] as const) {
+  test(`${transport}: corrupt overrides cannot enable the global default`, async () => {
+    const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+    try {
+      const store = env.core.store;
+      const disabled = {
+        transport,
+        account: transport === "gmail" ? "user@example.com" : "mailbox-off",
+        sender: "user@example.com",
+        enabled: false,
+        text: "",
+      };
+      const selected = () => signatureFor(store, transport, disabled.account, disabled.sender);
+      store.settings.write("email_signature_default", fallback);
+      assert.equal(store.settings.get("email_signatures"), undefined);
+      assert.deepEqual(selected(), fallback);
+      store.settings.write("email_signatures", [disabled]);
+      assert.equal(selected(), undefined);
+      for (const corrupt of [
+        "[",
+        "null",
+        JSON.stringify([{ ...disabled, enabled: "false" }]),
+        JSON.stringify([disabled, { ...disabled, sender: "alias@example.com", html: "<script>x</script>" }]),
+      ]) {
+        store.settings.set("email_signatures", corrupt);
+        assert.equal(selected(), undefined, `Corrupt setting must block fallback: ${corrupt}`);
+      }
+      store.settings.write("email_signatures", []);
+      assert.deepEqual(selected(), fallback);
+    } finally {
+      await env.core.close();
+      await env.cleanup();
+    }
+  });
+}
+
 test("the optional default is independent of connections, owner-only and protected against stale edits", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   try {
@@ -38,6 +74,38 @@ test("the optional default is independent of connections, owner-only and protect
       agent.call("email.signature_default_set", { signature: null, expected: fallback }),
       /reserved to the owner/,
     );
+    const agentSocket = await agent.connect();
+    try {
+      const signature = {
+        transport: "smtp" as const,
+        account: "mailbox-one",
+        sender: "user@example.com",
+        ...fallback,
+      };
+      await assert.rejects(agentSocket.call("email.signature_default_get", {}), /reserved to the owner/);
+      await assert.rejects(
+        agentSocket.call("email.signature_default_set", { signature: null, expected: fallback }),
+        /reserved to the owner/,
+      );
+      await assert.rejects(agentSocket.call("email.signatures_get", {}), /reserved to the owner/);
+      await assert.rejects(
+        agentSocket.call("email.signatures_set", { signatures: [signature] }),
+        /reserved to the owner/,
+      );
+      await assert.rejects(
+        agentSocket.call("email.signature_upsert", { signature, expected: null }),
+        /reserved to the owner/,
+      );
+      await assert.rejects(
+        agentSocket.call("email.signature_remove", {
+          key: { transport: signature.transport, account: signature.account, sender: signature.sender },
+          expected: signature,
+        }),
+        /reserved to the owner/,
+      );
+    } finally {
+      agentSocket.close();
+    }
     await assert.rejects(
       env.client.call("email.signature_default_set", {
         signature: { ...fallback, html: "<script>x</script>" },
