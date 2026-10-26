@@ -8,23 +8,29 @@ it that way.
 
 Measured on a fresh install: the secretary, a new chat, default settings, no skills or MCP servers added.
 
-| Part | Budget | Now (2026-10-23) |
+| Part | Budget | Now (2026-10-25) |
 |---|---|---|
-| System prompt | 10,000 chars (about 2,300 tokens) | 5,301 chars (duplicated rules said once; the channels rule only with a channel on) |
-| Tool definitions (39, without the browser) | 30,000 chars (about 7,100 tokens) | 21,947 chars, about 5,200 tokens (attention_hours folded into apx_settings; the channel and contact tools and make_image only once a channel or an image service is on; repeats of system rules out of descriptions) |
+| System prompt | 10,000 chars (about 2,300 tokens) | 5,425 chars (the permission mode's text said here once instead of in every turn; the delegate and web rules short, their details in their tools) |
+| Tool definitions (39, without the browser) | 30,000 chars (about 7,100 tokens) | 22,349 chars, about 5,300 tokens (the channel and contact tools and make_image only once a channel or an image service is on; repeats of system rules out of descriptions) |
+| A turn's input before the message | — | 264 chars: one `[context]` line (time, channel, mode) and the roster when it changed |
 | Browser tools (8, lent by the desktop app) | — | 811 tokens |
 
 Together the two stay at about 6,400 tokens, half of Hermes and OpenClaw (about 13,000): the room above today's size
 is for what a new owner needs to find their way, not for padding. A channel turned on adds its seven tools (about
 3,900 chars) and the rule for them; an image service adds make_image (about 600).
 
+A realistic owner has its own budget in the same test: a WhatsApp channel with stickers, the computer allowed,
+instructions of their own, an "about" and a project with a 20,000-character AGENTS.md. Its project chat sends 15,060
+chars of system prompt (budget 16,500) and 26,620 of tools (29,000); its WhatsApp turn's input is 265 chars before the
+message (600). Before the fixed instructions left the turn and AGENTS.md was capped they were about 27,000 and 2,250.
+
 `apps/core/src/engine/prompt-budget.test.ts` fails past the budget; it fixes the temp folder and the build it names,
 so every machine measures the same. Raising it is allowed with a reason in the commit and the numbers here updated;
 trimming something else first is better.
 
-A project's own files (its AGENTS.md and `.apc/memory.md`) are not part of this budget: they reach its agents whole,
-and how long they are is the project's choice, kept by its own rules (this repo's AGENTS.md stays lean on purpose).
-Only past a safety limit of 200,000 characters are they cut, with a marker the agent and the owner see
+A project's own files are not part of this budget. Its AGENTS.md reaches every call up to 8,000 characters, with the
+headings of the rest and where to read them ([D-157](DECISIONS.md#d-157)); `.apc/memory.md` reaches its agents whole.
+Past a safety limit of 200,000 characters both are cut, with a marker the agent and the owner see
 ([D-110](DECISIONS.md#d-110)).
 
 How to stay within it:
@@ -36,6 +42,9 @@ How to stay within it:
   schema each ([D-053](DECISIONS.md#d-053)).
 - APX's own skills (`apps/core/src/skills/apx/`, how to change APX itself) are always there, so the catalog names
   them in one sentence (about 50 tokens) instead of a line each; their bodies load only with `load_skill`.
+- A turn's input carries data; a fixed instruction its chat calls for (the mode, how to write on a phone chat, voice
+  notes, stickers, the computer, a folder's write policy) is a closing section of the system prompt, told once
+  ([D-156](DECISIONS.md#d-156)). The owner sees what a call carried with "See what it received" on an answer.
 - What changes per turn (time, roster, memory, matched skills) goes in the turn's input, never in the system prompt:
   the system prompt stays byte-stable so the provider's prompt cache keeps it. What differs per chat or per release (the
   chat's temp folder, the APX version) closes the prompt, so every chat shares the cached prefix before it.

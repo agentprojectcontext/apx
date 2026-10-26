@@ -120,6 +120,10 @@
     "expect": ["shell"]
   },
   {
+    "ask": "(por WhatsApp) Mandame un sticker de festejo",
+    "expect": ["sticker_list"]
+  },
+  {
     "ask": "Hola, ¿cómo andás?",
     "expect": ["none"]
   }

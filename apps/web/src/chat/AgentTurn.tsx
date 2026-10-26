@@ -1,6 +1,6 @@
 import type { Agent, Message as Msg, Part, Thread } from "@apx/protocol";
-import { AgentAvatar, EngineIcon, MarkdownView, Message, MessageMeta } from "@apx/ui";
-import { type ReactNode, Suspense } from "react";
+import { AgentAvatar, EngineIcon, IconButton, Icons, MarkdownView, Message, MessageMeta } from "@apx/ui";
+import { type ReactNode, Suspense, useState } from "react";
 import { DeliveryTicks, ReactionList } from "../channels/MessageMarks.tsx";
 import { isSignal } from "../channels/signal.ts";
 import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
@@ -8,7 +8,7 @@ import { blobOf } from "../data/identity.ts";
 import { baseRef, effortLabel, splitRef } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { ChoicesPart, ConnectPart, InputPart, MediaGroup, SurfacePart } from "../lazy.ts";
+import { ChoicesPart, ConnectPart, InputPart, MediaGroup, ReceivedDialog, SurfacePart } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { copyableQuote } from "./CopyableQuote.tsx";
 import { runnableCode } from "./codeRunner.tsx";
@@ -82,6 +82,11 @@ export function AgentTurn({
       <AgentAvatar name={agent.name} blob={blobOf(agent)} size={24} animated={false} />
     </button>
   ) : undefined;
+  const [received, setReceived] = useState(false);
+  // What the model was sent for this answer, beside the answer's own controls.
+  const lookIn = message.run_id ? (
+    <IconButton size="sm" label={t("msg.received")} icon={<Icons.Eye size={13} />} onClick={() => setReceived(true)} />
+  ) : null;
   const effort = message.model ? splitRef(message.model).effort : undefined;
   const meta = (
     <MessageMeta
@@ -115,10 +120,14 @@ export function AgentTurn({
             actions={
               part.type === "text" ? (
                 <MessageActions thread={thread} message={message} text={part.text} speechKey={`${message.id}:${key}`}>
+                  {last && lookIn}
                   {last && actions}
                 </MessageActions>
               ) : last ? (
-                actions
+                <>
+                  {lookIn}
+                  {actions}
+                </>
               ) : undefined
             }
           >
@@ -141,6 +150,11 @@ export function AgentTurn({
           </Message>
         );
       })}
+      {received && message.run_id && (
+        <Suspense fallback={null}>
+          <ReceivedDialog run={message.run_id} onClose={() => setReceived(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }

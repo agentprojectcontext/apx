@@ -1,4 +1,5 @@
 import { publicInput } from "../domain/inputs.ts";
+import { RUN_CONTEXTS_KEPT } from "../domain/run-contexts.ts";
 import { publicRun } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
@@ -25,6 +26,12 @@ export function runHandlers(store: Store, engine: Engine) {
       const r = store.runs.get(run);
       if (!r) throw notFound(`run ${run}`);
       return publicRun(r);
+    },
+    "runs.context": ({ run }) => {
+      if (!store.runs.get(run)) throw notFound(`run ${run}`);
+      const c = store.runContexts.get(run);
+      if (!c) throw notFound(`the context of run ${run} (only the latest ${RUN_CONTEXTS_KEPT} runs keep it)`);
+      return c;
     },
     "runs.wait": async ({ run, timeout_s }) => {
       const r = await engine.wait(run, timeout_s * 1000);

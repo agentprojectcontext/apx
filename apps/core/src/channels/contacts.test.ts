@@ -152,7 +152,7 @@ test("an agent that answers SKIP sends nothing", async () => {
   );
   await new Promise((r) => setTimeout(r, 300));
   assert.equal(tg.messagesTo(MAG.id).length, sent, "nothing went back");
-  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /answer only SKIP/);
+  assert.match(String(llm.calls.at(-1)?.messages[0]?.content), /answer only SKIP/);
   // The chat's preview goes back to their words, never the signal.
   const shown = async () => (await env.client.call("threads.get", { thread })).thread.preview;
   await waitFor(async () => (await shown()) !== "SKIP", "preview restored");

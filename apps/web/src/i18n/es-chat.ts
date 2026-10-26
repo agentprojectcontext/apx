@@ -117,6 +117,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "msg.copied": "Copiado",
   "msg.fork": "Bifurcar en un chat nuevo",
   "msg.forkTitle": "{title} (bifurcación)",
+  "msg.received": "Ver lo que recibió",
   "msg.readAloud": "Leer en voz alta",
   "msg.quote": "Citar",
   "msg.reply": "Responder",

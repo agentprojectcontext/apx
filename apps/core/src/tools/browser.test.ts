@@ -187,8 +187,13 @@ test("the agent is told a send the owner asked for stays its own, not a hand-off
   const system = String(llm.calls[0]?.messages[0]?.content);
   assert.match(system, /A send, post or payment you can make stays yours: delegate only its preparation/);
   // A teammate's request is the owner's work: the agent makes the call and APX asks (DECISIONS.md#d-142).
-  assert.match(system, /never refuse it as relayed nor send the owner to repeat it to you/);
-  assert.match(system, /browser_snapshot wait_s/);
+  assert.match(system, /never refuse it as relayed, nor send the owner to repeat it to you/);
+  // How to drive the browser is in its tools, not in every prompt.
+  const open = llm.calls[0]?.tools.find((t) => t.function.name === "browser_open");
+  assert.match(
+    String(open?.function.description),
+    /browser_snapshot gives refs for browser_click and browser_type \(wait_s/,
+  );
 });
 
 test("browser_open loads in the tab the chat already uses, and new_tab opens another", async () => {

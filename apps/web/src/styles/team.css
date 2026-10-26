@@ -804,6 +804,9 @@
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-subtle);
 }
+.agentedit__hint.is-long {
+  color: var(--apx-warning-soft-fg);
+}
 .agentedit__prompt {
   display: flex;
   flex-direction: column;

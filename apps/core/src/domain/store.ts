@@ -21,6 +21,7 @@ import { nudgesRepo } from "./nudges.ts";
 import { personsRepo } from "./persons.ts";
 import { projectsRepo } from "./projects.ts";
 import { routinesRepo } from "./routines.ts";
+import { runContextsRepo } from "./run-contexts.ts";
 import { runsRepo } from "./runs.ts";
 import { harnessSessionsRepo, idempotencyRepo, settingsRepo } from "./settings.ts";
 import { sql } from "./sql.ts";
@@ -52,6 +53,7 @@ export function createStore(db: Db, bus: Bus) {
     modelLog: modelLogRepo(q),
     memorySources: memorySourcesRepo(q),
     runs: runsRepo(q, bus),
+    runContexts: runContextsRepo(q),
     auxCalls: auxCallsRepo(q),
     inputs: inputsRepo(q),
     approvals,
