@@ -778,6 +778,7 @@ export const en = {
   "link.go.chatNamed": "Open the chat “{name}”",
   "link.go.project": "Open the project",
   "link.go.projectNamed": "Open the project {name}",
+  "media.generating": "Generating images",
   "media.previous": "Previous",
   "media.next": "Next",
   "media.download": "Download",

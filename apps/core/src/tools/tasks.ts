@@ -236,7 +236,7 @@ export function taskTools(store: Store): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "Create a task, with an assignee and a description so it starts (subtasks too). Immediate self-assignment transfers execution: end this turn; do not duplicate work. Do this before delegating helpers. Your role's own work: create it; reviews, QA or another area's work: propose it. A delegate proposes to its caller; a global agent's task goes to the assignee's project. A promise: person, owed_by, due_at.",
+        "First task_list: if an open task is the same or close, continue that one. Create a task, with an assignee and a description so it starts (subtasks too). Immediate self-assignment transfers execution: end this turn; do not duplicate work. Do this before delegating helpers. Your role's own work: create it; reviews, QA or another area's work: propose it. A delegate proposes to its caller; a global agent's task goes to the assignee's project. A promise: person, owed_by, due_at.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
         description: z.string().max(5000).optional(),
