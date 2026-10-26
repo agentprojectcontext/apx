@@ -1,18 +1,27 @@
-import { Tag } from "@apx/ui";
-import { useEffect } from "react";
+import { Badge, Tooltip } from "@apx/ui";
+import { type ReactElement, useEffect } from "react";
 import { ensureTask, useTasks } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
-import { taskStatus } from "./taskStatus.ts";
+import { taskStatus, taskStatusTone } from "./taskStatus.ts";
 
-/** The persisted task state, independent of whether its chat currently has a running turn. */
-export function TaskStatus({ id }: { id: string }) {
+/** In lists the title stays clean; inside the chat the persisted status stays visible. */
+export function TaskStatus({ id, children }: { id: string; children?: ReactElement }) {
   const t = useT();
   const task = useTasks((s) => s.tasks[id]);
   const columns = useTasks((s) => s.columns);
   useEffect(() => ensureTask(id), [id]);
-  return task ? (
-    <span className="task-status" role="status" title={taskStatus(task, columns, t)}>
-      <Tag>{taskStatus(task, columns, t)}</Tag>
+  if (!task) return children ?? null;
+  const label = taskStatus(task, columns, t);
+  const badge = (
+    <Badge tone={taskStatusTone(task)} dot>
+      {label}
+    </Badge>
+  );
+  return children ? (
+    <Tooltip content={badge}>{children}</Tooltip>
+  ) : (
+    <span className="task-status" role="status" title={label}>
+      {badge}
     </span>
-  ) : null;
+  );
 }

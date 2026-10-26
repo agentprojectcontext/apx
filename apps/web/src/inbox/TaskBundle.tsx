@@ -68,8 +68,9 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
           <Icons.ListChecks size={14} className="taskbundle__icon" />
           {running && <Spinner size={12} />}
           {waiting && <Icons.Hand size={12} className="tree__waiting" />}
-          <span className="taskbundle__title">{title}</span>
-          <TaskStatus id={taskId} />
+          <TaskStatus id={taskId}>
+            <span className="taskbundle__title">{title}</span>
+          </TaskStatus>
           <span className="taskbundle__faces" aria-hidden>
             {who.slice(0, 3).map((a) => a && <AgentFace key={a.id} agent={a} size={16} />)}
           </span>

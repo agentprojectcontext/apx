@@ -14,6 +14,13 @@ export const columnLabel = (c: TaskColumn, t: T) => {
   return key ? t(key) : c.label;
 };
 
+export function taskStatusTone(task: Task): "brand" | "neutral" | "danger" | "warning" | "violet" | "info" {
+  if (task.state !== "open") return task.state === "done" ? "brand" : "danger";
+  if (task.awaits_owner) return "warning";
+  if (task.proposed || task.status === "review") return "violet";
+  return task.status === "doing" ? "info" : "neutral";
+}
+
 export function taskStatus(task: Task, columns: readonly TaskColumn[], t: T): string {
   if (task.state !== "open") return t(task.state === "done" ? "tasks.done" : "tasks.dropped");
   if (task.awaits_owner) return t("tasks.group.blocked");

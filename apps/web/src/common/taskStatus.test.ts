@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { Task } from "@apx/protocol";
 import { prefs } from "../data/prefs.ts";
 import { startI18n, t } from "../i18n/index.ts";
-import { taskStatus } from "./taskStatus.ts";
+import { taskStatus, taskStatusTone } from "./taskStatus.ts";
 
 prefs.set({ language: "en" });
 await startI18n();
@@ -28,6 +28,17 @@ const columns = [
   { id: "doing", label: "Doing" },
   { id: "custom", label: "Waiting for supplier" },
 ];
+
+test("task tones distinguish work, review and terminal states with the same lifecycle precedence", () => {
+  assert.equal(taskStatusTone(task), "info");
+  assert.equal(taskStatusTone({ ...task, awaits_owner: true }), "warning");
+  assert.equal(taskStatusTone({ ...task, state: "done", awaits_owner: true }), "brand");
+  assert.equal(taskStatusTone({ ...task, state: "dropped", awaits_owner: true }), "danger");
+  assert.equal(taskStatusTone({ ...task, proposed: true }), "violet");
+  assert.equal(taskStatusTone({ ...task, status: "review" }), "violet");
+  assert.equal(taskStatusTone({ ...task, status: "todo" }), "neutral");
+  assert.equal(taskStatusTone({ ...task, status: "custom" }), "neutral");
+});
 
 test("task labels follow persisted lifecycle before waiting flags and columns", () => {
   assert.equal(taskStatus(task, columns, t), "Doing");

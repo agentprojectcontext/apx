@@ -48,7 +48,15 @@ test("task context actions keep status live and archived conversations remain re
   await bundle.locator(".taskbundle__task").click({ button: "right" });
   await page.getByRole("menuitem", { name: "Espera tu respuesta", exact: true }).click();
   await expect(status).toHaveText("Necesita tu revisión");
-  await expect(bundle.getByRole("status")).toHaveText("Necesita tu revisión");
+  await expect(bundle.locator(".taskbundle__title")).toHaveText(task.title);
+  await expect(bundle.locator(".apx-badge")).toHaveCount(0);
+  await expect(status.locator(".apx-badge")).toHaveClass(/apx-tone--warning/);
+  await header.hover();
+  await bundle.locator(".taskbundle__title").hover();
+  const hint = page.locator(".apx-tooltip[data-open]");
+  await expect(hint).toHaveText("Necesita tu revisión");
+  await expect(hint.locator(".apx-badge__dot")).toBeVisible();
+  await expect(hint.locator(".apx-badge")).toHaveClass(/apx-tone--warning/);
   // The explicit overflow menu works on touch and from the keyboard without a right click.
   await bundle.getByRole("button", { name: "Acciones de la tarea" }).focus();
   await page.keyboard.press("Enter");
@@ -58,6 +66,7 @@ test("task context actions keep status live and archived conversations remain re
   await bundle.getByRole("button", { name: "Acciones de la tarea" }).click();
   await page.getByRole("menuitem", { name: "Hecha", exact: true }).click();
   await expect(status).toHaveText("Hecha");
+  await expect(status.locator(".apx-badge")).toHaveClass(/apx-tone--brand/);
   await bundle.locator(".taskbundle__task").click({ button: "right" });
   await expect(page.getByRole("menuitem", { name: "Mover a", exact: true })).toBeDisabled();
   await page.getByRole("menuitem", { name: "Reabrir", exact: true }).click();
@@ -91,7 +100,7 @@ test("task context actions keep status live and archived conversations remain re
   expect(await rpc("runs.list", { agent: agent.id })).toEqual(before);
   await page.setViewportSize({ width: 390, height: 844 });
   await open(page, `#project=${project.id}&tab=chats&thread=${detail.sessions[0]?.id}`);
-  await expect(header.getByRole("status").locator(".apx-tag")).toBeVisible();
+  await expect(header.getByRole("status").locator(".apx-badge")).toBeVisible();
   const bounds = await header.getByRole("status").boundingBox();
   expect(bounds).not.toBeNull();
   expect(bounds && bounds.x + bounds.width).toBeLessThanOrEqual(390);

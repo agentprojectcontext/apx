@@ -323,9 +323,8 @@
   min-width: 0;
   max-width: 140px;
 }
-.task-status .apx-tag,
-.chat__header--compact .task-status .apx-tag {
-  display: block;
+.task-status .apx-badge,
+.chat__header--compact .task-status .apx-badge {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
