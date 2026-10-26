@@ -1,4 +1,4 @@
-# Windows sees a feature or fix branch before it reaches release/v2: the same unit-test parts as verify's
+# Windows sees a feature or fix branch before it reaches main: the same unit-test parts as verify's
 # unit-portability job, on every push to feat/** and fix/** (or by hand). It never gates a release; verify does.
 name: windows
 

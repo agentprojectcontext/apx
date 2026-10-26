@@ -15,7 +15,7 @@ pnpm shots        # retake every screenshot against a demo core (see below)
 ```
 
 It is published at `https://agentprojectcontext.github.io/apx/` (`DOCS_BASE=/apx`, built by the Pages
-workflow on `main` from `release/v2`). The build also copies `scripts/install/install.sh` and `install.ps1` to the site's root,
+workflow on `main`). The build also copies `scripts/install/install.sh` and `install.ps1` to the site's root,
 so `<site>/install.sh` is the stable install URL; the older `/apx/v2/install.sh` stays served beside it. `<base>docs/`
 redirects to the first page.
 

@@ -18,7 +18,7 @@ export type Release = { version: string; previous?: string; changes: Change[] };
 export type ReleaseNotes = {
   /** The release this APX is ("2.3.33"). */
   version: string;
-  /** The branch it was built from ("release/v2"). */
+  /** The branch it was built from ("main"). */
   branch?: string;
   /** A checkout's folder, where `git log` reads the commits; none for a packaged APX. */
   repo_dir?: string;

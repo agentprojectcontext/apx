@@ -200,7 +200,7 @@ export const es: Partial<Record<MessageKey, string>> = {
     "Si solo usás la app de escritorio, mejor quitá el servicio y volvé a abrir APX: la app pasa a correr su propio core, siempre de la misma versión que la app.",
   "update.reload": "Panel nuevo · Recargar",
   "update.title": "Hay una versión nueva de APX",
-  "update.lead": "{n} cambios en release/v2 que este APX todavía no tiene:",
+  "update.lead": "{n} cambios en main que este APX todavía no tiene:",
   "update.leadRelease": "Salió APX {v}. Qué trae:",
   "update.leadByApp": "Salió APX {v}. Actualizalo desde la app de APX en la compu donde corre. Qué trae:",
   "update.leadApp": "Salió APX {v} (esta app es la {current}). Se descarga ahora y se instala cuando reinicies APX.",

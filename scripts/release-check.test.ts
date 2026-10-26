@@ -61,8 +61,8 @@ test("an unverified commit is never tagged, and a verified one is tagged and pus
     1,
   );
   assert.ok(!failed.calls.some((c) => c.startsWith("git tag") || c.startsWith("git push")));
-  // The run asked for is the commit's own on release/v2.
-  assert.ok(failed.calls.some((c) => c.includes(`--branch release/v2 --commit ${SHA}`)));
+  // The run asked for is the commit's own on main.
+  assert.ok(failed.calls.some((c) => c.includes(`--branch main --commit ${SHA}`)));
 
   const passed = fake([[run()]]);
   assert.equal(

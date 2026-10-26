@@ -196,7 +196,7 @@ export const en = {
     "If you only use the desktop app, remove the service instead and open APX again: the app then runs its own core, always the same version as the app.",
   "update.reload": "New panel · Reload",
   "update.title": "A newer APX is out",
-  "update.lead": "{n} changes on release/v2 that this APX does not have yet:",
+  "update.lead": "{n} changes on main that this APX does not have yet:",
   "update.leadRelease": "APX {v} is out. What it brings:",
   "update.leadByApp": "APX {v} is out. Update it from the APX app on the computer that runs it. What it brings:",
   "update.leadApp": "APX {v} is out (this app is {current}). It downloads now and goes in when APX restarts.",

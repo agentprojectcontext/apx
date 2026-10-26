@@ -1,17 +1,18 @@
 # The GitHub Pages site, once main holds v2 (RELEASE.md#where-v2-lives):
-#   /apx/      → v2's home and docs (apps/docs on release/v2), with install.sh and install.ps1 beside them
+#   /apx/      → v2's home and docs (apps/docs on main), with install.sh and install.ps1 beside them
 #   /apx/v1/   → v1's docs (docs/ on the v1 branch), marked as no longer maintained
 #   /apx/v2/   → where v2 lived before it was the release: install.sh and install.ps1 stay (installed apps and older
 #                docs give that address), and every other /apx/v2/… page lands on the same page at /apx/…
 # Old addresses (v1's /apx/docs/…, v2's /apx/v2/…) are sent on by the site's 404 page, the only redirect GitHub Pages
 # serves for a missing path.
-# release/v2's site.yml asks for this workflow when the docs or the install scripts change there.
 name: pages
 
 on:
   push:
     branches: [main]
     paths:
+      - "apps/docs/**"
+      - "scripts/install/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -35,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: release/v2
+          ref: main
           path: v2
       - uses: actions/checkout@v5
         with:

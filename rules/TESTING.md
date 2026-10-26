@@ -220,7 +220,7 @@ file (`App`, `main`, `shell/`, `inbox/`, `chat/`) that imports one of its module
 `e2e/specs/89-first-load.spec.ts` checks what opening the inbox fetches, its own late parts included.
 
 ## CI
-`.github/workflows/verify.yml` runs on every push to `release/v2` and every pull request. Every job starts from
+`.github/workflows/verify.yml` runs on every push to `main` and every pull request. Every job starts from
 `.github/actions/setup` (Node, `pnpm install`, and when the job needs them Playwright's Chromium and `apps/mobile`'s
 own install, both cached: the browser by Playwright's version, the mobile `node_modules` by its lockfile). The jobs
 start together:
@@ -245,7 +245,7 @@ the job stays green; failing again, the job is red ([D-145](DECISIONS.md#d-145))
 `.github/workflows/windows.yml` runs the same Windows parts on every push to `feat/**` and `fix/**` (or by hand),
 so Windows sees a branch before it merges.
 
-Tags: release tags build installers, and publication waits for the verify run of the exact commit on `release/v2`,
+Tags: release tags build installers, and publication waits for the verify run of the exact commit on `main`,
 without running the suites again. Tag only a commit that run already passed: `pnpm release:check --tag v2.x.y`
 ([RELEASE.md](RELEASE.md#tagging-a-release), AGENTS.md rule 28).
 

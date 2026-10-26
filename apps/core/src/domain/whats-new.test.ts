@@ -26,7 +26,7 @@ const release = (version: string): ReleaseSource => ({
   version: () => version,
   notes: () => ({
     version,
-    branch: "release/v2",
+    branch: "main",
     releases: RELEASES.filter((r) => r.version <= version),
   }),
 });
@@ -67,7 +67,7 @@ test("a new install starts quiet; the next release is told once, unread, with no
     const call = llm.calls.at(-1);
     const input = JSON.stringify(call?.messages.at(-1));
     assert.match(input, /\[release notes\] You posted here what APX's update to 2\.3\.33 changed/);
-    assert.match(input, /built from branch release\/v2/);
+    assert.match(input, /built from branch main/);
     assert.match(input, /compare\/v2\.3\.32\.\.\.v2\.3\.33/);
     const system = call?.messages.filter((m) => m.role === "system") ?? [];
     assert.ok(system.length);

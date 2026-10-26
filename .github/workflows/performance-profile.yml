@@ -5,7 +5,7 @@ name: Performance profile (diagnostic)
 on:
   workflow_dispatch:
   push:
-    branches: [release/v2]
+    branches: [main]
     paths: [.github/workflows/performance-profile.yml]
 
 permissions:

@@ -102,8 +102,8 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     Placeholders: Acme, Northwind, `user@example.com`, `~/work/…`. `[gate]` `pnpm check:private`.
 18. **Conventional commits** (`feat:`, `fix:`, `chore:`…); the release tooling will read them. Branches are named the
     same way (`feat/…`, `fix/…`, `docs/…`, `perf/…`, `chore/…`), never after a tool or an agent (`claude/…`, `codex/…`):
-    rename one before it is pushed. They start from and merge back into `release/v2` of `agentprojectcontext/apx`.
-    A commit that fixes a GitHub issue ends with an `Issue: #N` trailer. Once it is pushed to origin's `release/v2`,
+    rename one before it is pushed. They start from and merge back into `main` of `agentprojectcontext/apx` (v1 lives on branch `v1`).
+    A commit that fixes a GitHub issue ends with an `Issue: #N` trailer. Once it is pushed to origin's `main`,
     comment on the issue (what changed, the commit) and close it, in the same turn; the release adds the version
     later ([RELEASE.md](rules/RELEASE.md#issues-a-release-fixes)). `[review]`
 19. **Never weaken a gate to get green** (lint rule off, test skipped, type `any`). Downgrading a rule needs a
@@ -128,7 +128,7 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     change: `since` the release it ships in, `applies` only to owners it helps, a text for the super-agent to tell in
     its own words and one or two actions it can take ([What people are told](rules/RELEASE.md#what-people-are-told)).
     Commit subjects reach everyone as a list; news are the few things the super-agent offers to do. `[review]`
-28. **Only a verified commit is tagged.** A `v2.x.y` tag goes on a commit of `release/v2` whose `verify` run already
+28. **Only a verified commit is tagged.** A `v2.x.y` tag goes on a commit of `main` whose `verify` run already
     passed: `pnpm release:check --tag v2.x.y [ref]` checks that run and only then tags and pushes
     ([RELEASE.md](rules/RELEASE.md#tagging-a-release)). Never tag a commit whose run is red, missing or still going;
     fix it on the branch and tag the next one. `[gate]` `release:check`, and the publish job's own wait.

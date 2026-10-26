@@ -28,7 +28,7 @@ test("a checkout reads each release's notes from its tags, newest first", () => 
   const git = (...args: string[]) =>
     execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { cwd: dir, stdio: "pipe" });
   try {
-    git("init", "-q", "-b", "release/v2");
+    git("init", "-q", "-b", "main");
     const commit = (subject: string) => git("commit", "-q", "--allow-empty", "-m", subject);
     commit("feat: first");
     git("tag", "v2.0.0");
@@ -41,7 +41,7 @@ test("a checkout reads each release's notes from its tags, newest first", () => 
 
     const notes = notesFromGit(dir);
     assert.equal(notes?.version, "2.1.0", "the last tag the checkout is past");
-    assert.equal(notes?.branch, "release/v2");
+    assert.equal(notes?.branch, "main");
     assert.deepEqual(
       notes?.releases.map((r) => [r.version, r.previous, r.changes.map((c) => c.text)]),
       [

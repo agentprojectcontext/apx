@@ -34,7 +34,7 @@ messages or spends money on the owner's behalf).
 Convention-only today (review must catch them): no a2a side path (rule 2), untrusted content handling (rule 10),
 secrets by reference (rule 11), no tests reading source (rule 13), meaningful regression protection and affected
 consumer verification for fixes (rule 24; [contract](TESTING.md#fix-regression-contract)).
-CI (`verify.yml`) runs the gates on every push to `release/v2` and every pull request.
+CI (`verify.yml`) runs the gates on every push to `main` and every pull request.
 
 No lint ratchets outstanding: every package, `packages/ui` included, gets the full rule set (the former `packages/ui`
 override is closed — see [`DECISIONS.md#d-005`](DECISIONS.md#d-005)).
