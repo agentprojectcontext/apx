@@ -5,7 +5,7 @@ import { LINKS, STORAGE } from "../../constants";
 import { getLocale, t } from "../../i18n";
 
 /**
- * The invitation to the APX v2 beta: a chip in the top bar that stays, and a card
+ * The way to APX v2, now the release (v1 is no longer maintained): a chip in the top bar that stays, and a card
  * (a strip on the phone) that says it once.
  *
  * The chip is the way back after the card is closed, so it is never dismissed.

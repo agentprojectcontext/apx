@@ -29,7 +29,7 @@ export const STORAGE = {
   // not a decision about the next one.
   updateDismissed: "apx.update.dismissed",
   starDismissed: "apx.star.dismissed",
-  v2Dismissed: "apx.v2.dismissed",
+  v2Dismissed: "apx.v2.release.dismissed",
 } as const;
 
 /** Links that live outside the daemon. */
@@ -40,8 +40,8 @@ export const LINKS = {
   // times a week, so "latest" is almost never the release that carries an APK.
   androidApk: "https://github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk",
   androidDocs: "https://agentprojectcontext.github.io/apx/docs/surfaces/install-android/",
-  v2Site: "https://agentprojectcontext.github.io/apx/v2/",
-  v2SiteEs: "https://agentprojectcontext.github.io/apx/v2/es/",
+  v2Site: "https://agentprojectcontext.github.io/apx/start/from-v1/#upgrade-from-v1",
+  v2SiteEs: "https://agentprojectcontext.github.io/apx/es/start/from-v1/#actualizar-desde-v1",
 } as const;
 
 /** Tailwind class tokens reused across components. */

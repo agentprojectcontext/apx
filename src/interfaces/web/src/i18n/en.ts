@@ -2486,11 +2486,11 @@ export const en = {
   },
 
   try_v2: {
-    chip:                "Try APX v2 beta",
+    chip:                "Upgrade to APX v2",
     chip_short:          "APX v2",
-    title:               "APX v2 is out in beta",
-    desc:                "The next APX: a desktop app, a phone app and a new panel. It brings your v1 projects, agents and chats in when you ask.",
-    cta:                 "See APX v2",
+    title:               "APX v1 is no longer maintained: APX v2 is the release now",
+    desc:                "The new APX: a desktop app, a phone app and a new panel. It brings your v1 projects, agents and chats in when you ask.",
+    cta:                 "Upgrade to APX v2",
   },
 
   community: {

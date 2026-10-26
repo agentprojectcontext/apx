@@ -11,7 +11,7 @@ import { t } from "../../i18n";
  * One corner, a deck of cards.
  *
  * Five things want to be said to someone opening the panel — turn notifications
- * on, APX v2 is in beta, there is a Discord, there is a newer APX, the repo takes
+ * on, APX v2 is the release, there is a Discord, there is a newer APX, the repo takes
  * stars — and all five at once is a wall you close five times before you can read the screen
  * behind it. They queue instead: the first one that applies is the only one
  * visible, and closing it brings the next.

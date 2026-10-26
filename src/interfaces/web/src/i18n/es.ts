@@ -2495,11 +2495,11 @@ export const es = {
   },
 
   try_v2: {
-    chip:                "Probá APX v2 beta",
+    chip:                "Pasate a APX v2",
     chip_short:          "APX v2",
-    title:               "APX v2 ya está en beta",
-    desc:                "El próximo APX: app de escritorio, app para el celular y un panel nuevo. Trae tus proyectos, agentes y chats de v1 cuando se lo pedís.",
-    cta:                 "Ver APX v2",
+    title:               "APX v1 ya no se mantiene: APX v2 es la versión oficial",
+    desc:                "El APX nuevo: app de escritorio, app para el celular y un panel nuevo. Trae tus proyectos, agentes y chats de v1 cuando se lo pedís.",
+    cta:                 "Pasar a APX v2",
   },
 
   community: {
