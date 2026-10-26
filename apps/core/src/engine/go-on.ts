@@ -22,7 +22,22 @@ export function goOn(
   const ids = tree(store, threadId);
   const top = ids[0] ?? threadId;
   const at = new Date().toISOString();
-  store.threads.mergeContext(top, mode === "reset" ? { budget_from: at } : { released_at: at });
+  store.tx(() => {
+    store.threads.mergeContext(top, mode === "reset" ? { budget_from: at } : { released_at: at });
+    for (const id of ids) {
+      for (const code of ["breaker.paused", "breaker.held"]) {
+        for (const message of store.messages.notices(id, code)) {
+          let changed = false;
+          const parts = message.parts.map((part) => {
+            if (part.type !== "notice" || part.code !== code || part.vars?.resolved) return part;
+            changed = true;
+            return { ...part, vars: { ...part.vars, resolved: mode } };
+          });
+          if (changed) store.messages.update({ ...message, parts });
+        }
+      }
+    }
+  });
   let started = startHeld(store, admit, ids);
   for (const id of ids) {
     started += release(id);

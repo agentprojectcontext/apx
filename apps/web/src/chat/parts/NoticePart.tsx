@@ -37,7 +37,7 @@ export function NoticePart({ part }: { part: NoticeData }) {
     <span className="noticeline__actions">
       {thread && (
         <Suspense fallback={null}>
-          <GoOn thread={thread} />
+          <GoOn thread={thread} resolved={part.vars?.resolved === "reset" || part.vars?.resolved === "release"} />
         </Suspense>
       )}
       {session && (
