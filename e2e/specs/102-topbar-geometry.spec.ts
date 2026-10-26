@@ -31,14 +31,9 @@ test("search stays centered with unequal sides and activity precedes notificatio
   await expect(page.locator(".topbar__activity > :first-child")).toHaveClass(/running/);
 });
 
-test("unknown usage preferences never preview the engine catalog or a fictional balance", async ({ page }) => {
+test("pending usage has one anonymous preview until the empty report arrives", async ({ page }) => {
   await rpc("setup.finish");
-  const preferences = Promise.withResolvers<void>();
   const usage = Promise.withResolvers<void>();
-  await page.route("**/rpc/engines.usage_preferences", async (route) => {
-    await preferences.promise;
-    await route.fulfill({ json: { ok: true, result: { engines: {} } } });
-  });
   await page.route("**/rpc/engines.usage", async (route) => {
     await usage.promise;
     await route.fulfill({ json: { ok: true, result: { checked_at: new Date().toISOString(), engines: [] } } });
@@ -50,14 +45,14 @@ test("unknown usage preferences never preview the engine catalog or a fictional 
   await expect(loading.getByRole("heading")).toHaveCount(0);
   await expect(loading.locator("section")).toHaveCount(1);
   await expect(loading).not.toContainText("100%");
-  preferences.resolve();
-  await expect(loading.locator("section")).toHaveCount(0);
   usage.resolve();
   await expect(page.getByTestId("engine-usage-summary")).toContainText("No hay engines seleccionados");
   await expect(page.getByTestId("engine-usage-summary").locator(".apx-meter")).toHaveCount(0);
 });
 
-test("selected engines missing from the installed catalog retain a loading slot", async ({ page }) => {
+test("selected engines missing from the installed catalog still use one anonymous loading preview", async ({
+  page,
+}) => {
   await rpc("setup.finish");
   for (const engine of ["codex", "opencode", "claude", "antigravity"])
     await rpc("engines.set_usage", { engine, enabled: engine === "codex" || engine === "opencode" });
@@ -94,9 +89,8 @@ test("selected engines missing from the installed catalog retain a loading slot"
   await open(page);
   await page.getByTestId("engine-usage-button").click();
   const loading = page.getByTestId("usage-loading");
-  await expect(loading.locator("section")).toHaveCount(2);
-  await expect(loading.getByRole("heading")).toHaveCount(1);
-  await expect(loading.getByRole("heading")).toHaveText("Codex");
+  await expect(loading.locator("section")).toHaveCount(1);
+  await expect(loading.getByRole("heading")).toHaveCount(0);
   usage.resolve();
   const summary = page.getByTestId("engine-usage-summary");
   await expect(summary.getByRole("heading", { name: "OpenCode", exact: true })).toBeVisible();

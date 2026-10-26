@@ -44,12 +44,15 @@ test("el consumo IA mantiene tarjetas skeleton al cargar, actualizar y reabrir",
   await open(page);
   const trigger = page.getByTestId("engine-usage-button");
   expect(codeRequested).toBe(false);
+  await expect.poll(() => calls).toBe(1);
+  await expect(trigger).toHaveAttribute("aria-busy", "true");
+  await expect(trigger.locator(".apx-skeleton")).toBeVisible();
+  await expect(trigger).toHaveText("");
   await trigger.click();
   await expect.poll(() => codeRequested).toBe(true);
   const preview = page.getByTestId("usage-loading");
   await expect(preview).toBeVisible();
-  await expect(preview.getByRole("heading", { name: "Codex", exact: true })).toBeVisible();
-  await expect(preview.getByRole("heading")).toHaveCount(1);
+  await expect(preview.getByRole("heading")).toHaveCount(0);
   await expect(preview.locator("section")).toHaveCount(1);
   expect((await preview.boundingBox())?.height).toBeGreaterThanOrEqual(300);
   await expect(preview.locator(".apx-skeleton").first()).toBeVisible();
@@ -85,6 +88,44 @@ test("el consumo IA mantiene tarjetas skeleton al cargar, actualizar y reabrir",
   pending.release();
   await expect(summary.getByText("20% disponible")).toBeVisible();
 });
+
+for (const outcome of ["ready", "empty", "failed"] as const) {
+  test(`el botón de IA carga al arrancar sin abrirse y termina en ${outcome}`, async ({ page }) => {
+    await rpc("setup.finish");
+    const pending = gate();
+    let calls = 0;
+    await page.route("**/rpc/engines.usage", async (route) => {
+      calls++;
+      await pending.wait;
+      await route.fulfill({
+        json:
+          outcome === "failed"
+            ? { ok: false, error: { code: "unavailable", message: "Not available" } }
+            : { ok: true, result: outcome === "empty" ? { ...report, engines: [] } : report },
+      });
+    });
+    await open(page);
+    const trigger = page.getByTestId("engine-usage-button");
+    await expect.poll(() => calls).toBe(1);
+    await expect(trigger).toHaveAttribute("aria-busy", "true");
+    for (const width of [1836, 1280, 390, 320]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(trigger.locator(".apx-skeleton")).toBeVisible();
+      const overflow = await page.locator(".topbar").evaluate((bar) => bar.scrollWidth - bar.clientWidth);
+      expect(overflow, `loading overflow ${width}`).toBeLessThanOrEqual(1);
+    }
+    await page.setViewportSize({ width: 1836, height: 900 });
+    await expect(trigger).toHaveText("");
+    await expect(page.getByTestId("engine-usage-summary")).toHaveCount(0);
+    pending.release();
+    await expect(trigger).toHaveAttribute("aria-busy", "false");
+    await expect(trigger.locator(".apx-skeleton")).toHaveCount(0);
+    await expect(page.getByTestId("engine-usage-quick")).toHaveCount(outcome === "ready" ? 1 : 0);
+    if (outcome === "ready") await expect(page.getByTestId("engine-usage-quick")).toHaveText("63%");
+    await expect(page.getByTestId("engine-usage-summary")).toHaveCount(0);
+    expect(calls).toBe(1);
+  });
+}
 
 test("el consumo de sistema tiene preview también mientras llega el código lazy y la lectura detallada", async ({
   page,

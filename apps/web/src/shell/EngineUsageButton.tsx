@@ -1,8 +1,7 @@
 import type { Result } from "@apx/protocol";
-import { IconButton, Icons, Popover } from "@apx/ui";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { IconButton, Icons, Popover, Skeleton } from "@apx/ui";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
-import { useData } from "../data/state.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { EngineUsageSummary } from "../lazy.ts";
 import EngineUsageQuick, { quickWindows } from "./EngineUsageQuick.tsx";
@@ -17,6 +16,11 @@ export default function EngineUsageButton() {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [quick, setQuick] = useState<Report>();
+  const [loading, setLoading] = useState(true);
+  const onReport = useCallback((report: Report | undefined) => {
+    setQuick(report);
+    setLoading(false);
+  }, []);
   const visible = useVisible();
   const load = useMemo(() => sharedUsageRequest(() => client.call("engines.usage", {})), []);
   useEffect(() => {
@@ -25,10 +29,10 @@ export default function EngineUsageButton() {
     const read = () =>
       void load().then(
         (report) => {
-          if (active) setQuick(report);
+          if (active) onReport(report);
         },
         () => {
-          if (active) setQuick(undefined);
+          if (active) onReport(undefined);
         },
       );
     read();
@@ -37,7 +41,7 @@ export default function EngineUsageButton() {
       active = false;
       clearInterval(timer);
     };
-  }, [visible, open, load]);
+  }, [visible, open, load, onReport]);
   const previews = quickWindows(quick);
   const tooltip = [
     t("engineUsage.title"),
@@ -64,22 +68,25 @@ export default function EngineUsageButton() {
           label={t("engineUsage.title")}
           tooltip={tooltip}
           data-testid="engine-usage-button"
+          aria-busy={loading}
           icon={
             <>
               <span className="engine-usage-trigger__fallback">
                 <Icons.Zap size={14} />
               </span>
-              {previews.length ? (
+              {loading ? (
+                <span className="engine-usage-trigger__loading">
+                  <Skeleton width="100%" height={14} />
+                </span>
+              ) : previews.length ? (
                 <EngineUsageQuick report={quick} />
-              ) : (
-                <span className="engine-usage-trigger__label">{t("engineUsage.button")}</span>
-              )}
+              ) : null}
             </>
           }
         />
       }
     >
-      {open && <EngineUsageContent onClose={() => setOpen(false)} onReport={setQuick} load={load} />}
+      {open && <EngineUsageContent onClose={() => setOpen(false)} onReport={onReport} load={load} />}
     </Popover>
   );
 }
@@ -94,27 +101,7 @@ function EngineUsageContent({
   load: () => Promise<Report>;
 }) {
   const [generation, setGeneration] = useState(0);
-  const engines = useData((s) => s.engines);
-  const [enabled, setEnabled] = useState<Record<string, boolean>>();
-  useEffect(() => {
-    let active = true;
-    void client.call("engines.usage_preferences", {}).then(
-      (prefs) => {
-        if (active) setEnabled(prefs.engines);
-      },
-      () => undefined,
-    );
-    return () => {
-      active = false;
-    };
-  }, []);
-  const labels = Object.entries(enabled ?? {})
-    .filter(([, selected]) => selected)
-    .map(
-      ([id]) => engines.find((engine) => (engine.id === "acp:opencode" ? "opencode" : engine.id) === id)?.label ?? "",
-    );
-  const slots = enabled ? labels.length : 1;
-  const preview = <UsageLoading labels={labels} slots={slots} />;
+  const preview = <UsageLoading slots={1} />;
   return usePack("usage") ? (
     <Suspense fallback={preview}>
       <EngineUsageSummary
@@ -123,8 +110,6 @@ function EngineUsageContent({
         onReport={onReport}
         load={load}
         onRefresh={() => setGeneration((n) => n + 1)}
-        labels={labels}
-        slots={slots}
       />
     </Suspense>
   ) : (

@@ -44,7 +44,6 @@ export const en = {
   ...enResources,
   ...enEngines,
   ...enTelemetry,
-  "engineUsage.button": "Usage",
   "engineUsage.title": "AI usage",
   "engineUsage.quick": "{engine}: {pct}% available · {window} (most constrained window)",
   "sysUsage.title": "Usage",

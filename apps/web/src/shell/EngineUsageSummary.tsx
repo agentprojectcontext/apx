@@ -19,15 +19,11 @@ export default function EngineUsageSummary({
   onReport,
   onRefresh,
   load,
-  labels,
-  slots,
 }: {
   onClose: () => void;
   onReport: (report: Report | undefined) => void;
   onRefresh: () => void;
   load: () => Promise<Report>;
-  labels: string[];
-  slots: number;
 }) {
   const t = useT();
   const [loading, setLoading] = useState(true);
@@ -79,7 +75,7 @@ export default function EngineUsageSummary({
           <span className="apx-sr-only" role="status">
             {t("engineUsage.loading")}
           </span>
-          <UsageLoading labels={labels} slots={slots} />
+          <UsageLoading slots={1} />
         </>
       )}
       {failed && (

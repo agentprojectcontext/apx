@@ -41,12 +41,19 @@
 .engine-usage-quick__ring > * {
   grid-area: 1 / 1;
 }
-.engine-usage-trigger:has(.engine-usage-quick) .engine-usage-trigger__fallback {
+.engine-usage-trigger:has(.engine-usage-quick) .engine-usage-trigger__fallback,
+.engine-usage-trigger[aria-busy="true"] .engine-usage-trigger__fallback {
   display: none;
 }
+.engine-usage-trigger__loading {
+  display: inline-flex;
+  width: 60px;
+}
 @container topbar (max-width: 1499px) {
-  .engine-usage-trigger .engine-usage-quick,
-  .engine-usage-trigger .engine-usage-trigger__label {
+  .engine-usage-trigger__loading {
+    width: 14px;
+  }
+  .engine-usage-trigger .engine-usage-quick {
     display: none;
   }
   .engine-usage-trigger:has(.engine-usage-quick) .engine-usage-trigger__fallback {
