@@ -12,6 +12,7 @@ export const esEmailSignatures = {
     "Sin permiso para importar firmas de Gmail: copiala acá. No modifica Gmail ni borradores existentes.",
   "signature.noAccounts": "Conectá Gmail en Recursos o un canal Email en Configuración para configurar su firma.",
   "signature.loading": "Cargando firmas…",
+  "signature.save": "Guardar firma",
   "signature.saved": "Configuración de firma guardada",
   "signature.error": "No pude guardar la firma. Revisá el texto obligatorio y el HTML admitido e intentá de nuevo.",
   "signature.remove": "Quitar firma",

@@ -61,6 +61,8 @@ export async function loadChannels(): Promise<void> {
 }
 
 export type ChannelDraft = {
+  type?: ChannelInfo["type"];
+  label?: string;
   agent_id: string;
   enabled: boolean;
   strangers: ChannelInfo["strangers"];
@@ -117,8 +119,12 @@ export async function saveChannel(id: string, draft: ChannelDraft | null, token?
   try {
     const r = await client.call("channels.set", {
       id,
-      // One channel per kind for now: its id is its type.
-      channel: draft ? { type: TYPES.find((k) => k === id) ?? "telegram", ...draft } : null,
+      channel: draft
+        ? {
+            type: before.find((c) => c.id === id)?.type ?? TYPES.find((k) => k === id) ?? "telegram",
+            ...draft,
+          }
+        : null,
       ...(token ? { token } : {}),
     });
     store.set({ channels: r.channels });

@@ -169,7 +169,7 @@ function EmailSignaturesBody({ fixedTarget: initialTarget }: { fixedTarget?: Tar
               </div>
               <div className="pform__actions">
                 <Button disabled={busy || !draft.text.trim()} loading={busy} onClick={() => void save()}>
-                  {t("common.save")}
+                  {t("signature.save")}
                 </Button>
                 <Button
                   variant="secondary"

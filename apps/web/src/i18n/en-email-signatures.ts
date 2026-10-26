@@ -12,6 +12,7 @@ export const enEmailSignatures = {
     "No permission to import Gmail signatures: copy yours here. Gmail settings and existing drafts stay unchanged.",
   "signature.noAccounts": "Connect Gmail in Resources or an Email channel in Settings to configure its signature.",
   "signature.loading": "Loading signatures…",
+  "signature.save": "Save signature",
   "signature.saved": "Signature settings saved",
   "signature.error": "Could not save the signature. Check the required text and supported HTML, then retry.",
   "signature.remove": "Remove signature",
