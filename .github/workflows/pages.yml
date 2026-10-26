@@ -69,6 +69,7 @@ jobs:
           PNPM="$(node -p "require('./package.json').packageManager")"
           npx --yes "$PNPM" install --frozen-lockfile
           npx --yes "$PNPM" build
+          npx --yes "$PNPM" check
           test -f dist/install.sh && test -f dist/install.ps1
 
       - name: Assemble the site

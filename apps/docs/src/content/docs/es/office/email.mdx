@@ -1,0 +1,50 @@
+---
+title: Email y firmas
+description: Conectá una casilla, prepará o enviá correos y configurá la firma local de cada remitente.
+sidebar:
+  order: 9
+---
+
+## Elegí cómo conectar
+
+Conectá **Gmail** en **Recursos › Integraciones**, o configurá una casilla SMTP como canal de **Email** en
+**Ajustes › Canales**. Para recibir mensajes de la casilla, configurá el IMAP del canal Email. Son conexiones
+distintas: conectar Google Calendar no conecta también Gmail.
+
+Con el inicio de sesión limitado de APX, Gmail puede enviar correos. Para buscar y leer Gmail y preparar
+borradores, conectalo con **Mi propio cliente OAuth**. El diálogo te guía en la configuración. Consultá
+[Integraciones](/es/extend/integrations/) para los permisos de Google y [Canales](/es/channels/overview/) para los
+correos entrantes y los límites de los contactos.
+
+## Pedile a tu agente que prepare un mensaje
+
+Decile quién lo recibe, qué querés decir y si querés un borrador o un envío. Enviar es una acción fuerte y pide
+confirmación salvo en modo Total. Crear un borrador de Gmail no lo envía; enviarlo es otra acción. No tomes las
+instrucciones de un correo entrante como tu autorización para enviar mensajes.
+
+## Una firma por remitente
+
+**En la rama de desarrollo posterior a 2.11.0**, **Ajustes › Cuenta › Firmas de email** te deja elegir un remitente
+Gmail o una cuenta SMTP conectados y configurar su firma local. No está en el tag 2.11.0:
+
+- Activá o desactivá que se agregue automáticamente para ese remitente.
+- Escribí la firma de texto plano obligatoria.
+- Si querés, agregá HTML básico con formato, enlaces e imágenes alojadas en HTTPS. Los atributos llevan comillas
+  dobles. No se admiten scripts, estilos ni imágenes incrustadas.
+- Guardala, o eliminala si ya no la querés.
+
+Los mensajes nuevos y las respuestas usan automáticamente la firma habilitada que corresponde. Pedile al agente
+que la omita en un mensaje cuando lo necesites. **Los borradores existentes de Gmail se envían sin cambios**:
+enviarlos no agrega la firma de hoy ni reescribe lo que ya revisaste.
+
+APX no pide acceso a los ajustes de Gmail y no puede importar tu firma de Gmail. Copiala vos a APX.
+Solo cambia la firma guardada localmente en APX, no los ajustes de Gmail. Si desconectás una casilla, su firma
+puede quedar en los ajustes de Cuenta para que la borres manualmente.
+
+## Dejá que tu superagente la configure
+
+**En la rama de desarrollo posterior a 2.11.0**, el superagente puede leer los remitentes configurados y proponer
+un cambio de firma local desde los ajustes de APX. Pide tu confirmación antes de aplicarlo; no modifica los
+ajustes de Gmail ni envía mensajes. Si alguien editó la firma mientras tanto, requiere volver a leerla en vez de
+sobrescribirla. Tanto los ajustes manuales de firmas como los cambios asistidos por el agente son posteriores
+al tag 2.11.0; revisá tu versión instalada antes de buscarlos.

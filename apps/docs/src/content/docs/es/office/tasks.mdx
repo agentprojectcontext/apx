@@ -71,6 +71,15 @@ Las tareas asignadas que nunca arrancaron se retoman solas: una vez por hora, la
 Para que una arranque más tarde (mañana a la mañana, después de una salida a producción), poné **Empieza** en su
 panel, o `apx tasks add … --start 2026-10-23T09:00`: su agente arranca a esa hora, no cuando la asignás.
 
+### Pasar el trabajo actual a una tarea
+
+**En la rama de desarrollo posterior a 2.11.0**, cuando un agente se asigna de inmediato su trabajo actual como
+una tarea nueva, APX transfiere la ejecución al chat de la tarea. El turno original deja de ejecutar herramientas;
+el chat de la tarea recibe un resumen acotado del pedido y los hallazgos recientes para seguir sin repetir la
+investigación. Esto no impide otros chats paralelos con trabajo distinto. Si el turno ya tiene ayudantes u otro
+trabajo activo, o no puede transferirlo con seguridad, APX rechaza la transferencia y el agente debe seguir ahí,
+no iniciar un segundo ejecutor.
+
 ### Comentarios y @menciones
 
 Escribí en el cuadro **Comentario** de la tarea. Un comentario que no nombra a nadie espera un minuto (por si sumás
