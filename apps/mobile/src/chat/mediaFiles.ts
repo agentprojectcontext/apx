@@ -1,5 +1,6 @@
 // Media from the core as files on the phone: fetched once through media.get into the cache, then shown, played,
 // shared or saved from there.
+import { randomUUID } from "expo-crypto";
 import { Directory, File, Paths } from "expo-file-system";
 import { Asset, type GranularPermission, getPermissionsAsync, requestPermissionsAsync } from "expo-media-library";
 import * as Sharing from "expo-sharing";
@@ -7,7 +8,7 @@ import { Alert, Linking } from "react-native";
 import { t } from "../i18n";
 import type { ApxClient } from "../protocol";
 import { flash } from "../ui/Flash";
-import { fileName, type MediaItem } from "./media";
+import { fileName, galleryFileName, type MediaItem } from "./media";
 
 const loading = new Map<string, Promise<string>>();
 
@@ -64,6 +65,11 @@ export async function shareMedia(client: ApxClient, item: MediaItem): Promise<vo
 /** A copy in the phone's gallery (pictures and videos). */
 export async function saveMedia(client: ApxClient, item: MediaItem): Promise<void> {
   try {
+    const name = galleryFileName(item);
+    if (!name) {
+      await shareMedia(client, item);
+      return;
+    }
     const kinds: GranularPermission[] = [item.kind === "video" ? "video" : "photo"];
     // Asking again when already allowed still starts the system's permission screen, which pauses the app.
     const allowed =
@@ -72,8 +78,17 @@ export async function saveMedia(client: ApxClient, item: MediaItem): Promise<voi
       Alert.alert(t("galleryDenied"), t("galleryDeniedBody"));
       return;
     }
-    await Asset.create(await mediaFile(client, item));
-    flash(t("savedToGallery"), "Download");
+    const source = new File(await mediaFile(client, item));
+    const dir = new Directory(Paths.cache, `gallery-${randomUUID()}`);
+    dir.create();
+    try {
+      const copy = new File(dir, name);
+      source.copy(copy);
+      await Asset.create(copy.uri);
+      flash(t("savedToGallery"), "Download");
+    } finally {
+      dir.delete();
+    }
   } catch (error) {
     failed(t("couldNotSave"))(error);
   }
