@@ -5,7 +5,6 @@ import type { LogEntry } from "../domain/model-log.ts";
 // - input: this turn's item, with what changes per turn (time, roster when it changed) and the origin envelope.
 
 import { createHash } from "node:crypto";
-import path from "node:path";
 import type { Autonomy, Organization, PromptPart, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { answersChecked, type Origin } from "../domain/runs.ts";
@@ -78,41 +77,11 @@ export function workerPrompt(
     .join("\n");
 }
 
-/** How much of a project's AGENTS.md every model call carries; the rest is read with file_read (DECISIONS.md#d-157). */
-export const AGENTS_MD_PROMPT_CHARS = 8_000;
-/** The left-out headings listed, at most. */
-const HEADINGS_CHARS = 1_500;
-
-/**
- * A project's AGENTS.md as the prompt carries it: whole up to AGENTS_MD_PROMPT_CHARS, else its start cut at a heading
- * or a line end, the headings left out and where to read them.
- */
-export function agentsMdBrief(text: string, file = "AGENTS.md", max = AGENTS_MD_PROMPT_CHARS): string {
-  if (text.length <= max) return text;
-  const heading = text.lastIndexOf("\n#", max);
-  const line = text.lastIndexOf("\n", max);
-  const end = heading >= max * 0.6 ? heading + 1 : line >= max * 0.8 ? line + 1 : max;
-  const rest = text.slice(end);
-  const headings: string[] = [];
-  let used = 0;
-  for (const h of rest.match(/^#{1,4} .+$/gm) ?? []) {
-    used += h.length + 2;
-    if (used > HEADINGS_CHARS) {
-      headings.push("…");
-      break;
-    }
-    headings.push(h.trim());
-  }
-  const from = text.slice(0, end).split("\n").length;
-  return `${text.slice(0, end).trimEnd()}\n\n[AGENTS.md goes on from line ${from} (${rest.length} more characters)${headings.length ? `, with: ${headings.join("; ")}` : ""}. Read it with file_read path=${file} offset=${from} before acting on anything those parts may cover.]`;
-}
-
-/** What of a project's AGENTS.md its prompt carries, read from its folder past the cut. */
-export const agentsMdOf = (p: { context?: string | undefined; path?: string | undefined }) =>
-  agentsMdBrief(p.context ?? "", p.path ? path.join(p.path, "AGENTS.md") : undefined);
+/** A project's AGENTS.md as the prompt carries it: whole, past only the read's safety limit (DECISIONS.md#d-158). */
+export const agentsMdOf = (p: { context?: string | undefined }) => p.context ?? "";
 
 /** The project's heading and its AGENTS.md, as the prompt says them. */
-const projectBlock = (p: { name: string; context?: string | undefined; path?: string | undefined }) =>
+const projectBlock = (p: { name: string; context?: string | undefined }) =>
   `\n## Project: ${p.name}${p.context ? `\nIts AGENTS.md:\n\n${agentsMdOf(p)}` : ""}`;
 
 /** Where temporary files go; one path per chat, so the prompt stays cacheable. */
