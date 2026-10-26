@@ -34,6 +34,7 @@ const AS_OWNER = "the owner's own word: their answer, their send, their read";
 
 /** Owner methods no agent calls, by reason. */
 export const OWNER_ONLY: Readonly<Record<string, string>> = {
+  "engines.set_usage": "the owner chooses whether APX queries and displays their external account limits",
   "secrets.set": SECRET,
   "providers.set": SECRET,
   "services.set": SECRET,

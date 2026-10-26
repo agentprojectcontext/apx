@@ -1,6 +1,15 @@
 import type { enSysUsage } from "./sysusage-en.ts";
 
 export const esSysUsage: Record<keyof typeof enSysUsage, string> = {
+  "engines.showUsage": "Consumo",
+  "engines.usageHint":
+    "Mostrar límites de cuenta en APX. Apagado por defecto. Sin una fuente compatible no se muestra un saldo. No enciende ni apaga el engine.",
+  "engines.usageCodexHint":
+    "Mostrar límites de cuenta en APX. Activado por defecto al vincular tu plan ChatGPT. La fuente de cuota también necesita una cuenta vinculada por separado a Codex CLI. No enciende ni apaga los modelos.",
+  "engines.usageLoadError": "No se pudieron cargar las preferencias de consumo. Reintentá para cargar el switch.",
+  "engines.usageSaveError": "No se pudo guardar la preferencia de consumo. Se mantuvo tu elección anterior.",
+  "engineUsage.empty":
+    "No hay engines seleccionados. Activá Consumo en la card de un engine para ver acá sus límites de cuenta.",
   "engineUsage.description":
     "Límites de cuenta informados por los engines en el equipo donde corre el core, no solo por las sesiones de APX.",
   "engineUsage.disclaimer":

@@ -1,6 +1,14 @@
 // Usage: what the computer has and what APX takes of it (its dropdown, the dialog, Advanced): loaded with them
 // (usePack in index.ts). The topbar gauge's and menus' two strings stay in en.ts.
 export const enSysUsage = {
+  "engines.showUsage": "Usage",
+  "engines.usageHint":
+    "Show account limits in APX. Off by default. Without a supported source, no balance is shown. This does not turn the engine on or off.",
+  "engines.usageCodexHint":
+    "Show account limits in APX. On by default when you link your ChatGPT plan. The quota source also needs a separately linked Codex CLI account. This does not turn models on or off.",
+  "engines.usageLoadError": "Could not load usage preferences. Retry to load the switch.",
+  "engines.usageSaveError": "Could not save the usage preference. Your previous choice was kept.",
+  "engineUsage.empty": "No engines selected. Turn on Usage on an engine card to show its account limits here.",
   "engineUsage.description":
     "Account limits reported by engines on the computer running the core, not just sessions in APX.",
   "engineUsage.disclaimer":

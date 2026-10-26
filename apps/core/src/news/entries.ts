@@ -55,7 +55,10 @@ export const NEWS: readonly NewsEntry[] = [
       "The panel's AI usage button shows Codex account quota windows, the share remaining and reset times when " +
       "its local CLI can report them. These are account limits, not token totals from APX chats. Claude, OpenCode " +
       "and Antigravity have explicit unavailable states and guidance rather than estimated subscription balances. " +
-      "The check runs on the core's computer, without starting a model turn or reading credentials in APX.",
+      "The check runs on the core's computer, without starting a model turn or reading credentials in APX. " +
+      "Each engine card has a compact Usage switch independent of model power. Quota checks default off except " +
+      "for a linked ChatGPT plan; an explicit choice is remembered. Codex quota metadata still requires its " +
+      "separately linked local CLI account. Turning Usage off also stops its account probes.",
     actions: [
       {
         label: { en: "Where are my limits?", es: "¿Dónde veo mis límites?" },

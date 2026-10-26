@@ -72,6 +72,10 @@ The top bar's AI usage panel calls owner-only `engines.usage`. The core probes C
 computer and asks the local Codex app-server only for account rate-limit metadata, with a bounded child lifetime,
 validated windows and a short shared cache. It starts no model turn and APX reads no engine credentials. Other
 engines explicitly report unsupported or unavailable limits; session token counts are not account balances.
+The owner can turn quota visibility on or off with the compact Usage switch on each engine card. The core stores
+these choices independently of model power, filters disabled engines before account probes and hides pending/cached
+results after an opt-out. Defaults are off except for a linked ChatGPT plan (metadata only); its quota source still
+requires the separately linked Codex CLI. Explicit choices survive linking or disconnecting the plan.
 
 ## 4. State and persistence
 
