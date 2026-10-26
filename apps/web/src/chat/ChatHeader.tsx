@@ -1,10 +1,10 @@
 import type { Agent, Thread, WritePolicy } from "@apx/protocol";
 import { EngineIcon, IconButton, Icons, Menu, type MenuEntry, ProjectTile, Tag, Tooltip } from "@apx/ui";
+import { Suspense } from "react";
 import { KindIcon } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { useAgentHint } from "../common/AgentFace.tsx";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
-import { TaskStatus } from "../common/TaskStatus.tsx";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { compactThread } from "../data/actions.ts";
 import { DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
@@ -15,6 +15,7 @@ import { useT } from "../i18n/index.ts";
 import { ThreadAvatar } from "../inbox/ThreadAvatar.tsx";
 import { PinMark } from "../inbox/ThreadRow.tsx";
 import { threadMenu } from "../inbox/threadActions.tsx";
+import { TaskStatus } from "../lazy.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
 
@@ -116,7 +117,11 @@ export function ChatHeader({
             </>
           )}
           {sub && <Tag>{t("thread.a2a")}</Tag>}
-          {thread.task_id && <TaskStatus id={thread.task_id} />}
+          {thread.task_id && (
+            <Suspense fallback={null}>
+              <TaskStatus id={thread.task_id} />
+            </Suspense>
+          )}
           {thread.task_id && (
             <button
               type="button"

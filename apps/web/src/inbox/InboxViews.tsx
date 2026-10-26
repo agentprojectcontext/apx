@@ -1,6 +1,6 @@
 import type { Agent, Thread } from "@apx/protocol";
 import { AgentAvatar, ContextMenu, EngineIcon, Icons, ProjectTile, Spinner, Tooltip } from "@apx/ui";
-import { useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { KindIcon } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { AgentFace } from "../common/AgentFace.tsx";
@@ -18,11 +18,11 @@ import {
 } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { TaskBundle } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
 import { type ActivityGroup, bundleTasks, type ProjectTree, type TimeBucket } from "./groupThreads.ts";
 import { RoutineBundle } from "./RoutineBundle.tsx";
-import { TaskBundle } from "./TaskBundle.tsx";
 import { ThreadAvatar } from "./ThreadAvatar.tsx";
 import { PinMark } from "./ThreadRow.tsx";
 import { threadMenu } from "./threadActions.tsx";
@@ -117,7 +117,9 @@ export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: 
               );
             if (b.task)
               return (
-                <TaskBundle key={`${tree.key}:${b.agentId}`} taskId={b.task} threads={b.threads} selected={selected} />
+                <Suspense key={`${tree.key}:${b.agentId}`} fallback={null}>
+                  <TaskBundle taskId={b.task} threads={b.threads} selected={selected} />
+                </Suspense>
               );
             const agent = b.engine ? undefined : agents[b.agentId];
             const key = `${tree.key}:${b.agentId}`;
@@ -243,7 +245,9 @@ export function ActivityView({ groups, selected }: { groups: ActivityGroup[]; se
               );
             if (entry.kind === "task")
               return (
-                <TaskBundle key={entry.taskId} taskId={entry.taskId} threads={entry.threads} selected={selected} />
+                <Suspense key={entry.taskId} fallback={null}>
+                  <TaskBundle taskId={entry.taskId} threads={entry.threads} selected={selected} />
+                </Suspense>
               );
             const th = entry.thread;
             const agent: Agent | undefined = agents[th.agent_ids[0] ?? ""];

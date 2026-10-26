@@ -1,4 +1,6 @@
 import { execFileSync } from "node:child_process";
+import net, { type AddressInfo } from "node:net";
+import { callTool, say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import type { Message, Task, Thread } from "../../packages/protocol/src/index.ts";
 import { expect, open, rpc, test } from "./kit.ts";
 
@@ -138,4 +140,59 @@ test("the initial task instruction shows a formatted description without adding 
   await rpc("tasks.update", { task: task.id, description: "" });
   await expect(block).toHaveCount(0);
   expect(await rpc("runs.list", { agent: "roby" })).toEqual(runs);
+});
+
+test("an agent-created task shows its real generic kickoff with the formatted description", async ({ page }) => {
+  const listener = net.createServer();
+  await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve));
+  const port = (listener.address() as AddressInfo).port;
+  await new Promise<void>((resolve) => listener.close(() => resolve()));
+  const description = "First line\nSecond line\n\nAnother paragraph\n\n- First item\n- Second item";
+  const env = await startCore({
+    port,
+    llm: scriptedLlm((_req, { said, afterTool }) => {
+      if (said.includes("Work on this task.")) return say("Task received.");
+      if (afterTool) return say("Work transferred.");
+      return callTool("create", "task_create", {
+        title: "Real task kickoff",
+        description,
+        assignee: "roby",
+      });
+    }),
+  });
+  try {
+    await env.client.call("setup.finish", {});
+    const source = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    await env.client.call("threads.send", { thread: source.id, text: "Create and work on the task." });
+    let taskId = "";
+    await expect
+      .poll(async () => {
+        const tasks = await env.client.call("tasks.list", {});
+        taskId = tasks.tasks.find((t) => t.title === "Real task kickoff")?.id ?? "";
+        return taskId;
+      })
+      .not.toBe("");
+    let session = "";
+    await expect
+      .poll(async () => {
+        const detail = await env.client.call("tasks.get", { task: taskId });
+        session = detail.sessions[0]?.id ?? "";
+        return session && (await env.client.call("threads.get", { thread: session })).thread.state;
+      })
+      .toBe("idle");
+    const initial = await env.client.call("threads.get", { thread: session });
+    expect(initial.messages[0]?.parts).toEqual([{ type: "text", text: "Work on this task." }]);
+    const runs = await env.client.call("runs.list", { agent: "roby" });
+    await page.goto(`${env.core.url}/#thread=${session}`);
+    const block = page.getByRole("region", { name: "Descripción", exact: true });
+    await expect(block).toHaveCount(1);
+    await expect(block.locator("p").first()).toHaveText("First line\nSecond line", { useInnerText: true });
+    await expect(block.locator("li")).toHaveText(["First item", "Second item"]);
+    await page.reload();
+    await expect(block).toHaveCount(1);
+    expect((await env.client.call("threads.get", { thread: session })).messages).toEqual(initial.messages);
+    expect(await env.client.call("runs.list", { agent: "roby" })).toEqual(runs);
+  } finally {
+    await env.cleanup();
+  }
 });

@@ -3,13 +3,13 @@ import { ContextMenu, IconButton, Icons, Menu, type MenuEntry, Spinner } from "@
 import { useState } from "react";
 import { AgentFace } from "../common/AgentFace.tsx";
 import { shortWhen } from "../common/format.ts";
-import { TaskStatus } from "../common/TaskStatus.tsx";
 import { taskStateActions } from "../common/taskStateActions.tsx";
 import { isWorking } from "../data/identity.ts";
 import { useShownAgents } from "../data/state.ts";
 import { archiveTaskChats } from "../data/taskChats.ts";
 import { useTasks } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
+import { TaskStatus } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
 import { SessionRow } from "./InboxViews.tsx";

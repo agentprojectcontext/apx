@@ -184,6 +184,8 @@
                       "**/SearchSelect.tsx",
                       "**/SurfacePart.tsx",
                       "**/TaskDescription.tsx",
+                      "**/TaskBundle.tsx",
+                      "**/TaskStatus.tsx",
                       "**/TaskPeek.tsx",
                       "**/TasksScreen.tsx",
                       "**/TerminalPanel.tsx",
