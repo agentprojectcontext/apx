@@ -55,6 +55,9 @@ test("terminal provenance follows the executor and its project, never the caller
       input: { text: "Build the catalog", origin: { kind: "user" } },
       deadline_at: new Date(Date.now() + 60_000).toISOString(),
     });
+    env.core.store.runs.setState(run, "submitted");
+    await env.client.call("threads.send", { thread: executor.id, text: "Continue" });
+    await env.settle(executor.id);
     const job = env.core.store.jobs.create({
       thread_id: executor.id,
       run_id: run.id,
@@ -89,7 +92,7 @@ test("terminal provenance follows the executor and its project, never the caller
       assert.equal(listed?.agent_id, agent.id);
       assert.equal(listed?.agent_name, "Builder");
       assert.equal(listed?.project_id, project.id);
-      assert.equal(listed?.project_name, "Northwind", "the admitted project's snapshot survives a chat move");
+      assert.equal(listed?.project_name, "Northwind", "the executing project's snapshot survives a chat move");
       assert.equal(listed?.thread_project_id, movedProject.id);
       assert.equal(listed?.thread_project_name, "Acme");
       assert.equal(listed?.run_id, run.id);
@@ -106,13 +109,63 @@ test("terminal provenance follows the executor and its project, never the caller
       assert.equal(read.agent_name, undefined);
       assert.equal(read.project_id, undefined, "a current chat project is not historical evidence");
     }
-    const agentJob = (await env.client.call("jobs.list", { finished: 10 })).running.find((j) => j.id === run.id);
+    const agentJobs = await env.client.call("jobs.list", { finished: 10 });
+    const agentJob = agentJobs.finished.find((j) => j.id === run.id);
     assert.equal(agentJob?.project_name, "Northwind");
     assert.equal(agentJob?.thread_project_name, "Acme");
     assert.equal(
       (await env.client.call("jobs.list", { thread: caller.id, finished: 5 })).running.some((j) => j.id === job.id),
       false,
     );
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("execution snapshots the current project after queueing, including the agent fallback", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  try {
+    const { project: before } = await env.client.call("projects.create", { name: "Acme" });
+    const { project: after } = await env.client.call("projects.create", { name: "Northwind" });
+    const agent = await env.client.call("agents.create", {
+      project_id: after.id,
+      slug: "builder",
+      name: "Builder",
+      role: "Developer",
+    });
+    for (const withProject of [true, false]) {
+      const thread = await env.client.call("threads.create", {
+        kind: "loose",
+        agent_id: agent.id,
+        ...(withProject ? { project_id: before.id } : {}),
+      });
+      const run = env.core.store.runs.create({
+        thread_id: thread.id,
+        agent_id: agent.id,
+        trigger: "user",
+        state: "queued",
+        input: { text: "Build", origin: { kind: "user" } },
+        deadline_at: new Date(Date.now() + 60_000).toISOString(),
+      });
+      if (withProject) env.core.store.threads.moveTo(thread.id, after.id);
+      env.core.store.runs.setState(run, "submitted");
+      await env.client.call("threads.send", { thread: thread.id, text: "Continue" });
+      await env.settle(thread.id);
+      const job = env.core.store.jobs.create({
+        thread_id: thread.id,
+        run_id: run.id,
+        agent_id: agent.id,
+        title: "build",
+        cwd: ".",
+        background: true,
+      });
+      env.core.store.threads.moveTo(thread.id, before.id);
+      const read = await env.client.call("jobs.get", { job: job.id });
+      assert.equal(read.job.project_name, "Northwind");
+      assert.equal(read.job.project_id, after.id);
+      assert.equal(read.job.thread_project_name, "Acme");
+    }
   } finally {
     await env.core.close();
     await env.cleanup();
