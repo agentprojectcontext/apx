@@ -1,6 +1,39 @@
 import type { EmailSignatureEntry, Params, Result } from "../../packages/protocol/src/index.ts";
 import { expect, open, openSettings, rpc, test } from "./kit.ts";
 
+test("the personal default signature can be edited without connecting an account", async ({ page }) => {
+  await rpc("setup.finish");
+  const initial = (await rpc<Result<"email.signature_default_get">>("email.signature_default_get")).signature;
+  const accountsBefore = await rpc("channels.list");
+  try {
+    await open(page);
+    await openSettings(page);
+    const dialog = page.getByRole("dialog", { name: "Configuración", exact: true });
+    await expect(dialog.getByText("Firma de email por defecto", { exact: true })).toBeVisible();
+    await expect(dialog.getByRole("combobox", { name: "Cuenta de email" })).toHaveCount(0);
+    await dialog.getByLabel("Firma en texto plano", { exact: true }).fill("Global signature");
+    await dialog.getByLabel("Firma HTML (opcional)", { exact: true }).fill("<b>Global signature</b>");
+    await dialog.getByRole("button", { name: "Guardar firma", exact: true }).click();
+    const read = async () =>
+      (await rpc<Result<"email.signature_default_get">>("email.signature_default_get")).signature;
+    await expect.poll(async () => (await read())?.text).toBe("Global signature");
+    await page.reload();
+    await openSettings(page);
+    await expect(dialog.getByLabel("Firma en texto plano", { exact: true })).toHaveValue("Global signature");
+    await expect(dialog.getByLabel("Firma HTML (opcional)", { exact: true })).toHaveValue("<b>Global signature</b>");
+    await dialog.getByLabel("Agregar la firma automáticamente").click();
+    await dialog.getByLabel("Firma en texto plano", { exact: true }).fill("");
+    await dialog.getByRole("button", { name: "Guardar firma", exact: true }).click();
+    await expect.poll(async () => (await read())?.enabled).toBe(false);
+    await dialog.getByRole("button", { name: "Quitar firma", exact: true }).click();
+    await expect.poll(read).toBeNull();
+    expect(await rpc("channels.list")).toEqual(accountsBefore);
+  } finally {
+    const current = (await rpc<Result<"email.signature_default_get">>("email.signature_default_get")).signature;
+    await rpc("email.signature_default_set", { signature: initial, expected: current });
+  }
+});
+
 test("Gmail connection editing is separate from integration preferences", async ({ page }) => {
   await rpc("setup.finish");
   const catalog = await rpc<Result<"integrations.list">>("integrations.list");
@@ -86,7 +119,7 @@ test("SMTP account signatures stay isolated across mailbox selection and reload"
     await dialog.getByRole("radio", { name: "Email", exact: true }).click();
     await expect(dialog.getByText("Firmas de email", { exact: true })).toBeVisible();
     await expect(dialog.getByLabel("Firma en texto plano", { exact: true })).toHaveValue("Existing signature");
-    await expect(dialog.getByRole("button", { name: "Quitar firma", exact: true })).toBeEnabled();
+    await expect(dialog.getByRole("button", { name: "Usar firma por defecto", exact: true })).toBeEnabled();
     await dialog.getByLabel("Firma en texto plano", { exact: true }).fill("Acme support");
     await dialog
       .getByLabel("Firma HTML (opcional)", { exact: true })
@@ -138,7 +171,7 @@ test("SMTP account signatures stay isolated across mailbox selection and reload"
     await dialog.getByLabel("Agregar la firma automáticamente").click();
     await dialog.getByRole("button", { name: "Guardar firma", exact: true }).click();
     await expect.poll(async () => (await read()).find((e) => e.account === "signature-mail")?.enabled).toBe(false);
-    await dialog.getByRole("button", { name: "Quitar firma", exact: true }).click();
+    await dialog.getByRole("button", { name: "Usar firma por defecto", exact: true }).click();
     await expect.poll(async () => (await read()).some((e) => e.account === "signature-mail")).toBe(false);
     expect((await read()).find((e) => e.account === other.account)).toEqual(other);
   } finally {

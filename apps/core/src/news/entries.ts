@@ -56,7 +56,7 @@ export const NEWS: readonly NewsEntry[] = [
     since: "2.11.1",
     title: "Keep connection settings separate from email preferences",
     applies: (f) => f.google.gmail || f.email,
-    text: "Integrations now separate editing a connection from configuring preferences. Gmail's local email signature is in Configure integration, alongside project availability. Email channels also allow adding and selecting multiple SMTP mailboxes, each with its own signature and existing channel preferences. No Gmail settings are changed or signatures imported.",
+    text: "Integrations now separate editing a connection from configuring preferences. Gmail's local email signature is in Configure integration, alongside project availability. Email channels also allow adding and selecting multiple SMTP mailboxes, each with its own signature and existing channel preferences. Account settings hold an optional global text/HTML signature, editable before connecting an account. A specific account signature wins; an explicitly disabled account signature blocks the global fallback, and a message can omit either. Existing account signatures are preserved. No Gmail settings are changed or signatures imported.",
     actions: [
       {
         label: { en: "Review email preferences", es: "Revisar preferencias de email" },

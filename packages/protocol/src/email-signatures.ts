@@ -61,21 +61,26 @@ export function safeSignatureHtml(html: string): boolean {
   return stack.length === 0;
 }
 
-export const EmailSignatureEntry = z
+export const EmailSignatureValue = z
   .object({
-    transport: z.enum(["gmail", "smtp"]),
-    /** Gmail account address, or the SMTP channel id. */
-    account: z
-      .string()
-      .min(1)
-      .max(254)
-      .refine((value) => !/\s/.test(value) && !hasControl(value), "Invalid account"),
-    sender: z.email().max(254),
     enabled: z.boolean(),
-    text: z.string().trim().min(1).max(10_000),
+    text: z.string().trim().max(10_000),
     html: z.string().max(30_000).refine(safeSignatureHtml, "Unsupported signature HTML").optional(),
   })
-  .strict();
+  .strict()
+  .refine((value) => !value.enabled || value.text.length > 0, "An enabled signature needs plain text");
+export type EmailSignatureValue = z.infer<typeof EmailSignatureValue>;
+
+export const EmailSignatureEntry = EmailSignatureValue.safeExtend({
+  transport: z.enum(["gmail", "smtp"]),
+  /** Gmail account address, or the SMTP channel id. */
+  account: z
+    .string()
+    .min(1)
+    .max(254)
+    .refine((value) => !/\s/.test(value) && !hasControl(value), "Invalid account"),
+  sender: z.email().max(254),
+}).strict();
 export type EmailSignatureEntry = z.infer<typeof EmailSignatureEntry>;
 
 export const EmailSignatures = z
@@ -92,9 +97,27 @@ export const EmailSignatures = z
     return new Set(keys).size === keys.length;
   }, "Duplicate signature account and sender");
 
-export const EmailSignatureKey = EmailSignatureEntry.pick({ transport: true, account: true, sender: true });
+export const EmailSignatureKey = z
+  .object({
+    transport: EmailSignatureEntry.shape.transport,
+    account: EmailSignatureEntry.shape.account,
+    sender: EmailSignatureEntry.shape.sender,
+  })
+  .strict();
 
 export const emailSignatureMethods = {
+  "email.signature_default_get": {
+    params: z.object({}).strict(),
+    result: z.object({ signature: EmailSignatureValue.nullable() }),
+    effect: false,
+    access: "human",
+  },
+  "email.signature_default_set": {
+    params: z.object({ signature: EmailSignatureValue.nullable(), expected: EmailSignatureValue.nullable() }).strict(),
+    result: z.object({ signature: EmailSignatureValue.nullable() }),
+    effect: true,
+    access: "human",
+  },
   "email.signature_upsert": {
     params: z.object({ signature: EmailSignatureEntry, expected: EmailSignatureEntry.nullable() }).strict(),
     result: z.object({ signature: EmailSignatureEntry }),

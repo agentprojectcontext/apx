@@ -42,6 +42,21 @@ after(async () => {
 
 const all = async () => (await h.env.client.call("email.signatures_get", {})).signatures;
 
+test("default signature settings require approval and preserve account signatures", async () => {
+  const before = await all();
+  const global = { enabled: true, text: "Global" };
+  const change = { method: "email.signature_default_set", params: { signature: global, expected: null } };
+  assert.match((await h.ask({ method: "email.signature_default_get" })).answer, /"signature":null/);
+  await h.ask(change, "deny");
+  assert.equal((await h.env.client.call("email.signature_default_get", {})).signature, null);
+  const approved = await h.ask(change, "approve");
+  assert.match(approved.detail, /Change the default email signature/);
+  assert.deepEqual((await h.env.client.call("email.signature_default_get", {})).signature, global);
+  assert.deepEqual(await all(), before);
+  await h.ask({ method: "email.signature_default_set", params: { signature: null, expected: global } }, "approve");
+  assert.equal((await h.env.client.call("email.signature_default_get", {})).signature, null);
+});
+
 test("signature settings discover identities, require approval, and preserve other mailboxes", async () => {
   const index = await h.ask({ method: "email.signatures_get" });
   assert.match(index.answer, /user@example.com/);
@@ -119,6 +134,11 @@ test("sealed contacts cannot read signature settings or request their modificati
   const before = await all();
   for (const call of [
     { method: "email.signatures_get" },
+    { method: "email.signature_default_get" },
+    {
+      method: "email.signature_default_set",
+      params: { signature: { enabled: true, text: "Forged global" }, expected: null },
+    },
     { method: "email.signature_upsert", params: { signature: { ...gmail, text: "Forged" }, expected: gmail } },
   ]) {
     await h.env.client.call("threads.send", { thread: thread.id, text: JSON.stringify(call) });

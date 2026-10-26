@@ -59,6 +59,7 @@ test("signature settings bound content and reject duplicates for the same sender
   assert.equal(EmailSignatureEntry.safeParse(entry).success, true);
   assert.equal(EmailSignatureEntry.safeParse({ ...entry, html: "<script>x</script>" }).success, false);
   assert.equal(EmailSignatureEntry.safeParse({ ...entry, text: " " }).success, false);
+  assert.equal(EmailSignatureEntry.safeParse({ ...entry, text: "", enabled: false }).success, true);
   assert.equal(EmailSignatureEntry.safeParse({ ...entry, text: "x".repeat(10_001) }).success, false);
   assert.equal(EmailSignatures.safeParse([entry, { ...entry, sender: "USER@example.com" }]).success, false);
   assert.equal(EmailSignatures.safeParse([entry, { ...entry, account: "other@example.com" }]).success, true);

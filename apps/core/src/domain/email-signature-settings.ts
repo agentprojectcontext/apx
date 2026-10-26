@@ -1,4 +1,4 @@
-import type { EmailSignatureEntry } from "@apx/protocol";
+import type { EmailSignatureEntry, EmailSignatureValue } from "@apx/protocol";
 import type { Store } from "./store.ts";
 
 type Key = Pick<EmailSignatureEntry, "transport" | "account" | "sender">;
@@ -16,9 +16,12 @@ export function signatureFor(
   transport: EmailSignatureEntry["transport"],
   account: string | undefined,
   sender: string | undefined,
-): EmailSignatureEntry | undefined {
+): EmailSignatureValue | undefined {
   if (!account || !sender) return undefined;
-  return store.settings
+  const specific = store.settings
     .read("email_signatures")
-    .find((entry) => entry.enabled && sameSignatureKey(entry, { transport, account, sender }));
+    .find((entry) => sameSignatureKey(entry, { transport, account, sender }));
+  if (specific) return specific.enabled ? specific : undefined;
+  const fallback = store.settings.read("email_signature_default");
+  return fallback?.enabled ? fallback : undefined;
 }
