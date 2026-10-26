@@ -247,6 +247,7 @@ test("every long-running method gives its server time to finish and other method
     ["browser.handoff", {}, 320_000],
     ["browser.handoff", { timeout_s: 1 }, 21_000],
     ["browser.import_cookies", {}, 130_000],
+    ["engines.usage", {}, 35_000],
     ["mcp.call", {}, 180_000],
     ["mcp.describe", {}, 45_000],
     ["mcp.tools", {}, 45_000],

@@ -16,7 +16,9 @@ import { publicProject } from "../domain/projects.ts";
 import type { EngineIds } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
 import { summary } from "../domain/surfaces.ts";
+import { cachedEngineUsage } from "../engine-usage/cache.ts";
 import { badRequest, conflict, errorMessage, notFound } from "../errors.ts";
+import { createEngineUsage, detectUsageEngines } from "../harness/engine-usage.ts";
 import type { Harnesses } from "../harness/index.ts";
 import { importFromV1 } from "../import/v1.ts";
 import type { Catalog } from "../models/catalog.ts";
@@ -42,6 +44,7 @@ export function appHandlers(deps: {
   imessage: boolean;
 }) {
   const { store, harnesses, secrets } = deps;
+  const engineUsage = cachedEngineUsage(createEngineUsage({ status: detectUsageEngines }));
   const models = modelSettings(store);
   /** A registered project's folder, when it is on disk. */
   const folderOf = (id: string) => {
@@ -269,6 +272,7 @@ export function appHandlers(deps: {
       if (!s) throw notFound(`surface ${surface}`);
       return s;
     },
+    "engines.usage": () => engineUsage(),
     "engines.status": async ({ refresh }) => ({
       engines: await harnesses.status(refresh),
     }),

@@ -1,6 +1,34 @@
 // Usage: what the computer has and what APX takes of it (its dropdown, the dialog, Advanced): loaded with them
 // (usePack in index.ts). The topbar gauge's and menus' two strings stay in en.ts.
 export const enSysUsage = {
+  "engineUsage.description":
+    "Account limits reported by engines on the computer running the core, not just sessions in APX.",
+  "engineUsage.disclaimer":
+    "Session tokens and API costs are not a subscription balance. Missing limits do not mean unlimited usage.",
+  "engineUsage.loading": "Checking account limits…",
+  "engineUsage.failed": "Could not check engine limits. Try again.",
+  "engineUsage.updated": "Checked {at}",
+  "engineUsage.remaining": "{pct}% remaining",
+  "engineUsage.used": "{pct}% used",
+  "engineUsage.primary": "Current window",
+  "engineUsage.secondary": "Extended window",
+  "engineUsage.fiveHours": "5 hours",
+  "engineUsage.weekly": "Weekly",
+  "engineUsage.codexSource": "Source: Codex account limits",
+  "engineUsage.window": "{minutes}-minute window",
+  "engineUsage.resets": "Resets {at}",
+  "engineUsage.notInstalled": "CLI not found",
+  "engineUsage.unsupported": "No supported quota source",
+  "engineUsage.signedOut": "Sign in to the engine to check limits.",
+  "engineUsage.unavailable": "Account limits unavailable",
+  "engineUsage.source": "Source: {source}",
+  "engineUsage.claudeNote":
+    "Claude Desktop and Claude Code: check Settings → Usage in Claude. APX does not read your credentials.",
+  "engineUsage.opencodeNote":
+    "OpenCode uses the account of the selected provider; there is no single OpenCode balance.",
+  "engineUsage.antigravityNote":
+    "Check your model quota in Antigravity. No supported quota integration is available here.",
+  "engineUsage.engines": "Manage engines",
   "sysUsage.title": "Usage",
   "sysUsage.description": "What this computer has, and how much of it APX takes.",
   "sysUsage.button": "Usage: {pct}% of memory in use",

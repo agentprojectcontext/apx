@@ -43,6 +43,8 @@ export const en = {
   ...enResources,
   ...enEngines,
   ...enTelemetry,
+  "engineUsage.button": "Usage",
+  "engineUsage.title": "AI usage",
   "sysUsage.title": "Usage",
   "sysUsage.button": "Usage: {pct}% of memory in use",
   // Shared words

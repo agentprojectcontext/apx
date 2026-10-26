@@ -1,6 +1,33 @@
 import type { enSysUsage } from "./sysusage-en.ts";
 
 export const esSysUsage: Record<keyof typeof enSysUsage, string> = {
+  "engineUsage.description":
+    "Límites de cuenta informados por los engines en el equipo donde corre el core, no solo por las sesiones de APX.",
+  "engineUsage.disclaimer":
+    "Los tokens de una sesión y los costos de API no son el saldo de una suscripción. Sin datos no significa consumo ilimitado.",
+  "engineUsage.loading": "Consultando límites de cuenta…",
+  "engineUsage.failed": "No se pudieron consultar los límites. Volvé a intentar.",
+  "engineUsage.updated": "Consultado {at}",
+  "engineUsage.remaining": "{pct}% disponible",
+  "engineUsage.used": "{pct}% usado",
+  "engineUsage.primary": "Ventana actual",
+  "engineUsage.secondary": "Ventana extendida",
+  "engineUsage.fiveHours": "5 horas",
+  "engineUsage.weekly": "Semanal",
+  "engineUsage.codexSource": "Fuente: límites de cuenta de Codex",
+  "engineUsage.window": "Ventana de {minutes} minutos",
+  "engineUsage.resets": "Se renueva {at}",
+  "engineUsage.notInstalled": "CLI no encontrada",
+  "engineUsage.unsupported": "Sin fuente de cuota compatible",
+  "engineUsage.signedOut": "Iniciá sesión en el engine para consultar los límites.",
+  "engineUsage.unavailable": "Límites de cuenta no disponibles",
+  "engineUsage.source": "Fuente: {source}",
+  "engineUsage.claudeNote":
+    "Claude Desktop y Claude Code: consultá Configuración → Uso en Claude. APX no lee tus credenciales.",
+  "engineUsage.opencodeNote": "OpenCode usa la cuenta del proveedor elegido; no tiene un saldo único.",
+  "engineUsage.antigravityNote":
+    "Consultá tu cuota por modelo en Antigravity. Acá todavía no hay una integración de cuota compatible.",
+  "engineUsage.engines": "Administrar engines",
   "sysUsage.title": "Consumo",
   "sysUsage.description": "Lo que tiene esta computadora y cuánto usa APX.",
   "sysUsage.button": "Consumo: {pct}% de la memoria en uso",

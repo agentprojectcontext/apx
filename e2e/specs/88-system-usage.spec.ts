@@ -46,6 +46,33 @@ test("the topbar gauge opens memory, CPU, disk, the VM and APX's top consumers, 
   await expect(page.getByRole("dialog", { name: "Consumo" }).getByTestId("usage-detail")).toBeVisible();
 });
 
+test("the usage dropdown has no horizontal overflow or visible scroll tracks, even in a short window", async ({
+  page,
+}) => {
+  await rpc("setup.finish");
+  await page.setViewportSize({ width: 1440, height: 600 });
+  await open(page);
+  await page.getByTestId("usage-button").click();
+  const summary = page.getByTestId("usage-summary");
+  await expect(summary.getByRole("heading", { name: "Memoria" })).toBeVisible();
+  const metrics = await summary.evaluate((element) => {
+    const popup = element.closest(".apx-popover");
+    const rect = popup?.getBoundingClientRect();
+    return {
+      horizontal: element.scrollWidth - element.clientWidth,
+      scrollbar: getComputedStyle(element).scrollbarWidth,
+      bottom: rect?.bottom ?? Infinity,
+    };
+  });
+  expect(metrics.horizontal).toBeLessThanOrEqual(1);
+  expect(metrics.scrollbar).toBe("none");
+  expect(metrics.bottom).toBeLessThanOrEqual(600);
+  const more = summary.getByRole("button", { name: "Ver todo el consumo" });
+  await more.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog", { name: "Consumo" }).getByTestId("usage-detail")).toBeVisible();
+});
+
 test("on a narrow window the gauge folds into the more menu, which opens the dialog", async ({ page }) => {
   await rpc("setup.finish");
   await page.setViewportSize({ width: 600, height: 800 });

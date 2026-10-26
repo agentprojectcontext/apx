@@ -1,4 +1,33 @@
 /* Usage: the topbar dropdown, the dialog and Advanced's overview (UsagePanels.tsx). */
+.topbar .engine-usage-trigger {
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: none;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--apx-control-radius);
+  background: transparent;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.engine-usage-trigger:hover {
+  background: var(--apx-fill-hover);
+  color: var(--apx-fg);
+}
+.engine-usage__engine {
+  border-top: 1px solid var(--apx-border);
+  padding-top: 10px;
+}
+@media (max-width: 899px) {
+  .engine-usage-trigger > span {
+    display: none;
+  }
+}
+
 .usage {
   display: flex;
   flex-direction: column;
@@ -141,4 +170,24 @@
 .usage__more:hover {
   background: var(--apx-fill-hover);
   color: var(--apx-fg);
+}
+.usage-popover {
+  max-height: var(--available-height, calc(100dvh - 80px));
+  overflow: hidden;
+}
+.usage-popover > .usage {
+  max-height: calc(var(--available-height, 100dvh - 80px) - 18px);
+  overflow: hidden auto;
+  scrollbar-width: none;
+}
+.usage-popover > .usage::-webkit-scrollbar {
+  display: none;
+}
+.usage-popover .usage__more {
+  margin: 2px 0 0;
+  flex-shrink: 0;
+}
+.usage-popover .usage__figure {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
