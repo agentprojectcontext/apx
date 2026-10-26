@@ -449,7 +449,7 @@ test("a long AGENTS.md reaches its agents up to 8k, with the headings left out a
     assert.ok(memory.length > 6_000 && memory.length < AGENTS_MD_LIMIT);
     assert.ok(text.length > 12_000 && text.length < AGENTS_MD_LIMIT);
     await env.client.call("projects.register", { path: root });
-    // Every call carries its first 8k (DECISIONS.md#d-156): the agent reads the rest when it needs it.
+    // Every call carries its first 8k (DECISIONS.md#d-157): the agent reads the rest when it needs it.
     assert.deepEqual(
       await ask(),
       { type: "text", text: "read rule 56" },

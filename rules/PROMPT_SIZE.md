@@ -29,7 +29,7 @@ so every machine measures the same. Raising it is allowed with a reason in the c
 trimming something else first is better.
 
 A project's own files are not part of this budget. Its AGENTS.md reaches every call up to 8,000 characters, with the
-headings of the rest and where to read them ([D-156](DECISIONS.md#d-156)); `.apc/memory.md` reaches its agents whole.
+headings of the rest and where to read them ([D-157](DECISIONS.md#d-157)); `.apc/memory.md` reaches its agents whole.
 Past a safety limit of 200,000 characters both are cut, with a marker the agent and the owner see
 ([D-110](DECISIONS.md#d-110)).
 
@@ -44,7 +44,7 @@ How to stay within it:
   them in one sentence (about 50 tokens) instead of a line each; their bodies load only with `load_skill`.
 - A turn's input carries data; a fixed instruction its chat calls for (the mode, how to write on a phone chat, voice
   notes, stickers, the computer, a folder's write policy) is a closing section of the system prompt, told once
-  ([D-155](DECISIONS.md#d-155)). The owner sees what a call carried with "See what it received" on an answer.
+  ([D-156](DECISIONS.md#d-156)). The owner sees what a call carried with "See what it received" on an answer.
 - What changes per turn (time, roster, memory, matched skills) goes in the turn's input, never in the system prompt:
   the system prompt stays byte-stable so the provider's prompt cache keeps it. What differs per chat or per release (the
   chat's temp folder, the APX version) closes the prompt, so every chat shares the cached prefix before it.

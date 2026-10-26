@@ -78,7 +78,7 @@ export function workerPrompt(
     .join("\n");
 }
 
-/** How much of a project's AGENTS.md every model call carries; the rest is read with file_read (DECISIONS.md#d-156). */
+/** How much of a project's AGENTS.md every model call carries; the rest is read with file_read (DECISIONS.md#d-157). */
 export const AGENTS_MD_PROMPT_CHARS = 8_000;
 /** The left-out headings listed, at most. */
 const HEADINGS_CHARS = 1_500;
