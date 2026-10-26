@@ -5,21 +5,26 @@ import { notify } from "../../data/notices.ts";
 import { useT } from "../../i18n/index.ts";
 
 /** A paused chain's way on: a fresh budget, or no limit until the owner writes there again (DECISIONS.md#d-081). */
-export function GoOn({ thread }: { thread: string }) {
+export function GoOn({ thread, resolved }: { thread: string; resolved: boolean }) {
   const t = useT();
   const [done, setDone] = useState(false);
-  if (done) return <span className="noticeline__done">{t("notice.breaker.wentOn")}</span>;
-  const go = (mode: "reset" | "release") =>
+  const [pending, setPending] = useState(false);
+  if (resolved || done) return <span className="noticeline__done">{t("notice.breaker.wentOn")}</span>;
+  const go = (mode: "reset" | "release") => {
+    if (pending) return;
+    setPending(true);
     void client
       .call("threads.go_on", { thread, mode })
       .then(() => setDone(true))
-      .catch((e: unknown) => notify(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => notify(e instanceof Error ? e.message : String(e)))
+      .finally(() => setPending(false));
+  };
   return (
     <>
-      <Button size="sm" variant="ghost" className="noticeline__link" onClick={() => go("reset")}>
+      <Button size="sm" variant="ghost" className="noticeline__link" disabled={pending} onClick={() => go("reset")}>
         {t("notice.breaker.reset")}
       </Button>
-      <Button size="sm" variant="ghost" className="noticeline__link" onClick={() => go("release")}>
+      <Button size="sm" variant="ghost" className="noticeline__link" disabled={pending} onClick={() => go("release")}>
         {t("notice.breaker.release")}
       </Button>
     </>
