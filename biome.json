@@ -193,7 +193,6 @@
                       "**/UsageButton.tsx",
                       "**/UsagePanel.tsx",
                       "**/UsagePanels.tsx",
-                      "**/EngineUsageSummary.tsx",
                       "**/WidgetChat.tsx",
                       "**/WidgetPanel.tsx",
                       "**/Wizard.tsx",

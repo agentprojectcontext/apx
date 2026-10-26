@@ -1,10 +1,10 @@
 import type { Result } from "@apx/protocol";
 import { IconButton, Icons, Popover, Skeleton } from "@apx/ui";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
 import { usePack, useT } from "../i18n/index.ts";
-import { EngineUsageSummary } from "../lazy.ts";
 import EngineUsageQuick, { quickWindows } from "./EngineUsageQuick.tsx";
+import EngineUsageSummary from "./EngineUsageSummary.tsx";
 import { UsageLoading } from "./UsageLoading.tsx";
 import { useVisible } from "./useVisible.ts";
 import "../styles/usage.css";
@@ -103,15 +103,13 @@ function EngineUsageContent({
   const [generation, setGeneration] = useState(0);
   const preview = <UsageLoading slots={1} />;
   return usePack("usage") ? (
-    <Suspense fallback={preview}>
-      <EngineUsageSummary
-        key={generation}
-        onClose={onClose}
-        onReport={onReport}
-        load={load}
-        onRefresh={() => setGeneration((n) => n + 1)}
-      />
-    </Suspense>
+    <EngineUsageSummary
+      key={generation}
+      onClose={onClose}
+      onReport={onReport}
+      load={load}
+      onRefresh={() => setGeneration((n) => n + 1)}
+    />
   ) : (
     preview
   );

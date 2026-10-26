@@ -27,7 +27,7 @@ test("el consumo IA mantiene tarjetas skeleton al cargar, actualizar y reabrir",
     await rpc("engines.set_usage", { engine, enabled: false });
   const code = gate();
   let codeRequested = false;
-  await page.route(/\/assets\/EngineUsageSummary-[^/]+\.js$/, async (route) => {
+  await page.route(/\/assets\/sysusage-es-[^/]+\.js$/, async (route) => {
     codeRequested = true;
     await code.wait;
     await route.continue();

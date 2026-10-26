@@ -46,7 +46,7 @@ export const en = {
   ...enEngines,
   ...enTelemetry,
   "engineUsage.title": "AI usage",
-  "engineUsage.quick": "{engine}: {pct}% available · {window} (most constrained window)",
+  "engineUsage.quick": "{engine}: {pct}% available · {window}",
   "sysUsage.title": "Usage",
   "sysUsage.button": "Usage: {pct}% of memory in use",
   // Shared words
