@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { EngineUsageWindow } from "@apx/protocol";
 import { z } from "zod";
+import { stopTree } from "../processes.ts";
 import { commandEnv } from "./env.ts";
 
 type Deadline = (ms: number, callback: () => void) => () => void;
@@ -83,21 +84,30 @@ function capture(command: string, args: string[], cwd: string, options: Options)
           env,
           stdio: ["pipe", "pipe", "pipe"],
           windowsHide: true,
+          detached: process.platform !== "win32",
         }));
     const child = launch(command, args, cwd, options.env ?? commandEnv());
     let output = "";
     let bytes = 0;
     let stopped = false;
+    let stopping: Promise<void> | undefined;
+    const cleanup = () =>
+      (stopping ??= (child.pid ? stopTree(child.pid, { graceMs: 0 }) : Promise.resolve()).finally(() => {
+        child.stdin.destroy();
+        child.stdout.destroy();
+        child.stderr.destroy();
+      }));
     const stop = () => {
       stopped = true;
-      child.kill("SIGKILL");
+      void cleanup();
     };
     const cancel = (options.runTimers?.after ?? after)(options.timeoutMs ?? 8_000, stop);
     child.on("error", stop);
     child.stdin.on("error", stop);
     child.stdin.end();
-    child.on("close", (code) => {
+    child.on("close", async (code) => {
       cancel();
+      await cleanup();
       resolve(!stopped && code === 0 ? output : undefined);
     });
     const accept = (chunk: Buffer) => {

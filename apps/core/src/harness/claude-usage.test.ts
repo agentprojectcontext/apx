@@ -8,7 +8,13 @@ import { parseClaudeUsage, readClaudeUsage } from "./claude-usage.ts";
 import { fakeProgram } from "./fake-program.test-support.ts";
 
 const launch: NonNullable<Parameters<typeof readClaudeUsage>[1]>["launch"] = (command, args, cwd, env) =>
-  spawn(command, ["fixture", ...args], { cwd, env, stdio: ["pipe", "pipe", "pipe"], windowsHide: true });
+  spawn(command, ["fixture", ...args], {
+    cwd,
+    env,
+    stdio: ["pipe", "pipe", "pipe"],
+    windowsHide: true,
+    detached: process.platform !== "win32",
+  });
 
 const quota = {
   rate_limits: {
@@ -73,6 +79,12 @@ async function fixture(mode: string, run: (bin: string, env: NodeJS.ProcessEnv, 
     fs.appendFileSync(log, JSON.stringify({ pid: process.pid, args: argv, cwd: process.cwd() }) + "\\n");
     if (argv[0] === "--version") {
       console.log(mode === "old" ? "2.1.272 (Claude Code)" : "2.1.285 (Claude Code)");
+    } else if (mode === "descendant") {
+      const child = require("node:child_process").spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+        stdio: "inherit", env: { ...process.env, NODE_OPTIONS: "" }, windowsHide: true,
+      });
+      fs.appendFileSync(log, JSON.stringify({ pid: child.pid, descendant: true, cwd: process.cwd() }) + "\\n");
+      setInterval(() => {}, 1000);
     } else if (mode === "hang") {
       setInterval(() => {}, 1000);
     } else if (mode === "cap") {
@@ -146,6 +158,20 @@ test("Claude silent child is terminated by an injected deadline", async () => {
     assert.equal(timers.pending(), 0);
   });
 });
+test("Claude deadline closes inherited pipes and kills descendants before folder cleanup", async () => {
+  await fixture("descendant", async (bin, env, log) => {
+    const timers = manualTimers();
+    const pending = readClaudeUsage(bin, { launch, env, runTimers: timers });
+    await waitFor(
+      () => fs.existsSync(log) && fs.readFileSync(log, "utf8").includes('"descendant":true'),
+      "descendant holds pipes",
+    );
+    timers.tick(8_000);
+    assert.equal(await pending, undefined);
+    assert.equal(timers.pending(), 0);
+  });
+});
+
 test("Claude missing binary is unavailable", async () => {
   await using dir = tempDir();
   assert.equal(await readClaudeUsage(path.join(dir.path, "missing")), undefined);
