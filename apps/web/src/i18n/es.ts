@@ -455,6 +455,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "inbox.filter.show": "Mostrar",
   "inbox.filter.routines": "Novedades de rutinas",
   "inbox.markAllRead": "Marcar todo como leído",
+  "inbox.markAllRead.body":
+    "Chats que se marcarán como leídos: {n}. Se quitarán sus indicadores de no leído. ¿Querés continuar?",
   "inbox.unread": "Sin leer",
   "inbox.offline.title": "Sin conexión",
   "inbox.offline.body": "Los chats aparecen cuando vuelva el core.",

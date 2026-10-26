@@ -1,4 +1,4 @@
-// The owner's arrangement of chats (rename, pin, archive) and deleting one, plus which of their dialogs is open.
+// The owner's arrangement of chats and their management dialogs.
 import type { Thread, WritePolicy } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
@@ -9,9 +9,15 @@ import { data } from "./state.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-export type ThreadDialog = { kind: "rename" | "delete"; thread: string } | undefined;
+export type ThreadDialog =
+  | { kind: "rename" | "delete"; thread: string }
+  | { kind: "markRead"; threads: readonly string[] }
+  | undefined;
 const dialogs = createStore<{ open: ThreadDialog }>({ open: undefined });
 export const openThreadDialog = (kind: "rename" | "delete", thread: string) => dialogs.set({ open: { kind, thread } });
+export const openMarkReadDialog = (threads: readonly string[]) => {
+  if (threads.length) dialogs.set({ open: { kind: "markRead", threads: [...new Set(threads)] } });
+};
 export const closeThreadDialog = () => dialogs.set({ open: undefined });
 export const useThreadDialog = () => useSlice(dialogs, (s) => s.open);
 

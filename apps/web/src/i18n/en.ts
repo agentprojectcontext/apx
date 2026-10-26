@@ -448,6 +448,7 @@ export const en = {
   "inbox.filter.show": "Show",
   "inbox.filter.routines": "Routine news",
   "inbox.markAllRead": "Mark all as read",
+  "inbox.markAllRead.body": "Mark {n} chats as read? Their unread indicators will be cleared.",
   "inbox.unread": "Unread",
   "inbox.offline.title": "Offline",
   "inbox.offline.body": "Chats show up when the core is back.",
