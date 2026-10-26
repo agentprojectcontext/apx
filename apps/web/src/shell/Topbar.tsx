@@ -104,10 +104,12 @@ export function Topbar() {
         </button>
       </Tooltip>
       <div className="topbar__right">
-        <WhatsNewPill />
-        <UpdatePill />
-        <AttentionTray />
-        <RunningIndicator />
+        <div className="topbar__activity">
+          <RunningIndicator />
+          <AttentionTray />
+          <WhatsNewPill />
+          <UpdatePill />
+        </div>
         <div className="topbar__usage">
           <Suspense
             fallback={<IconButton size="sm" label={t("engineUsage.title")} icon={<Icons.Zap size={14} />} disabled />}

@@ -4,7 +4,8 @@
   flex: none;
   position: relative;
   z-index: 20;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 16px;
   height: var(--shell-topbar-h);
@@ -20,12 +21,16 @@
   min-width: 0;
 }
 .topbar__left {
-  flex: 1;
   gap: 10px;
   padding-left: 14px;
 }
+.topbar__activity {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .topbar__right {
-  flex: none;
+  justify-self: end;
   gap: 4px;
   padding-right: 12px;
 }
@@ -43,11 +48,11 @@
 .topbar__agent {
   margin-left: 8px;
 }
-.topbar__nav .apx-iconbtn:disabled {
-  opacity: 0.35;
-}
 .topbar .running {
   width: auto;
+}
+.topbar__nav .apx-iconbtn:disabled {
+  opacity: 0.35;
 }
 .topbar__logo {
   display: block;
@@ -76,12 +81,10 @@
   color: var(--apx-fg-subtle);
 }
 .topbar__search {
-  z-index: 1;
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: none;
-  width: min(300px, 25vw);
+  width: min(100cqw - 1460px, 300px);
   height: 30px;
   padding: 0 8px 0 10px;
   border: 0;
@@ -150,7 +153,7 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
 .topbar.is-desktop input {
   -webkit-app-region: no-drag;
 }
-@container topbar (max-width: 1499px) {
+@container topbar (max-width: 2699px) {
   .topbar__agentkbd,
   .topbar__agentname,
   .updatepill__label {
@@ -167,27 +170,6 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
     padding: 0;
     justify-content: center;
   }
-}
-@media (max-width: 899px) {
-  .topbar {
-    gap: 6px;
-  }
-  .topbar__crumb:not(.is-last),
-  .topbar__sep,
-  .topbar__search-label,
-  .topbar__search .apx-kbd,
-  .topbar__logo {
-    display: none;
-  }
-  .topbar__search {
-    width: var(--apx-control-h-sm);
-    padding: 0;
-    justify-content: center;
-  }
-  .topbar__usage {
-    margin-left: 4px;
-    padding-right: 4px;
-  }
   .topbar .running {
     width: 28px;
     padding: 0;
@@ -202,7 +184,44 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
     gap: 0;
   }
 }
+@container topbar (max-width: 1599px) {
+  .topbar__search-label,
+  .topbar__search .apx-kbd {
+    display: none;
+  }
+  .topbar__search {
+    width: var(--apx-control-h-sm);
+    padding: 0;
+    justify-content: center;
+  }
+  .topbar__usage {
+    margin-left: 4px;
+    padding-right: 4px;
+  }
+}
+@media (max-width: 899px) {
+  .topbar {
+    gap: 6px;
+  }
+  .topbar__crumb:not(.is-last),
+  .topbar__sep,
+  .topbar__logo {
+    display: none;
+  }
+}
 @media (max-width: 639px) {
+  .topbar__activity {
+    position: absolute;
+    left: 36px;
+    gap: 0;
+  }
+  .topbar__activity .updatepill {
+    width: 24px;
+  }
+  .topbar__nav,
+  .topbar__crumbs {
+    display: none;
+  }
   .topbar .usage-btn {
     display: none;
   }
