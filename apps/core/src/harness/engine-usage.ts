@@ -108,16 +108,20 @@ export async function readCodexUsage(
 }
 
 /** Availability only: quota checks must not wait for every engine's login or model discovery. */
-export async function detectUsageEngines(lookup = which): Promise<EngineStatus[]> {
+export async function detectUsageEngines(
+  lookup = which,
+  additional: readonly { id: string; label: string; command: string }[] = [],
+): Promise<EngineStatus[]> {
+  const extra = additional.map(({ id, label, command }) => [id, label, command] as const);
+  const ids = new Set(extra.map(([id]) => (id === "acp:opencode" ? "opencode" : id)));
+  const base: (readonly [string, string, string])[] = [
+    ["claude", "Claude", "claude"],
+    ["codex", "Codex", "codex"],
+    ["opencode", "OpenCode", "opencode"],
+    ["antigravity", "Antigravity", "agy"],
+  ];
   return Promise.all(
-    (
-      [
-        ["claude", "Claude", "claude"],
-        ["codex", "Codex", "codex"],
-        ["opencode", "OpenCode", "opencode"],
-        ["antigravity", "Antigravity", "agy"],
-      ] as const
-    ).map(async ([id, label, command]) => ({
+    [...base.filter(([id]) => !ids.has(id)), ...extra].map(async ([id, label, command]) => ({
       id,
       label,
       installed: Boolean(await lookup(command)),
@@ -132,10 +136,13 @@ export function createEngineUsage(deps: {
   binary?: () => Promise<string | undefined>;
   read?: typeof readCodexUsage;
   now?: () => Date;
+  enabled?: (id: string) => boolean;
 }) {
   let pending: Promise<EngineUsageReport> | undefined;
   const report = async (): Promise<EngineUsageReport> => {
-    const statuses = (await deps.status()).filter((engine) => engine.id !== "native");
+    const statuses = (await deps.status()).filter(
+      (engine) => engine.id !== "native" && (deps.enabled?.(engine.id) ?? true),
+    );
     const engines: EngineUsageReport["engines"] = [];
     for (const engine of statuses) {
       if (!engine.installed) {

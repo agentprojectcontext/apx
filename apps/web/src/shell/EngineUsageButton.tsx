@@ -96,6 +96,7 @@ function EngineUsageSummary({ onClose, onRefresh }: { onClose: () => void; onRef
           {t("engineUsage.failed")}
         </p>
       )}
+      {report && !report.engines.length && <p className="usage__note">{t("engineUsage.empty")}</p>}
       {report?.engines.map((engine) => (
         <EngineBlock key={engine.id} engine={engine} />
       ))}
