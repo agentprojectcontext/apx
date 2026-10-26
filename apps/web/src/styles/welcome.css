@@ -6,39 +6,13 @@
   overflow: hidden;
   background: #000;
 }
-.welcome__video video,
-.welcome__still,
-.welcome__still img {
+.welcome__video iframe,
+.welcome__video video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   border: 0;
-}
-.welcome__still {
-  padding: 0;
-  cursor: pointer;
-  background: none;
-}
-.welcome__still img {
-  object-fit: cover;
-}
-.welcome__play {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 64px;
-  height: 64px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--apx-brand);
-  color: var(--apx-tone-solid-fg, #fff);
-  box-shadow: var(--apx-shadow-md);
-  transition: transform 0.15s ease;
-}
-.welcome__still:hover .welcome__play {
-  transform: scale(1.06);
 }
 .welcome__confetti {
   position: fixed;

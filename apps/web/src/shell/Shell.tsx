@@ -1,7 +1,6 @@
 import type { CSSProperties } from "react";
 import { Suspense, useEffect } from "react";
 import { applyDesktopPrefs } from "../config/desktopPrefs.ts";
-import { useClosedCards } from "../data/cornerCards.ts";
 import { useSlice } from "../data/createStore.ts";
 import { usePrefs } from "../data/prefs.ts";
 import { data } from "../data/state.ts";
@@ -59,7 +58,6 @@ export function Shell() {
   const peek = useNav((s) => s.peekTaskId != null && s.view !== "tasks");
   const widgetChat = useSlice(widgetChatOpen, (s) => s.threadId != null);
   const live = useAnyLive();
-  const welcome = !useClosedCards((s) => s.welcome);
   const panelWide = useNav((s) => s.panelWide);
   const layout = computeLayout(width, panelOpen, chat && threadId != null, transcript, { ...own, panelWide });
   useShortcuts();
@@ -134,11 +132,10 @@ export function Shell() {
         </Suspense>
       )}
       <UpdateDialogHost />
-      {welcome && (
-        <Suspense fallback={null}>
-          <WelcomeV2 />
-        </Suspense>
-      )}
+      {/* It knows on its own whether it was seen: the first screen carries none of it. */}
+      <Suspense fallback={null}>
+        <WelcomeV2 />
+      </Suspense>
       {/* Over the foot of the list column: on a phone, or with the list hidden, it would cover the composer. */}
       {layout.rail && !layout.compact && layout.listW > 0 && (
         <Suspense fallback={null}>

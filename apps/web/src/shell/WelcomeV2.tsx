@@ -1,19 +1,28 @@
 import "../styles/welcome.css";
-import { Button, Dialog, Icons } from "@apx/ui";
+import { Button, Dialog } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import poster from "../assets/welcome-v2.jpg";
-import { closeCard } from "../data/cornerCards.ts";
-import { useT } from "../i18n/index.ts";
+import { closeCard, useClosedCards } from "../data/cornerCards.ts";
+import { useLanguage, useT } from "../i18n/index.ts";
+import { enWelcome } from "../i18n/welcome-en.ts";
+import { esWelcome } from "../i18n/welcome-es.ts";
 
 // The launch film: no voice, so one cut serves every language. Played from the docs site with no player chrome; where
-// it cannot load, its still (shipped with the panel) opens it on YouTube.
+// it cannot load, YouTube's no-cookie player plays it in the same place.
 const FILM = "https://agentprojectcontext.github.io/apx/v2/media/apx-v2.mp4";
+const YOUTUBE = "https://www.youtube-nocookie.com/embed/biFjPPuvg9o?rel=0&modestbranding=1";
 const YOUTUBE_URL = "https://youtu.be/biFjPPuvg9o";
 
 /** Said once per device: v2 left the beta. The one celebration APX shows as a dialog; closing it in any way is seen. */
 export function WelcomeV2() {
+  const seen = useClosedCards((s) => s.welcome);
+  return seen ? null : <Welcome />;
+}
+
+function Welcome() {
   const t = useT();
+  const w = useLanguage() === "es" ? esWelcome : enWelcome;
   const [fallback, setFallback] = useState(false);
   const watch = () => window.open(YOUTUBE_URL, "_blank", "noopener,noreferrer");
   return (
@@ -21,8 +30,8 @@ export function WelcomeV2() {
       defaultOpen
       size="lg"
       className="welcome"
-      title={t("welcome.title")}
-      description={t("welcome.desc")}
+      title={w["welcome.title"]}
+      description={w["welcome.desc"]}
       closeLabel={t("common.close")}
       onOpenChange={(open) => {
         if (!open) closeCard({ welcome: true });
@@ -30,26 +39,27 @@ export function WelcomeV2() {
       footer={
         <>
           <Button variant="secondary" onClick={watch}>
-            {t("welcome.youtube")}
+            {w["welcome.youtube"]}
           </Button>
-          <Button onClick={() => closeCard({ welcome: true })}>{t("welcome.cta")}</Button>
+          <Button onClick={() => closeCard({ welcome: true })}>{w["welcome.cta"]}</Button>
         </>
       }
     >
       <Confetti />
       <div className="welcome__video">
         {fallback ? (
-          <button type="button" className="welcome__still" onClick={watch} aria-label={t("welcome.youtube")}>
-            <img src={poster} alt="" />
-            <span className="welcome__play">
-              <Icons.Play size={28} />
-            </span>
-          </button>
+          <iframe
+            src={YOUTUBE}
+            title={w["welcome.video"]}
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
         ) : (
           <video
             src={FILM}
             poster={poster}
-            aria-label={t("welcome.video")}
+            aria-label={w["welcome.video"]}
             autoPlay
             muted
             loop
