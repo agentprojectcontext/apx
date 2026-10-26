@@ -246,7 +246,9 @@ if [ "$OS" = linux ] && [ "$SERVICE" = 1 ] && command -v loginctl >/dev/null 2>&
 fi
 
 say "APX $VERSION is installed. Try: apx status"
-echo "    Computer is optional: open its panel to download Linux and missing VM components. No Docker required (macOS Apple Silicon)."
+# The agents' own computer runs only on Apple Silicon Macs.
+[ "$OS" = mac ] && [ "$ARCH" = arm64 ] &&
+  echo "    Computer is optional: open its panel to download Linux and missing VM components. No Docker required."
 found="$(command -v apx 2>/dev/null || true)"
 if [ -n "$found" ] && [ "$found" != "$BIN/apx" ]; then
   warn "apx here is still $found (APX v1's?). This APX also answers to apx2: apx2 v1 off turns v1 off and makes apx this one"
