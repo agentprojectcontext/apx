@@ -30,11 +30,23 @@ function fromOf(origin: Origin): JobFrom {
 }
 
 export function jobHandlers(store: Store, engine: Engine) {
-  const provenance = (job: Job): Job => ({
-    ...job,
-    thread_title: store.threads.get(job.thread_id)?.title,
-    agent_name: job.agent_id ? store.agents.get(job.agent_id)?.name : undefined,
-  });
+  const provenance = (job: Job): Job => {
+    const thread = store.threads.get(job.thread_id);
+    const run = job.run_id ? store.runs.get(job.run_id) : undefined;
+    // Only the executing run can fill missing attribution; a chat's participants may be its callers.
+    const agentId = job.agent_id ?? (run?.thread_id === job.thread_id ? run.agent_id : undefined);
+    return {
+      ...job,
+      agent_id: agentId,
+      thread_title: thread?.title,
+      agent_name: agentId ? store.agents.get(agentId)?.name : undefined,
+      project_id: job.project_id ?? (run?.thread_id === job.thread_id ? run.input?.project_at_start?.id : undefined),
+      project_name:
+        job.project_name ?? (run?.thread_id === job.thread_id ? run.input?.project_at_start?.name : undefined),
+      thread_project_id: thread?.project_id,
+      thread_project_name: thread?.project_id ? store.projects.get(thread.project_id)?.name : undefined,
+    };
+  };
   const view = (r: RunRecord): Job => {
     const t = store.threads.get(r.thread_id);
     const agent = store.agents.get(r.agent_id);
@@ -46,6 +58,8 @@ export function jobHandlers(store: Store, engine: Engine) {
       thread_id: r.thread_id,
       ...(t?.parent_id ? { parent_thread_id: t.parent_id } : {}),
       agent_id: r.agent_id,
+      project_id: r.input?.project_at_start?.id,
+      project_name: r.input?.project_at_start?.name,
       trigger: r.trigger,
       ...(r.input ? { from: fromOf(r.input.origin) } : {}),
       ...(r.model ? { model: r.model } : {}),

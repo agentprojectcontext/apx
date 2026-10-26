@@ -130,6 +130,8 @@ export type RunInput = {
   origin: Origin;
   text: string;
   attachments?: Attachment[];
+  /** The executing turn's project context, independent of later chat moves. */
+  project_at_start?: { id: string; name: string };
   /** The turn's destination; null means the app. Kept across waits and restarts. */
   reply_to?: ThreadContext["reply_to"] | null;
   /** This run picks up the turn a restart of APX cut off (that run's id); such a run is never resumed again. */
@@ -258,6 +260,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
     }): RunRecord {
       const id = newId("run");
       const ts = now();
+      const input: RunInput = { ...r.input, project_at_start: undefined };
       run(
         qb.insertInto("runs").values({
           id,
@@ -265,7 +268,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           agent_id: r.agent_id,
           state: r.state ?? "submitted",
           trigger: r.trigger,
-          input: JSON.stringify(r.input),
+          input: JSON.stringify(input),
           parent_run_id: r.parent_run_id ?? null,
           depth: r.depth ?? 0,
           deadline_at: r.deadline_at,
@@ -276,6 +279,24 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
       const created = repo.get(id) as RunRecord;
       emit(created);
       return created;
+    },
+    /** Called with the same project selection as the executing turn, before its first await. */
+    captureProject(id: string, projectId: string | undefined): void {
+      const cur = repo.get(id);
+      if (!cur?.input) return;
+      const project = projectId
+        ? one(qb.selectFrom("projects").select(["id", "name"]).where("id", "=", projectId))
+        : undefined;
+      const input: RunInput = {
+        ...cur.input,
+        project_at_start: project ? { id: project.id, name: project.name } : undefined,
+      };
+      run(
+        qb
+          .updateTable("runs")
+          .set({ input: JSON.stringify(input) })
+          .where("id", "=", id),
+      );
     },
     /** Oldest admitted run of the thread that has not started. */
     nextQueued(threadId: string): RunRecord | undefined {
