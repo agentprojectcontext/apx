@@ -610,7 +610,12 @@ test("deleting a task takes its history and conversation; subtasks and the agent
 test("a task's chat asks the owner once where code work goes and reuses a worktree before adding one", async () => {
   const t = await env.client.call("tasks.create", { title: "Fix the export button", project });
   const block = taskBlock(env.core.store, { id: "th_probe", task_id: t.id, kind: "loose" }) ?? "";
-  assert.match(block, /ask_owner with options "Worktree now", "Worktree always", "Here now", "Here always", "Other"/);
+  // The options are meanings, not fixed English labels: the agent words them in the owner's language.
+  assert.match(
+    block,
+    /ask_owner with five short options written in the language you speak with the owner: a worktree now,/,
+  );
+  assert.doesNotMatch(block, /"Worktree now"|"Here now"/);
   assert.match(block, /save an "always" with remember \(scope project\) and do not ask again/);
   assert.match(
     block,
