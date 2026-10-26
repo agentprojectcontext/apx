@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Announces a v2 release on Discord (the webhook v1's releases use) once its files are attached: what is new and fixed,
 // read from the commits since the previous v2 tag, and how each install updates.
-//   TAG=v2.3.4 WEBHOOK=… [ROLE_ID=…] [BETA=1] node scripts/discord-release.ts [--dry]
+//   TAG=v2.3.4 WEBHOOK=… [ROLE_ID=…] [BETA=1] [NOTE=…] node scripts/discord-release.ts [--dry]
+// NOTE is a line said once above the release (a launch, with a video link Discord previews): unset it after.
 import { execFileSync } from "node:child_process";
 import { previousTag, sentence } from "../apps/core/src/release-notes.ts";
 
@@ -32,14 +33,21 @@ export function sections(subjects: string[]): Array<{ name: string; value: strin
   });
 }
 
-export function payload(o: { tag: string; previous?: string; subjects: string[]; roleId?: string; beta: boolean }) {
+export function payload(o: {
+  tag: string;
+  previous?: string;
+  subjects: string[];
+  roleId?: string;
+  beta: boolean;
+  note?: string;
+}) {
   const version = o.tag.slice(1);
   const release = `https://github.com/${REPO}/releases/tag/${o.tag}`;
   const compare = o.previous ? `https://github.com/${REPO}/compare/${o.previous}...${o.tag}` : release;
   const fields = sections(o.subjects);
   return {
     username: "APX",
-    content: `${o.roleId ? `<@&${o.roleId}> ` : ""}**APX** v${version}${o.beta ? " · beta" : ""}`,
+    content: `${o.roleId ? `<@&${o.roleId}> ` : ""}**APX** v${version}${o.beta ? " · beta" : ""}${o.note ? `\n${o.note}` : ""}`,
     ...(o.roleId ? { allowed_mentions: { roles: [o.roleId] } } : { allowed_mentions: { parse: [] } }),
     embeds: [
       {
@@ -67,6 +75,7 @@ if (import.meta.main) {
     subjects,
     ...(process.env.ROLE_ID ? { roleId: process.env.ROLE_ID } : {}),
     beta: process.env.BETA === "1",
+    ...(process.env.NOTE?.trim() ? { note: process.env.NOTE.trim() } : {}),
   });
   if (process.argv.includes("--dry")) {
     console.log(JSON.stringify(body, null, 2));
