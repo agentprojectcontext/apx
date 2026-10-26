@@ -24,6 +24,7 @@ import type { Jobs } from "./jobs.ts";
 import { confirmPrompt, fanOutPrompt, folderPrompt } from "./owner-words.ts";
 import { guarded, pathsOf } from "./paths.ts";
 import type { Permissions } from "./permissions.ts";
+import { handedOff } from "./task-handoff.ts";
 import { toolTitle } from "./tool-titles.ts";
 
 /** Runs a tool with its own deadline; a canceled turn stops waiting for it. */
@@ -245,6 +246,8 @@ export function createExecutor(o: {
 
   const execute: TurnIO["execute"] = async (callId, called, given) => {
     const run = o.run();
+    const transfer = handedOff(store, run);
+    if (transfer) return { ok: false, text: transfer, endTurn: true };
     // mcp_call runs the tool it names, through every check below as if the model had called that tool itself.
     const { name, args: raw } = called === MCP_CALL ? unwrapCall(given) : { name: called, args: given };
     if (called === MCP_CALL || name === "grant_tool" || (name.startsWith("mcp_") && !byName.has(name))) await join();
@@ -318,7 +321,7 @@ export function createExecutor(o: {
       card("error", "read-only thread");
       const why =
         tool.name === "shell"
-          ? "this command is not a plain read (see [workspace] in the turn's context for what runs)"
+          ? 'this command is not a plain read (see "Your folder" in your instructions for what runs)'
           : "only actions that read may run here";
       return { ok: false, text: `refused: this code thread is read-only; ${why}` };
     }
@@ -409,6 +412,11 @@ export function createExecutor(o: {
       }
     }
 
+    const transferred = handedOff(store, run);
+    if (transferred) {
+      card("error", "execution transferred");
+      return { ok: false, text: transferred, endTurn: true };
+    }
     toolsRan++;
     const stepId = store.runs.beginStep(run.id, { call_id: callId, tool: name, args, effect: tool.effect });
     store.runs.setActivity(run.id, title, true);
@@ -508,6 +516,7 @@ export function createExecutor(o: {
       ok: out.ok,
       text: shown === out.text ? shown : `${shown}\n[full output: ${out.text.length} chars; read_output ref=${stepId}]`,
       ...images,
+      ...(handedOff(store, run) ? { endTurn: true } : {}),
     };
   };
 
@@ -525,6 +534,13 @@ export function createExecutor(o: {
    * what it changes changeable; outside those the owner is asked, and only a read-only folder or APX's own is refused.
    */
   const approve: TurnIO["approve"] = async (req) => {
+    const allow = () => {
+      const run = o.run();
+      if (handedOff(store, run)) return false;
+      store.threads.mergeContext(thread.id, { external_grant_run: run.id });
+      return true;
+    };
+    if (handedOff(store, o.run())) return false;
     const base = o.workDir;
     const scope = o.permissions.scope(agent, thread);
     const paths = pathsOf(req.input);
@@ -549,7 +565,7 @@ export function createExecutor(o: {
     const reads = reading || (req.kind === "execute" && level === "never");
     const effect = reads ? "none" : req.kind === "edit" && workspace ? "local" : "external";
     const decision = decide(level, effect, agent, untrusted, workspace);
-    if (decision.kind === "allow") return true;
+    if (decision.kind === "allow") return allow();
     if (decision.kind === "deny") return false;
     const answer = await o.inputs.ask({
       run: o.run(),
@@ -565,7 +581,7 @@ export function createExecutor(o: {
       stays: false,
       signal,
     });
-    return answer.state === "approved";
+    return answer.state === "approved" && allow();
   };
 
   const seen = new Set<string>();

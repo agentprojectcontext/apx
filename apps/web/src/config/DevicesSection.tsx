@@ -6,6 +6,7 @@ import { QrCode } from "../common/QrCode.tsx";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
+import { go } from "../shell/nav.ts";
 import { AccessBlock } from "./AccessBlock.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 
@@ -91,6 +92,19 @@ export function DevicesSection() {
   return (
     <>
       <SectionHead title={t("config.devices")} lead={t("devices.lead")} />
+      <div>
+        <Button
+          size="sm"
+          variant="secondary"
+          leadingIcon={<Icons.Smartphone size={14} />}
+          onClick={() => {
+            go.config(null);
+            go.phone(true);
+          }}
+        >
+          {t("phone.open")}
+        </Button>
+      </div>
       <div className="devices__head">
         <SubHead>{t("devices.paired")}</SubHead>
         <Button

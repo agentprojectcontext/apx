@@ -81,6 +81,26 @@
   <sub>Un solo pedido: Roby le pasa la investigación a Scout, abre la página de origen en el navegador al lado del chat y arma un tablero de lanzamiento.</sub>
 </p>
 
+## Funciona hoy · Bases listas · En los planes
+
+| ✅ Funciona hoy | 🚧 Bases listas | 💭 En los planes |
+|---|---|---|
+| Superagente, crews por proyecto, delegación y memoria | Exportar e importar artifacts como archivos `.apxart` | Marketplace de artifacts |
+| Widgets y apps, con su propio estado y sus registros | Enlaces para compartir desde tu APX y distribución por archivo | Publicación y descubrimiento público de artifacts alojados en la nube |
+| App de escritorio (macOS, Windows, Linux), panel web y app de Android | Acceso a tu propio servidor y vinculación de dispositivos | Cuenta e inicio de sesión en la nube |
+| Canales de mensajería, tareas, compromisos y rutinas programadas | — | — |
+| Navegador integrado, herramientas para la computadora, skills, servidores MCP y extensiones | — | — |
+| Modelos a elección, Claude Code, Codex y harnesses ACP | — | — |
+
+**Tener las bases no significa que el servicio esté listo.** Exportar un artifact no es tener un marketplace, y
+conectarte a tu propio servidor no es iniciar sesión en una cuenta de APX en la nube. Los planes indican una
+dirección, no disponibilidad ni fechas de lanzamiento.
+
+### APX Enterprise (planeado)
+
+Está prevista una edición Enterprise aparte. Su alcance, licencia, precio y disponibilidad todavía no están anunciados.
+La edición actual de código abierto de APX sigue disponible bajo la [licencia MIT](LICENSE).
+
 ## Instalar
 
 **App de escritorio** (macOS, Windows, Linux): bajala del

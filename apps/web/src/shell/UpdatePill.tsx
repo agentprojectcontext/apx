@@ -1,4 +1,4 @@
-import { Icons } from "@apx/ui";
+import { Icons, Tooltip } from "@apx/ui";
 import { Suspense } from "react";
 import { useData } from "../data/state.ts";
 import { newerOf, openUpdate, useUpdates } from "../data/updates.ts";
@@ -24,15 +24,17 @@ export function UpdatePill() {
     );
   if (stale)
     return (
-      <button
-        type="button"
-        className="updatepill"
-        aria-label={t("update.reload")}
-        onClick={() => window.location.reload()}
-      >
-        <Icons.RefreshCw size={12} />
-        <span className="updatepill__label">{t("update.reload")}</span>
-      </button>
+      <Tooltip content={t("update.reload")} side="bottom">
+        <button
+          type="button"
+          className="updatepill"
+          aria-label={t("update.reload")}
+          onClick={() => window.location.reload()}
+        >
+          <Icons.RefreshCw size={12} />
+          <span className="updatepill__label">{t("update.reload")}</span>
+        </button>
+      </Tooltip>
     );
   const newer = newerOf(status, app);
   if (!newer) return null;
@@ -43,10 +45,12 @@ export function UpdatePill() {
         ? t("update.pillVersion", { v: newer.version })
         : t("update.pill", { n: status?.behind ?? 0 });
   return (
-    <button type="button" className="updatepill" aria-label={label} onClick={() => openUpdate(newer.target)}>
-      <Icons.ArrowDown size={12} />
-      <span className="updatepill__label">{label}</span>
-    </button>
+    <Tooltip content={label} side="bottom">
+      <button type="button" className="updatepill" aria-label={label} onClick={() => openUpdate(newer.target)}>
+        <Icons.ArrowDown size={12} />
+        <span className="updatepill__label">{label}</span>
+      </button>
+    </Tooltip>
   );
 }
 
@@ -59,16 +63,12 @@ export function WhatsNewPill() {
   });
   if (!told?.release) return null;
   return (
-    <button
-      type="button"
-      className="updatepill"
-      aria-label={t("update.whatsNew")}
-      title={t("update.whatsNewTitle", { v: told.release })}
-      onClick={() => go.thread(told.id)}
-    >
-      <Icons.Sparkles size={12} />
-      <span className="updatepill__label">{t("update.whatsNew")}</span>
-    </button>
+    <Tooltip content={t("update.whatsNewTitle", { v: told.release })} side="bottom">
+      <button type="button" className="updatepill" aria-label={t("update.whatsNew")} onClick={() => go.thread(told.id)}>
+        <Icons.Sparkles size={12} />
+        <span className="updatepill__label">{t("update.whatsNew")}</span>
+      </button>
+    </Tooltip>
   );
 }
 

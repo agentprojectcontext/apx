@@ -71,9 +71,11 @@ test("Home never goes on the computer: an allowed super-agent there keeps its to
   const home = tempDir("apx-vm-tool-").path;
   const seen: string[][] = [];
   const inputs: string[] = [];
+  const systems: string[] = [];
   const llm = scriptedLlm((req) => {
     seen.push(toolNames(req));
     inputs.push(JSON.stringify(req.messages.filter((m) => m.role === "user").at(-1)?.content ?? ""));
+    systems.push(String(req.messages[0]?.content ?? ""));
     return say("ok");
   });
   const env = await startCore({ home, llm, computer: fakeComputer(home).config });
@@ -90,7 +92,8 @@ test("Home never goes on the computer: an allowed super-agent there keeps its to
     assert.equal(seen[0]?.includes("computer"), false, "no computer tool in Home");
     for (const kept of ["task_create", "delegate", "remember", "web_search", "web_read"])
       assert.ok(seen[0]?.includes(kept), kept);
-    assert.match(inputs[0] ?? "", /Computer: not used from Home/);
+    assert.match(systems[0] ?? "", /Computer: not used from Home/);
+    assert.doesNotMatch(inputs[0] ?? "", /Computer: not used from Home/, "said once, in the cached system prompt");
     // Started from Home's panel, the computer comes up and Home stays on this Mac.
     await env.client.call("environments.enable", { appearance: "light" });
     assert.deepEqual((await env.client.call("environments.status", {})).chats, []);
@@ -539,14 +542,14 @@ test("an agent allowed the computer reads its state each turn in its input; one 
     await env.settle(chat);
     assert.match(
       inputs.at(-1) ?? "",
-      /\[computer\] Computer: running with 4 GiB memory, 2 CPUs, 24 GiB disk; this chat works on it\. Your screen: :101 \(screen 1\), working in this chat\. Control: yours\.\n/,
+      /\]\n(?:Folder: [^\n]*\n)?Computer: running with 4 GiB memory, 2 CPUs, 24 GiB disk; this chat works on it\. Your screen: :101 \(screen 1\), working in this chat\. Control: yours\.\n/,
     );
     const other = await env.client.call("threads.create", { kind: "loose", agent_id: "scout" });
     await env.client.call("threads.send", { thread: other.id, text: "Hola" });
     await env.settle(other.id);
-    assert.doesNotMatch(inputs.at(-1) ?? "", /\[computer\]/);
-    // The system prompt never carries it: it stays the same turn after turn.
-    assert.doesNotMatch(String(llm.calls.at(-2)?.messages[0]?.content ?? ""), /\[computer\]/);
+    assert.doesNotMatch(inputs.at(-1) ?? "", /Computer: /);
+    // The system prompt never carries the state: it stays the same turn after turn.
+    assert.doesNotMatch(String(llm.calls.at(-2)?.messages[0]?.content ?? ""), /Computer: running/);
   } finally {
     await env.core.close();
     env.cleanup();

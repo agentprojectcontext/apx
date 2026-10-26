@@ -1,4 +1,4 @@
-# Every push to main and every pull request: the repo gates (preflight, as static checks and unit tests in
+# Every push to staging or main and every pull request: the repo gates (preflight, as static checks and unit tests in
 # parts), the whole app end to end in its own sandboxes (Playwright against e2e/env.ts: temp home, fake model,
 # emulated Telegram) and the lightness budgets (scripts/perf.ts). Reports are kept as artifacts.
 # Release tags build installers; publication requires this workflow to pass for the exact branch commit.
@@ -6,7 +6,7 @@ name: verify
 
 on:
   push:
-    branches: [main]
+    branches: [staging, main]
   pull_request:
   workflow_dispatch:
 

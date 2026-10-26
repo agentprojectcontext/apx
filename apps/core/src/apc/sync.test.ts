@@ -403,19 +403,19 @@ test("an agent's tools and skills are set from APX: a project agent's file says 
   }
 });
 
-test("a long AGENTS.md reaches its agents whole; only one past the safety limit is cut, and says so", async () => {
+test("a long AGENTS.md reaches its agents up to 8k, with the headings left out and where to read them", async () => {
+  // Reads on from where the prompt's copy stops, a page of five lines at a time, until it finds rule 56.
   const llm = scriptedLlm((req, { system, afterTool }) => {
-    if (afterTool) {
-      const out = String(req.messages.at(-1)?.content ?? "");
-      return say(out.includes("Rule 56: close the issue after the push.") ? "read rule 56" : "no rule 56");
-    }
-    if (system.includes("Rule 56: close the issue after the push.")) return say("saw rule 56");
+    const pages = req.messages.filter((m) => m.role === "tool").length;
+    if (afterTool && String(req.messages.at(-1)?.content ?? "").includes("Rule 56: close the issue after the push."))
+      return say("read rule 56");
+    if (!afterTool && system.includes("Rule 56: close the issue after the push.")) return say("saw rule 56");
     const cut =
-      /\[… lines (\d+)-(\d+) of (\S+) \(\d+ of its \d+ characters\) are not shown here: read them with file_read offset=(\d+) limit=(\d+)/.exec(
+      /\[AGENTS\.md goes on from line (\d+) \(\d+ more characters\), with: ## Releases\. Read it with file_read path=(\S+) offset=(\d+) before acting/.exec(
         system,
       );
-    if (!cut) return say("rule 56 lost");
-    return callTool("c1", "file_read", { path: cut[3], offset: Number(cut[4]), limit: Number(cut[5]) });
+    if (!cut || pages >= 15) return say(afterTool ? "no rule 56" : "rule 56 lost");
+    return callTool(`c${pages}`, "file_read", { path: cut[2], offset: Number(cut[3]) + pages * 5, limit: 5 });
   });
   const env = await startCore({ llm });
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-longmd-"));
@@ -425,6 +425,7 @@ test("a long AGENTS.md reaches its agents whole; only one past the safety limit 
     const text = [
       "# Northwind",
       ...filler(1, 55),
+      "## Releases",
       `Rule 56: close the issue after the push. ${"x".repeat(width)}`,
       ...filler(57, 35),
       "Last rule: answer in English.",
@@ -448,8 +449,13 @@ test("a long AGENTS.md reaches its agents whole; only one past the safety limit 
     assert.ok(memory.length > 6_000 && memory.length < AGENTS_MD_LIMIT);
     assert.ok(text.length > 12_000 && text.length < AGENTS_MD_LIMIT);
     await env.client.call("projects.register", { path: root });
-    assert.deepEqual(await ask(), { type: "text", text: "saw rule 56" }, "a 16k AGENTS.md arrives whole");
-    assert.ok(String(llm.calls.at(-1)?.messages[0]?.content).includes(memory), "project notes arrive whole");
+    // Every call carries its first 8k (DECISIONS.md#d-157): the agent reads the rest when it needs it.
+    assert.deepEqual(
+      await ask(),
+      { type: "text", text: "read rule 56" },
+      "a 16k AGENTS.md: rule 56 read from the file",
+    );
+    assert.ok(String(llm.calls.at(-2)?.messages[0]?.content).includes(memory), "project notes arrive whole");
     assert.equal((await listed())?.agents_md_chars, undefined, "nothing to tell the owner");
 
     // Past the safety limit: head and tail, a marker naming the lines left out, and the owner is told.
@@ -458,14 +464,12 @@ test("a long AGENTS.md reaches its agents whole; only one past the safety limit 
     await env.client.call("projects.sync", { project: "p_abc123def456" });
     assert.equal((await listed())?.agents_md_chars, huge.length);
     assert.deepEqual(await ask(), { type: "text", text: "read rule 56" });
-    const system = String(llm.calls.at(-2)?.messages[0]?.content ?? "");
-    assert.ok(system.includes("Last rule: answer in English."), "the tail is still sent");
 
     write(150);
     await env.client.call("projects.sync", { project: "p_abc123def456" });
     assert.equal((await listed())?.agents_md_chars, undefined, "shrinking the file clears the stored notice");
-    assert.deepEqual(await ask(), { type: "text", text: "saw rule 56" });
-    assert.ok(!String(llm.calls.at(-1)?.messages[0]?.content).includes("are not shown here"));
+    assert.deepEqual(await ask(), { type: "text", text: "read rule 56" });
+    assert.ok(!String(llm.calls.at(-2)?.messages[0]?.content).includes("are not shown here"));
   } finally {
     await env.core.close();
     await env.cleanup();

@@ -2,6 +2,7 @@
 // opening framing word for word, the role the chat played, its recurring tasks, formats, preferences and facts. A
 // chat too long for one call is read in stretches whose notes are then merged.
 import type { Message } from "@apx/protocol";
+import { redactSecrets } from "../redact-secrets.ts";
 
 /** One call to the auxiliary model; undefined when there is none. */
 export type Ask = (system: string, user: string) => Promise<string | undefined>;
@@ -37,15 +38,6 @@ const MERGE_SYSTEM = `You merge notes taken over a long chat into one brief for 
   .join(
     ", ",
   )}. Keep it under 1200 words: the newest stretch wins when notes disagree, drop what is one-off, keep concrete examples and exact formats. ${DATA_RULE}`;
-
-/** Secrets an owner pasted in a chat (keys, tokens, "user / password"), hidden before the text leaves for a model. */
-export function redactSecrets(text: string): string {
-  return text
-    .replace(/\b(?:sk|pk|rk|ghp|gho|github_pat|xox[abpr]|AIza)[-_A-Za-z0-9]{10,}/g, "[secret]")
-    .replace(/\b[A-Za-z0-9_-]*[0-9][A-Za-z0-9_-]*[A-Za-z][A-Za-z0-9_-]{30,}\b/g, "[secret]")
-    .replace(/((?:password|passwd|pass|contraseña|clave|token|secret|api[ _-]?key)\s*[:=]\s*)\S+/gi, "$1[secret]")
-    .replace(/([\w.+-]+@[\w-]+(?:\.[\w-]+)+\s*\/\s*)\S+/g, "$1[secret]");
-}
 
 const said = (m: Message) =>
   redactSecrets(

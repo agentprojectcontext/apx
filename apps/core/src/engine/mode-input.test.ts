@@ -25,19 +25,21 @@ async function seen(text: string): Promise<{ input: string; system: string }> {
   };
 }
 
-test("an agent is told its mode in each turn's input, and that APX asks the owner for it", async () => {
+test("an agent's system prompt says what its mode lets it do and that APX asks the owner; each turn names the mode", async () => {
   const auto = await seen("what may you do?");
+  assert.match(auto.input, /^\[context: [^\]]* · mode: Auto\]/);
+  assert.doesNotMatch(auto.input, /\[mode\]/, "the mode's text is said once, in the cached system prompt");
   assert.match(
-    auto.input,
-    /^\[mode\] Auto: read anything; edit files and run commands in your work folder, the owner.s other projects/m,
+    auto.system,
+    /^## Permission mode: Auto\n- Auto: read anything; edit files and run commands in your work folder, the owner.s other projects/m,
   );
-  assert.match(auto.input, /APX asks them: make the call, never ask_owner for permission/);
-  assert.match(auto.input, /A choice only the owner can make .*: ask_owner with the action you propose/);
-  assert.doesNotMatch(auto.system, /\[mode\]/, "the mode can change, so it stays out of the cached system prompt");
+  assert.match(auto.system, /APX asks them: make the call, never ask_owner for permission/);
+  assert.match(auto.system, /A choice only the owner can make .*: ask_owner with the action you propose/);
 
   await env.client.call("agents.update", { agent: "clerk", autonomy: "plan" });
   const plan = await seen("and now?");
-  assert.match(plan.input, /^\[mode\] Plan: read and propose/m);
+  assert.match(plan.input, / · mode: Plan\]/);
+  assert.match(plan.system, /^- Plan: read and propose/m);
 });
 
 test("the agent is told to save confirmed approaches in its own words, and remember says how a note is written", async () => {

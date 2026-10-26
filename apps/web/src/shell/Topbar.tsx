@@ -1,4 +1,4 @@
-import { AgentAvatar, IconButton, Icons, Kbd, Menu } from "@apx/ui";
+import { AgentAvatar, IconButton, Icons, Kbd, Menu, Tooltip } from "@apx/ui";
 import { Fragment, Suspense } from "react";
 import logoUrl from "../assets/logo.png";
 import { useChannels } from "../data/channels.ts";
@@ -9,7 +9,6 @@ import { useT } from "../i18n/index.ts";
 import { EngineUsageButton, UsageButton } from "../lazy.ts";
 import { AttentionTray } from "./AttentionTray.tsx";
 import { useDesktopClass } from "./desktop.ts";
-import { LanguageMenu, useLanguageItems } from "./LanguageMenu.tsx";
 import { go, PROJECT_TABS, useNav, useNavHistory } from "./nav.ts";
 import { RunningIndicator } from "./RunningIndicator.tsx";
 import { UpdatePill, WhatsNewPill } from "./UpdatePill.tsx";
@@ -50,10 +49,8 @@ export function Topbar() {
   const t = useT();
   const desktop = useDesktopClass();
   const crumbs = useCrumbs();
-  const mode = useNav((s) => s.mode);
   const canBack = useNavHistory((s) => s.canBack);
   const canForward = useNavHistory((s) => s.canForward);
-  const languageItems = useLanguageItems();
   const agents = useData((s) => s.agents);
   const homeId = useData((s) => Object.values(s.threads).find((x) => x.kind === "home")?.id);
   const sec = secretary(agents);
@@ -94,51 +91,41 @@ export function Topbar() {
           ))}
         </nav>
       </div>
-      <button type="button" className="topbar__search" onClick={() => go.palette(true)}>
-        <Icons.Search size={14} />
-        <span className="topbar__search-label">{t("topbar.search")}</span>
-        <Kbd keys={["⌘", "K"]} data-shortcut-modifier />
-      </button>
+      <Tooltip content={t("topbar.search")} side="bottom" shortcut="⌘K">
+        <button
+          type="button"
+          className="topbar__search"
+          aria-label={t("topbar.search")}
+          onClick={() => go.palette(true)}
+        >
+          <Icons.Search size={14} />
+          <span className="topbar__search-label">{t("topbar.search")}</span>
+          <Kbd keys={["⌘", "K"]} data-shortcut-modifier />
+        </button>
+      </Tooltip>
       <div className="topbar__right">
         <WhatsNewPill />
         <UpdatePill />
-        <RunningIndicator />
-        <Suspense fallback={null}>
-          <EngineUsageButton />
-          <UsageButton />
-        </Suspense>
         <AttentionTray />
-        <div className="topbar__extras">
-          <IconButton
-            size="sm"
-            label={t("phone.open")}
-            icon={<Icons.Smartphone size={14} />}
-            className="topbar__icon"
-            onClick={() => go.phone(true)}
-          />
-          <LanguageMenu className="topbar__lang" />
-          <IconButton
-            size="sm"
-            label={mode === "dark" ? t("theme.light") : t("theme.dark")}
-            icon={mode === "dark" ? <Icons.Sun size={14} /> : <Icons.Moon size={14} />}
-            className="topbar__icon"
-            onClick={go.toggleMode}
-          />
+        <RunningIndicator />
+        <div className="topbar__usage">
+          <Suspense
+            fallback={<IconButton size="sm" label={t("engineUsage.title")} icon={<Icons.Zap size={14} />} disabled />}
+          >
+            <EngineUsageButton />
+          </Suspense>
+          <Suspense
+            fallback={
+              <IconButton size="sm" label={t("sysUsage.title")} icon={<Icons.MemoryStick size={14} />} disabled />
+            }
+          >
+            <UsageButton />
+          </Suspense>
         </div>
-        {/* Narrow windows fold usage, phone, language and theme into one menu so the bar never scrolls sideways. */}
+        {/* System usage remains reachable when its gauge no longer fits. */}
         <Menu
           align="end"
-          items={[
-            { label: t("sysUsage.title"), icon: <Icons.MemoryStick />, onSelect: () => go.usageDialog(true) },
-            { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
-            {
-              label: mode === "dark" ? t("theme.light") : t("theme.dark"),
-              icon: mode === "dark" ? <Icons.Sun /> : <Icons.Moon />,
-              onSelect: go.toggleMode,
-            },
-            { type: "separator" },
-            ...languageItems,
-          ]}
+          items={[{ label: t("sysUsage.title"), icon: <Icons.MemoryStick />, onSelect: () => go.usageDialog(true) }]}
           trigger={
             <IconButton
               size="sm"
@@ -171,13 +158,20 @@ export function Topbar() {
               { label: t("agent.super.owner"), icon: <Icons.User />, onSelect: () => go.config("account") },
             ]}
             trigger={
-              <button type="button" className="topbar__agent" aria-label={sec.name}>
-                <AgentAvatar name={sec.name} blob={blobOf(sec)} size={24} />
-                <span className="topbar__agentname">{sec.name}</span>
-                <span className="topbar__agentkbd" data-shortcut-modifier>
-                  ⌘J
-                </span>
-              </button>
+              <IconButton
+                className="topbar__agent"
+                size="sm"
+                label={sec.name}
+                icon={
+                  <>
+                    <AgentAvatar name={sec.name} blob={blobOf(sec)} size={24} />
+                    <span className="topbar__agentname">{sec.name}</span>
+                    <span className="topbar__agentkbd" data-shortcut-modifier>
+                      ⌘J
+                    </span>
+                  </>
+                }
+              />
             }
           />
         )}

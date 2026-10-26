@@ -377,6 +377,19 @@
 .pcard__spacer {
   flex: 1;
 }
+.engine-usage-switch {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+.engine-usage-switch .apx-choice {
+  gap: 5px;
+}
+.engine-usage-hint {
+  display: block;
+  max-width: 280px;
+  white-space: normal;
+}
 .pform {
   display: flex;
   flex-direction: column;

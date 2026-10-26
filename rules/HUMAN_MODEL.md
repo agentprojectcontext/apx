@@ -69,9 +69,16 @@ gets the types. There is no other way into a handler.
 - `apps/*` never import each other; `packages/*` never import `apps/*`.
 
 The top bar's AI usage panel calls owner-only `engines.usage`. The core probes CLI availability on its own
-computer and asks the local Codex app-server only for account rate-limit metadata, with a bounded child lifetime,
-validated windows and a short shared cache. It starts no model turn and APX reads no engine credentials. Other
+computer and asks the local Codex app-server or Claude Code's structured `/usage` report for account rate-limit
+metadata, with bounded child lifetimes, validated windows and a short shared cache. Claude requires version 2.1.273
+or later and runs isolated with safe mode, zero model turns, no session persistence, hooks, tools or MCP servers.
+Only global session and weekly limits are used; model-specific quotas are not substituted. It starts no model turn
+and APX reads no engine credentials. Other
 engines explicitly report unsupported or unavailable limits; session token counts are not account balances.
+The owner can turn quota visibility on or off with the compact Usage switch on each engine card. The core stores
+these choices independently of model power, filters disabled engines before account probes and hides pending/cached
+results after an opt-out. Defaults are off except for a linked ChatGPT plan (metadata only); its quota source still
+requires the separately linked Codex CLI. Explicit choices survive linking or disconnecting the plan.
 
 ## 4. State and persistence
 
@@ -177,6 +184,16 @@ notice when there is no text. Tools that touch core state call protocol methods 
   For the owner's drafts, an assigned task waits without automatic work until
   its description contains non-whitespace text. Completing the description starts work if it never began;
   later edits do not restart it. Unassigned ideas remain valid. Hourly pickup skips incomplete descriptions.
+  Immediate self-assignment transfers execution to the task session: the source turn can only acknowledge it,
+  including after recovery. Existing request/findings travel as bounded untrusted context, and a code chat's
+  folder/write restriction stays in force. A turn that already delegated work, or whose chat still has active
+  helpers/jobs, running tools or queued turns, cannot spawn a self-task executor; it keeps the existing work instead.
+  After an external harness authorizes a native tool, that turn stays in the source because completion cannot be
+  reliably drained. Codex, without a native-call permission intercept, also keeps immediate self-work in the source.
+  A transfer creates a fresh workspace-restricted session rather than reusing old permissions. Drafts, proposals,
+  clock-driven starts and other-agent assignments do not stop the source. Closure reports to the current transfer's
+  source even for `task_update`, separately from a different historical creator's notification.
+  See [Execution handoff](HISTORY.md#task-execution-handoff).
 - **Cross-project tasks** (`domain/tasks.ts`, `rpc/tasks.ts`, `tools/tasks.ts`): outside any project, the super-agent's
   `task_create` uses the assignee's project by default, or an explicit project id. Ordinary agents and a super-agent
   inside a project keep their thread's scope. To have a destination project's orchestrator prepare the task instead,

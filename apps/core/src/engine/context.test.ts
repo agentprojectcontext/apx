@@ -30,7 +30,7 @@ test("the system prompt has no clock and no roster: same agent and thread, same 
   // One rule says when to delegate, and a late hand-off carries what was found.
   assert.equal(a.match(/^- Delegate at the start,/gm)?.length, 1);
   // Who delegates is about what the other agent has, never about the answer's form; work started is finished.
-  assert.match(a, /A widget, document or chart alone is no reason/);
+  assert.match(a, /a widget, document or chart alone is no reason/);
   assert.match(a, /Otherwise finish what you started/);
   // A chat's storage kind is never shown raw: it read as a project's name.
   assert.match(systemPrompt(agent, { kind: "loose" }, "es"), /^Thread: chat\.$/m);
@@ -230,8 +230,9 @@ test("the web goes to the agent's own browser, a login is handed to the owner, a
     typeof systemPrompt
   >[0];
   const a = systemPrompt(agent, { kind: "home" }, "es");
-  assert.match(a, /the owner's screen \(screen_\) only when they ask for their computer; never another browser/);
-  assert.match(a, /a site that blocks you is a handoff too, not a reason to switch/);
+  assert.match(a, /^- The web: .*never another browser\.$/m);
+  assert.match(a, /^- The owner's screen \(screen_ tools\) only when they ask for their computer\.$/m);
+  assert.match(a, /A site that blocks you is a handoff too, not a reason to switch/);
   assert.match(a, /never drop a way that works after one failure/);
   assert.match(a, /A step the owner declined is not repeated/);
   assert.match(a, /Independent tool calls go together in one step/);

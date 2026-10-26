@@ -1,10 +1,15 @@
 import type { Result } from "@apx/protocol";
-import { Button, Icons, Meter, Popover } from "@apx/ui";
-import { useEffect, useState } from "react";
+import { Button, Help, IconButton, Icons, Meter, Popover } from "@apx/ui";
+import { useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
+import { useData } from "../data/state.ts";
 import { currentLocale, type MessageKey, usePack, useT } from "../i18n/index.ts";
+import EngineUsageQuick, { quickWindows } from "./EngineUsageQuick.tsx";
+import { UsageLoading } from "./UsageLoading.tsx";
+import { useVisible } from "./useVisible.ts";
 import "../styles/usage.css";
 import { windowLabel } from "./engineUsageModel.ts";
+import { sharedUsageRequest } from "./engineUsageRequest.ts";
 import { go } from "./nav.ts";
 
 type Report = Result<"engines.usage">;
@@ -18,6 +23,39 @@ const NOTES: Record<string, MessageKey> = {
 export default function EngineUsageButton() {
   const t = useT();
   const [open, setOpen] = useState(false);
+  const [quick, setQuick] = useState<Report>();
+  const visible = useVisible();
+  const load = useMemo(() => sharedUsageRequest(() => client.call("engines.usage", {})), []);
+  useEffect(() => {
+    if (!visible || open) return;
+    let active = true;
+    const read = () =>
+      void load().then(
+        (report) => {
+          if (active) setQuick(report);
+        },
+        () => {
+          if (active) setQuick(undefined);
+        },
+      );
+    read();
+    const timer = setInterval(read, 60_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [visible, open, load]);
+  const previews = quickWindows(quick);
+  const tooltip = [
+    t("engineUsage.title"),
+    ...previews.map(({ engine, window, remaining }) =>
+      t("engineUsage.quick", {
+        engine: engine.label,
+        pct: remaining,
+        window: window.window_minutes ? `${window.window_minutes} min` : window.id,
+      }),
+    ),
+  ].join("\n");
   return (
     <Popover
       align="end"
@@ -27,80 +65,120 @@ export default function EngineUsageButton() {
       onOpenChange={setOpen}
       label={t("engineUsage.title")}
       trigger={
-        <button
-          type="button"
+        <IconButton
+          size="sm"
           className="engine-usage-trigger topbar__icon"
-          aria-label={t("engineUsage.title")}
+          label={t("engineUsage.title")}
+          tooltip={tooltip}
           data-testid="engine-usage-button"
-        >
-          <Icons.Zap size={14} />
-          <span>{t("engineUsage.button")}</span>
-        </button>
+          icon={
+            <>
+              <span className="engine-usage-trigger__fallback">
+                <Icons.Zap size={14} />
+              </span>
+              {previews.length ? (
+                <EngineUsageQuick report={quick} />
+              ) : (
+                <span className="engine-usage-trigger__label">{t("engineUsage.button")}</span>
+              )}
+            </>
+          }
+        />
       }
     >
-      {open && <EngineUsageContent onClose={() => setOpen(false)} />}
+      {open && <EngineUsageContent onClose={() => setOpen(false)} onReport={setQuick} load={load} />}
     </Popover>
   );
 }
 
-function EngineUsageContent({ onClose }: { onClose: () => void }) {
+type SummaryProps = {
+  onClose: () => void;
+  onReport: (report: Report | undefined) => void;
+  load: () => Promise<Report>;
+};
+
+function EngineUsageContent({ onClose, onReport, load }: SummaryProps) {
   const [generation, setGeneration] = useState(0);
   return usePack("usage") ? (
-    <EngineUsageSummary key={generation} onClose={onClose} onRefresh={() => setGeneration((n) => n + 1)} />
-  ) : null;
+    <EngineUsageSummary
+      key={generation}
+      onClose={onClose}
+      onReport={onReport}
+      load={load}
+      onRefresh={() => setGeneration((n) => n + 1)}
+    />
+  ) : (
+    <UsageLoading />
+  );
 }
 
-function EngineUsageSummary({ onClose, onRefresh }: { onClose: () => void; onRefresh: () => void }) {
+function EngineUsageSummary({ onClose, onReport, onRefresh, load }: SummaryProps & { onRefresh: () => void }) {
   const t = useT();
+  const engines = useData((s) => s.engines);
+  const [loading, setLoading] = useState(true);
   const [report, setReport] = useState<Report>();
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let active = true;
     setFailed(false);
-    setReport(undefined);
-    void client.call("engines.usage", {}).then(
+    setLoading(true);
+    void load().then(
       (result) => {
-        if (active) setReport(result);
+        if (active) {
+          setReport(result);
+          onReport(result);
+          setLoading(false);
+        }
       },
       () => {
-        if (active) setFailed(true);
+        if (active) {
+          setFailed(true);
+          onReport(undefined);
+          setLoading(false);
+        }
       },
     );
     return () => {
       active = false;
     };
-  }, []);
+  }, [onReport, load]);
   return (
-    <div
-      className="usage usage--compact engine-usage"
-      data-testid="engine-usage-summary"
-      aria-busy={!report && !failed}
-    >
+    <div className="usage usage--compact engine-usage" data-testid="engine-usage-summary" aria-busy={loading}>
       <div className="usage__headrow">
-        <h2 className="usage__head">
-          <Icons.Zap size={14} />
-          {t("engineUsage.title")}
-        </h2>
-        <Button size="sm" variant="ghost" disabled={!report && !failed} onClick={onRefresh}>
+        <div className="usage__head">
+          <h2 className="usage__head">
+            <Icons.Zap size={14} />
+            {t("engineUsage.title")}
+          </h2>
+          <Help label={t("engineUsage.help")} align="end">
+            <p>{t("engineUsage.description")}</p>
+            <p>{t("engineUsage.disclaimer")}</p>
+          </Help>
+        </div>
+        <Button size="sm" variant="ghost" disabled={loading} onClick={onRefresh}>
           {t("sysUsage.refresh")}
         </Button>
       </div>
-      <p className="usage__note">{t("engineUsage.description")}</p>
-      {!report && !failed && (
-        <p className="usage__note" role="status">
-          {t("engineUsage.loading")}
-        </p>
+      {loading && (
+        <>
+          <span className="apx-sr-only" role="status">
+            {t("engineUsage.loading")}
+          </span>
+          <UsageLoading labels={(report?.engines ?? engines).map((engine) => engine.label)} />
+        </>
       )}
       {failed && (
         <p className="usage__error" role="alert">
           {t("engineUsage.failed")}
         </p>
       )}
-      {report?.engines.map((engine) => (
-        <EngineBlock key={engine.id} engine={engine} />
-      ))}
-      {report && <p className="usage__note">{t("engineUsage.updated", { at: dateLabel(report.checked_at) })}</p>}
-      <p className="usage__note">{t("engineUsage.disclaimer")}</p>
+      {!loading && !failed && report && !report.engines.length && (
+        <p className="usage__note">{t("engineUsage.empty")}</p>
+      )}
+      {!loading && !failed && report?.engines.map((engine) => <EngineBlock key={engine.id} engine={engine} />)}
+      {!loading && !failed && report && (
+        <p className="usage__note">{t("engineUsage.updated", { at: dateLabel(report.checked_at) })}</p>
+      )}
       <button
         type="button"
         className="usage__more"
@@ -131,7 +209,16 @@ function EngineBlock({ engine }: { engine: Report["engines"][number] }) {
   return (
     <section className="usage__block engine-usage__engine">
       <div className="usage__headrow">
-        <h3 className="usage__head">{engine.label}</h3>
+        <div className="usage__head">
+          <h3 className="usage__head">{engine.label}</h3>
+          {(note || (engine.available && ["codex_app_server", "claude_cli"].includes(engine.source ?? ""))) && (
+            <Help label={t("engineUsage.engineHelp", { engine: engine.label })} align="end">
+              {engine.available && engine.source === "codex_app_server" && <p>{t("engineUsage.codexSource")}</p>}
+              {engine.available && engine.source === "claude_cli" && <p>{t("engineUsage.claudeSource")}</p>}
+              {note && <p>{t(note)}</p>}
+            </Help>
+          )}
+        </div>
         {!engine.available && (
           <span className="usage__state">
             {t(
@@ -165,10 +252,6 @@ function EngineBlock({ engine }: { engine: Report["engines"][number] }) {
             )}
           </div>
         ))}
-      {engine.available && engine.source === "codex_app_server" && (
-        <p className="usage__note">{t("engineUsage.codexSource")}</p>
-      )}
-      {note && <p className="usage__note">{t(note)}</p>}
     </section>
   );
 }

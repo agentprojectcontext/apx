@@ -1,6 +1,16 @@
 // Usage: what the computer has and what APX takes of it (its dropdown, the dialog, Advanced): loaded with them
 // (usePack in index.ts). The topbar gauge's and menus' two strings stay in en.ts.
 export const enSysUsage = {
+  "engines.showUsage": "Usage",
+  "engines.usageHint":
+    "Show account limits in APX. Off by default. Without a supported source, no balance is shown. This does not turn the engine on or off.",
+  "engines.usageCodexHint":
+    "Show account limits in APX. On by default when you link your ChatGPT plan. The quota source also needs a separately linked Codex CLI account. This does not turn models on or off.",
+  "engines.usageLoadError": "Could not load usage preferences. Retry to load the switch.",
+  "engines.usageSaveError": "Could not save the usage preference. Your previous choice was kept.",
+  "engineUsage.help": "About AI usage",
+  "engineUsage.engineHelp": "About {engine} usage",
+  "engineUsage.empty": "No engines selected. Turn on Usage on an engine card to show its account limits here.",
   "engineUsage.description":
     "Account limits reported by engines on the computer running the core, not just sessions in APX.",
   "engineUsage.disclaimer":
@@ -15,6 +25,7 @@ export const enSysUsage = {
   "engineUsage.fiveHours": "5 hours",
   "engineUsage.weekly": "Weekly",
   "engineUsage.codexSource": "Source: Codex account limits",
+  "engineUsage.claudeSource": "Source: Claude plan limits (/usage)",
   "engineUsage.window": "{minutes}-minute window",
   "engineUsage.resets": "Resets {at}",
   "engineUsage.notInstalled": "CLI not found",
@@ -23,7 +34,7 @@ export const enSysUsage = {
   "engineUsage.unavailable": "Account limits unavailable",
   "engineUsage.source": "Source: {source}",
   "engineUsage.claudeNote":
-    "Claude Desktop and Claude Code: check Settings → Usage in Claude. APX does not read your credentials.",
+    "Claude plan limits through Claude Code 2.1.273 or later. Sign in to the CLI; APX does not read your credentials.",
   "engineUsage.opencodeNote":
     "OpenCode uses the account of the selected provider; there is no single OpenCode balance.",
   "engineUsage.antigravityNote":

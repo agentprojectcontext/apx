@@ -72,7 +72,7 @@ test("a read-only code thread refuses commands that change things", async () => 
   assert.ok(!fs.existsSync(path.join(repo, "written.txt")));
 });
 
-test("a code thread's folder and write policy are in its turn's input and in threads.get, not in the system prompt", async () => {
+test("a code thread's folder and write policy are in its turn's input and in threads.get; what the policy means, in the system prompt", async () => {
   const t = await env.client.call("threads.create", {
     kind: "code",
     agent_id: "roby",
@@ -84,10 +84,11 @@ test("a code thread's folder and write policy are in its turn's input and in thr
   await env.settle(t.id);
   const call = llm.calls.findLast((c) => String(c.messages.at(-1)?.content).includes("which folder?"));
   const input = String(call?.messages.at(-1)?.content);
-  assert.ok(input.includes(`[workspace] Folder: ${path.join(repo, "src")} · writes: read-only (`), input);
+  assert.ok(input.includes(`]\nFolder: ${path.join(repo, "src")} · writes: read-only\n`), input);
   const system = call?.messages.find((m) => m.role === "system")?.content;
   assert.match(String(system), /^You are /);
-  assert.doesNotMatch(String(system), /\[workspace\]|read-only/);
+  assert.doesNotMatch(String(system), /\[workspace\]|src/, "the folder is the turn's, never the cached prompt's");
+  assert.match(String(system), /^- Writes there: read-only \(nothing here may change/m);
   const { thread } = await env.client.call("threads.get", { thread: t.id });
   assert.equal(thread.cwd, path.join(repo, "src"));
   assert.equal(thread.write, "read-only");

@@ -14,6 +14,7 @@ import { telegramAdapter } from "../apps/core/src/channels/telegram.ts";
 import { say, scriptedLlm, startCore } from "../apps/core/src/engine/testkit.ts";
 import { CODEX_IMAGE_SERVICE } from "../apps/core/src/services/codex-images.ts";
 import { browserTools } from "../apps/core/src/tools/browser.ts";
+import { directoryTools, STICKER_TOOL } from "../apps/core/src/tools/directory.ts";
 import { toSpec } from "../apps/core/src/tools/types.ts";
 
 type Scenario = { ask: string; expect: string[] };
@@ -30,7 +31,8 @@ const scenarios = JSON.parse(
 
 /**
  * The tools of an owner's turn with Roby, as the model receives them (the desktop app lends the browser ones), with a
- * channel and an image service on so the tools that wait for them are reviewed too.
+ * channel and an image service on so the tools that wait for them are reviewed too, and sticker_list, which a turn
+ * from a channel with stickers gets.
  */
 async function turnTools(): Promise<Spec[]> {
   const llm = scriptedLlm(() => say("ok"));
@@ -43,7 +45,12 @@ async function turnTools(): Promise<Spec[]> {
     const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
     await env.client.call("threads.send", { thread: t.id, text: "hola" });
     await env.settle(t.id);
-    const sent = [...(llm.calls.at(-1)?.tools ?? []), ...browserTools(env.core.store, env.home).map(toSpec)];
+    const sticker = directoryTools(env.core.store).find((t) => t.name === STICKER_TOOL);
+    const sent = [
+      ...(llm.calls.at(-1)?.tools ?? []),
+      ...browserTools(env.core.store, env.home).map(toSpec),
+      ...(sticker ? [toSpec(sticker)] : []),
+    ];
     return sent.map((s) => ({
       name: s.function.name,
       description: s.function.description,

@@ -66,6 +66,7 @@ const Channel = ChannelInfo.omit({ token_set: true, token_hint: true, status: tr
 
 export const SETTINGS = {
   email_signatures: entry(EmailSignatures, []),
+  engine_usage: entry(z.record(z.string(), z.boolean()), {}),
   project_helper: entry(
     z.record(
       z.string(),

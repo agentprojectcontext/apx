@@ -6,6 +6,7 @@ import { loadCatalog } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { EngineUsageSwitch } from "./EngineUsageSwitch.tsx";
 import { ModelCatalog } from "./models/ModelCatalog.tsx";
 import { SectionHead } from "./SectionHead.tsx";
 
@@ -126,6 +127,7 @@ function EngineCard({ engine: e }: { engine: EngineStatus }) {
           </div>
           <div className="engine__kind">{detail ? `${kind} · ${detail}` : kind}</div>
         </div>
+        <EngineUsageSwitch engine={e.id} />
         <Menu
           align="end"
           trigger={<IconButton size="sm" label={t("chat.more")} icon={<Icons.Ellipsis size={14} />} />}

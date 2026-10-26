@@ -1,6 +1,7 @@
-// A task an agent created and another agent closed reports back: its creator gets a turn in the chat it created the
-// task from, like a delegation's result, however long the work took. See DECISIONS.md#d-076
-import type { Task } from "@apx/protocol";
+// Execution and creation provenance can differ after reassignment: a delivery reaches the current handoff's source
+// as well as a different historical creator. See HISTORY.md#task-execution-handoff.
+import type { Task, Thread } from "@apx/protocol";
+import type { AgentRecord } from "../domain/agents.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { systemNote } from "../harness/native.ts";
@@ -48,11 +49,28 @@ function reportOf(store: Store, task: Task, closer: string, note: unknown, fresh
   );
 }
 
-/**
- * Wakes the agent that created the task, in the chat it created it from, once another agent closed it. Nobody is
- * woken when the owner created or closed it, or its creator closed it; a chat that was answering another agent is
- * not woken (DECISIONS.md#d-074). Past the unattended limits the report waits there for the owner.
- */
+type Recipient = { agent: AgentRecord; thread: Thread; run?: RunRecord | undefined };
+
+function recipients(store: Store, task: Task, closer: string, created: Record<string, unknown>): Recipient[] {
+  const out: Recipient[] = [];
+  const add = (threadId: unknown, runId: unknown, agentId?: string) => {
+    const thread = typeof threadId === "string" ? store.threads.get(threadId) : undefined;
+    const run = typeof runId === "string" ? store.runs.get(runId) : undefined;
+    const agent = store.agents.get(agentId ?? run?.agent_id ?? "");
+    if (!agent || !thread || thread.kind === "a2a" || thread.task_id === task.id) return;
+    if (!out.some((r) => r.thread.id === thread.id && r.agent.id === agent.id)) out.push({ thread, agent, run });
+  };
+  const from = store.threads.context(task.thread_id).handoff_from;
+  if (from) {
+    const run = store.runs.get(from.run);
+    if (run?.thread_id === from.thread && store.threads.get(from.thread)?.project_id === task.project_id)
+      add(from.thread, from.run);
+  }
+  if (task.created_by !== closer) add(created.from_thread, created.from_run, task.created_by);
+  return out;
+}
+
+/** Reports once to the current transfer's source and, separately, a different historical creator. */
 export function reportClose(
   store: Store,
   admit: AdmitFn,
@@ -62,13 +80,10 @@ export function reportClose(
   const task = store.tasks.get(taskId);
   const close = task && lastClose(store, task);
   if (!task || !close) return undefined;
-  const creator = store.agents.get(task.created_by);
   const closer = store.agents.get(close.event.by);
-  if (!creator || !closer || creator.id === closer.id) return undefined;
-  if (store.threads.context(task.thread_id).close_reported === close.index) return undefined;
-  const from = close.created?.data ?? {};
-  const thread = typeof from.from_thread === "string" ? store.threads.get(from.from_thread) : undefined;
-  if (!thread || thread.kind === "a2a" || thread.task_id === task.id) return undefined;
+  if (!closer || store.threads.context(task.thread_id).close_reported === close.index) return undefined;
+  const targets = recipients(store, task, closer.id, close.created?.data ?? {});
+  if (!targets.length) return undefined;
   store.threads.mergeContext(task.thread_id, { close_reported: close.index });
   const origin: Origin = {
     kind: "task_result",
@@ -85,23 +100,26 @@ export function reportClose(
       : since
     : undefined;
   const text = reportOf(store, task, closer.id, close.event.data.note, freshSince);
-  const paused = pausedNotice(store, thread.id, closer.name);
-  if (paused) {
-    // Kept for the creator's next turn (when the owner writes), and the owner sees why it stopped.
-    store.modelLog.append(thread.id, undefined, [
-      systemNote(`A task you created was closed while agents were paused:\n${frameInput(origin, text)}`),
-    ]);
-    store.messages.add({ thread_id: thread.id, author: { kind: "system" }, parts: [paused] });
-    store.threads.mergeContext(thread.id, { kept: creator.id });
-    return undefined;
+  let first: RunRecord | undefined;
+  for (const { thread, agent, run } of targets) {
+    const paused = pausedNotice(store, thread.id, closer.name);
+    if (paused) {
+      store.modelLog.append(thread.id, undefined, [
+        systemNote(`A task you handed off was closed while agents were paused:\n${frameInput(origin, text)}`),
+      ]);
+      store.messages.add({ thread_id: thread.id, author: { kind: "system" }, parts: [paused] });
+      store.threads.mergeContext(thread.id, { kept: agent.id });
+      continue;
+    }
+    const reported = admit({
+      thread_id: thread.id,
+      agent_id: agent.id,
+      trigger: "a2a_result",
+      origin,
+      text,
+      depth: run?.depth ?? 0,
+    });
+    first ??= reported;
   }
-  const created = typeof from.from_run === "string" ? store.runs.get(from.from_run) : undefined;
-  return admit({
-    thread_id: thread.id,
-    agent_id: creator.id,
-    trigger: "a2a_result",
-    origin,
-    text,
-    depth: created?.depth ?? 0,
-  });
+  return first;
 }

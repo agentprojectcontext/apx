@@ -128,6 +128,8 @@ test("report reuses installed status, keeps unsupported quotas explicit, and exc
       status("acp:opencode"),
       status("acp:custom"),
     ],
+    claudeBinary: async () => "fixture",
+    readClaude: async () => [{ id: "primary", window_minutes: 300, used_percent: 15 }],
     binary: async () => "fixture",
     read: async () => [{ id: "primary", window_minutes: 300, used_percent: 25 }],
     now: () => new Date("2026-01-01T00:00:00Z"),
@@ -137,7 +139,7 @@ test("report reuses installed status, keeps unsupported quotas explicit, and exc
   assert.deepEqual(
     result.engines.map((engine) => [engine.id, engine.status, engine.reason]),
     [
-      ["claude", "unavailable", "unsupported"],
+      ["claude", "ok", undefined],
       ["codex", "ok", undefined],
       ["antigravity", "unavailable", "cli_not_found"],
       ["acp:opencode", "unavailable", "unsupported"],
@@ -147,6 +149,48 @@ test("report reuses installed status, keeps unsupported quotas explicit, and exc
   assert.equal(methods["engines.usage"].result.safeParse(result).success, true);
   assert.equal(methods["engines.usage"].effect, false);
   assert.equal(methodAccess("engines.usage"), "human");
+});
+
+test("disabled Claude is never probed and independent account reads start concurrently", async () => {
+  let claudeCalls = 0;
+  const disabled = createEngineUsage({
+    status: async () => [status("claude")],
+    enabled: () => false,
+    claudeBinary: async () => {
+      claudeCalls++;
+      return "fixture";
+    },
+  });
+  assert.deepEqual((await disabled()).engines, []);
+  assert.equal(claudeCalls, 0);
+  const started: string[] = [];
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const read = (id: string) => async () => {
+    started.push(id);
+    await gate;
+    return undefined;
+  };
+  const enabled = createEngineUsage({
+    status: async () => [status("claude"), status("codex")],
+    claudeBinary: async () => "fixture",
+    binary: async () => "fixture",
+    readClaude: read("claude"),
+    read: read("codex"),
+  });
+  const pending = enabled();
+  try {
+    await waitFor(() => started.length === 2, "both account reads");
+    assert.deepEqual(started.sort(), ["claude", "codex"]);
+  } finally {
+    release();
+  }
+  assert.deepEqual(
+    (await pending).engines.map((engine) => engine.reason),
+    ["not_available", "not_available"],
+  );
 });
 
 test("quota requests in flight are shared and a later request can refresh", async () => {

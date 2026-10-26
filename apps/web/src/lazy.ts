@@ -134,6 +134,9 @@ export const DocumentActions = lazy(() =>
 
 // The run button and its terminal load the first time a chat shows a shell block.
 export const RunnableCode = lazy(() => import("./chat/RunnableCode.tsx").then((m) => ({ default: m.RunnableCode })));
+export const ReceivedDialog = lazy(() =>
+  import("./chat/ReceivedDialog.tsx").then((m) => ({ default: m.ReceivedDialog })),
+);
 
 // A model picker's list shows only once it opens (the composer has a picker).
 export const ModelList = lazy(() => import("./config/models/ModelList.tsx").then((m) => ({ default: m.ModelList })));

@@ -2,8 +2,8 @@
 // own methods (the same checks as the owner's). Each is brought once; a server whose file holds a credential is only
 // reported: its value never goes to the project's file.
 import type { Store } from "../domain/store.ts";
+import { redactSecrets } from "../redact-secrets.ts";
 import type { InternalCall } from "../rpc/internal.ts";
-import { redactSecrets } from "./native-digest.ts";
 import type { Extras } from "./native-extras.ts";
 import type { NativeEngine } from "./native-sessions.ts";
 

@@ -897,4 +897,14 @@ export const MIGRATIONS: readonly string[] = [
     WHERE c.value NOT IN (SELECT id FROM threads WHERE kind = 'home')
   ) WHERE key = 'setting:computer_chats' AND json_valid(value);
   `,
+  // What the model received on a run's first call, for the owner to look at: the last runs only, each system prompt
+  // kept once (it is the same for every turn of a chat).
+  `
+  CREATE TABLE prompt_texts (hash TEXT PRIMARY KEY, text TEXT NOT NULL);
+  CREATE TABLE run_contexts (
+    run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
+    seq INTEGER NOT NULL, system_hash TEXT NOT NULL, input TEXT NOT NULL, tools TEXT NOT NULL, sizes TEXT NOT NULL
+  );
+  CREATE INDEX run_contexts_seq ON run_contexts(seq);
+  `,
 ];

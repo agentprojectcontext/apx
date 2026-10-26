@@ -102,8 +102,9 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     Placeholders: Acme, Northwind, `user@example.com`, `~/work/…`. `[gate]` `pnpm check:private`.
 18. **Conventional commits** (`feat:`, `fix:`, `chore:`…); the release tooling will read them. Branches are named the
     same way (`feat/…`, `fix/…`, `docs/…`, `perf/…`, `chore/…`), never after a tool or an agent (`claude/…`, `codex/…`):
-    rename one before it is pushed. They start from and merge back into `main` of `agentprojectcontext/apx` (v1 lives on branch `v1`).
-    A commit that fixes a GitHub issue ends with an `Issue: #N` trailer. Once it is pushed to origin's `main`,
+    rename one before it is pushed. They start from and merge back into `staging` of `agentprojectcontext/apx`; `main` takes `staging` only when a
+    version is cut, so it is always the last release (v1 lives on branch `v1`).
+    A commit that fixes a GitHub issue ends with an `Issue: #N` trailer. Once it is pushed to origin's `staging`,
     comment on the issue (what changed, the commit) and close it, in the same turn; the release adds the version
     later ([RELEASE.md](rules/RELEASE.md#issues-a-release-fixes)). `[review]`
 19. **Never weaken a gate to get green** (lint rule off, test skipped, type `any`). Downgrading a rule needs a

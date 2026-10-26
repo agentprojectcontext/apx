@@ -51,7 +51,11 @@ test("on Telegram the owner hears 'on it' as soon as the agent starts working, t
     .slice(before)
     .map((m) => String(m.body.text));
   assert.deepEqual(sent, ["Dale, lo miro.", "Three open tasks, none due today."]);
-  assert.match(String(llm.calls.at(0)?.messages.at(-1)?.content), /Before your first tool call/);
+  assert.match(
+    String(llm.calls.at(0)?.messages[0]?.content),
+    /When your owner writes on telegram: .*Before your first tool call/,
+  );
+  assert.doesNotMatch(String(llm.calls.at(0)?.messages.at(-1)?.content), /Before your first tool call/);
 });
 
 test("a spoken answer: the first paragraph (to a sentence end) is the voice note, the rest stays as written", () => {

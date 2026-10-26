@@ -6,6 +6,26 @@ The long *why* behind rules the code enforces: quirks, fixes and workarounds tha
 
 ## Runtime
 
+<a id="task-execution-handoff"></a>
+### A self-task transfers execution, not just a board entry
+**Rule:** an immediate self-assignment transfers execution to the task session. The source run stops using tools;
+its final response only acknowledges the transfer. A turn with delegated work, or a chat with active helpers,
+jobs or queued turns, keeps working there instead of creating another executor. Active APX calls must finish first.
+Native tools already authorized by an external harness cannot reliably be drained, so that turn (including its
+recovery) keeps execution in the source. Codex has no per-native-call permission intercept, so its immediate
+self-assignments also stay there. Fresh owner turns do not inherit another turn's grant guard. Drafts, proposals,
+future starts, held starts and other-agent assignments retain their independent behavior; clock-driven starts never
+transfer a still-active creator.
+**Why:** starting a new task session while the original chat kept working duplicated both research and writers.
+A prompt-only instruction cannot stop later calls in the same batch or an external harness's own tools. The
+run-scoped gate applies before execution and approval, including recovery of that run, without serializing all
+of an agent's chats. Task changes, admission and markers commit atomically. Each transfer gets a fresh session
+with the source workspace restriction, never an older session's wider permissions. Findings are bounded untrusted
+data, checked for binary content and common pasted credentials before serialization. Closure reports to the current
+transfer's source, independently of the creation event, and still notifies a different historical creator.
+**Where:** `engine/task-handoff.ts`, `engine/task-work.ts`, `engine/executor.ts`, `harness/native.ts`,
+`rpc/tasks.ts` and `engine/task-report.ts` under `apps/core/src/`.
+
 <a id="connection-attempt-timeout"></a>
 ### Give dual-stack connections enough time
 **Rule:** the core entry point gives each address attempt at least two seconds, preserving longer configured values.

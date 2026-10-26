@@ -1,5 +1,5 @@
 import type { Notification } from "@apx/protocol";
-import { Button, Icons, Popover } from "@apx/ui";
+import { Button, IconButton, Icons, Popover } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { pairingChannel } from "../data/channels.ts";
@@ -69,14 +69,17 @@ export function AttentionTray() {
       onOpenChange={setOpen}
       label={t("attention.label")}
       trigger={
-        <button
-          type="button"
+        <IconButton
+          size="sm"
           className={unread ? "attention is-active" : "attention"}
-          aria-label={t("attention.aria", { n: unread })}
-        >
-          <Icons.Bell size={16} />
-          {unread > 0 && <span className="attention__count">{unread > 99 ? "99+" : unread}</span>}
-        </button>
+          label={t("attention.aria", { n: unread })}
+          icon={
+            <>
+              <Icons.Bell size={16} />
+              {unread > 0 && <span className="attention__count">{unread > 99 ? "99+" : unread}</span>}
+            </>
+          }
+        />
       }
     >
       <div className="attention__head">

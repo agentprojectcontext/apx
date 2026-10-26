@@ -115,6 +115,7 @@ export const enChat = {
   "msg.copied": "Copied",
   "msg.fork": "Fork into a new chat",
   "msg.forkTitle": "{title} (fork)",
+  "msg.received": "See what it received",
   "msg.readAloud": "Read aloud",
   "msg.quote": "Quote",
   "msg.reply": "Reply",

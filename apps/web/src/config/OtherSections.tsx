@@ -11,6 +11,7 @@ import { isLanguage, LANGUAGE_NAMES, LANGUAGES, useLanguage, useT } from "../i18
 import { go, useNav } from "../shell/nav.ts";
 import { EmailSignatures } from "./EmailSignatures.tsx";
 import { SectionHead } from "./SectionHead.tsx";
+import "../styles/theme-switch.css";
 
 /** Account: who you are, for the panel and for your agents (name, a few lines about you, their language, your time). */
 export function AccountSection() {
@@ -134,16 +135,18 @@ export function AppearanceSection() {
         />
       </SettingRow>
       <SettingRow title={t("appearance.mode")}>
-        <SegmentedControl
-          size="sm"
-          label={t("appearance.mode")}
-          value={mode}
-          onValueChange={(v) => go.setMode(v === "dark" ? "dark" : "light")}
-          options={[
-            { value: "light", label: t("appearance.mode.light") },
-            { value: "dark", label: t("appearance.mode.dark") },
-          ]}
-        />
+        <button
+          type="button"
+          role="switch"
+          aria-checked={mode === "dark"}
+          aria-label={t("appearance.mode.dark")}
+          className={`theme-switch${mode === "dark" ? " is-dark" : ""}`}
+          onClick={go.toggleMode}
+        >
+          <Icons.Sun size={16} className="theme-switch__sun" aria-hidden="true" />
+          <Icons.Moon size={16} className="theme-switch__moon" aria-hidden="true" />
+          <span className="theme-switch__thumb" />
+        </button>
       </SettingRow>
       <SettingRow title={t("appearance.look")} description={t("appearance.lookHint")}>
         <SegmentedControl

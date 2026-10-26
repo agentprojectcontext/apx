@@ -1,10 +1,12 @@
 // contact_list / channel_list: what the owner set up, read by their agent ("who is Alex?", "can you reach Discord?").
+// sticker_list: the stickers the agent may answer with on the channel a message came on.
 // Read only: changes from chat (a channel's hours, a contact let through them) go through apx_settings, each once the
 // owner approves it. Routines are in routines.ts.
 import type { ChannelHours } from "@apx/protocol";
 import { z } from "zod";
+import type { Origin } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { inlineName } from "./result.ts";
+import { inlineName, untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 /** What a room's mode means for the agent reading the list. */
@@ -36,8 +38,43 @@ export function hoursText(h: ChannelHours): string {
   return `${days.length === 7 ? "every day" : named} ${h.from === h.to ? "all day" : `${h.from}–${h.to}`}`;
 }
 
+export const STICKER_TOOL = "sticker_list";
+/** Stickers the tool lists, the most used first. */
+const STICKERS_LISTED = 30;
+
+/** The channel type a run's message came on, when it came on one ("whatsapp"). */
+const channelTypeOf = (store: Store, origin: Origin | undefined) =>
+  origin?.kind === "channel"
+    ? (store.settings.read("channels").find((c) => c.id === origin.channel)?.type ?? origin.channel)
+    : undefined;
+
+/** What the stickers the agent may send on that channel's platform mean, the most used first. */
+export function stickersFor(store: Store, origin: Origin | undefined, limit = STICKERS_LISTED): string[] {
+  const type = channelTypeOf(store, origin);
+  return type ? store.stickers.known(type, limit).flatMap((s) => (s.meaning ? [s.meaning] : [])) : [];
+}
+
 export function directoryTools(store: Store): Tool[] {
   return [
+    // Offered only on a turn from a channel with stickers (engine/turn.ts): it reads that turn's channel itself.
+    defineTool({
+      name: STICKER_TOOL,
+      description:
+        "The stickers you may answer with on the channel this message came on, by what each shows: answer only STICKER and those words to send one.",
+      args: z.object({}),
+      effect: "none",
+      deadlineMs: 5_000,
+      title: () => "Looked at the stickers",
+      async run(_a, ctx) {
+        const meanings = stickersFor(store, ctx.run.input?.origin);
+        if (!meanings.length) return "no stickers to send on this channel.";
+        return untrusted(
+          "sticker_meanings",
+          { named_by: "a model, from pictures people sent" },
+          meanings.map((m) => inlineName(m, 160)).join("; "),
+        );
+      },
+    }),
     defineTool({
       name: "channel_list",
       description:

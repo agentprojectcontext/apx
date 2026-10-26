@@ -29,6 +29,10 @@ to it and `release/v2` was deleted. v1's last `main` stays as branch `v1`, with 
 `pages.yml`) and its own semantic-release, which publishes v1 to npm from that branch. `verify` leaves the commits
 `origin/v1` holds out of its commit check.
 
+Day-to-day work goes to `staging` (verify runs on every push there); `main` is the last release. Cutting a version
+fast-forwards `main` to a `staging` commit whose verify passed, waits for verify on `main`, then tags it (below).
+`pages.yml` publishes the site from `main`, so the docs change with a release, not with each push.
+
 ## What a release carries
 
 The release starts as a draft. After all desktop, daemon and Android jobs upload successfully, the publication
@@ -50,6 +54,12 @@ carries arm64-v8a only by default (`APX_ANDROID_ABIS` adds more) and its version
 and Firebase app, set once as repo variable/secret ([apps/mobile/README.md](../apps/mobile/README.md#push)).
 
 ## Tagging a release
+
+`main` first takes `staging`, fast-forward only, so it holds exactly what was verified there:
+
+```bash
+git fetch origin && git push origin origin/staging:main   # refused unless it is a fast-forward
+```
 
 Only a commit `verify` already passed on `main` is tagged (AGENTS.md rule 28). A tag builds every installer
 and the APK in about ten minutes, but publication waits for that commit's verify run: tagging before it ends ties
@@ -84,7 +94,7 @@ since the last tag either has an entry or is not worth offering.
 ## Issues a release fixes
 
 A commit that fixes a GitHub issue ends its message with a trailer, one per issue: `Issue: #105`. Once that commit
-is pushed to origin's `main` (not before: a local commit or an unmerged branch has fixed nothing yet), whoever
+is pushed to origin's `staging` (not before: a local commit or an unmerged branch has fixed nothing yet), whoever
 pushed it comments on the issue with what changed and the commit, and closes it as completed, without waiting for the
 tag. Once the release is out and announced, `release.yml`'s `issues` job (`scripts/issue-replies.ts`) still comments
 on each named issue with the version and the commits, closed ones included, and closes any left open; a version
