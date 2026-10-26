@@ -34,6 +34,19 @@ libertad.
   </TabItem>
 </Tabs>
 
+### Dónde una tarea cambia código
+
+**En la rama de desarrollo posterior a 2.11.0**, antes de cambiar código para una tarea, el agente sigue la elección
+guardada del proyecto: trabajar en el checkout o en un worktree de Git. Si ninguna nota del proyecto lo indica,
+te pregunta: **Worktree now**, **Worktree always**, **Here now**, **Here always** u **Other**. Una respuesta “always”
+se guarda para ese proyecto; “now” vale solo para esta elección. Esas opciones llegan con esos nombres en inglés.
+Esto elige dónde trabajar, no cambia la política de escritura ni el nivel de autonomía.
+
+Si usa un worktree, el agente primero revisa los worktrees y ramas relacionados con la tarea y sigue en el que ya
+cubre el trabajo. Solo si no hay uno crea una rama con nombre dentro de `.worktrees/` en el proyecto. Después de
+integrar, elimina el worktree y su rama, nunca con cambios sin guardar en un commit. Son instrucciones para el
+agente, no una garantía de que Git ya haya integrado o limpiado los cambios automáticamente.
+
 ### La política de escritura
 
 | Política | Qué significa |

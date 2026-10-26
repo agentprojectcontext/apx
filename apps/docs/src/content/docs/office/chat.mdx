@@ -67,6 +67,13 @@ The box at the bottom ("Message Lucía…") is where you write. A few things it 
 - **Keys.** Enter sends (if the agent is working, it stops and answers this instead). Ctrl/⌘+Enter queues the message
   for when it ends. Shift+Enter adds a line.
 
+### While an image is being generated
+
+**On the development branch after 2.11.0**, an executing image-generation call shows an inline animated tile
+placeholder, labeled **Generating images**, even when tool details are hidden. It is a waiting indicator, not a
+partial image or proof of success. It disappears when the call or run finishes, fails or is canceled; any completed
+images appear through the usual image grid. A call still awaiting approval does not show this execution indicator.
+
 ## Slash commands
 
 Type `/` in the composer to open the menu of commands and skills.
