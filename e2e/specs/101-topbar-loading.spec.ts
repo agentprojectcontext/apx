@@ -180,12 +180,12 @@ test("los botones de consumo muestran tooltips con teclado y hover sin perder su
   await page.keyboard.press("Tab");
   await page.keyboard.press("Shift+Tab");
   await expect(ai).toBeFocused();
-  await expect(page.locator(".apx-tooltip[data-open]")).toHaveText("Consumo de IA");
-  await expect(ai).toHaveAccessibleName("Consumo de IA");
+  await expect(page.locator(".apx-tooltip[data-open]")).toHaveText("Cuotas de IA");
+  await expect(ai).toHaveAccessibleName("Cuotas de IA");
   const system = page.getByTestId("usage-button");
   await system.hover();
-  await expect(page.locator(".apx-tooltip[data-open]")).toContainText("Consumo");
-  await expect(system).toHaveAccessibleName(/Consumo/);
+  await expect(page.locator(".apx-tooltip[data-open]")).toContainText("Sistema");
+  await expect(system).toHaveAccessibleName(/Sistema/);
 });
 
 test("cuatro engines se ven de un vistazo y colapsan en una barra ocupada y con controles nativos", async ({
@@ -232,27 +232,29 @@ test("cuatro engines se ven de un vistazo y colapsan en una barra ocupada y con 
       ? [2400, 1920, 1836, 1600, 1440, 1280, 980]
       : [2400, 1920, 1836, 1600, 1440, 1280, 900, 600, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
-      const metrics = await page.locator(".topbar").evaluate((bar) => {
-        const search = bar.querySelector(".topbar__search")?.getBoundingClientRect();
-        const right = bar.querySelector(".topbar__right")?.getBoundingClientRect();
-        const controls = [...bar.querySelectorAll(".topbar__left > button, .topbar__right button, .topbar__search")]
-          .map((button) => button.getBoundingClientRect())
-          .filter((rect) => rect.width > 0 && rect.height > 0);
-        return {
-          overflow: bar.scrollWidth - bar.clientWidth,
-          overlap: search && right ? search.right - right.left : 999,
-          center: search ? Math.abs(search.left + search.width / 2 - innerWidth / 2) : 999,
-          collisions: controls.flatMap((a, i) =>
-            controls.slice(i + 1).filter((b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1),
-          ).length,
-        };
-      });
-      expect(metrics.overflow, `${platform} overflow ${width}`).toBeLessThanOrEqual(1);
-      expect(metrics.overlap, `${platform} overlap ${width}`).toBeLessThanOrEqual(0);
-      expect(metrics.center, `${platform} center ${width}`).toBeLessThanOrEqual(1);
-      expect(metrics.collisions, `${platform} controls ${width}`).toBe(0);
+      await expect(async () => {
+        const metrics = await page.locator(".topbar").evaluate((bar) => {
+          const search = bar.querySelector(".topbar__search")?.getBoundingClientRect();
+          const right = bar.querySelector(".topbar__right")?.getBoundingClientRect();
+          const controls = [...bar.querySelectorAll(".topbar__left > button, .topbar__right button, .topbar__search")]
+            .map((button) => button.getBoundingClientRect())
+            .filter((rect) => rect.width > 0 && rect.height > 0);
+          return {
+            overflow: bar.scrollWidth - bar.clientWidth,
+            overlap: search && right ? search.right - right.left : 999,
+            center: search ? Math.abs(search.left + search.width / 2 - innerWidth / 2) : 999,
+            collisions: controls.flatMap((a, i) =>
+              controls.slice(i + 1).filter((b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1),
+            ).length,
+          };
+        });
+        expect(metrics.overflow, `${platform} overflow ${width}`).toBeLessThanOrEqual(1);
+        expect(metrics.overlap, `${platform} overlap ${width}`).toBeLessThanOrEqual(0);
+        expect(metrics.center, `${platform} center ${width}`).toBeLessThanOrEqual(1);
+        expect(metrics.collisions, `${platform} controls ${width}`).toBe(0);
+      }).toPass({ timeout: 7000 });
       await expect(page.getByTestId("engine-usage-button")).toBeVisible();
-      if (width < 1400) await expect(quick.first()).toBeHidden();
+      if (width >= 2400) await expect(quick.first()).toBeVisible();
     }
   }
 });
@@ -278,7 +280,7 @@ test("barra compacta sin overflow conserva accesos, idioma en submenú y tema ac
     ).toHaveCount(0);
   }
   await page.getByRole("button", { name: "Más opciones" }).click();
-  await expect(page.getByRole("menuitem", { name: "Consumo", exact: true })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Recursos del sistema", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 1280, height: 844 });
   await page.getByRole("button", { name: /^Cuenta/ }).click();

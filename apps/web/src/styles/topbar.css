@@ -28,9 +28,11 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  flex: none;
 }
 .topbar__right {
-  justify-self: end;
+  justify-self: stretch;
+  justify-content: flex-end;
   gap: 4px;
   padding-right: 12px;
 }
@@ -153,24 +155,27 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
 .topbar.is-desktop input {
   -webkit-app-region: no-drag;
 }
-@container topbar (max-width: 2699px) {
+/* Each step is applied only when the preceding layout does not fit. */
+.topbar__right:is([data-fit="1"], [data-fit="2"], [data-fit="3"], [data-fit="4"]) {
   .topbar__agentkbd,
   .topbar__agentname,
   .updatepill__label {
     display: none;
   }
-  .topbar .topbar__agent {
+  .topbar__agent {
     padding: 0 4px;
-  }
-  .topbar .usage-btn__gauge {
-    display: none;
   }
   .updatepill {
     width: 26px;
     padding: 0;
     justify-content: center;
   }
-  .topbar .running {
+}
+.topbar__right:is([data-fit="2"], [data-fit="3"], [data-fit="4"]) .usage-btn__gauge {
+  display: none;
+}
+.topbar__right[data-fit="4"] {
+  .running {
     width: 28px;
     padding: 0;
     justify-content: center;

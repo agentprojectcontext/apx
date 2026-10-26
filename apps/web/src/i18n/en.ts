@@ -45,10 +45,10 @@ export const en = {
   ...enResources,
   ...enEngines,
   ...enTelemetry,
-  "engineUsage.title": "AI usage",
+  "engineUsage.title": "AI quotas",
   "engineUsage.quick": "{engine}: {pct}% available · {window}",
-  "sysUsage.title": "Usage",
-  "sysUsage.button": "Usage: {pct}% of memory in use",
+  "sysUsage.title": "System resources",
+  "sysUsage.button": "System: {pct}% of memory in use",
   // Shared words
   "common.agent": "Agent",
   "common.app": "App",

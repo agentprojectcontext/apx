@@ -21,7 +21,7 @@ test("the topbar gauge opens memory, CPU, disk, the VM and APX's top consumers, 
     });
   });
   await open(page);
-  await page.getByRole("button", { name: /^Consumo: \d+% de la memoria en uso$/ }).click();
+  await page.getByRole("button", { name: /^Sistema: \d+% de la memoria en uso$/ }).click();
   const summary = page.getByTestId("usage-summary");
   await expect(summary.getByRole("heading", { name: "Memoria" })).toBeVisible();
   await expect(summary.getByRole("heading", { name: "CPU" })).toBeVisible();
@@ -33,7 +33,7 @@ test("the topbar gauge opens memory, CPU, disk, the VM and APX's top consumers, 
   await expect(summary.getByText("Core (agentes, canales, datos)")).toBeVisible();
 
   await summary.getByRole("button", { name: "Ver todo el consumo" }).click();
-  const dialog = page.getByRole("dialog", { name: "Consumo" });
+  const dialog = page.getByRole("dialog", { name: "Recursos del sistema" });
   await expect(dialog.getByRole("heading", { name: "Procesos de APX" })).toBeVisible();
   // The APX folder is measured in the background: its parts come on a later read.
   await expect(dialog.getByTestId("usage-home").getByText("Bases de datos")).toBeVisible({ timeout: 15_000 });
@@ -42,8 +42,8 @@ test("the topbar gauge opens memory, CPU, disk, the VM and APX's top consumers, 
   await expect(dialog).toHaveCount(0);
 
   await page.getByRole("button", { name: /^Cuenta/ }).click();
-  await page.getByRole("menuitem", { name: "Consumo" }).click();
-  await expect(page.getByRole("dialog", { name: "Consumo" }).getByTestId("usage-detail")).toBeVisible();
+  await page.getByRole("menuitem", { name: "Recursos del sistema" }).click();
+  await expect(page.getByRole("dialog", { name: "Recursos del sistema" }).getByTestId("usage-detail")).toBeVisible();
 });
 
 test("the usage dropdown has no horizontal overflow or visible scroll tracks, even in a short window", async ({
@@ -70,7 +70,7 @@ test("the usage dropdown has no horizontal overflow or visible scroll tracks, ev
   const more = summary.getByRole("button", { name: "Ver todo el consumo" });
   await more.focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("dialog", { name: "Consumo" }).getByTestId("usage-detail")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Recursos del sistema" }).getByTestId("usage-detail")).toBeVisible();
 });
 
 test("on a narrow window the gauge folds into the more menu, which opens the dialog", async ({ page }) => {
@@ -79,6 +79,6 @@ test("on a narrow window the gauge folds into the more menu, which opens the dia
   await open(page);
   await expect(page.getByTestId("usage-button")).toBeHidden();
   await page.getByRole("button", { name: "Más opciones" }).click();
-  await page.getByRole("menuitem", { name: "Consumo" }).click();
-  await expect(page.getByRole("dialog", { name: "Consumo" }).getByTestId("usage-detail")).toBeVisible();
+  await page.getByRole("menuitem", { name: "Recursos del sistema" }).click();
+  await expect(page.getByRole("dialog", { name: "Recursos del sistema" }).getByTestId("usage-detail")).toBeVisible();
 });

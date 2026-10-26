@@ -190,6 +190,7 @@
                       "**/ThreadDialogs.tsx",
                       "**/UnregisterProjectDialog.tsx",
                       "**/UpdateDialog.tsx",
+                      "**/RunningIndicator.tsx",
                       "**/UsageButton.tsx",
                       "**/UsagePanel.tsx",
                       "**/UsagePanels.tsx",
