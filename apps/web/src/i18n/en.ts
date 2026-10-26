@@ -2,6 +2,7 @@ import { noticeEn } from "@apx/protocol/notices";
 import type { ComputerKey } from "./computer-en.ts";
 import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
+import { enEmailSignatures } from "./en-email-signatures.ts";
 import { enEngines } from "./en-engines.ts";
 import { enFiles } from "./en-files.ts";
 import { enHelper } from "./en-helper.ts";
@@ -37,6 +38,7 @@ export const en = {
   ...enOffice,
   ...enTeam,
   ...enChannels,
+  ...enEmailSignatures,
   ...enSetup,
   ...enChat,
   ...enFiles,

@@ -5,6 +5,7 @@ import { noticeEs } from "@apx/protocol/notices";
 import type { MessageKey } from "./en.ts";
 import { esChannels } from "./es-channels.ts";
 import { esChat } from "./es-chat.ts";
+import { esEmailSignatures } from "./es-email-signatures.ts";
 import { esEngines } from "./es-engines.ts";
 import { esFiles } from "./es-files.ts";
 import { esOffice } from "./es-office.ts";
@@ -38,6 +39,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   ...esOffice,
   ...esTeam,
   ...esChannels,
+  ...esEmailSignatures,
   ...esSetup,
   ...esChat,
   ...esFiles,

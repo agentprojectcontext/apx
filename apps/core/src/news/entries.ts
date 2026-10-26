@@ -15,6 +15,8 @@ export type NewsFacts = {
   contacts: boolean;
   /** Channels the owner connected (Telegram, WhatsApp…). */
   channels: number;
+  /** An SMTP mailbox is configured as an Email channel. */
+  email: boolean;
   /** Catalog integrations the owner connected (GitHub, Notion…). */
   integrations: number;
   /** This core can run the isolated Linux computer (a Mac with Apple Silicon) and the owner has a project to try there. */
@@ -46,6 +48,25 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  {
+    id: "email-signatures",
+    since: "2.11.0",
+    title: "Email signatures by sender",
+    applies: (f) => f.google.gmail || f.email,
+    text:
+      "Settings, Account now lets the owner configure a plain-text and optional basic HTML signature for each " +
+      "connected Gmail sender or SMTP Email channel. New messages and replies include it automatically; ask to omit " +
+      "it for one message. Links and hosted HTTPS images are supported. Existing Gmail drafts are sent unchanged. " +
+      "Gmail signatures are not imported because the connection does not request Gmail settings access; copying one " +
+      "into APX changes only APX's local signature, not Gmail settings.",
+    actions: [
+      {
+        label: { en: "Where do I set my signature?", es: "¿Dónde configuro mi firma?" },
+        prompt:
+          "Show me where to configure email signatures in Settings, Account and explain which email account each signature applies to.",
+      },
+    ],
+  },
   {
     id: "engine-usage",
     since: "2.11.0",
@@ -351,6 +372,7 @@ export const newsFacts = (store: Store): NewsFacts => ({
   secretary: store.settings.read("profile").id === "secretary",
   contacts: store.persons.list().some((p) => p.role !== "owner" && p.role !== "blocked" && p.addresses.length > 0),
   channels: store.settings.read("channels").length,
+  email: store.settings.read("channels").some((c) => c.type === "email" && c.email !== undefined),
   integrations: connectedIntegrations(store),
   computer: process.platform === "darwin" && process.arch === "arm64" && store.projects.list().length > 0,
   mac: process.platform === "darwin" && store.projects.list().length > 0,
