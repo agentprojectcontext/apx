@@ -15,8 +15,17 @@ const fail = (e: unknown) => notify(t("error.tasks", { error: errText(e) }));
 
 export const tasksLoaded = () => store.get().ready;
 
+let loading: Promise<void> | undefined;
+
 /** Open tasks plus the latest closed ones (done or dropped), so a just-finished card does not vanish. */
-export async function loadTasks(): Promise<void> {
+export function loadTasks(): Promise<void> {
+  loading ??= readTasks().finally(() => {
+    loading = undefined;
+  });
+  return loading;
+}
+
+async function readTasks(): Promise<void> {
   try {
     const [open, done, dropped] = await Promise.all([
       client.call("tasks.list", { state: "open" }),
@@ -38,6 +47,8 @@ const asked = new Set<string>();
 
 /** Reads one task the board has not loaded (an old one an agent names in a chat); once per id. */
 export function ensureTask(id: string): void {
+  // Inbox task labels and menus need the columns even before the board has been opened.
+  if (!tasksLoaded()) void loadTasks();
   if (store.get().tasks[id] || asked.has(id)) return;
   asked.add(id);
   void client.call("tasks.get", { task: id }).then(

@@ -76,7 +76,7 @@ test("task board merges open and recent closed lists, and task events update and
       columns: [{ id: "todo", label: "To do" }],
     }),
   });
-  await tasks.loadTasks();
+  await Promise.all([tasks.loadTasks(), tasks.loadTasks()]);
   assert.equal(tasks.tasksLoaded(), true);
   assert.deepEqual(calls, [
     ["tasks.list", { state: "open" }],

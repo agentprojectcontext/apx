@@ -30,13 +30,21 @@ test("task context actions keep status live and archived conversations remain re
   await expect
     .poll(async () => (await rpc<{ sessions: Thread[] }>("tasks.get", { task: task.id })).sessions.length)
     .toBe(1);
-  await open(page, `#project=${project.id}&tab=chats`);
+  await open(page);
   const bundle = page.locator(".taskbundle").filter({ hasText: task.title });
   await expect(bundle).toBeVisible();
   await bundle.locator(".tree__session").click();
   const header = page.locator(".chat__header");
   const status = header.getByRole("status");
   await expect(status).toHaveText("En curso");
+  await bundle.locator(".taskbundle__task").click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Mover a", exact: true }).hover();
+  const reviewOption = page.getByRole("menuitem", { name: "Revisión", exact: true });
+  await expect(reviewOption).toBeVisible();
+  const optionBounds = await reviewOption.boundingBox();
+  expect(optionBounds?.height).toBeGreaterThan(20);
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
   await bundle.locator(".taskbundle__task").click({ button: "right" });
   await page.getByRole("menuitem", { name: "Espera tu respuesta", exact: true }).click();
   await expect(status).toHaveText("Necesita tu revisión");
