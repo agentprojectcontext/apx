@@ -17,7 +17,8 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main, staging]
+    # main holds APX v2 since 2.11.0; v1's last releases come from the v1 branch.
+    branches: [v1]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -178,7 +179,7 @@ jobs:
     # the `needs` gate when it calls a status function (`always()`,
     # `failure()`, `cancelled()`) — this one does not, so the implicit
     # `success()` on both jobs above still holds. Do not add `always()` here.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/v1'
     runs-on: ubuntu-latest
     # Least privilege: this is the only job that writes tags, releases or npm.
     # `verify` and `e2e` keep the default read scope.
