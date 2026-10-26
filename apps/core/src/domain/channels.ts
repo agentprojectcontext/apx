@@ -67,6 +67,8 @@ export type InboundAction = {
 /** What goes out: text, and buttons when the owner is asked something. */
 export type Presentation = {
   text: string;
+  /** Email only: omit the configured signature for this message. */
+  omit_signature?: boolean | undefined;
   buttons?: Array<{ id: string; label: string }>;
   /** A notice the owner may rate with a reaction (👍/👎): the nudge it is. */
   rate?: string;

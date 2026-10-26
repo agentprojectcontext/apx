@@ -3,6 +3,7 @@
 // to Google's REST APIs. Google sends the browser back to the panel (/oauth/google), which hands the code to
 // `integrations.oauth_finish`: no route of its own in the core.
 import { randomUUID } from "node:crypto";
+import { signatureFor } from "../domain/email-signature-settings.ts";
 import type { Store } from "../domain/store.ts";
 import type { Secrets } from "../secrets.ts";
 import { GOOGLE_INTEGRATIONS, type GoogleId } from "./catalog.ts";
@@ -86,6 +87,7 @@ export function createGoogle(deps: {
     clientOf: (id: GoogleId): ClientKind | undefined => (g.connected(id) ? kindOf(id) : undefined),
     connected: (id: GoogleId) => refreshToken(id) !== undefined,
     account: (id: GoogleId) => store.settings.get(accountKey(id)) || undefined,
+    emailSignature: () => signatureFor(store, "gmail", g.account("gmail"), g.account("gmail")),
     /** Its tools are offered in a thread: connected, and not turned off in the thread's project. */
     usable: (id: GoogleId, project: string | undefined) => g.connected(id) && !(project && deps.offIn(project, id)),
     /** Signed in with the owner's own client: every scope (reading all mail and all of Drive), not APX's narrower set. */

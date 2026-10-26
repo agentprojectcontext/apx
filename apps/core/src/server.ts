@@ -40,6 +40,7 @@ import { type CoreConfig, OAUTH_CHATGPT } from "./config.ts";
 import { coreLogSink } from "./core-log.ts";
 import { openDb } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
+import { signatureFor } from "./domain/email-signature-settings.ts";
 import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
 import { TERMINAL } from "./domain/runs.ts";
 import { seed } from "./domain/seed.ts";
@@ -422,7 +423,11 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       mattermost: (c, secret) => mattermostAdapter(c, secret),
       signal: (c, secret) => signalAdapter(c, secret),
       // The secret is the mailbox's password; the servers are in the channel's settings.
-      email: (c, password) => emailAdapter(c, password, { dir: path.join(config.home, "channels", c.id) }),
+      email: (c, password) =>
+        emailAdapter(c, password, {
+          dir: path.join(config.home, "channels", c.id),
+          signature: () => signatureFor(store, "smtp", c.id, c.email?.address),
+        }),
       whatsapp: (c) =>
         whatsappAdapter({ dir: path.join(config.home, "channels", c.id), selfOwner: c.self_owner === true, log }),
       // Messages' database on this Mac: no secret; it refuses to start anywhere else.
