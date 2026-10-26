@@ -27,7 +27,7 @@ const toJob = (r: Selectable<JobsTable>): JobRecord => ({
   ...opt("ended_at", r.ended_at),
 });
 
-export const publicJob = ({ pid: _p, run_id: _r, proc_start: _s, ...rest }: JobRecord): Job => rest;
+export const publicJob = ({ pid: _p, proc_start: _s, ...rest }: JobRecord): Job => rest;
 
 export function jobsRepo({ one, all, run }: Sql, bus: Bus) {
   const emit = (j: JobRecord) => bus.emit({ type: "job.updated", job: publicJob(j) });

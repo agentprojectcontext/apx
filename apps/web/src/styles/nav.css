@@ -516,6 +516,12 @@
   font-size: var(--apx-text-sm);
   font-weight: var(--apx-weight-medium);
 }
+.job__details {
+  display: block;
+  max-width: min(320px, calc(100vw - 40px));
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .job__time {
   flex: none;
   font-size: var(--apx-text-xs);

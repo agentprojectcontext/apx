@@ -396,6 +396,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "job.output": "Ver salida",
   "job.openChat": "Abrir el chat",
   "job.startedIn": "Desde {origin}",
+  "job.unknownAgent": "Agente desconocido",
+  "job.unknownProject": "Proyecto desconocido",
   "chat.activeProcesses": "Procesos activos: {n}",
   "job.exit": "salida {code}",
   "job.noOutput": "(sin salida todavía)",

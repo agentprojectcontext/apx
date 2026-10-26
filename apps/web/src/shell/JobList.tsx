@@ -1,5 +1,5 @@
 import type { Job } from "@apx/protocol";
-import { Icons, Spinner } from "@apx/ui";
+import { Icons, Spinner, Tooltip } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { elapsed, formatNumber } from "../common/format.ts";
 import { cancelJob } from "../data/actions.ts";
@@ -62,9 +62,12 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: number; onOpen: (job:
   const [showOutput, setShowOutput] = useState(false);
   const thread = useData((s) => s.threads[j.thread_id]);
   const agent = useData((s) => (j.agent_id ? s.agents[j.agent_id] : undefined));
-  const origin = [agent?.name ?? j.agent_name, thread?.title ?? j.thread_title ?? j.thread_id]
-    .filter(Boolean)
-    .join(" · ");
+  const project = useData((s) => (j.project_id ? s.projects.find((p) => p.id === j.project_id) : undefined));
+  const origin = [
+    j.agent_name ?? agent?.name ?? j.agent_id ?? t("job.unknownAgent"),
+    j.project_name ?? project?.name ?? j.project_id ?? t("job.unknownProject"),
+    j.thread_title ?? thread?.title ?? j.thread_id,
+  ].join(" · ");
   const live = !j.ended_at;
   const terminal = j.kind === "terminal";
   // A turn not started yet says what it carries: a delegation's task, a helper's result for its caller…
@@ -76,37 +79,38 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: number; onOpen: (job:
     j.tool_calls ? t("job.tools", { n: j.tool_calls }) : undefined,
     j.usage ? t("job.tokens", { n: formatNumber(j.usage.input + j.usage.output, { notation: "compact" }) }) : undefined,
   ].filter(Boolean);
+  const activity =
+    live && j.activity
+      ? j.activity
+      : waiting && j.from
+        ? `${turnName(t, j.from)} · ${t(STATE_KEY[j.state])}`
+        : t(STATE_KEY[j.state]);
+  const details = [j.title, t("job.startedIn", { origin }), activity, ...meta].join("\n");
   return (
     <div className={`job is-${j.state}${terminal ? " is-terminal" : ""}`}>
       <div className="job__row">
-        <button
-          type="button"
-          className="job__main"
-          onClick={() => (terminal ? setShowOutput(!showOutput) : onOpen(j))}
-          title={terminal ? t("job.output") : t("job.open")}
-          aria-expanded={terminal ? showOutput : undefined}
-        >
-          <span className="job__icon" aria-hidden="true">
-            {live ? <Spinner size={12} /> : terminal ? <Icons.Terminal size={14} /> : <Icons.Bot size={14} />}
-          </span>
-          <span className="job__body">
-            <span className="job__top">
-              <span className={terminal ? "job__title is-mono" : "job__title"}>{j.title}</span>
-              <span className="job__time">{took}</span>
+        <Tooltip content={<span className="job__details">{details}</span>} side="bottom">
+          <button
+            type="button"
+            className="job__main"
+            onClick={() => (terminal ? setShowOutput(!showOutput) : onOpen(j))}
+            aria-label={`${terminal ? t("job.output") : t("job.open")}: ${j.title}`}
+            aria-expanded={terminal ? showOutput : undefined}
+          >
+            <span className="job__icon" aria-hidden="true">
+              {live ? <Spinner size={12} /> : terminal ? <Icons.Terminal size={14} /> : <Icons.Bot size={14} />}
             </span>
-            <span className="job__meta job__origin" title={origin}>
-              {t("job.startedIn", { origin })}
+            <span className="job__body">
+              <span className="job__top">
+                <span className={terminal ? "job__title is-mono" : "job__title"}>{j.title}</span>
+                <span className="job__time">{took}</span>
+              </span>
+              <span className="job__meta job__origin">{t("job.startedIn", { origin })}</span>
+              <span className="job__activity">{activity}</span>
+              {meta.length > 0 && <span className="job__meta">{meta.join(" · ")}</span>}
             </span>
-            <span className="job__activity">
-              {live && j.activity
-                ? j.activity
-                : waiting && j.from
-                  ? `${turnName(t, j.from)} · ${t(STATE_KEY[j.state])}`
-                  : t(STATE_KEY[j.state])}
-            </span>
-            {meta.length > 0 && <span className="job__meta">{meta.join(" · ")}</span>}
-          </span>
-        </button>
+          </button>
+        </Tooltip>
         {terminal && (
           <button
             type="button"

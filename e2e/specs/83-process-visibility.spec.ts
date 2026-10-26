@@ -1,5 +1,88 @@
-import { Job, type Thread } from "../../packages/protocol/src/domain.ts";
+import { type Agent, Job, type Project, type Thread } from "../../packages/protocol/src/domain.ts";
 import { expect, open, rpc, test } from "./kit.ts";
+
+test("background details keep another project's executor across chats and expose full text on keyboard focus", async ({
+  page,
+}) => {
+  await rpc("setup.finish");
+  const { project } = await rpc<{ project: Project }>("projects.create", { name: "Northwind catalog" });
+  const agent = await rpc<Agent>("agents.create", {
+    project_id: project.id,
+    slug: "catalog-builder",
+    name: "Catalog builder",
+    role: "Developer",
+  });
+  const root = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Home export" });
+  const other = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Other caller" });
+  const command = `pnpm run build --filter ${"catalog-".repeat(15)}`;
+  const cwd = `~/work/${"catalog/".repeat(20)}`;
+  const title = `Export every item in ${"the Northwind catalog ".repeat(8)}`;
+  const jobs = [
+    Job.parse({
+      id: "job_cross_project",
+      kind: "terminal",
+      thread_id: "th_unloaded_catalog",
+      thread_title: title,
+      agent_id: agent.id,
+      agent_name: agent.name,
+      project_id: project.id,
+      project_name: project.name,
+      title: command,
+      cwd,
+      state: "working",
+      trigger: "system",
+      tool_calls: 0,
+      started_at: new Date().toISOString(),
+      background: true,
+    }),
+    Job.parse({
+      id: "job_missing_origin",
+      kind: "terminal",
+      thread_id: "th_unloaded_legacy",
+      title: "legacy command",
+      state: "working",
+      trigger: "system",
+      tool_calls: 0,
+      started_at: new Date().toISOString(),
+    }),
+  ];
+  await page.route("**/rpc/jobs.list", (route) =>
+    route.fulfill({ json: { ok: true, result: { running: jobs, finished: [] } } }),
+  );
+  for (const chat of [root, other]) {
+    await open(page, `#thread=${chat.id}`);
+    await page.locator("button.running").click();
+    await page.getByRole("radio", { name: /Segundo plano/ }).click();
+    const cards = page.locator(".running__list .job");
+    await expect(cards.first().locator(".job__origin")).toHaveText(
+      `Desde Catalog builder · Northwind catalog · ${title}`,
+    );
+    await expect(cards.last().locator(".job__origin")).toHaveText(
+      "Desde Agente desconocido · Proyecto desconocido · th_unloaded_legacy",
+    );
+    await page.keyboard.press("Tab");
+    await cards.first().locator(".job__main").focus();
+    const tooltip = page.locator(".apx-tooltip[data-open]");
+    await expect(tooltip).toContainText(command);
+    await expect(tooltip).toContainText(title);
+    await expect(tooltip).toContainText(cwd);
+    await expect(tooltip).toContainText("Catalog builder · Northwind catalog");
+    await page.keyboard.press("Escape");
+    await expect(tooltip).toHaveCount(0);
+    await page.keyboard.press("Escape");
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator("button.running").click();
+  await page.getByRole("radio", { name: /Segundo plano/ }).click();
+  await page.keyboard.press("Tab");
+  await page.locator(".running__list .job__main").first().focus();
+  const hint = page.locator(".apx-tooltip[data-open]");
+  await expect(hint).toContainText(command);
+  const bounds = await hint.boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(bounds?.x).toBeGreaterThanOrEqual(0);
+  expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(390);
+});
 
 test("idle chats show their active commands and each process names its origin", async ({ page }) => {
   await rpc("setup.finish");
@@ -49,16 +132,16 @@ test("idle chats show their active commands and each process names its origin", 
   const side = page.getByRole("complementary", { name: "Panel lateral" });
   await expect(side.getByText("Activos (2)")).toBeVisible();
   await expect(side.locator(".job__origin")).toHaveText([
-    `Desde ${agent.name} · Asset export`,
-    `Desde ${agent.name} · Asset export`,
+    `Desde ${agent.name} · Proyecto desconocido · Asset export`,
+    `Desde ${agent.name} · Proyecto desconocido · Asset export`,
   ]);
   await page.locator("button.running").click();
   await page.getByRole("radio", { name: /Segundo plano/ }).click();
   const popover = page.locator(".running__list").last();
   await expect(popover.locator(".job__origin")).toHaveText([
-    `Desde ${agent.name} · Asset export`,
-    `Desde ${agent.name} · Asset export`,
-    `Desde ${agent.name} · Other export`,
+    `Desde ${agent.name} · Proyecto desconocido · Asset export`,
+    `Desde ${agent.name} · Proyecto desconocido · Asset export`,
+    `Desde ${agent.name} · Proyecto desconocido · Other export`,
   ]);
   await page.screenshot({ path: test.info().outputPath("process-visibility.png") });
   await popover.locator(".job").last().getByRole("button", { name: "Abrir el chat" }).click();

@@ -392,6 +392,8 @@ export const en = {
   "job.output": "Show output",
   "job.openChat": "Open the chat",
   "job.startedIn": "From {origin}",
+  "job.unknownAgent": "Unknown agent",
+  "job.unknownProject": "Unknown project",
   "chat.activeProcesses": "Active processes: {n}",
   "job.exit": "exit {code}",
   "job.noOutput": "(no output yet)",
