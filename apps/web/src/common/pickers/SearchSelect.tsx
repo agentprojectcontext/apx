@@ -1,6 +1,7 @@
+import "../../styles/searchselect.css";
 import { Icons, type SelectOption, useApx } from "@apx/ui";
 import { Combobox } from "@base-ui/react/combobox";
-import { type ReactElement, useMemo } from "react";
+import { type ReactElement, useMemo, useRef } from "react";
 
 export interface SearchSelectProps {
   value: string | null;
@@ -53,6 +54,7 @@ export function SearchSelect({
   trigger,
 }: SearchSelectProps) {
   const { portalRef } = useApx();
+  const search = useRef<HTMLInputElement>(null);
   const current = options.find((o) => o.value === value) ?? null;
   const groups = useMemo<Group[]>(() => {
     const out: Group[] = [];
@@ -105,10 +107,11 @@ export function SearchSelect({
       )}
       <Combobox.Portal container={portalRef}>
         <Combobox.Positioner sideOffset={6} align="end" className="apx-select__positioner">
-          <Combobox.Popup className="apx-menu apx-searchselect__popup" aria-label={label}>
+          {/* Typing goes to the search however the list opened: on the list itself, letters would jump between items. */}
+          <Combobox.Popup className="apx-menu apx-searchselect__popup" aria-label={label} initialFocus={search}>
             <div className="apx-searchselect__search">
               <Icons.Search size={14} />
-              <Combobox.Input className="apx-searchselect__input" placeholder={searchPlaceholder} />
+              <Combobox.Input ref={search} className="apx-searchselect__input" placeholder={searchPlaceholder} />
             </div>
             <Combobox.Empty className="apx-searchselect__empty">{emptyLabel}</Combobox.Empty>
             <Combobox.List className="apx-searchselect__list">

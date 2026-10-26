@@ -1,0 +1,44 @@
+/* SearchSelect: the Select's field, with a search box over a scrolling list. */
+.apx-menu.apx-searchselect__popup {
+  display: flex;
+  flex-direction: column;
+  width: max(var(--anchor-width, 280px), 280px);
+  max-height: min(400px, var(--available-height, 400px));
+  padding: 0;
+}
+.apx-searchselect__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--apx-border);
+  color: var(--apx-fg-subtle);
+}
+.apx-searchselect__input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--apx-fg);
+  font: inherit;
+  font-size: var(--apx-text-sm);
+}
+/* The search row is part of the menu, like a field's inner input: no focus ring of its own. */
+.apx .apx-searchselect__input:focus-visible {
+  outline: none;
+}
+.apx-searchselect__list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+}
+.apx-searchselect__list:empty {
+  display: none;
+}
+.apx-searchselect__empty:not(:empty) {
+  padding: 12px;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-subtle);
+}
