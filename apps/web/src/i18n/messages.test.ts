@@ -10,6 +10,20 @@ import { enReceived } from "./received-en.ts";
 import { esReceived } from "./received-es.ts";
 import { enSysUsage } from "./sysusage-en.ts";
 import { esSysUsage } from "./sysusage-es.ts";
+import { enThreadDialogs } from "./thread-dialogs-en.ts";
+import { esThreadDialogs } from "./thread-dialogs-es.ts";
+
+test("thread dialog strings load only with their pack in both languages", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const base = await loadMessages(lang);
+    const pack = await loadPack("threads", lang);
+    for (const key of Object.keys(enThreadDialogs) as (keyof typeof enThreadDialogs)[]) {
+      assert.equal(base[key], undefined);
+    }
+    assert.deepEqual(pack, lang === "en" ? enThreadDialogs : esThreadDialogs);
+  }
+});
 
 test("signature strings load as a separate pack in both languages", async () => {
   const { loadMessages, loadPack } = await import("./messages.ts");
@@ -22,8 +36,8 @@ test("signature strings load as a separate pack in both languages", async () => 
 });
 
 // A pack's strings belong to the language as much as the main chunk's.
-const en = { ...base, ...enComputer, ...enReceived, ...enSysUsage, ...enEmailSignatures };
-const es = { ...esBase, ...esComputer, ...esReceived, ...esSysUsage, ...esEmailSignatures };
+const en = { ...base, ...enComputer, ...enReceived, ...enSysUsage, ...enEmailSignatures, ...enThreadDialogs };
+const es = { ...esBase, ...esComputer, ...esReceived, ...esSysUsage, ...esEmailSignatures, ...esThreadDialogs };
 
 // Each language is loaded alone, so a key it lacks would show as the bare key.
 test("every English text has its Spanish translation", () => {

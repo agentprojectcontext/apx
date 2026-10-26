@@ -1,20 +1,50 @@
 import type { Thread } from "@apx/protocol";
 import { Button, Dialog, Field, Input } from "@apx/ui";
 import { useState } from "react";
+import { markRead } from "../data/actions.ts";
 import { useData } from "../data/state.ts";
 import { closeThreadDialog, deleteThread, updateThread, useThreadDialog } from "../data/threadAdmin.ts";
-import { useT } from "../i18n/index.ts";
+import { usePack, useT } from "../i18n/index.ts";
 import { go, nav } from "../shell/nav.ts";
 
-/** The rename and delete dialogs a chat's menu opens; mounted once, loaded on first use. */
+/** Chat management dialogs; mounted once, loaded on first use. */
 export function ThreadDialogs() {
   const open = useThreadDialog();
-  const thread = useData((s) => (open ? s.threads[open.thread] : undefined));
+  const ready = usePack("threads");
+  const thread = useData((s) => (open && open.kind !== "markRead" ? s.threads[open.thread] : undefined));
+  if (!ready) return null;
+  if (open?.kind === "markRead") return <MarkReadDialog threads={open.threads} />;
   if (!open || !thread) return null;
   return open.kind === "rename" ? (
     <RenameDialog key={thread.id} thread={thread} />
   ) : (
     <DeleteDialog key={thread.id} thread={thread} />
+  );
+}
+
+function MarkReadDialog({ threads }: { threads: readonly string[] }) {
+  const t = useT();
+  const confirm = () => {
+    closeThreadDialog();
+    void Promise.all(threads.map((id) => markRead(id)));
+  };
+  return (
+    <Dialog
+      open
+      size="sm"
+      onOpenChange={(o) => !o && closeThreadDialog()}
+      title={t("inbox.markAllRead")}
+      description={t("inbox.markAllRead.body", { n: threads.length })}
+      closeLabel={t("common.close")}
+      footer={
+        <>
+          <Button variant="secondary" onClick={closeThreadDialog}>
+            {t("common.cancel")}
+          </Button>
+          <Button onClick={confirm}>{t("inbox.markAllRead")}</Button>
+        </>
+      }
+    />
   );
 }
 
