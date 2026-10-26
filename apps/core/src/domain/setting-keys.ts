@@ -6,6 +6,7 @@ import {
   AgentLimits,
   BaseProject,
   ChannelInfo,
+  EmailSignatures,
   HookMode,
   ImageDefaults,
   MemorySettings,
@@ -64,6 +65,7 @@ const AcpAgent = z.object({
 const Channel = ChannelInfo.omit({ token_set: true, token_hint: true, status: true, error: true, account: true });
 
 export const SETTINGS = {
+  email_signatures: entry(EmailSignatures, []),
   project_helper: entry(
     z.record(
       z.string(),
