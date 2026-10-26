@@ -3,7 +3,7 @@ import { Button, Select, SettingRow, Switch, Textarea } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
-import { useT } from "../i18n/index.ts";
+import { usePack, useT } from "../i18n/index.ts";
 import { SubHead } from "./SectionHead.tsx";
 
 type Target = Pick<EmailSignatureEntry, "transport" | "account" | "sender"> & { label: string };
@@ -11,6 +11,10 @@ const keyOf = (e: Pick<Target, "transport" | "account" | "sender">) =>
   JSON.stringify([e.transport, e.transport === "gmail" ? e.account.toLowerCase() : e.account, e.sender.toLowerCase()]);
 
 export function EmailSignatures() {
+  return usePack("signatures") ? <EmailSignaturesBody /> : null;
+}
+
+function EmailSignaturesBody() {
   const t = useT();
   const [signatures, setSignatures] = useState<EmailSignatureEntry[]>();
   const [targets, setTargets] = useState<Target[]>([]);
