@@ -2525,3 +2525,16 @@ the agent never saw the worktree rule, and kept opening duplicate worktrees. A p
 size; the agent gets all of them, as Claude Code and Codex do with theirs. The cost is small because AGENTS.md sits in
 the byte-stable prefix (rule 12) that providers cache. The 200,000 safety limit, its marker and the owner's notice
 from [D-110](#d-110) stay.
+
+<a id="d-159"></a>
+## D-159 — 2026-10-26 — Features and fixes carry a documentation impact assessment
+A regression test protects behavior, but does not keep instructions true. Every feature and fix assesses the docs
+it can invalidate: user guides, CLI/configuration/reference, troubleshooting, security boundaries and engineering
+workflow. Update affected docs or create the missing page in the same change, English first and Spanish alongside
+it where the site is bilingual. Record `Docs impact: updated` with paths, or `Docs impact: none` with a specific
+reason in the change description or commit body. Internal fixes often need no public page; this is an assessment,
+not a quota of documentation edits. Independent review rejects an absent assessment, an unsupported no-impact
+claim or known inaccurate instructions. Release review checks coverage against the actual release diff and tags,
+not only news entries or commit subjects. Builds, route/anchor checks and translation structure checks complement
+source review; none proves every explanation correct. No source-text test or automatic check can decide semantic
+documentation relevance. See [WORKFLOW.md](WORKFLOW.md#documentation-impact-contract).

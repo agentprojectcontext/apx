@@ -138,3 +138,23 @@ permanently only after the cause is proven.
   `plan/01-arquitectura-v2.md` §2; update both when a module, process or boundary changes.
 - **Release check:** v2 ships as `v2.x.y` tags ([`RELEASE.md`](RELEASE.md)); a fix is not out until its tag is. v2 must never
   touch v1's files: it uses port `7440` and `~/.apx/v2`.
+
+## Documentation impact contract
+
+Applies to every feature and fix, including a small fix that skips the full workflow (AGENTS.md rule 30, [D-159](DECISIONS.md#d-159)).
+
+- **Plan / implement:** compare the before/after contract with guides, CLI/config reference, troubleshooting,
+  security/permission boundaries and engineering rules. Update existing docs or create the missing page in the
+  same change. Write English first; keep Spanish paths, instructions and caveats in parity. Distinguish tagged
+  behavior from unreleased integration-branch work; a news `since` field alone is not release evidence.
+- **Evidence:** put `Docs impact: updated — <paths and changed contract>` or `Docs impact: none — <specific reason>`
+  in the change description or commit body. A test-only timing repair, for example, may leave all documented
+  commands and behavior unchanged. "Internal" or "tests pass" alone is not an explanation.
+- **Independent review:** reject an omitted assessment, unjustified no-impact conclusion or known stale docs.
+  Check source/command evidence and both languages; do not require irrelevant prose churn. Use the pull request
+  checklist when opening a PR; direct integration still needs the same recorded evidence.
+- **Verification:** for site changes, install the docs' frozen dependencies, build with the published base, and
+  check built links/anchors plus EN/ES structure as described in [TESTING.md](TESTING.md#documentation-checks).
+  Report unexercised UI, commands, external links and screenshots separately.
+- **Release check:** compare the release diff (features AND fixes) to the recorded docs assessments; resolve missing
+  coverage or record an explicit remaining gap before a GO. News entries are offers to owners, not a docs inventory.

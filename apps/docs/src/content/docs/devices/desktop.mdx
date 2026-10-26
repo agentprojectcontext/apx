@@ -10,7 +10,7 @@ import Shot from "../../../components/Shot.astro";
 
 The desktop app is the easiest way to live with APX. Its window is the panel, the same one the core serves to a
 browser. Around it, the app adds three things a web page can't: an icon in the menu bar with a quick chat, a real
-browser your agents can drive, and (on a Mac) the option to let agents use your computer.
+browser your agents can drive, and (on macOS and Windows) the option to let agents use your computer.
 
 ## The window
 
@@ -46,6 +46,7 @@ These settings live in the core but only apply inside the desktop app (in a plai
 | **Shortcut** | The global shortcut for the quick chat. Click, then press the keys. **Remove** leaves it without one. If another app already uses those keys, APX tells you. |
 | **Start with the computer** | APX opens when you log in. On by default. |
 | **Let agents use this computer** | Computer use, on macOS and Windows, off until you turn it on. See below. |
+| **Keep the Mac awake while agents work** | Prevents system sleep during a turn, command or computer startup. The screen can still turn off. You can disable it. |
 
 ### Computer use
 
@@ -61,7 +62,7 @@ Some things hold in every autonomy level, even total:
 - Password fields are refused.
 
 Looking at the screen is an `ask` tool; clicking, typing and pressing keys are `always` tools, so they ask in every
-autonomy except total (see [Autonomy](/concepts/autonomy/)). Windows and Linux don't lend this capability yet.
+autonomy except total (see [Autonomy](/concepts/autonomy/)). Linux does not lend this capability yet.
 
 ## The browser your agents drive
 
@@ -126,6 +127,8 @@ or restart that server.
 The CLI's `apx service` commands always control services on the computer running the command, never the computer
 named by `APX_URL`. Use `--home` to select the local installation. `apx desktop` likewise opens the app on the
 computer where the command runs, not on your client when you run it over SSH.
+
+For a Linux desktop apart from your own screen, see [Agents' computer](/office/computers/).
 
 ## Updates
 
