@@ -184,6 +184,12 @@ export function googleTools(g: Google | undefined): Tool[] {
         cc: Emails.optional(),
         subject: Line.optional().describe("required unless reply_to"),
         body: z.string().min(1).max(20_000),
+        omit_signature: z.boolean().optional().describe("omit the configured email signature"),
+        quoted_body: z
+          .string()
+          .max(20_000)
+          .optional()
+          .describe("reply or forwarded history, placed after the signature"),
         reply_to: z.string().max(200).optional(),
       }),
       effect: "external",
@@ -221,6 +227,12 @@ export function googleTools(g: Google | undefined): Tool[] {
         cc: Emails.optional(),
         subject: Line,
         body: z.string().min(1).max(20_000),
+        omit_signature: z.boolean().optional().describe("omit the configured email signature"),
+        quoted_body: z
+          .string()
+          .max(20_000)
+          .optional()
+          .describe("reply or forwarded history, placed after the signature"),
       }),
       effect: "external",
       // It speaks as the owner to other people: it always waits for their OK.

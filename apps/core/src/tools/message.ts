@@ -134,6 +134,7 @@ export function messageTools(store: Store, home: string): Tool[] {
         'Send a message to a person on the owner\'s channels: a contact (\'tell Alex…\') or the owner (to="me"). to: a name, id or "me"; channel: default where they last talked; files: paths in your work folder, any file you can read for to="me" (20 MB at most). Plain text, no Markdown, in first person as the owner\'s assistant, only what the owner asked for. Once sent it cannot be taken back; the result shows the end of that chat: check it before saying it went.',
       args: z.object({
         to: z.string().trim().min(1).max(120),
+        omit_signature: z.boolean().optional().describe("email only: omit the configured signature"),
         text: z.string().trim().min(1).max(4000),
         channel: z.string().max(60).optional(),
         files: z.array(z.string().min(1).max(500)).max(5).optional(),
@@ -154,6 +155,7 @@ export function messageTools(store: Store, home: string): Tool[] {
         const r = await ctx.call("channels.message", {
           person: who.id,
           text: a.text,
+          ...(a.omit_signature !== undefined ? { omit_signature: a.omit_signature } : {}),
           ...(a.channel ? { channel: a.channel } : {}),
           ...(files.ids.length ? { files: files.ids } : {}),
         });

@@ -7,6 +7,7 @@ import { asanaMethods } from "./asana-methods.ts";
 import { browserMethods } from "./browser.ts";
 import { desktopInstallMethods } from "./desktop-install.ts";
 import { deviceMethods } from "./device-methods.ts";
+import { emailSignatureMethods } from "./email-signatures.ts";
 import { engineUsageMethods } from "./engine-usage.ts";
 import { environmentMethods } from "./environment-methods.ts";
 import { telemetryMethods } from "./telemetry-methods.ts";
@@ -105,6 +106,7 @@ export const methods = {
   ...telemetryMethods,
   ...usageMethods,
   ...engineUsageMethods,
+  ...emailSignatureMethods,
 } as const satisfies Record<string, MethodDef>;
 
 export type MethodName = keyof typeof methods;

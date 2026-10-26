@@ -51,20 +51,20 @@ export function channelHandlers(store: Store, channels: Channels) {
       const config = channel ? { ...channel, label: channel.label || defaultLabel(channel.type) } : null;
       return { channels: await channels.set(id, config, token) };
     },
-    "channels.send": ({ thread, text }) => {
+    "channels.send": ({ thread, text, omit_signature }) => {
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
       try {
-        channels.sendAsOwner(thread, text);
+        channels.sendAsOwner(thread, text, { omit_signature });
       } catch (err) {
         throw badRequest(errorMessage(err));
       }
       return { ok: true as const };
     },
     // Open to agents (the owner's, never a contact's turn): their way to write to a contact for the owner.
-    "channels.message": async ({ person, text, channel, files }, ctx) => {
+    "channels.message": async ({ person, text, channel, files, omit_signature }, ctx) => {
       let sent: ReturnType<typeof channels.messageContact>;
       try {
-        sent = channels.messageContact(person, text, { channel, by: ctx.agent?.id, files });
+        sent = channels.messageContact(person, text, { channel, by: ctx.agent?.id, files, omit_signature });
       } catch (err) {
         throw badRequest(errorMessage(err));
       }

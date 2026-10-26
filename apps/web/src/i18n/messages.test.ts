@@ -3,15 +3,27 @@ import { test } from "node:test";
 import { enComputer } from "./computer-en.ts";
 import { esComputer } from "./computer-es.ts";
 import { en as base } from "./en.ts";
+import { enEmailSignatures } from "./en-email-signatures.ts";
 import { es as esBase } from "./es.ts";
+import { esEmailSignatures } from "./es-email-signatures.ts";
 import { enReceived } from "./received-en.ts";
 import { esReceived } from "./received-es.ts";
 import { enSysUsage } from "./sysusage-en.ts";
 import { esSysUsage } from "./sysusage-es.ts";
 
+test("signature strings load as a separate pack in both languages", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const base = await loadMessages(lang);
+    const pack = await loadPack("signatures", lang);
+    assert.equal(base["signature.saved"], undefined);
+    assert.deepEqual(pack, lang === "en" ? enEmailSignatures : esEmailSignatures);
+  }
+});
+
 // A pack's strings belong to the language as much as the main chunk's.
-const en = { ...base, ...enComputer, ...enReceived, ...enSysUsage };
-const es = { ...esBase, ...esComputer, ...esReceived, ...esSysUsage };
+const en = { ...base, ...enComputer, ...enReceived, ...enSysUsage, ...enEmailSignatures };
+const es = { ...esBase, ...esComputer, ...esReceived, ...esSysUsage, ...esEmailSignatures };
 
 // Each language is loaded alone, so a key it lacks would show as the bare key.
 test("every English text has its Spanish translation", () => {

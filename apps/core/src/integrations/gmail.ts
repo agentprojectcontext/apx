@@ -1,5 +1,7 @@
 // Gmail's REST API: searching and reading the owner's mail, writing a draft, and sending a draft the owner approved.
-// Nothing here sends a new message on its own: a message leaves only as a draft that exists first.
+// Direct sending is used only with APX's send-only OAuth client; drafts keep the owner's final approval path.
+import { emailMimeBody } from "../domain/email-body.ts";
+import { renderEmailDraft, withEmailSignature } from "../domain/email-signature.ts";
 import { pageText } from "../tools/web.ts";
 import type { Google } from "./google.ts";
 
@@ -75,6 +77,7 @@ export function rawMessage(m: {
   cc?: string[] | undefined;
   subject: string;
   body: string;
+  html?: string | undefined;
   inReplyTo?: string | undefined;
   references?: string | undefined;
 }): string {
@@ -84,10 +87,7 @@ export function rawMessage(m: {
     `Subject: ${word(one(m.subject))}`,
     ...(m.inReplyTo ? [`In-Reply-To: ${one(m.inReplyTo)}`, `References: ${one(m.references || m.inReplyTo)}`] : []),
     "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=UTF-8",
-    "Content-Transfer-Encoding: base64",
-    "",
-    Buffer.from(m.body, "utf8").toString("base64").replace(/.{76}/g, "$&\r\n"),
+    emailMimeBody({ text: m.body, html: m.html }),
   ];
   return Buffer.from(lines.join("\r\n"), "utf8").toString("base64url");
 }
@@ -95,7 +95,23 @@ export function rawMessage(m: {
 /** A message that just reached the inbox, with what is needed to judge whether it matters. */
 export type Arrival = MailSummary & { labels: string[] };
 
+type Composition = {
+  body: string;
+  omit_signature?: boolean | undefined;
+  quoted_body?: string | undefined;
+};
+
 export function gmailApi(g: Google) {
+  const signedBody = (o: Composition) => {
+    const body = renderEmailDraft(
+      withEmailSignature(
+        { content: { text: o.body }, ...(o.quoted_body ? { quoted: { text: o.quoted_body } } : {}) },
+        g.emailSignature(),
+        { omit: o.omit_signature },
+      ),
+    );
+    return { body: body.text, html: body.html };
+  };
   const base = () => `${g.endpoints.gmail}/users/me`;
   // Metadata with the headers asked for: Gmail repeats the parameter, which a query object would collapse.
   const meta = (id: string, headers: string[]) => {
@@ -167,13 +183,15 @@ export function gmailApi(g: Google) {
     },
 
     /** A draft in the owner's mailbox; as a reply it goes in the same thread, with "Re:" and the right headers. */
-    async draft(o: {
-      to: string[];
-      cc?: string[] | undefined;
-      subject?: string | undefined;
-      body: string;
-      reply_to?: string | undefined;
-    }) {
+    async draft(
+      o: Composition & {
+        to: string[];
+        cc?: string[] | undefined;
+        subject?: string | undefined;
+        body: string;
+        reply_to?: string | undefined;
+      },
+    ) {
       let subject = o.subject ?? "";
       let thread: string | undefined;
       let inReplyTo: string | undefined;
@@ -188,7 +206,7 @@ export function gmailApi(g: Google) {
           subject = /^re:/i.test(s) ? s : `Re: ${s}`;
         }
       }
-      const raw = rawMessage({ to: o.to, cc: o.cc, subject, body: o.body, inReplyTo, references });
+      const raw = rawMessage({ to: o.to, cc: o.cc, subject, ...signedBody(o), inReplyTo, references });
       const d = await g.call<{ id?: string; message?: { id?: string; threadId?: string } }>(ID, `${base()}/drafts`, {
         method: "POST",
         body: { message: { raw, ...(thread ? { threadId: thread } : {}) } },
@@ -197,8 +215,8 @@ export function gmailApi(g: Google) {
     },
 
     /** Sends a new message at once: what APX's own client can do, since drafts and reading need restricted scopes. */
-    async send(o: { to: string[]; cc?: string[] | undefined; subject: string; body: string }) {
-      const raw = rawMessage({ to: o.to, cc: o.cc, subject: o.subject, body: o.body });
+    async send(o: Composition & { to: string[]; cc?: string[] | undefined; subject: string }) {
+      const raw = rawMessage({ to: o.to, cc: o.cc, subject: o.subject, ...signedBody(o) });
       const m = await g.call<GMessage>(ID, `${base()}/messages/send`, { method: "POST", body: { raw } });
       return { message: m.id ?? "", thread: m.threadId ?? "" };
     },

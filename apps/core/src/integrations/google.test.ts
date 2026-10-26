@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { test } from "node:test";
+import { EmailSignatures } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import type { Secrets } from "../secrets.ts";
 import { calendarApi, flattenEvent, gaps } from "./calendar.ts";
@@ -90,7 +91,11 @@ function setup(o: { builtin?: boolean } = {}) {
   const settings = new Map<string, string>();
   const vault = new Map<string, string>();
   const store = {
-    settings: { get: (k: string) => settings.get(k), set: (k: string, v: string) => settings.set(k, v) },
+    settings: {
+      get: (k: string) => settings.get(k),
+      set: (k: string, v: string) => settings.set(k, v),
+      read: (k: string) => EmailSignatures.parse(JSON.parse(settings.get(k) ?? "[]")),
+    },
   };
   const secrets = {
     resolve: (ref?: string) => (ref?.startsWith("secret://") ? vault.get(ref.slice(9)) : undefined),
@@ -515,6 +520,78 @@ test("Gmail reply drafts preserve threading and send only an existing draft id",
   assert.deepEqual(await api.sendDraft("draft-1"), { message: "sent-1", thread: "thread-1" });
   assert.deepEqual(fake.seen.at(-1)?.body, { id: "draft-1" });
   assert.ok(fake.seen.at(-1)?.url.endsWith("/drafts/send"));
+});
+
+test("Gmail applies the connected sender's signature before reply history, with explicit omission and no send-time mutation", async () => {
+  const { g, start, fake, settings } = setup();
+  await g.finish("good-code", start("gmail").searchParams.get("state") ?? "");
+  const signature = {
+    transport: "gmail",
+    account: "owner@example.com",
+    sender: "owner@example.com",
+    enabled: true,
+    text: "Acme",
+    html: '<a href="https://example.com">Acme</a>',
+  };
+  settings.set(
+    "email_signatures",
+    JSON.stringify([
+      { ...signature, account: "other@example.com", text: "Wrong account" },
+      { ...signature, sender: "alias@example.com", text: "Wrong alias" },
+      signature,
+    ]),
+  );
+  fake.respond((url) =>
+    url.pathname.includes("/messages/") && !url.pathname.endsWith("/send")
+      ? { threadId: "thread-1", payload: { headers: [{ name: "Message-ID", value: "<original@example.com>" }] } }
+      : { id: "draft-1" },
+  );
+  const api = gmailApi(g);
+  const parts = (raw: string) =>
+    [
+      ...Buffer.from(raw, "base64url")
+        .toString("utf8")
+        .matchAll(
+          /Content-Type: text\/(?:plain|html); charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n([A-Za-z0-9+/=\r\n]*)(?=\r\n--|$)/g,
+        ),
+    ].map((m) => Buffer.from(m[1] ?? "", "base64").toString("utf8"));
+  const lastRequest = () => {
+    const request = fake.seen.at(-1);
+    assert.ok(request);
+    return request;
+  };
+  const lastDraft = () => (lastRequest().body as { message: { raw: string } }).message.raw;
+  await api.draft({
+    to: ["user@example.com"],
+    reply_to: "original",
+    body: "Reply",
+    quoted_body: "Previous <message>\nAcme",
+  });
+  assert.deepEqual(parts(lastDraft()), [
+    "Reply\r\n\r\n-- \r\nAcme\r\n\r\nPrevious <message>\r\nAcme",
+    `Reply<br><br><div>${signature.html}</div><br><br><blockquote>Previous &lt;message&gt;<br>\r\nAcme</blockquote>`,
+  ]);
+  await api.draft({
+    to: ["user@example.com"],
+    subject: "Fwd: Plan",
+    body: "Forward",
+    quoted_body: "History",
+    omit_signature: true,
+  });
+  assert.deepEqual(parts(lastDraft()), ["Forward\r\n\r\nHistory"]);
+  await api.draft({ to: ["user@example.com"], subject: "Signed", body: "Reply\n\n-- \nAcme" });
+  assert.equal(parts(lastDraft())[0], "Reply\r\n\r\n-- \r\nAcme");
+  const beforeSend = fake.seen.length;
+  await api.sendDraft("draft-1");
+  assert.equal(fake.seen.length, beforeSend + 1);
+  assert.deepEqual(fake.seen.at(-1)?.body, { id: "draft-1" });
+  await api.send({ to: ["user@example.com"], subject: "Direct", body: "Hello" });
+  assert.equal(parts((lastRequest().body as { raw: string }).raw)[0], "Hello\r\n\r\n-- \r\nAcme");
+  await api.send({ to: ["user@example.com"], subject: "Direct", body: "Hello", omit_signature: true });
+  assert.deepEqual(parts((lastRequest().body as { raw: string }).raw), ["Hello"]);
+  settings.set("google_account:gmail", "unconfigured@example.com");
+  await api.send({ to: ["user@example.com"], subject: "Direct", body: "Hello" });
+  assert.deepEqual(parts((lastRequest().body as { raw: string }).raw), ["Hello"]);
 });
 
 test("Calendar adds and removes guests on the current list, keeps their answers, adds Meet once, and cancels", async () => {
