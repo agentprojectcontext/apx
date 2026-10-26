@@ -1,14 +1,14 @@
 ---
 /**
  * V2Banner.astro — Starlight's Banner slot, on every page: a one-line note that
- * APX v1 is no longer maintained and APX v2 replaces it (/apx/v2/), then the page's own `banner`
+ * APX v1 is no longer maintained and APX v2 replaces it (/apx/), then the page's own `banner`
  * frontmatter, if it has one, through Starlight's default component.
  */
 import Default from '@astrojs/starlight/components/Banner.astro';
 
 const es = Astro.locals.starlightRoute.lang === 'es';
-const v2 = es ? '/apx/v2/es/' : '/apx/v2/';
-const upgrade = es ? '/apx/v2/es/start/from-v1/#actualizar-desde-v1' : '/apx/v2/start/from-v1/#upgrade-from-v1';
+const v2 = es ? '/apx/es/' : '/apx/';
+const upgrade = es ? '/apx/es/start/from-v1/#actualizar-desde-v1' : '/apx/start/from-v1/#upgrade-from-v1';
 ---
 
 <div class="apx-v2-banner">

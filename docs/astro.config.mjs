@@ -53,7 +53,7 @@ export default defineConfig({
 					'https://github.com/agentprojectcontext/apx/edit/v1/docs/',
 			},
 			lastUpdated: true,
-			// Every page says v1 is no longer maintained and points at APX v2 (/apx/v2/).
+			// Every page says v1 is no longer maintained and points at APX v2 (/apx/).
 			components: { Banner: './src/components/V2Banner.astro' },
 			sidebar: [
 				{

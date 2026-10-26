@@ -1,7 +1,7 @@
-> [!TIP]
-> 🎉 **APX v2 is out, in beta. Try it!** A new desktop app, a phone app and a one-line install for your server,
-> rebuilt from scratch. It brings your v1 projects, agents and chats along.
-> **[Meet APX v2 →](https://agentprojectcontext.github.io/apx/v2/)** · `curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash`
+> [!WARNING]
+> **APX v1 is no longer maintained. APX v2 replaces it:** a new desktop app, a phone app and a one-line install for
+> your server, rebuilt from scratch. It brings your v1 projects, agents and chats along.
+> **[Meet APX v2 →](https://agentprojectcontext.github.io/apx/)** · `curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash`
 
 <p align="center">
   <img src="assets/banner.webp" alt="APX — Meet your crew" width="820">
@@ -26,7 +26,7 @@
 
 <p align="center">
   <b><a href="https://agentprojectcontext.github.io/apx/">See APX working →</a></b> ·
-  <a href="#quick-start">Install v1</a> · <a href="https://agentprojectcontext.github.io/apx/v2/">Try V2 beta</a> ·
+  <a href="#quick-start">Install v1</a> · <a href="https://agentprojectcontext.github.io/apx/">APX v2</a> ·
   <a href="README_ES.md">Español</a> · <a href="https://discord.gg/vxdZuT5WuE">Discord</a>
 </p>
 
@@ -110,12 +110,11 @@ There is also a native **Android app**, with notifications, a floating mascot an
 The Android app installs from a file, outside Google Play. On iPhone, use the web panel.
 USB access lasts while the cable is connected; LAN access stays within your network; Tailscale connects devices on your tailnet.
 
-## APX V2 is in beta
+## APX v2 replaces v1
 
-**V2 is out as a beta.** It takes APX further as a standalone application for your crew: install it from
-[its website](https://agentprojectcontext.github.io/apx/v2/) or the
-[`release/v2` branch](https://github.com/agentprojectcontext/apx/tree/release/v2).
-The v1 commands above install v1, not V2.
+**v1 is no longer maintained.** APX v2 takes APX further as a standalone application for your crew: install it from
+[its website](https://agentprojectcontext.github.io/apx/) or the
+[`main` branch](https://github.com/agentprojectcontext/apx). The v1 commands above install v1, not v2.
 
 <p align="center">
   <img src="assets/apx-v2-preview.png" alt="APX V2 dark-mode demo: main agent delegates to Scout, creates an interactive launch widget and opens the source page in the browser panel" width="1100"><br>
