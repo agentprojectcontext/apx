@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { TemplateRoot } from "../apc/templates.ts";
 import type { Store } from "../domain/store.ts";
 import type { ProfileRoot } from "../engine/profiles.ts";
+import { EMAIL } from "./settings-email.ts";
 import type { Params, Setting, SettingsDeps } from "./settings-kit.ts";
 import { PEOPLE } from "./settings-people.ts";
 import { TEAM } from "./settings-team.ts";
@@ -13,10 +14,11 @@ import { WORK } from "./settings-work.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 /** What the super-agent may read and change, by method. */
-export const SETTINGS: Readonly<Record<string, Setting>> = { ...PEOPLE, ...TEAM, ...WORK };
+export const SETTINGS: Readonly<Record<string, Setting>> = { ...PEOPLE, ...TEAM, ...WORK, ...EMAIL };
 
 /** The area a method belongs to, as its card's title names it ("Changed a channel"). */
 const AREA: Readonly<Record<string, string>> = {
+  email: "an email signature",
   contacts: "a contact",
   channels: "a channel",
   imessage: "iMessage",
@@ -49,7 +51,7 @@ export function settingAct(a: { method?: unknown; params?: unknown }): {
   const s = SETTINGS[method];
   const area = method.split(".")[0] ?? "";
   if (!s || s.read || !a.params) return { act: "look", area };
-  return { act: /\.(remove|delete|unregister)$/.test(method) ? "remove" : "change", area };
+  return { act: /[._](remove|delete|unregister)$/.test(method) ? "remove" : "change", area };
 }
 
 /** The methods of each area ("contacts" → list, set…), the index the agent drills down from. */
