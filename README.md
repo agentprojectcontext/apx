@@ -80,6 +80,25 @@
   <sub>One ask: Roby hands the research to Scout, opens the source page in the browser beside the chat and builds a launch board.</sub>
 </p>
 
+## Works today · Foundations in place · On the roadmap
+
+| ✅ Works today | 🚧 Foundations in place | 💭 On the roadmap |
+|---|---|---|
+| Super-agent, project crews, delegation and memory | Export and import artifacts as `.apxart` files | Artifact marketplace |
+| Widgets and apps, with their own state and records | Artifact share links served by your APX and file-based sharing | Cloud-hosted public artifact publishing and discovery |
+| Desktop app (macOS, Windows, Linux), web panel and Android app | Self-hosted server access and device pairing | Cloud account and login |
+| Messaging channels, tasks, commitments and scheduled routines | — | — |
+| Embedded browser, computer tools, skills, MCP servers and extensions | — | — |
+| Your choice of models, Claude Code, Codex and ACP harnesses | — | — |
+
+**Foundations are not finished services.** Exporting an artifact is not a marketplace, and connecting to your own
+server is not signing into an APX cloud account. Roadmap items describe direction, not availability or release dates.
+
+### APX Enterprise (planned)
+
+A separate Enterprise edition is planned. Its scope, licensing, pricing and availability are not announced yet.
+APX's current open-source edition remains available under the [MIT license](LICENSE).
+
 ## Install
 
 **Desktop app** (macOS, Windows, Linux): download it from the
