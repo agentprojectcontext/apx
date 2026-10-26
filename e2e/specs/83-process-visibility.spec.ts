@@ -15,7 +15,7 @@ test("background details keep another project's executor across chats and expose
   const root = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Home export" });
   const other = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Other caller" });
   const command = `pnpm run build --filter ${"catalog-".repeat(15)}`;
-  const cwd = `~/work/${"catalog/".repeat(20)}`;
+  const cwd = `~/work/${"catalog/".repeat(300)}catalog-end`;
   const title = `Export every item in ${"the Northwind catalog ".repeat(8)}`;
   const jobs = [
     Job.parse({
@@ -58,7 +58,7 @@ test("background details keep another project's executor across chats and expose
       `Desde Catalog builder · Northwind catalog · ${title}`,
     );
     await expect(cards.last().locator(".job__origin")).toHaveText(
-      "Desde Agente desconocido · Proyecto desconocido · th_unloaded_legacy",
+      "Desde Agente desconocido · Proyecto al inicio desconocido · th_unloaded_legacy",
     );
     await page.keyboard.press("Tab");
     await cards.first().locator(".job__main").focus();
@@ -82,6 +82,32 @@ test("background details keep another project's executor across chats and expose
   expect(bounds).not.toBeNull();
   expect(bounds?.x).toBeGreaterThanOrEqual(0);
   expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(390);
+  expect(bounds?.y).toBeGreaterThanOrEqual(0);
+  await expect
+    .poll(async () => {
+      const box = await hint.boundingBox();
+      return (box?.y ?? 844) + (box?.height ?? 1);
+    })
+    .toBeLessThanOrEqual(844);
+  await page.keyboard.press("Escape");
+  await page
+    .locator(".running__list .job")
+    .first()
+    .getByRole("button", { name: "Detalles del proceso", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Detalles del proceso", exact: true });
+  await expect(dialog).toBeVisible();
+  const full = dialog.getByRole("textbox", { name: "Detalles del proceso" });
+  expect(await full.inputValue()).toContain(cwd);
+  await full.focus();
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+ArrowDown" : "Control+End");
+  await expect.poll(() => full.evaluate((el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 1)).toBe(true);
+  const modalBounds = await dialog.boundingBox();
+  expect(modalBounds?.y).toBeGreaterThanOrEqual(0);
+  expect((modalBounds?.y ?? 0) + (modalBounds?.height ?? 0)).toBeLessThanOrEqual(844);
+  expect((modalBounds?.x ?? 0) + (modalBounds?.width ?? 0)).toBeLessThanOrEqual(390);
+  await dialog.getByRole("button", { name: "Cerrar", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
 });
 
 test("idle chats show their active commands and each process names its origin", async ({ page }) => {
@@ -132,16 +158,16 @@ test("idle chats show their active commands and each process names its origin", 
   const side = page.getByRole("complementary", { name: "Panel lateral" });
   await expect(side.getByText("Activos (2)")).toBeVisible();
   await expect(side.locator(".job__origin")).toHaveText([
-    `Desde ${agent.name} · Proyecto desconocido · Asset export`,
-    `Desde ${agent.name} · Proyecto desconocido · Asset export`,
+    `Desde ${agent.name} · Proyecto al inicio desconocido · Asset export`,
+    `Desde ${agent.name} · Proyecto al inicio desconocido · Asset export`,
   ]);
   await page.locator("button.running").click();
   await page.getByRole("radio", { name: /Segundo plano/ }).click();
   const popover = page.locator(".running__list").last();
   await expect(popover.locator(".job__origin")).toHaveText([
-    `Desde ${agent.name} · Proyecto desconocido · Asset export`,
-    `Desde ${agent.name} · Proyecto desconocido · Asset export`,
-    `Desde ${agent.name} · Proyecto desconocido · Other export`,
+    `Desde ${agent.name} · Proyecto al inicio desconocido · Asset export`,
+    `Desde ${agent.name} · Proyecto al inicio desconocido · Asset export`,
+    `Desde ${agent.name} · Proyecto al inicio desconocido · Other export`,
   ]);
   await page.screenshot({ path: test.info().outputPath("process-visibility.png") });
   await popover.locator(".job").last().getByRole("button", { name: "Abrir el chat" }).click();

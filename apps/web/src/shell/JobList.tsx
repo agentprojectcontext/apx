@@ -1,5 +1,5 @@
 import type { Job } from "@apx/protocol";
-import { Icons, Spinner, Tooltip } from "@apx/ui";
+import { Dialog, Icons, Spinner, Tooltip } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { elapsed, formatNumber } from "../common/format.ts";
 import { cancelJob } from "../data/actions.ts";
@@ -60,6 +60,7 @@ export function JobList({
 function JobCard({ job: j, now, onOpen }: { job: Job; now: number; onOpen: (job: Job) => void }) {
   const t = useT();
   const [showOutput, setShowOutput] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const thread = useData((s) => s.threads[j.thread_id]);
   const agent = useData((s) => (j.agent_id ? s.agents[j.agent_id] : undefined));
   const project = useData((s) => (j.project_id ? s.projects.find((p) => p.id === j.project_id) : undefined));
@@ -85,11 +86,26 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: number; onOpen: (job:
       : waiting && j.from
         ? `${turnName(t, j.from)} · ${t(STATE_KEY[j.state])}`
         : t(STATE_KEY[j.state]);
-  const details = [j.title, t("job.startedIn", { origin }), activity, ...meta].join("\n");
+  const currentProject = j.thread_project_name ?? j.thread_project_id;
+  const projectContext =
+    j.thread_project_id !== j.project_id && currentProject
+      ? t("job.currentChatProject", { project: currentProject })
+      : undefined;
+  const details = [j.title, t("job.startedIn", { origin }), projectContext, activity, ...meta]
+    .filter(Boolean)
+    .join("\n");
   return (
     <div className={`job is-${j.state}${terminal ? " is-terminal" : ""}`}>
       <div className="job__row">
-        <Tooltip content={<span className="job__details">{details}</span>} side="bottom">
+        <Tooltip
+          content={
+            <span className="job__hint">
+              <span>{t("job.detailsHint")}</span>
+              <span className="job__details">{details}</span>
+            </span>
+          }
+          side="bottom"
+        >
           <button
             type="button"
             className="job__main"
@@ -111,6 +127,15 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: number; onOpen: (job:
             </span>
           </button>
         </Tooltip>
+        <button
+          type="button"
+          className="job__stop"
+          aria-label={t("job.details")}
+          title={t("job.details")}
+          onClick={() => setShowDetails(true)}
+        >
+          <Icons.Info size={12} />
+        </button>
         {terminal && (
           <button
             type="button"
@@ -134,6 +159,15 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: number; onOpen: (job:
           </button>
         )}
       </div>
+      <Dialog
+        open={showDetails}
+        onOpenChange={setShowDetails}
+        title={t("job.details")}
+        size="sm"
+        closeLabel={t("common.close")}
+      >
+        <textarea className="job__full-details" readOnly aria-label={t("job.details")} value={details} />
+      </Dialog>
       {showOutput && <JobOutput job={j.id} live={live} />}
     </div>
   );

@@ -130,6 +130,8 @@ export type RunInput = {
   origin: Origin;
   text: string;
   attachments?: Attachment[];
+  /** The project context captured on admission, independent of later chat moves. */
+  project_at_start?: { id: string; name: string };
   /** The turn's destination; null means the app. Kept across waits and restarts. */
   reply_to?: ThreadContext["reply_to"] | null;
   /** This run picks up the turn a restart of APX cut off (that run's id); such a run is never resumed again. */
@@ -258,6 +260,17 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
     }): RunRecord {
       const id = newId("run");
       const ts = now();
+      const project = one(
+        qb
+          .selectFrom("threads")
+          .innerJoin("projects", "projects.id", "threads.project_id")
+          .select(["projects.id", "projects.name"])
+          .where("threads.id", "=", r.thread_id),
+      );
+      const input: RunInput = {
+        ...r.input,
+        project_at_start: project ? { id: project.id, name: project.name } : undefined,
+      };
       run(
         qb.insertInto("runs").values({
           id,
@@ -265,7 +278,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           agent_id: r.agent_id,
           state: r.state ?? "submitted",
           trigger: r.trigger,
-          input: JSON.stringify(r.input),
+          input: JSON.stringify(input),
           parent_run_id: r.parent_run_id ?? null,
           depth: r.depth ?? 0,
           deadline_at: r.deadline_at,

@@ -730,8 +730,12 @@ export const Job = z.object({
   /** Display provenance even when the owning chat is not loaded by the operator. */
   thread_title: z.string().optional(),
   agent_name: z.string().optional(),
+  /** Project context captured when the run was admitted; absent for historical jobs without a snapshot. */
   project_id: Id.optional(),
   project_name: z.string().optional(),
+  /** The chat's current project, which may differ after a move. */
+  thread_project_id: Id.optional(),
+  thread_project_name: z.string().optional(),
   /** The persisted run that executed the command, not a caller's current turn. */
   run_id: Id.optional(),
   /** The thread that started it (a delegation's caller). */

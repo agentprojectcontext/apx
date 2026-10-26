@@ -33,8 +33,9 @@ test("terminal provenance follows the executor and its project, never the caller
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   try {
     const { project } = await env.client.call("projects.create", { name: "Northwind" });
+    const { project: movedProject } = await env.client.call("projects.create", { name: "Acme" });
     const agent = await env.client.call("agents.create", {
-      project_id: project.id,
+      project_id: movedProject.id,
       slug: "builder",
       name: "Builder",
       role: "Developer",
@@ -82,12 +83,15 @@ test("terminal provenance follows the executor and its project, never the caller
       cwd: ".",
       background: true,
     });
+    env.core.store.threads.moveTo(executor.id, movedProject.id);
     for (const params of [{ finished: 5 }, { thread: executor.id, finished: 5 }]) {
       const listed = (await env.client.call("jobs.list", params)).running.find((j) => j.id === job.id);
       assert.equal(listed?.agent_id, agent.id);
       assert.equal(listed?.agent_name, "Builder");
       assert.equal(listed?.project_id, project.id);
-      assert.equal(listed?.project_name, "Northwind");
+      assert.equal(listed?.project_name, "Northwind", "the admitted project's snapshot survives a chat move");
+      assert.equal(listed?.thread_project_id, movedProject.id);
+      assert.equal(listed?.thread_project_name, "Acme");
       assert.equal(listed?.run_id, run.id);
     }
     for (const id of [job.id, recovered.id]) {
@@ -100,7 +104,11 @@ test("terminal provenance follows the executor and its project, never the caller
       const { job: read } = await env.client.call("jobs.get", { job: id });
       assert.equal(read.agent_id, undefined, "participants and unrelated runs are not executors");
       assert.equal(read.agent_name, undefined);
+      assert.equal(read.project_id, undefined, "a current chat project is not historical evidence");
     }
+    const agentJob = (await env.client.call("jobs.list", { finished: 10 })).running.find((j) => j.id === run.id);
+    assert.equal(agentJob?.project_name, "Northwind");
+    assert.equal(agentJob?.thread_project_name, "Acme");
     assert.equal(
       (await env.client.call("jobs.list", { thread: caller.id, finished: 5 })).running.some((j) => j.id === job.id),
       false,
