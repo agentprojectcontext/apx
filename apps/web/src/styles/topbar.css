@@ -204,6 +204,20 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
     padding-right: 4px;
   }
 }
+/* Narrow windows keep the familiar icon shortcuts even with only one selected engine. */
+@container topbar (max-width: 1199px) {
+  .topbar__right {
+    --topbar-min-fit: 3;
+  }
+  .topbar__crumbs {
+    font-size: var(--apx-text-xs);
+  }
+}
+@container topbar (max-width: 1099px) {
+  .topbar__right {
+    --topbar-min-fit: 4;
+  }
+}
 @media (max-width: 899px) {
   .topbar {
     gap: 6px;

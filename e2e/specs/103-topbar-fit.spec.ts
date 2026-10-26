@@ -32,6 +32,34 @@ test("topbar preserves counters and quotas until its actual controls no longer f
   await expect(page.getByTestId("engine-usage-button")).toHaveAccessibleName("Cuotas de IA");
   await expect(page.getByTestId("usage-button")).toHaveAccessibleName(/Sistema|Recursos del sistema/);
 
+  // Opening a menu must not count its invisible focus guards as overflowing controls.
+  await page.locator(".topbar__agent").click();
+  await expect(page.getByRole("menu")).toBeVisible();
+  await expect(right).toHaveAttribute("data-fit", "0");
+  await expect(quota).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  for (const width of [1040, 1440, 1040, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    if (width === 1040) {
+      await expect(right).toHaveAttribute("data-fit", "4");
+      await expect(quota).toBeHidden();
+      await expect(counters).toBeHidden();
+      await expect(page.locator(".topbar__agentname")).toBeHidden();
+      await expect(page.locator(".usage-btn__gauge")).toBeHidden();
+      await expect(page.locator(".usage-btn__pct")).toBeVisible();
+      await expect(page.getByTestId("engine-usage-button")).toBeVisible();
+      await expect(page.locator(".topbar__activity .running")).toBeVisible();
+    } else {
+      await expect(right).toHaveAttribute("data-fit", "0");
+      await expect(quota).toBeVisible();
+      await expect(counters).toBeVisible();
+      await expect(page.locator(".topbar__agentname")).toBeVisible();
+      await expect(page.locator(".usage-btn__gauge")).toBeVisible();
+    }
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+
   // The same viewport can need a compact layout when native controls occupy the right edge.
   await right.evaluate((row) => {
     row.style.paddingRight = "330px";
