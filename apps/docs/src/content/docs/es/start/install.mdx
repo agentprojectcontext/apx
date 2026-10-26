@@ -99,7 +99,7 @@ ni tener Node instalado.
 <InstallCommand labels={["macOS y Linux", "Windows"]} />
 
 Se instala en la máquina donde lo corrés. Para un servidor, corrélo ahí por SSH o desde tu computadora con
-`ssh usuario@servidor 'curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --server'`; la app de escritorio también puede instalarlo por vos
+`ssh usuario@servidor 'curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash -s -- --server'`; la app de escritorio también puede instalarlo por vos
 ([APX en un servidor](/es/devices/server/)).
 
 El script acepta algunas opciones:
@@ -114,7 +114,7 @@ El script acepta algunas opciones:
 | `--no-service` | Instala sin arrancar el core como servicio. |
 | `--uninstall` | Saca el servicio y el programa; tus datos quedan (mirá [Desinstalar](#desinstalar)). |
 
-Para pasar opciones por el pipe: `curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --server --version 2.3.0`.
+Para pasar opciones por el pipe: `curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash -s -- --server --version 2.3.0`.
 En Windows los parámetros son `-Server`, `-Desktop`, `-File`, `-Version`, `-Feed`, `-NoService` y `-Uninstall`.
 
 Queda en `~/.apx/v2/app` (una carpeta por versión y un link `current`) y arranca el core como servicio. Después
@@ -265,13 +265,13 @@ servidor), sacalo con `apx service uninstall` o con los pasos de servidor de la 
 Corré el instalador otra vez con la opción de desinstalar:
 
 ```bash
-curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --uninstall
+curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash -s -- --uninstall
 ```
 
 En Windows, desde PowerShell, guardá el script y correlo con `-Uninstall`:
 
 ```powershell
-irm https://agentprojectcontext.github.io/apx/v2/install.ps1 -OutFile install.ps1
+irm https://agentprojectcontext.github.io/apx/install.ps1 -OutFile install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
 ```
 

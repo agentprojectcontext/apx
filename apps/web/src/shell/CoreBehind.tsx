@@ -25,9 +25,7 @@ export function CoreBehind({ version }: { version: string }) {
         >
           <p>{t("update.coreBehindBody", { core: version, app })}</p>
           <p>{t("update.coreBehindUpdate")}</p>
-          <pre className="updatepill__cmd">
-            curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
-          </pre>
+          <pre className="updatepill__cmd">curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash</pre>
           <p>{t("update.coreBehindAppOnly")}</p>
           <pre className="updatepill__cmd">apx service uninstall</pre>
         </Dialog>

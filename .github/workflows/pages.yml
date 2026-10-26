@@ -1,9 +1,10 @@
 # The GitHub Pages site, once main holds v2 (RELEASE.md#where-v2-lives):
-#   /apx/      → redirects to /apx/v2/
-#   /apx/v2/   → v2's home and docs (apps/docs on release/v2), with install.sh and install.ps1 beside them
+#   /apx/      → v2's home and docs (apps/docs on release/v2), with install.sh and install.ps1 beside them
 #   /apx/v1/   → v1's docs (docs/ on the v1 branch), marked as no longer maintained
-# /apx/v2/install.sh stays where it is: installed apps and the docs give that address. v1's old /apx/docs/… links
-# land on /apx/v1/… through the site's 404 page, the only redirect GitHub Pages serves for a missing path.
+#   /apx/v2/   → where v2 lived before it was the release: install.sh and install.ps1 stay (installed apps and older
+#                docs give that address), and every other /apx/v2/… page lands on the same page at /apx/…
+# Old addresses (v1's /apx/docs/…, v2's /apx/v2/…) are sent on by the site's 404 page, the only redirect GitHub Pages
+# serves for a missing path.
 # release/v2's site.yml asks for this workflow when the docs or the install scripts change there.
 name: pages
 
@@ -62,7 +63,7 @@ jobs:
       - name: Build v2 site
         working-directory: v2/apps/docs
         env:
-          DOCS_BASE: /apx/v2
+          DOCS_BASE: /apx
         run: |
           PNPM="$(node -p "require('./package.json').packageManager")"
           npx --yes "$PNPM" install --frozen-lockfile
@@ -71,26 +72,30 @@ jobs:
 
       - name: Assemble the site
         run: |
-          mkdir -p _site/v1 _site/v2
+          mkdir -p _site
           touch _site/.nojekyll
-          cp -R v2/apps/docs/dist/. _site/v2/
+          cp -R v2/apps/docs/dist/. _site/
+          test ! -e _site/v1 && test ! -e _site/v2
+          mkdir -p _site/v1 _site/v2
           cp -R v1/docs/dist/. _site/v1/
-          cat > _site/index.html <<'HTML'
+          cp _site/install.sh _site/install.ps1 _site/v2/
+          cat > _site/v2/index.html <<'HTML'
           <!doctype html>
           <meta charset="utf-8">
           <title>APX</title>
-          <meta http-equiv="refresh" content="0; url=/apx/v2/">
-          <link rel="canonical" href="https://agentprojectcontext.github.io/apx/v2/">
-          <a href="/apx/v2/">APX</a>
+          <meta http-equiv="refresh" content="0; url=/apx/">
+          <link rel="canonical" href="https://agentprojectcontext.github.io/apx/">
+          <a href="/apx/">APX</a>
           HTML
-          # v2's 404 page, with v1's old /apx/docs/ addresses sent on to /apx/v1/ first.
+          # The 404 page sends old addresses on first: v1's /apx/docs/… to /apx/v1/…, v2's /apx/v2/… to /apx/….
           node -e '
             const fs = require("node:fs");
-            const page = fs.readFileSync("_site/v2/404.html", "utf8");
-            const hop = `<script>if(location.pathname.startsWith("/apx/docs/"))location.replace("/apx/v1/"+location.pathname.slice(10)+location.search+location.hash)</script>`;
+            const page = fs.readFileSync("_site/404.html", "utf8");
+            const hop = `<script>{const p=location.pathname,r=location.search+location.hash;if(p.startsWith("/apx/docs/"))location.replace("/apx/v1/"+p.slice(10)+r);else if(p.startsWith("/apx/v2/"))location.replace("/apx/"+p.slice(8)+r)}</script>`;
             fs.writeFileSync("_site/404.html", page.replace("<head>", "<head>" + hop));
           '
           grep -q '/apx/v1/' _site/404.html
+          test -f _site/v2/install.sh && test -f _site/v2/install.ps1
 
       - uses: actions/configure-pages@v6
         with:

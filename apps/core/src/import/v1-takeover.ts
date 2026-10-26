@@ -90,7 +90,7 @@ async function linkV2(d: TakeoverDeps): Promise<{ ok: boolean; detail: string }>
   if (t.appImage)
     return {
       ok: false,
-      detail: "for the apx command, run: curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash",
+      detail: "for the apx command, run: curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash",
     };
   const node = t.electron ? "ELECTRON_RUN_AS_NODE=1 " : "";
   if (d.platform === "win32") {

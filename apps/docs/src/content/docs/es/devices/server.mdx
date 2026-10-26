@@ -21,18 +21,18 @@ Nada de esto necesita root, y el servidor no necesita tener Node instalado: el p
 Corrélo en el servidor (se instala donde se corre), por SSH:
 
 ```bash
-curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --server
+curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash -s -- --server
 ```
 
 O desde tu propia computadora en una sola línea, también desde PowerShell en Windows:
 
 ```bash
-ssh usuario@servidor 'curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --server'
+ssh usuario@servidor 'curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash -s -- --server'
 ```
 
 Opciones: `--file <paquete>` (un paquete que ya tenés, sin descargar), `--version <x.y.z>`, `--feed <owner/repo>`,
 `--no-service`, `--uninstall`. Por el pipe van después de `bash -s --`, por ejemplo
-`curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --no-service`.
+`curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash -s -- --no-service`.
 
 ```bash
 bash install.sh --file apx-core-<version>-linux-x64.tar.gz
@@ -44,7 +44,7 @@ bash install.sh --file apx-core-<version>-linux-x64.tar.gz
 En PowerShell:
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://agentprojectcontext.github.io/apx/v2/install.ps1'))) -Server
+& ([scriptblock]::Create((irm 'https://agentprojectcontext.github.io/apx/install.ps1'))) -Server
 ```
 
 Parámetros: `-Server`, `-File <paquete>`, `-Version <x.y.z>`, `-Feed <owner/repo>`, `-NoService`, `-Uninstall`.
@@ -233,7 +233,7 @@ Volver a correr el script de instalación también instala la versión más nuev
 ## Desinstalar
 
 ```bash
-curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --uninstall
+curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash -s -- --uninstall
 ```
 
 Frena el servicio y borra `~/.apx/v2/app` y el comando `apx`; tus datos en `~/.apx/v2` quedan. En Windows, guardá

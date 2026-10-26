@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.webp" alt="APX v2 beta — Meet your crew" width="820">
+  <img src="assets/banner.webp" alt="APX v2 — Meet your crew" width="820">
 </p>
 
 <h3 align="center">Meet your crew.</h3>
@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://agentprojectcontext.github.io/apx/v2/"><img src="https://img.shields.io/badge/Website-APX_v2-3fb950?style=flat-square" alt="APX v2 website"></a>
-  <a href="https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true"><img src="https://img.shields.io/badge/Release-v2_beta-3fb950?style=flat-square" alt="APX v2 beta releases"></a>
+  <a href="https://agentprojectcontext.github.io/apx/"><img src="https://img.shields.io/badge/Website-APX_v2-3fb950?style=flat-square" alt="APX v2 website"></a>
+  <a href="https://github.com/agentprojectcontext/apx/releases/latest"><img src="https://img.shields.io/github/v/release/agentprojectcontext/apx?style=flat-square&label=Release&color=3fb950" alt="APX latest release"></a>
   <a href="https://github.com/agentprojectcontext/apx/releases"><img src="https://img.shields.io/github/downloads/agentprojectcontext/apx/total?style=flat-square&label=Downloads&color=3fb950" alt="Downloads from GitHub releases"></a>
   <a href="https://www.npmjs.com/package/@agentprojectcontext/apx"><img src="https://img.shields.io/npm/dm/%40agentprojectcontext%2Fapx?style=flat-square&label=v1%20on%20npm&color=3fb950" alt="APX v1 downloads on npm"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-3fb950?style=flat-square" alt="License: MIT"></a>
@@ -20,15 +20,15 @@
 </p>
 
 <p align="center">
-  <b><a href="https://agentprojectcontext.github.io/apx/v2/">Website →</a></b> ·
-  <a href="#install">Install</a> · <a href="https://agentprojectcontext.github.io/apx/v2/start/introduction/">Docs</a> ·
+  <b><a href="https://agentprojectcontext.github.io/apx/">Website →</a></b> ·
+  <a href="#install">Install</a> · <a href="https://agentprojectcontext.github.io/apx/start/introduction/">Docs</a> ·
   <a href="#coming-from-apx-v1">From v1</a> · <a href="README_ES.md">Español</a> ·
   <a href="https://discord.gg/vxdZuT5WuE">Discord</a>
 </p>
 
-> **This is the APX v2 beta**, on the `release/v2` branch. It takes over v1's `apx` command and brings your v1
-> projects, agents and chats in when you ask; v1's files stay where they were. APX v1 stays on
-> [`main`](https://github.com/agentprojectcontext/apx).
+> **This is APX v2.** It takes over v1's `apx` command and brings your v1 projects, agents and chats in when you
+> ask; v1's files stay where they were. APX v1 is no longer maintained and stays on the
+> [`v1`](https://github.com/agentprojectcontext/apx/tree/v1) branch.
 
 <p align="center">
   <picture>
@@ -83,19 +83,19 @@
 ## Install
 
 **Desktop app** (macOS, Windows, Linux): download it from the
-[website](https://agentprojectcontext.github.io/apx/v2/#download) or the
+[website](https://agentprojectcontext.github.io/apx/#download) or the
 [latest v2 release](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true), open it and follow the setup.
-The apps are not signed yet: the [install guide](https://agentprojectcontext.github.io/apx/v2/start/install/) shows the
+The apps are not signed yet: the [install guide](https://agentprojectcontext.github.io/apx/start/install/) shows the
 one extra click macOS and Windows ask for.
 
 **From a terminal** (detects your system; no root, data in `~/.apx/v2`):
 
 ```bash
-curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
+curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash
 ```
 
 ```powershell
-irm https://agentprojectcontext.github.io/apx/v2/install.ps1 | iex
+irm https://agentprojectcontext.github.io/apx/install.ps1 | iex
 ```
 
 On a new graphical computer this installs and opens desktop setup: choose server or client before a core starts.
@@ -106,21 +106,21 @@ for the server it talks to, with one button.
 
 **On a server** (a VPS, a homelab, no screen): use `bash -s -- --server` after the pipe (PowerShell: `-Server`), then
 `apx setup --headless --expose tailscale` (or `--expose lan`) and `apx pair` to connect your desktop and phone. The
-desktop app can also install APX on a server for you over SSH. Guide: [Run APX on a server](https://agentprojectcontext.github.io/apx/v2/devices/server/).
+desktop app can also install APX on a server for you over SSH. Guide: [Run APX on a server](https://agentprojectcontext.github.io/apx/devices/server/).
 
 **On your phone**: the Android app is in each [v2 release](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true)
 (`APX-<version>-android.apk`); pair it with the code the desktop shows. It installs beside v1's app.
-[Phone guide](https://agentprojectcontext.github.io/apx/v2/devices/phone/).
+[Phone guide](https://agentprojectcontext.github.io/apx/devices/phone/).
 
 ## Coming from APX v1
 
 Install v2 and the setup finds your v1 install: it brings your projects, agents, skills, chats and channels in, and
 leaves v1's files where they were. The install script stops a v1 daemon and takes over the `apx` command.
-[What carries over](https://agentprojectcontext.github.io/apx/v2/start/from-v1/).
+[What carries over](https://agentprojectcontext.github.io/apx/start/from-v1/).
 
 ## Documentation and community
 
-- [Website](https://agentprojectcontext.github.io/apx/v2/) and [documentation](https://agentprojectcontext.github.io/apx/v2/start/introduction/), in English and Spanish
+- [Website](https://agentprojectcontext.github.io/apx/) and [documentation](https://agentprojectcontext.github.io/apx/start/introduction/), in English and Spanish
 - [Discord community](https://discord.gg/vxdZuT5WuE)
 - [Report a bug or suggest an improvement](https://github.com/agentprojectcontext/apx/issues)
 
@@ -178,7 +178,7 @@ pnpm package    # this OS's desktop installer and server bundle, in out/ (also p
 ```
 
 The terminal from a checkout: `alias apx="node $PWD/apps/terminal/src/main.ts"`. Every command is in the
-[CLI reference](https://agentprojectcontext.github.io/apx/v2/reference/cli/). How to work on the code, the rules and
+[CLI reference](https://agentprojectcontext.github.io/apx/reference/cli/). How to work on the code, the rules and
 the checks: [`AGENTS.md`](AGENTS.md) and [`rules/`](rules/).
 
 </details>

@@ -1,5 +1,5 @@
 # On the public repo's release/v2 branch: a change to the docs site or the install scripts asks main's pages.yml to
-# rebuild the GitHub Pages site, which builds apps/docs from this branch into /apx/v2/ (install.sh and install.ps1
+# rebuild the GitHub Pages site, which builds apps/docs from this branch into /apx/ (install.sh and install.ps1
 # included). A push only runs the workflows of its own commit, so pages.yml on main cannot listen for it itself.
 name: site
 

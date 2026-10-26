@@ -108,8 +108,8 @@ already answered is skipped. To preview it locally: `TAG=v2.x.y node scripts/iss
 | Docker | `scripts/docker/Dockerfile` from a bundle | `APX_TOKEN` required; updates by image |
 
 The install scripts have a URL of their own, served by the Pages site (`apps/docs` copies them in when it builds):
-`https://agentprojectcontext.github.io/apx/v2/install.sh` and `…/install.ps1`. A release's `latest/download` URL would
-be v1's while v1 is "Latest"; the script finds the newest v2 release itself either way.
+`https://agentprojectcontext.github.io/apx/install.sh` and `…/install.ps1` (the older `/apx/v2/install.sh` and
+`…/install.ps1` stay served: installed apps and older docs give them). The script finds the newest v2 release itself.
 
 ## Testing
 

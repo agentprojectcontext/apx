@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.webp" alt="APX v2 beta — Conocé a tu crew" width="820">
+  <img src="assets/banner.webp" alt="APX v2 — Conocé a tu crew" width="820">
 </p>
 
 <h3 align="center">Conocé a tu crew.</h3>
@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://agentprojectcontext.github.io/apx/v2/es/"><img src="https://img.shields.io/badge/Sitio-APX_v2-3fb950?style=flat-square" alt="Sitio de APX v2"></a>
-  <a href="https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true"><img src="https://img.shields.io/badge/Release-v2_beta-3fb950?style=flat-square" alt="Versiones beta de APX v2"></a>
+  <a href="https://agentprojectcontext.github.io/apx/es/"><img src="https://img.shields.io/badge/Sitio-APX_v2-3fb950?style=flat-square" alt="Sitio de APX v2"></a>
+  <a href="https://github.com/agentprojectcontext/apx/releases/latest"><img src="https://img.shields.io/github/v/release/agentprojectcontext/apx?style=flat-square&label=Release&color=3fb950" alt="Última versión de APX"></a>
   <a href="https://github.com/agentprojectcontext/apx/releases"><img src="https://img.shields.io/github/downloads/agentprojectcontext/apx/total?style=flat-square&label=Descargas&color=3fb950" alt="Descargas desde las releases de GitHub"></a>
   <a href="https://www.npmjs.com/package/@agentprojectcontext/apx"><img src="https://img.shields.io/npm/dm/%40agentprojectcontext%2Fapx?style=flat-square&label=v1%20en%20npm&color=3fb950" alt="Descargas de APX v1 en npm"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/Licencia-MIT-3fb950?style=flat-square" alt="Licencia: MIT"></a>
@@ -20,15 +20,15 @@
 </p>
 
 <p align="center">
-  <b><a href="https://agentprojectcontext.github.io/apx/v2/es/">Sitio →</a></b> ·
-  <a href="#instalar">Instalar</a> · <a href="https://agentprojectcontext.github.io/apx/v2/es/start/introduction/">Documentación</a> ·
+  <b><a href="https://agentprojectcontext.github.io/apx/es/">Sitio →</a></b> ·
+  <a href="#instalar">Instalar</a> · <a href="https://agentprojectcontext.github.io/apx/es/start/introduction/">Documentación</a> ·
   <a href="#si-venís-de-apx-v1">Desde v1</a> · <a href="README.md">English</a> ·
   <a href="https://discord.gg/vxdZuT5WuE">Discord</a>
 </p>
 
-> **Esta es la beta de APX v2**, en la rama `release/v2`. Toma el comando `apx` de v1 y trae tus proyectos, agentes
-> y chats de v1 cuando se lo pedís; los archivos de v1 quedan donde estaban. APX v1 sigue en
-> [`main`](https://github.com/agentprojectcontext/apx).
+> **Esto es APX v2.** Toma el comando `apx` de v1 y trae tus proyectos, agentes y chats de v1 cuando se lo pedís;
+> los archivos de v1 quedan donde estaban. APX v1 ya no se mantiene y queda en la rama
+> [`v1`](https://github.com/agentprojectcontext/apx/tree/v1).
 
 <p align="center">
   <picture>
@@ -84,19 +84,19 @@
 ## Instalar
 
 **App de escritorio** (macOS, Windows, Linux): bajala del
-[sitio](https://agentprojectcontext.github.io/apx/v2/es/#download) o de la
+[sitio](https://agentprojectcontext.github.io/apx/es/#download) o de la
 [última versión v2](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true), abrila y seguí el asistente.
-Las apps todavía no están firmadas: la [guía de instalación](https://agentprojectcontext.github.io/apx/v2/es/start/install/)
+Las apps todavía no están firmadas: la [guía de instalación](https://agentprojectcontext.github.io/apx/es/start/install/)
 muestra el clic de más que piden macOS y Windows.
 
 **Desde una terminal** (detecta tu sistema; sin root, los datos en `~/.apx/v2`):
 
 ```bash
-curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
+curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash
 ```
 
 ```powershell
-irm https://agentprojectcontext.github.io/apx/v2/install.ps1 | iex
+irm https://agentprojectcontext.github.io/apx/install.ps1 | iex
 ```
 
 En una computadora nueva con escritorio, instala y abre la app: ahí elegís servidor o cliente antes de arrancar un core.
@@ -108,21 +108,21 @@ servidor al que se conecta, con un solo botón.
 **En un servidor** (un VPS, un homelab, sin pantalla): usá `bash -s -- --server` después del pipe (PowerShell: `-Server`), después
 `apx setup --headless --expose tailscale` (o `--expose lan`) y `apx pair` para conectar tu escritorio y tu teléfono.
 La app de escritorio también puede instalar APX en un servidor por SSH. Guía:
-[APX en un servidor](https://agentprojectcontext.github.io/apx/v2/es/devices/server/).
+[APX en un servidor](https://agentprojectcontext.github.io/apx/es/devices/server/).
 
 **En el teléfono**: la app de Android está en cada [versión v2](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true)
 (`APX-<versión>-android.apk`); vinculala con el código que muestra el escritorio. Se instala al lado de la app de v1.
-[Guía del teléfono](https://agentprojectcontext.github.io/apx/v2/es/devices/phone/).
+[Guía del teléfono](https://agentprojectcontext.github.io/apx/es/devices/phone/).
 
 ## Si venís de APX v1
 
 Instalá v2 y el asistente encuentra tu instalación de v1: trae tus proyectos, agentes, skills, chats y canales, y deja
 los archivos de v1 donde estaban. El script de instalación detiene el daemon de v1 y toma el comando `apx`.
-[Qué se trae](https://agentprojectcontext.github.io/apx/v2/es/start/from-v1/).
+[Qué se trae](https://agentprojectcontext.github.io/apx/es/start/from-v1/).
 
 ## Documentación y comunidad
 
-- [Sitio](https://agentprojectcontext.github.io/apx/v2/es/) y [documentación](https://agentprojectcontext.github.io/apx/v2/es/start/introduction/), en español e inglés
+- [Sitio](https://agentprojectcontext.github.io/apx/es/) y [documentación](https://agentprojectcontext.github.io/apx/es/start/introduction/), en español e inglés
 - [Comunidad en Discord](https://discord.gg/vxdZuT5WuE)
 - [Reportar un error o sugerir una mejora](https://github.com/agentprojectcontext/apx/issues)
 

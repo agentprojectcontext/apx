@@ -10,11 +10,11 @@ import { esWelcome } from "../i18n/welcome-es.ts";
 
 // The launch film: no voice, so one cut serves every language. Played from the docs site with no player chrome; where
 // it cannot load, YouTube's no-cookie player plays it in the same place.
-const FILM = "https://agentprojectcontext.github.io/apx/v2/media/apx-v2.mp4";
+const FILM = "https://agentprojectcontext.github.io/apx/media/apx-v2.mp4";
 const YOUTUBE = "https://www.youtube-nocookie.com/embed/biFjPPuvg9o?rel=0&modestbranding=1";
 const YOUTUBE_URL = "https://youtu.be/biFjPPuvg9o";
 
-/** Said once per device: v2 left the beta. The one celebration APX shows as a dialog; closing it in any way is seen. */
+/** Said once per device: v2 is the release. The one celebration APX shows as a dialog; closing it in any way is seen. */
 export function WelcomeV2() {
   const seen = useClosedCards((s) => s.welcome);
   return seen ? null : <Welcome />;
