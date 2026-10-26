@@ -79,7 +79,7 @@ export const enSysUsage = {
   "sysUsage.vm.assigned": "{assigned} memory assigned",
   "sysUsage.vm.disk": "{size} on disk",
   "sysUsage.vm.cpus": "{n} cores",
-  "sysUsage.openFull": "Open full usage",
+  "sysUsage.openFull": "View all resources",
   "sysUsage.refresh": "Refresh",
   "sysUsage.unavailable": "Could not read usage: {error}",
 } as const;

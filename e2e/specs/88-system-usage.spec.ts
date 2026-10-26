@@ -32,7 +32,7 @@ test("the topbar gauge opens memory, CPU, disk, the VM and APX's top consumers, 
   await expect(summary.getByText("Pestaña del navegador · example.com")).toBeVisible();
   await expect(summary.getByText("Core (agentes, canales, datos)")).toBeVisible();
 
-  await summary.getByRole("button", { name: "Ver todo el consumo" }).click();
+  await summary.getByRole("button", { name: "Ver todos los recursos" }).click();
   const dialog = page.getByRole("dialog", { name: "Recursos del sistema" });
   await expect(dialog.getByRole("heading", { name: "Procesos de APX" })).toBeVisible();
   // The APX folder is measured in the background: its parts come on a later read.
@@ -67,7 +67,7 @@ test("the usage dropdown has no horizontal overflow or visible scroll tracks, ev
   expect(metrics.horizontal).toBeLessThanOrEqual(1);
   expect(metrics.scrollbar).toBe("none");
   expect(metrics.bottom).toBeLessThanOrEqual(600);
-  const more = summary.getByRole("button", { name: "Ver todo el consumo" });
+  const more = summary.getByRole("button", { name: "Ver todos los recursos" });
   await more.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("dialog", { name: "Recursos del sistema" }).getByTestId("usage-detail")).toBeVisible();

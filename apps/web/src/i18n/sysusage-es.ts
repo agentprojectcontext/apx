@@ -79,7 +79,7 @@ export const esSysUsage: Record<keyof typeof enSysUsage, string> = {
   "sysUsage.vm.assigned": "{assigned} de memoria asignada",
   "sysUsage.vm.disk": "{size} en el disco",
   "sysUsage.vm.cpus": "{n} núcleos",
-  "sysUsage.openFull": "Ver todo el consumo",
+  "sysUsage.openFull": "Ver todos los recursos",
   "sysUsage.refresh": "Actualizar",
   "sysUsage.unavailable": "No se pudo leer el consumo: {error}",
 };
