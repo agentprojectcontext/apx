@@ -94,3 +94,19 @@ test("a failed turn is an error notice with the reason, and leaves its chat unre
   assert.equal(n?.level, "error");
   assert.match(n?.body ?? "", /engine down|No model could answer|Could not finish/);
 });
+
+test("a turn with work still coming back to its chat waits for the last one to tell the owner", async () => {
+  const { store } = env.core;
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  // A background command the agent started: its end wakes the agent in this chat.
+  const job = store.jobs.create({ thread_id: t.id, agent_id: "roby", title: "pnpm test", cwd: ".", background: true });
+  await env.client.call("threads.send", { thread: t.id, text: "write the report" });
+  await env.settle(t.id);
+  await wait(UNSEEN_MS * 2);
+  assert.equal((await runNotices(t.id)).length, 0, "no notice while the job runs");
+  store.jobs.finish(job.id, "completed", 0);
+  await env.client.call("threads.send", { thread: t.id, text: "again" });
+  await env.settle(t.id);
+  await wait(UNSEEN_MS * 2);
+  assert.equal((await runNotices(t.id)).length, 1, "the turn that ends the work tells it once");
+});
