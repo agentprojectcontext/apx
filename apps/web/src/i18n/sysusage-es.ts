@@ -8,6 +8,8 @@ export const esSysUsage: Record<keyof typeof enSysUsage, string> = {
     "Mostrar límites de cuenta en APX. Activado por defecto al vincular tu plan ChatGPT. La fuente de cuota también necesita una cuenta vinculada por separado a Codex CLI. No enciende ni apaga los modelos.",
   "engines.usageLoadError": "No se pudieron cargar las preferencias de consumo. Reintentá para cargar el switch.",
   "engines.usageSaveError": "No se pudo guardar la preferencia de consumo. Se mantuvo tu elección anterior.",
+  "engineUsage.help": "Ayuda sobre consumo IA",
+  "engineUsage.engineHelp": "Ayuda sobre consumo de {engine}",
   "engineUsage.empty":
     "No hay engines seleccionados. Activá Consumo en la card de un engine para ver acá sus límites de cuenta.",
   "engineUsage.description":

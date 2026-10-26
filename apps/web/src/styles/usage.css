@@ -22,10 +22,46 @@
   border-top: 1px solid var(--apx-border);
   padding-top: 10px;
 }
-@media (max-width: 899px) {
-  .engine-usage-trigger > span {
+.engine-usage-quick,
+.engine-usage-quick__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.engine-usage-quick {
+  gap: 10px;
+}
+.engine-usage-quick__ring {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--apx-brand);
+}
+.engine-usage-quick__ring > * {
+  grid-area: 1 / 1;
+}
+.engine-usage-trigger:has(.engine-usage-quick) .engine-usage-trigger__fallback {
+  display: none;
+}
+@container topbar (max-width: 1499px) {
+  .engine-usage-trigger .engine-usage-quick,
+  .engine-usage-trigger .engine-usage-trigger__label {
     display: none;
   }
+  .engine-usage-trigger:has(.engine-usage-quick) .engine-usage-trigger__fallback {
+    display: inline-flex;
+  }
+}
+
+.usage-loading {
+  min-height: 300px;
+}
+.usage-loading .apx-skeleton {
+  flex: none;
+}
+.topbar .usage-btn {
+  width: auto;
 }
 
 .usage {

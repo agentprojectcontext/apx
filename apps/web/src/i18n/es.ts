@@ -46,6 +46,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   ...esTelemetry,
   "engineUsage.button": "Consumo",
   "engineUsage.title": "Consumo de IA",
+  "engineUsage.quick": "{engine}: {pct}% disponible · {window} (ventana más ajustada)",
   "sysUsage.title": "Consumo",
   "sysUsage.button": "Consumo: {pct}% de la memoria en uso",
   // Palabras compartidas

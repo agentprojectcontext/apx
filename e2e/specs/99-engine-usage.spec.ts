@@ -73,11 +73,15 @@ test("AI usage shows account windows, unavailable engines and a narrow-screen ac
   await expect(summary.getByRole("img", { name: "Codex · 5 horas: 37% usado" })).toBeVisible();
   await expect(summary.getByText(/Se renueva/)).toBeVisible();
   const claude = summary.locator("section").filter({ has: page.getByRole("heading", { name: "Claude", exact: true }) });
-  await expect(claude.getByRole("img")).toHaveCount(0);
+  await expect(claude.locator(".apx-meter")).toHaveCount(0);
   await expect(claude).toContainText("Sin fuente de cuota compatible");
-  await expect(summary).toContainText("Sin datos no significa consumo ilimitado");
+  await expect(summary.getByText(/Sin datos no significa consumo ilimitado/)).toHaveCount(0);
+  await summary.getByRole("button", { name: "Ayuda sobre consumo IA", exact: true }).click();
+  await expect(page.locator(".apx-help__panel")).toContainText("Sin datos no significa consumo ilimitado");
+  await page.keyboard.press("Escape");
+  const beforeRefresh = calls;
   await summary.getByRole("button", { name: "Actualizar" }).click();
-  await expect.poll(() => calls).toBe(2);
+  await expect.poll(() => calls).toBe(beforeRefresh + 1);
   await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByTestId("engine-usage-button")).toBeVisible();
@@ -119,8 +123,14 @@ test("Claude displays real account windows and its CLI source", async ({ page })
   await expect(summary.getByText("85% disponible")).toBeVisible();
   await expect(summary.getByText("13% disponible")).toBeVisible();
   await expect(summary.getByRole("img", { name: "Claude · Semanal: 87% usado" })).toBeVisible();
-  await expect(summary).toContainText("Fuente: cuota del plan de Claude (/usage)");
-  await expect(summary).not.toContainText("Sin fuente de cuota compatible");
+  await expect(summary.getByText("Fuente: cuota del plan de Claude (/usage)")).toHaveCount(0);
+  const help = summary.getByRole("button", { name: "Ayuda sobre consumo de Claude", exact: true });
+  await help.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".apx-help__panel")).toContainText("Fuente: cuota del plan de Claude (/usage)");
+  await expect(page.locator(".apx-help__panel")).not.toContainText("Sin fuente de cuota compatible");
+  await page.keyboard.press("Escape");
+  await expect(summary.getByText("85% disponible")).toBeVisible();
 });
 
 test("AI usage recovers from a failed request without showing an invented balance", async ({ page }) => {

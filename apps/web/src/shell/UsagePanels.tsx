@@ -5,16 +5,24 @@ import { refreshUsage, useUsage } from "../data/usage.ts";
 import { type DesktopMemory, homeDisk, type ProcessRow, processRows, ramSplit, size } from "../data/usageModel.ts";
 import { type T, usePack, useT } from "../i18n/index.ts";
 import { go, useNav } from "./nav.ts";
+import { UsageLoading as Loading } from "./UsageLoading.tsx";
 
 /** The topbar dropdown: RAM, CPU, disk free, APX's top consumers and the VM, with a way to the full dialog. */
 export function UsageSummary(props: { onClose: () => void }) {
-  return usePack("usage") ? <Summary {...props} /> : null;
+  return usePack("usage") ? <Summary {...props} /> : <Loading />;
 }
 
 function Summary({ onClose }: { onClose: () => void }) {
   const t = useT();
-  const { usage, desktop, error } = useUsage({ detail: true, every: 5_000 });
-  if (!usage) return error ? <p className="usage__error">{t("sysUsage.unavailable", { error })}</p> : <Loading />;
+  const { usage, desktop, error, detail } = useUsage({ detail: true, every: 5_000 });
+  if (!usage || !detail)
+    return error ? (
+      <p className="usage__error" role="alert">
+        {t("sysUsage.unavailable", { error })}
+      </p>
+    ) : (
+      <Loading />
+    );
   const disk = homeDisk(usage);
   return (
     <div className="usage usage--compact" data-testid="usage-summary">
@@ -72,8 +80,15 @@ function UsageDialogBody() {
 
 function UsageDetail() {
   const t = useT();
-  const { usage, desktop, error } = useUsage({ detail: true, every: 5_000 });
-  if (!usage) return error ? <p className="usage__error">{t("sysUsage.unavailable", { error })}</p> : <Loading />;
+  const { usage, desktop, error, detail } = useUsage({ detail: true, every: 5_000 });
+  if (!usage || !detail)
+    return error ? (
+      <p className="usage__error" role="alert">
+        {t("sysUsage.unavailable", { error })}
+      </p>
+    ) : (
+      <Loading />
+    );
   const rows = processRows(usage, desktop);
   const apxMb = rows.reduce((n, r) => n + r.mb, 0);
   return (
@@ -130,16 +145,6 @@ function Overview() {
           {t("sysUsage.openFull")}
         </Button>
       </div>
-    </div>
-  );
-}
-
-function Loading() {
-  return (
-    <div className="usage">
-      <Skeleton width="40%" />
-      <Skeleton height={8} />
-      <Skeleton width="70%" />
     </div>
   );
 }

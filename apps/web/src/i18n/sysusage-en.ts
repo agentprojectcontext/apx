@@ -8,6 +8,8 @@ export const enSysUsage = {
     "Show account limits in APX. On by default when you link your ChatGPT plan. The quota source also needs a separately linked Codex CLI account. This does not turn models on or off.",
   "engines.usageLoadError": "Could not load usage preferences. Retry to load the switch.",
   "engines.usageSaveError": "Could not save the usage preference. Your previous choice was kept.",
+  "engineUsage.help": "About AI usage",
+  "engineUsage.engineHelp": "About {engine} usage",
   "engineUsage.empty": "No engines selected. Turn on Usage on an engine card to show its account limits here.",
   "engineUsage.description":
     "Account limits reported by engines on the computer running the core, not just sessions in APX.",

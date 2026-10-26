@@ -75,29 +75,32 @@ export function RunningIndicator() {
         onOpenChange={setOpen}
         label={t("running.label")}
         trigger={
-          <button
-            type="button"
+          <IconButton
+            size="sm"
             className={active.length || background ? "running is-active" : "running"}
-            aria-label={t("running.aria", { working, waiting, background })}
-          >
-            {working > 0 && <Spinner size={12} />}
-            <span className="running__count">
-              {working}
-              <Icons.Bot size={14} />
-            </span>
-            {waiting > 0 && (
-              <span className="running__count is-waiting">
-                {waiting}
-                <Icons.Hand size={14} />
-              </span>
-            )}
-            <span className="running__div" />
-            <span className="running__count is-light">
-              {background}
-              <Icons.Layers size={14} />
-            </span>
-            <Icons.ChevronDown size={14} />
-          </button>
+            label={t("running.aria", { working, waiting, background })}
+            icon={
+              <>
+                {working > 0 && <Spinner size={12} />}
+                <span className="running__count">
+                  {working}
+                  <Icons.Bot size={14} />
+                </span>
+                {waiting > 0 && (
+                  <span className="running__count is-waiting">
+                    {waiting}
+                    <Icons.Hand size={14} />
+                  </span>
+                )}
+                <span className="running__div" />
+                <span className="running__count is-light">
+                  {background}
+                  <Icons.Layers size={14} />
+                </span>
+                <Icons.ChevronDown size={14} />
+              </>
+            }
+          />
         }
       >
         {chatShown && (
