@@ -1,6 +1,6 @@
 import { EmailSignatureKey } from "@apx/protocol";
 import { signatureIdentities } from "../domain/email-signature-edit.ts";
-import { sameSignatureKey } from "../domain/email-signature-settings.ts";
+import { readSignatures, sameSignatureKey } from "../domain/email-signature-settings.ts";
 import type { Setting } from "./settings-kit.ts";
 
 export const EMAIL: Readonly<Record<string, Setting>> = {
@@ -16,7 +16,7 @@ export const EMAIL: Readonly<Record<string, Setting>> = {
   "email.signatures_get": {
     does: "List configured mailbox identities and signature keys. Pass transport/account/sender to read the full signature for editing; use that exact entry as expected, or null to create.",
     read: (p, { store }) => {
-      const signatures = store.settings.read("email_signatures");
+      const signatures = readSignatures(store);
       if (!Object.keys(p).length)
         return JSON.stringify({
           identities: signatureIdentities(store),

@@ -1,4 +1,5 @@
 import { editSignature } from "../domain/email-signature-edit.ts";
+import { readSignatures } from "../domain/email-signature-settings.ts";
 import type { Store } from "../domain/store.ts";
 import { conflict } from "../errors.ts";
 import type { Handlers } from "./router.ts";
@@ -21,10 +22,10 @@ export function emailSignatureHandlers(store: Store) {
       editSignature(store, key, expected, null);
       return { removed: true };
     },
-    "email.signatures_get": () => ({ signatures: store.settings.read("email_signatures") }),
+    "email.signatures_get": () => ({ signatures: readSignatures(store) }),
     "email.signatures_set": ({ signatures }) => {
       store.settings.write("email_signatures", signatures);
-      return { signatures: store.settings.read("email_signatures") };
+      return { signatures: readSignatures(store) };
     },
   } satisfies Pick<
     Handlers,

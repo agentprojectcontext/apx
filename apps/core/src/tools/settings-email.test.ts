@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
+import { signatureFor } from "../domain/email-signature-settings.ts";
 import { SPANISH_TITLES } from "../engine/tool-titles.ts";
 import { waitFor } from "../testkit/platform.ts";
 import { settingsCore } from "./settings.test-support.ts";
@@ -248,4 +249,40 @@ test("idempotent retry cannot overwrite a later signature edit", async () => {
   await client.call("email.signature_upsert", { signature: latest, expected: edited });
   await client.call("email.signature_upsert", params, options);
   assert.deepEqual(await all(), [smtp, latest]);
+});
+
+test("signature tools report corrupt persistence and approved partial edits cannot replace it", async () => {
+  const store = h.env.core.store;
+  const before = await all();
+  const defaultBefore = store.settings.read("email_signature_default");
+  try {
+    store.settings.write("email_signature_default", { enabled: true, text: "Global" });
+    for (const corrupt of [
+      "[",
+      JSON.stringify([
+        { ...gmail, enabled: false },
+        { ...smtp, enabled: "false" },
+      ]),
+    ]) {
+      store.settings.set("email_signatures", corrupt);
+      for (const params of [{}, key(gmail)]) {
+        const read = await h.ask({ method: "email.signatures_get", params });
+        assert.match(read.answer, /Stored email signatures are invalid/);
+        assert.equal(read.detail, "");
+      }
+      for (const call of [
+        { method: "email.signature_upsert", params: { signature: smtp, expected: null } },
+        { method: "email.signature_remove", params: { key: key(gmail), expected: gmail } },
+      ]) {
+        const approved = await h.ask(call, "approve");
+        assert.match(approved.answer, /Stored email signatures are invalid/);
+        assert.equal(store.settings.get("email_signatures"), corrupt);
+        assert.equal(signatureFor(store, "gmail", gmail.account, gmail.sender), undefined);
+        assert.equal(signatureFor(store, "smtp", smtp.account, smtp.sender), undefined);
+      }
+    }
+  } finally {
+    store.settings.write("email_signatures", before);
+    store.settings.write("email_signature_default", defaultBefore);
+  }
 });
