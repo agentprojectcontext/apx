@@ -18,6 +18,13 @@ export const TIME_SCALE = (() => {
   return Number.isFinite(n) && n >= 1 ? n : 1;
 })();
 
+/**
+ * Whether a fake binary written as a script (a shebang line) can be spawned: Windows runs only real executables. The
+ * computer's driver runs only on a Mac, so the tests that stand in for its Lima or SSH with such a script run where
+ * scripts do (DECISIONS.md#d-155).
+ */
+export const RUNS_SCRIPTS = process.platform !== "win32";
+
 /** A budget in ms, stretched by TEST_TIME_SCALE. */
 export const scaled = (ms: number) => Math.round(ms * TIME_SCALE);
 

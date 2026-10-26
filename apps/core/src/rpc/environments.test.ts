@@ -12,7 +12,7 @@ import { createComputer } from "../environments/computer.ts";
 import { DISPLAY_CAP } from "../environments/guest-operations.ts";
 import { createVmLifecycle } from "../environments/lifecycle.ts";
 import { createCore } from "../server.ts";
-import { removeDir, tempDir, waitFor } from "../testkit/platform.ts";
+import { RUNS_SCRIPTS, removeDir, tempDir, waitFor } from "../testkit/platform.ts";
 
 /** A guest that is up, or not, as the test says; preparing it only flips it on. */
 function fakeLifecycle(state = { running: true }, modes: string[] = []) {
@@ -378,55 +378,57 @@ test("only the owner shuts the shared computer down; it cancels the turns holdin
   }
 });
 
-test("shutdown terminates an in-flight guest command's local SSH process", async () => {
-  const home = tempDir("apx-computer-command-").path;
-  const pidFile = path.join(home, "ssh.pid");
-  const binary = path.join(home, "guest.mjs");
-  fs.writeFileSync(
-    binary,
-    `#!${process.execPath}\nimport fs from 'node:fs';\nfs.writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));\nsetInterval(() => {}, 10000);\n`,
-    { mode: 0o755 },
-  );
-  const state = { running: true };
-  const env = await startCore({
-    home,
-    llm: scriptedLlm(() => say("ok")),
-    computer: {
-      limaHome: path.join(home, "no-vms"),
-      instance: "missing",
-      executable: () => binary,
-      lifecycle: fakeLifecycle(state),
-    },
+// portable: stands in for the Mac-only driver with a script binary (RUNS_SCRIPTS).
+if (RUNS_SCRIPTS)
+  test("shutdown terminates an in-flight guest command's local SSH process", async () => {
+    const home = tempDir("apx-computer-command-").path;
+    const pidFile = path.join(home, "ssh.pid");
+    const binary = path.join(home, "guest.mjs");
+    fs.writeFileSync(
+      binary,
+      `#!${process.execPath}\nimport fs from 'node:fs';\nfs.writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));\nsetInterval(() => {}, 10000);\n`,
+      { mode: 0o755 },
+    );
+    const state = { running: true };
+    const env = await startCore({
+      home,
+      llm: scriptedLlm(() => say("ok")),
+      computer: {
+        limaHome: path.join(home, "no-vms"),
+        instance: "missing",
+        executable: () => binary,
+        lifecycle: fakeLifecycle(state),
+      },
+    });
+    let pid: number | undefined;
+    try {
+      const chat = await computerChat(env);
+      await env.client.call("environments.status", {});
+      // The owner takes an agent's screen that is up, and types there.
+      await env.core.computer.ledger.claim("roby", chat, "run_test");
+      await env.client.call("environments.control", { screen: 1, mode: "human" });
+      const command = env.client.call("environments.command", { thread: chat, command: "long guest work", screen: 1 });
+      const rejected = assert.rejects(command, /VM command failed/);
+      const deadline = Date.now() + 3000;
+      while (!fs.existsSync(pidFile)) {
+        assert.ok(Date.now() < deadline, "guest SSH process did not start");
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      pid = Number(fs.readFileSync(pidFile, "utf8"));
+      await env.client.call("environments.stop", {});
+      await rejected;
+      assert.throws(() => process.kill(pid ?? 0, 0), { code: "ESRCH" });
+      assert.equal(state.running, false);
+    } finally {
+      if (pid) {
+        try {
+          process.kill(pid);
+        } catch {}
+      }
+      await env.core.close();
+      env.cleanup();
+    }
   });
-  let pid: number | undefined;
-  try {
-    const chat = await computerChat(env);
-    await env.client.call("environments.status", {});
-    // The owner takes an agent's screen that is up, and types there.
-    await env.core.computer.ledger.claim("roby", chat, "run_test");
-    await env.client.call("environments.control", { screen: 1, mode: "human" });
-    const command = env.client.call("environments.command", { thread: chat, command: "long guest work", screen: 1 });
-    const rejected = assert.rejects(command, /VM command failed/);
-    const deadline = Date.now() + 3000;
-    while (!fs.existsSync(pidFile)) {
-      assert.ok(Date.now() < deadline, "guest SSH process did not start");
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    }
-    pid = Number(fs.readFileSync(pidFile, "utf8"));
-    await env.client.call("environments.stop", {});
-    await rejected;
-    assert.throws(() => process.kill(pid ?? 0, 0), { code: "ESRCH" });
-    assert.equal(state.running, false);
-  } finally {
-    if (pid) {
-      try {
-        process.kill(pid);
-      } catch {}
-    }
-    await env.core.close();
-    env.cleanup();
-  }
-});
 
 test("taking an agent's screen cancels the run holding it, persists an interruption and keeps it until handback", async () => {
   let started: () => void = () => {};
@@ -544,93 +546,97 @@ test("VM availability does not advertise browser tools to an ordinary chat witho
   }
 });
 
-test("revoking a device invalidates pending display tickets, closes its live display and refuses existing RPC sockets", async () => {
-  const home = tempDir("apx-display-revoke-").path;
-  const binary = path.join(home, "display.mjs");
-  fs.writeFileSync(binary, `#!${process.execPath}\nsetInterval(() => {}, 10000);\n`, { mode: 0o755 });
-  const token = "test-core-display-token";
-  const core = await createCore(
-    { ...testConfig({ home }), token },
-    {
-      quiet: true,
-      llm: scriptedLlm(() => say("ok")),
-      computer: {
-        limaHome: path.join(home, "unused"),
-        instance: "missing",
-        executable: () => binary,
-        lifecycle: fakeLifecycle(),
+// portable: stands in for the Mac-only driver with a script binary (RUNS_SCRIPTS).
+if (RUNS_SCRIPTS)
+  test("revoking a device invalidates pending display tickets, closes its live display and refuses existing RPC sockets", async () => {
+    const home = tempDir("apx-display-revoke-").path;
+    const binary = path.join(home, "display.mjs");
+    fs.writeFileSync(binary, `#!${process.execPath}\nsetInterval(() => {}, 10000);\n`, { mode: 0o755 });
+    const token = "test-core-display-token";
+    const core = await createCore(
+      { ...testConfig({ home }), token },
+      {
+        quiet: true,
+        llm: scriptedLlm(() => say("ok")),
+        computer: {
+          limaHome: path.join(home, "unused"),
+          instance: "missing",
+          executable: () => binary,
+          lifecycle: fakeLifecycle(),
+        },
+        imessage: null,
       },
-      imessage: null,
-    },
-  );
-  const owner = new ApxClient({ url: core.url, token });
-  let display: WebSocket | undefined;
-  let socket: Awaited<ReturnType<ApxClient["connect"]>> | undefined;
-  try {
-    await owner.call("environments.status", {});
-    await core.computer.ledger.claim("roby", "home", "run_test");
-    const { code } = await owner.call("devices.pair_start", {});
-    const paired = await new ApxClient({ url: core.url }).call("devices.pair", { code, name: "Test display" });
-    const client = new ApxClient({ url: core.url, token: paired.token });
-    socket = await client.connect();
-    const live = await client.call("environments.display", { screen: 1 });
-    const pending = await socket.call("environments.display", { screen: 1 });
-    display = new WebSocket(`${core.url.replace("http:", "ws:")}/vm-display?ticket=${live.ticket}`, {
-      headers: { Origin: core.url },
-    });
-    await once(display, "open");
-    const closed = once(display, "close");
-    await owner.call("devices.revoke", { id: paired.device.id });
-    await Promise.race([
-      closed,
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("revoked display remained open")), 2000).unref(),
-      ),
-    ]);
-    await assert.rejects(client.call("environments.display", { screen: 1 }), { code: "unauthorized" });
-    await assert.rejects(socket.call("environments.display", { screen: 1 }));
-    const rejected = new WebSocket(`${core.url.replace("http:", "ws:")}/vm-display?ticket=${pending.ticket}`, {
-      headers: { Origin: core.url },
-    });
+    );
+    const owner = new ApxClient({ url: core.url, token });
+    let display: WebSocket | undefined;
+    let socket: Awaited<ReturnType<ApxClient["connect"]>> | undefined;
     try {
-      await assert.rejects(once(rejected, "open"), /403/);
+      await owner.call("environments.status", {});
+      await core.computer.ledger.claim("roby", "home", "run_test");
+      const { code } = await owner.call("devices.pair_start", {});
+      const paired = await new ApxClient({ url: core.url }).call("devices.pair", { code, name: "Test display" });
+      const client = new ApxClient({ url: core.url, token: paired.token });
+      socket = await client.connect();
+      const live = await client.call("environments.display", { screen: 1 });
+      const pending = await socket.call("environments.display", { screen: 1 });
+      display = new WebSocket(`${core.url.replace("http:", "ws:")}/vm-display?ticket=${live.ticket}`, {
+        headers: { Origin: core.url },
+      });
+      await once(display, "open");
+      const closed = once(display, "close");
+      await owner.call("devices.revoke", { id: paired.device.id });
+      await Promise.race([
+        closed,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("revoked display remained open")), 2000).unref(),
+        ),
+      ]);
+      await assert.rejects(client.call("environments.display", { screen: 1 }), { code: "unauthorized" });
+      await assert.rejects(socket.call("environments.display", { screen: 1 }));
+      const rejected = new WebSocket(`${core.url.replace("http:", "ws:")}/vm-display?ticket=${pending.ticket}`, {
+        headers: { Origin: core.url },
+      });
+      try {
+        await assert.rejects(once(rejected, "open"), /403/);
+      } finally {
+        rejected.terminate();
+      }
+      assert.ok((await owner.call("environments.display", { screen: 1 })).ticket);
     } finally {
-      rejected.terminate();
+      display?.terminate();
+      socket?.close();
+      await core.close();
+      await removeDir(home);
     }
-    assert.ok((await owner.call("environments.display", { screen: 1 })).ticket);
-  } finally {
-    display?.terminate();
-    socket?.close();
-    await core.close();
-    await removeDir(home);
-  }
-});
-
-test("a viewer that reconnects again and again never hits the cap: the same device's oldest one gives way", async () => {
-  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
-  const dir = tempDir("apx-vm-viewer-").path;
-  // A viewer that stays open until it is ended, as a desktop's does.
-  const viewer = path.join(dir, "viewer.sh");
-  fs.writeFileSync(viewer, "#!/bin/sh\nexec sleep 60\n", { mode: 0o755 });
-  const vm = createComputer(env.core.store, {
-    limaHome: path.join(env.home, "no-vms"),
-    instance: "missing",
-    executable: () => viewer,
   });
-  const children: ChildProcess[] = [];
-  try {
-    await vm.ledger.claim("roby", "home", "run_test");
-    for (let i = 0; i < DISPLAY_CAP * 3; i++) {
-      const { ticket } = vm.display(1);
-      children.push(vm.connectDisplay(ticket).open());
+
+// portable: stands in for the Mac-only driver with a script binary (RUNS_SCRIPTS).
+if (RUNS_SCRIPTS)
+  test("a viewer that reconnects again and again never hits the cap: the same device's oldest one gives way", async () => {
+    const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+    const dir = tempDir("apx-vm-viewer-").path;
+    // A viewer that stays open until it is ended, as a desktop's does.
+    const viewer = path.join(dir, "viewer.sh");
+    fs.writeFileSync(viewer, "#!/bin/sh\nexec sleep 60\n", { mode: 0o755 });
+    const vm = createComputer(env.core.store, {
+      limaHome: path.join(env.home, "no-vms"),
+      instance: "missing",
+      executable: () => viewer,
+    });
+    const children: ChildProcess[] = [];
+    try {
+      await vm.ledger.claim("roby", "home", "run_test");
+      for (let i = 0; i < DISPLAY_CAP * 3; i++) {
+        const { ticket } = vm.display(1);
+        children.push(vm.connectDisplay(ticket).open());
+      }
+      await waitFor(() => children.filter((c) => c.exitCode === null && c.signalCode === null).length <= DISPLAY_CAP);
+      assert.equal(children.at(-1)?.exitCode, null, "the newest one is the one shown");
+    } finally {
+      await vm.close();
+      for (const child of children) child.kill("SIGKILL");
+      await env.core.close();
+      env.cleanup();
+      await removeDir(dir);
     }
-    await waitFor(() => children.filter((c) => c.exitCode === null && c.signalCode === null).length <= DISPLAY_CAP);
-    assert.equal(children.at(-1)?.exitCode, null, "the newest one is the one shown");
-  } finally {
-    await vm.close();
-    for (const child of children) child.kill("SIGKILL");
-    await env.core.close();
-    env.cleanup();
-    await removeDir(dir);
-  }
-});
+  });

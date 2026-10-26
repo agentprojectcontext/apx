@@ -2476,3 +2476,12 @@ computer's boundary is that its agent's shell and browser never touch the Mac, n
 owner wants an agent without the permission never to bring the computer up: it is offered only to an allowed agent.
 Allowed, the agent uses it only for work the owner wants there and, when they did not say where, asks first; the web
 goes through `web_search`, `web_read` and the owner's browser on the Mac unless they ask for the computer.
+
+## D-155 — 2026-10-25 — The computer's script-binary tests run where scripts can be spawned
+The computer's driver (Lima, its guest SSH, the display viewer) runs only on an Apple Silicon Mac; on every other
+system the product never spawns it ("unsupported platforms never call the VM driver"). Four of its tests stand in for
+`limactl`, the guest's SSH or a viewer with a script binary (a shebang line, `#!/bin/sh`), which Windows cannot spawn
+(`spawn EFTYPE`). Making them run there would put a test-only way into five product spawn sites, for code that never
+runs on Windows. They are registered only where `RUNS_SCRIPTS` (testkit/platform.ts) holds, each marked
+`// portable:`; Linux and macOS CI still run them. A disk-size test that assumed sparse files now asserts what the
+filesystem holds, and the sparse bound only where the filesystem keeps holes (not NTFS).

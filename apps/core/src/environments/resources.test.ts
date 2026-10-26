@@ -118,7 +118,9 @@ test("the guest disk's size is what it holds, read from Lima 2's `disk` or an ol
     fs.ftruncateSync(disk, GIB);
     fs.closeSync(disk);
     const held = diskImageBytes(dir);
-    assert.ok(held >= 64 * 1024 && held < 64 * 1024 * 1024, `held ${held}`);
+    assert.equal(held, fs.statSync(path.join(dir, "disk")).blocks * 512, "what the filesystem holds for it");
+    // NTFS keeps no holes in a file unless asked to; APFS and ext4 do, and there it is far below its size.
+    if (process.platform !== "win32") assert.ok(held >= 64 * 1024 && held < 64 * 1024 * 1024, `held ${held}`);
   } finally {
     await removeDir(dir);
   }

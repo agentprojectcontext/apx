@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { computerChat, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { scaled, tempDir } from "../testkit/platform.ts";
+import { RUNS_SCRIPTS, scaled, tempDir } from "../testkit/platform.ts";
 import { createVmLifecycle } from "./lifecycle.ts";
 import { managedVmConfig } from "./managed.ts";
 
@@ -78,46 +78,48 @@ test("the monitor shares one VM probe between callers and reuses it for a few se
   }
 });
 
-test("a guest that does not answer is given up within the monitor's wait, its probe killed", async () => {
-  const dir = tempDir("apx-vm-probe-");
-  const pids = path.join(dir.path, "pids");
-  const binary = path.join(dir.path, "limactl.mjs");
-  // A Lima that never answers: each call records its pid and hangs.
-  fs.writeFileSync(
-    binary,
-    `#!${process.execPath}\nimport fs from 'node:fs';\nfs.appendFileSync(${JSON.stringify(pids)}, process.pid + '\\n');\nsetInterval(() => {}, 10000);\n`,
-    { mode: 0o755 },
-  );
-  const limaHome = path.join(dir.path, "lima");
-  fs.mkdirSync(path.join(limaHome, "computer"), { recursive: true });
-  fs.writeFileSync(path.join(limaHome, "computer", "lima.yaml"), "memory: 4GiB\n");
-  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
-  try {
-    const config = managedVmConfig(env.core.store, env.home, {
-      limaHome,
-      instance: "computer",
-      executable: () => binary,
-    });
-    const started = performance.now();
-    const usage = await config.usage?.();
-    assert.ok(performance.now() - started < scaled(3000), "answered inside the monitor's 3 s wait");
-    assert.equal(usage?.running, false);
-    const alive = fs
-      .readFileSync(pids, "utf8")
-      .split("\n")
-      .filter(Boolean)
-      .filter((pid) => {
-        try {
-          process.kill(Number(pid), 0);
-          return true;
-        } catch {
-          return false;
-        }
+// portable: stands in for the Mac-only driver with a script binary (RUNS_SCRIPTS).
+if (RUNS_SCRIPTS)
+  test("a guest that does not answer is given up within the monitor's wait, its probe killed", async () => {
+    const dir = tempDir("apx-vm-probe-");
+    const pids = path.join(dir.path, "pids");
+    const binary = path.join(dir.path, "limactl.mjs");
+    // A Lima that never answers: each call records its pid and hangs.
+    fs.writeFileSync(
+      binary,
+      `#!${process.execPath}\nimport fs from 'node:fs';\nfs.appendFileSync(${JSON.stringify(pids)}, process.pid + '\\n');\nsetInterval(() => {}, 10000);\n`,
+      { mode: 0o755 },
+    );
+    const limaHome = path.join(dir.path, "lima");
+    fs.mkdirSync(path.join(limaHome, "computer"), { recursive: true });
+    fs.writeFileSync(path.join(limaHome, "computer", "lima.yaml"), "memory: 4GiB\n");
+    const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+    try {
+      const config = managedVmConfig(env.core.store, env.home, {
+        limaHome,
+        instance: "computer",
+        executable: () => binary,
       });
-    assert.deepEqual(alive, [], "no probe left running");
-  } finally {
-    await env.core.close();
-    await env.cleanup();
-    await dir.remove();
-  }
-});
+      const started = performance.now();
+      const usage = await config.usage?.();
+      assert.ok(performance.now() - started < scaled(3000), "answered inside the monitor's 3 s wait");
+      assert.equal(usage?.running, false);
+      const alive = fs
+        .readFileSync(pids, "utf8")
+        .split("\n")
+        .filter(Boolean)
+        .filter((pid) => {
+          try {
+            process.kill(Number(pid), 0);
+            return true;
+          } catch {
+            return false;
+          }
+        });
+      assert.deepEqual(alive, [], "no probe left running");
+    } finally {
+      await env.core.close();
+      await env.cleanup();
+      await dir.remove();
+    }
+  });
