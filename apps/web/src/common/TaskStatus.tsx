@@ -11,7 +11,7 @@ export function TaskStatus({ id }: { id: string }) {
   const columns = useTasks((s) => s.columns);
   useEffect(() => ensureTask(id), [id]);
   return task ? (
-    <span className="task-status" role="status">
+    <span className="task-status" role="status" title={taskStatus(task, columns, t)}>
       <Tag>{taskStatus(task, columns, t)}</Tag>
     </span>
   ) : null;

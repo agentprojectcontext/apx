@@ -25,6 +25,7 @@ import {
 } from "../data/identity.ts";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
+import { taskChatIds } from "../data/taskChats.ts";
 import { acceptTasks, loadTasks, useTasks } from "../data/tasks.ts";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
@@ -305,7 +306,8 @@ function TaskRow(props: {
   const t = useT();
   const { task } = props;
   const archived = useData((s) => {
-    const chats = Object.values(s.threads).filter((th) => th.id === task.thread_id || th.task_id === task.id);
+    const ids = new Set(taskChatIds(task, Object.values(s.threads)));
+    const chats = Object.values(s.threads).filter((th) => ids.has(th.id));
     return chats.length > 0 && chats.every((th) => th.archived);
   });
   const agents = useData((s) => s.agents);

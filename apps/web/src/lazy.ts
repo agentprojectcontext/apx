@@ -25,6 +25,9 @@ export const ChannelScreen = lazy(() =>
 );
 export const ConfigModal = lazy(() => import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal })));
 export const TaskPeek = lazy(() => import("./tasks/TaskPeek.tsx").then((m) => ({ default: m.TaskPeek })));
+export const TaskDescription = lazy(() =>
+  import("./chat/TaskDescription.tsx").then((m) => ({ default: m.TaskDescription })),
+);
 export const EngineSessions = lazy(() =>
   import("./engines/EngineSessions.tsx").then((m) => ({ default: m.EngineSessions })),
 );

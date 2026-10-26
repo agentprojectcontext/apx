@@ -18,7 +18,7 @@ import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { blobOf, isWorking, routineName, threadAgent } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
-import { MediaGroup } from "../lazy.ts";
+import { MediaGroup, TaskDescription } from "../lazy.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
 import { MessageActions } from "./MessageActions.tsx";
@@ -115,6 +115,11 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
       {rows.map(({ key, day, msg }) => (
         <div key={key} className="transcript__row" data-msg={key}>
           {day && <DayDivider label={day} />}
+          {thread.task_id && msg.id === messages[0]?.id && textOf(msg) === "Work on this task." && (
+            <Suspense fallback={null}>
+              <TaskDescription id={thread.task_id} />
+            </Suspense>
+          )}
           {thread.kind === "routine" && msg.author.kind === "user" && key === rows[0]?.key ? (
             <RoutinePrompt name={routineName(thread)} text={textOf(msg)} />
           ) : msg.author.kind === "user" ? (

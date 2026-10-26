@@ -54,7 +54,7 @@ export const NEWS: readonly NewsEntry[] = [
     since: "2.11.1",
     title: "Manage tasks from their chat group",
     applies: (f) => f.secretary,
-    text: "Task chat groups now offer a right-click menu and a visible actions button to change the task's column, mark it waiting, close or reopen it, and archive its chats. Archiving preserves history and does not close the task or restart work. Task status is also visible beside the chat header and updates live.",
+    text: "Task chat groups now offer a right-click menu and a visible actions button to change the task's column, mark it waiting, close or reopen it, and archive its chats. Archiving preserves history and does not close the task or restart work. Task status is also visible beside the chat header and updates live. A task's generic opening instruction shows its description as a read-only block with paragraphs, line breaks and lists.",
     actions: [
       {
         label: { en: "Review my tasks", es: "Revisar mis tareas" },

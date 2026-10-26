@@ -183,6 +183,7 @@
                       "**/ScreenLive.tsx",
                       "**/SearchSelect.tsx",
                       "**/SurfacePart.tsx",
+                      "**/TaskDescription.tsx",
                       "**/TaskPeek.tsx",
                       "**/TasksScreen.tsx",
                       "**/TerminalPanel.tsx",
