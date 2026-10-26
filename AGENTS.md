@@ -135,7 +135,8 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     fix it on the branch and tag the next one. `[gate]` `release:check`, and the publish job's own wait.
 
 29. **One worktree per task, and look before making one.** Other sessions work in this checkout at the same time.
-    Before creating a worktree, run `git worktree list` and `git branch --list 'feat/*' 'fix/*' 'docs/*'`: if one
+    Whether code work goes in a worktree or in the checkout is the owner's call (APX agents follow the project's note
+    or ask once). Before creating a worktree, run `git worktree list` and `git branch --list 'feat/*' 'fix/*' 'docs/*'`: if one
     already covers the task, continue there or ask the session that owns it, never open a second one to reproduce,
     baseline or retry the same thing. Worktrees live in `.worktrees/<name>` on a named branch (no detached HEAD);
     once the branch is merged into `staging`, remove the worktree and delete its branch in the same turn. Never remove

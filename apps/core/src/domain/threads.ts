@@ -590,6 +590,17 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
         .limit(limit);
       return all(qb.selectFrom(newest.as("m")).selectAll().orderBy("seq")).map(toMessage);
     },
+    /** Notice messages across the full history, independent of the display page size. */
+    notices(threadId: string, code: string): Message[] {
+      return all(
+        qb
+          .selectFrom("messages")
+          .selectAll()
+          .where("thread_id", "=", threadId)
+          .where(sql<boolean>`exists (select 1 from json_each(messages.parts) where
+            json_extract(value, '$.type') = 'notice' and json_extract(value, '$.code') = ${code})`),
+      ).map(toMessage);
+    },
     around(threadId: string, seq: number, limit = 20): Message[] {
       const half = Math.floor(limit / 2);
       return all(
