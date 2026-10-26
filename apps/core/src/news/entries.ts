@@ -50,6 +50,20 @@ export type NewsEntry = {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "task-chat-actions",
+    since: "2.11.1",
+    title: "Manage tasks from their chat group",
+    applies: (f) => f.secretary,
+    text: "Task chat groups now offer a right-click menu and a visible actions button to change the task's column, mark it waiting, close or reopen it, and archive its chats. Archiving preserves history and does not close the task or restart work. Task status is also visible beside the chat header and updates live.",
+    actions: [
+      {
+        label: { en: "Review my tasks", es: "Revisar mis tareas" },
+        prompt:
+          "Show me my current tasks and explain how to change their state or archive their chats without losing history. Do not change anything yet.",
+      },
+    ],
+  },
+  {
     id: "email-signature-settings",
     since: "2.11.1",
     title: "Let your agent configure your email signature",

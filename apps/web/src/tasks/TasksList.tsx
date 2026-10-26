@@ -304,6 +304,10 @@ function TaskRow(props: {
 }) {
   const t = useT();
   const { task } = props;
+  const archived = useData((s) => {
+    const chats = Object.values(s.threads).filter((th) => th.id === task.thread_id || th.task_id === task.id);
+    return chats.length > 0 && chats.every((th) => th.archived);
+  });
   const agents = useData((s) => s.agents);
   const columns = useTasks((s) => s.columns);
   const projects = useData((s) => s.projects);
@@ -335,6 +339,7 @@ function TaskRow(props: {
           t,
           columns,
           agents: Object.values(agents),
+          archived,
           onOpen: props.onOpen,
           onDelete: props.onDelete,
         })}

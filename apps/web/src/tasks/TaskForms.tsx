@@ -1,33 +1,23 @@
-import type { Task, TaskColumn, TaskKind, TaskPriority } from "@apx/protocol";
+import type { Task, TaskKind, TaskPriority } from "@apx/protocol";
 import { Button, Dialog, Field, Help, Input, TagInput, Textarea } from "@apx/ui";
 import { useState } from "react";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
+import { columnLabel } from "../common/taskStatus.ts";
 import { realProjectId } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { createTask, deleteTask, useTasks } from "../data/tasks.ts";
-import { type MessageKey, type T, useT } from "../i18n/index.ts";
+import { type MessageKey, useT } from "../i18n/index.ts";
 import { DueField, KindControl, OwedByControl, PersonSelect, PrioritySelect, ReminderField } from "./TaskFields.tsx";
 import { type Reminder, remindAt } from "./when.ts";
 
-const COLUMN_KEYS: Record<string, MessageKey> = {
-  backlog: "tasks.col.backlog",
-  todo: "tasks.col.todo",
-  doing: "tasks.col.doing",
-  review: "tasks.col.review",
-};
+export { columnLabel } from "../common/taskStatus.ts";
 
 /** A column's dot, in the tone of its group in the list; the backlog stays grey (nothing planned yet). */
 export function ColumnDot({ id }: { id: string }) {
   const tone = id === "backlog" || id === "doing" || id === "review" ? id : "pending";
   return <span className={`col-dot is-${tone}`} aria-hidden="true" />;
 }
-
-/** The default columns in the owner's language; a column the owner made shows its own name. */
-export const columnLabel = (c: TaskColumn, t: T) => {
-  const key = COLUMN_KEYS[c.id];
-  return key ? t(key) : c.label;
-};
 
 const KIND_HINT: Record<TaskKind, MessageKey> = {
   task: "tasks.type.taskHint",
