@@ -76,6 +76,14 @@ test("image generation shows inline cubes, real single/multiple results, and cle
         .toEqual({ pending: 1, requests: expect.any(Array) });
       if (scenario === "one") {
         await expect(preview.locator("i").first()).toHaveCSS("animation-name", "image-generation-form");
+        await expect
+          .poll(() =>
+            preview
+              .locator("i")
+              .nth(12)
+              .evaluate((el) => Number(getComputedStyle(el).opacity)),
+          )
+          .toBeGreaterThan(0.5);
         await page.screenshot({ path: testInfo.outputPath("inline-cubes.png") });
         await page.emulateMedia({ reducedMotion: "reduce" });
         await expect(preview.locator("i").first()).toHaveCSS("animation-name", "none");
