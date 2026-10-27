@@ -15,6 +15,7 @@ const SECRET_KEY =
 const SECRET_SHAPE = new RegExp(
   [
     String.raw`\bsk-[A-Za-z0-9_-]{16,}`,
+    String.raw`\bapx[pc]_[a-f0-9]{48,64}`,
     String.raw`\bgh[pousr]_[A-Za-z0-9]{20,}`,
     String.raw`\bgithub_pat_[A-Za-z0-9_]{20,}`,
     String.raw`\bxox[abprs]-[A-Za-z0-9-]{10,}`,
@@ -44,6 +45,17 @@ function redact(key: string, value: unknown): unknown {
   if (typeof value !== "string") return value;
   if (key && secretKey(key) && value && !value.startsWith("secret://")) return REDACTED;
   return scrub(value);
+}
+
+/** JSON for durable external data: redact credential fields (including nested objects) and recognizable key shapes. */
+export function redactedJson(value: unknown): string {
+  const text = JSON.stringify(value, (key, item: unknown) => {
+    if (key && scrub(key) !== key) return undefined;
+    if (key && secretKey(key) && item && !(typeof item === "string" && item.startsWith("secret://"))) return REDACTED;
+    return redact(key, item);
+  });
+  if (text === undefined) throw new Error("Invalid JSON value");
+  return text;
 }
 
 export function createLog(

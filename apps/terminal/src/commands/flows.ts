@@ -25,13 +25,20 @@ export async function flows(client: ApxClient, [sub = "help", ...args]: string[]
         throw new Error("usage: apx flows write <flow> <key> '<value JSON>'");
       result = await client.call("flows.write", { flow: args[0], key: args[1], value: JSON.parse(args[2]) });
       break;
+    case "retire":
+      if (!args[0] || args[1] !== "confirm")
+        throw new Error(
+          "usage: apx flows retire <flow> confirm (permanently removes Flow data; identifier cannot be reused)",
+        );
+      result = await client.call("flows.retire", { flow: args[0], confirm: true });
+      break;
     case "retry":
       if (!args[0] || !args[1]) throw new Error("usage: apx flows retry <flow> <event>");
       result = await client.call("flows.retry", { flow: args[0], event: args[1] });
       break;
     default:
       console.log(
-        "apx flows list --project <id> | set '<definition JSON>' | rows <flow> | events <flow> | write <flow> <key> '<JSON>' | retry <flow> <event>",
+        "apx flows list --project <id> | set '<definition JSON>' | rows <flow> | events <flow> | write <flow> <key> '<JSON>' | retry <flow> <event> | retire <flow> confirm",
       );
       return;
   }

@@ -1,7 +1,9 @@
 import { FlowDefinition as Definition } from "../../../../packages/protocol/src/flow-methods.ts";
 import type { Db } from "../db/db.ts";
+import { redactedJson } from "../log.ts";
 import { matchesFlowPredicates } from "./flow-evaluate.ts";
 import { checkFlowCapacity, FlowCapacityError, flowEventsRepo } from "./flow-events.ts";
+import { checkFlowIdentifier, retireFlow } from "./flow-retirement.ts";
 import { sql } from "./sql.ts";
 
 export type FlowDefinition = Definition;
@@ -10,7 +12,7 @@ const MAX_ROWS = 1000;
 const jsonValue = (value: unknown) => {
   const text = JSON.stringify(value);
   if (text === undefined || Buffer.byteLength(text) > 32768) throw new Error("Flow value exceeds 32 KiB");
-  return text;
+  return redactedJson(value);
 };
 type SavedFlow = {
   id: string;
@@ -36,6 +38,9 @@ const definition = (row: SavedFlow) =>
 
 export function saveFlow(db: Db, value: FlowDefinition): void {
   const flow = Definition.parse(value);
+  checkFlowIdentifier(db, flow.id);
+  if (redactedJson(flow) !== JSON.stringify(flow))
+    throw new Error("Flow definitions must use secret references, not credentials");
   matchesFlowPredicates({}, flow.predicates);
   const result = db
     .prepare(`INSERT INTO flows(id, project_id, name, enabled, predicates, table_key, action, read_keys) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -81,7 +86,8 @@ export function flowsRepo(db: Db) {
         .map((r) => ({ key: String(r.key), value: JSON.parse(String(r.value)) as unknown }));
     },
     write(id: string, key: string, value: unknown) {
-      if (!key || key.length > 128) throw new Error("Invalid flow row key");
+      if (!key || key.length > 128 || redactedJson(key) !== JSON.stringify(key))
+        throw new Error("Invalid flow row key");
       const text = jsonValue(value);
       const exists = db.prepare("SELECT 1 FROM flow_rows WHERE flow_id=? AND key=?").get(id, key);
       if (!exists && Number(db.prepare("SELECT count(*) AS n FROM flow_rows WHERE flow_id=?").get(id)?.n) >= MAX_ROWS)
@@ -94,9 +100,12 @@ export function flowsRepo(db: Db) {
       return { written: true };
     },
     ...flowEventsRepo(db),
+    retire: (id: string) => retireFlow(db, id),
     receive(flowId: string, eventId: string, payload: unknown): "duplicate" | "ignored" | "written" | "pending" {
-      if (!eventId || eventId.length > 256) throw new Error("Invalid event id");
+      if (!eventId || eventId.length > 256 || redactedJson(eventId) !== JSON.stringify(eventId))
+        throw new Error("Invalid event id");
       const value = jsonValue(payload);
+      const data: unknown = JSON.parse(value);
       return tx(() => {
         const flow = api.get(flowId);
         if (!flow?.enabled) throw new Error("Flow not found or disabled");
@@ -107,11 +116,11 @@ export function flowsRepo(db: Db) {
         if (Number(db.prepare("SELECT count(*) AS n FROM flow_events").get()?.n) >= 10000)
           throw new FlowCapacityError("Flow event history is full");
         const matches =
-          payload !== null &&
-          typeof payload === "object" &&
-          !Array.isArray(payload) &&
-          Object.keys(payload).length > 0 &&
-          matchesFlowPredicates(payload, flow.predicates);
+          data !== null &&
+          typeof data === "object" &&
+          !Array.isArray(data) &&
+          Object.keys(data).length > 0 &&
+          matchesFlowPredicates(data, flow.predicates);
         const state = !matches ? "ignored" : flow.action.kind === "none" ? "written" : "pending";
         if (state === "pending") checkFlowCapacity(db, flowId);
         const reads = matches
@@ -120,8 +129,8 @@ export function flowsRepo(db: Db) {
               return { key, value: row ? (JSON.parse(String(row.value)) as unknown) : null };
             })
           : [];
-        const snapshot = reads.length ? jsonValue({ event: payload, rows: reads }) : value;
-        if (matches) api.write(flowId, flow.tableKey, payload);
+        const snapshot = reads.length ? jsonValue({ event: data, rows: reads }) : value;
+        if (matches) api.write(flowId, flow.tableKey, data);
         db.prepare(
           "INSERT INTO flow_events(flow_id,event_id,state,created_at,payload,action) VALUES (?,?,?,?,?,?)",
         ).run(

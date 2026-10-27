@@ -8,6 +8,8 @@ import { newId, now, opt, qb, type Sql } from "./sql.ts";
 import type { ThreadContext } from "./threads.ts";
 
 /** Who a run's input comes from. Stamped by the core, never parsed from text. */
+export type FlowRoutineEvent = { flow: string; id: string; data: unknown };
+
 export type Origin =
   | { kind: "user"; message_id?: string }
   | { kind: "agent"; id: string; name: string; thread_id: string; run_id: string }
@@ -37,7 +39,7 @@ export type Origin =
       since: string;
     }
   /** A routine the owner scheduled: its prompt is the owner's own words. */
-  | { kind: "routine"; id: string; name: string }
+  | { kind: "routine"; id: string; name: string; event?: FlowRoutineEvent }
   /** The owner answered something the agent asked, after the turn that asked had ended. */
   | { kind: "input_answer"; input_id: string }
   /** A background command the agent started has ended. */

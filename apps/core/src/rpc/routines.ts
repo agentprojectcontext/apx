@@ -116,7 +116,23 @@ export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots
     },
     "routines.run": ({ routine }, ctx) =>
       store.tx(() => {
-        const run = scheduler.runNow(routine);
+        const source = ctx.flowEvent ? store.flows.admissionInput(ctx.flowEvent.flow, ctx.flowEvent.event) : undefined;
+        if (source) {
+          const binding = store.routines.get(routine);
+          const flow = store.flows.get(source.flow);
+          if (
+            source.action.kind !== "routine" ||
+            source.action.routine !== routine ||
+            !flow?.enabled ||
+            binding?.project_id !== flow.projectId ||
+            binding?.schedule.kind !== "manual"
+          )
+            throw badRequest("Flow routine binding changed");
+        }
+        const run = scheduler.runNow(
+          routine,
+          source ? { flow: source.flow, id: source.id, data: source.data } : undefined,
+        );
         if (ctx.flowEvent) store.flows.admitted(ctx.flowEvent.flow, ctx.flowEvent.event, run.run_id);
         return run;
       }),

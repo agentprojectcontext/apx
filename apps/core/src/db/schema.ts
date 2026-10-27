@@ -414,6 +414,10 @@ export interface PromptTextsTable {
   text: string;
 }
 
+export interface RetiredFlowsTable {
+  id: string;
+}
+
 export interface RoutineRunsTable {
   run_id: string;
   routine_id: string;
@@ -645,6 +649,7 @@ export interface Database {
   persons: PersonsTable;
   projects: ProjectsTable;
   prompt_texts: PromptTextsTable;
+  retired_flows: RetiredFlowsTable;
   routine_runs: RoutineRunsTable;
   routines: RoutinesTable;
   run_contexts: RunContextsTable;

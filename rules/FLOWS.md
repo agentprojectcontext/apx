@@ -8,7 +8,7 @@ Open Routines → Flows, select a project, and create a disabled Flow. Choose a 
 
 - **Table only:** persist matching data without calling a model.
 - **Agent:** a fixed agent and fixed prompt. Each event gets its own ordinary chat; incoming data is framed as an untrusted external request, never as the owner's instruction.
-- **Routine:** a fixed manual-only routine in the same project. Existing scheduler admission and routine history are reused. A busy routine leaves the event pending until a run ends. The event does not change the routine's prompt or introduce a schedule.
+- **Routine:** a fixed manual-only routine in the same project. Existing scheduler admission and routine history are reused. A busy routine leaves the event pending until a run ends. The event does not change the routine's prompt or introduce a schedule. The run receives the immutable event ID, Flow ID and data/read snapshot inside an explicitly untrusted `flow_event` envelope; it never needs to guess which version of the latest table row woke it.
 
 A global agent or an agent in the Flow's project is allowed. Cross-project bindings are rejected and checked again before admission. Public payloads cannot select an agent, routine, tool, shell command or identity. Changes require the owner, either directly or through an approved `apx_settings` change. Route token rotation and revocation remain owner-only.
 
@@ -54,13 +54,15 @@ This is **not exactly-once delivery to external services**. A run can fail after
 - At most 32 pending/unfinished events per Flow and 256 across the install at public admission.
 - At most 32 predicates with path depth 16 and 16 deterministic reads.
 
-These are MVP safety limits, not a retention service. At capacity, ingestion refuses new work instead of evicting IDs and risking a duplicate effect. Plan retention/export before sustained production traffic. Store only necessary data: table values and pending event snapshots are durable local data, not a place for credentials. Transport bearer tokens live in the secret store, separate from the event envelope.
+These are MVP safety limits, not a retention service. At capacity, ingestion refuses new work instead of evicting IDs and risking a duplicate effect. For explicit recovery, export any data you need, disable the Flow, finish/cancel its active runs, then use `apx flows retire <id> confirm` or an approved `apx_settings` retirement. Retirement permanently removes its table and events (including pending work), revokes its credential and reserves its old identifier; it cannot reopen the old URL. Existing run chats remain under their ordinary history policy. A new Flow needs a new identifier and credential. Retired identifiers are capped at 10,000. This is deliberate rotation, not automatic replay of the old source backlog.
+
+Credential-named fields (including nested credential objects) and recognizable token shapes are redacted before filtering, table/event persistence or model input. This uses the shared log credential matcher, including APX tokens. Credentials in definitions or event IDs are rejected; use secret references for owner configuration. These rules cannot recognize arbitrary secrets or personally identifying prose without a known field/shape: send only necessary data and do not place credentials in otherwise ordinary fields. Table values and pending snapshots are local durable data. Transport bearer tokens live in the secret store, never in the event envelope.
 
 Empty objects, non-object values, nonmatching events and duplicates do not invoke an action. Idle Flows make no model calls. HTTP requests and deterministic processing still have infrastructure costs. A matching action may use models and tools according to the selected agent/routine's limits.
 
 ## Protocol, CLI and tools
 
-All management operations use the private protocol registry: `flows.list`, `flows.set`, `flows.rows`, `flows.write`, `flows.events`, `flows.retry`. External `chat` tokens cannot call them.
+All management operations use the private protocol registry: `flows.list`, `flows.set`, `flows.rows`, `flows.write`, `flows.events`, `flows.retry`, `flows.retire`. External `chat` tokens cannot call them.
 
 ```bash
 apx flows list --project p_example

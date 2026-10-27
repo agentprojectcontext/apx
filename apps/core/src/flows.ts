@@ -143,7 +143,7 @@ export function createFlows(deps: { store: Store; dispatch(): Dispatch | undefin
               return { status: 400 };
             if (signal.aborted) return { status: 503 };
             const state = store.flows.receive(id, event.id, event.data);
-            api.kick();
+            if (state === "pending") api.kick();
             return { status: 202, body: { state } };
           } catch (error) {
             return {

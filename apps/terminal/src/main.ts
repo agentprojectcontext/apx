@@ -79,7 +79,7 @@ Usage:
                            (the core does it at every start); removes ones APX no longer ships, never anyone else's
   apx tasks [add|show|edit|settle|move|done|say]  The office board (apx tasks help)
   apx routines [add|show|edit|run|on|off|rm|log]  Scheduled work (apx routines help)
-  apx flows [list|set|rows|events|write|retry]  Webhook-only work and persistent tables (apx flows help)
+  apx flows [list|set|rows|events|write|retry|retire]  Webhook-only work and persistent tables (apx flows help)
   apx notifications [read]       What is waiting for you
   apx news [tell [<id>…]] [--json]   Release news; tell runs the super-agent's message now
   apx clients [add <name>|rm <id>]  Outside apps with their own token (Claude Code, Codex…)

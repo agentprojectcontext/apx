@@ -57,6 +57,12 @@ export const flowMethods = {
     effect: false,
     access: "human",
   },
+  "flows.retire": {
+    params: z.object({ flow: Id, confirm: z.literal(true) }).strict(),
+    result: z.object({ retired: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
   "flows.retry": {
     params: z.object({ flow: Id, event: z.string().min(1).max(256) }).strict(),
     result: z.object({ queued: z.boolean() }),

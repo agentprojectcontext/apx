@@ -27,4 +27,7 @@ test("Flow commands call the canonical protocol and reject malformed input befor
   await assert.rejects(flows(client, ["list"]), /usage/);
   await assert.rejects(flows(client, ["write", "f"]), /usage/);
   assert.equal(calls.length, 5);
+  await assert.rejects(flows(client, ["retire", "f"]), /permanently/);
+  await flows(client, ["retire", "f", "confirm"]);
+  assert.deepEqual(calls.at(-1), ["flows.retire", { flow: "f", confirm: true }]);
 });

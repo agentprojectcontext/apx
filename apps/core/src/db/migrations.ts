@@ -932,4 +932,5 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE flow_events ADD COLUMN error TEXT;
   CREATE INDEX flow_events_pending ON flow_events(state, created_at);
   `,
+  `CREATE TABLE retired_flows (id TEXT PRIMARY KEY);`,
 ];

@@ -16,6 +16,18 @@ export function checkFlowCapacity(db: Db, flow: string) {
 
 export function flowEventsRepo(db: Db) {
   return {
+    admissionInput(flow: string, event: string) {
+      const row = db
+        .prepare("SELECT payload,action FROM flow_events WHERE flow_id=? AND event_id=? AND state='pending'")
+        .get(flow, event);
+      if (!row) throw new Error("Flow event is no longer pending");
+      return {
+        flow,
+        id: event,
+        data: JSON.parse(String(row.payload)) as unknown,
+        action: FlowAction.parse(JSON.parse(String(row.action))),
+      };
+    },
     events(id: string, limit: number) {
       return db
         .prepare(

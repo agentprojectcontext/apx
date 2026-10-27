@@ -3,7 +3,11 @@ import { badRequest, notFound } from "../errors.ts";
 import { type Flows, validateFlowBinding } from "../flows.ts";
 import type { Handlers } from "./router.ts";
 
-export function flowHandlers(store: Store, flows: Flows) {
+export function flowHandlers(
+  store: Store,
+  flows: Flows,
+  credentials: import("../public-credentials.ts").PublicCredentials,
+) {
   const found = (id: string) => {
     const flow = store.flows.get(id);
     if (!flow) throw notFound("Flow not found");
@@ -16,6 +20,7 @@ export function flowHandlers(store: Store, flows: Flows) {
       const previous = store.flows.get(flow.id);
       if (previous && previous.projectId !== flow.projectId) throw badRequest("Flow belongs to another project");
       try {
+        if (!previous) credentials.revoke(`/flows/${flow.id}`);
         const saved = store.flows.save(flow);
         flows.kick();
         return saved;
@@ -38,6 +43,17 @@ export function flowHandlers(store: Store, flows: Flows) {
     "flows.events": ({ flow, limit }) => {
       found(flow);
       return { events: store.flows.events(flow, limit) };
+    },
+    "flows.retire": ({ flow }) => {
+      try {
+        const result = store.flows.retire(flow);
+        if (result.retired) credentials.revoke(`/flows/${flow}`);
+        return result;
+      } catch {
+        throw badRequest(
+          "Disable the Flow and finish or cancel its active runs before retiring it; the identifier stays reserved",
+        );
+      }
     },
     "flows.retry": ({ flow, event }) => {
       found(flow);

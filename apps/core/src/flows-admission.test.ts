@@ -28,18 +28,35 @@ test("run admission rolls back when its event linkage cannot commit, for both ag
     const after = await env.client.call("threads.get", { thread: thread.id });
     assert.equal(after.messages.length, 0);
     assert.equal(after.runs.length, 0);
+    const project = await env.client.call("projects.create", { name: "Atomic" });
     const routine = await env.client.call("routines.set", {
       name: "Atomic",
+      project: project.project.id,
       agent: "roby",
       schedule: { kind: "manual" },
       prompt: "Work",
     });
+    env.core.store.flows.save({
+      id: "atomic",
+      projectId: project.project.id,
+      name: "Atomic",
+      enabled: true,
+      predicates: [],
+      tableKey: "latest",
+      action: { kind: "routine", routine: routine.id },
+    });
+    env.core.store.flows.receive("atomic", "one", { message: "Work" });
+    const admitted = env.core.store.flows.admitted;
+    env.core.store.flows.admitted = () => {
+      throw new Error("Simulated linkage failure");
+    };
     const started = await env.core.dispatch(
       "routines.run",
       { routine: routine.id },
-      { ...ctx, actor: "human" },
+      { ...ctx, actor: "human", flowEvent: { flow: "atomic", event: "one" } },
       "atomic-routine",
     );
+    env.core.store.flows.admitted = admitted;
     assert.equal(started.ok, false);
     assert.equal(env.core.store.routines.runs(routine.id, 10).length, 0);
     assert.equal(llm.calls.length, 0);

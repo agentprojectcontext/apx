@@ -3,7 +3,7 @@
 // gets a conversation of its own. The owner hears back only when the agent has something to say; a quiet run's
 // conversation is archived.
 import type { Routine, RoutineRun } from "@apx/protocol";
-import { type RunRecord, TERMINAL } from "../domain/runs.ts";
+import { type FlowRoutineEvent, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import { MIN_GAP_MIN, nextRun } from "../domain/schedule.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
@@ -44,7 +44,7 @@ export function createScheduler(deps: {
   let timer: ReturnType<typeof setInterval> | undefined;
 
   /** Reserves the routine and starts its run in a new conversation. */
-  function start(r: Routine, at: Date, next: string | undefined): RoutineRun {
+  function start(r: Routine, at: Date, next: string | undefined, event?: FlowRoutineEvent): RoutineRun {
     return store.tx(() => {
       store.routines.claim(r.id, {
         next_run_at: next,
@@ -66,7 +66,7 @@ export function createScheduler(deps: {
         thread_id: thread.id,
         agent_id: r.agent_id,
         trigger: "routine",
-        origin: { kind: "routine", id: r.id, name: r.name },
+        origin: { kind: "routine", id: r.id, name: r.name, ...(event ? { event } : {}) },
         text: r.prompt,
       });
       store.routines.addRun({ routine_id: r.id, run_id: run.id, thread_id: thread.id });
@@ -109,11 +109,11 @@ export function createScheduler(deps: {
     /** When a schedule would run next from now (the scheduler's now). */
     nextFor: (schedule: Routine["schedule"]) => nextTime({ schedule }, clock()),
     /** Runs a routine now, outside its schedule; its next scheduled time stays as it was. */
-    runNow(id: string): RoutineRun {
+    runNow(id: string, event?: FlowRoutineEvent): RoutineRun {
       const r = store.routines.get(id);
       if (!r) throw notFound(`routine ${id}`);
       if (r.last && !TERMINAL.has(r.last.state)) throw conflict(`${r.name} is running already`);
-      return start(r, clock(), r.next_run_at);
+      return start(r, clock(), r.next_run_at, event);
     },
     /** A run ended: free the routine, and tell the owner unless the agent had nothing to say. */
     afterRun(run: RunRecord): void {

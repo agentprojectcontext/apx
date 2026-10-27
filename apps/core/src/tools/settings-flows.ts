@@ -20,6 +20,10 @@ export const FLOWS: Readonly<Record<string, Setting>> = {
     read: (p, { store }) => JSON.stringify(store.flows.events(str(p.flow), Number(p.limit ?? 50))),
   },
   "flows.write": { does: "write one persistent table row (flow, key, value); data only, at most 32 KiB", whole: true },
+  "flows.retire": {
+    does: "permanently retire a disabled Flow (flow, confirm:true): discard pending events/table data, retain run chats and reserve its identifier forever. Finish/cancel active runs first. Recovery for storage capacity; never automatic",
+    whole: true,
+  },
   "flows.retry": {
     does: "retry a failed admission (flow, event), never a run already admitted or an uncertain external effect",
   },
