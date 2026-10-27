@@ -4,13 +4,14 @@
 // too: the room is public. See DECISIONS.md#d-041
 import type { ChannelRooms, RoomMode, Thread } from "@apx/protocol";
 import type { AuxAbout } from "../domain/aux-calls.ts";
-import type { Inbound, Presentation } from "../domain/channels.ts";
+import type { Inbound } from "../domain/channels.ts";
 import { withinHours } from "../domain/hours.ts";
 import { ownerTimeZone } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
+import type { TellOwner } from "./owner-notices.ts";
 import { channelTexts } from "./texts.ts";
 import type { ChannelConfig } from "./types.ts";
 
@@ -93,7 +94,7 @@ export function createRooms(deps: {
   store: Store;
   log: Log;
   call: InternalCall;
-  notifyOwner(body: Presentation): boolean;
+  tell: TellOwner;
   /** A cheap model's one-shot answer (the auxiliary model); none when there is no such model. */
   judge?: ((system: string, user: string, about: AuxAbout) => Promise<string | undefined>) | undefined;
   burstMs?: number;
@@ -214,7 +215,7 @@ export function createRooms(deps: {
       const at = reported.get(roomId) ?? 0;
       if (now - at > REPORT_MS) {
         reported.set(roomId, now);
-        deps.notifyOwner({ text: channelTexts(store).roomCap(`#${roomName}`) });
+        deps.tell({ text: channelTexts(store).roomCap(`#${roomName}`) }, { level: "warn", title: `#${roomName}` });
       }
       return true;
     }

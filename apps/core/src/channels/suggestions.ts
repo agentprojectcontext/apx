@@ -3,8 +3,6 @@
 // them themselves or drop it. The same choices are methods (contacts.suggestions.*) for any client.
 // See DECISIONS.md#d-088
 import type { ContactSuggestion, Thread } from "@apx/protocol";
-import type { OutboxRow, Presentation } from "../domain/channels.ts";
-import type { NewNotification } from "../domain/notifications.ts";
 import type { Store } from "../domain/store.ts";
 import { publicSuggestion } from "../domain/suggestions.ts";
 import { isSkip } from "../engine/routines.ts";
@@ -14,6 +12,7 @@ import type { Log } from "../log.ts";
 import { reactAnswer } from "./closers.ts";
 import { guardReply } from "./guard.ts";
 import { buttonId, shown } from "./notices.ts";
+import type { TellOwner } from "./owner-notices.ts";
 import type { createPoster } from "./post.ts";
 import { channelTexts } from "./texts.ts";
 import type { ChannelConfig } from "./types.ts";
@@ -37,8 +36,7 @@ const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0
 export function createSuggestions(deps: {
   store: Store;
   log: Log;
-  notifyOwner(body: Presentation, kind?: OutboxRow["kind"], threadId?: string): boolean;
-  attention(n: NewNotification): void;
+  tell: TellOwner;
   /** The agent's draft for a chat; none: every notice says no draft could be written. */
   draft?: ((threadId: string, agentId: string, signal?: AbortSignal) => Promise<Draft>) | undefined;
   post: ReturnType<typeof createPoster>["post"];
@@ -106,8 +104,7 @@ export function createSuggestions(deps: {
       if (!capped.has(person.id)) {
         capped.add(person.id);
         const text = channelTexts(store).tooManyDrafts(person.name);
-        deps.notifyOwner({ text });
-        deps.attention({ kind: "channel", level: "warn", title: person.name, body: text });
+        deps.tell({ text }, { level: "warn", title: person.name });
       }
       return true;
     }
@@ -185,14 +182,7 @@ export function createSuggestions(deps: {
       { id: buttonId.suggestion(s.id, "write"), label: t.writeMyself },
       { id: buttonId.suggestion(s.id, "ignore"), label: t.ignore },
     ];
-    deps.notifyOwner({ text, buttons }, "input", s.thread_id);
-    deps.attention({
-      kind: "channel",
-      title: person.name,
-      body: text,
-      thread_id: s.thread_id,
-      ref: suggestionRef(s.id),
-    });
+    deps.tell({ text, buttons }, { title: person.name, thread_id: s.thread_id, ref: suggestionRef(s.id) }, "input");
   }
 
   function pending(id: string) {
