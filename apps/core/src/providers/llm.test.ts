@@ -6,7 +6,7 @@ import { test } from "node:test";
 import type { ProviderConfig } from "../config.ts";
 import { createSecrets } from "../secrets.ts";
 import { toAnthropic } from "./anthropic-messages.ts";
-import { createLlm } from "./llm.ts";
+import { createLlm, retryWait } from "./llm.ts";
 import { ProviderError, resetOf } from "./types.ts";
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-llm-"));
@@ -60,7 +60,70 @@ test("falls back down the chain on overload and reports which model answered", a
   assert.equal(streamed, "hola");
   assert.equal(out.finish, "stop");
   assert.deepEqual(out.usage, { input: 3, output: 2 });
-  assert.deepEqual(seen, ["a.test/m1", "a.test/m1", "a.test/m2"]);
+  assert.deepEqual(
+    seen,
+    ["a.test/m1", "a.test/m1", "a.test/m1", "a.test/m1", "a.test/m2"],
+    "four tries, then the next",
+  );
+});
+
+test("a short overload is waited out on the same model; a limit that lifts late moves on at once", async () => {
+  let calls = 0;
+  const brief = createLlm({
+    providers: () => providers,
+    secrets,
+    firstByteMs: 1000,
+    retryDelayMs: 5,
+    fetchImpl: (async () =>
+      ++calls < 3
+        ? new Response("overloaded", { status: 503 })
+        : sse([{ choices: [{ delta: { content: "ok" }, finish_reason: "stop" }] }])) as unknown as typeof fetch,
+  });
+  const out = await brief.complete({
+    models: ["pa"],
+    messages: [{ role: "user", content: "hi" }],
+    tools: [],
+    signal: new AbortController().signal,
+    onText: () => {},
+  });
+  assert.equal(out.model, "pa/m1", "the third try on the first model answered");
+
+  const seen: string[] = [];
+  const late = createLlm({
+    providers: () => providers,
+    secrets,
+    firstByteMs: 1000,
+    retryDelayMs: 5,
+    fetchImpl: (async (_url: string, init: RequestInit) => {
+      const model = (JSON.parse(String(init.body)) as { model: string }).model;
+      seen.push(model);
+      return model === "m1"
+        ? new Response("slow down", { status: 429, headers: { "retry-after": "600" } })
+        : sse([{ choices: [{ delta: { content: "ok" }, finish_reason: "stop" }] }]);
+    }) as typeof fetch,
+  });
+  await late.complete({
+    models: ["pa"],
+    messages: [{ role: "user", content: "hi" }],
+    tools: [],
+    signal: new AbortController().signal,
+    onText: () => {},
+  });
+  assert.deepEqual(seen, ["m1", "m2"]);
+});
+
+test("the wait between tries doubles with jitter, honours a short Retry-After and gives up on a long one", () => {
+  const now = Date.parse("2026-10-27T12:00:00Z");
+  const busy = new ProviderError("overloaded", "busy");
+  for (const attempt of [0, 1, 2]) {
+    const ms = retryWait(busy, attempt, 800, now) ?? -1;
+    assert.ok(ms >= 400 * 2 ** attempt && ms <= 800 * 2 ** attempt, `attempt ${attempt}: ${ms}`);
+  }
+  assert.ok((retryWait(busy, 10, 800, now) ?? 0) <= 8000, "capped");
+  const soon = new ProviderError("rate_limit", "429", new Date(now + 12_000).toISOString());
+  assert.equal(retryWait(soon, 0, 800, now), 12_000);
+  const late = new ProviderError("rate_limit", "429", new Date(now + 120_000).toISOString());
+  assert.equal(retryWait(late, 0, 800, now), undefined);
 });
 
 test("models are tried in the given order; quota moves on; providers without a key are never called", async () => {
