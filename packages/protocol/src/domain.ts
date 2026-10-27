@@ -419,7 +419,23 @@ export type DocumentSource = z.infer<typeof DocumentSource>;
 
 /** What the UI shows. The model's own transcript is stored separately (two projections of one log). */
 const KnownPart = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("text"), text: z.string() }),
+  z.object({
+    type: z.literal("text"),
+    text: z.string(),
+    /** A task consult's reply, kept as words for history readers and as a traced event for operators. */
+    response: z
+      .object({
+        thread_id: Id,
+        run_id: Id,
+        task_id: Id,
+        title: z.string(),
+        state: RunState,
+        end_reason: RunEndReason.optional(),
+        issue: z.enum(["no_answer", "actions_failed"]).optional(),
+        project_id: Id.optional(),
+      })
+      .optional(),
+  }),
   z.object({
     type: z.literal("tool"),
     call_id: z.string(),

@@ -18,9 +18,10 @@ import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { blobOf, isWorking, routineName, threadAgent } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
-import { MediaGroup, TaskDescription } from "../lazy.ts";
+import { AgentEvent, MediaGroup, TaskDescription } from "../lazy.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
+import { isAgentEvent, isIndividualChat } from "./agentEvent.ts";
 import { MessageActions } from "./MessageActions.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { AudioPart } from "./parts/lazyAudio.tsx";
@@ -46,16 +47,13 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
   const showTools = useNav((s) => s.tools);
   const agent = threadAgent(thread, agents);
   const scroll = useRef<StickyScrollHandle>(null);
-  // Each answer says who gave it when more than one agent speaks here: a group, a sub-thread, a task, or a chat where
-  // another agent's answer arrived (a delegation's result).
-  const multiAgent = useMemo(
-    () =>
+  const multiAgent =
+    !isIndividualChat(thread) &&
+    (thread.kind === "group" ||
       thread.kind === "a2a" ||
       thread.kind === "task" ||
       thread.agent_ids.length > 1 ||
-      new Set(messages.flatMap((m) => (m.author.kind === "agent" ? [m.author.id] : []))).size > 1,
-    [thread.kind, thread.agent_ids.length, messages],
-  );
+      new Set(messages.flatMap((m) => (m.author.kind === "agent" ? [m.author.id] : []))).size > 1);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: day labels are re-made when the language changes
   const rows = useMemo(() => {
@@ -164,6 +162,19 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
             <SystemNote icon={<Icons.LayoutGrid size={12} />} className="transcript__fromsurface">
               {t("chat.fromWidget")} <b>{msg.author.title}</b>: {textOf(msg)}
             </SystemNote>
+          ) : isAgentEvent(thread, msg) ? (
+            <Suspense fallback={<SystemNote>{textOf(msg)}</SystemNote>}>
+              <AgentEvent message={msg} agent={agents[msg.author.id]}>
+                <AgentTurn
+                  thread={thread}
+                  message={msg}
+                  agent={agents[msg.author.id]}
+                  showAvatar={false}
+                  showTools={showTools}
+                  showSkills={false}
+                />
+              </AgentEvent>
+            </Suspense>
           ) : (
             <AgentTurn
               thread={thread}

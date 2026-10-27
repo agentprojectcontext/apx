@@ -357,6 +357,26 @@ test("an agent's @mention in a task comment asks that agent, and the answer come
   await env.settle(chat.id);
   const back = store.messages.list(chat.id, 50).find((m) => m.author.kind === "agent" && m.author.id === "roby");
   assert.match(JSON.stringify(back?.parts), /Roby (answered|could not answer) your question/);
+  const reply = back?.parts.find((p) => p.type === "text");
+  const child = store.runs.list(consult?.id ?? "")[0];
+  assert.deepEqual(reply?.response, {
+    thread_id: consult?.id,
+    run_id: child?.id,
+    task_id: t.id,
+    title: t.title,
+    state: child?.state,
+    ...(child?.end_reason ? { end_reason: child.end_reason } : {}),
+    ...(consult?.project_id ? { project_id: consult.project_id } : {}),
+  });
+  assert.equal(store.threads.get(chat.id)?.kind, "loose");
+  assert.deepEqual(store.threads.get(chat.id)?.agent_ids, ["vera"]);
+  const loaded = await env.client.call("threads.get", { thread: chat.id });
+  assert.deepEqual(loaded.messages.find((m) => m.id === back?.id)?.parts, back?.parts);
+  assert.ok(
+    llm.calls.some((c) =>
+      c.messages.some((m) => m.role === "user" && String(m.content).includes("Roby answered your question")),
+    ),
+  );
   assert.deepEqual(
     await env.client.call("tasks.get", { task: t.id }).then((d) => d.sessions),
     [],
