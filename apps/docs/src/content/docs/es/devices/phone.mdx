@@ -121,7 +121,9 @@ Lo que hace una vez vinculada:
 - **Se vincula** escaneando el QR, abriendo un enlace `apx://pair` o escribiendo a mano la dirección y el código. Guarda
   su llave en el almacenamiento seguro del sistema.
 - **Muestra tu chat Home en vivo**, por el mismo socket que usa el panel.
-- **Muestra tus widgets y apps fijados** (el botón Apps), cada uno a pantalla completa y aislado igual que en el panel.
+- **Lista las superficies fijadas y todas las apps** (el botón Apps), incluso una app sin fijar. Abrí una a pantalla
+  completa. Consultá [Apps y artefactos](/apps/overview/) para entender su uso; la WebView nativa no promete todas
+  las integraciones ni funciones del bridge del panel web.
 - **Le presta el teléfono al core como nodo**: los agentes tienen `phone_location` y `phone_photo`, pero solo mientras
   el teléfono está conectado. La foto siempre la sacás vos en el teléfono (la app te muestra para qué la pide el
   agente). La ubicación pide el permiso del sistema una vez, y te pide el OK cada vez que hay contenido de afuera en el
@@ -154,9 +156,23 @@ La app nativa no es solo Inicio. La navegación inferior ofrece **Chats**, **Ban
 **Más**. En Más encontrás rutinas, agentes, proyectos, canales, memoria, apps, archivos y ajustes. Algunas secciones
 muestran resúmenes y pantallas de detalle, no todos los controles del escritorio; el mismo core conserva los datos.
 
-Usá **Tareas** para ver el trabajo y sus adjuntos, y rutinas para consultar o editar trabajo programado. Revisá el
-estado real antes de dar por terminado un turno encolado, en espera o interrumpido. Crear o editar trabajo usa los
-mismos permisos y confirmaciones que otros clientes, no una cuenta móvil irrestricta aparte.
+- **Chats** abre tus conversaciones. **Bandeja** reúne elementos que necesitan atención; **Sesiones** muestra las
+  sesiones de agentes y su estado real. Un turno encolado, en espera o interrumpido no es un resultado terminado.
+- **Tareas:** tocá **+** para crear una tarea con título, descripción y los campos disponibles de proyecto/asignación.
+  Abrila para actualizar sus campos, comentar, ver historial o trabajo adjunto y usar sus acciones disponibles de
+  cierre/reapertura. Consultá [Tareas](/office/tasks/) para el modelo compartido.
+- **Más › Rutinas:** abrí una rutina existente para editar instrucciones, agente y horario; su tarjeta permite
+  activar/desactivar, ejecutar ahora y consultar ejecuciones recientes. Cambiar el horario no prueba que se ejecutó bien.
+- **Más › Proyectos:** recorré proyectos registrados, abrí sus conversaciones o creá un proyecto. **Archivos** recorre
+  carpetas de proyectos y previsualiza archivos compatibles; no es un editor general ni muestra todos los archivos del teléfono.
+- **Más › Memoria:** filtrá notas por alcance, agregá una o borrala. **Agentes** abre el chat de un agente; **Canales**
+  lista conexiones configuradas y su estado, sin los controles completos de configuración de canales del panel.
+- **Más › Ajustes:** revisá permiso/registro de notificaciones, sonidos de avisos y de fin de audio, elegí apariencia
+  del sistema/clara/oscura y ajustá preferencias de avisos. **Desconectar** quita la vinculación de esta app tras
+  confirmar; no apaga el core ni desconecta todos los dispositivos.
+
+Crear o editar trabajo usa los mismos permisos y confirmaciones que otros clientes, no una cuenta móvil irrestricta
+aparte. Para ajustes que no ofrecen las pantallas nativas, usá el panel web.
 
 ## Adjuntos, imágenes y voz
 
@@ -173,6 +189,9 @@ no prueban que Android lo guardó. Comprobalo en la galería o app de destino. S
 el destinatario: compartir fuera de APX sale de los límites del chat.
 
 ## Notificaciones push
+
+El permiso local de notificaciones de Android no alcanza para recibir con la app suspendida o cerrada: también
+necesitás un registro push operativo y elegir ese destino para los avisos.
 
 El teléfono puede ser el lugar adonde llegan tus avisos, así las novedades de las rutinas, los recordatorios y las
 preguntas de los agentes te encuentran aunque la app esté cerrada.

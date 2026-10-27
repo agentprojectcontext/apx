@@ -119,7 +119,9 @@ What it does once paired:
 - **Pairs** by scanning the QR, opening an `apx://pair` link, or typing the address and the code by hand. It keeps its
   key in the system's secure storage.
 - **Shows your Home chat live**, over the same socket the panel uses.
-- **Shows your pinned widgets and apps** (the Apps button), each full screen, sandboxed the same way the panel does it.
+- **Lists pinned surfaces and every app** (the Apps button), even an app that is not pinned. Open one full screen.
+  See [Apps and artifacts](/apps/overview/) for their purpose; the native WebView does not promise every web-panel
+  integration or bridge feature.
 - **Lends the phone to the core as a node**: agents get `phone_location` and `phone_photo`, but only while the phone
   is connected. A photo is always taken by you on the phone (the app shows why the agent wants it). Location asks the
   system's permission once, and asks for your OK whenever outside content is in the turn.
@@ -151,9 +153,23 @@ The native app is more than Home chat. The bottom navigation offers **Chats**, *
 and **More**. Under More, open routines, agents, projects, channels, memory, apps, files and settings. Some sections
 show summaries and open detail screens rather than every desktop configuration control; the same core owns their data.
 
-Use **Tasks** to inspect work and its attachments, and routines to inspect or edit scheduled work. Read the actual
-state before treating a queued, waiting or interrupted run as complete. Starting or editing work uses the same
-permissions and confirmations as other APX clients, not a separate unrestricted mobile account.
+- **Chats** opens your conversations. **Inbox** brings together items needing attention; **Sessions** shows agent
+  sessions and their actual state. A queued, waiting or interrupted run is not a completed result.
+- **Tasks:** tap **+** to create a task with its title, description and available project/assignee fields. Open a task
+  to update its fields, comment, inspect history or attached work, and use its available close/reopen actions. See
+  [Tasks](/office/tasks/) for the shared task model.
+- **More › Routines:** open an existing routine to edit its instructions, assignee and schedule; its card also lets
+  you enable/disable it or run it now and inspect recent runs. Changing a schedule is not proof that a run succeeded.
+- **More › Projects:** browse registered projects, open their conversations or create a project. **Files** browses
+  project folders and previews supported files; it is not a general editor or a view of every file on your phone.
+- **More › Memory:** filter notes by scope, add a note or delete one. **Agents** opens an agent's chat; **Channels**
+  lists configured connections and their state, rather than offering the full channel-setup controls of the panel.
+- **More › Settings:** review notification permission/registration, notice sounds and the audio-end sound, choose
+  system/light/dark appearance, and adjust notice preferences. **Disconnect** removes this app's pairing after
+  confirmation; it does not shut down the core or disconnect every device.
+
+Creating or editing work uses the same permissions and confirmations as other APX clients, not a separate
+unrestricted mobile account. Use the web panel for settings not offered by the native screens.
 
 ## Attachments, images and voice
 
@@ -172,7 +188,8 @@ choose the recipient deliberately: sharing out of APX leaves its chat boundaries
 ## Push notifications
 
 The phone can be where your notices go, so routine news, reminders and questions from agents reach you even with the
-app closed.
+app closed. Android's local notification permission alone is not enough for delivery while the app is suspended
+or closed: a working push registration and a selected push destination are also required.
 
 <Steps>
 
