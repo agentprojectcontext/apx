@@ -31,7 +31,7 @@ export function ContactFace({
   const t = useT();
   return (
     <span className="chan__face">
-      <PersonAvatar personId={person?.id} fallback={initials(name)} />
+      <PersonAvatar personId={person?.id} name={name} fallback={initials(name)} />
       {presence?.online && (
         <Tooltip content={t("ch.online")}>
           <span className="chan__presence" role="img" aria-label={t("ch.online")} />
