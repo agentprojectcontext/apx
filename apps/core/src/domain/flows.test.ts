@@ -1,13 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import { test } from "node:test";
 import { openDb } from "../db/db.ts";
+import { tempDir } from "../testkit/platform.ts";
 import { receiveFlowEvent, saveFlow } from "./flows.ts";
 
-test("flow writes and deduplicates atomically across database reopen", () => {
-  const home = mkdtempSync(path.join(tmpdir(), "apx-flow-"));
+test("flow writes and deduplicates atomically across database reopen", async () => {
+  const temp = tempDir("apx-flow-");
+  const home = temp.path;
   try {
     let db = openDb(home);
     db.prepare("INSERT INTO projects(id,name,created_at) VALUES ('p','Project','now'), ('q','Other','now')").run();
@@ -17,6 +16,8 @@ test("flow writes and deduplicates atomically across database reopen", () => {
       enabled: true,
       predicates: [{ path: ["type"], equals: "work" }],
       tableKey: "inbox",
+      name: "Inbox",
+      action: { kind: "none" as const },
     };
     saveFlow(db, flow);
     assert.throws(() => saveFlow(db, { ...flow, projectId: "q" }), /another project/);
@@ -33,6 +34,6 @@ test("flow writes and deduplicates atomically across database reopen", () => {
     assert.throws(() => receiveFlowEvent(db, "f", "two", {}), /disabled/);
     db.close();
   } finally {
-    rmSync(home, { recursive: true, force: true });
+    await temp.remove();
   }
 });

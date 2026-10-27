@@ -45,6 +45,7 @@ import { embeddingHandlers } from "./rpc/embeddings.ts";
 import { environmentHandlers } from "./rpc/environments.ts";
 import { extensionHandlers } from "./rpc/extensions.ts";
 import { fileHandlers } from "./rpc/files.ts";
+import { flowHandlers } from "./rpc/flows.ts";
 import { gitHandlers } from "./rpc/git.ts";
 import { integrationHandlers } from "./rpc/integrations.ts";
 import type { InternalCall } from "./rpc/internal.ts";
@@ -205,6 +206,7 @@ type HandlerDeps = {
   channels: Parameters<typeof channelHandlers>[1];
   services: Parameters<typeof mediaHandlers>[0];
   scheduler: Parameters<typeof routineHandlers>[1];
+  flows: Parameters<typeof flowHandlers>[1];
   nudges: Parameters<typeof noticeHandlers>[1];
   extensions: Parameters<typeof extensionHandlers>[0];
   mcp: Parameters<typeof extensionHandlers>[1] & Parameters<typeof mcpHandlers>[0];
@@ -281,6 +283,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...embeddingHandlers(d.localEmbeds, () => d.memory.engine()),
     ...taskHandlers(d.store, d.engine, d.app.home, d.vm?.beforeDelete),
     ...routineHandlers(d.store, d.scheduler, d.profileRoots),
+    ...flowHandlers(d.store, d.flows),
     ...noticeHandlers(d.store, d.nudges),
     ...notificationHandlers(d.store),
     ...clientHandlers(d.store),

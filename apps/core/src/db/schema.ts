@@ -96,6 +96,35 @@ export interface ExtensionsTable {
   updated_at: string;
 }
 
+export interface FlowEventsTable {
+  flow_id: string;
+  event_id: string;
+  state: string;
+  created_at: string;
+  payload: string | null;
+  action: string | null;
+  run_id: string | null;
+  thread_id: string | null;
+  error: string | null;
+}
+
+export interface FlowRowsTable {
+  flow_id: string;
+  key: string;
+  value: string;
+}
+
+export interface FlowsTable {
+  id: string;
+  project_id: string;
+  enabled: number;
+  predicates: string;
+  table_key: string;
+  name: Generated<string>;
+  action: Generated<string>;
+  read_keys: Generated<string>;
+}
+
 export interface HarnessSessionsTable {
   thread_id: string;
   harness: string;
@@ -589,6 +618,9 @@ export interface Database {
   channel_inbox: ChannelInboxTable;
   devices: DevicesTable;
   extensions: ExtensionsTable;
+  flow_events: FlowEventsTable;
+  flow_rows: FlowRowsTable;
+  flows: FlowsTable;
   harness_sessions: HarnessSessionsTable;
   idempotency: IdempotencyTable;
   jobs: JobsTable;

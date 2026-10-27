@@ -114,7 +114,12 @@ export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots
         applyProfile(store, { manifest: undefined, values: {}, lang: lang(), nextFor: (s) => scheduler.nextFor(s) });
       return { removed };
     },
-    "routines.run": ({ routine }) => scheduler.runNow(routine),
+    "routines.run": ({ routine }, ctx) =>
+      store.tx(() => {
+        const run = scheduler.runNow(routine);
+        if (ctx.flowEvent) store.flows.admitted(ctx.flowEvent.flow, ctx.flowEvent.event, run.run_id);
+        return run;
+      }),
     "routines.runs": ({ routine, limit }) => {
       if (!store.routines.get(routine)) throw notFound(`routine ${routine}`);
       return { runs: store.routines.runs(routine, limit) };

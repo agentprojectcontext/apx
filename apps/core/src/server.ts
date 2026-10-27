@@ -65,6 +65,7 @@ import { type ComputerConfig, createComputer } from "./environments/computer.ts"
 import { managedVmConfig } from "./environments/managed.ts";
 import { computerWatchdog } from "./environments/watchdog.ts";
 import { errorMessage } from "./errors.ts";
+import { createFlows } from "./flows.ts";
 import { thisRunner, writeApxCommand } from "./harness/apx-command.ts";
 import type { CliStatus } from "./harness/detect.ts";
 import { which } from "./harness/detect.ts";
@@ -409,7 +410,11 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     ...(opts.tailscale ? { tailscale: opts.tailscale } : {}),
     ...(opts.ngrok ? { ngrok: opts.ngrok } : {}),
   });
-  const publicCredentials = createPublicCredentials({ store, secrets, endpoints: () => [] });
+  const flows = createFlows({ store, dispatch: () => routed, log });
+  const stopFlowEvents = bus.on((event) => {
+    if (event.type === "run.updated" && event.run.ended_at) flows.kick();
+  });
+  const publicCredentials = createPublicCredentials({ store, secrets, endpoints: flows.publicEndpoints });
   const channels = createChannels({
     store,
     home: config.home,
@@ -595,6 +600,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       terminals,
       webhooks,
       publicCredentials,
+      flows,
       integrationFetch: opts.integrationFetch,
       access: createAccess({
         home: config.home,
@@ -673,9 +679,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   engine.start();
   const nativeRoutes = nativePublicRoutes({ store, deliver: channels.webhook });
   const publishedRoutes = publishedPublicRoutes(store);
+  const flowRoutes = publicCredentials.protect(flows.routes);
   const hookListener = await listenHooks({
     port: config.hooksPort,
-    routes: (pathname) => nativeRoutes(pathname) ?? publishedRoutes(pathname),
+    routes: (pathname) => nativeRoutes(pathname) ?? publishedRoutes(pathname) ?? flowRoutes(pathname),
     log,
   });
   hooksPort = hookListener.port;
@@ -688,6 +695,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       .atBoot(previousRelease)
       .catch((err) => log.warn({ err: errorMessage(err, 200) }, "release news not told; the next start tries again"));
   scheduler.start();
+  flows.kick();
   updates.start();
   telemetry.start();
   const idleTrim = createIdleTrim();
@@ -731,6 +739,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       localModels.cancel();
       headless?.close();
       scheduler.stop();
+      stopFlowEvents();
+      await flows.close();
       await news.stop();
       attention.stop();
       noticePush.stop();

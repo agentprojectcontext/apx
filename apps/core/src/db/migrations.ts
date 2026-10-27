@@ -921,4 +921,15 @@ export const MIGRATIONS: readonly string[] = [
     value TEXT NOT NULL, PRIMARY KEY(flow_id, key)
   );
   `,
+  `
+  ALTER TABLE flows ADD COLUMN name TEXT NOT NULL DEFAULT 'Flow';
+  ALTER TABLE flows ADD COLUMN action TEXT NOT NULL DEFAULT '{"kind":"none"}';
+  ALTER TABLE flows ADD COLUMN read_keys TEXT NOT NULL DEFAULT '[]';
+  ALTER TABLE flow_events ADD COLUMN payload TEXT;
+  ALTER TABLE flow_events ADD COLUMN action TEXT;
+  ALTER TABLE flow_events ADD COLUMN run_id TEXT REFERENCES runs(id);
+  ALTER TABLE flow_events ADD COLUMN thread_id TEXT REFERENCES threads(id);
+  ALTER TABLE flow_events ADD COLUMN error TEXT;
+  CREATE INDEX flow_events_pending ON flow_events(state, created_at);
+  `,
 ];

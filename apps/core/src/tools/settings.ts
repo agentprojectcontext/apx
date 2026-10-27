@@ -7,6 +7,7 @@ import type { TemplateRoot } from "../apc/templates.ts";
 import type { Store } from "../domain/store.ts";
 import type { ProfileRoot } from "../engine/profiles.ts";
 import { EMAIL } from "./settings-email.ts";
+import { FLOWS } from "./settings-flows.ts";
 import type { Params, Setting, SettingsDeps } from "./settings-kit.ts";
 import { PEOPLE } from "./settings-people.ts";
 import { TEAM } from "./settings-team.ts";
@@ -14,7 +15,7 @@ import { WORK } from "./settings-work.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 /** What the super-agent may read and change, by method. */
-export const SETTINGS: Readonly<Record<string, Setting>> = { ...PEOPLE, ...TEAM, ...WORK, ...EMAIL };
+export const SETTINGS: Readonly<Record<string, Setting>> = { ...PEOPLE, ...TEAM, ...WORK, ...EMAIL, ...FLOWS };
 
 /** The area a method belongs to, as its card's title names it ("Changed a channel"). */
 const AREA: Readonly<Record<string, string>> = {
@@ -26,6 +27,7 @@ const AREA: Readonly<Record<string, string>> = {
   notices: "the notices",
   agents: "the agents",
   routines: "a routine",
+  flows: "a Flow",
   profiles: "an agent profile",
   tasks: "a task",
   threads: "a chat",

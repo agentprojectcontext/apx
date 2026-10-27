@@ -34,6 +34,7 @@ const SETTING_AREA: Record<string, string> = {
   notices: "los avisos",
   agents: "los agentes",
   routines: "una rutina",
+  flows: "un Flow",
   profiles: "un perfil de agente",
   tasks: "una tarea",
   threads: "un chat",

@@ -69,6 +69,7 @@ function createThread(
       ...(folder ? { cwd: folder, write: write ?? "ask" } : {}),
       ...(engine ? { engine } : {}),
     });
+    if (ctx.flowEvent) store.flows.setThread(ctx.flowEvent.flow, ctx.flowEvent.event, t.id);
     // The engine is the session: it always runs it, never the router.
     if (engine) store.threads.mergeContext(t.id, { model_choice: { model: engine, router: false } });
     return engine ? (store.threads.get(t.id) ?? t) : t;
@@ -315,16 +316,28 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       // A model-driven client (another tool's agent) is not the owner: its text arrives as untrusted data, and it
       // never steers a running turn.
       if (ctx.actor === "agent")
-        return post(thread, text, { kind: "system" }, false, {
-          agent_id: agent.id,
-          trigger: "channel",
-          origin: {
-            kind: "agent",
-            id: ctx.client ? `client:${ctx.client.id}` : "external",
-            name: ctx.client ? `${ctx.client.name} (an outside app)` : "an external agent client",
-            thread_id: thread,
-            run_id: "",
-          },
+        return store.tx(() => {
+          const sent = post(thread, text, { kind: "system" }, false, {
+            agent_id: agent.id,
+            trigger: "channel",
+            origin: {
+              kind: "agent",
+              id: ctx.flowEvent
+                ? `client:flow:${ctx.flowEvent.flow}`
+                : ctx.client
+                  ? `client:${ctx.client.id}`
+                  : "external",
+              name: ctx.flowEvent
+                ? "an external Flow event"
+                : ctx.client
+                  ? `${ctx.client.name} (an outside app)`
+                  : "an external agent client",
+              thread_id: thread,
+              run_id: "",
+            },
+          });
+          if (ctx.flowEvent) store.flows.admitted(ctx.flowEvent.flow, ctx.flowEvent.event, sent.run.id);
+          return sent;
         });
       // The owner writing in the app: answers stay in the app (not on the channel the last message came from), except in
       // a contact's chat or a room's, where the owner is telling the agent what to answer or post there.
