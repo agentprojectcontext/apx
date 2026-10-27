@@ -67,6 +67,10 @@ export function nudgesRepo({ one, all, run }: Sql) {
       if (by.kind) q = q.where("kind", "=", by.kind);
       return one(q.orderBy("at", "desc").limit(1))?.at;
     },
+    /** When the newest message APX sent the owner unasked went out, counted or not. */
+    latestSent(): string | undefined {
+      return one(qb.selectFrom("nudges").select("at").where("state", "=", "sent").orderBy("at", "desc").limit(1))?.at;
+    },
     /** What went out to the owner after `at`, oldest first. */
     sentSince(at: string, limit: number): Nudge[] {
       return all(
