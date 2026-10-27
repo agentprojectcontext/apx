@@ -175,6 +175,30 @@ test("the owner's own address takes only https, and the choice is kept for the n
   await env.client.call("webhooks.set", { mode: "off" });
 });
 
+test("an unsafe saved custom address is not restored or exposed in runtime state", async () => {
+  env.core.store.settings.write("webhooks", {
+    mode: "custom",
+    url: "https://user:private-marker@example.com/?token=private-marker",
+  });
+  const tunnel = createPublicTunnel({
+    store: env.core.store,
+    port: () => 1234,
+    tailscale,
+    ngrok,
+    log: { info() {}, warn() {}, error() {} },
+  });
+  try {
+    await tunnel.start();
+    assert.equal(tunnel.base(), undefined);
+    const state = await tunnel.state();
+    assert.equal(state.error, "failed");
+    assert.equal(JSON.stringify(state).includes("private-marker"), false);
+    await tunnel.set({ mode: "off" });
+  } finally {
+    tunnel.close();
+  }
+});
+
 test("provider changes are serialized and a failed Funnel shutdown cannot report Off", async () => {
   let release: (() => void) | undefined;
   const gate = new Promise<void>((resolve) => {

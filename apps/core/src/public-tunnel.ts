@@ -81,6 +81,58 @@ export function ngrokLine(line: string): { url?: string; error?: string } {
   return {};
 }
 
+type TunnelChoice = { mode: HookMode; url?: string | undefined; domain?: string | undefined };
+const tailscaleDns = async (run: TailscaleRun | undefined) => {
+  const st = await run?.(["status", "--json"]);
+  return st?.ok ? tailscaleDnsName(st.out) : undefined;
+};
+
+function createProbe(tailscale: () => TailscaleRun | undefined, ngrok: () => NgrokStart | undefined) {
+  type Probe = { tailscale: { installed: boolean; connected: boolean }; ngrok: { installed: boolean } };
+  let probed: { at: number; found: Promise<Probe> } | undefined;
+  return {
+    clear: () => {
+      probed = undefined;
+    },
+    read(): Promise<Probe> {
+      if (probed && Date.now() - probed.at < PROBE_TTL_MS) return probed.found;
+      const run = tailscale();
+      const found = tailscaleDns(run).then((dns) => ({
+        tailscale: { installed: Boolean(run), connected: Boolean(dns) },
+        ngrok: { installed: Boolean(ngrok()) },
+      }));
+      probed = { at: Date.now(), found };
+      return found;
+    },
+  };
+}
+
+async function saveChoice(store: Store, tailscale: () => TailscaleRun | undefined, choice: TunnelChoice) {
+  if (choice.mode === "custom" && !publicOrigin(choice.url ?? ""))
+    throw new CallError({
+      code: "bad_request",
+      message: "a public address needs an https:// origin without credentials, path or query",
+    });
+  if (choice.mode === "ngrok" && choice.domain && !/^[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$/.test(choice.domain))
+    throw new CallError({ code: "bad_request", message: "a reserved domain must be a hostname" });
+  const { mode: before, ngrok_last } = store.settings.read("webhooks");
+  // Only undo APX's public Funnel port; private Serve and other tunnels are not APX's.
+  if (before === "tailscale" && choice.mode !== "tailscale") {
+    const stopped = await tailscale()?.(["funnel", `--https=${FUNNEL_PORT}`, "off"]);
+    if (!stopped?.ok)
+      throw new CallError({
+        code: "unavailable",
+        message: "could not disable the public Funnel; check Tailscale before changing providers",
+      });
+  }
+  store.settings.write("webhooks", {
+    mode: choice.mode,
+    ...(choice.mode === "custom" && choice.url ? { url: choice.url } : {}),
+    ...(choice.mode === "ngrok" && choice.domain ? { domain: choice.domain } : {}),
+    ...(ngrok_last ? { ngrok_last } : {}),
+  });
+}
+
 export function createPublicTunnel(deps: {
   store: Store;
   /** The webhook listener's port, once it listens. */
@@ -109,7 +161,7 @@ export function createPublicTunnel(deps: {
   let fresh = false;
   let retry: NodeJS.Timeout | undefined;
   let attempts = 0;
-  let probed: { at: number; found: Promise<Probe> } | undefined;
+  const probe = createProbe(tailscaleRun, ngrokStart);
 
   let changing: Promise<void> = Promise.resolve();
   const change = <T>(fn: () => Promise<T>): Promise<T> => {
@@ -124,22 +176,6 @@ export function createPublicTunnel(deps: {
   const fail = (code: HookError, detail?: string) => {
     error = { code, ...(detail ? { detail: detail.slice(0, 300) } : {}) };
   };
-  const tailscaleDns = async (run: TailscaleRun | undefined) => {
-    const st = await run?.(["status", "--json"]);
-    return st?.ok ? tailscaleDnsName(st.out) : undefined;
-  };
-  type Probe = { tailscale: { installed: boolean; connected: boolean }; ngrok: { installed: boolean } };
-  /** What this computer has, asked at most every PROBE_TTL_MS: the CLI and PATH scans stay off the panel's polling. */
-  function probe(): Promise<Probe> {
-    if (probed && Date.now() - probed.at < PROBE_TTL_MS) return probed.found;
-    const run = tailscaleRun();
-    const found = tailscaleDns(run).then((dns) => ({
-      tailscale: { installed: Boolean(run), connected: Boolean(dns) },
-      ngrok: { installed: Boolean(ngrokStart()) },
-    }));
-    probed = { at: Date.now(), found };
-    return found;
-  }
 
   function stopNgrok() {
     clearTimeout(retry);
@@ -214,8 +250,11 @@ export function createPublicTunnel(deps: {
     error = undefined;
     fresh = false;
     attempts = 0;
-    probed = undefined;
-    if (mode === "custom") url = own?.replace(/\/+$/, "");
+    probe.clear();
+    if (mode === "custom") {
+      url = own ? publicOrigin(own) : undefined;
+      if (!url) fail("failed");
+    }
     if (mode === "ngrok") await startNgrok(domain);
     if (mode === "tailscale") {
       const run = tailscaleRun();
@@ -239,7 +278,7 @@ export function createPublicTunnel(deps: {
       port: deps.port(),
       ...(domain ? { domain } : {}),
       ...(error ? { error: error.code, ...(error.detail ? { error_detail: error.detail } : {}) } : {}),
-      ...(await probe()),
+      ...(await probe.read()),
     };
   }
 
@@ -254,31 +293,9 @@ export function createPublicTunnel(deps: {
           fail("failed");
         }),
       ),
-    set(o: { mode: HookMode; url?: string | undefined; domain?: string | undefined }): Promise<WebhooksState> {
+    set(choice: TunnelChoice): Promise<WebhooksState> {
       return change(async () => {
-        if (o.mode === "custom" && !publicOrigin(o.url ?? ""))
-          throw new CallError({
-            code: "bad_request",
-            message: "a public address needs an https:// origin without credentials, path or query",
-          });
-        if (o.mode === "ngrok" && o.domain && !/^[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$/.test(o.domain))
-          throw new CallError({ code: "bad_request", message: "a reserved domain must be a hostname" });
-        const { mode: before, ngrok_last } = saved();
-        // Only undo what APX set up: other Funnel or serve configs on this machine are not APX's.
-        if (before === "tailscale" && o.mode !== "tailscale") {
-          const stopped = await tailscaleRun()?.(["funnel", `--https=${FUNNEL_PORT}`, "off"]);
-          if (!stopped?.ok)
-            throw new CallError({
-              code: "unavailable",
-              message: "could not disable the public Funnel; check Tailscale before changing providers",
-            });
-        }
-        deps.store.settings.write("webhooks", {
-          mode: o.mode,
-          ...(o.mode === "custom" && o.url ? { url: o.url } : {}),
-          ...(o.mode === "ngrok" && o.domain ? { domain: o.domain } : {}),
-          ...(ngrok_last ? { ngrok_last } : {}),
-        });
+        await saveChoice(deps.store, tailscaleRun, choice);
         await apply();
         return state();
       });
