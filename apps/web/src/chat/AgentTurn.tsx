@@ -8,7 +8,15 @@ import { blobOf } from "../data/identity.ts";
 import { baseRef, effortLabel, splitRef } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { ChoicesPart, ConnectPart, InputPart, MediaGroup, ReceivedDialog, SurfacePart } from "../lazy.ts";
+import {
+  ChoicesPart,
+  ConnectPart,
+  InputPart,
+  MediaGroup,
+  ReceivedDialog,
+  SubthreadPart,
+  SurfacePart,
+} from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { copyableQuote } from "./CopyableQuote.tsx";
 import { runnableCode } from "./codeRunner.tsx";
@@ -23,7 +31,6 @@ import { AudioPart } from "./parts/lazyAudio.tsx";
 import { type MediaBlock, mediaBlocks } from "./parts/mediaGroups.ts";
 import { NoticePart } from "./parts/NoticePart.tsx";
 import { SkillsPart } from "./parts/SkillsPart.tsx";
-import { SubthreadPart } from "./parts/SubthreadPart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
 import { taskCodeSpan } from "./TaskChip.tsx";
 
@@ -183,7 +190,11 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
         </Suspense>
       );
     case "subthread":
-      return <SubthreadPart part={p} from={agent} />;
+      return (
+        <Suspense fallback={<span>{p.summary ?? p.title}</span>}>
+          <SubthreadPart part={p} from={agent} />
+        </Suspense>
+      );
     case "browser":
       return <BrowserPart part={p} agent={agent} threadId={message.thread_id} />;
     case "image":

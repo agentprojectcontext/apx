@@ -2,6 +2,9 @@
 import type { MessageKey } from "./en.ts";
 
 export const esChat: Partial<Record<MessageKey, string>> = {
+  "chat.agentProgress": "Avance de {name}",
+  "chat.agentResponse": "Respuesta de {name}",
+  "chat.agentMessage": "Mensaje de {name}",
   "input.approveOnce": "Aceptar una vez",
   "input.approveSession": "Aceptar durante esta sesión",
   "input.approveAlways": "Aceptar siempre para este agente",
