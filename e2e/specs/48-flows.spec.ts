@@ -54,7 +54,11 @@ test("project Flows can be created, validated, edited and disabled with durable 
   await expect(table.getByText('"message": "<script>outside data</script>"', { exact: false })).toBeVisible();
   const saved = await rpc<{ rows: Array<{ key: string; value: unknown }> }>("flows.rows", { flow: "ui_intake" });
   expect(saved.rows).toContainEqual({ key: "manual", value: { message: "<script>outside data</script>" } });
-  await pane.getByRole("button", { name: "Editar Flow", exact: true }).click();
+  await pane
+    .locator(".flow-item")
+    .filter({ has: page.getByRole("button", { name: "Acme intake", exact: true }) })
+    .getByRole("button", { name: "Editar Flow", exact: true })
+    .click();
   await expect(editor.getByRole("textbox", { name: "ID del Flow" })).toHaveAttribute("readonly", "");
   await expect(editor.getByRole("textbox", { name: "Claves de lectura (JSON)" })).toHaveValue(
     '["settings","key,with,commas"]',
