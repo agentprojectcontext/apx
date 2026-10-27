@@ -52,6 +52,7 @@ function Main() {
   const mode = useNav((s) => s.mode);
   const look = usePrefs((s) => s.look);
   const font = usePrefs((s) => s.font);
+  const textSize = usePrefs((s) => s.textSize);
   const lang = useLanguage();
   const gate = useGate();
   useEffect(() => {
@@ -62,7 +63,12 @@ function Main() {
     window.apxDesktop?.setLanguage?.(lang);
   }, [lang]);
   return (
-    <ApxProvider look={look} mode={mode} fill style={font === "mono" ? MONO : undefined}>
+    <ApxProvider
+      look={look}
+      mode={mode}
+      fill
+      style={{ ...(font === "mono" ? MONO : {}), "--apx-text-scale": textSize / 100 } as CSSProperties}
+    >
       {/* Google's return page finishes without pairing: the browser it lands in may be any. */}
       {OAUTH_RETURN && (
         <Suspense fallback={null}>

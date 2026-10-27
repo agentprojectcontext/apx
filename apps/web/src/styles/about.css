@@ -14,13 +14,13 @@
   align-items: center;
   margin: 0;
   color: var(--apx-fg);
-  font-size: 18px;
+  font-size: calc(18px * var(--apx-text-scale, 1));
   font-weight: 600;
 }
 .about__legal {
   margin: 0;
   color: var(--apx-fg-subtle);
-  font-size: 11px;
+  font-size: calc(11px * var(--apx-text-scale, 1));
 }
 .about__cols {
   display: grid;
@@ -34,7 +34,7 @@
   max-width: 100%;
   overflow: hidden;
   font-family: var(--apx-font-mono);
-  font-size: 11px;
+  font-size: calc(11px * var(--apx-text-scale, 1));
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -80,14 +80,14 @@
 .about__credits {
   margin: 0;
   color: var(--apx-fg-subtle);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   line-height: 1.5;
 }
 .about__list {
   display: grid;
   gap: 2px;
   margin: 4px 0;
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
 }
 .about__list div {
   display: flex;
@@ -110,7 +110,7 @@
 .about__repo {
   color: var(--apx-brand);
   font-family: var(--apx-font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   text-decoration: none;
 }
 .about__repo:hover {
@@ -126,7 +126,7 @@
   border: 1px solid var(--apx-border);
   border-radius: 999px;
   color: var(--apx-fg-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
   background: var(--apx-fill);
 }
 .about__status b {
@@ -137,7 +137,7 @@
 .about__what {
   overflow: hidden;
   font-family: var(--apx-font-mono);
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
   white-space: nowrap;
   text-overflow: ellipsis;
 }

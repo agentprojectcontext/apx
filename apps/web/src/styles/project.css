@@ -222,7 +222,7 @@
   background: var(--apx-fill-hover);
 }
 .overview__statv {
-  font-size: 22px;
+  font-size: calc(22px * var(--apx-text-scale, 1));
   font-weight: var(--apx-weight-semibold);
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
@@ -301,7 +301,7 @@
   margin-right: auto;
 }
 .team__title {
-  font-size: 15px;
+  font-size: calc(15px * var(--apx-text-scale, 1));
   font-weight: var(--apx-weight-semibold);
 }
 .team__count {
@@ -342,7 +342,7 @@
   border-radius: var(--apx-radius-pill);
   background: var(--apx-brand-soft);
   color: var(--apx-brand-soft-fg);
-  font-size: 10px;
+  font-size: calc(10px * var(--apx-text-scale, 1));
   font-weight: var(--apx-weight-regular);
 }
 .chip {

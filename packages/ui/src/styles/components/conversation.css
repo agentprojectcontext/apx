@@ -165,7 +165,7 @@
   box-shadow:
     var(--apx-shadow-sm),
     0 0 0 1px var(--apx-border);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   line-height: 18px;
 }
 .apx-msg:has(.apx-msg__reactions) {

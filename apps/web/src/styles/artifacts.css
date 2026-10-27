@@ -130,12 +130,12 @@ body:has(.projboard__grid.is-dragging) .livelayer__box[data-shown] {
 }
 .appsdock__name small {
   color: var(--apx-fg-subtle);
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--apx-text-scale, 1));
 }
 .appsdock__empty {
   padding: 12px 8px;
   color: var(--apx-fg-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
 }
 .appsdock__icon {
   position: relative;
@@ -218,7 +218,7 @@ body:has(.projboard__grid.is-dragging) .livelayer__box[data-shown] {
   margin: 6px 0 0;
   padding-left: 18px;
   color: var(--apx-fg-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
 }
 .install__error {
   color: var(--apx-danger);
@@ -226,7 +226,7 @@ body:has(.projboard__grid.is-dragging) .livelayer__box[data-shown] {
 }
 .install__note {
   color: var(--apx-fg-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
   margin: 0;
 }
 
@@ -255,7 +255,7 @@ body:has(.projboard__grid.is-dragging) .livelayer__box[data-shown] {
 }
 .artprops__head {
   margin: 18px 0 8px;
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
   font-weight: 600;
 }
 /* Creating one comes first in the launcher, apart from the list to open. */

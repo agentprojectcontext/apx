@@ -1062,6 +1062,9 @@ export const en = {
   "logs.noMatch": "No line matches",
   "logs.showing": "Showing the newest {n} lines",
   "logs.older": "Show older lines",
+  "appearance.textSize": "Text size",
+  "appearance.textSizeHint":
+    "Interface and chat text on this device. 100% is normal. Images, embedded apps, terminals and browser zoom stay unchanged.",
   "appearance.font": "Interface font",
   "appearance.fontHint": "Menus, sidebars and panels.",
   "appearance.fontLabel": "Font",

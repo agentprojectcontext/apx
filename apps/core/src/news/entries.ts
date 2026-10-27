@@ -66,6 +66,20 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "device-text-size",
+    since: "2.11.2",
+    title: "Choose a comfortable text size",
+    applies: (f) => f.secretary,
+    text: "Settings › Appearance now offers 85%, 100% (normal), 115% and 130% text sizes, with an immediate preview and a preference saved on this device. It changes interface and chat text without zooming images, embedded apps or the browser window. Embedded terminals keep their own text sizing.",
+    actions: [
+      {
+        label: { en: "Find text size settings", es: "Ver dónde cambiar el tamaño del texto" },
+        prompt:
+          "Show me where to choose the text size in Settings › Appearance on this device. Do not change browser zoom or other preferences.",
+      },
+    ],
+  },
+  {
     id: "agents-finish-unattended",
     since: "2.11.2",
     title: "Agents finish what you ask",
