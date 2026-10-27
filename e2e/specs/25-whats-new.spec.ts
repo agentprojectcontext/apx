@@ -28,7 +28,10 @@ test("See what's new opens the chat that tells the update, and goes once it is r
   });
   await open(page);
   const pill = page.getByRole("button", { name: "Ver cambios" });
-  await expect(pill).toHaveAttribute("title", "Novedades de APX 9.9.9");
+  await pill.hover();
+  const hint = page.locator(".apx-tooltip", { hasText: "Novedades de APX 9.9.9" });
+  await expect(hint).toBeVisible();
+  await expect(hint).toBeInViewport();
   await pill.click();
   await expect(page.locator(".topbar__crumb.is-last")).toHaveText("Novedades de APX 9.9.9");
   await expect(pill).toBeHidden();

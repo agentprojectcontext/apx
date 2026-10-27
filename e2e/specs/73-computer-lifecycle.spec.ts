@@ -165,7 +165,13 @@ test("Computer installs only on enable, shows the chat agent's screen, follows A
     await expect(blocked.getByRole("button", { name: "Control devuelto", exact: true })).toBeDisabled();
     await expect(computer.locator(".computer__locked")).toBeVisible();
     await expect(computer.getByRole("button", { name: "Enviar", exact: true })).toBeDisabled();
-    await page.getByRole("button", { name: "Modo oscuro", exact: true }).click();
+    await page.getByRole("button", { name: /^Cuenta/ }).click();
+    await page.getByRole("menuitem", { name: "Apariencia", exact: true }).click();
+    const settings = page.getByRole("dialog", { name: "Configuración", exact: true });
+    await settings.getByRole("switch", { name: "Oscuro", exact: true }).click();
+    await expect(settings.getByRole("switch", { name: "Oscuro", exact: true })).toBeChecked();
+    await page.keyboard.press("Escape");
+    await expect(settings).toBeHidden();
     await expect.poll(() => calls.includes("appearance 1:dark")).toBe(true);
     finish();
     await computer.getByRole("button", { name: "Apagar para todos", exact: true }).click();
@@ -184,9 +190,16 @@ test("Computer installs only on enable, shows the chat agent's screen, follows A
     await expect(computer).toHaveCount(0);
     expect(running).toBe(true);
   } finally {
-    await page.goto("about:blank");
-    await env.core.close();
-    env.cleanup();
+    finish();
+    try {
+      await page.close();
+    } finally {
+      try {
+        await env.core.close();
+      } finally {
+        env.cleanup();
+      }
+    }
   }
 });
 
