@@ -1,0 +1,49 @@
+---
+title: Apps y artefactos
+description: Elegí un widget, una app con registros o una vista viva y encontrala desde el tablero o Apps.
+sidebar:
+  order: 1
+---
+
+## Qué podés pedir
+
+Un **artefacto** es una página interactiva pequeña que un agente crea y APX guarda, no un programa nuevo instalado
+en tu computadora. Un **widget** es una vista o herramienta en el chat; una **app** es un artefacto para trabajar a
+pantalla completa, a menudo con registros guardados. «Vivo» describe cómo se actualiza o sigue ejecutándose, no un
+tercer tipo de artefacto ni un agente programado.
+
+| Necesidad | Qué pedir | Dónde encontrarlo |
+|---|---|---|
+| Leer un resultado o ajustar un cálculo | «Mostrá un widget que compare estos costos con un control de cantidad». | En el chat; fijalo al tablero del proyecto. |
+| Agregar y conservar registros propios | «Hacé una app de gastos con categorías y registros guardados». | **Apps**, a pantalla completa. |
+| Ver información cambiante | «Hacé una vista viva de estado desde esta API; mostrá la última actualización». | Widget o app con fuente y política de actualización explícitas. |
+| Conservar un informe escrito | «Escribí un informe Markdown que pueda descargar». | Un documento en el chat, no un artefacto. |
+
+## Creá y usá el primero
+
+1. En un chat del proyecto, describí el resultado, la fuente y si querés editar registros. Decí «widget» o «app» si
+   ya lo sabés. Para probar, usá datos que aportes en vez de credenciales de una API.
+2. Probá sus controles en el chat. Abrí una app desde **Apps** o fijá un widget al **Tablero** del proyecto.
+3. Pedile al mismo agente que cambie ese artefacto: «Conservá mis registros y agregá un filtro por mes». Actualizar
+   el mismo conserva su memoria, pero rediseñar una base de forma incompatible requiere una migración deliberada.
+4. Reabrilo y comprobá que se guardaron las opciones o registros esperados. Cambiar una variable local no guarda
+   datos automáticamente: decile al agente qué debe sobrevivir al cierre.
+
+Cada artefacto pertenece a un proyecto o al espacio global. Para usarlo en otro lugar, copialo desde el tablero,
+abrilo como app o compartilo desde su menú. Copiar no copia su memoria. Un agente no puede leer silenciosamente
+los artefactos de otro proyecto.
+
+## Elegí la siguiente guía
+
+- [Widgets, memoria y exportación](/es/office/artifacts/): estado, caché, base de datos, secretos y archivos `.apxart`.
+- [Apps vivas](/es/apps/live-apps/): actualización, límites de ejecución, visibilidad y datos desactualizados.
+- [Tablero y compartir](/es/office/board/): fijar, Apps, enlaces publicados y retiro del acceso.
+
+## Límites antes de compartir
+
+El artefacto se ejecuta aislado, sin acceso irrestricto a tu computadora ni a la configuración de APX. La red se
+limita a los orígenes declarados. No pegues credenciales en la página: usá los secretos de artefactos de APX si la
+fuente necesita autenticación. Una página compartida no es tu chat y no aprueba acciones como vos.
+
+Exportá **sin memoria** para compartir una plantilla. Un archivo **con memoria** puede incluir registros y borradores
+privados. Crear una app no promete un marketplace público ni alojamiento permanente en segundo plano.

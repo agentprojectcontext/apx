@@ -51,8 +51,8 @@ How an artifact behaves when you leave and come back:
 - **Cached**: it keeps its last reading in its store, so when you open it again you see that reading at once (marked
   as stale) while it fetches a fresh one.
 - **Live**: a page that must keep running while hidden (a ticker, a timer) can ask APX to keep it alive. APX keeps at
-  most three such pages running at once, pauses them when the app window is hidden, and stops the least recent when a
-  fourth opens.
+  most three such pages running at once. Pages should pause unnecessary work when hidden; a hidden page can expire
+  or be evicted when another needs a slot. See [Live apps](/apps/live-apps/) for the separate six-app pool and limits.
 
 **Apps stay open; widgets close.** An app you open keeps running while you go elsewhere in APX, like an app on your
 desktop: come back and it is exactly as you left it, until you close it (Close app) or quit APX. Up to six run at
