@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { createBus } from "../bus.ts";
 import { openDb } from "../db/db.ts";
+import { memorySettings, saveMemorySettings } from "../domain/memory-settings.ts";
 import { seed } from "../domain/seed.ts";
 import { createStore, type Store } from "../domain/store.ts";
 import { tempDir, waitFor } from "../testkit/platform.ts";
@@ -114,14 +115,15 @@ test("a new day after a few hours greets; the same day does not", () =>
     assert.match(lastTalk(store, home, new Date("2026-10-26T23:50:00Z"), "UTC") ?? "", GO_ON);
   }));
 
-test("a routine's chat reads Home, with the owner's last words; another agent's chat gets nothing", () =>
+test("a routine's chat gets Home recency without words; another agent's chat gets nothing", () =>
   withStore((store) => {
     ownerSaid(store, "Avisame cuando llegue lo de Northwind", 30 * 60_000);
     const routine = store.threads.create({ kind: "routine", agent_ids: ["roby"], title: "Watch" });
     // Its prompt is stored as the owner's words, but it is not the owner talking.
     store.messages.add({ thread_id: routine.id, author: { kind: "user" }, parts: [{ type: "text", text: "check" }] });
     const text = lastTalk(store, routine, at) ?? "";
-    assert.match(text, /The owner last wrote 30 min ago: "Avisame cuando llegue lo de Northwind"\./);
+    assert.match(text, /The owner last wrote 30 min ago\./);
+    assert.doesNotMatch(text, /Avisame cuando llegue lo de Northwind/);
     assert.equal(lastTalk(store, { id: "x", kind: "a2a" }, at), undefined);
   }));
 
@@ -160,10 +162,11 @@ after(async () => {
 });
 
 /** Runs a routine now and returns the input its model call got. */
-async function routineInput(prompt: string): Promise<string> {
+async function routineInput(prompt: string, agent = "roby", project?: string): Promise<string> {
   const r = await env.client.call("routines.set", {
     name: prompt,
-    agent: "roby",
+    agent,
+    ...(project ? { project } : {}),
     schedule: { kind: "manual" },
     prompt,
   });
@@ -175,6 +178,22 @@ async function routineInput(prompt: string): Promise<string> {
   return String(call.messages.at(-1)?.content ?? "");
 }
 
+test("a project agent's routine gets recency but no Home words with memory off", async () => {
+  const store = env.core.store;
+  const previous = memorySettings(store);
+  saveMemorySettings(store, { ...previous, mode: "off" });
+  try {
+    const { project } = await env.client.call("projects.create", { name: "Acme" });
+    const agent = await env.client.call("agents.create", { slug: "clerk", name: "Clerk", project_id: project.id });
+    ownerSaid(store, "Private Home detail outside the project", 9 * HOUR);
+    const input = await routineInput("check the Acme project status", agent.id, project.id);
+    assert.match(input, /\[last talk\]/);
+    assert.doesNotMatch(input, /Private Home detail outside the project/);
+  } finally {
+    saveMemorySettings(store, previous);
+  }
+});
+
 test("the scripted model sees the last talk and the greeting rule on a routine, never on the owner's turn", async () => {
   const store = env.core.store;
   store.messages.add({
@@ -184,7 +203,8 @@ test("the scripted model sees the last talk and the greeting rule on a routine, 
     at: new Date(Date.now() - 9 * HOUR).toISOString(),
   });
   const quiet = await routineInput("check the Northwind inbox");
-  assert.match(quiet, /\[last talk\] The owner last wrote 9 h ago: "buenas"\./);
+  assert.match(quiet, /\[last talk\] The owner last wrote 9 h ago\./);
+  assert.doesNotMatch(quiet, /buenas/);
   assert.match(quiet, GREET);
 
   await env.client.call("threads.send", { thread: "home", text: "¿Llegó algo de Northwind?" });
@@ -193,7 +213,11 @@ test("the scripted model sees the last talk and the greeting rule on a routine, 
   assert.doesNotMatch(ownerTurn, /\[last talk\]/, "the owner's own message needs no such line");
 
   const soon = await routineInput("look at the Northwind inbox");
-  assert.match(soon, /The owner last wrote \d+ min ago: "¿Llegó algo de Northwind\?"\./);
+  assert.match(soon, /The owner last wrote \d+ min ago\./);
+  assert.doesNotMatch(
+    soon.split("\n").find((line) => line.startsWith("[last talk]")) ?? "",
+    /¿Llegó algo de Northwind/,
+  );
   assert.match(soon, GO_ON);
   assert.doesNotMatch(soon, GREET);
 });

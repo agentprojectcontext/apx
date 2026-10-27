@@ -5,12 +5,10 @@ import type { Thread } from "@apx/protocol";
 import type { Origin } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
-import { inlineName } from "../tools/result.ts";
 
 /** Silence this long, or a new day after a few hours, earns a greeting. */
 export const GREET_AFTER_MS = 6 * 3600_000;
 const NEW_DAY_AFTER_MS = 3 * 3600_000;
-const EXCERPT_CHARS = 160;
 
 /** A turn whose answer reaches the owner without their having just written: the ones that could open with a hello. */
 export function unasked(origin: Origin): boolean {
@@ -73,13 +71,10 @@ export function lastTalk(
     .at(-1);
   if (!last) return "You and the owner have not talked yet: open with a short greeting.";
   const gap = at.getTime() - Date.parse(last);
-  const words = owner?.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join(" ") ?? "";
-  // Words from another chat are not in this turn's history: a line of them says what the conversation is about.
-  const excerpt =
-    owner && owner.thread_id !== thread.id && words.trim() ? `: "${inlineName(words, EXCERPT_CHARS)}"` : "";
+  // Recency crosses chats, not their content; this is independent of memory-sharing settings.
   const facts = [
     owner
-      ? `The owner last wrote ${ago(at.getTime() - Date.parse(owner.created_at))}${excerpt}.`
+      ? `The owner last wrote ${ago(at.getTime() - Date.parse(owner.created_at))}.`
       : "The owner has not written yet.",
     toThem ? `The last message to them went ${ago(at.getTime() - Date.parse(toThem))}.` : "",
   ].filter(Boolean);
