@@ -278,6 +278,7 @@ export const enChannels = {
   "im.answer": "Answer chats",
   "im.answerHint":
     "The people who write to you on iMessage get answered by your agent, once you approve them. Your own messages are never answered.",
+  "hooks.failed": "The public address could not change: {error}",
   "tm.lead":
     "Talk with your agents from Microsoft Teams, in personal chats and the channels you list. Teams delivers to a public address, set below.",
   "tm.step1":

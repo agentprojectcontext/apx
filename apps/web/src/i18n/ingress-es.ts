@@ -19,7 +19,6 @@ export const esIngress: Record<keyof typeof enIngress, string> = {
   "hooks.copy": "Copiar",
   "hooks.copied": "Dirección copiada",
   "hooks.notUp": "Todavía no está activa",
-  "hooks.failed": "No se pudo cambiar la dirección pública: {error}",
   "hooks.err.funnel_failed":
     "Tailscale Funnel no arrancó: quizás haya que habilitarlo para esta computadora en la política del tailnet.",
   "hooks.err.ngrok_timeout": "ngrok no dio una dirección a tiempo.",
