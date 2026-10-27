@@ -25,15 +25,8 @@ import { loadThread } from "../data/actions.ts";
 import { baseName, blobOf } from "../data/identity.ts";
 import { useOwnerName } from "../data/owner.ts";
 import { useData } from "../data/state.ts";
-import {
-  acceptTasks,
-  closeTask,
-  settleTask,
-  type TaskDetail,
-  taskDetail,
-  updateTask,
-  useTasks,
-} from "../data/tasks.ts";
+import { type TaskDetail, taskDetail } from "../data/task-detail.ts";
+import { acceptTasks, closeTask, settleTask, updateTask, useTasks } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
 import { formatCompact } from "./compact.ts";
 import { historyLines } from "./history.ts";

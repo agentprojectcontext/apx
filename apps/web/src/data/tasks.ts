@@ -1,5 +1,5 @@
 // The office board: tasks (tasks.*), kept current by task.updated events.
-import type { Params, Result, Task, TaskColumn, TaskState } from "@apx/protocol";
+import type { Params, Task, TaskColumn, TaskState } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
@@ -129,29 +129,5 @@ export async function commentTask(task: string, text: string): Promise<boolean> 
   } catch (e) {
     fail(e);
     return false;
-  }
-}
-
-/** A task's history, the chats and consults it was worked in, its subtasks, and the tokens they took. */
-export type TaskDetail = Omit<Result<"tasks.get">, "task" | "comments" | "comments_truncated">;
-
-export async function taskDetail(task: string): Promise<TaskDetail> {
-  try {
-    const {
-      task: _t,
-      comments: _comments,
-      comments_truncated: _truncated,
-      ...detail
-    } = await client.call("tasks.get", { task });
-    // A core older than this panel sends neither: its task still opens, without them.
-    return {
-      ...detail,
-      attachments: detail.attachments ?? [],
-      consults: detail.consults ?? [],
-      subtasks: detail.subtasks ?? [],
-      usage: detail.usage ?? [],
-    };
-  } catch {
-    return { events: [], sessions: [], consults: [], subtasks: [], usage: [], attachments: [] };
   }
 }

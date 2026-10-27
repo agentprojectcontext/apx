@@ -10,6 +10,7 @@ Object.defineProperty(globalThis, "window", {
   value: { location: { origin: "http://panel.example.test" } },
 });
 const tasks = await import("./tasks.ts");
+const { taskDetail } = await import("./task-detail.ts");
 if (windowDescriptor) Object.defineProperty(globalThis, "window", windowDescriptor);
 else Reflect.deleteProperty(globalThis, "window");
 
@@ -152,8 +153,8 @@ test("one-time task lookup resolves events and detail reads normalize optional c
   tasks.ensureTask("old");
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls.length, 1);
-  assert.deepEqual(await tasks.taskDetail("old"), { attachments: [], consults: [], subtasks: [], usage: [] });
-  assert.deepEqual(await tasks.taskDetail("with-detail"), {
+  assert.deepEqual(await taskDetail("old"), { attachments: [], consults: [], subtasks: [], usage: [] });
+  assert.deepEqual(await taskDetail("with-detail"), {
     events: [{ id: "ev_1" }],
     sessions: [],
     attachments: [{ media_id: "med_example", kind: "file", name: "brief.txt", mime: "text/plain", bytes: 5 }],
@@ -166,7 +167,7 @@ test("one-time task lookup resolves events and detail reads normalize optional c
 test("failed task detail and missing lookups degrade without throwing", async (t) => {
   mockRpc(t, { "tasks.get": new Error("offline") });
   tasks.ensureTask("missing");
-  assert.deepEqual(await tasks.taskDetail("missing"), {
+  assert.deepEqual(await taskDetail("missing"), {
     events: [],
     sessions: [],
     attachments: [],
