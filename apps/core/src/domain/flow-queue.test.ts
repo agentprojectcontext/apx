@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { openDb } from "../db/db.ts";
 import { tempDir } from "../testkit/platform.ts";
-import { FlowCapacityError, flowsRepo } from "./flows.ts";
+import { FlowCapacityError } from "./flow-events.ts";
+import { flowsRepo } from "./flows.ts";
 
 const flow = {
   id: "f",

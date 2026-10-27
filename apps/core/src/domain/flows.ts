@@ -1,14 +1,12 @@
-import { FlowDefinition as Definition, FlowEvent } from "../../../../packages/protocol/src/flow-methods.ts";
+import { FlowDefinition as Definition } from "../../../../packages/protocol/src/flow-methods.ts";
 import type { Db } from "../db/db.ts";
 import { matchesFlowPredicates } from "./flow-evaluate.ts";
+import { checkFlowCapacity, FlowCapacityError, flowEventsRepo } from "./flow-events.ts";
 import { sql } from "./sql.ts";
 
 export type FlowDefinition = Definition;
 const MAX_EVENTS = 10000;
 const MAX_ROWS = 1000;
-export class FlowCapacityError extends Error {}
-const occupied =
-  "SELECT count(*) AS n FROM flow_events e LEFT JOIN runs r ON r.id=e.run_id WHERE (e.state='pending' OR (e.state='admitted' AND r.ended_at IS NULL))";
 const jsonValue = (value: unknown) => {
   const text = JSON.stringify(value);
   if (text === undefined || Buffer.byteLength(text) > 32768) throw new Error("Flow value exceeds 32 KiB");
@@ -95,70 +93,7 @@ export function flowsRepo(db: Db) {
       ).run(id, key, text);
       return { written: true };
     },
-    events(id: string, limit: number) {
-      return db
-        .prepare(
-          "SELECT e.flow_id,e.event_id,e.state,e.created_at,e.run_id,r.state AS run_state,e.error FROM flow_events e LEFT JOIN runs r ON r.id=e.run_id WHERE flow_id=? ORDER BY e.created_at DESC,e.event_id DESC LIMIT ?",
-        )
-        .all(id, limit)
-        .map((r) => FlowEvent.parse(r));
-    },
-    pending(limit = 20, after = 0) {
-      return db
-        .prepare(
-          "SELECT e.rowid AS cursor,e.flow_id,e.event_id,e.payload,e.action,e.thread_id FROM flow_events e JOIN flows f ON f.id=e.flow_id WHERE e.state='pending' AND f.enabled=1 AND e.rowid>? ORDER BY e.rowid LIMIT ?",
-        )
-        .all(after, limit)
-        .map((r) => ({
-          cursor: Number(r.cursor),
-          flow: String(r.flow_id),
-          event: String(r.event_id),
-          payload: JSON.parse(String(r.payload)) as unknown,
-          action: Definition.shape.action.parse(JSON.parse(String(r.action))),
-          thread: r.thread_id ? String(r.thread_id) : undefined,
-        }));
-    },
-    setThread(flow: string, event: string, thread: string) {
-      db.prepare("UPDATE flow_events SET thread_id=? WHERE flow_id=? AND event_id=? AND state='pending'").run(
-        thread,
-        flow,
-        event,
-      );
-    },
-    admitted(flow: string, event: string, run: string) {
-      const changed = db
-        .prepare(
-          "UPDATE flow_events SET state='admitted', run_id=?, error=NULL WHERE flow_id=? AND event_id=? AND state='pending'",
-        )
-        .run(run, flow, event);
-      if (!changed.changes) throw new Error("Flow event is no longer pending");
-    },
-    fail(flow: string, event: string) {
-      db.prepare(
-        "UPDATE flow_events SET state='failed',error='Action could not be admitted; review its binding before retrying' WHERE flow_id=? AND event_id=? AND state='pending'",
-      ).run(flow, event);
-    },
-    retry(flow: string, event: string) {
-      return tx(() => {
-        if (
-          !db
-            .prepare("SELECT 1 FROM flow_events WHERE flow_id=? AND event_id=? AND state='failed' AND run_id IS NULL")
-            .get(flow, event)
-        )
-          return { queued: false };
-        if (
-          Number(db.prepare(occupied).get()?.n) >= 256 ||
-          Number(db.prepare(`${occupied} AND e.flow_id=?`).get(flow)?.n) >= 32
-        )
-          throw new FlowCapacityError("Flow queue is full");
-        const result = db
-          .prepare(
-            "UPDATE flow_events SET state='pending',error=NULL WHERE flow_id=? AND event_id=? AND state='failed' AND run_id IS NULL",
-          )
-          .run(flow, event);
-        return { queued: Boolean(result.changes) };
-      });
-    },
+    ...flowEventsRepo(db),
     receive(flowId: string, eventId: string, payload: unknown): "duplicate" | "ignored" | "written" | "pending" {
       if (!eventId || eventId.length > 256) throw new Error("Invalid event id");
       const value = jsonValue(payload);
@@ -178,12 +113,7 @@ export function flowsRepo(db: Db) {
           Object.keys(payload).length > 0 &&
           matchesFlowPredicates(payload, flow.predicates);
         const state = !matches ? "ignored" : flow.action.kind === "none" ? "written" : "pending";
-        if (
-          state === "pending" &&
-          (Number(db.prepare(occupied).get()?.n) >= 256 ||
-            Number(db.prepare(`${occupied} AND e.flow_id=?`).get(flowId)?.n) >= 32)
-        )
-          throw new FlowCapacityError("Flow queue is full");
+        if (state === "pending") checkFlowCapacity(db, flowId);
         const reads = matches
           ? (flow.readKeys ?? []).map((key) => {
               const row = db.prepare("SELECT value FROM flow_rows WHERE flow_id=? AND key=?").get(flowId, key);

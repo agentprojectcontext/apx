@@ -1,5 +1,5 @@
 import type { FlowDefinition } from "../../../packages/protocol/src/flow-methods.ts";
-import { FlowCapacityError } from "./domain/flows.ts";
+import { FlowCapacityError } from "./domain/flow-events.ts";
 import { TERMINAL } from "./domain/runs.ts";
 import type { Store } from "./domain/store.ts";
 import { badRequest, notFound } from "./errors.ts";
