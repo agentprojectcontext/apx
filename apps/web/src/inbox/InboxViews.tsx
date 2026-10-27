@@ -2,7 +2,7 @@ import type { Agent, Thread } from "@apx/protocol";
 import { AgentAvatar, ContextMenu, EngineIcon, Icons, ProjectTile, Spinner, Tooltip } from "@apx/ui";
 import { Suspense, useRef, useState } from "react";
 import { KindIcon } from "../channels/KindIcon.tsx";
-import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
+import { CHANNEL_KINDS } from "../channels/kinds.ts";
 import { AgentFace } from "../common/AgentFace.tsx";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { shortWhen } from "../common/format.ts";
@@ -26,6 +26,7 @@ import { RoutineBundle } from "./RoutineBundle.tsx";
 import { ThreadAvatar } from "./ThreadAvatar.tsx";
 import { PinMark } from "./ThreadRow.tsx";
 import { threadMenu } from "./threadActions.tsx";
+import { useThreadChannel } from "./useThreadChannel.ts";
 
 /**
  * A chat's name for a list: its title, or what was said last when the title only repeats the agent's name. A routine
@@ -205,7 +206,6 @@ export function SessionRow({
         {isWorking(thread.state) && <Spinner size={12} />}
         {thread.state === "input-required" && <Icons.Hand size={12} className="tree__waiting" />}
         {thread.pinned && <PinMark />}
-        <ChannelMark thread={thread} />
         <RoutineMark thread={thread} />
         {/* An engine session is the engine's (Claude Code, Codex), not the agent's that hosts it. */}
         <ThreadAvatar thread={thread} agent={agent} size={14} slot={16} />
@@ -290,12 +290,6 @@ export function ActivityView({ groups, selected }: { groups: ActivityGroup[]; se
   );
 }
 
-/** A chat that came in on a channel: that channel's logo before its name. */
-function ChannelMark({ thread }: { thread: Thread }) {
-  const via = thread.channel?.id ?? "";
-  return isChannelKind(via) ? <KindIcon kind={via} size={12} /> : null;
-}
-
 /** A routine's run: a clock, and the routine's name on hover. */
 export function RoutineMark({ thread }: { thread: Thread }) {
   const t = useT();
@@ -314,9 +308,9 @@ export function RoutineMark({ thread }: { thread: Thread }) {
 function Where({ thread, agent }: { thread: Thread; agent: Agent | undefined }) {
   const t = useT();
   const engine = useEngineLabel(thread.engine);
-  const via = thread.channel?.id ?? "";
+  const via = useThreadChannel(thread);
   if (thread.kind === "routine") return <>{t("thread.routineOf", { name: routineName(thread) })}</>;
-  if (isChannelKind(via))
+  if (via)
     return (
       <span className="activity__via">
         <KindIcon kind={via} size={10} /> {t("chat.viaChannel", { channel: t(CHANNEL_KINDS[via].name) })}

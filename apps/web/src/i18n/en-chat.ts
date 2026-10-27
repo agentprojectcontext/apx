@@ -29,6 +29,7 @@ export const enChat = {
   "composer.attachImage": "Image",
   "composer.attachments": "Attached files",
   "composer.removeFile": "Remove {name}",
+  "composer.previewFile": "Preview {name}",
   "composer.tooBig": "{name} is over {mb} MB",
   "composer.stillUploading": "Wait for the files to finish uploading.",
   "composer.attachedOnly": "See the attached files.",

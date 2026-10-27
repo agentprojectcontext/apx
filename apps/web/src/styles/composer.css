@@ -156,74 +156,7 @@
   stroke: var(--apx-warning);
 }
 
-/* Attachments waiting above the field */
-.attchips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0;
-  padding: 8px 8px 0;
-  list-style: none;
-}
-.attchip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 240px;
-  height: 36px;
-  padding: 0 2px 0 4px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-sm);
-  background: var(--apx-surface);
-  font-size: var(--apx-text-xs);
-}
-.attchip.is-loading {
-  color: var(--apx-fg-muted);
-}
-.attchip.is-error {
-  border-color: var(--apx-danger);
-  color: var(--apx-danger);
-  max-width: 100%;
-  height: auto;
-  min-height: 36px;
-}
-.attchip__thumb {
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  object-fit: cover;
-}
-.attchip__icon {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  background: var(--apx-fill);
-}
-.attchip__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.attchip.is-error .attchip__name {
-  white-space: normal;
-  overflow-wrap: anywhere;
-  padding-block: 6px;
-}
-.attchip__spin {
-  flex: none;
-  animation: composer-spin 1s linear infinite;
-}
-
 /* Files in a sent message */
-.attchip.is-audio {
-  max-width: 100%;
-  height: auto;
-  padding: 0 4px 0 0;
-  background: none;
-  border: 0;
-}
 .transcript__files {
   display: flex;
   flex-wrap: wrap;
@@ -234,9 +167,6 @@
 .transcript__files .audiopart {
   flex-basis: 100%;
   margin-bottom: 8px;
-}
-.attchip.is-audio .audiopart {
-  min-width: 0;
 }
 .filepart {
   display: inline-flex;

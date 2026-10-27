@@ -1,0 +1,98 @@
+.attchips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 8px 0;
+  list-style: none;
+}
+.attchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  height: 36px;
+  padding: 0 2px 0 4px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-surface);
+  font-size: var(--apx-text-xs);
+}
+.attchip.is-loading {
+  color: var(--apx-fg-muted);
+}
+.attchip.is-error {
+  border-color: var(--apx-danger);
+  color: var(--apx-danger);
+  max-width: 100%;
+  height: auto;
+  min-height: 36px;
+}
+.attchip__thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+.attchip__icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: var(--apx-fill);
+}
+.attchip__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attchip.is-error .attchip__name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding-block: 6px;
+}
+.attchip__spin {
+  flex: none;
+  animation: composer-spin 1s linear infinite;
+}
+.attchip.is-audio {
+  max-width: 100%;
+  height: auto;
+  padding: 0 4px 0 0;
+  background: none;
+  border: 0;
+}
+.attchip.is-audio .audiopart {
+  min-width: 0;
+}
+.attchip__preview {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: zoom-in;
+}
+.attchip__preview:focus-visible {
+  outline: 2px solid var(--apx-accent);
+  outline-offset: 2px;
+}
+.draftimage.apx-dialog {
+  display: grid;
+  place-items: center;
+  width: fit-content;
+  min-width: min(240px, 94vw);
+  min-height: min(160px, 92dvh);
+  max-width: 94vw;
+  max-height: 92dvh;
+}
+.draftimage > img {
+  display: block;
+  max-width: 94vw;
+  max-height: 92dvh;
+  object-fit: contain;
+}

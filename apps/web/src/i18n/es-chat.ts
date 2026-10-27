@@ -31,6 +31,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "composer.attachImage": "Imagen",
   "composer.attachments": "Archivos adjuntos",
   "composer.removeFile": "Quitar {name}",
+  "composer.previewFile": "Previsualizar {name}",
   "composer.tooBig": "{name} pasa los {mb} MB",
   "composer.stillUploading": "Esperá a que terminen de subir los archivos.",
   "composer.attachedOnly": "Mirá los archivos adjuntos.",
