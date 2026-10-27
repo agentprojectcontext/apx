@@ -15,6 +15,10 @@ own **Tasks** tab with **New task**.
 
 <Shot name="tasks" alt="The Tasks screen with groups In progress, Pending, In review and Needs your review, each listing tasks with assignee and due date" caption="Tasks, across every project" />
 
+Before creating another task, agents are instructed to check the open tasks and continue an existing task when
+it already covers the same or closely related work. This is not automatic duplicate detection. For a task that
+changes code, see [where the code work goes](/office/code/#where-a-task-changes-code).
+
 ## What a task has
 
 | Field | Values |
@@ -44,6 +48,18 @@ project or shows **All projects**; this browser remembers the choice for the nex
   It is asked to review at once: asking for changes sends it back to whoever did it; approving makes it yours.
 - **Closed recently**: done or dropped, newest first.
 
+## Attachments and task chat actions
+
+Tasks can keep selected screenshots and files as independent snapshots, when created or later. Preview or download
+them from the task. Each task holds up to 50 files, at most 20 MB each. Deleting the original chat does not delete
+the task's copy; removing the attachment deletes that copy, not copies already shared elsewhere. Authorized agents
+can inspect task attachments without gaining access to private contact chats. Sending a file outside APX remains
+a separate owner action.
+
+Use the task chat group's actions button or right-click menu to change its column, mark it waiting, close or reopen
+it, or archive its chats. Archiving preserves history: it does not close the task or restart work. Task status appears
+beside the chat header, and the opening task description preserves paragraphs and lists.
+
 ## Assigning starts the work
 
 Give a task to an agent (when you create it, or later) and it starts working right away, in **its own chat for that
@@ -70,6 +86,14 @@ before, and where to read it.
 Assigned tasks that never started are picked up on their own: once an hour, the most pressing few get started. To
 have one start later (tomorrow morning, after a release), set **Starts** in its drawer, or `apx tasks add … --start
 2026-10-23T09:00`: its agent starts then, not when you assign it.
+
+### Moving the current work into a task
+
+**On the development branch after 2.11.0**, when an agent immediately assigns its current work to itself as a new
+task, APX transfers execution to the task's chat. The originating turn stops executing tools; the task chat gets a
+bounded handoff of the request and recent findings so it can continue rather than repeat the investigation.
+This does not prohibit unrelated parallel chats. If the current turn already has helpers or other active work,
+or cannot transfer safely, APX refuses the handoff and the agent must continue there, not start a second executor.
 
 ### Comments and @mentions
 

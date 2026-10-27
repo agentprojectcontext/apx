@@ -33,6 +33,18 @@ and the write policy, so you always know where it is working and how freely.
   </TabItem>
 </Tabs>
 
+### Where a task changes code
+
+**On the development branch after 2.11.0**, before changing code for a task, the agent follows the project's saved
+choice of working in the checkout or in a Git worktree. If no project note says which, it asks: **Worktree now**,
+**Worktree always**, **Here now**, **Here always**, or **Other**. An “always” answer is saved for that project;
+“now” applies to this choice only. This chooses the working location, not a different write policy or autonomy level.
+
+When using a worktree, the agent first checks existing worktrees and task-related branches and continues in one
+that already covers the work. Only if none exists does it create a named branch under the project's `.worktrees/`
+folder. After merging, it removes the worktree and branch, never while there are uncommitted changes. These are
+instructions to the agent, not a guarantee that Git changes have been merged or cleaned up automatically.
+
 ### The write policy
 
 | Policy | What it means |

@@ -130,9 +130,10 @@ test("an explicit URL is connect-only, even when a local connection was saved", 
 
 test("local connection verifies the daemon home identity before lending capabilities", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-conn-home-"));
+  let remoteIdentity = "selected-home";
   const server = createServer((_req, res) => {
     res.setHeader("content-type", "application/json");
-    res.end(JSON.stringify({ ok: true, result: { home_id: "selected-home" } }));
+    res.end(JSON.stringify({ ok: true, result: { home_id: remoteIdentity } }));
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -141,9 +142,16 @@ test("local connection verifies the daemon home identity before lending capabili
     assert.ok(address && typeof address !== "string");
     const url = `http://127.0.0.1:${address.port}`;
     fs.writeFileSync(path.join(dir, "home-id"), "selected-home\n");
-    assert.equal(await verifyLocalCore(url, { APX_HOME: dir }), true);
+    assert.equal(await verifyLocalCore(url, { APX_HOME: dir }), "matches");
     fs.writeFileSync(path.join(dir, "home-id"), "other-home\n");
-    assert.equal(await verifyLocalCore(url, { APX_HOME: dir }), false);
+    assert.equal(await verifyLocalCore(url, { APX_HOME: dir }), "mismatch");
+    fs.writeFileSync(path.join(dir, "home-id"), " \n");
+    assert.equal(await verifyLocalCore(url, { APX_HOME: dir }), "missing");
+    fs.writeFileSync(path.join(dir, "home-id"), "selected-home\n");
+    remoteIdentity = "";
+    assert.equal(await verifyLocalCore(url, { APX_HOME: dir }), "missing");
+    remoteIdentity = "selected-home";
+    assert.equal(await verifyLocalCore(url, { APX_HOME: dir }), "matches");
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));

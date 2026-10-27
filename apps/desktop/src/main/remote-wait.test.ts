@@ -107,3 +107,35 @@ test("the core on this computer waits with its own words and what to check", asy
   assert.match(w.shown[0] ?? "", /See the log/);
   assert.deepEqual(w.loaded, ["http://127.0.0.1:7440"]);
 });
+
+test("a confirmed local identity mismatch is explained without loading it, and a later matching core recovers", async () => {
+  const w = world();
+  const mismatch = "This port belongs to another home.";
+  let problem: string | undefined;
+  w.deps.isUp = async () => {
+    if (w.time() === 0) {
+      problem = mismatch;
+      return false;
+    }
+    problem = undefined;
+    return true;
+  };
+  const local: Remote = {
+    where: "127.0.0.1:7440",
+    url: "http://127.0.0.1:7440",
+    local: "See the log",
+    identityProblem: () => problem,
+  };
+  const load = w.deps.load;
+  w.deps.load = async (url) => {
+    assert.ok(w.time() >= RETRY_MS);
+    assert.equal(problem, undefined);
+    return load(url);
+  };
+  assert.equal(await reachRemote(local, w.deps), true);
+  assert.equal(w.shown.length, 1);
+  assert.ok(w.shown[0]?.includes(mismatch));
+  assert.doesNotMatch(w.shown[0] ?? "", /is not answering yet/);
+  assert.deepEqual(w.loaded, [local.url]);
+  assert.match(waitingText(waiting(local, true, false)), /is not answering yet/);
+});

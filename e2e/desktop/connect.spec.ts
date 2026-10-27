@@ -419,9 +419,17 @@ test("a local port belonging to another home is not adopted", async () => {
   fs.writeFileSync(path.join(other, "home-id"), "another-installation");
   const app = await launch({ APX_HOME: other, APX_CONNECTION: "local" });
   try {
-    const page = await windowAt(app, (u) => u.startsWith("data:text/html") && u.endsWith("#apx-unreachable"));
-    await expect(page.locator("body")).toContainText("belongs to another home");
+    const page = await windowAt(app, (u) => u.startsWith("data:text/html") && u.endsWith("#apx-connecting"));
+    await expect(page.getByRole("status")).toContainText(/belongs to another home|pertenece a otra instalación/);
+    await expect(page.getByRole("status")).not.toContainText(/is not answering yet|todavía no responde/);
     expect(app.windows().some((p) => p.url().startsWith(core))).toBe(false);
+    fs.writeFileSync(path.join(other, "home-id"), "");
+    await expect(page.getByRole("status")).toContainText(/identity is missing|Falta la identidad/);
+    await expect(page.getByRole("status")).not.toContainText(/belongs to another home|pertenece a otra instalación/);
+    expect(app.windows().some((p) => p.url().startsWith(core))).toBe(false);
+    fs.copyFileSync(path.join(coreHome, "home-id"), path.join(other, "home-id"));
+    const panel = await windowAt(app, (u) => u.startsWith(core));
+    await expect(panel.locator("#root > *").first()).toBeVisible();
   } finally {
     await app.close();
   }

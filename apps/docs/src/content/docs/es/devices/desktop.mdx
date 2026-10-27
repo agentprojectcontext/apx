@@ -10,7 +10,7 @@ import Shot from "../../../../components/Shot.astro";
 
 La app de escritorio es la forma más cómoda de convivir con APX. Su ventana es el panel, el mismo que el core le sirve
 a un navegador. Alrededor, la app suma tres cosas que una página web no puede: un ícono en la barra de menú con un chat
-rápido, un navegador de verdad que tus agentes pueden manejar y (en una Mac) la opción de dejar que los agentes usen
+rápido, un navegador de verdad que tus agentes pueden manejar y (en macOS y Windows) la opción de dejar que los agentes usen
 tu computadora.
 
 ## La ventana
@@ -48,24 +48,25 @@ sección lo avisa).
 |---|---|
 | **Atajo** | El atajo global del chat rápido. Hacé clic y apretá las teclas. **Quitar** lo deja sin atajo. Si otra app ya usa esas teclas, APX te avisa. |
 | **Abrir al iniciar la compu** | APX se abre cuando iniciás sesión. Viene prendido. |
-| **Dejar que los agentes usen esta computadora** | El uso de la computadora, solo en macOS y apagado hasta que lo prendas. Mirá abajo. |
+| **Dejar que los agentes usen esta computadora** | El uso de la computadora, en macOS y Windows, apagado hasta que lo prendas. Mirá abajo. |
+| **Mantener la Mac despierta mientras trabajan los agentes** | Evita que el sistema se duerma durante un turno, un comando o el inicio de la computadora. La pantalla puede apagarse. Podés desactivarlo. |
 
-### Uso de la computadora (macOS)
+### Uso de la computadora
 
 Con el uso de la computadora prendido, los agentes pueden mirar la ventana que está al frente y, con tu OK, hacer clic
-y escribir en ella. Necesita dos permisos de macOS, que aparecen ahí mismo con su estado y un botón **Abrir Ajustes del
+y escribir en ella. En macOS necesita dos permisos, que aparecen ahí mismo con su estado y un botón **Abrir Ajustes del
 Sistema**: **Grabación de pantalla** (para ver la ventana) y **Accesibilidad** (para leer sus botones y campos, hacer
-clic y escribir).
+clic y escribir). Windows no pide esos permisos; ahí un agente solo abre direcciones web y apps por nombre, nunca una consola de comandos ni un intérprete de scripts.
 
 Algunas cosas valen en cualquier nivel de autonomía, incluso total:
 
-- `⌘⇧Esc` es el freno de emergencia, desde cualquier app. Corta todas las corridas que estén usando la computadora.
+- `⌘⇧Esc` (`Ctrl+Alt+Esc` en Windows) es el freno de emergencia, desde cualquier app. Corta todas las corridas que estén usando la computadora.
 - Cada 60 acciones en un mismo turno, el agente te pregunta antes de seguir.
 - Los campos de contraseña se rechazan.
 
 Mirar la pantalla es una herramienta `ask`; hacer clic, escribir y apretar teclas son herramientas `always`, así que
-preguntan en cualquier autonomía menos total (mirá [Autonomía](/es/concepts/autonomy/)). Windows y Linux todavía no
-prestan esta capacidad.
+preguntan en cualquier autonomía menos total (mirá [Autonomía](/es/concepts/autonomy/)). Linux todavía no
+presta esta capacidad.
 
 ## El navegador que manejan tus agentes
 
@@ -125,11 +126,13 @@ puede tener un solo daemon, incluso si se intenta arrancar otro con un puerto di
 
 Una URL explícita (también `APX_URL`) sirve solo para conectarse: si el servidor no responde, la app no arranca un
 reemplazo en esta computadora. El modo SSH controla su túnel, no el daemon del servidor. Actualizar o reiniciar
-Desktop no actualiza ni reinicia ese servidor.
+Desktop no actualiza ni reinicia ese servidor por sí solo. La activación coordinada de una versión, explicada abajo, es una acción separada del dueño.
 
 Los comandos `apx service` de la CLI siempre controlan servicios de la computadora donde corrés el comando, nunca
 la indicada por `APX_URL`. Usá `--home` para elegir la instalación local. `apx desktop` también abre la app en la
 computadora donde corre el comando: ejecutarlo por SSH no abre Desktop en tu cliente.
+
+Para un escritorio Linux aparte de tu pantalla, consultá [La computadora de los agentes](/es/office/computers/).
 
 ## Actualizaciones
 
@@ -141,8 +144,12 @@ el panel lo muestra en la barra de arriba. Cuando vos decís, baja el instalador
 - **macOS** abre la imagen de disco para que arrastres APX. La app todavía no está firmada, así que no puede
   reemplazarse sola en silencio.
 
-La app trae su propio core, así que actualizar la app actualiza ese core también. Si la app está conectada a un core
-en un servidor, la actualización que ofrece el panel es la del servidor.
+El core local incluido se actualiza con Desktop. Con un core remoto, Desktop coordina una versión compartida
+mediante la conexión autenticada de APX, sin SSH. El servidor se actualiza una vez; cada app Desktop solo puede
+activar su paquete después de confirmar que el servidor ejecuta esa misma versión. Las apps desconectadas se
+reconcilian al volver: los dispositivos no se actualizan de forma atómica. Los servidores anteriores o no
+compatibles bloquean la activación de Desktop y muestran cómo recuperarse. La primera actualización de un servidor
+sin coordinación todavía usa su mecanismo anterior.
 
 ## Correrla desde el código
 
