@@ -81,8 +81,8 @@ function readBody(req: IncomingMessage, signal: AbortSignal): Promise<Buffer | u
   });
 }
 
-function answer(res: ServerResponse, r: HookResponse): void {
-  if (res.destroyed || res.writableEnded) return;
+function answer(res: ServerResponse, r: HookResponse, finish = true): void {
+  if (res.destroyed || res.writableEnded || res.headersSent) return;
   const json = typeof r.body === "object";
   const body = r.body === undefined ? "" : json ? JSON.stringify(r.body) : String(r.body);
   res.writeHead(r.status, {
@@ -92,7 +92,32 @@ function answer(res: ServerResponse, r: HookResponse): void {
     ...(body ? { "content-type": json ? "application/json" : "text/plain; charset=utf-8" } : {}),
     ...r.headers,
   });
-  res.end(body);
+  if (finish) res.end(body);
+  else res.flushHeaders();
+}
+
+function rejectUpload(req: IncomingMessage, res: ServerResponse, signal: AbortSignal): Promise<void> {
+  answer(res, { status: 413, headers: { "content-length": "0" } }, false);
+  return new Promise((resolve) => {
+    let drained = 0;
+    const done = () => {
+      req.off("data", data);
+      req.off("end", done);
+      req.off("error", done);
+      signal.removeEventListener("abort", done);
+      res.end();
+      resolve();
+    };
+    const data = (chunk: Buffer) => {
+      drained += chunk.length;
+      // Drain only a bounded grace upload so the response is not reset by unread TCP data.
+      if (drained > PUBLIC_BODY_MAX + 64 * 1024) done();
+    };
+    req.on("data", data).once("end", done).once("error", done);
+    signal.addEventListener("abort", done, { once: true });
+    if (signal.aborted || req.readableEnded || req.destroyed) done();
+    else req.resume();
+  });
 }
 
 export type PublicListenerOptions = { port: number; routes: PublicRoutes; log: Log; timers?: RunTimers };
@@ -118,7 +143,6 @@ function handler(o: PublicListenerOptions) {
       Object.entries(req.headers).map(([k, v]) => [k, Array.isArray(v) ? v.join(", ") : (v ?? "")]),
     );
     if (!route.authorize(headers)) return answer(res, { status: 401 });
-    if (Number(req.headers["content-length"] ?? 0) > PUBLIC_BODY_MAX) return answer(res, { status: 413 });
     active++;
     activeByRoute.set(route.id, (activeByRoute.get(route.id) ?? 0) + 1);
     const controller = new AbortController();
@@ -130,9 +154,11 @@ function handler(o: PublicListenerOptions) {
     const abort = () => controller.abort();
     res.once("close", abort);
     const run = async () => {
+      if (Number(req.headers["content-length"] ?? 0) > PUBLIC_BODY_MAX)
+        return rejectUpload(req, res, controller.signal);
       const body = await readBody(req, controller.signal);
       if (controller.signal.aborted) return;
-      if (!body) return answer(res, { status: 413 });
+      if (!body) return rejectUpload(req, res, controller.signal);
       answer(
         res,
         await route.handle({ method: req.method ?? "", path: pathname ?? "", headers, body }, controller.signal),

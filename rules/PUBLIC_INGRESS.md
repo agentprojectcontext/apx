@@ -76,6 +76,9 @@ execution, signalling cancellation to downstream work. Destinations must honor t
 check cancellation before starting effects; cancellation cannot reverse an effect already committed or forcibly stop
 in-process code. A non-cooperative in-flight handler keeps
 its concurrency slot until it settles, rather than allowing unlimited orphan work. Connections close after responses.
+Authenticated oversized uploads receive 413 headers immediately; the listener discards at most another 1 MiB + 64 KiB
+without buffering before closing, under the same concurrency slot and deadline. This bounded grace drain avoids
+resetting ordinary just-over-limit uploads while never promising to drain an unlimited sender.
 At most 16 requests execute per route, 128 execute globally and 256 connections are accepted. Rate limits are shared across callers:
 120 requests per registered route per minute and 1,200 total requests per minute, with bounded bucket storage. A 429
 includes Retry-After; these are resource safeguards, not per-user fairness or internet-scale DDoS protection. Put a
