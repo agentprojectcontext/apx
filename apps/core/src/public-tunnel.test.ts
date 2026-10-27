@@ -175,6 +175,44 @@ test("the owner's own address takes only https, and the choice is kept for the n
   await env.client.call("webhooks.set", { mode: "off" });
 });
 
+test("closing during a provider probe cannot publish a tunnel afterward", async () => {
+  let release: (() => void) | undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let probing = false;
+  let publishes = 0;
+  env.core.store.settings.write("webhooks", { mode: "tailscale" });
+  const tunnel = createPublicTunnel({
+    store: env.core.store,
+    port: () => 1234,
+    log: { info() {}, warn() {}, error() {} },
+    tailscale: async (args) => {
+      if (args[0] === "status") {
+        probing = true;
+        await gate;
+        return { ok: true, out: JSON.stringify({ Self: { DNSName: "acme.ts.net." } }) };
+      }
+      publishes++;
+      return { ok: true, out: "" };
+    },
+  });
+  try {
+    const start = tunnel.start();
+    await waitFor(() => probing, "provider probe started");
+    tunnel.close();
+    release?.();
+    await start;
+    assert.equal(publishes, 0);
+    assert.equal(tunnel.base(), undefined);
+    await assert.rejects(tunnel.set({ mode: "ngrok" }), /closed/);
+  } finally {
+    release?.();
+    tunnel.close();
+    env.core.store.settings.write("webhooks", { mode: "off" });
+  }
+});
+
 test("an unsafe saved custom address is not restored or exposed in runtime state", async () => {
   env.core.store.settings.write("webhooks", {
     mode: "custom",

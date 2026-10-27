@@ -163,6 +163,7 @@ export function createPublicTunnel(deps: {
   let attempts = 0;
   const probe = createProbe(tailscaleRun, ngrokStart);
 
+  let closed = false;
   let changing: Promise<void> = Promise.resolve();
   const change = <T>(fn: () => Promise<T>): Promise<T> => {
     const next = changing.then(fn);
@@ -191,7 +192,7 @@ export function createPublicTunnel(deps: {
     deps.log.info({ wait_ms: wait, attempt: attempts }, "webhooks: ngrok starts again");
     retry = setTimeout(() => {
       retry = undefined;
-      if (saved().mode === "ngrok" && !tunnel) void startNgrok(domain);
+      if (!closed && saved().mode === "ngrok" && !tunnel) void startNgrok(domain);
     }, wait);
     retry.unref();
   }
@@ -244,6 +245,7 @@ export function createPublicTunnel(deps: {
 
   /** Makes the saved choice true on this computer: the address comes up, or `error` says why not. */
   async function apply(): Promise<void> {
+    if (closed) return;
     const { mode, url: own, domain } = saved();
     stopNgrok();
     url = undefined;
@@ -259,6 +261,7 @@ export function createPublicTunnel(deps: {
     if (mode === "tailscale") {
       const run = tailscaleRun();
       const dns = await tailscaleDns(run);
+      if (closed) return;
       if (!run) fail("tailscale_missing");
       else if (!dns) fail("tailscale_offline");
       else {
@@ -295,12 +298,17 @@ export function createPublicTunnel(deps: {
       ),
     set(choice: TunnelChoice): Promise<WebhooksState> {
       return change(async () => {
+        if (closed) throw new CallError({ code: "unavailable", message: "public tunnel is closed" });
         await saveChoice(deps.store, tailscaleRun, choice);
         await apply();
         return state();
       });
     },
-    close: stopNgrok,
+    close() {
+      closed = true;
+      url = undefined;
+      stopNgrok();
+    },
   };
 }
 
