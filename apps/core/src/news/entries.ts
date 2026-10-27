@@ -52,6 +52,20 @@ export type NewsEntry = {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "webhook-flows",
+    since: "2.11.1",
+    title: "Run work only when a webhook arrives",
+    applies: (f) => f.secretary && f.channels > 0,
+    text: "Flows accept authenticated webhook events, filter and write persistent project tables without a model, and optionally invoke a fixed agent or a manual-only routine when there is work. Idle, empty, filtered and duplicate events use no model calls. Each Flow has separate revocable route credentials in Settings, Devices. Events and run links survive restart. External sends are not exactly-once; review automation permissions before enabling effects.",
+    actions: [
+      {
+        label: { en: "Prepare a Flow", es: "Preparar un Flow" },
+        prompt:
+          "Help me prepare a disabled project Flow, choose its filter and fixed action, and review public authentication before enabling it.",
+      },
+    ],
+  },
+  {
     id: "restricted-public-ingress",
     since: "2.11.1",
     title: "A public address without exposing the private app",

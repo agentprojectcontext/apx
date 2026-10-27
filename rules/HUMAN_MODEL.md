@@ -60,6 +60,13 @@ private owner-only router; values live in Secrets and only references enter SQLi
 pages receive HTML, not saved state, stores, private media or actions, and a restrictive opaque-sandbox CSP prevents
 connections back into APX. See [Public ingress](PUBLIC_INGRESS.md) for limits, publication and rollback.
 
+Webhook-only Flows (`flows.ts`, `domain/flows.ts`) enter on protected `/flows/<id>` routes, commit event deduplication,
+fixed action/read snapshots and table writes before accepting, then use the existing router's `threads.send` or
+`routines.run` admission. The admitted run and event linkage share a transaction. Startup and run-completion events
+resume pending work; no cron or periodic model call is added. Owner-only `flows.*` methods serve Routines → Flows,
+the CLI and approved super-agent settings. Agent events stay external/untrusted; routines must be manual-only in the
+same project. See [Flows](FLOWS.md) for bounds, retry semantics and deployment.
+
 ## 3. Modules and dependency direction
 
 - `packages/protocol` ← used by everything. Isomorphic: no Node-only imports.

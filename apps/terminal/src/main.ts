@@ -12,6 +12,7 @@ import { clients } from "./commands/clients.ts";
 import { desktop, openPanel } from "./commands/desktop.ts";
 import { expose } from "./commands/expose.ts";
 import { extensions } from "./commands/extensions.ts";
+import { flows } from "./commands/flows.ts";
 import { init } from "./commands/init.ts";
 import { localConnection } from "./commands/local.ts";
 import { logsCommand } from "./commands/logs.ts";
@@ -78,6 +79,7 @@ Usage:
                            (the core does it at every start); removes ones APX no longer ships, never anyone else's
   apx tasks [add|show|edit|settle|move|done|say]  The office board (apx tasks help)
   apx routines [add|show|edit|run|on|off|rm|log]  Scheduled work (apx routines help)
+  apx flows [list|set|rows|events|write|retry]  Webhook-only work and persistent tables (apx flows help)
   apx notifications [read]       What is waiting for you
   apx news [tell [<id>…]] [--json]   Release news; tell runs the super-agent's message now
   apx clients [add <name>|rm <id>]  Outside apps with their own token (Claude Code, Codex…)
@@ -378,6 +380,9 @@ try {
       break;
     case "v1":
       await v1(client, rest);
+      break;
+    case "flows":
+      await flows(client, rest, values.project);
       break;
     case "routines":
       await routines(client, rest, {
