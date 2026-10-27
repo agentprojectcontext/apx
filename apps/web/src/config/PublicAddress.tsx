@@ -29,7 +29,7 @@ const ERRORS: Record<HookError, MessageKey | undefined> = {
  * The public address a channel that delivers to a webhook (Teams, LINE) needs: how it is made (Tailscale Funnel, ngrok,
  * the owner's own URL) and this channel's address to paste into the platform.
  */
-export function PublicAddress({ channelId }: { channelId: string }) {
+export function PublicAddress({ channelId }: { channelId?: string }) {
   const t = useT();
   const [state, setState] = useState<WebhooksState>();
   const [busy, setBusy] = useState(false);
@@ -40,6 +40,7 @@ export function PublicAddress({ channelId }: { channelId: string }) {
       const next = await client.call("webhooks.get", {});
       setState(next);
       setDomain((d) => d || next.domain || "");
+      setOwn((value) => value || (next.mode === "custom" ? (next.url ?? "") : ""));
     } catch (e) {
       notify(t("hooks.failed", { error: errText(e) }));
     }
@@ -69,7 +70,7 @@ export function PublicAddress({ channelId }: { channelId: string }) {
 
   if (!state) return <Skeleton width="100%" height={120} />;
   const current = MODES.find((m) => m.id === state.mode) ?? MODES[0];
-  const address = state.url ? `${state.url}/hooks/${channelId}` : undefined;
+  const address = state.url ? `${state.url}${channelId ? `/hooks/${channelId}` : ""}` : undefined;
   const copy = () =>
     address &&
     void navigator.clipboard.writeText(address).then(
@@ -146,7 +147,10 @@ export function PublicAddress({ channelId }: { channelId: string }) {
         </div>
       )}
       {state.mode !== "off" && (
-        <SettingRow title={t("hooks.address")} description={t("hooks.addressHint")}>
+        <SettingRow
+          title={t(channelId ? "hooks.address" : "ingress.base")}
+          description={t(channelId ? "hooks.addressHint" : "ingress.baseHint")}
+        >
           <div className="config__headactions">
             {address ? (
               <>

@@ -8,6 +8,8 @@ import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { AccessBlock } from "./AccessBlock.tsx";
+import { PublicAddress } from "./PublicAddress.tsx";
+import { PublicEndpoints } from "./PublicEndpoints.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 
 type Pairing = { code: string; expires_at: string; urls: string[] };
@@ -157,6 +159,8 @@ export function DevicesSection() {
         <DeviceCard key={d.id} device={d} onSaved={async () => void (await load())} onRemove={remove} />
       ))}
       <AccessBlock />
+      <PublicAddress />
+      <PublicEndpoints />
     </>
   );
 }

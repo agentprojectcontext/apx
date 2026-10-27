@@ -52,6 +52,25 @@ export type NewsEntry = {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "restricted-public-ingress",
+    since: "2.11.1",
+    title: "A public address without exposing the private app",
+    applies: (f) => f.artifacts > 0 || f.channels > 0,
+    text: "Settings › Devices now manages one restricted public HTTPS address for signed LINE/Teams webhooks, registered Flows with separate rotatable/revocable route tokens, and explicitly published read-only widgets. The panel, RPC, private widget state and files stay private. Turning on the tunnel does not publish private widgets. The public provider supplies the address; a fixed public IP is not promised. Publishing requires reviewing the HTML for private literals; public widgets cannot use private data or APX actions.",
+    actions: [
+      {
+        label: { en: "Review public access", es: "Revisar acceso público" },
+        prompt:
+          "Help me review which APX resources should be public and open Settings › Devices without enabling a tunnel or publishing anything yet.",
+      },
+      {
+        label: { en: "Prepare a read-only widget", es: "Preparar un widget de solo lectura" },
+        prompt:
+          "Help me prepare a read-only public widget, review its HTML for private content and explain its public-data limits before asking me to publish it.",
+      },
+    ],
+  },
+  {
     id: "task-chat-actions",
     since: "2.11.1",
     title: "Manage tasks from their chat group",

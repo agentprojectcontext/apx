@@ -296,12 +296,30 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "im.answer": "Contestar chats",
   "im.answerHint":
     "Las personas que te escriben por iMessage reciben respuesta de tu agente, una vez que las aprobás. Tus propios mensajes nunca se contestan.",
+  "ingress.base": "Dirección pública base",
+  "ingress.baseHint":
+    "La comparten los webhooks firmados de canales, los Flows protegidos con token y los widgets publicados explícitamente. El panel y el RPC siguen privados.",
+  "ingress.routes": "Endpoints públicos",
+  "ingress.routesHint":
+    "Cada Flow necesita su propio token bearer. Al habilitar o rotar un token, el anterior deja de servir de inmediato. LINE y Teams usan las firmas de su plataforma. Los widgets publicados son de solo lectura y no necesitan token bearer.",
+  "ingress.noRoutes":
+    "Creá un Flow con webhook para registrar un endpoint. No se expone ningún endpoint genérico por defecto.",
+  "ingress.enabled": "Token habilitado",
+  "ingress.revoked": "Token deshabilitado",
+  "ingress.rotate": "Rotar token",
+  "ingress.enable": "Habilitar token",
+  "ingress.revoke": "Revocar token",
+  "ingress.copied": "Copiado",
+  "ingress.copyToken": "Copiar token",
+  "ingress.hideToken": "Ocultar token",
+  "ingress.tokenHint":
+    "Token para {path}. Mandalo en Authorization: Bearer <token>, nunca en la URL. Guardalo en los secretos del servicio que llama; se oculta al salir de esta página.",
   "hooks.title": "Dirección pública",
   "hooks.lead":
-    "Este canal entrega sus mensajes a una dirección web, así que APX necesita una que se pueda alcanzar desde internet. Sólo se publica la puerta de webhooks: nunca el panel ni la API.",
+    "Una dirección HTTPS para webhooks firmados de canales, Flows protegidos con token y widgets publicados explícitamente. Solo se admiten rutas registradas: nunca el panel ni la API. El proveedor da el dominio o la IP pública; APX no promete una IP fija.",
   "hooks.how": "Cómo se publica",
   "hooks.off": "Apagada",
-  "hooks.offBody": "Sin dirección pública: este canal no puede recibir mensajes.",
+  "hooks.offBody": "Sin túnel público: los servicios de internet no pueden llegar a este listener a través de APX.",
   "hooks.tailscale": "Tailscale",
   "hooks.tailscaleBody":
     "Tailscale Funnel da una dirección https fija en el puerto 8443. Gratis; Funnel tiene que estar permitido para este equipo en tu tailnet.",

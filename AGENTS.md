@@ -65,9 +65,10 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
 
 1. **One contract.** Every client↔core call is a method in `packages/protocol/src/methods.ts` handled through
    `apps/core/src/rpc/router.ts`. No second route into a handler (no ad-hoc HTTP endpoints, no direct
-   module calls from transports). The one listener outside it is the webhook listener (`apps/core/src/transport/hooks.ts`,
-   [D-139](rules/DECISIONS.md#d-139)): platforms that POST a channel's messages are no clients, and each channel's
-   `webhook()` verifies its platform's signature. `[review]`, `[gate]` types.
+   module calls from transports). The restricted public listener (`apps/core/src/transport/hooks.ts`,
+   [D-139](rules/DECISIONS.md#d-139), [Public ingress](rules/PUBLIC_INGRESS.md)) accepts only exact registered resources:
+   LINE/Teams POSTs verified by their native platform signature, token-scoped Flow events, and explicitly published
+   read-only widget pages/static kit. It never exposes a protocol client, panel, RPC or private artifact data. `[review]`, `[gate]` types.
 2. **Agents talk through one function.** Agent↔agent messaging is `threads.send` via the router; tools,
    terminal, routines and API all call it. Never add a parallel a2a path. `[review]`
 3. **Apps hold no domain logic.** terminal/web/desktop/mobile call the protocol; logic lives in `apps/core`.

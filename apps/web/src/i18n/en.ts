@@ -583,7 +583,10 @@ export const en = {
   "app.remove": "Unpin from Apps",
   "share.copied": "Link copied.",
   "share.copyFailed": "Could not copy the link.",
-  "share.hint": "Private by default. With the link, anyone can view it without editing.",
+  "share.hint":
+    "Private by default. Publishing makes the HTML readable by anyone with its link. Public pages cannot access APX state, private files or actions.",
+  "share.tunnelHint":
+    "Copy and open use the public tunnel when enabled (Settings › Devices); otherwise the current host.",
   "share.private": "Private",
   "share.anyone": "Anyone with the link",
   "share.copy": "Copy link",

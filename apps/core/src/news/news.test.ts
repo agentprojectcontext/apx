@@ -15,8 +15,10 @@ import { NEWS, type NewsEntry, newsAction, newsFacts } from "./entries.ts";
 import { createNews } from "./news.ts";
 
 const quiet: Log = { info: () => {}, warn: () => {}, error: () => {} };
-/** The entries the upgrade tests below count on: one that every owner gets would be told on each of them. */
-const SOME_NEWS = NEWS.filter((e) => e.id !== "super-agent-settings");
+/** A fixed catalog keeps delivery tests independent of new releases' eligibility rules. */
+const SOME_NEWS = NEWS.filter((e) =>
+  ["artifacts-kit", "google", "mail-alerts", "channel-hours", "more-apps", "more-channels"].includes(e.id),
+);
 
 function setup(o: { entries?: readonly NewsEntry[]; models?: string[]; fail?: boolean; noGoogle?: boolean } = {}) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-news-"));
@@ -63,6 +65,39 @@ const entry = (id: string, since = "2.7.3"): NewsEntry => ({
     { label: { en: `Do ${id}`, es: `Hacer ${id}` }, prompt: `Please do ${id}.` },
     { label: { en: `Other ${id}`, es: `Otro ${id}` }, prompt: `Other ${id}.` },
   ],
+});
+
+test("public ingress news applies to widget or channel owners and is told once without publishing anything", async () => {
+  const publicNews = NEWS.find((item) => item.id === "restricted-public-ingress");
+  assert.ok(publicNews);
+  const { store, news, notices, done } = setup({ entries: [publicNews] });
+  try {
+    ownerWrote(store);
+    assert.equal(publicNews.applies(newsFacts(store)), false);
+    assert.deepEqual((await news.atBoot("2.11.0")).told, []);
+    const widget = aWidget(store);
+    assert.equal(publicNews.applies(newsFacts(store)), true);
+    assert.deepEqual((await news.atBoot("2.11.0")).told, [publicNews.id]);
+    assert.equal(notices.length, 1);
+    assert.equal(store.surfaces.get(widget.id)?.share_path, undefined);
+    assert.equal(store.settings.read("webhooks").mode, "off");
+    assert.deepEqual((await news.atBoot("2.11.0")).told, []);
+    store.surfaces.remove(widget.id);
+    const channel = {
+      id: "tg",
+      type: "telegram",
+      label: "Telegram",
+      enabled: true,
+      agent_id: "roby",
+      strangers: "pair",
+      concurrency: "steer",
+      owner_thread: "home",
+    } as const;
+    store.settings.write("channels", [channel]);
+    assert.equal(publicNews.applies(newsFacts(store)), true);
+  } finally {
+    done();
+  }
 });
 
 test("coordinated update news only applies to owners with a paired Desktop", () => {

@@ -4,6 +4,7 @@ import { fakeTelegram } from "../channels/fake-telegram.test-support.ts";
 import { telegramAdapter } from "../channels/telegram.ts";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { waitFor } from "../testkit/platform.ts";
+import { NEWS } from "./entries.ts";
 
 const TOKEN = "123456:TEST-news";
 const OWNER = { id: 3301, name: "Acme Owner" };
@@ -38,7 +39,7 @@ test("news reach the owner's channel with buttons; a press asks the super-agent 
   env.core.store.settings.set("google_account:google-calendar", "owner@example.com");
   env.core.store.settings.set(
     "news_seen",
-    JSON.stringify(["more-channels", "teams-line", "super-agent-settings", "owner-check"]),
+    JSON.stringify(NEWS.filter((entry) => entry.id !== "artifacts-kit").map((entry) => entry.id)),
   );
   const { entries } = await env.client.call("system.news", {});
   const kit = entries.find((e) => e.id === "artifacts-kit");

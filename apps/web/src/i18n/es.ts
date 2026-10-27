@@ -589,7 +589,10 @@ export const es: Partial<Record<MessageKey, string>> = {
   "app.remove": "Desfijar de Apps",
   "share.copied": "Enlace copiado.",
   "share.copyFailed": "No se pudo copiar el enlace.",
-  "share.hint": "Privado por defecto. Con enlace, cualquiera lo ve sin editar.",
+  "share.hint":
+    "Privado por defecto. Al publicar, cualquiera con el enlace puede leer el HTML. Las páginas públicas no acceden al estado de APX, archivos privados ni acciones.",
+  "share.tunnelHint":
+    "Copiar y abrir usan el túnel público si está habilitado (Configuración › Dispositivos); si no, la dirección actual.",
   "share.private": "Privado",
   "share.anyone": "Cualquiera con el enlace",
   "share.copy": "Copiar enlace",
