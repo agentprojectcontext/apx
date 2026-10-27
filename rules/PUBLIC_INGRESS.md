@@ -39,6 +39,19 @@ requires its HMAC over the original request bytes. Teams requires the Bot Framew
 audience and endorsement checks. These platforms cannot be assumed to attach a custom APX bearer. Rotating their
 provider credentials uses the existing channel configuration, not a shared APX global webhook token.
 
+Native deliveries propagate the request deadline and disconnect signal through the channel manager. LINE cancels
+profile, group and image requests and checks cancellation before delivery; a concurrent copy of an in-flight event
+gets 503 so the provider retries instead of losing or duplicating the event. Completed LINE event IDs retain the
+existing persisted bounded deduplication. Teams cancels signing-key requests and checks cancellation before its
+synchronous delivery; its bounded activity-response cache suppresses retries during the adapter lifetime, not across
+restarts. Cancellation does not roll back an event already delivered. These are not exactly-once guarantees.
+
+**Español:** El deadline o la desconexión cancela las consultas nativas y evita nuevas entregas tras la cancelación.
+LINE responde 503 a una copia concurrente todavía en curso para que el proveedor reintente; conserva la deduplicación
+persistente acotada de eventos terminados. Teams cancela la consulta de claves y conserva respuestas de actividades
+en una caché acotada mientras vive el adaptador, no entre reinicios. Cancelar no revierte una entrega ya realizada
+ni garantiza ejecución exactamente una vez.
+
 ## Route credentials
 
 Human-only protocol operations run through the private router:

@@ -707,10 +707,11 @@ export function createChannels(deps: {
   }
 
   /** A request to a channel's public address: its running adapter answers it; anything else is not found. */
-  async function webhook(id: string, req: HookRequest): Promise<HookResponse> {
+  async function webhook(id: string, req: HookRequest, signal?: AbortSignal): Promise<HookResponse> {
     const l = live.get(id);
     if (!l?.adapter.webhook) return { status: 404 };
-    return l.adapter.webhook(req);
+    if (signal?.aborted) return { status: 503 };
+    return l.adapter.webhook(req, signal);
   }
 
   return {

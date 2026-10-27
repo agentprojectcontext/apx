@@ -110,7 +110,7 @@ export interface ChannelAdapter {
    * A platform that delivers to a webhook (Teams, LINE): the request it sent to this channel's public address. The
    * adapter checks the platform's signature itself and refuses (401) what it cannot verify; nothing else guards it.
    */
-  webhook?(req: HookRequest): Promise<HookResponse>;
+  webhook?(req: HookRequest, signal?: AbortSignal): Promise<HookResponse>;
   /** Text, then `files` (the presentation's media, already read). */
   send(conversation: string, p: Presentation, files?: OutFile[]): Promise<{ external_id?: string }>;
   typing?(conversation: string): Promise<void>;
