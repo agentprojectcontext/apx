@@ -59,6 +59,36 @@ test("a page of busy routine events does not starve a later agent Flow", async (
   }
 });
 
+test("retirement retries clean up a credential after secret deletion fails", async (t) => {
+  const folder = tempDir();
+  const env = await startCore({ llm: scriptedLlm(() => say("Unused")) });
+  try {
+    const project = (await env.client.call("projects.register", { path: folder.path, init: true })).project.id;
+    const definition = { ...flow(project, "cleanup"), enabled: false, action: { kind: "none" as const } };
+    await env.client.call("flows.set", { ...definition, enabled: true });
+    const credential = await env.client.call("public_routes.rotate", { path: "/flows/cleanup" });
+    await env.client.call("flows.set", definition);
+    const originalSet = env.core.secrets.set.bind(env.core.secrets);
+    const failure = t.mock.method(env.core.secrets, "set", (name: string, value: string | null) => {
+      if (value === null) throw new Error("Secret storage unavailable");
+      return originalSet(name, value);
+    });
+    await assert.rejects(env.client.call("flows.retire", { flow: "cleanup", confirm: true }));
+    assert.equal(env.core.store.flows.get("cleanup"), undefined);
+    assert.ok(env.core.secrets.resolve(credential.secret_ref));
+    assert.ok(env.core.store.settings.get("public-route-credentials")?.includes(credential.secret_ref));
+    await assert.rejects(env.client.call("flows.set", definition), /Invalid Flow/);
+    failure.mock.restore();
+    assert.equal((await env.client.call("flows.retire", { flow: "cleanup", confirm: true })).retired, false);
+    assert.equal(env.core.secrets.resolve(credential.secret_ref), undefined);
+    assert.equal(env.core.store.settings.get("public-route-credentials")?.includes(credential.secret_ref), false);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+    await folder.remove();
+  }
+});
+
 test("retired routes lose credentials, remain unavailable, and cannot inherit another Flow's token", async () => {
   const folder = tempDir();
   const env = await startCore({ llm: scriptedLlm(() => say("Unused")) });

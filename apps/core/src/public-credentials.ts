@@ -70,8 +70,9 @@ export function createPublicCredentials(deps: { store: Store; secrets: Secrets; 
     revoke(pathname: string) {
       if (!Path.safeParse(pathname).success) throw badRequest("invalid public endpoint path");
       const saved = read();
-      deps.store.settings.set(KEY, JSON.stringify(saved.filter((s) => s.path !== pathname)));
+      // Keep references until deletion succeeds so a retry can clean up after a storage failure.
       for (const old of saved.filter((s) => s.path === pathname)) deps.secrets.set(old.secret_ref.slice(9), null);
+      deps.store.settings.set(KEY, JSON.stringify(saved.filter((s) => s.path !== pathname)));
       return { revoked: true };
     },
     authorize(pathname: string, headers: Record<string, string>) {

@@ -12,7 +12,7 @@ Open Routines → Flows, select a project, and create a disabled Flow. Choose a 
 
 A global agent or an agent in the Flow's project is allowed. Cross-project bindings are rejected and checked again before admission. Public payloads cannot select an agent, routine, tool, shell command or identity. Changes require the owner, either directly or through an approved `apx_settings` change. Route token rotation and revocation remain owner-only.
 
-The project table can be read and edited in the Flow detail. Equality predicates traverse own properties only; prototype-related paths are rejected. Optional `readKeys` in the protocol/CLI definition snapshots up to 16 fixed table keys before writing the matching event to `tableKey`. The agent receives those snapshots together with the event. No payload text is evaluated as code. Editing the Flow or its table does not rewrite an already accepted event's action or snapshots.
+The project table can be read and edited in the Flow detail. The MVP panel shows at most 50 rows and 50 history events, without pagination; it is not a complete export or inspection view. The private `flows.rows` and `flows.events` methods accept larger limits within their protocol bounds. Retirement is available through CLI or approved settings changes, not the panel. Equality predicates traverse own properties only; prototype-related paths are rejected. Optional `readKeys` in the protocol/CLI definition snapshots up to 16 fixed table keys before writing the matching event to `tableKey`. The agent receives those snapshots together with the event. No payload text is evaluated as code. Editing the Flow or its table does not rewrite an already accepted event's action or snapshots.
 
 ## Public entry
 
@@ -54,7 +54,7 @@ This is **not exactly-once delivery to external services**. A run can fail after
 - At most 32 pending/unfinished events per Flow and 256 across the install at public admission.
 - At most 32 predicates with path depth 16 and 16 deterministic reads.
 
-These are MVP safety limits, not a retention service. At capacity, ingestion refuses new work instead of evicting IDs and risking a duplicate effect. For explicit recovery, export any data you need, disable the Flow, finish/cancel its active runs, then use `apx flows retire <id> confirm` or an approved `apx_settings` retirement. Retirement permanently removes its table and events (including pending work), revokes its credential and reserves its old identifier; it cannot reopen the old URL. Existing run chats remain under their ordinary history policy. A new Flow needs a new identifier and credential. Retired identifiers are capped at 10,000. This is deliberate rotation, not automatic replay of the old source backlog.
+These are MVP safety limits, not a retention service. At capacity, ingestion refuses new work instead of evicting IDs and risking a duplicate effect. For explicit recovery, export any data you need, disable the Flow, finish/cancel its active runs, then use `apx flows retire <id> confirm` or an approved `apx_settings` retirement. Retirement permanently removes its table and events (including pending work), revokes its credential and reserves its old identifier; it cannot reopen the old URL. Existing run chats remain under their ordinary history policy. A new Flow needs a new identifier and credential. Retired identifiers are capped at 10,000. If credential cleanup fails after the data is retired, the route remains absent and the identifier reserved; retry retirement to finish deleting the residual credential. This is deliberate rotation, not automatic replay of the old source backlog.
 
 Credential-named fields (including nested credential objects) and recognizable token shapes are redacted before filtering, table/event persistence or model input. This uses the shared log credential matcher, including APX tokens. Credentials in definitions or event IDs are rejected; use secret references for owner configuration. These rules cannot recognize arbitrary secrets or personally identifying prose without a known field/shape: send only necessary data and do not place credentials in otherwise ordinary fields. Table values and pending snapshots are local durable data. Transport bearer tokens live in the secret store, never in the event envelope.
 
@@ -71,6 +71,8 @@ apx flows rows inbox
 apx flows write inbox config '{"language":"en"}'
 apx flows events inbox
 apx flows retry inbox source-event-1
+# Disable the Flow and finish/cancel active runs before permanently deleting its data.
+apx flows retire inbox confirm
 ```
 
 The super-agent discovers the same operations through the existing `apx_settings` tool's `flows` area. No new always-loaded tool, custom script language, polling model, public RPC proxy or duplicate scheduler is introduced.

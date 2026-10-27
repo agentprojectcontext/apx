@@ -11,6 +11,8 @@ test("nested credential fields and known credential shapes are removed before st
   const marker = `apxp_${"a1".repeat(32)}`;
   const payload = {
     message: `See ${marker}`,
+    [marker]: { text: "Drop credential-shaped property names" },
+    "[redacted]": "Keep an unrelated literal key",
     nested: [{ apiKey: "private-value", authorization: { bearer: "private-object" }, text: "Keep me" }],
     password: "private-password",
   };
@@ -28,10 +30,13 @@ test("nested credential fields and known credential shapes are removed before st
     env.core.store.flows.receive("redacted", "one", payload);
     assert.deepEqual(env.core.store.flows.rows("redacted", 10)[0]?.value, {
       message: "See [redacted]",
+      "[redacted]": "Keep an unrelated literal key",
       nested: [{ apiKey: "[redacted]", authorization: "[redacted]", text: "Keep me" }],
       password: "[redacted]",
     });
-    assert.equal(JSON.stringify(env.core.store.flows.pending()).includes("private-value"), false);
+    const pending = JSON.stringify(env.core.store.flows.pending());
+    for (const secret of [marker, "private-value", "private-object", "private-password"])
+      assert.equal(pending.includes(secret), false);
     const saved = env.core.store.flows.get("redacted");
     assert.ok(saved);
     await env.client.call("flows.set", saved);

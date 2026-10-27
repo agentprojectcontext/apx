@@ -45,15 +45,20 @@ export function flowHandlers(
       return { events: store.flows.events(flow, limit) };
     },
     "flows.retire": ({ flow }) => {
+      let result: { retired: boolean };
       try {
-        const result = store.flows.retire(flow);
-        if (result.retired) credentials.revoke(`/flows/${flow}`);
-        return result;
+        result = store.flows.retire(flow);
       } catch {
         throw badRequest(
           "Disable the Flow and finish or cancel its active runs before retiring it; the identifier stays reserved",
         );
       }
+      try {
+        credentials.revoke(`/flows/${flow}`);
+      } catch {
+        throw badRequest("Flow data is absent, but credential cleanup failed; retry retirement to finish cleanup");
+      }
+      return result;
     },
     "flows.retry": ({ flow, event }) => {
       found(flow);
