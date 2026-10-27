@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import http from "node:http";
+import net from "node:net";
 import { test } from "node:test";
 import { manualTimers, waitFor } from "../testkit/platform.ts";
 import { listenHooks, PUBLIC_BODY_MAX, PUBLIC_DEADLINE_MS, publicPath, publicRateLimit } from "./hooks.ts";
@@ -70,8 +71,88 @@ test("public listener denies routes/methods/auth before delivery and bounds uplo
     assert.equal(ok.status, 202);
     assert.equal(await ok.text(), "raw bytes");
     assert.equal((await request("/flows/acme", "POST", "example", "x".repeat(PUBLIC_BODY_MAX + 1))).status, 413);
+    const streamed = await new Promise<number | undefined>((resolve, reject) => {
+      const req = http.request(
+        {
+          host: "127.0.0.1",
+          port: server.port,
+          path: "/flows/acme",
+          method: "POST",
+          headers: { authorization: "Bearer example", "transfer-encoding": "chunked" },
+        },
+        (res) => {
+          res.resume();
+          resolve(res.statusCode);
+        },
+      );
+      req.on("error", reject);
+      req.end("x".repeat(PUBLIC_BODY_MAX + 1));
+    });
+    assert.equal(streamed, 413);
+    const headerOnly = await new Promise<number | undefined>((resolve, reject) => {
+      const req = http.request(
+        {
+          host: "127.0.0.1",
+          port: server.port,
+          path: "/flows/acme",
+          method: "POST",
+          headers: { authorization: "Bearer example", "content-length": PUBLIC_BODY_MAX + 1 },
+        },
+        (res) => {
+          res.resume();
+          resolve(res.statusCode);
+        },
+      );
+      req.on("error", reject);
+      req.flushHeaders();
+    });
+    assert.equal(headerOnly, 413);
     assert.equal(calls, 1);
   } finally {
+    await server.close();
+  }
+});
+
+test("oversized upload grace drain retains its deadline and closes a stalled sender", async () => {
+  const timers = manualTimers();
+  let calls = 0;
+  const server = await listenHooks({
+    port: 0,
+    log,
+    timers,
+    routes: () => ({
+      id: "flow:acme",
+      methods: ["POST"],
+      authorize: () => true,
+      handle: async () => {
+        calls++;
+        return { status: 202 };
+      },
+    }),
+  });
+  const socket = net.createConnection({ host: "127.0.0.1", port: server.port });
+  let response = "";
+  let closed = false;
+  socket.on("data", (chunk) => {
+    response += chunk.toString();
+  });
+  socket.on("error", () => {});
+  socket.on("close", () => {
+    closed = true;
+  });
+  try {
+    socket.write(`POST /flows/acme HTTP/1.1\r\nHost: localhost\r\nContent-Length: ${PUBLIC_BODY_MAX + 1}\r\n\r\n`);
+    await waitFor(() => response.includes("\r\n\r\n"), "oversized response headers");
+    assert.match(response, /^HTTP\/1\.1 413 /);
+    assert.equal(timers.pending(), 1);
+    assert.equal(closed, false);
+    timers.tick(PUBLIC_DEADLINE_MS);
+    await waitFor(() => closed, "stalled rejected upload to close");
+    assert.equal(timers.pending(), 0);
+    assert.equal(calls, 0);
+    assert.equal(response.includes("503"), false);
+  } finally {
+    socket.destroy();
     await server.close();
   }
 });
