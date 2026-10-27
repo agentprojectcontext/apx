@@ -11,6 +11,7 @@ import { enResources } from "./en-resources.ts";
 import { enSetup } from "./en-setup.ts";
 import { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
+import type { enFlow } from "./flow-en.ts";
 import type { enIngress } from "./ingress-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
 import type { SysUsageKey } from "./sysusage-en.ts";
@@ -1855,4 +1856,5 @@ export type MessageKey =
   | SysUsageKey
   | keyof typeof enEmailSignatures
   | keyof typeof enThreadDialogs
-  | keyof typeof enIngress;
+  | keyof typeof enIngress
+  | keyof typeof enFlow;

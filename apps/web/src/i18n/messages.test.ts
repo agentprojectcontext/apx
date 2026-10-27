@@ -6,6 +6,8 @@ import { en as base } from "./en.ts";
 import { enEmailSignatures } from "./en-email-signatures.ts";
 import { es as esBase } from "./es.ts";
 import { esEmailSignatures } from "./es-email-signatures.ts";
+import { enFlow } from "./flow-en.ts";
+import { esFlow } from "./flow-es.ts";
 import { enIngress } from "./ingress-en.ts";
 import { esIngress } from "./ingress-es.ts";
 import { enReceived } from "./received-en.ts";
@@ -24,6 +26,16 @@ test("thread dialog strings load only with their pack in both languages", async 
       assert.equal(base[key], undefined);
     }
     assert.deepEqual(pack, lang === "en" ? enThreadDialogs : esThreadDialogs);
+  }
+});
+
+test("Flow strings load only with their management screen in both languages", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const base = await loadMessages(lang);
+    const pack = await loadPack("flow", lang);
+    for (const key of Object.keys(enFlow) as (keyof typeof enFlow)[]) assert.equal(base[key], undefined);
+    assert.deepEqual(pack, lang === "en" ? enFlow : esFlow);
   }
 });
 
@@ -56,6 +68,7 @@ const en = {
   ...enEmailSignatures,
   ...enThreadDialogs,
   ...enIngress,
+  ...enFlow,
 };
 const es = {
   ...esBase,
@@ -65,6 +78,7 @@ const es = {
   ...esEmailSignatures,
   ...esThreadDialogs,
   ...esIngress,
+  ...esFlow,
 };
 
 // Each language is loaded alone, so a key it lacks would show as the bare key.
