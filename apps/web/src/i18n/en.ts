@@ -11,6 +11,7 @@ import { enResources } from "./en-resources.ts";
 import { enSetup } from "./en-setup.ts";
 import { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
+import type { enIngress } from "./ingress-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
 import type { SysUsageKey } from "./sysusage-en.ts";
 import type { enThreadDialogs } from "./thread-dialogs-en.ts";
@@ -583,7 +584,12 @@ export const en = {
   "app.remove": "Unpin from Apps",
   "share.copied": "Link copied.",
   "share.copyFailed": "Could not copy the link.",
-  "share.hint": "Private by default. With the link, anyone can view it without editing.",
+  "share.hint":
+    "Private by default. Publishing makes the HTML readable by anyone with its link. Public pages cannot access APX state, private files or actions.",
+  "share.tunnelHint":
+    "Copy and open require a public address (Settings › Devices). Enabling it also exposes previously shared HTML; review its content first.",
+  "share.linkUnavailable":
+    "Public link unavailable. Check the public address in Settings › Devices and allow new tabs.",
   "share.private": "Private",
   "share.anyone": "Anyone with the link",
   "share.copy": "Copy link",
@@ -1848,4 +1854,5 @@ export type MessageKey =
   | ReceivedKey
   | SysUsageKey
   | keyof typeof enEmailSignatures
-  | keyof typeof enThreadDialogs;
+  | keyof typeof enThreadDialogs
+  | keyof typeof enIngress;

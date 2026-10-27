@@ -52,6 +52,14 @@ core validates the answer against the registry. No desktop connected → `unavai
 The registry is `packages/protocol/src/methods.ts`. Adding a method = registry entry + handler; every client
 gets the types. There is no other way into a handler.
 
+The restricted public listener (`transport/hooks.ts`) is a different boundary from the private daemon. One shared
+public tunnel (`public-tunnel.ts`, controlled by the existing `webhooks.*` methods) exposes only exact registered routes:
+LINE/Teams POSTs with native HMAC/JWT verification, registered Flow POSTs with independently rotatable route credentials,
+and explicitly published widget GET/HEAD pages plus the static kit. `public_routes.*` manages credentials through the
+private owner-only router; values live in Secrets and only references enter SQLite/idempotency replies. Public widget
+pages receive HTML, not saved state, stores, private media or actions, and a restrictive opaque-sandbox CSP prevents
+connections back into APX. See [Public ingress](PUBLIC_INGRESS.md) for limits, publication and rollback.
+
 ## 3. Modules and dependency direction
 
 - `packages/protocol` ← used by everything. Isomorphic: no Node-only imports.

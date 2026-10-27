@@ -1,6 +1,5 @@
-// The public address channels' webhooks reach (Teams, LINE): Tailscale Funnel, an ngrok tunnel, or the owner's own
-// URL in front of the webhook listener (transport/hooks.ts). The owner's choice is kept and applied again at every
-// start. See DECISIONS.md#d-139
+// Public ingress infrastructure: Tailscale Funnel, ngrok or an owner's HTTPS proxy targets the restricted listener,
+// never the private daemon. The existing webhooks.* contract and saved setting select this shared tunnel.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -48,6 +47,22 @@ const ngrokSpawner =
     };
   };
 
+function publicOrigin(value: string): string | undefined {
+  try {
+    const base = new URL(value);
+    if (
+      base.protocol === "https:" &&
+      !base.username &&
+      !base.password &&
+      !base.search &&
+      !base.hash &&
+      base.pathname === "/"
+    )
+      return base.origin;
+  } catch {}
+  return;
+}
+
 /** What one ngrok log line (JSON, `--log-format json`) says: its public URL, or why it failed. */
 export function ngrokLine(line: string): { url?: string; error?: string } {
   let j: { msg?: string; url?: string; lvl?: string; err?: string };
@@ -56,12 +71,69 @@ export function ngrokLine(line: string): { url?: string; error?: string } {
   } catch {
     return {};
   }
-  if (j.msg === "started tunnel" && j.url?.startsWith("https://")) return { url: j.url };
-  if (j.lvl === "eror" || j.lvl === "crit") return { error: (j.err || j.msg || "ngrok failed").slice(0, 300) };
+  if (!j || typeof j !== "object") return {};
+  const origin = typeof j.url === "string" ? publicOrigin(j.url) : undefined;
+  if (j.msg === "started tunnel" && origin) return { url: origin };
+  if (j.lvl === "eror" || j.lvl === "crit")
+    return {
+      error: (typeof j.err === "string" ? j.err : typeof j.msg === "string" ? j.msg : "ngrok failed").slice(0, 300),
+    };
   return {};
 }
 
-export function createWebhooks(deps: {
+type TunnelChoice = { mode: HookMode; url?: string | undefined; domain?: string | undefined };
+const tailscaleDns = async (run: TailscaleRun | undefined) => {
+  const st = await run?.(["status", "--json"]);
+  return st?.ok ? tailscaleDnsName(st.out) : undefined;
+};
+
+function createProbe(tailscale: () => TailscaleRun | undefined, ngrok: () => NgrokStart | undefined) {
+  type Probe = { tailscale: { installed: boolean; connected: boolean }; ngrok: { installed: boolean } };
+  let probed: { at: number; found: Promise<Probe> } | undefined;
+  return {
+    clear: () => {
+      probed = undefined;
+    },
+    read(): Promise<Probe> {
+      if (probed && Date.now() - probed.at < PROBE_TTL_MS) return probed.found;
+      const run = tailscale();
+      const found = tailscaleDns(run).then((dns) => ({
+        tailscale: { installed: Boolean(run), connected: Boolean(dns) },
+        ngrok: { installed: Boolean(ngrok()) },
+      }));
+      probed = { at: Date.now(), found };
+      return found;
+    },
+  };
+}
+
+async function saveChoice(store: Store, tailscale: () => TailscaleRun | undefined, choice: TunnelChoice) {
+  if (choice.mode === "custom" && !publicOrigin(choice.url ?? ""))
+    throw new CallError({
+      code: "bad_request",
+      message: "a public address needs an https:// origin without credentials, path or query",
+    });
+  if (choice.mode === "ngrok" && choice.domain && !/^[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$/.test(choice.domain))
+    throw new CallError({ code: "bad_request", message: "a reserved domain must be a hostname" });
+  const { mode: before, ngrok_last } = store.settings.read("webhooks");
+  // Only undo APX's public Funnel port; private Serve and other tunnels are not APX's.
+  if (before === "tailscale" && choice.mode !== "tailscale") {
+    const stopped = await tailscale()?.(["funnel", `--https=${FUNNEL_PORT}`, "off"]);
+    if (!stopped?.ok)
+      throw new CallError({
+        code: "unavailable",
+        message: "could not disable the public Funnel; check Tailscale before changing providers",
+      });
+  }
+  store.settings.write("webhooks", {
+    mode: choice.mode,
+    ...(choice.mode === "custom" && choice.url ? { url: choice.url } : {}),
+    ...(choice.mode === "ngrok" && choice.domain ? { domain: choice.domain } : {}),
+    ...(ngrok_last ? { ngrok_last } : {}),
+  });
+}
+
+export function createPublicTunnel(deps: {
   store: Store;
   /** The webhook listener's port, once it listens. */
   port: () => number;
@@ -89,28 +161,22 @@ export function createWebhooks(deps: {
   let fresh = false;
   let retry: NodeJS.Timeout | undefined;
   let attempts = 0;
-  let probed: { at: number; found: Promise<Probe> } | undefined;
+  const probe = createProbe(tailscaleRun, ngrokStart);
 
+  let closed = false;
+  let changing: Promise<void> = Promise.resolve();
+  const change = <T>(fn: () => Promise<T>): Promise<T> => {
+    const next = changing.then(fn);
+    changing = next.then(
+      () => {},
+      () => {},
+    );
+    return next;
+  };
   const saved = () => deps.store.settings.read("webhooks");
   const fail = (code: HookError, detail?: string) => {
     error = { code, ...(detail ? { detail: detail.slice(0, 300) } : {}) };
   };
-  const tailscaleDns = async (run: TailscaleRun | undefined) => {
-    const st = await run?.(["status", "--json"]);
-    return st?.ok ? tailscaleDnsName(st.out) : undefined;
-  };
-  type Probe = { tailscale: { installed: boolean; connected: boolean }; ngrok: { installed: boolean } };
-  /** What this computer has, asked at most every PROBE_TTL_MS: the CLI and PATH scans stay off the panel's polling. */
-  function probe(): Promise<Probe> {
-    if (probed && Date.now() - probed.at < PROBE_TTL_MS) return probed.found;
-    const run = tailscaleRun();
-    const found = tailscaleDns(run).then((dns) => ({
-      tailscale: { installed: Boolean(run), connected: Boolean(dns) },
-      ngrok: { installed: Boolean(ngrokStart()) },
-    }));
-    probed = { at: Date.now(), found };
-    return found;
-  }
 
   function stopNgrok() {
     clearTimeout(retry);
@@ -126,7 +192,7 @@ export function createWebhooks(deps: {
     deps.log.info({ wait_ms: wait, attempt: attempts }, "webhooks: ngrok starts again");
     retry = setTimeout(() => {
       retry = undefined;
-      if (saved().mode === "ngrok" && !tunnel) void startNgrok(domain);
+      if (!closed && saved().mode === "ngrok" && !tunnel) void startNgrok(domain);
     }, wait);
     retry.unref();
   }
@@ -161,7 +227,7 @@ export function createWebhooks(deps: {
           deps.log.info({ url }, "webhooks: ngrok address up");
           clearTimeout(timer);
           resolve();
-        } else if (said.error && !url) fail("ngrok_failed", said.error);
+        } else if (said.error && !url) fail("ngrok_failed");
       });
       t.onExit((code) => {
         if (tunnel !== t) return;
@@ -179,24 +245,29 @@ export function createWebhooks(deps: {
 
   /** Makes the saved choice true on this computer: the address comes up, or `error` says why not. */
   async function apply(): Promise<void> {
+    if (closed) return;
     const { mode, url: own, domain } = saved();
     stopNgrok();
     url = undefined;
     error = undefined;
     fresh = false;
     attempts = 0;
-    probed = undefined;
-    if (mode === "custom") url = own?.replace(/\/+$/, "");
+    probe.clear();
+    if (mode === "custom") {
+      url = own ? publicOrigin(own) : undefined;
+      if (!url) fail("failed");
+    }
     if (mode === "ngrok") await startNgrok(domain);
     if (mode === "tailscale") {
       const run = tailscaleRun();
       const dns = await tailscaleDns(run);
+      if (closed) return;
       if (!run) fail("tailscale_missing");
       else if (!dns) fail("tailscale_offline");
       else {
         const r = await run(["funnel", "--bg", `--https=${FUNNEL_PORT}`, `http://127.0.0.1:${deps.port()}`]);
         if (r.ok) url = `https://${dns}:${FUNNEL_PORT}`;
-        else fail("funnel_failed", r.out);
+        else fail("funnel_failed");
       }
     }
   }
@@ -210,7 +281,7 @@ export function createWebhooks(deps: {
       port: deps.port(),
       ...(domain ? { domain } : {}),
       ...(error ? { error: error.code, ...(error.detail ? { error_detail: error.detail } : {}) } : {}),
-      ...(await probe()),
+      ...(await probe.read()),
     };
   }
 
@@ -220,27 +291,25 @@ export function createWebhooks(deps: {
     base: () => url,
     /** The saved choice, applied at start (a failure only shows in the state). */
     start: () =>
-      apply().catch((err: unknown) => {
-        fail("failed", String(err));
-      }),
-    async set(o: { mode: HookMode; url?: string | undefined; domain?: string | undefined }): Promise<WebhooksState> {
-      if (o.mode === "custom" && !o.url?.startsWith("https://"))
-        throw new CallError({ code: "bad_request", message: "a public address needs an https:// URL" });
-      const { mode: before, ngrok_last } = saved();
-      // Only undo what APX set up: other Funnel or serve configs on this machine are not APX's.
-      if (before === "tailscale" && o.mode !== "tailscale")
-        await tailscaleRun()?.(["funnel", `--https=${FUNNEL_PORT}`, "off"]);
-      deps.store.settings.write("webhooks", {
-        mode: o.mode,
-        ...(o.mode === "custom" && o.url ? { url: o.url } : {}),
-        ...(o.mode === "ngrok" && o.domain ? { domain: o.domain } : {}),
-        ...(ngrok_last ? { ngrok_last } : {}),
+      change(() =>
+        apply().catch(() => {
+          fail("failed");
+        }),
+      ),
+    set(choice: TunnelChoice): Promise<WebhooksState> {
+      return change(async () => {
+        if (closed) throw new CallError({ code: "unavailable", message: "public tunnel is closed" });
+        await saveChoice(deps.store, tailscaleRun, choice);
+        await apply();
+        return state();
       });
-      await apply();
-      return state();
     },
-    close: stopNgrok,
+    close() {
+      closed = true;
+      url = undefined;
+      stopNgrok();
+    },
   };
 }
 
-export type Webhooks = ReturnType<typeof createWebhooks>;
+export type PublicTunnel = ReturnType<typeof createPublicTunnel>;

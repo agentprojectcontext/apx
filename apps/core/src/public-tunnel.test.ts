@@ -5,8 +5,8 @@ import { after, before, test } from "node:test";
 import type { TailscaleRun } from "./access.ts";
 import type { ChannelAdapter, HookRequest } from "./channels/types.ts";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";
+import { createPublicTunnel, NGROK_WAIT_MS, type NgrokProcess, type NgrokStart, ngrokLine } from "./public-tunnel.ts";
 import { waitFor } from "./testkit/platform.ts";
-import { createWebhooks, NGROK_WAIT_MS, type NgrokProcess, type NgrokStart, ngrokLine } from "./webhooks.ts";
 
 const got: HookRequest[] = [];
 let hookUrl: (() => string | undefined) | undefined;
@@ -90,8 +90,12 @@ test("the listener hands a channel's webhook to its adapter, bytes as they came,
   assert.equal(req?.headers["x-sig"], "ok", "headers come lowercased");
 
   assert.equal((await post("/hooks/teams", "{}")).status, 401, "the adapter refuses what it cannot verify");
-  assert.equal((await post("/apx/hooks/teams/files/1", "{}", { "x-sig": "ok" })).status, 200, "a prefix is fine");
-  assert.equal(got.at(-1)?.path, "/files/1");
+  assert.equal(
+    (await post("/apx/hooks/teams/files/1", "{}", { "x-sig": "ok" })).status,
+    404,
+    "unregistered prefixes and suffixes are denied",
+  );
+  assert.equal((await post("/hooks/teams/files/1", "{}", { "x-sig": "ok" })).status, 404);
   assert.equal((await post("/hooks/nobody", "{}")).status, 404, "an unknown channel");
   assert.equal((await post("/hooks/teams", "", {}, "GET")).status, 405);
   for (const path of ["/rpc/threads.list", "/", "/health", "/index.html"])
@@ -152,12 +156,129 @@ test("ngrok: its address is used; the owner is told only when it is new; a reser
 
 test("the owner's own address takes only https, and the choice is kept for the next start", async () => {
   await assert.rejects(env.client.call("webhooks.set", { mode: "custom", url: "http://example.com" }), /https/);
+  for (const url of [
+    "https://user:secret@example.com",
+    "https://example.com/prefix",
+    "https://example.com/?token=secret",
+    "https://example.com/#secret",
+  ])
+    await assert.rejects(env.client.call("webhooks.set", { mode: "custom", url }), /origin/);
+  await assert.rejects(
+    env.client.call("webhooks.set", { mode: "ngrok", domain: "https://example.com/?token=secret" }),
+    /hostname/,
+  );
   const own = await env.client.call("webhooks.set", { mode: "custom", url: "https://hooks.example.com/" });
   assert.equal(own.url, "https://hooks.example.com");
   const kept = env.core.store.settings.read("webhooks");
   assert.deepEqual([kept.mode, kept.url], ["custom", "https://hooks.example.com/"]);
   assert.equal(kept.ngrok_last, "https://acme.ngrok.app", "ngrok's last address is kept for when it is chosen again");
   await env.client.call("webhooks.set", { mode: "off" });
+});
+
+test("closing during a provider probe cannot publish a tunnel afterward", async () => {
+  let release: (() => void) | undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let probing = false;
+  let publishes = 0;
+  env.core.store.settings.write("webhooks", { mode: "tailscale" });
+  const tunnel = createPublicTunnel({
+    store: env.core.store,
+    port: () => 1234,
+    log: { info() {}, warn() {}, error() {} },
+    tailscale: async (args) => {
+      if (args[0] === "status") {
+        probing = true;
+        await gate;
+        return { ok: true, out: JSON.stringify({ Self: { DNSName: "acme.ts.net." } }) };
+      }
+      publishes++;
+      return { ok: true, out: "" };
+    },
+  });
+  try {
+    const start = tunnel.start();
+    await waitFor(() => probing, "provider probe started");
+    tunnel.close();
+    release?.();
+    await start;
+    assert.equal(publishes, 0);
+    assert.equal(tunnel.base(), undefined);
+    await assert.rejects(tunnel.set({ mode: "ngrok" }), /closed/);
+  } finally {
+    release?.();
+    tunnel.close();
+    env.core.store.settings.write("webhooks", { mode: "off" });
+  }
+});
+
+test("an unsafe saved custom address is not restored or exposed in runtime state", async () => {
+  env.core.store.settings.write("webhooks", {
+    mode: "custom",
+    url: "https://user:private-marker@example.com/?token=private-marker",
+  });
+  const tunnel = createPublicTunnel({
+    store: env.core.store,
+    port: () => 1234,
+    tailscale,
+    ngrok,
+    log: { info() {}, warn() {}, error() {} },
+  });
+  try {
+    await tunnel.start();
+    assert.equal(tunnel.base(), undefined);
+    const state = await tunnel.state();
+    assert.equal(state.error, "failed");
+    assert.equal(JSON.stringify(state).includes("private-marker"), false);
+    await tunnel.set({ mode: "off" });
+  } finally {
+    tunnel.close();
+  }
+});
+
+test("provider changes are serialized and a failed Funnel shutdown cannot report Off", async () => {
+  let release: (() => void) | undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let started = false;
+  let refuseStop = false;
+  const hooks = createPublicTunnel({
+    store: env.core.store,
+    port: () => 1234,
+    log: { info() {}, warn() {}, error() {} },
+    tailscale: async (args) => {
+      if (args[0] === "status") return { ok: true, out: JSON.stringify({ Self: { DNSName: "acme.ts.net." } }) };
+      if (args.includes("--bg")) {
+        started = true;
+        await gate;
+      }
+      return { ok: !refuseStop, out: "private-provider-detail" };
+    },
+  });
+  try {
+    const first = hooks.set({ mode: "tailscale" });
+    await waitFor(() => started, "Funnel start reached");
+    const second = hooks.set({ mode: "custom", url: "https://hooks.example.com" });
+    assert.equal(
+      env.core.store.settings.read("webhooks").mode,
+      "tailscale",
+      "a pending provider change is not overwritten",
+    );
+    release?.();
+    assert.equal((await first).mode, "tailscale");
+    assert.equal((await second).mode, "custom");
+    await hooks.set({ mode: "tailscale" });
+    refuseStop = true;
+    await assert.rejects(hooks.set({ mode: "off" }), /could not disable/);
+    assert.equal((await hooks.state()).mode, "tailscale");
+    refuseStop = false;
+    assert.equal((await hooks.set({ mode: "off" })).mode, "off");
+  } finally {
+    release?.();
+    hooks.close();
+  }
 });
 
 test("ngrok's JSON log: the tunnel's address, or its error", () => {
@@ -187,7 +308,7 @@ test("a tunnel that dies while ngrok is chosen comes back on its own, later each
   const waits: number[] = [];
   let exit: ((code: number | null) => void) | undefined;
   let starts = 0;
-  const hooks = createWebhooks({
+  const hooks = createPublicTunnel({
     store: env.core.store,
     port: () => 1234,
     log: { info: () => {}, warn: () => {}, error: () => {} },

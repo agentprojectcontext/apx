@@ -40,6 +40,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "services.set": SECRET,
   "clients.create": SECRET,
   "clients.revoke": SECRET,
+  "public_routes.rotate": SECRET,
+  "public_routes.revoke": SECRET,
   "chatgpt.connect": SECRET,
   "chatgpt.disconnect": SECRET,
   "integrations.connect": SECRET,

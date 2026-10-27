@@ -48,8 +48,8 @@ export const AccessState = z.object({
 export type AccessState = z.infer<typeof AccessState>;
 
 /**
- * The public address platforms that deliver to a webhook (Teams, LINE) reach this core on: off, Tailscale Funnel, an
- * ngrok tunnel, or the owner's own (a proxy they run). It publishes only the webhook listener. See DECISIONS.md#d-139
+ * The shared restricted public ingress address: off, Tailscale Funnel, ngrok or an owner's HTTPS proxy.
+ * Only registered signed channel hooks, token-protected Flows and published read-only widgets are reachable.
  */
 export const HookMode = z.enum(["off", "tailscale", "ngrok", "custom"]);
 export type HookMode = z.infer<typeof HookMode>;
@@ -67,7 +67,7 @@ export const HookError = z.enum([
 export type HookError = z.infer<typeof HookError>;
 export const WebhooksState = z.object({
   mode: HookMode,
-  /** The base platforms reach, as `<url>/hooks/<channel id>`; none while off or not up yet. */
+  /** The public base for registered routes; absent while the tunnel is off or not up yet. */
   url: z.string().optional(),
   /**
    * ngrok gave an address it had not given before (the first one, or another after it started again): the owner pastes
@@ -87,7 +87,35 @@ export const WebhooksState = z.object({
 });
 export type WebhooksState = z.infer<typeof WebhooksState>;
 
+export const PublicEndpointPath = z.string().regex(/^\/flows\/[A-Za-z0-9_-]{1,100}$/);
+export const PublicEndpointInfo = z.object({
+  path: PublicEndpointPath,
+  label: z.string(),
+  enabled: z.boolean(),
+  rotated_at: z.string().optional(),
+});
+export type PublicEndpointInfo = z.infer<typeof PublicEndpointInfo>;
+
 export const deviceMethods = {
+  "public_routes.list": {
+    params: z.object({}).strict(),
+    result: z.object({ routes: z.array(PublicEndpointInfo) }),
+    effect: false,
+    access: "human",
+  },
+  /** Creates or immediately replaces a route's credential; reveal its value through the existing secret UI. */
+  "public_routes.rotate": {
+    params: z.object({ path: PublicEndpointPath }).strict(),
+    result: z.object({ path: PublicEndpointPath, secret_ref: z.string(), rotated_at: z.string() }),
+    effect: true,
+    access: "human",
+  },
+  "public_routes.revoke": {
+    params: z.object({ path: PublicEndpointPath }).strict(),
+    result: z.object({ revoked: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
   /** The public address for channels' webhooks, and what this computer has to make one. */
   "webhooks.get": {
     params: z.object({}).strict(),

@@ -91,6 +91,9 @@ import { officeScheduler } from "./office-wiring.ts";
 import { createChatgptLogin } from "./providers/chatgpt-login.ts";
 import { createLlm, type Llm } from "./providers/llm.ts";
 import { providerRegistry } from "./providers/registry.ts";
+import { createPublicCredentials } from "./public-credentials.ts";
+import { nativePublicRoutes, publishedPublicRoutes } from "./public-routes.ts";
+import { createPublicTunnel, type NgrokStart } from "./public-tunnel.ts";
 import { localReleases, type ReleaseSource } from "./release-notes.ts";
 import { useLocalEmbedder } from "./rpc/embeddings.ts";
 import { internalCaller } from "./rpc/internal.ts";
@@ -126,7 +129,6 @@ import type { Tool } from "./tools/types.ts";
 import { listenHooks } from "./transport/hooks.ts";
 import { createUpdates, type Runner } from "./updates.ts";
 import { createUsage, type UsageOptions } from "./usage.ts";
-import { createWebhooks, type NgrokStart } from "./webhooks.ts";
 
 /** `apx mcp --run` (token in APX_RUN_TOKEN): how an external harness (Codex) reaches the tools of its run. */
 const TERMINAL_MAIN = path.resolve(import.meta.dirname, "../../terminal/src/main.ts");
@@ -400,13 +402,14 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   });
   const noticePush = createNoticePush({ store, bus, push });
   let hooksPort = config.hooksPort;
-  const webhooks = createWebhooks({
+  const webhooks = createPublicTunnel({
     store,
     port: () => hooksPort,
     log,
     ...(opts.tailscale ? { tailscale: opts.tailscale } : {}),
     ...(opts.ngrok ? { ngrok: opts.ngrok } : {}),
   });
+  const publicCredentials = createPublicCredentials({ store, secrets, endpoints: () => [] });
   const channels = createChannels({
     store,
     home: config.home,
@@ -438,7 +441,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       nextcloud: (c, secret) => nextcloudAdapter(c, secret, { dir: path.join(config.home, "channels", c.id) }),
       irc: (c, secret) => ircAdapter(c, secret),
       twitch: (c, secret) => twitchAdapter(c, secret),
-      // These deliver to a webhook: they answer through the public address (webhooks.ts).
+      // These deliver signed webhooks through the shared public ingress address.
       line: (c, secret) => lineAdapter(c, secret, { dir: path.join(config.home, "channels", c.id) }),
       teams: (c, secret) => teamsAdapter(c, secret, { dir: path.join(config.home, "channels", c.id) }),
     },
@@ -591,6 +594,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       addresses: () => reachableAt(config.host, listening, config.publicUrl),
       terminals,
       webhooks,
+      publicCredentials,
       integrationFetch: opts.integrationFetch,
       access: createAccess({
         home: config.home,
@@ -667,7 +671,13 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const url = transport.url;
   selfUrl = url;
   engine.start();
-  const hookListener = await listenHooks({ port: config.hooksPort, deliver: channels.webhook, log });
+  const nativeRoutes = nativePublicRoutes({ store, deliver: channels.webhook });
+  const publishedRoutes = publishedPublicRoutes(store);
+  const hookListener = await listenHooks({
+    port: config.hooksPort,
+    routes: (pathname) => nativeRoutes(pathname) ?? publishedRoutes(pathname),
+    log,
+  });
   hooksPort = hookListener.port;
   // Not awaited: ngrok may take 15 s, and a channel reads its public address when it needs it (hookBase).
   void webhooks.start();

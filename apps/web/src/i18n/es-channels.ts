@@ -297,22 +297,14 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "im.answerHint":
     "Las personas que te escriben por iMessage reciben respuesta de tu agente, una vez que las aprobás. Tus propios mensajes nunca se contestan.",
   "hooks.title": "Dirección pública",
-  "hooks.lead":
-    "Este canal entrega sus mensajes a una dirección web, así que APX necesita una que se pueda alcanzar desde internet. Sólo se publica la puerta de webhooks: nunca el panel ni la API.",
   "hooks.how": "Cómo se publica",
   "hooks.off": "Apagada",
-  "hooks.offBody": "Sin dirección pública: este canal no puede recibir mensajes.",
+  "hooks.offBody": "Sin túnel público: los servicios de internet no pueden llegar a este listener a través de APX.",
   "hooks.tailscale": "Tailscale",
-  "hooks.tailscaleBody":
-    "Tailscale Funnel da una dirección https fija en el puerto 8443. Gratis; Funnel tiene que estar permitido para este equipo en tu tailnet.",
   "hooks.ngrok": "ngrok",
-  "hooks.ngrokBody":
-    "APX arranca ngrok por vos. Una cuenta gratis suele mantener la misma dirección; si ngrok da una nueva, esta pantalla te avisa.",
   "hooks.custom": "Propia",
-  "hooks.customBody": "Tu propia dirección https, delante del puerto de webhooks (un proxy o un servidor tuyo).",
   "hooks.tsMissing": "Tailscale no está instalado en esta computadora.",
   "hooks.tsDisconnected": "Tailscale está instalado pero no conectado (o MagicDNS está apagado).",
-  "hooks.ngrokMissing": "ngrok no está instalado: instalalo y corré “ngrok config add-authtoken <tu token>” una vez.",
   "hooks.domain": "Dominio reservado",
   "hooks.domainHint": "Opcional: tu dominio de ngrok mantiene la misma dirección entre reinicios.",
   "hooks.ownUrl": "Tu dirección",
@@ -322,8 +314,6 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "hooks.copy": "Copiar",
   "hooks.copied": "Dirección copiada",
   "hooks.notUp": "Todavía no está activa",
-  "hooks.mayChange":
-    "Esta dirección de ngrok es nueva: pegala en la plataforma. Si ngrok da otra después de un reinicio, te lo vuelve a avisar acá.",
   "hooks.failed": "No se pudo cambiar la dirección pública: {error}",
   "hooks.err.funnel_failed":
     "Tailscale Funnel no arrancó: quizás haya que habilitarlo para esta computadora en la política del tailnet.",

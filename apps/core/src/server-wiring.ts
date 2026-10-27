@@ -73,7 +73,7 @@ import { transcriptionHandlers } from "./rpc/transcription.ts";
 import { webhookHandlers } from "./rpc/webhooks.ts";
 import type { Secrets } from "./secrets.ts";
 import type { RuntimeHomes } from "./skills/runtimes.ts";
-import { kitSource, withKit } from "./surface-kit.ts";
+import { storedPublicPages } from "./surface-pages.ts";
 import type { Telemetry } from "./telemetry.ts";
 import { agentSetTools } from "./tools/agent-set.ts";
 import { agentTools } from "./tools/agents.ts";
@@ -241,6 +241,7 @@ type HandlerDeps = {
   /** Who may reach this core (this computer, the network, the tailnet). */
   access: Parameters<typeof accessHandlers>[0];
   webhooks: Parameters<typeof webhookHandlers>[0];
+  publicCredentials: Parameters<typeof webhookHandlers>[1];
   /** What asks an integration's remote server about the owner's account (tests pass a fake). */
   integrationFetch?: typeof fetch | undefined;
   /** The owner's shells in a chat's folder. */
@@ -285,7 +286,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...clientHandlers(d.store),
     ...deviceHandlers(d.store, { addresses: d.addresses, onRevoke: (id) => d.vm?.revokeDevice(id) }),
     ...accessHandlers(d.access),
-    ...webhookHandlers(d.webhooks),
+    ...webhookHandlers(d.webhooks, d.publicCredentials),
     ...phoneHandlers(d.broker, d.store, d.app.home),
     ...computerHandlers(d.broker, d.store, d.app.home, d.engine, (thread) => Boolean(d.vm?.hasThread(thread))),
     ...extensionHandlers(d.extensions, d.mcp),
@@ -445,13 +446,7 @@ export async function listen(
       d.log,
       gate,
       servedPanel(config),
-      {
-        artifact: (t) => {
-          const s = d.store.surfaces.byShareToken(t);
-          return s ? { title: s.title, html: withKit(s.html), app: s.app, connect: s.connect } : undefined;
-        },
-        kit: kitSource,
-      },
+      storedPublicPages(d.store),
       (token) => d.store.clients.byToken(token),
       (token) => d.store.devices.byToken(token),
     ),

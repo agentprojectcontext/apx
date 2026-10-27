@@ -1,11 +1,39 @@
 import type { SurfaceSummary } from "@apx/protocol";
 import { Button, IconButton, Icons, Menu, type MenuEntry } from "@apx/ui";
+import { useEffect, useState } from "react";
 import { shareSurface } from "../data/actions.ts";
+import { client } from "../data/client.ts";
+
 import { notify } from "../data/notices.ts";
 import { t as tr, useT } from "../i18n/index.ts";
+import { openPublicLink, publicLink } from "./public-link.ts";
+
+export async function publicShareLink(path: string): Promise<string> {
+  const address = await client.call("webhooks.get", {});
+  return publicLink(path, address);
+}
+
+function PublicLinkPreview({ path }: { path: string }) {
+  const t = useT();
+  const [url, setUrl] = useState<string>();
+  useEffect(() => {
+    let current = true;
+    setUrl(undefined);
+    void publicShareLink(path).then(
+      (value) => {
+        if (current) setUrl(value);
+      },
+      () => {},
+    );
+    return () => {
+      current = false;
+    };
+  }, [path]);
+  return <span className="share__url">{url ?? t("share.linkUnavailable")}</span>;
+}
 
 export function linkOf(s: SurfaceSummary): string | undefined {
-  return s.share_path ? `${window.location.origin}${s.share_path}` : undefined;
+  return s.share_path;
 }
 
 async function copy(url: string): Promise<void> {
@@ -33,18 +61,53 @@ export function shareEntries(surface: SurfaceSummary, t: typeof tr): MenuEntry[]
       onSelect: async () => {
         if (url) return;
         const path = await shareSurface(surface.id, true);
-        if (path) void copy(`${window.location.origin}${path}`);
+        if (path) {
+          try {
+            await copy(await publicShareLink(path));
+          } catch {
+            notify(t("share.linkUnavailable"));
+          }
+        }
       },
     },
     ...(url
       ? ([
           { type: "separator" },
-          { type: "label", label: <span className="share__url">{url}</span> },
-          { label: t("share.copy"), icon: <Icons.Copy size={16} />, onSelect: () => void copy(url) },
+          { type: "label", label: <PublicLinkPreview path={surface.share_path ?? ""} /> },
+          { type: "label", label: t("share.tunnelHint") },
+          {
+            label: t("share.copy"),
+            icon: <Icons.Copy size={16} />,
+            onSelect: async () => {
+              try {
+                await copy(await publicShareLink(surface.share_path ?? ""));
+              } catch {
+                notify(t("share.linkUnavailable"));
+              }
+            },
+          },
           {
             label: t("share.open"),
             icon: <Icons.ExternalLink size={16} />,
-            onSelect: () => window.open(url, "_blank", "noopener,noreferrer"),
+            onSelect: async () => {
+              try {
+                await openPublicLink(
+                  () => publicShareLink(surface.share_path ?? ""),
+                  () => {
+                    const tab = window.open("about:blank", "_blank");
+                    if (!tab) return null;
+                    tab.opener = null;
+                    const policy = tab.document.createElement("meta");
+                    policy.name = "referrer";
+                    policy.content = "no-referrer";
+                    tab.document.head.append(policy);
+                    return { navigate: (value) => tab.location.replace(value), close: () => tab.close() };
+                  },
+                );
+              } catch {
+                notify(t("share.linkUnavailable"));
+              }
+            },
           },
         ] satisfies MenuEntry[])
       : []),
