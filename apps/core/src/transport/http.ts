@@ -2,12 +2,10 @@ import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { type ClientScope, FILE_PAYLOAD_BYTES, methodOpen } from "@apx/protocol";
-import {
-  injectSurfaceHead,
-  surfaceLayoutCss,
-  WIDGET_KIT_CSS,
-  WIDGET_TOKENS,
-} from "../../../../packages/surfaces/src/widget-kit.ts";
+import { type PublicPages, surfacePage } from "../surface-pages.ts";
+
+export type { PublicPages } from "../surface-pages.ts";
+
 import type { Log } from "../log.ts";
 import { isInside } from "../paths.ts";
 import type { Dispatch } from "../rpc/router.ts";
@@ -26,8 +24,6 @@ const FILE_METHODS: ReadonlySet<string> = new Set([
   "surfaces.import",
 ]);
 const MAX_FILE_BODY = FILE_PAYLOAD_BYTES;
-/** The kit's path in any minor version a page names (kit@1.js, kit@1.2.js). */
-const KIT_URL = /^\/_apx\/kit@1(?:\.\d+){0,2}\.js$/;
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -59,33 +55,6 @@ function serveStatic(dist: string, pathname: string, res: ServerResponse): boole
   });
   fs.createReadStream(file).pipe(res);
   return true;
-}
-
-export type PublicPages = {
-  artifact(
-    token: string,
-  ): { title: string; html: string; app?: boolean | undefined; connect?: string[] | undefined } | undefined;
-  /** The APX Kit's source, for pages opened outside APX that load it by its path. */
-  kit?(): string;
-};
-
-/**
- * Artifacts run with an opaque origin (CSP sandbox without allow-same-origin): no cookies, no API access. They reach
- * only the origins their widget declared for live data (already validated as bare https/wss origins).
- */
-const artifactCsp = (connect: string[] = []) =>
-  `sandbox allow-scripts allow-popups allow-forms; default-src 'self' data: blob: 'unsafe-inline'; form-action 'none'; connect-src ${connect.length ? connect.join(" ") : "'none'"}; frame-ancestors *`;
-
-function artifactPage(title: string, html: string, app = false): string {
-  const esc = title.replace(/[<>&"]/g, (c) => `&#${c.charCodeAt(0)};`);
-  return injectSurfaceHead(
-    html,
-    `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc}</title>
-<style>:root{${WIDGET_TOKENS.light};color-scheme:light}@media(prefers-color-scheme:dark){:root{${WIDGET_TOKENS.dark};color-scheme:dark}}
-body{margin:0;padding:var(--apx-page-padding);background:var(--apx-bg);color:var(--apx-fg);font:14px/1.5 var(--apx-font-sans);display:flow-root}*{box-sizing:border-box}
-${WIDGET_KIT_CSS}
-${surfaceLayoutCss(app ? "app" : "widget")}</style>`,
-  );
 }
 
 /** Which paired device a key belongs to (undefined: not a device's, or revoked). */
@@ -160,22 +129,13 @@ export function httpHandler(
       );
       return send(res, out.ok ? 200 : statusFor(out.error.code), out);
     }
-    const share = /^\/a\/([a-f0-9]{32})$/.exec(url.pathname);
-    if (req.method === "GET" && share && pages) {
-      const page = pages.artifact(share[1] ?? "");
-      if (!page) return send(res, 404, { ok: false, error: { code: "not_found", message: "not found" } });
-      res.writeHead(200, {
-        "content-type": "text/html; charset=utf-8",
-        "content-security-policy": artifactCsp(page.connect),
-        "cache-control": "no-store",
-      });
-      res.end(artifactPage(page.title, page.html, page.app));
-      return;
-    }
-    if (req.method === "GET" && KIT_URL.test(url.pathname) && pages?.kit) {
-      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache" });
-      res.end(pages.kit());
-      return;
+    if (req.method === "GET" && pages) {
+      const page = surfacePage(url.pathname, pages);
+      if (page) {
+        res.writeHead(page.status, page.headers);
+        res.end(typeof page.body === "string" ? page.body : "");
+        return;
+      }
     }
     if (req.method === "GET" && webDist && serveStatic(webDist, url.pathname, res)) return;
     send(res, 404, { ok: false, error: { code: "not_found", message: "not found" } });

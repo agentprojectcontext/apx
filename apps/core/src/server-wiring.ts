@@ -73,7 +73,7 @@ import { transcriptionHandlers } from "./rpc/transcription.ts";
 import { webhookHandlers } from "./rpc/webhooks.ts";
 import type { Secrets } from "./secrets.ts";
 import type { RuntimeHomes } from "./skills/runtimes.ts";
-import { kitSource, withKit } from "./surface-kit.ts";
+import { storedPublicPages } from "./surface-pages.ts";
 import type { Telemetry } from "./telemetry.ts";
 import { agentSetTools } from "./tools/agent-set.ts";
 import { agentTools } from "./tools/agents.ts";
@@ -446,13 +446,7 @@ export async function listen(
       d.log,
       gate,
       servedPanel(config),
-      {
-        artifact: (t) => {
-          const s = d.store.surfaces.byShareToken(t);
-          return s ? { title: s.title, html: withKit(s.html), app: s.app, connect: s.connect } : undefined;
-        },
-        kit: kitSource,
-      },
+      storedPublicPages(d.store),
       (token) => d.store.clients.byToken(token),
       (token) => d.store.devices.byToken(token),
     ),

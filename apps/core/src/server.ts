@@ -92,7 +92,7 @@ import { createChatgptLogin } from "./providers/chatgpt-login.ts";
 import { createLlm, type Llm } from "./providers/llm.ts";
 import { providerRegistry } from "./providers/registry.ts";
 import { createPublicCredentials } from "./public-credentials.ts";
-import { nativePublicRoutes } from "./public-routes.ts";
+import { nativePublicRoutes, publishedPublicRoutes } from "./public-routes.ts";
 import { createWebhooks, type NgrokStart } from "./public-tunnel.ts";
 import { localReleases, type ReleaseSource } from "./release-notes.ts";
 import { useLocalEmbedder } from "./rpc/embeddings.ts";
@@ -671,9 +671,11 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const url = transport.url;
   selfUrl = url;
   engine.start();
+  const nativeRoutes = nativePublicRoutes({ store, deliver: channels.webhook });
+  const publishedRoutes = publishedPublicRoutes(store);
   const hookListener = await listenHooks({
     port: config.hooksPort,
-    routes: nativePublicRoutes({ store, deliver: channels.webhook }),
+    routes: (pathname) => nativeRoutes(pathname) ?? publishedRoutes(pathname),
     log,
   });
   hooksPort = hookListener.port;
