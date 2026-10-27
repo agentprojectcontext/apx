@@ -1,0 +1,38 @@
+---
+title: IRC y Twitch
+description: Conectá bots de chat y elegí deliberadamente qué salas públicas pueden leer y responder.
+sidebar:
+  order: 10
+---
+
+## IRC
+
+1. Elegí una red y un nick para el bot. Registralo en NickServ si la red lo pide.
+2. Abrí **Configuración › Canales › Agregar canal › IRC**. Ingresá servidor (`ircs://` para TLS), nick y contraseña si hace falta.
+3. Enviá un mensaje privado al bot e ingresá su código en **Este es mi IRC** para vincular tu nick.
+4. En **Salas**, listá los canales que usará el bot y elegí su modo de respuesta.
+
+Un nick no prueba que el dueño escribió un pedido. Aprobá lo riesgoso en APX; no asumas que NickServ hace que un
+mensaje de IRC equivalga a una sesión iniciada en APX. Si el bot no entra, revisá esquema/puerto, disponibilidad del
+nick, autenticación de la red y lista de salas. No publiques contraseñas para diagnosticarlo.
+
+## Twitch
+
+1. Creá una cuenta para el bot o elegí la cuenta desde la que debe hablar.
+2. Obtené un token de chat para esa cuenta con permisos **chat:read** y **chat:edit**.
+3. Abrí **Configuración › Canales › Agregar canal › Twitch**. Ingresá login del bot, token y canal de destino.
+4. Agregá el chat del canal en **Salas**. Conectar una cuenta sin habilitar una sala no alcanza.
+5. Empezá con **Al llamarlo** y mencioná al bot para comprobar una respuesta pública.
+
+El chat de Twitch es una **sala**, no una bandeja de mensajes directos. APX publica desde la cuenta bot configurada.
+Si conecta pero calla, revisá permisos del token, login y sala; siguen vigentes moderación y restricciones de Twitch.
+
+## Comportamiento en salas públicas
+
+Por cada sala elegí **Siempre**, **Al llamarlo**, **Cuando aporte** o **Solo leer**. Configurá nombres del bot,
+conocimiento público, reglas y límites antes de automatizar respuestas. Empezá acotado: «Respondé solo preguntas
+sobre nuestros horarios de soporte publicados; si no, guardá silencio».
+
+Las salas fuera de la lista no se leen. Sus participantes no obtienen tus archivos ni memoria, aunque vos escribas
+allí. **Buscar en la web** habilita solo investigación pública, no tus herramientas privadas. Una sala de solo lectura
+sigue siendo entrada pública, no autorización del dueño. Leé la [guía de salas](/es/channels/overview/).

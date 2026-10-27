@@ -1,0 +1,43 @@
+---
+title: Google Chat and Nextcloud Talk
+description: Connect work chat through Pub/Sub or a Nextcloud bot user, then allow the right spaces.
+sidebar:
+  order: 8
+---
+
+## Google Chat
+
+This is a **channel**, not the Gmail or Calendar integration. It receives messages through Google Cloud Pub/Sub:
+APX needs outbound access, not a public webhook URL. You need permission to configure the Cloud project and Chat app.
+
+1. Enable the **Google Chat** and **Pub/Sub** APIs in Google Cloud. Create a topic and a **pull subscription**.
+   Give `chat-api-push@system.gserviceaccount.com` the Publisher role on the topic.
+2. Create a service account with the Subscriber role on the subscription and download its JSON key.
+3. In Chat API configuration, name the app, select Cloud Pub/Sub with that topic and choose who may use it.
+4. In **Settings › Channels › Add channel › Google Chat**, paste the subscription and the complete service-account
+   JSON key. Select the answering agent and connect. Treat the JSON key as a secret, not a chat attachment.
+5. Send the Chat app a direct message and enter its code in **This is my Google Chat** for your own account.
+
+For spaces, add the bot to the space and explicitly list it under **Rooms**. Choose when it answers: always, when
+called, when useful, or read only. A room absent from the list is not read. Test direct messages first, then a listed
+space with a simple mention. If nothing arrives, check topic delivery, subscription path and Subscriber permission.
+
+## Nextcloud Talk
+
+1. Create a separate Nextcloud user for the bot. APX sends as that user.
+2. Signed in as that user, create an app password in **Personal settings › Security**.
+3. In **Settings › Channels › Add channel › Nextcloud Talk**, enter the server address, user and app password.
+4. Write to the bot and enter its code in **This is my Nextcloud Talk** to link your account.
+5. For shared conversations, invite the bot and add their identifiers under **Rooms**; choose an answer mode.
+
+This supports direct chats and listed conversations. It does not grant APX general access to every Nextcloud file
+or conversation. If connection fails, check the server address, app password and the bot user's Talk access.
+
+## Use and boundaries
+
+Try “Summarize what was discussed in this listed room” from APX, or ask for a draft before posting publicly. A room
+is public to its participants: replies are sealed and never include your private memory or file access. Optional
+public-web research is controlled separately by **Search the web**, not by adding the room.
+
+These channels do not establish owner authority in the same way as Telegram, WhatsApp or Signal. Risky requests
+may be checked in APX. See [identity, contacts and rooms](/channels/overview/) before using a bot for owner actions.
