@@ -141,8 +141,9 @@ npx expo start      # Expo Go o un dev build; el core tiene que ser alcanzable e
 
 ## Notificaciones push
 
-El teléfono puede ser el lugar adonde llegan tus avisos, así las novedades de las rutinas, los recordatorios y las
-preguntas de los agentes te encuentran aunque la app esté cerrada.
+Cada aviso de la bandeja de la app llega también a tus teléfonos vinculados, así las novedades de las rutinas, las
+tareas terminadas, los recordatorios y las preguntas de los agentes te encuentran aunque la app esté cerrada. Una app de
+chat (Telegram, WhatsApp…) es un extra que podés elegir.
 
 <Steps>
 
@@ -150,12 +151,9 @@ preguntas de los agentes te encuentran aunque la app esté cerrada.
    tiene un id de proyecto de EAS. Si no, debajo del dispositivo en **Configuración › Conexiones › Dispositivos**, usá
    **Configurar notificaciones** y pegá una dirección de ntfy o UnifiedPush.
 
-2. Elegí el teléfono en **Configuración › Interrupciones › A dónde llegan los avisos**. Aparece con el nombre del
-   dispositivo seguido de "(push)".
-
 </Steps>
 
-El mismo presupuesto de interrupciones decide qué llega al teléfono: tope diario, horas de silencio y lo demás
+En horas de silencio solo llegan al teléfono las preguntas que te esperan y los errores; lo demás queda en la bandeja
 ([Secretaria](/es/office/secretary/)). Un dispositivo solo puede configurar su propia dirección de push, y el token de
 push nunca vuelve a ningún cliente.
 

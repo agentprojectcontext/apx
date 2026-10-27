@@ -86,6 +86,19 @@ export function notificationsRepo({ one, all, run, tx }: Sql, bus: Bus) {
       if (o.unreadOnly) q = q.where("read_at", "is", null);
       return all(q.orderBy("created_at", "desc").limit(o.limit)).map(toNotification);
     },
+    /** Whether an unread notice about `ref` of this kind is in the tray. */
+    hasUnread(kind: Notification["kind"], ref: string): boolean {
+      return Boolean(
+        one(
+          qb
+            .selectFrom("notifications")
+            .select("id")
+            .where("kind", "=", kind)
+            .where("ref", "=", ref)
+            .where("read_at", "is", null),
+        ),
+      );
+    },
     unread(): number {
       return Number(
         one(

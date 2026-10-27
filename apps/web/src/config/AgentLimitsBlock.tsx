@@ -12,21 +12,19 @@ const MAX: Record<Key, number> = { runs: 10_000, tokens: 1_000_000 };
 
 /**
  * How far agents go on their own (delegating, waking each other with results) before they wait for the owner to
- * write: one switch removes both limits; otherwise a number of turns and of tokens (left empty: that one has none).
+ * write: none until the owner turns them on; then a number of turns and of tokens (left empty: that one has none).
  */
 export function AgentLimitsBlock() {
   const t = useT();
   const [limits, setLimits] = useState<AgentLimits>();
-  const [defaults, setDefaults] = useState<AgentLimits>({ runs: 30, tokens: 1_500_000 });
+  const [defaults, setDefaults] = useState<AgentLimits>({ runs: 100, tokens: 5_000_000 });
   const [draft, setDraft] = useState<Partial<Record<Key, string>>>({});
-  const [fanOutAsk, setFanOutAsk] = useState(true);
   useEffect(() => {
     void client
       .call("agents.limits", {})
       .then((r) => {
         setLimits({ runs: r.runs, tokens: r.tokens });
         setDefaults(r.defaults);
-        setFanOutAsk(r.fan_out_ask);
       })
       .catch(() => setLimits(undefined));
   }, []);
@@ -75,30 +73,16 @@ export function AgentLimitsBlock() {
     <>
       <SubHead>{t("limits.title")}</SubHead>
       <p className="config__lead">{t("limits.lead")}</p>
-      <SettingRow title={t("limits.off")} description={t("limits.offHint")}>
+      <SettingRow title={t("limits.on")} description={t(none ? "limits.offHint" : "limits.onHint")}>
         <Switch
           size="sm"
-          checked={none}
-          onCheckedChange={(off) => save(off ? { runs: 0, tokens: 0 } : defaults)}
-          aria-label={t("limits.off")}
+          checked={!none}
+          onCheckedChange={(on) => save(on ? defaults : { runs: 0, tokens: 0 })}
+          aria-label={t("limits.on")}
         />
       </SettingRow>
       {!none && row("runs")}
       {!none && row("tokens")}
-      <SettingRow title={t("limits.fanOut")} description={t("limits.fanOutHint")}>
-        <Switch
-          size="sm"
-          checked={fanOutAsk}
-          onCheckedChange={(ask) => {
-            setFanOutAsk(ask);
-            void client
-              .call("agents.set_fan_out_ask", { ask })
-              .then((r) => setFanOutAsk(r.ask))
-              .catch(() => setFanOutAsk(!ask));
-          }}
-          aria-label={t("limits.fanOut")}
-        />
-      </SettingRow>
     </>
   );
 }

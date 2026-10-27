@@ -1,4 +1,5 @@
-// What a folder has uncommitted, per git: the card at the end of a code turn and the chat's Changes panel.
+// What a folder has uncommitted, per git, for the chat's Changes panel; and what one turn changed there, for the card at
+// its end (a snapshot when it starts, compared when it ends).
 import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -12,12 +13,16 @@ const MAX_FILES = 50;
 const MAX_DIFF = 200 * 1024;
 
 /** git, with the repo's own config unable to make it run anything: no fsmonitor, hooks, external diff or textconv. */
-export const gitBoth = (cwd: string, args: string[], timeout = 10_000) =>
+export const gitBoth = (cwd: string, args: string[], timeout = 10_000, env: Record<string, string> = {}) =>
   run(
     "git",
     ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "--no-optional-locks", "-C", cwd, ...args],
     // Never a prompt nobody can answer: a remote that needs credentials fails instead of waiting on a terminal.
-    { timeout, maxBuffer: 4 * 1024 * 1024, env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_ASKPASS: "" } },
+    {
+      timeout,
+      maxBuffer: 4 * 1024 * 1024,
+      env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_ASKPASS: "", ...env },
+    },
   );
 /** git's output (what it reports on stderr, as push and pull do, is in `gitBoth`). */
 export const git = (cwd: string, args: string[], timeout = 10_000) => gitBoth(cwd, args, timeout).then((r) => r.stdout);
@@ -59,6 +64,77 @@ export async function gitStatus(cwd: string): Promise<ChangedFile[] | undefined>
 export async function gitChanges(cwd: string): Promise<Extract<Part, { type: "changes" }> | undefined> {
   const files = await gitStatus(cwd);
   if (!files?.length) return undefined;
+  return {
+    type: "changes",
+    cwd,
+    files: files.slice(0, MAX_FILES),
+    ...(files.length > MAX_FILES ? { more: files.length - MAX_FILES } : {}),
+  };
+}
+
+/**
+ * The folder as it is now, tracked and untracked (what .gitignore keeps out stays out), as a git tree; undefined
+ * outside a work tree or when git cannot. A private index leaves the owner's staging area alone.
+ */
+export async function gitSnapshot(cwd: string): Promise<string | undefined> {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-snapshot-"));
+  const env = { GIT_INDEX_FILE: path.join(dir, "index") };
+  try {
+    // Outside this folder the snapshot is HEAD, so only what changes here can differ.
+    await gitBoth(cwd, ["read-tree", "HEAD"], 10_000, env).catch(() => undefined);
+    await gitBoth(cwd, ["add", "-A", "--", "."], 30_000, env);
+    return (await gitBoth(cwd, ["write-tree"], 10_000, env)).stdout.trim() || undefined;
+  } catch {
+    return undefined;
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** What changed under `cwd` since the snapshot `before` (paths relative to it); undefined when nothing did. */
+export async function turnChanges(
+  cwd: string,
+  before: string,
+): Promise<Extract<Part, { type: "changes" }> | undefined> {
+  const after = await gitSnapshot(cwd);
+  if (!after || after === before) return undefined;
+  let prefix: string;
+  let names: string;
+  let numstat: string;
+  try {
+    [prefix, names, numstat] = await Promise.all([
+      git(cwd, ["rev-parse", "--show-prefix"]).then((x) => x.trim()),
+      git(cwd, ["diff-tree", "-r", "--no-renames", "--name-status", before, after, "--", "."]),
+      git(cwd, [
+        "diff-tree",
+        "-r",
+        "--no-renames",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--numstat",
+        before,
+        after,
+        "--",
+        ".",
+      ]),
+    ]);
+  } catch {
+    return undefined;
+  }
+  const counts = new Map<string, { added: number; removed: number }>();
+  for (const line of numstat.split("\n")) {
+    const [a, r, file] = line.split("\t");
+    if (file && a !== "-") counts.set(file, { added: Number(a), removed: Number(r) });
+  }
+  const files: ChangedFile[] = names
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [status = "M", file = ""] = line.split("\t");
+      const rel = file.startsWith(prefix) ? file.slice(prefix.length) : file;
+      return { path: rel, status, ...(counts.get(file) ?? {}) };
+    });
+  if (!files.length) return undefined;
   return {
     type: "changes",
     cwd,

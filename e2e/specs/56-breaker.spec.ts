@@ -12,7 +12,7 @@ const workerSessions = async () =>
   ).length;
 
 test.afterEach(async () => {
-  await rpc("agents.set_limits", { runs: 30, tokens: 1_500_000 });
+  await rpc("agents.set_limits", { runs: 0, tokens: 0 });
 });
 
 test("the owner writing on Telegram gives agents a fresh budget each time", async () => {

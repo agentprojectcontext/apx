@@ -724,9 +724,11 @@ export const JobFrom = z.object({
     "terminal",
     "go_on",
     "stalled_task",
+    "task_continue",
     "computer_ready",
     "task_result",
     "delegation_result",
+    "added",
   ]),
   /** Who sent it (the helper, the contact, the routine, the surface), when it has a name. */
   name: z.string().optional(),
@@ -1278,8 +1280,8 @@ export type MemorySettings = z.infer<typeof MemorySettings>;
 /** How APX reaches the owner when they are not looking at the app. */
 export const NoticePrefs = z.object({
   /**
-   * Where notices go: a channel (its id) or a paired device's push ("device:<id>"); none = the first running channel
-   * that knows the owner.
+   * Which chat app the super-agent also writes to unasked: a channel (its id), "none" for the app only, or unset for the
+   * first running channel that knows the owner. The app and paired phones are told either way (engine/notice-push.ts).
    */
   channel: z.string().optional(),
   /**

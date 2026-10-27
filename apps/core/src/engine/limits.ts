@@ -14,12 +14,15 @@ export const MAX_ACTIVE_DELEGATIONS = 3;
  */
 export const A2A_CAP_MS = 2 * 3600_000;
 /** Turns agents may start without the owner (delegations, results waking callers) in one conversation tree,
- *  counted since the owner last wrote in it. Past it the chain pauses until they write. The owner can change it
- *  (`agents.set_limits`, setting "agent_limits"); 0 = no limit. */
-export const MAX_UNATTENDED_RUNS = 30;
+ *  counted since the owner last wrote in it. Past it the chain pauses until they write. Off by default: agents finish
+ *  what they were asked, like a coding agent does; the owner sets one (`agents.set_limits`, setting "agent_limits")
+ *  if they want it (DECISIONS.md#d-160). 0 = no limit. */
+export const MAX_UNATTENDED_RUNS = 0;
 /** Fresh tokens those unattended turns may spend before the chain pauses: input read from a provider's cache is not
- *  counted (domain/runs.ts). Sized for a few helpers reading a codebase in parallel and the summary after. */
-export const MAX_UNATTENDED_TOKENS = 1_500_000;
+ *  counted (domain/runs.ts). Off by default, like the turns. */
+export const MAX_UNATTENDED_TOKENS = 0;
+/** What turning the limits on starts from: room for a large feature (a hundred turns seen in real ones). */
+export const SUGGESTED_LIMITS = { runs: 100, tokens: 5_000_000 } as const;
 
 /** The limits in force: the owner's, else the defaults above. */
 export function unattendedLimits(store: Store): { runs: number; tokens: number } {

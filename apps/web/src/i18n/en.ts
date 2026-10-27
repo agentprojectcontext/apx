@@ -420,6 +420,7 @@ export const en = {
   "turn.from.command": "Command ended",
   "turn.from.goOn": "Go on after the pause",
   "turn.from.stalledTask": "Resume a stalled task",
+  "turn.from.taskContinue": "Go on with the task",
   "turn.from.other": "Next turn",
   "turn.queuedAfter": "Queued after the current turn",
   "running.empty": "Nothing running right now.",
@@ -1767,11 +1768,11 @@ export const en = {
   "routines.maxStepsHint": "How many model calls each run may make before it must answer (5 to 200). Empty: 60.",
   "routines.anchorHint":
     "On: its news always arrives, even at night or past the daily cap (for a morning or evening brief). Off: it goes through your interruption budget.",
-  "nudge.where": "Where notices go",
+  "nudge.where": "Chat app for notices",
   "nudge.whereHint":
-    "A channel, or your phone's push (pair it in Devices; the APX app registers it, or paste an ntfy address there).",
+    "The app and your paired phones always get them (pair one in Devices). Pick a chat app to get them there too, or none.",
   "nudge.whereAuto": "The first channel that knows you",
-  "nudge.wherePhone": "{name} (push)",
+  "nudge.whereNone": "None, only in the app",
   "devices.push.expo": "Push",
   "devices.push.unifiedpush": "Push (ntfy)",
   "devices.pushUrl": "Push address for {name}",
@@ -1788,7 +1789,7 @@ export const en = {
   "super.talk": "How it reaches you",
   "super.where": "Where it writes to you",
   "super.whereHint":
-    "Its routines, the OKs it needs and reminders arrive there. If that channel can't deliver one, it tries the next one that knows you.",
+    "The app, on this computer and your phone, always tells you. Pick a chat app for its routines, the OKs it needs and reminders too; if it can't deliver one, it tries the next that knows you.",
   "prof.lead":
     "What your super-agent is for. A profile gives it a role, routines on their own schedule and the settings they read; switch it any time. Its routines live in Routines too.",
   "prof.none": "None",

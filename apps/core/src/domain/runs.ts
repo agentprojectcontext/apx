@@ -46,12 +46,27 @@ export type Origin =
   | { kind: "terminal"; terminal_id: string; command: string; exit_code: number | null }
   /** The owner let agents go on after a pause: with a fresh budget, or with no limit this round (DECISIONS.md#d-081). */
   | { kind: "go_on"; mode: "reset" | "release" }
+  /** The agent's task turn ended with the task still in progress: APX starts its next part (engine/task-continue.ts). */
+  | { kind: "task_continue"; task_id: string; title: string; part: number; of: number }
   /** APX found the agent's task open with nothing running on it, and asks it once to go on (engine/task-stall.ts). */
   | { kind: "stalled_task"; task_id: string; title: string }
+  /** The owner added a project or an agent: the super-agent offers to adapt it (engine/added.ts). */
+  | { kind: "added"; what: "project" | "agent"; id: string; name: string }
   /** The computer the agent started in this chat is up, or did not start (environments/ready.ts). */
   | { kind: "computer_ready"; ready: boolean; error?: string }
-  /** A task an agent created and gave to another one was closed by that one (DECISIONS.md#d-076). */
-  | { kind: "task_result"; task_id: string; title: string; state: "done" | "dropped"; agent_id: string; name: string }
+  /**
+   * A task an agent created and gave to another one was closed by that one (DECISIONS.md#d-076). `by`: the super-agent
+   * hears of a task someone else created (its creator's name), to tell the owner (DECISIONS.md#d-161).
+   */
+  | {
+      kind: "task_result";
+      task_id: string;
+      title: string;
+      state: "done" | "dropped";
+      agent_id: string;
+      name: string;
+      by?: string;
+    }
   | {
       kind: "delegation_result";
       agent_id: string;
@@ -86,6 +101,7 @@ export const runsOnComputer = (o: Origin): boolean => {
     case "terminal":
     case "routine":
     case "stalled_task":
+    case "task_continue":
     case "task_result":
     case "delegation_result":
       return true;

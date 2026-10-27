@@ -562,3 +562,47 @@ test("a notice the owner's chosen channel refuses goes to the next channel that 
     await env.client.call("channels.set", { id: "dc", channel: null });
   }
 });
+
+test("with the app only chosen, news stays in the app: no channel message, still in the tray", async () => {
+  const prefs = await env.client.call("notices.get", {});
+  await env.client.call("notices.set", { ...prefs, channel: "none" });
+  try {
+    const r = await env.client.call("routines.set", {
+      name: "app-only-probe",
+      agent: "roby",
+      schedule: { kind: "manual" },
+      action: "message",
+      prompt: "App only brief",
+      enabled: true,
+    });
+    await env.client.call("routines.run", { routine: r.id });
+    const tray = async () => (await env.client.call("notifications.list", {})).notifications;
+    await waitFor(
+      async () => (await tray()).some((n) => n.kind === "routine" && /App only brief/.test(n.body)),
+      "in the tray",
+    );
+    await waitFor(() => env.core.store.nudges.list(5).some((n) => n.state === "no_channel"), "kept off the channels");
+    assert.ok(!tg.messagesTo(OWNER.id).some((m) => /App only brief/.test(String(m.body.text))));
+  } finally {
+    await env.client.call("notices.set", prefs);
+  }
+});
+
+test("a teammate's question reaches the owner's chat app as one line saying who waits, answered in the app", async () => {
+  await env.client.call("notices.set", { inputs_after_s: 1 });
+  try {
+    const before = tg.messagesTo(OWNER.id).length;
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "vera" });
+    await env.client.call("threads.send", { thread: t.id, text: "launch the probe" });
+    await waitFor(() => tg.messagesTo(OWNER.id).length > before, "a line on Telegram");
+    const line = tg.messagesTo(OWNER.id).at(-1)?.body;
+    assert.match(String(line?.text), /^Vera te espera: /);
+    assert.match(String(line?.text), /Respondele en APX/);
+    assert.equal(line?.reply_markup, undefined, "no buttons: the card is answered in the app");
+    const pending = (await env.client.call("runs.pending", { thread: t.id })).inputs[0];
+    await env.client.call("runs.respond", { input: pending?.id ?? "", decision: "deny" });
+    await env.settle(t.id);
+  } finally {
+    await env.client.call("notices.set", { inputs_after_s: 120 });
+  }
+});

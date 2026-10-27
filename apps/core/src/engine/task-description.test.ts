@@ -23,7 +23,11 @@ after(async () => {
 
 const blank = [undefined, "", " \t\n "];
 const sessions = (id: string) => env.core.store.threads.byTask(id);
-const runs = (id: string) => sessions(id).flatMap((s) => env.core.store.runs.list(s.id));
+/** The task's starts: a part APX goes on with on its own (engine/task-continue.ts) is not another start. */
+const runs = (id: string) =>
+  sessions(id)
+    .flatMap((s) => env.core.store.runs.list(s.id))
+    .filter((r) => r.input?.origin.kind !== "task_continue");
 async function finish(id: string) {
   for (const s of sessions(id)) await env.settle(s.id);
 }

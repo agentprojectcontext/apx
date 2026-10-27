@@ -81,6 +81,10 @@ function devBundle(): string | undefined {
         fs.writeFileSync(iconStamp, iconHash);
       }
     }
+    // Renaming and the icon break Electron's ad-hoc seal, and macOS drops an app's notifications silently while it is
+    // broken: sign the copy again (ad-hoc, as Electron ships).
+    if (spawnSync("codesign", ["--verify", "--deep", "--strict", app]).status !== 0)
+      spawnSync("codesign", ["--force", "--deep", "--sign", "-", app]);
     return path.join(app, "Contents", "MacOS", "Electron");
   } catch {
     return undefined;

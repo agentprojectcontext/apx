@@ -123,22 +123,16 @@ export const teamMethods = {
     effect: true,
     access: "human",
   },
+  /** The limits in force (0: none) and `defaults`, what turning them on starts from. */
   "agents.limits": {
     params: z.object({}).strict(),
-    result: AgentLimits.extend({ defaults: AgentLimits, agents: AgentBudgets, fan_out_ask: z.boolean() }),
+    result: AgentLimits.extend({ defaults: AgentLimits, agents: AgentBudgets }),
     effect: false,
     access: "human",
   },
   "agents.set_limits": {
     params: AgentLimits.strict(),
     result: AgentLimits,
-    effect: true,
-    access: "human",
-  },
-  /** Whether the super-agent asks before handing work to several agents in one turn. */
-  "agents.set_fan_out_ask": {
-    params: z.object({ ask: z.boolean() }).strict(),
-    result: z.object({ ask: z.boolean() }),
     effect: true,
     access: "human",
   },

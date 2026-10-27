@@ -59,7 +59,6 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.enable": POWER,
   "environments.bind": POWER,
   "telemetry.set": POWER,
-  "agents.set_fan_out_ask": POWER,
   "desktop.set": MACHINE,
   "desktop.install": MACHINE,
   "desktop.install_cancel": MACHINE,

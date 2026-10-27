@@ -85,3 +85,33 @@ test("a task waiting for the owner, and a routine's news, until seen", async () 
   await waitFor(async () => (await tray()).unread === 1, "second run noticed");
   assert.equal((await env.client.call("notifications.read", {})).unread, 0);
 });
+
+test("agents paused at the owner's limit are told once per conversation, in the app, in the owner's words", async () => {
+  const { store } = env.core;
+  await env.client.call("notifications.read", {});
+  const root = store.threads.create({ kind: "loose", title: "Launch plan", agent_ids: ["roby"] });
+  const sub = store.threads.create({ kind: "a2a", title: "sub", agent_ids: ["scout", "roby"], parent_id: root.id });
+  const pause = (thread: string, who: string) =>
+    store.messages.add({
+      thread_id: thread,
+      author: { kind: "system" },
+      parts: [
+        {
+          type: "notice",
+          level: "warn",
+          code: "breaker.paused",
+          text: `Paused: agents started 2 turns on their own since you last wrote here. ${who} finished; write to continue.`,
+          vars: { variant: "runs", spent: "2", who, thread },
+        },
+      ],
+    });
+  pause(root.id, "Scout");
+  pause(sub.id, "Vera");
+  pause(root.id, "Kai");
+  await waitFor(async () => (await tray()).unread > 0, "pause noticed");
+  const paused = (await tray()).notifications.filter((n) => n.ref === `breaker:${root.id}`);
+  assert.equal(paused.length, 1, "one notice for the whole tree, not one per result");
+  assert.equal(paused[0]?.title, "Launch plan");
+  assert.match(paused[0]?.body ?? "", /^En pausa: los agentes hicieron 2 turnos solos/);
+  await env.client.call("notifications.read", {});
+});

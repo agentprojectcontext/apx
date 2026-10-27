@@ -17,6 +17,7 @@ import { actionsOf, reportCard } from "./delegation.ts";
 import type { AdmitFn } from "./engine.ts";
 import { mentioned, mentionsOwner, taskCommentAttention } from "./office.ts";
 import { outcomeOf } from "./run-outcome.ts";
+import { continueTask } from "./task-continue.ts";
 import { checkSelfHandoff, markHandoff } from "./task-handoff.ts";
 import { answersOwner, ownerTurnEnded } from "./task-inbox.ts";
 import { closedIn, reportClose } from "./task-report.ts";
@@ -580,6 +581,7 @@ export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): voi
     addComment(store, task, { kind: "agent", id: run.agent_id }, text, run.agent_id);
   // Closed in this turn: whoever created the task hears now, with the answer just posted as its report.
   if (closed) reportClose(store, admit, task.id);
+  else continueTask(store, admit, run);
 }
 
 /** When a task was last given to its agent (its creation with one, or the last assignment). */

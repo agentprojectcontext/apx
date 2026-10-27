@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { waitFor } from "../testkit/platform.ts";
 import { tree } from "./breaker.ts";
 import { pickUpTasks, startTaskWork } from "./task-work.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
@@ -174,6 +175,22 @@ test("closing through RPC from another session labels a review from an earlier r
   assert.match(text, /Closing note: APPROVED/);
   assert.match(text, /Earlier comment \(written before this close, not the closing verdict\):\nFAILED: checks fail\./);
   assert.match(text, /Closing turn's final answer pending\./);
+});
+
+test("the super-agent hears in Home of a task it did not give, closed by its team, to tell the owner", async () => {
+  const before = (await env.client.call("threads.get", { thread: "home" })).runs.length;
+  const task = await env.client.call("tasks.create", {
+    title: "Owner's own goal",
+    description: "Deliver the requested goal.",
+    assignee: "vera",
+  });
+  await waitFor(async () => (await allTasks()).find((t) => t.id === task.id)?.state === "done", "Vera closes it");
+  const { runs } = await runsOf("home", before + 1);
+  assert.equal(runs.filter((r) => r.trigger === "a2a_result").length >= 1, true);
+  const input = llm.calls.findLast((c) =>
+    String(c.messages.at(-1)?.content).includes(`<task_result task="${task.id}"`),
+  );
+  assert.match(String(input?.messages.at(-1)?.content), /Vera closed a task the owner gave \(done\)/);
 });
 
 test("nobody is woken when the owner closes a task or its creator closes it itself", async () => {

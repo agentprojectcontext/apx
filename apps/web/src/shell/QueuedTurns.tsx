@@ -29,6 +29,8 @@ export function turnName(t: T, from: JobFrom | undefined): string {
       return t("turn.from.goOn");
     case "stalled_task":
       return t("turn.from.stalledTask");
+    case "task_continue":
+      return t("turn.from.taskContinue");
     default:
       return t("turn.from.other");
   }
