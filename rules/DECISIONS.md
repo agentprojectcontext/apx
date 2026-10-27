@@ -2549,3 +2549,24 @@ they are asked; APX's agents should too.
   proposals of D-131 stay.
 
 Rejected: raising the default to 100 turns (still a stop the owner did not ask for, on the work they asked for).
+
+<a id="d-160"></a>
+## D-160 — 2026-10-27 — The app is where the owner is always told; the super-agent tells what its team finished and what the owner added
+Until now a chat app was the owner's main place to be told: phones got a push only for a finished turn or an agent
+waiting for their OK, and picking a phone as "where notices go" replaced the channel. The owner wants the opposite:
+APX's apps always tell them, and a chat app is an extra they may pick or not.
+
+- **Every tray notice reaches paired phones** (`engine/notice-push.ts`), in quiet hours only a question or an error.
+  The desktop and web panel show it as a system notification unless the owner is looking at that very chat. The dev
+  `APX.app` is signed again (ad-hoc) after it is renamed, since macOS drops a broken bundle's notifications silently.
+- **The chat app is optional.** `notices.channel` takes `"none"`: nothing the super-agent says unasked goes to a chat
+  app (news stays `no_channel`, in the tray). An old `device:<id>` choice means the same; the phone option is gone from
+  the selector, since every phone is told. What a contact leaves for the owner reaches the tray too.
+- **The super-agent hears what its team closes.** A task closed by an agent that the super-agent did not create (the
+  owner's, or another agent's) reports to Home too (`task_result` with `by`), and the super-agent tells the owner in a
+  line or two. Not when it created or closed the task itself, nor when the owner closed it.
+- **What the owner adds reaches the super-agent.** A project created or registered, or an agent created, from an app
+  (`actor: human`, no agent call) gives the super-agent a Home turn (origin `added`) to offer adapting it, asking
+  before changing anything; not while it is working, since then it is most likely its own doing.
+
+Rejected: a digest of closed tasks once a day (the owner wants to hear when the work is done, not the next morning).

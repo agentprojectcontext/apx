@@ -727,6 +727,7 @@ export const JobFrom = z.object({
     "computer_ready",
     "task_result",
     "delegation_result",
+    "added",
   ]),
   /** Who sent it (the helper, the contact, the routine, the surface), when it has a name. */
   name: z.string().optional(),
