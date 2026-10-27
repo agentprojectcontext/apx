@@ -136,6 +136,30 @@ npm install
 npx expo start      # Expo Go or a dev build; the core must be reachable on the network
 ```
 
+## Navigate the Android app
+
+The native app is more than Home chat. The bottom navigation offers **Chats**, **Inbox**, **Tasks**, **Sessions**
+and **More**. Under More, open routines, agents, projects, channels, memory, apps, files and settings. Some sections
+show summaries and open detail screens rather than every desktop configuration control; the same core owns their data.
+
+Use **Tasks** to inspect work and its attachments, and routines to inspect or edit scheduled work. Read the actual
+state before treating a queued, waiting or interrupted run as complete. Starting or editing work uses the same
+permissions and confirmations as other APX clients, not a separate unrestricted mobile account.
+
+## Attachments, images and voice
+
+In chat, use the attachment controls to select a photo or file, or record a voice message. A camera request from an
+agent shows why it needs the image and lets **you** take or decline it; pairing does not authorize silent camera use.
+
+Open a received/generated image or video to inspect it. Its media actions offer **Save to gallery** for supported
+pictures and videos (with Android's media permission), and **Share or open** to pass the file to another app or keep
+it through the system sheet. Other documents use sharing/opening rather than the photo gallery. Long-press a text
+message for copy, selection or sharing. These actions affect the file on your phone, not the core's original.
+
+If saving fails, check the app's media permission and that the file has finished downloading. An error or an open
+share sheet is not proof that Android saved it. Confirm in your gallery or destination app. If the file is private,
+choose the recipient deliberately: sharing out of APX leaves its chat boundaries.
+
 ## Push notifications
 
 The phone can be where your notices go, so routine news, reminders and questions from agents reach you even with the
