@@ -93,7 +93,7 @@ import { createLlm, type Llm } from "./providers/llm.ts";
 import { providerRegistry } from "./providers/registry.ts";
 import { createPublicCredentials } from "./public-credentials.ts";
 import { nativePublicRoutes, publishedPublicRoutes } from "./public-routes.ts";
-import { createWebhooks, type NgrokStart } from "./public-tunnel.ts";
+import { createPublicTunnel, type NgrokStart } from "./public-tunnel.ts";
 import { localReleases, type ReleaseSource } from "./release-notes.ts";
 import { useLocalEmbedder } from "./rpc/embeddings.ts";
 import { internalCaller } from "./rpc/internal.ts";
@@ -402,7 +402,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   });
   const noticePush = createNoticePush({ store, bus, push });
   let hooksPort = config.hooksPort;
-  const webhooks = createWebhooks({
+  const webhooks = createPublicTunnel({
     store,
     port: () => hooksPort,
     log,
@@ -441,7 +441,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       nextcloud: (c, secret) => nextcloudAdapter(c, secret, { dir: path.join(config.home, "channels", c.id) }),
       irc: (c, secret) => ircAdapter(c, secret),
       twitch: (c, secret) => twitchAdapter(c, secret),
-      // These deliver to a webhook: they answer through the public address (webhooks.ts).
+      // These deliver signed webhooks through the shared public ingress address.
       line: (c, secret) => lineAdapter(c, secret, { dir: path.join(config.home, "channels", c.id) }),
       teams: (c, secret) => teamsAdapter(c, secret, { dir: path.join(config.home, "channels", c.id) }),
     },

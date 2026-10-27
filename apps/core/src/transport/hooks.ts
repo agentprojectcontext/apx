@@ -161,7 +161,16 @@ export async function listenHooks(o: PublicListenerOptions): Promise<{ port: num
 }
 
 function bind(port: number, o: PublicListenerOptions): Promise<{ port: number; close(): Promise<void> }> {
-  const server = http.createServer({ maxHeaderSize: 16 * 1024 }, handler(o));
+  const handle = handler(o);
+  const server = http.createServer({ maxHeaderSize: 16 * 1024 }, (req, res) => {
+    req.on("error", () => {});
+    try {
+      handle(req, res);
+    } catch {
+      o.log.warn({}, "public route resolution failed");
+      answer(res, { status: 500 });
+    }
+  });
   server.requestTimeout = PUBLIC_DEADLINE_MS;
   server.headersTimeout = PUBLIC_DEADLINE_MS;
   server.maxConnections = 256;

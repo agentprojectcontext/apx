@@ -76,6 +76,74 @@ test("public listener denies routes/methods/auth before delivery and bounds uplo
   }
 });
 
+test("public listener rejects raw traversal and rates even unauthenticated requests", async () => {
+  const timers = manualTimers();
+  let calls = 0;
+  const server = await listenHooks({
+    port: 0,
+    log,
+    timers,
+    routes: (path) =>
+      path === "/flows/acme"
+        ? {
+            id: "flow:acme",
+            methods: ["POST"],
+            authorize: () => false,
+            handle: async () => {
+              calls++;
+              return { status: 202 };
+            },
+          }
+        : undefined,
+  });
+  const raw = (path: string) =>
+    new Promise<number | undefined>((resolve, reject) => {
+      const req = http.request({ host: "127.0.0.1", port: server.port, path, method: "POST" }, (res) => {
+        res.resume();
+        resolve(res.statusCode);
+      });
+      req.on("error", reject);
+      req.end();
+    });
+  try {
+    for (const path of [
+      "/x/../flows/acme",
+      "/flows/%61cme",
+      "/flows%2facme",
+      "//flows/acme",
+      "/flows/acme/..",
+      "/flows/acme\\\\extra",
+    ])
+      assert.equal(await raw(path), 404, path);
+    for (let i = 0; i < 120; i++) assert.equal(await raw("/flows/acme"), 401);
+    assert.equal(await raw("/flows/acme"), 429);
+    timers.tick(60_000);
+    assert.equal(await raw("/flows/acme"), 401);
+    assert.equal(calls, 0);
+  } finally {
+    await server.close();
+  }
+});
+
+test("public route failures do not leak exceptions or crash later requests", async () => {
+  const server = await listenHooks({
+    port: 0,
+    log,
+    routes: (path) => {
+      if (path === "/throws") throw new Error("private-secret-marker");
+      return undefined;
+    },
+  });
+  try {
+    const failed = await fetch(`http://127.0.0.1:${server.port}/throws`);
+    assert.equal(failed.status, 500);
+    assert.equal((await failed.text()).includes("private-secret-marker"), false);
+    assert.equal((await fetch(`http://127.0.0.1:${server.port}/unknown`)).status, 404);
+  } finally {
+    await server.close();
+  }
+});
+
 test("public deadline covers a stalled upload without calling its destination", async () => {
   const timers = manualTimers();
   let calls = 0;

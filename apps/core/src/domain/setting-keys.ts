@@ -159,7 +159,7 @@ export const SETTINGS = {
   services_offered: entry(z.array(z.string()).catch([]), []),
   channels: entry(listOf(Channel), []),
   /**
-   * The public address for channels' webhooks the owner chose (webhooks.ts), applied again at every start, and the
+   * The restricted public ingress address the owner chose (public-tunnel.ts), applied again at every start, and the
    * last address ngrok gave (a new one is pointed out to the owner).
    */
   webhooks: entry(

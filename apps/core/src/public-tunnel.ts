@@ -47,6 +47,22 @@ const ngrokSpawner =
     };
   };
 
+function publicOrigin(value: string): string | undefined {
+  try {
+    const base = new URL(value);
+    if (
+      base.protocol === "https:" &&
+      !base.username &&
+      !base.password &&
+      !base.search &&
+      !base.hash &&
+      base.pathname === "/"
+    )
+      return base.origin;
+  } catch {}
+  return;
+}
+
 /** What one ngrok log line (JSON, `--log-format json`) says: its public URL, or why it failed. */
 export function ngrokLine(line: string): { url?: string; error?: string } {
   let j: { msg?: string; url?: string; lvl?: string; err?: string };
@@ -55,12 +71,17 @@ export function ngrokLine(line: string): { url?: string; error?: string } {
   } catch {
     return {};
   }
-  if (j.msg === "started tunnel" && j.url?.startsWith("https://")) return { url: j.url };
-  if (j.lvl === "eror" || j.lvl === "crit") return { error: (j.err || j.msg || "ngrok failed").slice(0, 300) };
+  if (!j || typeof j !== "object") return {};
+  const origin = typeof j.url === "string" ? publicOrigin(j.url) : undefined;
+  if (j.msg === "started tunnel" && origin) return { url: origin };
+  if (j.lvl === "eror" || j.lvl === "crit")
+    return {
+      error: (typeof j.err === "string" ? j.err : typeof j.msg === "string" ? j.msg : "ngrok failed").slice(0, 300),
+    };
   return {};
 }
 
-export function createWebhooks(deps: {
+export function createPublicTunnel(deps: {
   store: Store;
   /** The webhook listener's port, once it listens. */
   port: () => number;
@@ -90,6 +111,15 @@ export function createWebhooks(deps: {
   let attempts = 0;
   let probed: { at: number; found: Promise<Probe> } | undefined;
 
+  let changing: Promise<void> = Promise.resolve();
+  const change = <T>(fn: () => Promise<T>): Promise<T> => {
+    const next = changing.then(fn);
+    changing = next.then(
+      () => {},
+      () => {},
+    );
+    return next;
+  };
   const saved = () => deps.store.settings.read("webhooks");
   const fail = (code: HookError, detail?: string) => {
     error = { code, ...(detail ? { detail: detail.slice(0, 300) } : {}) };
@@ -219,45 +249,42 @@ export function createWebhooks(deps: {
     base: () => url,
     /** The saved choice, applied at start (a failure only shows in the state). */
     start: () =>
-      apply().catch(() => {
-        fail("failed");
-      }),
-    async set(o: { mode: HookMode; url?: string | undefined; domain?: string | undefined }): Promise<WebhooksState> {
-      if (o.mode === "custom") {
-        let valid = false;
-        try {
-          const base = new URL(o.url ?? "");
-          valid =
-            base.protocol === "https:" &&
-            !base.username &&
-            !base.password &&
-            !base.search &&
-            !base.hash &&
-            base.pathname === "/";
-        } catch {}
-        if (!valid)
+      change(() =>
+        apply().catch(() => {
+          fail("failed");
+        }),
+      ),
+    set(o: { mode: HookMode; url?: string | undefined; domain?: string | undefined }): Promise<WebhooksState> {
+      return change(async () => {
+        if (o.mode === "custom" && !publicOrigin(o.url ?? ""))
           throw new CallError({
             code: "bad_request",
             message: "a public address needs an https:// origin without credentials, path or query",
           });
-      }
-      if (o.mode === "ngrok" && o.domain && !/^[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$/.test(o.domain))
-        throw new CallError({ code: "bad_request", message: "a reserved domain must be a hostname" });
-      const { mode: before, ngrok_last } = saved();
-      // Only undo what APX set up: other Funnel or serve configs on this machine are not APX's.
-      if (before === "tailscale" && o.mode !== "tailscale")
-        await tailscaleRun()?.(["funnel", `--https=${FUNNEL_PORT}`, "off"]);
-      deps.store.settings.write("webhooks", {
-        mode: o.mode,
-        ...(o.mode === "custom" && o.url ? { url: o.url } : {}),
-        ...(o.mode === "ngrok" && o.domain ? { domain: o.domain } : {}),
-        ...(ngrok_last ? { ngrok_last } : {}),
+        if (o.mode === "ngrok" && o.domain && !/^[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$/.test(o.domain))
+          throw new CallError({ code: "bad_request", message: "a reserved domain must be a hostname" });
+        const { mode: before, ngrok_last } = saved();
+        // Only undo what APX set up: other Funnel or serve configs on this machine are not APX's.
+        if (before === "tailscale" && o.mode !== "tailscale") {
+          const stopped = await tailscaleRun()?.(["funnel", `--https=${FUNNEL_PORT}`, "off"]);
+          if (!stopped?.ok)
+            throw new CallError({
+              code: "unavailable",
+              message: "could not disable the public Funnel; check Tailscale before changing providers",
+            });
+        }
+        deps.store.settings.write("webhooks", {
+          mode: o.mode,
+          ...(o.mode === "custom" && o.url ? { url: o.url } : {}),
+          ...(o.mode === "ngrok" && o.domain ? { domain: o.domain } : {}),
+          ...(ngrok_last ? { ngrok_last } : {}),
+        });
+        await apply();
+        return state();
       });
-      await apply();
-      return state();
     },
     close: stopNgrok,
   };
 }
 
-export type Webhooks = ReturnType<typeof createWebhooks>;
+export type PublicTunnel = ReturnType<typeof createPublicTunnel>;

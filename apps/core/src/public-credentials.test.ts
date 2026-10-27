@@ -21,7 +21,9 @@ test("each public route requires its own secure, rotatable and revocable credent
       id: pathname.slice(1),
       methods: ["POST"],
       authorize: () => true,
-      handle: async () => {
+      handle: async (request) => {
+        assert.equal(request.headers.authorization, undefined, "credentials never reach the Flow service");
+        assert.equal(request.headers.cookie, undefined);
         calls++;
         return { status: 202 };
       },

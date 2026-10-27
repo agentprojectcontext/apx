@@ -1,5 +1,6 @@
 // Route-scoped public bearer credentials. Only secret references live in SQLite or idempotent RPC replies.
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { PublicEndpointPath as Path } from "@apx/protocol";
 import { z } from "zod";
 import type { Store } from "./domain/store.ts";
 import { badRequest } from "./errors.ts";
@@ -7,7 +8,6 @@ import type { Secrets } from "./secrets.ts";
 import type { PublicRoute, PublicRoutes } from "./transport/hooks.ts";
 
 export type PublicEndpoint = { path: string; label: string };
-const Path = z.string().regex(/^\/flows\/[A-Za-z0-9_-]{1,100}$/);
 const Saved = z
   .array(
     z
@@ -21,6 +21,8 @@ const Saved = z
   .max(1000);
 const KEY = "public-route-credentials";
 const digest = (value: string) => createHash("sha256").update(value).digest();
+const deliveryHeaders = (headers: Record<string, string>) =>
+  Object.fromEntries(Object.entries(headers).filter(([name]) => name === "content-type" || name === "idempotency-key"));
 
 export function createPublicCredentials(deps: { store: Store; secrets: Secrets; endpoints(): PublicEndpoint[] }) {
   const read = () => {
@@ -87,7 +89,8 @@ export function createPublicCredentials(deps: { store: Store; secrets: Secrets; 
         if (!route) return;
         return {
           ...route,
-          authorize: (headers) => api.authorize(pathname, headers) && route.authorize(headers),
+          authorize: (headers) => api.authorize(pathname, headers) && route.authorize(deliveryHeaders(headers)),
+          handle: (request, signal) => route.handle({ ...request, headers: deliveryHeaders(request.headers) }, signal),
         } satisfies PublicRoute;
       };
     },
