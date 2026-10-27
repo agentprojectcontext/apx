@@ -97,3 +97,13 @@ test("the waiting page keeps ssh's words apart and escaped", () => {
   assert.match(html, /<h1>Conectando con APX<\/h1>/);
   assert.match(html, /class="detail"><span>Detalle<\/span>ssh: &lt;host&gt; refused/);
 });
+
+test("the core on this computer waits with its own words and what to check", async () => {
+  const w = world({ upAt: 3 * RETRY_MS });
+  const local: Remote = { where: "127.0.0.1:7440", url: "http://127.0.0.1:7440", local: "See the log" };
+  assert.equal(await reachRemote(local, w.deps), true);
+  assert.equal(w.shown.length, 1);
+  assert.match(w.shown[0] ?? "", /on this computer is not answering yet/);
+  assert.match(w.shown[0] ?? "", /See the log/);
+  assert.deepEqual(w.loaded, ["http://127.0.0.1:7440"]);
+});
