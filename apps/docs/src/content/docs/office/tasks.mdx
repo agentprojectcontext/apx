@@ -89,7 +89,7 @@ have one start later (tomorrow morning, after a release), set **Starts** in its 
 
 ### Moving the current work into a task
 
-**On the development branch after 2.11.0**, when an agent immediately assigns its current work to itself as a new
+**Since 2.11.1**, when an agent immediately assigns its current work to itself as a new
 task, APX transfers execution to the task's chat. The originating turn stops executing tools; the task chat gets a
 bounded handoff of the request and recent findings so it can continue rather than repeat the investigation.
 This does not prohibit unrelated parallel chats. If the current turn already has helpers or other active work,

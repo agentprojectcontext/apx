@@ -3,9 +3,11 @@
 // no model call; a fresh install is told nothing. See rules/DECISIONS.md#d-117
 import { buttonId } from "../channels/notices.ts";
 import type { Presentation } from "../domain/channels.ts";
+import { ownerTimeZone } from "../domain/owner.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
+import { lastTalk } from "../engine/last-talk.ts";
 import type { Log } from "../log.ts";
 import type { Llm } from "../providers/llm.ts";
 import { compareVersions } from "../release-notes.ts";
@@ -131,7 +133,8 @@ export function createNews(deps: {
     const lang = store.settings.get("owner_language") || "es";
     const actions = told.length === 1 ? (told[0]?.actions ?? []) : told.flatMap((e) => e.actions.slice(0, 1));
     const shown = actions.slice(0, MAX_ACTIONS);
-    const voiced = await voice(boss, told, lang, actions.length - shown.length);
+    const talk = lastTalk(store, home, new Date(), ownerTimeZone(store));
+    const voiced = await voice(boss, told, lang, actions.length - shown.length, talk);
     const text =
       voiced ??
       plainText(
@@ -174,6 +177,7 @@ export function createNews(deps: {
     told: NewsEntry[],
     lang: string,
     moreActions: number,
+    talk: string | undefined,
   ): Promise<string | undefined> {
     const models = deps.models(boss.id);
     if (!models.length) return undefined;
@@ -182,7 +186,7 @@ export function createNews(deps: {
       models,
       messages: [
         { role: "system", content: voicePrompt(boss) },
-        { role: "user", content: newsInput(told, lang, moreActions) },
+        { role: "user", content: newsInput(told, lang, moreActions, talk) },
       ],
       tools: [],
       maxOutputTokens: MAX_OUTPUT_TOKENS,
@@ -213,7 +217,7 @@ const voicePrompt = (boss: { name: string; personality?: string | undefined }) =
   `You are ${boss.name}, the owner's assistant in APX, the app you run in.${boss.personality ? ` Your personality: ${boss.personality}` : ""}`;
 
 /** A few hundred characters: what is new for this owner, and how the message should read. */
-export function newsInput(told: NewsEntry[], lang: string, moreActions: number): string {
+export function newsInput(told: NewsEntry[], lang: string, moreActions: number, talk?: string): string {
   const items = told.map((e) => `- ${e.text}`).join("\n");
   const offers = told
     .flatMap((e) => (told.length === 1 ? e.actions : e.actions.slice(0, 1)))
@@ -224,7 +228,10 @@ export function newsInput(told: NewsEntry[], lang: string, moreActions: number):
     "APX was updated. What is new that you can now do for the owner:",
     items,
     `Write them a short message (two to four sentences, plain text, no Markdown) in your voice, in their language (${lang}), saying what this means for them and offering: ${offers}.${moreActions > 0 ? ` Add that there are ${moreActions} more things you can show them.` : ""} They can pick one or just answer you. Write only the message.`,
-  ].join("\n");
+    talk ? `[last talk] ${talk}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /** Without a model: the entries as they are, in English. */

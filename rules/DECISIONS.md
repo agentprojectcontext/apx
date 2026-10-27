@@ -2618,3 +2618,19 @@ teammate's card is now one line in the super-agent's voice, "Fausto te espera: <
 in the app; the super-agent's own questions still come whole with their buttons. With no chat app chosen, nothing
 goes there. Rejected: forbidding delegated agents to ask the owner (their questions would go through the
 super-agent and lose the card's context).
+
+<a id="d-164"></a>
+## D-164 — 2026-10-27 — An unasked message goes on with the conversation; it greets only after a silence
+The super-agent's routine news, task reports and release news opened with "Hi, I'm Roby" minutes after the owner and
+it had been chatting: those turns run in a chat of their own (a routine's) or a single call (the news), so the model
+never saw that a conversation was under way. Every turn whose answer reaches the owner unasked (`unasked()` in
+`engine/last-talk.ts`: routines, jobs, the computer starting, stalled tasks, task and delegation results) and the
+release news now carry a `[last talk]` line in the turn's input: how long since the owner wrote and since the last
+message reached them (an agent's reply content in Home or the chat, or a sent nudge). Empty placeholders and tool-only
+activity do not count as replies. This line shares timestamps only, never words from another chat, independently of
+memory-sharing settings. Mid-conversation it says to go on with no greeting, no "hello again" and no introduction; after six hours
+of silence, or a new calendar day in the owner's time zone after three, it says to open with one short greeting for
+the time of day. Home is always the conversation, since the owner's channel lands there; a routine's own chat is not,
+since its stored prompt is not the owner talking. The line is per-turn data, so the system prompt stays byte-stable
+([rules/PROMPT_SIZE.md](PROMPT_SIZE.md)); the owner's own turns never carry it. `unasked()` lists every origin, so a
+new one must decide. Fixed template messages are untouched.

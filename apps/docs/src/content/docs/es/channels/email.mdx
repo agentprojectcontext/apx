@@ -37,9 +37,54 @@ remitentes. Una dirección From no prueba que autorizaste una instrucción. El c
 ## Respuestas, firmas y diagnóstico
 
 Las respuestas siguen el hilo del correo y salen desde el buzón configurado. Su firma local se configura en
-**Configuración › Cuenta › Firmas de email**; no cambia la firma del proveedor. Pedí borradores o usá supervisión
+los ajustes de la propia casilla (ver abajo); no cambia la firma del proveedor. Pedí borradores o usá supervisión
 si necesitás revisar cada respuesta. Un correo enviado no se puede simplemente deshacer.
 
 Si no llega nada, revisá acceso IMAP, contraseña de aplicación, lista permitida y verificación del remitente antes
 de desactivar protecciones. Si lee pero no envía, revisá SMTP aparte: pueden tener puertos y políticas diferentes.
 Consultá el error y la bandeja de salida en vez de asumir que un mensaje encolado ya se entregó.
+
+## Varias casillas y firmas
+
+La integración Gmail y un canal Email son conexiones distintas. Gmail usa la API de Google; un canal Email lee por
+IMAP y envía por SMTP con la contraseña de aplicación de una casilla. Configurar una firma cambia sólo ajustes
+locales de APX, no los ajustes de Gmail, los borradores existentes ni los mensajes ya escritos.
+
+### Gmail
+
+En **Recursos › Integraciones**, abrí Gmail. **Editar conexión** cambia su conexión o inicio de sesión;
+**Configurar integración** abre sus preferencias, incluida la firma de la cuenta conectada y la disponibilidad por
+proyecto. Las demás integraciones muestran sus preferencias existentes, sin agregar un formulario vacío de firma.
+
+APX no importa firmas de Gmail ni pide acceso a sus ajustes. Copiá tu firma en APX si querés usarla acá. Enviar un
+borrador de Gmail existente no agrega ni reemplaza su firma.
+
+### Casillas SMTP
+
+Abrí **Configuración › Canales › Email**. El selector **Cuenta de email** cambia entre las casillas configuradas;
+**Agregar cuenta de email** conecta otra sin reemplazar la primera. Cada una tiene sus propios servidores,
+credenciales, agente que responde, preferencias de acceso y firma. Seleccionar una casilla no cambia la firma de otra.
+
+Cuando le pidas a un agente que escriba, indicá el canal de email si más de una cuenta puede llegar a esa persona.
+Las firmas se conservan al desconectar y se pueden reutilizar al configurar la misma identidad Gmail o la misma
+identidad de canal SMTP. No se copian a la firma global.
+
+El envío SMTP tiene pruebas con servidores locales simulados; eso no verifica la entrega con un proveedor real.
+
+### Firma por defecto opcional
+
+**Configuración › Cuenta › Firma de email por defecto** se puede editar antes de conectar una casilla. Admite texto
+plano y HTML básico opcional, con enlaces e imágenes alojadas en HTTPS. Una firma activada requiere texto plano;
+APX rechaza el HTML no admitido en vez de ejecutarlo o modificarlo silenciosamente.
+
+APX elige una firma, nunca las dos:
+
+1. La firma guardada de la cuenta tiene prioridad sobre la global.
+2. Desactivar la firma automática de esa cuenta y guardar deshabilita explícitamente ambas firmas para esa cuenta.
+3. **Usar firma por defecto** quita la excepción de la cuenta. APX usa entonces la firma global activada, si existe.
+4. Podés pedir omitir la firma en un mensaje para saltear cualquiera de las dos. Eso no borra una firma que ya esté
+   en el cuerpo del mensaje.
+
+También podés pedirle al superagente que configure estos ajustes. Lee el valor guardado y pide aprobación antes de
+cambiarlo. Si alguien lo edita mientras tanto, el cambio desactualizado se rechaza. Usá **Recargar firma** antes de
+volver a editar; recargar descarta los cambios del formulario que no hayas guardado.

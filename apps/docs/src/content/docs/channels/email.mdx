@@ -37,9 +37,54 @@ senders. A From address is not proof that you authorized an instruction. Incomin
 ## Replies, signatures and recovery
 
 Replies stay in the mail thread and send from the configured mailbox. Set its local signature in
-**Settings › Account › Email signatures**; this does not change your mail provider's signature. Ask for a draft or
+the mailbox's own settings (see below); this does not change your mail provider's signature. Ask for a draft or
 use supervision if every outgoing answer needs review. A sent email cannot simply be taken back.
 
 If nothing arrives, check IMAP access, app password, allowlist and sender verification before disabling safeguards.
 If reading works but sending fails, check SMTP separately: the two services can have different ports and policies.
 Inspect the channel error and outbox rather than assuming a queued message was delivered.
+
+## Several mailboxes and signatures
+
+Gmail integration and an Email channel are separate connections. Gmail uses Google's API; an Email channel reads
+IMAP and sends SMTP with a mailbox's app password. Configuring a signature changes only local APX settings, not
+Gmail settings, existing drafts or messages already written.
+
+### Gmail
+
+In **Resources › Integrations**, open Gmail. **Edit connection** changes its connection or sign-in;
+**Configure integration** opens its preferences, including the connected account's signature and project availability.
+Other integrations offer their existing preferences without adding an empty signature form.
+
+APX does not import Gmail signatures or request Gmail settings access. Copy your signature into APX if you want to
+use it here. Sending an existing Gmail draft does not append or replace its signature.
+
+### SMTP mailboxes
+
+Open **Settings › Channels › Email**. The **Email account** selector switches between configured mailboxes;
+**Add email account** connects another without replacing the first. Each has its own servers, credentials, answering
+agent, access preferences and signature. Selecting a mailbox does not change another mailbox's signature.
+
+When writing through an agent, specify the intended email channel if more than one account could reach the person.
+Signatures stay stored after disconnection and can be reused when the same Gmail identity or SMTP channel identity
+is configured again. They are not copied into the global default.
+
+SMTP delivery is covered by local fake-server tests; this is not verification against a real mail provider.
+
+### Optional default signature
+
+**Settings › Account › Default email signature** is editable even before connecting a mailbox. It can include plain
+text and optional basic HTML, with links and hosted HTTPS images. An enabled signature requires plain text; APX
+rejects unsupported HTML rather than executing it or silently rewriting it.
+
+APX chooses one signature, never both:
+
+1. A saved account signature overrides the default.
+2. Turning automatic signing off for that account and saving explicitly disables both signatures for that account.
+3. **Use default signature** removes the account override. APX then uses the enabled global default, if any.
+4. Ask to omit a signature for one message to bypass either choice. This does not remove a signature already in the
+   message body.
+
+You can also ask your super-agent to configure these settings. It reads the saved value and asks for approval before
+changing it. If another edit happens in the meantime, the stale change is rejected. Use **Reload signature** before
+editing again; reloading discards unsaved changes in the form.

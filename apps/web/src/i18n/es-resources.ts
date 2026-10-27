@@ -260,6 +260,8 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "int.inSome": "{n} de {total} proyectos",
   "int.connectedAs": "Conectada",
   "int.account": "Cuenta",
+  "int.editConnection": "Editar conexión",
+  "int.configure": "Configurar integración",
   "int.disconnect": "Desconectar",
   "int.usedIn": "Dónde se usa",
   "int.allProjects": "Todos los proyectos",

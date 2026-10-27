@@ -55,6 +55,10 @@ test("the production SMTP factory resolves signatures by channel and sender; omi
         signature,
       ],
     });
+    await env.client.call("email.signature_default_set", {
+      signature: { enabled: true, text: "Global", html: "<b>Global</b>" },
+      expected: null,
+    });
     const contact = env.core.store.persons.create({ name: "Acme contact", role: "contact" });
     env.core.store.persons.link(contact.id, { channel: "email", external_id: "contact@example.com" });
     const sent = await env.client.call("channels.message", { person: contact.id, text: "Hello" });
@@ -83,6 +87,16 @@ test("the production SMTP factory resolves signatures by channel and sender; omi
     await env.client.call("email.signatures_set", { signatures: [{ ...signature, enabled: false }] });
     await env.client.call("channels.message", { person: contact.id, text: "Disabled" });
     assert.deepEqual(parts(smtp.sent.at(-1)?.raw ?? ""), ["Disabled"]);
+    await env.client.call("email.signatures_set", { signatures: [] });
+    await env.client.call("channels.message", { person: contact.id, text: "Fallback" });
+    assert.deepEqual(parts(smtp.sent.at(-1)?.raw ?? ""), [
+      "Fallback\r\n\r\n-- \r\nGlobal",
+      "Fallback<br><br><div><b>Global</b></div>",
+    ]);
+    await env.client.call("channels.message", { person: contact.id, text: "Omit default", omit_signature: true });
+    assert.deepEqual(parts(smtp.sent.at(-1)?.raw ?? ""), ["Omit default"]);
+    await env.client.call("channels.message", { person: contact.id, text: "Signed\n\n-- \nGlobal" });
+    assert.equal(parts(smtp.sent.at(-1)?.raw ?? "")[0], "Signed\r\n\r\n-- \r\nGlobal");
   } finally {
     await env.core.close();
     await imap.close();

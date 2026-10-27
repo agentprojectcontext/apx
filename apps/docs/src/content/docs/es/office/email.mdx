@@ -24,8 +24,15 @@ instrucciones de un correo entrante como tu autorización para enviar mensajes.
 
 ## Una firma por remitente
 
-**En la rama de desarrollo posterior a 2.11.0**, **Ajustes › Cuenta › Firmas de email** te deja elegir un remitente
-Gmail o una cuenta SMTP conectados y configurar su firma local. No está en el tag 2.11.0:
+:::note[Disponibilidad por versión]
+La firma por defecto en Cuenta y los editores separados de firmas de Gmail/SMTP que se describen abajo están
+previstos para 2.11.2. No están disponibles en la versión publicada 2.11.1.
+:::
+
+Cada remitente tiene su propia firma local: la de Gmail en **Recursos › Integraciones › Gmail › Configurar
+integración**, la de cada casilla SMTP en **Configuración › Canales › Email** con esa casilla elegida.
+**Configuración › Cuenta** guarda una firma por defecto opcional para los remitentes sin firma propia
+([Buzón de email](/es/channels/email/)). Para cada remitente:
 
 - Activá o desactivá que se agregue automáticamente para ese remitente.
 - Escribí la firma de texto plano obligatoria.
@@ -39,12 +46,12 @@ enviarlos no agrega la firma de hoy ni reescribe lo que ya revisaste.
 
 APX no pide acceso a los ajustes de Gmail y no puede importar tu firma de Gmail. Copiala vos a APX.
 Solo cambia la firma guardada localmente en APX, no los ajustes de Gmail. Si desconectás una casilla, su firma
-puede quedar en los ajustes de Cuenta para que la borres manualmente.
+queda guardada y se vuelve a usar si configurás ese remitente de nuevo.
 
 ## Configurá y probá una firma
 
-1. Conectá primero la cuenta remitente. En **Ajustes › Cuenta › Firmas de email**, elegí el remitente Gmail o buzón
-   SMTP exacto. Una firma SMTP se vincula con la cuenta del canal y el remitente, no solo con su nombre visible.
+1. Conectá primero la cuenta remitente. Abrí **Configurar integración** de Gmail, o elegí la casilla SMTP exacta en
+   **Configuración › Canales › Email**. Una firma SMTP se vincula con la cuenta del canal y el remitente, no solo con su nombre visible.
 2. Escribí texto plano, por ejemplo:
 
 ```text
@@ -82,11 +89,12 @@ cómo lo mostrará cada cliente de correo.
 ## Si falta la firma o es incorrecta
 
 - **No hay remitente:** comprobá que Gmail o el canal SMTP estén conectados a este core, no a otra instalación.
-- **No se agrega:** revisá remitente, habilitación y si se pidió omitirla en ese mensaje.
+- **No se agrega:** revisá remitente, habilitación, la firma por defecto en Cuenta y si se pidió omitirla en ese
+  mensaje.
 - **Queda un pie viejo:** los borradores de Gmail se envían como estaban guardados. Recrealo o editalo y revisá otra vez.
 - **HTML rechazado:** simplificá al ejemplo. No elimines la validación ni pongas credenciales en URLs de imágenes.
 - **Hay historial citado:** la firma actual va antes del historial citado, no dentro de él.
-- **Quedó un remitente desconectado:** borrá su firma local manualmente desde Cuenta.
+- **La firma de un remitente desconectado:** queda guardada para ese remitente; pedile al superagente que la borre.
 
 Para omitirla una vez, decí «Enviá este mensaje sin mi firma». No equivale a deshabilitarla para todos los correos.
 Agregar automáticamente no es reescribir semánticamente: evitá pegar otra copia con distinto formato y revisá el
@@ -94,8 +102,7 @@ borrador si sospechás duplicación.
 
 ## Dejá que tu superagente la configure
 
-**En la rama de desarrollo posterior a 2.11.0**, el superagente puede leer los remitentes configurados y proponer
+El superagente puede leer los remitentes configurados y proponer
 un cambio de firma local desde los ajustes de APX. Pide tu confirmación antes de aplicarlo; no modifica los
 ajustes de Gmail ni envía mensajes. Si alguien editó la firma mientras tanto, requiere volver a leerla en vez de
-sobrescribirla. Tanto los ajustes manuales de firmas como los cambios asistidos por el agente son posteriores
-al tag 2.11.0; revisá tu versión instalada antes de buscarlos.
+sobrescribirla.

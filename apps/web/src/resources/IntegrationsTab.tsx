@@ -16,6 +16,7 @@ import {
   Switch,
 } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { EmailSignatures } from "../config/EmailSignatures.tsx";
 import { client } from "../data/client.ts";
 import { loadMarks } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
@@ -244,6 +245,7 @@ function IntegrationDetail({
   const t = useT();
   const [mode, setMode] = useState<"all" | "chosen">(i.off_in.length ? "chosen" : "all");
   const [account, setAccount] = useState(editing);
+  const [preferences, setPreferences] = useState(false);
   const [busy, setBusy] = useState(false);
   useEffect(() => setMode(i.off_in.length ? "chosen" : "all"), [i.off_in.length]);
   const everywhere = async () => {
@@ -273,7 +275,15 @@ function IntegrationDetail({
           </span>
         </span>
         <Button size="sm" variant="secondary" leadingIcon={<Icons.Pencil size={14} />} onClick={() => setAccount(true)}>
-          {t("res.edit")}
+          {t("int.editConnection")}
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          leadingIcon={<Icons.Settings size={14} />}
+          onClick={() => setPreferences(true)}
+        >
+          {t("int.configure")}
         </Button>
         <Button size="sm" variant="ghost" loading={busy} onClick={() => void disconnect()}>
           {t("int.disconnect")}
@@ -281,48 +291,57 @@ function IntegrationDetail({
       </header>
       <p className="int__desc">{describe(i, t)}</p>
       {viaBrowser(i) && <BrowserSignIn id={i.id} />}
-      <div className="int__usehead">
-        <b>{t("int.usedIn")}</b>
-        <SegmentedControl
-          size="sm"
-          label={t("int.usedIn")}
-          value={mode}
-          onValueChange={(v) => (v === "all" ? void everywhere() : setMode("chosen"))}
-          options={[
-            { value: "all", label: t("int.allProjects") },
-            { value: "chosen", label: t("int.chosen") },
-          ]}
-        />
-      </div>
-      <div className="int__rows">
-        <div className="int__row">
-          <ProjectTile tone="brand" initial="D" size={28} />
-          <span className="int__rowmain">
-            <b>Default</b>
-            <span>{t("int.defaultAlways")}</span>
-          </span>
-          <Badge>{t("int.on")}</Badge>
-        </div>
-        {projects.map((p) => {
-          const on = !i.off_in.includes(p.id);
-          return (
-            <div key={p.id} className="int__row">
-              <ProjectTile tone="info" initial={p.name.slice(0, 1).toUpperCase()} size={28} />
+      {preferences && (
+        <Dialog open title={t("int.configure")} onOpenChange={(open) => !open && setPreferences(false)}>
+          {i.id === "gmail" && i.oauth?.account && (
+            <EmailSignatures
+              target={{ transport: "gmail", account: i.oauth.account, sender: i.oauth.account, label: i.label }}
+            />
+          )}
+          <div className="int__usehead">
+            <b>{t("int.usedIn")}</b>
+            <SegmentedControl
+              size="sm"
+              label={t("int.usedIn")}
+              value={mode}
+              onValueChange={(v) => (v === "all" ? void everywhere() : setMode("chosen"))}
+              options={[
+                { value: "all", label: t("int.allProjects") },
+                { value: "chosen", label: t("int.chosen") },
+              ]}
+            />
+          </div>
+          <div className="int__rows">
+            <div className="int__row">
+              <ProjectTile tone="brand" initial="D" size={28} />
               <span className="int__rowmain">
-                <b>{p.name}</b>
-                <span>{on ? t("int.on") : t("int.off")}</span>
+                <b>Default</b>
+                <span>{t("int.defaultAlways")}</span>
               </span>
-              <Switch
-                size="sm"
-                aria-label={p.name}
-                checked={on}
-                disabled={mode === "all"}
-                onCheckedChange={(v) => void onToggle(i.id, p.id, v)}
-              />
+              <Badge>{t("int.on")}</Badge>
             </div>
-          );
-        })}
-      </div>
+            {projects.map((p) => {
+              const on = !i.off_in.includes(p.id);
+              return (
+                <div key={p.id} className="int__row">
+                  <ProjectTile tone="info" initial={p.name.slice(0, 1).toUpperCase()} size={28} />
+                  <span className="int__rowmain">
+                    <b>{p.name}</b>
+                    <span>{on ? t("int.on") : t("int.off")}</span>
+                  </span>
+                  <Switch
+                    size="sm"
+                    aria-label={p.name}
+                    checked={on}
+                    disabled={mode === "all"}
+                    onCheckedChange={(v) => void onToggle(i.id, p.id, v)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </Dialog>
+      )}
       {account && (
         <ConnectForm
           i={i}

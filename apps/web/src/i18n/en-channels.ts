@@ -176,6 +176,8 @@ export const enChannels = {
     "Their messages aren't answered on their own: you get the suggested answer, to send it, edit it or drop it.",
   "ch.saved": "Contact saved.",
   "ch.youToAgent": "You → {agent}",
+  "em.account": "Email account",
+  "em.addAccount": "Add email account",
   "em.lead": "A mailbox for the agent: it reads the mail that arrives and answers in the same thread.",
   "em.step1": "Give the agent a mailbox of its own (a new Gmail or Outlook account, or one on your domain).",
   "em.step2":

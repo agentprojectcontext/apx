@@ -102,7 +102,7 @@ The super-agent's `apx_settings` email area discovers configured Gmail/SMTP iden
 signature by transport, account and sender. Human-only `email.signature_upsert` and `email.signature_remove`
 run through the same owner-confirmed settings flow, with the exact last-read entry as a concurrency precondition
 (`null` only when creating). Writes preserve other signatures and validate configured senders, including removals; an unconfigured mailbox's
-signature stays in the owner's Account settings for manual cleanup. No Gmail settings access, import or remote mutation is added.
+signature is preserved after disconnection. Gmail's signature is edited in integration preferences; SMTP signatures and mailbox selection are in each Email channel's settings. Account settings expose an optional global signature without requiring a connection. Resolution is account override first, otherwise global; a disabled account override blocks fallback. Both paths respect per-message omission. Global edits use owner-only `email.signature_default_get` / `email.signature_default_set`, with the last-read value as a concurrency precondition and null for absence. The same approval-based settings tool exposes these operations. No Gmail settings access, import or remote mutation is added.
 
 ## 4. State and persistence
 

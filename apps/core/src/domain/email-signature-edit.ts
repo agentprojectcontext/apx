@@ -1,6 +1,6 @@
 import { type EmailSignatureEntry, EmailSignatures } from "@apx/protocol";
 import { badRequest, conflict } from "../errors.ts";
-import { sameSignatureKey } from "./email-signature-settings.ts";
+import { readSignatures, sameSignatureKey } from "./email-signature-settings.ts";
 import type { Store } from "./store.ts";
 
 type Key = Pick<EmailSignatureEntry, "transport" | "account" | "sender">;
@@ -26,7 +26,7 @@ export function editSignature(
 ): void {
   if (!signatureIdentities(store).some((id) => sameSignatureKey(id, key)))
     throw badRequest("Signature must match a configured Gmail account or SMTP mailbox sender");
-  const entries = store.settings.read("email_signatures");
+  const entries = readSignatures(store);
   const current = entries.find((entry) => sameSignatureKey(entry, key)) ?? null;
   if (JSON.stringify(current) !== JSON.stringify(expected))
     throw conflict("Signature changed: read it again before approving another edit");

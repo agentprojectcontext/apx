@@ -85,6 +85,7 @@ import { createExecutor, type Executor } from "./executor.ts";
 import type { Hooks } from "./hooks.ts";
 import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
+import { lastTalk, unasked } from "./last-talk.ts";
 import { MAX_DEPTH } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { memoryHistory, snapshotOf, visibleMemoryRuns, windowRuns } from "./memory-projection.ts";
@@ -600,6 +601,10 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
             meanwhile:
               thread.kind === "home" && (o.kind === "user" || (o.kind === "channel" && o.role === "owner"))
                 ? sentMeanwhile(store, thread.id, run.id)
+                : undefined,
+            lastTalk:
+              turn.audience.kind === "owner" && unasked(o)
+                ? lastTalk(store, thread, new Date(), ownerTimeZone(store), run.id)
                 : undefined,
           });
   const input: ChatItem & { role: "user" } = turn.input.resume_of
