@@ -46,6 +46,8 @@ export type Origin =
   | { kind: "terminal"; terminal_id: string; command: string; exit_code: number | null }
   /** The owner let agents go on after a pause: with a fresh budget, or with no limit this round (DECISIONS.md#d-081). */
   | { kind: "go_on"; mode: "reset" | "release" }
+  /** The agent's task turn ended with the task still in progress: APX starts its next part (engine/task-continue.ts). */
+  | { kind: "task_continue"; task_id: string; title: string; part: number; of: number }
   /** APX found the agent's task open with nothing running on it, and asks it once to go on (engine/task-stall.ts). */
   | { kind: "stalled_task"; task_id: string; title: string }
   /** The owner added a project or an agent: the super-agent offers to adapt it (engine/added.ts). */
@@ -99,6 +101,7 @@ export const runsOnComputer = (o: Origin): boolean => {
     case "terminal":
     case "routine":
     case "stalled_task":
+    case "task_continue":
     case "task_result":
     case "delegation_result":
       return true;

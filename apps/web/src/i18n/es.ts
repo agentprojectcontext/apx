@@ -424,6 +424,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "turn.from.command": "Comando terminado",
   "turn.from.goOn": "Seguir tras la pausa",
   "turn.from.stalledTask": "Retomar una tarea frenada",
+  "turn.from.taskContinue": "Seguir con la tarea",
   "turn.from.other": "Próximo turno",
   "turn.queuedAfter": "En cola tras el turno en curso",
   "running.empty": "Nada corriendo ahora.",

@@ -386,6 +386,8 @@ export function frameInput(origin: Origin, text: string): string {
         : `APX: the shared Linux computer you started in this chat did not start (${(origin.error ?? "unknown").slice(0, 300)}). Tell the owner briefly in their language, and point them to [Computer](apx:computer) to look at it.`;
     case "added":
       return `APX: the owner just added the ${origin.what} ${inlineName(origin.name)} (${origin.id}). Offer them in one or two lines to look at it and adapt it (${origin.what === "project" ? "its agents, its AGENTS.md and how it fits their other projects" : "its role, model, project and what it may do"}), asking before you change anything. Nothing else.`;
+    case "task_continue":
+      return `APX: your task "${origin.title}" (${origin.task_id}) is still in progress and your last turn ended without closing it. Part ${origin.part} of at most ${origin.of}: check where it stands, do what is left and verify it. Done: close it with task_close and say what you verified. Waiting on the owner: task_update awaits_owner=true and say what they need to do. Blocked by something you cannot fix: say exactly what. Do not stop just to report progress.`;
     case "stalled_task":
       return `APX: your task "${origin.title.slice(0, 120)}" (${origin.task_id}) is still open, but nothing has run on it since your last turn. Check where it stands: if part of it is yours to do, go on with it; if it waits on the owner, mark it with task_update awaits_owner=true and say what they need to do; if it is done, close it with task_close.`;
     case "task_result":
