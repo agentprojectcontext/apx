@@ -25,7 +25,7 @@ export function publishedPublicRoutes(store: Store): PublicRoutes {
 
 export function nativePublicRoutes(deps: {
   store: Store;
-  deliver(id: string, request: HookRequest): Promise<HookResponse>;
+  deliver(id: string, request: HookRequest, signal?: AbortSignal): Promise<HookResponse>;
 }): PublicRoutes {
   return (pathname) => {
     const id = /^\/hooks\/([A-Za-z0-9_-]{1,64})$/.exec(pathname)?.[1];
@@ -37,7 +37,7 @@ export function nativePublicRoutes(deps: {
       methods: ["POST"],
       // These providers cannot attach an APX bearer. The adapter MUST verify its native HMAC/JWT before delivery.
       authorize: () => true,
-      handle: (request) => deps.deliver(id, { ...request, path: "" }),
+      handle: (request, signal) => deps.deliver(id, { ...request, path: "" }, signal),
     };
   };
 }

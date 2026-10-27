@@ -106,6 +106,7 @@ export function teamsAdapter(
   const threads = new Map<string, string>();
   // The words of each message sent with buttons, since replacing its buttons rewrites the whole message.
   const carded = new Map<string, string>();
+  const delivered = new Map<string, HookResponse>();
   let keys: { byKid: Map<string, { key: KeyObject; endorsements?: string[] }>; at: number } | undefined;
   let token: { value: string; until: number } | undefined;
   let io: AdapterIO | undefined;
@@ -189,10 +190,10 @@ export function teamsAdapter(
   }
 
   /** The Bot Framework's signing keys by id, fetched again when one is unknown (not more than every few minutes). */
-  async function signingKey(kid: string) {
+  async function signingKey(kid: string, signal: AbortSignal) {
     if (!keys?.byKid.has(kid) && (!keys || Date.now() - keys.at > KEYS_MS)) {
       const get = async <T>(url: string) => {
-        const res = await fetch(url, { signal: AbortSignal.any([ac.signal, AbortSignal.timeout(CALL_MS)]) });
+        const res = await fetch(url, { signal: AbortSignal.any([signal, ac.signal, AbortSignal.timeout(CALL_MS)]) });
         if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
         return (await res.json()) as T;
       };
@@ -219,6 +220,7 @@ export function teamsAdapter(
    */
   async function verified(
     authorization: string | undefined,
+    signal: AbortSignal,
   ): Promise<{ claims: Record<string, unknown>; endorsements?: string[] } | undefined> {
     const jwt = /^Bearer\s+(\S+)$/i.exec(authorization ?? "")?.[1];
     const [h, p, s] = jwt?.split(".") ?? [];
@@ -232,7 +234,7 @@ export function teamsAdapter(
       return undefined;
     }
     if (head.alg !== "RS256" || !head.kid) return undefined;
-    const k = await signingKey(head.kid);
+    const k = await signingKey(head.kid, signal);
     if (!k || !verify("RSA-SHA256", Buffer.from(`${h}.${p}`), k.key, Buffer.from(s, "base64url"))) return undefined;
     const now = Date.now() / 1000;
     const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
@@ -370,18 +372,21 @@ export function teamsAdapter(
     async forget() {
       fs.rmSync(stateFile, { force: true });
     },
-    async webhook(req: HookRequest): Promise<HookResponse> {
-      if (!io || ac.signal.aborted) return { status: 503 };
+    async webhook(req: HookRequest, requestSignal?: AbortSignal): Promise<HookResponse> {
+      const signal = requestSignal ? AbortSignal.any([requestSignal, ac.signal]) : ac.signal;
+      if (!io || signal.aborted) return { status: 503 };
       if (req.method !== "POST" || req.path !== "") return { status: 404 };
       let v: Awaited<ReturnType<typeof verified>>;
       try {
-        v = await verified(req.headers.authorization);
+        v = await verified(req.headers.authorization, signal);
       } catch (err) {
+        if (signal.aborted) return { status: 503 };
         // The keys could not be fetched: Bot Framework tries again later.
         keysFailed = true;
         io.status("error", `cannot read the Bot Framework's signing keys: ${errorMessage(err)}`.slice(0, 200));
         return { status: 503 };
       }
+      if (signal.aborted) return { status: 503 };
       if (!v) return { status: 401 };
       let a: Activity;
       try {
@@ -400,7 +405,12 @@ export function teamsAdapter(
         keysFailed = false;
         io.status("running");
       }
-      return handle(a, io);
+      const key = a.id ? JSON.stringify([a.serviceUrl, a.conversation?.id, a.type, a.id]) : undefined;
+      const previous = key ? delivered.get(key) : undefined;
+      if (previous) return previous;
+      const response = handle(a, io);
+      if (key) keep(delivered, key, response);
+      return response;
     },
     async send(conversation, p) {
       const texts = p.text.trim() ? splitText(p.text, MAX_CHARS) : p.buttons?.length ? [""] : [];

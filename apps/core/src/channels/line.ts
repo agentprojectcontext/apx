@@ -109,6 +109,7 @@ export function lineAdapter(
   const stateFile = path.join(opts.dir, "line-state.json");
   const state = readState(stateFile);
   const seen = new Set(state.seen);
+  const inFlight = new Set<string>();
   /** The newest unused reply token of each conversation, and when it came. */
   const replyTokens = new Map<string, { token: string; at: number }>();
   /** A message's quote token, by its id: an answer in a room quotes what it answers. */
@@ -126,7 +127,7 @@ export function lineAdapter(
     fs.renameSync(tmp, stateFile);
   }
 
-  async function call<T>(method: string, route: string, body?: unknown, base = api): Promise<T> {
+  async function call<T>(method: string, route: string, body?: unknown, base = api, signal = ac.signal): Promise<T> {
     if (!creds) throw new LineError(401, "no channel access token");
     const res = await fetch(`${base}${route}`, {
       method,
@@ -135,7 +136,7 @@ export function lineAdapter(
         ...(body === undefined ? {} : { "content-type": "application/json" }),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      signal: AbortSignal.any([ac.signal, AbortSignal.timeout(CALL_MS)]),
+      signal: AbortSignal.any([signal, ac.signal, AbortSignal.timeout(CALL_MS)]),
     });
     const j = (await res.json().catch(() => ({}))) as { message?: string };
     if (!res.ok) throw new LineError(res.status, j.message ?? `HTTP ${res.status}`);
@@ -143,10 +144,15 @@ export function lineAdapter(
   }
 
   /** A file's bytes up to `limit`, read as they come so a big one is cut off early. */
-  async function download(url: string, limit: number, auth: boolean): Promise<{ mime: string; data: Buffer }> {
+  async function download(
+    url: string,
+    limit: number,
+    auth: boolean,
+    signal = ac.signal,
+  ): Promise<{ mime: string; data: Buffer }> {
     const res = await fetch(url, {
       ...(auth && creds ? { headers: { authorization: `Bearer ${creds.token}` } } : {}),
-      signal: AbortSignal.any([ac.signal, AbortSignal.timeout(CALL_MS)]),
+      signal: AbortSignal.any([signal, ac.signal, AbortSignal.timeout(CALL_MS)]),
     });
     if (!res.ok || !res.body) throw new LineError(res.status, `download HTTP ${res.status}`);
     const reader = res.body.getReader();
@@ -167,7 +173,7 @@ export function lineAdapter(
   }
 
   /** Someone's name and picture: a friend's profile, or a group or chat member's (LINE shows only those). */
-  async function profileOf(s: Source): Promise<Profile> {
+  async function profileOf(s: Source, signal = ac.signal): Promise<Profile> {
     const user = s.userId ?? "";
     const route =
       s.type === "group"
@@ -177,20 +183,26 @@ export function lineAdapter(
           : `/v2/bot/profile/${user}`;
     const cached = profiles.get(route);
     if (cached) return cached;
-    const p = await call<{ displayName?: string; pictureUrl?: string }>("GET", route).catch(() => undefined);
+    const p = await call<{ displayName?: string; pictureUrl?: string }>("GET", route, undefined, api, signal).catch(
+      () => undefined,
+    );
+    signal.throwIfAborted();
     const profile = { name: clean(p?.displayName ?? "").slice(0, 60) || "LINE user", picture: p?.pictureUrl };
     if (p) remember(profiles, route, profile);
     return profile;
   }
 
   /** A group or chat the bot is in, offered in the rooms picker. */
-  async function sawRoom(s: Source): Promise<void> {
+  async function sawRoom(s: Source, signal = ac.signal): Promise<void> {
     const id = conversationOf(s);
     if (!id || groups.has(id)) return;
     const summary =
       s.type === "group"
-        ? await call<{ groupName?: string }>("GET", `/v2/bot/group/${id}/summary`).catch(() => undefined)
+        ? await call<{ groupName?: string }>("GET", `/v2/bot/group/${id}/summary`, undefined, api, signal).catch(
+            () => undefined,
+          )
         : undefined;
+    signal.throwIfAborted();
     const name = clean(summary?.groupName ?? "").slice(0, 80) || (s.type === "group" ? "LINE group" : "LINE chat");
     remember(groups, id, name);
     io?.room?.({ id, name });
@@ -222,10 +234,16 @@ export function lineAdapter(
     return { text: text.replace(/\s+/g, " ").trim(), called, mentions };
   }
 
-  async function onMessage(e: LineEvent & { message: LineMessage }, conversation: string, io: AdapterIO) {
+  async function onMessage(
+    e: LineEvent & { message: LineMessage },
+    conversation: string,
+    io: AdapterIO,
+    signal: AbortSignal,
+  ) {
     const s = e.source ?? {};
     const room = s.type === "group" || s.type === "room";
-    if (room) await sawRoom(s);
+    if (room) await sawRoom(s, signal);
+    signal.throwIfAborted();
     if (!s.userId || (room && !listed.has(conversation))) return;
     const m = e.message;
     const { text, called, mentions } = textOf(m);
@@ -235,7 +253,7 @@ export function lineAdapter(
     // Pictures are read in one-to-one chats only; a room answers words.
     if (!room && m.type === "image" && m.id && (m.contentProvider?.type ?? "line") === "line") {
       try {
-        const f = await download(`${dataApi}/v2/bot/message/${m.id}/content`, MAX_IMAGE_BYTES, true);
+        const f = await download(`${dataApi}/v2/bot/message/${m.id}/content`, MAX_IMAGE_BYTES, true, signal);
         files = [{ name: `image.${f.mime.split("/")[1] ?? "jpg"}`, mime: f.mime, data: f.data.toString("base64") }];
       } catch (err) {
         failure = `[image could not be downloaded: ${err instanceof Error && err.message.startsWith("Attachment ") ? err.message : errorMessage(err, 100)}]`;
@@ -243,7 +261,9 @@ export function lineAdapter(
     }
     const words = failure ? `${text}\n${failure}`.trim() : text;
     if (!words && !files.length) return;
-    const p = await profileOf(s);
+    signal.throwIfAborted();
+    const p = await profileOf(s, signal);
+    signal.throwIfAborted();
     io.receive({
       external_id: e.webhookEventId ?? m.id ?? "",
       ...(m.id ? { ref: m.id } : {}),
@@ -257,7 +277,8 @@ export function lineAdapter(
     });
   }
 
-  async function onEvent(e: LineEvent, io: AdapterIO): Promise<void> {
+  async function onEvent(e: LineEvent, io: AdapterIO, signal: AbortSignal): Promise<void> {
+    signal.throwIfAborted();
     // Another channel holds the chat (LINE's module mode): it answers, not the bot.
     if (e.mode === "standby") return;
     const s = e.source;
@@ -265,14 +286,16 @@ export function lineAdapter(
     if (!s || !conversation) return;
     if (e.replyToken && !e.deliveryContext?.isRedelivery)
       remember(replyTokens, conversation, { token: e.replyToken, at: now() });
-    if (e.type === "message" && e.message) return onMessage({ ...e, message: e.message }, conversation, io);
+    if (e.type === "message" && e.message) return onMessage({ ...e, message: e.message }, conversation, io, signal);
     if (e.type === "postback" && e.postback?.data && s.userId) {
       const room = s.type !== "user";
       if (room && !listed.has(conversation)) return;
-      io.action({ conversation, sender: { id: s.userId, name: (await profileOf(s)).name }, data: e.postback.data });
+      const profile = await profileOf(s, signal);
+      signal.throwIfAborted();
+      io.action({ conversation, sender: { id: s.userId, name: profile.name }, data: e.postback.data });
       return;
     }
-    if (e.type === "join") return sawRoom(s);
+    if (e.type === "join") return sawRoom(s, signal);
     if (e.type === "leave") {
       io.room?.({ id: conversation, name: groups.get(conversation) ?? conversation, left: true });
       groups.delete(conversation);
@@ -351,7 +374,9 @@ export function lineAdapter(
     async forget() {
       fs.rmSync(stateFile, { force: true });
     },
-    async webhook(req: HookRequest): Promise<HookResponse> {
+    async webhook(req: HookRequest, requestSignal?: AbortSignal): Promise<HookResponse> {
+      const signal = requestSignal ? AbortSignal.any([requestSignal, ac.signal]) : ac.signal;
+      if (signal.aborted) return { status: 503 };
       // Checked over the bytes as they came, before anything in them is read.
       if (!signed(req)) return { status: 401 };
       if (!io) return { status: 503 };
@@ -367,11 +392,18 @@ export function lineAdapter(
       for (const e of events) {
         // LINE delivers an event again when it heard no answer: each is handled once.
         if (e.webhookEventId && seen.has(e.webhookEventId)) continue;
+        if (signal.aborted || (e.webhookEventId && inFlight.has(e.webhookEventId))) {
+          if (fresh) save();
+          return { status: 503 };
+        }
+        if (e.webhookEventId) inFlight.add(e.webhookEventId);
         try {
-          await onEvent(e, io);
+          await onEvent(e, io, signal);
         } catch {
           if (fresh) save();
-          return { status: 500 };
+          return { status: signal.aborted ? 503 : 500 };
+        } finally {
+          if (e.webhookEventId) inFlight.delete(e.webhookEventId);
         }
         if (e.webhookEventId) {
           seen.add(e.webhookEventId);
