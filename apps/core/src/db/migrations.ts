@@ -907,4 +907,16 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX run_contexts_seq ON run_contexts(seq);
   `,
+  // Task-owned snapshots survive deletion of the source chat. Provenance never grants source access.
+  `
+  CREATE TABLE task_attachments (
+    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    media_id TEXT NOT NULL UNIQUE REFERENCES media(id) ON DELETE CASCADE,
+    source_media_id TEXT NOT NULL, source_thread_id TEXT, created_by TEXT NOT NULL,
+    PRIMARY KEY(task_id, source_media_id)
+  );
+  CREATE TABLE task_uploads (
+    media_id TEXT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE
+  );
+  `,
 ];

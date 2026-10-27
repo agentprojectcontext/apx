@@ -1,20 +1,20 @@
 import type { Agent, CatalogEngine, Run, Thread } from "@apx/protocol";
 import { Composer, EngineIcon, IconButton, Icons, Menu, SegmentedControl, withMentions } from "@apx/ui";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useEngineLabel } from "../../common/useEngineLabel.ts";
 import { ModelChoicePicker } from "../../config/models/ModelPickers.tsx";
 import { cancel, loadThread, makeChat, send } from "../../data/actions.ts";
 import { sendDirect } from "../../data/channels.ts";
 import { setThreadModel } from "../../data/composer.ts";
-import { draftOf, keepDraft } from "../../data/drafts.ts";
+import { draftOf, keepDraft, subscribeDrafts } from "../../data/drafts.ts";
 import { isPending } from "../../data/identity.ts";
 import { choiceLabel, effectiveChoice, splitRef, useModels } from "../../data/models.ts";
 import { isNewChat } from "../../data/newChat.ts";
 import { notify } from "../../data/notices.ts";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
+import { AttachChips } from "../../lazy.ts";
 import { go } from "../../shell/nav.ts";
-import { AttachChips } from "./AttachChips.tsx";
 import { ContextChip } from "./ContextChip.tsx";
 import { contextOf, spentOf, usageStamp } from "./context.ts";
 import { useSlashMenu } from "./SlashMenu.tsx";
@@ -47,12 +47,9 @@ export function ChatComposer({
   const offline = useData((s) => s.connection === "offline");
   const engine = useEngineLabel(thread.engine);
   const runsById = useData((s) => s.runs);
-  const [text, setTextNow] = useState(() => draftOf(thread.id));
-  useEffect(() => keepDraft(thread.id, text), [thread.id, text]);
-  // Typed text is kept at once too: a pick that also leaves the chat (/new) unmounts it before the effect runs.
+  const text = useSyncExternalStore(subscribeDrafts, () => draftOf(thread.id));
   const setText = (v: string | ((cur: string) => string)) => {
-    if (typeof v === "string") keepDraft(thread.id, v);
-    setTextNow(v);
+    keepDraft(thread.id, typeof v === "string" ? v : v(draftOf(thread.id)));
   };
   const fresh = isNewChat(thread.id);
   // Files and voice notes of a new chat are uploaded to no chat yet; they go with its first message.
@@ -60,7 +57,7 @@ export function ChatComposer({
   const files = useRef<HTMLInputElement>(null);
   const images = useRef<HTMLInputElement>(null);
   const appendWords = (words: string) => setText((cur) => (cur.trim() ? `${cur.trimEnd()} ${words}` : words));
-  const att = useAttachments(made, appendWords);
+  const att = useAttachments(thread.id, made);
   const box = useRef<HTMLDivElement>(null);
   const mic = useDictation(made, (audio, words) => {
     att.restore([audio]);
@@ -104,7 +101,8 @@ export function ChatComposer({
     setText("");
     // A send that fails gives the words and the files back, so nothing the owner wrote is lost.
     const giveBack = () => {
-      setText((cur) => cur || value);
+      if (!att.active()) return;
+      setText((cur) => (cur ? `${value}\n\n${cur}` : value));
       att.restore(attachments);
     };
     if (!fresh) return void send(thread.id, words, { attachments, queue }).catch(giveBack);
@@ -173,7 +171,11 @@ export function ChatComposer({
           micBusy || att.chips.length ? (
             <>
               <VoiceRecording state={mic.state} levels={mic.levels} seconds={mic.seconds} heard={mic.heard} />
-              {att.chips.length > 0 && <AttachChips chips={att.chips} onRemove={att.remove} />}
+              {att.chips.length > 0 && (
+                <Suspense fallback={<div role="status">{att.chips.map((chip) => chip.name).join(", ")}</div>}>
+                  <AttachChips chips={att.chips} onRemove={att.remove} />
+                </Suspense>
+              )}
             </>
           ) : undefined
         }

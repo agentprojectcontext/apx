@@ -260,7 +260,7 @@ test("the Projects section shows more or fewer rows from its bottom edge, never 
   await expect(page.getByRole("button", { name: /^\d+ más$/ })).toBeVisible();
 });
 
-test("Resources sits under Tasks and Settings opens from the account menu, which leaves profile and language out", async ({
+test("Resources sits under Tasks and the account menu offers Settings and Language, without a profile entry", async ({
   page,
 }) => {
   await open(page);
@@ -268,8 +268,12 @@ test("Resources sits under Tasks and Settings opens from the account menu, which
   await expect(top.getByRole("button", { name: "Recursos", exact: true })).toBeVisible();
   await expect(page.locator(".sidebar__foot").getByRole("button", { name: "Config", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: /^Cuenta/ }).click();
+  await expect(page.getByRole("menuitem", { name: /^Configuración(?! inicial)/ })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Perfil y cuenta" })).toHaveCount(0);
-  await expect(page.getByRole("menuitem", { name: /^Idioma/ })).toHaveCount(0);
+  await page.getByRole("menuitem", { name: /^Idioma/ }).hover();
+  await expect(page.getByRole("menuitem", { name: "English", exact: true })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Español", exact: true }).click();
+  await page.getByRole("button", { name: /^Cuenta/ }).click();
   await page.getByRole("menuitem", { name: /^Configuración(?! inicial)/ }).click();
   await expect(page.getByRole("dialog", { name: "Configuración" })).toBeVisible();
 });

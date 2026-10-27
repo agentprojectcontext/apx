@@ -1,7 +1,9 @@
 import type { Agent, Thread } from "@apx/protocol";
 import { AgentAvatar, EngineIcon } from "@apx/ui";
+import { Suspense } from "react";
 import { AgentFace } from "../common/AgentFace.tsx";
 import { useData, useShownAgents } from "../data/state.ts";
+import { ChannelFace } from "../lazy.ts";
 
 /** Keep the avatar column aligned; a delegated session shows its recipient with its caller as a small badge. */
 export function ThreadAvatar({
@@ -12,6 +14,7 @@ export function ThreadAvatar({
   editable = false,
   online = false,
   animated,
+  channelMark = false,
 }: {
   thread: Thread;
   agent: Agent | undefined;
@@ -20,6 +23,7 @@ export function ThreadAvatar({
   editable?: boolean;
   online?: boolean;
   animated?: boolean;
+  channelMark?: boolean;
 }) {
   const agents = useShownAgents();
   const parent = useData((s) => (thread.parent_id ? s.threads[thread.parent_id] : undefined));
@@ -27,8 +31,15 @@ export function ThreadAvatar({
   const group = thread.kind === "group";
   const badge = !group && thread.kind === "a2a" && caller && caller.id !== agent?.id ? caller : undefined;
   const faces = group ? thread.agent_ids.slice(0, 2).map((id) => agents[id]) : [agent];
+  const fallback = <AgentAvatar name={thread.title} size={size} animated={false} />;
+  if (thread.channel)
+    return (
+      <Suspense fallback={fallback}>
+        <ChannelFace thread={thread} size={size} slot={slot} showMark={channelMark} />
+      </Suspense>
+    );
   return (
-    <span className="threadavatar" style={{ width: slot, minWidth: slot, height: slot }}>
+    <span className="threadavatar" style={{ width: slot, minWidth: slot, height: slot, gap: 4 }}>
       {thread.engine ? (
         <EngineIcon engine={thread.engine} tile size={size} />
       ) : (
@@ -43,7 +54,7 @@ export function ThreadAvatar({
                 animated={animated}
               />
             ) : (
-              <AgentAvatar name={thread.title} size={size} animated={false} />
+              fallback
             )}
           </span>
         ))

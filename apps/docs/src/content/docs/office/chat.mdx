@@ -67,6 +67,19 @@ The box at the bottom ("Message Lucía…") is where you write. A few things it 
 - **Keys.** Enter sends (if the agent is working, it stops and answers this instead). Ctrl/⌘+Enter queues the message
   for when it ends. Shift+Enter adds a line.
 
+Attachment drafts, including uploads in progress, survive switching chats within the page. Select a thumbnail to
+preview its file. Unlike saved draft text, attachment drafts do not survive reloading or closing the page; they are
+not durable file storage.
+
+### Channel identity and delegated replies
+
+Channel conversations show the corresponding contact and channel identity. That display does not change the agent
+assigned to the chat.
+
+A delegated reply appears as an expandable block with its agent, status and a link to the source chat. It is not
+another participant in this conversation. An interrupted, failed or unanswered delegation does not mean the work
+was completed.
+
 ### While an image is being generated
 
 **On the development branch after 2.11.0**, an executing image-generation call shows an inline animated tile

@@ -45,6 +45,28 @@ test("a Claude Code or Codex session sits under its engine, not under the agent 
   ]);
 });
 
+test("channel conversations keep their own tree identity instead of nesting under their responding agent", () => {
+  const trees = groupByAgent(
+    {
+      a: thread("a"),
+      bb: thread("bb", { channel: { id: "line", conversation: "contact" } }),
+      ccc: thread("ccc", { channel: { id: "community", conversation: "room" } }),
+      dddd: thread("dddd", { task_id: "task-example", channel: { id: "line", conversation: "task" } }),
+    },
+    [],
+    {},
+  );
+  assert.deepEqual(
+    trees[0]?.agents.map((b) => [b.agentId, !!b.channel, b.threads.map((t) => t.id)]),
+    [
+      ["task:task-example", false, ["dddd"]],
+      ["channel:ccc", true, ["ccc"]],
+      ["channel:bb", true, ["bb"]],
+      ["roby", false, ["a"]],
+    ],
+  );
+});
+
 test("pinned chats come first within their group, newest first among each kind", () => {
   const list = [thread("a"), thread("bb", { pinned: true }), thread("ccc"), thread("dddd", { pinned: true })];
   assert.deepEqual(

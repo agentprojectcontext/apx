@@ -20,7 +20,7 @@
     "@whiskeysockets/baileys": "7.0.0-rc14",
     "kysely": "0.29.6",
     "ws": "^8.22.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@apx/config": "workspace:*",

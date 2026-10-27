@@ -1,6 +1,7 @@
 // The owner's arrangement of chats and their management dialogs.
 import type { Thread, WritePolicy } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
+import { discardAttachments } from "./attachmentDrafts.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
 import { keepDraft } from "./drafts.ts";
@@ -40,7 +41,6 @@ export async function deleteThread(id: string): Promise<boolean> {
   try {
     const { deleted } = await client.call("threads.delete", { thread: id });
     forgetThreads(deleted);
-    for (const gone of deleted) keepDraft(gone, "");
     return true;
   } catch (e) {
     notify(t("error.deleteChat", { error: errText(e) }));
@@ -50,6 +50,10 @@ export async function deleteThread(id: string): Promise<boolean> {
 
 /** Drops deleted chats from memory; one still open shows as not found instead of being fetched again. */
 export function forgetThreads(ids: string[]): void {
+  for (const id of ids) {
+    discardAttachments(id);
+    keepDraft(id, "");
+  }
   data.set((s) => {
     const threads: Record<string, Thread> = { ...s.threads };
     const messages = { ...s.messages };

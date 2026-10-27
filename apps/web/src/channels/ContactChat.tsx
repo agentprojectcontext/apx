@@ -5,6 +5,7 @@ import { useChannels } from "../data/channels.ts";
 import { go } from "../shell/nav.ts";
 import { ChannelConversation } from "./ChannelConversation.tsx";
 import { ContactPanel } from "./ContactPanel.tsx";
+import { useThreadPerson } from "./useThreadPerson.ts";
 
 /**
  * A contact's chat opened from the Inbox: the same chat as in its channel (who answers, how far it got, reactions),
@@ -12,7 +13,7 @@ import { ContactPanel } from "./ContactPanel.tsx";
  */
 export function ContactChat({ thread }: { thread: Thread }) {
   const channel = useChannels((s) => s.channels.find((c) => c.id === thread.channel?.id));
-  const person = useChannels((s) => s.persons.find((p) => p.id === thread.channel?.person_id));
+  const person = useThreadPerson(thread);
   // The card sits beside the chat on wide screens; on narrow ones it covers it, so it starts closed there.
   const [card, setCard] = useState(() => window.innerWidth >= 1280);
   if (!channel) return null;

@@ -1,6 +1,7 @@
 // What reaches the attention tray. Questions an agent asks the owner are noticed from the bus; they and tasks waiting
 // for the owner leave the tray once answered or moved on. A turn that ends or fails in one of the owner's chats is
-// noticed when the chat is still unread a moment later (nobody was looking). Routines, channels and tasks add their own.
+// noticed when the chat is still unread a moment later (nobody was looking) and has nothing else coming: the agent's
+// work ends once, not at each result that wakes it. Routines, channels and tasks add their own.
 import type { CoreEvent } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import type { Store } from "../domain/store.ts";
@@ -21,6 +22,17 @@ export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date
   /** Runs already looked at: a run may report its end more than once. */
   const ended = new Set<string>();
 
+  /** What the chat still waits for: a turn not run yet, a delegation at work or held, a background job that wakes it. */
+  function pending(threadId: string): boolean {
+    return (
+      store.runs.queuedIds(threadId).length > 0 ||
+      store.runs.list(threadId, 10).some((r) => r.state === "working") ||
+      store.runs.activeDelegations(threadId) > 0 ||
+      store.runs.held(threadId).length > 0 ||
+      store.jobs.running().some((j) => j.thread_id === threadId && j.background && j.agent_id)
+    );
+  }
+
   /** A turn ended in the owner's chat: if it is still unread in a moment, the tray (and their phone) hears of it. */
   function runEnded(runId: string): void {
     const run = store.runs.get(runId);
@@ -36,7 +48,8 @@ export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date
     const timer = setTimeout(() => {
       timers.delete(timer);
       const now = store.threads.get(thread.id);
-      if (!now?.unread) return;
+      // The turn that ends the chain tells it, with the chat's latest words.
+      if (!now?.unread || pending(thread.id)) return;
       // A result turn that said nothing and was tried once more (engine `retryDropped`): the retry reports.
       if (dropped && store.runs.list(thread.id, 5).some((r) => r.input?.retry_of === run.id)) return;
       const failed = run.state === "failed";

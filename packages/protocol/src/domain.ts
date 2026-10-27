@@ -419,7 +419,23 @@ export type DocumentSource = z.infer<typeof DocumentSource>;
 
 /** What the UI shows. The model's own transcript is stored separately (two projections of one log). */
 const KnownPart = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("text"), text: z.string() }),
+  z.object({
+    type: z.literal("text"),
+    text: z.string(),
+    /** A task consult's reply, kept as words for history readers and as a traced event for operators. */
+    response: z
+      .object({
+        thread_id: Id,
+        run_id: Id,
+        task_id: Id,
+        title: z.string(),
+        state: RunState,
+        end_reason: RunEndReason.optional(),
+        issue: z.enum(["no_answer", "actions_failed"]).optional(),
+        project_id: Id.optional(),
+      })
+      .optional(),
+  }),
   z.object({
     type: z.literal("tool"),
     call_id: z.string(),
@@ -730,6 +746,14 @@ export const Job = z.object({
   /** Display provenance even when the owning chat is not loaded by the operator. */
   thread_title: z.string().optional(),
   agent_name: z.string().optional(),
+  /** Project context captured when the run was admitted; absent for historical jobs without a snapshot. */
+  project_id: Id.optional(),
+  project_name: z.string().optional(),
+  /** The chat's current project, which may differ after a move. */
+  thread_project_id: Id.optional(),
+  thread_project_name: z.string().optional(),
+  /** The persisted run that executed the command, not a caller's current turn. */
+  run_id: Id.optional(),
   /** The thread that started it (a delegation's caller). */
   parent_thread_id: Id.optional(),
   agent_id: Id.optional(),

@@ -516,6 +516,31 @@
   font-size: var(--apx-text-sm);
   font-weight: var(--apx-weight-medium);
 }
+.job__hint {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: min(320px, calc(100vw - 40px));
+  max-height: min(280px, 40dvh);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.job__details,
+.job__full-details {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.job__full-details {
+  width: 100%;
+  height: 60dvh;
+  overflow: auto;
+  resize: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--apx-text-sm);
+}
 .job__time {
   flex: none;
   font-size: var(--apx-text-xs);

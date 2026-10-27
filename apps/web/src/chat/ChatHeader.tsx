@@ -1,7 +1,6 @@
 import type { Agent, Thread, WritePolicy } from "@apx/protocol";
 import { EngineIcon, IconButton, Icons, Menu, type MenuEntry, ProjectTile, Tag, Tooltip } from "@apx/ui";
-import { KindIcon } from "../channels/KindIcon.tsx";
-import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
+import { Suspense } from "react";
 import { useAgentHint } from "../common/AgentFace.tsx";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
@@ -14,6 +13,7 @@ import { useT } from "../i18n/index.ts";
 import { ThreadAvatar } from "../inbox/ThreadAvatar.tsx";
 import { PinMark } from "../inbox/ThreadRow.tsx";
 import { threadMenu } from "../inbox/threadActions.tsx";
+import { ChannelFace, TaskStatus } from "../lazy.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
 
@@ -68,9 +68,7 @@ export function ChatHeader({
   const sub = thread.kind === "a2a" || thread.parent_id != null;
   // An engine session is the engine itself: its name and icon, not the agent that owns the run.
   const engine = useEngineLabel(thread.engine);
-  const name = sub ? thread.title : (engine ?? agent?.name ?? thread.title);
-  const via = thread.channel?.id ?? "";
-  const channelLabel = isChannelKind(via) ? t(CHANNEL_KINDS[via].name) : via;
+  const name = sub || thread.channel ? thread.title : (engine ?? agent?.name ?? thread.title);
 
   return (
     <header className={compact ? "chat__header chat__header--compact" : "chat__header"}>
@@ -85,10 +83,10 @@ export function ChatHeader({
           onClick={() => thread.parent_id && go.thread(thread.parent_id)}
         />
       )}
-      <ThreadAvatar thread={thread} agent={agent} size={32} slot={36} editable online={!sub} animated />
+      <ThreadAvatar thread={thread} agent={agent} size={32} slot={36} editable online={!sub} animated channelMark />
       <div className="chat__titles">
         <div className="chat__title">
-          {agent && !engine ? (
+          {agent && !engine && !thread.channel ? (
             <Tooltip content={agentHint}>
               <button type="button" className="chat__name chat__namebtn" onClick={() => go.agent(agent.id)}>
                 {name}
@@ -99,8 +97,9 @@ export function ChatHeader({
           )}
           {engine && <Tag kind="role">{t("engine.direct")}</Tag>}
           <ChatProcesses thread={thread.id} onOpen={go.processes} />
-          {!sub && !engine && agent?.kind === "secretary" && <Tag kind="role">{t("agent.super")}</Tag>}
-          {!sub && !engine && agent && agent.kind !== "secretary" && agent.role && <Tag kind="role">{agent.role}</Tag>}
+          {!sub && !engine && !thread.channel && agent && (agent.kind === "secretary" || agent.role) && (
+            <Tag kind="role">{agent.kind === "secretary" ? t("agent.super") : agent.role}</Tag>
+          )}
         </div>
         <div className="chat__crumb">
           <ProjectTile tone={projectTone(project?.id ?? DEFAULT_PID)} size={12} />
@@ -116,6 +115,11 @@ export function ChatHeader({
           )}
           {sub && <Tag>{t("thread.a2a")}</Tag>}
           {thread.task_id && (
+            <Suspense fallback={null}>
+              <TaskStatus id={thread.task_id} />
+            </Suspense>
+          )}
+          {thread.task_id && (
             <button
               type="button"
               className="chat__task"
@@ -127,10 +131,9 @@ export function ChatHeader({
             </button>
           )}
           {thread.channel && (
-            <Tag>
-              {isChannelKind(via) ? <KindIcon kind={via} size={11} /> : <Icons.Send size={11} />}{" "}
-              {t("chat.viaChannel", { channel: channelLabel })}
-            </Tag>
+            <Suspense fallback={null}>
+              <ChannelFace thread={thread} labelOnly />
+            </Suspense>
           )}
           {thread.cwd && thread.write && (
             <span className="chat__code" title={thread.cwd}>

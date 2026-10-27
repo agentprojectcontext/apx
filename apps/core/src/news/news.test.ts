@@ -11,7 +11,7 @@ import { seed } from "../domain/seed.ts";
 import { createStore, type Store } from "../domain/store.ts";
 import { say, scriptedLlm } from "../engine/testkit.ts";
 import type { Log } from "../log.ts";
-import { NEWS, type NewsEntry, newsAction } from "./entries.ts";
+import { NEWS, type NewsEntry, newsAction, newsFacts } from "./entries.ts";
 import { createNews } from "./news.ts";
 
 const quiet: Log = { info: () => {}, warn: () => {}, error: () => {} };
@@ -63,6 +63,21 @@ const entry = (id: string, since = "2.7.3"): NewsEntry => ({
     { label: { en: `Do ${id}`, es: `Hacer ${id}` }, prompt: `Please do ${id}.` },
     { label: { en: `Other ${id}`, es: `Otro ${id}` }, prompt: `Other ${id}.` },
   ],
+});
+
+test("coordinated update news only applies to owners with a paired Desktop", () => {
+  const { store, done } = setup();
+  try {
+    const update = NEWS.find((item) => item.id === "coordinated-desktop-update");
+    assert.ok(update);
+    assert.equal(update.applies(newsFacts(store)), false);
+    store.devices.create("Phone", "android");
+    assert.equal(update.applies(newsFacts(store)), false);
+    store.devices.create("Computer", "desktop");
+    assert.equal(update.applies(newsFacts(store)), true);
+  } finally {
+    done();
+  }
 });
 
 test("a fresh install knows every entry and is told none, with no model call", async () => {

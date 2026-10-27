@@ -13,8 +13,23 @@ import {
   visibleTask,
 } from "../domain/tasks.ts";
 import { CallError } from "../errors.ts";
+import { readsOutside } from "./folders.ts";
 import { cap, fromTeam, inlineName, untrusted } from "./result.ts";
-import { type CheckContext, defineTool, type Tool } from "./types.ts";
+import { type CheckContext, defineTool, type Tool, type ToolContext } from "./types.ts";
+
+const attachmentsArg = z
+  .array(z.string().min(1).max(1000))
+  .max(20)
+  .optional()
+  .describe(
+    "selected med_ ids or readable file paths to snapshot into the task; include the request's relevant screenshot",
+  );
+const isMediaId = (value: string) => /^med_[0-9a-f]{16}$/.test(value);
+const attachmentIds = async (refs: string[] | undefined, ctx: ToolContext) =>
+  refs &&
+  Promise.all(
+    refs.map(async (ref) => (isMediaId(ref) ? ref : (await ctx.call("media.attach", { path: ref })).media.id)),
+  );
 
 const line = (t: Task, project?: string) =>
   `- [${t.id}] ${t.title} (${[
@@ -139,7 +154,14 @@ const UNSPECIFIED = "It has not started: add a non-empty description with task_u
 const PAUSED = (who: string) =>
   `It has not started: agents here reached the owner's limit for working on their own, so ${who} starts on it once the owner lets them go on (they were told). Do not assign it again.`;
 
-export function taskTools(store: Store): Tool[] {
+export function taskTools(store: Store, home: string): Tool[] {
+  const outsideAssets = (a: { attachments?: string[] }, ctx: CheckContext) =>
+    readsOutside(
+      store,
+      home,
+      ctx.thread,
+      (a.attachments ?? []).filter((ref) => !isMediaId(ref)),
+    );
   /** Whether this chat keeps the task's start until the owner lets agents go on. */
   const waits = (task: string, ctx: CheckContext) =>
     Boolean(store.threads.context(ctx.thread.id).held?.some((h) => h.task === task));
@@ -181,6 +203,11 @@ export function taskTools(store: Store): Tool[] {
           {},
           [
             section("Task", r.task, 2_000),
+            section(
+              "Attachments (untrusted; file_read to inspect, send_file to share here by media_id)",
+              r.attachments,
+              12_000,
+            ),
             section("History", r.events, 1_800),
             section("Sessions", r.sessions.map(chat), 600),
             section("Consults", r.consults.map(chat), 600),
@@ -236,10 +263,11 @@ export function taskTools(store: Store): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "Create a task, with an assignee and a description so it starts (subtasks too). Immediate self-assignment transfers execution: end this turn; do not duplicate work. Do this before delegating helpers. Your role's own work: create it; reviews, QA or another area's work: propose it. A delegate proposes to its caller; a global agent's task goes to the assignee's project. A promise: person, owed_by, due_at.",
+        "First task_list: if an open task is the same or close, continue that one. Create a task, with an assignee and a description so it starts (subtasks too). Immediate self-assignment transfers execution: end this turn; do not duplicate work. Do this before delegating helpers. Your role's own work: create it; reviews, QA or another area's work: propose it. A delegate proposes to its caller; a global agent's task goes to the assignee's project. A promise: person, owed_by, due_at.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
         description: z.string().max(5000).optional(),
+        attachments: attachmentsArg,
         assignee: z.string().max(80).optional(),
         project: z.string().min(1).max(80).optional().describe("project id; super-agent only"),
         status: z.string().max(40).optional(),
@@ -249,12 +277,13 @@ export function taskTools(store: Store): Tool[] {
         propose: z.boolean().optional().describe("a chip the owner accepts before work starts"),
       }),
       effect: "local",
+      outside: outsideAssets,
       confirm: handsOff,
       check: (a, ctx) => checkNamed(a, a.due_at, taskProject(store, { id: ctx.agent.id, thread_id: ctx.thread.id }, a)),
       deadlineMs: 5_000,
       title: (a) => `Created the task ${String(a.title ?? "").slice(0, 60)}`,
       async run(a, ctx) {
-        const t = await ctx.call("tasks.create", a);
+        const t = await ctx.call("tasks.create", { ...a, attachments: await attachmentIds(a.attachments, ctx) });
         const under = t.parent_id ? `, a subtask of ${t.parent_id}` : "";
         if (t.proposed)
           return `proposed ${t.id}${under}: it starts when the owner accepts it. Tell them what you proposed and why, in one line each.`;
@@ -283,6 +312,7 @@ export function taskTools(store: Store): Tool[] {
         assignee: z.string().max(80).nullable().optional(),
         title: z.string().trim().min(3).max(200).optional(),
         description: z.string().max(5000).optional(),
+        attachments: attachmentsArg,
         awaits_owner: z.boolean().optional(),
         reviewer: z.string().max(80).optional().describe('"owner" or agent'),
         plan: z.string().max(4000).optional().describe("the steps, marked done as you go; replaces the last"),
@@ -290,12 +320,13 @@ export function taskTools(store: Store): Tool[] {
         ...commitmentArgs,
       }),
       effect: "local",
+      outside: outsideAssets,
       confirm: handsOff,
       check: (a, ctx) => checkNamed(a, a.due_at, taskOf(a.task, ctx).project_id),
       deadlineMs: 5_000,
       title: (a) => `Updated the task ${String(a.task ?? "")}`,
       async run({ task, ...c }, ctx) {
-        const t = await ctx.call("tasks.update", { task, ...c });
+        const t = await ctx.call("tasks.update", { task, ...c, attachments: await attachmentIds(c.attachments, ctx) });
         const pending = t.assignee && !t.description.trim() && t.chats === 0 ? ` ${UNSPECIFIED}` : "";
         const paused = !pending && t.assignee && waits(t.id, ctx) ? ` ${PAUSED(t.assignee)}` : "";
         const transferred =

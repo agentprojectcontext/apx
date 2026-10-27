@@ -60,20 +60,19 @@ test("an agent picks its own model from the list, and one button leaves it on th
   await page.keyboard.press("Escape");
 });
 
-/** The language is in the top bar, or in its "more" menu when the bar has no room. */
-async function pickLanguage(page: Page, button: RegExp, more: string, language: string) {
-  const direct = page.getByRole("button", { name: button });
-  await ((await direct.isVisible()) ? direct : page.getByRole("button", { name: more })).click();
-  await page.getByRole("menuitem", { name: language }).click();
+async function pickLanguage(page: Page, account: RegExp, submenu: RegExp, language: string) {
+  await page.getByRole("button", { name: account }).click();
+  await page.getByRole("menuitem", { name: submenu }).hover();
+  await page.getByRole("menuitem", { name: language, exact: true }).click();
 }
 
 test("English and Spanish show text, never a raw key", async ({ page }) => {
   await open(page);
-  await pickLanguage(page, /^Idioma/, "Más opciones", "English");
+  await pickLanguage(page, /^Cuenta/, /^Idioma/, "English");
   await expect(page.getByRole("button", { name: "Tasks" })).toBeVisible();
   const text = await page.locator("body").innerText();
   expect(text).not.toMatch(/\b[a-z]+\.[a-z]+\.[a-zA-Z.]+\b/);
-  await pickLanguage(page, /^Language/, "More options", "Español");
+  await pickLanguage(page, /^Account/, /^Language/, "Español");
   await expect(page.getByRole("button", { name: "Tareas" })).toBeVisible();
 });
 

@@ -2,12 +2,13 @@
 import type { Agent, Task, TaskColumn } from "@apx/protocol";
 import { AgentAvatar, Icons, type MenuEntry } from "@apx/ui";
 import { availableAgents } from "../common/pickers/agents.ts";
+import { taskStateActions } from "../common/taskStateActions.tsx";
 import { blobOf } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
+import { archiveTaskChats } from "../data/taskChats.ts";
 import { closeTask, updateTask } from "../data/tasks.ts";
 import type { T } from "../i18n/index.ts";
 import { PRIORITIES, PRIORITY_KEY, PriorityDot } from "./TaskFields.tsx";
-import { ColumnDot, columnLabel } from "./TaskForms.tsx";
 import { type GroupId, moveTo } from "./taskGroups.ts";
 
 /** Applies a drop on a group: its column (no longer waiting), waiting for the owner, or done. */
@@ -44,26 +45,21 @@ export function copyItems(task: Task, t: T): MenuEntry[] {
 /** The right-click menu of a task: open it, copy it, move, prioritize, assign, wait for the owner, close, delete (it asks). */
 export function taskMenu(
   task: Task,
-  o: { t: T; columns: readonly TaskColumn[]; agents: Agent[]; onOpen: () => void; onDelete: () => void },
+  o: {
+    t: T;
+    columns: readonly TaskColumn[];
+    agents: Agent[];
+    archived: boolean;
+    onOpen: () => void;
+    onDelete: () => void;
+  },
 ): MenuEntry[] {
   const { t } = o;
-  const open = task.state === "open";
   return [
     { label: t("tasks.menu.open"), icon: <Icons.PanelRight />, onSelect: o.onOpen },
     ...copyItems(task, t),
     { type: "separator" },
-    {
-      type: "submenu",
-      label: t("tasks.menu.move"),
-      icon: <Icons.ArrowRightLeft />,
-      disabled: !open,
-      items: o.columns.map((c) => ({
-        label: columnLabel(c, t),
-        icon: <ColumnDot id={c.id} />,
-        checked: c.id === task.status,
-        onSelect: () => void updateTask(task.id, { status: c.id, awaits_owner: false }),
-      })),
-    },
+    ...taskStateActions(task, o.columns, t),
     {
       type: "submenu",
       label: t("tasks.priority"),
@@ -94,27 +90,12 @@ export function taskMenu(
         })),
       ],
     },
+    { type: "separator" },
     {
-      label: task.awaits_owner ? t("tasks.menu.unblock") : t("tasks.menu.block"),
-      icon: <Icons.Hand />,
-      disabled: !open,
-      onSelect: () => void updateTask(task.id, { awaits_owner: !task.awaits_owner }),
+      label: t(o.archived ? "tasks.chats.unarchive" : "tasks.chats.archive"),
+      icon: o.archived ? <Icons.ArchiveRestore /> : <Icons.Archive />,
+      onSelect: () => void archiveTaskChats(task.id, !o.archived),
     },
-    { type: "separator" },
-    open
-      ? { label: t("tasks.markDone"), icon: <Icons.Check />, onSelect: () => void closeTask(task.id, "done") }
-      : { label: t("tasks.reopen"), icon: <Icons.RotateCcw />, onSelect: () => void closeTask(task.id, "open") },
-    ...(open
-      ? [
-          {
-            label: t("tasks.drop"),
-            icon: <Icons.X />,
-            danger: true,
-            onSelect: () => void closeTask(task.id, "dropped"),
-          },
-        ]
-      : []),
-    { type: "separator" },
     { label: t("tasks.delete"), icon: <Icons.Trash2 />, danger: true, onSelect: o.onDelete },
   ];
 }

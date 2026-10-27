@@ -12,6 +12,7 @@ export function keyStore(): KeyStore | undefined {
 
 /** Which token this panel shows the core, and where it came from (the pairing gate needs to know). */
 export const access = pickToken(window.apxDesktop?.coreToken, keyStore());
+window.apxDesktop?.updateAuth?.(access.token);
 
 /** One HTTP client for the panel. Same origin: Vite proxies /rpc and /ws in dev, the core serves the build. */
 export const client = new ApxClient({

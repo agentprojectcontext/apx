@@ -1,9 +1,9 @@
 // The update as the app menu says it ("Check for updates…", "Update to APX 2.3.0…", "Restart to update to APX 2.3.0")
 // and the native questions it asks when the owner started it there: restart now or later.
 import { type BaseWindow, dialog, type MenuItemConstructorOptions, Notification } from "electron";
-import type { createDesktopUpdater, DesktopUpdate } from "./updater.ts";
+import type { DesktopUpdate } from "./updater.ts";
 
-type Updater = ReturnType<typeof createDesktopUpdater>;
+type Updater = ReturnType<typeof import("./updater.ts").createDesktopUpdater> & { automatic?(): boolean };
 
 const words = (es: boolean, platform: string) => ({
   check: es ? "Buscar actualizaciones…" : "Check for updates…",
@@ -19,6 +19,13 @@ const words = (es: boolean, platform: string) => ({
       : es
         ? "Se instala al reiniciar APX. Si elegís más tarde, se instala cuando salgas de APX."
         : "It goes in when APX restarts. If you choose later, it goes in when you quit APX.",
+  remoteReady: es
+    ? "El servidor ya confirmó la versión. Se vuelve a verificar antes de aplicar esta app; salir de APX no la instala."
+    : "The server confirmed the target release. It is checked again before applying this app; quitting APX does not install it.",
+  openInstaller: es ? "Abrir instalador" : "Open installer",
+  manualReady: es
+    ? "El servidor se verifica antes de abrir el instalador. Reemplazá esta app manualmente y volvé a abrirla."
+    : "The server is checked before opening the installer. Replace this app manually, then open it again.",
   restartNow: es ? "Reiniciar ahora" : "Restart now",
   later: es ? "Más tarde" : "Later",
   upToDate: es ? "APX está al día" : "APX is up to date",
@@ -44,8 +51,8 @@ export function createUpdateMenu(opts: { updater: Updater; window: BaseWindow; e
     const { response } = await dialog.showMessageBox(window, {
       type: "info",
       message: t.readyTitle(version),
-      detail: t.readyDetail,
-      buttons: [t.restartNow, t.later],
+      detail: updater.mode === "drag" ? t.manualReady : updater.automatic?.() === false ? t.remoteReady : t.readyDetail,
+      buttons: [updater.mode === "drag" ? t.openInstaller : t.restartNow, t.later],
       defaultId: 0,
       cancelId: 1,
     });
@@ -77,7 +84,12 @@ export function createUpdateMenu(opts: { updater: Updater; window: BaseWindow; e
     /** The app menu's update entry, as things stand now; none where the app does not update itself (a checkout). */
     item(s: DesktopUpdate): MenuItemConstructorOptions | undefined {
       if (!updater.enabled) return undefined;
-      if (s.ready) return { id: "update", label: t.restart(s.ready), click: () => updater.restart() };
+      if (s.ready)
+        return {
+          id: "update",
+          label: updater.mode === "drag" ? `${t.openInstaller} (${s.ready})…` : t.restart(s.ready),
+          click: () => updater.restart(),
+        };
       if (s.downloading && s.latest) return { id: "update", label: t.downloading(s.latest), enabled: false };
       const latest = s.latest;
       if (latest) return { id: "update", label: t.update(latest), click: () => void update(latest) };
@@ -94,7 +106,7 @@ export function createUpdateMenu(opts: { updater: Updater; window: BaseWindow; e
         if (click) n.on("click", click);
         n.show();
       };
-      if (updater.mode !== "auto") return notify(t.outNote(latest));
+      if (updater.mode !== "auto" || updater.automatic?.() === false) return notify(t.outNote(latest));
       void updater.install().then((r) => {
         if (r.ok && r.ready) notify(t.readyNote(latest), () => void askRestart(latest));
       });

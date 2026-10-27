@@ -10,8 +10,16 @@ import type { DesktopUpdate } from "./updater.ts";
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), "apx-updater-test-"));
 const opened: string[] = [];
 const shown: string[] = [];
+let relaunches = 0;
 const native = {
-  app: { isPackaged: true, getVersion: () => "2.0.0", getPath: () => directory },
+  app: {
+    isPackaged: true,
+    getVersion: () => "2.0.0",
+    getPath: () => directory,
+    relaunch: () => {
+      relaunches++;
+    },
+  },
   shell: {
     openPath: async (file: string) => {
       opened.push(file);
@@ -159,4 +167,58 @@ test("a corrupt download is deleted, never opened and installation can recover o
   valid = true;
   assert.deepEqual(await h.updater.install(), { ok: true, ready: false });
   assert.deepEqual(opened, [path.join(directory, name)]);
+});
+
+test("a remote manual installer stays unopened until activation and uses the exact target", async (t) => {
+  opened.length = 0;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes("/releases?")) return Response.json([{ ...release, tag_name: "v2.2.0", assets: [] }, release]);
+    if (url.endsWith(".sha256")) return new Response(checksum);
+    return new Response(bytes);
+  });
+  const h = harness();
+  assert.deepEqual(await h.updater.install("2.1.0", true), { ok: true, ready: true });
+  assert.equal(h.updater.status().ready, "2.1.0");
+  assert.deepEqual(opened, []);
+  h.updater.quitting();
+  assert.deepEqual(opened, []);
+  h.updater.restart();
+  assert.deepEqual(opened, [path.join(directory, name)]);
+});
+
+test("AppImage download does not replace the running image until activation and quit is idempotent", async (t) => {
+  const image = path.join(directory, "APX.AppImage");
+  fs.writeFileSync(image, "Previous installer");
+  process.env.APPIMAGE = image;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes("/releases?")) return Response.json([release]);
+    return new Response(url.endsWith(".sha256") ? checksum : bytes);
+  });
+  try {
+    const h = harness();
+    assert.equal((await h.updater.install("2.1.0", true)).ok, true);
+    assert.equal(fs.readFileSync(image, "utf8"), "Previous installer");
+    h.updater.discard();
+    h.updater.quitting();
+    assert.equal(fs.readFileSync(image, "utf8"), "Previous installer");
+    assert.equal((await h.updater.install("2.1.0", true)).ok, true);
+    h.updater.restart();
+    assert.equal(fs.readFileSync(image, "utf8"), bytes);
+    h.updater.quitting();
+    assert.equal(relaunches, 1);
+    assert.equal(h.quits(), 1);
+  } finally {
+    delete process.env.APPIMAGE;
+  }
+});
+
+test("a release without its checksum cannot be staged", async (t) => {
+  opened.length = 0;
+  t.mock.method(globalThis, "fetch", async () => Response.json([{ ...release, assets: [asset(name)] }]));
+  const result = await harness().updater.install("2.1.0", true);
+  assert.equal(result.ok, false);
+  assert.match("error" in result ? result.error : "", /no .sha256/);
+  assert.deepEqual(opened, []);
 });

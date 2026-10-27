@@ -9,12 +9,13 @@ import {
   SegmentedControl,
   Skeleton,
 } from "@apx/ui";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { markAllRead } from "../data/actions.ts";
 import { DEFAULT_PID, findProject, projectInitial, projectTone, threadAgent } from "../data/identity.ts";
 import { type InboxView, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { ActivityView, TaskBundle } from "../lazy.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
 import {
@@ -25,10 +26,9 @@ import {
   groupByTime,
   unreadListed,
 } from "./groupThreads.ts";
-import { ActivityView, TreeView } from "./InboxViews.tsx";
+import { TreeView } from "./InboxViews.tsx";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
 import { RoutineBundle } from "./RoutineBundle.tsx";
-import { TaskBundle } from "./TaskBundle.tsx";
 import { ThreadRow } from "./ThreadRow.tsx";
 
 /** Chat list: every chat grouped by project (Inbox), or one project's chats (project › Chats). */
@@ -144,7 +144,9 @@ export function InboxList() {
         ) : view === "tree" ? (
           <TreeView trees={trees} selected={threadId} />
         ) : view === "activity" ? (
-          <ActivityView groups={activity} selected={threadId} />
+          <Suspense fallback={<InboxSkeleton />}>
+            <ActivityView groups={activity} selected={threadId} />
+          </Suspense>
         ) : (
           groups.map((g) => {
             const isCollapsed = collapsed[g.key] ?? false;
@@ -179,12 +181,9 @@ export function InboxList() {
                         selected={threadId}
                       />
                     ) : entry.kind === "task" ? (
-                      <TaskBundle
-                        key={entry.taskId}
-                        taskId={entry.taskId}
-                        threads={entry.threads}
-                        selected={threadId}
-                      />
+                      <Suspense key={entry.taskId} fallback={null}>
+                        <TaskBundle taskId={entry.taskId} threads={entry.threads} selected={threadId} />
+                      </Suspense>
                     ) : (
                       <ListedChat key={entry.thread.id} thread={entry.thread} selected={threadId}>
                         <ThreadRow

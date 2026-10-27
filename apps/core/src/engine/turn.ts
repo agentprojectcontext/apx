@@ -193,6 +193,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   const agent = store.agents.get(start.agent_id);
   if (!thread || !agent || !start.input)
     return store.runs.setState(start, "failed", !start.input ? "run has no input" : "thread or agent is gone");
+  store.runs.captureProject(start.id, thread.project_id ?? agent.project_id);
   /** A coded refusal says itself in the owner's language; an unexpected one shows its reason under the notice. */
   const preflightFailure = (
     error: string,

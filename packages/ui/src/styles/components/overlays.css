@@ -14,6 +14,11 @@
   /* A label, never a target: it must not catch the click meant for the control it covers. */
   pointer-events: none;
 }
+.apx-tooltip--surface {
+  background: var(--apx-surface-raised);
+  color: var(--apx-fg);
+  border: 1px solid var(--apx-border-strong);
+}
 .apx-tooltip__kbd {
   opacity: 0.6;
 }

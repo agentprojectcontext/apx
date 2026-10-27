@@ -2,6 +2,9 @@
 import type { MessageKey } from "./en.ts";
 
 export const esChat: Partial<Record<MessageKey, string>> = {
+  "chat.agentProgress": "Avance de {name}",
+  "chat.agentResponse": "Respuesta de {name}",
+  "chat.agentMessage": "Mensaje de {name}",
   "input.approveOnce": "Aceptar una vez",
   "input.approveSession": "Aceptar durante esta sesión",
   "input.approveAlways": "Aceptar siempre para este agente",
@@ -31,6 +34,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "composer.attachImage": "Imagen",
   "composer.attachments": "Archivos adjuntos",
   "composer.removeFile": "Quitar {name}",
+  "composer.previewFile": "Previsualizar {name}",
   "composer.tooBig": "{name} pasa los {mb} MB",
   "composer.stillUploading": "Esperá a que terminen de subir los archivos.",
   "composer.attachedOnly": "Mirá los archivos adjuntos.",

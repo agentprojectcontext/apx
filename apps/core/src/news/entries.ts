@@ -26,6 +26,8 @@ export type NewsFacts = {
   /** The owner has Codex sessions whose account limits the panel can query. */
   codex: boolean;
   claude?: boolean;
+  /** At least one paired Desktop can use coordinated remote updates. */
+  desktop?: boolean;
 };
 
 export type NewsAction = {
@@ -50,6 +52,53 @@ export type NewsEntry = {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "durable-task-attachments",
+    since: "2.11.1",
+    title: "Keep screenshots and files with a task",
+    applies: (f) => f.secretary,
+    text: "Tasks can keep selected screenshots and files as durable snapshots, at creation or later. Authorized agents can inspect them from the task even after the source chat is deleted. The panel previews and downloads them. This does not grant access to private contact chats or publish files; sending outside APX remains a separate owner action.",
+    actions: [
+      {
+        label: { en: "Attach files to a task", es: "Adjuntar archivos a una tarea" },
+        prompt:
+          "Help me choose a task and the screenshots or files to attach to it. Do not copy unrelated chat history or send anything outside APX.",
+      },
+    ],
+  },
+  {
+    id: "task-chat-actions",
+    since: "2.11.1",
+    title: "Manage tasks from their chat group",
+    applies: (f) => f.secretary,
+    text: "Task chat groups now offer a right-click menu and a visible actions button to change the task's column, mark it waiting, close or reopen it, and archive its chats. Archiving preserves history and does not close the task or restart work. Task status is also visible beside the chat header and updates live. A task's generic opening instruction shows its description as a read-only block with paragraphs, line breaks and lists.",
+    actions: [
+      {
+        label: { en: "Review my tasks", es: "Revisar mis tareas" },
+        prompt:
+          "Show me my current tasks and explain how to change their state or archive their chats without losing history. Do not change anything yet.",
+      },
+    ],
+  },
+  {
+    id: "coordinated-desktop-update",
+    since: "2.11.1",
+    title: "Update the server before your Desktop apps",
+    applies: (f) => Boolean(f.desktop),
+    text:
+      "Desktop now coordinates remote updates over the authenticated APX connection, without SSH. " +
+      "A shared release is checked for server and client packages; the remote core updates once, and each app " +
+      "can apply that release only after confirming the server is running it. Offline apps reconcile when they reconnect. " +
+      "The local integrated core still updates with its Desktop bundle. Older or unsupported servers block the app update " +
+      "with native recovery guidance; this is not an atomic update of every device.",
+    actions: [
+      {
+        label: { en: "Review my update setup", es: "Revisar mis actualizaciones" },
+        prompt:
+          "Help me check how my APX core is installed and explain the coordinated update flow before I update from the Desktop menu.",
+      },
+    ],
+  },
+  {
     id: "email-signature-settings",
     since: "2.11.1",
     title: "Let your agent configure your email signature",
@@ -68,7 +117,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "email-signatures",
-    since: "2.11.0",
+    since: "2.11.1",
     title: "Email signatures by sender",
     applies: (f) => f.google.gmail || f.email,
     text:
@@ -87,7 +136,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "engine-usage",
-    since: "2.11.0",
+    since: "2.11.1",
     title: "Account limits in the top bar",
     applies: (f) => f.codex || f.claude === true,
     text:
@@ -384,6 +433,7 @@ const signedIn = (store: Store, id: string) => Boolean(store.settings.get(`googl
 
 export const newsFacts = (store: Store): NewsFacts => ({
   artifacts: store.surfaces.list().length,
+  desktop: store.devices.list().some((d) => d.platform === "desktop"),
   codex: store.threads.list({ engine: "codex", limit: 1 }).length > 0,
   claude: store.threads.list({ engine: "claude", limit: 1 }).length > 0,
   google: {

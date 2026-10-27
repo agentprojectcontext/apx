@@ -6,8 +6,10 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { type Platform, platformOf, type Release, releaseChanges } from "@apx/protocol";
+import type { RunTimers } from "./engine/engine.ts";
 import { errorMessage } from "./errors.ts";
 import type { Log } from "./log.ts";
+import { createUpdateCoordination } from "./update-coordination.ts";
 import { checkReleases, installRelease, runningVersion } from "./updates-release.ts";
 
 export type UpdateStatus = {
@@ -24,7 +26,7 @@ export type UpdateStatus = {
   checked_at?: string | undefined;
   error?: string | undefined;
 };
-export type UpdateResult = { ok: boolean; restart: boolean; log: string };
+export type UpdateResult = { ok: boolean; restart: boolean; log: string; target?: string };
 
 /** Runs a command in the checkout; never throws (a failure is a non-zero code). */
 export type Runner = (cmd: string, args: string[], timeoutMs: number) => Promise<{ code: number; out: string }>;
@@ -72,6 +74,40 @@ const run =
       child.on("close", (code) => resolve({ code: code ?? 1, out }));
     });
 
+async function gitStatus(sh: Runner, status: UpdateStatus): Promise<UpdateStatus> {
+  const fetched = await sh("git", ["fetch", "--quiet", "origin", BRANCH], 60_000);
+  if (fetched.code !== 0)
+    return { ...status, error: fetched.out.trim().slice(-300) || "git fetch failed", checked_at: now() };
+  const count = await sh("git", ["rev-list", "--count", `HEAD..origin/${BRANCH}`], 10_000);
+  const latest = await sh("git", ["rev-parse", "--short=12", `origin/${BRANCH}`], 10_000);
+  const subjects = await sh("git", ["log", "--format=%s", `-n${CHANGES}`, `HEAD..origin/${BRANCH}`], 10_000);
+  return {
+    source: "git",
+    behind: Number.parseInt(count.out.trim(), 10) || 0,
+    latest: latest.out.trim() || undefined,
+    changes: subjects.out
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean),
+    checked_at: now(),
+  };
+}
+
+async function applyGit(sh: Runner): Promise<UpdateResult> {
+  const steps: Array<[string, string[], number]> = [
+    ["git", ["pull", "--ff-only", "origin", BRANCH], 120_000],
+    ["pnpm", ["install", "--frozen-lockfile"], 600_000],
+    ["pnpm", ["build:web"], 600_000],
+  ];
+  let log = "";
+  for (const [cmd, args, ms] of steps) {
+    const r = await sh(cmd, args, ms);
+    log += `$ ${cmd} ${args.join(" ")}\n${r.out.trim()}\n`;
+    if (r.code !== 0) return { ok: false, restart: false, log: log.slice(-6000) };
+  }
+  return { ok: true, restart: false, log };
+}
+
 export function createUpdates(opts: {
   root: string;
   log: Log;
@@ -80,6 +116,8 @@ export function createUpdates(opts: {
   supervised: boolean;
   /** This APX's version (what the release feed is compared with). */
   version?: string;
+  /** Durable update intent, scoped to this core's home. */
+  stateFile?: string;
   /** APX_APP: the folder a bundle install lives in (install.sh/ps1); updates then come from the release feed. */
   app?: string | undefined;
   /** The desktop app carries this core and installs its updates: the core only says a newer one is out. */
@@ -90,6 +128,7 @@ export function createUpdates(opts: {
   fetch?: typeof fetch;
   run?: Runner;
   restart?: () => void;
+  updateTimers?: RunTimers;
 }) {
   const git = opts.enabled && fs.existsSync(path.join(opts.root, ".git"));
   const platform = opts.platform ?? platformOf(process.platform, process.arch);
@@ -98,30 +137,20 @@ export function createUpdates(opts: {
   // Bundle versions can be pruned while a daemon still runs from one; the install directory survives updates.
   const sh = opts.run ?? run(git ? opts.root : (opts.app ?? opts.root));
   const fetchImpl = opts.fetch ?? fetch;
+  const scheduleRestart = () => {
+    if (opts.updateTimers) opts.updateTimers.after(500, () => opts.restart?.());
+    else {
+      const timer = setTimeout(() => opts.restart?.(), 500);
+      timer.unref?.();
+    }
+  };
   let status: UpdateStatus = { source: git ? "git" : release ? releaseSource : "none", behind: 0, changes: [] };
   let newer: Release[] = [];
   let timer: ReturnType<typeof setTimeout> | undefined;
   let busy: Promise<unknown> | undefined;
 
   async function checkGit(): Promise<UpdateStatus> {
-    const fetched = await sh("git", ["fetch", "--quiet", "origin", BRANCH], 60_000);
-    if (fetched.code !== 0) {
-      status = { ...status, error: fetched.out.trim().slice(-300) || "git fetch failed", checked_at: now() };
-      return status;
-    }
-    const count = await sh("git", ["rev-list", "--count", `HEAD..origin/${BRANCH}`], 10_000);
-    const latest = await sh("git", ["rev-parse", "--short=12", `origin/${BRANCH}`], 10_000);
-    const subjects = await sh("git", ["log", "--format=%s", `-n${CHANGES}`, `HEAD..origin/${BRANCH}`], 10_000);
-    status = {
-      source: "git",
-      behind: Number.parseInt(count.out.trim(), 10) || 0,
-      latest: latest.out.trim() || undefined,
-      changes: subjects.out
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      checked_at: now(),
-    };
+    status = await gitStatus(sh, status);
     return status;
   }
 
@@ -144,24 +173,9 @@ export function createUpdates(opts: {
 
   const check = (): Promise<UpdateStatus> => (git ? checkGit() : release ? checkRelease() : Promise.resolve(status));
 
-  async function applyGit(): Promise<UpdateResult> {
-    const steps: Array<[string, string[], number]> = [
-      ["git", ["pull", "--ff-only", "origin", BRANCH], 120_000],
-      ["pnpm", ["install", "--frozen-lockfile"], 600_000],
-      ["pnpm", ["build:web"], 600_000],
-    ];
-    let log = "";
-    for (const [cmd, args, ms] of steps) {
-      const r = await sh(cmd, args, ms);
-      log += `$ ${cmd} ${args.join(" ")}\n${r.out.trim()}\n`;
-      if (r.code !== 0) return { ok: false, restart: false, log: log.slice(-6000) };
-    }
-    return { ok: true, restart: false, log };
-  }
-
-  async function applyRelease(): Promise<UpdateResult> {
-    if (!newer.length) await checkRelease();
-    const next = newer[0];
+  async function applyRelease(pinned?: Release): Promise<UpdateResult> {
+    if (!pinned && !newer.length) await checkRelease();
+    const next = pinned ?? newer[0];
     if (!next || !platform || !opts.app)
       return { ok: false, restart: false, log: status.error ?? "Nothing newer to install." };
     try {
@@ -183,14 +197,13 @@ export function createUpdates(opts: {
   async function apply(): Promise<UpdateResult> {
     if (opts.byApp || (!git && !release))
       return { ok: false, restart: false, log: "This APX updates with its desktop app, or by hand." };
-    const r = git ? await applyGit() : await applyRelease();
+    const r = git ? await applyGit(sh) : await applyRelease();
     if (!r.ok) return { ...r, log: r.log.slice(-6000) };
     if (release) newer = [];
     await check().catch(() => status);
     if (opts.supervised) {
       // The answer goes out first; then the supervisor brings the new code up.
-      const t = setTimeout(() => opts.restart?.(), 500);
-      t.unref?.();
+      scheduleRestart();
     }
     return { ok: true, restart: opts.supervised, log: r.log.slice(-6000) };
   }
@@ -202,10 +215,34 @@ export function createUpdates(opts: {
     return next;
   };
 
+  const coordination = createUpdateCoordination({
+    version: opts.version ?? "0.0.0",
+    file: opts.stateFile,
+    supported: Boolean(release && !opts.byApp && opts.supervised && opts.restart && opts.stateFile),
+    platform,
+    feed: opts.feed,
+    fetch: fetchImpl,
+    ...(opts.updateTimers ? { now: opts.updateTimers.now } : {}),
+    restart: scheduleRestart,
+    install: async (pinned) => {
+      const result = await serial(() => applyRelease(pinned));
+      return { ...result, restart: result.ok };
+    },
+  });
+
   return {
     status: () => status,
     check: () => serial(check),
-    apply: () => serial(apply),
+    coordination: coordination.state,
+    prepare: coordination.prepare,
+    apply: (target?: string) => {
+      const snapshot = coordination.state();
+      if (snapshot.error) return Promise.resolve({ ok: false, restart: false, log: snapshot.error });
+      const shared = snapshot.coordination;
+      if (target || (shared && shared.phase !== "failed" && shared.phase !== "complete"))
+        return coordination.apply(target ?? shared?.target ?? "");
+      return serial(apply);
+    },
     start() {
       if (!git && !release) return;
       const tick = (ms: number) => {

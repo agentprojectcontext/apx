@@ -74,6 +74,35 @@ test("Home is never archived or deleted; a task's chat is deleted with its task"
   await assert.rejects(env.client.call("threads.delete", { thread: task.thread_id }), /belongs to a task/);
 });
 
+test("archived task chats stay readable with their task, messages and execution unchanged", async () => {
+  const task = await env.client.call("tasks.create", { title: "Archive without closing" });
+  const session = env.core.store.threads.create({
+    kind: "agent",
+    title: task.title,
+    agent_ids: ["scout"],
+    task_id: task.id,
+  });
+  env.core.store.messages.add({
+    thread_id: session.id,
+    author: { kind: "user" },
+    parts: [{ type: "text", text: "Keep this history" }],
+  });
+  const taskBefore = (await env.client.call("tasks.get", { task: task.id })).task;
+  const before = await env.client.call("threads.get", { thread: session.id });
+  const runs = await env.client.call("runs.list", { agent: "scout" });
+  for (const thread of [task.thread_id, session.id])
+    await env.client.call("threads.update", { thread, archived: true });
+  const detail = await env.client.call("tasks.get", { task: task.id });
+  assert.deepEqual(detail.task, taskBefore);
+  assert.equal(detail.sessions.find((s) => s.id === session.id)?.archived, true);
+  const reopened = await env.client.call("threads.get", { thread: session.id });
+  assert.equal(reopened.thread.archived, true);
+  assert.deepEqual(reopened.messages, before.messages);
+  assert.equal(reopened.thread.task_id, task.id);
+  assert.deepEqual(await env.client.call("runs.list", { agent: "scout" }), runs);
+  assert.equal((await env.client.call("threads.get", { thread: task.thread_id })).thread.archived, true);
+});
+
 test("delete removes the chat, its sub-threads and what pointed at them", async () => {
   const { store } = env.core;
   const t = await chat("doomed");

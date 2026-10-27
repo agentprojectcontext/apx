@@ -1,5 +1,5 @@
 // The office board: tasks (tasks.*), kept current by task.updated events.
-import type { Params, Result, Task, TaskColumn, TaskState } from "@apx/protocol";
+import type { Params, Task, TaskColumn, TaskState } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
@@ -15,8 +15,17 @@ const fail = (e: unknown) => notify(t("error.tasks", { error: errText(e) }));
 
 export const tasksLoaded = () => store.get().ready;
 
+let loading: Promise<void> | undefined;
+
 /** Open tasks plus the latest closed ones (done or dropped), so a just-finished card does not vanish. */
-export async function loadTasks(): Promise<void> {
+export function loadTasks(): Promise<void> {
+  loading ??= readTasks().finally(() => {
+    loading = undefined;
+  });
+  return loading;
+}
+
+async function readTasks(): Promise<void> {
   try {
     const [open, done, dropped] = await Promise.all([
       client.call("tasks.list", { state: "open" }),
@@ -38,6 +47,8 @@ const asked = new Set<string>();
 
 /** Reads one task the board has not loaded (an old one an agent names in a chat); once per id. */
 export function ensureTask(id: string): void {
+  // Inbox task labels and menus need the columns even before the board has been opened.
+  if (!tasksLoaded()) void loadTasks();
   if (store.get().tasks[id] || asked.has(id)) return;
   asked.add(id);
   void client.call("tasks.get", { task: id }).then(
@@ -62,8 +73,10 @@ export function taskDeleted(id: string): void {
 export async function createTask(p: Params<"tasks.create">) {
   try {
     taskChanged(await client.call("tasks.create", p));
+    return true;
   } catch (e) {
     fail(e);
+    return false;
   }
 }
 
@@ -116,23 +129,5 @@ export async function commentTask(task: string, text: string): Promise<boolean> 
   } catch (e) {
     fail(e);
     return false;
-  }
-}
-
-/** A task's history, the chats and consults it was worked in, its subtasks, and the tokens they took. */
-export type TaskDetail = Omit<Result<"tasks.get">, "task" | "comments" | "comments_truncated">;
-
-export async function taskDetail(task: string): Promise<TaskDetail> {
-  try {
-    const {
-      task: _t,
-      comments: _comments,
-      comments_truncated: _truncated,
-      ...detail
-    } = await client.call("tasks.get", { task });
-    // A core older than this panel sends neither: its task still opens, without them.
-    return { ...detail, consults: detail.consults ?? [], subtasks: detail.subtasks ?? [], usage: detail.usage ?? [] };
-  } catch {
-    return { events: [], sessions: [], consults: [], subtasks: [], usage: [] };
   }
 }

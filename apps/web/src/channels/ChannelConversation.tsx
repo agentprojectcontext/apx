@@ -1,5 +1,15 @@
 import type { ChannelInfo, Message, Person, Thread } from "@apx/protocol";
-import { Button, EmptyState, IconButton, Icons, SegmentedControl, Skeleton, StickyScroll, Textarea } from "@apx/ui";
+import {
+  Button,
+  EmptyState,
+  IconButton,
+  Icons,
+  SegmentedControl,
+  Skeleton,
+  StickyScroll,
+  Textarea,
+  Tooltip,
+} from "@apx/ui";
 import { Suspense, useEffect, useState } from "react";
 import { FilePart } from "../chat/parts/FilePart.tsx";
 import { AudioPart } from "../chat/parts/lazyAudio.tsx";
@@ -12,6 +22,8 @@ import { useT } from "../i18n/index.ts";
 import { MediaGroup } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { addressText, ContactFace } from "./ContactRow.tsx";
+import { KindIcon } from "./KindIcon.tsx";
+import { CHANNEL_KINDS } from "./kinds.ts";
 import { DeliveryTicks, ReactionList } from "./MessageMarks.tsx";
 import { RELATION_KEY } from "./people.ts";
 import { isSignal } from "./signal.ts";
@@ -47,6 +59,7 @@ export function ChannelConversation(props: {
   const [recovering, setRecovering] = useState(false);
   const name = person?.name ?? thread?.title ?? "";
   const agentName = agent?.name ?? channel.agent_id;
+  const channelLabel = t("chat.viaChannel", { channel: t(CHANNEL_KINDS[channel.type].name) });
 
   useEffect(() => {
     if (threadId && load == null) void loadThread(threadId);
@@ -125,6 +138,11 @@ export function ChannelConversation(props: {
           aria-expanded={props.card}
           onClick={props.onToggleCard}
         >
+          <Tooltip content={channelLabel}>
+            <span className="threadavatar__channel" role="img" aria-label={channelLabel}>
+              <KindIcon kind={channel.type} size={16} />
+            </span>
+          </Tooltip>
           <ContactFace person={person} name={name} presence={props.presence} />
           <span className="chan__titles">
             <span className="chan__name">{name}</span>

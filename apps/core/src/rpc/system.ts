@@ -37,7 +37,9 @@ export function systemHandlers(
 export function updateHandlers(updates: Updates) {
   return {
     "system.updates": async ({ check }) => (check ? await updates.check() : updates.status()),
-    "system.update": () => updates.apply(),
+    "system.update": ({ target }) => updates.apply(target),
+    "system.update_state": () => updates.coordination(),
+    "system.update_prepare": (params) => updates.prepare(params),
   } satisfies Partial<Handlers>;
 }
 

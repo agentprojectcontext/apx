@@ -1,9 +1,11 @@
 // Image and voice services (owner-only settings) and what they make. An agent draws or speaks only into its own
 // thread, through the same methods.
 
+import type { Store } from "../domain/store.ts";
 import { badRequest, errorMessage, notFound, unavailable } from "../errors.ts";
 import type { Services } from "../services/registry.ts";
 import type { CallContext } from "./context.ts";
+import { readableMedia } from "./media-access.ts";
 import type { Handlers } from "./router.ts";
 
 const failed = (err: unknown) => unavailable(errorMessage(err, 2000));
@@ -11,7 +13,7 @@ const failed = (err: unknown) => unavailable(errorMessage(err, 2000));
 /** The thread a result belongs to: an agent's own, whatever it asked for. */
 const threadOf = (ctx: CallContext, asked: string | undefined) => (ctx.agent ? ctx.agent.thread_id : asked);
 
-export function mediaHandlers(services: Services) {
+export function mediaHandlers(services: Services, store: Store) {
   return {
     "services.list": async ({ kind }) => ({
       services: await services.info(kind),
@@ -55,7 +57,8 @@ export function mediaHandlers(services: Services) {
         throw failed(err);
       }
     },
-    "media.get": ({ id }) => {
+    "media.get": ({ id }, ctx) => {
+      readableMedia(store, id, ctx);
       const m = services.read(id);
       if (!m) throw notFound(`media ${id}`);
       return { mime: m.mime, data: m.data.toString("base64"), bytes: m.data.length };

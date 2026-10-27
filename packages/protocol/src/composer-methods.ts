@@ -4,7 +4,14 @@ import { UPLOAD_LIMITS } from "./constants.ts";
 import { DocumentSource, Id, ModelChoice } from "./domain.ts";
 
 export const composerMethods = {
-  /** Snapshots a local file for the calling agent's current chat. */
+  /** Discards only a temporary task upload, never an existing chat or task attachment. */
+  "media.discard": {
+    params: z.object({ id: Id }).strict(),
+    result: z.object({ discarded: Id }),
+    effect: true,
+    access: "human",
+  },
+  /** Snapshots a readable local file or owner-chat/task media id for the calling agent's current chat. */
   "media.attach": {
     params: z.object({ path: z.string().trim().min(1).max(1000), document: z.boolean().optional() }).strict(),
     result: z.object({
@@ -34,6 +41,7 @@ export const composerMethods = {
               8,
           ),
         thread: Id.optional(),
+        task_asset: z.boolean().optional(),
       })
       .strict(),
     result: z.object({

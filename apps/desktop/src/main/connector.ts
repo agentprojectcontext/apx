@@ -21,7 +21,7 @@ import {
   verifyLocalCore,
 } from "./connection.ts";
 import { type EmbeddedCore, isUp, startEmbeddedCore, waitUp } from "./core-process.ts";
-import { type Remote, reachRemote, waitingHtml } from "./remote-wait.ts";
+import { type Remote, reachRemote, type WaitDeps, waitingHtml } from "./remote-wait.ts";
 import { appKeyPath, askpassSupported, authorizeKey, ensureAppKey, localSshVersion } from "./ssh-login.ts";
 import {
   installArgs,
@@ -50,6 +50,7 @@ export function createConnector(opts: {
   /** Revoke capabilities before a connection changes or the app quits. */
   disconnected: () => void;
   /** The panel loaded from this address; `node` is the core the desktop lends its browser to, when it can reach it. */
+  updating: (connection: { identity: string; url: string; local: boolean; token?: string }) => void;
   opened: (url: string, node: { url: string; token: string | undefined } | undefined) => void;
 }) {
   const dataDir = app.getPath("userData");
@@ -281,6 +282,7 @@ export function createConnector(opts: {
       return;
     }
     if (connection.mode === "local") {
+      opts.updating({ identity: "local", url: opts.coreUrl, local: true, token: localCoreToken() });
       // Installed, APX starts its own core unless one already answers; a checkout tries the panel's dev server first.
       if (app.isPackaged && !core) {
         const up = await isUp(opts.coreUrl);
@@ -297,21 +299,57 @@ export function createConnector(opts: {
           if (!current()) return;
         }
       }
-      const verified = await verifyLocalCore(opts.coreUrl).catch(() => false);
-      if (!current()) return;
-      if (!verified)
-        return unreachable(
-          opts.coreUrl,
-          "The local daemon is unavailable or belongs to another home. Check APX_HOME and APX_PORT.",
-        );
-      for (const url of app.isPackaged ? [opts.coreUrl] : [opts.webUrl, opts.coreUrl]) {
-        const loaded = await load(url, firstRun);
-        if (!current()) return;
-        if (loaded) return opts.opened(url, { url: opts.coreUrl, token: localCoreToken() });
-      }
-      return unreachable(opts.coreUrl, app.isPackaged ? `See ${localCoreLogFile()}.` : "Start it with pnpm dev.");
+      // Right after login the core may still be starting: the window waits for it, as it does for a remote one.
+      const es = app.getLocale().startsWith("es");
+      const urls = app.isPackaged ? [opts.coreUrl] : [opts.webUrl, opts.coreUrl];
+      let opened: string | undefined;
+      let identityProblem: string | undefined;
+      const local: Remote = {
+        identityProblem: () => identityProblem,
+        where: new URL(opts.coreUrl).host,
+        url: opts.coreUrl,
+        local: app.isPackaged
+          ? `${es ? "Si no abre, mirá el registro" : "If it does not open, see the log"}: ${localCoreLogFile()}`
+          : es
+            ? "Si no abre, arrancalo con pnpm dev (mismo APX_HOME y APX_PORT)."
+            : "If it does not open, start it with pnpm dev (same APX_HOME and APX_PORT).",
+      };
+      const reached = await wait(local, firstRun, current, {
+        isUp: async () => {
+          try {
+            const identity = await verifyLocalCore(opts.coreUrl);
+            identityProblem =
+              identity === "matches"
+                ? undefined
+                : identity === "missing"
+                  ? es
+                    ? "Falta la identidad de la instalación local o del core. No se conectará hasta poder verificarla."
+                    : "The local installation or core identity is missing. It will not connect until it can be verified."
+                  : es
+                    ? "Este puerto pertenece a otra instalación de APX. No se conectará como el core local."
+                    : "This port belongs to another home. It will not be adopted as the local core.";
+            return identity === "matches";
+          } catch {
+            identityProblem = undefined;
+            return false;
+          }
+        },
+        load: async () => {
+          for (const url of urls) {
+            if (await load(url, firstRun)) {
+              opened = url;
+              return true;
+            }
+            if (!current()) return false;
+          }
+          return false;
+        },
+      });
+      if (!reached || !opened) return;
+      return opts.opened(opened, { url: opts.coreUrl, token: localCoreToken() });
     }
     if (connection.mode === "url") {
+      opts.updating({ identity: `url:${connection.url}`, url: connection.url, local: false });
       // A remote core gets this computer's browser only once the desktop pairs as a node of its own (not yet).
       if (!(await wait({ where: connection.url, url: connection.url }, firstRun, current))) return;
       openedRemote = true;
@@ -332,6 +370,7 @@ export function createConnector(opts: {
       tunnel = started;
     }
     const activeTunnel = tunnel;
+    opts.updating({ identity: `ssh:${target}`, url: activeTunnel.url, local: false });
     if (!(await wait({ where: `${target} (SSH)`, url: activeTunnel.url, tunnel: activeTunnel }, firstRun, current)))
       return;
     openedRemote = true;
@@ -339,12 +378,17 @@ export function createConnector(opts: {
   }
 
   /** Waits for a remote APX, saying so on screen, and loads its panel once it answers. */
-  function wait(remote: Remote, firstRun: boolean, current: () => boolean): Promise<boolean> {
+  function wait(
+    remote: Remote,
+    firstRun: boolean,
+    current: () => boolean,
+    probe: Partial<Pick<WaitDeps, "isUp" | "load">> = {},
+  ): Promise<boolean> {
     const es = app.getLocale().startsWith("es");
     return reachRemote(remote, {
       current,
-      isUp,
-      load: (url) => load(url, firstRun),
+      isUp: probe.isUp ?? isUp,
+      load: probe.load ?? ((url) => load(url, firstRun)),
       // A newer page (the panel, the chooser) may replace this one before it finishes loading.
       show: (w) =>
         opts.panel
@@ -374,20 +418,6 @@ export function createConnector(opts: {
     } catch {
       return false;
     }
-  }
-
-  function unreachable(where: string, hint: string): Promise<void> {
-    return page(
-      `APX not reachable at ${where}. ${hint} To pick another APX: APX menu › Change connection.`,
-      "apx-unreachable",
-    );
-  }
-
-  async function page(text: string, id: string): Promise<void> {
-    const escaped = text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-    const body = `<body style="font:14px system-ui;padding:48px 24px 24px;margin:0;color:#555;background:#fff">${escaped}</body>`;
-    // A newer page (the panel, the chooser) may replace this one before it finishes loading.
-    await opts.panel.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(body)}#${id}`).catch(() => {});
   }
 
   return {

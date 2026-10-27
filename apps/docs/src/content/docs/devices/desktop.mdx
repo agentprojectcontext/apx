@@ -122,7 +122,7 @@ A home can have only one daemon, even when two launches use different ports.
 
 An explicit URL (including `APX_URL`) is connect-only: an unavailable server never makes the app start a replacement
 on this computer. SSH mode owns its tunnel, not the server daemon. Updating or restarting Desktop does not update
-or restart that server.
+or restart that server by itself. Coordinated release activation, described below, is a separate owner action.
 
 The CLI's `apx service` commands always control services on the computer running the command, never the computer
 named by `APX_URL`. Use `--home` to select the local installation. `apx desktop` likewise opens the app on the
@@ -139,8 +139,11 @@ shows it in the top bar. On your word it downloads the installer for your system
 - **macOS** opens the disk image for you to drag APX in. The app isn't signed yet, so it can't replace itself
   silently.
 
-The app carries its own core, so updating the app updates that core too. When the app is connected to a core on a
-server, the update offered in the panel is the server's.
+A bundled local core updates with Desktop. With a remote core, Desktop coordinates a shared release over the
+authenticated APX connection, without SSH. The server updates once; each Desktop app can activate its package only
+after confirming that the server is running that exact release. Offline apps reconcile when they reconnect:
+devices do not update atomically. Older or unsupported servers block Desktop activation and show recovery guidance.
+The first update of a server without coordination support still uses its existing update mechanism.
 
 ## Running it from a checkout
 

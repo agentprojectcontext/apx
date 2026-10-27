@@ -50,7 +50,7 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "skills.preview" || method === "skills.import") return 90_000;
   // An update installs dependencies and builds the panel; a check fetches from the remote.
   if (method === "system.update") return 25 * 60_000;
-  if (method === "system.updates") return 120_000;
+  if (method === "system.updates" || method === "system.update_prepare") return 120_000;
   // A tool called by an external harness can run as long as the longest tool (ask_owner waits up to 16 min).
   if (method === "harness.call") return 17 * 60_000;
   // Listing models may start each agent CLI to ask it.

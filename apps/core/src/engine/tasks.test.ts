@@ -6,7 +6,7 @@ import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { realpath } from "../paths.ts";
 import { removeDir, waitFor } from "../testkit/platform.ts";
-import { mentioned } from "./office.ts";
+import { mentioned, taskBlock } from "./office.ts";
 import { pickUpTasks } from "./task-work.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
@@ -357,6 +357,26 @@ test("an agent's @mention in a task comment asks that agent, and the answer come
   await env.settle(chat.id);
   const back = store.messages.list(chat.id, 50).find((m) => m.author.kind === "agent" && m.author.id === "roby");
   assert.match(JSON.stringify(back?.parts), /Roby (answered|could not answer) your question/);
+  const reply = back?.parts.find((p) => p.type === "text");
+  const child = store.runs.list(consult?.id ?? "")[0];
+  assert.deepEqual(reply?.response, {
+    thread_id: consult?.id,
+    run_id: child?.id,
+    task_id: t.id,
+    title: t.title,
+    state: child?.state,
+    ...(child?.end_reason ? { end_reason: child.end_reason } : {}),
+    ...(consult?.project_id ? { project_id: consult.project_id } : {}),
+  });
+  assert.equal(store.threads.get(chat.id)?.kind, "loose");
+  assert.deepEqual(store.threads.get(chat.id)?.agent_ids, ["vera"]);
+  const loaded = await env.client.call("threads.get", { thread: chat.id });
+  assert.deepEqual(loaded.messages.find((m) => m.id === back?.id)?.parts, back?.parts);
+  assert.ok(
+    llm.calls.some((c) =>
+      c.messages.some((m) => m.role === "user" && String(m.content).includes("Roby answered your question")),
+    ),
+  );
   assert.deepEqual(
     await env.client.call("tasks.get", { task: t.id }).then((d) => d.sessions),
     [],
@@ -605,4 +625,22 @@ test("deleting a task takes its history and conversation; subtasks and the agent
   // The same key replays the answer; a new one finds nothing left.
   assert.deepEqual(await env.client.call("tasks.delete", { task: t.id }, "task-del-1"), r);
   await assert.rejects(env.client.call("tasks.delete", { task: t.id }), /not found|task/);
+});
+
+test("a task's chat asks the owner once where code work goes and reuses a worktree before adding one", async () => {
+  const t = await env.client.call("tasks.create", { title: "Fix the export button", project });
+  const block = taskBlock(env.core.store, { id: "th_probe", task_id: t.id, kind: "loose" }) ?? "";
+  // The options are meanings, not fixed English labels: the agent words them in the owner's language.
+  assert.match(
+    block,
+    /ask_owner with five short options written in the language you speak with the owner: a worktree now,/,
+  );
+  assert.doesNotMatch(block, /"Worktree now"|"Here now"/);
+  assert.match(block, /save an "always" with remember \(scope project\) and do not ask again/);
+  assert.match(
+    block,
+    /first git worktree list and the branches on this task's subject, and go on in the one that exists/,
+  );
+  assert.match(block, /under \.worktrees\/ at the project root \(never a parent folder, \.apc or \.claude\)/);
+  assert.match(block, /never detached\. Remove it and its branch once merged/);
 });
