@@ -125,6 +125,13 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
 });
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
+  if (req.messages.some((m) => m.role === "user" && String(m.content).includes("background then keep working"))) {
+    const tools = req.messages.filter((m) => m.role === "tool").length;
+    if (tools === 0) return callTool("k1", "shell", { command: "sleep 0.2 && echo bg-busy", background: true });
+    if (tools === 1) return callTool("k2", "shell", { command: "sleep 1 && echo slept" });
+    const joined = req.messages.some((m) => m.role === "user" && String(m.content).includes("bg-busy"));
+    return say(joined ? "Joined: saw bg-busy" : "never saw it");
+  }
   if (said.includes("<job_output")) return say(`Job ended: ${said.includes("bg-done") ? "saw bg-done" : "no output"}`);
   if (said.includes("list then write") && afterTool && String(req.messages.at(-1)?.content).includes("<command_output"))
     return callTool("w1", "file_write", { path: "notes.txt", content: "listed" });
@@ -206,6 +213,16 @@ test("a background command returns at once, shows as a terminal job, and its end
   const { runs, messages } = await env.client.call("threads.get", { thread: t });
   assert.equal(runs[0]?.trigger, "system");
   assert.ok(messages.some((m) => m.parts.some((p) => p.type === "text" && p.text === "Job ended: saw bg-done")));
+});
+
+test("a background command that ends while its agent works joins that turn instead of starting one", async () => {
+  const t = await thread();
+  await env.client.call("threads.send", { thread: t, text: "background then keep working" });
+  await env.settle(t);
+  await new Promise((r) => setTimeout(r, 300));
+  const { runs, messages } = await env.client.call("threads.get", { thread: t });
+  assert.equal(runs.length, 1, "one turn, not one more for the command's end");
+  assert.ok(messages.some((m) => m.parts.some((p) => p.type === "text" && p.text === "Joined: saw bg-busy")));
 });
 
 test("stopping a background job cancels it and wakes nobody", async () => {

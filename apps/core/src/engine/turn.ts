@@ -130,7 +130,7 @@ export type TurnDeps = {
   mail?: MailSource | undefined;
   /** Whether a desktop app is linked as a node (lending its browser), whatever else it lends. */
   desktopLinked?: (() => boolean) | undefined;
-  /** Owner text steered into this turn since the last call. */
+  /** Owner text and results steered into this turn since the last call, ready to read. */
   takeSteered(): string[];
   /** The engine showed a sign of life: an outside engine's idle deadline starts over. */
   alive?: (() => void) | undefined;
