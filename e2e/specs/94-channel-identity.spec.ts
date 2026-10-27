@@ -84,7 +84,7 @@ for (const width of [412, 1280]) {
       title: item.title,
       preview: item.title,
       channel: item.channel,
-      unread: 1,
+      unread: i === 1 ? 0 : 1,
     }));
     const person = (id: string, name: string, channel: string) => ({
       id,
@@ -170,7 +170,11 @@ for (const width of [412, 1280]) {
       await page.getByRole("radio", { name: view, exact: true }).click();
       for (const item of cases) {
         const row = page
-          .locator(".inbox__list .tree__session, .inbox__list .activity__row, .inbox__list .apx-convrow")
+          .locator(
+            view === "Árbol" && item.channel
+              ? ".inbox__list .tree__channel"
+              : ".inbox__list .tree__session, .inbox__list .activity__row, .inbox__list .apx-convrow",
+          )
           .filter({ hasText: item.title })
           .first();
         await expect(row).toBeVisible();
@@ -180,7 +184,7 @@ for (const width of [412, 1280]) {
           const image = avatar.locator("img.chan__avatarimg");
           await expect(image).toBeVisible();
           await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
-          const size = view === "Árbol" ? 14 : view === "Actividad" ? 24 : 32;
+          const size = view === "Árbol" ? 20 : view === "Actividad" ? 24 : 32;
           const imageBox = await image.boundingBox();
           const parentBox = await avatar.getByRole("img", { name: item.identity, exact: true }).boundingBox();
           expect(imageBox).not.toBeNull();
@@ -199,17 +203,36 @@ for (const width of [412, 1280]) {
           await expect(avatar.getByRole("img", { name: agent.name, exact: true })).toHaveCount(0);
         }
         const mark = avatar.locator(".threadavatar__channel");
+        await expect(mark).toHaveCount(0);
         if (item.platform) {
-          await expect(mark).toHaveAccessibleName(`Por ${item.platform}`);
-          await expect(mark.locator(".apx-chanicon svg")).toBeVisible();
-          await mark.hover();
-          await expect(page.locator(".apx-tooltip")).toHaveText(`Por ${item.platform}`);
-          await page.mouse.move(width - 10, 10);
-          await expect(page.locator(".apx-tooltip")).not.toBeVisible();
-          if (view !== "Árbol") await expect(row).toContainText(`Por ${item.platform}`);
-        } else {
-          await expect(mark).toHaveCount(0);
+          await expect(row).toContainText(`Por ${item.platform}`);
+          if (view === "Árbol") {
+            await expect(row.locator(".tree__agentmeta")).toHaveText(`Por ${item.platform}`);
+            await expect(row).not.toContainText("Super-agente");
+            const face = await avatar.boundingBox();
+            const title = await row.locator(".tree__agentname").boundingBox();
+            expect(face).not.toBeNull();
+            expect(title).not.toBeNull();
+            expect(
+              Math.abs((face ? face.y + face.height / 2 : 0) - (title ? title.y + title.height / 2 : 0)),
+            ).toBeLessThan(1);
+          }
         }
+      }
+      if (view === "Árbol") {
+        const channelRow = page.locator(".inbox__list .tree__channel").filter({ hasText: "Photo Acme" });
+        const readRow = page.locator(".inbox__list .tree__channel").filter({ hasText: "No Photo" });
+        await expect(channelRow.locator(".tree__unread")).toHaveText("1");
+        await expect(channelRow.locator(".tree__agentname")).toHaveCSS("font-weight", "600");
+        await expect(readRow.locator(".tree__unread")).toHaveCount(0);
+        await expect(readRow.locator(".tree__agentname")).toHaveCSS("font-weight", "400");
+        await channelRow.click();
+        await expect(
+          page.locator(".chan__chathead").getByRole("img", { name: "Photo Acme", exact: true }),
+        ).toBeVisible();
+        if (width < 768) await page.getByRole("button", { name: /Volver a los (chats|contactos)/ }).click();
+        await expect(channelRow).toHaveClass(/is-selected/);
+        await expect(channelRow).toHaveCSS("box-shadow", /inset/);
       }
     }
     for (const item of cases) {

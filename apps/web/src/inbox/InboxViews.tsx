@@ -7,21 +7,13 @@ import { AgentFace } from "../common/AgentFace.tsx";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { shortWhen } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
-import {
-  DEFAULT_PID,
-  isWorking,
-  projectInitial,
-  projectName,
-  projectTone,
-  routineName,
-  threadAgent,
-} from "../data/identity.ts";
+import { DEFAULT_PID, isWorking, projectInitial, projectTone, routineName, threadAgent } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
-import { type MessageKey, useT } from "../i18n/index.ts";
-import { TaskBundle } from "../lazy.ts";
+import { useT } from "../i18n/index.ts";
+import { ChannelTreeRow, TaskBundle } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
-import { type ActivityGroup, bundleTasks, type ProjectTree, type TimeBucket } from "./groupThreads.ts";
+import type { ProjectTree } from "./groupThreads.ts";
 import { RoutineBundle } from "./RoutineBundle.tsx";
 import { ThreadAvatar } from "./ThreadAvatar.tsx";
 import { PinMark } from "./ThreadRow.tsx";
@@ -42,15 +34,6 @@ const cx = (...c: Array<string | false>) => c.filter(Boolean).join(" ");
 
 /** Chats shown per agent before "N more". */
 const PER_AGENT = 3;
-
-const BUCKET: Record<TimeBucket, MessageKey> = {
-  pinned: "inbox.when.pinned",
-  running: "inbox.when.running",
-  today: "inbox.when.today",
-  yesterday: "inbox.when.yesterday",
-  week: "inbox.when.week",
-  earlier: "inbox.when.earlier",
-};
 
 /** 1b · Tree: project → agent → chats. Everything explicit, one click away. */
 export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: string | undefined }) {
@@ -122,6 +105,16 @@ export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: 
                   <TaskBundle taskId={b.task} threads={b.threads} selected={selected} />
                 </Suspense>
               );
+            if (b.channel)
+              return b.threads.map((th) => (
+                <ListedChat key={th.id} thread={th} selected={selected}>
+                  <Suspense
+                    fallback={<SessionRow thread={th} agent={threadAgent(th, agents)} selected={th.id === selected} />}
+                  >
+                    <ChannelTreeRow thread={th} agent={threadAgent(th, agents)} selected={th.id === selected} />
+                  </Suspense>
+                </ListedChat>
+              ));
             const agent = b.engine ? undefined : agents[b.agentId];
             const key = `${tree.key}:${b.agentId}`;
             const all = open[key] ?? false;
@@ -196,6 +189,7 @@ export function SessionRow({
 }) {
   const t = useT();
   const engine = useEngineLabel(thread.engine);
+  const channel = useThreadChannel(thread);
   return (
     <ContextMenu items={threadMenu(thread, { t, agent })}>
       <button
@@ -209,84 +203,24 @@ export function SessionRow({
         <RoutineMark thread={thread} />
         {/* An engine session is the engine's (Claude Code, Codex), not the agent's that hosts it. */}
         <ThreadAvatar thread={thread} agent={agent} size={14} slot={16} />
-        {withAgent && <span className="tree__sessionwho">{engine ?? agent?.name ?? thread.agent_ids[0]}</span>}
+        {withAgent && !thread.channel && (
+          <span className="tree__sessionwho">{engine ?? agent?.name ?? thread.agent_ids[0]}</span>
+        )}
         {/* Under its task, a chat's title only repeats the task's: what was said last tells them apart. */}
         <span className="tree__sessiontitle">
           {label ?? chatLabel(thread, agent, withAgent ? thread.title : t("chat.new"))}
         </span>
+        {channel && (
+          <span className="tree__agentmeta">
+            <Where thread={thread} agent={agent} />
+          </span>
+        )}
         <CodeMark thread={thread} />
         <ChatProcesses thread={thread.id} />
         {thread.unread > 0 && <span className="tree__unread">{thread.unread}</span>}
         <span className="tree__when">{shortWhen(thread.updated_at)}</span>
       </button>
     </ContextMenu>
-  );
-}
-
-/** 1c · Activity: chats by time, with what runs now on top; project and agent as each row's context. */
-export function ActivityView({ groups, selected }: { groups: ActivityGroup[]; selected: string | undefined }) {
-  const t = useT();
-  const agents = useShownAgents();
-  const projects = useData((s) => s.projects);
-  return (
-    <>
-      {groups.map((g) => (
-        <div key={g.bucket} className="activity__group">
-          <div className="activity__label">{t(BUCKET[g.bucket])}</div>
-          {bundleTasks(g.threads).map((entry) => {
-            if (entry.kind === "routine")
-              return (
-                <RoutineBundle
-                  key={`routine:${entry.routineId}`}
-                  routineId={entry.routineId}
-                  threads={entry.threads}
-                  selected={selected}
-                />
-              );
-            if (entry.kind === "task")
-              return (
-                <Suspense key={entry.taskId} fallback={null}>
-                  <TaskBundle taskId={entry.taskId} threads={entry.threads} selected={selected} />
-                </Suspense>
-              );
-            const th = entry.thread;
-            const agent: Agent | undefined = agents[th.agent_ids[0] ?? ""];
-            return (
-              <ListedChat key={th.id} thread={th} selected={selected}>
-                <ContextMenu items={threadMenu(th, { t, agent })}>
-                  <button
-                    type="button"
-                    className={cx("activity__row", th.id === selected && "is-selected", th.unread > 0 && "is-unread")}
-                    onClick={() => go.thread(th.id)}
-                  >
-                    <ThreadAvatar thread={th} agent={agent} size={24} slot={28} />
-                    <span className="activity__body">
-                      <span className="activity__title">
-                        {isWorking(th.state) && <Spinner size={12} />}
-                        {th.state === "input-required" && <Icons.Hand size={12} className="tree__waiting" />}
-                        {th.pinned && <PinMark />}
-                        <RoutineMark thread={th} />
-                        <span className="activity__text">{chatLabel(th, agent, t("chat.new"))}</span>
-                        <ChatProcesses thread={th.id} />
-                      </span>
-                      <span className="activity__meta">
-                        <ProjectTile tone={projectTone(th.project_id ?? DEFAULT_PID)} size={10} />
-                        {projectName(projects, th.project_id)} · <Where thread={th} agent={agent} />
-                        <CodeMark thread={th} />
-                      </span>
-                    </span>
-                    <span className="activity__side">
-                      <span className="tree__when">{shortWhen(th.updated_at)}</span>
-                      {th.unread > 0 && <span className="tree__unread">{th.unread}</span>}
-                    </span>
-                  </button>
-                </ContextMenu>
-              </ListedChat>
-            );
-          })}
-        </div>
-      ))}
-    </>
   );
 }
 
@@ -305,7 +239,7 @@ export function RoutineMark({ thread }: { thread: Thread }) {
 }
 
 /** Who a chat is with, for its context line: the channel it runs on, the engine, or the agent. */
-function Where({ thread, agent }: { thread: Thread; agent: Agent | undefined }) {
+export function Where({ thread, agent }: { thread: Thread; agent: Agent | undefined }) {
   const t = useT();
   const engine = useEngineLabel(thread.engine);
   const via = useThreadChannel(thread);
@@ -320,7 +254,7 @@ function Where({ thread, agent }: { thread: Thread; agent: Agent | undefined }) 
 }
 
 /** A coding session (the agent works inside a folder: reads, edits, runs): a folder mark that says where. */
-function CodeMark({ thread }: { thread: Thread }) {
+export function CodeMark({ thread }: { thread: Thread }) {
   const t = useT();
   if (thread.kind !== "code") return null;
   const folder = thread.cwd?.split("/").filter(Boolean).at(-1) ?? "";

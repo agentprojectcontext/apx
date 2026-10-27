@@ -157,6 +157,7 @@ export type AgentBranch = {
   engine?: string | undefined;
   task?: string | undefined;
   routine?: string | undefined;
+  channel?: boolean;
   threads: Thread[];
 };
 export type ProjectTree = { key: string; project: Project | undefined; name: string; agents: AgentBranch[] };
@@ -181,12 +182,22 @@ export function groupByAgent(threads: Record<string, Thread>, projects: Project[
         ? `engine:${t.engine}`
         : t.task_id
           ? `task:${t.task_id}`
-          : (t.agent_ids[0] ?? "");
+          : t.channel
+            ? `channel:${t.id}`
+            : (t.agent_ids[0] ?? "");
     let branch = tree.agents.find((a) => a.agentId === agentId);
     if (!branch) {
       branch = {
         agentId,
-        ...(routine ? { routine } : t.engine ? { engine: t.engine } : t.task_id ? { task: t.task_id } : {}),
+        ...(routine
+          ? { routine }
+          : t.engine
+            ? { engine: t.engine }
+            : t.task_id
+              ? { task: t.task_id }
+              : t.channel
+                ? { channel: true }
+                : {}),
         threads: [],
       };
       tree.agents.push(branch);

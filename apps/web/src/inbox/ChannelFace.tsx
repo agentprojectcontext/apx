@@ -13,28 +13,31 @@ export function ChannelFace({
   size = 32,
   slot = size,
   labelOnly = false,
+  showMark = false,
 }: {
   thread: Thread;
   size?: number;
   slot?: number;
   labelOnly?: boolean;
+  showMark?: boolean;
 }) {
   const t = useT();
   const person = useThreadPerson(thread);
   const channel = useThreadChannel(thread);
   const name = person?.name || thread.title;
   const label = channel ? t("chat.viaChannel", { channel: t(CHANNEL_KINDS[channel].name) }) : "";
-  const markSize = Math.min(16, size);
-  const width = slot + (channel ? markSize + 4 : 0);
+
   if (labelOnly)
     return channel ? (
       <Tag>
         <KindIcon kind={channel} size={11} /> {label}
       </Tag>
     ) : null;
+  const markSize = Math.min(16, size);
+  const width = slot + (channel && showMark ? markSize + 4 : 0);
   return (
     <span className="threadavatar" style={{ width, minWidth: width, height: slot, gap: 4 }}>
-      {channel && (
+      {channel && showMark && (
         <Tooltip content={label}>
           <span className="threadavatar__channel" role="img" aria-label={label} style={{ display: "inline-flex" }}>
             <KindIcon kind={channel} size={markSize} />
