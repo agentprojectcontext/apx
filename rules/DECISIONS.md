@@ -2596,3 +2596,13 @@ agents stopped short. Each answers a stop seen in real work:
 Rejected for now: programmatic tool calling (a typed tool SDK in the prompt breaks the prompt budget and needs its own
 sandbox), a goal tool separate from tasks (tasks already are the goal), fresh-worker rounds (APX's sessions keep
 context and compact).
+
+<a id="d-162"></a>
+## D-162 — 2026-10-27 — A teammate's question reaches the owner's chat app as the super-agent saying who waits
+A card any agent raised used to reach the owner's chat app as a system message with buttons ("Fausto wants to use
+file_edit…"), as if APX itself spoke. Questions and approvals stay with the agent that does the work: its card is in
+its chat, in the app's tray, on the desktop and on paired phones (D-160). On the chat app the owner picked, a
+teammate's card is now one line in the super-agent's voice, "Fausto te espera: <what>", without buttons, to answer
+in the app; the super-agent's own questions still come whole with their buttons. With no chat app chosen, nothing
+goes there. Rejected: forbidding delegated agents to ask the owner (their questions would go through the
+super-agent and lose the card's context).

@@ -288,6 +288,20 @@ export function createChannels(deps: {
     },
   });
 
+  /**
+   * What a question reaches the owner's channel as: the super-agent's own, whole with its buttons; a teammate's, one
+   * line saying who waits and on what, answered in the app where the card is (DECISIONS.md#d-162).
+   */
+  function cardFor(part: Extract<Part, { type: "input" }>): Presentation {
+    const asker = store.inputs.get(part.input_id)?.agent_id;
+    const boss = store.agents.list().find((a) => a.kind === "secretary");
+    if (asker && boss && asker !== boss.id) {
+      const what = part.prompt.length > 200 ? `${part.prompt.slice(0, 199)}…` : part.prompt;
+      return { text: channelTexts(store).waiting(store.agents.get(asker)?.name ?? asker, what) };
+    }
+    return { ...inputPresentation(part, channelTexts(store)), input_id: part.input_id };
+  }
+
   /** A confirmation nobody answered in the app after a while also goes to the owner's channel. */
   function followUp(part: Extract<Part, { type: "input" }>, threadId: string, waited = 0): void {
     const after = noticePrefs(store).inputs_after_s;
@@ -295,8 +309,7 @@ export function createChannels(deps: {
     const cancel = followUpTimers.after(Math.max(0, after * 1000 - waited), () => {
       escalations.delete(part.input_id);
       if (stopped || store.inputs.get(part.input_id)?.state !== "pending" || announced.has(part.input_id)) return;
-      const body = { ...inputPresentation(part, channelTexts(store)), input_id: part.input_id };
-      if (notifyOwner(body, "input", threadId)) announced.add(part.input_id);
+      if (notifyOwner(cardFor(part), "input", threadId)) announced.add(part.input_id);
     });
     escalations.set(part.input_id, cancel);
   }
@@ -513,7 +526,7 @@ export function createChannels(deps: {
       conversation: to.conversation,
       thread_id: threadId,
       kind: "input",
-      body: shownOn(to.channel, { ...inputPresentation(part, channelTexts(store)), input_id: part.input_id }),
+      body: shownOn(to.channel, cardFor(part)),
     });
   }
 

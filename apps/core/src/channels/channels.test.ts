@@ -587,3 +587,22 @@ test("with the app only chosen, news stays in the app: no channel message, still
     await env.client.call("notices.set", prefs);
   }
 });
+
+test("a teammate's question reaches the owner's chat app as one line saying who waits, answered in the app", async () => {
+  await env.client.call("notices.set", { inputs_after_s: 1 });
+  try {
+    const before = tg.messagesTo(OWNER.id).length;
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "vera" });
+    await env.client.call("threads.send", { thread: t.id, text: "launch the probe" });
+    await waitFor(() => tg.messagesTo(OWNER.id).length > before, "a line on Telegram");
+    const line = tg.messagesTo(OWNER.id).at(-1)?.body;
+    assert.match(String(line?.text), /^Vera te espera: /);
+    assert.match(String(line?.text), /Respondele en APX/);
+    assert.equal(line?.reply_markup, undefined, "no buttons: the card is answered in the app");
+    const pending = (await env.client.call("runs.pending", { thread: t.id })).inputs[0];
+    await env.client.call("runs.respond", { input: pending?.id ?? "", decision: "deny" });
+    await env.settle(t.id);
+  } finally {
+    await env.client.call("notices.set", { inputs_after_s: 120 });
+  }
+});
