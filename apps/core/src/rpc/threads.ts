@@ -80,7 +80,8 @@ function attachedFiles(store: Store, thread: string, ids: string[]): Attachment[
   return [...new Set(ids)].map((id) => {
     const m = store.media.get(id);
     // Not media APX made (it has a service) nor another chat's upload.
-    if (!m || m.service || (m.thread_id && m.thread_id !== thread)) throw badRequest(`no attachment ${id}`);
+    if (!m || m.service || store.taskAttachments.pending(id) || (m.thread_id && m.thread_id !== thread))
+      throw badRequest(`no attachment ${id}`);
     return { media_id: m.id, kind: m.kind, mime: m.mime, name: m.prompt ?? m.id };
   });
 }

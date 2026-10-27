@@ -25,19 +25,13 @@ import { loadThread } from "../data/actions.ts";
 import { baseName, blobOf } from "../data/identity.ts";
 import { useOwnerName } from "../data/owner.ts";
 import { useData } from "../data/state.ts";
-import {
-  acceptTasks,
-  closeTask,
-  settleTask,
-  type TaskDetail,
-  taskDetail,
-  updateTask,
-  useTasks,
-} from "../data/tasks.ts";
+import { type TaskDetail, taskDetail } from "../data/task-detail.ts";
+import { acceptTasks, closeTask, settleTask, updateTask, useTasks } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
 import { formatCompact } from "./compact.ts";
 import { historyLines } from "./history.ts";
 import { mentionToken } from "./mentions.ts";
+import { TaskAttachments } from "./TaskAttachments.tsx";
 import { TaskComment } from "./TaskComment.tsx";
 import {
   DueField,
@@ -133,6 +127,23 @@ export function TaskPanel({ task, onClose, actions }: { task: Task; onClose: () 
         <Properties task={task} detail={detail} />
         <TaskActivity task={task} detail={detail} />
         <Description task={task} />
+        {detail && (
+          <TaskAttachments
+            key={task.id}
+            task={task}
+            value={detail.attachments.map((a) => ({ ...a, id: a.media_id }))}
+            onChange={(attachments) =>
+              setRead((current) =>
+                current?.task === task.id
+                  ? {
+                      ...current,
+                      attachments: attachments.map(({ id, ...a }) => ({ ...a, media_id: id })),
+                    }
+                  : current,
+              )
+            }
+          />
+        )}
         {task.plan?.trim() && <TaskPlan plan={task.plan} />}
         <Tabs
           variant="pill"

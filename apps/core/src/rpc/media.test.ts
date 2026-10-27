@@ -48,7 +48,7 @@ after(async () => {
 });
 
 test("service RPCs persist settings, keep keys private and return the requested kind in owner order", async () => {
-  const dispatch = testRouter(mediaHandlers(services));
+  const dispatch = testRouter(mediaHandlers(services, env.core.store));
   for (const id of ["acme", "northwind"]) {
     const added = await dispatch(
       "services.set",
@@ -81,7 +81,7 @@ test("service RPCs persist settings, keep keys private and return the requested 
 });
 
 test("testing a service reaches only the injected transport and returns a structured health result", async () => {
-  const dispatch = testRouter(mediaHandlers(services));
+  const dispatch = testRouter(mediaHandlers(services, env.core.store));
   requests.length = 0;
   const result = await dispatch("services.test", { service: image, id: "acme" }, ctx);
   assert.ok(result.ok);
@@ -90,7 +90,7 @@ test("testing a service reaches only the injected transport and returns a struct
 });
 
 test("service mutations refuse agents before writing settings or exposing a key", async () => {
-  const dispatch = testRouter(mediaHandlers(services));
+  const dispatch = testRouter(mediaHandlers(services, env.core.store));
   const before = env.core.store.settings.read("services");
   for (const [method, params] of [
     ["services.set", { id: "bad", service: image }],
@@ -110,7 +110,7 @@ test("speech routes bind agent output to its own chat and turn service failures 
     calls.push(input);
     return { media: { id: "med_1", mime: "audio/ogg" }, service: { label: "Acme voice" }, skipped: ["Offline voice"] };
   });
-  const dispatch = testRouter(mediaHandlers(services));
+  const dispatch = testRouter(mediaHandlers(services, env.core.store));
   const actor = { ...ctx, actor: "agent" as const, agent: { id: "roby", run_id: "run_1", thread_id: "own-thread" } };
   const result = await dispatch("media.speak", { text: "Hello", thread: "other-thread" }, actor, "speak");
   assert.ok(result.ok);
@@ -130,9 +130,15 @@ test("speech routes bind agent output to its own chat and turn service failures 
 
 test("media reads preserve exact binary bytes and missing ids fail typed", async (t) => {
   const bytes = Buffer.from([0, 1, 255]);
-  t.mock.method(services, "read", (id: string) => (id === "med_1" ? { mime: "image/png", data: bytes } : undefined));
-  const dispatch = testRouter(mediaHandlers(services));
-  assert.deepEqual(await dispatch("media.get", { id: "med_1" }, ctx), {
+  const media = env.core.store.media.add({
+    kind: "image",
+    mime: "image/png",
+    bytes: bytes.length,
+    path: path.join(env.home, "binary.png"),
+  });
+  t.mock.method(services, "read", (id: string) => (id === media.id ? { mime: "image/png", data: bytes } : undefined));
+  const dispatch = testRouter(mediaHandlers(services, env.core.store));
+  assert.deepEqual(await dispatch("media.get", { id: media.id }, ctx), {
     ok: true,
     result: { mime: "image/png", data: bytes.toString("base64"), bytes: 3 },
   });

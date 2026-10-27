@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, test } from "node:test";
 import { coreLogFile, coreLogSink, OUTPUT_SCOPE, parseLine, readCoreLog } from "./core-log.ts";
 import { createLog } from "./log.ts";
+import { waitFor } from "./testkit/platform.ts";
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "apx-core-log-"));
 after(() => fs.rmSync(tmp, { recursive: true, force: true }));
@@ -85,8 +86,10 @@ test("the core's logger writes its home's log file", async () => {
   } finally {
     process.stderr.write = write;
   }
-  await new Promise((r) => setTimeout(r, 50));
-  const [line] = readCoreLog(coreLogFile(home), { limit: 5 }).lines;
+  const line = await waitFor(
+    () => readCoreLog(coreLogFile(home), { limit: 5 }).lines[0],
+    "the logger's asynchronous file append",
+  );
   assert.equal(line?.msg, "hello");
   assert.equal(line?.level, "warn");
   assert.equal(line?.detail, JSON.stringify({ api_key: "[redacted]" }));

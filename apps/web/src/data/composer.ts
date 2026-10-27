@@ -81,14 +81,18 @@ async function base64(blob: Blob): Promise<string> {
 
 /** Uploads one file; throws the core's reason (wrong type, too big, empty) for the chip to show. */
 /** `thread` is left out for a new chat: the file goes with its first message all the same. */
-export async function upload(file: File, thread: string | undefined): Promise<Attached> {
+export async function upload(
+  file: File,
+  thread: string | undefined,
+  options?: { taskAsset?: boolean },
+): Promise<Attached> {
   const big = tooBig(file);
   if (big) throw new Error(big);
   const { media } = await client.call("media.upload", {
     name: file.name,
     mime: mimeOf(file),
     data: await base64(file),
-    ...(thread ? { thread } : {}),
+    ...(options?.taskAsset ? { task_asset: true } : thread ? { thread } : {}),
   });
   return { id: media.id, kind: media.kind, name: media.name, mime: media.mime, bytes: media.bytes };
 }

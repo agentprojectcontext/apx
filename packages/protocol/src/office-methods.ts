@@ -22,7 +22,27 @@ import {
   TaskTag,
 } from "./office.ts";
 
+const TaskAttachment = z.object({
+  media_id: Id,
+  kind: z.enum(["image", "audio", "file"]),
+  mime: z.string(),
+  bytes: z.number().int(),
+  name: z.string(),
+});
+
 export const officeMethods = {
+  /** Snapshots selected readable media into the task; never shares its source chat. */
+  "tasks.attach": {
+    params: z.object({ task: Id, media_ids: z.array(Id).min(1).max(20) }).strict(),
+    result: z.object({ attachments: z.array(TaskAttachment) }),
+    effect: true,
+  },
+  "tasks.detach": {
+    params: z.object({ task: Id, media_id: Id }).strict(),
+    result: z.object({ removed: Id }),
+    effect: true,
+    access: "human",
+  },
   /** Tasks (open by default) with the board's columns. An agent sees its own thread's project's and the global ones. */
   "tasks.list": {
     params: z
@@ -49,6 +69,7 @@ export const officeMethods = {
     result: z.object({
       task: Task,
       events: z.array(TaskEvent),
+      attachments: z.array(TaskAttachment).default([]),
       /** Latest conversation messages, oldest first, including persisted evidence parts. */
       comments: z.array(Message).default([]),
       comments_truncated: z.boolean().default(false),
@@ -68,6 +89,7 @@ export const officeMethods = {
       .object({
         title: z.string().trim().min(1).max(200),
         description: z.string().max(10_000).optional(),
+        attachments: z.array(Id).max(20).optional(),
         project: Id.optional(),
         assignee: Id.optional(),
         status: z.string().max(40).optional(),
@@ -96,6 +118,7 @@ export const officeMethods = {
     params: z
       .object({
         task: Id,
+        attachments: z.array(Id).max(20).optional(),
         title: z.string().trim().min(1).max(200).optional(),
         description: z.string().max(10_000).optional(),
         status: z.string().max(40).optional(),

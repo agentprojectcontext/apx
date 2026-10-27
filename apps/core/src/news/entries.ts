@@ -52,6 +52,20 @@ export type NewsEntry = {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "durable-task-attachments",
+    since: "2.11.1",
+    title: "Keep screenshots and files with a task",
+    applies: (f) => f.secretary,
+    text: "Tasks can keep selected screenshots and files as durable snapshots, at creation or later. Authorized agents can inspect them from the task even after the source chat is deleted. The panel previews and downloads them. This does not grant access to private contact chats or publish files; sending outside APX remains a separate owner action.",
+    actions: [
+      {
+        label: { en: "Attach files to a task", es: "Adjuntar archivos a una tarea" },
+        prompt:
+          "Help me choose a task and the screenshots or files to attach to it. Do not copy unrelated chat history or send anything outside APX.",
+      },
+    ],
+  },
+  {
     id: "task-chat-actions",
     since: "2.11.1",
     title: "Manage tasks from their chat group",

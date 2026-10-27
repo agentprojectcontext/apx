@@ -39,6 +39,26 @@ const MIME: Record<string, string> = {
 export const mimeOf = (name: string): string =>
   MIME[path.extname(name).slice(1).toLowerCase()] ?? "application/octet-stream";
 
+/** Reads stored media without following links, blocking on special files or growing beyond the size limit. */
+export function readStoredAttachment(file: string): Buffer {
+  const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+  try {
+    const stat = fs.fstatSync(fd);
+    if (!stat.isFile() || stat.size > MAX_BYTES || !stat.size) throw new Error("file unavailable or over 20 MB");
+    const bytes = Buffer.alloc(stat.size);
+    let offset = 0;
+    while (offset < bytes.length) {
+      const count = fs.readSync(fd, bytes, offset, bytes.length - offset, offset);
+      if (!count) throw new Error("file changed while attaching");
+      offset += count;
+    }
+    if (fs.fstatSync(fd).size !== stat.size) throw new Error("file changed while attaching");
+    return bytes;
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
 /** Takes a bounded snapshot; subsequent edits or deletion cannot break the chat attachment. */
 export function saveLocalAttachment(
   home: string,

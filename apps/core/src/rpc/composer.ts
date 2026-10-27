@@ -1,13 +1,16 @@
 // The composer's calls: attachments, dictation and the chat's own model.
+
+import fs from "node:fs";
 import nodePath from "node:path";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
 import type { Caller } from "../engine/permissions.ts";
 import { badRequest, errorMessage, notFound, unauthorized, unavailable } from "../errors.ts";
-import { saveLocalAttachment } from "../services/attachment-files.ts";
+import { readStoredAttachment, saveLocalAttachment } from "../services/attachment-files.ts";
 import type { Services } from "../services/registry.ts";
-import { saveUpload } from "../services/uploads.ts";
+import { pruneTaskUploads, saveUpload } from "../services/uploads.ts";
 import type { Access, FolderThread } from "../tools/folders.ts";
+import { readableMedia } from "./media-access.ts";
 import type { Handlers } from "./router.ts";
 
 export function composerHandlers(deps: {
@@ -22,6 +25,7 @@ export function composerHandlers(deps: {
   checkModel(ref: string, session: string | undefined): string | undefined;
 }) {
   const { store } = deps;
+  pruneTaskUploads(store);
   return {
     "media.attach": ({ path, document }, ctx) => {
       const caller = ctx.agent;
@@ -31,6 +35,37 @@ export function composerHandlers(deps: {
         throw unauthorized("only the running agent can attach a file to its own chat");
       if (audienceOf(store, thread).kind !== "owner")
         throw unauthorized("local files can only be attached in the owner's chats");
+      if (/^med_[0-9a-f]{16}$/.test(path)) {
+        if (document) throw badRequest("use a file path for a document source");
+        const source = readableMedia(store, path, ctx);
+        try {
+          const bytes = readStoredAttachment(source.path);
+          if (source.thread_id === thread.id)
+            return {
+              media: {
+                id: source.id,
+                kind: source.kind,
+                mime: source.mime,
+                bytes: source.bytes,
+                name: source.prompt ?? source.id,
+              },
+            };
+          const m = saveUpload(
+            deps.home,
+            store,
+            {
+              name: source.prompt ?? source.id,
+              mime: source.mime,
+              bytes,
+              thread: thread.id,
+            },
+            20 * 1024 * 1024,
+          );
+          return { media: { id: m.id, kind: m.kind, mime: m.mime, bytes: m.bytes, name: m.name } };
+        } catch {
+          throw badRequest("media file unavailable or over 20 MB");
+        }
+      }
       // Judged as the call itself was: the agent's mode, reach and the folders the owner lent it (DECISIONS.md#d-115).
       const scope = deps.scopeOf(caller);
       if (!scope) throw unauthorized("only the running agent can attach a file to its own chat");
@@ -47,14 +82,27 @@ export function composerHandlers(deps: {
         throw badRequest(errorMessage(err));
       }
     },
-    "media.upload": ({ name, mime, data, thread }) => {
+    "media.discard": ({ id }) => {
+      if (!store.taskAttachments.pending(id)) return { discarded: id };
+      const m = store.media.get(id);
+      if (m) fs.rmSync(m.path, { force: true });
+      store.media.remove(id);
+      return { discarded: id };
+    },
+    "media.upload": ({ name, mime, data, thread, task_asset }) => {
+      if (task_asset) pruneTaskUploads(store);
+      if (task_asset && thread) throw badRequest("a temporary task upload has no source chat");
       if (thread && !store.threads.get(thread)) throw notFound(`thread ${thread}`);
+      let saved: string | undefined;
       try {
-        const m = saveUpload(deps.home, store, { name, mime, bytes: Buffer.from(data, "base64"), thread });
-        return {
-          media: { id: m.id, kind: m.kind, mime: m.mime, bytes: m.bytes, name: m.name },
-        };
+        return store.tx(() => {
+          const m = saveUpload(deps.home, store, { name, mime, bytes: Buffer.from(data, "base64"), thread });
+          saved = m.path;
+          if (task_asset) store.taskAttachments.stage(m.id);
+          return { media: { id: m.id, kind: m.kind, mime: m.mime, bytes: m.bytes, name: m.name } };
+        });
       } catch (err) {
+        if (saved) fs.rmSync(saved, { force: true });
         throw badRequest(errorMessage(err));
       }
     },
