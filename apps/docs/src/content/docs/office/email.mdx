@@ -41,6 +41,57 @@ APX does not request Gmail settings access and cannot import your Gmail signatur
 This changes only APX's locally stored signature, not Gmail settings. If a mailbox is disconnected, its saved
 signature may remain in Account settings so you can remove it manually.
 
+## Configure and test a signature
+
+1. Connect the sending account first. In **Settings › Account › Email signatures**, select the exact Gmail sender
+   or SMTP mailbox. An SMTP signature is tied to the channel account and sender, not just to a display name.
+2. Enter plain text, for example:
+
+```text
+Acme support
+https://example.com
+```
+
+3. Optionally enter basic HTML. The plain-text part is still required, even when you want formatted mail:
+
+```html
+<div><strong>Acme support</strong><br><a href="https://example.com">Website</a></div>
+```
+
+4. Enable the signature and save. Ask the agent to **prepare a draft**, not send it: “Draft a short email to
+   user@example.com and let me review the complete message with my signature.”
+5. Review the draft before sending. To change the signature in an existing Gmail draft, recreate or edit the draft;
+   changing the saved signature alone does not rewrite it.
+
+Only the matching enabled sender is used. Gmail and SMTP can have different signatures, even for similar account
+names. The current selector offers configured senders, not arbitrary Gmail aliases. Removing a signature deletes
+its local configuration; disabling it keeps the text for later.
+
+## Formatting and privacy limits
+
+Supported HTML is deliberately small: paragraphs, divisions, spans, bold, emphasis, underline, line breaks, links
+and images. No CSS (including style attributes), scripts, event handlers, tables or pasted email-editor markup.
+Use double-quoted attributes and properly closed tags. Links accept HTTPS or mailto; image sources must be HTTPS.
+Embedded data images and URLs containing credentials are rejected. Plain text is limited to 10,000 characters,
+HTML to 30,000; a simple footer is more reliable than a full marketing template.
+
+A hosted logo can reveal a recipient's image request to that host when their mail client loads it. Prefer plain
+text when that disclosure is unwanted. APX validates a small fragment; it does not host the logo or guarantee how
+every recipient's mail client will display it.
+
+## When the signature is missing or wrong
+
+- **No sender available:** check that Gmail or the SMTP channel is connected to this core, not another installation.
+- **Nothing appended:** check sender selection, Enabled and whether this message was explicitly sent without a signature.
+- **An older footer remains:** existing Gmail drafts are sent as stored. Recreate or edit the draft and review again.
+- **HTML rejected:** simplify to the example above. Do not remove validation or paste credentials into image URLs.
+- **A reply has quoted history:** the current author's signature belongs before that quoted history, not inside it.
+- **A disconnected sender remains listed:** remove its saved local signature manually from Account settings.
+
+To omit it once, say “Send this message without my signature.” That is not the same as disabling it for all future
+mail. Automatic addition is not semantic rewriting: avoid manually pasting a differently formatted copy of the
+same footer, and inspect the draft if you suspect duplication.
+
 ## Let your super-agent configure it
 
 **On the development branch after 2.11.0**, the super-agent can read configured senders and propose a local

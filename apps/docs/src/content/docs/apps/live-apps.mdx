@@ -1,0 +1,56 @@
+---
+title: Live apps
+description: Keep a useful app open, refresh external data deliberately and understand what stops when you leave.
+sidebar:
+  order: 3
+---
+
+## Open is not the same as up to date
+
+An app can keep its current view while you visit another APX screen. That does not make its data live: the page
+must explicitly fetch a source or compute new values. A cached view can show an old result immediately and refresh
+it afterward. Ask for a visible timestamp and a stale/error state, not an unlabeled number.
+
+For example:
+
+> Make a live service-status app from this public API. Refresh once a minute while visible, keep the last successful
+> result, show when it was fetched and mark it stale if refreshing fails. Do not invent an “online” result.
+
+For private APIs, tell the agent the service and required data, not the secret in chat. Configure the artifact's
+secret separately. A source may reject requests, impose rate limits or lack the needed API; APX does not bypass it.
+
+## Open, leave and return
+
+Open a saved app from **Apps**. It stays running as you navigate within APX, until **Close app**, application exit
+or eviction when another app needs its slot. The panel keeps up to **six opened apps**. When full, it can close an
+app not currently shown, starting with the one seen least recently. A dot in Apps indicates an open app, not a
+successful connection to its data source.
+
+A widget normally closes when you leave its fullscreen view. For work you intend to keep open, use its **Pin to Apps**
+action. A separate **Open in a new window** action moves an app into its own window; closing that window returns it
+to the panel. Opening something fullscreen by itself does not change its saved widget/app type.
+
+## Live widgets and visibility
+
+A page can separately declare a live keep-time for hidden work such as a ticker or timer. This pool has **three**
+slots, independent from the six opened-app slots; hidden live pages can expire or be evicted. Apps should pause
+unnecessary timers and sockets when not visible. Do not rely on a hidden or suspended application to execute an
+important job at an exact time.
+
+These running limits describe the panel's app pool. Do not assume separate phone screens, public share links or a
+closed desktop keep the same live instance. Durable records are different from a running iframe: records saved in
+[artifact memory](/office/artifacts/#what-an-artifact-remembers) survive reopening; unsaved in-page variables may not.
+
+## Scheduled work belongs to routines
+
+For “check every morning and tell me if it changed”, use a [routine](/office/routines/), not a timer in an artifact.
+A routine runs through the core and has its own result and notice policy. Creating a live app does not create a
+routine, an always-on server, or permission to publish or send messages.
+
+## When it looks frozen
+
+1. Check the last-success timestamp and error text. Cached data is not proof of a fresh fetch.
+2. Bring the app into view and retry its refresh control; reconnect APX if offline.
+3. Check that the API origin was declared and any required secret is configured. Do not remove sandbox protections.
+4. Reopen an evicted app. Saved records should remain; verify them before clearing its memory.
+5. Ask the agent to fix the same artifact instead of creating a second copy with empty records.

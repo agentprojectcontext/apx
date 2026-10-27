@@ -121,7 +121,9 @@ Lo que hace una vez vinculada:
 - **Se vincula** escaneando el QR, abriendo un enlace `apx://pair` o escribiendo a mano la dirección y el código. Guarda
   su llave en el almacenamiento seguro del sistema.
 - **Muestra tu chat Home en vivo**, por el mismo socket que usa el panel.
-- **Muestra tus widgets y apps fijados** (el botón Apps), cada uno a pantalla completa y aislado igual que en el panel.
+- **Lista las superficies fijadas y todas las apps** (el botón Apps), incluso una app sin fijar. Abrí una a pantalla
+  completa. Consultá [Apps y artefactos](/apps/overview/) para entender su uso; la WebView nativa no promete todas
+  las integraciones ni funciones del bridge del panel web.
 - **Le presta el teléfono al core como nodo**: los agentes tienen `phone_location` y `phone_photo`, pero solo mientras
   el teléfono está conectado. La foto siempre la sacás vos en el teléfono (la app te muestra para qué la pide el
   agente). La ubicación pide el permiso del sistema una vez, y te pide el OK cada vez que hay contenido de afuera en el
@@ -139,11 +141,59 @@ npm install
 npx expo start      # Expo Go o un dev build; el core tiene que ser alcanzable en la red
 ```
 
+La configuración de release predeterminada compila para **ARM64 (`arm64-v8a`)**. Se pueden compilar otras
+arquitecturas, pero no asumas que cualquier APK admite un teléfono ARM32 viejo o un emulador x86: comprobá el
+artefacto de esa release. La configuración de build no prueba qué ABIs incluye un APK ya publicado.
+
+Vincular presta **ubicación y cámara** del teléfono conectado, no control general de apps Android, ADB ni acceso a
+todos sus archivos. La ubicación usa un permiso del sistema en primer plano; no implica seguimiento continuo en
+segundo plano. La cámara requiere que vos encuadres y tomes la foto. Si la app está desconectada o suspendida, no
+asumas que esas capacidades siguen disponibles porque conserva la llave de vinculación.
+
+## Navegá la app Android
+
+La app nativa no es solo Inicio. La navegación inferior ofrece **Chats**, **Bandeja**, **Tareas**, **Sesiones** y
+**Más**. En Más encontrás rutinas, agentes, proyectos, canales, memoria, apps, archivos y ajustes. Algunas secciones
+muestran resúmenes y pantallas de detalle, no todos los controles del escritorio; el mismo core conserva los datos.
+
+- **Chats** abre tus conversaciones. **Bandeja** reúne elementos que necesitan atención; **Sesiones** muestra las
+  sesiones de agentes y su estado real. Un turno encolado, en espera o interrumpido no es un resultado terminado.
+- **Tareas:** tocá **+** para crear una tarea con título, descripción y los campos disponibles de proyecto/asignación.
+  Abrila para actualizar sus campos, comentar, ver historial o trabajo adjunto y usar sus acciones disponibles de
+  cierre/reapertura. Consultá [Tareas](/office/tasks/) para el modelo compartido.
+- **Más › Rutinas:** abrí una rutina existente para editar instrucciones, agente y horario; su tarjeta permite
+  activar/desactivar, ejecutar ahora y consultar ejecuciones recientes. Cambiar el horario no prueba que se ejecutó bien.
+- **Más › Proyectos:** recorré proyectos registrados, abrí sus conversaciones o creá un proyecto. **Archivos** recorre
+  carpetas de proyectos y previsualiza archivos compatibles; no es un editor general ni muestra todos los archivos del teléfono.
+- **Más › Memoria:** filtrá notas por alcance, agregá una o borrala. **Agentes** abre el chat de un agente; **Canales**
+  lista conexiones configuradas y su estado, sin los controles completos de configuración de canales del panel.
+- **Más › Ajustes:** revisá permiso/registro de notificaciones, sonidos de avisos y de fin de audio, elegí apariencia
+  del sistema/clara/oscura y ajustá preferencias de avisos. **Desconectar** quita la vinculación de esta app tras
+  confirmar; no apaga el core ni desconecta todos los dispositivos.
+
+Crear o editar trabajo usa los mismos permisos y confirmaciones que otros clientes, no una cuenta móvil irrestricta
+aparte. Para ajustes que no ofrecen las pantallas nativas, usá el panel web.
+
+## Adjuntos, imágenes y voz
+
+En el chat usá los controles de adjuntos para elegir fotos o archivos, o grabar un mensaje de voz. Cuando un agente
+pide una foto, se muestra para qué y **vos** la tomás o rechazás; vincular no autoriza a usar la cámara en silencio.
+
+Abrí una imagen o video recibido/generado para verlo. Sus acciones ofrecen **Guardar en galería** para fotos y videos
+compatibles (con permiso multimedia de Android) y **Compartir o abrir** para pasarlo a otra app o guardarlo con el
+diálogo del sistema. Los documentos usan compartir/abrir, no la galería. Mantené presionado un texto para copiar,
+seleccionar o compartir. Estas acciones afectan la copia del teléfono, no el original del core.
+
+Si falla al guardar, revisá permisos y que el archivo haya terminado de descargar. Un error o un diálogo abierto
+no prueban que Android lo guardó. Comprobalo en la galería o app de destino. Si es privado, elegí deliberadamente
+el destinatario: compartir fuera de APX sale de los límites del chat.
+
 ## Notificaciones push
 
 Cada aviso de la bandeja de la app llega también a tus teléfonos vinculados, así las novedades de las rutinas, las
 tareas terminadas, los recordatorios y las preguntas de los agentes te encuentran aunque la app esté cerrada. Una app de
-chat (Telegram, WhatsApp…) es un extra que podés elegir.
+chat (Telegram, WhatsApp…) es un extra que podés elegir. El permiso de notificaciones de Android no alcanza con la app
+suspendida o cerrada: el teléfono también necesita un registro push operativo.
 
 <Steps>
 

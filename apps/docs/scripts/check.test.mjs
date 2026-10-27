@@ -35,6 +35,19 @@ test("built local links resolve routes, relative URLs and fragment ids under the
   assert.equal(linkErrors(pages).length, 3);
 });
 
+test("root and trailing-slash bases keep route and fragment checks active", () => {
+  for (const base of ["/", "", "/apx/"]) {
+    const prefix = base.replace(/\/+$/, "");
+    const pages = new Map([
+      ["/", `<a href="${prefix}/b/#ready">B</a>`],
+      ["/b/", '<h2 id="ready">Ready</h2>'],
+    ]);
+    assert.deepEqual(linkErrors(pages, base), []);
+    pages.set("/", `<a href="${prefix}/b/#missing">B</a><a href="${prefix}/lost/">Lost</a>`);
+    assert.equal(linkErrors(pages, base).length, 2);
+  }
+});
+
 test("external links and downloads are not reported as missing pages", () => {
   assert.deepEqual(
     linkErrors(
