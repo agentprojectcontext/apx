@@ -191,7 +191,13 @@ export function chatTools(store: Store): Tool[] {
           )
           .flatMap((m) => {
             const text = textOf(m);
-            return text ? [`${when(m.created_at)} ${authorOf(store, m)}: ${cap(text, MESSAGE_CHARS)}`] : [];
+            const attachments = m.parts
+              .flatMap((p) =>
+                p.type === "image" || p.type === "file" || p.type === "audio" ? [JSON.stringify(p)] : [],
+              )
+              .join("\n");
+            const content = [cap(text, MESSAGE_CHARS), cap(attachments, MESSAGE_CHARS)].filter(Boolean).join("\n");
+            return content ? [`${when(m.created_at)} ${authorOf(store, m)}: ${content}`] : [];
           });
         return untrusted("chat", { title: t.title, id: t.id }, lines.length ? lines.join("\n\n") : "(no messages)");
       },

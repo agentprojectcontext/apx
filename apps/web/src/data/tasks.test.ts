@@ -141,6 +141,7 @@ test("one-time task lookup resolves events and detail reads normalize optional c
         ? { task: lookedUp }
         : {
             task: lookedUp,
+            attachments: [{ media_id: "med_example", kind: "file", name: "brief.txt", mime: "text/plain", bytes: 5 }],
             events: [{ id: "ev_1" }],
             sessions: [],
             comments: [{ id: "msg_1" }],
@@ -151,10 +152,11 @@ test("one-time task lookup resolves events and detail reads normalize optional c
   tasks.ensureTask("old");
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls.length, 1);
-  assert.deepEqual(await tasks.taskDetail("old"), { consults: [], subtasks: [], usage: [] });
+  assert.deepEqual(await tasks.taskDetail("old"), { attachments: [], consults: [], subtasks: [], usage: [] });
   assert.deepEqual(await tasks.taskDetail("with-detail"), {
     events: [{ id: "ev_1" }],
     sessions: [],
+    attachments: [{ media_id: "med_example", kind: "file", name: "brief.txt", mime: "text/plain", bytes: 5 }],
     consults: [],
     subtasks: [],
     usage: [],
@@ -167,6 +169,7 @@ test("failed task detail and missing lookups degrade without throwing", async (t
   assert.deepEqual(await tasks.taskDetail("missing"), {
     events: [],
     sessions: [],
+    attachments: [],
     consults: [],
     subtasks: [],
     usage: [],

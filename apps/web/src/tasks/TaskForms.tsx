@@ -8,6 +8,8 @@ import { realProjectId } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { createTask, deleteTask, useTasks } from "../data/tasks.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { useDraftAttachments } from "./draftAttachments.ts";
+import { TaskAttachments } from "./TaskAttachments.tsx";
 import { DueField, KindControl, OwedByControl, PersonSelect, PrioritySelect, ReminderField } from "./TaskFields.tsx";
 import { type Reminder, remindAt } from "./when.ts";
 
@@ -82,6 +84,9 @@ export function NewTask({ projectId, onClose }: { projectId?: string | undefined
   const [customRemind, setCustomRemind] = useState<string>();
   const [priority, setPriority] = useState<TaskPriority>("normal");
   const [tags, setTags] = useState<string[]>([]);
+  const { attachments, change: setAttachments, consumed } = useDraftAttachments();
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const agents = useData((s) => s.agents);
   // Inside a project the task belongs there; from the global list the owner picks where.
   const global = projectId === undefined;
@@ -93,8 +98,10 @@ export function NewTask({ projectId, onClose }: { projectId?: string | undefined
     if (owner && owner !== id) setAssignee(undefined);
   };
   const save = async () => {
+    if (uploading || saving) return;
+    setSaving(true);
     const remind = remindAt(due, reminder, customRemind);
-    await createTask({
+    const ok = await createTask({
       title: title.trim(),
       kind,
       priority,
@@ -105,21 +112,26 @@ export function NewTask({ projectId, onClose }: { projectId?: string | undefined
       ...(due ? { due_at: due } : {}),
       ...(remind ? { remind_at: remind } : {}),
       ...(tags.length ? { tags } : {}),
+      ...(attachments.length ? { attachments: attachments.map((a) => a.id) } : {}),
     });
-    onClose();
+    setSaving(false);
+    if (ok) {
+      consumed();
+      onClose();
+    }
   };
   return (
     <Dialog
       open
       size="lg"
-      onOpenChange={(o) => !o && onClose()}
+      onOpenChange={(o) => !o && !saving && onClose()}
       title={t("tasks.new")}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" disabled={saving} onClick={onClose}>
             {t("common.cancel")}
           </Button>
-          <Button disabled={!title.trim()} onClick={() => void save()}>
+          <Button disabled={!title.trim() || uploading || saving} loading={saving} onClick={() => void save()}>
             {t("tasks.create")}
           </Button>
         </>
@@ -148,6 +160,7 @@ export function NewTask({ projectId, onClose }: { projectId?: string | undefined
             />
           )}
         </Field>
+        <TaskAttachments value={attachments} onChange={setAttachments} onBusy={setUploading} disabled={saving} />
         <Field label={t("tasks.type")} hint={t(KIND_HINT[kind])}>
           <KindControl value={kind} onChange={setKind} />
         </Field>

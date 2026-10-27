@@ -93,7 +93,13 @@ export function taskBlock(
   const plan = t.plan?.trim()
     ? `Plan kept on the task:\n${untrusted("task_plan", {}, t.plan.trim().slice(0, PLAN_CHARS))}`
     : "";
-  const head = [`Task ${t.id}:`, taskWords(t, words), state, plan, handoffBrief(store, thread.id)].filter(Boolean);
+  const attachments = store.taskAttachments.list(t.id);
+  const assets = attachments.length
+    ? `This task keeps ${attachments.length} attachment(s). task_get lists their durable media ids; file_read inspects them.`
+    : "";
+  const head = [`Task ${t.id}:`, taskWords(t, words), state, plan, assets, handoffBrief(store, thread.id)].filter(
+    Boolean,
+  );
   const lookup =
     "task_get shows its latest comments and sessions; read_chat reads a session. Read them before redoing work.";
   if (parent)

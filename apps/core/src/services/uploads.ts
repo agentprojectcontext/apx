@@ -90,20 +90,41 @@ export function saveUpload(
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${randomUUID()}.${image ?? audio ?? (readable ? "txt" : (OTHER[mime] ?? "bin"))}`);
   fs.writeFileSync(file, a.bytes, { flag: "wx" });
-  const media = store.media.add({
-    kind: image ? "image" : audio ? "audio" : "file",
-    mime: audio ? a.mime : mime,
-    bytes: a.bytes.length,
-    path: file,
-    thread_id: a.thread,
-    prompt: a.name,
-  });
-  return { ...media, name: a.name };
+  try {
+    const media = store.media.add({
+      kind: image ? "image" : audio ? "audio" : "file",
+      mime: audio ? a.mime : mime,
+      bytes: a.bytes.length,
+      path: file,
+      thread_id: a.thread,
+      prompt: a.name,
+    });
+    return { ...media, name: a.name };
+  } catch (error) {
+    fs.rmSync(file, { force: true });
+    throw error;
+  }
+}
+
+/** Abandoned task drafts expire; ordinary chat media and committed task snapshots are not pending uploads. */
+export function pruneTaskUploads(store: Store, at = new Date()): void {
+  const cutoff = new Date(at.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  for (const m of store.taskAttachments.expired(cutoff)) {
+    try {
+      fs.rmSync(m.path, { force: true });
+      store.media.remove(m.id);
+    } catch {
+      /* A later sweep retries a file the filesystem could not remove. */
+    }
+  }
 }
 
 /** Deletes a thread's files kept under `name` beyond the newest `keep`, rows and bytes. */
 export function pruneUploads(store: Store, thread: string, name: string, keep: number): void {
-  for (const m of store.media.named(thread, name).slice(keep)) {
+  for (const m of store.media
+    .named(thread, name)
+    .filter((m) => !store.taskAttachments.hasMedia(m.id))
+    .slice(keep)) {
     fs.rmSync(m.path, { force: true });
     store.media.remove(m.id);
   }

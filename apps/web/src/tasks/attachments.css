@@ -1,0 +1,26 @@
+.taskattachments {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.taskattachments__header,
+.taskattachments__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.taskattachments__item {
+  align-items: flex-start;
+}
+.taskattachments__asset {
+  min-width: 0;
+  flex: 1;
+}
+.taskattachments .filepart {
+  max-width: 100%;
+}
+.taskattachments .mediagrid {
+  max-width: 240px;
+}

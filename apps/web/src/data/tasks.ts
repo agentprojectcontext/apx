@@ -73,8 +73,10 @@ export function taskDeleted(id: string): void {
 export async function createTask(p: Params<"tasks.create">) {
   try {
     taskChanged(await client.call("tasks.create", p));
+    return true;
   } catch (e) {
     fail(e);
+    return false;
   }
 }
 
@@ -142,8 +144,14 @@ export async function taskDetail(task: string): Promise<TaskDetail> {
       ...detail
     } = await client.call("tasks.get", { task });
     // A core older than this panel sends neither: its task still opens, without them.
-    return { ...detail, consults: detail.consults ?? [], subtasks: detail.subtasks ?? [], usage: detail.usage ?? [] };
+    return {
+      ...detail,
+      attachments: detail.attachments ?? [],
+      consults: detail.consults ?? [],
+      subtasks: detail.subtasks ?? [],
+      usage: detail.usage ?? [],
+    };
   } catch {
-    return { events: [], sessions: [], consults: [], subtasks: [], usage: [] };
+    return { events: [], sessions: [], consults: [], subtasks: [], usage: [], attachments: [] };
   }
 }
