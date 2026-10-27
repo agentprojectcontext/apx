@@ -106,7 +106,12 @@ const colors = HighlightStyle.define([
 ]);
 
 const theme = EditorView.theme({
-  "&": { height: "100%", fontSize: "12.5px", backgroundColor: "transparent", color: "var(--apx-fg)" },
+  "&": {
+    height: "100%",
+    fontSize: "calc(12.5px * var(--apx-text-scale, 1))",
+    backgroundColor: "transparent",
+    color: "var(--apx-fg)",
+  },
   ".cm-scroller": { fontFamily: "var(--apx-font-mono)", lineHeight: "1.6" },
   ".cm-content": { padding: "10px 0", caretColor: "var(--apx-fg)" },
   ".cm-gutters": {

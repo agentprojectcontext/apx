@@ -21,7 +21,7 @@
   min-width: 0;
 }
 .quick__name {
-  font-size: 14px;
+  font-size: calc(14px * var(--apx-text-scale, 1));
   font-weight: var(--apx-weight-semibold);
 }
 .quick__sub {

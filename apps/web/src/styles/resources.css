@@ -523,7 +523,7 @@
   border-radius: 50%;
   background: none;
   color: inherit;
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
   line-height: 1;
   cursor: pointer;
 }

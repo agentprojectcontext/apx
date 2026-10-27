@@ -67,14 +67,14 @@
 }
 .crew__title {
   margin: 0;
-  font-size: clamp(56px, 9vw, 116px);
+  font-size: calc(clamp(56px, 9vw, 116px) * var(--apx-text-scale, 1));
   font-weight: 600;
   line-height: 0.95;
   letter-spacing: -0.055em;
   transition: font-size 0.9s cubic-bezier(0.7, 0, 0.2, 1);
 }
 .crew.is-compact .crew__title {
-  font-size: clamp(36px, 4.6vw, 54px);
+  font-size: calc(clamp(36px, 4.6vw, 54px) * var(--apx-text-scale, 1));
 }
 .crew__row {
   display: flex;

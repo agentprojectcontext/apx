@@ -8,10 +8,10 @@
   gap: 8px;
 }
 .pgrid--compact .pcard__name {
-  font-size: 14px;
+  font-size: calc(14px * var(--apx-text-scale, 1));
 }
 .pgrid--compact .pcard__rows {
-  font-size: 11px;
+  font-size: calc(11px * var(--apx-text-scale, 1));
   gap: 3px 8px;
 }
 .pgrid--compact .pcard--add {

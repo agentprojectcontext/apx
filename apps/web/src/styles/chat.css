@@ -328,7 +328,7 @@
   align-items: center;
   gap: 4px;
   padding-left: 2px;
-  font-size: 11px;
+  font-size: calc(11px * var(--apx-text-scale, 1));
   color: var(--apx-info);
 }
 .turn__skillsicon {
@@ -380,17 +380,17 @@
 }
 .skillcard__name {
   font-family: var(--apx-font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   font-weight: 600;
 }
 .skillcard__why {
   margin: 0;
-  font-size: 11px;
+  font-size: calc(11px * var(--apx-text-scale, 1));
   color: var(--apx-fg-muted);
 }
 .skillcard__desc {
   margin: 0;
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   line-height: 1.5;
 }
 .skillcard__open {
@@ -400,7 +400,7 @@
   align-self: flex-start;
   padding: 0;
   font: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   font-weight: 500;
   color: var(--apx-info);
   background: none;
@@ -525,7 +525,7 @@
   align-items: center;
   gap: 6px;
   padding: 4px 4px 4px 10px;
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   color: var(--apx-fg-muted);
 }
 .screenlive__title {
@@ -551,7 +551,7 @@
 .screenlive__wait {
   padding: 24px;
   text-align: center;
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   color: var(--apx-fg-muted);
 }
 .screenlive__dot {
@@ -579,7 +579,7 @@
   border-radius: 999px;
   background: var(--apx-surface);
   color: var(--apx-fg);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   cursor: pointer;
 }
 .computer-icon {
@@ -616,7 +616,7 @@
   gap: 10px;
   padding: 12px;
   text-align: center;
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   color: #fff;
   background: rgba(0, 0, 0, 0.72);
 }
@@ -630,7 +630,7 @@
   border-radius: 999px;
   background: transparent;
   color: var(--apx-danger);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   cursor: pointer;
   transition:
     background 0.15s,

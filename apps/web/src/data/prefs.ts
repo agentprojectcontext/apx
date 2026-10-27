@@ -5,6 +5,13 @@ import { createStore, useSlice } from "./createStore.ts";
 import type { NoticeSound } from "./noticeSound.ts";
 
 export type TranscriptWidth = "narrow" | "medium" | "wide";
+export const TEXT_SIZES = [85, 100, 115, 130] as const;
+export type TextSize = (typeof TEXT_SIZES)[number];
+
+export function textSizeOf(value: unknown): TextSize {
+  return TEXT_SIZES.find((size) => size === value) ?? 100;
+}
+
 export type UiFont = "system" | "mono";
 
 export type Prefs = {
@@ -12,6 +19,7 @@ export type Prefs = {
   displayName: string;
   look: ApxLook;
   font: UiFont;
+  textSize: TextSize;
   transcriptWidth: TranscriptWidth;
   /** UI language; English is the base, Spanish a translation. */
   language: Language;
@@ -71,6 +79,7 @@ const DEFAULTS: Prefs = {
   displayName: "",
   look: "minimal",
   font: "system",
+  textSize: 100,
   transcriptWidth: "medium",
   language: defaultLanguage(),
   projectsFolded: false,
@@ -100,6 +109,7 @@ function load(): Prefs {
       displayName: typeof raw.displayName === "string" ? raw.displayName.trim() : DEFAULTS.displayName,
       look: raw.look === "classic" ? "classic" : "minimal",
       font: raw.font === "mono" ? "mono" : "system",
+      textSize: textSizeOf(raw.textSize),
       transcriptWidth:
         raw.transcriptWidth === "narrow" || raw.transcriptWidth === "wide" ? raw.transcriptWidth : "medium",
       language: isLanguage(raw.language) ? raw.language : DEFAULTS.language,
@@ -171,7 +181,7 @@ export function setBoard(projectId: string, patch: Partial<BoardPrefs>): void {
 }
 
 export function setPrefs(patch: Partial<Prefs>): void {
-  prefs.set(patch);
+  prefs.set({ ...patch, ...(patch.textSize === undefined ? {} : { textSize: textSizeOf(patch.textSize) }) });
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs.get()));
   } catch {

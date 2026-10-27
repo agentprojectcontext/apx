@@ -304,7 +304,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px 12px;
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   color: var(--apx-fg-muted);
 }
 .apx-meter__key {
