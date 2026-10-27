@@ -290,7 +290,7 @@ export function createChannels(deps: {
 
   /**
    * What a question reaches the owner's channel as: the super-agent's own, whole with its buttons; a teammate's, one
-   * line saying who waits and on what, answered in the app where the card is (DECISIONS.md#d-162).
+   * line saying who waits and on what, answered in the app where the card is (DECISIONS.md#d-163).
    */
   function cardFor(part: Extract<Part, { type: "input" }>): Presentation {
     const asker = store.inputs.get(part.input_id)?.agent_id;

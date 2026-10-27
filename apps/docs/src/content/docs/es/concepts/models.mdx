@@ -112,6 +112,19 @@ token). Lo ves en el panel lateral **Consumo** de un chat, con `/usage` en un ch
 gemini/gemini-3.8-flash                      metered     212 runs     1840233 in      96410 out
 chatgpt/gpt-6-sol                            included     48 runs      603118 in      41022 out`}</Terminal>
 
+### Los límites de la cuenta no son los tokens del chat
+
+**En la rama de desarrollo posterior a 2.11.0**, el botón **Uso de IA** de la barra superior puede mostrar ventanas
+de cuota, proporción restante y horarios de reinicio informados por los CLI locales de Codex y Claude. Las consultas
+corren en la **computadora del core**, no necesariamente en tu escritorio. Claude requiere Claude Code 2.1.273 o
+posterior. APX no inicia turnos de modelo para consultarlas ni lee las credenciales de los CLI. Las cuentas no
+compatibles o no disponibles muestran ese estado, no un saldo estimado de suscripción.
+
+Cada tarjeta de motor tiene un interruptor **Uso**, independiente de la potencia del modelo. Está desactivado por
+defecto salvo para un plan ChatGPT vinculado; los datos de Codex igual requieren su cuenta de CLI local vinculada
+por separado. Desactivarlo detiene las consultas y oculta los resultados guardados. Tu elección explícita se
+conserva. Los tokens, costos y contexto del chat siguen separados de estos límites de cuenta.
+
 ## Desde la terminal
 
 <Terminal command="apx models">{`claude — Claude Code

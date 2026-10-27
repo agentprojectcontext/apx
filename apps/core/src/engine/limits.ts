@@ -16,7 +16,7 @@ export const A2A_CAP_MS = 2 * 3600_000;
 /** Turns agents may start without the owner (delegations, results waking callers) in one conversation tree,
  *  counted since the owner last wrote in it. Past it the chain pauses until they write. Off by default: agents finish
  *  what they were asked, like a coding agent does; the owner sets one (`agents.set_limits`, setting "agent_limits")
- *  if they want it (DECISIONS.md#d-159). 0 = no limit. */
+ *  if they want it (DECISIONS.md#d-160). 0 = no limit. */
 export const MAX_UNATTENDED_RUNS = 0;
 /** Fresh tokens those unattended turns may spend before the chain pauses: input read from a provider's cache is not
  *  counted (domain/runs.ts). Off by default, like the turns. */

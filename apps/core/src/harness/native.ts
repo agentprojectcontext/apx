@@ -54,7 +54,7 @@ export function nativeHarness(llm: Llm): Harness {
         io.log(items);
       };
       const usage: Usage = { input: 0, output: 0 };
-      // The last call and how many times in a row it came (DECISIONS.md#d-161).
+      // The last call and how many times in a row it came (DECISIONS.md#d-162).
       let lastCall = "";
       let streak = 0;
       let model = "";

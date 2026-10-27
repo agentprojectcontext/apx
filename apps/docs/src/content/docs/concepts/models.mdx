@@ -108,6 +108,19 @@ per token). See it in the chat's **Usage** side panel, with `/usage` in a chat, 
 gemini/gemini-3.8-flash                      metered     212 runs     1840233 in      96410 out
 chatgpt/gpt-6-sol                            included     48 runs      603118 in      41022 out`}</Terminal>
 
+### Account limits are not chat tokens
+
+**On the development branch after 2.11.0**, the top bar's **AI usage** button can show account quota windows,
+remaining shares and reset times reported by local Codex and Claude CLIs. Checks run on the **core's computer**,
+not necessarily your desktop. Claude requires Claude Code 2.1.273 or later. APX starts no model turn for these
+checks and does not read CLI credentials. Unsupported or unavailable accounts show that state, not an estimated
+subscription balance.
+
+Each engine card has a **Usage** switch, independent of model power. It defaults off except for a linked ChatGPT
+plan; Codex metadata still needs its separately linked local CLI account. Turning it off stops account probes and
+hides cached results. Your explicit choice is remembered. Chat tokens, costs and context usage remain separate
+from these account limits.
+
 ## From the terminal
 
 <Terminal command="apx models">{`claude — Claude Code

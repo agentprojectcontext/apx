@@ -45,12 +45,14 @@ export function createRouter(handlers: Handlers, idemStore?: IdemStore) {
     idem?: string,
   ): Promise<DispatchResult> {
     const def = methods[method];
-    const parsed = def.params.safeParse(rawParams ?? {});
+    const params = rawParams ?? {};
+    // Boolean validation avoids collecting every type error from attacker-controlled arrays.
+    if (!def.params.validate(params)) {
+      return { ok: false, error: { code: ErrorCode.BadRequest, message: "invalid params" } };
+    }
+    const parsed = def.params.safeParse(params);
     if (!parsed.success) {
-      return {
-        ok: false,
-        error: { code: ErrorCode.BadRequest, message: "invalid params", detail: parsed.error.issues },
-      };
+      return { ok: false, error: { code: ErrorCode.BadRequest, message: "invalid params" } };
     }
     try {
       const handler = handlers[method] as Handler<typeof method>;

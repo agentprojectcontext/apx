@@ -1,5 +1,5 @@
 // Every tray notice also reaches the owner's phones with the app closed: the app is where APX always tells them, whatever
-// chat app they also picked (DECISIONS.md#d-160). In quiet hours only what needs them now: a question, an error.
+// chat app they also picked (DECISIONS.md#d-161). In quiet hours only what needs them now: a question, an error.
 import type { CoreEvent, Notification } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import { inQuietHours, noticePrefs } from "../domain/notices.ts";

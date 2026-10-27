@@ -131,7 +131,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "email-signatures",
-    since: "2.11.0",
+    since: "2.11.1",
     title: "Email signatures by sender",
     applies: (f) => f.google.gmail || f.email,
     text:
@@ -150,7 +150,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "engine-usage",
-    since: "2.11.0",
+    since: "2.11.1",
     title: "Account limits in the top bar",
     applies: (f) => f.codex || f.claude === true,
     text:

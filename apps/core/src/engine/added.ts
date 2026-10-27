@@ -1,5 +1,5 @@
 // Something new the owner added (a project, an agent) reaches the super-agent in Home, which offers to adapt it: the
-// owner hears of it from their secretary, not from a settings screen (DECISIONS.md#d-160).
+// owner hears of it from their secretary, not from a settings screen (DECISIONS.md#d-161).
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import type { AdmitFn } from "./engine.ts";

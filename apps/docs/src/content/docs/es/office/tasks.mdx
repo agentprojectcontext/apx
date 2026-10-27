@@ -15,6 +15,10 @@ proyectos; cada proyecto tiene además su pestaña **Tareas** con **Nueva tarea*
 
 <Shot name="tasks" alt="La pantalla de Tareas con los grupos En curso, Pendiente, En revisión y Necesita tu revisión, cada uno con tareas, responsable y vencimiento" caption="Tareas, de todos los proyectos" />
 
+Antes de crear otra tarea, los agentes tienen la instrucción de revisar las tareas abiertas y seguir una
+existente si ya cubre el mismo trabajo o uno muy relacionado. No es una detección automática de duplicados.
+Para una tarea que cambia código, mirá [dónde va ese trabajo](/es/office/code/#dónde-una-tarea-cambia-código).
+
 ## Qué tiene una tarea
 
 | Campo | Valores |
@@ -44,6 +48,18 @@ lista en un solo proyecto o muestra **Todos los proyectos**; este navegador recu
   nombra). Se le pide la revisión enseguida: si pide cambios, vuelve al que la hizo; si aprueba, pasa a la tuya.
 - **Cerradas hace poco**: hechas o descartadas, las más nuevas primero.
 
+## Adjuntos y acciones de los chats de una tarea
+
+Las tareas pueden guardar capturas y archivos seleccionados como copias independientes, al crearlas o después.
+Podés previsualizarlos o descargarlos desde la tarea. Cada tarea admite hasta 50 archivos de hasta 20 MB cada uno.
+Borrar el chat original no borra la copia de la tarea; quitar el adjunto borra esa copia, no otras que ya se hayan
+compartido. Los agentes autorizados pueden consultar los adjuntos sin obtener acceso a chats privados de contactos.
+Enviar un archivo fuera de APX sigue siendo una acción separada del dueño.
+
+Usá el botón de acciones del grupo de chats de la tarea o su menú contextual para cambiarla de columna, marcarla en
+espera, cerrarla, reabrirla o archivar sus chats. Archivar conserva el historial: no cierra la tarea ni reinicia el
+trabajo. El estado aparece junto al encabezado del chat y la descripción inicial conserva párrafos y listas.
+
 ## Asignar arranca el trabajo
 
 Dale una tarea a un agente (al crearla o después) y empieza a trabajar enseguida, en **su propio chat para esa
@@ -70,6 +86,15 @@ dónde leerlo.
 Las tareas asignadas que nunca arrancaron se retoman solas: una vez por hora, las más urgentes se ponen en marcha.
 Para que una arranque más tarde (mañana a la mañana, después de una salida a producción), poné **Empieza** en su
 panel, o `apx tasks add … --start 2026-10-23T09:00`: su agente arranca a esa hora, no cuando la asignás.
+
+### Pasar el trabajo actual a una tarea
+
+**En la rama de desarrollo posterior a 2.11.0**, cuando un agente se asigna de inmediato su trabajo actual como
+una tarea nueva, APX transfiere la ejecución al chat de la tarea. El turno original deja de ejecutar herramientas;
+el chat de la tarea recibe un resumen acotado del pedido y los hallazgos recientes para seguir sin repetir la
+investigación. Esto no impide otros chats paralelos con trabajo distinto. Si el turno ya tiene ayudantes u otro
+trabajo activo, o no puede transferirlo con seguridad, APX rechaza la transferencia y el agente debe seguir ahí,
+no iniciar un segundo ejecutor.
 
 ### Comentarios y @menciones
 

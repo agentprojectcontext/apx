@@ -56,7 +56,7 @@ export type Origin =
   | { kind: "computer_ready"; ready: boolean; error?: string }
   /**
    * A task an agent created and gave to another one was closed by that one (DECISIONS.md#d-076). `by`: the super-agent
-   * hears of a task someone else created (its creator's name), to tell the owner (DECISIONS.md#d-160).
+   * hears of a task someone else created (its creator's name), to tell the owner (DECISIONS.md#d-161).
    */
   | {
       kind: "task_result";

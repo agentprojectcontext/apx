@@ -241,7 +241,7 @@ export function createEngine(deps: {
   const live = new Map<string, Display>();
   /**
    * What reaches a running turn between its steps, not yet taken by its loop: the owner's words, or (`apx`) a result
-   * that would otherwise start a turn of its own, such as a background command's end (DECISIONS.md#d-161).
+   * that would otherwise start a turn of its own, such as a background command's end (DECISIONS.md#d-162).
    */
   const steered = new Map<string, Array<{ text: string; apx?: Admit }>>();
   /** The running turn of `agentId` in `threadId` whose loop takes text mid-turn (ours), if any. */

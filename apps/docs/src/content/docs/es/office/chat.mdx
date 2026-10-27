@@ -31,6 +31,9 @@ actual (o con Home). El menú de cada chat te deja **Fijar arriba**, **Renombrar
 **Archivar** o **Borrar**. El chat principal de Home no se puede archivar ni borrar: es la conversación que siempre
 tenés.
 
+**En la rama de desarrollo posterior a 2.11.0**, **Marcar todo como leído** pide confirmación antes de quitar los
+indicadores de no leído en lote. Cancelar los deja como estaban. Podés seguir marcando un chat desde su propio menú.
+
 ## Hablar con un agente
 
 Abrí un chat y escribí. La cara y el nombre del agente están en el encabezado; tocalos (**Ver a** y su nombre) para
@@ -64,6 +67,27 @@ La caja de abajo ("Escribile a Lucía…") es donde escribís. Algunas cosas que
   en Configuración › Voces para que quede todo en tu máquina.
 - **Teclas.** Enter envía (si el agente está trabajando, lo corta y responde esto). Ctrl/⌘+Enter lo deja en cola para
   cuando termine. Shift+Enter agrega una línea.
+
+Los borradores de adjuntos, incluidas las cargas en curso, sobreviven a cambiar de chat dentro de la página.
+Seleccioná una miniatura para previsualizar su archivo. A diferencia del texto del borrador guardado, los adjuntos
+no sobreviven a recargar o cerrar la página: no son almacenamiento durable de archivos.
+
+### Identidad de canales y respuestas delegadas
+
+Las conversaciones de canales muestran la identidad del contacto y del canal correspondientes. Esa presentación
+no cambia el agente asignado al chat.
+
+Una respuesta delegada aparece en un bloque desplegable con su agente, estado y un enlace al chat de origen. No es
+otro participante de esta conversación. Una delegación interrumpida, fallida o sin respuesta no implica que el
+trabajo se haya completado.
+
+### Mientras se genera una imagen
+
+**En la rama de desarrollo posterior a 2.11.0**, una llamada de generación de imágenes en ejecución muestra un
+indicador de mosaicos animados en el chat, con la etiqueta **Generando imágenes**, aunque ocultes los detalles de
+herramientas. Indica espera: no es una imagen parcial ni una prueba de éxito. Desaparece cuando la llamada o el
+turno termina, falla o se cancela; las imágenes terminadas aparecen en la grilla habitual. Una llamada que todavía
+espera aprobación no muestra este indicador de ejecución.
 
 ## Comandos con barra
 
@@ -123,6 +147,14 @@ El selector a la derecha del encabezado abre un panel lateral. Cada vista muestr
 Cuando un agente escribe un bloque de shell en su respuesta (por ejemplo, un comando que necesita `sudo`), el bloque
 trae **Ejecutar en una terminal**. Se abre en el panel Terminal sobre una terminal real, así podés escribir ahí una
 contraseña; cuando termina, al agente que lo escribió le llega cómo salió.
+
+### Los documentos son copias guardadas
+
+Pedile al agente que abra un informe o plan como documento después de escribirlo. Los archivos Markdown y de texto
+(`.md`, `.markdown`, `.txt`, hasta 400 KB) se abren en **Documentos**, con vistas de Markdown, código fuente y
+descarga. Incluso `.txt` se muestra como Markdown. Es una copia guardada: editar el archivo después no la cambia ni
+la abre automáticamente. No es una app ni un widget. Los agentes también pueden adjuntar archivos al chat (hasta
+20 MB); las imágenes se muestran ahí y los audios y videos se pueden reproducir.
 
 ## Buscá todo con ⌘K
 

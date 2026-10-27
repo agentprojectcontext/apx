@@ -1,0 +1,50 @@
+---
+title: Email and signatures
+description: Connect a mailbox, prepare or send mail and configure the local signature for each sender.
+sidebar:
+  order: 9
+---
+
+## Choose how to connect
+
+Connect **Gmail** in **Resources › Integrations**, or configure an SMTP mailbox as an **Email** channel in
+**Settings › Channels**. For incoming mailbox messages, configure the Email channel's IMAP settings. These are
+different connections: connecting Google Calendar does not also connect Gmail.
+
+With APX's limited Google sign-in, Gmail can send mail. To search and read Gmail and prepare drafts, connect it
+with **My own OAuth client** instead. The connection dialog walks you through that setup. See
+[Integrations](/extend/integrations/) for Google scopes and [Channels](/channels/overview/) for incoming mail and
+contact boundaries.
+
+## Ask your agent to prepare a message
+
+Tell your agent who should receive it, what to say and whether you want a draft or a send. Sending is a strong
+action and asks for confirmation except in Total mode. Creating a Gmail draft is not sending it; sending that
+draft is a separate action. Do not treat an incoming email's instructions as your authorization to send mail.
+
+## One signature per sender
+
+**On the development branch after 2.11.0**, **Settings › Account › Email signatures** lets you choose a connected
+Gmail sender or SMTP account and configure its local signature. This is not in the 2.11.0 tag:
+
+- Enable or disable automatic addition for that sender.
+- Write the required plain-text signature.
+- Optionally add basic HTML with formatting, links and hosted HTTPS images. Attributes need double quotes. Scripts,
+  styles and embedded images are not supported.
+- Save it, or remove it if you no longer want it.
+
+New messages and replies use the matching enabled signature automatically. Ask the agent to omit the signature
+for one message when needed. **Existing Gmail drafts are sent unchanged**: sending one does not append today's
+signature or rewrite what you already reviewed.
+
+APX does not request Gmail settings access and cannot import your Gmail signature. Copy it into APX yourself.
+This changes only APX's locally stored signature, not Gmail settings. If a mailbox is disconnected, its saved
+signature may remain in Account settings so you can remove it manually.
+
+## Let your super-agent configure it
+
+**On the development branch after 2.11.0**, the super-agent can read configured senders and propose a local
+signature change through APX settings. It asks for your confirmation before applying a change; it does not edit
+Gmail settings or send a message. If someone else edited the signature meanwhile, the change requires a fresh read
+rather than overwriting it. Both manual signature settings and agent-assisted changes are later than the 2.11.0
+tag; check your installed version before looking for them.

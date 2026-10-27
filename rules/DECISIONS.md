@@ -1945,7 +1945,7 @@ accepts it (`tasks.update` with `proposed: false`, the owner only), and the owne
 An agent creates what its own role hands out and proposes the rest (QA, reviews, another area's work). The panel lists
 proposals first, with **Accept all**; the mobile app groups them the same way.
 
-**Proposals the agent did not ask for.** (Superseded by [D-159](#d-159): there is no fan-out check.) The fan-out check (a third agent in one turn asks first) no longer stops a wide `task_create` with a card:
+**Proposals the agent did not ask for.** (Superseded by [D-160](#d-160): there is no fan-out check.) The fan-out check (a third agent in one turn asks first) no longer stops a wide `task_create` with a card:
 those tasks become proposals, so the owner picks which go ahead; a wide `delegate` still asks. A sub-task three
 hand-offs deep, or one for an agent that created a task above it, is a proposal too, so agents cannot pass work down
 forever or ping-pong it. Rejected: a counter on the task (it misses a chain that runs across tasks).
@@ -2527,7 +2527,19 @@ the byte-stable prefix (rule 12) that providers cache. The 200,000 safety limit,
 from [D-110](#d-110) stay.
 
 <a id="d-159"></a>
-## D-159 — 2026-10-27 — Agents finish what they were asked: limits are the owner's to turn on, and the super-agent asks how in its own words
+## D-159 — 2026-10-26 — Features and fixes carry a documentation impact assessment
+A regression test protects behavior, but does not keep instructions true. Every feature and fix assesses the docs
+it can invalidate: user guides, CLI/configuration/reference, troubleshooting, security boundaries and engineering
+workflow. Update affected docs or create the missing page in the same change, English first and Spanish alongside
+it where the site is bilingual. Record `Docs impact: updated` with paths, or `Docs impact: none` with a specific
+reason in the change description or commit body. Internal fixes often need no public page; this is an assessment,
+not a quota of documentation edits. Independent review rejects an absent assessment, an unsupported no-impact
+claim or known inaccurate instructions. Release review checks coverage against the actual release diff and tags,
+not only news entries or commit subjects. Builds, route/anchor checks and translation structure checks complement
+source review; none proves every explanation correct. No source-text test or automatic check can decide semantic
+documentation relevance. See [WORKFLOW.md](WORKFLOW.md#documentation-impact-contract).
+
+## D-160 — 2026-10-27 — Agents finish what they were asked: limits are the owner's to turn on, and the super-agent asks how in its own words
 Supersedes the defaults of [D-069](#d-069) and [D-081](#d-081), and the fan-out check of [D-131](#d-131). A night's
 three tasks stalled: 30 unattended turns went fast because every background command that ended woke its agent as a
 turn; past it every result paused the chain and told the owner's Telegram, in English, once per result (about thirty
@@ -2550,8 +2562,8 @@ they are asked; APX's agents should too.
 
 Rejected: raising the default to 100 turns (still a stop the owner did not ask for, on the work they asked for).
 
-<a id="d-160"></a>
-## D-160 — 2026-10-27 — The app is where the owner is always told; the super-agent tells what its team finished and what the owner added
+<a id="d-161"></a>
+## D-161 — 2026-10-27 — The app is where the owner is always told; the super-agent tells what its team finished and what the owner added
 Until now a chat app was the owner's main place to be told: phones got a push only for a finished turn or an agent
 waiting for their OK, and picking a phone as "where notices go" replaced the channel. The owner wants the opposite:
 APX's apps always tell them, and a chat app is an extra they may pick or not.
@@ -2571,8 +2583,8 @@ APX's apps always tell them, and a chat app is an extra they may pick or not.
 
 Rejected: a digest of closed tasks once a day (the owner wants to hear when the work is done, not the next morning).
 
-<a id="d-161"></a>
-## D-161 — 2026-10-27 — Work goes on until it is done, and says what shows it
+<a id="d-162"></a>
+## D-162 — 2026-10-27 — Work goes on until it is done, and says what shows it
 Patterns read in an open harness (DeepSeek Harness, MIT, studied as reference; no code taken), adopted where APX's
 agents stopped short. Each answers a stop seen in real work:
 
@@ -2597,11 +2609,11 @@ Rejected for now: programmatic tool calling (a typed tool SDK in the prompt brea
 sandbox), a goal tool separate from tasks (tasks already are the goal), fresh-worker rounds (APX's sessions keep
 context and compact).
 
-<a id="d-162"></a>
-## D-162 — 2026-10-27 — A teammate's question reaches the owner's chat app as the super-agent saying who waits
+<a id="d-163"></a>
+## D-163 — 2026-10-27 — A teammate's question reaches the owner's chat app as the super-agent saying who waits
 A card any agent raised used to reach the owner's chat app as a system message with buttons ("Fausto wants to use
 file_edit…"), as if APX itself spoke. Questions and approvals stay with the agent that does the work: its card is in
-its chat, in the app's tray, on the desktop and on paired phones (D-160). On the chat app the owner picked, a
+its chat, in the app's tray, on the desktop and on paired phones (D-161). On the chat app the owner picked, a
 teammate's card is now one line in the super-agent's voice, "Fausto te espera: <what>", without buttons, to answer
 in the app; the super-agent's own questions still come whole with their buttons. With no chat app chosen, nothing
 goes there. Rejected: forbidding delegated agents to ask the owner (their questions would go through the

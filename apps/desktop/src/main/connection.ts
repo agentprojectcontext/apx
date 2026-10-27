@@ -105,11 +105,15 @@ export function initialConnection(dataDir: string, env: NodeJS.ProcessEnv = proc
 }
 
 /** A healthy port alone is not evidence that it belongs to the selected installation. */
-export async function verifyLocalCore(url: string, env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
+export async function verifyLocalCore(
+  url: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<"matches" | "mismatch" | "missing"> {
   const expected = fs.readFileSync(path.join(localCoreHome(env), "home-id"), "utf8").trim();
   const token = localCoreToken(env);
   const health = await new ApxClient({ url, ...(token ? { token } : {}), timeoutMs: 2000 }).call("system.health", {});
-  return Boolean(expected) && health.home_id === expected;
+  if (!expected || !health.home_id.trim()) return "missing";
+  return health.home_id === expected ? "matches" : "mismatch";
 }
 
 /** Where the core on this computer logs, however it was started (apps/core/src/core-log.ts). */

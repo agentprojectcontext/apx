@@ -381,7 +381,7 @@ export function taskTools(store: Store, home: string): Tool[] {
       effect: "local",
       check: (a, ctx) => {
         const t = taskOf(a.task, ctx);
-        // Done is a claim about the work: the one who did it says what shows it (DECISIONS.md#d-161).
+        // Done is a claim about the work: the one who did it says what shows it (DECISIONS.md#d-162).
         if (a.state === "done" && t.assignee === ctx.agent.id && (a.note?.trim().length ?? 0) < MIN_EVIDENCE)
           throw badRequest(
             "note: say in a line what you verified (a test or build that passed, a page or file you checked). If it is not verified yet, verify it first; if something is left, do it before closing.",

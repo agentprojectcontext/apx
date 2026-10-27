@@ -1,5 +1,5 @@
 // A task turn that ends with the task still in progress goes on at once, part by part, instead of waiting for the
-// stall watch: an agent that ran out of steps or stopped at "I'll continue" picks up where it was (DECISIONS.md#d-161).
+// stall watch: an agent that ran out of steps or stopped at "I'll continue" picks up where it was (DECISIONS.md#d-162).
 // It stops when a part made no progress, after MAX_AUTO_PARTS in a row, or when something else is to come.
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
