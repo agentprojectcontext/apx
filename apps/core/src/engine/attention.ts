@@ -2,11 +2,12 @@
 // for the owner leave the tray once answered or moved on. A turn that ends or fails in one of the owner's chats is
 // noticed when the chat is still unread a moment later (nobody was looking) and has nothing else coming: the agent's
 // work ends once, not at each result that wakes it. Routines, channels and tasks add their own.
-import type { CoreEvent } from "@apx/protocol";
+import { type CoreEvent, noticeText, type Part } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { audienceOf } from "./audience.ts";
+import { tree } from "./breaker.ts";
 import { droppedWords } from "./owner-words.ts";
 import { droppedResult, silent } from "./run-outcome.ts";
 
@@ -72,8 +73,31 @@ export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date
     timers.add(timer);
   }
 
+  /**
+   * Agents paused at a limit the owner set: told once per conversation tree, in the app, until read. Each result that
+   * lands while paused adds its own line in the chat, never another notice.
+   */
+  function paused(threadId: string, notice: Extract<Part, { type: "notice" }>): void {
+    const top = tree(store, threadId)[0] ?? threadId;
+    const ref = `breaker:${top}`;
+    if (store.notifications.hasUnread("agent", ref)) return;
+    store.notifications.add({
+      kind: "agent",
+      level: "warn",
+      title: store.threads.get(top)?.title ?? "APX",
+      body: previewOf(noticeText(notice, store.settings.get("owner_language") === "en" ? "en" : "es")),
+      thread_id: threadId,
+      ref,
+    });
+  }
+
   function onEvent(e: CoreEvent): void {
-    if (e.type === "message.part" && e.part.type === "input") {
+    if (e.type === "message.created" && e.message.author.kind === "system") {
+      const notice = e.message.parts.find(
+        (p) => p.type === "notice" && (p.code === "breaker.paused" || p.code === "breaker.held"),
+      );
+      if (notice?.type === "notice") paused(e.message.thread_id, notice);
+    } else if (e.type === "message.part" && e.part.type === "input") {
       if (e.part.state !== "pending") {
         store.notifications.resolve("input", e.part.input_id);
         return;

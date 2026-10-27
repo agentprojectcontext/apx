@@ -531,9 +531,7 @@ export function createChannels(deps: {
       // An answer with no turn listening rewrites the whole message.
       for (const p of e.message.parts) if (p.type === "input") cards.settled(p.input_id, p.state);
     } else if (e.type === "message.created" && e.message.author.kind === "system") {
-      // Agents stopped by the breaker: the owner hears it wherever they are.
-      const paused = e.message.parts.find((p) => p.type === "notice" && p.code === "breaker.paused");
-      if (paused?.type === "notice") notifyOwner({ text: paused.text }, "notice", e.message.thread_id);
+      // A pause at the owner's own limit is told in the app only (engine/attention.ts), never on a channel.
       // A delegate APX keeps going on with is no news for the owner's phone: only a stop or a report is (DECISIONS.md#d-116).
       const limit = e.message.parts.find(
         (p) => p.type === "notice" && p.code === "delegation.limit" && !String(p.vars?.variant).startsWith("continued"),
