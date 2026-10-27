@@ -44,6 +44,13 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
       write: "auto",
       task: "read marker.txt",
     });
+  if (said.includes("consult it read-only") && !afterTool && subpathProjectRoot)
+    return callTool("w10", "delegate", {
+      worker,
+      project: path.join(subpathProjectRoot, "sub"),
+      write: "read-only",
+      task: "read marker.txt",
+    });
   if (said.includes("use a worker") && !afterTool)
     return callTool("w1", "delegate", { worker: { ...worker, tools: ["recall"] }, task: "look into A2A" });
   if (said.includes("worker slowly") && !afterTool)
@@ -193,6 +200,19 @@ test("continuing a session in another folder of the project goes on in it, now w
       [["researcher", root]],
       "one session, moved to the root with its context",
     );
+  });
+});
+
+test("going on with a session opened read-only, without saying how far it writes, lets it do the work", async () => {
+  await withProject(async (root, project) => {
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+    await env.client.call("threads.send", { thread: t.id, text: "consult it read-only" });
+    await env.settle(t.id);
+    assert.equal(env.core.store.threads.sessions(t.id)[0]?.write, "read-only");
+    await env.client.call("threads.send", { thread: t.id, text: "continue it" });
+    await env.settle(t.id);
+    const [session] = env.core.store.threads.sessions(t.id);
+    assert.deepEqual([session?.cwd, session?.write], [path.join(root, "sub"), "auto"], "same folder, its usual writes");
   });
 });
 

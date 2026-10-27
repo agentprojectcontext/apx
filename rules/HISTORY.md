@@ -338,3 +338,11 @@ and stripping `import`/`export` to fit `vm.Script` would be unsound. The child i
 desktop app it is Electron with `ELECTRON_RUN_AS_NODE=1` inherited (checked with Electron 42: exit 1 and a
 `SyntaxError:` line for a broken module, exit 0 for a good one). It runs off the event loop, all module scripts at once,
 for at most 3 seconds, and any failure to run it passes the script. Where: `apps/core/src/tools/widget-syntax.ts`.
+
+<a id="read-only-continuation"></a>
+### A consult opened read-only no longer keeps the work it leads to read-only
+The super-agent asked a developer agent to look at a task read-only, then told the same session to go on and finish it
+without naming a write policy. The session kept `read-only`, so the developer could neither run tests nor fix code, and
+the task sat "in progress" overnight. A delegation that continues a free session and says nothing about folder or
+writes now lifts a read-only session back to what caller, callee and project allow, in the same folder; one that asks
+for read-only again keeps it. Where: `apps/core/src/engine/delegation.ts`, test in `engine/workers.test.ts`.
