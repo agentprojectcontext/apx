@@ -2570,3 +2570,29 @@ APX's apps always tell them, and a chat app is an extra they may pick or not.
   before changing anything; not while it is working, since then it is most likely its own doing.
 
 Rejected: a digest of closed tasks once a day (the owner wants to hear when the work is done, not the next morning).
+
+<a id="d-161"></a>
+## D-161 — 2026-10-27 — Work goes on until it is done, and says what shows it
+Patterns read in an open harness (DeepSeek Harness, MIT, studied as reference; no code taken), adopted where APX's
+agents stopped short. Each answers a stop seen in real work:
+
+- **A task turn that ends with the task in progress goes on at once** (`engine/task-continue.ts`), numbered "part k of
+  at most 9", telling the agent to finish, verify and close, mark it waiting on the owner with why, or say what blocks
+  it. Not after a part that made no progress (`progress.ts` `stalled`), past `MAX_AUTO_PARTS` in a row, in review,
+  or while a subtask, a helper, a background command, a question or the breaker is still to come. The stall watch
+  (20 minutes, then the owner) stays for what this does not catch.
+- **Repeating a call is reminded, not cut.** Only the same call in a row counts (arguments compared with their keys
+  in order): a reminder at the third and fifth, tools off at the eighth. Returning to a read between other work is
+  not stuck.
+- **A background command's end joins its agent's running turn** between steps (the steer buffer carries results as
+  well as the owner's words), instead of one turn per command; with no running turn it starts one, as before.
+- **Providers get four tries** with doubling, jittered waits (up to 8 s), a Retry-After under 30 s waited for, a later
+  one moving to the next model at once; the turn's signal cuts any wait.
+- **Done says what shows it.** The agent closing its own work as done gives a note of what it verified; marking a task
+  as waiting on the owner gives `why`, posted on the task.
+- **A turn's changes card shows that turn's changes**: a git tree snapshot (private index) while the turn is prepared,
+  compared at its end.
+
+Rejected for now: programmatic tool calling (a typed tool SDK in the prompt breaks the prompt budget and needs its own
+sandbox), a goal tool separate from tasks (tasks already are the goal), fresh-worker rounds (APX's sessions keep
+context and compact).
