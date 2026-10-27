@@ -6,6 +6,8 @@ import { en as base } from "./en.ts";
 import { enEmailSignatures } from "./en-email-signatures.ts";
 import { es as esBase } from "./es.ts";
 import { esEmailSignatures } from "./es-email-signatures.ts";
+import { enIngress } from "./ingress-en.ts";
+import { esIngress } from "./ingress-es.ts";
 import { enReceived } from "./received-en.ts";
 import { esReceived } from "./received-es.ts";
 import { enSysUsage } from "./sysusage-en.ts";
@@ -25,6 +27,16 @@ test("thread dialog strings load only with their pack in both languages", async 
   }
 });
 
+test("public ingress strings load only with their configuration screen in both languages", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const base = await loadMessages(lang);
+    const pack = await loadPack("ingress", lang);
+    for (const key of Object.keys(enIngress) as (keyof typeof enIngress)[]) assert.equal(base[key], undefined);
+    assert.deepEqual(pack, lang === "en" ? enIngress : esIngress);
+  }
+});
+
 test("signature strings load as a separate pack in both languages", async () => {
   const { loadMessages, loadPack } = await import("./messages.ts");
   for (const lang of ["en", "es"] as const) {
@@ -36,8 +48,24 @@ test("signature strings load as a separate pack in both languages", async () => 
 });
 
 // A pack's strings belong to the language as much as the main chunk's.
-const en = { ...base, ...enComputer, ...enReceived, ...enSysUsage, ...enEmailSignatures, ...enThreadDialogs };
-const es = { ...esBase, ...esComputer, ...esReceived, ...esSysUsage, ...esEmailSignatures, ...esThreadDialogs };
+const en = {
+  ...base,
+  ...enComputer,
+  ...enReceived,
+  ...enSysUsage,
+  ...enEmailSignatures,
+  ...enThreadDialogs,
+  ...enIngress,
+};
+const es = {
+  ...esBase,
+  ...esComputer,
+  ...esReceived,
+  ...esSysUsage,
+  ...esEmailSignatures,
+  ...esThreadDialogs,
+  ...esIngress,
+};
 
 // Each language is loaded alone, so a key it lacks would show as the bare key.
 test("every English text has its Spanish translation", () => {

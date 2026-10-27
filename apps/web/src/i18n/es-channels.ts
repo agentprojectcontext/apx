@@ -296,41 +296,15 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "im.answer": "Contestar chats",
   "im.answerHint":
     "Las personas que te escriben por iMessage reciben respuesta de tu agente, una vez que las aprobás. Tus propios mensajes nunca se contestan.",
-  "ingress.base": "Dirección pública base",
-  "ingress.baseHint":
-    "La comparten los webhooks firmados de canales, los Flows protegidos con token y los widgets publicados explícitamente. El panel y el RPC siguen privados.",
-  "ingress.routes": "Endpoints públicos",
-  "ingress.routesHint":
-    "Cada Flow necesita su propio token bearer. Al habilitar o rotar un token, el anterior deja de servir de inmediato. LINE y Teams usan las firmas de su plataforma. Los widgets publicados son de solo lectura y no necesitan token bearer.",
-  "ingress.noRoutes":
-    "Creá un Flow con webhook para registrar un endpoint. No se expone ningún endpoint genérico por defecto.",
-  "ingress.enabled": "Token habilitado",
-  "ingress.revoked": "Token deshabilitado",
-  "ingress.rotate": "Rotar token",
-  "ingress.enable": "Habilitar token",
-  "ingress.revoke": "Revocar token",
-  "ingress.copied": "Copiado",
-  "ingress.copyToken": "Copiar token",
-  "ingress.hideToken": "Ocultar token",
-  "ingress.tokenHint":
-    "Token para {path}. Mandalo en Authorization: Bearer <token>, nunca en la URL. Guardalo en los secretos del servicio que llama; se oculta al salir de esta página.",
   "hooks.title": "Dirección pública",
-  "hooks.lead":
-    "Una dirección HTTPS para webhooks firmados de canales, Flows protegidos con token y widgets publicados explícitamente. Solo se admiten rutas registradas: nunca el panel ni la API. El proveedor da el dominio o la IP pública; APX no promete una IP fija.",
   "hooks.how": "Cómo se publica",
   "hooks.off": "Apagada",
   "hooks.offBody": "Sin túnel público: los servicios de internet no pueden llegar a este listener a través de APX.",
   "hooks.tailscale": "Tailscale",
-  "hooks.tailscaleBody":
-    "Tailscale Funnel da una dirección https fija en el puerto 8443. Gratis; Funnel tiene que estar permitido para este equipo en tu tailnet.",
   "hooks.ngrok": "ngrok",
-  "hooks.ngrokBody":
-    "APX arranca ngrok por vos. Una cuenta gratis suele mantener la misma dirección; si ngrok da una nueva, esta pantalla te avisa.",
   "hooks.custom": "Propia",
-  "hooks.customBody": "Tu propia dirección https, delante del puerto de webhooks (un proxy o un servidor tuyo).",
   "hooks.tsMissing": "Tailscale no está instalado en esta computadora.",
   "hooks.tsDisconnected": "Tailscale está instalado pero no conectado (o MagicDNS está apagado).",
-  "hooks.ngrokMissing": "ngrok no está instalado: instalalo y corré “ngrok config add-authtoken <tu token>” una vez.",
   "hooks.domain": "Dominio reservado",
   "hooks.domainHint": "Opcional: tu dominio de ngrok mantiene la misma dirección entre reinicios.",
   "hooks.ownUrl": "Tu dirección",
@@ -340,8 +314,6 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "hooks.copy": "Copiar",
   "hooks.copied": "Dirección copiada",
   "hooks.notUp": "Todavía no está activa",
-  "hooks.mayChange":
-    "Esta dirección de ngrok es nueva: pegala en la plataforma. Si ngrok da otra después de un reinicio, te lo vuelve a avisar acá.",
   "hooks.failed": "No se pudo cambiar la dirección pública: {error}",
   "hooks.err.funnel_failed":
     "Tailscale Funnel no arrancó: quizás haya que habilitarlo para esta computadora en la política del tailnet.",

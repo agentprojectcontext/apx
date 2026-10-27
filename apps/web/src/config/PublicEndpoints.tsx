@@ -3,10 +3,11 @@ import { Badge, Button, EmptyState, Icons, SettingRow, Skeleton } from "@apx/ui"
 import { useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
-import { useT } from "../i18n/index.ts";
+import { usePack, useT } from "../i18n/index.ts";
 import { SubHead } from "./SectionHead.tsx";
 
 export function PublicEndpoints() {
+  const ready = usePack("ingress");
   const t = useT();
   const [routes, setRoutes] = useState<PublicEndpointInfo[]>();
   const [base, setBase] = useState<string>();
@@ -61,6 +62,7 @@ export function PublicEndpoints() {
       fail(e);
     }
   };
+  if (!ready) return <Skeleton width="100%" height={80} />;
   return (
     <>
       <SubHead>{t("ingress.routes")}</SubHead>

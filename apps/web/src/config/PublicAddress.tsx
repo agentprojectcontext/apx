@@ -3,7 +3,7 @@ import { Badge, Button, Icons, Input, SegmentedControl, SettingRow, Skeleton } f
 import { useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
-import { type MessageKey, useT } from "../i18n/index.ts";
+import { type MessageKey, usePack, useT } from "../i18n/index.ts";
 import { SubHead } from "./SectionHead.tsx";
 
 const MODES: Array<{ id: HookMode; label: MessageKey; body: MessageKey }> = [
@@ -30,6 +30,7 @@ const ERRORS: Record<HookError, MessageKey | undefined> = {
  * the owner's own URL) and this channel's address to paste into the platform.
  */
 export function PublicAddress({ channelId }: { channelId?: string }) {
+  const ready = usePack("ingress");
   const t = useT();
   const [state, setState] = useState<WebhooksState>();
   const [busy, setBusy] = useState(false);
@@ -68,7 +69,7 @@ export function PublicAddress({ channelId }: { channelId?: string }) {
     }
   };
 
-  if (!state) return <Skeleton width="100%" height={120} />;
+  if (!state || !ready) return <Skeleton width="100%" height={120} />;
   const current = MODES.find((m) => m.id === state.mode) ?? MODES[0];
   const address = state.url ? `${state.url}${channelId ? `/hooks/${channelId}` : ""}` : undefined;
   const copy = () =>
