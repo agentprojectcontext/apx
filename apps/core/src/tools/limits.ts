@@ -5,7 +5,7 @@
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { budgetLeft, tree, tripped } from "../engine/breaker.ts";
-import { MAX_UNATTENDED_RUNS, MAX_UNATTENDED_TOKENS, unattendedLimits } from "../engine/limits.ts";
+import { unattendedLimits } from "../engine/limits.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 const k = (n: number) => (n ? `${Math.round(n / 1000)}k fresh tokens` : "no token limit");
@@ -55,7 +55,7 @@ export function limitTools(store: Store): Tool[] {
         const paused = tripped(store, ctx.thread.id);
         return [
           ...done,
-          `limits: ${turns(max.runs)}, ${k(max.tokens)} (defaults ${MAX_UNATTENDED_RUNS} turns, ${k(MAX_UNATTENDED_TOKENS)}); input read from a provider's cache does not count`,
+          `limits: ${turns(max.runs)}, ${k(max.tokens)} (by default there are none); input read from a provider's cache does not count`,
           used ? `spent here since the owner last wrote: ${used}` : "nothing limits this conversation now",
           paused ? `paused: ${paused}` : "not paused",
         ].join("\n");

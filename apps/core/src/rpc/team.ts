@@ -9,12 +9,7 @@ import { readTemplates, singlesOf, type TemplateFile, type TemplateRoot } from "
 import { writeAgentFromTemplate, writeProjectMeta } from "../apc/write.ts";
 import { publicAgent } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
-import {
-  MAX_UNATTENDED_RUNS,
-  MAX_UNATTENDED_TOKENS,
-  saveUnattendedLimits,
-  unattendedLimits,
-} from "../engine/limits.ts";
+import { SUGGESTED_LIMITS, saveUnattendedLimits, unattendedLimits } from "../engine/limits.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
 import { freeName } from "./agent-clone.ts";
 import type { Handlers } from "./router.ts";
@@ -28,7 +23,7 @@ export function teamHandlers(
   return {
     "agents.limits": () => ({
       ...unattendedLimits(store),
-      defaults: { runs: MAX_UNATTENDED_RUNS, tokens: MAX_UNATTENDED_TOKENS },
+      defaults: { ...SUGGESTED_LIMITS },
       agents: store.settings.read("agent_limits").agents ?? {},
       fan_out_ask: store.settings.read("fan_out_ask"),
     }),

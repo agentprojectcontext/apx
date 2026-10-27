@@ -123,6 +123,7 @@ export const teamMethods = {
     effect: true,
     access: "human",
   },
+  /** The limits in force (0: none) and `defaults`, what turning them on starts from. */
   "agents.limits": {
     params: z.object({}).strict(),
     result: AgentLimits.extend({ defaults: AgentLimits, agents: AgentBudgets, fan_out_ask: z.boolean() }),
