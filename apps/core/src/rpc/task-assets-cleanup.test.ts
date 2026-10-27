@@ -155,20 +155,35 @@ test("a failed detach unlink remains tracked until a later cleanup retries it", 
       deadline_at: new Date(Date.now() + 60_000).toISOString(),
     });
     env.core.store.runs.setState(run, "working");
-    const read = await env.core.dispatch(
-      "media.get",
-      { id: asset.media_id },
-      {
-        transport: "internal",
-        role: "operator",
-        actor: "agent",
-        session: undefined,
-        log: createLog("test", true),
-        agent: { id: "roby", thread_id: task.thread_id, run_id: run.id },
-      },
-    );
-    env.core.store.runs.setState(run, "completed");
-    assert.equal(read.ok, false);
+    const ctx = {
+      transport: "internal" as const,
+      role: "operator" as const,
+      actor: "agent" as const,
+      session: undefined,
+      log: createLog("test", true),
+      agent: { id: "roby", thread_id: task.thread_id, run_id: run.id },
+    };
+    try {
+      assert.equal((await env.core.dispatch("media.get", { id: asset.media_id }, ctx)).ok, false);
+      assert.equal(
+        (await env.core.dispatch("media.attach", { path: asset.media_id }, ctx, "detached-materialize")).ok,
+        false,
+      );
+      assert.equal(
+        (
+          await env.core.dispatch(
+            "tasks.attach",
+            { task: task.id, media_ids: [asset.media_id] },
+            ctx,
+            "detached-reattach",
+          )
+        ).ok,
+        false,
+      );
+      assert.deepEqual((await env.client.call("tasks.get", { task: task.id })).attachments, []);
+    } finally {
+      env.core.store.runs.setState(run, "completed");
+    }
     pruneTaskUploads(env.core.store, new Date(Date.parse(stored.created_at) + 25 * 60 * 60 * 1000));
     assert.equal(env.core.store.media.get(asset.media_id), undefined);
     assert.equal(fs.existsSync(stored.path), false);

@@ -52,6 +52,43 @@ test("selected task snapshots survive source chat deletion, pagination and resta
   }
 });
 
+test("the total attachment limit rejects overflow atomically but permits retries and snapshot deduplication", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("Done")) });
+  try {
+    const sources: string[] = [];
+    for (let i = 0; i < 51; i++) sources.push((await env.client.call("media.upload", upload())).media.id);
+    const task = await env.client.call("tasks.create", {
+      title: "Bounded evidence",
+      attachments: sources.slice(0, 20),
+    });
+    await env.client.call("tasks.attach", { task: task.id, media_ids: sources.slice(20, 40) });
+    await env.client.call("tasks.attach", { task: task.id, media_ids: sources.slice(40, 49) });
+    const before = (await env.client.call("tasks.get", { task: task.id })).attachments;
+    assert.equal(before.length, 49);
+    await assert.rejects(
+      env.client.call("tasks.attach", { task: task.id, media_ids: sources.slice(49) }),
+      /at most 50 attachments/,
+    );
+    assert.deepEqual((await env.client.call("tasks.get", { task: task.id })).attachments, before);
+    const full = await env.client.call("tasks.attach", { task: task.id, media_ids: [sources[49] as string] });
+    assert.equal(full.attachments.length, 50);
+    const snapshot = full.attachments[49];
+    assert.ok(snapshot);
+    assert.deepEqual(
+      await env.client.call("tasks.attach", { task: task.id, media_ids: [sources[49] as string, snapshot.media_id] }),
+      full,
+    );
+    await assert.rejects(
+      env.client.call("tasks.attach", { task: task.id, media_ids: [sources[50] as string] }),
+      /at most 50 attachments/,
+    );
+    assert.deepEqual((await env.client.call("tasks.get", { task: task.id })).attachments, full.attachments);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
 test("missing or oversized sources leave no partial task or attachment metadata", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("Done")) });
   try {
