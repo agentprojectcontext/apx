@@ -1,0 +1,42 @@
+---
+title: Signal
+description: Conectá Signal mediante un daemon local de signal-cli y probá una conversación directa.
+sidebar:
+  order: 7
+---
+
+## Prepará la computadora del core
+
+Signal usa **signal-cli**, que instalás y vinculás con un número de Signal por separado. Puede ser un número dedicado
+o un dispositivo vinculado a tu cuenta. APX no lo instala ni lo registra por vos. Ejecutá el daemon en la computadora
+del core, no solamente en el teléfono o la notebook donde mirás el panel.
+
+Para un número ya configurado en signal-cli, iniciá su daemon HTTP reemplazando el marcador por ese número:
+
+```bash
+signal-cli -a +NUMBER daemon --http 127.0.0.1:8080
+```
+
+Mantené privado este endpoint HTTP: acceder a él permite usar la cuenta de Signal vinculada. No lo publiques en
+internet para resolver un problema de conexión.
+
+## Conectá e identificá tu cuenta
+
+1. Abrí **Configuración › Canales › Agregar canal › Signal**.
+2. Ingresá la dirección de signal-cli y el número, y elegí el agente que responde.
+3. Escribile al número vinculado desde tu cuenta de Signal. Ingresá el código en **Este es mi Signal** para identificar
+   tu cuenta; aprobá a las demás personas como contactos.
+4. Enviá un mensaje simple de prueba y comprobá la respuesta en Signal y en la conversación del canal en APX.
+
+Solo se leen **chats uno a uno**. Vincular Signal no habilita conversaciones grupales. Revisá **Desconocidos** y
+**Tus mensajes** como explica el [resumen de canales](/es/channels/overview/).
+
+## Preguntas y solución de problemas
+
+Signal permite verificar la cuenta remitente, pero primero tenés que vincular la cuenta correcta como tuya. Las
+preguntas y confirmaciones llegan como opciones numeradas; respondé con el número indicado. Los cambios de
+configuración que requieren la app de APX se siguen aprobando allí.
+
+Si el canal no está disponible, revisá que signal-cli esté vinculado y que su daemon siga activo en la dirección
+guardada. Un core remoto no alcanza el daemon de tu notebook a través de su propio `127.0.0.1`. Diagnosticá la
+computadora del core en vez de publicar el daemon. Probá con un chat directo y revisá el error del canal antes de reintentar.

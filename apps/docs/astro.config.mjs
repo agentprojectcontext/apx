@@ -86,7 +86,23 @@ export default defineConfig({
       sidebar: [
         section("Start here", "Empezar", "start"),
         section("Core ideas", "Ideas clave", "concepts"),
-        section("Your office", "Tu oficina", "office"),
+        {
+          label: "Your office",
+          translations: { es: "Tu oficina" },
+          items: ["office/chat", "office/tasks", "office/routines", "office/secretary", "office/code", "office/email"],
+        },
+        {
+          label: "Apps and artifacts",
+          translations: { es: "Apps y artefactos" },
+          collapsed: false,
+          items: ["apps/overview", "office/artifacts", "apps/live-apps", "office/board"],
+        },
+        {
+          label: "Computers and browser",
+          translations: { es: "Computadoras y navegador" },
+          collapsed: false,
+          items: ["computers/overview", "office/computers", "office/browser"],
+        },
         section("Channels", "Canales", "channels"),
         section("Extend", "Extender", "extend"),
         section("Everywhere", "En todos lados", "devices"),

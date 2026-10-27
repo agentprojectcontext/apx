@@ -1,0 +1,45 @@
+---
+title: Matrix y Mattermost
+description: Conectá una cuenta bot en tu servidor y conocé los límites de mensajes directos.
+sidebar:
+  order: 6
+---
+
+## Antes de conectar
+
+Abrí **Configuración › Canales › Agregar canal**, elegí el servicio y el agente que responde. Necesitás una cuenta o
+bot en un servidor accesible desde la computadora del core. Estos adaptadores se conectan al servidor; no necesitan
+la dirección pública de webhooks de APX. Guardá los tokens en el formulario, nunca en un chat o artefacto.
+
+## Matrix
+
+1. Creá una cuenta de Matrix para el agente en tu homeserver.
+2. Iniciá sesión con esa cuenta en Element y copiá su token de acceso desde **Configuración › Ayuda y acerca de**.
+3. En APX elegí **Matrix**, ingresá la dirección del homeserver y el token, y conectá.
+4. Iniciá un **chat directo sin cifrado**, enviá un mensaje e ingresá su código en **Este es mi Matrix** si es tu
+   cuenta. Aprobá a las demás personas como contactos.
+
+APX lee salas directas con dos miembros. Puede aceptar invitaciones directas, pero **no descifra salas con cifrado
+de extremo a extremo**. No pases una conversación sensible a texto sin cifrar solo para usar un bot; elegí otro
+canal si necesitás cifrado. Este adaptador no permite automatizar salas grupales.
+
+Si no llega nada, revisá URL, token, miembros y cifrado. Una conexión válida no vuelve legible una sala grupal o cifrada.
+
+## Mattermost
+
+1. Pedile al administrador que habilite bots en **System Console › Integrations › Bot accounts**.
+2. En **Integrations › Bot accounts**, creá el bot y copiá su token.
+3. Elegí **Mattermost** en APX e ingresá la URL del servidor y el token.
+4. Escribile un mensaje directo al bot. Ingresá su código en **Este es mi Mattermost** para vincular tu cuenta.
+
+Solo se leen mensajes directos; no es un bot para todos los canales públicos del workspace. Si un mensaje no llega,
+revisá el acceso y el token del bot y probá en un chat directo, no en un canal del equipo.
+
+## Primera prueba útil
+
+Enviá «Respondé con una prueba corta de conexión» desde tu cuenta vinculada. Buscá la conversación en **Canales** de
+APX y comprobá que la respuesta llega al mismo servicio. Después elegí **Tus mensajes › Inicio** o **Chat propio** y
+revisá **Desconocidos** antes de compartir la dirección del bot. La respuesta sale desde el bot, no desde tu cuenta personal.
+
+Siguen vigentes los [límites de canales](/es/channels/overview/) y las [respuestas supervisadas](/es/channels/supervised/).
+Un remitente externo no obtiene tus archivos, memoria ni herramientas por escribirle al bot.

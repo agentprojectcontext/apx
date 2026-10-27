@@ -15,6 +15,35 @@ Los canales se conectan en **Configuración › Canales**. Después cada uno apa
 
 <Shot name="settings-channels" alt="Configuración, sección Canales: un bot de Telegram conectado con su estado, quién responde y cómo se comporta" caption="Configuración › Canales" />
 
+## Canales disponibles
+
+El catálogo actual tiene **17 tipos conectables**. Son adaptadores de canales, no integraciones de Google,
+servidores MCP ni dispositivos vinculados. Todos tienen instrucciones abajo; algunos servicios relacionados comparten guía.
+
+| Canal | Configuración y límite importante |
+|---|---|
+| Telegram | [Bot](/es/channels/telegram/); chats directos y grupos listados. |
+| WhatsApp | [Vinculación QR](/es/channels/whatsapp/); tu línea o una dedicada. |
+| Discord | [Bot y salas](/es/channels/discord-slack/); habilitá las salas explícitamente. |
+| Slack | [App con Socket Mode](/es/channels/discord-slack/); mensajes directos. |
+| iMessage | [Permisos en Mac](/es/channels/imessage/); en la Mac del core. |
+| Matrix | [Servidor y token](/es/channels/self-hosted/#matrix); solo directos sin cifrado. |
+| Mattermost | [Cuenta bot](/es/channels/self-hosted/#mattermost); solo directos. |
+| Signal | [signal-cli](/es/channels/signal/); directos, requiere daemon local. |
+| Email | [Buzón IMAP/SMTP](/es/channels/email/); distinto de la integración Gmail. |
+| Google Chat | [App Pub/Sub](/es/channels/work-chat/#google-chat); directos y espacios listados. |
+| Nextcloud Talk | [Usuario bot](/es/channels/work-chat/#nextcloud-talk); directos y conversaciones listadas. |
+| SMS | [Número Twilio](/es/channels/sms-ntfy/); se aplican cargos del proveedor. |
+| ntfy | [Tema protegido](/es/channels/sms-ntfy/#ntfy); un dueño, no una agenda de contactos. |
+| IRC | [Red y nick](/es/channels/irc-twitch/#irc); privados y canales listados. |
+| Twitch | [Bot de chat](/es/channels/irc-twitch/#twitch); sala pública, no bandeja de directos. |
+| Microsoft Teams | [Bot Azure](/es/channels/teams-line/#microsoft-teams); requiere webhook HTTPS público. |
+| LINE | [Cuenta oficial](/es/channels/teams-line/#line); requiere webhook HTTPS público. |
+
+Empezá en **Configuración › Canales › Agregar canal**. Conectar no prueba que todas las salas, archivos o botones
+funcionen: seguí la guía del servicio y probá recepción y respuesta. Leé [dispositivos](/es/devices/phone/) para la
+app Android e [integraciones](/es/extend/integrations/) para servicios conectados que no son canales.
+
 ## Tres palabras: canal, contacto, sala
 
 - Un **canal** es una app por la que habla APX: Telegram, WhatsApp, Discord, Slack, iMessage, Google Chat, SMS y más.

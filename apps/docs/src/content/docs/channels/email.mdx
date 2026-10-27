@@ -1,0 +1,45 @@
+---
+title: Email mailbox
+description: Give an agent an IMAP/SMTP mailbox, restrict incoming senders and test replies safely.
+sidebar:
+  order: 12
+---
+
+## Mailbox or Gmail integration?
+
+An **Email channel** reads incoming mail through IMAP and answers through SMTP. The **Gmail integration** is a
+separate connection for agents to search, read, draft and send when you ask. Connecting Calendar does not connect
+either one. See [Email and signatures](/office/email/) for Gmail and local sender signatures.
+
+## Connect a mailbox
+
+1. Prefer a mailbox dedicated to the agent. Enable IMAP with the provider and create an **app password** where
+   required (for example Gmail, iCloud or Yahoo); an ordinary account password may not work.
+2. Open **Settings › Channels › Add channel › Email**. Enter the address, app password and optional display name.
+3. Known providers fill the IMAP and SMTP servers. Otherwise enter each host, port and security mode. Typical secure
+   choices are IMAP 993 with SSL/TLS and SMTP 465 with SSL/TLS or 587 with STARTTLS; use your provider's actual settings.
+4. Set the sign-in name if it differs from the email address. Connect and check the status before testing.
+5. Send a short message from another mailbox, approve its pairing request as the appropriate person and verify a reply.
+
+**None** security is only for local mail servers, not an internet connection. APX stores the password as a secret;
+it does not display it again. Changing server details or password reconnects the mailbox.
+
+## Restrict incoming mail
+
+**Who may write** accepts individual addresses or a domain such as `@example.com`. An empty list allows incoming
+senders to reach the normal stranger-handling flow; it does not automatically approve everyone. Start with a narrow
+allowlist and review **Strangers** and the [supervised reply mode](/channels/supervised/).
+
+By default APX drops messages whose sender domain the mail server could not verify with DKIM, SPF or DMARC.
+**Read unverified mail** weakens that protection: enable it only if you understand why your server does not check
+senders. A From address is not proof that you authorized an instruction. Incoming email remains outside content.
+
+## Replies, signatures and recovery
+
+Replies stay in the mail thread and send from the configured mailbox. Set its local signature in
+**Settings › Account › Email signatures**; this does not change your mail provider's signature. Ask for a draft or
+use supervision if every outgoing answer needs review. A sent email cannot simply be taken back.
+
+If nothing arrives, check IMAP access, app password, allowlist and sender verification before disabling safeguards.
+If reading works but sending fails, check SMTP separately: the two services can have different ports and policies.
+Inspect the channel error and outbox rather than assuming a queued message was delivered.

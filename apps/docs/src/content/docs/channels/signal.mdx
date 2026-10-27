@@ -1,0 +1,42 @@
+---
+title: Signal
+description: Connect Signal through a local signal-cli daemon and test a direct conversation.
+sidebar:
+  order: 7
+---
+
+## Prepare the core's computer
+
+Signal uses **signal-cli**, which you install and link to a Signal number separately. It can be a dedicated number
+or a linked device for your account. APX does not install or register it for you. Run the daemon on the computer
+hosting the core, not merely the phone or laptop showing the panel.
+
+For a number already configured in signal-cli, start its HTTP daemon, replacing the placeholder with that number:
+
+```bash
+signal-cli -a +NUMBER daemon --http 127.0.0.1:8080
+```
+
+Keep this HTTP endpoint private: access to it lends access to the linked Signal account. Do not expose it on the
+internet to solve a connection problem.
+
+## Connect and identify yourself
+
+1. Open **Settings › Channels › Add channel › Signal**.
+2. Enter the signal-cli address and the number, and select the agent that answers.
+3. Write to the linked number from your own Signal account. Enter the code under **This is my Signal** to identify
+   your account; approve other people as contacts instead.
+4. Send a simple test message and check the answer both in Signal and in APX's channel conversation.
+
+Only **one-to-one chats** are read. Linking Signal does not enable group conversations. Review **Strangers** and
+**Your messages** as described in the [channel overview](/channels/overview/).
+
+## Questions and troubleshooting
+
+Signal can establish the sending account, but only after you link the correct account as yours. Questions and
+confirmations arrive as numbered options; answer with the number shown. Settings changes that require the APX app
+must still be approved there.
+
+If the channel is unavailable, check that signal-cli is linked and its daemon is still running at the saved address.
+A remote core cannot reach a daemon on your laptop through its own `127.0.0.1`. Diagnose the machine running the core
+rather than publishing the daemon. Use a direct conversation for testing, and inspect the channel's error before retrying.

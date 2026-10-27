@@ -1,0 +1,40 @@
+---
+title: SMS y ntfy
+description: Conectá un número de Twilio o un tema protegido de ntfy, con sus distintos límites de identidad y entrega.
+sidebar:
+  order: 9
+---
+
+## SMS mediante Twilio
+
+1. En Twilio, comprá o elegí un número que pueda enviar SMS. Siguen vigentes los límites de tu cuenta y operador;
+   APX no vuelve gratuitos los SMS.
+2. Copiá **Account SID** y **Auth Token** desde Account Info de la consola.
+3. Abrí **Configuración › Canales › Agregar canal › SMS** e ingresá esos datos y el número. Elegí el agente.
+4. Enviá un SMS al número. APX consulta mensajes cada pocos segundos; este adaptador **no necesita webhook**.
+5. Vinculá tu remitente con el código del SMS; aprobá a los demás como contactos, no como vos.
+
+Probá primero con texto corto. Un número no prueba autoridad del dueño: las instrucciones riesgosas pueden requerir
+confirmación en APX. No asumas que botones, imágenes, confirmaciones de lectura o mensajes largos funcionan como en
+WhatsApp. Si no llega nada, revisá capacidad SMS, restricciones de la cuenta, credenciales y error del canal. Las
+respuestas salen desde el número de Twilio configurado y pueden generar cargos del proveedor.
+
+## ntfy
+
+Este canal tiene **una sola persona: vos**. No es un bot de mensajería con varios contactos. También es distinto de
+configurar una dirección push ntfy para un [teléfono vinculado](/es/devices/phone/#notificaciones-push).
+
+1. Instalá ntfy y suscribite a un tema largo y aleatorio en ntfy.sh o tu servidor.
+2. Preferí un tema protegido y creá un token de acceso en la configuración de ntfy. **Cualquiera que conozca un tema
+   sin protección puede escribir como vos**; un nombre difícil no autentica una cuenta.
+3. Abrí **Configuración › Canales › Agregar canal › ntfy**. Ingresá servidor, tema y token si hace falta.
+4. Respondé en el tema para hablar con el agente. Probá una respuesta y un mensaje del agente antes de usarlo para avisos.
+
+El tema no es una sesión autenticada del dueño. Las confirmaciones pueden indicarte que uses la app de APX en vez
+de aprobar desde ntfy. Si falla la entrega, revisá permisos del servidor, nombre del tema y token tanto en APX como en ntfy.
+
+## Uso sin abrir permisos nuevos
+
+Elegí los destinos de avisos en la configuración de interrupciones si querés recibir allí mensajes del agente.
+Conectar un canal no garantiza que todo aviso se envíe: siguen vigentes horarios y presupuestos de interrupción.
+Leé [Canales](/es/channels/overview/) para el destino de tus mensajes y [Secretario](/es/office/secretary/) para avisos.

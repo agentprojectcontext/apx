@@ -119,7 +119,9 @@ What it does once paired:
 - **Pairs** by scanning the QR, opening an `apx://pair` link, or typing the address and the code by hand. It keeps its
   key in the system's secure storage.
 - **Shows your Home chat live**, over the same socket the panel uses.
-- **Shows your pinned widgets and apps** (the Apps button), each full screen, sandboxed the same way the panel does it.
+- **Lists pinned surfaces and every app** (the Apps button), even an app that is not pinned. Open one full screen.
+  See [Apps and artifacts](/apps/overview/) for their purpose; the native WebView does not promise every web-panel
+  integration or bridge feature.
 - **Lends the phone to the core as a node**: agents get `phone_location` and `phone_photo`, but only while the phone
   is connected. A photo is always taken by you on the phone (the app shows why the agent wants it). Location asks the
   system's permission once, and asks for your OK whenever outside content is in the turn.
@@ -136,10 +138,59 @@ npm install
 npx expo start      # Expo Go or a dev build; the core must be reachable on the network
 ```
 
+The default release build configuration targets **ARM64 (`arm64-v8a`)**. Other architectures can be built, but do
+not assume an APK supports an older ARM32 phone or an x86 emulator: check the specific release artifact before
+installing. Build configuration alone is not proof of the ABIs inside an already published APK.
+
+Pairing lends the connected phone's **location and camera**, not general Android app control, ADB or access to every
+file on the phone. Location uses a foreground system permission; do not treat it as continuous background tracking.
+A camera action still requires you to frame and take the photo. If the app is disconnected or suspended, do not
+assume these node capabilities remain available just because the pairing key is saved.
+
+## Navigate the Android app
+
+The native app is more than Home chat. The bottom navigation offers **Chats**, **Inbox**, **Tasks**, **Sessions**
+and **More**. Under More, open routines, agents, projects, channels, memory, apps, files and settings. Some sections
+show summaries and open detail screens rather than every desktop configuration control; the same core owns their data.
+
+- **Chats** opens your conversations. **Inbox** brings together items needing attention; **Sessions** shows agent
+  sessions and their actual state. A queued, waiting or interrupted run is not a completed result.
+- **Tasks:** tap **+** to create a task with its title, description and available project/assignee fields. Open a task
+  to update its fields, comment, inspect history or attached work, and use its available close/reopen actions. See
+  [Tasks](/office/tasks/) for the shared task model.
+- **More › Routines:** open an existing routine to edit its instructions, assignee and schedule; its card also lets
+  you enable/disable it or run it now and inspect recent runs. Changing a schedule is not proof that a run succeeded.
+- **More › Projects:** browse registered projects, open their conversations or create a project. **Files** browses
+  project folders and previews supported files; it is not a general editor or a view of every file on your phone.
+- **More › Memory:** filter notes by scope, add a note or delete one. **Agents** opens an agent's chat; **Channels**
+  lists configured connections and their state, rather than offering the full channel-setup controls of the panel.
+- **More › Settings:** review notification permission/registration, notice sounds and the audio-end sound, choose
+  system/light/dark appearance, and adjust notice preferences. **Disconnect** removes this app's pairing after
+  confirmation; it does not shut down the core or disconnect every device.
+
+Creating or editing work uses the same permissions and confirmations as other APX clients, not a separate
+unrestricted mobile account. Use the web panel for settings not offered by the native screens.
+
+## Attachments, images and voice
+
+In chat, use the attachment controls to select a photo or file, or record a voice message. A camera request from an
+agent shows why it needs the image and lets **you** take or decline it; pairing does not authorize silent camera use.
+
+Open a received/generated image or video to inspect it. Its media actions offer **Save to gallery** for supported
+pictures and videos (with Android's media permission), and **Share or open** to pass the file to another app or keep
+it through the system sheet. Other documents use sharing/opening rather than the photo gallery. Long-press a text
+message for copy, selection or sharing. These actions affect the file on your phone, not the core's original.
+
+If saving fails, check the app's media permission and that the file has finished downloading. An error or an open
+share sheet is not proof that Android saved it. Confirm in your gallery or destination app. If the file is private,
+choose the recipient deliberately: sharing out of APX leaves its chat boundaries.
+
 ## Push notifications
 
 Every notice in the app's tray reaches your paired phones too, so routine news, finished tasks, reminders and
 questions from agents find you even with the app closed. A chat app (Telegram, WhatsApp…) is an extra you may pick.
+Android's notification permission alone is not enough while the app is suspended or closed: the phone also needs a
+working push registration.
 
 <Steps>
 

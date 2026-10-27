@@ -147,6 +147,12 @@ Applies to every feature and fix, including a small fix that skips the full work
   security/permission boundaries and engineering rules. Update existing docs or create the missing page in the
   same change. Write English first; keep Spanish paths, instructions and caveats in parity. Distinguish tagged
   behavior from unreleased integration-branch work; a news `since` field alone is not release evidence.
+- **Coverage audits:** work from product entry points toward documentation, not only from existing pages or release
+  subjects. Inventory the protocol/core capabilities, web navigation and settings, desktop actions and mobile/APK
+  screens. Map each owner-facing capability to an actionable guide or a justified gap; separate integrations,
+  channels, devices and work not yet integrated. Compare catalog counts with the actual registries. Give large
+  capabilities their own sidebar group, and verify that both languages expose it from an ordinary page. A passing
+  build, link check or a page count is not semantic completeness or proof of live platform behavior.
 - **Evidence:** put `Docs impact: updated — <paths and changed contract>` or `Docs impact: none — <specific reason>`
   in the change description or commit body. A test-only timing repair, for example, may leave all documented
   commands and behavior unchanged. "Internal" or "tests pass" alone is not an explanation.

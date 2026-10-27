@@ -364,7 +364,7 @@ You have three open things in Acme Store:
           <a href="https://github.com/agentprojectcontext/apx">GitHub</a>
           <a href={discord}>Discord</a>
           <a href="https://github.com/agentprojectcontext/agentprojectcontext">APC</a>
-          <a href={href(other)}>{lang === "es" ? "English" : "Español"}</a>
+          <a href={href(other)} hreflang={lang === "es" ? "en" : "es"}>{lang === "es" ? "English" : "Español"}</a>
         </p>
       </div>
     </footer>
