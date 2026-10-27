@@ -7,7 +7,8 @@ import type { Store } from "../domain/store.ts";
 import { commandEnv } from "../harness/env.ts";
 import type { Log } from "../log.ts";
 import { processStart, spawnCommand, stopTree } from "../processes.ts";
-import { pausedNotice } from "./breaker.ts";
+import { keepWhilePaused } from "./breaker.ts";
+import { frameInput } from "./context.ts";
 import type { Admit, AdmitFn } from "./engine.ts";
 
 /** Set on an agent's commands, so the apx CLI knows an agent runs it, not the owner. */
@@ -55,16 +56,6 @@ export function createJobs(deps: {
   /** A background job ended: the agent that started it gets the end of the output in a new turn. */
   function wake(job: JobRecord): void {
     if (!job.background || !job.agent_id || job.state === "canceled") return;
-    const paused = pausedNotice(store, job.thread_id, `"${job.title.slice(0, 80)}"`);
-    if (paused) {
-      log.warn({ job: job.id, thread: job.thread_id }, "background job ended while agents are paused");
-      store.messages.add({
-        thread_id: job.thread_id,
-        author: { kind: "system" },
-        parts: [paused],
-      });
-      return;
-    }
     const wake: Admit = {
       thread_id: job.thread_id,
       agent_id: job.agent_id,
@@ -79,6 +70,16 @@ export function createJobs(deps: {
       text: read(job.id, undefined, WAKE_TAIL).output || "(no output)",
       reply_to: job.run_id ? store.runs.get(job.run_id)?.input?.reply_to : undefined,
     };
+    const kept = keepWhilePaused(store, {
+      thread_id: job.thread_id,
+      agent_id: job.agent_id,
+      who: `"${job.title.slice(0, 80)}"`,
+      note: `A background command you started ended while agents were paused:\n${frameInput(wake.origin, wake.text)}`,
+    });
+    if (kept) {
+      log.warn({ job: job.id, thread: job.thread_id }, "background job ended while agents are paused");
+      return;
+    }
     // While the agent is at work, the end joins that turn: many commands ending are one turn, not one each.
     if (!deps.steer?.(wake)) deps.admit(wake);
   }

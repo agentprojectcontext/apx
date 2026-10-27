@@ -5,8 +5,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
-import { systemNote } from "../harness/native.ts";
-import { pausedNotice } from "./breaker.ts";
+import { keepWhilePaused } from "./breaker.ts";
 import { frameInput } from "./context.ts";
 import type { AdmitFn } from "./engine.ts";
 
@@ -111,15 +110,8 @@ export function reportClose(
   const text = reportOf(store, task, closer.id, close.event.data.note, freshSince);
   let first: RunRecord | undefined;
   for (const { thread, agent, run, by } of targets) {
-    const paused = pausedNotice(store, thread.id, closer.name);
-    if (paused) {
-      store.modelLog.append(thread.id, undefined, [
-        systemNote(`A task you handed off was closed while agents were paused:\n${frameInput(origin, text)}`),
-      ]);
-      store.messages.add({ thread_id: thread.id, author: { kind: "system" }, parts: [paused] });
-      store.threads.mergeContext(thread.id, { kept: agent.id });
-      continue;
-    }
+    const note = `A task you handed off was closed while agents were paused:\n${frameInput(origin, text)}`;
+    if (keepWhilePaused(store, { thread_id: thread.id, agent_id: agent.id, who: closer.name, note })) continue;
     const reported = admit({
       thread_id: thread.id,
       agent_id: agent.id,
