@@ -9,6 +9,10 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
   if (!system.startsWith("You are Vera")) return say("ok");
   const all = JSON.stringify(req.messages);
   const task = taskOf(/Task (task_\w+)/.exec(all)?.[0] ?? all);
+  if (all.includes("Close it bare")) {
+    if (!afterTool) return callTool("bare", "task_close", { task, state: "done" });
+    return say(String(req.messages.at(-1)?.content));
+  }
   if (all.includes("Spin around")) return afterTool ? say("Still looking.") : callTool("look", "task_list", {});
   if (said.includes("Part 2 of at most")) {
     if (!afterTool) return callTool("close", "task_close", { task, state: "done", note: "both halves shipped" });
@@ -59,5 +63,22 @@ test("a part that gets nowhere is not followed by another: the stall watch has i
   await waitFor(() => turnsOn(task.id).length >= 2 && turnsOn(task.id).every((r) => r.ended_at), "two parts");
   await new Promise((r) => setTimeout(r, 300));
   assert.equal(turnsOn(task.id).length, 2, "the second part only looked things up, so no third");
+  assert.equal(env.core.store.tasks.get(task.id)?.state, "open");
+});
+
+test("the agent that did the work closes it as done only saying what it verified", async () => {
+  const task = await env.client.call("tasks.create", {
+    title: "Close it bare",
+    description: "Close it without a word.",
+    assignee: "vera",
+  });
+  await waitFor(() => turnsOn(task.id)[0]?.ended_at !== undefined, "the turn ends");
+  // The script answers with what the refusal said.
+  const said = env.core.store.threads
+    .byTask(task.id)
+    .flatMap((t) => env.core.store.messages.list(t.id, 20))
+    .flatMap((m) => m.parts.map((p) => (p.type === "text" ? p.text : "")))
+    .join("\n");
+  assert.match(said, /note: say in a line what you verified/);
   assert.equal(env.core.store.tasks.get(task.id)?.state, "open");
 });
