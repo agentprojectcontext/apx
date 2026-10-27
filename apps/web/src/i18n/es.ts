@@ -1076,7 +1076,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "logs.older": "Ver líneas anteriores",
   "appearance.textSize": "Tamaño del texto",
   "appearance.textSizeHint":
-    "Texto de la interfaz y el chat en este dispositivo. 100% es el tamaño normal; no cambia las imágenes ni el zoom del navegador.",
+    "Texto de la interfaz y el chat en este dispositivo. 100% es el tamaño normal. No cambia las imágenes, las apps incrustadas, los terminales ni el zoom del navegador.",
   "appearance.font": "Fuente de la interfaz",
   "appearance.fontHint": "Menús, barras laterales y paneles.",
   "appearance.fontLabel": "Fuente",
