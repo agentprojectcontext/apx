@@ -397,7 +397,15 @@ export function startScheduled(store: Store, admit: AdmitFn, now: Date): RunReco
         store.threads.byTask(t.id).length === 0,
     )
     .slice(0, PICKUP_AT_ONCE)
-    .flatMap((t) => startTaskWork(store, admit, t, t.assignee ?? "", askerOfCreation(store, t), { now }) ?? []);
+    .flatMap((t) => startLater(store, admit, t, now) ?? []);
+}
+
+/**
+ * A task started by the office clock (its start time, the hourly pickup), not at its giver's word: as the one who gave
+ * it, so an agent's task spends its chain's budget and never starts as if the owner had asked (DECISIONS.md#d-082).
+ */
+function startLater(store: Store, admit: AdmitFn, task: Task, now?: Date): RunRecord | undefined {
+  return startTaskWork(store, admit, task, task.assignee ?? "", askerOfCreation(store, task), now ? { now } : {});
 }
 
 /** Who gave the task, for a start that comes later: the owner, or the agent and chat it was created from. */
@@ -632,7 +640,5 @@ export function pickUpTasks(store: Store, admit: AdmitFn): RunRecord[] {
       (a, b) =>
         PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || (a.due_at ?? "￿").localeCompare(b.due_at ?? "￿"),
     );
-  return waiting
-    .slice(0, PICKUP_AT_ONCE)
-    .flatMap((t) => startTaskWork(store, admit, t, t.assignee ?? "", { kind: "owner" }) ?? []);
+  return waiting.slice(0, PICKUP_AT_ONCE).flatMap((t) => startLater(store, admit, t) ?? []);
 }
