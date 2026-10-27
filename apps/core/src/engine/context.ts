@@ -437,6 +437,8 @@ export type TurnOpts = {
   feedback?: string | undefined;
   /** What APX sent the owner on their channel since this chat's previous turn: what they may be answering. */
   meanwhile?: string | undefined;
+  /** A message to the owner they did not just ask for: when they last talked, and whether to greet (last-talk.ts). */
+  lastTalk?: string | undefined;
   /** The owner's time zone (IANA); none: this machine's. */
   timeZone?: string | undefined;
   /** Where this message came from ("telegram", "whatsapp"…); none: the app. */
@@ -521,6 +523,7 @@ export function turnBlocks(opts: TurnOpts): InputBlock[] {
       "meanwhile",
       opts.meanwhile ? `[sent to the owner since your last turn here, on their channel]\n${opts.meanwhile}` : "",
     ],
+    ["last talk", opts.lastTalk ? `[last talk] ${opts.lastTalk}` : ""],
   ];
   return [
     ...head.filter(([, text]) => text).map(([name, text]) => ({ name, text })),

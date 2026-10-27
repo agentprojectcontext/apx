@@ -647,6 +647,23 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
         }),
       );
     },
+    /** The newest message in these chats written by the owner ("user") or by an agent, outside run `notRun`. */
+    latestBy(threadIds: string[], kind: "user" | "agent", notRun?: string): Message | undefined {
+      if (!threadIds.length) return undefined;
+      const r = one(
+        qb
+          .selectFrom("messages")
+          .selectAll()
+          .where("thread_id", "in", threadIds)
+          .where(sql<string>`json_extract(author, '$.kind')`, "=", kind)
+          .$if(!!notRun, (q) =>
+            q.where((eb) => eb.or([eb("run_id", "is", null), eb("run_id", "!=", notRun as string)])),
+          )
+          .orderBy("created_at", "desc")
+          .limit(1),
+      );
+      return r ? toMessage(r) : undefined;
+    },
     /** Whether the owner ever wrote anything (an install in use, not a new one). */
     anyFromOwner(): boolean {
       return Boolean(

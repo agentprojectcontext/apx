@@ -152,6 +152,34 @@ test("an upgrade with one entry that applies runs one capped, toolless call and 
   }
 });
 
+test("the news go on with a conversation under way, and greet only after a silence", async () => {
+  const talking = setup({ entries: [entry("a")] });
+  try {
+    ownerWrote(talking.store);
+    await talking.news.atBoot("2.7.2");
+    const input = String(talking.llm.calls[0]?.messages.at(-1)?.content);
+    assert.match(input, /\[last talk\] The owner last wrote 1 min ago\./);
+    assert.match(input, /mid-conversation: go on as in a chat, with no greeting/);
+  } finally {
+    talking.done();
+  }
+  const quiet = setup({ entries: [entry("a")] });
+  try {
+    quiet.store.messages.add({
+      thread_id: "home",
+      author: { kind: "user" },
+      parts: [{ type: "text", text: "hola" }],
+      at: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+    });
+    await quiet.news.atBoot("2.7.2");
+    const input = String(quiet.llm.calls[0]?.messages.at(-1)?.content);
+    assert.match(input, /The owner last wrote 2 days ago\./);
+    assert.match(input, /open with one short greeting for the time of day/);
+  } finally {
+    quiet.done();
+  }
+});
+
 test("a failed model call marks nothing seen: the next start tries again", async () => {
   const failing = setup({ fail: true });
   try {
