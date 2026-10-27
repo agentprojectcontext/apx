@@ -2,8 +2,8 @@
 // with each new release's changes. Written from the notes the build carries (no model call); asking about them there
 // is an ordinary turn. See DECISIONS.md#d-100 and #d-117
 import { compareVersions, type Release, type ReleaseNotes, type ReleaseSource } from "../release-notes.ts";
+import { postAgentWords } from "./agent-words.ts";
 import type { Store } from "./store.ts";
-import { previewOf } from "./threads.ts";
 
 /** The last release this install was told about (or started on). */
 const SEEN_KEY = "release_seen";
@@ -88,17 +88,13 @@ export function announceRelease(store: Store, source: ReleaseSource): { thread?:
         ...(notes.repo_dir ? { repo_dir: notes.repo_dir } : {}),
       },
     });
-    store.messages.add({
+    postAgentWords(store, {
       thread_id: thread.id,
-      author: { kind: "agent", id: boss.id },
-      parts: [{ type: "text", text }],
+      agent_id: boss.id,
+      text,
+      note: `[APX: APX was updated to ${version}; you posted what changed for the owner.]`,
+      unread: true,
     });
-    // A history starts at a user item: a note of what happened opens it, then the agent's own words.
-    store.modelLog.append(thread.id, undefined, [
-      { role: "user", content: `[APX: APX was updated to ${version}; you posted what changed for the owner.]` },
-      { role: "assistant", content: text },
-    ]);
-    store.threads.patch(thread.id, { preview: previewOf(text), unread: (thread.unread ?? 0) + 1 });
     store.settings.set(SEEN_KEY, version);
     return { thread: thread.id };
   });
