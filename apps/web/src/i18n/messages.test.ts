@@ -40,6 +40,14 @@ test("public ingress strings load only with their configuration screen in both l
   }
 });
 
+test("public ingress request errors remain translated before its late pack arrives", async () => {
+  const { loadMessages } = await import("./messages.ts");
+  const en = await loadMessages("en");
+  const es = await loadMessages("es");
+  assert.equal(en["hooks.failed"], "The public address could not change: {error}");
+  assert.equal(es["hooks.failed"], "No se pudo cambiar la dirección pública: {error}");
+});
+
 test("signature strings load as a separate pack in both languages", async () => {
   const { loadMessages, loadPack } = await import("./messages.ts");
   for (const lang of ["en", "es"] as const) {

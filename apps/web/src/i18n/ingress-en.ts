@@ -17,7 +17,6 @@ export const enIngress = {
   "hooks.copy": "Copy",
   "hooks.copied": "Address copied",
   "hooks.notUp": "Not up yet",
-  "hooks.failed": "The public address could not change: {error}",
   "hooks.err.funnel_failed":
     "Tailscale Funnel did not start: it may need turning on for this device in the tailnet's policy.",
   "hooks.err.ngrok_timeout": "ngrok did not give an address in time.",
