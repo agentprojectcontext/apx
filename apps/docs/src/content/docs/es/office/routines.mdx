@@ -40,6 +40,26 @@ Cada rutina hace una de cuatro cosas:
 
 Una corrida que se perdió con el core apagado corre una vez cuando vuelve, nunca dos.
 
+## Flows por webhook
+
+Para trabajar por eventos, abrí **Rutinas → Flows**. Un Flow pertenece a un proyecto y no tiene cron ni disparador
+periódico. Crealo desactivado, elegí filtros de igualdad y una tabla durable de destino; opcionalmente vinculá un
+agente fijo o una rutina manual de ese proyecto. Activá el Flow antes de crear su credencial en **Configuración →
+Dispositivos → Endpoints públicos**. El acceso público se configura por separado y nunca expone el RPC privado ni el panel.
+
+Enviá JSON como `{"id":"order-42","data":{"status":"paid"}}` a `POST /flows/<id>` con el token bearer de esa ruta.
+Conservá el mismo ID de evento en los reintentos. Los eventos vacíos, duplicados o que no coinciden con los filtros no
+llaman al modelo; el trabajo coincidente usa el vínculo guardado, no una identidad ni un comando elegido por el payload.
+Las tablas y el historial persisten tras reiniciar. Una ejecución vinculada puede fallar y no se garantiza exactamente
+un efecto en servicios externos. El panel muestra hasta 50 filas y eventos; los métodos privados del protocolo
+`flows.rows` y `flows.events` permiten inspeccionarlos con paginación.
+
+Rotar invalida el token anterior inmediatamente. Si falla el borrado de su secreto, queda una referencia que no autoriza
+pedidos, para reintentar la limpieza al iniciar el core o en la próxima rotación; la credencial nueva se devuelve igual.
+La creación interrumpida de un token también queda registrada para limpieza. Si la cola de limpieza se llena (1.000
+referencias), recuperá el backend de Secrets antes de rotar. Usá la misma clave de idempotencia al reintentar un pedido
+de administración cuya respuesta se perdió.
+
 ## El silencio también es una respuesta: SKIP
 
 El prompt de una rutina de agente son tus propias palabras. Cuando esta vez no hay nada que valga contarte, el agente

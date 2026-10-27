@@ -65,8 +65,13 @@ Human-only protocol operations run through the private router:
    cannot deliver an event; another endpoint's token never works here. A deleted destination is no longer a public route.
 
 Tokens have 256 random bits and live in APX's Secrets backend (OS keyring when available; protected file otherwise).
-SQLite settings and idempotent management replies contain references only. Rotation removes the old secret. Management
-operations are owner-only, require normal protocol authentication and an idempotency key for mutations, and cannot be
+SQLite settings and idempotent management replies contain references only. Rotation immediately replaces the active
+reference. A bounded durable cleanup journal tracks the new secret before creation and atomically records the previous
+reference when activation commits. Cleanup references never authorize a request. Failed deletion is retried at core
+startup and before/after subsequent rotations; it does not hide a successfully activated credential from the caller.
+An interrupted or failed activation leaves the prior credential active and the abandoned reference eligible for cleanup.
+If 1,000 references remain pending, restore the secret backend before rotating again; there is no periodic cleanup job.
+Management operations are owner-only, require normal protocol authentication and an idempotency key for mutations, and cannot be
 called through the public listener. An agent or external API client does not gain owner access by knowing a route token.
 
 ## Limits and failures

@@ -39,6 +39,24 @@ Each routine does one of four things:
 
 A run missed while the core was off runs once when it comes back, never twice.
 
+## Webhook Flows
+
+For event-driven work, open **Routines → Flows**. A Flow belongs to a project and has no cron or periodic trigger.
+Start disabled, choose equality filters and a durable table destination, then optionally bind a fixed agent or a
+manual-only routine in that project. Enable it before creating its route credential in **Settings → Devices → Public
+endpoints**. Public access is configured separately; it never exposes private RPC or the panel.
+
+Send JSON such as `{"id":"order-42","data":{"status":"paid"}}` to `POST /flows/<id>` with that route's bearer
+token. Keep the same event ID on retries. Empty, duplicate or nonmatching events do not call a model; matching work
+uses the saved binding, not an identity or command chosen by the payload. Tables and event history persist across
+restarts. A linked agent run can still fail, and external effects are not guaranteed exactly once. The panel shows
+up to 50 rows and events; the private `flows.rows` and `flows.events` protocol methods provide paginated inspection.
+
+Rotation invalidates the previous token immediately. If deleting its stored secret fails, a non-authorizing cleanup
+reference survives for retry at core startup or the next rotation; the newly activated credential is still returned.
+Interrupted token creation is tracked for the same cleanup. Restore the Secrets backend if rotations report a full
+cleanup queue (1,000 references). Use the same idempotency key when retrying a management request whose reply was lost.
+
 ## Silence is an answer: SKIP
 
 An agent routine's prompt is your own words. When there is nothing worth telling you this time, the agent answers

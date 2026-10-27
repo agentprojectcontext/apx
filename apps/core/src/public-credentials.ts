@@ -33,6 +33,28 @@ export function createPublicCredentials(deps: { store: Store; secrets: Secrets; 
       return [];
     }
   };
+  const cleanupKey = "public-route-credential-cleanup";
+  const pendingSchema = z.array(z.string().regex(/^secret:\/\/public-token-[a-f0-9]{32}$/)).max(1000);
+  const pending = () => pendingSchema.parse(JSON.parse(deps.store.settings.get(cleanupKey) ?? "[]"));
+  const savePending = (refs: string[]) => deps.store.settings.set(cleanupKey, JSON.stringify(refs));
+  const cleanup = () => {
+    try {
+      const active = new Set(read().map((entry) => entry.secret_ref));
+      const remaining = pending().filter((ref) => {
+        if (active.has(ref)) return true;
+        try {
+          deps.secrets.set(ref.slice(9), null);
+          return false;
+        } catch {
+          return true;
+        }
+      });
+      savePending(remaining);
+    } catch {
+      // Cleanup must not hide an already committed rotation's new credential from its caller.
+    }
+  };
+  cleanup();
   const known = (pathname: string) =>
     Path.safeParse(pathname).success && deps.endpoints().some((e) => e.path === pathname);
   const api = {
@@ -52,19 +74,27 @@ export function createPublicCredentials(deps: { store: Store; secrets: Secrets; 
     },
     rotate(pathname: string) {
       if (!known(pathname)) throw badRequest("only a registered public endpoint can receive a token");
+      cleanup();
       const saved = read();
       const before = saved.find((s) => s.path === pathname);
+      const queued = pending();
+      if (queued.length >= 1000) throw badRequest("public credential cleanup is full; restore secret storage first");
       if (!before && saved.length >= 1000) throw badRequest("too many public endpoints");
       const name = `public-token-${randomBytes(16).toString("hex")}`;
       const entry = { path: pathname, secret_ref: `secret://${name}`, rotated_at: new Date().toISOString() };
-      deps.secrets.set(name, `apxp_${randomBytes(32).toString("hex")}`);
+      // Journal before touching the external secret store: an interrupted creation is never untracked.
+      savePending([...queued, entry.secret_ref]);
       try {
-        deps.store.settings.set(KEY, JSON.stringify([...saved.filter((s) => s.path !== pathname), entry]));
+        deps.secrets.set(name, `apxp_${randomBytes(32).toString("hex")}`);
+        deps.store.tx(() => {
+          deps.store.settings.set(KEY, JSON.stringify([...saved.filter((s) => s.path !== pathname), entry]));
+          savePending(before ? [...queued, before.secret_ref] : queued);
+        });
       } catch (err) {
-        deps.secrets.set(name, null);
+        cleanup();
         throw err;
       }
-      if (before) deps.secrets.set(before.secret_ref.slice(9), null);
+      cleanup();
       return entry;
     },
     revoke(pathname: string) {
