@@ -109,9 +109,17 @@ the question and the answer, and the answer comes back to the agent that asked, 
 comment asks two teammates at most, and the one answering a consult cannot ask anyone further. An agent can also
 mention you to get your attention.
 
+### An agent works a task until it is done
+
+When an agent's turn on a task ends with the task still in progress (it ran out of steps, or stopped at "I'll
+continue"), its next part starts at once, numbered, up to nine. It stops when the agent closes the task, marks it
+waiting on you with what you must do, says what blocks it, or when a part got nowhere. Closing its own work as done,
+an agent must say what it verified.
+
 ### When an agent's task closes
 
-A task one agent created and gave to another reports back when it closes. Your main agent can hand a whole goal to a
+A task one agent created and gave to another reports back when it closes. Your main agent hears of every task its team
+closes, also the ones you or another agent gave, and tells you what came of it. Your main agent can hand a whole goal to a
 project's orchestrator as a task; when the orchestrator closes it, hours and restarts later, your main agent gets
 its report in the chat where it created the task and tells you what matters. Closing a task yourself, or an agent
 closing its own, wakes nobody. That turn counts toward the [turns agents start on their own without

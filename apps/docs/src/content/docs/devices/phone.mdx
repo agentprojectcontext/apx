@@ -138,8 +138,8 @@ npx expo start      # Expo Go or a dev build; the core must be reachable on the 
 
 ## Push notifications
 
-The phone can be where your notices go, so routine news, reminders and questions from agents reach you even with the
-app closed.
+Every notice in the app's tray reaches your paired phones too, so routine news, finished tasks, reminders and
+questions from agents find you even with the app closed. A chat app (Telegram, WhatsApp…) is an extra you may pick.
 
 <Steps>
 
@@ -147,12 +147,9 @@ app closed.
    project id. Otherwise, under the device in **Settings › Connections › Devices**, use **Set up notifications** and
    paste an ntfy or UnifiedPush address.
 
-2. Pick the phone in **Settings › Interruptions › Where notices go**. It shows up as the device's name followed by
-   "(push)".
-
 </Steps>
 
-The same interruption budget decides what reaches the phone: daily cap, quiet hours and the rest
+In quiet hours only questions waiting for you and errors reach the phone; the rest stays in the tray
 ([Secretary](/office/secretary/)). A device can only set its own push address, and the push token never goes back to
 any client.
 
