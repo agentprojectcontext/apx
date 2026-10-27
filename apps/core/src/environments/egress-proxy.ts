@@ -86,7 +86,10 @@ export async function createEgressProxy(
         remote.on("error", stop);
         client.on("error", stop);
         client.on("close", () => remote.destroy());
-        remote.on("close", () => client.destroy());
+        remote.on("close", () => {
+          // A clean EOF already ends the pipe; destroying its destination can discard buffered response bytes.
+          if (!remote.readableEnded) client.destroy();
+        });
         let bytes = 0;
         for (const stream of [remote, client])
           stream.on("data", (chunk: Buffer) => {

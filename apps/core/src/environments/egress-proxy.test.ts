@@ -239,6 +239,33 @@ test("a package manager's many parallel tunnels all open, and a long download go
   }
 });
 
+test("a clean upstream EOF flushes its last bytes through a backpressured tunnel", async () => {
+  const payload = Buffer.alloc(8 * 1024 * 1024 + 37, 3);
+  const target = net.createServer((socket) => socket.once("data", () => socket.end(payload)));
+  target.listen(0, "127.0.0.1");
+  await once(target, "listening");
+  const proxy = await createEgressProxy(policy, () => net.connect(portOf(target), "127.0.0.1"));
+  let client: net.Socket | undefined;
+  try {
+    ({ client } = await tunnel(proxy.port));
+    const received: Buffer[] = [];
+    const socket = client;
+    socket.on("data", (chunk: Buffer) => {
+      received.push(chunk);
+      socket.pause();
+      setImmediate(() => socket.resume());
+    });
+    const ended = once(socket, "end");
+    socket.write("download");
+    await ended;
+    assert.deepEqual(Buffer.concat(received), payload);
+  } finally {
+    client?.destroy();
+    await proxy.close();
+    await close(target);
+  }
+});
+
 test("a quiet tunnel ends after the idle limit, and past the budget a tunnel is told to retry, not reset", async () => {
   const target = net.createServer((socket) => socket.pipe(socket));
   target.listen(0, "127.0.0.1");
