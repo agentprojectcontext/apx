@@ -296,33 +296,6 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "im.answer": "Contestar chats",
   "im.answerHint":
     "Las personas que te escriben por iMessage reciben respuesta de tu agente, una vez que las aprobás. Tus propios mensajes nunca se contestan.",
-  "hooks.title": "Dirección pública",
-  "hooks.how": "Cómo se publica",
-  "hooks.off": "Apagada",
-  "hooks.offBody": "Sin túnel público: los servicios de internet no pueden llegar a este listener a través de APX.",
-  "hooks.tailscale": "Tailscale",
-  "hooks.ngrok": "ngrok",
-  "hooks.custom": "Propia",
-  "hooks.tsMissing": "Tailscale no está instalado en esta computadora.",
-  "hooks.tsDisconnected": "Tailscale está instalado pero no conectado (o MagicDNS está apagado).",
-  "hooks.domain": "Dominio reservado",
-  "hooks.domainHint": "Opcional: tu dominio de ngrok mantiene la misma dirección entre reinicios.",
-  "hooks.ownUrl": "Tu dirección",
-  "hooks.ownUrlHint": "Tiene que reenviar a 127.0.0.1:{port} en esta computadora.",
-  "hooks.address": "La dirección de este canal",
-  "hooks.addressHint": "Pegala en la plataforma como messaging endpoint o URL del webhook.",
-  "hooks.copy": "Copiar",
-  "hooks.copied": "Dirección copiada",
-  "hooks.notUp": "Todavía no está activa",
-  "hooks.failed": "No se pudo cambiar la dirección pública: {error}",
-  "hooks.err.funnel_failed":
-    "Tailscale Funnel no arrancó: quizás haya que habilitarlo para esta computadora en la política del tailnet.",
-  "hooks.err.ngrok_timeout": "ngrok no dio una dirección a tiempo.",
-  "hooks.err.ngrok_failed":
-    "ngrok no pudo abrir la dirección. ¿Tiene la sesión iniciada (“ngrok config add-authtoken <tu token>”)?",
-  "hooks.err.ngrok_stopped": "ngrok se detuvo. APX lo vuelve a arrancar solo.",
-  "hooks.err.failed": "No se pudo armar la dirección pública.",
-  "hooks.errDetail": "Lo que dijo: {detail}",
   "tm.lead":
     "Hablá con tus agentes desde Microsoft Teams, en chats personales y en los canales que listes. Teams entrega a una dirección pública, que configurás abajo.",
   "tm.step1":

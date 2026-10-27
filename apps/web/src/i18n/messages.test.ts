@@ -44,6 +44,9 @@ test("public ingress strings load only with their configuration screen in both l
   for (const lang of ["en", "es"] as const) {
     const base = await loadMessages(lang);
     const pack = await loadPack("ingress", lang);
+    assert.equal(base["hooks.title"], undefined);
+    assert.equal(base["hooks.offBody"], undefined);
+    assert.equal(pack["hooks.title"], lang === "en" ? "Public address" : "Dirección pública");
     for (const key of Object.keys(enIngress) as (keyof typeof enIngress)[]) assert.equal(base[key], undefined);
     assert.deepEqual(pack, lang === "en" ? enIngress : esIngress);
   }
