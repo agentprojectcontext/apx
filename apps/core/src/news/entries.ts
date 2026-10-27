@@ -53,7 +53,7 @@ export type NewsEntry = {
 export const NEWS: readonly NewsEntry[] = [
   {
     id: "agents-finish-unattended",
-    since: "2.11.1",
+    since: "2.11.2",
     title: "Agents finish what you ask",
     applies: (f) => f.secretary,
     text: "Agents no longer pause after a number of turns or tokens without the owner: they finish what they were asked, like a coding agent. Limits are opt-in under Config › Agents › When agents work on their own (starting at 100 turns). The super-agent no longer stops on a system card to hand work to several agents: when asked for several things without saying how, it asks in its own words with options. It also tells the owner when its team closes a task and offers to adapt a project or agent the owner adds. Every notice reaches the app and paired phones; a chat app for notices is optional (Config › Super-agent › Where it writes to you, None keeps them in the app).",
