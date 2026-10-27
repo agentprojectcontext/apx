@@ -126,7 +126,7 @@ puede tener un solo daemon, incluso si se intenta arrancar otro con un puerto di
 
 Una URL explícita (también `APX_URL`) sirve solo para conectarse: si el servidor no responde, la app no arranca un
 reemplazo en esta computadora. El modo SSH controla su túnel, no el daemon del servidor. Actualizar o reiniciar
-Desktop no actualiza ni reinicia ese servidor.
+Desktop no actualiza ni reinicia ese servidor por sí solo. La activación coordinada de una versión, explicada abajo, es una acción separada del dueño.
 
 Los comandos `apx service` de la CLI siempre controlan servicios de la computadora donde corrés el comando, nunca
 la indicada por `APX_URL`. Usá `--home` para elegir la instalación local. `apx desktop` también abre la app en la
@@ -144,8 +144,12 @@ el panel lo muestra en la barra de arriba. Cuando vos decís, baja el instalador
 - **macOS** abre la imagen de disco para que arrastres APX. La app todavía no está firmada, así que no puede
   reemplazarse sola en silencio.
 
-La app trae su propio core, así que actualizar la app actualiza ese core también. Si la app está conectada a un core
-en un servidor, la actualización que ofrece el panel es la del servidor.
+El core local incluido se actualiza con Desktop. Con un core remoto, Desktop coordina una versión compartida
+mediante la conexión autenticada de APX, sin SSH. El servidor se actualiza una vez; cada app Desktop solo puede
+activar su paquete después de confirmar que el servidor ejecuta esa misma versión. Las apps desconectadas se
+reconcilian al volver: los dispositivos no se actualizan de forma atómica. Los servidores anteriores o no
+compatibles bloquean la activación de Desktop y muestran cómo recuperarse. La primera actualización de un servidor
+sin coordinación todavía usa su mecanismo anterior.
 
 ## Correrla desde el código
 
