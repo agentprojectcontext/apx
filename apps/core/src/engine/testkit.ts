@@ -14,13 +14,13 @@ import type { Harness } from "../harness/index.ts";
 import type { IMessageOps } from "../imessage.ts";
 import type { Llm, LlmRequest } from "../providers/llm.ts";
 import type { AssistantItem, Completion } from "../providers/types.ts";
+import type { NgrokStart } from "../public-tunnel.ts";
 import type { ReleaseSource } from "../release-notes.ts";
 import { createCore } from "../server.ts";
 import type { TelemetrySink } from "../telemetry-sink.ts";
 import { removeDir, waitFor } from "../testkit/platform.ts";
 import { scratchRoot } from "../tools/folders.ts";
 import type { Tool } from "../tools/types.ts";
-import type { NgrokStart } from "../webhooks.ts";
 import type { RunTimers } from "./engine.ts";
 import type { InputWaits } from "./inputs.ts";
 

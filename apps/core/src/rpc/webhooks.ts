@@ -1,5 +1,5 @@
 // webhooks.*: the public address channels' webhooks reach (see webhooks.ts).
-import type { Webhooks } from "../webhooks.ts";
+import type { Webhooks } from "../public-tunnel.ts";
 import type { Handlers } from "./router.ts";
 
 export function webhookHandlers(webhooks: Webhooks) {

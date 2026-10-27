@@ -1,6 +1,5 @@
-// The public address channels' webhooks reach (Teams, LINE): Tailscale Funnel, an ngrok tunnel, or the owner's own
-// URL in front of the webhook listener (transport/hooks.ts). The owner's choice is kept and applied again at every
-// start. See DECISIONS.md#d-139
+// Public ingress infrastructure: Tailscale Funnel, ngrok or an owner's HTTPS proxy targets the restricted listener,
+// never the private daemon. The existing webhooks.* contract and saved setting select this shared tunnel.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -161,7 +160,7 @@ export function createWebhooks(deps: {
           deps.log.info({ url }, "webhooks: ngrok address up");
           clearTimeout(timer);
           resolve();
-        } else if (said.error && !url) fail("ngrok_failed", said.error);
+        } else if (said.error && !url) fail("ngrok_failed");
       });
       t.onExit((code) => {
         if (tunnel !== t) return;
@@ -196,7 +195,7 @@ export function createWebhooks(deps: {
       else {
         const r = await run(["funnel", "--bg", `--https=${FUNNEL_PORT}`, `http://127.0.0.1:${deps.port()}`]);
         if (r.ok) url = `https://${dns}:${FUNNEL_PORT}`;
-        else fail("funnel_failed", r.out);
+        else fail("funnel_failed");
       }
     }
   }
@@ -220,12 +219,30 @@ export function createWebhooks(deps: {
     base: () => url,
     /** The saved choice, applied at start (a failure only shows in the state). */
     start: () =>
-      apply().catch((err: unknown) => {
-        fail("failed", String(err));
+      apply().catch(() => {
+        fail("failed");
       }),
     async set(o: { mode: HookMode; url?: string | undefined; domain?: string | undefined }): Promise<WebhooksState> {
-      if (o.mode === "custom" && !o.url?.startsWith("https://"))
-        throw new CallError({ code: "bad_request", message: "a public address needs an https:// URL" });
+      if (o.mode === "custom") {
+        let valid = false;
+        try {
+          const base = new URL(o.url ?? "");
+          valid =
+            base.protocol === "https:" &&
+            !base.username &&
+            !base.password &&
+            !base.search &&
+            !base.hash &&
+            base.pathname === "/";
+        } catch {}
+        if (!valid)
+          throw new CallError({
+            code: "bad_request",
+            message: "a public address needs an https:// origin without credentials, path or query",
+          });
+      }
+      if (o.mode === "ngrok" && o.domain && !/^[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$/.test(o.domain))
+        throw new CallError({ code: "bad_request", message: "a reserved domain must be a hostname" });
       const { mode: before, ngrok_last } = saved();
       // Only undo what APX set up: other Funnel or serve configs on this machine are not APX's.
       if (before === "tailscale" && o.mode !== "tailscale")

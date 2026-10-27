@@ -91,6 +91,8 @@ import { officeScheduler } from "./office-wiring.ts";
 import { createChatgptLogin } from "./providers/chatgpt-login.ts";
 import { createLlm, type Llm } from "./providers/llm.ts";
 import { providerRegistry } from "./providers/registry.ts";
+import { nativePublicRoutes } from "./public-routes.ts";
+import { createWebhooks, type NgrokStart } from "./public-tunnel.ts";
 import { localReleases, type ReleaseSource } from "./release-notes.ts";
 import { useLocalEmbedder } from "./rpc/embeddings.ts";
 import { internalCaller } from "./rpc/internal.ts";
@@ -126,7 +128,6 @@ import type { Tool } from "./tools/types.ts";
 import { listenHooks } from "./transport/hooks.ts";
 import { createUpdates, type Runner } from "./updates.ts";
 import { createUsage, type UsageOptions } from "./usage.ts";
-import { createWebhooks, type NgrokStart } from "./webhooks.ts";
 
 /** `apx mcp --run` (token in APX_RUN_TOKEN): how an external harness (Codex) reaches the tools of its run. */
 const TERMINAL_MAIN = path.resolve(import.meta.dirname, "../../terminal/src/main.ts");
@@ -667,7 +668,11 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const url = transport.url;
   selfUrl = url;
   engine.start();
-  const hookListener = await listenHooks({ port: config.hooksPort, deliver: channels.webhook, log });
+  const hookListener = await listenHooks({
+    port: config.hooksPort,
+    routes: nativePublicRoutes({ store, deliver: channels.webhook }),
+    log,
+  });
   hooksPort = hookListener.port;
   // Not awaited: ngrok may take 15 s, and a channel reads its public address when it needs it (hookBase).
   void webhooks.start();

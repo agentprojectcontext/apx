@@ -1,0 +1,150 @@
+import assert from "node:assert/strict";
+import http from "node:http";
+import { test } from "node:test";
+import { manualTimers, waitFor } from "../testkit/platform.ts";
+import { listenHooks, PUBLIC_BODY_MAX, PUBLIC_DEADLINE_MS, publicPath, publicRateLimit } from "./hooks.ts";
+
+const log = { info() {}, warn() {}, error() {} };
+
+test("public paths reject normalization ambiguity before parsing", () => {
+  for (const target of [
+    "//hooks/a",
+    "/hooks//a",
+    "/x/../hooks/a",
+    "/./hooks/a",
+    "/hooks/%61",
+    "/hooks/%2e%2e/a",
+    "/hooks/a%2fb",
+    "/hooks/a\\b",
+    "https://example.com/hooks/a",
+    "/hooks/a#x",
+    "/hooks/a?token=%61",
+  ])
+    assert.equal(publicPath(target), undefined, target);
+  assert.equal(publicPath("/hooks/a?event=one"), "/hooks/a");
+});
+
+test("public rate buckets are bounded and reset on an injected clock", () => {
+  let at = 0;
+  const allow = publicRateLimit(() => at, 2, 100);
+  assert.equal(allow("route"), true);
+  assert.equal(allow("route"), true);
+  assert.equal(allow("route"), false);
+  assert.equal(allow("other"), true);
+  at = 100;
+  assert.equal(allow("route"), true);
+});
+
+test("public listener denies routes/methods/auth before delivery and bounds uploads", async () => {
+  let calls = 0;
+  const server = await listenHooks({
+    port: 0,
+    log,
+    routes: (p) =>
+      p === "/flows/acme"
+        ? {
+            id: "flow:acme",
+            methods: ["POST"],
+            authorize: (h) => h.authorization === "Bearer example",
+            handle: async (r) => {
+              calls++;
+              return { status: 202, body: r.body.toString() };
+            },
+          }
+        : undefined,
+  });
+  const request = (p: string, method = "POST", token?: string, body = "{}") =>
+    fetch(`http://127.0.0.1:${server.port}${p}`, {
+      method,
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+      ...(method === "POST" ? { body } : {}),
+    });
+  try {
+    for (const p of ["/", "/rpc/threads.send", "/health", "/flows/other", "/x/flows/acme", "/flows/acme/data"])
+      assert.equal((await request(p, "POST", "example")).status, 404, p);
+    assert.equal((await request("/flows/acme", "GET", "example")).status, 405);
+    assert.equal((await request("/flows/acme")).status, 401);
+    assert.equal((await request("/flows/acme", "POST", "wrong")).status, 401);
+    assert.equal(calls, 0);
+    const ok = await request("/flows/acme", "POST", "example", "raw bytes");
+    assert.equal(ok.status, 202);
+    assert.equal(await ok.text(), "raw bytes");
+    assert.equal((await request("/flows/acme", "POST", "example", "x".repeat(PUBLIC_BODY_MAX + 1))).status, 413);
+    assert.equal(calls, 1);
+  } finally {
+    await server.close();
+  }
+});
+
+test("public deadline covers a stalled upload without calling its destination", async () => {
+  const timers = manualTimers();
+  let calls = 0;
+  const server = await listenHooks({
+    port: 0,
+    log,
+    timers,
+    routes: () => ({
+      id: "upload",
+      methods: ["POST"],
+      authorize: () => true,
+      handle: async () => {
+        calls++;
+        return { status: 200 };
+      },
+    }),
+  });
+  const req = http.request({ host: "127.0.0.1", port: server.port, path: "/upload", method: "POST" });
+  const result = new Promise<number | undefined>((resolve, reject) => {
+    req.on("response", (r) => {
+      r.resume();
+      resolve(r.statusCode);
+    });
+    req.on("error", reject);
+  });
+  try {
+    req.flushHeaders();
+    req.write("partial");
+    await waitFor(() => timers.pending() === 1, "upload deadline armed");
+    timers.tick(PUBLIC_DEADLINE_MS);
+    assert.equal(await result, 503);
+    assert.equal(calls, 0);
+  } finally {
+    req.destroy();
+    await server.close();
+  }
+});
+
+test("public deadline aborts delivery and never returns a late response", async () => {
+  const timers = manualTimers();
+  let aborted = false;
+  const server = await listenHooks({
+    port: 0,
+    log,
+    timers,
+    routes: () => ({
+      id: "slow",
+      methods: ["POST"],
+      authorize: () => true,
+      handle: async (_r, signal) =>
+        new Promise((resolve) =>
+          signal.addEventListener(
+            "abort",
+            () => {
+              aborted = true;
+              resolve({ status: 200 });
+            },
+            { once: true },
+          ),
+        ),
+    }),
+  });
+  try {
+    const result = fetch(`http://127.0.0.1:${server.port}/slow`, { method: "POST", body: "{}" });
+    await waitFor(() => timers.pending() === 1, "delivery deadline armed");
+    timers.tick(PUBLIC_DEADLINE_MS);
+    assert.equal((await result).status, 503);
+    assert.equal(aborted, true);
+  } finally {
+    await server.close();
+  }
+});

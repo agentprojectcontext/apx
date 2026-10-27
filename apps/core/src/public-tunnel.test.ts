@@ -5,8 +5,8 @@ import { after, before, test } from "node:test";
 import type { TailscaleRun } from "./access.ts";
 import type { ChannelAdapter, HookRequest } from "./channels/types.ts";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";
+import { createWebhooks, NGROK_WAIT_MS, type NgrokProcess, type NgrokStart, ngrokLine } from "./public-tunnel.ts";
 import { waitFor } from "./testkit/platform.ts";
-import { createWebhooks, NGROK_WAIT_MS, type NgrokProcess, type NgrokStart, ngrokLine } from "./webhooks.ts";
 
 const got: HookRequest[] = [];
 let hookUrl: (() => string | undefined) | undefined;
@@ -90,8 +90,12 @@ test("the listener hands a channel's webhook to its adapter, bytes as they came,
   assert.equal(req?.headers["x-sig"], "ok", "headers come lowercased");
 
   assert.equal((await post("/hooks/teams", "{}")).status, 401, "the adapter refuses what it cannot verify");
-  assert.equal((await post("/apx/hooks/teams/files/1", "{}", { "x-sig": "ok" })).status, 200, "a prefix is fine");
-  assert.equal(got.at(-1)?.path, "/files/1");
+  assert.equal(
+    (await post("/apx/hooks/teams/files/1", "{}", { "x-sig": "ok" })).status,
+    404,
+    "unregistered prefixes and suffixes are denied",
+  );
+  assert.equal((await post("/hooks/teams/files/1", "{}", { "x-sig": "ok" })).status, 404);
   assert.equal((await post("/hooks/nobody", "{}")).status, 404, "an unknown channel");
   assert.equal((await post("/hooks/teams", "", {}, "GET")).status, 405);
   for (const path of ["/rpc/threads.list", "/", "/health", "/index.html"])
