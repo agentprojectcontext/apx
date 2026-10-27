@@ -907,4 +907,18 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX run_contexts_seq ON run_contexts(seq);
   `,
+  `
+  CREATE TABLE flows (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    enabled INTEGER NOT NULL, predicates TEXT NOT NULL, table_key TEXT NOT NULL
+  );
+  CREATE TABLE flow_events (
+    flow_id TEXT NOT NULL REFERENCES flows(id) ON DELETE CASCADE, event_id TEXT NOT NULL,
+    state TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(flow_id, event_id)
+  );
+  CREATE TABLE flow_rows (
+    flow_id TEXT NOT NULL REFERENCES flows(id) ON DELETE CASCADE, key TEXT NOT NULL,
+    value TEXT NOT NULL, PRIMARY KEY(flow_id, key)
+  );
+  `,
 ];
