@@ -303,7 +303,9 @@ export function createConnector(opts: {
       const es = app.getLocale().startsWith("es");
       const urls = app.isPackaged ? [opts.coreUrl] : [opts.webUrl, opts.coreUrl];
       let opened: string | undefined;
+      let identityProblem: string | undefined;
       const local: Remote = {
+        identityProblem: () => identityProblem,
         where: new URL(opts.coreUrl).host,
         url: opts.coreUrl,
         local: app.isPackaged
@@ -313,7 +315,25 @@ export function createConnector(opts: {
             : "If it does not open, start it with pnpm dev (same APX_HOME and APX_PORT).",
       };
       const reached = await wait(local, firstRun, current, {
-        isUp: () => verifyLocalCore(opts.coreUrl).catch(() => false),
+        isUp: async () => {
+          try {
+            const identity = await verifyLocalCore(opts.coreUrl);
+            identityProblem =
+              identity === "matches"
+                ? undefined
+                : identity === "missing"
+                  ? es
+                    ? "Falta la identidad de la instalación local o del core. No se conectará hasta poder verificarla."
+                    : "The local installation or core identity is missing. It will not connect until it can be verified."
+                  : es
+                    ? "Este puerto pertenece a otra instalación de APX. No se conectará como el core local."
+                    : "This port belongs to another home. It will not be adopted as the local core.";
+            return identity === "matches";
+          } catch {
+            identityProblem = undefined;
+            return false;
+          }
+        },
         load: async () => {
           for (const url of urls) {
             if (await load(url, firstRun)) {
