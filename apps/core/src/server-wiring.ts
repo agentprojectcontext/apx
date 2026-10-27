@@ -241,6 +241,7 @@ type HandlerDeps = {
   /** Who may reach this core (this computer, the network, the tailnet). */
   access: Parameters<typeof accessHandlers>[0];
   webhooks: Parameters<typeof webhookHandlers>[0];
+  publicCredentials: Parameters<typeof webhookHandlers>[1];
   /** What asks an integration's remote server about the owner's account (tests pass a fake). */
   integrationFetch?: typeof fetch | undefined;
   /** The owner's shells in a chat's folder. */
@@ -285,7 +286,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...clientHandlers(d.store),
     ...deviceHandlers(d.store, { addresses: d.addresses, onRevoke: (id) => d.vm?.revokeDevice(id) }),
     ...accessHandlers(d.access),
-    ...webhookHandlers(d.webhooks),
+    ...webhookHandlers(d.webhooks, d.publicCredentials),
     ...phoneHandlers(d.broker, d.store, d.app.home),
     ...computerHandlers(d.broker, d.store, d.app.home, d.engine, (thread) => Boolean(d.vm?.hasThread(thread))),
     ...extensionHandlers(d.extensions, d.mcp),

@@ -87,7 +87,35 @@ export const WebhooksState = z.object({
 });
 export type WebhooksState = z.infer<typeof WebhooksState>;
 
+const PublicEndpointPath = z.string().regex(/^\/flows\/[A-Za-z0-9_-]{1,100}$/);
+export const PublicEndpointInfo = z.object({
+  path: PublicEndpointPath,
+  label: z.string(),
+  enabled: z.boolean(),
+  rotated_at: z.string().optional(),
+});
+export type PublicEndpointInfo = z.infer<typeof PublicEndpointInfo>;
+
 export const deviceMethods = {
+  "public_routes.list": {
+    params: z.object({}).strict(),
+    result: z.object({ routes: z.array(PublicEndpointInfo) }),
+    effect: false,
+    access: "human",
+  },
+  /** Creates or immediately replaces a route's credential; reveal its value through the existing secret UI. */
+  "public_routes.rotate": {
+    params: z.object({ path: PublicEndpointPath }).strict(),
+    result: z.object({ path: PublicEndpointPath, secret_ref: z.string(), rotated_at: z.string() }),
+    effect: true,
+    access: "human",
+  },
+  "public_routes.revoke": {
+    params: z.object({ path: PublicEndpointPath }).strict(),
+    result: z.object({ revoked: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
   /** The public address for channels' webhooks, and what this computer has to make one. */
   "webhooks.get": {
     params: z.object({}).strict(),

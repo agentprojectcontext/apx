@@ -91,6 +91,7 @@ import { officeScheduler } from "./office-wiring.ts";
 import { createChatgptLogin } from "./providers/chatgpt-login.ts";
 import { createLlm, type Llm } from "./providers/llm.ts";
 import { providerRegistry } from "./providers/registry.ts";
+import { createPublicCredentials } from "./public-credentials.ts";
 import { nativePublicRoutes } from "./public-routes.ts";
 import { createWebhooks, type NgrokStart } from "./public-tunnel.ts";
 import { localReleases, type ReleaseSource } from "./release-notes.ts";
@@ -408,6 +409,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     ...(opts.tailscale ? { tailscale: opts.tailscale } : {}),
     ...(opts.ngrok ? { ngrok: opts.ngrok } : {}),
   });
+  const publicCredentials = createPublicCredentials({ store, secrets, endpoints: () => [] });
   const channels = createChannels({
     store,
     home: config.home,
@@ -592,6 +594,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       addresses: () => reachableAt(config.host, listening, config.publicUrl),
       terminals,
       webhooks,
+      publicCredentials,
       integrationFetch: opts.integrationFetch,
       access: createAccess({
         home: config.home,
