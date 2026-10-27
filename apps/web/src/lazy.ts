@@ -18,6 +18,10 @@ export const ArtifactWindow = lazy(() =>
 );
 export const OAuthReturn = lazy(() => import("./resources/OAuthReturn.tsx").then((m) => ({ default: m.OAuthReturn })));
 
+export const AttachChips = lazy(() =>
+  import("./chat/composer/AttachChips.tsx").then((m) => ({ default: m.AttachChips })),
+);
+
 // Screens and dialogs loaded when first opened: the chat is what the panel opens on.
 export const AppScreen = lazy(() => import("./apps/AppScreen.tsx").then((m) => ({ default: m.AppScreen })));
 export const ChannelScreen = lazy(() =>

@@ -106,6 +106,12 @@ their running owner's chat and work folder. Images appear inline; video/audio fi
 panel. Attachments survive changes to the source file and a chat reload.
 Composer uploads accept files and videos up to 20 MB, images up to 5 MB and audio up to 10 MB.
 HTTP and WebSocket payload bounds include base64 expansion; remote uploads have a two-minute client deadline.
+Unsent selected files and their in-flight uploads stay with their draft chat while navigating within the panel;
+image thumbnails open a full-size preview before sending. Attachment drafts live only in that page session, unlike
+text drafts in browser storage: reloading or closing the page discards unsent attachments. Removing or sending a
+chip releases its local preview; deleting a chat invalidates its pending uploads and releases its drafts.
+A failed send restores the existing upload without uploading again. Microphone dictation still requires staying
+in the chat until transcription finishes. Abandoned file drafts stay in memory until removed, sent or the page closes.
 Agents open long reports, plans and reusable text documents with `open_document` after writing the file.
 It extends `media.attach` with bounded UTF-8 validation (400,000 bytes, `.md`/`.markdown`/`.txt`), uses the same
 owner-run/work-folder boundary, and persists a file part with document presentation metadata. The web/desktop

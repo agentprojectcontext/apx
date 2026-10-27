@@ -28,6 +28,13 @@ function read(): Record<string, Entry> {
 }
 
 const all = () => (drafts ??= read());
+const listeners = new Set<() => void>();
+export function subscribeDrafts(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
 
 function save(): void {
   pending = undefined;
@@ -63,6 +70,7 @@ export function keepDraft(chat: string, text: string): void {
   else delete map[chat];
   dirty.add(chat);
   pending ??= setTimeout(save, 300);
+  for (const listener of listeners) listener();
 }
 
 if (typeof window !== "undefined") {
@@ -73,6 +81,9 @@ if (typeof window !== "undefined") {
   });
   // Another window (the quick chat, a second tab) wrote: read again on next use.
   window.addEventListener("storage", (e) => {
-    if (e.key === KEY && !dirty.size) drafts = undefined;
+    if (e.key === KEY && !dirty.size) {
+      drafts = undefined;
+      for (const listener of listeners) listener();
+    }
   });
 }

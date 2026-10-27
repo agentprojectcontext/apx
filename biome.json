@@ -136,6 +136,7 @@
                       "**/AppScreen.tsx",
                       "**/AppsDock.tsx",
                       "**/ArtifactWindow.tsx",
+                      "**/AttachChips.tsx",
                       "**/AudioPart.tsx",
                       "**/BrowserPanel.tsx",
                       "**/ChangesPanel.tsx",
