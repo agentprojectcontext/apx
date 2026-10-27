@@ -68,6 +68,38 @@ test("a message APX sent them counts as talking; the turn's own message does not
     assert.match(lastTalk(store, home, at, undefined, "run_now") ?? "", /went 1 h ago/, "only what reached them");
   }));
 
+test("another run's empty or tool-only message does not count as talking", () =>
+  withStore((store) => {
+    ownerSaid(store, "hello", 10 * HOUR);
+    agentSaid(store, 8 * HOUR, "run_previous");
+    for (const parts of [
+      [],
+      [{ type: "text" as const, text: "   " }],
+      [
+        {
+          type: "tool" as const,
+          call_id: "call_pending",
+          tool: "web_search",
+          title: "Search",
+          status: "running" as const,
+        },
+      ],
+    ]) {
+      store.messages.add({
+        thread_id: "home",
+        author: { kind: "agent", id: "roby" },
+        parts,
+        at: earlier(60_000),
+        run_id: "run_other",
+      });
+      const quiet = lastTalk(store, home, at, undefined, "run_now") ?? "";
+      assert.match(quiet, GREET);
+      assert.match(quiet, /The last message to them went 8 h ago\./);
+    }
+    agentSaid(store, 0, "run_other_visible");
+    assert.match(lastTalk(store, home, at, undefined, "run_now") ?? "", GO_ON);
+  }));
+
 test("a new day after a few hours greets; the same day does not", () =>
   withStore((store) => {
     // 04:00 after 23:00 the day before, in the owner's zone.

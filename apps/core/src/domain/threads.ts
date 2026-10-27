@@ -647,7 +647,7 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
         }),
       );
     },
-    /** The newest message in these chats written by the owner ("user") or by an agent, outside run `notRun`. */
+    /** The newest owner message or agent reply content, outside run `notRun`; placeholders and tool activity are not replies. */
     latestBy(threadIds: string[], kind: "user" | "agent", notRun?: string): Message | undefined {
       if (!threadIds.length) return undefined;
       const r = one(
@@ -656,6 +656,11 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
           .selectAll()
           .where("thread_id", "in", threadIds)
           .where(sql<string>`json_extract(author, '$.kind')`, "=", kind)
+          .$if(kind === "agent", (q) =>
+            q.where(sql<boolean>`exists (select 1 from json_each(messages.parts) where
+              (json_extract(value, '$.type') = 'text' and length(trim(json_extract(value, '$.text'))) > 0)
+              or json_extract(value, '$.type') in ('image', 'audio', 'file', 'surface'))`),
+          )
           .$if(!!notRun, (q) =>
             q.where((eb) => eb.or([eb("run_id", "is", null), eb("run_id", "!=", notRun as string)])),
           )
