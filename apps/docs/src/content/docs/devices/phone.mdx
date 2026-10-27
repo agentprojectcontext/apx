@@ -136,6 +136,15 @@ npm install
 npx expo start      # Expo Go or a dev build; the core must be reachable on the network
 ```
 
+The default release build configuration targets **ARM64 (`arm64-v8a`)**. Other architectures can be built, but do
+not assume an APK supports an older ARM32 phone or an x86 emulator: check the specific release artifact before
+installing. Build configuration alone is not proof of the ABIs inside an already published APK.
+
+Pairing lends the connected phone's **location and camera**, not general Android app control, ADB or access to every
+file on the phone. Location uses a foreground system permission; do not treat it as continuous background tracking.
+A camera action still requires you to frame and take the photo. If the app is disconnected or suspended, do not
+assume these node capabilities remain available just because the pairing key is saved.
+
 ## Navigate the Android app
 
 The native app is more than Home chat. The bottom navigation offers **Chats**, **Inbox**, **Tasks**, **Sessions**

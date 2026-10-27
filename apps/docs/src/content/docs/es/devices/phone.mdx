@@ -139,6 +139,15 @@ npm install
 npx expo start      # Expo Go o un dev build; el core tiene que ser alcanzable en la red
 ```
 
+La configuración de release predeterminada compila para **ARM64 (`arm64-v8a`)**. Se pueden compilar otras
+arquitecturas, pero no asumas que cualquier APK admite un teléfono ARM32 viejo o un emulador x86: comprobá el
+artefacto de esa release. La configuración de build no prueba qué ABIs incluye un APK ya publicado.
+
+Vincular presta **ubicación y cámara** del teléfono conectado, no control general de apps Android, ADB ni acceso a
+todos sus archivos. La ubicación usa un permiso del sistema en primer plano; no implica seguimiento continuo en
+segundo plano. La cámara requiere que vos encuadres y tomes la foto. Si la app está desconectada o suspendida, no
+asumas que esas capacidades siguen disponibles porque conserva la llave de vinculación.
+
 ## Navegá la app Android
 
 La app nativa no es solo Inicio. La navegación inferior ofrece **Chats**, **Bandeja**, **Tareas**, **Sesiones** y
