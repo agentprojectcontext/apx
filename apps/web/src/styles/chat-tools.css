@@ -318,6 +318,20 @@
 .chat__header--compact .chat__titles {
   min-width: 0;
 }
+.task-status-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: min(420px, calc(100vw - 40px));
+}
+.task-status-hint__title {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.task-status-hint > .apx-badge {
+  flex-shrink: 0;
+}
 .task-status {
   display: inline-flex;
   min-width: 0;
