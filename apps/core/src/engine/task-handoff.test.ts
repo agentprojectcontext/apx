@@ -20,7 +20,7 @@ test("self-assignment transfers execution, preserves findings and reports back w
     if (said.includes("Work on this task.")) {
       incoming = String(req.messages.findLast((m) => m.role === "user")?.content);
       task = /Task (task_\w+):/.exec(incoming)?.[1] ?? "";
-      if (!afterTool) return callTool("close", "task_close", { task, state: "done", note: "Verified." });
+      if (!afterTool) return callTool("close", "task_close", { task, state: "done", note: "Verified the findings." });
       return say("Transferred task finished.");
     }
     if (said.includes("independent follow-up")) {

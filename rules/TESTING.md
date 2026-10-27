@@ -95,7 +95,7 @@ pnpm --filter @apx/ui build        # design system dist/ (what web and design-sy
 ```bash
 pnpm lint                          # Biome; `pnpm lint:fix` applies safe fixes
 pnpm check:private                 # public-safe gate (AGENTS.md rule 17)
-pnpm check:commits HEAD              # the same gate over commits (public-safe history), see rules/RELEASE.md
+pnpm check:commits HEAD^..HEAD     # this commit only; use a base..head range for a change, see rules/RELEASE.md
 pnpm check:schema                  # apps/core/src/db/schema.ts matches the migrations (`node apps/core/scripts/schema.ts` rewrites it)
 ```
 
@@ -267,3 +267,20 @@ node apps/terminal/src/main.ts browser shot t1 /tmp/t1.jpg
 Profiles: open `https://httpbin.org/cookies/set?probe=1` in `shared`, then `https://httpbin.org/cookies` with another
 `--by` (must show it) and with `--profile incognito` (must be empty). Credential guard: `browser type` into a
 password field must fail with `credential_field`.
+
+## Documentation checks
+
+Documentation impact is a review contract, not a source-reading behavioral test. Every feature and fix records the
+assessment required by [WORKFLOW.md](WORKFLOW.md#documentation-impact-contract), even when docs stay unchanged.
+For site edits, from `apps/docs` (a standalone install, outside the root workspace):
+
+```bash
+pnpm install --frozen-lockfile
+DOCS_BASE=/apx pnpm build
+pnpm check                 # EN/ES page and heading structure, built internal routes and fragment targets
+```
+
+Also run root `pnpm check:private` and `git diff --check`. The site check deliberately ignores external URLs and
+cannot prove translation meaning, screenshots, command correctness or product behavior. Read the real source and
+exercise changed instructions where safe; record anything not exercised as `UNVERIFIED`. A build is not a semantic
+audit. Runtime application suites are needed only when executable application behavior changes.

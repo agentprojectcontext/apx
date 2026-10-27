@@ -66,9 +66,9 @@ test("a phone pairs with the panel's code and is listed; removing it cuts its ke
   expect((await rpc<{ devices: unknown[] }>("devices.list")).devices).toEqual([]);
 });
 
-test("the top bar opens this chat on the phone: its dialog loads when asked and closes", async ({ page }) => {
+test("the account menu opens this chat on the phone: its dialog loads when asked and closes", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: "Más opciones" }).click();
+  await page.getByRole("button", { name: /^Cuenta/ }).click();
   await page.getByRole("menuitem", { name: "Abrir en el teléfono" }).click();
   const dialog = page.getByRole("dialog", { name: "Abrir en el teléfono" });
   // Only reachable from this computer, the sandbox says why there is no QR instead of showing one.

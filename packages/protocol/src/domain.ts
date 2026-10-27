@@ -419,7 +419,23 @@ export type DocumentSource = z.infer<typeof DocumentSource>;
 
 /** What the UI shows. The model's own transcript is stored separately (two projections of one log). */
 const KnownPart = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("text"), text: z.string() }),
+  z.object({
+    type: z.literal("text"),
+    text: z.string(),
+    /** A task consult's reply, kept as words for history readers and as a traced event for operators. */
+    response: z
+      .object({
+        thread_id: Id,
+        run_id: Id,
+        task_id: Id,
+        title: z.string(),
+        state: RunState,
+        end_reason: RunEndReason.optional(),
+        issue: z.enum(["no_answer", "actions_failed"]).optional(),
+        project_id: Id.optional(),
+      })
+      .optional(),
+  }),
   z.object({
     type: z.literal("tool"),
     call_id: z.string(),
@@ -708,9 +724,11 @@ export const JobFrom = z.object({
     "terminal",
     "go_on",
     "stalled_task",
+    "task_continue",
     "computer_ready",
     "task_result",
     "delegation_result",
+    "added",
   ]),
   /** Who sent it (the helper, the contact, the routine, the surface), when it has a name. */
   name: z.string().optional(),
@@ -1262,8 +1280,8 @@ export type MemorySettings = z.infer<typeof MemorySettings>;
 /** How APX reaches the owner when they are not looking at the app. */
 export const NoticePrefs = z.object({
   /**
-   * Where notices go: a channel (its id) or a paired device's push ("device:<id>"); none = the first running channel
-   * that knows the owner.
+   * Which chat app the super-agent also writes to unasked: a channel (its id), "none" for the app only, or unset for the
+   * first running channel that knows the owner. The app and paired phones are told either way (engine/notice-push.ts).
    */
   channel: z.string().optional(),
   /**

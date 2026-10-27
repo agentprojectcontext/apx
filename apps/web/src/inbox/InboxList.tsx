@@ -15,7 +15,7 @@ import { DEFAULT_PID, findProject, projectInitial, projectTone, threadAgent } fr
 import { type InboxView, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { TaskBundle } from "../lazy.ts";
+import { ActivityView, TaskBundle } from "../lazy.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
 import {
@@ -26,7 +26,7 @@ import {
   groupByTime,
   unreadListed,
 } from "./groupThreads.ts";
-import { ActivityView, TreeView } from "./InboxViews.tsx";
+import { TreeView } from "./InboxViews.tsx";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
 import { RoutineBundle } from "./RoutineBundle.tsx";
 import { ThreadRow } from "./ThreadRow.tsx";
@@ -144,7 +144,9 @@ export function InboxList() {
         ) : view === "tree" ? (
           <TreeView trees={trees} selected={threadId} />
         ) : view === "activity" ? (
-          <ActivityView groups={activity} selected={threadId} />
+          <Suspense fallback={<InboxSkeleton />}>
+            <ActivityView groups={activity} selected={threadId} />
+          </Suspense>
         ) : (
           groups.map((g) => {
             const isCollapsed = collapsed[g.key] ?? false;

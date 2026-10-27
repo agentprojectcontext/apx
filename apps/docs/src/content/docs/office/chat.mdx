@@ -30,6 +30,9 @@ that tasks and routines open. Pick how to see them with the switch at the top:
 (or Home). A chat's menu lets you pin it to the top, rename it, mark it read,
 archive it or delete it. Home's main chat cannot be archived or deleted: it is the one conversation you always have.
 
+**On the development branch after 2.11.0**, **Mark all as read** asks you to confirm before clearing unread
+markers in bulk. Canceling leaves them unchanged. Marking one chat read is still available from its own menu.
+
 ## Talking to an agent
 
 Open a chat and write. The agent's face and name sit in the header; click them (**View** its name) to open the agent
@@ -63,6 +66,26 @@ The box at the bottom ("Message Lucía…") is where you write. A few things it 
   Settings › Voices to keep it on your machine.
 - **Keys.** Enter sends (if the agent is working, it stops and answers this instead). Ctrl/⌘+Enter queues the message
   for when it ends. Shift+Enter adds a line.
+
+Attachment drafts, including uploads in progress, survive switching chats within the page. Select a thumbnail to
+preview its file. Unlike saved draft text, attachment drafts do not survive reloading or closing the page; they are
+not durable file storage.
+
+### Channel identity and delegated replies
+
+Channel conversations show the corresponding contact and channel identity. That display does not change the agent
+assigned to the chat.
+
+A delegated reply appears as an expandable block with its agent, status and a link to the source chat. It is not
+another participant in this conversation. An interrupted, failed or unanswered delegation does not mean the work
+was completed.
+
+### While an image is being generated
+
+**On the development branch after 2.11.0**, an executing image-generation call shows an inline animated tile
+placeholder, labeled **Generating images**, even when tool details are hidden. It is a waiting indicator, not a
+partial image or proof of success. It disappears when the call or run finishes, fails or is canceled; any completed
+images appear through the usual image grid. A call still awaiting approval does not show this execution indicator.
 
 ## Slash commands
 
@@ -121,6 +144,14 @@ The switcher at the right of the chat header opens a side panel. Each view shows
 When an agent writes a shell block in its answer (say, a command that needs `sudo`), the block gets **Run in a
 terminal**. It opens in the Terminal panel on a real terminal, so you can type a password there; when it ends, the
 agent that wrote it is told how it went.
+
+### Documents are saved snapshots
+
+Ask an agent to open a report or plan as a document after writing it. Markdown and text files (`.md`, `.markdown`,
+`.txt`, up to 400 KB) open in **Documents**, with rendered Markdown, source and download views. Even `.txt` is
+rendered as Markdown. The document is a saved snapshot: later file edits do not change it or open it automatically.
+It is not an app or widget. Agents can also attach files directly in the chat (up to 20 MB); images appear inline
+and audio/video can play there.
 
 ## Search everything with ⌘K
 

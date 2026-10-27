@@ -4,7 +4,7 @@
 // there (DECISIONS.md#d-101), and an @mention of anyone else opens a short consult
 // (the question and its answer, under the task's conversation, shown there as a card); an hourly pickup starts what was
 // assigned and never began. An agent's @mention on a task is a consult whose answer comes back to it (DECISIONS.md#d-132).
-import type { Author, Task, Thread } from "@apx/protocol";
+import type { Author, Part, Task, Thread } from "@apx/protocol";
 import { ownerIdentity } from "../domain/owner.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -13,9 +13,11 @@ import { type HeldTask, previewOf } from "../domain/threads.ts";
 import { badRequest, conflict } from "../errors.ts";
 import { taskWords } from "../tools/tasks.ts";
 import { agentTrip, heldNotice, trip } from "./breaker.ts";
-import { reportCard } from "./delegation.ts";
+import { actionsOf, reportCard } from "./delegation.ts";
 import type { AdmitFn } from "./engine.ts";
 import { mentioned, mentionsOwner, taskCommentAttention } from "./office.ts";
+import { outcomeOf } from "./run-outcome.ts";
+import { continueTask } from "./task-continue.ts";
 import { checkSelfHandoff, markHandoff } from "./task-handoff.ts";
 import { answersOwner, ownerTurnEnded } from "./task-inbox.ts";
 import { closedIn, reportClose } from "./task-report.ts";
@@ -71,12 +73,13 @@ export function ask(
   asker: Asker,
   author: Author,
   into: Thread = sessionFor(store, task, agentId),
+  parts: Part[] = [{ type: "text", text }],
 ) {
   const thread = into;
   // Work an agent gives spends against the chat it gave it from (DECISIONS.md#d-080).
   if (asker.kind === "agent" && asker.thread_id !== thread.id && !store.threads.context(thread.id).asked_from)
     store.threads.mergeContext(thread.id, { asked_from: asker.thread_id });
-  store.messages.add({ thread_id: thread.id, author, parts: [{ type: "text", text }] });
+  store.messages.add({ thread_id: thread.id, author, parts });
   store.threads.patch(thread.id, { preview: previewOf(text) });
   return admit({
     thread_id: thread.id,
@@ -437,7 +440,12 @@ function afterConsult(
   const part = card?.parts[index];
   if (card && part?.type === "subthread") {
     const parts = [...card.parts];
-    parts[index] = reportCard(part, run, answer || run.error || `(${run.state}, no answer)`);
+    parts[index] = reportCard(
+      part,
+      run,
+      answer || run.error || `(${run.state}, no answer)`,
+      outcomeOf(run, Boolean(answer), actionsOf(store, run)),
+    );
     store.messages.setPart({ ...card, parts }, index);
   }
   if (!task) return;
@@ -472,7 +480,33 @@ function answerAsker(
       ? `${name} answered your question on task ${task.id}:\n${answer.slice(0, 4000)}\n\nGo on with the task.`
       : `${name} could not answer your question on task ${task.id} (${run.error ?? run.state}). Go on without it.`;
   const asker: Asker = { kind: "agent", id: run.agent_id, name, thread_id: run.thread_id, run_id: run.id, depth: 1 };
-  ask(store, admit, current, askerId, text, asker, { kind: "agent", id: run.agent_id }, thread);
+  ask(store, admit, current, askerId, text, asker, { kind: "agent", id: run.agent_id }, thread, [
+    {
+      type: "text",
+      text,
+      response: responseMetadata(store, task, run, Boolean(textOf(store, run))),
+    },
+  ]);
+}
+
+function responseMetadata(store: Store, task: Task, run: RunRecord, answered: boolean) {
+  const outcome = outcomeOf(run, answered, actionsOf(store, run));
+  const issue =
+    outcome.level === "warn" && (outcome.issue === "no_answer" || outcome.issue === "actions_failed")
+      ? outcome.issue
+      : undefined;
+  return {
+    thread_id: run.thread_id,
+    run_id: run.id,
+    task_id: task.id,
+    title: task.title,
+    state: run.state,
+    ...(run.end_reason ? { end_reason: run.end_reason } : {}),
+    ...(issue ? { issue } : {}),
+    ...(store.threads.get(run.thread_id)?.project_id
+      ? { project_id: store.threads.get(run.thread_id)?.project_id }
+      : {}),
+  };
 }
 
 /** Reviewers are told to open with this word when nothing must change; one writing in Spanish says it there. */
@@ -497,7 +531,13 @@ function reviewEnded(store: Store, admit: AdmitFn, task: Task, run: RunRecord, v
   store.tasks.change(task.id, { status: "doing" }, run.agent_id);
   const text = `${name} reviewed the task and asks for changes:\n${verdict.slice(0, 4000)}\n\nFix what must change, check it, then put it back in review (task_update status review).`;
   const asker: Asker = { kind: "agent", id: run.agent_id, name, thread_id: run.thread_id, run_id: run.id, depth: 1 };
-  ask(store, admit, task, doer, text, asker, { kind: "agent", id: run.agent_id });
+  ask(store, admit, task, doer, text, asker, { kind: "agent", id: run.agent_id }, sessionFor(store, task, doer), [
+    {
+      type: "text",
+      text,
+      response: responseMetadata(store, task, run, Boolean(textOf(store, run))),
+    },
+  ]);
 }
 
 /** The final answer of a run, as text. */
@@ -541,6 +581,7 @@ export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): voi
     addComment(store, task, { kind: "agent", id: run.agent_id }, text, run.agent_id);
   // Closed in this turn: whoever created the task hears now, with the answer just posted as its report.
   if (closed) reportClose(store, admit, task.id);
+  else continueTask(store, admit, run);
 }
 
 /** When a task was last given to its agent (its creation with one, or the last assignment). */

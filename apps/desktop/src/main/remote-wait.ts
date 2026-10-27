@@ -8,6 +8,10 @@ export type Remote = {
   url: string;
   /** The SSH forward, when there is one. */
   tunnel?: Pick<Tunnel, "alive" | "problem" | "restart">;
+  /** The core on this computer: what to check if it never answers (its log, or how to start it). */
+  local?: string;
+  /** A confirmed identity mismatch, distinct from an unavailable core. */
+  identityProblem?: () => string | undefined;
 };
 
 export type WaitDeps = {
@@ -59,22 +63,30 @@ export type Waiting = { title: string; where: string; status: string; detail?: s
 
 export function waiting(remote: Remote, linked: boolean, es: boolean): Waiting {
   const problem = linked ? undefined : remote.tunnel?.problem();
-  const status = !remote.tunnel
-    ? es
-      ? "Esperando que el servidor responda."
-      : "Waiting for the server to answer."
-    : linked
+  const identityProblem = remote.identityProblem?.();
+  const status =
+    identityProblem ??
+    (remote.local
       ? es
-        ? "La conexión SSH está lista. Esperando que APX responda en el servidor; puede estar reiniciándose después de una actualización."
-        : "The SSH connection is up. Waiting for APX on the server to answer; it may be restarting after an update."
-      : es
-        ? "Esperando la conexión SSH con el servidor. Puede estar reiniciándose o sin red por un momento."
-        : "Waiting for the SSH connection to the server. It may be restarting or briefly offline.";
+        ? "APX en este equipo todavía no responde. Puede estar arrancando, por ejemplo después de reiniciar."
+        : "APX on this computer is not answering yet. It may still be starting, for example after a restart."
+      : !remote.tunnel
+        ? es
+          ? "Esperando que el servidor responda."
+          : "Waiting for the server to answer."
+        : linked
+          ? es
+            ? "La conexión SSH está lista. Esperando que APX responda en el servidor; puede estar reiniciándose después de una actualización."
+            : "The SSH connection is up. Waiting for APX on the server to answer; it may be restarting after an update."
+          : es
+            ? "Esperando la conexión SSH con el servidor. Puede estar reiniciándose o sin red por un momento."
+            : "Waiting for the SSH connection to the server. It may be restarting or briefly offline.");
+  const detail = problem ?? remote.local;
   return {
     title: es ? "Conectando con APX" : "Connecting to APX",
     where: remote.where,
     status,
-    ...(problem ? { detail: problem } : {}),
+    ...(detail ? { detail } : {}),
     hint: es
       ? "Se abre solo cuando responde. Para elegir otro APX: menú APX › Cambiar conexión."
       : "It opens by itself once it answers. To pick another APX: APX menu › Change connection.",

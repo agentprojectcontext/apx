@@ -185,6 +185,8 @@
                       "**/SearchSelect.tsx",
                       "**/SurfacePart.tsx",
                       "**/TaskDescription.tsx",
+                      "**/AgentEvent.tsx",
+                      "**/SubthreadPart.tsx",
                       "**/TaskBundle.tsx",
                       "**/TaskStatus.tsx",
                       "**/TaskPeek.tsx",

@@ -1,0 +1,48 @@
+---
+title: Apps and artifacts
+description: Choose a widget, a persistent app or a live view and find it again from the board or Apps.
+sidebar:
+  order: 1
+---
+
+## What you can ask for
+
+An **artifact** is a small interactive page made by an agent and kept in APX, not a new application installed on your
+computer. A **widget** is a view or tool in chat; an **app** is an artifact you work in fullscreen, often with saved
+records. “Live” describes how it refreshes or stays running, not a third kind of artifact or a scheduled agent.
+
+| Need | Ask for | Where to find it |
+|---|---|---|
+| Read a result or adjust a calculation | “Show a widget comparing these costs, with a quantity slider.” | The chat; pin it to the project board to keep it handy. |
+| Add and keep your own records | “Make an expense app with categories and saved entries.” | **Apps**, fullscreen. |
+| See changing information | “Make a live status view from this API; show when it was last updated.” | A widget or app with an explicit data source and refresh policy. |
+| Keep a written report | “Write a Markdown report I can download.” | A document in chat, not an artifact. |
+
+## Make and use your first one
+
+1. In a project chat, describe the result, the data source and whether you want to edit records. Say “widget” or “app”
+   if you already know. For a first try, use data you supply rather than an API credential.
+2. Use its controls in chat. For an app, open it from **Apps**; for a widget, pin it to the project's **Board**.
+3. Ask the same agent to change that artifact: “Keep my entries; add a filter by month.” Updating the same artifact
+   preserves its memory, but an incompatible database redesign needs deliberate migration.
+4. Reopen it to check that the intended choices or records were saved. A control that changes a local variable is
+   not automatically durable storage: tell the agent what must survive reopening.
+
+Each artifact belongs to a project or to the global area. To use it elsewhere, copy it from the other project's board,
+open it as an app, or share it using its menu. Copying does not copy its saved memory. Agents in a project cannot
+silently read another project's artifacts.
+
+## Choose your next guide
+
+- [Widgets, memory and export](/office/artifacts/): state, cached data, database, secrets and `.apxart` files.
+- [Live apps](/apps/live-apps/): refresh behavior, running limits, visibility and stale data.
+- [Board and sharing](/office/board/): pinning, Apps, publishing links and removing access.
+
+## Boundaries before sharing
+
+An artifact runs in a sandbox, not with unrestricted access to your computer or APX settings. Network access is
+limited to its declared origins. Do not paste credentials into a page: use APX's artifact secret mechanism when a
+source needs authentication. A shared page is not an owner chat and cannot approve actions as you.
+
+Export **without memory** when sharing a template. An export **with memory** can contain private records and drafts.
+There is no public artifact marketplace to browse or automatic background hosting promised by creating an app.

@@ -25,8 +25,8 @@ const llm = scriptedLlm(async (req, { said, afterTool }) => {
     await bridgeHeld;
     return callTool("b1", "task_list", {});
   }
-  // Works until stopped: the owner interrupts it from the task.
-  if (said.includes("Translate the onboarding guide") && !afterTool) {
+  // Works until stopped: the owner interrupts it from the task (a part APX goes on with is not that work).
+  if (said.includes("Translate the onboarding guide") && !said.includes("still in progress") && !afterTool) {
     await new Promise((r) => req.signal.addEventListener("abort", r, { once: true }));
     return say("Stopped");
   }
@@ -201,10 +201,11 @@ test("the owner writing in a task's conversation reaches its agent's working tur
     assignee: "vera",
   });
   const work = env.core.store.threads.byTask(t.id)[0]?.id ?? "";
+  // A part APX goes on with on its own (engine/task-continue.ts) is not a second turn for the owner's words.
   const vera = () =>
     [t.thread_id, ...env.core.store.threads.byTask(t.id).map((s) => s.id)]
       .flatMap((id) => env.core.store.runs.list(id))
-      .filter((r) => r.agent_id === "vera");
+      .filter((r) => r.agent_id === "vera" && r.input?.origin.kind !== "task_continue");
   await waitFor(() => vera()[0]?.state === "working", "Vera at work");
   const working = vera()[0];
   assert.equal(working?.state, "working");
@@ -246,11 +247,12 @@ test("the owner writing in a task's conversation reaches its agent's working tur
 });
 
 /** Vera's runs in a task's work chat, oldest first. */
+/** Vera's turns on the task, besides the parts APX goes on with on its own (engine/task-continue.ts). */
 const workRuns = (task: string) =>
   env.core.store.threads
     .byTask(task)
     .flatMap((s) => env.core.store.runs.list(s.id))
-    .filter((r) => r.agent_id === "vera")
+    .filter((r) => r.agent_id === "vera" && r.input?.origin.kind !== "task_continue")
     .sort((a, b) => a.started_at.localeCompare(b.started_at));
 
 test("the owner writing on a task whose work chat is idle starts its next turn there, words and all", async () => {
@@ -357,6 +359,26 @@ test("an agent's @mention in a task comment asks that agent, and the answer come
   await env.settle(chat.id);
   const back = store.messages.list(chat.id, 50).find((m) => m.author.kind === "agent" && m.author.id === "roby");
   assert.match(JSON.stringify(back?.parts), /Roby (answered|could not answer) your question/);
+  const reply = back?.parts.find((p) => p.type === "text");
+  const child = store.runs.list(consult?.id ?? "")[0];
+  assert.deepEqual(reply?.response, {
+    thread_id: consult?.id,
+    run_id: child?.id,
+    task_id: t.id,
+    title: t.title,
+    state: child?.state,
+    ...(child?.end_reason ? { end_reason: child.end_reason } : {}),
+    ...(consult?.project_id ? { project_id: consult.project_id } : {}),
+  });
+  assert.equal(store.threads.get(chat.id)?.kind, "loose");
+  assert.deepEqual(store.threads.get(chat.id)?.agent_ids, ["vera"]);
+  const loaded = await env.client.call("threads.get", { thread: chat.id });
+  assert.deepEqual(loaded.messages.find((m) => m.id === back?.id)?.parts, back?.parts);
+  assert.ok(
+    llm.calls.some((c) =>
+      c.messages.some((m) => m.role === "user" && String(m.content).includes("Roby answered your question")),
+    ),
+  );
   assert.deepEqual(
     await env.client.call("tasks.get", { task: t.id }).then((d) => d.sessions),
     [],

@@ -31,6 +31,10 @@ export const ConfigModal = lazy(() => import("./config/ConfigModal.tsx").then((m
 export const TaskPeek = lazy(() => import("./tasks/TaskPeek.tsx").then((m) => ({ default: m.TaskPeek })));
 export const TaskBundle = lazy(() => import("./inbox/TaskBundle.tsx").then((m) => ({ default: m.TaskBundle })));
 export const TaskStatus = lazy(() => import("./common/TaskStatus.tsx").then((m) => ({ default: m.TaskStatus })));
+export const SubthreadPart = lazy(() =>
+  import("./chat/parts/SubthreadPart.tsx").then((m) => ({ default: m.SubthreadPart })),
+);
+export const AgentEvent = lazy(() => import("./chat/AgentEvent.tsx").then((m) => ({ default: m.AgentEvent })));
 export const TaskDescription = lazy(() =>
   import("./chat/TaskDescription.tsx").then((m) => ({ default: m.TaskDescription })),
 );
@@ -125,6 +129,11 @@ export const ComputerProgress = lazy(() =>
   import("./computers/ComputerProgress.tsx").then((m) => ({ default: m.ComputerProgress })),
 );
 export const ContactChat = lazy(() => import("./channels/ContactChat.tsx").then((m) => ({ default: m.ContactChat })));
+export const ActivityView = lazy(() => import("./inbox/ActivityView.tsx").then((m) => ({ default: m.ActivityView })));
+export const ChannelFace = lazy(() => import("./inbox/ChannelFace.tsx").then((m) => ({ default: m.ChannelFace })));
+export const ChannelTreeRow = lazy(() =>
+  import("./inbox/ChannelTreeRow.tsx").then((m) => ({ default: m.ChannelTreeRow })),
+);
 
 // Message parts load with the first message that has one, not with the chat.
 export const SurfacePart = lazy(() => import("./chat/parts/SurfacePart.tsx").then((m) => ({ default: m.SurfacePart })));

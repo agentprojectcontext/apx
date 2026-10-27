@@ -9,7 +9,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
 }
 .computer__status {
   width: 7px;
@@ -23,7 +23,7 @@
 .computer__badge {
   color: var(--apx-fg-muted);
   margin-right: auto;
-  font-size: 10px;
+  font-size: calc(10px * var(--apx-text-scale, 1));
 }
 .computer__desktop {
   position: relative;
@@ -53,7 +53,7 @@
   gap: 8px;
   padding: 8px 14px;
   border-bottom: 1px solid var(--apx-border);
-  font-size: 11px;
+  font-size: calc(11px * var(--apx-text-scale, 1));
   color: var(--apx-fg-muted);
 }
 .computer__held {
@@ -76,7 +76,7 @@
 }
 .computer__setup p {
   max-width: 420px;
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
   color: var(--apx-fg-muted);
   line-height: 1.6;
   margin: 0;
@@ -92,12 +92,12 @@
 .computer__setup small {
   max-width: 420px;
   color: var(--apx-fg-muted);
-  font-size: 11px;
+  font-size: calc(11px * var(--apx-text-scale, 1));
 }
 .computer__error {
   padding: 10px 14px;
   color: #dc2626;
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
 }
 .computer__error > .computer__button {
   display: block;
@@ -154,14 +154,14 @@
   gap: 8px;
   min-height: 42px;
   padding: 0 14px;
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
 }
 .computer__console-title > svg {
   color: #10b981;
 }
 .computer__console-title code {
   margin-left: auto;
-  font-size: 10px;
+  font-size: calc(10px * var(--apx-text-scale, 1));
   color: var(--apx-fg-muted);
 }
 .computer__console form {
@@ -178,7 +178,7 @@
   align-self: center;
   color: #10b981;
   font-family: monospace;
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
 }
 .computer__console form:focus-within {
   border-color: #10b981;
@@ -199,7 +199,7 @@
   color: inherit;
   padding: 5px 2px;
   font-family: monospace;
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   line-height: 1.5;
 }
 .computer__console textarea:placeholder-shown {
@@ -218,7 +218,7 @@
   color: inherit;
   border-radius: 6px;
   padding: 6px 9px;
-  font-size: 11px;
+  font-size: calc(11px * var(--apx-text-scale, 1));
   cursor: pointer;
   white-space: nowrap;
 }
@@ -239,7 +239,7 @@
   white-space: pre-wrap;
   word-break: break-word;
   font-family: monospace;
-  font-size: 11px;
+  font-size: calc(11px * var(--apx-text-scale, 1));
   line-height: 1.6;
   padding: 6px 16px 12px;
   margin: 0;
@@ -329,7 +329,7 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
 }
 .computers__holder > div {
   display: flex;
@@ -349,7 +349,7 @@
   border-radius: var(--apx-radius-pill);
   background: var(--apx-fill);
   color: var(--apx-fg-muted);
-  font-size: 11px;
+  font-size: calc(11px * var(--apx-text-scale, 1));
   white-space: nowrap;
 }
 .computers__state.is-human {

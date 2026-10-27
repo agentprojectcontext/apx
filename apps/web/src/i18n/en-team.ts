@@ -135,7 +135,7 @@ export const enTeam = {
   "agents.each": "Model and browser of each agent",
   "limits.title": "When agents work on their own",
   "limits.lead":
-    "Agents that delegate and answer each other without you pause after this much, counted since you last wrote in that chat. Write and they go on.",
+    "By default agents finish what you asked without stopping. If you want, set a cap on the turns or tokens they may use without you, counted since you last wrote in that chat; at the cap they pause and go on when you write.",
   "limits.runs": "Turns without you",
   "limits.runsHint": "Turns agents start on their own in one chat before they wait for you. Empty: no limit.",
   "limits.tokens": "Tokens without you",
@@ -143,11 +143,9 @@ export const enTeam = {
     "Fresh tokens those turns may spend before they wait for you, in thousands; what a provider reads from its cache does not count. Empty: no limit.",
   "limits.thousands": "thousand",
   "limits.none": "No limit",
-  "limits.off": "Remove the limits",
-  "limits.offHint": "Agents keep going on their own until they finish, however long it takes and whatever it costs.",
-  "limits.fanOut": "Ask before handing work to several agents",
-  "limits.fanOutHint":
-    "When the super-agent is about to give work to a third agent in one go, its tasks wait as proposals you pick from, and a question asks you first.",
+  "limits.on": "Set limits",
+  "limits.onHint": "Agents pause when they reach these and wait for you.",
+  "limits.offHint": "No limits: agents keep going until they finish what you asked, like a coding agent.",
   "agentedit.group.general": "General",
   "agentedit.group.abilities": "Abilities",
   "agentedit.group.permissions": "Permissions",

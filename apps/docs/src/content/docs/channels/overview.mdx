@@ -1,6 +1,6 @@
 ---
 title: Channels overview
-description: How APX talks through Telegram, WhatsApp, Discord, Slack and iMessage, and who it answers there.
+description: All 17 channel types, their setup guides, identity boundaries and who gets an answer.
 sidebar:
   order: 1
 ---
@@ -14,6 +14,35 @@ channels in **Settings › Channels**. Each one then shows up in the sidebar und
 chats.
 
 <Shot name="settings-channels" alt="Settings, Channels section: a connected Telegram bot with its status, who answers, and how it behaves" caption="Settings › Channels" />
+
+## Available channels
+
+The current channel catalog has **17 connectable types**. This counts channel adapters, not Google integrations,
+MCP servers or paired devices. Each type below has setup instructions; several related services share a guide.
+
+| Channel | Setup and important limit |
+|---|---|
+| Telegram | [Bot setup](/channels/telegram/); direct chats and listed groups. |
+| WhatsApp | [QR linking](/channels/whatsapp/); your line or a dedicated line. |
+| Discord | [Bot and rooms](/channels/discord-slack/); explicitly allow server rooms. |
+| Slack | [Socket Mode app](/channels/discord-slack/); direct messages. |
+| iMessage | [Mac permissions](/channels/imessage/); runs on the Mac hosting the core. |
+| Matrix | [Homeserver and token](/channels/self-hosted/#matrix); unencrypted direct rooms only. |
+| Mattermost | [Bot account](/channels/self-hosted/#mattermost); direct messages only. |
+| Signal | [signal-cli](/channels/signal/); direct chats, local daemon required. |
+| Email | [IMAP/SMTP mailbox](/channels/email/); different from the Gmail integration. |
+| Google Chat | [Pub/Sub app](/channels/work-chat/#google-chat); direct chats and listed spaces. |
+| Nextcloud Talk | [Bot user](/channels/work-chat/#nextcloud-talk); direct and listed conversations. |
+| SMS | [Twilio number](/channels/sms-ntfy/#sms-through-twilio); provider charges apply. |
+| ntfy | [Protected topic](/channels/sms-ntfy/#ntfy); one owner, not a contact directory. |
+| IRC | [Network and nick](/channels/irc-twitch/#irc); private messages and listed channels. |
+| Twitch | [Chat bot](/channels/irc-twitch/#twitch); public room, not a DM inbox. |
+| Microsoft Teams | [Azure bot](/channels/teams-line/#microsoft-teams); public HTTPS webhook required. |
+| LINE | [Official Account](/channels/teams-line/#line); public HTTPS webhook required. |
+
+Start in **Settings › Channels › Add channel**. A configured connection is not proof that every room, media type or
+approval button is supported: follow the service's guide and test both receipt and reply. See [devices](/devices/phone/)
+for the Android app and [integrations](/extend/integrations/) for connected services that are not channels.
 
 ## Three words: channel, contact, room
 

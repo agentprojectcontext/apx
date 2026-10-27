@@ -75,7 +75,10 @@ test("a complete agent subtask starts exactly once; agents cannot erase its owne
     const session = sessions[0];
     assert.ok(session);
     await env.settle(session.id);
-    assert.equal(env.core.store.runs.list(session.id).length, 1);
+    // One start; a part APX goes on with on its own (engine/task-continue.ts) is not a second one.
+    const starts = () =>
+      env.core.store.runs.list(session.id).filter((r) => r.input?.origin.kind !== "task_continue").length;
+    assert.equal(starts(), 1);
     for (const [i, changes] of [{ assignee: null }, { description: "   " }].entries()) {
       const result = await env.core.dispatch(
         "tasks.update",
@@ -95,7 +98,7 @@ test("a complete agent subtask starts exactly once; agents cannot erase its owne
       "status",
     );
     assert.ok(changed.ok);
-    assert.equal(env.core.store.runs.list(session.id).length, 1);
+    assert.equal(starts(), 1);
   } finally {
     await env.core.close();
     await env.cleanup();

@@ -10,6 +10,7 @@ import type { Bus } from "./bus.ts";
 import type { CoreConfig } from "./config.ts";
 import { nativeApproval } from "./domain/approvals.ts";
 import type { Store } from "./domain/store.ts";
+import { type Added, tellAdded } from "./engine/added.ts";
 import { audienceOf } from "./engine/audience.ts";
 import { createHooks } from "./engine/hooks.ts";
 import type { Permissions } from "./engine/permissions.ts";
@@ -38,6 +39,7 @@ import { channelHandlers } from "./rpc/channels.ts";
 import { clientHandlers } from "./rpc/clients.ts";
 import { composerHandlers } from "./rpc/composer.ts";
 import { computerHandlers } from "./rpc/computer.ts";
+import type { CallContext } from "./rpc/context.ts";
 import { desktopInstallHandlers } from "./rpc/desktop-install.ts";
 import { deviceHandlers } from "./rpc/devices.ts";
 import { emailSignatureHandlers } from "./rpc/email-signatures.ts";
@@ -174,7 +176,7 @@ export function builtinTools(
     ...mediaTools(store, home, vm),
     ...phoneTools(),
     ...computerTools(store),
-    ...taskTools(store),
+    ...taskTools(store, home),
     ...videoTools(findProgram("yt-dlp")),
     ...webTools(),
     ...contactTools(store),
@@ -254,6 +256,12 @@ type HandlerDeps = {
 
 /** The handler table the router serves: one entry per protocol method. */
 export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
+  const app = appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services });
+  const agents = agentHandlers(d.store, d.apc, d.engines, d.tools);
+  // What the owner adds by hand reaches the super-agent, which offers to adapt it; an agent's own calls do not.
+  const added = (ctx: CallContext, a: Added) => {
+    if (ctx.actor === "human" && !ctx.agent) tellAdded(d.store, d.engine.admit, a);
+  };
   return {
     ...environmentHandlers(d.store, d.vm, d.engine.cancel),
     ...desktopInstallHandlers(d.desktopInstaller),
@@ -278,7 +286,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
     ...channelHandlers(d.store, d.channels),
     ...emailSignatureHandlers(d.store),
-    ...mediaHandlers(d.services),
+    ...mediaHandlers(d.services, d.store),
     ...transcriptionHandlers(d.services, d.localModels),
     ...embeddingHandlers(d.localEmbeds, () => d.memory.engine()),
     ...taskHandlers(d.store, d.engine, d.app.home, d.vm?.beforeDelete),
@@ -314,7 +322,17 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
       runtimeHomes: d.runtimeHomes,
     }),
     ...providerHandlers(d.providers, d.secrets, d.chatgpt),
-    ...appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services }),
+    ...app,
+    "projects.create": (p: Parameters<(typeof app)["projects.create"]>[0], ctx: CallContext) => {
+      const r = app["projects.create"](p);
+      added(ctx, { what: "project", id: r.project.id, name: r.project.name });
+      return r;
+    },
+    "projects.register": (p: Parameters<(typeof app)["projects.register"]>[0], ctx: CallContext) => {
+      const r = app["projects.register"](p);
+      added(ctx, { what: "project", id: r.project.id, name: r.project.name });
+      return r;
+    },
     ...artifactHandlers({
       store: d.store,
       secrets: d.secrets,
@@ -323,7 +341,12 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
         ? (html, onCall) => d.headless?.checkPage(html, onCall) ?? Promise.resolve({ errors: [], text: "", views: [] })
         : undefined,
     }),
-    ...agentHandlers(d.store, d.apc, d.engines, d.tools),
+    ...agents,
+    "agents.create": (p: Parameters<(typeof agents)["agents.create"]>[0], ctx: CallContext) => {
+      const r = agents["agents.create"](p);
+      added(ctx, { what: "agent", id: r.id, name: r.name });
+      return r;
+    },
     ...teamHandlers(d.store, d.apc, d.templateRoots, (s) => d.scheduler.nextFor(s)),
     ...fileHandlers(d.store, d.desktop, d.app.home),
     ...gitHandlers(d.store, d.upkeep),

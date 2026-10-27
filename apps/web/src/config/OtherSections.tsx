@@ -6,7 +6,7 @@ import { CHANNEL_KINDS, type ChannelKind } from "../channels/kinds.ts";
 import { LanguageSelect, TimezoneSelect } from "../common/pickers/LocaleSelect.tsx";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
-import { initialsOf, setPrefs, usePrefs } from "../data/prefs.ts";
+import { initialsOf, setPrefs, TEXT_SIZES, textSizeOf, usePrefs } from "../data/prefs.ts";
 import { isLanguage, LANGUAGE_NAMES, LANGUAGES, useLanguage, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { EmailSignatures } from "./EmailSignatures.tsx";
@@ -104,6 +104,7 @@ export function AppearanceSection() {
   const mode = useNav((s) => s.mode);
   const look = usePrefs((s) => s.look);
   const font = usePrefs((s) => s.font);
+  const textSize = usePrefs((s) => s.textSize);
   const width = usePrefs((s) => s.transcriptWidth);
   const lang = useLanguage();
   return (
@@ -119,6 +120,15 @@ export function AppearanceSection() {
             { value: "system", label: t("appearance.font.system") },
             { value: "mono", label: t("appearance.font.mono") },
           ]}
+        />
+      </SettingRow>
+      <SettingRow title={t("appearance.textSize")} description={t("appearance.textSizeHint")}>
+        <SegmentedControl
+          size="sm"
+          label={t("appearance.textSize")}
+          value={String(textSize)}
+          onValueChange={(v) => setPrefs({ textSize: textSizeOf(Number(v)) })}
+          options={TEXT_SIZES.map((size) => ({ value: String(size), label: `${size}%` }))}
         />
       </SettingRow>
       <SettingRow title={t("appearance.width")} description={t("appearance.widthHint")}>

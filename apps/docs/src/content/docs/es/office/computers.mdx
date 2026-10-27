@@ -1,0 +1,71 @@
+---
+title: VM Linux aislada
+description: Dales un escritorio Linux aislado, mirá sus pantallas y tomá el control sin prestarles tu propio escritorio.
+sidebar:
+  order: 8
+---
+
+## Una computadora aparte de tu Mac
+
+En **macOS con Apple Silicon**, APX puede preparar una máquina virtual Linux opcional con navegador, escritorio y
+terminal. Descarga Lima si hace falta, Linux y los paquetes del escritorio; no requiere Docker. Corre en la
+**computadora del core**, no automáticamente en el dispositivo donde abrís el panel. Los cores en Mac Intel,
+Windows y Linux no admiten por ahora esta computadora administrada.
+
+No es lo mismo que [dejar que los agentes usen tu escritorio](/es/devices/desktop/#uso-de-la-computadora) ni que abrir
+pestañas en el [navegador integrado](/es/office/browser/) de APX.
+
+## Permitile el acceso a un agente y elegí su chat
+
+La computadora está desactivada para todos los agentes hasta que les das permiso. Abrí los ajustes del agente y
+**Computadora aislada**, o pedile a tu superagente que te ayude a habilitarla. El permiso deja que el agente inicie
+su pantalla cuando la necesite; no le da permiso para usar la pantalla de tu Mac.
+
+Abrí el chat de un agente de proyecto y su panel **Computadora**, y elegí **Usar la computadora acá** (o permitile
+el acceso y usala acá). Pedile que trabaje ahí. APX muestra la creación, la carga y cuándo está lista en el chat;
+un agente autorizado puede iniciarla y seguir cuando esté lista. Home se queda en la computadora anfitriona. Un
+mensaje de un contacto, widget o app externa no obtiene acceso a la computadora.
+
+Los agentes autorizados comparten una VM Linux, pero cada uno tiene su usuario Linux, navegador y pantalla. Una
+pantalla pertenece a un chat a la vez; otro chat te lleva a ese chat en vez de tomar su pantalla sin avisarte. En un
+chat en la computadora, los comandos, archivos, navegador y acciones de pantalla corren ahí: no pasan a tu Mac si
+algo falla. Las tareas, delegaciones, memoria y lecturas web siguen disponibles. No supongas que los archivos de
+proyecto de tu Mac se copian ahí automáticamente.
+
+## Mirá o tomá el control
+
+**Computadoras** lista las pantallas de los agentes autorizados, incluso las apagadas. Podés prender o apagar una
+pantalla, abrirla y abrir su chat. Apagar una pantalla no es apagar la VM compartida para todos.
+
+En el panel de la computadora:
+
+- **Tomar el control** interrumpe al agente para que uses el escritorio o inicies sesión vos. Los agentes no deben
+  escribir tus contraseñas, datos de pago ni códigos de verificación.
+- **Devolver el control al agente** le devuelve la pantalla. Si un turno se detuvo porque tenías el control,
+  devolvelo y volvé a pedirle al agente cuando haga falta.
+- **Terminal de la VM** envía comandos como el usuario Linux de ese agente en `~/work`, después de tomar el control.
+  Enter envía; Shift+Enter agrega una línea. Para una shell interactiva, usá la terminal del escritorio Linux.
+- Cerrar el panel deja la computadora encendida. Una pantalla puede seguir prendida después de que termine el turno.
+
+## Recursos y apagado
+
+**Recursos de la computadora** muestra memoria, CPU, disco y apagado por inactividad. Los cambios de recursos se
+aplican en el próximo inicio de la VM; la computadora encendida puede conservar la asignación anterior. El tiempo
+predeterminado de inactividad es de 30 minutos. Apagar conserva el disco y los archivos. El disco puede crecer,
+pero no achicarse.
+
+El límite de pantallas depende de la memoria asignada a la VM encendida. Si está lleno, apagá otra pantalla o
+asigná más memoria y reiniciá la VM. Iniciar también requiere memoria libre para la VM más una reserva para tu Mac.
+Cuando puede, APX ofrece una asignación menor. **Iniciar igual** aparece solo cuando alcanza para la VM pero no
+para la reserva del anfitrión; no permite ignorar cualquier falta de memoria. La VM puede apagarse si la Mac se
+queda corta de memoria, conservando su disco.
+
+## Límites
+
+El entorno separa el trabajo de tu escritorio, pero no vuelve confiables las páginas ni el código descargado.
+El acceso a la red pasa por el proxy de salida de APX; no es una ruta libre a tu anfitrión o red privada.
+Revisá las solicitudes para enviar mensajes, publicar o usar credenciales como en cualquier chat. Elegí los
+[ajustes de autonomía](/es/concepts/autonomy/) con cuidado.
+
+Si falla la preparación, leé el motivo en el panel antes de reintentar. Revisá soporte del anfitrión, memoria y
+espacio libre. Para un core remoto, diagnosticá el servidor que lo aloja, no solo tu app de escritorio local.

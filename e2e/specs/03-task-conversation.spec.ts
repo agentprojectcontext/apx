@@ -18,9 +18,10 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
       if (system.startsWith("You are Builder")) {
         if (afterTool) return say("Review completed. @roby please check.");
         // Assigned, Builder starts in its chat for the task; asked to review, it moves the task and says so.
-        return said.includes("please review")
-          ? callTool("review", "task_update", { task: taskId, status: "review" })
-          : say("On it.");
+        if (said.includes("please review"))
+          return callTool("review", "task_update", { task: taskId, status: "review" });
+        // The next part APX starts on its own while the task is in progress: nothing more to do yet.
+        return say(said.includes("still in progress") ? "Still waiting for the review request." : "On it.");
       }
       return say("@owner please approve the review.");
     }),

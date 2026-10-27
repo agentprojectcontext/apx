@@ -10,7 +10,7 @@ import Shot from "../../../components/Shot.astro";
 
 The desktop app is the easiest way to live with APX. Its window is the panel, the same one the core serves to a
 browser. Around it, the app adds three things a web page can't: an icon in the menu bar with a quick chat, a real
-browser your agents can drive, and (on a Mac) the option to let agents use your computer.
+browser your agents can drive, and (on macOS and Windows) the option to let agents use your computer.
 
 ## The window
 
@@ -46,6 +46,7 @@ These settings live in the core but only apply inside the desktop app (in a plai
 | **Shortcut** | The global shortcut for the quick chat. Click, then press the keys. **Remove** leaves it without one. If another app already uses those keys, APX tells you. |
 | **Start with the computer** | APX opens when you log in. On by default. |
 | **Let agents use this computer** | Computer use, on macOS and Windows, off until you turn it on. See below. |
+| **Keep the Mac awake while agents work** | Prevents system sleep during a turn, command or computer startup. The screen can still turn off. You can disable it. |
 
 ### Computer use
 
@@ -61,7 +62,7 @@ Some things hold in every autonomy level, even total:
 - Password fields are refused.
 
 Looking at the screen is an `ask` tool; clicking, typing and pressing keys are `always` tools, so they ask in every
-autonomy except total (see [Autonomy](/concepts/autonomy/)). Windows and Linux don't lend this capability yet.
+autonomy except total (see [Autonomy](/concepts/autonomy/)). Linux does not lend this capability yet.
 
 ## The browser your agents drive
 
@@ -121,11 +122,13 @@ A home can have only one daemon, even when two launches use different ports.
 
 An explicit URL (including `APX_URL`) is connect-only: an unavailable server never makes the app start a replacement
 on this computer. SSH mode owns its tunnel, not the server daemon. Updating or restarting Desktop does not update
-or restart that server.
+or restart that server by itself. Coordinated release activation, described below, is a separate owner action.
 
 The CLI's `apx service` commands always control services on the computer running the command, never the computer
 named by `APX_URL`. Use `--home` to select the local installation. `apx desktop` likewise opens the app on the
 computer where the command runs, not on your client when you run it over SSH.
+
+For a Linux desktop apart from your own screen, see [Agents' computer](/office/computers/).
 
 ## Updates
 
@@ -136,8 +139,11 @@ shows it in the top bar. On your word it downloads the installer for your system
 - **macOS** opens the disk image for you to drag APX in. The app isn't signed yet, so it can't replace itself
   silently.
 
-The app carries its own core, so updating the app updates that core too. When the app is connected to a core on a
-server, the update offered in the panel is the server's.
+A bundled local core updates with Desktop. With a remote core, Desktop coordinates a shared release over the
+authenticated APX connection, without SSH. The server updates once; each Desktop app can activate its package only
+after confirming that the server is running that exact release. Offline apps reconcile when they reconnect:
+devices do not update atomically. Older or unsupported servers block Desktop activation and show recovery guidance.
+The first update of a server without coordination support still uses its existing update mechanism.
 
 ## Running it from a checkout
 

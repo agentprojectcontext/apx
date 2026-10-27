@@ -547,6 +547,14 @@ export interface SurfacesTable {
   origin: string | null;
 }
 
+export interface TaskAttachmentsTable {
+  task_id: string;
+  media_id: string;
+  source_media_id: string;
+  source_thread_id: string | null;
+  created_by: string;
+}
+
 export interface TaskEventsTable {
   n: Generated<number>;
   task_id: string;
@@ -554,6 +562,10 @@ export interface TaskEventsTable {
   op: string;
   by: string;
   data: Generated<string>;
+}
+
+export interface TaskUploadsTable {
+  media_id: string;
 }
 
 export interface TasksTable {
@@ -658,7 +670,9 @@ export interface Database {
   stickers: StickersTable;
   suggestions: SuggestionsTable;
   surfaces: SurfacesTable;
+  task_attachments: TaskAttachmentsTable;
   task_events: TaskEventsTable;
+  task_uploads: TaskUploadsTable;
   tasks: TasksTable;
   threads: ThreadsTable;
 }

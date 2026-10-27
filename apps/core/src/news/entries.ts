@@ -85,6 +85,48 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "device-text-size",
+    since: "2.11.2",
+    title: "Choose a comfortable text size",
+    applies: (f) => f.secretary,
+    text: "Settings › Appearance now offers 85%, 100% (normal), 115% and 130% text sizes, with an immediate preview and a preference saved on this device. It changes interface and chat text without zooming images, embedded apps or the browser window. Embedded terminals keep their own text sizing.",
+    actions: [
+      {
+        label: { en: "Find text size settings", es: "Ver dónde cambiar el tamaño del texto" },
+        prompt:
+          "Show me where to choose the text size in Settings › Appearance on this device. Do not change browser zoom or other preferences.",
+      },
+    ],
+  },
+  {
+    id: "agents-finish-unattended",
+    since: "2.11.2",
+    title: "Agents finish what you ask",
+    applies: (f) => f.secretary,
+    text: "Agents no longer pause after a number of turns or tokens without the owner: they finish what they were asked, like a coding agent. Limits are opt-in under Config › Agents › When agents work on their own (starting at 100 turns). The super-agent no longer stops on a system card to hand work to several agents: when asked for several things without saying how, it asks in its own words with options. It also tells the owner when its team closes a task and offers to adapt a project or agent the owner adds. Every notice reaches the app and paired phones; a chat app for notices is optional (Config › Super-agent › Where it writes to you, None keeps them in the app).",
+    actions: [
+      {
+        label: { en: "Choose where you hear from me", es: "Elegir por dónde te aviso" },
+        prompt:
+          "Explain where you will tell me things now (the app, my phone, a chat app) and ask whether I want a chat app too or only the app. Do not change anything until I answer.",
+      },
+    ],
+  },
+  {
+    id: "durable-task-attachments",
+    since: "2.11.1",
+    title: "Keep screenshots and files with a task",
+    applies: (f) => f.secretary,
+    text: "Tasks can keep selected screenshots and files as durable snapshots, at creation or later. Authorized agents can inspect them from the task even after the source chat is deleted. The panel previews and downloads them. This does not grant access to private contact chats or publish files; sending outside APX remains a separate owner action.",
+    actions: [
+      {
+        label: { en: "Attach files to a task", es: "Adjuntar archivos a una tarea" },
+        prompt:
+          "Help me choose a task and the screenshots or files to attach to it. Do not copy unrelated chat history or send anything outside APX.",
+      },
+    ],
+  },
+  {
     id: "task-chat-actions",
     since: "2.11.1",
     title: "Manage tasks from their chat group",
@@ -136,7 +178,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "email-signatures",
-    since: "2.11.0",
+    since: "2.11.1",
     title: "Email signatures by sender",
     applies: (f) => f.google.gmail || f.email,
     text:
@@ -155,7 +197,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "engine-usage",
-    since: "2.11.0",
+    since: "2.11.1",
     title: "Account limits in the top bar",
     applies: (f) => f.codex || f.claude === true,
     text:

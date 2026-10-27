@@ -571,7 +571,7 @@
   padding: 0 6px;
   border: 1px solid;
   border-radius: 999px;
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--apx-text-scale, 1));
   line-height: 16px;
   white-space: nowrap;
 }

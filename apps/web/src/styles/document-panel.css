@@ -15,7 +15,7 @@
 .documentpanel__head h2 {
   width: 100%;
   margin: 0;
-  font-size: 22px;
+  font-size: calc(22px * var(--apx-text-scale, 1));
   overflow-wrap: anywhere;
 }
 .documentpanel__filename {
@@ -24,7 +24,7 @@
   overflow: hidden;
   color: var(--apx-fg-muted);
   font-family: var(--apx-font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -116,7 +116,7 @@
 }
 .documentpanel__source {
   font-family: var(--apx-font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

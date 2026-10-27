@@ -10,7 +10,9 @@ It installs on its own, outside the pnpm workspace, so Astro stays out of everyo
 cd apps/docs
 pnpm install
 pnpm dev          # http://127.0.0.1:4400
-pnpm build        # static site in dist/ (DOCS_SITE / DOCS_BASE set where it is published)
+DOCS_BASE=/apx pnpm build  # static site in dist/ using the published base (DOCS_SITE sets its origin)
+pnpm check        # fixture tests, EN/ES page/heading parity, built internal routes and fragments
+DOCS_BASE=/apx pnpm preview  # preview the same built base at http://127.0.0.1:4400/apx/
 pnpm shots        # retake every screenshot against a demo core (see below)
 ```
 
@@ -32,6 +34,17 @@ redirects to the first page.
 - Sentence case for titles and headings ("Run a routine now", not "Run A Routine Now").
 - Document what the code does today. Check commands with `apx <command> --help`; mark anything partial as such.
 - Public-safe content only (rule 17): Acme, Northwind, `user@example.com`, `~/work/…`.
+
+## Documentation impact and checks
+
+Every feature and fix records a documentation impact assessment, including a specific reason when no docs change
+is needed ([workflow](../../rules/WORKFLOW.md#documentation-impact-contract)). Compare instructions with the actual
+source and release tag, not just news metadata. Update or create English and Spanish pages in the same change.
+
+`pnpm check` runs after the build locally and in the Pages workflow. It checks page pairs and heading levels, then
+literal internal links and fragment ids in built HTML under `DOCS_BASE` (default `/apx`). It does not check external
+URLs, asset/download existence, screenshots, translation meaning or product behavior. For another base, use that
+same `DOCS_BASE` for both commands. A passing check is not a guarantee that all documentation is correct.
 
 ## Components
 

@@ -62,7 +62,8 @@ test("an agent's @mention on its task asks that teammate, and the answer comes b
   assert.match(JSON.stringify(heard?.parts), /include taxes/);
   // Scout's own @vera from inside the consult asked no one: still the one consult, and Vera's chat had two turns.
   assert.equal(store.threads.sessions(task.thread_id).length, 1);
-  assert.equal(store.runs.list(chat()?.id ?? "").length, 2);
+  // Parts APX goes on with on its own (engine/task-continue.ts) are not turns anyone asked for.
+  assert.equal(store.runs.list(chat()?.id ?? "").filter((r) => r.input?.origin.kind !== "task_continue").length, 2);
   const card = (await env.client.call("threads.get", { thread: task.thread_id })).messages
     .flatMap((m) => m.parts)
     .find((p) => p.type === "subthread");

@@ -15,6 +15,10 @@ own **Tasks** tab with **New task**.
 
 <Shot name="tasks" alt="The Tasks screen with groups In progress, Pending, In review and Needs your review, each listing tasks with assignee and due date" caption="Tasks, across every project" />
 
+Before creating another task, agents are instructed to check the open tasks and continue an existing task when
+it already covers the same or closely related work. This is not automatic duplicate detection. For a task that
+changes code, see [where the code work goes](/office/code/#where-a-task-changes-code).
+
 ## What a task has
 
 | Field | Values |
@@ -44,6 +48,18 @@ project or shows **All projects**; this browser remembers the choice for the nex
   It is asked to review at once: asking for changes sends it back to whoever did it; approving makes it yours.
 - **Closed recently**: done or dropped, newest first.
 
+## Attachments and task chat actions
+
+Tasks can keep selected screenshots and files as independent snapshots, when created or later. Preview or download
+them from the task. Each task holds up to 50 files, at most 20 MB each. Deleting the original chat does not delete
+the task's copy; removing the attachment deletes that copy, not copies already shared elsewhere. Authorized agents
+can inspect task attachments without gaining access to private contact chats. Sending a file outside APX remains
+a separate owner action.
+
+Use the task chat group's actions button or right-click menu to change its column, mark it waiting, close or reopen
+it, or archive its chats. Archiving preserves history: it does not close the task or restart work. Task status appears
+beside the chat header, and the opening task description preserves paragraphs and lists.
+
 ## Assigning starts the work
 
 Give a task to an agent (when you create it, or later) and it starts working right away, in **its own chat for that
@@ -71,6 +87,14 @@ Assigned tasks that never started are picked up on their own: once an hour, the 
 have one start later (tomorrow morning, after a release), set **Starts** in its drawer, or `apx tasks add … --start
 2026-10-23T09:00`: its agent starts then, not when you assign it.
 
+### Moving the current work into a task
+
+**On the development branch after 2.11.0**, when an agent immediately assigns its current work to itself as a new
+task, APX transfers execution to the task's chat. The originating turn stops executing tools; the task chat gets a
+bounded handoff of the request and recent findings so it can continue rather than repeat the investigation.
+This does not prohibit unrelated parallel chats. If the current turn already has helpers or other active work,
+or cannot transfer safely, APX refuses the handoff and the agent must continue there, not start a second executor.
+
 ### Comments and @mentions
 
 Write in the task's **Comment** box. A comment that names no one waits a minute (so you can add another) and then
@@ -85,9 +109,17 @@ the question and the answer, and the answer comes back to the agent that asked, 
 comment asks two teammates at most, and the one answering a consult cannot ask anyone further. An agent can also
 mention you to get your attention.
 
+### An agent works a task until it is done
+
+When an agent's turn on a task ends with the task still in progress (it ran out of steps, or stopped at "I'll
+continue"), its next part starts at once, numbered, up to nine. It stops when the agent closes the task, marks it
+waiting on you with what you must do, says what blocks it, or when a part got nowhere. Closing its own work as done,
+an agent must say what it verified.
+
 ### When an agent's task closes
 
-A task one agent created and gave to another reports back when it closes. Your main agent can hand a whole goal to a
+A task one agent created and gave to another reports back when it closes. Your main agent hears of every task its team
+closes, also the ones you or another agent gave, and tells you what came of it. Your main agent can hand a whole goal to a
 project's orchestrator as a task; when the orchestrator closes it, hours and restarts later, your main agent gets
 its report in the chat where it created the task and tells you what matters. Closing a task yourself, or an agent
 closing its own, wakes nobody. That turn counts toward the [turns agents start on their own without
@@ -119,11 +151,11 @@ hands out it creates and starts; the rest it **proposes**. A proposed task waits
 it, until you accept it (it starts like any assigned task) or drop it. You get one notice per agent with how many it
 has waiting.
 
-Some tasks are proposals whatever the agent asks for:
+Some tasks are proposals whatever the agent asks for. When you ask Roby for several things without saying how, it asks
+you first (a plan, one task each, or doing it itself); once you said how, it goes ahead.
 
-- **A wide hand-out.** When an agent hands tasks to a third agent or more in one turn (Roby splitting "check every
-  service for PHP vulnerabilities" into one task per service), they are proposed, so you pick which go ahead. The
-  **Ask before handing work to several agents** switch (Team, under **When agents work on their own**) turns this off.
+The proposals:
+
 - **A hand-off chain three deep.** A sub-task of a sub-task of a sub-task is proposed, so agents cannot keep passing
   work down on their own.
 - **Work given back up the chain.** A sub-task for an agent that created one of the tasks above it is proposed, so two

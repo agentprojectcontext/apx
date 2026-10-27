@@ -1,0 +1,45 @@
+---
+title: Buzón de email
+description: Dale al agente un buzón IMAP/SMTP, restringí remitentes entrantes y probá las respuestas con cuidado.
+sidebar:
+  order: 12
+---
+
+## ¿Buzón o integración de Gmail?
+
+Un **canal Email** lee correo entrante por IMAP y responde por SMTP. La **integración de Gmail** es una conexión
+aparte para buscar, leer, preparar borradores y enviar cuando lo pedís. Conectar Calendar no conecta ninguna de las
+dos. Leé [Email y firmas](/es/office/email/) para Gmail y las firmas locales de cada remitente.
+
+## Conectá un buzón
+
+1. Preferí un buzón dedicado al agente. Habilitá IMAP con el proveedor y creá una **contraseña de aplicación** si la
+   requiere (por ejemplo Gmail, iCloud o Yahoo); la contraseña habitual puede no funcionar.
+2. Abrí **Configuración › Canales › Agregar canal › Email**. Ingresá dirección, contraseña de aplicación y nombre opcional.
+3. Los proveedores conocidos completan los servidores. Si no, ingresá host, puerto y seguridad de IMAP y SMTP.
+   Opciones seguras típicas: IMAP 993 con SSL/TLS y SMTP 465 con SSL/TLS o 587 con STARTTLS; usá los datos de tu proveedor.
+4. Completá el usuario si no coincide con la dirección. Conectá y revisá el estado antes de probar.
+5. Enviá un mensaje corto desde otro buzón, aprobá su pedido de vinculación como la persona correcta y verificá la respuesta.
+
+La seguridad **Ninguna** es solo para servidores locales, no para conexiones a internet. APX guarda la contraseña
+como secreto y no vuelve a mostrarla. Cambiar servidores o contraseña reconecta el buzón.
+
+## Restringí el correo entrante
+
+**Quién puede escribir** acepta direcciones o dominios como `@example.com`. Una lista vacía permite llegar al flujo
+normal de desconocidos; no aprueba a todos automáticamente. Empezá con una lista acotada y revisá **Desconocidos**
+y las [respuestas supervisadas](/es/channels/supervised/).
+
+Por defecto APX descarta mensajes cuyo dominio remitente el servidor no pudo verificar con DKIM, SPF o DMARC.
+**Leer correo no verificado** debilita esa protección: activalo solo si entendés por qué tu servidor no verifica
+remitentes. Una dirección From no prueba que autorizaste una instrucción. El correo entrante sigue siendo contenido externo.
+
+## Respuestas, firmas y diagnóstico
+
+Las respuestas siguen el hilo del correo y salen desde el buzón configurado. Su firma local se configura en
+**Configuración › Cuenta › Firmas de email**; no cambia la firma del proveedor. Pedí borradores o usá supervisión
+si necesitás revisar cada respuesta. Un correo enviado no se puede simplemente deshacer.
+
+Si no llega nada, revisá acceso IMAP, contraseña de aplicación, lista permitida y verificación del remitente antes
+de desactivar protecciones. Si lee pero no envía, revisá SMTP aparte: pueden tener puertos y políticas diferentes.
+Consultá el error y la bandeja de salida en vez de asumir que un mensaje encolado ya se entregó.

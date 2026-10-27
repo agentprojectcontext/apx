@@ -15,7 +15,7 @@ for (const mode of ["dark", "light"] as const) {
       name: "Builder",
     });
     const task = await rpc<Task>("tasks.create", {
-      title: `Task hint ${mode}`,
+      title: `Task hint ${mode}: audit and update the documentation for the task workflow, including archived conversations and status transitions without losing any details`,
       description: "Check the task status hint.",
       status: "doing",
       project: project.id,
@@ -29,7 +29,15 @@ for (const mode of ["dark", "light"] as const) {
     const title = page.locator(".taskbundle__title").filter({ hasText: task.title });
     await title.hover();
     const hint = page.locator(".apx-tooltip[data-open]");
-    await expect(hint).toHaveText("Hecha");
+    await expect(hint.locator(".task-status-hint__title")).toHaveText(task.title);
+    await expect(hint.locator(".apx-badge")).toHaveText("Hecha");
+    await expect(hint).toHaveText(`${task.title}Hecha`);
+    const titleLayout = await hint.locator(".task-status-hint__title").evaluate((el) => ({
+      whiteSpace: getComputedStyle(el).whiteSpace,
+      fits: el.scrollWidth <= el.clientWidth,
+      wrapped: el.getBoundingClientRect().height > Number.parseFloat(getComputedStyle(el).lineHeight),
+    }));
+    expect(titleLayout).toEqual({ whiteSpace: "normal", fits: true, wrapped: true });
     const colors = await hint.evaluate((el) => {
       const rgb = (value: string) => {
         const channels = value.match(/[\d.]+/g);
@@ -115,7 +123,8 @@ test("task context actions keep status live and archived conversations remain re
   await header.hover();
   await bundle.locator(".taskbundle__title").hover();
   const hint = page.locator(".apx-tooltip[data-open]");
-  await expect(hint).toHaveText("Necesita tu revisión");
+  await expect(hint.locator(".task-status-hint__title")).toHaveText(task.title);
+  await expect(hint.locator(".apx-badge")).toHaveText("Necesita tu revisión");
   await expect(hint.locator(".apx-badge__dot")).toBeVisible();
   await expect(hint.locator(".apx-badge")).toHaveClass(/apx-tone--warning/);
   // The explicit overflow menu works on touch and from the keyboard without a right click.
@@ -229,7 +238,7 @@ test("an agent-created task shows its real generic kickoff with the formatted de
   const env = await startCore({
     port,
     llm: scriptedLlm((_req, { said, afterTool }) => {
-      if (said.includes("Work on this task.")) return say("Task received.");
+      if (said.includes("Work on this task.") || said.includes("still in progress")) return say("Task received.");
       if (afterTool) return say("Work transferred.");
       return callTool("create", "task_create", {
         title: "Real task kickoff",

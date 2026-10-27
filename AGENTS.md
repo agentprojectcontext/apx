@@ -158,6 +158,13 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     `scripts/perf-budget.json`, with no zod in it. When `pnpm perf` fails, split the module it names; raising a budget
     needs a reason in the commit ([D-147](rules/DECISIONS.md#d-147)). `[gate]` biome + perf.
 
+30. **Features and fixes assess documentation impact.** Every feature and fix, including internal and test fixes,
+    records `Docs impact: updated` with paths, or `Docs impact: none` with a concrete reason in the change description
+    or commit body. Check user instructions, reference/CLI/config, troubleshooting, security boundaries and engineering
+    rules; update or create affected docs in the same change, English first with Spanish parity. Review rejects missing
+    assessments or known false docs, not a justified no-change result. See [D-159](rules/DECISIONS.md#d-159) and the
+    [documentation impact contract](rules/WORKFLOW.md#documentation-impact-contract). `[review]`
+
 ### Code comments
 
 1–2 lines, only the non-obvious *why*. No history, incidents, dates or rejected alternatives in code: those go to

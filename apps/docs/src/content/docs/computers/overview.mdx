@@ -1,0 +1,36 @@
+---
+title: Choose a computer
+description: Distinguish the isolated Linux VM, APX's browser and your own desktop before asking an agent to act.
+sidebar:
+  order: 1
+---
+
+## Three different places to work
+
+| Place | Best for | What you need |
+|---|---|---|
+| [Isolated Linux VM](/office/computers/) | Give an agent a separate desktop, browser and files without lending your own screen. | A core on an Apple Silicon Mac, resources for the VM and permission for that agent. |
+| [APX browser](/office/browser/) | Browse sites, use tabs and sign in with a visible handoff. | The connected desktop browser node. It is not your personal browser profile. |
+| [Your own desktop](/devices/desktop/#computer-use) | Work in an app already on your computer when you explicitly ask. | Supported macOS or Windows computer, a connected desktop node and the necessary OS permissions. |
+
+A remote panel does not move work onto the device displaying it. Check **where the core and the connected node run**.
+The managed Linux VM is hosted by the core. A phone paired to that core is not a Linux VM host.
+
+## Start with the isolated VM
+
+Open a project agent's settings and enable **Isolated computer**. In that agent's chat, open **Computer** and choose
+**Use the computer here**. Ask for a small task there: “Open the browser on your isolated computer and show me this
+public page; do not submit anything.” The chat shows preparation and the screen when ready.
+
+Use **Computers** to find allowed agents' screens, including stopped ones. For setup, resources, shutdown and the
+terminal, follow [Isolated Linux VM](/office/computers/). It is not a general Windows/Linux VM manager or a way to
+create an arbitrary fleet of virtual machines.
+
+## Sign-ins and approvals
+
+Use **Take control** to sign in yourself, then **Return control to agent**. Never ask an agent to type passwords,
+verification codes or payment information. A separate desktop is not permission to trust a site's instructions,
+read host files, send messages or publish without the usual authorization.
+
+If work opens in the wrong place, stop and check the chat's selected computer before continuing. Do not copy private
+project files into a guest just to solve an unclear path: explain the required files and permissions first.

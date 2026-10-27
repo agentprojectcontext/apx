@@ -17,7 +17,7 @@ the copy. The rewrite script and its replacement list live beside the checkout, 
 what they remove).
 
 From then on new commits must be public-safe as they are made: `pnpm check:commits` scans the commits on no remote
-yet (or a range: `pnpm check:commits HEAD`), and `verify` runs it over the commits each push or pull request brings
+yet (or a range: `pnpm check:commits HEAD^..HEAD` for only the last commit), and `verify` runs it over the commits each push or pull request brings
 to the public repo ([D-087](DECISIONS.md#d-087)).
 
 ## Where v2 lives
@@ -52,6 +52,14 @@ an unsigned app (macOS: right-click › Open, or System Settings › Privacy & S
 The phone app is `dev.apx.mobile` and v1's is `dev.agentprojectcontext.apx`: they install side by side. Its APK
 carries arm64-v8a only by default (`APX_ANDROID_ABIS` adds more) and its versionCode follows the tag (2.1.3 → 20103); Expo push needs the owner's EAS project
 and Firebase app, set once as repo variable/secret ([apps/mobile/README.md](../apps/mobile/README.md#push)).
+
+## Documentation coverage before release
+
+Before GO, compare the actual previous-tag-to-candidate diff, including fixes, with the
+[documentation impact assessments](WORKFLOW.md#documentation-impact-contract). Check guides, reference,
+troubleshooting and engineering rules; update/create affected pages in English and Spanish, validate built links
+and distinguish candidate-only features from the currently tagged version. Record specific no-change reasons
+and unresolved gaps. Do not infer coverage from release news, green builds or commit titles alone.
 
 ## Tagging a release
 

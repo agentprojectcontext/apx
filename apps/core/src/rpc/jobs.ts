@@ -18,6 +18,7 @@ function fromOf(origin: Origin): JobFrom {
     case "routine":
     case "task_result":
     case "delegation_result":
+    case "added":
       return { kind: origin.kind, name: origin.name };
     case "surface":
       return { kind: origin.kind, name: origin.title };

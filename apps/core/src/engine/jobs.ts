@@ -8,7 +8,7 @@ import { commandEnv } from "../harness/env.ts";
 import type { Log } from "../log.ts";
 import { processStart, spawnCommand, stopTree } from "../processes.ts";
 import { pausedNotice } from "./breaker.ts";
-import type { AdmitFn } from "./engine.ts";
+import type { Admit, AdmitFn } from "./engine.ts";
 
 /** Set on an agent's commands, so the apx CLI knows an agent runs it, not the owner. */
 export const AGENT_ENV = "APX_AGENT";
@@ -20,7 +20,14 @@ const WAKE_TAIL = 3000;
 /** A background command runs at most this long (servers and watchers included); then it is stopped. */
 const MAX_BACKGROUND_MS = 6 * 3600_000;
 
-export function createJobs(deps: { store: Store; home: string; log: Log; admit: AdmitFn }) {
+export function createJobs(deps: {
+  store: Store;
+  home: string;
+  log: Log;
+  admit: AdmitFn;
+  /** Hands the end to the agent's running turn; false when none can take it, and it gets a turn of its own. */
+  steer?: (a: Admit) => boolean;
+}) {
   const { store, log } = deps;
   const dir = path.join(deps.home, "jobs");
   const procs = new Map<string, { kill(): Promise<void>; done: Promise<JobRecord> }>();
@@ -58,7 +65,7 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
       });
       return;
     }
-    deps.admit({
+    const wake: Admit = {
       thread_id: job.thread_id,
       agent_id: job.agent_id,
       trigger: "system",
@@ -71,7 +78,9 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
       },
       text: read(job.id, undefined, WAKE_TAIL).output || "(no output)",
       reply_to: job.run_id ? store.runs.get(job.run_id)?.input?.reply_to : undefined,
-    });
+    };
+    // While the agent is at work, the end joins that turn: many commands ending are one turn, not one each.
+    if (!deps.steer?.(wake)) deps.admit(wake);
   }
 
   return {

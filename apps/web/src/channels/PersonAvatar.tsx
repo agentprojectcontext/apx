@@ -24,23 +24,47 @@ export function PersonAvatar({
   personId,
   fallback,
   className = "chan__avatar",
+  name,
+  size,
 }: {
   personId: string | undefined;
   fallback: ReactNode;
   className?: string;
+  name?: string;
+  size?: number;
 }) {
-  const [src, setSrc] = useState<string>();
+  const [picture, setPicture] = useState<{ person: string; src: string }>();
+  const src = picture?.person === personId ? picture?.src : undefined;
   useEffect(() => {
     let live = true;
-    setSrc(undefined);
-    if (personId) void pictureOf(personId).then((url) => live && setSrc(url));
+    setPicture(undefined);
+    if (personId)
+      void pictureOf(personId).then((url) => live && setPicture(url ? { person: personId, src: url } : undefined));
     return () => {
       live = false;
     };
   }, [personId]);
   return (
-    <span className={`${className}${src ? " has-picture" : ""}`}>
-      {src ? <img src={src} alt="" className="chan__avatarimg" /> : fallback}
+    <span
+      className={`${className}${src ? " has-picture" : ""}`}
+      {...(name ? { role: "img", "aria-label": name } : {})}
+      style={
+        size
+          ? { width: size, height: size, display: "inline-flex", flex: "none", overflow: "hidden", borderRadius: "50%" }
+          : undefined
+      }
+    >
+      {src ? (
+        <img
+          src={src}
+          alt=""
+          className="chan__avatarimg"
+          style={size ? { width: size, height: size, objectFit: "cover" } : undefined}
+          onError={() => setPicture(undefined)}
+        />
+      ) : (
+        <span aria-hidden={name ? true : undefined}>{fallback}</span>
+      )}
     </span>
   );
 }

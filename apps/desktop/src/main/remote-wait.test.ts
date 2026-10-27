@@ -97,3 +97,45 @@ test("the waiting page keeps ssh's words apart and escaped", () => {
   assert.match(html, /<h1>Conectando con APX<\/h1>/);
   assert.match(html, /class="detail"><span>Detalle<\/span>ssh: &lt;host&gt; refused/);
 });
+
+test("the core on this computer waits with its own words and what to check", async () => {
+  const w = world({ upAt: 3 * RETRY_MS });
+  const local: Remote = { where: "127.0.0.1:7440", url: "http://127.0.0.1:7440", local: "See the log" };
+  assert.equal(await reachRemote(local, w.deps), true);
+  assert.equal(w.shown.length, 1);
+  assert.match(w.shown[0] ?? "", /on this computer is not answering yet/);
+  assert.match(w.shown[0] ?? "", /See the log/);
+  assert.deepEqual(w.loaded, ["http://127.0.0.1:7440"]);
+});
+
+test("a confirmed local identity mismatch is explained without loading it, and a later matching core recovers", async () => {
+  const w = world();
+  const mismatch = "This port belongs to another home.";
+  let problem: string | undefined;
+  w.deps.isUp = async () => {
+    if (w.time() === 0) {
+      problem = mismatch;
+      return false;
+    }
+    problem = undefined;
+    return true;
+  };
+  const local: Remote = {
+    where: "127.0.0.1:7440",
+    url: "http://127.0.0.1:7440",
+    local: "See the log",
+    identityProblem: () => problem,
+  };
+  const load = w.deps.load;
+  w.deps.load = async (url) => {
+    assert.ok(w.time() >= RETRY_MS);
+    assert.equal(problem, undefined);
+    return load(url);
+  };
+  assert.equal(await reachRemote(local, w.deps), true);
+  assert.equal(w.shown.length, 1);
+  assert.ok(w.shown[0]?.includes(mismatch));
+  assert.doesNotMatch(w.shown[0] ?? "", /is not answering yet/);
+  assert.deepEqual(w.loaded, [local.url]);
+  assert.match(waitingText(waiting(local, true, false)), /is not answering yet/);
+});

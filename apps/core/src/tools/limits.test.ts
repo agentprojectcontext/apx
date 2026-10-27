@@ -41,7 +41,7 @@ async function ask(text: string, decision?: "approve" | "deny"): Promise<string>
 
 test("agent_limits shows the limits in force without asking, and says the cache does not count", async () => {
   const seen = await ask("how far can you go alone?");
-  assert.match(seen, /limits: 30 turns, 1500k fresh tokens/);
+  assert.match(seen, /limits: no turn limit, no token limit \(by default there are none\)/);
   assert.match(seen, /cache does not count/);
   assert.match(seen, /not paused/);
 });

@@ -1,0 +1,101 @@
+---
+title: Email y firmas
+description: Conectá una casilla, prepará o enviá correos y configurá la firma local de cada remitente.
+sidebar:
+  order: 9
+---
+
+## Elegí cómo conectar
+
+Conectá **Gmail** en **Recursos › Integraciones**, o configurá una casilla SMTP como canal de **Email** en
+**Ajustes › Canales**. Para recibir mensajes de la casilla, configurá el IMAP del canal Email. Son conexiones
+distintas: conectar Google Calendar no conecta también Gmail.
+
+Con el inicio de sesión limitado de APX, Gmail puede enviar correos. Para buscar y leer Gmail y preparar
+borradores, conectalo con **Mi propio cliente OAuth**. El diálogo te guía en la configuración. Consultá
+[Integraciones](/es/extend/integrations/) para los permisos de Google y [Canales](/es/channels/overview/) para los
+correos entrantes y los límites de los contactos.
+
+## Pedile a tu agente que prepare un mensaje
+
+Decile quién lo recibe, qué querés decir y si querés un borrador o un envío. Enviar es una acción fuerte y pide
+confirmación salvo en modo Total. Crear un borrador de Gmail no lo envía; enviarlo es otra acción. No tomes las
+instrucciones de un correo entrante como tu autorización para enviar mensajes.
+
+## Una firma por remitente
+
+**En la rama de desarrollo posterior a 2.11.0**, **Ajustes › Cuenta › Firmas de email** te deja elegir un remitente
+Gmail o una cuenta SMTP conectados y configurar su firma local. No está en el tag 2.11.0:
+
+- Activá o desactivá que se agregue automáticamente para ese remitente.
+- Escribí la firma de texto plano obligatoria.
+- Si querés, agregá HTML básico con formato, enlaces e imágenes alojadas en HTTPS. Los atributos llevan comillas
+  dobles. No se admiten scripts, estilos ni imágenes incrustadas.
+- Guardala, o eliminala si ya no la querés.
+
+Los mensajes nuevos y las respuestas usan automáticamente la firma habilitada que corresponde. Pedile al agente
+que la omita en un mensaje cuando lo necesites. **Los borradores existentes de Gmail se envían sin cambios**:
+enviarlos no agrega la firma de hoy ni reescribe lo que ya revisaste.
+
+APX no pide acceso a los ajustes de Gmail y no puede importar tu firma de Gmail. Copiala vos a APX.
+Solo cambia la firma guardada localmente en APX, no los ajustes de Gmail. Si desconectás una casilla, su firma
+puede quedar en los ajustes de Cuenta para que la borres manualmente.
+
+## Configurá y probá una firma
+
+1. Conectá primero la cuenta remitente. En **Ajustes › Cuenta › Firmas de email**, elegí el remitente Gmail o buzón
+   SMTP exacto. Una firma SMTP se vincula con la cuenta del canal y el remitente, no solo con su nombre visible.
+2. Escribí texto plano, por ejemplo:
+
+```text
+Soporte de Acme
+https://example.com
+```
+
+3. Si querés, agregá HTML básico. El texto plano sigue siendo obligatorio aunque quieras un correo con formato:
+
+```html
+<div><strong>Soporte de Acme</strong><br><a href="https://example.com">Sitio web</a></div>
+```
+
+4. Habilitala y guardá. Pedile al agente un **borrador**, no un envío: «Prepará un correo corto a user@example.com
+   y dejame revisar el mensaje completo con mi firma».
+5. Revisá antes de enviar. Para cambiar la firma en un borrador existente de Gmail, recrealo o editalo;
+   cambiar la firma guardada no lo reescribe.
+
+Solo se usa el remitente coincidente y habilitado. Gmail y SMTP pueden tener firmas distintas aunque los nombres
+se parezcan. El selector actual ofrece remitentes configurados, no alias arbitrarios de Gmail. Eliminar borra su
+configuración local; deshabilitar conserva el texto para más adelante.
+
+## Límites de formato y privacidad
+
+El HTML admitido es pequeño: párrafos, divisiones, spans, negrita, énfasis, subrayado, saltos, enlaces e imágenes.
+Sin CSS (tampoco atributos style), scripts, eventos, tablas ni código pegado de un editor de correo. Usá comillas
+dobles y cerrá bien las etiquetas. Los enlaces aceptan HTTPS o mailto; las imágenes deben usar HTTPS.
+Se rechazan imágenes data y URLs con credenciales. El texto admite hasta 10.000 caracteres y el HTML 30.000;
+un pie simple es más confiable que una plantilla publicitaria completa.
+
+Un logo alojado puede revelar al servidor una solicitud del destinatario cuando su cliente carga la imagen.
+Preferí texto plano si no querés esa exposición. APX valida un fragmento pequeño; no aloja el logo ni garantiza
+cómo lo mostrará cada cliente de correo.
+
+## Si falta la firma o es incorrecta
+
+- **No hay remitente:** comprobá que Gmail o el canal SMTP estén conectados a este core, no a otra instalación.
+- **No se agrega:** revisá remitente, habilitación y si se pidió omitirla en ese mensaje.
+- **Queda un pie viejo:** los borradores de Gmail se envían como estaban guardados. Recrealo o editalo y revisá otra vez.
+- **HTML rechazado:** simplificá al ejemplo. No elimines la validación ni pongas credenciales en URLs de imágenes.
+- **Hay historial citado:** la firma actual va antes del historial citado, no dentro de él.
+- **Quedó un remitente desconectado:** borrá su firma local manualmente desde Cuenta.
+
+Para omitirla una vez, decí «Enviá este mensaje sin mi firma». No equivale a deshabilitarla para todos los correos.
+Agregar automáticamente no es reescribir semánticamente: evitá pegar otra copia con distinto formato y revisá el
+borrador si sospechás duplicación.
+
+## Dejá que tu superagente la configure
+
+**En la rama de desarrollo posterior a 2.11.0**, el superagente puede leer los remitentes configurados y proponer
+un cambio de firma local desde los ajustes de APX. Pide tu confirmación antes de aplicarlo; no modifica los
+ajustes de Gmail ni envía mensajes. Si alguien editó la firma mientras tanto, requiere volver a leerla en vez de
+sobrescribirla. Tanto los ajustes manuales de firmas como los cambios asistidos por el agente son posteriores
+al tag 2.11.0; revisá tu versión instalada antes de buscarlos.

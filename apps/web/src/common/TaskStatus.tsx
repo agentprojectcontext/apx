@@ -18,7 +18,15 @@ export function TaskStatus({ id, children }: { id: string; children?: ReactEleme
     </Badge>
   );
   return children ? (
-    <Tooltip content={badge} appearance="surface">
+    <Tooltip
+      content={
+        <span className="task-status-hint">
+          <span className="task-status-hint__title">{task.title}</span>
+          {badge}
+        </span>
+      }
+      appearance="surface"
+    >
       {children}
     </Tooltip>
   ) : (

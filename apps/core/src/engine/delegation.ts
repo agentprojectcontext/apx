@@ -490,6 +490,21 @@ export function createDelegations(deps: {
           moved = existing.session ?? existing.id;
           existing = undefined;
         } else existing = store.threads.workIn(existing.id, place);
+      } else if (existing && !place && existing.write === "read-only" && !store.threads.busy([existing.id])) {
+        // A consult opened read-only does not keep a later "go on" that says nothing about writing from doing the work:
+        // it goes back to what caller, callee and project allow. See HISTORY.md#read-only-continuation
+        const lifted = workspaceOf(
+          store,
+          from.agent,
+          worker ? from.agent : to,
+          parentThread,
+          existing.project_id ?? undefined,
+          {
+            write: "auto",
+          },
+        );
+        if (typeof lifted === "object" && lifted.write !== "read-only")
+          existing = store.threads.workIn(existing.id, { cwd: existing.cwd ?? lifted.cwd, write: lifted.write });
       }
       const paused = tripped(store, parentThread.id);
       if (paused) {

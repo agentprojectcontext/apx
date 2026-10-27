@@ -5,7 +5,7 @@ import { HOME_THREAD_ID } from "./seed.ts";
 import type { Store } from "./store.ts";
 import { previewOf } from "./threads.ts";
 
-const GREETED_KEY = "setup_greeted";
+export const GREETED_KEY = "setup_greeted";
 
 type Template = { text: (name: string) => string; options: Array<{ label: string; value: string }> };
 

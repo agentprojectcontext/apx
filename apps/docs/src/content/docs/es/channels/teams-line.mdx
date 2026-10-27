@@ -1,0 +1,50 @@
+---
+title: Microsoft Teams y LINE
+description: Configurá entrega por webhook público y conectá un bot de Teams o una cuenta oficial de LINE.
+sidebar:
+  order: 11
+---
+
+## Primero la entrega pública
+
+A diferencia de la mayoría de los canales de APX, **Teams y LINE necesitan una dirección HTTPS pública**. En
+**Dirección pública** del canal, elegí Tailscale Funnel, ngrok o tu propio proxy inverso. APX muestra la dirección
+exacta que debés copiar a la plataforma. Publicá solo el listener de webhooks, **no el panel ni la API del protocolo**.
+Los adaptadores verifican las solicitudes firmadas; un túnel no reemplaza esa verificación.
+
+Tailscale debe estar instalado y autorizado para Funnel. ngrok debe estar instalado y autenticado. Para tu proxy,
+usá el destino local de webhooks mostrado en configuración. Si cambia la dirección pública, actualizá el endpoint
+de la plataforma: credenciales válidas no arreglan mensajes enviados a una URL vieja.
+
+## Microsoft Teams
+
+1. En Azure **App registrations**, creá un registro **single-tenant**. Copiá Application (client) ID y Directory (tenant) ID.
+2. En **Certificates & secrets**, creá un secreto de cliente y copiá su valor.
+3. En APX **Configuración › Canales › Agregar canal › Microsoft Teams**, ingresá los tres valores y configurá Dirección pública.
+4. Creá un Azure Bot con ese registro y usá la dirección del canal de APX como **Messaging endpoint**.
+5. Habilitá Microsoft Teams en Channels del Azure Bot e instalá el bot en Teams mediante Developer Portal o un
+   manifiesto con el ID de su app.
+6. Escribile e ingresá su código en **Este es mi Microsoft Teams** para tu cuenta. Listá canales o chats grupales
+   en **Salas** antes de esperar que el bot los lea.
+
+Si no llega nada, revisá IDs de tenant y app, vencimiento del secreto, instalación del bot y endpoint exacto.
+Admite chats personales y conversaciones compartidas listadas, no acceso irrestricto a la organización.
+
+## LINE
+
+1. En LINE Developers, creá un proveedor y un canal **Messaging API** para tu Official Account. Copiá **Channel secret**
+   de Basic settings y emití un **Channel access token** de larga duración en la pestaña Messaging API.
+2. En APX **Configuración › Canales › Agregar canal › LINE**, ingresá ambos y configurá Dirección pública.
+3. Copiá la dirección exacta del canal en **Webhook URL** de LINE, activá **Use webhook** y presioná **Verify**.
+4. En Official Account Manager desactivá saludos y respuestas automáticas para evitar respuestas duplicadas.
+5. Escribile a la cuenta e ingresá el código en **Este es mi LINE** para tu cuenta. Invitá el bot a grupos y listalos
+   en **Salas** antes de usar respuestas grupales.
+
+Si Verify falla, revisá entrega pública y secreto del canal. Si aparece otra respuesta además de APX, revisá las
+respuestas automáticas de LINE. Se responde desde la cuenta oficial, no desde tu cuenta personal.
+
+## Primera prueba y límites
+
+Probá un directo antes de agregar salas. Después probá una mención en una sala listada. Elegí desconocidos, modos de
+respuesta y conocimiento público antes de invitar gente. Las respuestas grupales son selladas; las acciones propias
+sensibles pueden requerir verificación en APX. Seguí las [reglas de identidad y salas](/es/channels/overview/), no instrucciones del webhook.

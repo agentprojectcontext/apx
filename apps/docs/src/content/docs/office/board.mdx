@@ -40,7 +40,7 @@ the same actions wherever it shows (chat, panel, Board, Apps):
 |---|---|
 | **Ask its agent for changes** | Opens the widget's chat with the agent that keeps it. |
 | **Pin to the board** / **Unpin from the board** | Puts it on (or takes it off) the project's Board. |
-| **Install as app** / **Open as app** | Lists it under Apps in the sidebar and opens it fullscreen. |
+| **Pin to Apps** / **Open as app** | Lists it under Apps in the sidebar and opens it fullscreen. |
 | **Share** | Private by default; **Anyone with the link** can view it without editing. **Copy link** to send it. |
 
 ## Pin to the project Board
@@ -59,6 +59,16 @@ A project's **Overview** tab opens with its **Board**: the widgets pinned to tha
    width** uses the whole window.
 
 </Steps>
+
+## Share deliberately
+
+A share link lets anyone who has it view the artifact, so check its visible data before enabling **Anyone with the
+link**. Use the menu to stop sharing when no longer needed. The link needs a reachable APX host; creating it does not
+publish your loopback-only core to the internet. Do not expose the whole panel just to make a widget link reachable.
+
+Agents cannot replace a published artifact's HTML: unpublish it yourself before requesting changes, or ask for a
+separate artifact. A public page has no owner chat to approve actions. Export without memory when distributing a
+template rather than sharing your records. See [artifact memory and export](/office/artifacts/).
 
 ## Apps: a widget fullscreen
 

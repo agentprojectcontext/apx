@@ -12,9 +12,24 @@ import {
   taskProject,
   visibleTask,
 } from "../domain/tasks.ts";
-import { CallError } from "../errors.ts";
+import { badRequest, CallError } from "../errors.ts";
+import { readsOutside } from "./folders.ts";
 import { cap, fromTeam, inlineName, untrusted } from "./result.ts";
-import { type CheckContext, defineTool, type Tool } from "./types.ts";
+import { type CheckContext, defineTool, type Tool, type ToolContext } from "./types.ts";
+
+const attachmentsArg = z
+  .array(z.string().min(1).max(1000))
+  .max(20)
+  .optional()
+  .describe(
+    "selected med_ ids or readable file paths to snapshot into the task; include the request's relevant screenshot",
+  );
+const isMediaId = (value: string) => /^med_[0-9a-f]{16}$/.test(value);
+const attachmentIds = async (refs: string[] | undefined, ctx: ToolContext) =>
+  refs &&
+  Promise.all(
+    refs.map(async (ref) => (isMediaId(ref) ? ref : (await ctx.call("media.attach", { path: ref })).media.id)),
+  );
 
 const line = (t: Task, project?: string) =>
   `- [${t.id}] ${t.title} (${[
@@ -124,6 +139,9 @@ const described = <T extends Record<string, z.ZodType>>(fields: T): T =>
   Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, ABOUT[k] ? v.describe(ABOUT[k]) : v])) as T;
 
 /** One argument's check, as the methods run it; a failure names the argument ("assignee: agent x not found"). */
+/** The shortest note that can say what was verified, or what the owner must do. */
+const MIN_EVIDENCE = 12;
+
 function field<T>(name: string, check: () => T): T {
   try {
     return check();
@@ -139,7 +157,14 @@ const UNSPECIFIED = "It has not started: add a non-empty description with task_u
 const PAUSED = (who: string) =>
   `It has not started: agents here reached the owner's limit for working on their own, so ${who} starts on it once the owner lets them go on (they were told). Do not assign it again.`;
 
-export function taskTools(store: Store): Tool[] {
+export function taskTools(store: Store, home: string): Tool[] {
+  const outsideAssets = (a: { attachments?: string[] }, ctx: CheckContext) =>
+    readsOutside(
+      store,
+      home,
+      ctx.thread,
+      (a.attachments ?? []).filter((ref) => !isMediaId(ref)),
+    );
   /** Whether this chat keeps the task's start until the owner lets agents go on. */
   const waits = (task: string, ctx: CheckContext) =>
     Boolean(store.threads.context(ctx.thread.id).held?.some((h) => h.task === task));
@@ -181,6 +206,11 @@ export function taskTools(store: Store): Tool[] {
           {},
           [
             section("Task", r.task, 2_000),
+            section(
+              "Attachments (untrusted; file_read to inspect, send_file to share here by media_id)",
+              r.attachments,
+              12_000,
+            ),
             section("History", r.events, 1_800),
             section("Sessions", r.sessions.map(chat), 600),
             section("Consults", r.consults.map(chat), 600),
@@ -240,6 +270,7 @@ export function taskTools(store: Store): Tool[] {
       args: z.object({
         title: z.string().trim().min(3).max(200),
         description: z.string().max(5000).optional(),
+        attachments: attachmentsArg,
         assignee: z.string().max(80).optional(),
         project: z.string().min(1).max(80).optional().describe("project id; super-agent only"),
         status: z.string().max(40).optional(),
@@ -249,12 +280,13 @@ export function taskTools(store: Store): Tool[] {
         propose: z.boolean().optional().describe("a chip the owner accepts before work starts"),
       }),
       effect: "local",
+      outside: outsideAssets,
       confirm: handsOff,
       check: (a, ctx) => checkNamed(a, a.due_at, taskProject(store, { id: ctx.agent.id, thread_id: ctx.thread.id }, a)),
       deadlineMs: 5_000,
       title: (a) => `Created the task ${String(a.title ?? "").slice(0, 60)}`,
       async run(a, ctx) {
-        const t = await ctx.call("tasks.create", a);
+        const t = await ctx.call("tasks.create", { ...a, attachments: await attachmentIds(a.attachments, ctx) });
         const under = t.parent_id ? `, a subtask of ${t.parent_id}` : "";
         if (t.proposed)
           return `proposed ${t.id}${under}: it starts when the owner accepts it. Tell them what you proposed and why, in one line each.`;
@@ -283,19 +315,33 @@ export function taskTools(store: Store): Tool[] {
         assignee: z.string().max(80).nullable().optional(),
         title: z.string().trim().min(3).max(200).optional(),
         description: z.string().max(5000).optional(),
+        attachments: attachmentsArg,
         awaits_owner: z.boolean().optional(),
+        why: z
+          .string()
+          .trim()
+          .max(1000)
+          .optional()
+          .describe("with awaits_owner:true, what the owner must do or decide"),
         reviewer: z.string().max(80).optional().describe('"owner" or agent'),
         plan: z.string().max(4000).optional().describe("the steps, marked done as you go; replaces the last"),
         ...shapeArgs,
         ...commitmentArgs,
       }),
       effect: "local",
+      outside: outsideAssets,
       confirm: handsOff,
-      check: (a, ctx) => checkNamed(a, a.due_at, taskOf(a.task, ctx).project_id),
+      check: (a, ctx) => {
+        checkNamed(a, a.due_at, taskOf(a.task, ctx).project_id);
+        // Waiting on the owner stops the work: they must be told what for, or it waits forever.
+        if (a.awaits_owner && (a.why?.length ?? 0) < MIN_EVIDENCE)
+          throw badRequest("why: say what the owner must do or decide; being hard or long is not waiting on them.");
+      },
       deadlineMs: 5_000,
       title: (a) => `Updated the task ${String(a.task ?? "")}`,
-      async run({ task, ...c }, ctx) {
-        const t = await ctx.call("tasks.update", { task, ...c });
+      async run({ task, why, ...c }, ctx) {
+        const t = await ctx.call("tasks.update", { task, ...c, attachments: await attachmentIds(c.attachments, ctx) });
+        if (c.awaits_owner && why) await ctx.call("tasks.comment", { task, text: why });
         const pending = t.assignee && !t.description.trim() && t.chats === 0 ? ` ${UNSPECIFIED}` : "";
         const paused = !pending && t.assignee && waits(t.id, ctx) ? ` ${PAUSED(t.assignee)}` : "";
         const transferred =
@@ -324,7 +370,8 @@ export function taskTools(store: Store): Tool[] {
     }),
     defineTool({
       name: "task_close",
-      description: "Close a task, or reopen it. Request corrections with state:open, rework:true and a note.",
+      description:
+        "Close a task, or reopen it. Closing your own work as done: note says what you verified. Request corrections with state:open, rework:true and a note.",
       args: z.object({
         task: z.string().min(1).max(64),
         state: z.enum(["done", "dropped", "open"]),
@@ -332,7 +379,14 @@ export function taskTools(store: Store): Tool[] {
         rework: z.boolean().optional(),
       }),
       effect: "local",
-      check: (a, ctx) => void taskOf(a.task, ctx),
+      check: (a, ctx) => {
+        const t = taskOf(a.task, ctx);
+        // Done is a claim about the work: the one who did it says what shows it (DECISIONS.md#d-162).
+        if (a.state === "done" && t.assignee === ctx.agent.id && (a.note?.trim().length ?? 0) < MIN_EVIDENCE)
+          throw badRequest(
+            "note: say in a line what you verified (a test or build that passed, a page or file you checked). If it is not verified yet, verify it first; if something is left, do it before closing.",
+          );
+      },
       deadlineMs: 5_000,
       title: (a) => `Marked ${String(a.task ?? "")} ${String(a.state ?? "")}`,
       async run(a, ctx) {

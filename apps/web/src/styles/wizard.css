@@ -44,7 +44,7 @@
   display: flex;
   gap: 10px;
   align-items: center;
-  font-size: 16px;
+  font-size: calc(16px * var(--apx-text-scale, 1));
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -65,7 +65,7 @@
   border: 0;
   background: none;
   color: var(--apx-fg-subtle);
-  font-size: 11px;
+  font-size: calc(11px * var(--apx-text-scale, 1));
   white-space: nowrap;
   text-align: left;
   cursor: pointer;
@@ -92,7 +92,7 @@
   border-radius: 999px;
   background: transparent;
   color: var(--apx-fg-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
   cursor: pointer;
 }
 .wiz__scroll {
@@ -132,7 +132,7 @@
   align-items: center;
   color: var(--apx-brand-soft-fg);
   font-family: var(--apx-font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   letter-spacing: 0.08em;
 }
 .wiz__kicker > span {
@@ -142,7 +142,7 @@
 }
 .wiz__title {
   margin: 0;
-  font-size: 36px;
+  font-size: calc(36px * var(--apx-text-scale, 1));
   font-weight: 600;
   line-height: 1.05;
   letter-spacing: -0.03em;
@@ -152,7 +152,7 @@
   max-width: 560px;
   margin: 0;
   color: var(--apx-fg-muted);
-  font-size: 16px;
+  font-size: calc(16px * var(--apx-text-scale, 1));
   line-height: 1.55;
 }
 .wiz__card {
@@ -177,7 +177,7 @@
   padding: 0 6px 0 14px;
   border: 1px solid var(--apx-border);
   border-radius: 999px;
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
 }
 .wiz__lock {
   display: grid;
@@ -189,13 +189,13 @@
 }
 .wiz__hero {
   margin: 0;
-  font-size: clamp(48px, 7vw, 76px);
+  font-size: calc(clamp(48px, 7vw, 76px) * var(--apx-text-scale, 1));
   font-weight: 600;
   line-height: 0.98;
   letter-spacing: -0.045em;
 }
 .wiz__hero.is-done {
-  font-size: clamp(44px, 6vw, 64px);
+  font-size: calc(clamp(44px, 6vw, 64px) * var(--apx-text-scale, 1));
   line-height: 1;
 }
 .wiz__choices,
@@ -242,7 +242,7 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  font-size: 15px;
+  font-size: calc(15px * var(--apx-text-scale, 1));
   font-weight: 600;
 }
 /* The grid already centres the welcome: the hero needs no room of its own above. */
@@ -273,7 +273,7 @@
 }
 .wiz__choicebody {
   color: var(--apx-fg-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -285,14 +285,14 @@
   padding: 0 16px 0 8px;
   border: 1px solid var(--apx-border);
   border-radius: 999px;
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
 }
 .wiz__waiting b {
   font-weight: 500;
 }
 .wiz__waiting .is-mono {
   color: var(--apx-fg-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
 }
 .wiz__dots {
   color: var(--apx-brand);
@@ -346,7 +346,7 @@
   margin: 6px 0;
 }
 .wiz__rowname {
-  font-size: 14px;
+  font-size: calc(14px * var(--apx-text-scale, 1));
   font-weight: 500;
 }
 .wiz__rowname .is-muted {
@@ -355,7 +355,7 @@
 }
 .wiz__rowbody {
   color: var(--apx-fg-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
 }
 /* Agent */
 .wiz__field {
@@ -363,7 +363,7 @@
   flex-direction: column;
   gap: 8px;
   color: var(--apx-fg-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
 }
 .wiz__name {
   max-width: 420px;
@@ -371,7 +371,7 @@
 .wiz__name input,
 input.wiz__name {
   height: 48px;
-  font-size: 18px;
+  font-size: calc(18px * var(--apx-text-scale, 1));
 }
 .wiz__blobs {
   display: grid;
@@ -430,21 +430,21 @@ input.wiz__name {
   min-width: 0;
 }
 .wiz__enginetitles b {
-  font-size: 14px;
+  font-size: calc(14px * var(--apx-text-scale, 1));
   font-weight: 600;
 }
 .wiz__enginetitles b.is-mono {
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   letter-spacing: 0.06em;
 }
 .wiz__enginetitles span {
   color: var(--apx-fg-subtle);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
 }
 .wiz__enginebody {
   margin: 0;
   color: var(--apx-fg-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
   line-height: 1.45;
 }
 .wiz__keyrow {
@@ -460,14 +460,14 @@ input.wiz__name {
 .wiz__pathrow input {
   height: 46px;
   font-family: var(--apx-font-mono);
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
 }
 .wiz__hintline {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   color: var(--apx-fg-subtle);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
 }
 .wiz__hintline.is-error {
   color: var(--apx-danger);
@@ -485,7 +485,7 @@ input.wiz__name {
   margin: 0;
   padding-left: 18px;
   color: var(--apx-fg-subtle);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   line-height: 1.5;
 }
 .wiz__hintline.is-ok {
@@ -501,7 +501,7 @@ input.wiz__name {
   align-items: center;
   gap: 8px;
   color: var(--apx-fg-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
 }
 .wiz__chain {
   display: flex;
@@ -512,11 +512,11 @@ input.wiz__name {
 .wiz__chainhead {
   display: flex;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: calc(14px * var(--apx-text-scale, 1));
 }
 .wiz__chainhead span {
   color: var(--apx-fg-subtle);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
 }
 .wiz__link {
   display: flex;
@@ -526,13 +526,13 @@ input.wiz__name {
   padding: 0 6px 0 10px;
   border-radius: 10px;
   background: var(--apx-fill);
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
 }
 .wiz__linkn {
   width: 22px;
   color: var(--apx-fg-subtle);
   font-family: var(--apx-font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
 }
 .wiz__default {
   color: var(--apx-fg-subtle);
@@ -571,18 +571,18 @@ input.wiz__name {
   border-radius: 999px;
   background: transparent;
   color: var(--apx-fg-muted);
-  font-size: 15px;
+  font-size: calc(15px * var(--apx-text-scale, 1));
   cursor: pointer;
 }
 .wiz__hint {
   color: var(--apx-fg-subtle);
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
 }
 .wiz__unset {
   margin: 0;
   color: var(--apx-fg-subtle);
   font-family: var(--apx-font-sans);
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
 }
 /* The crew card */
 .wiz__preview {
@@ -612,7 +612,7 @@ input.wiz__name {
   color: var(--apx-fg-subtle);
 }
 .wiz__pname {
-  font-size: 24px;
+  font-size: calc(24px * var(--apx-text-scale, 1));
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -627,7 +627,7 @@ input.wiz__name {
   border-radius: 999px;
   background: var(--apx-fill);
   color: var(--apx-fg-subtle);
-  font-size: 11px;
+  font-size: calc(11px * var(--apx-text-scale, 1));
 }
 .wiz__ptag.is-ready {
   background: var(--apx-brand-soft);
@@ -645,12 +645,12 @@ input.wiz__name {
   width: 84px;
   color: var(--apx-fg-subtle);
   font-family: var(--apx-font-mono);
-  font-size: 11px;
+  font-size: calc(11px * var(--apx-text-scale, 1));
   letter-spacing: 0.06em;
 }
 .wiz__pval {
   min-width: 0;
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -675,7 +675,7 @@ input.wiz__name {
   border-radius: 999px;
   background: var(--apx-fill);
   color: var(--apx-fg-muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
 }
 .wiz__openingbar {
   position: absolute;
@@ -708,7 +708,7 @@ input.wiz__name {
   align-items: flex-start;
   max-width: 640px;
   padding: 16px;
-  font-size: 13px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
 }
 .wiz__takeover span {
   color: var(--apx-fg-muted);
@@ -735,7 +735,7 @@ input.wiz__name {
   border-radius: 10px;
   background: var(--apx-fill);
   font-family: var(--apx-font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
 }
 /* Connecting over SSH: a terminal of the steps and the server's output, with ssh's question on its last line. */
 .connect__termstep {
@@ -750,7 +750,7 @@ input.wiz__name {
   border-radius: 10px;
   background: var(--apx-fill);
   font-family: var(--apx-font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   overflow: hidden;
 }
 .connect__term-bar {
@@ -774,7 +774,7 @@ input.wiz__name {
   margin: 0;
   color: var(--apx-fg-muted);
   font-family: var(--apx-font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   white-space: pre-wrap;
   word-break: break-word;
   user-select: text;
@@ -816,7 +816,7 @@ input.wiz__name {
 }
 .connect__term-note {
   color: var(--apx-fg-subtle);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
 }
 @keyframes connect-blink {
   50% {
@@ -864,7 +864,7 @@ input.wiz__name {
   padding: 12px 24px 16px;
   color: var(--apx-fg-subtle);
   font-family: var(--apx-font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--apx-text-scale, 1));
   text-align: center;
   user-select: text;
 }

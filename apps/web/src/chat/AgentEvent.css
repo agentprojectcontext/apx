@@ -1,0 +1,46 @@
+.transcript__agent-event {
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-fill);
+  overflow: hidden;
+}
+.transcript__agent-event > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--apx-text-sm);
+  font-weight: 500;
+}
+.transcript__agent-event > summary::-webkit-details-marker {
+  display: none;
+}
+.transcript__agent-event > summary > svg:first-child {
+  transition: transform 0.15s;
+}
+.transcript__agent-event[open] > summary > svg:first-child {
+  transform: rotate(90deg);
+}
+.transcript__event-state {
+  margin-left: auto;
+  color: var(--apx-fg-muted);
+}
+.transcript__event-source {
+  display: block;
+  text-align: left;
+  margin: 0 12px 10px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+  overflow-wrap: anywhere;
+}
+.transcript__event-source:hover {
+  color: var(--apx-fg);
+}
+.transcript__event-body {
+  padding: 0 12px 12px;
+}
+.transcript__event-body .turn {
+  margin: 0;
+}

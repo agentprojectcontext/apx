@@ -148,7 +148,7 @@ export function systemPrompt(
   return [
     `You are ${agent.name}${agent.role ? `, ${agent.role}` : ""}, an agent in APX: the system that runs your owner's projects and day.`,
     agent.kind === "secretary"
-      ? "You are the main secretary: understand the request, do it yourself or delegate it to the right agent, and answer with what happened."
+      ? "You are the main secretary: understand the request, do it yourself or delegate it to the right agent, and answer with what happened. Several pieces of work and the owner did not say how: ask once with ask_owner and short options (e.g. a plan first, one task each, I do it). If they said how, do it that way without asking."
       : "You are a specialist agent: do your part well and answer with the concrete result.",
     role ? `\n${role}` : "",
     agent.personality ? `\nYour personality: ${agent.personality}` : "",
@@ -384,10 +384,16 @@ export function frameInput(origin: Origin, text: string): string {
       return origin.ready
         ? "APX: the shared Linux computer you started in this chat is ready; your screen comes up with this turn. Tell the owner in one short line that it is ready, then carry on with what they asked you to do on it; if they asked nothing yet, ask what they need there."
         : `APX: the shared Linux computer you started in this chat did not start (${(origin.error ?? "unknown").slice(0, 300)}). Tell the owner briefly in their language, and point them to [Computer](apx:computer) to look at it.`;
+    case "added":
+      return `APX: the owner just added the ${origin.what} ${inlineName(origin.name)} (${origin.id}). Offer them in one or two lines to look at it and adapt it (${origin.what === "project" ? "its agents, its AGENTS.md and how it fits their other projects" : "its role, model, project and what it may do"}), asking before you change anything. Nothing else.`;
+    case "task_continue":
+      return `APX: your task "${origin.title}" (${origin.task_id}) is still in progress and your last turn ended without closing it. Part ${origin.part} of at most ${origin.of}: check where it stands, do what is left and verify it. Done: close it with task_close and say what you verified. Waiting on the owner: task_update awaits_owner=true with why (what they need to do). Blocked by something you cannot fix: say exactly what. Do not stop just to report progress.`;
     case "stalled_task":
-      return `APX: your task "${origin.title.slice(0, 120)}" (${origin.task_id}) is still open, but nothing has run on it since your last turn. Check where it stands: if part of it is yours to do, go on with it; if it waits on the owner, mark it with task_update awaits_owner=true and say what they need to do; if it is done, close it with task_close.`;
+      return `APX: your task "${origin.title.slice(0, 120)}" (${origin.task_id}) is still open, but nothing has run on it since your last turn. Check where it stands: if part of it is yours to do, go on with it; if it waits on the owner, mark it with task_update awaits_owner=true and why (what they need to do); if it is done, close it with task_close.`;
     case "task_result":
-      return `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\nA task you created and gave to ${inlineName(origin.name)} is closed (${origin.state}); this is their report. Tell the owner what matters.`;
+      return origin.by
+        ? `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\n${inlineName(origin.name)} closed a task ${inlineName(origin.by)} gave (${origin.state}); this is their report. Tell the owner in a line or two what came of it and anything they need to do; nothing else.`
+        : `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\nA task you created and gave to ${inlineName(origin.name)} is closed (${origin.state}); this is their report. Tell the owner what matters.`;
     case "delegation_result":
       return `${fromTeam("delegation_result", { from: origin.name, sub_thread: origin.thread_id, state: endedAs(origin) }, text)}\n${endNote(origin, origin)}${origin.outcome ? outcomeNote(origin.outcome) : ""}${origin.actions ? `${actionsNote(origin.actions)}\n` : ""}This is the result of a task you delegated earlier. Tell the owner what matters; do not delegate the same task again. ${REDIRECT_NOTE}`;
   }

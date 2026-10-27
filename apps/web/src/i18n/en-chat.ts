@@ -1,5 +1,8 @@
 // UI strings, English: the chat's composer and its Usage panel.
 export const enChat = {
+  "chat.agentProgress": "Progress from {name}",
+  "chat.agentResponse": "Response from {name}",
+  "chat.agentMessage": "Message from {name}",
   "input.approveOnce": "Approve once",
   "input.approveSession": "Approve for this session",
   "input.approveAlways": "Always allow for this agent",

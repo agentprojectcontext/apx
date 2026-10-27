@@ -13,8 +13,10 @@ import type { Harness } from "./types.ts";
  */
 export const MAX_STEPS = 150;
 const MAX_CONTINUATIONS = 2;
-/** Same tool with the same arguments this many times = stuck. */
-const REPEAT_LIMIT = 3;
+/** The same call this many times in a row gets a reminder to change course; tools never go off for it before STUCK_AT. */
+const REMIND_AT = [3, 5] as const;
+/** The same call this many times in a row = stuck: tools go off and the turn answers with what it has. */
+const STUCK_AT = 8;
 /** Looking at the screen again is how a computer session sees what changed: never "the same call" twice. */
 const LOOKS_AGAIN = new Set(["screen_snapshot", "browser_snapshot"]);
 /** Reading the same page part again is stuck only when it says the same: after a click or a load it may not. */
@@ -31,6 +33,17 @@ export const systemNote = (content: string): ChatItem => ({
   content: `<system_note>\n${content}\n</system_note>`,
 });
 
+/** A call's arguments with their keys in order, so the same call reads the same however the model ordered them. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value && typeof value === "object")
+    return `{${Object.keys(value)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${canonical((value as Record<string, unknown>)[k])}`)
+      .join(",")}}`;
+  return JSON.stringify(value) ?? "null";
+}
+
 export function nativeHarness(llm: Llm): Harness {
   return {
     id: "native",
@@ -41,7 +54,9 @@ export function nativeHarness(llm: Llm): Harness {
         io.log(items);
       };
       const usage: Usage = { input: 0, output: 0 };
-      const seen = new Map<string, number>();
+      // The last call and how many times in a row it came (DECISIONS.md#d-162).
+      let lastCall = "";
+      let streak = 0;
       let model = "";
       let effort: string | undefined;
       const failed = new Map<string, ModelFailure>();
@@ -79,9 +94,8 @@ export function nativeHarness(llm: Llm): Harness {
 
       const limit = io.steps ?? MAX_STEPS;
       for (let i = 0; i < limit; i++) {
-        // The owner's words added while we work go in after the last tool results, before the next model call.
-        for (const t of io.takeSteered?.() ?? [])
-          push({ role: "user", content: `[The owner adds, while you work]\n${t}` });
+        // What arrived while we work (the owner's words, a command's end) goes in after the last tool results.
+        for (const t of io.takeSteered?.() ?? []) push({ role: "user", content: t });
         const c = await step(true);
         const calls = c.message.tool_calls ?? [];
         if (!calls.length) {
@@ -99,6 +113,7 @@ export function nativeHarness(llm: Llm): Harness {
         }
         prefix = "";
         let stuck: string | undefined;
+        let remind: string | undefined;
         let transferred = false;
         const looked: Array<{ media_id: string; mime: string }> = [];
         const lookedFrom = new Set<string>();
@@ -118,9 +133,11 @@ export function nativeHarness(llm: Llm): Harness {
             lookedFrom.add(call.function.name);
           }
           if (LOOKS_AGAIN.has(call.function.name)) continue;
-          const sig = `${call.function.name}:${call.function.arguments}${READS_AGAIN.has(call.function.name) ? `:${out.text}` : ""}`;
-          seen.set(sig, (seen.get(sig) ?? 0) + 1);
-          if ((seen.get(sig) ?? 0) >= REPEAT_LIMIT) stuck = call.function.name;
+          const sig = `${call.function.name}:${canonical(args)}${READS_AGAIN.has(call.function.name) ? `:${out.text}` : ""}`;
+          streak = sig === lastCall ? streak + 1 : 1;
+          lastCall = sig;
+          if (streak >= STUCK_AT) stuck = call.function.name;
+          else if ((REMIND_AT as readonly number[]).includes(streak)) remind = call.function.name;
         }
         // After all results: a note between a call and its results would break the pairing providers require. A
         // picture a tool showed goes in the same way, as what the model now sees (only the newest few travel).
@@ -142,10 +159,15 @@ export function nativeHarness(llm: Llm): Harness {
           toolsOff = true;
           push(
             systemNote(
-              `You called ${stuck} with the same arguments ${REPEAT_LIMIT} times. Stop calling tools and answer with what you have.`,
+              `You called ${stuck} with the same arguments ${STUCK_AT} times in a row. Stop calling tools and answer with what you have.`,
             ),
           );
-        }
+        } else if (remind && !toolsOff)
+          push(
+            systemNote(
+              `You called ${remind} with the same arguments ${streak} times in a row. If it is not getting you closer, change course: another tool, other arguments or another way to what you need.`,
+            ),
+          );
       }
       // Out of steps: one last call without tools so the owner gets an honest summary, never silence.
       push(

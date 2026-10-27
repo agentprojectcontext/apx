@@ -7,7 +7,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import { inherit } from "../tools/policy.ts";
 import { defineTool } from "../tools/types.ts";
 import { tripped } from "./breaker.ts";
-import { MAX_UNATTENDED_RUNS, MAX_UNATTENDED_TOKENS } from "./limits.ts";
+import { MAX_UNATTENDED_RUNS, MAX_UNATTENDED_TOKENS, SUGGESTED_LIMITS } from "./limits.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 const llm = scriptedLlm((req, { system, said, afterTool }) => {
@@ -93,6 +93,24 @@ test("a delegated run gets only the tools every caller may use, and the strictes
   assert.equal(r.agent.autonomy, "manual");
 });
 
+test("by default nothing pauses an unattended chain: agents finish what they were asked", async () => {
+  const { store } = env.core;
+  const root = store.threads.create({ kind: "loose", title: "free chain", agent_ids: ["roby"] });
+  const deadline = new Date(Date.now() + 60_000).toISOString();
+  for (const trigger of ["user", ...Array<"a2a">(SUGGESTED_LIMITS.runs + 5).fill("a2a")] as const) {
+    const r = store.runs.create({
+      thread_id: root.id,
+      agent_id: "roby",
+      trigger,
+      input: { origin: { kind: "user" }, text: "x" },
+      deadline_at: deadline,
+    });
+    store.runs.setState(store.runs.patch(r, { usage: { input: 100_000, output: 0 } }), "completed");
+  }
+  assert.deepEqual(await env.client.call("agents.limits", {}).then((l) => [l.runs, l.tokens]), [0, 0]);
+  assert.equal(tripped(store, root.id), undefined);
+});
+
 test("the breaker stops unattended chains and an owner's message resets it", async () => {
   const { store } = env.core;
   const root = store.threads.create({ kind: "loose", title: "chain", agent_ids: ["roby"] });
@@ -110,14 +128,17 @@ test("the breaker stops unattended chains and an owner's message resets it", asy
     });
     store.runs.setState(r, "completed");
   };
+  const limit = 12;
+  await env.client.call("agents.set_limits", { runs: limit, tokens: 0 });
   await add(root.id, "user");
-  for (let i = 0; i < MAX_UNATTENDED_RUNS - 1; i++) await add(i % 2 ? root.id : sub.id, i % 2 ? "a2a_result" : "a2a");
+  for (let i = 0; i < limit - 1; i++) await add(i % 2 ? root.id : sub.id, i % 2 ? "a2a_result" : "a2a");
   assert.equal(tripped(store, sub.id), undefined);
   await add(sub.id, "a2a");
   assert.match(tripped(store, root.id) ?? "", /turns on their own/);
   assert.match(tripped(store, sub.id) ?? "", /turns on their own/);
   await add(root.id, "user");
   assert.equal(tripped(store, sub.id), undefined);
+  store.settings.write("agent_limits", {});
 });
 
 test("the owner writing on a channel renews the unattended window; a contact writing there does not", async () => {
@@ -260,7 +281,7 @@ test("the owner sets the breaker's limits, and 0 turns a limit off", async () =>
   await env.client.call("agents.set_limits", { runs: 0, tokens: 0 });
   assert.equal(tripped(store, root.id), undefined);
   const { defaults } = await env.client.call("agents.limits", {});
-  assert.deepEqual(defaults, { runs: MAX_UNATTENDED_RUNS, tokens: MAX_UNATTENDED_TOKENS });
+  assert.deepEqual(defaults, SUGGESTED_LIMITS);
   store.settings.write("agent_limits", {});
 });
 

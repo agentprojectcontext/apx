@@ -1,0 +1,43 @@
+---
+title: Google Chat y Nextcloud Talk
+description: Conectá chats de trabajo por Pub/Sub o un usuario bot de Nextcloud y habilitá los espacios correctos.
+sidebar:
+  order: 8
+---
+
+## Google Chat
+
+Es un **canal**, no la integración de Gmail o Calendar. Recibe mensajes mediante Google Cloud Pub/Sub: APX necesita
+salida a internet, no una URL pública de webhook. Necesitás permisos para configurar el proyecto Cloud y la app de Chat.
+
+1. Habilitá las APIs de **Google Chat** y **Pub/Sub** en Google Cloud. Creá un tema y una **suscripción pull**.
+   Dale a `chat-api-push@system.gserviceaccount.com` el rol Publisher sobre el tema.
+2. Creá una cuenta de servicio con el rol Subscriber sobre la suscripción y descargá su clave JSON.
+3. En la configuración de Chat API, nombrá la app, elegí Cloud Pub/Sub con ese tema y quién puede usarla.
+4. En **Configuración › Canales › Agregar canal › Google Chat**, pegá la suscripción y la clave JSON completa.
+   Elegí el agente y conectá. Tratá la clave como un secreto, no como un adjunto para el chat.
+5. Escribile un mensaje directo a la app e ingresá su código en **Este es mi Google Chat** para tu cuenta.
+
+Para espacios, agregá el bot al espacio e incluilo explícitamente en **Salas**. Elegí cuándo responde: siempre,
+al llamarlo, cuando aporte algo o solo lectura. Una sala fuera de la lista no se lee. Probá primero por directo y
+luego con una mención en un espacio listado. Si no llega nada, revisá entrega al tema, ruta y permisos de la suscripción.
+
+## Nextcloud Talk
+
+1. Creá un usuario separado en Nextcloud para el bot. APX envía como ese usuario.
+2. Con esa sesión, creá una contraseña de aplicación en **Configuración personal › Seguridad**.
+3. En **Configuración › Canales › Agregar canal › Nextcloud Talk**, ingresá servidor, usuario y contraseña de aplicación.
+4. Escribile al bot e ingresá su código en **Este es mi Nextcloud Talk** para vincular tu cuenta.
+5. Para conversaciones compartidas, invitá al bot y agregá sus identificadores en **Salas**; elegí el modo de respuesta.
+
+Admite chats directos y conversaciones listadas. No le da acceso general a todos los archivos ni conversaciones de
+Nextcloud. Si falla la conexión, revisá servidor, contraseña de aplicación y acceso del usuario bot a Talk.
+
+## Uso y límites
+
+Probá «Resumí lo conversado en esta sala listada» desde APX o pedí un borrador antes de publicar. La sala es pública
+para sus participantes: las respuestas son selladas y no incluyen tu memoria privada ni acceso a archivos. La búsqueda
+web pública opcional se controla aparte desde **Buscar en la web**, no al agregar la sala.
+
+Estos canales no establecen autoridad del dueño del mismo modo que Telegram, WhatsApp o Signal. Los pedidos
+riesgosos pueden verificarse en APX. Leé [identidad, contactos y salas](/es/channels/overview/) antes de usarlos para acciones propias.

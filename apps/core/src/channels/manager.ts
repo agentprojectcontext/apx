@@ -83,8 +83,6 @@ export function createChannels(deps: {
   attention: (n: NewNotification) => void;
   /** Waits before starting again a channel that failed to start; the last one repeats. */
   retryMs?: readonly number[];
-  /** A paired device's push, when the owner picked it as where notices go; false when it has none. */
-  pushOwner?: (deviceId: string, text: string) => boolean;
   /** A cheap model's one-shot answer: whether an uncalled message in a "useful" room deserves an answer. */
   judge?: (system: string, user: string, about: AuxAbout) => Promise<string | undefined>;
   /** A model that reads images naming what a picture shows (a sticker's meaning); none: stickers stay unnamed. */
@@ -146,10 +144,10 @@ export function createChannels(deps: {
    */
   function notifyOwner(body: Presentation, kind: OutboxRow["kind"] = "notice", threadId?: string): boolean {
     const prefs = noticePrefs(store);
+    // The app only: what is told here is in the tray and on their phones already. A phone picked before every phone
+    // was told is the same choice.
+    if (prefs.channel === "none" || prefs.channel?.startsWith("device:")) return false;
     const refused = new Set(body.refused_by);
-    // The owner's phone, when they picked it: a push instead of a channel message (a channel if it has no push).
-    if (!refused.size && prefs.channel?.startsWith("device:") && deps.pushOwner?.(prefs.channel.slice(7), body.text))
-      return true;
     const order = [...live.values()]
       .filter((l) => !refused.has(l.config.id))
       .sort(
@@ -290,6 +288,20 @@ export function createChannels(deps: {
     },
   });
 
+  /**
+   * What a question reaches the owner's channel as: the super-agent's own, whole with its buttons; a teammate's, one
+   * line saying who waits and on what, answered in the app where the card is (DECISIONS.md#d-163).
+   */
+  function cardFor(part: Extract<Part, { type: "input" }>): Presentation {
+    const asker = store.inputs.get(part.input_id)?.agent_id;
+    const boss = store.agents.list().find((a) => a.kind === "secretary");
+    if (asker && boss && asker !== boss.id) {
+      const what = part.prompt.length > 200 ? `${part.prompt.slice(0, 199)}…` : part.prompt;
+      return { text: channelTexts(store).waiting(store.agents.get(asker)?.name ?? asker, what) };
+    }
+    return { ...inputPresentation(part, channelTexts(store)), input_id: part.input_id };
+  }
+
   /** A confirmation nobody answered in the app after a while also goes to the owner's channel. */
   function followUp(part: Extract<Part, { type: "input" }>, threadId: string, waited = 0): void {
     const after = noticePrefs(store).inputs_after_s;
@@ -297,8 +309,7 @@ export function createChannels(deps: {
     const cancel = followUpTimers.after(Math.max(0, after * 1000 - waited), () => {
       escalations.delete(part.input_id);
       if (stopped || store.inputs.get(part.input_id)?.state !== "pending" || announced.has(part.input_id)) return;
-      const body = { ...inputPresentation(part, channelTexts(store)), input_id: part.input_id };
-      if (notifyOwner(body, "input", threadId)) announced.add(part.input_id);
+      if (notifyOwner(cardFor(part), "input", threadId)) announced.add(part.input_id);
     });
     escalations.set(part.input_id, cancel);
   }
@@ -361,6 +372,7 @@ export function createChannels(deps: {
       const rest = [s.args.when, s.args.details].filter((v) => typeof v === "string" && v).join("\n");
       const text = texts.passedOn(audience.name, String(s.args.kind), String(s.args.summary ?? ""), rest);
       notifyOwner({ text: text.slice(0, 1500) }, "notice", run.thread_id);
+      deps.attention({ kind: "channel", title: audience.name, body: text.slice(0, 300), thread_id: run.thread_id });
     }
   }
 
@@ -514,7 +526,7 @@ export function createChannels(deps: {
       conversation: to.conversation,
       thread_id: threadId,
       kind: "input",
-      body: shownOn(to.channel, { ...inputPresentation(part, channelTexts(store)), input_id: part.input_id }),
+      body: shownOn(to.channel, cardFor(part)),
     });
   }
 
@@ -531,9 +543,7 @@ export function createChannels(deps: {
       // An answer with no turn listening rewrites the whole message.
       for (const p of e.message.parts) if (p.type === "input") cards.settled(p.input_id, p.state);
     } else if (e.type === "message.created" && e.message.author.kind === "system") {
-      // Agents stopped by the breaker: the owner hears it wherever they are.
-      const paused = e.message.parts.find((p) => p.type === "notice" && p.code === "breaker.paused");
-      if (paused?.type === "notice") notifyOwner({ text: paused.text }, "notice", e.message.thread_id);
+      // A pause at the owner's own limit is told in the app only (engine/attention.ts), never on a channel.
       // A delegate APX keeps going on with is no news for the owner's phone: only a stop or a report is (DECISIONS.md#d-116).
       const limit = e.message.parts.find(
         (p) => p.type === "notice" && p.code === "delegation.limit" && !String(p.vars?.variant).startsWith("continued"),

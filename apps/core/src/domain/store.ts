@@ -29,6 +29,7 @@ import { sql } from "./sql.ts";
 import { stickersRepo } from "./stickers.ts";
 import { suggestionsRepo } from "./suggestions.ts";
 import { surfacesRepo } from "./surfaces.ts";
+import { taskAttachmentsRepo } from "./task-attachments.ts";
 import { tasksRepo } from "./tasks.ts";
 import { messagesRepo, threadsRepo } from "./threads.ts";
 
@@ -63,6 +64,7 @@ export function createStore(db: Db, bus: Bus) {
     memories: memoriesRepo(q),
     memoryWork: memoryWorkRepo(q),
     media: mediaRepo(q),
+    taskAttachments: taskAttachmentsRepo(q),
     persons: personsRepo(q),
     suggestions: suggestionsRepo(q),
     channels: channelsRepo(q),

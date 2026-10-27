@@ -51,8 +51,9 @@ Cómo se comporta un artefacto cuando te vas y volvés:
 - **Con caché**: guarda su última lectura en el almacén; cuando lo volvés a abrir ves esa lectura al instante (marcada
   como vieja) mientras trae una nueva.
 - **En vivo**: una página que tiene que seguir corriendo oculta (un ticker, un temporizador) puede pedirle a APX que
-  la mantenga viva. APX mantiene como mucho tres a la vez, las pausa cuando la ventana de la app está oculta y frena la
-  menos reciente cuando se abre una cuarta.
+  la mantenga viva. APX mantiene como mucho tres a la vez. La página debe pausar trabajo innecesario cuando está
+  oculta; puede vencer o ser desalojada si otra necesita lugar. Leé [Apps vivas](/es/apps/live-apps/) para el grupo
+  separado de seis apps abiertas y sus límites.
 
 **Las apps quedan abiertas; los widgets se cierran.** Una app que abrís sigue corriendo mientras vas a otra parte de
 APX, como una app de tu escritorio: volvés y está tal cual la dejaste, hasta que la cerrás (Cerrar app) o cerrás APX.

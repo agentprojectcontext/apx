@@ -16,11 +16,12 @@ export function mediaTools(store: Store, home: string, vm?: { hasThread(id: stri
     defineTool({
       name: "send_file",
       description:
-        "Attach an existing file you can read directly to your reply in this chat. Use when the owner asks to see or download a file, image, video, audio or document here. Images appear inline; videos play in the chat; files can be downloaded. Path relative to your work folder, or absolute; maximum 20 MB per file. Call once per file; a website link is no substitute.",
+        "Attach an existing file you can read directly to your reply in this chat. Use when the owner asks to see or download a file, image, video, audio or document here. Images appear inline; videos play in the chat; files can be downloaded. Path relative to your work folder, absolute, or a med_ id from a readable owner's chat or task; maximum 20 MB per file. Call once per file; a website link is no substitute.",
       args: z.object({ path: z.string().trim().min(1).max(1000) }),
       // Only to this chat, the owner's: contacts and rooms never get it (CONTACT_TOOLS).
       effect: "local",
-      outside: (a, ctx) => readsOutside(store, home, ctx.thread, [String(a.path)]),
+      outside: (a, ctx) =>
+        MEDIA_ID.test(String(a.path)) ? [] : readsOutside(store, home, ctx.thread, [String(a.path)]),
       deadlineMs: 15_000,
       title: (a) =>
         `Attached ${String(a.path ?? "a file")
@@ -33,7 +34,7 @@ export function mediaTools(store: Store, home: string, vm?: { hasThread(id: stri
             ? { type: "image" as const, media_id: m.id, mime: m.mime, alt: m.name }
             : { type: "file" as const, media_id: m.id, mime: m.mime, name: m.name, bytes: m.bytes };
         ctx.upsertPart((p) => (p.type === "image" || p.type === "file") && p.media_id === m.id, part);
-        return `Attached ${m.name} (${m.mime}, ${m.bytes} bytes) in this chat.`;
+        return `Attached ${m.name} (${m.id}, ${m.mime}, ${m.bytes} bytes) in this chat.`;
       },
     }),
     defineTool({
