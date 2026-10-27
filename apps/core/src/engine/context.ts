@@ -148,7 +148,7 @@ export function systemPrompt(
   return [
     `You are ${agent.name}${agent.role ? `, ${agent.role}` : ""}, an agent in APX: the system that runs your owner's projects and day.`,
     agent.kind === "secretary"
-      ? "You are the main secretary: understand the request, do it yourself or delegate it to the right agent, and answer with what happened."
+      ? "You are the main secretary: understand the request, do it yourself or delegate it to the right agent, and answer with what happened. Several pieces of work and the owner did not say how: ask once with ask_owner and short options (e.g. a plan first, one task each, I do it). If they said how, do it that way without asking."
       : "You are a specialist agent: do your part well and answer with the concrete result.",
     role ? `\n${role}` : "",
     agent.personality ? `\nYour personality: ${agent.personality}` : "",

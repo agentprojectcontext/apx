@@ -146,9 +146,6 @@ export const enTeam = {
   "limits.on": "Set limits",
   "limits.onHint": "Agents pause when they reach these and wait for you.",
   "limits.offHint": "No limits: agents keep going until they finish what you asked, like a coding agent.",
-  "limits.fanOut": "Ask before handing work to several agents",
-  "limits.fanOutHint":
-    "When the super-agent is about to give work to a third agent in one go, its tasks wait as proposals you pick from, and a question asks you first.",
   "agentedit.group.general": "General",
   "agentedit.group.abilities": "Abilities",
   "agentedit.group.permissions": "Permissions",

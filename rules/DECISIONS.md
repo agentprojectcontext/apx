@@ -1945,7 +1945,7 @@ accepts it (`tasks.update` with `proposed: false`, the owner only), and the owne
 An agent creates what its own role hands out and proposes the rest (QA, reviews, another area's work). The panel lists
 proposals first, with **Accept all**; the mobile app groups them the same way.
 
-**Proposals the agent did not ask for.** The fan-out check (a third agent in one turn asks first) no longer stops a wide `task_create` with a card:
+**Proposals the agent did not ask for.** (Superseded by [D-159](#d-159): there is no fan-out check.) The fan-out check (a third agent in one turn asks first) no longer stops a wide `task_create` with a card:
 those tasks become proposals, so the owner picks which go ahead; a wide `delegate` still asks. A sub-task three
 hand-offs deep, or one for an agent that created a task above it, is a proposal too, so agents cannot pass work down
 forever or ping-pong it. Rejected: a counter on the task (it misses a chain that runs across tasks).
@@ -2525,3 +2525,27 @@ the agent never saw the worktree rule, and kept opening duplicate worktrees. A p
 size; the agent gets all of them, as Claude Code and Codex do with theirs. The cost is small because AGENTS.md sits in
 the byte-stable prefix (rule 12) that providers cache. The 200,000 safety limit, its marker and the owner's notice
 from [D-110](#d-110) stay.
+
+<a id="d-159"></a>
+## D-159 — 2026-10-27 — Agents finish what they were asked: limits are the owner's to turn on, and the super-agent asks how in its own words
+Supersedes the defaults of [D-069](#d-069) and [D-081](#d-081), and the fan-out check of [D-131](#d-131). A night's
+three tasks stalled: 30 unattended turns went fast because every background command that ended woke its agent as a
+turn; past it every result paused the chain and told the owner's Telegram, in English, once per result (about thirty
+messages); a paused chain left tasks "in progress" with nobody on them; and the super-agent stopped twice on a system
+card asking to hand work to a third agent, after the owner had already said to do the work. Coding agents finish what
+they are asked; APX's agents should too.
+
+- **No unattended limits by default** (`MAX_UNATTENDED_RUNS` and `MAX_UNATTENDED_TOKENS` are 0). **Set limits** in
+  Config › Agents turns them on, starting from 100 turns and 5M fresh tokens (`SUGGESTED_LIMITS`, `agents.limits`
+  `defaults`), room for a large feature. Owners who never changed them get no limit; one who set their own keeps it.
+  Deadlines, the idle watch and the stalled-task nudge stay: they catch a stuck agent, not a busy one.
+- **A pause is told once, in the app.** A `breaker.paused` or `breaker.held` notice becomes one tray notice per
+  conversation tree (`breaker:<top thread>`), in the owner's language, until read; no channel message. Each result
+  that lands while paused still adds its line to the chat.
+- **No fan-out card.** The super-agent no longer asks through a system card before handing work to a third agent, and
+  wide `task_create`s are no longer turned into proposals; `fan_out_ask` and `agents.set_fan_out_ask` are gone. Its
+  role line tells it instead: several pieces of work and the owner did not say how, ask once with `ask_owner` and short
+  options (a plan first, one task each, it does it); if they said how, do it. The hand-off-depth and give-back
+  proposals of D-131 stay.
+
+Rejected: raising the default to 100 turns (still a stop the owner did not ask for, on the work they asked for).

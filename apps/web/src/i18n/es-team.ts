@@ -149,9 +149,6 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "limits.onHint": "Los agentes se pausan al llegar a esto y te esperan.",
   "limits.offHint":
     "Sin límites: los agentes siguen solos hasta terminar lo que les pediste, como un agente de código.",
-  "limits.fanOut": "Preguntar antes de repartir trabajo entre varios agentes",
-  "limits.fanOutHint":
-    "Cuando el superagente va a darle trabajo a un tercer agente de una vez, las tareas quedan propuestas para que elijas cuáles siguen, y una consulta te pregunta antes.",
   "agentedit.group.general": "General",
   "agentedit.group.abilities": "Capacidades",
   "agentedit.group.permissions": "Permisos",

@@ -119,11 +119,11 @@ hands out it creates and starts; the rest it **proposes**. A proposed task waits
 it, until you accept it (it starts like any assigned task) or drop it. You get one notice per agent with how many it
 has waiting.
 
-Some tasks are proposals whatever the agent asks for:
+Some tasks are proposals whatever the agent asks for. When you ask Roby for several things without saying how, it asks
+you first (a plan, one task each, or doing it itself); once you said how, it goes ahead.
 
-- **A wide hand-out.** When an agent hands tasks to a third agent or more in one turn (Roby splitting "check every
-  service for PHP vulnerabilities" into one task per service), they are proposed, so you pick which go ahead. The
-  **Ask before handing work to several agents** switch (Team, under **When agents work on their own**) turns this off.
+The proposals:
+
 - **A hand-off chain three deep.** A sub-task of a sub-task of a sub-task is proposed, so agents cannot keep passing
   work down on their own.
 - **Work given back up the chain.** A sub-task for an agent that created one of the tasks above it is proposed, so two
