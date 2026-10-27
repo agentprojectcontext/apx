@@ -1,18 +1,23 @@
-// The tray's new notices as the system's own notifications when the owner is not looking at APX (the window hidden,
-// minimized or behind another app), and APX's own sound for each as it arrives. The desktop app allows them already; a browser asks on the
-// owner's first click, as browsers require.
+// The tray's new notices as the system's own notifications unless the owner is looking at the very chat they are about
+// (APX in front, that chat open), and APX's own sound for each as it arrives. The desktop app allows them already; a
+// browser asks on the owner's first click, as browsers require.
 
 import type { Notification as Notice } from "@apx/protocol";
 import { onNewNotice, readNotifications } from "../data/notifications.ts";
-import { go } from "./nav.ts";
+import { go, nav, showsChat } from "./nav.ts";
 import { noticeTask } from "./noticeTarget.ts";
 import { noticeArrived } from "./sounds.ts";
 
-const looking = () => document.visibilityState === "visible" && document.hasFocus();
+/** The owner has APX in front with this notice's chat open: the chat itself shows it. */
+const looking = (n: Notice) => {
+  if (document.visibilityState !== "visible" || !document.hasFocus()) return false;
+  const s = nav.get();
+  return Boolean(n.thread_id) && s.threadId === n.thread_id && showsChat(s);
+};
 
 function show(n: Notice): void {
   noticeArrived(n.kind);
-  if (typeof Notification === "undefined" || Notification.permission !== "granted" || looking()) return;
+  if (typeof Notification === "undefined" || Notification.permission !== "granted" || looking(n)) return;
   const os = new Notification(n.title, { body: n.body, tag: `${n.id}:${n.created_at}`, silent: true });
   os.onclick = () => {
     window.focus();

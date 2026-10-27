@@ -562,3 +562,28 @@ test("a notice the owner's chosen channel refuses goes to the next channel that 
     await env.client.call("channels.set", { id: "dc", channel: null });
   }
 });
+
+test("with the app only chosen, news stays in the app: no channel message, still in the tray", async () => {
+  const prefs = await env.client.call("notices.get", {});
+  await env.client.call("notices.set", { ...prefs, channel: "none" });
+  try {
+    const r = await env.client.call("routines.set", {
+      name: "app-only-probe",
+      agent: "roby",
+      schedule: { kind: "manual" },
+      action: "message",
+      prompt: "App only brief",
+      enabled: true,
+    });
+    await env.client.call("routines.run", { routine: r.id });
+    const tray = async () => (await env.client.call("notifications.list", {})).notifications;
+    await waitFor(
+      async () => (await tray()).some((n) => n.kind === "routine" && /App only brief/.test(n.body)),
+      "in the tray",
+    );
+    await waitFor(() => env.core.store.nudges.list(5).some((n) => n.state === "no_channel"), "kept off the channels");
+    assert.ok(!tg.messagesTo(OWNER.id).some((m) => /App only brief/.test(String(m.body.text))));
+  } finally {
+    await env.client.call("notices.set", prefs);
+  }
+});

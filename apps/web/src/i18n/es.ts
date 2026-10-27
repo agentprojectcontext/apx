@@ -1788,11 +1788,11 @@ export const es: Partial<Record<MessageKey, string>> = {
     "Cuántas llamadas al modelo puede hacer cada corrida antes de tener que responder (de 5 a 200). Vacío: 60.",
   "routines.anchorHint":
     "Encendido: sus novedades llegan siempre, aunque sea de noche o ya se haya llegado al tope diario (para el resumen de la mañana o de la tarde). Apagado: entran en tu presupuesto de interrupciones.",
-  "nudge.where": "A dónde llegan los avisos",
+  "nudge.where": "App de chat para los avisos",
   "nudge.whereHint":
-    "Un canal, o el push de tu teléfono (vinculalo en Dispositivos; la app de APX lo registra sola, o pegá ahí una dirección de ntfy).",
+    "La app y tus teléfonos vinculados siempre los reciben (vinculá uno en Dispositivos). Elegí una app de chat para recibirlos también ahí, o ninguna.",
   "nudge.whereAuto": "El primer canal que te conoce",
-  "nudge.wherePhone": "{name} (push)",
+  "nudge.whereNone": "Ninguno, solo en la app",
   "devices.push.expo": "Push",
   "devices.push.unifiedpush": "Push (ntfy)",
   "devices.pushUrl": "Dirección de push para {name}",
@@ -1809,7 +1809,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "super.talk": "Cómo te habla",
   "super.where": "Por dónde te habla",
   "super.whereHint":
-    "Ahí te llegan sus rutinas, los OK que necesita y los recordatorios. Si ese canal no puede entregar uno, prueba con el siguiente que te conoce.",
+    "La app, en esta compu y en tu teléfono, siempre te avisa. Elegí una app de chat para recibir también ahí sus rutinas, los OK que necesita y los recordatorios; si no puede entregar uno, prueba con la siguiente que te conoce.",
   "prof.lead":
     "Para qué está tu super-agente. Un perfil le da un rol, rutinas con su horario y los ajustes que leen; lo cambiás cuando quieras. Sus rutinas también están en Rutinas.",
   "prof.none": "Ninguno",

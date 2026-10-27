@@ -83,8 +83,6 @@ export function createChannels(deps: {
   attention: (n: NewNotification) => void;
   /** Waits before starting again a channel that failed to start; the last one repeats. */
   retryMs?: readonly number[];
-  /** A paired device's push, when the owner picked it as where notices go; false when it has none. */
-  pushOwner?: (deviceId: string, text: string) => boolean;
   /** A cheap model's one-shot answer: whether an uncalled message in a "useful" room deserves an answer. */
   judge?: (system: string, user: string, about: AuxAbout) => Promise<string | undefined>;
   /** A model that reads images naming what a picture shows (a sticker's meaning); none: stickers stay unnamed. */
@@ -146,10 +144,10 @@ export function createChannels(deps: {
    */
   function notifyOwner(body: Presentation, kind: OutboxRow["kind"] = "notice", threadId?: string): boolean {
     const prefs = noticePrefs(store);
+    // The app only: what is told here is in the tray and on their phones already. A phone picked before every phone
+    // was told is the same choice.
+    if (prefs.channel === "none" || prefs.channel?.startsWith("device:")) return false;
     const refused = new Set(body.refused_by);
-    // The owner's phone, when they picked it: a push instead of a channel message (a channel if it has no push).
-    if (!refused.size && prefs.channel?.startsWith("device:") && deps.pushOwner?.(prefs.channel.slice(7), body.text))
-      return true;
     const order = [...live.values()]
       .filter((l) => !refused.has(l.config.id))
       .sort(
@@ -361,6 +359,7 @@ export function createChannels(deps: {
       const rest = [s.args.when, s.args.details].filter((v) => typeof v === "string" && v).join("\n");
       const text = texts.passedOn(audience.name, String(s.args.kind), String(s.args.summary ?? ""), rest);
       notifyOwner({ text: text.slice(0, 1500) }, "notice", run.thread_id);
+      deps.attention({ kind: "channel", title: audience.name, body: text.slice(0, 300), thread_id: run.thread_id });
     }
   }
 

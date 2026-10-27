@@ -1278,8 +1278,8 @@ export type MemorySettings = z.infer<typeof MemorySettings>;
 /** How APX reaches the owner when they are not looking at the app. */
 export const NoticePrefs = z.object({
   /**
-   * Where notices go: a channel (its id) or a paired device's push ("device:<id>"); none = the first running channel
-   * that knows the owner.
+   * Which chat app the super-agent also writes to unasked: a channel (its id), "none" for the app only, or unset for the
+   * first running channel that knows the owner. The app and paired phones are told either way (engine/notice-push.ts).
    */
   channel: z.string().optional(),
   /**

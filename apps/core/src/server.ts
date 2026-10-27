@@ -454,12 +454,6 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     ...(opts.roomBurstMs !== undefined ? { roomBurstMs: opts.roomBurstMs } : {}),
     ...(opts.followUpTimers ? { followUpTimers: opts.followUpTimers } : {}),
     ...(opts.suggestBurstMs !== undefined ? { suggestBurstMs: opts.suggestBurstMs } : {}),
-    pushOwner: (deviceId, text) => {
-      const target = store.devices.pushTarget(deviceId);
-      if (!target) return false;
-      void push(target, { title: "APX", body: text.slice(0, 3500) });
-      return true;
-    },
   });
   const news = createNews({
     store,

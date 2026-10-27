@@ -1,20 +1,21 @@
-// The tray's urgent notices also reach the owner's phones with the app closed: a turn that ended or failed unseen, and
-// an agent waiting for their OK. Routine and agent news already go through the interruption budget (nudges.ts).
+// Every tray notice also reaches the owner's phones with the app closed: the app is where APX always tells them, whatever
+// chat app they also picked (DECISIONS.md#d-160). In quiet hours only what needs them now: a question, an error.
 import type { CoreEvent, Notification } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
+import { inQuietHours, noticePrefs } from "../domain/notices.ts";
 import type { Store } from "../domain/store.ts";
 import type { Push } from "../services/push.ts";
 
-const PUSHED_KINDS = new Set<Notification["kind"]>(["run", "input"]);
+const urgent = (n: Notification) => n.kind === "input" || n.level === "error";
 
-export function createNoticePush(deps: { store: Store; bus: Bus; push: Push }) {
+export function createNoticePush(deps: { store: Store; bus: Bus; push: Push; now?: () => Date }) {
   /** Notice versions already pushed: an update that changes nothing (or marks it read) is not news. */
   const pushed = new Set<string>();
 
   function onEvent(e: CoreEvent): void {
     if (e.type !== "notification.updated") return;
     const n = e.notification;
-    if (n.read_at || !PUSHED_KINDS.has(n.kind)) return;
+    if (n.read_at || (!urgent(n) && inQuietHours(noticePrefs(deps.store), deps.now?.()))) return;
     const key = `${n.id}:${n.created_at}`;
     if (pushed.has(key)) return;
     pushed.add(key);
