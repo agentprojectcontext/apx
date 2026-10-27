@@ -94,7 +94,9 @@ test("a code thread's folder and write policy are in its turn's input and in thr
   assert.equal(thread.write, "read-only");
 });
 
-test("after a change, the turn ends with what git sees as uncommitted", async () => {
+test("after a change, the turn ends with what it changed, not what was already uncommitted", async () => {
+  // The owner's own edit from before the turn is theirs, not the turn's.
+  fs.writeFileSync(path.join(repo, "owner-notes.md"), "mine\n");
   const t = await env.client.call("threads.create", { kind: "code", agent_id: "roby", project_id: project });
   await env.client.call("threads.send", { thread: t.id, text: "make a file" });
   const { messages } = await env.settle(t.id);
@@ -102,7 +104,8 @@ test("after a change, the turn ends with what git sees as uncommitted", async ()
   assert.deepEqual((await env.client.call("runs.pending", { thread: t.id })).inputs, []);
   const changes = messages.at(-1)?.parts.find((p) => p.type === "changes");
   assert.ok(changes?.type === "changes");
-  assert.deepEqual(changes.files, [{ path: "made.txt", status: "??" }]);
+  assert.deepEqual(changes.files, [{ path: "made.txt", status: "A", added: 0, removed: 0 }]);
+  fs.rmSync(path.join(repo, "owner-notes.md"));
 });
 
 test("reading the folder's git state runs nothing the repo's config names", async () => {

@@ -56,7 +56,7 @@ import {
   roomPrompt,
   sealedWeb,
 } from "./audience.ts";
-import { gitChanges } from "./changes.ts";
+import { gitChanges, gitSnapshot, turnChanges } from "./changes.ts";
 import { memoryQuery, recallChats } from "./chat-recall.ts";
 import {
   agentsMdOf,
@@ -265,6 +265,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     worker: store.threads.context(thread.id).worker,
   };
 
+  // The folder as the turn finds it, so its card shows what this turn changed, not what was already uncommitted.
+  const before = worksInFolder(thread) && thread.cwd ? gitSnapshot(thread.cwd) : undefined;
   let run = store.runs.setState(start, "working");
   store.threads.patch(thread.id, { state: "working" });
   const display = openDisplay(
@@ -383,6 +385,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     const engine = enginePick(deps, turn, start, history);
     if (deps.vm?.hasThread(thread.id) && engine.harness !== "native")
       throw new Error("a computer chat runs on APX's own harness only");
+    // The snapshot is taken while the turn is prepared, and done before anything can change the folder.
+    await before;
     const outcome = await runEngine(deps, engine, {
       io,
       input,
@@ -397,7 +401,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     // An engine keeps its own session: what it read from outside stays in its context for the next turns too.
     if (thread.engine && exec.untrusted && !startedUntrusted)
       store.modelLog.append(thread.id, run.id, [{ role: "user", content: OUTSIDE_IN_SESSION }]);
-    run = await finishRun(store, { run, thread, display, exec, outcome, log: deps.log });
+    run = await finishRun(store, { run, thread, display, exec, outcome, log: deps.log, before });
   } catch (err) {
     run = failRun(deps, { run, turn, display, signal, err });
   }
@@ -913,7 +917,16 @@ export function turnShare(total: Usage, before: Usage | undefined, resumed: bool
 /** The answer is in: final text (or an honest notice), the code changes card, usage, and the thread back to idle. */
 async function finishRun(
   store: Store,
-  t: { run: RunRecord; thread: Thread; display: Display; exec: Executor; outcome: TurnOutcome; log: Log },
+  t: {
+    run: RunRecord;
+    thread: Thread;
+    display: Display;
+    exec: Executor;
+    outcome: TurnOutcome;
+    log: Log;
+    /** The folder's snapshot when the turn started (changes.ts), when there was one. */
+    before?: Promise<string | undefined> | undefined;
+  },
 ): Promise<RunRecord> {
   const { display, thread, outcome } = t;
   display.close();
@@ -939,7 +952,8 @@ async function finishRun(
     );
   }
   if (worksInFolder(thread) && thread.cwd) {
-    const changes = await gitChanges(thread.cwd);
+    const from = await t.before;
+    const changes = from ? await turnChanges(thread.cwd, from) : await gitChanges(thread.cwd);
     if (changes && !display.message.parts.some((p) => p.type === "changes" && p.edits && !p.scratch))
       display.upsert((p) => p.type === "changes" && !p.scratch, changes);
   }
