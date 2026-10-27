@@ -69,7 +69,31 @@ test("public listener denies routes/methods/auth before delivery and bounds uplo
     const ok = await request("/flows/acme", "POST", "example", "raw bytes");
     assert.equal(ok.status, 202);
     assert.equal(await ok.text(), "raw bytes");
-    assert.equal((await request("/flows/acme", "POST", "example", "x".repeat(PUBLIC_BODY_MAX + 1))).status, 413);
+    const oversized = (chunked: boolean) =>
+      new Promise<number | undefined>((resolve, reject) => {
+        const req = http.request(
+          {
+            host: "127.0.0.1",
+            port: server.port,
+            path: "/flows/acme",
+            method: "POST",
+            headers: {
+              authorization: "Bearer example",
+              ...(chunked ? { "transfer-encoding": "chunked" } : { "content-length": PUBLIC_BODY_MAX + 1 }),
+            },
+          },
+          (res) => {
+            res.resume();
+            resolve(res.statusCode);
+          },
+        );
+        req.on("error", reject);
+        // A header-only refusal must not race an uploader still writing to the closed connection.
+        if (chunked) req.end("x".repeat(PUBLIC_BODY_MAX + 1));
+        else req.flushHeaders();
+      });
+    assert.equal(await oversized(false), 413);
+    assert.equal(await oversized(true), 413);
     assert.equal(calls, 1);
   } finally {
     await server.close();
