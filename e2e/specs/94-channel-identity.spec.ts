@@ -1,10 +1,13 @@
-import type { Thread } from "../../packages/protocol/src/index.ts";
+import type { Agent, Thread } from "../../packages/protocol/src/index.ts";
 import { expect, open, rpc, test } from "./kit.ts";
 
 for (const width of [412, 1280]) {
   test(`channel identity uses instance metadata in every Inbox view at ${width}px`, async ({ page }) => {
     await rpc("setup.finish");
     const base = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Identity fixture" });
+    const { agents } = await rpc<{ agents: Agent[] }>("agents.list");
+    const agent = agents.find((item) => item.id === base.agent_ids[0]);
+    if (!agent) throw new Error("Identity fixture agent not found");
     await page.setViewportSize({ width, height: 1000 });
     const cases = [
       { title: "Contact Acme", channel: { id: "line-primary", conversation: "contact-acme" }, platform: "WhatsApp" },
@@ -72,7 +75,7 @@ for (const width of [412, 1280]) {
           .filter({ hasText: item.title })
           .first();
         await expect(row).toBeVisible();
-        await expect(row.locator(".threadavatar").getByRole("img", { name: "Roby", exact: true })).toBeVisible();
+        await expect(row.locator(".threadavatar").getByRole("img", { name: agent.name, exact: true })).toBeVisible();
         const mark = row.locator(".threadavatar__channel");
         if (item.platform) {
           await expect(mark).toHaveAccessibleName(`Por ${item.platform}`);
