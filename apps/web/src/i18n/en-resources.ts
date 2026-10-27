@@ -255,6 +255,8 @@ export const enResources = {
   "int.inSome": "{n} of {total} projects",
   "int.connectedAs": "Connected",
   "int.account": "Account",
+  "int.editConnection": "Edit connection",
+  "int.configure": "Configure integration",
   "int.disconnect": "Disconnect",
   "int.usedIn": "Where it is used",
   "int.allProjects": "Every project",

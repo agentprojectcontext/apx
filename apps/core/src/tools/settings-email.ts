@@ -1,13 +1,22 @@
 import { EmailSignatureKey } from "@apx/protocol";
 import { signatureIdentities } from "../domain/email-signature-edit.ts";
-import { sameSignatureKey } from "../domain/email-signature-settings.ts";
+import { readSignatures, sameSignatureKey } from "../domain/email-signature-settings.ts";
 import type { Setting } from "./settings-kit.ts";
 
 export const EMAIL: Readonly<Record<string, Setting>> = {
+  "email.signature_default_get": {
+    does: "Read the optional global email signature fallback, even before connecting a mailbox. Account overrides take precedence; a disabled account override prevents fallback.",
+    read: (_p, { store }) => JSON.stringify({ signature: store.settings.read("email_signature_default") }),
+  },
+  "email.signature_default_set": {
+    does: "Change or remove the global email signature fallback. signature is enabled/text/optional html or null; expected must be the exact last-read signature or null. Never changes account overrides.",
+    says: () => "Change the default email signature",
+    whole: true,
+  },
   "email.signatures_get": {
     does: "List configured mailbox identities and signature keys. Pass transport/account/sender to read the full signature for editing; use that exact entry as expected, or null to create.",
     read: (p, { store }) => {
-      const signatures = store.settings.read("email_signatures");
+      const signatures = readSignatures(store);
       if (!Object.keys(p).length)
         return JSON.stringify({
           identities: signatureIdentities(store),

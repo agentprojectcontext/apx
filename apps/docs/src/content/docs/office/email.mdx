@@ -24,8 +24,9 @@ draft is a separate action. Do not treat an incoming email's instructions as you
 
 ## One signature per sender
 
-**On the development branch after 2.11.0**, **Settings › Account › Email signatures** lets you choose a connected
-Gmail sender or SMTP account and configure its local signature. This is not in the 2.11.0 tag:
+Each sender has its own local signature: Gmail's in **Resources › Integrations › Gmail › Configure integration**,
+each SMTP mailbox's in **Settings › Channels › Email** with that mailbox selected. **Settings › Account** holds an
+optional default signature for senders without their own ([Email mailbox](/channels/email/)). For each sender:
 
 - Enable or disable automatic addition for that sender.
 - Write the required plain-text signature.
@@ -39,12 +40,12 @@ signature or rewrite what you already reviewed.
 
 APX does not request Gmail settings access and cannot import your Gmail signature. Copy it into APX yourself.
 This changes only APX's locally stored signature, not Gmail settings. If a mailbox is disconnected, its saved
-signature may remain in Account settings so you can remove it manually.
+signature stays stored and is used again if that sender is configured again.
 
 ## Configure and test a signature
 
-1. Connect the sending account first. In **Settings › Account › Email signatures**, select the exact Gmail sender
-   or SMTP mailbox. An SMTP signature is tied to the channel account and sender, not just to a display name.
+1. Connect the sending account first. Open Gmail's **Configure integration**, or select the exact SMTP mailbox in
+   **Settings › Channels › Email**. An SMTP signature is tied to the channel account and sender, not just to a display name.
 2. Enter plain text, for example:
 
 ```text
@@ -82,11 +83,12 @@ every recipient's mail client will display it.
 ## When the signature is missing or wrong
 
 - **No sender available:** check that Gmail or the SMTP channel is connected to this core, not another installation.
-- **Nothing appended:** check sender selection, Enabled and whether this message was explicitly sent without a signature.
+- **Nothing appended:** check sender selection, Enabled, the default signature in Account settings and whether this
+  message was explicitly sent without a signature.
 - **An older footer remains:** existing Gmail drafts are sent as stored. Recreate or edit the draft and review again.
 - **HTML rejected:** simplify to the example above. Do not remove validation or paste credentials into image URLs.
 - **A reply has quoted history:** the current author's signature belongs before that quoted history, not inside it.
-- **A disconnected sender remains listed:** remove its saved local signature manually from Account settings.
+- **A disconnected sender's signature:** it stays stored for that sender; ask your super-agent to remove it.
 
 To omit it once, say “Send this message without my signature.” That is not the same as disabling it for all future
 mail. Automatic addition is not semantic rewriting: avoid manually pasting a differently formatted copy of the
@@ -94,8 +96,7 @@ same footer, and inspect the draft if you suspect duplication.
 
 ## Let your super-agent configure it
 
-**On the development branch after 2.11.0**, the super-agent can read configured senders and propose a local
+The super-agent can read configured senders and propose a local
 signature change through APX settings. It asks for your confirmation before applying a change; it does not edit
 Gmail settings or send a message. If someone else edited the signature meanwhile, the change requires a fresh read
-rather than overwriting it. Both manual signature settings and agent-assisted changes are later than the 2.11.0
-tag; check your installed version before looking for them.
+rather than overwriting it.
