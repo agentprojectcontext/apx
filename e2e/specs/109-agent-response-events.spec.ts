@@ -107,3 +107,61 @@ test("task consult replies arrive as traced events, survive reload and do not tu
     await env.cleanup();
   }
 });
+
+for (const outcome of ["empty", "failed", "step_limit"] as const) {
+  test(`a ${outcome} consult keeps its outcome from the core through reload`, async ({ page }) => {
+    let task = "";
+    const env = await startCore({
+      port: 0,
+      llm: scriptedLlm((req, { system, said, afterTool }) => {
+        if (system.startsWith("You are Helper")) {
+          if (outcome === "failed") throw new Error("Consult unavailable");
+          if (outcome === "step_limit")
+            return req.tools.length
+              ? callTool(`search${req.messages.length}`, "memory_search", {
+                  query: `Review change ${req.messages.length}`,
+                })
+              : say("Progress before the step limit.");
+          return say("");
+        }
+        if (!afterTool && said === "Check the outcome")
+          return callTool("consult", "task_comment", { task, text: "@helper check the change" });
+        return say("Holder received the outcome.");
+      }),
+    });
+    try {
+      await env.client.call("setup.finish", {});
+      await env.client.call("agents.create", { slug: "helper", name: "Helper" });
+      const created = await env.client.call("tasks.create", { title: "Check the outcome" });
+      task = created.id;
+      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      await page.goto(`${env.core.url}/#thread=${chat.id}`);
+      await env.client.call("threads.send", { thread: chat.id, text: "Check the outcome" });
+      const event = page.locator(".transcript__agent-event");
+      const title = outcome === "step_limit" ? "Avance de Helper" : "Mensaje de Helper";
+      const status = outcome === "empty" ? "Terminó sin respuesta" : outcome === "failed" ? "Falló" : "Sin pasos";
+      await expect(event.locator("summary")).toContainText(title);
+      await expect(event).toContainText(status);
+      await expect(event.locator("summary")).not.toContainText("Respuesta de");
+      await page.reload();
+      await expect(event.locator("summary")).toContainText(title);
+      await expect(event).toContainText(status);
+      const loaded = await env.client.call("threads.get", { thread: chat.id });
+      const response = loaded.messages.flatMap((m) =>
+        m.parts.flatMap((p) => (p.type === "text" && p.response ? [p.response] : [])),
+      )[0];
+      expect(response?.thread_id).toBe(env.core.store.threads.children(created.thread_id)[0]);
+      if (outcome === "empty") expect(response?.issue).toBe("no_answer");
+      else expect(response?.end_reason).toBe(outcome);
+      await page.goto(`${env.core.url}/#thread=${created.thread_id}`);
+      const card = page.locator(".transcript .apx-subthread");
+      await expect(card).toContainText(status);
+      await expect(card).toContainText(title);
+      await env.settle(chat.id);
+    } finally {
+      await page.goto("about:blank");
+      await env.core.close();
+      await env.cleanup();
+    }
+  });
+}
