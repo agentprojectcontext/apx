@@ -1,4 +1,4 @@
-import { FlowAction, FlowEvent } from "../../../../packages/protocol/src/flow-methods.ts";
+import { FlowAction, FlowEvent, type FlowEventCursor } from "../../../../packages/protocol/src/flow-methods.ts";
 import type { Db } from "../db/db.ts";
 import { sql } from "./sql.ts";
 
@@ -15,7 +15,7 @@ export function checkFlowCapacity(db: Db, flow: string) {
 }
 
 export function flowEventsRepo(db: Db) {
-  return {
+  const api = {
     admissionInput(flow: string, event: string) {
       const row = db
         .prepare("SELECT payload,action FROM flow_events WHERE flow_id=? AND event_id=? AND state='pending'")
@@ -28,13 +28,29 @@ export function flowEventsRepo(db: Db) {
         action: FlowAction.parse(JSON.parse(String(row.action))),
       };
     },
-    events(id: string, limit: number) {
+    events(id: string, limit: number, cursor?: FlowEventCursor) {
       return db
         .prepare(
-          "SELECT e.flow_id,e.event_id,e.state,e.created_at,e.run_id,r.state AS run_state,e.error FROM flow_events e LEFT JOIN runs r ON r.id=e.run_id WHERE flow_id=? ORDER BY e.created_at DESC,e.event_id DESC LIMIT ?",
+          "SELECT e.flow_id,e.event_id,e.state,e.created_at,e.run_id,r.state AS run_state,e.error FROM flow_events e LEFT JOIN runs r ON r.id=e.run_id WHERE flow_id=? AND (? IS NULL OR e.created_at<? OR (e.created_at=? AND e.event_id<?)) ORDER BY e.created_at DESC,e.event_id DESC LIMIT ?",
         )
-        .all(id, limit)
+        .all(
+          id,
+          cursor?.createdAt ?? null,
+          cursor?.createdAt ?? null,
+          cursor?.createdAt ?? null,
+          cursor?.eventId ?? null,
+          limit,
+        )
         .map((r) => FlowEvent.parse(r));
+    },
+    eventsPage(id: string, limit: number, cursor?: FlowEventCursor) {
+      const found = api.events(id, limit + 1, cursor);
+      const events = found.slice(0, limit);
+      const last = events.at(-1);
+      return {
+        events,
+        nextCursor: found.length > limit && last ? { createdAt: last.created_at, eventId: last.event_id } : null,
+      };
     },
     pending(limit = 20, after = 0) {
       return db
@@ -90,4 +106,5 @@ export function flowEventsRepo(db: Db) {
       });
     },
   };
+  return api;
 }

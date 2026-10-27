@@ -12,7 +12,7 @@ Open Routines → Flows, select a project, and create a disabled Flow. Choose a 
 
 A global agent or an agent in the Flow's project is allowed. Cross-project bindings are rejected and checked again before admission. Public payloads cannot select an agent, routine, tool, shell command or identity. Changes require the owner, either directly or through an approved `apx_settings` change. Route token rotation and revocation remain owner-only.
 
-The project table can be read and edited in the Flow detail. The MVP panel shows at most 50 rows and 50 history events, without pagination; it is not a complete export or inspection view. The private `flows.rows` and `flows.events` methods accept larger limits within their protocol bounds. Retirement is available through CLI or approved settings changes, not the panel. Equality predicates traverse own properties only; prototype-related paths are rejected. Optional `readKeys` in the protocol/CLI definition snapshots up to 16 fixed table keys before writing the matching event to `tableKey`. The agent receives those snapshots together with the event. No payload text is evaluated as code. Editing the Flow or its table does not rewrite an already accepted event's action or snapshots.
+The project table can be read and edited in the Flow detail. The MVP panel shows at most 50 rows and 50 history events, without pagination; it is not a complete export or inspection view. The private `flows.rows` and `flows.events` methods page through the complete table/history with a limit up to 100 and a `nextCursor`; see the export procedure below. Retirement is available through CLI or approved settings changes, not the panel. Equality predicates traverse own properties only; prototype-related paths are rejected. Optional `readKeys` in the protocol/CLI definition snapshots up to 16 fixed table keys before writing the matching event to `tableKey`. The agent receives those snapshots together with the event. No payload text is evaluated as code. Editing the Flow or its table does not rewrite an already accepted event's action or snapshots.
 
 ## Public entry
 
@@ -54,7 +54,7 @@ This is **not exactly-once delivery to external services**. A run can fail after
 - At most 32 pending/unfinished events per Flow and 256 across the install at public admission.
 - At most 32 predicates with path depth 16 and 16 deterministic reads.
 
-These are MVP safety limits, not a retention service. At capacity, ingestion refuses new work instead of evicting IDs and risking a duplicate effect. For explicit recovery, export any data you need, disable the Flow, finish/cancel its active runs, then use `apx flows retire <id> confirm` or an approved `apx_settings` retirement. Retirement permanently removes its table and events (including pending work), revokes its credential and reserves its old identifier; it cannot reopen the old URL. Existing run chats remain under their ordinary history policy. A new Flow needs a new identifier and credential. Retired identifiers are capped at 10,000. If credential cleanup fails after the data is retired, the route remains absent and the identifier reserved; retry retirement to finish deleting the residual credential. This is deliberate rotation, not automatic replay of the old source backlog.
+These are MVP safety limits, not a retention service. At capacity, ingestion refuses new work instead of evicting IDs and risking a duplicate effect. For explicit recovery, disable the Flow, finish/cancel its active runs, stop manual edits, then export and verify the complete table/history before using `apx flows retire <id> confirm-exported` or an approved `apx_settings` retirement with `confirm:true, exported:true`. Without both explicit acknowledgements the private protocol refuses deletion. The export acknowledgement is the caller's assertion; APX cannot verify that an external backup file exists or is readable. Retirement permanently removes its table and events (including pending work), revokes its credential and reserves its old identifier; it cannot reopen the old URL. Existing run chats remain under their ordinary history policy. A new Flow needs a new identifier and credential. Retired identifiers are capped at 10,000. If credential cleanup fails after the data is retired, the route remains absent and the identifier reserved; retry retirement to finish deleting the residual credential. This is deliberate rotation, not automatic replay of the old source backlog.
 
 Credential-named fields (including nested credential objects) and recognizable token shapes are redacted before filtering, table/event persistence or model input. This uses the shared log credential matcher, including APX tokens. Credentials in definitions or event IDs are rejected; use secret references for owner configuration. These rules cannot recognize arbitrary secrets or personally identifying prose without a known field/shape: send only necessary data and do not place credentials in otherwise ordinary fields. Table values and pending snapshots are local durable data. Transport bearer tokens live in the secret store, never in the event envelope.
 
@@ -71,9 +71,34 @@ apx flows rows inbox
 apx flows write inbox config '{"language":"en"}'
 apx flows events inbox
 apx flows retry inbox source-event-1
-# Disable the Flow and finish/cancel active runs before permanently deleting its data.
-apx flows retire inbox confirm
+# Disable the Flow, finish/cancel active runs and stop manual edits before export.
+apx flows export inbox --project p_example > inbox-backup.json
+# Verify the saved definition, row count, event count and file readability before deletion.
+apx flows retire inbox confirm-exported
 ```
+
+### Complete reads and export
+
+`flows.rows {flow, limit, cursor?}` sorts keys ascending; its `nextCursor` is the last returned key when more rows
+exist. `flows.events {flow, limit, cursor?}` sorts by creation time and event ID descending; its cursor is an object
+`{createdAt, eventId}`. Pass `nextCursor` unchanged into the next request and continue until it is `null`, not merely
+until a page has fewer than 100 items. Cursors are scoped by the `flow` on each request and never grant access.
+
+The CLI `export` command follows every page and prints one JSON object containing the definition, all table rows and
+all event-history metadata. It requires the selected Flow to be disabled in the selected project. Exports are
+read-only, not cross-request database snapshots: finish/cancel active runs and stop manual edits for a stable backup.
+Run chats and private pending-action payload snapshots are not exported or restored by this command. Retirement
+still discards pending work; reconcile any work you need before acknowledging deletion. The export is not an import
+or a replay mechanism, and does not remove the retained-event cap. To inspect pages manually, the optional CLI cursor
+argument is JSON (a quoted string for rows, an object for events).
+
+**Español:** La vista del panel muestra solo 50 filas y eventos. Para recuperar todos los datos, desactivá el Flow,
+terminá o cancelá sus runs activos y detené las ediciones manuales. `apx flows export <id> --project <proyecto>`
+recorre todas las páginas y emite definición, tabla e historial de eventos en JSON. Verificá el archivo y los conteos
+antes de usar `retire <id> confirm-exported`; el protocolo exige `confirm:true, exported:true`, pero esa declaración
+no prueba que exista un respaldo externo válido. Los cursores se devuelven en `nextCursor`; continuá hasta `null`.
+No hay snapshot entre solicitudes, importación ni replay: no se exportan los chats ni los payloads privados de acciones
+pendientes, que se descartan al retirar el Flow. El límite de eventos retenidos sigue vigente.
 
 The super-agent discovers the same operations through the existing `apx_settings` tool's `flows` area. No new always-loaded tool, custom script language, polling model, public RPC proxy or duplicate scheduler is introduced.
 

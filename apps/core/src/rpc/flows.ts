@@ -28,9 +28,9 @@ export function flowHandlers(
         throw badRequest("Invalid Flow definition or capacity exceeded");
       }
     },
-    "flows.rows": ({ flow, limit }) => {
+    "flows.rows": ({ flow, limit, cursor }) => {
       found(flow);
-      return { rows: store.flows.rows(flow, limit) };
+      return store.flows.rowsPage(flow, limit, cursor);
     },
     "flows.write": ({ flow, key, value }) => {
       found(flow);
@@ -40,9 +40,9 @@ export function flowHandlers(
         throw badRequest("Invalid Flow row or capacity exceeded");
       }
     },
-    "flows.events": ({ flow, limit }) => {
+    "flows.events": ({ flow, limit, cursor }) => {
       found(flow);
-      return { events: store.flows.events(flow, limit) };
+      return store.flows.eventsPage(flow, limit, cursor);
     },
     "flows.retire": ({ flow }) => {
       let result: { retired: boolean };

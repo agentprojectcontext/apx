@@ -79,11 +79,16 @@ export function flowsRepo(db: Db) {
       saveFlow(db, flow);
       return api.get(flow.id) as FlowDefinition;
     },
-    rows(id: string, limit: number) {
+    rows(id: string, limit: number, cursor = "") {
       return db
-        .prepare("SELECT key,value FROM flow_rows WHERE flow_id=? ORDER BY key LIMIT ?")
-        .all(id, limit)
+        .prepare("SELECT key,value FROM flow_rows WHERE flow_id=? AND key>? ORDER BY key LIMIT ?")
+        .all(id, cursor, limit)
         .map((r) => ({ key: String(r.key), value: JSON.parse(String(r.value)) as unknown }));
+    },
+    rowsPage(id: string, limit: number, cursor?: string) {
+      const found = api.rows(id, limit + 1, cursor);
+      const rows = found.slice(0, limit);
+      return { rows, nextCursor: found.length > limit ? (rows.at(-1)?.key ?? null) : null };
     },
     write(id: string, key: string, value: unknown) {
       if (!key || key.length > 128 || redactedJson(key) !== JSON.stringify(key))

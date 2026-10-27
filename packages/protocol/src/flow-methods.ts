@@ -31,6 +31,10 @@ export const FlowEvent = z.object({
   run_state: z.string().nullable(),
   error: z.string().nullable(),
 });
+export const FlowEventCursor = z
+  .object({ createdAt: z.string().datetime(), eventId: z.string().min(1).max(256) })
+  .strict();
+export type FlowEventCursor = z.infer<typeof FlowEventCursor>;
 export const flowMethods = {
   "flows.list": {
     params: z.object({ project: Id }).strict(),
@@ -40,8 +44,17 @@ export const flowMethods = {
   },
   "flows.set": { params: FlowDefinition, result: FlowDefinition, effect: true, access: "human" },
   "flows.rows": {
-    params: z.object({ flow: Id, limit: z.number().int().min(1).max(100).default(50) }).strict(),
-    result: z.object({ rows: z.array(z.object({ key: z.string(), value: z.unknown() })) }),
+    params: z
+      .object({
+        flow: Id,
+        limit: z.number().int().min(1).max(100).default(50),
+        cursor: z.string().min(1).max(128).optional(),
+      })
+      .strict(),
+    result: z.object({
+      rows: z.array(z.object({ key: z.string(), value: z.unknown() })),
+      nextCursor: z.string().nullable(),
+    }),
     effect: false,
     access: "human",
   },
@@ -52,13 +65,15 @@ export const flowMethods = {
     access: "human",
   },
   "flows.events": {
-    params: z.object({ flow: Id, limit: z.number().int().min(1).max(100).default(50) }).strict(),
-    result: z.object({ events: z.array(FlowEvent) }),
+    params: z
+      .object({ flow: Id, limit: z.number().int().min(1).max(100).default(50), cursor: FlowEventCursor.optional() })
+      .strict(),
+    result: z.object({ events: z.array(FlowEvent), nextCursor: FlowEventCursor.nullable() }),
     effect: false,
     access: "human",
   },
   "flows.retire": {
-    params: z.object({ flow: Id, confirm: z.literal(true) }).strict(),
+    params: z.object({ flow: Id, confirm: z.literal(true), exported: z.literal(true) }).strict(),
     result: z.object({ retired: z.boolean() }),
     effect: true,
     access: "human",

@@ -73,13 +73,16 @@ test("retirement retries clean up a credential after secret deletion fails", asy
       if (value === null) throw new Error("Secret storage unavailable");
       return originalSet(name, value);
     });
-    await assert.rejects(env.client.call("flows.retire", { flow: "cleanup", confirm: true }));
+    await assert.rejects(env.client.call("flows.retire", { flow: "cleanup", confirm: true, exported: true }));
     assert.equal(env.core.store.flows.get("cleanup"), undefined);
     assert.ok(env.core.secrets.resolve(credential.secret_ref));
     assert.ok(env.core.store.settings.get("public-route-credentials")?.includes(credential.secret_ref));
     await assert.rejects(env.client.call("flows.set", definition), /Invalid Flow/);
     failure.mock.restore();
-    assert.equal((await env.client.call("flows.retire", { flow: "cleanup", confirm: true })).retired, false);
+    assert.equal(
+      (await env.client.call("flows.retire", { flow: "cleanup", confirm: true, exported: true })).retired,
+      false,
+    );
     assert.equal(env.core.secrets.resolve(credential.secret_ref), undefined);
     assert.equal(env.core.store.settings.get("public-route-credentials")?.includes(credential.secret_ref), false);
   } finally {
@@ -109,9 +112,12 @@ test("retired routes lose credentials, remain unavailable, and cannot inherit an
       });
     assert.equal((await send("second")).status, 401);
     assert.equal(env.core.store.flows.events("second", 10).length, 0);
-    await assert.rejects(env.client.call("flows.retire", { flow: "first", confirm: true }), /Disable/);
+    await assert.rejects(env.client.call("flows.retire", { flow: "first", confirm: true, exported: true }), /Disable/);
     await env.client.call("flows.set", { ...a, enabled: false });
-    assert.equal((await env.client.call("flows.retire", { flow: "first", confirm: true })).retired, true);
+    assert.equal(
+      (await env.client.call("flows.retire", { flow: "first", confirm: true, exported: true })).retired,
+      true,
+    );
     assert.equal(env.core.secrets.resolve(credential.secret_ref), undefined);
     assert.equal((await send("first")).status, 404);
     await assert.rejects(env.client.call("flows.set", a), /Invalid Flow/);
