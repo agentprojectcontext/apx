@@ -102,6 +102,7 @@ function handler(o: PublicListenerOptions) {
   const limit = publicRateLimit(timers.now);
   const total = publicRateLimit(timers.now, 1200);
   let active = 0;
+  const activeByRoute = new Map<string, number>();
   return (req: IncomingMessage, res: ServerResponse) => {
     // Every response closes its connection: failed authentication never leaves an unread upload on keep-alive.
     res.setHeader("connection", "close");
@@ -109,7 +110,8 @@ function handler(o: PublicListenerOptions) {
     if (!total("all") || active >= 128) return answer(res, { status: 429, headers: { "retry-after": "60" } });
     const route = pathname ? o.routes(pathname) : undefined;
     if (!route) return answer(res, { status: 404 });
-    if (!limit(route.id)) return answer(res, { status: 429, headers: { "retry-after": "60" } });
+    if (!limit(route.id) || (activeByRoute.get(route.id) ?? 0) >= 16)
+      return answer(res, { status: 429, headers: { "retry-after": "60" } });
     if (!route.methods.includes(req.method ?? ""))
       return answer(res, { status: 405, headers: { allow: route.methods.join(", ") } });
     const headers = Object.fromEntries(
@@ -118,6 +120,7 @@ function handler(o: PublicListenerOptions) {
     if (!route.authorize(headers)) return answer(res, { status: 401 });
     if (Number(req.headers["content-length"] ?? 0) > PUBLIC_BODY_MAX) return answer(res, { status: 413 });
     active++;
+    activeByRoute.set(route.id, (activeByRoute.get(route.id) ?? 0) + 1);
     const controller = new AbortController();
     const cancelDeadline = timers.after(PUBLIC_DEADLINE_MS, () => {
       answer(res, { status: 503 });
@@ -143,6 +146,9 @@ function handler(o: PublicListenerOptions) {
       })
       .finally(() => {
         active--;
+        const remaining = (activeByRoute.get(route.id) ?? 1) - 1;
+        if (remaining) activeByRoute.set(route.id, remaining);
+        else activeByRoute.delete(route.id);
         cancelDeadline();
         res.off("close", abort);
       });

@@ -216,3 +216,54 @@ test("public deadline aborts delivery and never returns a late response", async 
     await server.close();
   }
 });
+
+test("a non-cooperative route retains its slots after timeout without starving another route", async () => {
+  const timers = manualTimers();
+  let calls = 0;
+  let release: (() => void) | undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const server = await listenHooks({
+    port: 0,
+    log,
+    timers,
+    routes: (path) => ({
+      id: path,
+      methods: ["POST"],
+      authorize: () => true,
+      handle: async () => {
+        if (path === "/held") {
+          calls++;
+          await held;
+        }
+        return { status: 202 };
+      },
+    }),
+  });
+  const send = (path: string) => fetch(`http://127.0.0.1:${server.port}${path}`, { method: "POST", body: "{}" });
+  const pending: Promise<Response>[] = [];
+  try {
+    for (let i = 0; i < 16; i++) pending.push(send("/held"));
+    await waitFor(() => calls === 16, "all route slots occupied");
+    timers.tick(PUBLIC_DEADLINE_MS);
+    assert.deepEqual(await Promise.all(pending.map(async (p) => (await p).status)), Array(16).fill(503));
+    let answered = false;
+    const overflow = send("/held").then((response) => {
+      answered = true;
+      return response;
+    });
+    await waitFor(() => answered || calls > 16, "overflow admitted or rejected");
+    if (!answered) timers.tick(PUBLIC_DEADLINE_MS);
+    assert.equal((await overflow).status, 429);
+    assert.equal(calls, 16, "timed-out work is still counted");
+    assert.equal((await send("/healthy")).status, 202);
+    release?.();
+    await waitFor(() => timers.pending() === 0, "held work settles");
+    assert.equal((await send("/held")).status, 202);
+  } finally {
+    release?.();
+    await Promise.allSettled(pending);
+    await server.close();
+  }
+});

@@ -20,10 +20,12 @@ test("each public route requires its own secure, rotatable and revocable credent
     routes: credentials.protect((pathname) => ({
       id: pathname.slice(1),
       methods: ["POST"],
-      authorize: () => true,
+      authorize: (headers) => {
+        assert.deepEqual(headers, { "content-type": "application/json", "idempotency-key": "event-1" });
+        return true;
+      },
       handle: async (request) => {
-        assert.equal(request.headers.authorization, undefined, "credentials never reach the Flow service");
-        assert.equal(request.headers.cookie, undefined);
+        assert.deepEqual(request.headers, { "content-type": "application/json", "idempotency-key": "event-1" });
         calls++;
         return { status: 202 };
       },
@@ -33,7 +35,13 @@ test("each public route requires its own secure, rotatable and revocable credent
     fetch(`http://127.0.0.1:${server.port}${pathname}`, {
       method: "POST",
       body: "{}",
-      headers: token ? { authorization: `Bearer ${token}` } : {},
+      headers: {
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        cookie: "private=session",
+        "x-arbitrary": "private-marker",
+        "content-type": "application/json",
+        "idempotency-key": "event-1",
+      },
     });
   const tokenOf = (ref: string) => {
     const value = env.core.secrets.resolve(ref);

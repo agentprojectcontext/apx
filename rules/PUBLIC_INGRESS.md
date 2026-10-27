@@ -59,9 +59,11 @@ called through the public listener. An agent or external API client does not gai
 ## Limits and failures
 
 The public listener caps bodies at 1 MiB and headers at 16 KiB. A 15-second deadline covers both body upload and handler
-execution, aborting downstream work. Destinations must honor the AbortSignal; a non-cooperative in-flight handler keeps
+execution, signalling cancellation to downstream work. Destinations must honor the AbortSignal, bound their I/O and
+check cancellation before starting effects; cancellation cannot reverse an effect already committed or forcibly stop
+in-process code. A non-cooperative in-flight handler keeps
 its concurrency slot until it settles, rather than allowing unlimited orphan work. Connections close after responses.
-At most 128 requests execute concurrently and 256 connections are accepted. Rate limits are shared across callers:
+At most 16 requests execute per route, 128 execute globally and 256 connections are accepted. Rate limits are shared across callers:
 120 requests per registered route per minute and 1,200 total requests per minute, with bounded bucket storage. A 429
 includes Retry-After; these are resource safeguards, not per-user fairness or internet-scale DDoS protection. Put a
 provider/proxy rate limit in front of an internet installation when appropriate.
@@ -74,7 +76,8 @@ that an already accepted side effect was rolled back.
 ## Publishing a widget
 
 Widgets remain private until the owner explicitly chooses the existing public-link action (`surfaces.share`). Turning
-on a tunnel does not publish private widgets. Turning publication off invalidates the old link; publishing again creates
+on a tunnel does not publish private widgets. Previously shared widgets become reachable through the tunnel immediately;
+they do not require a second publication. Turning publication off invalidates the old link; publishing again creates
 a different one. Copy/open uses the public tunnel when available, otherwise the current private host.
 
 Review the HTML before publishing: literal content embedded in it is public. Public ingress never supplies the widget's
