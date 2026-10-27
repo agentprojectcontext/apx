@@ -60,9 +60,12 @@ test("a question still waiting in the app after a restart follows the owner to T
     // The core restarts a minute in: the wait it had in mind is gone, the question is not, and keeps its time left.
     await env.core.close();
     env = await boot();
+    // The card was stamped on the wall clock, which kept moving while the test's clock waited for the card.
+    const asked = Date.parse(env.core.store.inputs.pending()[0]?.created_at ?? "");
+    assert.equal(timers.nextAt(), asked + 120_000, "the deadline it had before the restart");
     const left = (timers.nextAt() ?? 0) - timers.now();
-    assert.ok(left > 59_000 && left <= 61_000, `one minute left, not ${left} ms`);
-    timers.tick(61_000);
+    assert.ok(left > 59_000 && left < 120_000, `about one minute left, not ${left} ms`);
+    timers.tick(left);
     await waitFor(() => tg.messagesTo(OWNER.id).length > before, "the follow-up after the restart");
     assert.ok(tg.messagesTo(OWNER.id).at(-1)?.body.reply_markup, "with its buttons");
 
