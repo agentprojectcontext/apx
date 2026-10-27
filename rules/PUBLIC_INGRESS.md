@@ -78,7 +78,9 @@ that an already accepted side effect was rolled back.
 Widgets remain private until the owner explicitly chooses the existing public-link action (`surfaces.share`). Turning
 on a tunnel does not publish private widgets. Previously shared widgets become reachable through the tunnel immediately;
 they do not require a second publication. Turning publication off invalidates the old link; publishing again creates
-a different one. Copy/open uses the public tunnel when available, otherwise the current private host.
+a different one. Copy/open requires a configured public address; an unavailable tunnel never falls back to the private
+panel origin. Opening a link reserves a blank tab during the click, closes it on discovery failure and navigates only
+after the public address is known.
 
 Review the HTML before publishing: literal content embedded in it is public. Public ingress never supplies the widget's
 saved state, artifact store/database, private media, provenance, project data or secrets. The kit is inlined. Include

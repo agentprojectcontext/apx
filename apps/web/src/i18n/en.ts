@@ -587,7 +587,9 @@ export const en = {
   "share.hint":
     "Private by default. Publishing makes the HTML readable by anyone with its link. Public pages cannot access APX state, private files or actions.",
   "share.tunnelHint":
-    "Copy and open use the public tunnel when enabled (Settings › Devices); otherwise the current host.",
+    "Copy and open require a public address (Settings › Devices). Enabling it also exposes previously shared HTML; review its content first.",
+  "share.linkUnavailable":
+    "Public link unavailable. Check the public address in Settings › Devices and allow new tabs.",
   "share.private": "Private",
   "share.anyone": "Anyone with the link",
   "share.copy": "Copy link",

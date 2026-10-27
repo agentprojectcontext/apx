@@ -592,7 +592,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "share.hint":
     "Privado por defecto. Al publicar, cualquiera con el enlace puede leer el HTML. Las páginas públicas no acceden al estado de APX, archivos privados ni acciones.",
   "share.tunnelHint":
-    "Copiar y abrir usan el túnel público si está habilitado (Configuración › Dispositivos); si no, la dirección actual.",
+    "Copiar y abrir requieren una dirección pública (Configuración › Dispositivos). Activarla también expone el HTML ya compartido; revisá su contenido antes.",
+  "share.linkUnavailable":
+    "Enlace público no disponible. Revisá la dirección pública en Configuración › Dispositivos y permití abrir pestañas.",
   "share.private": "Privado",
   "share.anyone": "Cualquiera con el enlace",
   "share.copy": "Copiar enlace",

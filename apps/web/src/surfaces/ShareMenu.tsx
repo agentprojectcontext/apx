@@ -6,16 +6,19 @@ import { client } from "../data/client.ts";
 
 import { notify } from "../data/notices.ts";
 import { t as tr, useT } from "../i18n/index.ts";
+import { openPublicLink, publicLink } from "./public-link.ts";
 
 export async function publicShareLink(path: string): Promise<string> {
   const address = await client.call("webhooks.get", {});
-  return `${address.url ?? window.location.origin}${path}`;
+  return publicLink(path, address);
 }
 
 function PublicLinkPreview({ path }: { path: string }) {
-  const [url, setUrl] = useState(path);
+  const t = useT();
+  const [url, setUrl] = useState<string>();
   useEffect(() => {
     let current = true;
+    setUrl(undefined);
     void publicShareLink(path).then(
       (value) => {
         if (current) setUrl(value);
@@ -26,11 +29,11 @@ function PublicLinkPreview({ path }: { path: string }) {
       current = false;
     };
   }, [path]);
-  return <span className="share__url">{url}</span>;
+  return <span className="share__url">{url ?? t("share.linkUnavailable")}</span>;
 }
 
 export function linkOf(s: SurfaceSummary): string | undefined {
-  return s.share_path ? `${window.location.origin}${s.share_path}` : undefined;
+  return s.share_path;
 }
 
 async function copy(url: string): Promise<void> {
@@ -62,7 +65,7 @@ export function shareEntries(surface: SurfaceSummary, t: typeof tr): MenuEntry[]
           try {
             await copy(await publicShareLink(path));
           } catch {
-            notify(t("share.copyFailed"));
+            notify(t("share.linkUnavailable"));
           }
         }
       },
@@ -79,7 +82,7 @@ export function shareEntries(surface: SurfaceSummary, t: typeof tr): MenuEntry[]
               try {
                 await copy(await publicShareLink(surface.share_path ?? ""));
               } catch {
-                notify(t("share.copyFailed"));
+                notify(t("share.linkUnavailable"));
               }
             },
           },
@@ -88,9 +91,21 @@ export function shareEntries(surface: SurfaceSummary, t: typeof tr): MenuEntry[]
             icon: <Icons.ExternalLink size={16} />,
             onSelect: async () => {
               try {
-                window.open(await publicShareLink(surface.share_path ?? ""), "_blank", "noopener,noreferrer");
+                await openPublicLink(
+                  () => publicShareLink(surface.share_path ?? ""),
+                  () => {
+                    const tab = window.open("about:blank", "_blank");
+                    if (!tab) return null;
+                    tab.opener = null;
+                    const policy = tab.document.createElement("meta");
+                    policy.name = "referrer";
+                    policy.content = "no-referrer";
+                    tab.document.head.append(policy);
+                    return { navigate: (value) => tab.location.replace(value), close: () => tab.close() };
+                  },
+                );
               } catch {
-                notify(t("share.copyFailed"));
+                notify(t("share.linkUnavailable"));
               }
             },
           },
