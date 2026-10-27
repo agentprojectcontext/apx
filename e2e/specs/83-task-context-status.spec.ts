@@ -238,7 +238,7 @@ test("an agent-created task shows its real generic kickoff with the formatted de
   const env = await startCore({
     port,
     llm: scriptedLlm((_req, { said, afterTool }) => {
-      if (said.includes("Work on this task.")) return say("Task received.");
+      if (said.includes("Work on this task.") || said.includes("still in progress")) return say("Task received.");
       if (afterTool) return say("Work transferred.");
       return callTool("create", "task_create", {
         title: "Real task kickoff",
