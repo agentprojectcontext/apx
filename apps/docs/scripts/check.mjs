@@ -31,11 +31,12 @@ export function translationErrors(pages) {
 
 /** Validate literal local links against built routes and fragment ids, including the published base. */
 export function linkErrors(pages, base = "/apx") {
+  base = base.replace(/\/+$/, "");
   const errors = [];
   const origin = "https://docs.invalid";
   for (const [route, html] of pages) {
-    for (const match of html.matchAll(/\bhref="([^"]+)"/g)) {
-      const href = match[1].replaceAll("&amp;", "&");
+    for (const tag of html.matchAll(/<[^>]+\bhref="([^"]+)"[^>]*>/g)) {
+      const href = tag[1].replaceAll("&amp;", "&");
       if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(href)) continue;
       const url = new URL(href, `${origin}${base}${route}`);
       if (base && url.pathname !== base && !url.pathname.startsWith(`${base}/`)) {
@@ -48,6 +49,13 @@ export function linkErrors(pages, base = "/apx") {
         // File downloads and assets are outside this route/fragment check.
         if (!path.posix.extname(target)) errors.push(`${route}: missing route: ${href}`);
         continue;
+      }
+      const spanish = (value) => value === "/es" || value.startsWith("/es/");
+      const targetLanguage = spanish(target) ? "es" : "en";
+      const declaredLanguage = tag[0].match(/\bhreflang="([^"]+)"/)?.[1];
+      // Explicit language selectors and alternate links may cross locales; ordinary navigation may not.
+      if (spanish(route) !== spanish(target) && declaredLanguage !== targetLanguage) {
+        errors.push(`${route}: link changes language: ${href}`);
       }
       if (url.hash) {
         const id = decodeURIComponent(url.hash.slice(1));

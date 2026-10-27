@@ -1,0 +1,41 @@
+---
+title: SMS and ntfy
+description: Connect a Twilio number or a protected ntfy topic, with their different identity and delivery limits.
+sidebar:
+  order: 9
+---
+
+## SMS through Twilio
+
+1. In Twilio, buy or choose a number capable of sending SMS. Your Twilio account and carrier restrictions still apply;
+   APX does not make SMS free.
+2. Copy the **Account SID** and **Auth Token** from the console's Account Info.
+3. Open **Settings › Channels › Add channel › SMS** and enter those values and the phone number. Choose the agent.
+4. Send a text to that number. APX polls for messages every few seconds; this adapter needs **no webhook**.
+5. Link your own sender using the code in the SMS; approve other senders as contacts, not as yourself.
+
+Try a short plain-text conversation first. Phone numbers do not prove owner authority: risky instructions may need
+confirmation in APX. Do not assume chat buttons, images, read receipts or long-message behavior match WhatsApp.
+If nothing arrives, check the number's SMS capability, account restrictions, credentials and channel error. Replies
+are sent from the configured Twilio number and can incur provider charges.
+
+## ntfy
+
+This channel has **one person: you**. It is not a multi-contact messaging bot. It is also distinct from configuring
+an ntfy push address for a [paired phone](/devices/phone/#push-notifications).
+
+1. Install ntfy and subscribe to a long, random topic on ntfy.sh or your own server.
+2. Prefer a protected topic and create an access token in ntfy account settings. **Anyone who knows an unprotected
+   topic can write to it as you**; an obscure name is not account authentication.
+3. Open **Settings › Channels › Add channel › ntfy**. Enter server, topic and the token if required.
+4. Reply on the topic to speak to the agent. Test a reply and an agent message before relying on it for notices.
+
+The channel's topic is not an authenticated owner session. Confirmation cards may direct you to the APX app rather
+than accepting approval from ntfy. If delivery fails, check server permissions, topic spelling and the token on both
+APX and your ntfy client.
+
+## Use without opening new permissions
+
+Set notice destinations in APX's interruption settings when you want the channel to receive agent notices. Connecting
+a channel alone does not promise that every notice will be sent there: quiet hours and notice budgets still apply.
+See [Channels overview](/channels/overview/) for owner-message routing and [Secretary](/office/secretary/) for notices.

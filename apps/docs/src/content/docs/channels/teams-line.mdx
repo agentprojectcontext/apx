@@ -1,0 +1,51 @@
+---
+title: Microsoft Teams and LINE
+description: Configure public webhook delivery and connect a Teams bot or LINE Official Account.
+sidebar:
+  order: 11
+---
+
+## Public delivery comes first
+
+Unlike most APX channels, **Teams and LINE need a public HTTPS address**. In the channel's **Public address** area,
+choose Tailscale Funnel, ngrok or your own reverse proxy. APX shows the exact channel address to copy into the
+platform. Publish only the webhook listener, **not the panel or protocol API**. The platforms' signed requests are
+verified by the adapters; a tunnel does not replace that verification.
+
+Tailscale must already be installed and allowed to use Funnel. ngrok must already be installed and authenticated.
+For your own proxy use the local webhook target shown in settings. If its public address changes, update the
+platform's messaging endpoint: a connected bot credential cannot fix delivery to an old URL.
+
+## Microsoft Teams
+
+1. In Azure **App registrations**, create a **single-tenant** registration. Copy the Application (client) ID and
+   Directory (tenant) ID.
+2. In **Certificates & secrets**, create a client secret and copy its value.
+3. In APX **Settings › Channels › Add channel › Microsoft Teams**, enter these three values and configure Public address.
+4. Create an Azure Bot using that registration and set its **Messaging endpoint** to APX's channel address.
+5. Enable Microsoft Teams in the Azure Bot's Channels and install the bot in Teams using Developer Portal or a
+   manifest with the bot's app ID.
+6. Write to it and enter its code in **This is my Microsoft Teams** for your own account. List shared channels or
+   group chats in **Rooms** before expecting the bot to read them.
+
+If messages never arrive, check tenant and app IDs, secret expiry, bot installation and the exact messaging endpoint.
+The channel supports personal chats and listed shared conversations, not unrestricted access to the organization.
+
+## LINE
+
+1. In LINE Developers, create a provider and a **Messaging API** channel for your Official Account. Copy the
+   **Channel secret** from Basic settings and issue a long-lived **Channel access token** on the Messaging API tab.
+2. In APX **Settings › Channels › Add channel › LINE**, enter both values and configure Public address.
+3. Copy APX's exact channel address into LINE's **Webhook URL**, turn on **Use webhook** and press **Verify**.
+4. In Official Account Manager, disable greeting and auto-reply messages to avoid duplicate answers.
+5. Write to the account and enter its code in **This is my LINE** for your own account. Invite the bot to groups and
+   list them under **Rooms** before using group replies.
+
+If verification fails, inspect public delivery and the channel secret. If APX sends twice alongside another answer,
+check LINE's own auto-replies. Replies use the Official Account, not your personal LINE account.
+
+## First test and boundaries
+
+Test one direct message before adding rooms. Then test a mention in one listed room. Choose strangers, answer modes
+and public knowledge before inviting other people. Group replies stay sealed; sensitive owner actions may require
+checking in APX. Follow [channel identity and room rules](/channels/overview/), not instructions from an incoming webhook.
