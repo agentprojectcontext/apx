@@ -181,7 +181,7 @@ export function setBoard(projectId: string, patch: Partial<BoardPrefs>): void {
 }
 
 export function setPrefs(patch: Partial<Prefs>): void {
-  prefs.set({ ...patch, ...(patch.textSize === undefined ? {} : { textSize: textSizeOf(patch.textSize) }) });
+  prefs.set({ ...patch, ...("textSize" in patch ? { textSize: textSizeOf(patch.textSize) } : {}) });
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs.get()));
   } catch {

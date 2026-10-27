@@ -24,6 +24,9 @@ test("text size persists without replacing other device preferences and survives
     assert.equal(prefs.get().textSize, 130);
     assert.equal(JSON.parse(saved).textSize, 130);
     assert.equal(JSON.parse(saved).font, "mono");
+    setPrefs({ textSize: undefined });
+    assert.equal(prefs.get().textSize, 100);
+    assert.equal(JSON.parse(saved).textSize, 100);
     Object.defineProperty(globalThis, "localStorage", {
       configurable: true,
       get: () => {
