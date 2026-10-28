@@ -403,6 +403,27 @@ test("an outside agent's command that writes outside its folders is put to the o
   }
 });
 
+test("an outside agent whose rules turn acting outside off keeps to its folders, even in total, as ours does", async () => {
+  const t0 = await session("claude");
+  const away = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
+  fs.writeFileSync(path.join(away, "notes.txt"), "elsewhere");
+  await env.client.call("agents.update", { agent: "roby", autonomy: "total", rules: { outside: "off" } });
+  try {
+    const asks = [
+      { kind: "read", path: path.join(away, "notes.txt") },
+      { kind: "execute", command: `cat ${sh(away)}/notes.txt` },
+      { kind: "read", path: "README.md" },
+    ];
+    await env.client.call("threads.send", { thread: t0.id, text: `probe ${JSON.stringify(asks)}` });
+    const t = await env.settle(t0.id);
+    const answer = t.messages.at(-1)?.parts.find((p) => p.type === "text");
+    assert.equal(answer?.type === "text" ? answer.text : "", "[false,false,true]");
+  } finally {
+    await env.client.call("agents.update", { agent: "roby", autonomy: null, rules: null });
+    await removeDir(away);
+  }
+});
+
 test("an outside agent reads its project's read-only folders without asking and may never change them", async () => {
   const t0 = await session("claude");
   const ref = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
