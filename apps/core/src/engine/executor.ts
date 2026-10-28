@@ -23,7 +23,7 @@ import type { Display } from "./display.ts";
 import { folderBinding, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { confirmPrompt, folderPrompt } from "./owner-words.ts";
-import { guarded, inGitFolder, pathsOf } from "./paths.ts";
+import { guarded, inGitFolder, namesApc, pathsOf } from "./paths.ts";
 import type { Permissions } from "./permissions.ts";
 import { handedOff } from "./task-handoff.ts";
 import { toolTitle } from "./tool-titles.ts";
@@ -539,11 +539,13 @@ export function createExecutor(o: {
   };
 
   /** How much an external agent's own tool kind needs the owner, before the thread's write policy and autonomy. */
-  function externalLevel(kind: string, inside: boolean, command: unknown): Confirm {
+  function externalLevel(kind: string, inside: boolean, command: unknown, paths: string[]): Confirm {
     if (READING.has(kind)) return inside ? "never" : "ask";
     // Fetching sends something out; in a code thread it could carry the code with it.
     if (kind === "fetch") return worksInFolder(thread) ? "ask" : "untrusted";
     if (kind === "execute" && typeof command === "string") return commandRisk(command, o.apxPort());
+    // APC files and AGENTS.md define agents and their modes: changing them is high impact, as file_write's.
+    if (paths.some((p) => namesApc(p) || guarded(o.workDir, p))) return "always";
     return "ask";
   }
 
@@ -573,7 +575,7 @@ export function createExecutor(o: {
     if (judged.some((r) => "refused" in r && !r.offer)) return false;
     if (!reading && paths.some((p) => inGitFolder(path.resolve(base, p)))) return false;
     const inside = judged.every((r) => !("refused" in r));
-    const own = externalLevel(req.kind, inside, command);
+    const own = externalLevel(req.kind, inside, command, paths);
     // Outside the folders it may use, the owner says yes unless its mode lets it on its own.
     const level = inside || own === "always" ? own : "ask";
     // A read-only code thread lets only reading run. Otherwise the agent's mode decides, as for our own tools: an edit

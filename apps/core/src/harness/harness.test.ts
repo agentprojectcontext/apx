@@ -386,6 +386,31 @@ test("an outside agent's file tools never change git's folder, even in total, as
   }
 });
 
+test("an outside agent's edit of APC files or AGENTS.md always asks, even when its rules act outside on their own, as file_write does", async () => {
+  const t0 = await session("claude");
+  const cwd = env.core.store.threads.get(t0.id)?.cwd ?? "";
+  await env.client.call("agents.update", { agent: "roby", autonomy: "auto", rules: { outside: "auto" } });
+  try {
+    const asks = [
+      { kind: "edit", path: path.join(cwd, ".apc", "agents", "roby.md") },
+      { kind: "edit", path: "AGENTS.md" },
+    ];
+    await env.client.call("threads.send", { thread: t0.id, text: `probe ${JSON.stringify(asks)}` });
+    for (const what of ["the APC file", "AGENTS.md"]) {
+      const card = await waitFor(
+        async () => (await env.client.call("runs.pending", { thread: t0.id })).inputs[0],
+        `a card for ${what}`,
+      );
+      await env.client.call("runs.respond", { input: card.id, decision: "deny" });
+    }
+    const t = await env.settle(t0.id);
+    const answer = t.messages.at(-1)?.parts.find((p) => p.type === "text");
+    assert.equal(answer?.type === "text" ? answer.text : "", "[false,false]");
+  } finally {
+    await env.client.call("agents.update", { agent: "roby", autonomy: null, rules: null });
+  }
+});
+
 test("an outside agent's command that writes outside its folders is put to the owner, as our shell's is", async () => {
   const t0 = await session("claude");
   await using tmp = tempDir("apx-away-");
