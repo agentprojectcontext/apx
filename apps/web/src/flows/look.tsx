@@ -12,7 +12,7 @@ export function stepDetail(
   flow: string | undefined,
   agents: Record<string, Agent>,
   routines: Routine[],
-  t?: (key: MessageKey) => string,
+  t?: (key: MessageKey, vars?: Record<string, string | number>) => string,
 ): { detail?: ReactNode; detailPlain?: boolean } {
   switch (n.kind) {
     case "webhook":
@@ -46,5 +46,11 @@ export function stepDetail(
     }
     case "llm":
       return { detail: n.model };
+    case "notify": {
+      const to = whoOf(n, agents, routines, t);
+      return to ? { detail: to, detailPlain: true } : {};
+    }
+    case "http":
+      return n.url.length > 8 ? { detail: whoOf(n, agents, routines) } : {};
   }
 }

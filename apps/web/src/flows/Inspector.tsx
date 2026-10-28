@@ -18,6 +18,7 @@ import { forAgents, useModels } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+import { HttpFields, NotifyFields, type Token } from "./OutwardFields.tsx";
 import { nextWhen } from "./run-view.ts";
 import {
   chainOrder,
@@ -38,6 +39,7 @@ const RESULT: Partial<Record<FlowNode["kind"], string[]>> = {
   routine: ["text"],
   table_read: ["rows"],
   table_write: ["value"],
+  http: [],
 };
 /** Steps whose result can reach `id`: every step on a path before it, except the trigger (that is the event). */
 function earlier(graph: FlowGraph, id: string): FlowNode[] {
@@ -52,6 +54,17 @@ function earlier(graph: FlowGraph, id: string): FlowNode[] {
       }
   }
   return chainOrder(graph).filter((n) => seen.has(n.id) && RESULT[n.kind]);
+}
+
+/** Placeholders a template can use: a field of what arrived, or the result of each step before it. */
+function tokensFor(graph: FlowGraph, n: FlowNode, t: ReturnType<typeof useT>): Token[] {
+  return [
+    { label: t("flow.f.fromEvent"), token: "$trigger." },
+    ...earlier(graph, n.id).map((s) => ({
+      label: s.label,
+      token: ["$steps", s.id, ...(s.kind === "http" ? ["json"] : (RESULT[s.kind] ?? []))].join("."),
+    })),
+  ];
 }
 
 /** The panel at the right: the chosen step's settings, or every step in order with how the flow runs. */
@@ -343,6 +356,10 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode }) {
       );
     case "llm":
       return <ModelFields {...props} n={n} />;
+    case "notify":
+      return <NotifyFields n={n} update={update} tokens={tokensFor(props.graph, n, t)} />;
+    case "http":
+      return <HttpFields n={n} update={update} tokens={tokensFor(props.graph, n, t)} />;
   }
 }
 

@@ -20,6 +20,7 @@ import { usePack, useT } from "../i18n/index.ts";
 import { FlowDetail, FlowEditor } from "../lazy.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { agentOf, issueText, loadFlows, loadRuns, type Published, type Schedules, setEnabled } from "./data.ts";
+import { OutwardConfirm } from "./outward.tsx";
 import { nextWhen, OUTCOME, outcomeOf, runWhen } from "./run-view.ts";
 import { STARTERS, type Starter } from "./starters.ts";
 import { chipsOf, type Flow, type FlowRun, isTrigger, STEP, type StepKind, scheduleName } from "./steps.tsx";
@@ -114,6 +115,7 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
           />
         </Suspense>
       )}
+      <OutwardConfirm />
     </>
   );
 }

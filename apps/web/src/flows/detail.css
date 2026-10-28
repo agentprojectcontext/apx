@@ -425,3 +425,12 @@
 .fd__now .fd__nowerr {
   color: var(--apx-danger);
 }
+
+/* Times a schedule skipped because its last run was still going. */
+.fd__skipped {
+  margin: 0;
+  padding: 0 16px 8px;
+  font-size: 12.5px;
+  color: var(--apx-warning-soft-fg);
+  text-wrap: pretty;
+}

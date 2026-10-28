@@ -133,7 +133,7 @@ export function FlowDetail({
     const timer = setTimeout(() => setRevision((n) => n + 1), going ? 3000 : 10_000);
     return () => clearTimeout(timer);
   }, [going, runs, flow.enabled]);
-  const who = useCallback((n: FlowNode) => whoOf(n, agents, routines), [agents, routines]);
+  const who = useCallback((n: FlowNode) => whoOf(n, agents, routines, t), [agents, routines, t]);
   // What the chosen run ran: its own revision, the old definition for a legacy run of a published flow, or now.
   const graph = useMemo(() => {
     if (run?.executor === "graph") return detail?.event === run.event_id ? detail.graph : undefined;
@@ -261,6 +261,13 @@ export function FlowDetail({
             </Button>
           </div>
         </header>
+        {schedule?.skipped && schedule.skipped_at ? (
+          <p className="fd__skipped">
+            {schedule.skipped === 1
+              ? t("flow.skippedOne", { time: dueTime(schedule.skipped_at, timeZone) })
+              : t("flow.skipped", { count: schedule.skipped, time: dueTime(schedule.skipped_at, timeZone) })}
+          </p>
+        ) : null}
         {run && outcome && (
           <div className="fd__runline">
             <strong>{t("flow.runAt", { when: runWhen(run.created_at) })}</strong>

@@ -32,6 +32,8 @@ const RANK: Record<FlowNode["kind"], number> = {
   agent: 4,
   routine: 4,
   llm: 5,
+  notify: 5,
+  http: 5,
 };
 const wholeEvent = (b: { kind: string; path?: string[] }) => b.kind === "event" && b.path?.length === 0;
 
@@ -74,7 +76,7 @@ export function shapeOfGraph(graph: FlowGraph): FlowShapeResult {
   let rank = -1;
   for (const node of path) {
     const r = RANK[node.kind];
-    if (node.kind === "llm") return fail("kind", node);
+    if (node.kind === "llm" || node.kind === "notify" || node.kind === "http") return fail("kind", node);
     if (r < rank || (r === rank && r !== 1)) return fail("order", node);
     rank = r;
     switch (node.kind) {

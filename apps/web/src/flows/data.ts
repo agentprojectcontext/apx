@@ -2,8 +2,10 @@ import type { Agent, Result, Routine } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
 import { graphOfDefinition, sameShape, shapeOfDefinition, shapeOfGraph } from "@apx/protocol/flow-shape";
 import type { FlowGraphIssue } from "../../../../packages/protocol/src/flow-graph.ts";
+import { channelsNow } from "../data/channels.ts";
 import { client } from "../data/client.ts";
 import { isKey, type MessageKey } from "../i18n/index.ts";
+import { approveOutward } from "./outward.tsx";
 import { type Flow, type FlowGraph, type FlowNode, type FlowRun, STEP } from "./steps.tsx";
 
 type T = (key: MessageKey, vars?: Record<string, string | number>) => string;
@@ -22,26 +24,33 @@ export type RunDetail = Result<"flows.run_get">;
 
 /**
  * Turning a flow on runs what was last saved: a drawing its old definition can't stand for is published first, so
- * new events run it. Turning it off only stops new runs.
+ * new events run it. Turning it off only stops new runs. Undefined when the owner did not let it send or call out.
  */
 export async function setEnabled(flow: Flow, enabled: boolean) {
-  if (enabled) await publishSaved(flow);
+  if (enabled && !(await publishSaved(flow))) return undefined;
   return client.call("flows.set", { ...flow, enabled });
 }
 
-/** Publishes the saved drawing when it differs from what runs; nothing when there is nothing new. */
-export async function publishSaved(flow: Flow): Promise<void> {
+/**
+ * Publishes the saved drawing when it differs from what runs; nothing when there is nothing new. False when it sends
+ * or calls somewhere new and the owner said no.
+ */
+export async function publishSaved(flow: Flow): Promise<boolean> {
   const doc = await client.call("flows.graph_get", { flow: flow.id });
-  if (!doc.draft || doc.draftVersion === null) return;
+  if (!doc.draft || doc.draftVersion === null) return true;
   if (!doc.published) {
     const shape = shapeOfGraph(doc.draft);
-    if (shape.ok && sameShape(shape.shape, shapeOfDefinition(flow))) return;
+    if (shape.ok && sameShape(shape.shape, shapeOfDefinition(flow))) return true;
   }
+  const outward = await approveOutward(flow.id, doc.draft, doc.published);
+  if (!outward) return false;
   await client.call("flows.publish", {
     flow: flow.id,
     expectedDraftVersion: doc.draftVersion,
     expectedPublishedRevision: doc.publishedRevision,
+    outward,
   });
+  return true;
 }
 
 /** Why a drawing can't run, in the person's words, from what the core said (its first issue). */
@@ -110,10 +119,39 @@ export function agentOf(
   }
   return undefined;
 }
-export function whoOf(n: FlowNode, agents: Record<string, Agent>, routines: Routine[]): string {
+export function whoOf(n: FlowNode, agents: Record<string, Agent>, routines: Routine[], t?: T): string {
   if (n.kind === "agent") return agents[n.agent]?.name ?? n.agent;
   if (n.kind === "routine") return routines.find((r) => r.id === n.routine)?.name ?? n.routine;
+  if (n.kind === "notify") {
+    const d = destinationOf(n);
+    return d ? `${d.channel.label} → ${d.owner && t ? t("flow.f.toYou") : d.to}` : "";
+  }
+  if (n.kind === "http") return `${n.method} ${hostOf(n.url)}`;
   return "";
+}
+
+/** Where a notify step sends, from the owner's channels and contacts; undefined until they are loaded or when gone. */
+export function destinationOf(n: Extract<FlowNode, { kind: "notify" }>) {
+  const { channels, persons } = channelsNow();
+  const channel = channels.find((c) => c.id === n.channel);
+  if (!channel) return undefined;
+  if (n.to.kind === "room") {
+    const id = n.to.room;
+    const room = channel.rooms?.rooms.find((r) => r.id === id);
+    return room ? { channel, to: `#${room.name || room.id}`, owner: false } : undefined;
+  }
+  const id = n.to.person;
+  const person = persons.find((p) => p.id === id);
+  return person ? { channel, to: person.name, owner: person.role === "owner" } : undefined;
+}
+
+/** The host a URL calls, as people read it. */
+export function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
 }
 
 export type { FlowRun };

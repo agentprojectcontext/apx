@@ -427,3 +427,13 @@
 .fe-next__error {
   color: var(--apx-danger);
 }
+/* Placeholders a message or body can take, one click each. */
+.fe-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.fe-tokens .fe-ins__label {
+  flex-basis: 100%;
+}
