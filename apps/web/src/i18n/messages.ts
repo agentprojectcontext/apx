@@ -28,6 +28,10 @@ const PACKS = {
     en: () => import("./ingress-en.ts").then((m) => m.enIngress),
     es: () => import("./ingress-es.ts").then((m) => m.esIngress),
   },
+  secretary: {
+    en: () => import("./secretary-en.ts").then((m) => m.enSecretary),
+    es: () => import("./secretary-es.ts").then((m) => m.esSecretary),
+  },
   threads: {
     en: () => import("./thread-dialogs-en.ts").then((m) => m.enThreadDialogs),
     es: () => import("./thread-dialogs-es.ts").then((m) => m.esThreadDialogs),
