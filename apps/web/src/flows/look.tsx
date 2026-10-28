@@ -3,7 +3,7 @@ import { AgentAvatar } from "@apx/ui";
 import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
 import type { MessageKey } from "../i18n/index.ts";
-import { agentOf, whoOf } from "./data.ts";
+import { agentOf, type Known, whoOf } from "./data.ts";
 import { dotted, type FlowNode, hookPath, literal, presetOf } from "./steps.tsx";
 
 /** The one line under a step's name that tells it apart from others of its kind. */
@@ -13,6 +13,7 @@ export function stepDetail(
   agents: Record<string, Agent>,
   routines: Routine[],
   t?: (key: MessageKey, vars?: Record<string, string | number>) => string,
+  known?: Known,
 ): { detail?: ReactNode; detailPlain?: boolean } {
   switch (n.kind) {
     case "webhook":
@@ -47,7 +48,7 @@ export function stepDetail(
     case "llm":
       return { detail: n.model };
     case "notify": {
-      const to = whoOf(n, agents, routines, t);
+      const to = whoOf(n, agents, routines, t, known);
       return to ? { detail: to, detailPlain: true } : {};
     }
     case "http":

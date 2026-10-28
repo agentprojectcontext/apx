@@ -62,7 +62,7 @@ export function NotifyFields({ n, update, tokens }: { n: Notify; update: (n: Flo
   const rooms = channel?.rooms?.rooms ?? [];
   const to = n.to.kind === "room" ? `room:${n.to.room}` : n.to.person ? `contact:${n.to.person}` : null;
   const pickChannel = (id: string | null) => update({ ...n, channel: id ?? "", to: { kind: "contact", person: "" } });
-  const dest = destinationOf(n);
+  const dest = destinationOf(n, { channels, persons });
   return (
     <>
       <Field label={t("flow.f.channel")}>

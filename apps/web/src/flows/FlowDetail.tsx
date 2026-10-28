@@ -30,6 +30,7 @@ import {
   type Shown,
   setEnabled,
   shownGraph,
+  useKnown,
   whoOf,
 } from "./data.ts";
 import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
@@ -133,7 +134,8 @@ export function FlowDetail({
     const timer = setTimeout(() => setRevision((n) => n + 1), going ? 3000 : 10_000);
     return () => clearTimeout(timer);
   }, [going, runs, flow.enabled]);
-  const who = useCallback((n: FlowNode) => whoOf(n, agents, routines, t), [agents, routines, t]);
+  const known = useKnown();
+  const who = useCallback((n: FlowNode) => whoOf(n, agents, routines, t, known), [agents, routines, t, known]);
   // What the chosen run ran: its own revision, the old definition for a legacy run of a published flow, or now.
   const graph = useMemo(() => {
     if (run?.executor === "graph") return detail?.event === run.event_id ? detail.graph : undefined;
@@ -150,7 +152,7 @@ export function FlowDetail({
       const v = view?.steps.get(n.id);
       return {
         title: n.label,
-        ...stepDetail(n, flow.id, agents, routines, t),
+        ...stepDetail(n, flow.id, agents, routines, t, known),
         ...(v?.state ? { state: v.state } : {}),
         ...(v?.order ? { order: v.order } : {}),
         ...(v?.badge ? { badge: v.badge } : {}),

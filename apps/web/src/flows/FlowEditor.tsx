@@ -8,7 +8,7 @@ import { useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
-import { describeIssue, issueText, shownGraph } from "./data.ts";
+import { describeIssue, issueText, shownGraph, useKnown } from "./data.ts";
 import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { connectNodes, moveNode, newNode, removeNode } from "./graph-edit.ts";
 import { Inspector } from "./Inspector.tsx";
@@ -96,6 +96,7 @@ export function FlowEditor({
   const projects = useData((s) => s.projects);
   const allAgents = useData((s) => s.agents);
   const allRoutines = useRoutines((s) => s.routines);
+  const known = useKnown();
   const [name, setName] = useState(flow?.name ?? "");
   const [projectId, setProjectId] = useState(flow?.projectId ?? preset ?? "");
   const [graph, setGraph] = useState<FlowGraph | undefined>(flow ? undefined : undefined);
@@ -191,7 +192,10 @@ export function FlowEditor({
   };
   const look = useCallback(
     (n: FlowNode): StepLook => {
-      const base = { title: n.label || t(STEP[n.kind].label), ...stepDetail(n, flow?.id, allAgents, allRoutines, t) };
+      const base = {
+        title: n.label || t(STEP[n.kind].label),
+        ...stepDetail(n, flow?.id, allAgents, allRoutines, t, known),
+      };
       const s = trial?.get(n.id);
       if (!s) return base;
       switch (s.state) {
@@ -211,7 +215,7 @@ export function FlowEditor({
           return { ...base, badge: t("flow.ed.tryUnknownBadge") };
       }
     },
-    [trial, flow?.id, allAgents, allRoutines, t],
+    [trial, flow?.id, allAgents, allRoutines, t, known],
   );
 
   const save = async () => {

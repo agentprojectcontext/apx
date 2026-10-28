@@ -1,8 +1,9 @@
-import type { Agent, Result, Routine } from "@apx/protocol";
+import type { Agent, ChannelInfo, Person, Result, Routine } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
 import { graphOfDefinition, sameShape, shapeOfDefinition, shapeOfGraph } from "@apx/protocol/flow-shape";
+import { useEffect, useMemo } from "react";
 import type { FlowGraphIssue } from "../../../../packages/protocol/src/flow-graph.ts";
-import { channelsNow } from "../data/channels.ts";
+import { loadChannels, useChannels } from "../data/channels.ts";
 import { client } from "../data/client.ts";
 import { isKey, type MessageKey } from "../i18n/index.ts";
 import { approveOutward } from "./outward.tsx";
@@ -119,11 +120,24 @@ export function agentOf(
   }
   return undefined;
 }
-export function whoOf(n: FlowNode, agents: Record<string, Agent>, routines: Routine[], t?: T): string {
+/** The owner's channels and people, to name where a notify step sends. */
+export type Known = { channels: ChannelInfo[]; persons: Person[] };
+/** The owner's channels and people, loaded once when a Flows screen needs them. */
+export function useKnown(): Known {
+  const ready = useChannels((s) => s.ready);
+  const channels = useChannels((s) => s.channels);
+  const persons = useChannels((s) => s.persons);
+  useEffect(() => {
+    if (!ready) void loadChannels();
+  }, [ready]);
+  return useMemo(() => ({ channels, persons }), [channels, persons]);
+}
+
+export function whoOf(n: FlowNode, agents: Record<string, Agent>, routines: Routine[], t?: T, known?: Known): string {
   if (n.kind === "agent") return agents[n.agent]?.name ?? n.agent;
   if (n.kind === "routine") return routines.find((r) => r.id === n.routine)?.name ?? n.routine;
   if (n.kind === "notify") {
-    const d = destinationOf(n);
+    const d = known && destinationOf(n, known);
     return d ? `${d.channel.label} → ${d.owner && t ? t("flow.f.toYou") : d.to}` : "";
   }
   if (n.kind === "http") return `${n.method} ${hostOf(n.url)}`;
@@ -131,8 +145,7 @@ export function whoOf(n: FlowNode, agents: Record<string, Agent>, routines: Rout
 }
 
 /** Where a notify step sends, from the owner's channels and contacts; undefined until they are loaded or when gone. */
-export function destinationOf(n: Extract<FlowNode, { kind: "notify" }>) {
-  const { channels, persons } = channelsNow();
+export function destinationOf(n: Extract<FlowNode, { kind: "notify" }>, { channels, persons }: Known) {
   const channel = channels.find((c) => c.id === n.channel);
   if (!channel) return undefined;
   if (n.to.kind === "room") {

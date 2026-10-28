@@ -29,8 +29,6 @@ const store = createStore<State>({
 });
 
 export const useChannels = <T>(select: (s: State) => T): T => useSlice(store, select);
-/** The channels and people as last loaded, outside a component. */
-export const channelsNow = () => store.get();
 
 /** The channel a pairing request came on, while it still waits. */
 export const pairingChannel = (code: string) => store.get().pairing.find((r) => r.code === code)?.channel;
