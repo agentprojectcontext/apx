@@ -217,7 +217,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
         .join("\n"),
   },
   "notices.set": {
-    does: "change when the owner is notified (only what changes: quiet_from/quiet_to, budget_per_day, channel…)",
+    does: 'change when the owner is notified (only what changes: quiet_from/quiet_to, budget_per_day, channel: a channel id or "none" for the app only…)',
     says: () => "Change when you are notified",
     now: (_p, { store }) => noticePrefs(store),
     keep: (p, { store }) => merged(noticePrefs(store), p),

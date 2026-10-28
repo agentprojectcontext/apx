@@ -244,7 +244,7 @@ const MODES: Record<Autonomy, string> = {
     "Accept edits: edit files in your work folder and the owner's other projects without asking; a command that changes something waits for the owner.",
   manual: "Manual: every action that changes something waits for the owner.",
   plan: "Plan: read and propose; any change is refused, so write it as a proposal in your answer.",
-  total: "Total: nothing waits for the owner.",
+  total: "Total: nothing waits for the owner but a change to what they set up in APX or copying their browser session.",
 };
 
 const MODE_NAMES: Record<Autonomy, string> = {
