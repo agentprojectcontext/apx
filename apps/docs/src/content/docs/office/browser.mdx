@@ -42,7 +42,10 @@ agent's normal folder permissions; URLs are not script sources. VM chats accept 
 Use an async IIFE for statements and return a value:
 `(async () => ({ title: document.title }))()`.
 
-Every execution needs your confirmation, even in Total. Review the entire script (and the exact file matching the hash)
+Every execution needs confirmation in the app (panel, Desktop or phone), even in Total; a shortened channel message
+cannot approve it. Supply the exact expected `origin` (for example,
+`https://example.com`, without a path). The card shows tab, origin and full source; local files are snapshotted before
+approval and execution uses those same bytes. A changed origin is refused before evaluating. Review the entire script
 before approving: arbitrary JavaScript can read private page data or send requests as your signed-in account. The normal
 typing tool's credential-field protection is **not a JavaScript sandbox**. Never approve code handling passwords, 2FA or
 card data. The tab's profile and take-control/handoff rules still apply. This method is not exposed to outside MCP clients.

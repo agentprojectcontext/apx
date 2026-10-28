@@ -108,8 +108,8 @@ export class CdpPage {
     return { tree: lines.join("\n"), refs: i, truncated };
   }
 
-  evaluate(script: string) {
-    return withTimeout(evaluatePage(this.#send, script), 7_000);
+  evaluate(script: string, origin: string) {
+    return withTimeout(evaluatePage(this.#send, script, origin), 7_000);
   }
 
   async click(ref: string): Promise<void> {

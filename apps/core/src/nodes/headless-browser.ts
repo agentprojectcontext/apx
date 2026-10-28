@@ -531,7 +531,7 @@ export function createHeadlessBrowser(deps: {
         case "browser.evaluate": {
           const p = browserMethods["browser.evaluate"].params.parse(raw);
           const t = drive(p.tab, p.by);
-          const result = await t.page.evaluate(p.script);
+          const result = await t.page.evaluate(p.script, p.origin);
           return { url: t.url, ...result };
         }
         case "browser.screenshot": {

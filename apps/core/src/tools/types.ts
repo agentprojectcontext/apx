@@ -94,6 +94,8 @@ export type CheckContext = Pick<ToolContext, "agent" | "thread">;
 
 export type Tool = {
   approval?: ApprovalTarget;
+  /** Review requires the complete app card, not a shortened channel message. */
+  appOnly?: true;
   name: string;
   description: string;
   /** JSON Schema of the arguments, derived from the zod schema. */
@@ -162,6 +164,7 @@ export function defineTool<S extends Args>(def: {
   description: string;
   args: S;
   effect: Effect;
+  appOnly?: true;
   confirm?: Confirm | ((args: z.output<S>) => Confirm);
   untrustedWhy?: UntrustedWhy;
   deadlineMs: number;
@@ -186,6 +189,7 @@ export function defineTool<S extends Args>(def: {
     description: def.description,
     parameters,
     effect: def.effect,
+    ...(def.appOnly ? { appOnly: true as const } : {}),
     confirm: (a) => (typeof def.confirm === "function" ? def.confirm(a as z.output<S>) : (def.confirm ?? "never")),
     deadlineMs: def.deadlineMs,
     ...(def.untrustedWhy ? { untrustedWhy: def.untrustedWhy } : {}),

@@ -2,7 +2,7 @@
 
 These helpers are for unreleased staging builds. Use the existing APX browser tab, never a second browser or a remote
 CDP port. Arbitrary JavaScript requires an approval card even in Total. Read the whole file and compute its SHA-256
-before asking to execute it with `browser_evaluate({ tab, path, sha256 })`. File access uses normal project permissions.
+before asking to execute it with `browser_evaluate({ tab, origin, path, sha256 })`. File access uses normal project permissions.
 A core-only restart does not update an already running Desktop node.
 
 ## Instagram draft helper
@@ -40,7 +40,7 @@ Instagram-origin fixture and do not contact Instagram or send a real message.
 
 ## Ayuda en español
 
-Leé el archivo completo y calculá su SHA-256 antes de aprobar `browser_evaluate({ tab, path, sha256 })` en la pestaña
+Leé el archivo completo y calculá su SHA-256 antes de aprobar `browser_evaluate({ tab, origin, path, sha256 })` en la pestaña
 actual de APX. La tarjeta se mantiene incluso en Total. Cargar `instagram-draft.js` solo instala `apxInstagramDraft`;
 no compone ni manda. Después invocá la función con destinatario, ID numérico de conversación, texto exacto y selectores
 reales del contenedor y de burbujas individuales. Los selectores del ejemplo son placeholders, no selectores productivos

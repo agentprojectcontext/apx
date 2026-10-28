@@ -45,8 +45,11 @@ Se respetan los permisos habituales de carpetas; no se cargan scripts desde URLs
 inline, nunca archivos del host. Para sentencias, usá una IIFE async
 que devuelva un valor: `(async () => ({ title: document.title }))()`.
 
-Cada ejecución pide tu confirmación, incluso en Total. Revisá el script completo (y el archivo exacto que corresponde
-al hash) antes de aprobar: JavaScript arbitrario puede leer datos privados o mandar solicitudes con tu sesión iniciada.
+Cada ejecución pide confirmación en la app (panel, Desktop o teléfono), incluso en Total; un mensaje recortado en un
+canal no permite aprobarla. Pasá el `origin` exacto esperado (por ejemplo,
+`https://example.com`, sin ruta). La tarjeta muestra pestaña, origen y código completo; se guarda una copia del archivo
+antes de aprobar y se ejecutan esos mismos bytes. Si cambió el origen, no se evalúa. Revisá todo el código antes de
+aprobar: JavaScript arbitrario puede leer datos privados o mandar solicitudes con tu sesión iniciada.
 La protección de campos sensibles de la herramienta de escritura **no es un sandbox para JavaScript**. No apruebes código
 que maneje contraseñas, códigos 2FA ni tarjetas. Se mantienen el perfil y el control/handoff de la pestaña. Este método
 no se expone a clientes MCP externos.

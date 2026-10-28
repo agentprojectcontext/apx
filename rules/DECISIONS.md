@@ -2634,3 +2634,23 @@ the time of day. Home is always the conversation, since the owner's channel land
 since its stored prompt is not the owner talking. The line is per-turn data, so the system prompt stays byte-stable
 ([rules/PROMPT_SIZE.md](PROMPT_SIZE.md)); the owner's own turns never carry it. `unasked()` lists every origin, so a
 new one must decide. Fixed template messages are untouched.
+
+<a id="d-165"></a>
+## D-165 — 2026-10-27 — Arbitrary browser JavaScript is reviewed execution, not a credential sandbox
+The owner explicitly accepted reviewed JavaScript execution in the existing APX tab after the security review explained
+that arbitrary page code cannot retain a mechanical guarantee against reading or filling sensitive fields, making
+requests or sending as the signed-in account. This is a narrow exception for `browser_evaluate`, not a change to the
+ordinary browser typing guard, navigation policy or a permission to handle passwords, 2FA or card data.
+
+Every execution retains its own approval card, including Total and an agent rule set to auto; no persistent grants.
+The complete app card identifies tab, expected origin and the complete immutable source; shortened channel messages
+cannot approve execution. Local `.js` files require normal folder
+read permission and an exact SHA-256 match before approval; the same in-memory snapshot is executed, never a reopened
+path. VM chats refuse host file inputs. The underlying RPC is human-only, unavailable to outside MCP clients, and the
+normal profile and user/handoff controls remain. The browser checks the approved origin immediately before evaluating.
+Results and page errors are untrusted and bounded; scripts are not a sandbox, and timeouts stop waiting rather than
+cancel or undo effects. An uncertain send must be inspected, never automatically retried. Credential use remains
+prohibited by policy and owner review, not claimed as mechanically prevented for arbitrary JavaScript.
+
+Rejected: silently treating approval as technical containment, silently bypassing the ordinary guards, or calling a
+read-only snapshot console equivalent to executing code against the owner's actual page.

@@ -1,11 +1,12 @@
 // Browser tools through a fake desktop node: an agent can wait on the page itself instead of reaching for a shell.
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient, type ApxSocket } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { waitFor } from "../testkit/platform.ts";
+import { tempDir, waitFor } from "../testkit/platform.ts";
 
 /** The browser_open calls each scripted chat makes, one per step. */
 const BROWSE: Array<[string, object[]]> = [
@@ -22,6 +23,7 @@ const BROWSE: Array<[string, object[]]> = [
 
 /** The model the scripted calls report: one that reads images unless a test says otherwise. */
 let model = "fake/gpt-4o";
+let requestedFile: { path: string; sha256: string } | undefined;
 const llm = scriptedLlm((req, { said, afterTool }) => {
   const looks = req.messages.filter((m) => m.role === "tool").length;
   if (said.includes("look six times") && looks < 6)
@@ -35,8 +37,20 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
         : callTool("s0", "browser_text", { tab: "t1" })),
       model,
     };
+  if (!afterTool && said.includes("evaluate file") && requestedFile)
+    return {
+      ...callTool("jsfile", "browser_evaluate", { tab: "t1", origin: "https://example.com", ...requestedFile }),
+      model,
+    };
   if (!afterTool && said.includes("evaluate code"))
-    return { ...callTool("js1", "browser_evaluate", { tab: "t1", script: "Promise.resolve(42)" }), model };
+    return {
+      ...callTool("js1", "browser_evaluate", {
+        tab: "t1",
+        script: "Promise.resolve(42)",
+        origin: "https://example.com",
+      }),
+      model,
+    };
   if (afterTool)
     return { ...say(`Done: ${String(req.messages.findLast((m) => m.role === "tool")?.content).slice(0, 200)}`), model };
   if (said.includes("look"))
@@ -116,23 +130,59 @@ test("JavaScript reaches the node only after approval, even in Total; agents can
       await env.client.call("threads.send", { thread, text: "evaluate code" });
       const card = await waitFor(async () => (await env.client.call("runs.pending", { thread })).inputs[0]);
       assert.equal(card.tool, "browser_evaluate");
+      assert.equal(env.core.store.inputs.get(card.id)?.app_only, true);
+      assert.match(card.detail ?? "", /Tab: t1[\s\S]*Origin: https:\/\/example.com[\s\S]*Promise.resolve\(42\)/);
       assert.equal(evaluations.length, 0);
       await env.client.call("runs.respond", { input: card.id, decision });
       await env.settle(thread);
       assert.equal(evaluations.length, decision === "approve" ? 1 : 0);
     }
     const agent = new ApxClient({ url: env.core.url, actor: "agent" });
-    await assert.rejects(agent.call("browser.evaluate", { tab: "t1", script: "1" }), /human|owner|agent/i);
+    await assert.rejects(
+      agent.call("browser.evaluate", { tab: "t1", script: "1", origin: "https://example.com" }),
+      /human|owner|agent/i,
+    );
     const socket = await agent.connect();
     try {
-      await assert.rejects(socket.call("browser.evaluate", { tab: "t1", script: "1" }), /human|owner|agent/i);
+      await assert.rejects(
+        socket.call("browser.evaluate", { tab: "t1", script: "1", origin: "https://example.com" }),
+        /human|owner|agent/i,
+      );
     } finally {
       socket.close();
       await socket.closed;
     }
-    assert.deepEqual(evaluations, [{ tab: "t1", script: "Promise.resolve(42)", by: "roby" }]);
+    assert.deepEqual(evaluations, [
+      { tab: "t1", script: "Promise.resolve(42)", origin: "https://example.com", by: "roby" },
+    ]);
   } finally {
     await env.client.call("agents.update", { agent: "roby", autonomy: null });
+  }
+});
+
+test("a local script changed while approval waits executes only the source displayed on the card", async () => {
+  const dir = tempDir("apx-browser-source-");
+  try {
+    const script = "Promise.resolve({answer: 42})";
+    const file = path.join(dir.path, "probe.js");
+    fs.writeFileSync(file, script);
+    requestedFile = { path: "probe.js", sha256: createHash("sha256").update(script).digest("hex") };
+    const project = (await env.client.call("projects.register", { path: dir.path, init: true })).project.id;
+    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project }))
+      .id;
+    const before = evaluations.length;
+    await env.client.call("threads.send", { thread, text: "evaluate file" });
+    const card = await waitFor(async () => (await env.client.call("runs.pending", { thread })).inputs[0]);
+    assert.match(card.detail ?? "", /Promise.resolve\(\{answer: 42\}\)$/);
+    assert.equal(evaluations.length, before);
+    fs.writeFileSync(file, "throw new Error('changed after approval')");
+    await env.client.call("runs.respond", { input: card.id, decision: "approve" });
+    await env.settle(thread);
+    assert.deepEqual(evaluations.at(-1), { tab: "t1", origin: "https://example.com", script, by: "roby" });
+    assert.equal(evaluations.length, before + 1);
+  } finally {
+    requestedFile = undefined;
+    await dir.remove();
   }
 });
 

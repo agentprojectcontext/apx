@@ -134,13 +134,36 @@ test("the app lends its browser to the core, and a tab opened through the core i
     tab,
     by: "e2e",
     script: "Promise.resolve({origin: location.origin, ready: !!document.body})",
+    origin: new URL(page).origin,
   });
   expect(JSON.parse(evaluated.json)).toEqual({ origin: new URL(page).origin, ready: true });
   expect(evaluated.url).toBe(page);
+  await expect(
+    rpc("browser.evaluate", {
+      tab,
+      by: "e2e",
+      origin: "https://northwind.example",
+      script: "document.body.dataset.apxProbe = 'bad'",
+    }),
+  ).rejects.toThrow(/origin changed/);
+  const untouched = await rpc<{ json: string }>("browser.evaluate", {
+    tab,
+    by: "e2e",
+    origin: new URL(page).origin,
+    script: "document.body.dataset.apxProbe ?? null",
+  });
+  expect(untouched.json).toBe("null");
   await rpc("browser.control", { tab, mode: "user" });
-  await expect(rpc("browser.evaluate", { tab, by: "e2e", script: "1" })).rejects.toThrow(/human has/);
+  await expect(rpc("browser.evaluate", { tab, by: "e2e", script: "1", origin: new URL(page).origin })).rejects.toThrow(
+    /human has/,
+  );
   await rpc("browser.control", { tab, mode: "idle" });
-  const returned = await rpc<{ json: string }>("browser.evaluate", { tab, by: "e2e", script: "2 + 2" });
+  const returned = await rpc<{ json: string }>("browser.evaluate", {
+    tab,
+    by: "e2e",
+    script: "2 + 2",
+    origin: new URL(page).origin,
+  });
   expect(returned.json).toBe("4");
   await rpc("browser.close", { tab });
 });

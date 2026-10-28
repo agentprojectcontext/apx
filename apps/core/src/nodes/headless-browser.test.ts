@@ -120,6 +120,7 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
     tab: tab.tab,
     by: "roby",
     script: "Promise.resolve({title: document.title, path: location.pathname})",
+    origin: base,
   })) as { json: string; url: string };
   assert.deepEqual(JSON.parse(evaluated.json), { title: "Acme home", path: "/" });
   assert.equal(evaluated.url, `${base}/`);
@@ -127,7 +128,17 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
     browser.handle("browser.evaluate", {
       tab: tab.tab,
       by: "roby",
+      origin: "https://northwind.example",
+      script: "document.title = 'wrong'",
+    }),
+    /origin changed/,
+  );
+  await assert.rejects(
+    browser.handle("browser.evaluate", {
+      tab: tab.tab,
+      by: "roby",
       script: "throw new Error('expected failure')",
+      origin: base,
     }),
     /expected failure/,
   );

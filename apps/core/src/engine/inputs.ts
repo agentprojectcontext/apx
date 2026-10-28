@@ -23,9 +23,8 @@ const MAX_TIMER_MS = 2 ** 31 - 1;
 
 export type InputWaits = { turn: number; external: number };
 
-/** Why a channel cannot answer a card about the owner's settings. */
-export const APP_ONLY =
-  "a change to the owner's settings is answered in the app (panel, desktop or phone), never on a channel";
+/** Approvals requiring the complete app card cannot be answered on a channel. */
+export const APP_ONLY = "this approval is answered in the app (panel, desktop or phone), never on a channel";
 
 /** What a folder card's "once" answer is kept under, when it comes after the turn stopped waiting. */
 /** The grant a folder card gives for one call; one to change files there never doubles as one to read them. */

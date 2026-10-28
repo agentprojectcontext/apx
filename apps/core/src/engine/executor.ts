@@ -363,7 +363,7 @@ export function createExecutor(o: {
         change: await tool.preview?.(args, { agent, thread: callThread }).catch(() => undefined),
         external: o.external(),
         stays: true,
-        appOnly: tool.ownerSetting?.(args),
+        appOnly: tool.ownerSetting?.(args) || tool.appOnly,
         signal,
       });
       signal.throwIfAborted();
