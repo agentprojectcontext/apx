@@ -53,6 +53,12 @@ export const BROWSER_TAB_IDLE_MIN = 10;
 /** Quiet hours as they start when the owner turns them on, on any app. */
 export const QUIET_HOURS = { from: "22:00", to: "07:30" } as const;
 
+/** Model calls the memory work (capture, dreaming) may make in a day when the owner set none. */
+export const DAILY_MEMORY_CALLS = 20;
+
+/** Longest negative prompt an image may carry, saved as a default or given by an agent. */
+export const NEGATIVE_PROMPT_MAX = 2000;
+
 /** Maximum UTF-8 document snapshot rendered in the side panel. */
 export const DOCUMENT_MAX_BYTES = 400_000;
 

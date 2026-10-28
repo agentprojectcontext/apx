@@ -1,6 +1,6 @@
 // Domain shapes every client renders. Run states follow A2A task states so an A2A adapter stays thin.
 import { z } from "zod";
-import { PERSON_RELATIONS } from "./constants.ts";
+import { NEGATIVE_PROMPT_MAX, PERSON_RELATIONS } from "./constants.ts";
 
 export const Id = z.string().min(1).max(128);
 
@@ -1202,7 +1202,7 @@ export const ImageDefaults = z.object({
   height: z.number().int().min(64).max(4096),
   steps: z.number().int().min(1).max(200),
   cfg_scale: z.number().min(0).max(50),
-  negative_prompt: z.string().max(2000),
+  negative_prompt: z.string().max(NEGATIVE_PROMPT_MAX),
   count: z.number().int().min(1).max(8),
 });
 export type ImageDefaults = z.infer<typeof ImageDefaults>;

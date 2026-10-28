@@ -1,4 +1,5 @@
 import type { MemorySettings } from "@apx/protocol";
+import { DAILY_MEMORY_CALLS } from "@apx/protocol/client";
 import { Button, Input, SettingRow, Switch } from "@apx/ui";
 import { useT } from "../i18n/index.ts";
 import { SubHead } from "./SectionHead.tsx";
@@ -32,7 +33,7 @@ export function MemoryAutomation({
           type="number"
           min={0}
           max={200}
-          value={String(settings.daily_memory_calls ?? 20)}
+          value={String(settings.daily_memory_calls ?? DAILY_MEMORY_CALLS)}
           aria-label={t("mem.dailyCalls")}
           onChange={(e) => {
             const value = Number(e.currentTarget.value);

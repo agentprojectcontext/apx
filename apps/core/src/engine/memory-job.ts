@@ -1,4 +1,4 @@
-import type { Memory } from "@apx/protocol";
+import { DAILY_MEMORY_CALLS, type Memory } from "@apx/protocol";
 import type { AuxAbout } from "../domain/aux-calls.ts";
 import { canUseChatMemory } from "../domain/chat-access.ts";
 import { NOTEBOOK_TARGET } from "../domain/memories.ts";
@@ -103,7 +103,7 @@ export async function performMemoryJob(
       store.memoryWork.defer(job.id, "memory settings or source changed");
       return false;
     }
-    if (store.memoryWork.reserve(job.id, current.daily_memory_calls ?? 20)) return true;
+    if (store.memoryWork.reserve(job.id, current.daily_memory_calls ?? DAILY_MEMORY_CALLS)) return true;
     const nextDay = new Date();
     nextDay.setUTCHours(24, 0, 0, 0);
     store.memoryWork.defer(job.id, "daily call budget exhausted", nextDay.toISOString());

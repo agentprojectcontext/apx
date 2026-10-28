@@ -1,5 +1,6 @@
 // make_image: an agent draws with the owner's image services and the image appears in the chat. voice_replies: its
 // answers on a channel also go as voice notes.
+import { NEGATIVE_PROMPT_MAX } from "@apx/protocol";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { channelsOn } from "./directory.ts";
@@ -57,7 +58,7 @@ export function mediaTools(store: Store, home: string, vm?: { hasThread(id: stri
         "Draw an image, shown in this chat; prompt in English. references: up to 4 images to work from (paths, e.g. an attachment or screenshot, or med_ ids of earlier drawings).",
       args: z.object({
         prompt: z.string().trim().min(3).max(2000),
-        negative_prompt: z.string().max(1000).optional(),
+        negative_prompt: z.string().max(NEGATIVE_PROMPT_MAX).optional(),
         width: z.number().int().min(256).max(2048).optional(),
         height: z.number().int().min(256).max(2048).optional(),
         count: z.number().int().min(1).max(4).optional(),
