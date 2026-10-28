@@ -72,9 +72,11 @@ export function taskHandlers(
   const answering = (ctx: CallContext): string | undefined => {
     const thread = ctx.agent && store.threads.get(ctx.agent.thread_id);
     if (thread?.kind !== "a2a") return undefined;
-    // A consult is the owner asking on a task, so the work they ask for may be handed out (DECISIONS.md#d-079).
-    if (store.threads.context(thread.id).consult) return undefined;
-    const caller = thread.agent_ids.find((id) => id !== ctx.agent?.id);
+    // A consult the owner opened may hand out the work they ask for (DECISIONS.md#d-120); one an agent's @mention
+    // opened is that agent asking (DECISIONS.md#d-132).
+    const consult = store.threads.context(thread.id).consult;
+    if (consult && !consult.asker) return undefined;
+    const caller = consult?.asker?.agent ?? thread.agent_ids.find((id) => id !== ctx.agent?.id);
     return (caller && store.agents.get(caller)?.name) || "the agent that asked you";
   };
   /** The task the agent's chat is about (its own task chat, a consult on a task, or a session under one). */
