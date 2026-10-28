@@ -46,6 +46,21 @@ dc.guild.channels = [
 ];
 const sl = await fakeSlack(E2E.slackTokens);
 const google = await fakeGoogle();
+// A service on this computer that Flow HTTP steps may call (the only one: APX_FLOW_HTTP_ALLOW); it keeps what came.
+const calls: { method?: string; url?: string; headers: http.IncomingHttpHeaders; body: string }[] = [];
+const service = http.createServer((req, res) => {
+  let body = "";
+  req.on("data", (c: Buffer) => {
+    body += c.toString("utf8");
+  });
+  req.on("end", () => {
+    calls.push({ method: req.method, url: req.url, headers: req.headers, body });
+    res.writeHead(201, { "content-type": "application/json" });
+    res.end(JSON.stringify({ enrolled: true, list: "nurture-web" }));
+  });
+});
+await new Promise<void>((r) => service.listen(0, "127.0.0.1", r));
+const serviceUrl = `http://127.0.0.1:${(service.address() as AddressInfo).port}`;
 
 const hook = path.join(root, "e2e/baileys-hook.ts");
 const desktopTrashRecord = path.join(dir, "desktop-trash.jsonl");
@@ -81,6 +96,7 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_DISCORD_GATEWAY: dc.urls.gateway,
     APX_SLACK_API: sl.api,
     APX_GOOGLE_API: google.url,
+    APX_FLOW_HTTP_ALLOW: serviceUrl.replace("http://", ""),
     // Never the owner's own Messages, even when the sandbox runs on their Mac.
     APX_IMESSAGE: "off",
     // Never the machine's own Ollama: memory's local embedding models are looked for where nothing answers.
@@ -116,7 +132,9 @@ const control = http.createServer((req, res) => {
         slack: E2E.slackTokens,
         core: `http://127.0.0.1:${E2E.port}`,
         llm: llm.url.replace(/\/v1$/, ""),
+        service: serviceUrl,
       });
+    if (req.url === "/service/calls") return json(200, { calls });
     if (req.url === "/tg/message" && req.method === "POST") {
       // In a group: its chat, and what the message carries (an @mention's entities).
       const chat = body.chat as { id: number; type: string; title: string } | undefined;
@@ -193,7 +211,13 @@ console.log(
 
 const stop = async () => {
   core.kill("SIGTERM");
-  await Promise.all([llm.close(), tg.close(), google.close(), new Promise((r) => control.close(r))]);
+  await Promise.all([
+    llm.close(),
+    tg.close(),
+    google.close(),
+    new Promise((r) => control.close(r)),
+    new Promise((r) => service.close(r)),
+  ]);
   if (!process.env.E2E_KEEP) fs.rmSync(dir, { recursive: true, force: true });
   process.exit(0);
 };
