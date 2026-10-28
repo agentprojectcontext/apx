@@ -1,49 +1,21 @@
-import type { FlowGraph, FlowGraphIssue } from "../../../../packages/protocol/src/flow-graph.ts";
-import { validateFlowGraph } from "../domain/flow-graph-validate.ts";
+import { ErrorCode } from "@apx/protocol";
 import { FlowGraphConflict, FlowGraphUnavailable } from "../domain/flow-graphs.ts";
 import type { Store } from "../domain/store.ts";
-import { badRequest, conflict, notFound } from "../errors.ts";
-import { validateFlowBinding } from "../flows.ts";
+import { badRequest, CallError, conflict, notFound } from "../errors.ts";
+import { type FlowModelCheck, flowGraphIssues } from "../flows.ts";
 import type { Handlers } from "./router.ts";
 
-export function flowGraphHandlers(store: Store) {
+export function flowGraphHandlers(store: Store, model: FlowModelCheck) {
   const found = (id: string) => {
     const flow = store.flows.get(id);
     if (!flow) throw notFound("Flow not found");
     return flow;
   };
-  const validate = (flow: string, graph: FlowGraph) => {
-    const definition = found(flow);
-    const issues: FlowGraphIssue[] = validateFlowGraph(graph);
-    for (const node of graph.nodes) {
-      try {
-        if (node.kind === "agent")
-          validateFlowBinding(store, {
-            ...definition,
-            action: { kind: "agent", agent: node.agent, prompt: node.prompt },
-          });
-        if (node.kind === "routine")
-          validateFlowBinding(store, { ...definition, action: { kind: "routine", routine: node.routine } });
-        if (node.kind === "llm")
-          issues.push({
-            code: "llm_execution_unavailable",
-            node: node.id,
-            message: "LLM nodes cannot be published until graph execution and provider validation are available",
-          });
-      } catch {
-        issues.push({
-          code: "binding_unavailable",
-          node: node.id,
-          message: "The configured action or model is unavailable in this project",
-        });
-      }
-    }
-    return { valid: issues.length === 0, issues };
-  };
   const write = <T>(operation: () => T): T => {
     try {
       return operation();
     } catch (error) {
+      if (error instanceof CallError) throw error;
       if (error instanceof FlowGraphUnavailable)
         throw conflict(error.message, { reason: "graph_execution_unavailable" });
       if (error instanceof FlowGraphConflict) throw conflict(error.message);
@@ -63,10 +35,29 @@ export function flowGraphHandlers(store: Store) {
       found(flow);
       return write(() => store.flowGraphs.discardDraft(flow, expectedVersion));
     },
-    "flows.validate": ({ flow, graph }) => validate(flow, graph),
-    "flows.publish": ({ flow }) => {
+    "flows.validate": ({ flow, graph }) => {
+      const issues = flowGraphIssues(store, found(flow), graph, model);
+      return { valid: issues.length === 0, issues };
+    },
+    "flows.publish": ({ flow, expectedDraftVersion, expectedPublishedRevision }) => {
+      const definition = found(flow);
+      return write(() =>
+        store.flowGraphs.publish(flow, expectedDraftVersion, expectedPublishedRevision, (graph) => {
+          const issues = flowGraphIssues(store, definition, graph, model);
+          if (issues.length)
+            throw new CallError({
+              code: ErrorCode.BadRequest,
+              message: issues[0]?.message ?? "The drawing cannot run",
+              detail: { issues },
+            });
+        }),
+      );
+    },
+    "flows.run_get": ({ flow, event }) => {
       found(flow);
-      return write(() => store.flowGraphs.publish(flow));
+      const run = store.flowGraphRuns.detail(flow, event);
+      if (!run) throw notFound("Flow run");
+      return run;
     },
   } satisfies Partial<Handlers>;
 }

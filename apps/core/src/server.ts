@@ -42,6 +42,7 @@ import { openDb } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { signatureFor } from "./domain/email-signature-settings.ts";
 import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
+import { parseRef } from "./domain/refs.ts";
 import { TERMINAL } from "./domain/runs.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
@@ -90,7 +91,7 @@ import { createNodeBroker } from "./nodes/broker.ts";
 import { createHeadlessBrowser } from "./nodes/headless-browser.ts";
 import { officeScheduler } from "./office-wiring.ts";
 import { createChatgptLogin } from "./providers/chatgpt-login.ts";
-import { createLlm, type Llm } from "./providers/llm.ts";
+import { createLlm, type Llm, NO_KEY, type SignIn } from "./providers/llm.ts";
 import { providerRegistry } from "./providers/registry.ts";
 import { createPublicCredentials } from "./public-credentials.ts";
 import { nativePublicRoutes, publishedPublicRoutes } from "./public-routes.ts";
@@ -410,7 +411,28 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     ...(opts.tailscale ? { tailscale: opts.tailscale } : {}),
     ...(opts.ngrok ? { ngrok: opts.ngrok } : {}),
   });
-  const flows = createFlows({ store, dispatch: () => routed, log });
+  // A graph's model step names one exact model of an active provider that has its key (or sign-in).
+  const flowModel = (ref: string) => {
+    const { engine: id, model, effort } = parseRef(ref);
+    const provider = providers.active().find((p) => p.id === id);
+    return Boolean(
+      provider &&
+        model &&
+        !effort &&
+        (provider.key === NO_KEY ||
+          secrets.has(provider.key) ||
+          Boolean((signIns as Record<string, SignIn | undefined>)[provider.key]?.has())),
+    );
+  };
+  const flows = createFlows({
+    store,
+    dispatch: () => routed,
+    log,
+    llm,
+    model: flowModel,
+    cancelThread: (thread) => engine.cancel(thread),
+    timers: opts.runTimers,
+  });
   const stopFlowEvents = bus.on((event) => {
     if (event.type === "run.updated" && event.run.ended_at) flows.kick();
   });
@@ -595,6 +617,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       webhooks,
       publicCredentials,
       flows,
+      flowModel,
       integrationFetch: opts.integrationFetch,
       access: createAccess({
         home: config.home,
@@ -715,6 +738,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     secrets,
     channels,
     scheduler,
+    flows,
     telemetry,
     computer: vm,
     async close() {

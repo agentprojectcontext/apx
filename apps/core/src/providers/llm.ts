@@ -31,6 +31,13 @@ export type LlmRequest = {
   /** Stable per conversation (a thread id), for providers' prompt caches. */
   cacheKey?: string | undefined;
   maxOutputTokens?: number | undefined;
+  /**
+   * One try only: no retry, no token renewal, no next model. For a call that must never be sent twice (a Flow's
+   * model step); the default keeps every other caller's retries.
+   */
+  once?: boolean | undefined;
+  /** Called synchronously right before the request goes out; throwing stops it from being sent. */
+  onDispatch?: (() => void) | undefined;
 };
 
 export type Llm = {
@@ -124,7 +131,8 @@ export function createLlm(opts: {
       return ids.length ? ids.join(", ") : "none";
     },
     async complete(req) {
-      const list = targets(req.models);
+      const all = targets(req.models);
+      const list = req.once ? all.slice(0, 1) : all;
       if (!list.length)
         throw new ProviderError(
           "model_gone",
@@ -179,8 +187,10 @@ export function createLlm(opts: {
           continue;
         }
         let renewedToken = false;
-        for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+        const attempts = req.once ? 1 : ATTEMPTS;
+        for (let attempt = 0; attempt < attempts; attempt++) {
           req.signal.throwIfAborted();
+          req.onDispatch?.();
           try {
             const out = await TRANSPORTS[t.provider.transport]({
               baseUrl: t.provider.base_url,
@@ -209,7 +219,7 @@ export function createLlm(opts: {
             last = err instanceof ProviderError ? err : new ProviderError("network", String(err));
             last.message = `${ref}: ${last.message}`;
             // A plan's token can be refused before it says it expires: renew it once and try again.
-            if (last.kind === "auth" && signIn?.renew && !renewedToken) {
+            if (last.kind === "auth" && signIn?.renew && !renewedToken && !req.once) {
               renewedToken = true;
               try {
                 const c = await signIn.renew();
@@ -224,7 +234,7 @@ export function createLlm(opts: {
             // Auth and a rejected request rule out the whole provider for this call; quota is often per model
             // (Gemini), so the provider's next model still gets a try.
             if (last.kind === "auth" || last.kind === "bad_request") skipped.add(t.provider.id);
-            if (!last.retryable || attempt === ATTEMPTS - 1) break;
+            if (!last.retryable || attempt === attempts - 1) break;
             const wait = retryWait(last, attempt, opts.retryDelayMs ?? RETRY_BASE_MS);
             // A limit that lifts later than a short pause goes to the next model now (engine/provider-limit.ts).
             if (wait === undefined) break;

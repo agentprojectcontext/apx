@@ -209,6 +209,8 @@ type HandlerDeps = {
   services: Parameters<typeof mediaHandlers>[0];
   scheduler: Parameters<typeof routineHandlers>[1];
   flows: Parameters<typeof flowHandlers>[1];
+  /** Which model references a Flow's model step may name. */
+  flowModel: Parameters<typeof flowHandlers>[3];
   nudges: Parameters<typeof noticeHandlers>[1];
   extensions: Parameters<typeof extensionHandlers>[0];
   mcp: Parameters<typeof extensionHandlers>[1] & Parameters<typeof mcpHandlers>[0];
@@ -291,7 +293,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...embeddingHandlers(d.localEmbeds, () => d.memory.engine()),
     ...taskHandlers(d.store, d.engine, d.app.home, d.vm?.beforeDelete),
     ...routineHandlers(d.store, d.scheduler, d.profileRoots),
-    ...flowHandlers(d.store, d.flows, d.publicCredentials),
+    ...flowHandlers(d.store, d.flows, d.publicCredentials, d.flowModel),
     ...noticeHandlers(d.store, d.nudges),
     ...notificationHandlers(d.store),
     ...clientHandlers(d.store),

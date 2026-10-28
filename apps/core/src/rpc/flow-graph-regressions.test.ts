@@ -14,7 +14,7 @@ const graph: FlowGraph = {
   layout: [],
 };
 
-test("a rejected graph publication keeps legacy pending work resumable through the owner protocol", async () => {
+test("publishing leaves legacy pending and failed events on the legacy executor, across a restart", async () => {
   const folder = tempDir();
   const home = tempDir();
   const llm = scriptedLlm(() => say("Recovered"));
@@ -37,74 +37,41 @@ test("a rejected graph publication keeps legacy pending work resumable through t
     await env.client.call("flows.set", flow);
     await env.client.call("flows.draft_save", { flow: flow.id, expectedVersion: null, graph });
     const before = env.core.store.flows.admissionInput(flow.id, "one");
-    await assert.rejects(
-      env.client.call("flows.publish", { flow: flow.id, expectedDraftVersion: 1, expectedPublishedRevision: null }),
-      /publication is unavailable/,
-    );
+    const published = await env.client.call("flows.publish", {
+      flow: flow.id,
+      expectedDraftVersion: 1,
+      expectedPublishedRevision: null,
+    });
+    assert.equal(published.publishedRevision, 1);
     assert.deepEqual(env.core.store.flows.admissionInput(flow.id, "one"), before);
-    assert.equal((await env.client.call("flows.graph_get", { flow: flow.id })).publishedRevision, null);
     assert.equal(llm.calls.length, 0);
     await env.core.close();
     env = await startCore({ home: home.path, llm });
     assert.deepEqual(env.core.store.flows.admissionInput(flow.id, "one"), before);
-    await assert.rejects(
-      env.client.call("flows.publish", { flow: flow.id, expectedDraftVersion: 1, expectedPublishedRevision: null }),
-      /publication is unavailable/,
-    );
-    assert.equal(llm.calls.length, 0);
-    const pendingDocument = await env.client.call("flows.graph_get", { flow: flow.id });
-    const pendingSocket = await env.client.connect();
-    try {
-      await assert.rejects(
-        pendingSocket.call("flows.publish", {
-          flow: flow.id,
-          expectedDraftVersion: 1,
-          expectedPublishedRevision: null,
-        }),
-        /publication is unavailable/,
-      );
-      assert.deepEqual(await pendingSocket.call("flows.graph_get", { flow: flow.id }), pendingDocument);
-      assert.deepEqual(env.core.store.flows.admissionInput(flow.id, "one"), before);
-    } finally {
-      pendingSocket.close();
-      await pendingSocket.closed;
-    }
     env.core.store.flows.fail(flow.id, "one");
-    await assert.rejects(
-      env.client.call("flows.publish", { flow: flow.id, expectedDraftVersion: 1, expectedPublishedRevision: null }),
-      /publication is unavailable/,
-    );
-    assert.equal((await env.client.call("flows.graph_get", { flow: flow.id })).publishedRevision, null);
     assert.equal((await env.client.call("flows.retry", { flow: flow.id, event: "one" })).queued, true);
     assert.deepEqual(env.core.store.flows.admissionInput(flow.id, "one"), before);
+    // Turning it on runs the legacy event with its own action and snapshot; new events run the drawing.
     await env.client.call("flows.set", { ...flow, enabled: true });
     const event = await waitFor(
       () => env.core.store.flows.events(flow.id, 10).find((item) => item.run_id),
-      "legacy admission after rejected publication",
+      "legacy admission after publishing",
     );
     await waitFor(() => env.core.store.runs.get(event.run_id ?? "")?.ended_at, "legacy completion");
     assert.equal(llm.calls.length, 1);
-    assert.equal(env.core.store.flows.receive(flow.id, "one", { text: "replacement" }), "duplicate");
-    assert.deepEqual(env.core.store.flows.rows(flow.id, 10)[0]?.value, { text: "original" });
-    await env.client.call("flows.set", flow);
-    const document = await env.client.call("flows.graph_get", { flow: flow.id });
-    const socket = await env.client.connect();
-    try {
-      await assert.rejects(
-        socket.call("flows.publish", {
-          flow: flow.id,
-          expectedDraftVersion: 1,
-          expectedPublishedRevision: null,
-        }),
-        /publication is unavailable/,
-      );
-      assert.deepEqual(await socket.call("flows.graph_get", { flow: flow.id }), document);
-    } finally {
-      socket.close();
-      await socket.closed;
-    }
-    assert.equal(document.publishedRevision, null);
-    assert.equal(env.core.store.flows.events(flow.id, 10)[0]?.run_id, event.run_id);
+    assert.equal(event.executor, "legacy");
+    assert.equal(event.current, false);
+    const authorize = () => {};
+    assert.equal(env.core.store.flows.receive(flow.id, "one", { text: "replacement" }, authorize), "duplicate");
+    assert.equal(env.core.store.flows.receive(flow.id, "two", { text: "new" }, authorize), "pending");
+    env.core.flows.kick();
+    const two = await waitFor(
+      () => env.core.store.flows.events(flow.id, 10).find((e) => e.event_id === "two" && e.state === "succeeded"),
+      "graph run",
+    );
+    assert.equal(two.executor, "graph");
+    assert.equal(two.revision, 1);
+    assert.deepEqual(env.core.store.flows.rows(flow.id, 10)[0]?.value, { text: "new" });
     assert.equal(llm.calls.length, 1);
   } finally {
     await env.core.close();
@@ -114,7 +81,7 @@ test("a rejected graph publication keeps legacy pending work resumable through t
   }
 });
 
-test("LLM drafts never certify unknown or unsupported models while graph execution is unavailable", async () => {
+test("a model step names one exact model of a set-up provider; CLI, ACP and unknown references are refused", async () => {
   const llm = scriptedLlm(() => say("Must not run"));
   const env = await startCore({ llm });
   try {
@@ -128,7 +95,14 @@ test("LLM drafts never certify unknown or unsupported models while graph executi
       tableKey: "latest",
       action: { kind: "none" },
     });
-    for (const model of ["missing/no-such-model", "fake/no-such-model", "claude/opus", "codex", "acp:example/model"]) {
+    for (const model of [
+      "missing/no-such-model",
+      "fake",
+      "fake/fake-1#high",
+      "claude/opus",
+      "codex",
+      "acp:example/model",
+    ]) {
       const draft: FlowGraph = {
         ...graph,
         nodes: [
@@ -148,7 +122,7 @@ test("LLM drafts never certify unknown or unsupported models while graph executi
       };
       const result = await env.client.call("flows.validate", { flow: "models", graph: draft });
       assert.equal(result.valid, false, model);
-      assert.ok(result.issues.some((issue) => issue.node === "llm" && issue.code === "llm_execution_unavailable"));
+      assert.ok(result.issues.some((issue) => issue.node === "llm" && issue.code === "model_unavailable"));
       const previous = await env.client.call("flows.graph_get", { flow: "models" });
       const saved = await env.client.call("flows.draft_save", {
         flow: "models",
@@ -162,11 +136,31 @@ test("LLM drafts never certify unknown or unsupported models while graph executi
           expectedDraftVersion: saved.draftVersion,
           expectedPublishedRevision: null,
         }),
-        /publication is unavailable/,
+        /model is not set up/,
       );
-      assert.equal(saved.executionAvailable, false);
     }
     assert.equal((await env.client.call("flows.graph_get", { flow: "models" })).publishedRevision, null);
+    const ok = await env.client.call("flows.validate", {
+      flow: "models",
+      graph: {
+        ...graph,
+        nodes: [
+          { id: "start", kind: "webhook", label: "Webhook" },
+          {
+            id: "llm",
+            kind: "llm",
+            label: "Model",
+            model: "fake/fake-1",
+            prompt: "Summarize",
+            input: { kind: "event", path: [] },
+            maxOutputTokens: 100,
+            timeoutMs: 30000,
+          },
+        ],
+        edges: [{ source: "start", target: "llm" }],
+      },
+    });
+    assert.deepEqual(ok, { valid: true, issues: [] });
     assert.equal(llm.calls.length, 0);
   } finally {
     await env.core.close();

@@ -49,7 +49,10 @@ export const FlowGraph = z
   .object({
     schemaVersion: z.literal(2),
     nodes: z.array(FlowNode).min(1).max(32),
-    edges: z.array(z.object({ source: FlowNodeId, target: FlowNodeId }).strict()).max(64),
+    /** `when` picks a check's branch: "yes" (the default) runs when it matched, "no" when it did not. */
+    edges: z
+      .array(z.object({ source: FlowNodeId, target: FlowNodeId, when: z.enum(["yes", "no"]).optional() }).strict())
+      .max(64),
     layout: z
       .array(
         z
@@ -73,9 +76,61 @@ export const FlowGraphDocument = z
     draft: FlowGraph.nullable(),
     publishedRevision: z.number().int().min(1).nullable(),
     published: FlowGraph.nullable(),
-    executionAvailable: z.literal(false),
+    /** Published graphs run: new events use `publishedRevision`, events already admitted keep theirs. */
+    executionAvailable: z.boolean(),
   })
   .strict();
+
+/** How a step of a graph run ended, or where it stands. */
+export const FlowStepState = z.enum([
+  "pending",
+  "running",
+  "waiting_run",
+  "succeeded",
+  "skipped",
+  "blocked",
+  "failed",
+  "uncertain",
+  "cancelled",
+]);
+/** One step of one run: what it was given and gave back (capped previews), when, and the run it handed work to. */
+export const FlowStepRecord = z
+  .object({
+    node: FlowNodeId,
+    state: FlowStepState,
+    started_at: z.string().nullable(),
+    ended_at: z.string().nullable(),
+    /** JSON text, at most 4,000 characters; `truncated` says a longer value was cut for display. */
+    input: z.string().nullable(),
+    output: z.string().nullable(),
+    truncated: z.boolean(),
+    /**
+     * Why it did not succeed, as a code: missing_value, table_full, model_unavailable, model_refused, model_cut,
+     * model_uncertain, not_started, run_failed, run_canceled, run_silent, deadline, value_too_large.
+     */
+    error: z.string().nullable(),
+    run_id: z.string().nullable(),
+    thread_id: z.string().nullable(),
+  })
+  .strict();
+export type FlowStepRecord = z.infer<typeof FlowStepRecord>;
+export const FlowRunState = z.enum(["pending", "succeeded", "failed", "uncertain", "cancelled", "ignored"]);
+export const FlowRunDetail = z
+  .object({
+    flow: FlowId,
+    event: z.string(),
+    revision: z.number().int().min(1),
+    /** The revision is the one published now; false draws a previous version. */
+    current: z.boolean(),
+    graph: FlowGraph,
+    state: FlowRunState,
+    created_at: z.string(),
+    ended_at: z.string().nullable(),
+    deadline_at: z.string(),
+    steps: z.array(FlowStepRecord),
+  })
+  .strict();
+export type FlowRunDetail = z.infer<typeof FlowRunDetail>;
 
 export const flowGraphMethods = {
   "flows.graph_get": {
@@ -99,6 +154,13 @@ export const flowGraphMethods = {
   "flows.validate": {
     params: z.object({ flow: FlowId, graph: FlowGraph }).strict(),
     result: z.object({ valid: z.boolean(), issues: z.array(FlowGraphIssue) }).strict(),
+    effect: false,
+    access: "human",
+  },
+  /** One graph run step by step; legacy events have no steps (use `flows.events`). */
+  "flows.run_get": {
+    params: z.object({ flow: FlowId, event: z.string().min(1).max(256) }).strict(),
+    result: FlowRunDetail,
     effect: false,
     access: "human",
   },

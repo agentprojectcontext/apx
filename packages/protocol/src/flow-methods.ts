@@ -27,7 +27,8 @@ export type FlowDefinition = z.infer<typeof FlowDefinition>;
 export const FlowEvent = z.object({
   flow_id: Id,
   event_id: z.string(),
-  state: z.enum(["ignored", "written", "pending", "admitted", "failed"]),
+  /** Legacy: ignored, written, pending, admitted, failed. Graph: pending until it ends, then how it ended. */
+  state: z.enum(["ignored", "written", "pending", "admitted", "failed", "succeeded", "uncertain", "cancelled"]),
   created_at: z.string(),
   run_id: z.string().nullable(),
   run_state: z.string().nullable(),
@@ -36,6 +37,17 @@ export const FlowEvent = z.object({
   run_started_at: z.string().nullable().default(null),
   run_ended_at: z.string().nullable().default(null),
   run_tokens: z.number().int().nullable().default(null),
+  /** Which executor admitted it; a graph run's steps come from `flows.run_get`. */
+  executor: z.enum(["legacy", "graph"]).default("legacy"),
+  /** The graph revision it runs, and whether that is still the published one (false: a previous version). */
+  revision: z.number().int().nullable().default(null),
+  current: z.boolean().default(true),
+  /** Legacy: the index of the first check the data did not pass, when that is what stopped it. */
+  stopped_at: z.number().int().nullable().default(null),
+  /** Graph: the check that said no when nothing after it did any work (a run cut short), else null. */
+  stopped_by: z.string().nullable().default(null),
+  /** When a graph run ended. */
+  ended_at: z.string().nullable().default(null),
 });
 export const FlowEventCursor = z
   .object({ createdAt: z.string().datetime(), eventId: z.string().min(1).max(256) })
@@ -45,7 +57,11 @@ export const flowMethods = {
   ...flowGraphMethods,
   "flows.list": {
     params: z.object({ project: Id.optional() }).strict(),
-    result: z.object({ flows: z.array(FlowDefinition) }),
+    /** `published`: for each Flow that runs a drawing, its revision and step kinds in the order they run. */
+    result: z.object({
+      flows: z.array(FlowDefinition),
+      published: z.record(z.string(), z.object({ revision: z.number().int(), kinds: z.array(z.string()) })).default({}),
+    }),
     effect: false,
     access: "human",
   },

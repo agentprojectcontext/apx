@@ -2681,3 +2681,38 @@ a contact's and a read-only folder do not carry it. The default prompt's budget 
 from 7,500 to 8,000 for it (`PROMPT_SIZE.md`). Rejected: a lint word list for jargon (it would ban words, not
 explanations aimed at the wrong reader), and treating E2E as visual review (it proves a click works, not that
 the screen makes sense).
+
+<a id="d-167"></a>
+## D-167 — 2026-10-28 — A published Flow graph runs as drawn, on a small executor that never repeats an uncertain step
+The graph foundation stored drafts and refused every publication until an executor existed. Its design asked for
+much more than running a graph: execution modes with a return to legacy, quarantine, paginated export sessions with
+chained digests, a cross-node call/token budget, a value journal quota, fencing epochs and a cancel outbox. Each is
+a reasonable answer to a risk; together they kept anything from running.
+
+The executor that shipped keeps the guarantees that protect the owner and drops the machinery whose risk is bounded
+some other way:
+
+- **Revisions are immutable and pinned.** Publishing (CAS on the draft version and the published revision) inserts a
+  new revision and consumes the draft. Admission pins revision, redacted payload, deadline and node rows in the same
+  transaction as the `(flow,event)` dedup. Saving a draft or publishing never wakes or rewrites an event. Events
+  admitted by the legacy executor keep `executor='legacy'` and drain on it untouched; nothing is migrated.
+- **A step runs once.** Database steps commit their effect and checkpoint together. A model step commits
+  `dispatched` synchronously just before its single transport call (one exact model, no retry, no fallback, no
+  token renewal, no tools); a restart that finds it without output marks it `uncertain` for the owner, never
+  re-sends it. Agent and routine steps link their run to the step in the transaction that admits it, through the
+  router with an internal context no transport can set, and are never readmitted. Their output is the run's own
+  final answer; a failed, canceled, cut or silent run blocks what follows.
+- **Everything ends.** Each event has an absolute 10-minute deadline persisted at admission, each model step its own
+  timeout. At the deadline pending steps are cancelled, waiting runs are asked to cancel, and late results are kept
+  out of the graph. Disabling a Flow stops new steps; its deadline keeps running.
+- **Payloads stay data.** Bindings are fixed in the revision; the payload never picks an agent, routine, model, tool or
+  path. Values are redacted with the shared credential matcher (like legacy events) and capped at 32 KiB.
+- **Bounds instead of budgets.** At most four model steps per graph (one call each, ≤ 2,048 output tokens, ≤ 120 s),
+  32 nodes, one active event per Flow (FIFO) and four Flows advancing at once; agent and routine runs keep their
+  existing limits.
+
+Rejected for now: execution modes and return to legacy (a Flow returns to legacy by retiring and recreating it),
+quarantine (no database ever held a publication), export sessions and receipts (the CLI export now includes the graph
+and each run's steps; retirement keeps the owner's explicit `confirm-exported`), a cross-node budget and a cancel
+outbox (a canceled request is retried on every recovery pass). A routine step reuses the reviewed legacy routine
+admission, binding re-checked against the pinned revision, and keeps its usual delivery to the owner.

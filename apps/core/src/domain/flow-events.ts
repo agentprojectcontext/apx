@@ -6,6 +6,12 @@ import { sql } from "./sql.ts";
 const runTokens =
   "CASE WHEN r.usage IS NULL THEN NULL ELSE max(coalesce(json_extract(r.usage,'$.input'),0)-coalesce(json_extract(r.usage,'$.cached'),0),0)+coalesce(json_extract(r.usage,'$.output'),0) END";
 
+// Which executor admitted the event and the version it ran: a legacy event is a previous version once a graph is
+// published; a graph event is the current one while its revision is still the published one.
+const shape = `CASE WHEN e.executor='legacy' THEN 'legacy' ELSE 'graph' END AS executor, g.revision AS revision,
+  CASE WHEN e.executor='legacy' THEN d.published_revision IS NULL ELSE g.revision IS d.published_revision END AS current,
+  e.stopped_at AS stopped_at, g.stopped_by AS stopped_by, g.ended_at AS ended_at`;
+
 export class FlowCapacityError extends Error {}
 const occupied =
   "SELECT count(*) AS n FROM flow_events e LEFT JOIN runs r ON r.id=e.run_id WHERE (e.state='pending' OR (e.state='admitted' AND r.ended_at IS NULL))";
@@ -37,7 +43,7 @@ export function flowEventsRepo(db: Db) {
     events(id: string, limit: number, cursor?: FlowEventCursor) {
       return db
         .prepare(
-          `SELECT e.flow_id,e.event_id,e.state,e.created_at,e.run_id,r.state AS run_state,e.error,r.started_at AS run_started_at,r.ended_at AS run_ended_at,${runTokens} AS run_tokens FROM flow_events e LEFT JOIN runs r ON r.id=e.run_id WHERE flow_id=? AND (? IS NULL OR e.created_at<? OR (e.created_at=? AND e.event_id<?)) ORDER BY e.created_at DESC,e.event_id DESC LIMIT ?`,
+          `SELECT e.flow_id,e.event_id,e.state,e.created_at,e.run_id,r.state AS run_state,e.error,r.started_at AS run_started_at,r.ended_at AS run_ended_at,${runTokens} AS run_tokens,${shape} FROM flow_events e LEFT JOIN runs r ON r.id=e.run_id LEFT JOIN flow_graph_events g ON g.flow_id=e.flow_id AND g.event_id=e.event_id LEFT JOIN flow_graph_drafts d ON d.flow_id=e.flow_id WHERE e.flow_id=? AND (? IS NULL OR e.created_at<? OR (e.created_at=? AND e.event_id<?)) ORDER BY e.created_at DESC,e.event_id DESC LIMIT ?`,
         )
         .all(
           id,
@@ -47,7 +53,7 @@ export function flowEventsRepo(db: Db) {
           cursor?.eventId ?? null,
           limit,
         )
-        .map((r) => FlowEvent.parse(r));
+        .map((r) => FlowEvent.parse({ ...r, current: Boolean(r.current) }));
     },
     eventsPage(id: string, limit: number, cursor?: FlowEventCursor) {
       const found = api.events(id, limit + 1, cursor);

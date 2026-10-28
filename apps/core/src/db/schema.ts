@@ -107,6 +107,15 @@ export interface FlowEventsTable {
   thread_id: string | null;
   error: string | null;
   executor: Generated<string>;
+  stopped_at: number | null;
+}
+
+export interface FlowGraphDraftsTable {
+  flow_id: string;
+  version: number;
+  graph: string;
+  published_revision: number | null;
+  discarded: Generated<number>;
 }
 
 export interface FlowGraphEventsTable {
@@ -115,6 +124,9 @@ export interface FlowGraphEventsTable {
   revision: number;
   payload: string;
   deadline_at: string;
+  state: Generated<string>;
+  ended_at: string | null;
+  stopped_by: string | null;
 }
 
 export interface FlowGraphNodesTable {
@@ -128,6 +140,9 @@ export interface FlowGraphNodesTable {
   run_id: string | null;
   thread_id: string | null;
   error: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  phase: string | null;
 }
 
 export interface FlowGraphRevisionsTable {
@@ -664,6 +679,7 @@ export interface Database {
   devices: DevicesTable;
   extensions: ExtensionsTable;
   flow_events: FlowEventsTable;
+  flow_graph_drafts: FlowGraphDraftsTable;
   flow_graph_events: FlowGraphEventsTable;
   flow_graph_nodes: FlowGraphNodesTable;
   flow_graph_revisions: FlowGraphRevisionsTable;

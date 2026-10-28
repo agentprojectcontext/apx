@@ -41,6 +41,8 @@ function chain(graph: FlowGraph): FlowNode[] | FlowShapeProblem {
   const out = new Map<string, string[]>();
   const into = new Map<string, number>();
   for (const e of graph.edges) {
+    // A "no" branch is a second path: only the graph executor runs it.
+    if (e.when === "no") return { code: "branch", node: e.source };
     out.set(e.source, [...(out.get(e.source) ?? []), e.target]);
     into.set(e.target, (into.get(e.target) ?? 0) + 1);
   }

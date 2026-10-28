@@ -1,11 +1,18 @@
+import type { FlowGraph, FlowGraphIssue } from "../../../packages/protocol/src/flow-graph.ts";
 import type { FlowDefinition } from "../../../packages/protocol/src/flow-methods.ts";
 import { FlowCapacityError } from "./domain/flow-events.ts";
+import { validateFlowGraph } from "./domain/flow-graph-validate.ts";
 import { TERMINAL } from "./domain/runs.ts";
 import type { Store } from "./domain/store.ts";
+import type { RunTimers } from "./engine/engine.ts";
 import { badRequest, notFound } from "./errors.ts";
+import { createFlowGraphExecutor } from "./flow-graph-executor.ts";
 import type { Log } from "./log.ts";
+import type { Llm } from "./providers/llm.ts";
 import type { Dispatch } from "./rpc/router.ts";
 import type { PublicRoutes } from "./transport/hooks.ts";
+
+export type { FlowDefinition };
 
 export function validateFlowBinding(store: Store, flow: FlowDefinition) {
   if (!store.projects.get(flow.projectId)) throw notFound("Flow project not found");
@@ -21,8 +28,65 @@ export function validateFlowBinding(store: Store, flow: FlowDefinition) {
     throw badRequest("Flow agent is outside its project");
 }
 
-export function createFlows(deps: { store: Store; dispatch(): Dispatch | undefined; log: Log }) {
+/** Whether a model reference names an exact model of an active provider the owner set up. */
+export type FlowModelCheck = (ref: string) => boolean;
+
+/** Everything that keeps a graph from running in its Flow's project: its shape, its bindings and its models. */
+export function flowGraphIssues(
+  store: Store,
+  definition: FlowDefinition,
+  graph: FlowGraph,
+  model: FlowModelCheck,
+): FlowGraphIssue[] {
+  const issues: FlowGraphIssue[] = validateFlowGraph(graph);
+  for (const node of graph.nodes) {
+    try {
+      if (node.kind === "agent")
+        validateFlowBinding(store, {
+          ...definition,
+          action: { kind: "agent", agent: node.agent, prompt: node.prompt },
+        });
+      if (node.kind === "routine")
+        validateFlowBinding(store, { ...definition, action: { kind: "routine", routine: node.routine } });
+    } catch {
+      issues.push({
+        code: "binding_unavailable",
+        node: node.id,
+        message: "The chosen agent or routine is not available in this project",
+      });
+    }
+    if (node.kind === "llm" && !model(node.model))
+      issues.push({ code: "model_unavailable", node: node.id, message: "The chosen model is not set up" });
+  }
+  return issues;
+}
+
+export function createFlows(deps: {
+  store: Store;
+  dispatch(): Dispatch | undefined;
+  log: Log;
+  /** What a graph's model steps call, and which model references are set up; absent, graphs only queue. */
+  llm?: Llm | undefined;
+  model?: FlowModelCheck | undefined;
+  cancelThread?: ((thread: string) => void) | undefined;
+  timers?: RunTimers | undefined;
+}) {
   const { store } = deps;
+  const graphs = deps.llm
+    ? createFlowGraphExecutor({
+        store,
+        dispatch: deps.dispatch,
+        llm: deps.llm,
+        log: deps.log,
+        cancelThread: deps.cancelThread ?? (() => {}),
+        timers: deps.timers,
+      })
+    : undefined;
+  const model = deps.model ?? (() => false);
+  /** Admission checks a graph's bindings again: an agent moved or a routine changed since publishing stops it. */
+  const authorize = (flow: FlowDefinition) => (graph: FlowGraph) => {
+    if (flowGraphIssues(store, flow, graph, model).length) throw new Error("Flow graph binding changed");
+  };
   let closed = false;
   let running: Promise<void> | undefined;
   let requested = false;
@@ -100,6 +164,7 @@ export function createFlows(deps: { store: Store; dispatch(): Dispatch | undefin
   }
   const api = {
     kick() {
+      graphs?.kick();
       if (closed) return;
       requested = true;
       if (!running)
@@ -112,7 +177,7 @@ export function createFlows(deps: { store: Store; dispatch(): Dispatch | undefin
     },
     async close() {
       closed = true;
-      await running;
+      await Promise.all([running, graphs?.close()]);
     },
     publicEndpoints() {
       return store.flows
@@ -142,7 +207,10 @@ export function createFlows(deps: { store: Store; dispatch(): Dispatch | undefin
             )
               return { status: 400 };
             if (signal.aborted) return { status: 503 };
-            const state = store.flows.receive(id, event.id, event.data);
+            const flow = store.flows.get(id);
+            if (!flow) return { status: 404 };
+            const at = new Date(deps.timers?.now() ?? Date.now());
+            const state = store.flows.receive(id, event.id, event.data, authorize(flow), at);
             if (state === "pending") api.kick();
             return { status: 202, body: { state } };
           } catch (error) {

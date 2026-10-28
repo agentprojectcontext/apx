@@ -38,6 +38,8 @@ export function validateFlowGraph(value: FlowGraph): FlowGraphIssue[] {
     edges.add(key);
     parents.get(edge.target)?.add(edge.source);
     if (edge.source === edge.target) add("self_edge", "A node cannot connect to itself", edge.target);
+    if (edge.when && nodes.get(edge.source)?.kind !== "condition")
+      add("branch_source", "Only a check has yes and no branches", edge.target);
     if (nodes.get(edge.target)?.kind === "webhook")
       add("trigger_input", "The webhook trigger cannot have incoming connections", edge.target);
   }

@@ -1,7 +1,9 @@
 import { matchesFlowPredicates } from "../domain/flow-evaluate.ts";
+import { flowGraphOrder } from "../domain/flow-graph-semantics.ts";
+import { FlowGraphUnavailable } from "../domain/flow-graphs.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
-import { type Flows, validateFlowBinding } from "../flows.ts";
+import { type FlowModelCheck, type Flows, flowGraphIssues, validateFlowBinding } from "../flows.ts";
 import { flowGraphHandlers } from "./flow-graphs.ts";
 import type { Handlers } from "./router.ts";
 
@@ -9,6 +11,7 @@ export function flowHandlers(
   store: Store,
   flows: Flows,
   credentials: import("../public-credentials.ts").PublicCredentials,
+  model: FlowModelCheck,
 ) {
   const found = (id: string) => {
     const flow = store.flows.get(id);
@@ -16,18 +19,37 @@ export function flowHandlers(
     return flow;
   };
   return {
-    ...flowGraphHandlers(store),
-    "flows.list": ({ project }) => ({ flows: store.flows.list(project) }),
+    ...flowGraphHandlers(store, model),
+    "flows.list": ({ project }) => {
+      const flows = store.flows.list(project);
+      const published: Record<string, { revision: number; kinds: string[] }> = {};
+      for (const f of flows) {
+        const doc = store.flowGraphs.get(f.id);
+        if (doc.published && doc.publishedRevision !== null)
+          published[f.id] = {
+            revision: doc.publishedRevision,
+            kinds: flowGraphOrder(doc.published).map((n) => n.kind),
+          };
+      }
+      return { flows, published };
+    },
     "flows.set": (flow) => {
-      validateFlowBinding(store, flow);
       const previous = store.flows.get(flow.id);
       if (previous && previous.projectId !== flow.projectId) throw badRequest("Flow belongs to another project");
+      // A published Flow runs its drawing: its old definition is history, and turning it on checks the drawing.
+      const published = previous ? store.flowGraphs.get(flow.id).published : null;
+      if (published) {
+        if (flow.enabled && flowGraphIssues(store, flow, published, model).length)
+          throw badRequest("The drawing can't run as it is: open it in the editor to fix it");
+      } else validateFlowBinding(store, flow);
       try {
         if (!previous) credentials.revoke(`/flows/${flow.id}`);
         const saved = store.flows.save(flow);
         flows.kick();
         return saved;
-      } catch {
+      } catch (error) {
+        if (error instanceof FlowGraphUnavailable)
+          throw badRequest("This flow runs its drawing: change it in the editor");
         throw badRequest("Invalid Flow definition or capacity exceeded");
       }
     },
@@ -53,7 +75,7 @@ export function flowHandlers(
         result = store.flows.retire(flow);
       } catch {
         throw badRequest(
-          "Disable the Flow and finish or cancel its active runs before retiring it; graph retirement is unavailable until complete graph export is supported; the identifier stays reserved",
+          "Disable the Flow, let its runs end and publish or discard unpublished changes before retiring it; the identifier stays reserved",
         );
       }
       try {

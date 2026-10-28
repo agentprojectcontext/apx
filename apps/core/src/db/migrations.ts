@@ -975,4 +975,15 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX flow_graph_events_revision ON flow_graph_events(flow_id, revision);
   CREATE INDEX flow_graph_nodes_revision ON flow_graph_nodes(flow_id, revision);
   `,
+  // Graph runs: how each run and step ended and when; `phase` marks a model call sent (DECISIONS.md#d-167).
+  `
+  ALTER TABLE flow_events ADD COLUMN stopped_at INTEGER;
+  ALTER TABLE flow_graph_events ADD COLUMN state TEXT NOT NULL DEFAULT 'pending';
+  ALTER TABLE flow_graph_events ADD COLUMN ended_at TEXT;
+  ALTER TABLE flow_graph_events ADD COLUMN stopped_by TEXT;
+  ALTER TABLE flow_graph_nodes ADD COLUMN started_at TEXT;
+  ALTER TABLE flow_graph_nodes ADD COLUMN ended_at TEXT;
+  ALTER TABLE flow_graph_nodes ADD COLUMN phase TEXT;
+  CREATE INDEX flow_graph_events_state ON flow_graph_events(state);
+  `,
 ];
