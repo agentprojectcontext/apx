@@ -159,6 +159,10 @@ export function messageTools(store: Store, home: string): Tool[] {
           ...(a.channel ? { channel: a.channel } : {}),
           ...(files.ids.length ? { files: files.ids } : {}),
         });
+        if ("withheld" in r)
+          return r.withheld === "held"
+            ? `held: the owner's quiet hours are on; the text goes when they end${files.ids.length ? ", without the files" : ""}. Do not send it again.`
+            : "not sent: the owner's notice budget did not let it through (today's cap, another notice too soon, or a kind they marked unhelpful). Do not retry; it stays in this chat.";
         return sentNote(who.name, r, files.ids.length, "contact_chat");
       },
     }),

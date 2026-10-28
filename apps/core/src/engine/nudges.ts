@@ -96,6 +96,8 @@ export type Offer = {
   critical?: boolean | undefined;
   /** Another agent's (not the super-agent's): told in the team news when a relay routine runs. */
   relay?: boolean | undefined;
+  /** Sends it its own way (an agent's message_contact, with its channel and files); held, it goes as plain text. */
+  send?: (() => boolean) | undefined;
 };
 
 /** A relay routine is on: the super-agent tells the owner the other agents' news, in one message. */
@@ -115,7 +117,7 @@ export function createNudges(deps: {
   function deliver(o: Offer, exempt: boolean, reason?: string): Nudge["state"] {
     const id = nudgeId();
     const rate = rateable(o.kind) ? id : undefined;
-    const state = deps.send(o.text, o.thread_id, rate) ? "sent" : "no_channel";
+    const state = (o.send ? o.send() : deps.send(o.text, o.thread_id, rate)) ? "sent" : "no_channel";
     store.nudges.add({ id, ...strip(o), at: clock().toISOString(), state, exempt, ...(reason ? { reason } : {}) });
     return state;
   }

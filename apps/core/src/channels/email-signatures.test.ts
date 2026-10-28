@@ -7,6 +7,12 @@ import { emailAdapter } from "./email.ts";
 import { parseMail } from "./email-mime.ts";
 import { fakeImap, fakeSmtp, mail } from "./fake-email.test-support.ts";
 
+/** The owner's own sends are never withheld by the notice budget. */
+function sentNow<R extends object>(r: R): Exclude<R, { withheld: unknown }> {
+  assert.ok(!("withheld" in r), "sent now");
+  return r as Exclude<R, { withheld: unknown }>;
+}
+
 const address = "user@example.com";
 const pass = "test-password";
 const signature = {
@@ -61,16 +67,14 @@ test("the production SMTP factory resolves signatures by channel and sender; omi
     });
     const contact = env.core.store.persons.create({ name: "Acme contact", role: "contact" });
     env.core.store.persons.link(contact.id, { channel: "email", external_id: "contact@example.com" });
-    const sent = await env.client.call("channels.message", { person: contact.id, text: "Hello" });
+    const sent = sentNow(await env.client.call("channels.message", { person: contact.id, text: "Hello" }));
     assert.equal(sent.delivery.state, "sent");
     const first = smtp.sent.at(-1);
     assert.ok(first);
     assert.deepEqual(parts(first.raw), ["Hello\r\n\r\n-- \r\nAcme", `Hello<br><br><div>${signature.html}</div>`]);
-    const omitted = await env.client.call("channels.message", {
-      person: contact.id,
-      text: "No footer",
-      omit_signature: true,
-    });
+    const omitted = sentNow(
+      await env.client.call("channels.message", { person: contact.id, text: "No footer", omit_signature: true }),
+    );
     assert.equal(omitted.delivery.state, "sent");
     assert.deepEqual(parts(smtp.sent.at(-1)?.raw ?? ""), ["No footer"]);
     await env.client.call("channels.send", { thread: sent.thread, text: "Direct", omit_signature: true });

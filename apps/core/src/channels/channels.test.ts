@@ -26,6 +26,8 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("slow job") && !afterTool) return callTool("s1", "slowpoke", {});
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 80)}`);
   if (said.includes("launch the probe")) return callTool("p1", "probe", {});
+  if (said.includes("ping me on telegram"))
+    return callTool("me1", "message_contact", { to: "me", text: "Ping from the agent.", channel: "tg" });
   if (said.includes("pick the days"))
     return callTool("q1", "ask_owner", {
       question: "Which days work for the Northwind review?",
@@ -633,6 +635,40 @@ test("with no chat app for notices, the owner's chat app hears only what follows
     const pending = (await env.client.call("runs.pending", { thread: t.id })).inputs[0];
     await env.client.call("runs.respond", { input: pending?.id ?? "", decision: "deny" });
     await env.settle(t.id);
+  } finally {
+    await env.client.call("notices.set", prefs);
+  }
+});
+
+test("an agent writing to the owner unasked goes through the notice budget; asked by the owner it just goes (DECISIONS.md#d-035)", async () => {
+  const store = env.core.store;
+  const prefs = await env.client.call("notices.get", {});
+  const { quiet_from: _f, quiet_to: _t, ...open } = prefs;
+  await env.client.call("notices.set", { ...open, budget_per_day: 1, project_gap_min: 0, kind_gap_min: 0 });
+  const pings = () =>
+    tg.sent.filter((m) => m.method === "sendMessage" && String(m.body.text).includes("Ping from the agent")).length;
+  try {
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    await env.client.call("threads.send", { thread: t.id, text: "ping me on telegram" });
+    await waitFor(() => pings() === 1, "the owner's own request goes");
+    await env.settle(t.id);
+    // Today's one unasked message is already out: a routine's ping is held back, and the agent is told.
+    store.nudges.add({ kind: "routine:other", text: "earlier news", state: "sent", exempt: false });
+    const r = await env.client.call("routines.set", {
+      name: "Ping",
+      agent: "roby",
+      schedule: { kind: "manual" },
+      prompt: "ping me on telegram",
+    });
+    const run = await env.client.call("routines.run", { routine: r.id });
+    await env.settle(run.thread_id);
+    const told = await env.client.call("threads.get", { thread: run.thread_id });
+    assert.ok(
+      told.messages.some((m) => m.parts.some((p) => p.type === "text" && p.text.includes("notice budget"))),
+      "the agent heard why",
+    );
+    assert.equal(pings(), 1, "nothing past the cap reached Telegram");
+    await env.client.call("routines.remove", { routine: r.id });
   } finally {
     await env.client.call("notices.set", prefs);
   }

@@ -362,6 +362,11 @@ routine's thread (its answer is already delivered) and between agents (the answe
 not among a contact's tools. It asks the owner's OK while outside content is in the turn: an injected page must not
 write to the owner in APX's voice. The tool reports what the gate did, so a dropped message is not retried.
 
+Changed 2026-10-28: `message_contact` with `to="me"` was a second way to the owner's phone with no cap, quiet hours or
+👎. An agent's message to the owner in a run the owner did not ask for (`ownerAsked`) now goes through the same budget
+in `channels.message`, as `agent:<id>`, keeping its channel and files when it goes now; held for quiet hours, only its
+text goes later. In a run the owner asked for ("send it to my WhatsApp") it goes as before.
+
 <a id="d-036"></a>
 ## D-036 — 2026-10-04 — A commitment ends kept, missed or released; a new date is an event, not an outcome
 `tasks.settle` records how a commitment went. Kept closes it as done; missed (its date passed undelivered) and

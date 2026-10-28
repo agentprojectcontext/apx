@@ -103,6 +103,9 @@ const Sent = z.object({
   delivery: z.object({ state: OutboxState, error: z.string().optional() }),
 });
 
+/** A message to the owner their notice budget did not let through now: held for quiet hours, or dropped. */
+const Withheld = z.object({ withheld: z.enum(["held", "dropped"]) });
+
 const MemoryJobs = z.array(
   z.object({
     id: Id,
@@ -1105,7 +1108,7 @@ export const appMethods = {
         files: z.array(Id).max(5).optional(),
       })
       .strict(),
-    result: Sent,
+    result: z.union([Sent, Withheld]),
     effect: true,
   },
   /**
