@@ -97,7 +97,7 @@ test("a schedule ticks on the scheduler's beat: one run per time due, counted fr
 });
 
 test("a time due is admitted once per Flow: a second tick for it is a duplicate", async () => {
-  const env = await startCore({ llm: scriptedLlm(() => say("Unused")) });
+  const env = await startCore({ llm: scriptedLlm(() => say("Unused")), clock: () => at("2026-11-02T10:00:00Z") });
   try {
     const flow = await publish(env, "dedup", graphOf(tick, save(["scheduled_at"])));
     env.core.flows.tick(at("2026-11-02T10:00:00Z"));
@@ -151,13 +151,15 @@ test("times missed while the core was off run once when it starts, not once each
 });
 
 test("a Flow that is off does not tick, and turned on owes nothing from while it was off", async () => {
-  const env = await startCore({ llm: scriptedLlm(() => say("Unused")) });
+  let now = at("2026-11-02T10:00:00Z");
+  const env = await startCore({ llm: scriptedLlm(() => say("Unused")), clock: () => now });
   try {
     const flow = await publish(env, "off", graphOf(tick, save(["scheduled_at"])), false);
     env.core.flows.tick(at("2026-11-02T10:00:00Z"));
     env.core.flows.tick(at("2026-11-02T10:05:01Z"));
     assert.equal(events(env, flow).length, 0);
     assert.equal(env.core.store.flowSchedules.since(flow), undefined);
+    now = at("2026-11-02T10:06:00Z");
     await turn(env, flow, true);
     env.core.flows.tick(at("2026-11-02T10:06:00Z"));
     env.core.flows.tick(at("2026-11-02T10:10:01Z"));
@@ -165,6 +167,7 @@ test("a Flow that is off does not tick, and turned on owes nothing from while it
     // Off again in the middle: its count is dropped, the 10:15 time never runs.
     await turn(env, flow, false);
     env.core.flows.tick(at("2026-11-02T10:15:01Z"));
+    now = at("2026-11-02T10:16:00Z");
     await turn(env, flow, true);
     env.core.flows.tick(at("2026-11-02T10:16:00Z"));
     env.core.flows.tick(at("2026-11-02T10:19:59Z"));
@@ -436,6 +439,39 @@ test("Try a run follows a branched drawing without doing any of its work", async
       ],
     );
     assert.equal(env.core.store.flows.list().length, 0);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("turning a Flow on or publishing a new schedule counts from then: an old count owes nothing", async () => {
+  let now = at("2026-11-02T08:59:50Z");
+  const env = await startCore({ llm: scriptedLlm(() => say("Unused")), clock: () => now });
+  try {
+    env.core.store.settings.write("owner_profile", { about: "", timezone: "UTC" });
+    const daily = { ...tick, cron: "0 9 * * *" };
+    const flow = await publish(env, "renew", graphOf(daily, save(["scheduled_at"])));
+    // Turned on ten seconds before its time, within one beat: that time is still owed.
+    now = at("2026-11-02T09:00:05Z");
+    env.core.flows.tick(now);
+    assert.equal(events(env, flow)[0]?.scheduled_at, "2026-11-02T09:00:00.000Z");
+    // Hours later the owner makes it hourly: the hours since 09:00 under the old count are not owed.
+    now = at("2026-11-02T15:30:00Z");
+    const draft = await env.client.call("flows.draft_save", {
+      flow,
+      expectedVersion: (await env.client.call("flows.graph_get", { flow })).draftVersion,
+      graph: graphOf({ ...tick, cron: "0 * * * *" }, save(["scheduled_at"])),
+    });
+    await env.client.call("flows.publish", {
+      flow,
+      expectedDraftVersion: draft.draftVersion ?? 0,
+      expectedPublishedRevision: 1,
+    });
+    env.core.flows.tick(now);
+    assert.equal(events(env, flow).length, 1);
+    env.core.flows.tick(at("2026-11-02T16:00:04Z"));
+    assert.equal(events(env, flow)[0]?.scheduled_at, "2026-11-02T16:00:00.000Z");
   } finally {
     await env.core.close();
     await env.cleanup();

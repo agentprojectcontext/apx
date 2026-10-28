@@ -41,6 +41,18 @@ export function flowSchedulesRepo(db: Db) {
           .onConflict((c) => c.column("flow_id").doNothing()),
       );
     },
+    /** Counts from `at`, owing nothing before: a Flow turned on, or published with a new schedule. */
+    reset(flow: string, at: Date): void {
+      run(
+        qb
+          .insertInto("flow_schedules")
+          .values({ flow_id: flow, since: at.toISOString() })
+          .onConflict((c) => c.column("flow_id").doUpdateSet({ since: at.toISOString() })),
+      );
+    },
+    stop(flow: string): void {
+      run(qb.deleteFrom("flow_schedules").where("flow_id", "=", flow));
+    },
     /** The time is spent: the next one is counted from `at`. */
     advance(flow: string, at: Date): void {
       run(qb.updateTable("flow_schedules").set({ since: at.toISOString() }).where("flow_id", "=", flow));

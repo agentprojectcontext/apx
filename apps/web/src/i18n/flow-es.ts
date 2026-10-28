@@ -326,5 +326,6 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.stop.keep": "Seguir corriendo",
   "flow.stop.done": "Ronda detenida.",
   "flow.stop.uncertain": "Ronda detenida. Un paso ya se había mandado: queda para revisar.",
+  "flow.stop.failed": "No se pudo detener la ronda. Probá de nuevo.",
   "flow.stop.ended": "Esa ronda ya había terminado.",
 };

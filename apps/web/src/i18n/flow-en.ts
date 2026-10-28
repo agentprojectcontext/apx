@@ -320,5 +320,6 @@ export const enFlow = {
   "flow.stop.keep": "Keep running",
   "flow.stop.done": "Run stopped.",
   "flow.stop.uncertain": "Run stopped. One step was already sent: it needs a look.",
+  "flow.stop.failed": "Couldn't stop the run. Try again.",
   "flow.stop.ended": "That run had already ended.",
 } as const;

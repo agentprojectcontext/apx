@@ -18,6 +18,9 @@ import type { PublicRoutes } from "./transport/hooks.ts";
 
 export type { FlowDefinition };
 
+/** A published drawing's agent, routine or model is no longer available to it. */
+class FlowBindingChanged extends Error {}
+
 /** The zone schedules run in: the owner's, else this machine's. */
 export const flowTimeZone = (store: Store): string =>
   ownerTimeZone(store) ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -95,7 +98,7 @@ export function createFlows(deps: {
   const model = deps.model ?? (() => false);
   /** Admission checks a graph's bindings again: an agent moved or a routine changed since publishing stops it. */
   const authorize = (flow: FlowDefinition) => (graph: FlowGraph) => {
-    if (flowGraphIssues(store, flow, graph, model).length) throw new Error("Flow graph binding changed");
+    if (flowGraphIssues(store, flow, graph, model).length) throw new FlowBindingChanged("Flow graph binding changed");
   };
   let closed = false;
   let running: Promise<void> | undefined;
@@ -236,6 +239,7 @@ export function createFlows(deps: {
       } catch (err) {
         if (err instanceof FlowCapacityError) throw conflict("This flow has too many runs waiting");
         if (err instanceof FlowTriggerMismatch) throw conflict("This flow can't be run by hand");
+        if (err instanceof FlowBindingChanged) throw conflict("The drawing can't run as it is: open it in the editor");
         throw badRequest("That body can't start a run");
       }
     },

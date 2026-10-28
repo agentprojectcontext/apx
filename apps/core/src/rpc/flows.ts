@@ -18,13 +18,25 @@ export function flowHandlers(
   model: FlowModelCheck,
 ) {
   const flowsNow = () => flows.now();
+  const graphHandlers = flowGraphHandlers(store, model);
   const found = (id: string) => {
     const flow = store.flows.get(id);
     if (!flow) throw notFound("Flow not found");
     return flow;
   };
   return {
-    ...flowGraphHandlers(store, model),
+    ...graphHandlers,
+    "flows.publish": (params) => {
+      const scheduleOf = () => store.flowGraphs.get(params.flow).published?.nodes.find((n) => n.kind === "schedule");
+      const before = JSON.stringify(scheduleOf() ?? null);
+      const doc = graphHandlers["flows.publish"](params);
+      // A new schedule (or a trigger changed) owes nothing from the old one's count; off, it keeps none.
+      if (JSON.stringify(scheduleOf() ?? null) !== before) {
+        if (store.flows.get(params.flow)?.enabled) store.flowSchedules.reset(params.flow, flowsNow());
+        else store.flowSchedules.stop(params.flow);
+      }
+      return doc;
+    },
     "flows.list": ({ project }) => {
       const flows = store.flows.list(project);
       const published: Record<string, { revision: number; kinds: string[] }> = {};
@@ -59,6 +71,9 @@ export function flowHandlers(
       try {
         if (!previous) credentials.revoke(`/flows/${flow.id}`);
         const saved = store.flows.save(flow);
+        // Turned on, a schedule counts from now: its next time is the first owed, even within the scheduler's beat.
+        if (saved.enabled && !previous?.enabled && store.flowGraphs.trigger(flow.id) === "schedule")
+          store.flowSchedules.reset(flow.id, flowsNow());
         flows.kick();
         return saved;
       } catch (error) {

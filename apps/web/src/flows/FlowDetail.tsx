@@ -210,7 +210,7 @@ export function FlowDetail({
       setStopping(false);
       setRevision((n) => n + 1);
     } catch {
-      notify(t("flow.ed.saveFailed"));
+      notify(t("flow.stop.failed"));
     } finally {
       setBusy(false);
     }
@@ -463,7 +463,8 @@ async function lastBody(flow: string, runs: FlowRun[] | undefined): Promise<stri
   try {
     const d = await loadRun(flow, last.event_id);
     const start = d.steps.find((s) => d.graph.nodes.some((n) => n.id === s.node && isTrigger(n.kind)));
-    if (!start?.output || start.truncated) return "{}";
+    // A body kept with credentials blanked out would send the placeholders: start from an empty one instead.
+    if (!start?.output || start.truncated || start.output.includes("[redacted]")) return "{}";
     return JSON.stringify(JSON.parse(start.output), null, 2);
   } catch {
     return "{}";
