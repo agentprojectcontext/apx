@@ -67,7 +67,7 @@ Empty objects, non-object values, nonmatching events and duplicates do not invok
 
 ## Protocol, CLI and tools
 
-All management operations use the private protocol registry: `flows.list`, `flows.set`, `flows.rows`, `flows.write`, `flows.events`, `flows.retry`, `flows.retire`, `flows.try`, and for drawings `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate`, `flows.publish`, `flows.run_get`, `flows.next_runs`, `flows.run_now`, `flows.cancel_run`, `flows.try_graph`. External `chat` tokens cannot call them.
+All management operations use the private protocol registry: `flows.list`, `flows.set`, `flows.rows`, `flows.write`, `flows.events`, `flows.retry`, `flows.retire`, `flows.try`, and for drawings `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate`, `flows.outward`, `flows.publish`, `flows.run_get`, `flows.next_runs`, `flows.run_now`, `flows.cancel_run`, `flows.try_graph`. External `chat` tokens cannot call them.
 
 `flows.events` rows carry `run_started_at`, `run_ended_at` and `run_tokens` (fresh tokens, counted as in run usage:
 input less cached plus output) from the linked run, `null` until the run has them. They also say which executor
@@ -76,7 +76,8 @@ admitted the event (`executor`: `legacy` or `graph`), the graph `revision` it ru
 did not pass) and, for graph runs, `stopped_by` (the check that said no when no step doing work ran) and `ended_at`.
 Graph run states are `pending`, `succeeded`, `failed`, `uncertain`, `cancelled` or `ignored`. Rows also carry `source`
 (`webhook`, `schedule` or `owner`), `scheduled_at` (a schedule's due time) and `cancelled_by_owner`.
-`flows.list` adds `schedules` (each schedule Flow's cron and `next_at`, null while off) and `time_zone`. `flows.list` adds
+`flows.list` adds `schedules` (each schedule Flow's cron, `next_at`, null while off, and `skipped`/`skipped_at`: times
+skipped since it was turned on because its last run was still going) and `time_zone`. `flows.list` adds
 `published`: each published Flow's revision and step kinds in run order. `flows.try {predicates, data}` is a
 dry run with the admission rule (a nonempty object that matches every predicate); it reads no table, saves no event,
 admits no run and calls no model. Sample data is limited to 32 KiB.
@@ -88,6 +89,8 @@ apx flows rows inbox
 apx flows write inbox config '{"language":"en"}'
 apx flows events inbox
 apx flows retry inbox source-event-1
+apx flows run inbox '{"type":"message"}'   # Run now (owner only; refused inside an agent's command)
+apx flows stop inbox owner:<uuid>          # Stop run
 # Disable the Flow, finish/cancel active runs and stop manual edits before export.
 apx flows export inbox --project p_example > inbox-backup.json
 # Verify the saved definition, row count, event count and file readability before deletion.
@@ -125,8 +128,9 @@ The super-agent discovers the same operations through the existing `apx_settings
 See [D-167](DECISIONS.md#d-167) for what the executor keeps and what the design left out.
 
 **Documents and revisions.** `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate` and
-`flows.publish` are owner-only. Graphs use `schemaVersion: 2`, at most 32 typed nodes (webhook, condition, table_read,
-table_write, llm, agent, routine), 64 edges, four llm nodes and 128 KiB. Edges out of a condition carry `when: "yes" |
+`flows.publish` are owner-only. Graphs use `schemaVersion: 2`, at most 32 typed nodes (webhook, schedule, condition,
+table_read, table_write, llm, agent, routine, notify, http), 64 edges, four llm nodes, eight notify + http nodes and
+128 KiB. Edges out of a condition carry `when: "yes" |
 "no"` (absent means yes). Bindings are `literal`, `event` (a path in the payload) or `node` (a path in an earlier
 step's output); no code or expression is evaluated, and `__proto__`/`constructor`/`prototype` are refused. Draft saves
 use `expectedVersion` CAS; saving a drawing equal to the publication keeps no draft. `flows.validate` and publication
@@ -186,6 +190,69 @@ cancelan los pasos pendientes y se piden detener los trabajos en curso. Un Flow 
 retirar un Flow publicado: apagalo, esperá que terminen sus rondas, publicá o descartá cambios sin publicar y
 confirmá la exportación.
 
+## Notify and outgoing HTTP steps
+
+See [D-169](DECISIONS.md#d-169). Both act outside APX, so each goes out at most once and its destination is a fixed
+field of the published revision.
+
+**Templates.** `notify.text`, `http.headers[].value` and `http.body` are text with placeholders: `$trigger[.path]` (the
+pinned payload), `$steps.<node>[.path]` (an earlier step's output, an ancestor as for bindings) and `$$` for `$`. Each
+placeholder parses to an ordinary `event` / `node` binding (at most 32 per template, `__proto__`/`constructor`/
+`prototype` refused, `template_invalid` otherwise); a string is inserted as is, anything else as JSON. Nothing is
+evaluated. An HTTP body that parses as JSON is filled structurally: a string that is exactly one placeholder takes the
+bound value's JSON type, other strings are interpolated, keys stay the owner's (a payload can't add keys or break the
+JSON).
+
+**notify** `{channel, to: {kind:"contact", person} | {kind:"room", room}, text, onlyIfContent}`. `channel` is a channel
+config id; the person must have an address on it (the owner is a person too), the room must be listed on it; otherwise
+`destination_unavailable` at validation, admission and run time. The payload only fills `text` (capped at 4,000
+characters). `onlyIfContent`: every placeholder empty (absent, null, blank, `[]`, `{}`) → the step is `skipped`
+(`nothing_to_tell`) and its descendants skip; off, an absent field fails `missing_value`. Sending: claim `reserved`, then
+one transaction checks the Flow's hourly limit (20 rows in `flow_sends` in the last hour, else `rate_limited`, nothing
+sent), records the send and commits `dispatched`; then the channel's outbox takes it (`messageContact` with an exact
+channel id, or `postToRoom` by ids, never by name) and the step waits up to 60 s: `sent` → succeeded with
+`{channel, to, text, delivery}`; refused → `send_failed`; uncertain or still queued → `uncertain` (`send_uncertain`). A
+restart, Stop run or the deadline after `dispatched` leaves it uncertain; it is never sent again. The message is kept in
+that chat as the owner's words; room posts go through the room's mention rules (no `@everyone`).
+
+**http** `{method: GET|POST|PUT, url, headers ≤ 16, body, timeoutMs 1–30 s}`. The URL is fixed: http(s) only, no
+credentials, no `secret://`, no placeholders; a literal private address or a name without a dot is refused
+(`url_private`, `url_invalid`, `url_secret`). Headers: token names, no hop-by-hop/`host`/`content-length`/`proxy-*`
+(`header_refused`), one line each. Secrets only as `secret://name` in a header's own text (`url_secret`, `body_secret`,
+`credential_literal` for a credential-named header without one or a key-shaped literal, `secret_missing` when it does
+not resolve for the Flow's project). At run time references are resolved with `resolveIn(ref, project)` inside the
+step, only in literal text (a payload that contains `secret://x` is sent as those words); a rendered header with
+CR/LF/NUL fails `value_invalid`. The request (`flow-http.ts`): the name is resolved once (5 s), every address must pass
+the egress policy (`vmAddressAllowed`: public Internet only; no loopback, private, CGNAT, link-local/metadata, ULA,
+mapped, documentation ranges or this host's interfaces, else `destination_refused`), the socket connects to the checked
+address through a pinned `lookup` (TLS still verifies the name) and its remote address is checked again before any
+byte is written. No redirects are followed (3xx and `location` are the output), no environment proxy, `agent: false`.
+A non-GET commits `dispatched` on connect, before writing; after that, no answer is `uncertain`
+(`request_uncertain`), before it `request_failed`. A GET never commits `dispatched` (a restart runs it again) and tries
+once more after a network error with no answer. Any HTTP answer succeeds, so a check can branch on it: output
+`{status, ok, bytes, truncated, content_type?, location?, json? | body? | binary}` — at most 256 KiB read, JSON kept
+when it fits 24 KiB, else up to 16 KiB of text; binary (by type, NUL or invalid UTF-8) only said. Resolved secret values
+are cut from the answer (`[secret]`) and the shared redactor runs on every stored value; the recorded input shows
+`secret://name`. Logs carry no URL, payload or answer. `APX_FLOW_HTTP_ALLOW` (exact loopback `host:port`, comma-separated,
+config-injected) lets a test core reach its own fake service; a real core leaves it empty.
+
+**Consent.** `flows.outward {flow, graph}` lists what a drawing does outside: `sends` (channel label and kind, `to`:
+a name or `you`), `calls` (method, host) and `keys` (`send:<channel>:contact:<person>` / `send:<channel>:room:<room>` /
+`call:<method>:<url>`). `flows.publish` refuses a draft with notify or http steps (`outward_unconfirmed`) unless its
+`outward` equals those keys. The panel asks the owner (**Let this flow act for you?**) when a key is not in the
+published revision's list, and publishes with the keys they allowed; Not now keeps the previous revision.
+
+**Schedules that outrun their interval.** A beat that finds a time due while the Flow still has a pending run skips it:
+`since` moves on, `flow_schedules.skipped` counts it and `skipped_at` keeps when, logged without payload. Nothing queues
+behind a slow run; Run now still queues (FIFO), since the owner asked for it.
+
+**Español:** Avisar manda como vos a una persona o sala fija del dibujo publicado; lo que llega solo llena el texto
+(`$trigger.campo`, `$steps.paso.campo`). Un webhook saliente llama a una URL fija; las claves van como
+`secret://nombre` en headers. Publicar un dibujo con estos pasos exige mostrar al dueño a dónde manda y qué llama
+(`flows.outward`), y `flows.publish` lo verifica. Cada envío y cada pedido que cambia algo sale una vez: si después de
+mandarlo no hay respuesta, queda **Para revisar**. Nada a esta computadora ni a redes privadas, ni siquiera por un
+nombre que apunte ahí, y sin seguir redirecciones. Un horario cuya ronda anterior sigue corriendo se salta, no se encola.
+
 ## Schedules, Run now and Stop run
 
 See [D-168](DECISIONS.md#d-168).
@@ -217,7 +284,9 @@ the trigger step's recorded output of the last run that kept one.
 starting and waiting steps become `cancelled` (`owner_cancelled`), a model step already `dispatched` becomes
 `uncertain` (`cancelled_after_send`, never re-sent); the run ends `uncertain` if any step is, else `cancelled`. The
 executor then aborts its model call in flight and asks runs its steps started to stop (as at a deadline). An ended run
-returns `{cancelled: false}`.
+returns `{cancelled: false}`. A notify or non-GET HTTP step already `dispatched` is left `uncertain` the same way. The
+CLI calls both (`apx flows run|stop`, refused inside an agent's command); they stay out of the super-agent's
+`apx_settings` reach, since a run can now send as the owner.
 
 **Try a run.** `flows.try_graph {graph, data}` walks the run's own planner over sample data (≤ 32 KiB): triggers and
 checks are evaluated, a branch not taken is skipped, a step that does work is `would_run`, a step whose binding needs an
@@ -245,8 +314,9 @@ legacy shape gets a disabled table-only definition so the drawing has a Flow to 
 **No** outlets; the chip next to each connection in **Goes on to** switches its branch. **Try a run**
 (`flows.try_graph`) follows any drawing. A new Flow's drawing is validated against its chosen project before the first
 save. The detail draws the revision a run used (legacy runs of a published Flow draw the old
-definition) and says **Previous version** when it is not the current one. Coming-soon kinds (SQL, outgoing webhook, Cmd,
-notify) are not in the schema and cannot be added.
+definition) and says **Previous version** when it is not the current one. Coming-soon kinds (SQL, Cmd) are not in the
+schema and cannot be added. Notify picks its channel and person or room from the owner's own lists; its message and an
+outgoing webhook's body have **Add** buttons for `$trigger.` and each earlier step's result.
 
 ## Verification and rollout
 
