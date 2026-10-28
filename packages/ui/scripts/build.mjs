@@ -47,4 +47,6 @@ const sheets = [...readFileSync("src/styles/components.css", "utf8").matchAll(/@
 );
 const css = ["tokens.css", ...sheets].map((f) => readFileSync(`src/styles/${f}`, "utf8")).join("\n");
 writeFileSync("dist/styles.css", css);
-console.log("built dist/ (index.js, index.d.ts, styles.css)");
+// Flow steps and run bars are only on the Flows screens, which load late: their sheet stays off the first load.
+writeFileSync("dist/flow.css", readFileSync("src/styles/components/flow.css", "utf8"));
+console.log("built dist/ (index.js, index.d.ts, styles.css, flow.css)");

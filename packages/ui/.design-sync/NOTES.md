@@ -14,6 +14,9 @@
 - Preview content uses generic names only (Acme, Northwind, Globex, Roby, Ledger, Scout…). Never real client/project names.
 
 ## Pending re-sync
+- FlowStep (a Flow step card on a canvas, with its run state) and RunBars (recent runs as bars) are new, for the
+  Flows screens; neither is in the Claude Design project yet. Their CSS is `dist/flow.css`, outside `styles.css` (it
+  stays off the panel's first load): a re-sync bundles it too.
 - AgentAvatar's eye canvas now keeps its full size inside icon buttons; re-sync the shared CSS bundle.
 - Meter is new (single or stacked bar with a legend) and the icon set gained Gauge, Cpu, HardDrive and MemoryStick:
   neither is in the Claude Design project yet.
