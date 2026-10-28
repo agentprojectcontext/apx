@@ -243,6 +243,11 @@ app.whenReady().then(() => {
   win.on("restore", settled);
   win.on("enter-full-screen", settled);
   win.on("leave-full-screen", settled);
+  // The panel's bars leave room for the traffic lights only outside native fullscreen, which only the window knows.
+  const fullScreen = () => panel.webContents.send("window:fullscreen", win.isFullScreen());
+  win.on("enter-full-screen", fullScreen);
+  win.on("leave-full-screen", fullScreen);
+  panel.webContents.on("did-finish-load", fullScreen);
   layout();
 
   ipcMain.on("panel:browser-bounds", (e, b: Bounds | null) => {

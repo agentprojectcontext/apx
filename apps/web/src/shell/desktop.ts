@@ -1,13 +1,20 @@
 import { useSyncExternalStore } from "react";
 
-// A full-screen window covers the whole display; a zoomed one still leaves the menu bar (macOS) or taskbar out.
+// The window says when it is in native fullscreen; older desktop builds don't, so their size is the guess: a
+// full-screen window covers the whole display, a zoomed one still leaves the menu bar (macOS) or taskbar out.
 function fullscreen(): boolean {
+  const told = window.apxDesktop?.isFullScreen;
+  if (told) return told();
   return window.outerWidth >= window.screen.width && window.outerHeight >= window.screen.height;
 }
 
 function onResize(listener: () => void): () => void {
+  const off = window.apxDesktop?.onFullScreen?.(listener);
   window.addEventListener("resize", listener);
-  return () => window.removeEventListener("resize", listener);
+  return () => {
+    off?.();
+    window.removeEventListener("resize", listener);
+  };
 }
 
 /**
