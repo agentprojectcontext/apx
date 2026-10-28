@@ -41,6 +41,8 @@ export function createPoster(store: Store, delivery: Pick<ReturnType<typeof crea
       logged: boolean;
       mentions?: Presentation["mentions"];
       omit_signature?: boolean | undefined;
+      /** Arrives without sound (the owner's quiet hours). */
+      silent?: boolean | undefined;
     },
   ): string {
     const files = (o.files ?? []).map((id) => {
@@ -73,6 +75,7 @@ export function createPoster(store: Store, delivery: Pick<ReturnType<typeof crea
       kind: "reply",
       body: {
         text,
+        ...(o.silent ? { silent: true } : {}),
         ...(o.omit_signature !== undefined ? { omit_signature: o.omit_signature } : {}),
         ...(o.mentions?.length ? { mentions: o.mentions } : {}),
         ...(files.length
