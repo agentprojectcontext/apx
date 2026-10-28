@@ -7,12 +7,11 @@ import { type Attachment, type Origin, type RunInput, type RunRecord, TERMINAL }
 import type { Store } from "../domain/store.ts";
 import { Canceled, DeadlineExceeded, Shutdown, Superseded } from "../errors.ts";
 import type { Harnesses } from "../harness/index.ts";
-import { systemNote } from "../harness/native.ts";
 import type { Log } from "../log.ts";
 import type { RuntimeHomes } from "../skills/runtimes.ts";
 import { fromTeam } from "../tools/result.ts";
 import type { Tool } from "../tools/types.ts";
-import { agentTrip, pausedNotice, trip } from "./breaker.ts";
+import { agentTrip, keepWhilePaused, trip } from "./breaker.ts";
 import { frameInput } from "./context.ts";
 import { actionsNote, actionsOf, createDelegations, endedAs, endNote } from "./delegation.ts";
 import type { Display } from "./display.ts";
@@ -274,22 +273,17 @@ export function createEngine(deps: {
       const agent = store.agents.get(child.agent_id);
       const name = store.threads.context(child.thread_id).worker?.name ?? agent?.name ?? child.agent_id;
       const session = store.threads.get(child.thread_id)?.session;
-      const paused = pausedNotice(store, parent.thread_id, name);
-      if (paused) {
-        // The result is kept for the caller's next turn (when the owner writes), and the owner sees why it stopped.
-        store.modelLog.append(parent.thread_id, child.id, [
-          systemNote(
-            `A task you delegated to ${name} ended (${endedAs(child)}) while agents were paused:\n${fromTeam("delegation_result", { from: name }, answer.slice(0, 4000))}\n${endNote(child, { session, stopped })}${outcome ? outcomeNote(outcome) : ""}${actionsNote(actionsOf(store, child))}`,
-          ),
-        ]);
-        store.messages.add({
+      // Paused: the result is kept for the caller's next turn, and the owner sees why it stopped.
+      if (
+        keepWhilePaused(store, {
           thread_id: parent.thread_id,
-          author: { kind: "system" },
-          parts: [paused],
-        });
-        store.threads.mergeContext(parent.thread_id, { kept: parent.agent_id });
+          agent_id: parent.agent_id,
+          who: name,
+          run_id: child.id,
+          note: `A task you delegated to ${name} ended (${endedAs(child)}) while agents were paused:\n${fromTeam("delegation_result", { from: name }, answer.slice(0, 4000))}\n${endNote(child, { session, stopped })}${outcome ? outcomeNote(outcome) : ""}${actionsNote(actionsOf(store, child))}`,
+        })
+      )
         return;
-      }
       admit({
         thread_id: parent.thread_id,
         agent_id: parent.agent_id,

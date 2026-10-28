@@ -1,9 +1,9 @@
 // The super-agent's first words, once the setup is over: a welcome in the owner's language that asks who they are and
 // offers a few personalities to pick. Written from a template (no model call), and kept as the agent's own message.
 import type { Part } from "@apx/protocol";
+import { postAgentWords } from "./agent-words.ts";
 import { HOME_THREAD_ID } from "./seed.ts";
 import type { Store } from "./store.ts";
-import { previewOf } from "./threads.ts";
 
 export const GREETED_KEY = "setup_greeted";
 
@@ -54,13 +54,16 @@ export function greetOwner(store: Store, language: string): { thread: string; se
   ];
   const offered = tpl.options.map((o, i) => `${i + 1}. ${o.label}`).join("\n");
   store.tx(() => {
-    store.messages.add({ thread_id: thread.id, author: { kind: "agent", id: boss.id }, parts });
-    // A history starts at a user item: a note of what happened opens it, then the agent's own words.
-    store.modelLog.append(thread.id, undefined, [
-      { role: "user", content: "[APX: the owner just finished the setup; you greet them for the first time.]" },
-      { role: "assistant", content: `${text}\n\n${offered}` },
-    ]);
-    store.threads.patch(thread.id, { preview: previewOf(text) });
+    // The owner just finished the setup there: it is not news waiting for them.
+    postAgentWords(store, {
+      thread_id: thread.id,
+      agent_id: boss.id,
+      text,
+      parts,
+      note: "[APX: the owner just finished the setup; you greet them for the first time.]",
+      said: `${text}\n\n${offered}`,
+      unread: false,
+    });
     store.settings.set(GREETED_KEY, "1");
   });
   return { thread: thread.id, sent: true };

@@ -1,6 +1,7 @@
 // What goes out to people and rooms outside a turn's answer: the owner writing to a contact, an agent messaging a
 // contact or posting in a room, and what a channel knows about a person (their picture, whether they are online).
 import type { ChannelInfo, OutboxItem } from "@apx/protocol";
+import { quietNow } from "../domain/notices.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
@@ -128,7 +129,9 @@ export function createOutgoing(deps: {
     const { pick, owner, thread } = chatWith(personId, o.channel);
     // The chat's agent answers the contact's reply knowing it wrote this first (the owner's own chat logs its turns).
     const recent = recentOf(thread.id);
-    const outbox = post(thread, pick.cfg.id, pick.conversation, text, { ...o, logged: !owner });
+    // To the owner on a chat app it is a notice like any other: without sound in their quiet hours.
+    const silent = owner && quietNow(store);
+    const outbox = post(thread, pick.cfg.id, pick.conversation, text, { ...o, logged: !owner, silent });
     return { thread: thread.id, channel: pick.cfg.label, recent, outbox };
   }
 

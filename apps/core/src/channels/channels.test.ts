@@ -439,6 +439,33 @@ test("a confirmation left unanswered in the app follows the owner to Telegram, s
   await env.client.call("notices.set", { inputs_after_s: 120 });
 });
 
+test("a message an agent sends the owner on a chat app arrives without sound in quiet hours", async () => {
+  const { store } = env.core;
+  store.persons.owner();
+  if (!store.persons.ownerAddress("tg"))
+    store.persons.link(OWNER_ID, { channel: "tg", external_id: String(OWNER.id), label: "Telegram" });
+  const prefs = await env.client.call("notices.get", {});
+  const hour = new Date().getHours();
+  const hhmm = (h: number) => `${String(h % 24).padStart(2, "0")}:00`;
+  // What goes to the platform: the outbox item the owner's chat app gets.
+  const send = async (text: string) => {
+    const sent = await env.client.call("channels.message", { person: OWNER_ID, text, channel: "tg" });
+    assert.ok("thread" in sent, "the owner's own request is sent, never withheld");
+    const chat = store.threads.get(sent.thread)?.channel;
+    const item = chat && store.channels.outbox.last(chat.id, chat.conversation);
+    assert.equal(item?.text, text);
+    return item?.body;
+  };
+  try {
+    await env.client.call("notices.set", { ...prefs, quiet_from: hhmm(hour + 23), quiet_to: hhmm(hour + 2) });
+    assert.equal((await send("the report, at night"))?.silent, true);
+    await env.client.call("notices.set", { ...prefs, quiet_from: hhmm(hour + 3), quiet_to: hhmm(hour + 4) });
+    assert.equal((await send("the report, by day"))?.silent, undefined);
+  } finally {
+    await env.client.call("notices.set", prefs);
+  }
+});
+
 test("a contact never sees what went wrong inside APX; the owner does", async () => {
   tg.message(ANA, "break please");
   await waitFor(

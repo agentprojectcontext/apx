@@ -342,6 +342,8 @@ export function taskTools(store: Store, home: string): Tool[] {
       async run({ task, why, ...c }, ctx) {
         const t = await ctx.call("tasks.update", { task, ...c, attachments: await attachmentIds(c.attachments, ctx) });
         if (c.awaits_owner && why) await ctx.call("tasks.comment", { task, text: why });
+        if (c.assignee && t.proposed)
+          return `proposed ${t.id} for ${t.assignee}: it starts when the owner accepts it. Tell them what you proposed and why, in one line.`;
         const pending = t.assignee && !t.description.trim() && t.chats === 0 ? ` ${UNSPECIFIED}` : "";
         const paused = !pending && t.assignee && waits(t.id, ctx) ? ` ${PAUSED(t.assignee)}` : "";
         const transferred =

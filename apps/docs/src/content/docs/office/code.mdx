@@ -50,7 +50,7 @@ instructions to the agent, not a guarantee that Git changes have been merged or 
 | Policy | What it means |
 |---|---|
 | **Asks before changes** (`ask`) | The default. Edits and commands go through the usual approvals of the agent's [autonomy](/concepts/autonomy/). Codex cannot ask mid-turn, so under this policy it only reads. |
-| **Edits freely** (`auto`) | Claude Code and Codex sessions edit files inside the folder without asking (never git's config, `.apc/` or `AGENTS.md`). Commands still follow the agent's autonomy. |
+| **Edits freely** (`auto`) | Claude Code and Codex sessions edit files inside the folder without asking (never `.apc/` or `AGENTS.md`, and nothing in `.git`, at any autonomy: git runs through commands). Commands still follow the agent's autonomy. |
 | **Read-only** (`read-only`) | Only reads. Anything that would need your OK is refused. |
 
 ### Working in the folder from any chat
@@ -112,7 +112,8 @@ picks up its own session, history included, and from then on it lives in APX too
 - Claude Code loads only your own user settings, not a repository's `.claude/settings` files (which could allow tools
   past APX's approvals). APX reads the folder's `CLAUDE.md` itself and adds it to the prompt.
 - Codex in an **Edits freely** chat writes in its folder when the agent is on Auto, Accept edits or Total, whatever
-  the session read; on Manual or Plan it runs read-only (and says why).
+  the session read, unless the agent's own rules ask before writing or turn it off; on Manual or Plan it runs
+  read-only (and says why), unless its rules let it write on its own.
 - Once an engine session reads outside content (a web page, a message), the rest of that session is treated as
   untrusted, as an APX agent's would be.
 </Aside>

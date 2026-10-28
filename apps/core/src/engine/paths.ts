@@ -14,6 +14,9 @@ export function pathsOf(input: unknown): string[] {
   return out;
 }
 
+/** A path inside a `.git` folder: no agent's file tool touches it, whoever runs the loop; git runs through commands. */
+export const inGitFolder = (p: string): boolean => p.split(/[\\/]/).includes(".git");
+
 /**
  * Files no automatic edit may touch: git's own config (it can run commands), APC definitions (an agent could raise
  * its own autonomy) and the project's instructions.

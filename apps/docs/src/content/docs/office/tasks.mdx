@@ -98,7 +98,8 @@ before, and where to read it.
 
 <Shot name="task-drawer" alt="A task open in its drawer: title, assignee, priority, and a conversation of comments from the owner and an agent" caption="A task's drawer: comments, fields and the work chat" />
 
-Assigned tasks that never started are picked up on their own: once an hour, the most pressing few get started. To
+Assigned tasks that never started are picked up on their own: once an hour, the most pressing few get started, as
+whoever gave them: a task an agent gave counts against that agent's limits, never as your own request. To
 have one start later (tomorrow morning, after a release), set **Starts** in its drawer, or `apx tasks add … --start
 2026-10-23T09:00`: its agent starts then, not when you assign it.
 
@@ -175,6 +176,9 @@ The proposals:
   work down on their own.
 - **Work given back up the chain.** A sub-task for an agent that created one of the tasks above it is proposed, so two
   agents cannot ping-pong the same work.
+
+The same goes when an agent hands an existing task to another agent: if giving it new would make it a proposal, the
+hand-off is proposed too, and it starts once you accept it.
 
 ## Commitments
 

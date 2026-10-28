@@ -15,6 +15,7 @@ import {
   type workDir,
 } from "../tools/folders.ts";
 import { actingAs, reachOf, withProjectAutonomy } from "../tools/policy.ts";
+import { judgeCommand } from "../tools/shell.ts";
 import { callersOf } from "./ancestry.ts";
 
 type ThreadOf = Parameters<typeof workDir>[2] & { id: string; parent_id?: string | undefined };
@@ -23,6 +24,12 @@ type ThreadOf = Parameters<typeof workDir>[2] & { id: string; parent_id?: string
 export type Caller = { id: string; run_id: string; thread_id: string; call_id?: string | undefined };
 
 export type Permissions = ReturnType<typeof createPermissions>;
+
+/** A fenced agent keeps to its folders: what the folder rule would put to the owner is refused, as for APX's tools. */
+function fenced<A extends Access | undefined>(thread: FolderThread, r: A): A {
+  if (thread.reach !== "fenced" || !r || !("refused" in r) || !r.offer) return r;
+  return { refused: r.refused } as A;
+}
 
 export function createPermissions(o: { store: Store; home: string }) {
   const { store, home } = o;
@@ -76,7 +83,20 @@ export function createPermissions(o: { store: Store; home: string }) {
     /** What an outside agent may do with a path its own tool names, from the folder it works in. */
     harnessPath(thread: FolderThread, file: string, write: boolean): Access {
       const roots = harnessRoots(store, home, thread);
-      return judge(roots, file, roots[0]?.dir ?? home, { home, project: Boolean(thread.project_id), write });
+      return fenced(
+        thread,
+        judge(roots, file, roots[0]?.dir ?? home, { home, project: Boolean(thread.project_id), write }),
+      );
+    },
+    /**
+     * A command an outside agent runs, by the shell tool's folder rule: refused, offered to the owner as a folder card
+     * (as ours is), or undefined when its folders allow it.
+     */
+    harnessCommand(thread: FolderThread, command: string, cwd: string) {
+      return fenced(
+        thread,
+        judgeCommand(harnessRoots(store, home, thread), command, cwd, { home, project: Boolean(thread.project_id) }),
+      );
     },
   };
 }

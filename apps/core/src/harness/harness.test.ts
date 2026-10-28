@@ -6,7 +6,7 @@ import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore, texts } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
-import { removeDir } from "../testkit/platform.ts";
+import { removeDir, tempDir, waitFor } from "../testkit/platform.ts";
 import { scratchRoot } from "../tools/folders.ts";
 import type { Harness, TurnIO } from "./index.ts";
 
@@ -19,7 +19,8 @@ const fake = (id: "claude" | "codex"): Harness => ({
   async run(io) {
     seen.push({ harness: id, io, outside: io.outside() });
     // "probe [...]" asks the core about each of its own tool calls, as Claude Code's canUseTool does.
-    const probe = /^probe (.*)$/s.exec(String(io.input.content).split("\n").at(-1) ?? "");
+    // A delegated turn's words come framed as another agent's: the probe is the line that starts with it.
+    const probe = /^probe (\[.*\])$/m.exec(String(io.input.content));
     if (probe) {
       const asked = JSON.parse(probe[1] ?? "[]") as Array<{ kind: string; path?: string; command?: string }>;
       const said: boolean[] = [];
@@ -291,6 +292,12 @@ test("Codex writes in an auto code chat in auto, accept edits and total, whateve
   assert.equal(codexWrites({ ...io("total", false), thread: { ...thread, write: "ask" } } as TurnIO), true);
   assert.equal(codexWrites({ ...io("auto", false), thread: { ...thread, write: "ask" } } as TurnIO), false);
   assert.equal(codexWrites({ ...io("total", false), thread: { ...thread, write: "read-only" } } as TurnIO), false);
+  // The agent's own rule for writing wins over its mode, as for every other agent (DECISIONS.md#d-090).
+  const ruled = (autonomy: string, write: string) =>
+    ({ thread, agent: { autonomy, rules: { write } }, outside: () => false }) as unknown as TurnIO;
+  assert.equal(codexWrites(ruled("total", "off")), false, "writing turned off stays off in total");
+  assert.equal(codexWrites(ruled("total", "ask")), false, "a write that would ask waits, and Codex cannot ask");
+  assert.equal(codexWrites(ruled("manual", "auto")), true, "writing on its own is allowed over manual");
 });
 
 test("an external session gets an owner's attachment in its temp folder despite omitting agent framing", async () => {
@@ -312,6 +319,109 @@ test("an external session gets an owner's attachment in its temp folder despite 
     true,
   );
   assert.deepEqual(fs.readFileSync(file), bytes);
+});
+
+test("an outside agent in a delegated session that asks before changes asks for its edit, as our own loop does", async () => {
+  const t0 = await session("claude");
+  const { store } = env.core;
+  const top = store.threads.get(t0.id);
+  const sub = (write: "ask" | "auto") =>
+    store.threads.create({
+      kind: "a2a",
+      title: `helper ${write}`,
+      agent_ids: ["roby"],
+      parent_id: t0.id,
+      project_id: t0.project_id,
+      cwd: top?.cwd,
+      write,
+      engine: "claude",
+    });
+  const probe = (threadId: string) =>
+    env.core.engine.admit({
+      thread_id: threadId,
+      agent_id: "roby",
+      trigger: "a2a",
+      origin: { kind: "agent", id: "roby", name: "Roby", thread_id: t0.id, run_id: "run_top" },
+      text: `probe ${JSON.stringify([{ kind: "edit", path: path.join(top?.cwd ?? "", "a.ts") }])}`,
+    });
+  const answer = async (threadId: string) => {
+    const t = await env.settle(threadId);
+    const part = t.messages.at(-1)?.parts.find((p) => p.type === "text");
+    return part?.type === "text" ? part.text : "";
+  };
+  const free = sub("auto");
+  probe(free.id);
+  assert.equal(await answer(free.id), "[true]", "a session that edits freely edits");
+  const asking = sub("ask");
+  probe(asking.id);
+  const card = await waitFor(
+    async () => (await env.client.call("runs.pending", { thread: asking.id })).inputs[0],
+    "a card",
+  );
+  await env.client.call("runs.respond", { input: card.id, decision: "deny" });
+  assert.equal(await answer(asking.id), "[false]");
+});
+
+test("an outside agent's file tools never change git's folder, even in total, as ours never do", async () => {
+  const t0 = await session("claude");
+  const cwd = env.core.store.threads.get(t0.id)?.cwd ?? "";
+  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  try {
+    const asks = [
+      { kind: "edit", path: path.join(cwd, ".git", "config") },
+      { kind: "delete", path: ".git/hooks/pre-commit" },
+      { kind: "read", path: path.join(cwd, ".git", "HEAD") },
+      { kind: "edit", path: path.join(cwd, "a.ts") },
+    ];
+    await env.client.call("threads.send", { thread: t0.id, text: `probe ${JSON.stringify(asks)}` });
+    const t = await env.settle(t0.id);
+    const answer = t.messages.at(-1)?.parts.find((p) => p.type === "text");
+    assert.equal(answer?.type === "text" ? answer.text : "", "[false,false,true,true]");
+  } finally {
+    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+  }
+});
+
+test("an outside agent's command that writes outside its folders is put to the owner, as our shell's is", async () => {
+  const t0 = await session("claude");
+  await using tmp = tempDir("apx-away-");
+  const away = tmp.path;
+  await env.client.call("agents.update", { agent: "roby", autonomy: "manual" });
+  try {
+    const asks = [{ kind: "execute", command: `touch ${sh(away)}/made.txt` }];
+    await env.client.call("threads.send", { thread: t0.id, text: `probe ${JSON.stringify(asks)}` });
+    const card = await waitFor(
+      async () => (await env.client.call("runs.pending", { thread: t0.id })).inputs[0],
+      "a card",
+    );
+    await env.client.call("runs.respond", { input: card.id, decision: "deny" });
+    const t = await env.settle(t0.id);
+    const answer = t.messages.at(-1)?.parts.find((p) => p.type === "text");
+    assert.equal(answer?.type === "text" ? answer.text : "", "[false]");
+  } finally {
+    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+  }
+});
+
+test("an outside agent whose rules turn acting outside off keeps to its folders, even in total, as ours does", async () => {
+  const t0 = await session("claude");
+  await using tmp = tempDir("apx-away-");
+  const away = tmp.path;
+  fs.writeFileSync(path.join(away, "notes.txt"), "elsewhere");
+  await env.client.call("agents.update", { agent: "roby", autonomy: "total", rules: { outside: "off" } });
+  try {
+    const asks = [
+      { kind: "read", path: path.join(away, "notes.txt") },
+      { kind: "execute", command: `cat ${sh(away)}/notes.txt` },
+      { kind: "read", path: "README.md" },
+    ];
+    await env.client.call("threads.send", { thread: t0.id, text: `probe ${JSON.stringify(asks)}` });
+    const t = await env.settle(t0.id);
+    const answer = t.messages.at(-1)?.parts.find((p) => p.type === "text");
+    assert.equal(answer?.type === "text" ? answer.text : "", "[false,false,true]");
+  } finally {
+    await env.client.call("agents.update", { agent: "roby", autonomy: null, rules: null });
+  }
 });
 
 test("an outside agent reads its project's read-only folders without asking and may never change them", async () => {

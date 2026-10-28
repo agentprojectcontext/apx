@@ -4,7 +4,7 @@ import path from "node:path";
 import { Codex, type ModelReasoningEffort } from "@openai/codex-sdk";
 import { worksInFolder } from "../domain/threads.ts";
 import { codexImageDir, imagesIn } from "../services/codex-images.ts";
-import { modeOf } from "../tools/policy.ts";
+import { editsInFolder, modeOf } from "../tools/policy.ts";
 import { harnessEnv } from "./env.ts";
 import { effortPart, type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
 import { linkedWorktreeWritableDirs } from "./worktree.ts";
@@ -18,10 +18,9 @@ const READ_ONLY_NOTE =
  */
 export function codexWrites(io: Pick<TurnIO, "thread" | "agent" | "outside">): boolean {
   if (!worksInFolder(io.thread) || io.thread.write === "read-only") return false;
-  const mode = modeOf(io.agent);
-  if (mode === "total") return true;
-  // Auto and accepting edits are what Codex's workspace-write sandbox does: its folder, whatever the session read.
-  return io.thread.write === "auto" && (mode === "auto" || mode === "accept_edits");
+  // The same rule as any agent's edit in its folder (its mode and its own rules); a card it would wait on is a no.
+  if (editsInFolder(io.agent, io.outside()).kind !== "allow") return false;
+  return io.thread.write === "auto" || modeOf(io.agent) === "total";
 }
 
 /** More than this in one turn is a batch the owner asked for in files, not in the chat. */

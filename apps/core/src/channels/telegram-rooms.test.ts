@@ -41,7 +41,7 @@ const mention = (text: string, handle = `@${BOT.username}`) => ({
   entities: [{ type: "mention", offset: text.indexOf(handle), length: handle.length }],
 });
 
-async function setRooms(owner_only = false) {
+async function setRooms(owner_only = false, room_replies_per_hour = 30) {
   await env.client.call("channels.set", {
     id: "tg",
     channel: {
@@ -57,7 +57,7 @@ async function setRooms(owner_only = false) {
         knowledge: "Acme Notes is a note app.",
         rules: "",
         reply_when: "",
-        limits: { user_cooldown_s: 0, room_replies_per_hour: 30, checks_per_hour: 120 },
+        limits: { user_cooldown_s: 0, room_replies_per_hour, checks_per_hour: 120 },
       },
     },
   });
@@ -178,4 +178,25 @@ test("owner only: in groups only the owner gets answers", async () => {
 test("private chats are unchanged: the owner's direct message reaches the owner's chat", async () => {
   tg.message(OWNER, "hello in private");
   await waitFor(() => tg.messagesTo(OWNER.id).some((m) => /hello in private/.test(String(m.body.text))), "answered");
+});
+
+test("a room past its hourly cap tells the owner in the app's tray and on their chat app", async () => {
+  await setRooms(false, 1);
+  const chat = { id: GROUPS.all, type: "group", title: "Acme everyone" };
+  tg.message(ANA, "first after the cap?", chat);
+  tg.message(ANA, "second after the cap?", chat);
+  const notice = await waitFor(
+    async () =>
+      (await env.client.call("notifications.list", {})).notifications.find(
+        (n) => n.kind === "channel" && n.title === "#Acme everyone",
+      ),
+    "in the tray",
+  );
+  assert.equal(notice.level, "warn");
+  // The chat app's copy goes through the outbox, a moment after the tray's.
+  await waitFor(
+    () => tg.messagesTo(OWNER.id).some((m) => String(m.body.text) === notice.body),
+    "the same words on the owner's chat app",
+  );
+  await setRooms(false);
 });

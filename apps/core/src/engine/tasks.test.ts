@@ -496,6 +496,36 @@ test("the hourly pickup starts only tasks assigned since it began, the most pres
   );
 });
 
+test("the hourly pickup starts an agent's task as that agent gave it, never as if the owner asked", async () => {
+  const store = env.core.store;
+  const from = store.threads.create({ kind: "loose", title: "Roby's chat", agent_ids: ["roby"], project_id: project });
+  const task = store.tasks.create({
+    title: "Check the invoices",
+    description: "Compare them with the ledger.",
+    project_id: project,
+    assignee: "vera",
+    status: "todo",
+    thread_id: store.threads.create({
+      kind: "task",
+      title: "Check the invoices",
+      agent_ids: ["vera"],
+      project_id: project,
+    }).id,
+    by: "roby",
+    from: { thread: from.id, run: "run_roby_1" },
+  });
+  const admitted: Array<{ thread_id: string; trigger: string; origin?: { kind: string } }> = [];
+  const admit = ((a: (typeof admitted)[number]) => {
+    admitted.push(a);
+    return { id: `run_${admitted.length}` };
+  }) as unknown as Parameters<typeof pickUpTasks>[1];
+  store.settings.set("task_work_since", new Date(Date.now() - 60_000).toISOString());
+  pickUpTasks(store, admit);
+  const started = admitted.find((a) => store.threads.get(a.thread_id)?.task_id === task.id);
+  assert.equal(started?.trigger, "a2a", "no new budget window: the owner did not ask");
+  assert.equal(started?.origin?.kind, "agent");
+});
+
 test("an agent's tasks go to its thread's project and it sees no other project's", async () => {
   const other = await env.client.call("tasks.create", { title: "Secret elsewhere" });
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });

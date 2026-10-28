@@ -6,7 +6,6 @@ import {
   type Inbound,
   type InboundAction,
   type InboundReaction,
-  type OutboxRow,
   ownerActsOn,
   type Presentation,
 } from "../domain/channels.ts";
@@ -27,6 +26,7 @@ import { asksSomething, asksToStop, needsNoAnswer, reactionFor } from "./closers
 import type { Delivery } from "./delivery.ts";
 import { type Held, waitsForHours } from "./held.ts";
 import { type Button, buttonId, inputPresentation, parseButton, ratingOf, shown } from "./notices.ts";
+import type { TellOwner } from "./owner-notices.ts";
 import type { createRooms } from "./rooms.ts";
 import type { Stickers } from "./stickers.ts";
 import type { Suggestions } from "./suggestions.ts";
@@ -50,8 +50,9 @@ export function createInbound(deps: {
   services: Services;
   delivery: Delivery;
   configs(): ChannelConfig[];
-  notifyOwner(body: Presentation, kind?: OutboxRow["kind"], threadId?: string): boolean;
-  /** A notice in the app's attention tray. */
+  /** A notice for the owner: the tray, and their chat app. */
+  tell: TellOwner;
+  /** A notice in the app's attention tray only. */
   attention(n: NewNotification): void;
   /** The channel is the owner's own account: strangers are listed quietly, never answered. */
   ownAccount(channel: string): boolean;
@@ -95,8 +96,7 @@ export function createInbound(deps: {
       log.warn({ channel: row.channel, inbox: row.id, err: msg }, "channel message not handled");
       store.channels.inbox.done(row.id, "failed", msg);
       const text = channelTexts(store).notHandled(row.payload.sender.name, msg);
-      deps.notifyOwner({ text });
-      deps.attention({ kind: "channel", level: "error", title: row.payload.sender.name, body: text });
+      deps.tell({ text }, { level: "error", title: row.payload.sender.name });
     }
   }
 
@@ -268,8 +268,7 @@ export function createInbound(deps: {
       { id: buttonId.review(person.id, "answer"), label: t.answer },
       { id: buttonId.review(person.id, "ignore"), label: t.ignore },
     ];
-    deps.notifyOwner({ text, buttons }, "pairing", threadId);
-    deps.attention({ kind: "channel", title: person.name, body: text, thread_id: threadId });
+    deps.tell({ text, buttons }, { title: person.name, thread_id: threadId }, "pairing");
   }
 
   /** Remembers the other side's last message, so the agent can answer it with a reaction (REACT in manager.ts). */
@@ -330,8 +329,7 @@ export function createInbound(deps: {
     if (!paused.has(personId)) {
       paused.add(personId);
       const text = channelTexts(store).tooMany(name);
-      deps.notifyOwner({ text });
-      deps.attention({ kind: "channel", level: "warn", title: name, body: text });
+      deps.tell({ text }, { level: "warn", title: name });
     }
     return true;
   }
@@ -390,16 +388,11 @@ export function createInbound(deps: {
       kind: "pairing",
       body: { text: t.pairing(request.name, agent, request.code, cfg.label) },
     });
-    deps.notifyOwner(
+    deps.tell(
       { text: t.pairingOwner(request.name, cfg.label, request.code), buttons: decide(t.asContact) },
+      { title: request.name, body: t.pairingApp(request.name, cfg.label, request.code), ref: pairingRef(request.code) },
       "pairing",
     );
-    deps.attention({
-      kind: "channel",
-      title: request.name,
-      body: t.pairingApp(request.name, cfg.label, request.code),
-      ref: pairingRef(request.code),
-    });
     return "ignored";
   }
 

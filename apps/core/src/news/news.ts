@@ -2,11 +2,11 @@
 // message in its voice and the owner's language, on their preferred channel. A release with nothing that applies costs
 // no model call; a fresh install is told nothing. See rules/DECISIONS.md#d-117
 import { buttonId } from "../channels/notices.ts";
+import { postAgentWords } from "../domain/agent-words.ts";
 import type { Presentation } from "../domain/channels.ts";
 import { ownerTimeZone } from "../domain/owner.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
-import { previewOf } from "../domain/threads.ts";
 import { lastTalk } from "../engine/last-talk.ts";
 import type { Log } from "../log.ts";
 import type { Llm } from "../providers/llm.ts";
@@ -141,21 +141,12 @@ export function createNews(deps: {
         told,
         shown.map((a) => a.label.en),
       );
-    store.tx(() => {
-      store.messages.add({
-        thread_id: home.id,
-        author: { kind: "agent", id: boss.id },
-        parts: [{ type: "text", text }],
-      });
-      // The agent reads its message as its own words when the owner answers it here.
-      store.modelLog.append(home.id, undefined, [
-        {
-          role: "user",
-          content: `<system_note>\nAPX was updated; you told the owner what is new for them.\n</system_note>`,
-        },
-        { role: "assistant", content: text },
-      ]);
-      store.threads.patch(home.id, { preview: previewOf(text), unread: (home.unread ?? 0) + 1 });
+    postAgentWords(store, {
+      thread_id: home.id,
+      agent_id: boss.id,
+      text,
+      note: `<system_note>\nAPX was updated; you told the owner what is new for them.\n</system_note>`,
+      unread: true,
     });
     const buttons = shown.map((a) => {
       const entry = told.find((e) => e.actions.includes(a));

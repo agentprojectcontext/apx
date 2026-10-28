@@ -3,6 +3,7 @@
 // agent's turn started belongs to the tree of the chat it came from (DECISIONS.md#d-080). An agent the owner gave a
 // budget of its own also stops at it, in the same window, while the others go on.
 import type { Store } from "../domain/store.ts";
+import { systemNote } from "../harness/native.ts";
 import { agentLimits, unattendedLimits } from "./limits.ts";
 
 /** The chat above this one: its parent, or the chat whose agent gave the task this chat works on. */
@@ -132,4 +133,20 @@ export function pausedNotice(store: Store, threadId: string, who: string) {
     text: `Paused: ${tripped(store, threadId)}. ${who} finished; write to continue.`,
     vars: { variant: t.limit, spent: t.spent, who, thread: threadId, link: "apx:settings/agents" },
   };
+}
+
+/**
+ * A result for `agentId` that arrives while its tree is paused: kept for its next turn as `note`, the owner sees why in
+ * the chat, and the agent goes on with it when they let agents go on (go-on.ts). False when it may wake the agent now.
+ */
+export function keepWhilePaused(
+  store: Store,
+  o: { thread_id: string; agent_id: string; who: string; note: string; run_id?: string | undefined },
+): boolean {
+  const paused = pausedNotice(store, o.thread_id, o.who);
+  if (!paused) return false;
+  store.modelLog.append(o.thread_id, o.run_id, [systemNote(o.note)]);
+  store.messages.add({ thread_id: o.thread_id, author: { kind: "system" }, parts: [paused] });
+  store.threads.mergeContext(o.thread_id, { kept: o.agent_id });
+  return true;
 }

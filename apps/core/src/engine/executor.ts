@@ -1,6 +1,7 @@
 // The one executor every tool call goes through, whatever harness made it: check the arguments, ask the policy,
 // wait for the owner when it says so, record the step, run with a deadline, keep the full output and hand the
 // model a capped copy.
+import path from "node:path";
 
 import type { MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
@@ -13,15 +14,15 @@ import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { TurnIO } from "../harness/index.ts";
 import { MCP_CALL, MCP_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
-import { authorize, decide, keepsCard } from "../tools/policy.ts";
+import { authorize, decide, keepsCard, sessionGate } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
-import { commandRisk, judgeCommand } from "../tools/shell.ts";
+import { commandRisk } from "../tools/shell.ts";
 import type { CheckContext, Confirm, ScopedThread, Tool, ToolContext } from "../tools/types.ts";
 import type { Display } from "./display.ts";
 import { folderBinding, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { confirmPrompt, folderPrompt } from "./owner-words.ts";
-import { guarded, pathsOf } from "./paths.ts";
+import { guarded, inGitFolder, pathsOf } from "./paths.ts";
 import type { Permissions } from "./permissions.ts";
 import { handedOff } from "./task-handoff.ts";
 import { toolTitle } from "./tool-titles.ts";
@@ -322,16 +323,8 @@ export function createExecutor(o: {
           : "only actions that read may run here";
       return { ok: false, text: `refused: this code thread is read-only; ${why}` };
     }
-    // A delegated session capped at ask (its caller could do no more) asks before changing files on our own loop too,
-    // as an outside engine does under it. The owner's own chats follow the agent's mode (DECISIONS.md#d-106).
-    const gate: typeof decision =
-      decision.kind === "allow" &&
-      thread.kind === "a2a" &&
-      worksInFolder(thread) &&
-      thread.write === "ask" &&
-      (level === "ask" || level === "always" || changesFiles)
-        ? { kind: "confirm", why: "asks_every", reason: "this session asks before changing files" }
-        : decision;
+    // The owner's own chats follow the agent's mode (DECISIONS.md#d-106); a delegated session may ask before changes.
+    const gate = sessionGate(thread, decision, level === "ask" || level === "always" || changesFiles);
     const keeps = keepsCard(tool, args, agent);
     // A call that always asks has its own grant, apart from the tool's ordinary one (DECISIONS.md#d-089); one that
     // keeps its card whatever is granted offers none (DECISIONS.md#d-143).
@@ -511,10 +504,11 @@ export function createExecutor(o: {
     const judged = paths.map((p) => o.permissions.harnessPath(scope, p, !reading));
     // A command is held to the shell tool's folder rule: what it reads readable, what it writes writable.
     const ran = req.kind === "execute" && typeof command === "string";
-    const refusedCommand = ran ? judgeCommand(o.permissions.harnessRoots(scope), command, base) : undefined;
+    const refusedCommand = ran ? o.permissions.harnessCommand(scope, command, base) : undefined;
     if (refusedCommand) judged.push(refusedCommand);
-    // No answer of the owner's opens a read-only folder or APX's own.
+    // No answer of the owner's opens a read-only folder or APX's own, nor lets a file tool change git's folder.
     if (judged.some((r) => "refused" in r && !r.offer)) return false;
+    if (!reading && paths.some((p) => inGitFolder(path.resolve(base, p)))) return false;
     const inside = judged.every((r) => !("refused" in r));
     const own = externalLevel(req.kind, inside, command);
     // Outside the folders it may use, the owner says yes unless its mode lets it on its own.
@@ -526,7 +520,8 @@ export function createExecutor(o: {
     // A command that only reads here is risk read, as the shell tool's (DECISIONS.md#d-098).
     const reads = reading || (req.kind === "execute" && level === "never");
     const effect = reads ? "none" : req.kind === "edit" && workspace ? "local" : "external";
-    const decision = decide(level, effect, agent, untrusted, workspace);
+    const changes = !reads && (level === "ask" || level === "always" || req.kind === "edit" || req.kind === "execute");
+    const decision = sessionGate(thread, decide(level, effect, agent, untrusted, workspace), changes);
     if (decision.kind === "allow") return allow();
     if (decision.kind === "deny") return false;
     const answer = await o.inputs.ask({
