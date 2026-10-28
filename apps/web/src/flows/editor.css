@@ -408,3 +408,22 @@
     border-top: 1px solid var(--apx-border);
   }
 }
+.fe-presets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* Four presets do not fit one line of the side panel: they wrap instead of overflowing. */
+.fe-presets .apx-segmented {
+  flex-wrap: wrap;
+  height: auto;
+}
+.fe-next {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.fe-next__error {
+  color: var(--apx-danger);
+}

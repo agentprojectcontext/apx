@@ -62,10 +62,10 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   await named.getByRole("button", { name: "Probar ronda" }).click();
   await page.getByRole("textbox", { name: "Datos que llegan" }).fill('{"type":"delivery"}');
   await page.getByRole("button", { name: "Probar", exact: true }).click();
-  await expect(page.getByText("Las condiciones la cortarían. No se guardaría nada.")).toBeVisible();
+  await expect(page.getByText("Las condiciones la cortarían. No correría nada.")).toBeVisible();
   await page.getByRole("textbox", { name: "Datos que llegan" }).fill('{"type":"message"}');
   await page.getByRole("button", { name: "Probar", exact: true }).click();
-  await expect(page.getByText(/^Pasaría las condiciones, se guardaría en «latest» y le llegaría a /)).toBeVisible();
+  await expect(page.getByText(/^Llegaría a: .*Modelo IA/)).toBeVisible();
   await page.keyboard.press("Escape");
   expect(await world.llmCalls()).toBe(calls);
 

@@ -19,10 +19,10 @@ import { useData } from "../data/state.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { FlowDetail, FlowEditor } from "../lazy.ts";
 import { go, useNav } from "../shell/nav.ts";
-import { agentOf, issueText, loadFlows, loadRuns, type Published, setEnabled } from "./data.ts";
-import { OUTCOME, outcomeOf, runWhen } from "./run-view.ts";
+import { agentOf, issueText, loadFlows, loadRuns, type Published, type Schedules, setEnabled } from "./data.ts";
+import { nextWhen, OUTCOME, outcomeOf, runWhen } from "./run-view.ts";
 import { STARTERS, type Starter } from "./starters.ts";
-import { chipsOf, type Flow, type FlowRun, STEP, type StepKind } from "./steps.tsx";
+import { chipsOf, type Flow, type FlowRun, isTrigger, STEP, type StepKind, scheduleName } from "./steps.tsx";
 import "@apx/ui/flow.css";
 import "./flows.css";
 
@@ -31,7 +31,7 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
   const ready = usePack("flow");
   const flowId = useNav((s) => s.flowId);
   const flowEdit = useNav((s) => s.flowEdit);
-  const [data, setData] = useState<{ flows: Flow[]; published: Published }>();
+  const [data, setData] = useState<Awaited<ReturnType<typeof loadFlows>>>();
   const [failed, setFailed] = useState(false);
   // A new flow's editor, before it has an id to link to.
   const [creating, setCreating] = useState<Starter>();
@@ -71,6 +71,8 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
           <FlowDetail
             key={open.id}
             flow={open}
+            schedule={data?.schedules[open.id]}
+            timeZone={data?.timeZone ?? "UTC"}
             onBack={() => show()}
             onEdit={() => show(open.id, true)}
             onChanged={refresh}
@@ -80,6 +82,8 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
         <FlowList
           flows={flows}
           published={data?.published ?? {}}
+          schedules={data?.schedules ?? {}}
+          timeZone={data?.timeZone ?? "UTC"}
           failed={failed}
           projectId={projectId}
           revision={revision}
@@ -117,6 +121,8 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
 function FlowList(props: {
   flows: Flow[] | undefined;
   published: Published;
+  schedules: Schedules;
+  timeZone: string;
   failed: boolean;
   projectId: string | undefined;
   revision: number;
@@ -189,6 +195,8 @@ function FlowList(props: {
                   key={f.id}
                   flow={f}
                   kinds={props.published[f.id]?.kinds}
+                  schedule={props.schedules[f.id]}
+                  timeZone={props.timeZone}
                   revision={props.revision}
                   onOpen={() => props.onOpen(f.id)}
                   onEdit={() => props.onEdit(f.id)}
@@ -260,6 +268,9 @@ function FlowRow(props: {
   flow: Flow;
   /** A published drawing's step kinds, in the order they run; its old definition says nothing then. */
   kinds: string[] | undefined;
+  /** Its schedule and next time, when it starts on one. */
+  schedule: Schedules[string] | undefined;
+  timeZone: string;
   revision: number;
   onOpen: () => void;
   onEdit: () => void;
@@ -283,7 +294,8 @@ function FlowRow(props: {
       live = false;
     };
   }, [flow.id, props.revision]);
-  const drawn = props.kinds?.filter((k): k is StepKind => k !== "webhook" && k in STEP);
+  const drawn = props.kinds?.filter((k): k is StepKind => !isTrigger(k) && k in STEP);
+  const { schedule } = props;
   const chips = drawn ?? chipsOf(shapeOfDefinition(flow));
   const crew = drawn?.filter((k) => k === "agent" || k === "routine" || k === "llm").length;
   const agent = drawn ? undefined : agentOf(flow.action, agents, routines);
@@ -314,11 +326,11 @@ function FlowRow(props: {
     <li className={flow.enabled ? "flowrow" : "flowrow is-off"}>
       <button type="button" className="flowrow__open" onClick={props.onOpen}>
         <span className="flowrow__name">
-          <FlowStepTile icon={STEP.webhook.icon} tone="warning" size="lg" />
+          <FlowStepTile icon={STEP[schedule ? "schedule" : "webhook"].icon} tone="warning" size="lg" />
           <span className="flowrow__text">
             <strong>{flow.name}</strong>
             <span>
-              {project} · {t("flow.kind.webhook")}
+              {project} · {schedule ? scheduleName(schedule.cron, t) : t("flow.kind.webhook")}
             </span>
           </span>
         </span>
@@ -357,7 +369,15 @@ function FlowRow(props: {
           )}
         </span>
         <span className="flowrow__next">
-          <span>{t(flow.enabled ? "flow.nextHook" : "flow.off")}</span>
+          <span>
+            {!flow.enabled
+              ? t("flow.off")
+              : schedule
+                ? schedule.next_at
+                  ? nextWhen(schedule.next_at, props.timeZone, t)
+                  : t("flow.next.none")
+                : t("flow.nextHook")}
+          </span>
           {last && (
             <span className={lastOutcome === "failed" ? "flowrow__last is-failed" : "flowrow__last"}>
               {t("flow.last", { when: runWhen(last.created_at) })}

@@ -83,6 +83,8 @@ const SLOW_MS = 2500;
 /** How long a caller that handed work off keeps its turn going ("start a worker and keep going"). */
 const KEEP_GOING_MS = 10_000;
 const KEEP_GOING = /^start a worker and keep going/i;
+/** A Flow's model step whose instruction starts "Take your time" answers this late: long enough to stop its run. */
+const LONG_MS = 30_000;
 
 /** Four delegations in one step: past the three at once from a thread, the fourth is queued. */
 function fanOut(messages: Message[], said: string): Array<{ name: string; arguments: string }> | undefined {
@@ -265,8 +267,12 @@ export async function fakeLlm() {
         res.end("data: [DONE]\n\n");
       };
       const keepGoing = KEEP_GOING.test(said) && body.messages?.at(-1)?.role === "tool";
-      if (slow || keepGoing) setTimeout(answer, slow ? SLOW_MS : KEEP_GOING_MS);
-      else answer();
+      const long = system.startsWith("Take your time");
+      if (slow || keepGoing || long) {
+        const timer = setTimeout(answer, long ? LONG_MS : slow ? SLOW_MS : KEEP_GOING_MS);
+        // A caller that gave up (a stopped Flow run) leaves nothing to answer.
+        res.on("close", () => clearTimeout(timer));
+      } else answer();
     });
   });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));

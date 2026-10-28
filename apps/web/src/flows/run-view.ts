@@ -2,7 +2,17 @@ import type { FlowStepState, RunBar } from "@apx/ui";
 import { formatNumber, formatSeconds, shortWhen } from "../common/format.ts";
 import { currentLocale, isKey, type MessageKey } from "../i18n/index.ts";
 import type { RunDetail } from "./data.ts";
-import { chainOrder, dotted, type FlowGraph, type FlowNode, type FlowRun, hookPath, literal } from "./steps.tsx";
+import {
+  chainOrder,
+  dotted,
+  type FlowGraph,
+  type FlowNode,
+  type FlowRun,
+  hookPath,
+  isTrigger,
+  literal,
+  presetOf,
+} from "./steps.tsx";
 
 type T = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -17,14 +27,15 @@ export type RunOutcome =
   | "pending"
   | "waiting"
   | "uncertain"
-  | "timeout";
+  | "timeout"
+  | "stopped";
 export function outcomeOf(e: FlowRun, checks: number): RunOutcome {
   if (e.executor === "graph") {
     if (e.state === "pending") return "live";
     if (e.state === "ignored") return "empty";
     if (e.state === "succeeded") return e.stopped_by ? "cut" : "done";
     if (e.state === "uncertain") return "uncertain";
-    if (e.state === "cancelled") return "timeout";
+    if (e.state === "cancelled") return e.cancelled_by_owner ? "stopped" : "timeout";
     return "failed";
   }
   if (e.state === "ignored") return checks ? "cut" : "empty";
@@ -50,7 +61,36 @@ export const OUTCOME: Record<
   waiting: { label: "flow.run.waiting", bar: "live", tone: "warning" },
   uncertain: { label: "flow.run.uncertain", bar: "failed", tone: "warning" },
   timeout: { label: "flow.run.timeout", bar: "failed", tone: "danger" },
+  stopped: { label: "flow.run.stopped", bar: "cut", tone: "neutral" },
 };
+
+/** A run's next time in the owner's zone: "In 4 min", "Today · 08:30", "Tomorrow · 03:00", "Mon · 08:30". */
+export function nextWhen(iso: string, timeZone: string, t: T, now = new Date()): string {
+  const at = new Date(iso);
+  const mins = Math.round((at.getTime() - now.getTime()) / 60_000);
+  if (mins < 1) return t("flow.next.soon");
+  if (mins < 60) return t("flow.next.inMin", { count: mins });
+  const locale = currentLocale();
+  const day = (d: Date) => d.toLocaleDateString("en-CA", { timeZone });
+  const hm = new Intl.DateTimeFormat(locale, { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(
+    at,
+  );
+  if (day(at) === day(now)) return t("flow.next.today", { time: hm });
+  if (day(at) === day(new Date(now.getTime() + 86_400_000))) return t("flow.next.tomorrow", { time: hm });
+  const weekday = new Intl.DateTimeFormat(locale, { timeZone, weekday: "short", day: "numeric", month: "short" })
+    .format(at)
+    .replace(".", "");
+  return t("flow.next.day", { day: weekday, time: hm });
+}
+
+/** "08:30" in the owner's zone, for a time a schedule had due. */
+export const dueTime = (iso: string, timeZone: string) =>
+  new Intl.DateTimeFormat(currentLocale(), { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(
+    new Date(iso),
+  );
+/** A scheduled run that started more than a minute after its time: the core was off then, and it ran once. */
+export const ranLate = (e: { scheduled_at: string | null; created_at: string }) =>
+  e.scheduled_at !== null && Date.parse(e.created_at) - Date.parse(e.scheduled_at) > 60_000;
 
 // Same clock as the rest of the panel: 24 h in Spanish, the locale's own otherwise.
 const time = (iso: string) => {
@@ -248,6 +288,10 @@ export function inputOf(n: FlowNode, flow: string, t: T, who: (n: FlowNode) => s
   switch (n.kind) {
     case "webhook":
       return `POST ${hookPath(flow)}`;
+    case "schedule": {
+      const preset = presetOf(n.cron);
+      return preset ? `${t(preset.label)} · ${n.cron}` : n.cron;
+    }
     case "condition":
       return n.input.kind === "event"
         ? t("flow.in.check", { field: dotted(n.input.path), value: literal(n.equals) })
@@ -320,19 +364,21 @@ export function viewGraphRun(run: RunDetail, flow: string, t: T, who: (n: FlowNo
               ? undefined
               : "skipped";
     const output =
-      r.state === "succeeded"
-        ? matched === undefined
-          ? JSON_TEXT(r.output)
-          : t(matched ? "flow.out.matched" : "flow.out.thisNo")
-        : r.state === "skipped"
-          ? t("flow.notRunBranch")
-          : r.state === "blocked"
-            ? t("flow.notRunFailed")
-            : r.state === "pending"
-              ? t("flow.out.waiting")
-              : r.state === "running" || r.state === "waiting_run"
-                ? t("flow.out.working")
-                : whyText(r.error, t);
+      r.state === "succeeded" && isTrigger(n.kind)
+        ? startedText(run, t)
+        : r.state === "succeeded"
+          ? matched === undefined
+            ? JSON_TEXT(r.output)
+            : t(matched ? "flow.out.matched" : "flow.out.thisNo")
+          : r.state === "skipped"
+            ? t("flow.notRunBranch")
+            : r.state === "blocked"
+              ? t("flow.notRunFailed")
+              : r.state === "pending"
+                ? t("flow.out.waiting")
+                : r.state === "running" || r.state === "waiting_run"
+                  ? t("flow.out.working")
+                  : whyText(r.error, t);
     const badge =
       matched !== undefined
         ? t(matched ? "flow.log.yes" : "flow.log.no")
@@ -377,11 +423,27 @@ export function viewGraphRun(run: RunDetail, flow: string, t: T, who: (n: FlowNo
   }
   log.push({
     at: run.created_at,
-    node: run.graph.nodes.find((n) => n.kind === "webhook")?.id ?? "",
-    text: t("flow.log.arrived", { path: hookPath(flow), id: run.event }),
+    node: run.graph.nodes.find((n) => isTrigger(n.kind))?.id ?? "",
+    text:
+      run.source === "webhook" ? t("flow.log.arrived", { path: hookPath(flow), id: run.event }) : startedText(run, t),
   });
   log.sort((a, b) => a.at.localeCompare(b.at));
   return { steps, log, ran };
+}
+
+/** How a run started, for its trigger step: by a POST (its body), by its schedule, or by the owner. */
+function startedText(run: RunDetail, t: T): string {
+  const trigger = run.steps.find((s) => run.graph.nodes.some((n) => n.id === s.node && isTrigger(n.kind)));
+  if (run.source === "owner") return t("flow.out.byYou");
+  if (run.source === "schedule" && run.scheduled_at) {
+    const due = new Date(run.scheduled_at).toLocaleTimeString(currentLocale(), {
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+    return t(ranLate(run) ? "flow.out.dueLate" : "flow.out.due", { time: due });
+  }
+  return JSON_TEXT(trigger?.output ?? null);
 }
 
 /** A step's recorded reason, in the person's words. */

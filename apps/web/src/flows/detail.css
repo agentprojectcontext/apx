@@ -400,3 +400,28 @@
     padding: 8px;
   }
 }
+.fd__late {
+  color: var(--apx-warning-soft-fg);
+  text-wrap: pretty;
+}
+.fd__stop {
+  margin-left: auto;
+}
+.fd__now {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.fd__now p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--apx-fg-muted);
+  text-wrap: pretty;
+}
+.fd__mono {
+  font-family: var(--apx-font-mono);
+  font-size: 12.5px;
+}
+.fd__now .fd__nowerr {
+  color: var(--apx-danger);
+}

@@ -10,9 +10,10 @@ type T = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
 export const loadFlows = async () => {
   const r = await client.call("flows.list", {});
-  return { flows: r.flows, published: r.published };
+  return { flows: r.flows, published: r.published, schedules: r.schedules, timeZone: r.time_zone };
 };
 export type Published = Result<"flows.list">["published"];
+export type Schedules = Result<"flows.list">["schedules"];
 export const loadRuns = (flow: string, limit = 14, cursor?: Result<"flows.events">["nextCursor"]) =>
   client.call("flows.events", { flow, limit, ...(cursor ? { cursor } : {}) });
 /** One graph run step by step. */

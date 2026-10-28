@@ -18,7 +18,18 @@ import { forAgents, useModels } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
-import { chainOrder, dotted, type FlowBinding, type FlowGraph, type FlowNode, hookPath, STEP } from "./steps.tsx";
+import { nextWhen } from "./run-view.ts";
+import {
+  chainOrder,
+  dotted,
+  type FlowBinding,
+  type FlowGraph,
+  type FlowNode,
+  hookPath,
+  presetOf,
+  SCHEDULE_PRESETS,
+  STEP,
+} from "./steps.tsx";
 
 /** What a step gives the next ones: the part of its result a later step receives. */
 const RESULT: Partial<Record<FlowNode["kind"], string[]>> = {
@@ -148,6 +159,8 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode }) {
   switch (n.kind) {
     case "webhook":
       return <HookFields flowId={props.flowId} />;
+    case "schedule":
+      return <ScheduleFields cron={n.cron} onCron={(cron) => update({ ...n, cron })} />;
     case "condition": {
       const path = n.input.kind === "event" ? dotted(n.input.path) : "";
       const kind = typeof n.equals === "number" ? "number" : typeof n.equals === "boolean" ? "bool" : "text";
@@ -439,6 +452,63 @@ function InputPicker({
           )}
         </Field>
       )}
+    </>
+  );
+}
+
+/** How often it runs: a preset by name or a cron, with the next times in words, in the owner's time zone. */
+function ScheduleFields({ cron, onCron }: { cron: string; onCron: (cron: string) => void }) {
+  const t = useT();
+  const [next, setNext] = useState<{ next: string[]; time_zone: string; error: "invalid" | "too_often" | null }>();
+  useEffect(() => {
+    let live = true;
+    const timer = setTimeout(() => {
+      void client.call("flows.next_runs", { cron: cron.trim() || "-" }).then(
+        (r) => live && setNext(r),
+        () => live && setNext(undefined),
+      );
+    }, 300);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [cron]);
+  const preset = presetOf(cron);
+  return (
+    <>
+      <div className="fe-presets">
+        <span className="fe-ins__label">{t("flow.f.often")}</span>
+        <SegmentedControl
+          size="sm"
+          label={t("flow.f.often")}
+          value={preset?.cron ?? ""}
+          onValueChange={onCron}
+          options={SCHEDULE_PRESETS.map((p) => ({ value: p.cron, label: t(p.label) }))}
+        />
+      </div>
+      <Field label={t("flow.f.cron")} hint={t("flow.f.cronHint")}>
+        {(id) => (
+          <Input
+            id={id}
+            value={cron}
+            maxLength={120}
+            className="fe-mono"
+            spellCheck={false}
+            onChange={(e) => onCron(e.target.value)}
+          />
+        )}
+      </Field>
+      <div className="fe-next" aria-live="polite">
+        <span className="fe-ins__label">{t("flow.f.nextRuns")}</span>
+        {next?.error ? (
+          <span className="fe-next__error">
+            {t(next.error === "too_often" ? "flow.f.cronOften" : "flow.f.cronBad")}
+          </span>
+        ) : (
+          next?.next.map((at) => <span key={at}>{nextWhen(at, next.time_zone, t)}</span>)
+        )}
+      </div>
+      {next && <p className="fe-note">{t("flow.f.scheduleNote", { zone: next.time_zone })}</p>}
     </>
   );
 }

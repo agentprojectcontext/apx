@@ -2,6 +2,7 @@ import type { Result } from "@apx/protocol";
 import {
   Badge,
   Button,
+  Dialog,
   FlowStepTile,
   IconButton,
   Icons,
@@ -10,6 +11,7 @@ import {
   SegmentedControl,
   Skeleton,
   Switch,
+  Textarea,
 } from "@apx/ui";
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
@@ -24,6 +26,7 @@ import {
   loadRun,
   loadRuns,
   type RunDetail,
+  type Schedules,
   type Shown,
   setEnabled,
   shownGraph,
@@ -31,8 +34,20 @@ import {
 } from "./data.ts";
 import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { stepDetail } from "./look.tsx";
-import { logClock, OUTCOME, outcomeOf, runFacts, runWhen, tokens, viewGraphRun, viewRun } from "./run-view.ts";
-import { type Flow, type FlowNode, type FlowRun, hookPath, STEP } from "./steps.tsx";
+import {
+  dueTime,
+  logClock,
+  nextWhen,
+  OUTCOME,
+  outcomeOf,
+  ranLate,
+  runFacts,
+  runWhen,
+  tokens,
+  viewGraphRun,
+  viewRun,
+} from "./run-view.ts";
+import { type Flow, type FlowNode, type FlowRun, hookPath, isTrigger, STEP, scheduleName } from "./steps.tsx";
 import "./detail.css";
 
 type Cursor = Result<"flows.events">["nextCursor"];
@@ -41,11 +56,16 @@ const RAIL = { min: 260, max: 640, initial: 360 };
 /** One flow: its steps as they ran in the chosen run, what each step did, and its runs at the right. */
 export function FlowDetail({
   flow,
+  schedule,
+  timeZone,
   onBack,
   onEdit,
   onChanged,
 }: {
   flow: Flow;
+  /** Its schedule and next time, when it starts on one. */
+  schedule: Schedules[string] | undefined;
+  timeZone: string;
   onBack: () => void;
   onEdit: () => void;
   onChanged: () => void;
@@ -130,13 +150,13 @@ export function FlowDetail({
       const v = view?.steps.get(n.id);
       return {
         title: n.label,
-        ...stepDetail(n, flow.id, agents, routines),
+        ...stepDetail(n, flow.id, agents, routines, t),
         ...(v?.state ? { state: v.state } : {}),
         ...(v?.order ? { order: v.order } : {}),
         ...(v?.badge ? { badge: v.badge } : {}),
       };
     },
-    [view, flow.id, agents, routines],
+    [view, flow.id, agents, routines, t],
   );
   const toggle = async (on: boolean) => {
     setBusy(true);
@@ -156,6 +176,46 @@ export function FlowDetail({
     setCursor(page.nextCursor);
   };
   const project = projects.find((p) => p.id === flow.projectId)?.name ?? flow.projectId;
+  const [asking, setAsking] = useState<string>();
+  const [stopping, setStopping] = useState(false);
+  const published = shown?.publishedRevision != null;
+  /** A webhook flow asks for a body, prefilled with the last one kept; a schedule flow runs at once. */
+  const runNow = async () => {
+    if (schedule) return void start({});
+    setAsking(await lastBody(flow.id, runs));
+  };
+  const start = async (data: unknown) => {
+    setBusy(true);
+    try {
+      const r = await client.call("flows.run_now", { flow: flow.id, data });
+      setAsking(undefined);
+      notify(t(r.state === "ignored" ? "flow.now.empty" : "flow.now.started"), "info");
+      setRunId(r.event);
+      setRevision((n) => n + 1);
+    } catch {
+      notify(t("flow.now.failed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const cancel = async () => {
+    if (!run) return;
+    setBusy(true);
+    try {
+      const r = await client.call("flows.cancel_run", { flow: flow.id, event: run.event_id });
+      notify(
+        t(r.cancelled ? (r.state === "uncertain" ? "flow.stop.uncertain" : "flow.stop.done") : "flow.stop.ended"),
+        "info",
+      );
+      setStopping(false);
+      setRevision((n) => n + 1);
+    } catch {
+      notify(t("flow.ed.saveFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const live = run?.executor === "graph" && run.state === "pending";
   const outcome = run ? outcomeOf(run, flow.predicates.length) : undefined;
   const facts = run ? runFacts(run, t) : undefined;
   // Until one is chosen, the step that hands work to the crew (or the last one) is open.
@@ -168,11 +228,12 @@ export function FlowDetail({
       <div className="fd__main">
         <header className="fd__head">
           <IconButton label={t("flow.back")} icon={<Icons.ArrowLeft size={16} />} onClick={onBack} />
-          <FlowStepTile icon={STEP.webhook.icon} tone="warning" size="lg" />
+          <FlowStepTile icon={STEP[schedule ? "schedule" : "webhook"].icon} tone="warning" size="lg" />
           <div className="fd__name">
             <h1>{flow.name}</h1>
             <span>
-              {project} · {t("flow.triggerHook", { path: hookPath(flow.id) })} ·{" "}
+              {project} ·{" "}
+              {schedule ? scheduleName(schedule.cron, t) : t("flow.triggerHook", { path: hookPath(flow.id) })} ·{" "}
               {t("flow.steps", { count: graph?.nodes.length ?? "…" })}
             </span>
           </div>
@@ -184,6 +245,17 @@ export function FlowDetail({
               disabled={busy}
               onCheckedChange={(on) => void toggle(on)}
             />
+            {published && (
+              <Button
+                variant="secondary"
+                leadingIcon={<Icons.Play size={14} />}
+                disabled={busy || !flow.enabled}
+                title={flow.enabled ? undefined : t("flow.now.off")}
+                onClick={() => void runNow()}
+              >
+                {t("flow.now.run")}
+              </Button>
+            )}
             <Button variant="primary" leadingIcon={<Icons.Pencil size={14} />} onClick={onEdit}>
               {t("flow.edit")}
             </Button>
@@ -198,6 +270,22 @@ export function FlowDetail({
             {facts?.took && <span>{facts.took}</span>}
             {facts?.tokens && <span>{facts.tokens}</span>}
             {view && graph && <span>{t("flow.stepsRan", { ran: view.ran, total: graph.nodes.length })}</span>}
+            {run.source === "owner" && <Badge tone="neutral">{t("flow.byYou")}</Badge>}
+            {run.scheduled_at && ranLate(run) && (
+              <span className="fd__late">{t("flow.late", { time: dueTime(run.scheduled_at, timeZone) })}</span>
+            )}
+            {live && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="fd__stop"
+                leadingIcon={<Icons.Square size={12} />}
+                disabled={busy}
+                onClick={() => setStopping(true)}
+              >
+                {t("flow.stop.button")}
+              </Button>
+            )}
           </div>
         )}
         {shown?.draftPending && <p className="fd__draft">{t(flow.enabled ? "flow.draftBlocked" : "flow.draftOff")}</p>}
@@ -266,7 +354,15 @@ export function FlowDetail({
                 onClick={() => setRail((r) => ({ ...r, open: false }))}
               />
             </div>
-            <span className="fd__railnext">{flow.enabled ? t("flow.nextWhen") : t("flow.off")}</span>
+            <span className="fd__railnext">
+              {!flow.enabled
+                ? t("flow.off")
+                : schedule
+                  ? schedule.next_at
+                    ? t("flow.nextAt", { when: nextWhen(schedule.next_at, timeZone, t) })
+                    : t("flow.next.none")
+                  : t("flow.nextWhen")}
+            </span>
             {runs && runs.length > 0 && (
               <RunBars
                 size="lg"
@@ -333,7 +429,105 @@ export function FlowDetail({
           />
         </aside>
       )}
+      <RunNowDialog
+        body={asking}
+        busy={busy}
+        onClose={() => setAsking(undefined)}
+        onStart={(data) => void start(data)}
+      />
+      <Dialog
+        open={stopping}
+        onOpenChange={setStopping}
+        title={t("flow.stop.title")}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setStopping(false)}>
+              {t("flow.stop.keep")}
+            </Button>
+            <Button variant="danger" disabled={busy} onClick={() => void cancel()}>
+              {t("flow.stop.button")}
+            </Button>
+          </>
+        }
+      >
+        {t("flow.stop.body")}
+      </Dialog>
     </div>
+  );
+}
+
+/** The body of the last run that kept one, as editable JSON; an empty object when none did. */
+async function lastBody(flow: string, runs: FlowRun[] | undefined): Promise<string> {
+  const last = runs?.find((e) => e.executor === "graph" && e.state !== "ignored" && e.source !== "schedule");
+  if (!last) return "{}";
+  try {
+    const d = await loadRun(flow, last.event_id);
+    const start = d.steps.find((s) => d.graph.nodes.some((n) => n.id === s.node && isTrigger(n.kind)));
+    if (!start?.output || start.truncated) return "{}";
+    return JSON.stringify(JSON.parse(start.output), null, 2);
+  } catch {
+    return "{}";
+  }
+}
+
+/** A webhook flow run by hand: the person writes (or keeps) the body it gets, as if it had been POSTed. */
+function RunNowDialog(props: {
+  body: string | undefined;
+  busy: boolean;
+  onClose: () => void;
+  onStart: (data: unknown) => void;
+}) {
+  const t = useT();
+  const [text, setText] = useState("");
+  const [bad, setBad] = useState(false);
+  useEffect(() => {
+    if (props.body !== undefined) {
+      setText(props.body);
+      setBad(false);
+    }
+  }, [props.body]);
+  const go = () => {
+    try {
+      props.onStart(JSON.parse(text));
+    } catch {
+      setBad(true);
+    }
+  };
+  return (
+    <Dialog
+      open={props.body !== undefined}
+      onOpenChange={(o) => !o && props.onClose()}
+      title={t("flow.now.title")}
+      footer={
+        <>
+          <Button variant="secondary" onClick={props.onClose}>
+            {t("common.cancel")}
+          </Button>
+          <Button disabled={props.busy} leadingIcon={<Icons.Play size={14} />} onClick={go}>
+            {t("flow.now.run")}
+          </Button>
+        </>
+      }
+    >
+      <div className="fd__now">
+        <p>{t("flow.now.body")}</p>
+        <Textarea
+          aria-label={t("flow.now.sample")}
+          rows={8}
+          className="fd__mono"
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setBad(false);
+          }}
+        />
+        {bad && (
+          <p className="fd__nowerr" role="alert">
+            {t("flow.ed.tryBadJson")}
+          </p>
+        )}
+      </div>
+    </Dialog>
   );
 }
 

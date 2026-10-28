@@ -19,7 +19,7 @@ import {
 } from "@xyflow/react";
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { useT } from "../i18n/index.ts";
-import { type FlowGraph, type FlowNode, STEP } from "./steps.tsx";
+import { type FlowGraph, type FlowNode, isTrigger, STEP } from "./steps.tsx";
 import "@xyflow/react/dist/style.css";
 import "./canvas.css";
 
@@ -153,7 +153,7 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fit
           ...look(n),
           kind: n.kind,
           kindLabel: t(STEP[n.kind].label),
-          trigger: n.kind === "webhook",
+          trigger: isTrigger(n.kind),
           branches: n.kind === "condition" ? { yes: t("flow.f.yes"), no: t("flow.f.no") } : undefined,
         },
         selected: n.id === selected,
