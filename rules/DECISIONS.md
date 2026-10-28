@@ -172,7 +172,7 @@ the core. A plugin process reads only its folder,
 writes only its data folder and starts no processes (Node's permission model); Node does not restrict the network, so
 the runner also refuses raw socket modules and makes `fetch` refuse this machine and metadata addresses — a best-effort
 guard so a plugin cannot call APX's loopback API as the owner. Plugins watch declared events and may add context to
-owner turns (outside data, capped, 2 s); they never call APX.
+owner turns (outside data, capped, 2.5 s); they never call APX.
 
 ## D-019 — 2026-10-01 — Outside apps get a scoped client token and always act as a model
 An app such as Claude Code connects with its own token (`x-apx-client`, apart from `APX_TOKEN`'s Authorization
@@ -868,7 +868,9 @@ calls nobody. It is not offered `delegate` (`MAX_DEPTH` 1), `delegate` refuses f
 comments summon no one, and a consult's answer asks nobody (this replaces D-073's two-hop cascade). The board stays
 open: it may still create and assign tasks, which start their agent's own work, bounded by the turn's depth
 (`MAX_MENTION_DEPTH`). The owner's agent, and an agent working its own task, can still delegate and consult. Amended by
-[D-077](#d-077): the delegate names who owns the rest and the caller asks them.
+[D-077](#d-077): the delegate names who owns the rest and the caller asks them. The board part is amended by
+[D-079](#d-079) (an answering agent gives nobody task work) and [D-082](#d-082) (no fixed depth: the owner's limit,
+off by default since [D-160](#d-160)).
 
 <a id="d-075"></a>
 ## D-075 — 2026-10-14 — The core gives agents their own `apx`
@@ -1415,6 +1417,7 @@ is kept as `projects.context_chars` and sent as `Project.agents_md_chars` only p
 settings and by `apx projects list`. `.apc/memory.md` shares the cap and agent-facing marker, but has no CLI/UI notice.
 What reaches the prompt whole is superseded by [D-157](#d-157): every call now carries an AGENTS.md's first 8,000
 characters and the headings of the rest; the 200,000 limit, its marker and the owner's notice stay as they are.
+[D-158](#d-158) restores it whole.
 
 
 <a id="d-111"></a>
