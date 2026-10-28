@@ -25,16 +25,26 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   const screen = page.getByRole("region", { name: "Flows", exact: true });
   await expect(screen.getByText("Este proyecto todavía no tiene flows.")).toBeVisible();
 
-  // Start from the webhook shape: webhook → save → AI model, with the project already chosen.
-  await screen.getByRole("button", { name: /^Desde un webhook/ }).click();
+  // A blank flow from the list of every project: its project is chosen in the editor, not taken from a filter.
+  await open(page, "#view=flows");
+  await screen.getByRole("button", { name: "Nuevo flow" }).click();
   const editor = page.getByRole("dialog", { name: "Flow sin nombre" });
-  await expect(editor.getByRole("combobox", { name: "Proyecto", exact: true })).toBeVisible();
   await editor.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(editor.getByRole("alert")).toHaveText("Ponele un nombre al flow.");
   await editor.getByRole("textbox", { name: "Nombre del flow" }).fill(name);
   const named = page.getByRole("dialog", { name });
+  await named.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(named.getByRole("alert")).toHaveText("Elegí un proyecto.");
+  await named.getByRole("combobox", { name: "Proyecto", exact: true }).click();
+  await page.getByRole("option", { name: `flow-intake-${stamp}`, exact: true }).click();
+  await expect(named.getByRole("combobox", { name: "Proyecto", exact: true })).toHaveText(`flow-intake-${stamp}`);
   // Coming-soon kinds are listed but can't be added.
   await expect(named.getByRole("button", { name: "SQL · Pronto" })).toBeDisabled();
+  // Webhook → save → AI model, each added after the last one.
+  await named.getByRole("button", { name: "Sumar Webhook entrante" }).click();
+  await named.getByRole("button", { name: "Sumar Guardar en la tabla" }).click();
+  await named.getByRole("textbox", { name: "Clave", exact: true }).fill("latest");
+  await named.getByRole("button", { name: "Sumar Modelo IA" }).click();
 
   // A check between the webhook and the save: choose the webhook, then add a check after it.
   await named.locator('.react-flow__node[data-id="webhook-1"]').click();
@@ -52,7 +62,7 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
     targetPosition: { x: 200, y: 200 },
   });
   const out = named.locator('.react-flow__node[data-id="condition-1"] .fc-handle--out');
-  await out.dragTo(named.locator('.react-flow__node[data-id="table_write-2"] .fc-handle--in'));
+  await out.dragTo(named.locator('.react-flow__node[data-id="table_write-1"] .fc-handle--in'));
   await named.locator(".react-flow__pane").click({ position: { x: 20, y: 20 } });
   await expect(named.getByText("Corre así como está.")).toBeVisible();
 

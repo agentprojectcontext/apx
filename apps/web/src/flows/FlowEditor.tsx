@@ -325,7 +325,8 @@ export function FlowEditor({
                 connect: (source, target) => change(connectNodes(g, source, target)),
               }}
               minimap={g.nodes.length > 0}
-              fitKey={`${flow?.id ?? "new"}:${g.nodes.length ? "some" : "none"}`}
+              // A step added or removed is fitted into view with the rest, never left past the edge.
+              fitKey={`${flow?.id ?? "new"}:${g.nodes.length}`}
             />
           )}
           {graph && !g.nodes.length && (
