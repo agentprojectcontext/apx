@@ -1777,7 +1777,7 @@ export const en = {
   "nudge.open": "Open Interruptions",
   "routines.anchor": "Always arrives",
   "routines.maxSteps": "Steps per run",
-  "routines.maxStepsHint": "How many model calls each run may make before it must answer (5 to 200). Empty: 60.",
+  "routines.maxStepsHint": "How many model calls each run may make before it must answer (5 to 200). Empty: {steps}.",
   "routines.anchorHint":
     "On: its news always arrives, even at night or past the daily cap (for a morning or evening brief). Off: it goes through your interruption budget.",
   "nudge.where": "Chat app for notices",

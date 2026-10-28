@@ -1,6 +1,7 @@
 // The built-in loop: our model call, our tools, bounded steps. What the model says and every tool result are
 // logged as they happen.
 
+import { TURN_STEPS } from "@apx/protocol";
 import type { Llm } from "../providers/llm.ts";
 import type { ChatItem, ModelFailure, Usage } from "../providers/types.ts";
 import { readsImages } from "../providers/vision.ts";
@@ -11,7 +12,7 @@ import type { Harness } from "./types.ts";
  * Model calls a turn may make before it must report: a long piece of work (a code change, its review, the screen or
  * the browser step by step) fits; a delegated one cut here goes on while it progresses (engine/progress.ts).
  */
-export const MAX_STEPS = 150;
+export const MAX_STEPS = TURN_STEPS;
 const MAX_CONTINUATIONS = 2;
 /** The same call this many times in a row gets a reminder to change course; tools never go off for it before STUCK_AT. */
 const REMIND_AT = [3, 5] as const;

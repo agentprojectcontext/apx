@@ -123,3 +123,11 @@ test("a translation keeps the placeholders of its English text", () => {
     [],
   );
 });
+
+test("the routine steps hint shows the core's default, never a number of its own (DECISIONS.md#d-116)", () => {
+  for (const messages of [base, esBase]) {
+    const hint = messages["routines.maxStepsHint"];
+    assert.match(hint, /\{steps\}/);
+    assert.doesNotMatch(hint.replace("5", "").replace("200", ""), /\d/);
+  }
+});

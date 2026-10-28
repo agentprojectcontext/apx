@@ -17,6 +17,7 @@ export {
   pairingLink,
   randomAgentName,
   SURFACE_STATE_MAX,
+  TURN_STEPS,
   UPLOAD_LIMITS,
 } from "./constants.ts";
 

@@ -35,6 +35,12 @@ export const FILE_PAYLOAD_BYTES =
   Math.ceil((Math.max(UPLOAD_LIMITS.fileBytes, UPLOAD_LIMITS.audioBytes, UPLOAD_LIMITS.imageBytes) * 4) / 3) +
   64 * 1024;
 
+/**
+ * Model calls a turn on APX's own loop may make before it must answer: a long piece of work fits. A routine may set
+ * its own; the panel shows this as its default (DECISIONS.md#d-116).
+ */
+export const TURN_STEPS = 150;
+
 /** Maximum UTF-8 document snapshot rendered in the side panel. */
 export const DOCUMENT_MAX_BYTES = 400_000;
 
