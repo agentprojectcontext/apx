@@ -637,3 +637,23 @@ test("with no chat app for notices, the owner's chat app hears only what follows
     await env.client.call("notices.set", prefs);
   }
 });
+
+test("with its own chat chosen, the owner's words on the channel are answered there, not in Home (DECISIONS.md#d-129)", async () => {
+  const save = (owner_thread: "home" | "own") =>
+    env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby", owner_thread } });
+  await save("own");
+  try {
+    await waitFor(
+      async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running",
+      "running",
+    );
+    const before = tg.messagesTo(OWNER.id).length;
+    tg.message(OWNER, "in my own chat");
+    await waitFor(() => tg.messagesTo(OWNER.id).length > before, "the answer on Telegram");
+    assert.match(String(tg.messagesTo(OWNER.id).at(-1)?.body.text), /you said: in my own chat/);
+    const own = env.core.store.threads.byConversation("tg", String(OWNER.id));
+    assert.equal(own?.kind, "channel", "its own chat, not Home");
+  } finally {
+    await save("home");
+  }
+});
