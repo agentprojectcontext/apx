@@ -114,8 +114,8 @@ su propia sesión, con historial y todo, y desde ahí vive también en APX.
 - Claude Code carga solo tu configuración de usuario, no los archivos `.claude/settings` de un repositorio (que
   podrían habilitar herramientas salteando las aprobaciones de APX). APX lee el `CLAUDE.md` de la carpeta por su
   cuenta y lo suma al prompt.
-- Codex en un chat con **Edita libremente** corre en sólo lectura (y explica por qué) mientras el agente pregunte
-  antes de actuar o la sesión haya leído contenido de afuera; con autonomía total sí escribe.
+- Codex en un chat con **Edita libremente** escribe en su carpeta cuando el agente está en Auto, Acepta ediciones o
+  Total, lea lo que lea la sesión; en Manual o Plan corre en sólo lectura (y explica por qué).
 - Una vez que una sesión de motor lee contenido de afuera (una página web, un mensaje), el resto de esa sesión se
   trata como no confiable, igual que la de un agente de APX.
 </Aside>

@@ -157,7 +157,8 @@ A channel answers contacts at any hour until you turn on **Attention hours** in 
 from when to when, in the time zone of your account (**Settings › Account**). Hours that end after midnight belong to
 the day they start on (Friday 20:00–02:00 covers the first hours of Saturday).
 
-- Outside them, a contact's message is kept in their chat, unread for you, with no model call: nothing goes back.
+- Outside them, a contact's message is kept in their chat, unread for you, and no turn runs: nothing goes back. A
+  voice note is still transcribed and a sticker named, so the answer later can read them.
 - When the hours begin, each chat that waited gets **one** answer to everything that person sent meanwhile. Chats
   are answered a few at a time, the longest waiting first. A supervised contact gets its draft then.
 - If they write again once the hours have begun, that message is answered with the earlier ones in view, and only
@@ -177,9 +178,11 @@ as sent, maybe sent or failed. The channel's settings list what was **Recently s
 10-08T09:02  sent      telegram  notice  Morning brief: 3 tasks due today…`}</Terminal>
 
 Under **Notices for you**, **Confirmations follow you** sends a question an agent asked in the app to your channel
-if nobody answered it (after 1, 2 or 10 minutes, or never), with buttons on Telegram; elsewhere it reminds you to
-answer it in the app ([which channels act on your word](#which-channels-act-on-your-word)). Quiet hours and the daily cap live in
-**Settings › Interruptions**.
+if nobody answered it (after 1, 2 or 10 minutes, or never). Your super-agent's own questions come whole, with buttons
+on Telegram and numbered options on WhatsApp and Signal; elsewhere it reminds you to answer it in the app ([which
+channels act on your word](#which-channels-act-on-your-word)). Another agent's question comes as one line from your
+super-agent saying who waits and for what ("Fausto is waiting for you: …"), with no buttons, to answer in the app.
+Quiet hours and the daily cap live in **Settings › Interruptions**.
 
 ## Voice notes
 

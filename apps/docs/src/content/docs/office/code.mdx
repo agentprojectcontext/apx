@@ -111,8 +111,8 @@ picks up its own session, history included, and from then on it lives in APX too
 <Aside type="note" title="What APX keeps in check">
 - Claude Code loads only your own user settings, not a repository's `.claude/settings` files (which could allow tools
   past APX's approvals). APX reads the folder's `CLAUDE.md` itself and adds it to the prompt.
-- Codex in an **Edits freely** chat runs read-only (and says why) while the agent asks before acting or the session
-  has read outside content; total autonomy still writes.
+- Codex in an **Edits freely** chat writes in its folder when the agent is on Auto, Accept edits or Total, whatever
+  the session read; on Manual or Plan it runs read-only (and says why).
 - Once an engine session reads outside content (a web page, a message), the rest of that session is treated as
   untrusted, as an APX agent's would be.
 </Aside>

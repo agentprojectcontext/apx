@@ -64,9 +64,9 @@ Algunas cosas valen en cualquier nivel de autonomía, incluso total:
 - Cada 60 acciones en un mismo turno, el agente te pregunta antes de seguir.
 - Los campos de contraseña se rechazan.
 
-Mirar la pantalla es una herramienta `ask`; hacer clic, escribir y apretar teclas son herramientas `always`, así que
-preguntan en cualquier autonomía menos total (mirá [Autonomía](/es/concepts/autonomy/)). Linux todavía no
-presta esta capacidad.
+Mirar la pantalla no cambia nada, así que corre sin preguntar (en Manual sí pregunta); abrir una app es una
+herramienta `ask`; hacer clic, escribir y apretar teclas son herramientas `always`, así que preguntan en cualquier
+autonomía menos total (mirá [Autonomía](/es/concepts/autonomy/)). Linux todavía no presta esta capacidad.
 
 ## El navegador que manejan tus agentes
 
@@ -141,8 +141,8 @@ el panel lo muestra en la barra de arriba. Cuando vos decís, baja el instalador
 `.sha256`:
 
 - **Linux** (AppImage) y **Windows** terminan solos y vuelven a abrir.
-- **macOS** abre la imagen de disco para que arrastres APX. La app todavía no está firmada, así que no puede
-  reemplazarse sola en silencio.
+- **macOS** descomprime la app nueva al lado de la que está corriendo y se reemplaza cuando hacés clic en
+  **Reiniciar ahora**, o cuando la cerrás.
 
 El core local incluido se actualiza con Desktop. Con un core remoto, Desktop coordina una versión compartida
 mediante la conexión autenticada de APX, sin SSH. El servidor se actualiza una vez; cada app Desktop solo puede

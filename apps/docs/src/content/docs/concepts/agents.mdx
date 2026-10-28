@@ -207,17 +207,19 @@ APX keeps delegation on a leash:
 
 | Limit | Value |
 |---|---|
-| How deep delegations nest | 2 (your agent → a helper → the helper's helper) |
+| How deep delegations nest | 1 (your agent → a helper; the helper does the work itself and asks nobody else) |
 | Delegations running at once from one chat | 3 |
 | Time a delegated run may go without progress | 6 minutes; a command still running counts as progress |
 | Time one delegated run may work, progress or not | 2 hours |
 | Turns agents start on their own without you | No limit by default: they finish what you asked. Turn limits on under **When agents work on their own** (it starts from 100 turns or 5,000,000 fresh tokens; what a provider reads from its cache does not count) and the chain pauses there until you write |
 
 A delegated run that runs out of steps or time is not lost. What it reported is a progress report, not a result, and
-APX goes on with it once in the same session, which keeps its context; you get a notice in the chat (and on the
-channel the chat lives on) saying which agent hit which limit and what it has done so far, with a button to open the
-session and, while APX keeps it going, one to stop it. If it is cut short again, the agent that asked gets the report and decides: delegate only the rest
-into the same session, or tell you. That agent can also stop a session it started while it still works.
+APX goes on with it in the same session, which keeps its context: always once, then again each time the last part made
+progress (some calls worked, something got done, it did not go round the same calls), up to 8 parts in a row. While
+APX keeps it going you see a quiet notice in the chat only, with a button to open the session and one to stop it.
+When a part makes no progress, or the parts run out, APX stops and the agent that asked gets the report and why: it
+tells you, and the notice in the chat, the tray and your channel says which agent hit which limit and what it has done
+so far, with a button to continue. That agent can also stop a session it started while it still works.
 
 A delegated run works in the mode of whoever asked for it, keeping its own rules by case, and only gets the tools
 every agent up the chain may use.
@@ -225,8 +227,9 @@ every agent up the chain may use.
 A delegation can work in one folder of a project, such as a git worktree: the caller names the project by a path
 inside it, and the helper's relative paths and commands start there, never outside the project (a link out of it is
 refused). It can also say how far the helper may change that folder (`ask`, `auto` or `read-only`). The helper never
-gets further than its caller: in a code thread, no more than that thread's own policy; elsewhere, `ask` unless the
-caller asks for `auto` and may make changes itself. Its result comes back to the caller like any other delegation's.
+gets further than its caller: with no limit named it gets the most its caller may, never more than the caller's own
+mode (in a code thread, that thread's policy), the helper's mode or the project's; naming one only narrows it. Its
+result comes back to the caller like any other delegation's.
 
 ## One way to talk to an agent
 

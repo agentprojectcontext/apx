@@ -37,11 +37,13 @@ and follow the channel's **Strangers** setting.
 ### Server rooms
 
 Discord rooms are opt-in. A room that isn't listed doesn't exist for APX: it's neither read nor stored. Under **Server
-rooms**, add each one by **Room name** and **Room id**, then **Add room**.
+rooms**, pick each one from **Add a room from the server…**, which lists the rooms of the bot's servers while it runs
+and says where it can't write. When they can't be read, **Add by ID** takes a **Room name** and **Room id**, then
+**Add room**.
 
 <Aside type="tip">
-To get a room's id, turn on Developer Mode in Discord (Settings › Advanced), then right-click the channel › Copy
-Channel ID.
+To get a room's id for **Add by ID**, turn on Developer Mode in Discord (Settings › Advanced), then right-click the
+channel › Copy Channel ID.
 </Aside>
 
 Each room has a mode:
@@ -66,8 +68,9 @@ The rest of the section shapes how it behaves there:
 <Aside type="caution" title="Rooms are public, so their turns are sealed">
 In a room the agent answers with no memory and nothing of yours, even when you're the one writing; its only tools are
 web search and reading, when you ask (see [Search the web](/channels/overview/#search-the-web)). It reads
-the room's latest messages as data and replies to the message it answers, without mentions. If an answer fails, you
-get told; nothing is posted.
+the room's latest messages as data and replies to the message it answers. Only in a turn you started does it mention
+the people it names in the room; nobody else can make it ping anyone. If an answer fails, you get told; nothing is
+posted.
 </Aside>
 
 Every message of a listed room is kept in that room's chat in APX. Agents can read a room (for example, "what did

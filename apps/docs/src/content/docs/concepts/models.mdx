@@ -85,9 +85,11 @@ The router decides which model answers each turn. Find it in **Settings › Rout
 
 <Shot name="settings-router" alt="Settings, Router: two rules on top and a model chain of three models below" caption="Settings › Router" />
 
-A turn falls back to the next model **only if the failing one had not run a tool yet**. Once a tool ran, the turn
-fails honestly instead: trying again on another model could do the same thing twice. When it does switch, the chat
-shows a "Switched model" notice saying which model didn't answer and why.
+A model that fails with an error that may pass gets four tries, with doubling waits of up to 8 seconds; a provider
+that asks to wait less than 30 seconds is waited for, a longer wait moves on at once. Then that step goes to the next
+model in the chain. This holds for any step of a turn, before or after a tool ran: each step only asks the model what
+to do next, so nothing runs twice. When it does switch, the chat shows a notice saying which model didn't answer, why,
+and which one went on.
 
 ## Per agent, per chat, by default
 
