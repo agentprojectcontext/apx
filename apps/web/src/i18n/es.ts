@@ -858,7 +858,7 @@ export const es: Partial<Record<MessageKey, string>> = {
     "El modo en que trabajan los agentes que no tienen uno propio. Lo guarda APX, no la carpeta.",
   "project.autonomy.manual.hint": "Te pide el OK para todo lo que cambia algo, y antes de leer fuera del proyecto.",
   "project.autonomy.auto.hint":
-    "Lee cualquier carpeta, escribe y corre comandos en el proyecto sin preguntar. Pregunta antes de mensajes, pagos, borrar y escribir fuera del proyecto.",
+    "Lee cualquier carpeta, escribe y corre comandos en el proyecto sin preguntar. Pregunta antes de mensajes, pagos, borrar y escribir fuera de tus proyectos.",
   "project.autonomy.accept_edits.hint": "Como Auto, pero pregunta antes de cada comando que cambia algo.",
   "project.autonomy.plan.hint": "Lee y propone cambios; no cambia nada hasta que cambies el modo.",
   "project.autonomy.total.hint":

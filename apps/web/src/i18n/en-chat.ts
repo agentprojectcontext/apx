@@ -10,7 +10,7 @@ export const enChat = {
   "input.agentScope": "Always for this agent",
   "input.alwaysScope": "All agents and chats",
   "input.scopeHelp":
-    "Session: this chat until archive or restart. Always: this agent, in every chat; revoke it in Resources.",
+    "Session: this chat until you archive or delete it. Always: this agent, in every chat; revoke it in Resources.",
   "input.folderOnce": "Only this time",
   "input.folderKeep": "Allow reading it in this project",
   "input.folderKeepMany": "Allow reading them in this project",

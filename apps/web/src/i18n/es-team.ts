@@ -260,7 +260,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "agentedit.autonomyManualHint": "Te pide permiso antes de cada acción que cambia algo.",
   "agentedit.autonomyAuto": "Auto",
   "agentedit.autonomyAutoHint":
-    "Lee en cualquier lado y trabaja en su proyecto sin preguntar. Pregunta solo mensajes, pagos, borrar y escribir afuera.",
+    "Lee en cualquier lado y trabaja en su proyecto sin preguntar. Pregunta solo mensajes, pagos, borrar y escribir fuera de tus proyectos.",
   "agentedit.autonomyAcceptEdits": "Acepta ediciones",
   "agentedit.autonomyAcceptEditsHint": "Como Auto, y pregunta antes de cada comando que cambia algo.",
   "agentedit.autonomyPlan": "Plan",

@@ -255,7 +255,7 @@ export const enTeam = {
   "agentedit.autonomyManualHint": "Asks your permission before every action that changes something.",
   "agentedit.autonomyAuto": "Auto",
   "agentedit.autonomyAutoHint":
-    "Reads anywhere and works in its project without asking. Asks only for messages, payments, deleting and writing outside.",
+    "Reads anywhere and works in its project without asking. Asks only for messages, payments, deleting and writing outside your projects.",
   "agentedit.autonomyAcceptEdits": "Accept edits",
   "agentedit.autonomyAcceptEditsHint": "Like Auto, and asks before any command that changes something.",
   "agentedit.autonomyPlan": "Plan",

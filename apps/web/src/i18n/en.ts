@@ -854,7 +854,7 @@ export const en = {
   "project.autonomy.manual.hint":
     "Asks your OK for everything that changes something, and before reading outside the project.",
   "project.autonomy.auto.hint":
-    "Reads any folder, writes and runs commands in the project without asking. Asks before messages, payments, deleting and writing outside the project.",
+    "Reads any folder, writes and runs commands in the project without asking. Asks before messages, payments, deleting and writing outside your projects.",
   "project.autonomy.accept_edits.hint": "Like Auto, but asks before any command that changes something.",
   "project.autonomy.plan.hint": "Reads and proposes changes; changes nothing until you switch the mode.",
   "project.autonomy.total.hint": "Asks you nothing, in any folder but APX's. Only for projects you fully trust.",

@@ -146,7 +146,8 @@ export const en = {
   approveOnce: "Approve once",
   approveSession: "Approve for this session",
   approveAlways: "Always allow for this agent",
-  scopeHelp: "Session: this chat until archive or restart. Always: this agent, in every chat; revoke it in Resources.",
+  scopeHelp:
+    "Session: this chat until you archive or delete it. Always: this agent, in every chat; revoke it in Resources.",
   reply: "Reply",
   view: "View",
   runAgain: "Run again",

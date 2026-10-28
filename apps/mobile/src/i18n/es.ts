@@ -151,7 +151,7 @@ export const es: Record<Key, string> = {
   approveSession: "Aceptar durante esta sesión",
   approveAlways: "Aceptar siempre para este agente",
   scopeHelp:
-    "Sesión: este chat hasta archivarlo o reiniciar. Siempre: este agente, en todos los chats; se revoca en Recursos.",
+    "Sesión: este chat hasta que lo archives o lo borres. Siempre: este agente, en todos los chats; se revoca en Recursos.",
   reply: "Responder",
   view: "Ver",
   runAgain: "Correr de nuevo",
