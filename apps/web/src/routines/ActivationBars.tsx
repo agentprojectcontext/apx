@@ -1,4 +1,5 @@
 import type { Routine, RoutineRun } from "@apx/protocol";
+import { isCapability } from "@apx/protocol/client";
 import { useEffect, useMemo, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { useNow } from "../common/useNow.ts";
@@ -7,7 +8,7 @@ import { type MessageKey, useT } from "../i18n/index.ts";
 import { activationSlots } from "./slots.ts";
 
 /** An agent answers (agent), watches (watch) or tells the team news (relay): each has one and can spare a model call. */
-export const hasAgent = (a: Routine["action"]) => a === "agent" || a === "watch" || a === "relay" || a === "mail";
+export const hasAgent = (a: Routine["action"]) => a === "agent" || a === "watch" || isCapability(a);
 
 /** How one activation ended: it failed, is still running, was skipped (no tokens spent), told the owner, or ran. */
 export const barOf = (x: RoutineRun, action: Routine["action"]) => {

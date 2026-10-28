@@ -9,5 +9,8 @@ export const enSecretary = {
   "super.connectMail": "Gmail connection",
   "super.mailConnected": "Gmail is connected for reading. Project availability and quiet hours still apply.",
   "super.mailWaiting": "Mail checking is waiting for a Gmail connection with read access.",
+  "super.calendarAvailability":
+    "Reminds you of events on your Google Calendar before they start, as long before as Remind events says. It waits without calling a model until Calendar is connected.",
+  "super.connectCalendar": "Google Calendar connection",
   "super.lastCheck": "Last check",
 };

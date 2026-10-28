@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { isCapability } from "@apx/protocol";
 import { watchSignals } from "../domain/signals.ts";
 import { removeDir } from "../testkit/platform.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
@@ -83,6 +84,9 @@ test("a new schedule moves its routine; a prompt the owner edited stays, and Res
   await assert.rejects(set({ day_open: "whenever" }));
   const mail = (await set({ mail_every_min: 10 })).routines.find((r) => r.origin === "secretary:mail");
   assert.equal(mail?.action, "mail", "the secretary reads new mail");
+  const events = (await set({ event_lead_min: 15 })).routines.find((r) => r.origin === "secretary:events");
+  assert.equal(events?.action, "calendar", "the secretary reminds the owner's events");
+  assert.equal(env.core.store.settings.read("profile").values.event_lead_min, 15, "as long before as the owner chose");
   assert.deepEqual(mail?.schedule, { kind: "cron", cron: "*/10 * * * *" }, "as often as the owner chose");
   const fast = (await set({ mail_every_min: 0 })).routines.find((r) => r.origin === "secretary:mail");
   assert.deepEqual(fast?.schedule, { kind: "cron", cron: "*/2 * * * *" }, "never more often than every 2 minutes");
@@ -100,13 +104,13 @@ test("the super-agent's prompt says its role while the profile is on", async () 
   assert.match(await system(), /formally \(usted\)/);
   await env.client.call("profiles.set", { id: null, values: {} });
   const kept = env.core.store.routines.list().filter((r) => r.origin?.startsWith("secretary:"));
-  assert.equal(kept.length, 5);
+  assert.equal(kept.length, 6);
   assert.ok(
-    kept.filter((r) => r.action !== "mail" && r.action !== "relay").every((r) => !r.enabled),
+    kept.filter((r) => !isCapability(r.action)).every((r) => !r.enabled),
     "none turns profile routines off",
   );
   assert.ok(
-    kept.filter((r) => r.action === "mail" || r.action === "relay").every((r) => r.enabled),
+    kept.filter((r) => isCapability(r.action)).every((r) => r.enabled),
     "capabilities remain independent of the profile",
   );
   assert.doesNotMatch(await system(), /chief of staff/);
@@ -141,7 +145,7 @@ test("an imported v1 routine of the same job is adopted, not doubled", async () 
     assert.equal(close.length, 1);
     assert.equal(close[0]?.id, v1.id, "v1's own routine became the profile's");
     assert.match(close[0]?.prompt ?? "", /Close the owner's day/, "with v2's prompt: v1's named v1's tools");
-    assert.equal(routines.length, 5);
+    assert.equal(routines.length, 6);
   } finally {
     await fresh.core.close();
     await fresh.cleanup();
@@ -176,8 +180,8 @@ test("another profile takes over: the secretary's routines turn off, the new one
   assert.deepEqual(one?.schedule, { kind: "cron", cron: "0 10 * * *" });
   assert.equal(one?.name, "Una cosa para hoy", "named in the owner's language");
   const secretary = env.core.store.routines.list().filter((r) => r.origin?.startsWith("secretary:"));
-  assert.ok(secretary.filter((r) => r.action !== "mail" && r.action !== "relay").every((r) => !r.enabled));
-  assert.ok(secretary.filter((r) => r.action === "mail" || r.action === "relay").every((r) => r.enabled));
+  assert.ok(secretary.filter((r) => !isCapability(r.action)).every((r) => !r.enabled));
+  assert.ok(secretary.filter((r) => isCapability(r.action)).every((r) => r.enabled));
   await assert.rejects(env.client.call("profiles.set", { id: "nope", values: {} }), /not_found|profile nope/);
   await set({});
 });

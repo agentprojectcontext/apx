@@ -1,4 +1,5 @@
 // How many agents, chats, open tasks and routines a project has: the counts beside its tabs.
+import { isCapability } from "@apx/protocol/client";
 import { useEffect, useMemo } from "react";
 import { DEFAULT_PID, inProject, isListed, teamOf } from "../data/identity.ts";
 import { loadRoutines, useRoutines } from "../data/routines.ts";
@@ -29,7 +30,7 @@ export function useProjectCounts(pid: string): Partial<Record<ProjectTab, number
         ? { tasks: Object.values(tasks).filter((x) => x.state === "open" && here(x.project_id)).length }
         : {}),
       ...(routinesReady
-        ? { routines: routines.filter((r) => r.action !== "relay" && r.action !== "mail" && here(r.project_id)).length }
+        ? { routines: routines.filter((r) => !isCapability(r.action) && here(r.project_id)).length }
         : {}),
     };
   }, [agents, threads, tasks, tasksReady, routines, routinesReady, pid]);

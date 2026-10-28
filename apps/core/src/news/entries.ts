@@ -68,6 +68,25 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "event-reminders",
+    since: "2.11.2",
+    title: "Reminders before your events",
+    applies: (f) => f.google.calendar,
+    text:
+      "The super-agent can now remind the owner of each Google Calendar event shortly before it starts (30 minutes " +
+      "by default): what, when and where or the meeting link. It checks every 5 minutes and calls the model only when " +
+      "an event is about to start; all-day and declined events are left out. It is Upcoming events in Settings › " +
+      "Super-agent, and the secretary profile's Remind events sets how long before.",
+    actions: [
+      {
+        label: { en: "Turn on reminders", es: "Activar recordatorios" },
+        prompt:
+          "Turn on reminders for my Google Calendar events, then tell me in a line how long before they come and how " +
+          "I can change it.",
+      },
+    ],
+  },
+  {
     id: "secretary-capabilities",
     since: "2.11.2",
     title: "Choose what your secretary watches for you",

@@ -50,6 +50,7 @@ import {
   roomPrompt,
   sealedWeb,
 } from "./audience.ts";
+import type { CalendarSource } from "./calendar-reminders.ts";
 import { gitChanges, gitSnapshot, turnChanges } from "./changes.ts";
 import { memoryQuery, recallChats } from "./chat-recall.ts";
 import {
@@ -123,6 +124,8 @@ export type TurnDeps = {
   hasCap?: ((cap: string) => boolean) | undefined;
   /** The owner's Gmail, for mail routines. */
   mail?: MailSource | undefined;
+  /** The owner's Google Calendar, for event reminders. */
+  calendar?: CalendarSource | undefined;
   /** Whether a desktop app is linked as a node (lending its browser), whatever else it lends. */
   desktopLinked?: (() => boolean) | undefined;
   /** Owner text and results steered into this turn since the last call, ready to read. */
@@ -251,7 +254,17 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   if (report) display.upsert((p) => p.type === "subthread" && p.thread_id === report.thread_id, report);
   // A routine with commands of its own: the pre-command first; its result may say the model is not needed.
   const routine = routineWithCommands(store, run);
-  const pipe = routine && routinePipeline({ store, home: deps.home, routine, run, display, mail: deps.mail });
+  const pipe =
+    routine &&
+    routinePipeline({
+      store,
+      home: deps.home,
+      routine,
+      run,
+      display,
+      mail: deps.mail,
+      calendar: deps.calendar,
+    });
   // The post-command runs whatever the outcome, except when the owner canceled or the core is stopping; after a
   // missed deadline it gets a short limit. It never changes the run's state.
   const end = async (done: RunRecord, skipped = false) => {
@@ -425,6 +438,8 @@ function skipModel(
     t.display.notice("info", "routine.watch.quiet", "Nothing new to watch: the model was not called.");
   else if (t.action === "relay")
     t.display.notice("info", "routine.relay.quiet", "No team news to tell: the model was not called.");
+  else if (t.action === "calendar")
+    t.display.notice("info", "routine.calendar.quiet", "No event about to start: the model was not called.");
   else
     t.display.notice(
       "info",

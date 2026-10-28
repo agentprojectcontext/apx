@@ -75,6 +75,7 @@ import { readIdentity } from "./identity.ts";
 import { createIdleTrim } from "./idle-memory.ts";
 import { type IMessageOps, systemIMessage } from "./imessage.ts";
 import { createAsana } from "./integrations/asana.ts";
+import { calendarApi } from "./integrations/calendar.ts";
 import { gmailApi } from "./integrations/gmail.ts";
 import { createGoogle } from "./integrations/google.ts";
 import { apxGoogleClient, clientFromPair } from "./integrations/google-client.ts";
@@ -502,6 +503,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       readable: (project) => google.usable("gmail", project) && google.full("gmail"),
       historyId: () => gmailApi(google).historyId(),
       arrived: (from) => gmailApi(google).arrived(from),
+    },
+    calendar: {
+      readable: (project) => google.usable("google-calendar", project),
+      between: async (from, to) => (await calendarApi(google).list({ from, to, max: 20, calendar: "primary" })).events,
     },
     afterRun: (run) => {
       upkeep.afterRun(run);

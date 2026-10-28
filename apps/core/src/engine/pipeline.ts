@@ -14,6 +14,7 @@ import { MAX_STEPS } from "../harness/native.ts";
 import { spawnCommand, stopTree } from "../processes.ts";
 import { workDir } from "../tools/folders.ts";
 import { untrusted } from "../tools/result.ts";
+import { type CalendarSource, DEFAULT_LEAD_MIN, dueEvents, eventLines } from "./calendar-reminders.ts";
 import type { Display } from "./display.ts";
 import { takeTeamNews } from "./team-news.ts";
 
@@ -172,6 +173,7 @@ export function routinePipeline(o: {
   run: RunRecord;
   display: Display;
   mail?: MailSource | undefined;
+  calendar?: CalendarSource | undefined;
 }) {
   const { routine, display } = o;
   // The commands run where the routine's agent works in its chat.
@@ -265,6 +267,45 @@ export function routinePipeline(o: {
     }
   };
 
+  /**
+   * A calendar routine: its agent is called only when an event starts within the lead time the running profile sets
+   * and was not told yet; the events reach it as data. An anchor routine reminds in quiet hours too.
+   */
+  const calendar = async (result: StepResult | undefined) => {
+    const none = { call: false, prompt: (t: string) => t };
+    const source = o.calendar;
+    if (!source?.readable(routine.project_id) || (!routine.anchor && quietNow(o.store))) {
+      o.store.routines.modelCalled(o.run.id, false);
+      return none;
+    }
+    const lead = o.store.settings.read("profile").values.event_lead_min;
+    const leadMin = typeof lead === "number" && lead > 0 ? lead : DEFAULT_LEAD_MIN;
+    const key = `calendar_told:${routine.id}`;
+    const now = new Date();
+    try {
+      let told: Record<string, string> = {};
+      try {
+        told = JSON.parse(o.store.settings.get(key) ?? "{}") as Record<string, string>;
+      } catch {}
+      const events = await source.between(now.toISOString(), new Date(now.getTime() + leadMin * 60_000).toISOString());
+      const next = dueEvents(events, told, now, leadMin);
+      o.store.settings.set(key, JSON.stringify(next.told));
+      o.store.routines.modelCalled(o.run.id, next.due.length > 0);
+      if (!next.due.length) return none;
+      const block = untrusted("events", { count: String(next.due.length) }, eventLines(next.due, now));
+      return { call: true, prompt: (t: string) => `${result ? withPreOutput(t, result) : t}\n\n${block}` };
+    } catch (err) {
+      // Calendar did not answer: the next run asks again, and an event still ahead is told then.
+      display.notice(
+        "warn",
+        "routine.calendar",
+        `Google Calendar: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      o.store.routines.modelCalled(o.run.id, false);
+      return none;
+    }
+  };
+
   return {
     /**
      * Runs the pre-command (if any) and says what comes next: the model (an agent routine), a message to send as it is
@@ -276,6 +317,7 @@ export function routinePipeline(o: {
       if (routine.action === "watch") return watch(result);
       if (routine.action === "relay") return relay(result);
       if (routine.action === "mail") return mail(result);
+      if (routine.action === "calendar") return calendar(result);
       const goOn = result ? callsModel(routine.call_model, result) : true;
       if (routine.action !== "agent") {
         o.store.routines.modelCalled(o.run.id, false);

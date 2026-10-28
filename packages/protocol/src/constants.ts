@@ -314,3 +314,9 @@ export const SURFACE_STATE_MAX = 64_000;
  * kept for the marketplace's packaged apps and extensions. See DECISIONS.md#d-118.
  */
 export const ARTIFACT_FILE_EXT = ".apxart";
+
+/** The super-agent's capabilities: one routine each, turned on and off in its settings rather than listed with routines. */
+export const CAPABILITY_ACTIONS = ["relay", "mail", "calendar"] as const;
+export type CapabilityAction = (typeof CAPABILITY_ACTIONS)[number];
+export const isCapability = (action: string): action is CapabilityAction =>
+  (CAPABILITY_ACTIONS as readonly string[]).includes(action);

@@ -15,7 +15,13 @@ type GEvent = {
   hangoutLink?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
-  attendees?: Array<{ email?: string; responseStatus?: string; optional?: boolean; organizer?: boolean }>;
+  attendees?: Array<{
+    email?: string;
+    responseStatus?: string;
+    optional?: boolean;
+    organizer?: boolean;
+    self?: boolean;
+  }>;
   organizer?: { email?: string };
 };
 
@@ -32,6 +38,8 @@ export type CalendarEvent = {
   status?: string;
   meet?: string;
   link?: string;
+  /** The owner said they will not go. */
+  declined?: boolean;
 };
 
 export function flattenEvent(e: GEvent): CalendarEvent {
@@ -51,6 +59,7 @@ export function flattenEvent(e: GEvent): CalendarEvent {
     ...(e.status && e.status !== "confirmed" ? { status: e.status } : {}),
     ...(e.hangoutLink ? { meet: e.hangoutLink } : {}),
     ...(e.htmlLink ? { link: e.htmlLink } : {}),
+    ...(e.attendees?.some((a) => a.self && a.responseStatus === "declined") ? { declined: true } : {}),
   };
 }
 
