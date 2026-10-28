@@ -16,7 +16,7 @@ import { ConnectCard } from "./chat/ConnectCard";
 import { ImageGenerating } from "./chat/ImageGenerating";
 import { InputCard, type Respond } from "./chat/InputCard";
 import { DeliveryTicks, Reactions } from "./chat/MessageMarks";
-import { type ContinueSession, type GoOn, NoticeCard } from "./chat/NoticeCard";
+import { type ContinueSession, type GoOn, NoticeCard, type SessionState } from "./chat/NoticeCard";
 import { SkillsRow } from "./chat/SkillsRow";
 import { SubthreadCard } from "./chat/SubthreadCard";
 import { Icon } from "./Icon";
@@ -52,6 +52,7 @@ export function ChatMessage({
   respond,
   goOn,
   continueSession,
+  sessionState,
   openThread,
 }: {
   message: Message;
@@ -69,6 +70,7 @@ export function ChatMessage({
   respond: Respond;
   goOn?: GoOn;
   continueSession?: ContinueSession;
+  sessionState?: SessionState;
   /** Opens another chat: the one a sub-thread card stands for. */
   openThread?: (id: string) => void;
 }) {
@@ -134,7 +136,9 @@ export function ChatMessage({
       case "input":
         return <InputCard key={key} part={part} respond={respond} />;
       case "notice":
-        return <NoticeCard key={key} part={part} goOn={goOn} continueSession={continueSession} />;
+        return (
+          <NoticeCard key={key} part={part} goOn={goOn} continueSession={continueSession} sessionState={sessionState} />
+        );
       case "subthread":
         return <SubthreadCard key={key} part={part} agents={agents} from={name} openThread={openThread} />;
       case "changes":
