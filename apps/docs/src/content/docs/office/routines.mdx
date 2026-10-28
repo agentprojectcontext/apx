@@ -40,7 +40,7 @@ In the unreleased integration branch, **Team news** and **Important mail** are [
 
 A run missed while the core was off runs once when it comes back, never twice.
 
-## Webhook Flows
+## Flows
 
 In the unreleased integration branch, open **Flows** in the global sidebar beside **Tasks** and **Resources**. The list
 shows every flow across projects with its steps, how many of them use AI, a bar for each of its last runs and an
@@ -55,6 +55,7 @@ chose), drag from a step's output dot to join two steps, and set each step at th
 | Step | What it does |
 |---|---|
 | Incoming webhook | Starts the flow when a service sends a POST. Its address appears once the flow is saved. |
+| Schedule | Starts the flow at set times: **Every 5 min**, **Every hour**, **Weekdays 08:30**, **Daily 03:00** or a cron expression (minute, hour, day, month, weekday), in your time zone. The side panel shows the next runs. |
 | Check | Compares a field of what arrived with a value (`form.tier` is `A`). Steps joined to its **Yes** dot run when it matches, steps joined to **No** when it doesn't. No model. |
 | Read table | Brings saved rows into the run. No model. |
 | Save to table | Keeps what arrived, a field of it or an earlier step's result under a key. No model. |
@@ -62,17 +63,18 @@ chose), drag from a step's output dot to join two steps, and set each step at th
 | Routine | Runs a manual routine of the project. |
 | Direct model | Asks one set-up model once, without tools, and passes its answer on. Spends tokens. |
 
-Schedule, SQL, outgoing Webhook, Cmd and Notify show as **Soon** and can't be added yet. A flow runs as drawn: steps
+A flow has one trigger. SQL, outgoing Webhook, Cmd and Notify show as **Soon** and can't be added yet. A flow runs as drawn: steps
 can branch and join, and each step can receive what arrived or the result of a step before it. In **Goes on to** a
 check's **Yes** or **No** chip switches that connection to the other branch. The side panel says *Runs as drawn*, or
 why the drawing can't run yet (an agent outside the project, a model that isn't set up, two saves to one key with no
-order between them).
+order between them, a schedule more often than every 5 minutes), also for a new flow before its first save.
 
 **Save** keeps your drawing. When the flow is on, saving also makes it what runs: new events use it, and events already
 received finish with the version they started with. When the flow is off, turning it on makes your last saved drawing
 what runs. A flow whose drawing has the old one-path shape (webhook, checks, read, save, then one agent or routine) keeps
-running as before until you save a drawing it can't stand for. **Try a run** checks sample data for one-path flows
-without saving, sending or calling an agent. Saving never runs anything, and a new flow starts off.
+running as before until you save a drawing it can't stand for. **Try a run** follows sample data through the checks
+and branches and marks the steps it would reach, without saving, reading a table, sending or calling an agent; a step
+that needs another step's answer says it depends on it. Saving never runs anything, and a new flow starts off.
 
 Opening a flow shows its steps as they ran in the chosen run (numbered, green when they ran, dashed when they didn't,
 red when they failed), what each step got and gave, when it started and ended, a log, and the runs at the right with
@@ -86,7 +88,17 @@ out, the run says **Needs a look** instead of trying again, because the model ma
 flow off stops new steps; a run that was waiting still ends at its time limit. A flow runs one event at a time, in the
 order they arrived.
 
-A Flow belongs to a project and has no cron or periodic trigger. Turn it on before creating its token in
+**Run now** on a flow's page starts it at once, through the same path as its trigger. A schedule flow runs with an
+empty event; a webhook flow asks for the body it gets, filled in with the last one it received, and treats it like
+any outside data. The run says **Started by you**. **Stop run** on a run that is going stops it: steps that haven't
+started don't run, and a step already sent to a model is left as **Needs a look**, never sent again.
+
+A schedule flow runs while APX is on. If APX was off at a run's time, the flow runs once when APX starts (not once for
+each time it missed), and that run says it started late. A flow that is off doesn't run on its schedule and, turned on
+again, starts counting from then. A schedule flow has no address: it never takes a POST, and a webhook flow never runs
+on a timer.
+
+A Flow belongs to a project. Turn a webhook flow on before creating its token in
 **Settings → Devices → Endpoints**. Public access is configured separately; it never exposes private RPC or the panel.
 
 Send JSON such as `{"id":"order-42","data":{"status":"paid"}}` to `POST /flows/<id>` with that route's bearer

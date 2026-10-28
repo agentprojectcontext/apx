@@ -1,6 +1,8 @@
-# Webhook Flows
+# Flows
 
-A Flow is project-owned, event-driven work. It has no timer or cron schedule. The core runs deterministic filtering and table operations first; an optional fixed action is admitted only for new, matching, nonempty data.
+A Flow is project-owned, event-driven work. A published drawing starts from one trigger: an incoming webhook or a
+schedule ([Schedules, Run now and Stop run](#schedules-run-now-and-stop-run)); a legacy definition only takes webhooks.
+The core runs deterministic filtering and table operations first; an optional fixed action is admitted only for new, matching, nonempty data.
 
 ## Operate a Flow
 
@@ -65,14 +67,16 @@ Empty objects, non-object values, nonmatching events and duplicates do not invok
 
 ## Protocol, CLI and tools
 
-All management operations use the private protocol registry: `flows.list`, `flows.set`, `flows.rows`, `flows.write`, `flows.events`, `flows.retry`, `flows.retire`, `flows.try`, and for drawings `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate`, `flows.publish`, `flows.run_get`. External `chat` tokens cannot call them.
+All management operations use the private protocol registry: `flows.list`, `flows.set`, `flows.rows`, `flows.write`, `flows.events`, `flows.retry`, `flows.retire`, `flows.try`, and for drawings `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate`, `flows.publish`, `flows.run_get`, `flows.next_runs`, `flows.run_now`, `flows.cancel_run`, `flows.try_graph`. External `chat` tokens cannot call them.
 
 `flows.events` rows carry `run_started_at`, `run_ended_at` and `run_tokens` (fresh tokens, counted as in run usage:
 input less cached plus output) from the linked run, `null` until the run has them. They also say which executor
 admitted the event (`executor`: `legacy` or `graph`), the graph `revision` it runs, whether that is still what runs
 (`current`; a legacy event of a published Flow is `false`), `stopped_at` (legacy: index of the first check the data
 did not pass) and, for graph runs, `stopped_by` (the check that said no when no step doing work ran) and `ended_at`.
-Graph run states are `pending`, `succeeded`, `failed`, `uncertain`, `cancelled` or `ignored`. `flows.list` adds
+Graph run states are `pending`, `succeeded`, `failed`, `uncertain`, `cancelled` or `ignored`. Rows also carry `source`
+(`webhook`, `schedule` or `owner`), `scheduled_at` (a schedule's due time) and `cancelled_by_owner`.
+`flows.list` adds `schedules` (each schedule Flow's cron and `next_at`, null while off) and `time_zone`. `flows.list` adds
 `published`: each published Flow's revision and step kinds in run order. `flows.try {predicates, data}` is a
 dry run with the admission rule (a nonempty object that matches every predicate); it reads no table, saves no event,
 admits no run and calls no model. Sample data is limited to 32 KiB.
@@ -182,6 +186,53 @@ cancelan los pasos pendientes y se piden detener los trabajos en curso. Un Flow 
 retirar un Flow publicado: apagalo, esperá que terminen sus rondas, publicá o descartá cambios sin publicar y
 confirmá la exportación.
 
+## Schedules, Run now and Stop run
+
+See [D-168](DECISIONS.md#d-168).
+
+**Schedule trigger.** `{kind: "schedule", cron}`: five fields (minute hour day month weekday, with `*`, lists, ranges
+and steps, as routines), evaluated in the owner's time zone (`owner_profile.timezone`, else the machine's). The panel's
+presets are crons: `*/5 * * * *`, `0 * * * *`, `30 8 * * 1-5`, `0 3 * * *`. Validation refuses a second trigger, a cron
+it can't parse (`schedule_invalid`) and one that fires twice within five minutes (`schedule_too_often`).
+`flows.next_runs {cron}` returns the next three times and the zone for the editor.
+
+**Ticks.** The routine scheduler's beat (every 15 s, `officeScheduler` → `flows.tick`) is the only clock; no Flow has a
+timer of its own. Each schedule Flow keeps `since` in `flow_schedules`. On a beat, an enabled published schedule Flow
+with no row starts counting (nothing owed); one whose next time after `since` has passed admits a single event
+`schedule:<due ISO>` with payload `{scheduled_at}` through `receive` (the same transaction and `(flow,event)` dedup as a
+POST, pinned to the published revision) and moves `since` to the beat. Times missed while the core was off therefore
+run once on start; the event records `scheduled_at` and the panel says it started late. A failed admission (capacity,
+broken binding) spends the time too and is logged without payload. Turning a Flow off deletes its row.
+
+**One way in.** Admission compares the source with the pinned revision's trigger: `webhook` needs a webhook trigger
+(and a nonempty object, as before), `schedule` a schedule trigger; a schedule Flow has no public route and is left out
+of the endpoint list. A legacy definition admits only webhooks.
+
+**Run now.** `flows.run_now {flow, data?}` (owner-only, idempotency key required) needs a published, enabled Flow. The
+event is `owner:<uuid>`, `source: "owner"`, admitted by the same path: a schedule Flow gets `{}` whatever was sent, a
+webhook Flow gets `data`, redacted and bounded like any payload (an empty body is `ignored`). The panel prefills it with
+the trigger step's recorded output of the last run that kept one.
+
+**Stop run.** `flows.cancel_run {flow, event}` (owner-only) ends a pending graph run in one transaction: pending,
+starting and waiting steps become `cancelled` (`owner_cancelled`), a model step already `dispatched` becomes
+`uncertain` (`cancelled_after_send`, never re-sent); the run ends `uncertain` if any step is, else `cancelled`. The
+executor then aborts its model call in flight and asks runs its steps started to stop (as at a deadline). An ended run
+returns `{cancelled: false}`.
+
+**Try a run.** `flows.try_graph {graph, data}` walks the run's own planner over sample data (≤ 32 KiB): triggers and
+checks are evaluated, a branch not taken is skipped, a step that does work is `would_run`, a step whose binding needs an
+earlier step's answer is `unknown`, one whose event field is absent is `missing`. It reads no table, writes nothing,
+calls no model and starts no run. `flows.validate` takes `project` instead of `flow` to check a drawing not saved yet.
+
+**Español:** Un Flow publicado arranca por webhook o por horario (cron de cinco campos en la zona horaria del dueño).
+El único reloj es el pulso del scheduler de rutinas: cada horario vencido entra una sola vez, por la misma admisión que
+un POST, con id `schedule:<hora>`; si el core estuvo apagado corre una vez al arrancar, no una por cada hora perdida, y
+la ronda dice que arrancó tarde. Apagado no corre ni acumula. Un Flow con horario no tiene dirección pública y uno con
+webhook nunca corre por horario. **Correr ahora** (`flows.run_now`) usa la misma admisión, marcada como del dueño: evento
+vacío para horario, el cuerpo de ejemplo (dato no confiable) para webhook. **Detener ronda** (`flows.cancel_run`) cancela
+los pasos pendientes y deja **para revisar** un paso de modelo ya mandado, sin reenviarlo. **Probar ronda**
+(`flows.try_graph`) sigue los caminos sin efectos.
+
 ## Panel editor
 
 The editor draws the graph schema above. **Save** stores the drawing as a draft (`flows.draft_save`); for a Flow that
@@ -191,10 +242,11 @@ one path, checks, at most one read, one save, then at most one agent or routine)
 detail switch) publishes the last saved drawing first. The core's validation runs as the drawing changes and the side
 panel says *Runs as drawn* or why it can't run, in the owner's words. A brand-new Flow whose first drawing is not the
 legacy shape gets a disabled table-only definition so the drawing has a Flow to belong to. Checks have **Yes** and
-**No** outlets; the chip next to each connection in **Goes on to** switches its branch. **Try a run** (`flows.try`) only
-checks one-path flows. The detail draws the revision a run used (legacy runs of a published Flow draw the old
-definition) and says **Previous version** when it is not the current one. Coming-soon kinds (schedule, SQL, outgoing
-webhook, Cmd, notify) are not in the schema and cannot be added.
+**No** outlets; the chip next to each connection in **Goes on to** switches its branch. **Try a run**
+(`flows.try_graph`) follows any drawing. A new Flow's drawing is validated against its chosen project before the first
+save. The detail draws the revision a run used (legacy runs of a published Flow draw the old
+definition) and says **Previous version** when it is not the current one. Coming-soon kinds (SQL, outgoing webhook, Cmd,
+notify) are not in the schema and cannot be added.
 
 ## Verification and rollout
 
