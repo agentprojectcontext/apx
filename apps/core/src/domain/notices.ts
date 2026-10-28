@@ -2,6 +2,7 @@
 // the quiet hours they set.
 import type { NoticePrefs } from "@apx/protocol";
 import { minutesOf } from "./hours.ts";
+import type { Origin } from "./runs.ts";
 import type { Store } from "./store.ts";
 
 export function noticePrefs(store: Store): NoticePrefs {
@@ -11,6 +12,41 @@ export function noticePrefs(store: Store): NoticePrefs {
 export function saveNoticePrefs(store: Store, prefs: NoticePrefs): NoticePrefs {
   store.settings.write("notices", prefs);
   return noticePrefs(store);
+}
+
+/**
+ * No chat app takes what APX says unasked: the tray and paired phones only. A phone picked before every phone was told
+ * is the same choice (DECISIONS.md#d-161).
+ */
+export const appOnly = (prefs: Pick<NoticePrefs, "channel">): boolean =>
+  prefs.channel === "none" || Boolean(prefs.channel?.startsWith("device:"));
+
+/**
+ * A turn on the owner's side that follows their word (theirs, an answer, the result of what they asked): it may answer
+ * on the chat app they wrote from even when no chat app takes notices. The rest is unasked.
+ */
+export function followsOwner(origin: Origin | undefined): boolean {
+  switch (origin?.kind) {
+    case "user":
+    case "channel":
+    case "input_answer":
+    case "delegation_result":
+    case "go_on":
+    case "terminal":
+      return true;
+    case undefined:
+    case "agent":
+    case "surface":
+    case "hours_began":
+    case "routine":
+    case "job":
+    case "task_continue":
+    case "stalled_task":
+    case "added":
+    case "computer_ready":
+    case "task_result":
+      return false;
+  }
 }
 
 type Quiet = Pick<NoticePrefs, "quiet_from" | "quiet_to">;

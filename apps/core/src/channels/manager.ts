@@ -8,7 +8,7 @@ import { type ChannelInfo, type CoreEvent, noticeText, type Part } from "@apx/pr
 import type { Bus } from "../bus.ts";
 import type { AuxAbout } from "../domain/aux-calls.ts";
 import { type OutboxRow, ownerActsOn, type Presentation } from "../domain/channels.ts";
-import { inQuietHours, noticePrefs } from "../domain/notices.ts";
+import { appOnly, followsOwner, inQuietHours, noticePrefs } from "../domain/notices.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { RunRecord } from "../domain/runs.ts";
@@ -144,9 +144,8 @@ export function createChannels(deps: {
    */
   function notifyOwner(body: Presentation, kind: OutboxRow["kind"] = "notice", threadId?: string): boolean {
     const prefs = noticePrefs(store);
-    // The app only: what is told here is in the tray and on their phones already. A phone picked before every phone
-    // was told is the same choice.
-    if (prefs.channel === "none" || prefs.channel?.startsWith("device:")) return false;
+    // The app only: what is told here is in the tray and on their phones already.
+    if (appOnly(prefs)) return false;
     const refused = new Set(body.refused_by);
     const order = [...live.values()]
       .filter((l) => !refused.has(l.config.id))
@@ -337,11 +336,19 @@ export function createChannels(deps: {
   const replyTo = (runId: string, action = false) => {
     const run = store.runs.get(runId);
     if (!run || (!action && !speaksOnChannel(run.thread_id))) return undefined;
+    // With no chat app for notices, what the owner did not ask stays in the app (DECISIONS.md#d-161, #d-163).
+    if (unaskedInAppOnly(run)) return undefined;
     if (run.input && "reply_to" in run.input) return run.input.reply_to ?? undefined;
     const origin = run.input?.origin;
     if (origin?.kind === "channel") return { channel: origin.channel, conversation: origin.conversation };
     return store.threads.context(run.thread_id).reply_to;
   };
+
+  function unaskedInAppOnly(run: RunRecord): boolean {
+    const thread = store.threads.get(run.thread_id);
+    if (!thread || audienceOf(store, thread).kind !== "owner") return false;
+    return appOnly(noticePrefs(store)) && !followsOwner(run.input?.origin);
+  }
 
   /**
    * Whose answers go out on a channel: a contact's chat, and among the owner's chats only Home, the super-agent's. Other
@@ -565,14 +572,19 @@ export function createChannels(deps: {
         ? [{ id: buttonId.goOn(session), label: channelTexts(store).goOn }]
         : undefined;
     const thread = store.threads.get(threadId);
-    const to = thread && thread.kind === "home" ? store.threads.context(threadId).reply_to : undefined;
+    const prefs = noticePrefs(store);
+    const to =
+      thread && thread.kind === "home" && !appOnly(prefs) ? store.threads.context(threadId).reply_to : undefined;
     if (to && live.has(to.channel)) {
       delivery.enqueue({
         channel: to.channel,
         conversation: to.conversation,
         thread_id: threadId,
         kind: "notice",
-        body: { text, ...(buttons ? { buttons } : {}), ...(inQuietHours(noticePrefs(store)) ? { silent: true } : {}) },
+        body: {
+          ...shownOn(to.channel, { text, ...(buttons ? { buttons } : {}) }),
+          ...(inQuietHours(prefs) ? { silent: true } : {}),
+        },
       });
       return;
     }

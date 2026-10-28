@@ -3,6 +3,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, test } from "node:test";
 import { z } from "zod";
+import { GREETED_KEY } from "../domain/greeting.ts";
 import { inQuietHours } from "../domain/notices.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
@@ -604,5 +605,35 @@ test("a teammate's question reaches the owner's chat app as one line saying who 
     await env.settle(t.id);
   } finally {
     await env.client.call("notices.set", { inputs_after_s: 120 });
+  }
+});
+
+test("with no chat app for notices, the owner's chat app hears only what follows their word (DECISIONS.md#d-161)", async () => {
+  const store = env.core.store;
+  const prefs = await env.client.call("notices.get", {});
+  store.settings.set(GREETED_KEY, "1");
+  await env.client.call("notices.set", { ...prefs, channel: "none", inputs_after_s: 1 });
+  try {
+    // The owner writes on Telegram: that conversation is still answered there.
+    const before = tg.messagesTo(OWNER.id).length;
+    tg.message(OWNER, "set the scene");
+    await waitFor(() => tg.messagesTo(OWNER.id).length > before, "the answer to the owner's own words");
+    await env.settle("home");
+    // An agent the owner adds gives the super-agent an unasked turn in Home: it stays in the app.
+    const told = tg.messagesTo(OWNER.id).length;
+    await env.client.call("agents.create", { slug: "northwind-helper", name: "Northwind helper", role: "helper" });
+    await waitFor(() => store.runs.list("home").some((r) => r.input?.origin.kind === "added"), "the super-agent told");
+    await env.settle("home");
+    // A teammate's question is answered in the app, with nothing on the chat app.
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "vera" });
+    await env.client.call("threads.send", { thread: t.id, text: "launch the probe" });
+    await waitFor(async () => (await env.client.call("runs.pending", { thread: t.id })).inputs.length > 0, "a card");
+    await new Promise((r) => setTimeout(r, 1500));
+    assert.equal(tg.messagesTo(OWNER.id).length, told, "nothing unasked reached the chat app");
+    const pending = (await env.client.call("runs.pending", { thread: t.id })).inputs[0];
+    await env.client.call("runs.respond", { input: pending?.id ?? "", decision: "deny" });
+    await env.settle(t.id);
+  } finally {
+    await env.client.call("notices.set", prefs);
   }
 });
