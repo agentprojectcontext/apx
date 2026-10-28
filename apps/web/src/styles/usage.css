@@ -31,16 +31,6 @@
 .engine-usage-quick {
   gap: 10px;
 }
-.engine-usage-quick__ring {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  color: var(--apx-brand);
-}
-.engine-usage-quick__ring > * {
-  grid-area: 1 / 1;
-}
 .engine-usage-trigger:has(.engine-usage-quick) .engine-usage-trigger__fallback,
 .engine-usage-trigger[aria-busy="true"] .engine-usage-trigger__fallback {
   display: none;

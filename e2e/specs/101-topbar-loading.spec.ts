@@ -210,6 +210,10 @@ test("cuatro engines se ven de un vistazo y colapsan en una barra ocupada y con 
   await expect(quick).toHaveCount(4);
   await expect(quick.first()).toBeVisible();
   await expect(quick.first()).toHaveText("20%");
+  for (const item of [quick.nth(0), quick.nth(1)]) {
+    await expect(item.locator(".apx-engine--tile")).toBeVisible();
+    await expect(item.locator("[stroke-dasharray]")).toHaveCount(0);
+  }
   await page.getByTestId("engine-usage-button").hover();
   await expect(page.locator(".apx-tooltip[data-open]")).toContainText("claude: 20% disponible · 10080 min");
   // Exercise the real bar's optional occupants without depending on an updater or a live run.
