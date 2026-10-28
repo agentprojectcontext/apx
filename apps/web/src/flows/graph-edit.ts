@@ -1,4 +1,7 @@
+import { FLOW_OTHERWISE, flowBranches, flowCases } from "@apx/protocol/flow-cases";
 import type { FlowBinding, FlowGraph, FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
+
+type Condition = Extract<FlowNode, { kind: "condition" }>;
 
 export type NodeKind = FlowNode["kind"];
 export function newNode(kind: NodeKind, id: string, label: string): FlowNode {
@@ -9,7 +12,26 @@ export function newNode(kind: NodeKind, id: string, label: string): FlowNode {
     case "schedule":
       return { id, label, kind, cron: "30 8 * * 1-5" };
     case "condition":
-      return { id, label, kind, input, equals: "" };
+      // The two-case default: "yes" when its expression holds, else "no".
+      return { id, label, kind, input, cases: [{ id: "yes", label: "", match: { kind: "expr", expr: "" } }] };
+    case "vars":
+      return { id, label, kind, vars: [{ name: "value", value: { kind: "literal", value: "" } }] };
+    case "js":
+      return { id, label, kind, code: "return input;", input, timeoutMs: 2000 };
+    case "sql":
+      return {
+        id,
+        label,
+        kind,
+        database: "",
+        mode: "read",
+        query: "SELECT * FROM ",
+        params: [],
+        maxRows: 50,
+        timeoutMs: 10000,
+      };
+    case "cmd":
+      return { id, label, kind, command: "", env: [], stdin: "", timeoutMs: 30000, continueOnError: false };
     case "table_read":
       return { id, label, kind, keys: [""] };
     case "table_write":
@@ -52,12 +74,39 @@ export function connectionError(graph: FlowGraph, source: string, target: string
   }
   return null;
 }
-/** Joins two steps; out of a check, `when` says by which branch (yes unless "no"). */
-export function connectNodes(graph: FlowGraph, source: string, target: string, when?: "yes" | "no"): FlowGraph {
+/** Joins two steps; out of a check, `when` says by which way out (its first case unless another is named). */
+export function connectNodes(graph: FlowGraph, source: string, target: string, when?: string): FlowGraph {
   if (connectionError(graph, source, target)) return graph;
-  const check = graph.nodes.find((n) => n.id === source)?.kind === "condition";
-  return { ...graph, edges: [...graph.edges, { source, target, ...(check ? { when: when ?? "yes" } : {}) }] };
+  const check = graph.nodes.find((n): n is Condition => n.id === source && n.kind === "condition");
+  const branch = check && (when && flowBranches(check).includes(when) ? when : flowBranches(check)[0]);
+  return { ...graph, edges: [...graph.edges, { source, target, ...(branch ? { when: branch } : {}) }] };
 }
+
+/** A check in the form that has cases: one drawn before them keeps its value as its "yes" case. */
+export function withCases(n: Condition): Condition & { cases: NonNullable<Condition["cases"]> } {
+  const { equals: _, ...rest } = n;
+  return { ...rest, cases: flowCases(n) };
+}
+
+/** A new case's id: c2, c3… never "yes", "no" or one it has. */
+export function nextCaseId(n: Condition): string {
+  const taken = new Set(flowBranches(n));
+  for (let i = 2; ; i++) if (!taken.has(`c${i}`)) return `c${i}`;
+}
+
+/** A check whose case was removed: the connections that left by it are removed too. */
+export function removeCase(graph: FlowGraph, check: string, id: string): FlowGraph {
+  return {
+    ...graph,
+    nodes: graph.nodes.map((n) =>
+      n.id === check && n.kind === "condition"
+        ? { ...withCases(n), cases: flowCases(n).filter((c) => c.id !== id) }
+        : n,
+    ),
+    edges: graph.edges.filter((e) => !(e.source === check && (e.when ?? "yes") === id)),
+  };
+}
+export { FLOW_OTHERWISE };
 export function moveNode(graph: FlowGraph, id: string, x: number, y: number): FlowGraph {
   const point = { node: id, x: Math.max(-100000, Math.min(100000, x)), y: Math.max(-100000, Math.min(100000, y)) };
   return { ...graph, layout: [...graph.layout.filter((p) => p.node !== id), point] };

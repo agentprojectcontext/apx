@@ -1,3 +1,4 @@
+import { FLOW_OTHERWISE } from "@apx/protocol/flow-cases";
 import { FlowStep, type FlowStepState, IconButton, Icons } from "@apx/ui";
 import {
   Background,
@@ -19,7 +20,7 @@ import {
 } from "@xyflow/react";
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { useT } from "../i18n/index.ts";
-import { type FlowGraph, type FlowNode, isTrigger, STEP } from "./steps.tsx";
+import { branchesOf, type FlowGraph, type FlowNode, isTrigger, STEP } from "./steps.tsx";
 import "@xyflow/react/dist/style.css";
 import "./canvas.css";
 
@@ -36,9 +37,23 @@ type StepData = StepLook & {
   kind: FlowNode["kind"];
   kindLabel: string;
   trigger: boolean;
-  /** A check's two ways out, named for the person. */
-  branches?: { yes: string; no: string } | undefined;
+  /** A check's ways out, named for the person: its cases, then otherwise. */
+  branches?: { id: string; label: string }[] | undefined;
 };
+
+/** A way out of a check: a handle on the node's right, with its name when there are more than two. */
+function Outlet({ id, label, top }: { id: string; label: string; top?: string }) {
+  return (
+    <Handle
+      id={id}
+      type="source"
+      position={Position.Right}
+      className={`fc-handle fc-handle--out ${id === FLOW_OTHERWISE ? "fc-handle--no" : "fc-handle--yes"}`}
+      style={top ? { top } : undefined}
+      title={label}
+    />
+  );
+}
 
 function StepNode({ data, selected }: NodeProps<Node<StepData>>) {
   const meta = STEP[data.kind];
@@ -57,25 +72,17 @@ function StepNode({ data, selected }: NodeProps<Node<StepData>>) {
       selected={selected}
     >
       {!data.trigger && <Handle type="target" position={Position.Left} className="fc-handle fc-handle--in" />}
-      {data.branches ? (
-        <>
-          <Handle
-            id="yes"
-            type="source"
-            position={Position.Right}
-            className="fc-handle fc-handle--out fc-handle--yes"
-            style={{ top: "32%" }}
-            title={data.branches.yes}
-          />
-          <Handle
-            id="no"
-            type="source"
-            position={Position.Right}
-            className="fc-handle fc-handle--out fc-handle--no"
-            style={{ top: "68%" }}
-            title={data.branches.no}
-          />
-        </>
+      {data.branches && data.branches.length <= 2 ? (
+        data.branches.map((b, i) => <Outlet key={b.id} {...b} top={i === 0 ? "32%" : "68%"} />)
+      ) : data.branches ? (
+        <span className="fc-outs">
+          {data.branches.map((b) => (
+            <span key={b.id} className={b.id === FLOW_OTHERWISE ? "fc-out is-no" : "fc-out"}>
+              {b.label}
+              <Outlet {...b} />
+            </span>
+          ))}
+        </span>
       ) : (
         <Handle type="source" position={Position.Right} className="fc-handle fc-handle--out" />
       )}
@@ -133,7 +140,7 @@ type Props = {
   edit?: {
     move: (id: string, x: number, y: number) => void;
     /** `when`: which way out of a check the connection leaves by. */
-    connect: (source: string, target: string, when?: "yes" | "no") => void;
+    connect: (source: string, target: string, when?: string) => void;
   };
   minimap?: boolean;
   /** Changing it fits the view again (another run, another flow). */
@@ -154,7 +161,7 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fit
           kind: n.kind,
           kindLabel: t(STEP[n.kind].label),
           trigger: isTrigger(n.kind),
-          branches: n.kind === "condition" ? { yes: t("flow.f.yes"), no: t("flow.f.no") } : undefined,
+          branches: n.kind === "condition" ? branchesOf(n, t) : undefined,
         },
         selected: n.id === selected,
         draggable: Boolean(edit),
@@ -168,9 +175,10 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fit
     const s = look(graph.nodes.find((n) => n.id === id) as FlowNode).state;
     return s === "ran" || s === "failed" || s === "live";
   };
-  const checks = new Set(graph.nodes.filter((n) => n.kind === "condition").map((n) => n.id));
+  const checks = new Map(graph.nodes.flatMap((n) => (n.kind === "condition" ? [[n.id, branchesOf(n, t)]] : [])));
   const edges: Edge[] = graph.edges.map((e) => {
-    const when = checks.has(e.source) ? (e.when ?? "yes") : undefined;
+    const ways = checks.get(e.source);
+    const when = ways ? (e.when ?? "yes") : undefined;
     return {
       id: `${e.source}:${e.target}`,
       source: e.source,
@@ -179,7 +187,7 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fit
       ...(when
         ? {
             sourceHandle: when,
-            label: t(when === "no" ? "flow.f.no" : "flow.f.yes"),
+            label: ways?.find((b) => b.id === when)?.label ?? when,
             labelBgPadding: [6, 2] as [number, number],
             labelBgBorderRadius: 6,
           }
@@ -187,7 +195,7 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fit
       className: [
         "fc-edge",
         ran(e.source) && ran(e.target) ? "is-ran" : "",
-        when === "no" ? "is-no" : when ? "is-yes" : "",
+        when === FLOW_OTHERWISE ? "is-no" : when ? "is-yes" : "",
       ]
         .filter(Boolean)
         .join(" "),
@@ -210,7 +218,7 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fit
         onConnect={(c: Connection) =>
           c.source &&
           c.target &&
-          edit?.connect(c.source, c.target, checks.has(c.source) ? (c.sourceHandle === "no" ? "no" : "yes") : undefined)
+          edit?.connect(c.source, c.target, checks.has(c.source) ? (c.sourceHandle ?? undefined) : undefined)
         }
         nodesDraggable={Boolean(edit)}
         nodesConnectable={Boolean(edit)}

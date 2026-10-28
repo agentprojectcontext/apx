@@ -132,3 +132,28 @@
     display: none;
   }
 }
+/* A check with more than two ways out names each beside its handle. */
+.fc .fc-outs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 8px -12px -4px 0;
+}
+.fc .fc-out {
+  position: relative;
+  align-self: flex-end;
+  padding: 1px 14px 1px 0;
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--apx-fg-muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fc .fc-out.is-no {
+  color: var(--apx-fg-subtle);
+}
+.fc .fc-out .fc-handle {
+  right: 0;
+}

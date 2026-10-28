@@ -1,5 +1,6 @@
-// Before a drawing runs, the owner sees where it sends as them and what it calls (DECISIONS.md#d-169). Publishing
-// passes back the list they saw; the core refuses a drawing that sends or calls out without it.
+// Before a drawing runs, the owner sees where it sends as them, what it calls, the commands it runs and the databases
+// it changes (DECISIONS.md#d-169, #d-170). Publishing passes back the list they saw; the core refuses a drawing that
+// does any of it without that list.
 import type { Result } from "@apx/protocol";
 import { Button, ChannelIcon, Dialog, Icons } from "@apx/ui";
 import { client } from "../data/client.ts";
@@ -74,6 +75,21 @@ export function OutwardConfirm() {
                 ? t("flow.outward.callWith", { method: c.method, host: c.host, secrets: c.secrets.join(", ") })
                 : t("flow.outward.call", { method: c.method, host: c.host })}
             </span>
+          </li>
+        ))}
+        {(asking?.outward.commands ?? []).map((c) => (
+          <li key={c.node}>
+            <Icons.Terminal size={16} />
+            <span>
+              {c.folder ? t("flow.outward.run", { folder: c.folder }) : t("flow.outward.runHere")}
+              <code className="fe-outward__code">{c.command}</code>
+            </span>
+          </li>
+        ))}
+        {once(asking?.outward.writes ?? [], (w) => w.database).map((w) => (
+          <li key={w.node}>
+            <Icons.Database size={16} />
+            <span>{t("flow.outward.write", { database: w.database })}</span>
           </li>
         ))}
       </ul>

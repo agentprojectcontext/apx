@@ -15,7 +15,7 @@ type Http = Extract<FlowNode, { kind: "http" }>;
 export type Token = { label: string; token: string };
 
 /** Buttons that add a placeholder at the end of a template, named by the step it reads. */
-function Insert({ tokens, onInsert }: { tokens: Token[]; onInsert: (token: string) => void }) {
+export function Insert({ tokens, onInsert }: { tokens: Token[]; onInsert: (token: string) => void }) {
   const t = useT();
   if (!tokens.length) return null;
   return (

@@ -119,14 +119,6 @@
   font-size: 13px;
   font-weight: 500;
 }
-.fe-pal__soon {
-  padding: 0 6px;
-  border-radius: var(--apx-radius-pill);
-  background: var(--apx-fill-strong);
-  font-size: 10.5px;
-  font-weight: 500;
-  color: var(--apx-fg-muted);
-}
 .fe-pal__body {
   font-size: 11.5px;
   color: var(--apx-fg-subtle);
@@ -442,4 +434,49 @@
   flex-basis: 100%;
   padding: 0;
   margin-bottom: 2px;
+}
+/* A check's cases and a variables step's values: one card each, in order. */
+.fe-cases {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fe-case {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-inline-size: 0;
+  margin: 0;
+  border: 0;
+  padding: 10px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+}
+.fe-case__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fe-case__head > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.fe-case.is-otherwise {
+  flex-direction: row;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  background: transparent;
+  border: 1px dashed var(--apx-border-strong);
+}
+.fe-case__else {
+  font-size: 13px;
+  font-weight: 500;
+}
+.fe-case .apx-segmented {
+  align-self: flex-start;
+}
+.fe-folder {
+  overflow-wrap: anywhere;
 }
