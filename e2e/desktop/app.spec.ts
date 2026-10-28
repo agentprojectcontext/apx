@@ -117,6 +117,52 @@ test("the desktop header shares the native title bar and keeps its search center
   await main.screenshot({ path: test.info().outputPath("unified-header.png") });
 });
 
+test("a full-screen layer's bar clears the window controls and keeps its controls clickable", async () => {
+  const main = await page("main");
+  // The welcome and corner cards would cover the screen: seen already, as in the panel's own specs.
+  await main.evaluate(() => {
+    localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true, welcome: true }));
+    location.hash = "#view=flows";
+    location.reload();
+  });
+  await main.getByRole("button", { name: /^(Nuevo flow|New flow)$/ }).click();
+  const bar = main.locator(".fe-top.window-bar.is-desktop");
+  await expect(bar).toBeVisible();
+  const read = () =>
+    bar.evaluate((b) => {
+      const style = getComputedStyle(b);
+      const region = (el: Element | null) => (el ? getComputedStyle(el).getPropertyValue("-webkit-app-region") : "");
+      return {
+        left: Number.parseFloat(style.paddingLeft),
+        right: Number.parseFloat(style.paddingRight),
+        drag: region(b),
+        // Drag regions ignore what is drawn on top: the bar's controls must opt out to get the click.
+        picker: region(b.querySelector('[role="combobox"]')),
+        close: region(b.querySelector("button")),
+      };
+    });
+  const windowed = await read();
+  expect(windowed).toMatchObject({ drag: "drag", picker: "no-drag", close: "no-drag" });
+  if (process.platform === "darwin") {
+    expect(windowed.left).toBe(76);
+    const full = (on: boolean) =>
+      app.evaluate(({ BaseWindow, BrowserWindow }, on) => {
+        BaseWindow.getAllWindows()
+          .find((w) => !(w instanceof BrowserWindow))
+          ?.setFullScreen(on);
+      }, on);
+    // In native fullscreen the traffic lights are gone, and so is their room.
+    await full(true);
+    await expect.poll(async () => (await read()).left, { timeout: 10_000 }).toBe(12);
+    await full(false);
+    await expect.poll(async () => (await read()).left, { timeout: 10_000 }).toBe(76);
+  } else {
+    expect(windowed.right).toBe(140);
+  }
+  await main.getByRole("button", { name: /^(Salir del editor|Close the editor)$/ }).click();
+  await expect(bar).toHaveCount(0);
+});
+
 test("the app lends its browser to the core, and a tab opened through the core is listed", async () => {
   await until(async () => {
     const h = await rpc<{ subsystems: Record<string, { status: string; detail?: string }> }>("system.health");

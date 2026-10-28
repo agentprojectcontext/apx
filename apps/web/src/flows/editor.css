@@ -14,7 +14,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 12px;
+  padding: 0 calc(12px + var(--window-controls-end, 0px)) 0 calc(12px + var(--window-controls-start, 0px));
   border-bottom: 1px solid var(--apx-border);
   background: var(--apx-surface);
 }

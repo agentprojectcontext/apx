@@ -43,6 +43,9 @@ declare global {
     apxDesktop?: {
       /** Host OS of the desktop shell (`darwin` | `win32` | `linux`). */
       platform?: string;
+      /** The window is in native fullscreen (no traffic lights). Missing in builds from before it was reported. */
+      isFullScreen?(): boolean;
+      onFullScreen?(listener: (full: boolean) => void): () => void;
       /** The core's token, when the app knows it: the panel sends it on every call. */
       coreToken?: string;
       updateAuth?(token?: string): void;

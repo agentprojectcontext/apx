@@ -3,6 +3,12 @@ import { contextBridge, ipcRenderer } from "electron";
 
 type Bounds = { x: number; y: number; width: number; height: number };
 
+// Kept from the window's own reports (sent at load and on every change), so a late reader gets it too.
+let fullScreen = false;
+ipcRenderer.on("window:fullscreen", (_e, full: unknown) => {
+  if (typeof full === "boolean") fullScreen = full;
+});
+
 contextBridge.exposeInMainWorld("apxDesktop", {
   /** darwin | win32 | linux — panel pads the unified title bar for traffic lights / overlay. */
   platform: process.platform,
@@ -39,6 +45,14 @@ contextBridge.exposeInMainWorld("apxDesktop", {
     const on = () => listener();
     ipcRenderer.on("artifact:file-opened", on);
     return () => ipcRenderer.removeListener("artifact:file-opened", on);
+  },
+  isFullScreen: () => fullScreen,
+  onFullScreen: (listener: (full: boolean) => void) => {
+    const on = (_e: unknown, full: unknown) => {
+      if (typeof full === "boolean") listener(full);
+    };
+    ipcRenderer.on("window:fullscreen", on);
+    return () => ipcRenderer.removeListener("window:fullscreen", on);
   },
   onOpenThread: (listener: (threadId: string) => void) => {
     const on = (_e: unknown, id: unknown) => {
