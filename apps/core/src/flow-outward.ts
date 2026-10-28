@@ -57,9 +57,10 @@ const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(va
 
 /**
  * The sends, calls, commands and database writes a drawing makes, and the keys the owner approves by publishing it.
- * `folder` is where its commands run, as the panel shows it.
+ * `folder` is where its commands run and its databases are, as the panel shows it; `place` the same folder, real: it is
+ * part of what is approved, so the same command in another folder asks again.
  */
-export function flowOutward(store: Store, graph: FlowGraph, folder = "") {
+export function flowOutward(store: Store, graph: FlowGraph, folder = "", place = "") {
   const sends: { node: string; channel: string; type: string; to: string; owner: boolean }[] = [];
   const calls: { node: string; method: string; host: string; secrets: string[] }[] = [];
   const commands: { node: string; command: string; folder: string }[] = [];
@@ -91,9 +92,9 @@ export function flowOutward(store: Store, graph: FlowGraph, folder = "") {
           ? // Which secrets go to which address is part of what the owner allows.
             [`call:${n.method}:${n.url}`, ...secretsOf(n).map((s) => `secret:${s}:${n.url}`)]
           : n.kind === "cmd"
-            ? [`cmd:${digest([n.command, n.env, n.stdin, n.continueOnError])}`]
+            ? [`cmd:${digest([place, n.command, n.env, n.stdin, n.continueOnError])}`]
             : n.kind === "sql" && n.mode === "write"
-              ? [`write:${digest([n.database, n.query, n.params])}`]
+              ? [`write:${digest([place, n.database, n.query, n.params])}`]
               : [],
     ),
   ];

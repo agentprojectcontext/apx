@@ -27,7 +27,15 @@ export const STEP_OUTPUT_CHARS = 8000;
 const PRE_SLOT = "{{pre_output}}";
 
 /** `output` is both streams as they came; `stdout` and `stderr` each on its own, all tail-capped. */
-export type StepResult = { output: string; exit: number | null; timedOut: boolean; stdout?: string; stderr?: string };
+/** `signal`: it ran and a signal ended it (not when it could not start, nor when this stopped it). */
+export type StepResult = {
+  output: string;
+  exit: number | null;
+  timedOut: boolean;
+  stdout?: string;
+  stderr?: string;
+  signal?: string;
+};
 
 /** A mail as a mail routine sees it: who, what, and Gmail's labels (IMPORTANT, CATEGORY_PROMOTIONS…). */
 export type MailArrival = {
@@ -82,7 +90,7 @@ export function runStep(
     let stopping = false;
     // A NUL cannot travel in an environment variable (spawn would throw): it is dropped.
     const env = Object.fromEntries(Object.entries(o.env).map(([k, v]) => [k, v.replaceAll("\0", "")]));
-    const done = (exit: number | null, extra = "") => {
+    const done = (exit: number | null, extra = "", signal?: string) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
@@ -93,6 +101,7 @@ export function runStep(
         timedOut,
         stdout: streams.stdout.slice(-STEP_OUTPUT_CHARS),
         stderr: streams.stderr.slice(-STEP_OUTPUT_CHARS),
+        ...(signal ? { signal } : {}),
       });
     };
     let child: ReturnType<typeof spawnCommand>;
@@ -138,7 +147,7 @@ export function runStep(
     else o.signal.addEventListener("abort", stop, { once: true });
     // Once stopping, the step ends when the whole tree is gone, with why, not when the shell closes.
     child.on("error", (err) => !stopping && done(null, `\n${err.message}`));
-    child.on("close", (code) => !stopping && done(code));
+    child.on("close", (code, signal) => !stopping && done(code, "", signal ?? undefined));
   });
 }
 

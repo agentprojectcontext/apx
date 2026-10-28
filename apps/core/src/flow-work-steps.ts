@@ -216,21 +216,36 @@ export function flowFolder(store: Store, home: string | undefined, projectId: st
 }
 
 /**
- * The database file a step names, inside its project's folder (links followed), never one of APX's own. A read needs
- * the file; a write may make it, in a folder that is there.
+ * The database file a step names, inside its project's folder, never a link and never one of APX's own (its database,
+ * its secrets): inside APX's folder only a project's own side folder is a step's. A read needs the file; a write may
+ * make it, in a folder that is there.
  */
 export function flowDatabaseFile(folder: string, home: string | undefined, node: Sql): string | undefined {
   if (flowDatabaseProblem(node.database)) return undefined;
-  const file = real(path.resolve(folder, node.database));
+  const named = path.resolve(folder, node.database);
+  // A link is refused even when it points nowhere yet: opening it would make the file wherever it points.
+  let link = false;
+  try {
+    link = fs.lstatSync(named).isSymbolicLink();
+  } catch {}
+  if (link) return undefined;
+  const file = real(named);
   if (!isInside(folder, file) || file === folder) return undefined;
-  // A project folder that holds APX's own: its files are never a step's.
   const apx = home ? real(home) : undefined;
-  if (apx && isInside(apx, file) && !isInside(apx, folder)) return undefined;
+  if (apx && isInside(apx, file) && !isInside(path.join(apx, "projects"), folder)) return undefined;
   const exists = fs.existsSync(file);
   if (exists ? !fs.statSync(file).isFile() : node.mode === "read" || !fs.existsSync(path.dirname(file)))
     return undefined;
   return file;
 }
+
+/** A command's environment: the owner's minus credentials, as routines' commands get, and minus connection strings. */
+export function flowCommandEnv(): Record<string, string> {
+  const env = commandEnv();
+  for (const k of Object.keys(env)) if (CONNECTION_NAME.test(k)) delete env[k];
+  return env;
+}
+const CONNECTION_NAME = /(DSN|DATABASE_URL|_URI$|CONNECTION|_PAT$|^PAT$|PASSWD|CREDS?$)/i;
 
 export function createWorkSteps(deps: {
   store: Store;
@@ -417,7 +432,7 @@ export function createWorkSteps(deps: {
     // The owner's own environment minus credentials, as routines' commands get; the step's values after it.
     const r = await runStep(node.command, {
       cwd: folder,
-      env: { ...commandEnv(), ...env },
+      env: { ...flowCommandEnv(), ...env },
       signal: ac.signal,
       timeoutMs: left(run, node.timeoutMs),
       ...(stdin ? { stdin } : {}),
@@ -426,6 +441,8 @@ export function createWorkSteps(deps: {
     if (ac.signal.aborted) return;
     const output = { exit: r.exit, ok: r.exit === 0, stdout: r.stdout, stderr: r.stderr };
     if (r.timedOut) fail(k, "running", W.commandTimeout, { to: "uncertain", output });
+    // Ended by a signal (it crashed, or something outside stopped it): it ran, so what it did is not known.
+    else if (r.signal) fail(k, "running", W.commandUnknown, { to: "uncertain", output });
     else if (r.exit === null) fail(k, "running", W.start, { output: { error: r.output.slice(0, 500) } });
     else if (r.exit !== 0 && !node.continueOnError) fail(k, "running", W.commandFailed, { output });
     else keep(k, run, output);

@@ -6,6 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import type { FlowGraph, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";
+import { flowOutward } from "./flow-outward.ts";
 import { FLOW_COMMANDS_PER_HOUR } from "./flow-work-steps.ts";
 import { tempDir, waitFor } from "./testkit/platform.ts";
 
@@ -534,6 +535,95 @@ test("commands have an hourly limit; one over it never starts", async () => {
     assert.equal((await ended(env, flow, "e")).state, "failed");
     assert.equal(steps(env, flow, "e").mark?.error, "command_limited");
     assert.ok(!fs.existsSync(path.join(folder, "runs.txt")));
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("review: a database link, even one that points nowhere yet, and APX's own files are never a step's", async () => {
+  const env = await core();
+  const outside = tempDir();
+  try {
+    const { flow, folder } = await publish(env, "links", chain(hook, sqlStep("find", "read", "SELECT 1")), crm);
+    const write = (database: string) =>
+      env.client.call("flows.validate", {
+        flow,
+        graph: chain(hook, { ...sqlStep("add", "write", "CREATE TABLE IF NOT EXISTS t (x)"), database } as FlowNode),
+      });
+    fs.symlinkSync(path.join(outside.path, "made-there.db"), path.join(folder, "data", "new.db"));
+    assert.ok((await write("data/new.db")).issues.some((i) => i.code === "database_unavailable"));
+    assert.ok(!fs.existsSync(path.join(outside.path, "made-there.db")));
+    // A project whose folder holds APX's own: APX's database is not one of its databases.
+    const apx = (await env.client.call("projects.create", { name: "Home", path: env.home })).project.id;
+    await env.client.call("flows.set", {
+      id: "home-db",
+      projectId: apx,
+      name: "home-db",
+      enabled: false,
+      predicates: [],
+      tableKey: "latest",
+      action: { kind: "none" },
+    });
+    for (const database of ["apx.db", "apx.db-wal"]) {
+      const { issues } = await env.client.call("flows.validate", {
+        flow: "home-db",
+        graph: chain(hook, { ...sqlStep("x", "read", "SELECT * FROM sqlite_master"), database } as FlowNode),
+      });
+      assert.ok(
+        issues.some((i) => i.code === "database_unavailable"),
+        database,
+      );
+    }
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+    await outside.remove();
+  }
+});
+
+test("review: a command ended by a signal is left to look at; connection strings never reach it", async () => {
+  const env = await core();
+  process.env.DATABASE_URL = "postgres://acme:pw@db.example.com/acme";
+  process.env.ACME_DSN = "acme-dsn";
+  try {
+    const { flow } = await publish(
+      env,
+      "signal",
+      chain(hook, cmd("env", 'printf "%s|%s" "${DATABASE_URL:-none}" "${ACME_DSN:-none}"'), cmd("die", "kill -9 $$")),
+    );
+    await post(env, flow, "e", { go: 1 });
+    assert.equal((await ended(env, flow, "e")).state, "uncertain");
+    const s = steps(env, flow, "e");
+    assert.equal(out(s.env).stdout, "none|none");
+    assert.equal(s.die?.state, "uncertain");
+    assert.equal(s.die?.error, "command_uncertain");
+    for (const name of ["PYTHONPATH", "JAVA_HOME", "appdata", "MAVEN_OPTS", "npmrc"]) {
+      const { issues } = await env.client.call("flows.validate", {
+        flow,
+        graph: chain(hook, cmd("x", "ls", { env: [{ name, value: "$trigger.x" }] })),
+      });
+      assert.ok(
+        issues.some((i) => i.code === "env_refused"),
+        name,
+      );
+    }
+  } finally {
+    delete process.env.DATABASE_URL;
+    delete process.env.ACME_DSN;
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("review: the same command or write in another folder is a new approval", async () => {
+  const graph = chain(hook, cmd("run", "ls"), sqlStep("add", "write", "CREATE TABLE IF NOT EXISTS t (x)"));
+  const env = await core();
+  try {
+    const a = flowOutward(env.core.store, graph, "~/work/a", "/work/a").keys;
+    const b = flowOutward(env.core.store, graph, "~/work/b", "/work/b").keys;
+    assert.equal(a.length, 2);
+    assert.equal(a.filter((k) => b.includes(k)).length, 0);
   } finally {
     await env.core.close();
     await env.cleanup();
