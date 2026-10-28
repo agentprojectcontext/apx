@@ -30,6 +30,7 @@ function useCrumbs(): string[] {
   const engineLabel = useData((s) => s.engines.find((e) => e.id === engineId)?.label);
   if (view === "app") return [t("nav.apps"), app?.title ?? t("common.app")];
   if (view === "tasks") return [t("nav.tasks")];
+  if (view === "flows") return [t("nav.flows")];
   if (view === "resources") return [t("nav.resources")];
   if (view === "computers") return [t("nav.computers")];
   if (view === "channel") return [t("nav.channels"), channelLabel ?? t("nav.channels")];

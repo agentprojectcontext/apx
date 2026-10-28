@@ -299,6 +299,7 @@ export const en = {
   "nav.label": "Navigation",
   "nav.inbox": "Inbox",
   "nav.tasks": "Tasks",
+  "nav.flows": "Flows",
   "nav.itemOptions": "Options for {name}",
   "nav.open": "Open",
   "project.unregister": "Unregister project",

@@ -20,6 +20,9 @@ const kindOf = (href: string) => {
 test("an app link says what it opens, so its button can show the place's icon and hint", () => {
   assert.deepEqual(kindOf("apx:tasks/task_0123abcd"), { kind: "task", id: "task_0123abcd" });
   assert.deepEqual(kindOf("apx:tasks"), { kind: "tasks" });
+  assert.deepEqual(kindOf("apx:flows"), { kind: "flows" });
+  assert.deepEqual(kindOf("apx:flows/prj_1"), { kind: "flows", project: "prj_1" });
+  assert.equal(kindOf("apx:flows/prj_1/invalid"), undefined);
   assert.deepEqual(kindOf("apx:settings/desktop"), { kind: "settings", section: "desktop" });
   assert.deepEqual(kindOf("apx:config"), { kind: "settings", section: "account" });
   assert.deepEqual(kindOf("apx:resources/mcp"), { kind: "resources", tab: "mcp" });

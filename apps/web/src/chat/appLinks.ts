@@ -10,6 +10,7 @@ export type AppPlace =
   | { kind: "settings"; section: ConfigSection; open: () => void }
   | { kind: "task"; id: string; open: () => void }
   | { kind: "tasks"; open: () => void }
+  | { kind: "flows"; project?: string; open: () => void }
   | { kind: "resources"; tab: ResourceTab; open: () => void }
   | { kind: "inbox"; open: () => void }
   | { kind: "chat"; id: string; open: () => void }
@@ -29,6 +30,8 @@ export function appPlace(href: string): AppPlace | undefined {
     }
     case "tasks":
       return a ? { kind: "task", id: a, open: () => go.task(a) } : { kind: "tasks", open: () => go.view("tasks") };
+    case "flows":
+      return b ? undefined : { kind: "flows", ...(a ? { project: a } : {}), open: () => go.flows(a) };
     case "resources": {
       const tab: ResourceTab | undefined = a === undefined ? "skills" : isIn(RESOURCE_TABS, a) ? a : undefined;
       return tab ? { kind: "resources", tab, open: () => go.resources(tab, true) } : undefined;

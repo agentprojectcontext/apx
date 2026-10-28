@@ -93,6 +93,7 @@ export function CommandPalette() {
         icon: <Icons.ListChecks size={15} />,
         run: close(() => go.view("tasks")),
       },
+      { key: "p:flows", title: t("nav.flows"), icon: <Icons.GitBranch size={15} />, run: close(() => go.flows()) },
       {
         key: "p:resources",
         title: t("nav.resources"),

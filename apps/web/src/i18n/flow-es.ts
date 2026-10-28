@@ -2,6 +2,10 @@ import type { enFlow } from "./flow-en.ts";
 
 export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.title": "Flows",
+  "flow.projectFilter": "Filtrar por proyecto",
+  "flow.allProjects": "Todos los proyectos",
+  "flow.emptyAll": "Todavía no hay Flows. Creá uno y elegí su proyecto.",
+  "flow.chooseProject": "Elegí un proyecto",
   "flow.lead":
     "Automatización solo por webhook. Los filtros y las escrituras no llaman a un modelo. Solo la acción fija puede iniciar un agente o una rutina.",
   "flow.new": "Nuevo Flow",

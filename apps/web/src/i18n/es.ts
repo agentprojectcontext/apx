@@ -300,6 +300,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nav.label": "Navegación",
   "nav.inbox": "Inbox",
   "nav.tasks": "Tareas",
+  "nav.flows": "Flows",
   "nav.itemOptions": "Opciones de {name}",
   "nav.open": "Abrir",
   "project.unregister": "Quitar registro del proyecto",
@@ -1823,7 +1824,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "super.customize": "Personalizar instrucciones",
   "super.instructions": "Instrucciones",
   "super.connectMail": "Conexión de Gmail",
-  "super.mailConnected": "Gmail está conectado para lectura. Se respetan la disponibilidad por proyecto y las horas de silencio.",
+  "super.mailConnected":
+    "Gmail está conectado para lectura. Se respetan la disponibilidad por proyecto y las horas de silencio.",
   "super.mailWaiting": "La revisión de mails espera una conexión de Gmail con acceso de lectura.",
   "super.lastCheck": "Última revisión",
   "super.talk": "Cómo te habla",

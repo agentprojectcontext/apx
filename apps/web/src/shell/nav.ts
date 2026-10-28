@@ -17,7 +17,7 @@ export type PanelKind =
   | "processes"
   | "document";
 
-export type View = "inbox" | "project" | "app" | "tasks" | "resources" | "computers" | "channel" | "engine";
+export type View = "inbox" | "project" | "app" | "tasks" | "flows" | "resources" | "computers" | "channel" | "engine";
 
 export const PROJECT_TABS = [
   { id: "overview", label: "project.tab.overview" },
@@ -104,6 +104,8 @@ export type NavState = {
   focus: string | undefined;
   /** The task open beside a tasks list (the Tasks screen or a project's Tasks tab). */
   taskId: string | undefined;
+  /** Project filter of the global Flows screen; undefined lists every project. */
+  flowProject: string | undefined;
   /** A task open over any other screen (from a chat), so the owner does not leave it. */
   peekTaskId: string | undefined;
 };
@@ -132,7 +134,7 @@ const PANELS: readonly PanelKind[] = [
   "document",
 ];
 const TAB_IDS: readonly string[] = PROJECT_TABS.map((t) => t.id);
-const VIEWS: readonly string[] = ["tasks", "resources", "computers"];
+const VIEWS: readonly string[] = ["tasks", "flows", "resources", "computers"];
 
 /** Deep links: #thread=<id>&panel=<kind>, #app=<id>, #project=<id>&tab=<tab>, #view=tasks&task=<id>. */
 function fromHash(): Partial<NavState> {
@@ -157,6 +159,7 @@ function fromHash(): Partial<NavState> {
         }
       : {}),
     ...(view && VIEWS.includes(view) ? { view: view as View } : {}),
+    ...(view === "flows" ? { flowProject: h.get("scope") ?? undefined } : {}),
     ...(app ? { view: "app" as const, appId: app } : {}),
     ...(channel ? { view: "channel" as const, channelId: channel, channelThread: h.get("chat") ?? undefined } : {}),
     // An engine's view opens on one of its sessions or on none: never on the chat the app started with.
@@ -196,6 +199,7 @@ export const nav = createStore<NavState>({
   focus: undefined,
   taskId: undefined,
   peekTaskId: undefined,
+  flowProject: undefined,
   ...fromHash(),
 });
 
@@ -211,6 +215,7 @@ type Place = Pick<
   | "channelThread"
   | "engineId"
   | "taskId"
+  | "flowProject"
   | "resourcesTab"
   | "listInFront"
   | "panel"
@@ -236,6 +241,7 @@ function placeOf(s: NavState): Place {
     channelThread: s.channelThread,
     engineId: s.engineId,
     taskId: s.taskId,
+    flowProject: s.flowProject,
     resourcesTab: s.resourcesTab,
     listInFront: s.listInFront,
     panel: s.panel,
@@ -259,6 +265,7 @@ function samePlace(a: Place, b: Place): boolean {
     a.channelId === b.channelId &&
     a.channelThread === b.channelThread &&
     a.engineId === b.engineId &&
+    a.flowProject === b.flowProject &&
     a.resourcesTab === b.resourcesTab &&
     a.listInFront === b.listInFront
   );
@@ -306,8 +313,9 @@ nav.subscribe(() => {
     h.set("tab", s.projectTab);
     if (s.projectTab === "chats" && s.threadId) h.set("thread", s.threadId);
     if (s.projectTab === "tasks" && s.taskId) h.set("task", s.taskId);
-  } else if (s.view === "tasks" || s.view === "resources" || s.view === "computers") {
+  } else if (s.view === "tasks" || s.view === "flows" || s.view === "resources" || s.view === "computers") {
     h.set("view", s.view);
+    if (s.view === "flows" && s.flowProject) h.set("scope", s.flowProject);
     if (s.view === "tasks" && s.taskId) h.set("task", s.taskId);
   } else if (s.view === "channel" && s.channelId) {
     h.set("channel", s.channelId);
@@ -432,6 +440,9 @@ export const go = {
   },
   app(appId: string) {
     nav.set({ view: "app", appId });
+  },
+  flows(flowProject?: string) {
+    nav.set({ view: "flows", flowProject });
   },
   view(view: "tasks" | "resources" | "computers") {
     nav.set({ view });

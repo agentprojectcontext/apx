@@ -11,11 +11,12 @@ test("project Flows can be created, validated, edited and disabled with durable 
   fs.writeFileSync(path.join(other, "AGENTS.md"), "# Other project\n");
   const second = await rpc<{ project: { id: string } }>("projects.register", { path: other });
   await open(page, `#project=${project.id}&tab=routines`);
-  await page.getByRole("button", { name: "Flows", exact: true }).click();
+  await page.getByRole("main").getByRole("button", { name: "Flows", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`view=flows.*scope=${project.id}`));
   const pane = page.getByRole("region", { name: "Flows", exact: true });
   await pane.getByRole("button", { name: "Nuevo Flow" }).click();
   const editor = page.getByRole("dialog");
-  await expect(editor.getByRole("textbox", { name: "Proyecto", exact: true })).toHaveValue(project.id);
+  await expect(editor.getByRole("combobox", { name: "Proyecto", exact: true })).toHaveValue(project.id);
   await editor.getByRole("textbox", { name: "ID del Flow" }).fill("ui_intake");
   await editor.getByRole("textbox", { name: "Nombre", exact: true }).fill("Acme intake");
   await editor.getByRole("textbox", { name: "Claves de lectura (JSON)" }).fill('["settings","key,with,commas"]');
@@ -60,6 +61,8 @@ test("project Flows can be created, validated, edited and disabled with durable 
     .getByRole("button", { name: "Editar Flow", exact: true })
     .click();
   await expect(editor.getByRole("textbox", { name: "ID del Flow" })).toHaveAttribute("readonly", "");
+  await expect(editor.getByRole("textbox", { name: "Proyecto", exact: true })).toHaveAttribute("readonly", "");
+  await expect(editor.getByRole("textbox", { name: "Proyecto", exact: true })).toHaveValue(project.id);
   await expect(editor.getByRole("textbox", { name: "Claves de lectura (JSON)" })).toHaveValue(
     '["settings","key,with,commas"]',
   );
@@ -69,8 +72,33 @@ test("project Flows can be created, validated, edited and disabled with durable 
   await expect(pane.getByText("Desactivado", { exact: true })).toBeVisible();
   const list = await rpc<{ flows: Array<{ id: string; enabled: boolean }> }>("flows.list", { project: project.id });
   expect(list.flows.find((flow) => flow.id === "ui_intake")?.enabled).toBe(false);
-  await open(page, `#project=${second.project.id}&tab=routines`);
-  await expect(page.getByRole("button", { name: "Flows", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await open(page, `#view=flows&scope=${second.project.id}`);
   await expect(pane.getByText("Todavía no hay Flows en este proyecto.")).toBeVisible();
   await expect(pane.getByText("Acme intake", { exact: true })).toHaveCount(0);
+  await page.reload();
+  const filter = pane.getByRole("combobox", { name: "Filtrar por proyecto", exact: true });
+  await expect(filter).toHaveValue(second.project.id);
+  await filter.selectOption("");
+  await expect(page).toHaveURL(/#view=flows$/);
+  await expect(pane.getByRole("button", { name: "Acme intake", exact: true })).toBeVisible();
+  await pane.getByRole("button", { name: "Nuevo Flow" }).click();
+  await expect(editor.getByRole("combobox", { name: "Proyecto", exact: true })).toHaveValue("");
+  await editor.getByRole("textbox", { name: "ID del Flow" }).fill("ui_other");
+  await editor.getByRole("textbox", { name: "Nombre", exact: true }).fill("Northwind intake");
+  await editor.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(editor.getByRole("alert")).toContainText("Revisá");
+  await editor.getByRole("combobox", { name: "Proyecto", exact: true }).selectOption(second.project.id);
+  await editor.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(editor).toBeHidden();
+  await expect(pane.getByRole("button", { name: "Northwind intake", exact: true })).toBeVisible();
+  await filter.selectOption(project.id);
+  await expect(pane.getByRole("button", { name: "Acme intake", exact: true })).toBeVisible();
+  await expect(pane.getByRole("button", { name: "Northwind intake", exact: true })).toHaveCount(0);
+  await filter.selectOption(second.project.id);
+  await expect(pane.getByRole("button", { name: "Northwind intake", exact: true })).toBeVisible();
+  await expect(pane.getByRole("button", { name: "Acme intake", exact: true })).toHaveCount(0);
+  await page.locator(".sidebar").getByRole("button", { name: "Flows", exact: true }).click();
+  await expect(filter).toHaveValue("");
+  await expect(pane.getByRole("button", { name: "Acme intake", exact: true })).toBeVisible();
+  await expect(pane.getByRole("button", { name: "Northwind intake", exact: true })).toBeVisible();
 });

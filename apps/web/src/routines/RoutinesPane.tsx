@@ -1,6 +1,6 @@
 import type { Routine } from "@apx/protocol";
 import { AgentAvatar, Button, EmptyState, IconButton, Icons, Menu, Switch } from "@apx/ui";
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { aheadLabel, shortWhen } from "../common/format.ts";
 import { blobOf, DEFAULT_PID } from "../data/identity.ts";
 import {
@@ -14,7 +14,7 @@ import {
 } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { FlowsPane } from "../lazy.ts";
+import { go } from "../shell/nav.ts";
 import { ActivationBars, hasAgent, useRuns } from "./ActivationBars.tsx";
 import { RoutineDrawer } from "./RoutineDrawer.tsx";
 import { RoutineEditor } from "./RoutineEditor.tsx";
@@ -29,7 +29,6 @@ export function RoutinesPane({ projectId }: { projectId: string }) {
   const all = useRoutines((s) => s.routines);
   const ready = useRoutines((s) => s.ready);
   const agents = useData((s) => s.agents);
-  const [flowsOpen, setFlowsOpen] = useState(false);
   const [editing, setEditing] = useState<RoutineDraft>();
   const [open, setOpen] = useState<string>();
   useEffect(() => {
@@ -60,20 +59,13 @@ export function RoutinesPane({ projectId }: { projectId: string }) {
       <div className="board__head">
         <p className="config__lead">{t("routines.lead")}</p>
         <span className="board__spacer" />
-        {!global && (
-          <Button size="sm" variant="secondary" aria-expanded={flowsOpen} onClick={() => setFlowsOpen((open) => !open)}>
-            Flows
-          </Button>
-        )}
+        <Button size="sm" variant="secondary" onClick={() => go.flows(global ? undefined : projectId)}>
+          {t("nav.flows")}
+        </Button>
         <Button size="sm" leadingIcon={<Icons.Plus size={14} />} onClick={() => setEditing(blank)}>
           {t("routines.new")}
         </Button>
       </div>
-      {!global && flowsOpen && (
-        <Suspense fallback={null}>
-          <FlowsPane key={projectId} projectId={projectId} />
-        </Suspense>
-      )}
       {ready && !list.length ? (
         <EmptyState variant="dashed" size="lg" icon={<Icons.Clock />} title={t("routines.emptyTitle")}>
           {t("routines.empty")}

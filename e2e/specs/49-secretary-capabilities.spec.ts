@@ -1,4 +1,4 @@
-import type { Routine } from "@apx/protocol";
+import type { Routine } from "../../packages/protocol/src/index.ts";
 import { expect, open, openSettings, rpc, test } from "./kit.ts";
 
 test("secretary switches preserve existing instructions and are absent from New routine", async ({ page }) => {

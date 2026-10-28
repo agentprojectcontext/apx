@@ -20,10 +20,11 @@ for (const action of ["agent", "routine"] as const) {
     const flow = `ui_${action}_action`;
     const name = `Acme ${action} action`;
     await open(page, `#project=${project.id}&tab=routines`);
-    await page.getByRole("button", { name: "Flows", exact: true }).click();
+    await page.getByRole("main").getByRole("button", { name: "Flows", exact: true }).click();
     const pane = page.getByRole("region", { name: "Flows", exact: true });
     await pane.getByRole("button", { name: "Nuevo Flow" }).click();
     const editor = page.getByRole("dialog");
+    await expect(editor.getByRole("combobox", { name: "Proyecto", exact: true })).toHaveValue(project.id);
     await editor.getByRole("textbox", { name: "ID del Flow" }).fill(flow);
     await editor.getByRole("textbox", { name: "Nombre", exact: true }).fill(name);
     await editor.getByRole("combobox", { name: "Acción fija" }).selectOption(action);

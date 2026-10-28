@@ -37,7 +37,7 @@ export const FlowEventCursor = z
 export type FlowEventCursor = z.infer<typeof FlowEventCursor>;
 export const flowMethods = {
   "flows.list": {
-    params: z.object({ project: Id }).strict(),
+    params: z.object({ project: Id.optional() }).strict(),
     result: z.object({ flows: z.array(FlowDefinition) }),
     effect: false,
     access: "human",

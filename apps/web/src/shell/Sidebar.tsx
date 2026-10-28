@@ -15,7 +15,7 @@ import { LAYOUT } from "./layout.ts";
 import { go, useNav } from "./nav.ts";
 import { ProjectsNav } from "./ProjectsNav.tsx";
 
-/** Inbox · Tasks · Resources (pinned) · Channels · Projects · External sessions · Apps · account (with Settings). `rail` = 60px icons. */
+/** Inbox · Tasks · Flows · Resources (pinned) · Channels · Projects · External sessions · Apps · account (with Settings). `rail` = 60px icons. */
 export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
   const t = useT();
   const view = useNav((s) => s.view);
@@ -74,6 +74,13 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
           label={t("nav.tasks")}
           active={view === "tasks"}
           onClick={() => go.view("tasks")}
+        />
+        <NavItem
+          collapsed={rail}
+          icon={<Icons.GitBranch />}
+          label={t("nav.flows")}
+          active={view === "flows"}
+          onClick={() => go.flows()}
         />
         <NavItem
           collapsed={rail}

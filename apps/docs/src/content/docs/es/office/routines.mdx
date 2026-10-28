@@ -43,8 +43,9 @@ Una corrida que se perdió con el core apagado corre una vez cuando vuelve, nunc
 
 ## Flows por webhook
 
-Para trabajar por eventos, abrí **Rutinas → Flows**. Un Flow pertenece a un proyecto y no tiene cron ni disparador
-periódico. Crealo desactivado, elegí filtros de igualdad y una tabla durable de destino; opcionalmente vinculá un
+En la rama de integración todavía no publicada, abrí **Flows** en el sidebar global junto a **Tareas** y **Recursos**. La vista inicial reúne todos los proyectos; **Filtrar por proyecto** la acota. **Nuevo Flow** permite elegir proyecto, preseleccionado según el filtro; al editar, el proyecto queda fijo. El acceso de Rutinas abre esta misma pantalla global. Los enlaces directos usan `#view=flows` o `#view=flows&scope=<project-id>`; los botones del chat pueden usar `apx:flows` o `apx:flows/<project-id>`.
+
+Un Flow pertenece a un proyecto y no tiene cron ni disparador periódico. Crealo desactivado, elegí filtros de igualdad y una tabla durable de destino; opcionalmente vinculá un
 agente fijo o una rutina manual de ese proyecto. Activá el Flow antes de crear su credencial en **Configuración →
 Dispositivos → Endpoints públicos**. El acceso público se configura por separado y nunca expone el RPC privado ni el panel.
 

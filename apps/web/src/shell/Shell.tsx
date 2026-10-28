@@ -13,6 +13,7 @@ import {
   ConfigModal,
   CornerCards,
   EngineSessions,
+  FlowsPane,
   InstallArtifactDialog,
   LiveLayer,
   PhoneDialog,
@@ -43,6 +44,7 @@ import { useViewportWidth } from "./useViewportWidth.ts";
 export function Shell() {
   const width = useViewportWidth();
   const view = useNav((s) => s.view);
+  const flowProject = useNav((s) => s.flowProject);
   const chat = useNav(showsChat);
   const panel = useNav((s) => s.panel);
   const threadId = useNav((s) => s.threadId);
@@ -78,6 +80,8 @@ export function Shell() {
                 <ProjectScreen layout={layout} />
               ) : view === "tasks" ? (
                 <TasksScreen />
+              ) : view === "flows" ? (
+                <FlowsPane key={flowProject ?? "all"} projectId={flowProject} />
               ) : view === "resources" ? (
                 <ResourcesScreen />
               ) : view === "computers" ? (

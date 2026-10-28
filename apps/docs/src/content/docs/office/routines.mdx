@@ -42,7 +42,9 @@ A run missed while the core was off runs once when it comes back, never twice.
 
 ## Webhook Flows
 
-For event-driven work, open **Routines → Flows**. A Flow belongs to a project and has no cron or periodic trigger.
+In the unreleased integration branch, open **Flows** in the global sidebar beside **Tasks** and **Resources**. The initial view lists all projects; **Filter by project** narrows it. **New Flow** lets you choose a project, prefilled from the filter; editing keeps that project fixed. The Routines tab's shortcut opens this same global screen. Direct links use `#view=flows` or `#view=flows&scope=<project-id>`; chat buttons may use `apx:flows` or `apx:flows/<project-id>`.
+
+A Flow belongs to a project and has no cron or periodic trigger.
 Start disabled, choose equality filters and a durable table destination, then optionally bind a fixed agent or a
 manual-only routine in that project. Enable it before creating its route credential in **Settings → Devices → Public
 endpoints**. Public access is configured separately; it never exposes private RPC or the panel.

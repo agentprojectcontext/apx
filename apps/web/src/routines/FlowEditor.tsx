@@ -2,6 +2,7 @@ import { Button, Dialog, Field, Input, Switch } from "@apx/ui";
 import { useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { type FlowDraft, parseFlowDraft } from "./flow-form.ts";
 
@@ -17,6 +18,7 @@ export function FlowEditor({
   onClose: () => void;
 }) {
   const t = useT();
+  const projects = useData((s) => s.projects);
   const [d, setD] = useState(draft);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -48,7 +50,28 @@ export function FlowEditor({
       title={creating ? t("flow.new") : d.name}
     >
       <div className="flow-form">
-        <Field label={t("flow.project")}>{(id) => <Input id={id} value={d.projectId} readOnly />}</Field>
+        <Field label={t("flow.project")}>
+          {(id) =>
+            creating ? (
+              <select
+                id={id}
+                value={d.projectId}
+                onChange={(e) => set({ projectId: e.currentTarget.value, binding: "" })}
+              >
+                <option value="">{t("flow.chooseProject")}</option>
+                {projects
+                  .filter((p) => p.registered !== false)
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              <Input id={id} value={d.projectId} readOnly />
+            )
+          }
+        </Field>
         <Field label={t("flow.id")}>
           {(id) => (
             <Input

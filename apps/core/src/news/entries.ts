@@ -70,7 +70,7 @@ export const NEWS: readonly NewsEntry[] = [
     since: "2.11.2",
     title: "Run work only when a webhook arrives",
     applies: (f) => f.secretary && f.channels > 0,
-    text: "Flows accept authenticated webhook events, filter and write persistent project tables without a model, and optionally invoke a fixed agent or a manual-only routine when there is work. Idle, empty, filtered and duplicate events use no model calls. Each Flow has separate revocable route credentials in Settings, Devices. Events and run links survive restart. External sends are not exactly-once; review automation permissions before enabling effects.",
+    text: "Flows now have their own global sidebar entry, listing all projects with a project filter and project-scoped creation and editing. Flows accept authenticated webhook events, filter and write persistent project tables without a model, and optionally invoke a fixed agent or a manual-only routine when there is work. Idle, empty, filtered and duplicate events use no model calls. Each Flow has separate revocable route credentials in Settings, Devices. Events and run links survive restart. External sends are not exactly-once; review automation permissions before enabling effects.",
     actions: [
       {
         label: { en: "Prepare a Flow", es: "Preparar un Flow" },

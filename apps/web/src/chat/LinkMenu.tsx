@@ -63,6 +63,7 @@ const PLACE_ICON: Record<AppPlace["kind"], ReactNode> = {
   settings: <Icons.Settings size={13} />,
   task: <Icons.ListChecks size={13} />,
   tasks: <Icons.ListChecks size={13} />,
+  flows: <Icons.GitBranch size={13} />,
   resources: <Icons.Wrench size={13} />,
   inbox: <Icons.Inbox size={13} />,
   chat: <Icons.MessageSquare size={13} />,
@@ -89,6 +90,8 @@ function usePlaceHint(place: AppPlace | undefined): string {
       return t("link.go.task", { name: task?.title ?? id });
     case "tasks":
       return t("link.go.tasks");
+    case "flows":
+      return t("nav.flows");
     case "resources":
       return t("link.go.resources", { name: t(`res.tab.${place.tab}`) });
     case "inbox":

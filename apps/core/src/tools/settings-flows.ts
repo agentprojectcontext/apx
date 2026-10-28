@@ -3,8 +3,8 @@ import { merged, type Setting, str } from "./settings-kit.ts";
 
 export const FLOWS: Readonly<Record<string, Setting>> = {
   "flows.list": {
-    does: "list webhook-only Flows in a project (project); no model work while idle",
-    read: (p, { store }) => JSON.stringify(store.flows.list(str(p.project))),
+    does: "list webhook-only Flows across all projects, or filter by optional project; no model work while idle",
+    read: (p, { store }) => JSON.stringify(store.flows.list(typeof p.project === "string" ? p.project : undefined)),
   },
   "flows.set": {
     does: "create or replace a Flow: id, projectId, name, enabled, predicates [{path: string[], equals: scalar}], tableKey, action {kind: none|agent|routine, agent/prompt or routine}. Routine must be manual-only in the same project. Public tokens stay owner-only in Settings, Devices",

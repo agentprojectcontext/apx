@@ -1,6 +1,7 @@
 import { Badge, Button, EmptyState, Icons, Skeleton } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
+import { useData } from "../data/state.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { FlowDetail } from "./FlowDetail.tsx";
@@ -8,7 +9,8 @@ import { FlowEditor } from "./FlowEditor.tsx";
 import { draftFlow, type Flow, type FlowDraft } from "./flow-form.ts";
 import "./flows.css";
 
-export function FlowsPane({ projectId }: { projectId: string }) {
+export function FlowsPane({ projectId }: { projectId?: string | undefined }) {
+  const projects = useData((s) => s.projects);
   const ready = usePack("flow");
   const t = useT();
   const [loaded, setLoaded] = useState<{ flows: Flow[]; revision: number }>();
@@ -35,9 +37,24 @@ export function FlowsPane({ projectId }: { projectId: string }) {
   }, [projectId, revision, t]);
   if (!ready) return <Skeleton width="100%" height={80} />;
   return (
-    <section className="flows" aria-label={t("flow.title")}>
+    <section className="page flows" aria-label={t("flow.title")}>
       <div className="flow-actions">
-        <h2>{t("flow.title")}</h2>
+        <h1 className="page__title">{t("flow.title")}</h1>
+        <label>
+          {t("flow.projectFilter")}
+          <select
+            aria-label={t("flow.projectFilter")}
+            value={projectId ?? ""}
+            onChange={(e) => go.flows(e.currentTarget.value || undefined)}
+          >
+            <option value="">{t("flow.allProjects")}</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <Button size="sm" variant="secondary" onClick={refresh}>
           {t("common.refresh")}
         </Button>
@@ -48,7 +65,7 @@ export function FlowsPane({ projectId }: { projectId: string }) {
               creating: true,
               draft: draftFlow({
                 id: "",
-                projectId,
+                projectId: projectId ?? "",
                 name: "",
                 enabled: false,
                 predicates: [],
@@ -67,7 +84,9 @@ export function FlowsPane({ projectId }: { projectId: string }) {
       </Button>
       {error && <p role="alert">{error}</p>}
       {loaded?.revision !== revision && !error && <Skeleton width="100%" height={80} />}
-      {flows?.length === 0 && <EmptyState icon={<Icons.Clock />}>{t("flow.empty")}</EmptyState>}
+      {flows?.length === 0 && (
+        <EmptyState icon={<Icons.Clock />}>{t(projectId ? "flow.empty" : "flow.emptyAll")}</EmptyState>
+      )}
       <div className="flow-list">
         {flows?.map((flow) => (
           <div className="flow-item" key={flow.id}>
@@ -80,6 +99,7 @@ export function FlowsPane({ projectId }: { projectId: string }) {
                 {flow.name}
               </Button>
               <Badge>{t(flow.enabled ? "flow.enabled" : "flow.disabled")}</Badge>
+              <span>{projects.find((p) => p.id === flow.projectId)?.name ?? flow.projectId}</span>
               <code>{flow.id}</code>
               <Button
                 size="sm"

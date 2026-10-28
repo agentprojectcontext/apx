@@ -63,7 +63,7 @@ connections back into APX. See [Public ingress](PUBLIC_INGRESS.md) for limits, p
 Webhook-only Flows (`flows.ts`, `domain/flows.ts`) enter on protected `/flows/<id>` routes, commit event deduplication,
 fixed action/read snapshots and table writes before accepting, then use the existing router's `threads.send` or
 `routines.run` admission. The admitted run and event linkage share a transaction. Startup and run-completion events
-resume pending work; no cron or periodic model call is added. Owner-only `flows.*` methods serve Routines → Flows,
+resume pending work; no cron or periodic model call is added. Owner-only `flows.*` methods serve the global sidebar's Flows screen (all projects or one project filter),
 the CLI and approved super-agent settings. Agent events stay external/untrusted; routines must be manual-only in the
 same project. See [Flows](FLOWS.md) for bounds, retry semantics and deployment.
 

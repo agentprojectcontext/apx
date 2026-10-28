@@ -4,7 +4,7 @@ A Flow is project-owned, event-driven work. It has no timer or cron schedule. Th
 
 ## Operate a Flow
 
-Open Routines → Flows, select a project, and create a disabled Flow. Choose a stable identifier, name, equality predicates, a destination table key and an action:
+Open **Flows** in the global sidebar beside Tasks and Resources. It lists all projects; use **Filter by project** to narrow it. Create a disabled Flow and choose its project (the active filter prefills it). Editing keeps the saved project fixed. Direct panel links use `#view=flows` or `#view=flows&scope=<project-id>`; chat links use `apx:flows` or `apx:flows/<project-id>`. The project's Routines tab has a shortcut to the same global screen, not an embedded second screen. Choose a stable identifier, name, equality predicates, a destination table key and an action:
 
 - **Table only:** persist matching data without calling a model.
 - **Agent:** a fixed agent and fixed prompt. Each event gets its own ordinary chat; incoming data is framed as an untrusted external request, never as the owner's instruction.

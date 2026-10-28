@@ -1,5 +1,9 @@
 export const enFlow = {
   "flow.title": "Flows",
+  "flow.projectFilter": "Filter by project",
+  "flow.allProjects": "All projects",
+  "flow.emptyAll": "No Flows yet. Create one and choose its project.",
+  "flow.chooseProject": "Choose a project",
   "flow.lead":
     "Webhook-only automation. Filters and table writes do not call a model. Only the fixed action can start an agent or routine.",
   "flow.new": "New Flow",
