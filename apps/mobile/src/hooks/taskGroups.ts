@@ -1,6 +1,7 @@
+import { taskGroupOf as groupOf } from "../../../../packages/protocol/src/task-groups.ts";
 import { textOrder } from "../format.ts";
 import type { Key } from "../i18n/index.ts";
-import type { Task } from "./useWorkspace";
+import type { Task, Thread } from "./useWorkspace";
 
 export type TaskFilter = "all" | "task" | "commitment";
 export type TaskGroup = { id: "proposed" | "doing" | "pending" | "review" | "blocked"; label: Key; tasks: Task[] };
@@ -13,28 +14,34 @@ const ORDER: Array<Pick<TaskGroup, "id" | "label">> = [
   { id: "review", label: "tasksReview" },
 ];
 
-/**
- * Where an open task sits on the phone: an agent's proposals first, then what needs the owner (a question, or a review
- * no agent does), then its board column.
- */
-export function taskGroupOf(task: Task): TaskGroup["id"] {
-  if (task.proposed) return "proposed";
-  if (task.awaits_owner || task.status === "blocked" || (task.status === "review" && !task.reviewer)) return "blocked";
-  if (task.status === "review") return "review";
-  if (task.status === "doing") return "doing";
-  return "pending";
+/** Where an open task sits on the phone: the same group as in the panel (DECISIONS.md#d-129). */
+export function taskGroupOf(task: Task, running: ReadonlySet<string> = new Set()): TaskGroup["id"] {
+  const group = groupOf(task, running);
+  return group === "closed" ? "pending" : group;
 }
+
+/** The chats with a turn going on, and the task threads of the tasks worked in them: such a task is in progress. */
+export function runningThreads(threads: readonly Thread[], tasks: readonly Task[]): Set<string> {
+  const live = threads.filter((thread) => LIVE.has(thread.state));
+  const worked = new Set(live.flatMap((thread) => (thread.task_id ? [thread.task_id] : [])));
+  return new Set([
+    ...live.map((thread) => thread.id),
+    ...tasks.filter((task) => worked.has(task.id)).map((task) => task.thread_id),
+  ]);
+}
+
+const LIVE = new Set(["queued", "submitted", "working"]);
 
 const shownBy = (filter: TaskFilter) => (task: Task) =>
   filter === "all" || (filter === "commitment" ? task.kind === "commitment" : task.kind !== "commitment");
 
 /** Open tasks by group, in the design's order, leaving out empty groups; errands count as tasks. */
-export function taskGroups(tasks: Task[], filter: TaskFilter): TaskGroup[] {
+export function taskGroups(tasks: Task[], filter: TaskFilter, running: ReadonlySet<string> = new Set()): TaskGroup[] {
   const shown = tasks.filter((task) => task.state === "open" && shownBy(filter)(task));
   const soonest = (a: Task, b: Task) => textOrder(a.due_at ?? "~", b.due_at ?? "~");
   return ORDER.map((group) => ({
     ...group,
-    tasks: shown.filter((task) => taskGroupOf(task) === group.id).sort(soonest),
+    tasks: shown.filter((task) => taskGroupOf(task, running) === group.id).sort(soonest),
   })).filter((group) => group.tasks.length > 0);
 }
 

@@ -1,24 +1,12 @@
 // How the Tasks list groups tasks: what needs the owner first (a question, or a review that is theirs), then what is
 // moving, what waits, what an agent reviews, and the closed ones. Pure, so it is tested on its own.
 import type { Task } from "@apx/protocol";
+import { TASK_GROUP_ORDER, type TaskGroupId, taskGroupOf } from "@apx/protocol/task-groups";
 
-export type GroupId = "proposed" | "doing" | "pending" | "review" | "blocked" | "closed";
-export const GROUP_ORDER: readonly GroupId[] = ["proposed", "blocked", "doing", "pending", "review", "closed"];
-
-/**
- * What needs the owner wins over every column ("blocked": a question for them, or a review with no agent to do it);
- * then a task whose thread has a turn running counts as in progress whatever its column; `review` is an agent's review;
- * any other open column (backlog, to do, the owner's own) is pending.
- */
-export function groupOf(task: Task, running: ReadonlySet<string>): GroupId {
-  if (task.state !== "open") return "closed";
-  // An agent's proposal: nothing starts until the owner accepts it.
-  if (task.proposed) return "proposed";
-  if (task.awaits_owner || (task.status === "review" && !task.reviewer)) return "blocked";
-  if (task.status === "doing" || running.has(task.thread_id)) return "doing";
-  if (task.status === "review") return "review";
-  return "pending";
-}
+export type GroupId = TaskGroupId;
+export const GROUP_ORDER = TASK_GROUP_ORDER;
+/** The phone groups the same way (DECISIONS.md#d-129). */
+export const groupOf = taskGroupOf;
 
 /** Groups in order, empty ones left out. Open tasks by last activity; closed ones too, newest first. */
 export function groupTasks(tasks: Task[], running: ReadonlySet<string>): Array<{ id: GroupId; items: Task[] }> {
