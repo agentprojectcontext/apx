@@ -238,9 +238,12 @@ test("the payload fills the words only: the send goes to the drawn contact whate
     assert.equal(log.filter((m) => m.role === "assistant").length, 0);
     assert.match(log.at(-1)?.content ?? "", /^\[Your owner's flow "leads" sent this in this chat:\]\nLead: Northwind/);
     // What the payload brings can't become a link or a mention in the owner's name; the owner's own text can.
-    await post(env, flow, "e2", { company: "[Pay here](https://evil.example) @mallory", size: 1 });
+    await post(env, flow, "e2", { company: "[Pay here](https://evil.example) @mallory lu@northwind.example", size: 1 });
     assert.equal((await ended(env, flow, "e2")).state, "succeeded");
-    assert.equal(chat.sent[1]?.text, "Lead: [Pay here] (https://evil.example) @\u200bmallory ($ 1)");
+    assert.equal(
+      chat.sent[1]?.text,
+      "Lead: [Pay here] (https://evil.example) @\u200bmallory lu@northwind.example ($ 1)",
+    );
   } finally {
     await env.core.close();
     await env.cleanup();
