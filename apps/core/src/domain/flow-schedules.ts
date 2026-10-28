@@ -53,6 +53,20 @@ export function flowSchedulesRepo(db: Db) {
     stop(flow: string): void {
       run(qb.deleteFrom("flow_schedules").where("flow_id", "=", flow));
     },
+    /** The time was due while the Flow's last run was still going: spent, not queued, and counted. */
+    skip(flow: string, at: Date): void {
+      run(
+        qb
+          .updateTable("flow_schedules")
+          .set((e) => ({ since: at.toISOString(), skipped: e("skipped", "+", 1), skipped_at: at.toISOString() }))
+          .where("flow_id", "=", flow),
+      );
+    },
+    /** How many times were skipped since it was turned on, and the last one. */
+    skips(flow: string): { skipped: number; skipped_at: string | null } {
+      const row = one(qb.selectFrom("flow_schedules").select(["skipped", "skipped_at"]).where("flow_id", "=", flow));
+      return { skipped: row?.skipped ?? 0, skipped_at: row?.skipped_at ?? null };
+    },
     /** The time is spent: the next one is counted from `at`. */
     advance(flow: string, at: Date): void {
       run(qb.updateTable("flow_schedules").set({ since: at.toISOString() }).where("flow_id", "=", flow));

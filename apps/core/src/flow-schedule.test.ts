@@ -178,7 +178,7 @@ test("a Flow that is off does not tick, and turned on owes nothing from while it
     // A Flow that is off shows no next time.
     await turn(env, flow, false);
     const list = await env.client.call("flows.list", {});
-    assert.deepEqual(list.schedules[flow], { cron: "*/5 * * * *", next_at: null });
+    assert.deepEqual(list.schedules[flow], { cron: "*/5 * * * *", next_at: null, skipped: 0, skipped_at: null });
   } finally {
     await env.core.close();
     await env.cleanup();

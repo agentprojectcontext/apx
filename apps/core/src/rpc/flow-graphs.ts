@@ -2,10 +2,11 @@ import { ErrorCode } from "@apx/protocol";
 import { FlowGraphConflict, FlowGraphUnavailable } from "../domain/flow-graphs.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, conflict, notFound } from "../errors.ts";
+import { type FlowOutside, flowOutward } from "../flow-outward.ts";
 import { type FlowModelCheck, flowGraphIssues } from "../flows.ts";
 import type { Handlers } from "./router.ts";
 
-export function flowGraphHandlers(store: Store, model: FlowModelCheck) {
+export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?: FlowOutside) {
   const found = (id: string) => {
     const flow = store.flows.get(id);
     if (!flow) throw notFound("Flow not found");
@@ -50,19 +51,30 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck) {
               action: { kind: "none" as const },
             };
       if (flow === undefined && !store.projects.get(definition.projectId)) throw notFound("Project not found");
-      const issues = flowGraphIssues(store, definition, graph, model);
+      const issues = flowGraphIssues(store, definition, graph, model, outside);
       return { valid: issues.length === 0, issues };
     },
-    "flows.publish": ({ flow, expectedDraftVersion, expectedPublishedRevision }) => {
+    "flows.outward": ({ flow, graph }) => {
+      found(flow);
+      return flowOutward(store, graph);
+    },
+    "flows.publish": ({ flow, expectedDraftVersion, expectedPublishedRevision, outward }) => {
       const definition = found(flow);
       return write(() =>
         store.flowGraphs.publish(flow, expectedDraftVersion, expectedPublishedRevision, (graph) => {
-          const issues = flowGraphIssues(store, definition, graph, model);
+          const issues = flowGraphIssues(store, definition, graph, model, outside);
           if (issues.length)
             throw new CallError({
               code: ErrorCode.BadRequest,
               message: issues[0]?.message ?? "The drawing cannot run",
               detail: { issues },
+            });
+          // Sending as the owner and calling other services is approved by publishing what the owner was shown.
+          const { keys } = flowOutward(store, graph);
+          if (keys.length && JSON.stringify([...new Set(outward ?? [])].sort()) !== JSON.stringify(keys))
+            throw conflict("Confirm where it sends and what it calls before it runs", {
+              reason: "outward_unconfirmed",
+              keys,
             });
         }),
       );

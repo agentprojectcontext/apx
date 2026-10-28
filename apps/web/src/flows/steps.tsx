@@ -13,7 +13,7 @@ export type { FlowGraph, FlowNode };
 
 /** Kinds the current executor runs, and the ones the palette shows as coming soon (never added or saved). */
 export type StepKind = FlowNode["kind"];
-export type SoonKind = "sql" | "http" | "cmd" | "notify";
+export type SoonKind = "sql" | "cmd";
 
 type Meta = { icon: ReactNode; tone: FlowStepTone; label: MessageKey; body?: MessageKey };
 export const STEP: Record<StepKind | SoonKind, Meta> = {
@@ -52,8 +52,7 @@ export const PALETTE: { group: MessageKey; kinds: (StepKind | SoonKind)[] }[] = 
   { group: "flow.group.crew", kinds: ["agent", "routine", "llm"] },
   { group: "flow.group.output", kinds: ["notify"] },
 ];
-export const isSoon = (kind: string): kind is SoonKind =>
-  kind === "sql" || kind === "http" || kind === "cmd" || kind === "notify";
+export const isSoon = (kind: string): kind is SoonKind => kind === "sql" || kind === "cmd";
 /** A run starts at its one trigger: an incoming POST or a schedule. */
 export const isTrigger = (kind: string): kind is "webhook" | "schedule" => kind === "webhook" || kind === "schedule";
 /** The drawing's trigger, if it has one. */

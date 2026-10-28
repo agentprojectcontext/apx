@@ -306,6 +306,60 @@ export function inputOf(n: FlowNode, flow: string, t: T, who: (n: FlowNode) => s
       return who(n);
     case "llm":
       return `${n.model} · ${n.prompt}`;
+    case "notify":
+      return `${who(n)}\n\n${n.text}`;
+    case "http":
+      return `${n.method} ${n.url}`;
+  }
+}
+
+/** A JSON body laid out to read; any other text as it is. */
+const pretty = (text: string) => {
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2);
+  } catch {
+    return text;
+  }
+};
+
+/** What a notify or HTTP step sent or asked, from its record (secrets show as their secret://name). */
+function outwardInput(n: FlowNode, text: string | null, t: T): string | undefined {
+  if (text === null || (n.kind !== "notify" && n.kind !== "http")) return undefined;
+  try {
+    const v = JSON.parse(text) as Record<string, unknown>;
+    if (n.kind === "notify")
+      return `${String(v.channel)} → ${v.owner === true ? t("flow.f.toYou") : String(v.to)}\n\n${String(v.text)}`;
+    const headers = (v.headers as { name: string; value: string }[] | undefined) ?? [];
+    return [
+      `${String(v.method)} ${String(v.url)}`,
+      ...headers.map((h) => `${h.name}: ${h.value}`),
+      ...(typeof v.body === "string" ? ["", pretty(v.body)] : []),
+    ].join("\n");
+  } catch {
+    return text;
+  }
+}
+
+/** What came back: who got the message, or the service's status and answer. */
+function outwardOutput(n: FlowNode, text: string | null, t: T): string | undefined {
+  if (text === null || (n.kind !== "notify" && n.kind !== "http")) return undefined;
+  try {
+    const v = JSON.parse(text) as Record<string, unknown>;
+    if (n.kind === "notify")
+      return v.owner === true
+        ? t("flow.out.sentYou", { channel: String(v.channel) })
+        : t("flow.out.sent", { to: String(v.to), channel: String(v.channel) });
+    const answer =
+      v.json !== undefined
+        ? JSON.stringify(v.json, null, 2)
+        : typeof v.body === "string"
+          ? v.body
+          : v.location
+            ? `Location: ${String(v.location)}`
+            : "";
+    return [t("flow.out.status", { status: String(v.status) }), answer].filter(Boolean).join("\n\n");
+  } catch {
+    return text;
   }
 }
 
@@ -368,10 +422,12 @@ export function viewGraphRun(run: RunDetail, flow: string, t: T, who: (n: FlowNo
         ? startedText(run, t)
         : r.state === "succeeded"
           ? matched === undefined
-            ? JSON_TEXT(r.output)
+            ? (outwardOutput(n, r.output, t) ?? JSON_TEXT(r.output))
             : t(matched ? "flow.out.matched" : "flow.out.thisNo")
           : r.state === "skipped"
-            ? t("flow.notRunBranch")
+            ? r.error
+              ? whyText(r.error, t)
+              : t("flow.notRunBranch")
             : r.state === "blocked"
               ? t("flow.notRunFailed")
               : r.state === "pending"
@@ -401,12 +457,15 @@ export function viewGraphRun(run: RunDetail, flow: string, t: T, who: (n: FlowNo
       ...(state ? { state } : {}),
       ...(counted ? { order: ++order } : {}),
       ...(badge ? { badge } : {}),
-      input: r.input === null ? settings : JSON_TEXT(r.input),
+      input: r.input === null ? settings : (outwardInput(n, r.input, t) ?? JSON_TEXT(r.input)),
       output,
       ...(r.run_id ? { run: r.run_id } : {}),
     });
     const name = n.label;
-    if (r.started_at && (n.kind === "agent" || n.kind === "routine" || n.kind === "llm"))
+    if (
+      r.started_at &&
+      (n.kind === "agent" || n.kind === "routine" || n.kind === "llm" || n.kind === "notify" || n.kind === "http")
+    )
       log.push({ at: r.started_at, node: n.id, text: t("flow.log.started", { who: name }) });
     if (r.ended_at && r.state !== "skipped" && r.state !== "blocked")
       log.push({

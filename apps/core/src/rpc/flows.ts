@@ -18,7 +18,7 @@ export function flowHandlers(
   model: FlowModelCheck,
 ) {
   const flowsNow = () => flows.now();
-  const graphHandlers = flowGraphHandlers(store, model);
+  const graphHandlers = flowGraphHandlers(store, model, flows.outside);
   const found = (id: string) => {
     const flow = store.flows.get(id);
     if (!flow) throw notFound("Flow not found");
@@ -40,7 +40,10 @@ export function flowHandlers(
     "flows.list": ({ project }) => {
       const flows = store.flows.list(project);
       const published: Record<string, { revision: number; kinds: string[] }> = {};
-      const schedules: Record<string, { cron: string; next_at: string | null }> = {};
+      const schedules: Record<
+        string,
+        { cron: string; next_at: string | null; skipped: number; skipped_at: string | null }
+      > = {};
       const zone = flowTimeZone(store);
       const at = flowsNow();
       for (const f of flows) {
@@ -55,6 +58,7 @@ export function flowHandlers(
           schedules[f.id] = {
             cron: trigger.cron,
             next_at: f.enabled ? (nextFlowTick(trigger.cron, at, zone)?.toISOString() ?? null) : null,
+            ...store.flowSchedules.skips(f.id),
           };
       }
       return { flows, published, schedules, time_zone: zone };
@@ -65,7 +69,7 @@ export function flowHandlers(
       // A published Flow runs its drawing: its old definition is history, and turning it on checks the drawing.
       const published = previous ? store.flowGraphs.get(flow.id).published : null;
       if (published) {
-        if (flow.enabled && flowGraphIssues(store, flow, published, model).length)
+        if (flow.enabled && flowGraphIssues(store, flow, published, model, flows.outside).length)
           throw badRequest("The drawing can't run as it is: open it in the editor to fix it");
       } else validateFlowBinding(store, flow);
       try {

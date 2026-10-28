@@ -59,6 +59,11 @@ export type CoreConfig = {
   runtimeSkills: { homes: { home: string; claude: string; codex: string }; auto: boolean };
   /** Telegram's Bot API; a test environment points it at an emulated one (APX_TELEGRAM_API). */
   telegramApi: string | undefined;
+  /**
+   * Loopback `host:port` servers a test lets Flow HTTP steps reach (APX_FLOW_HTTP_ALLOW, comma-separated); anything
+   * else on this computer or a private network stays refused. Empty in a real core.
+   */
+  flowHttpAllow: string[];
   /** Discord's REST API and Gateway; a test environment points them at an emulated one (APX_DISCORD_API, _GATEWAY). */
   discord: { api: string; gateway: string; cdn: string } | undefined;
   /**
@@ -197,6 +202,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     webDist: env.APX_WEB_DIST || undefined,
     v1: { url: env.APX_V1_URL ?? "http://127.0.0.1:7430", home: env.APX_V1_HOME ?? path.join(os.homedir(), ".apx") },
     telegramApi: env.APX_TELEGRAM_API || undefined,
+    flowHttpAllow: list(env.APX_FLOW_HTTP_ALLOW).filter((a) => /^127\.0\.0\.1:\d{1,5}$/.test(a)),
     discord:
       env.APX_DISCORD_API && env.APX_DISCORD_GATEWAY
         ? { api: env.APX_DISCORD_API, gateway: env.APX_DISCORD_GATEWAY, cdn: env.APX_DISCORD_API }

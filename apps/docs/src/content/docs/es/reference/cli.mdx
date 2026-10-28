@@ -182,6 +182,8 @@ Qué es una referencia de modelo y el router está en [Modelos](/es/concepts/mod
 | `apx routines on <id>` | La prende (`off` la apaga). |
 | `apx routines rm <id>` | La borra. |
 | `apx routines log <id>` | Sus últimas corridas. |
+| `apx flows run <flow> ['<JSON>']` | Corre ahora un flow publicado; uno con webhook recibe el JSON como cuerpo. No corre dentro del comando de un agente. |
+| `apx flows stop <flow> <evento>` | Detiene una ronda que está corriendo; un mensaje o llamada ya mandados quedan para revisar. No corre dentro del comando de un agente. |
 | `apx memory [words]` | Las notas que guardan los agentes, de la más nueva a la más vieja, o las que mejor coinciden con las palabras (`--project`, `--agent`, `--json`). |
 | `apx memory add [scope] <text>` | Agrega una nota. El alcance es `global`, `project` o `agent` (con `--project <id>` o `--agent <id>`); sin alcance sigue esas opciones, y si no, `global`. |
 | `apx memory edit <id> <text…>` | Reescribe una nota en el lugar. |

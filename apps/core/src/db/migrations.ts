@@ -996,4 +996,13 @@ export const MIGRATIONS: readonly string[] = [
   `,
   // Event reminders left the routines for Google Calendar's own settings: a routine kept for them goes, with its runs.
   `DELETE FROM routines WHERE action = 'calendar';`,
+  // Each message a Flow sent as the owner, for its hourly limit; ticks a schedule skipped while a run was going.
+  `
+  CREATE TABLE flow_sends (
+    flow_id TEXT NOT NULL REFERENCES flows(id) ON DELETE CASCADE, kind TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX flow_sends_flow ON flow_sends(flow_id, kind, at);
+  ALTER TABLE flow_schedules ADD COLUMN skipped INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE flow_schedules ADD COLUMN skipped_at TEXT;
+  `,
 ];

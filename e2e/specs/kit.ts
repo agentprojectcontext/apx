@@ -34,7 +34,16 @@ export const world = {
       llm: string;
       discord: string;
       slack: { bot: string; app: string };
+      /** A service on this computer that Flow HTTP steps may call. */
+      service: string;
     },
+  /** What reached that service: each request's method, path, headers and body. */
+  serviceCalls: async () =>
+    (
+      (await (await fetch(`${control}/service/calls`)).json()) as {
+        calls: { method: string; url: string; headers: Record<string, string>; body: string }[];
+      }
+    ).calls,
   desktopTrash: async () => (await (await fetch(`${control}/desktop/trash`)).json()) as { paths: string[] },
   telegram: async (from: { id: number; name: string }, text: string) => {
     await fetch(`${control}/tg/message`, { method: "POST", body: JSON.stringify({ from, text }) });

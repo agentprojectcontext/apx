@@ -2768,3 +2768,49 @@ Flow. Each schedule Flow keeps one moment, `since`, that its next time is counte
 
 Rejected: a timer per Flow (a second clock to keep right across sleep and restarts), catching up every missed time,
 and letting a webhook Flow tick or a schedule Flow take POSTs "for testing" (that is what Run now is for).
+
+<a id="d-169"></a>
+## D-169 — 2026-10-28 — A Flow speaks as the owner and calls other services only where its published revision says
+Flows got two steps that act outside APX: notify (a message through one of the owner's chat apps) and an outgoing
+HTTP request. Rule 10 makes sending or posting as the owner a strong action that needs confirmation; a Flow runs
+unattended, often on an outside service's POST. The confirmation therefore moves to the moment the owner decides what
+the Flow does, and everything a run could change afterwards is taken out of the payload's hands:
+
+- **Publishing is the approval, of exactly what was shown.** `flows.outward` lists, for a drawing, each person or room
+  it sends to (by channel) and each method and URL it calls. `flows.publish` refuses a drawing with such steps unless
+  it carries that list back (`outward_unconfirmed`), so a client can't publish them without having had them to show.
+  The panel asks **Let this flow act for you?** whenever a destination is new to the published revision; Not now keeps
+  the previous one running. Drafts and publication stay owner-only (OWNER_ONLY): the super-agent can't publish, run or
+  stop a Flow, and the CLI's `apx flows run|stop` refuse inside an agent's command, whose own `apx` calls already ask.
+- **Destinations are ids in the revision.** A notify step names a channel id and a person or a listed room by id; the
+  send uses exact ids (`messageContact` with an exact channel, `postToRoom`), never a name match, so a payload, a renamed
+  room or a second channel of the same type can't redirect it. The payload only fills the words, through placeholders
+  that are bindings, not expressions. The URL of an HTTP step is fixed (no placeholders); headers and body are templated,
+  a JSON body structurally.
+- **At most once, then the owner looks.** A send or a non-GET request commits `dispatched` (with the send counted) right
+  before it can reach the other side; no answer after that is `uncertain` and is never repeated, after a restart, a
+  Stop run or the deadline alike. Sends go through the channels' outbox, which keeps its own rule (retry only what
+  surely did not go out). A GET changes nothing: it starts over after a restart and tries once more after a network
+  error with no answer. 20 sends per Flow per hour bound a noisy source.
+- **The network is the internet only.** The egress policy agents' computers use (`vmAddressAllowed`) decides, on every
+  address a name resolves to; the connection is pinned to the checked address and checked again on the socket, and
+  redirects are not followed, so neither DNS rebinding nor a 30x reaches loopback, a private network or a metadata
+  service. A test core can let exactly its own loopback service through (`APX_FLOW_HTTP_ALLOW`), by config.
+- **Secrets stay references.** Only `secret://name` in a header's own text, resolved inside the step for the Flow's
+  project; a value the payload brings is never read as a reference. Resolved values are cut from the answer and never
+  stored, logged or shown: the run shows the reference.
+
+A schedule whose last run is still going now skips its time (counted on the Flow, shown on its page) instead of queueing
+behind it; D-168's "owes at most one run" already said a backlog of a schedule is noise. Run now still queues.
+
+Rejected: a confirmation card per run (a Flow is unattended; a card per webhook would be a card nobody answers in time),
+letting the payload or a step's output choose a contact or URL "with an allow-list" (the list would be the revision
+anyway), following redirects with a re-check per hop (one more path to get wrong, for little the owner needs), and a
+separate egress proxy process for the core (the policy and a pinned socket give the same guarantee in process).
+
+The independent security review added: a message no channel has taken yet is withdrawn rather than left to go out
+days later; a Flow's message in a contact's chat is a user-role note for its agent, never the agent's own words; bound
+values can't form links or mentions; consent keys include which secret goes to which URL; non-GET calls get an hourly
+limit (60); JSON-escaped and URL-encoded echoes of a secret are cut. Known limit, not changed here: the CLI's
+"not inside an agent's command" is a client-side courtesy; the core trusts every loopback caller as the owner, for
+every owner method, and relies on D-106's "APX's own API always asks" for agents' shells.

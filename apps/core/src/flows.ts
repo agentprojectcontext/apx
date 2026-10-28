@@ -11,6 +11,8 @@ import type { Store } from "./domain/store.ts";
 import type { RunTimers } from "./engine/engine.ts";
 import { badRequest, conflict, errorMessage, notFound } from "./errors.ts";
 import { createFlowGraphExecutor } from "./flow-graph-executor.ts";
+import { type FlowOutside, flowOutwardIssues } from "./flow-outward.ts";
+import type { FlowHttpDeps, FlowNotifier } from "./flow-outward-steps.ts";
 import type { Log } from "./log.ts";
 import type { Llm } from "./providers/llm.ts";
 import type { Dispatch } from "./rpc/router.ts";
@@ -48,8 +50,10 @@ export function flowGraphIssues(
   definition: FlowDefinition,
   graph: FlowGraph,
   model: FlowModelCheck,
+  outside?: FlowOutside,
 ): FlowGraphIssue[] {
   const issues: FlowGraphIssue[] = validateFlowGraph(graph);
+  issues.push(...flowOutwardIssues(store, definition.projectId, graph, outside));
   for (const node of graph.nodes) {
     try {
       if (node.kind === "agent")
@@ -83,6 +87,11 @@ export function createFlows(deps: {
   timers?: RunTimers | undefined;
   /** The office clock schedules tick on (tests set it); else the timers' or the wall's. */
   clock?: (() => Date) | undefined;
+  /** Notify steps' channels; absent, a notify step can't start. */
+  notifier?: FlowNotifier | undefined;
+  /** What HTTP steps may reach and how they read secrets. */
+  outside?: FlowOutside | undefined;
+  http?: FlowHttpDeps | undefined;
 }) {
   const { store } = deps;
   const graphs = deps.llm
@@ -93,12 +102,15 @@ export function createFlows(deps: {
         log: deps.log,
         cancelThread: deps.cancelThread ?? (() => {}),
         timers: deps.timers,
+        notifier: deps.notifier,
+        http: deps.http,
       })
     : undefined;
   const model = deps.model ?? (() => false);
   /** Admission checks a graph's bindings again: an agent moved or a routine changed since publishing stops it. */
   const authorize = (flow: FlowDefinition) => (graph: FlowGraph) => {
-    if (flowGraphIssues(store, flow, graph, model).length) throw new FlowBindingChanged("Flow graph binding changed");
+    if (flowGraphIssues(store, flow, graph, model, deps.outside).length)
+      throw new FlowBindingChanged("Flow graph binding changed");
   };
   let closed = false;
   let running: Promise<void> | undefined;
@@ -176,15 +188,19 @@ export function createFlows(deps: {
     } while (requested && !closed);
   }
   const api = {
+    /** What checks outward steps against the owner's secrets (and a test's own servers). */
+    outside: deps.outside,
     /** The Flows' clock: injected timers in tests, the wall clock otherwise. */
     now: () => deps.clock?.() ?? new Date(deps.timers?.now() ?? Date.now()),
     /**
      * One beat of the routine scheduler (no clock of its own): each schedule Flow that is on and has a time due
-     * admits one event for it, `schedule:<due time>`, however many times it missed (DECISIONS.md#d-168).
+     * admits one event for it, `schedule:<due time>`, however many times it missed (DECISIONS.md#d-168); one whose
+     * last run is still going skips it.
      */
     tick(at: Date) {
       const zone = flowTimeZone(store);
       let admitted = false;
+      const busy = new Set(store.flowGraphRuns.active().map((e) => e.flow));
       for (const s of store.flowSchedules.all()) {
         if (!s.enabled) continue;
         const since = store.flowSchedules.since(s.flow);
@@ -202,6 +218,12 @@ export function createFlows(deps: {
         const flow = store.flows.get(s.flow);
         if (!flow) continue;
         const when = due.toISOString();
+        // A run that outlasts its interval does not pile up the next ones behind it (DECISIONS.md#d-169).
+        if (busy.has(s.flow)) {
+          store.flowSchedules.skip(s.flow, at);
+          deps.log.info({ flow: s.flow, due: when }, "a scheduled Flow time was skipped: its last run is still going");
+          continue;
+        }
         try {
           const state = store.tx(() => {
             store.flowSchedules.advance(s.flow, at);

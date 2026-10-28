@@ -15,6 +15,7 @@ import { TERMINAL } from "./domain/runs.ts";
 import type { Store } from "./domain/store.ts";
 import type { RunTimers } from "./engine/engine.ts";
 import { answerOf } from "./engine/run-outcome.ts";
+import { createOutwardSteps, type FlowHttpDeps, type FlowNotifier, uncertainWhy } from "./flow-outward-steps.ts";
 import type { Log } from "./log.ts";
 import type { Llm } from "./providers/llm.ts";
 import { type ErrorKind, ProviderError } from "./providers/types.ts";
@@ -48,7 +49,7 @@ const WHY = {
 class StepStopped extends Error {}
 /** Provider answers that turned the request down before doing it; anything else after sending is unknown. */
 const REFUSALS = new Set<ErrorKind>(["auth", "bad_request", "model_gone", "context", "quota", "rate_limit"]);
-const WORK = new Set<FlowNode["kind"]>(["table_write", "llm", "agent", "routine"]);
+const WORK = new Set<FlowNode["kind"]>(["table_write", "llm", "agent", "routine", "notify", "http"]);
 
 /** The first check that said no, when no step that does work ran: the run was cut short there. */
 function cutBy(run: FlowGraphRun): string | undefined {
@@ -68,6 +69,8 @@ export type FlowGraphExecutorDeps = {
   /** Stops a thread's turns (the engine's cancel): runs a run that outlived its Flow run are asked to stop. */
   cancelThread(thread: string): void;
   timers?: RunTimers | undefined;
+  notifier?: FlowNotifier | undefined;
+  http?: FlowHttpDeps | undefined;
 };
 
 export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
@@ -83,6 +86,16 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
   const calls = new Map<AbortController, string>();
   const runKey = (flow: string, event: string) => `${flow}\u0000${event}`;
   let disarm: (() => void) | undefined;
+  const outward = createOutwardSteps({
+    store,
+    timers,
+    notifier: deps.notifier,
+    http: deps.http,
+    track(ac, run) {
+      calls.set(ac, runKey(run.flow, run.event));
+      return () => calls.delete(ac);
+    },
+  });
 
   const keyOf = (run: FlowGraphRun, node: string): FlowStepKey => ({
     flow: run.flow,
@@ -114,7 +127,13 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
       const k = keyOf(run, step.node);
       if (step.state === "pending") runs.settle(k, ["pending"], "cancelled", at, WHY.deadline);
       else if (step.state === "running" && step.phase === "dispatched")
-        runs.settle(k, ["running"], "uncertain", at, WHY.unknown);
+        runs.settle(
+          k,
+          ["running"],
+          "uncertain",
+          at,
+          uncertainWhy(run.graph.nodes.find((n) => n.id === step.node)?.kind),
+        );
       else if (step.state === "running" || step.state === "waiting_run")
         runs.settle(k, ["running", "waiting_run"], "cancelled", at, WHY.deadline);
     }
@@ -265,6 +284,15 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
     const k = keyOf(run, node.id);
     const at = now();
     const snapshots = snapshotsOf(run);
+    // Steps that act outside APX build their own input from templates (flow-outward-steps.ts).
+    if (node.kind === "notify") {
+      await outward.notify(run, node, k, snapshots);
+      return true;
+    }
+    if (node.kind === "http") {
+      await outward.http(run, node, k, snapshots);
+      return true;
+    }
     let input: unknown;
     try {
       input =
@@ -410,7 +438,7 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
       if (!recovered) {
         recovered = true;
         const uncertain = runs.recover(now());
-        if (uncertain) log.warn({ steps: uncertain }, "Flow model steps stopped after sending are marked uncertain");
+        if (uncertain) log.warn({ steps: uncertain }, "Flow steps stopped after sending are marked uncertain");
       }
       expireDue();
       stopOrphans();

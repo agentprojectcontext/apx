@@ -62,8 +62,10 @@ chose), drag from a step's output dot to join two steps, and set each step at th
 | AI model | Gives a task to an agent of the crew, with what arrived or an earlier step's result. Spends tokens. |
 | Routine | Runs a manual routine of the project. |
 | Direct model | Asks one set-up model once, without tools, and passes its answer on. Spends tokens. |
+| Outgoing webhook | Calls a URL with GET, POST or PUT. Headers and body can carry values of the run; a key goes in a header as `secret://name`, from **Secrets**. Later steps read its answer as `$steps.<step>.status`, `.ok` and `.json` (or `.body` when it isn't JSON). |
+| Notify | Sends a message as you on one of your chat apps (Telegram, WhatsApp, Discord…) to someone you know there, to yourself, or to a room you listed. With **Only if there's something to tell**, it doesn't send when every value in the message came out empty. |
 
-A flow has one trigger. SQL, outgoing Webhook, Cmd and Notify show as **Soon** and can't be added yet. A flow runs as drawn: steps
+A flow has one trigger. SQL and Cmd show as **Soon** and can't be added yet. A flow runs as drawn: steps
 can branch and join, and each step can receive what arrived or the result of a step before it. In **Goes on to** a
 check's **Yes** or **No** chip switches that connection to the other branch. The side panel says *Runs as drawn*, or
 why the drawing can't run yet (an agent outside the project, a model that isn't set up, two saves to one key with no
@@ -94,9 +96,33 @@ any outside data. The run says **Started by you**. **Stop run** on a run that is
 started don't run, and a step already sent to a model is left as **Needs a look**, never sent again.
 
 A schedule flow runs while APX is on. If APX was off at a run's time, the flow runs once when APX starts (not once for
-each time it missed), and that run says it started late. A flow that is off doesn't run on its schedule and, turned on
-again, starts counting from then. A schedule flow has no address: it never takes a POST, and a webhook flow never runs
-on a timer.
+each time it missed), and that run says it started late. If the last run is still going when the next time comes, that
+time is skipped, not queued, and the flow's page says how many were skipped. A flow that is off doesn't run on its
+schedule and, turned on again, starts counting from then. A schedule flow has no address: it never takes a POST, and a
+webhook flow never runs on a timer.
+
+### Messages and calls a flow makes for you
+
+A message, a room and a person are written into the step's text with placeholders: `$trigger.email` is a field of what
+arrived, `$steps.<step>.text` the answer of a step before it (the **Add** buttons under the message put them in), `$$` is
+a dollar sign. What arrived only fills the words: who gets the message is the person or room you picked, never one the
+data names.
+
+Because a notify step speaks as you and an outgoing webhook acts on another service, the first time a drawing would
+send or call somewhere new, saving it while on (or turning it on) asks **Let this flow act for you?** and lists each
+person, room and host. **Allow** makes it what runs; **Not now** keeps the previous version running. Each run then
+sends without asking again.
+
+Each send and each call that changes something goes out once: if APX stops or the other side doesn't answer after it
+went out, the step says **Needs a look** instead of repeating it (check the chat or the service). A GET, which changes
+nothing, tries once more if the connection fails before any answer. A flow sends at most 20 messages an hour, and makes at most 60 calls that
+change something; the next one fails without going out. A message to a chat app that isn't running is taken back,
+not sent later. An outgoing webhook only calls addresses on the internet: an address on this computer or
+a private network is refused, also when a name points there, and redirects are not followed. Its answer is kept up to
+256 KB read (16 KB of text), files are only said, and a secret it used never shows in the run, only `secret://name`.
+
+The CLI starts and stops runs too: `apx flows run <flow> ['<sample body JSON>']` and `apx flows stop <flow> <event>`.
+They act as you, so they refuse to run inside an agent's command.
 
 A Flow belongs to a project. Turn a webhook flow on before creating its token in
 **Settings → Devices → Endpoints**. Public access is configured separately; it never exposes private RPC or the panel.

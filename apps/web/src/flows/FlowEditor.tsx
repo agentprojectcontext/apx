@@ -8,11 +8,12 @@ import { useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
-import { describeIssue, issueText, shownGraph } from "./data.ts";
+import { describeIssue, issueText, shownGraph, useKnown } from "./data.ts";
 import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { connectNodes, moveNode, newNode, removeNode } from "./graph-edit.ts";
 import { Inspector } from "./Inspector.tsx";
 import { stepDetail } from "./look.tsx";
+import { approveOutward } from "./outward.tsx";
 import { STARTERS, type Starter, starterGraph } from "./starters.ts";
 import {
   type Flow,
@@ -56,6 +57,10 @@ function blank(n: FlowNode): boolean {
       return !n.model || !n.prompt.trim();
     case "schedule":
       return !n.cron.trim();
+    case "notify":
+      return !n.channel || (n.to.kind === "contact" ? !n.to.person : !n.to.room) || !n.text.trim();
+    case "http":
+      return !/^https?:\/\/[^/\s]+/.test(n.url.trim());
     default:
       return false;
   }
@@ -65,9 +70,9 @@ const tidy = (g: FlowGraph, t: ReturnType<typeof useT>): FlowGraph => ({
   ...g,
   nodes: g.nodes.map((n) => {
     const label = n.label.trim() || t(STEP[n.kind].label);
-    return n.kind === "table_read"
-      ? { ...n, label, keys: n.keys.map((k) => k.trim()).filter(Boolean) }
-      : { ...n, label };
+    if (n.kind === "table_read") return { ...n, label, keys: n.keys.map((k) => k.trim()).filter(Boolean) };
+    if (n.kind === "http") return { ...n, label, url: n.url.trim(), body: n.method === "GET" ? "" : n.body };
+    return { ...n, label };
   }),
 });
 
@@ -91,6 +96,7 @@ export function FlowEditor({
   const projects = useData((s) => s.projects);
   const allAgents = useData((s) => s.agents);
   const allRoutines = useRoutines((s) => s.routines);
+  const known = useKnown();
   const [name, setName] = useState(flow?.name ?? "");
   const [projectId, setProjectId] = useState(flow?.projectId ?? preset ?? "");
   const [graph, setGraph] = useState<FlowGraph | undefined>(flow ? undefined : undefined);
@@ -114,7 +120,7 @@ export function FlowEditor({
       const sec = Object.values(allAgents).find((a) => a.kind === "secretary");
       const g = starterGraph(starter ?? STARTERS.blank, t, sec?.id);
       setGraph(g);
-      setSaved(JSON.stringify([g, flow, ""]));
+      setSaved(JSON.stringify([g, ""]));
       return;
     }
     void shownGraph(flow, t).then((s) => {
@@ -156,7 +162,8 @@ export function FlowEditor({
       clearTimeout(timer);
     };
   }, [flow, graph, projectId, t]);
-  const dirty = graph !== undefined && JSON.stringify(flow ? [g, name] : [g, flow, name]) !== saved;
+  // The same measure before and after a new flow's first save, so it isn't unsaved while the saved flow comes back.
+  const dirty = graph !== undefined && JSON.stringify([g, name]) !== saved;
   const change = (next: FlowGraph) => {
     setGraph(next);
     setTrial(null);
@@ -185,7 +192,10 @@ export function FlowEditor({
   };
   const look = useCallback(
     (n: FlowNode): StepLook => {
-      const base = { title: n.label || t(STEP[n.kind].label), ...stepDetail(n, flow?.id, allAgents, allRoutines, t) };
+      const base = {
+        title: n.label || t(STEP[n.kind].label),
+        ...stepDetail(n, flow?.id, allAgents, allRoutines, t, known),
+      };
       const s = trial?.get(n.id);
       if (!s) return base;
       switch (s.state) {
@@ -205,7 +215,7 @@ export function FlowEditor({
           return { ...base, badge: t("flow.ed.tryUnknownBadge") };
       }
     },
-    [trial, flow?.id, allAgents, allRoutines, t],
+    [trial, flow?.id, allAgents, allRoutines, t, known],
   );
 
   const save = async () => {
@@ -256,14 +266,20 @@ export function FlowEditor({
       if (first) text = t("flow.ed.savedCant", { reason: describeIssue(first, clean, t) });
       else if (published === null && result.ok) text = t(flow?.enabled ? "flow.ed.savedRuns" : "flow.ed.savedOff");
       else if (flow?.enabled && doc.draft && doc.draftVersion !== null) {
-        // On, a saved drawing runs: new events use it, events already received finish as they started.
-        const out = await client.call("flows.publish", {
-          flow: id,
-          expectedDraftVersion: doc.draftVersion,
-          expectedPublishedRevision: doc.publishedRevision,
-        });
-        next = { version: out.draftVersion, published: out.publishedRevision };
-        text = t("flow.ed.savedPublished");
+        // On, a saved drawing runs: new events use it, events already received finish as they started. Where it
+        // sends or what it calls, when new, is the owner's to allow first.
+        const outward = await approveOutward(id, clean, doc.published);
+        if (!outward) text = t("flow.ed.savedNotAllowed");
+        else {
+          const out = await client.call("flows.publish", {
+            flow: id,
+            expectedDraftVersion: doc.draftVersion,
+            expectedPublishedRevision: doc.publishedRevision,
+            outward,
+          });
+          next = { version: out.draftVersion, published: out.publishedRevision };
+          text = t("flow.ed.savedPublished");
+        }
       } else text = t(flow?.enabled ? "flow.ed.savedRuns" : "flow.ed.savedOn");
       setVersion(next.version);
       setPublished(next.published);

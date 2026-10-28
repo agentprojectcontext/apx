@@ -163,6 +163,14 @@ export interface FlowRowsTable {
 export interface FlowSchedulesTable {
   flow_id: string;
   since: string;
+  skipped: Generated<number>;
+  skipped_at: string | null;
+}
+
+export interface FlowSendsTable {
+  flow_id: string;
+  kind: string;
+  at: string;
 }
 
 export interface FlowsTable {
@@ -692,6 +700,7 @@ export interface Database {
   flow_graph_revisions: FlowGraphRevisionsTable;
   flow_rows: FlowRowsTable;
   flow_schedules: FlowSchedulesTable;
+  flow_sends: FlowSendsTable;
   flows: FlowsTable;
   harness_sessions: HarnessSessionsTable;
   idempotency: IdempotencyTable;

@@ -20,6 +20,10 @@ export function newNode(kind: NodeKind, id: string, label: string): FlowNode {
       return { id, label, kind, agent: "", prompt: "", input };
     case "routine":
       return { id, label, kind, routine: "", input };
+    case "notify":
+      return { id, label, kind, channel: "", to: { kind: "contact", person: "" }, text: "", onlyIfContent: false };
+    case "http":
+      return { id, label, kind, method: "POST", url: "https://", headers: [], body: "", timeoutMs: 10000 };
   }
 }
 export function removeNode(graph: FlowGraph, id: string): FlowGraph {

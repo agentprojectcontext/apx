@@ -67,6 +67,8 @@ import { type ComputerConfig, createComputer } from "./environments/computer.ts"
 import { managedVmConfig } from "./environments/managed.ts";
 import { computerWatchdog } from "./environments/watchdog.ts";
 import { errorMessage } from "./errors.ts";
+import { flowHttpPolicy } from "./flow-http.ts";
+import { notifyDestination } from "./flow-outward.ts";
 import { createFlows } from "./flows.ts";
 import { thisRunner, writeApxCommand } from "./harness/apx-command.ts";
 import type { CliStatus } from "./harness/detect.ts";
@@ -435,6 +437,41 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     cancelThread: (thread) => engine.cancel(thread),
     timers: opts.runTimers,
     clock: opts.clock,
+    // A notify step's destination is its revision's: channel and person or room by id (flow-outward.ts).
+    notifier: {
+      send(node, text, flow) {
+        const d = notifyDestination(store, node);
+        if (!d) throw new Error("destination unavailable");
+        const sent =
+          "room" in d && d.room
+            ? channels.postToRoom(d.channel.id, d.room.id, text)
+            : channels.messageContact((d as { person: { id: string } }).person.id, text, {
+                channel: d.channel.id,
+                exact: true,
+                flow,
+              });
+        return { outbox: sent.outbox };
+      },
+      // A channel that isn't running won't take it: no point waiting, it is withdrawn at once.
+      settled: (outbox, ms) => {
+        const item = store.channels.outbox.get(outbox);
+        const running = channels.info().find((c) => c.id === item?.channel)?.status === "running";
+        return running ? channels.settled(outbox, ms) : Promise.resolve({ state: item?.state ?? "failed" });
+      },
+      withdraw(outbox) {
+        const item = store.channels.outbox.get(outbox);
+        // Part of a long message already went out: that one is not taken back.
+        if (!item || item.body.skip) return false;
+        if (!store.channels.outbox.withdraw(outbox, "withdrawn: the channel was not running")) return false;
+        if (item.message_id) store.messages.setDelivery(item.message_id, "failed");
+        return true;
+      },
+    },
+    outside: {
+      secret: (ref, project) => secrets.resolveIn(ref, project) !== undefined,
+      allowHttp: config.flowHttpAllow,
+    },
+    http: { policy: flowHttpPolicy(config.flowHttpAllow), secret: (ref, project) => secrets.resolveIn(ref, project) },
   });
   const stopFlowEvents = bus.on((event) => {
     if (event.type === "run.updated" && event.run.ended_at) flows.kick();

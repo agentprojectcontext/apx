@@ -183,6 +183,8 @@ See [Models](/concepts/models/) for what a model ref and the router are.
 | `apx routines on <id>` | Turn it on (or `off`). |
 | `apx routines rm <id>` | Remove it. |
 | `apx routines log <id>` | Its recent runs. |
+| `apx flows run <flow> ['<JSON>']` | Run a published flow now; a webhook flow takes the JSON as the body it gets. Not inside an agent's command. |
+| `apx flows stop <flow> <event>` | Stop a run that is going; a message or call already sent is left to look at. Not inside an agent's command. |
 | `apx memory [words]` | Notes agents keep, newest first, or the best matches for the words (`--project`, `--agent`, `--json`). |
 | `apx memory add [scope] <text>` | Add a note. The scope is `global`, `project` or `agent` (with `--project <id>` or `--agent <id>`); without one it follows those options, else `global`. |
 | `apx memory edit <id> <text…>` | Rewrite a note in place. |

@@ -143,6 +143,20 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "flow-notify-http",
+    since: "2.11.2",
+    title: "Flows can message you or a contact, and call other services",
+    applies: (f) => f.secretary && f.channels > 0,
+    text: "A Flow can now end in a message sent as the owner on one of their chat apps, to themselves, to someone they know there or to a room they listed, with values of the run in the words; it can skip the message when there is nothing to tell. It can also call another service's URL with GET, POST or PUT, keys taken from Secrets, and later steps read the answer. Before a Flow sends or calls somewhere new it asks the owner, and each message or change goes out once: one without an answer is left for the owner to look at, never repeated.",
+    actions: [
+      {
+        label: { en: "Get told by a Flow", es: "Que un Flow me avise" },
+        prompt:
+          "Help me plan a Flow that tells me on my chat app when something I care about happens (what starts it, what it checks, what the message says), then open it in the Flows editor, still off, for me to review.",
+      },
+    ],
+  },
+  {
     id: "restricted-public-ingress",
     since: "2.11.2",
     title: "A public address without exposing the private app",

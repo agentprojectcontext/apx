@@ -65,13 +65,24 @@ export const flowMethods = {
     params: z.object({ project: Id.optional() }).strict(),
     /**
      * `published`: for each Flow that runs a drawing, its revision and step kinds in the order they run.
-     * `schedules`: for each that runs on a schedule, its cron and next time (null while off); `time_zone` is the
-     * owner's, the one crons run in.
+     * `schedules`: for each that runs on a schedule, its cron and next time (null while off), and how many times
+     * were skipped since it was turned on because its last run was still going; `time_zone` is the owner's, the one
+     * crons run in.
      */
     result: z.object({
       flows: z.array(FlowDefinition),
       published: z.record(z.string(), z.object({ revision: z.number().int(), kinds: z.array(z.string()) })).default({}),
-      schedules: z.record(z.string(), z.object({ cron: z.string(), next_at: z.string().nullable() })).default({}),
+      schedules: z
+        .record(
+          z.string(),
+          z.object({
+            cron: z.string(),
+            next_at: z.string().nullable(),
+            skipped: z.number().int().default(0),
+            skipped_at: z.string().nullable().default(null),
+          }),
+        )
+        .default({}),
       time_zone: z.string().default("UTC"),
     }),
     effect: false,

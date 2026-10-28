@@ -64,8 +64,10 @@ del paso elegido), arrastrá desde el punto de salida de un paso para unir dos p
 | Modelo IA | Le da una tarea a un agente del crew, con lo que llegó o el resultado de un paso anterior. Gasta tokens. |
 | Rutina | Corre una rutina manual del proyecto. |
 | Modelo directo | Le pregunta una vez a un modelo configurado, sin herramientas, y pasa su respuesta. Gasta tokens. |
+| Webhook saliente | Llama a una URL con GET, POST o PUT. Headers y body pueden llevar valores de la ronda; una clave va en un header como `secret://nombre`, de **Secretos**. Los pasos siguientes leen su respuesta como `$steps.<paso>.status`, `.ok` y `.json` (o `.body` si no es JSON). |
+| Avisar | Manda un mensaje como vos por una de tus apps de chat (Telegram, WhatsApp, Discord…) a alguien que conocés ahí, a vos o a una sala que listaste. Con **Solo si hay algo para contar**, no manda nada cuando todos los valores del mensaje salen vacíos. |
 
-Un flow tiene un solo disparador. SQL, Webhook saliente, Cmd y Avisar aparecen como **Pronto** y todavía no se pueden sumar. Un flow corre como
+Un flow tiene un solo disparador. SQL y Cmd aparecen como **Pronto** y todavía no se pueden sumar. Un flow corre como
 está dibujado: los pasos pueden abrirse en caminos y volver a juntarse, y cada paso puede recibir lo que llegó o el
 resultado de un paso anterior. En **Sigue con**, el chip **Sí** o **No** de una condición pasa esa conexión al otro
 camino. El panel dice *Corre así como está* o por qué todavía no puede correr (un agente fuera del proyecto, un modelo
@@ -100,9 +102,33 @@ corriendo, la frena: los pasos que no empezaron no corren y un paso que ya se le
 revisar**, sin volver a mandarse.
 
 Un flow con horario corre mientras APX está prendido. Si APX estaba apagado a la hora de una ronda, el flow corre una
-vez al arrancar APX (no una por cada hora que se perdió) y esa ronda dice que arrancó tarde. Un flow apagado no corre
-por horario y, al prenderlo de nuevo, cuenta desde ese momento. Un flow con horario no tiene dirección: nunca recibe un
-POST, y uno con webhook nunca corre por horario.
+vez al arrancar APX (no una por cada hora que se perdió) y esa ronda dice que arrancó tarde. Si la ronda anterior sigue
+corriendo cuando llega la hora siguiente, esa hora se salta, no se encola, y la página del flow dice cuántas se saltaron.
+Un flow apagado no corre por horario y, al prenderlo de nuevo, cuenta desde ese momento. Un flow con horario no tiene
+dirección: nunca recibe un POST, y uno con webhook nunca corre por horario.
+
+### Mensajes y llamadas que un flow hace por vos
+
+El texto de un paso lleva valores de la ronda: `$trigger.email` es un campo de lo que llegó, `$steps.<paso>.text` la
+respuesta de un paso anterior (los botones **Sumar** debajo del mensaje los ponen), `$$` es un signo de pesos. Lo que
+llega solo llena las palabras: quién recibe el mensaje es la persona o sala que elegiste, nunca una que nombren los datos.
+
+Como Avisar habla como vos y un webhook saliente actúa sobre otro servicio, la primera vez que un dibujo mandaría o
+llamaría a un lugar nuevo, guardarlo prendido (o prenderlo) pregunta **¿Dejás que este flow actúe por vos?** y lista
+cada persona, sala y dirección. **Permitir** lo convierte en lo que corre; **Ahora no** deja corriendo la versión
+anterior. Después, cada ronda manda sin volver a preguntar.
+
+Cada mensaje y cada llamada que cambia algo sale una sola vez: si APX se detiene o el otro lado no responde después de
+mandarlo, el paso dice **Para revisar** en lugar de repetirlo (revisá el chat o el servicio). Un GET, que no cambia
+nada, prueba una vez más si la conexión falla antes de cualquier respuesta. Un flow manda como mucho 20 mensajes por
+hora y hace como mucho 60 llamadas que cambian algo; la siguiente falla sin salir. Un mensaje a una app de chat que no
+está andando se retira, no sale después. Un webhook saliente solo llama a direcciones de internet: una dirección de esta
+computadora o de una red privada se rechaza, también cuando un nombre apunta ahí, y no sigue redirecciones. De la
+respuesta se leen hasta 256 KB (16 KB de texto), los archivos solo se mencionan, y un secreto que usó nunca aparece en
+la ronda, solo `secret://nombre`.
+
+El CLI también arranca y detiene rondas: `apx flows run <flow> ['<cuerpo de ejemplo JSON>']` y
+`apx flows stop <flow> <evento>`. Actúan como vos, así que no corren dentro del comando de un agente.
 
 Un Flow pertenece a un proyecto. Encendé un flow con webhook antes de crear su token en
 **Configuración → Dispositivos → Endpoints**. El acceso público se configura por separado y nunca expone el RPC privado

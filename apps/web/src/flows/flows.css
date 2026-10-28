@@ -313,3 +313,28 @@
     display: none;
   }
 }
+
+/* What a flow will do as the owner, asked before it runs. */
+.fe-outward {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fe-outward li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+  color: var(--apx-fg);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.fe-outward li svg {
+  flex: none;
+  color: var(--apx-fg-muted);
+}
