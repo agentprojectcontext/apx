@@ -78,9 +78,26 @@ export async function flows(client: ApxClient, [sub = "help", ...args]: string[]
       if (!args[0] || !args[1]) throw new Error("usage: apx flows retry <flow> <event>");
       result = await client.call("flows.retry", { flow: args[0], event: args[1] });
       break;
+    case "run":
+    case "stop": {
+      // A run may send messages as the owner and call other services: it is the owner's own, not an agent's.
+      if (process.env.APX_AGENT !== undefined)
+        throw new Error(`apx flows ${sub} acts as the owner, so it does not run inside an agent's command.`);
+      if (sub === "run") {
+        if (!args[0]) throw new Error("usage: apx flows run <flow> ['<sample body JSON>']");
+        result = await client.call("flows.run_now", {
+          flow: args[0],
+          ...(args[1] === undefined ? {} : { data: JSON.parse(args[1]) as unknown }),
+        });
+      } else {
+        if (!args[0] || !args[1]) throw new Error("usage: apx flows stop <flow> <event>");
+        result = await client.call("flows.cancel_run", { flow: args[0], event: args[1] });
+      }
+      break;
+    }
     default:
       console.log(
-        "apx flows list --project <id> | set '<definition JSON>' | rows <flow> [cursor JSON] | events <flow> [cursor JSON] | export <flow> --project <id> | write <flow> <key> '<JSON>' | retry <flow> <event> | retire <flow> confirm-exported",
+        "apx flows list --project <id> | set '<definition JSON>' | rows <flow> [cursor JSON] | events <flow> [cursor JSON] | export <flow> --project <id> | write <flow> <key> '<JSON>' | retry <flow> <event> | run <flow> ['<JSON>'] | stop <flow> <event> | retire <flow> confirm-exported",
       );
       return;
   }

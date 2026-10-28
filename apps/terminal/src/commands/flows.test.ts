@@ -93,3 +93,34 @@ test("Flow commands call the canonical protocol and reject malformed input befor
   await flows(client, ["retire", "f", "confirm-exported"]);
   assert.deepEqual(calls.at(-1), ["flows.retire", { flow: "f", confirm: true, exported: true }]);
 });
+
+test("run and stop call the owner's methods, and refuse inside an agent's command", async (t) => {
+  t.mock.method(console, "log", () => {});
+  const calls: Array<{ method: string; params: Record<string, unknown> }> = [];
+  const client = {
+    async call(method: string, params: Record<string, unknown>) {
+      calls.push({ method, params });
+      return method === "flows.run_now"
+        ? { event: "owner:1", state: "pending" }
+        : { cancelled: true, state: "cancelled" };
+    },
+  } as unknown as ApxClient;
+  await flows(client, ["run", "f", '{"type":"message"}']);
+  await flows(client, ["run", "s"]);
+  await flows(client, ["stop", "f", "owner:1"]);
+  assert.deepEqual(calls, [
+    { method: "flows.run_now", params: { flow: "f", data: { type: "message" } } },
+    { method: "flows.run_now", params: { flow: "s" } },
+    { method: "flows.cancel_run", params: { flow: "f", event: "owner:1" } },
+  ]);
+  const inherited = process.env.APX_AGENT;
+  process.env.APX_AGENT = "builder";
+  try {
+    await assert.rejects(flows(client, ["run", "f"]), /inside an agent's command/);
+    await assert.rejects(flows(client, ["stop", "f", "owner:1"]), /inside an agent's command/);
+  } finally {
+    if (inherited === undefined) delete process.env.APX_AGENT;
+    else process.env.APX_AGENT = inherited;
+  }
+  assert.equal(calls.length, 3, "nothing ran from an agent's command");
+});
