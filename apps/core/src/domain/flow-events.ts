@@ -2,6 +2,10 @@ import { FlowAction, FlowEvent, type FlowEventCursor } from "../../../../package
 import type { Db } from "../db/db.ts";
 import { sql } from "./sql.ts";
 
+// Fresh tokens of the linked run, counted like runs.ts does; null without a run or before it reports usage.
+const runTokens =
+  "CASE WHEN r.usage IS NULL THEN NULL ELSE max(coalesce(json_extract(r.usage,'$.input'),0)-coalesce(json_extract(r.usage,'$.cached'),0),0)+coalesce(json_extract(r.usage,'$.output'),0) END";
+
 export class FlowCapacityError extends Error {}
 const occupied =
   "SELECT count(*) AS n FROM flow_events e LEFT JOIN runs r ON r.id=e.run_id WHERE (e.state='pending' OR (e.state='admitted' AND r.ended_at IS NULL))";
@@ -33,7 +37,7 @@ export function flowEventsRepo(db: Db) {
     events(id: string, limit: number, cursor?: FlowEventCursor) {
       return db
         .prepare(
-          "SELECT e.flow_id,e.event_id,e.state,e.created_at,e.run_id,r.state AS run_state,e.error FROM flow_events e LEFT JOIN runs r ON r.id=e.run_id WHERE flow_id=? AND (? IS NULL OR e.created_at<? OR (e.created_at=? AND e.event_id<?)) ORDER BY e.created_at DESC,e.event_id DESC LIMIT ?",
+          `SELECT e.flow_id,e.event_id,e.state,e.created_at,e.run_id,r.state AS run_state,e.error,r.started_at AS run_started_at,r.ended_at AS run_ended_at,${runTokens} AS run_tokens FROM flow_events e LEFT JOIN runs r ON r.id=e.run_id WHERE flow_id=? AND (? IS NULL OR e.created_at<? OR (e.created_at=? AND e.event_id<?)) ORDER BY e.created_at DESC,e.event_id DESC LIMIT ?`,
         )
         .all(
           id,

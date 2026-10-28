@@ -64,6 +64,21 @@ test("authenticated webhook persists, filters and deduplicates concurrent events
     await waitFor(() => env.core.store.runs.get(run.id)?.ended_at, "Flow run completed");
     assert.equal(llm.calls.length, 1);
     assert.equal(run.agent_id, "roby");
+    // The panel shows a run's timing and tokens from the event, without a second lookup.
+    const ended = (await env.client.call("flows.events", { flow: "inbox" })).events.find((e) => e.event_id === "one");
+    assert.ok(ended?.run_started_at && ended.run_ended_at);
+    assert.equal(typeof ended.run_tokens, "number");
+    const ignored = (await env.client.call("flows.events", { flow: "inbox" })).events.find(
+      (e) => e.event_id === "nomatch",
+    );
+    assert.deepEqual([ignored?.run_started_at, ignored?.run_ended_at, ignored?.run_tokens], [null, null, null]);
+    // A dry run answers with the same rule as admission and leaves nothing behind.
+    const checks = draft(project).predicates;
+    assert.equal((await env.client.call("flows.try", { predicates: checks, data: { type: "message" } })).matches, true);
+    assert.equal((await env.client.call("flows.try", { predicates: checks, data: { type: "other" } })).matches, false);
+    assert.equal((await env.client.call("flows.try", { predicates: [], data: {} })).matches, false);
+    await assert.rejects(env.client.call("flows.try", { predicates: [], data: "x".repeat(40000) }), /32 KiB/);
+    assert.equal(llm.calls.length, 1);
     const input = String(llm.calls[0]?.messages.at(-1)?.content);
     assert.match(input, /external Flow event/);
     assert.match(input, /trust="untrusted"/);

@@ -1,3 +1,4 @@
+import { matchesFlowPredicates } from "../domain/flow-evaluate.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
 import { type Flows, validateFlowBinding } from "../flows.ts";
@@ -61,6 +62,17 @@ export function flowHandlers(
         throw badRequest("Flow data is absent, but credential cleanup failed; retry retirement to finish cleanup");
       }
       return result;
+    },
+    "flows.try": ({ predicates, data }) => {
+      const text = JSON.stringify(data);
+      if (text === undefined || Buffer.byteLength(text) > 32768) throw badRequest("Sample data exceeds 32 KiB");
+      // Same rule as admission: only a nonempty object can match.
+      const object = data !== null && typeof data === "object" && !Array.isArray(data) && Object.keys(data).length > 0;
+      try {
+        return { matches: object && matchesFlowPredicates(data, predicates) };
+      } catch {
+        throw badRequest("Invalid Flow checks");
+      }
     },
     "flows.retry": ({ flow, event }) => {
       found(flow);

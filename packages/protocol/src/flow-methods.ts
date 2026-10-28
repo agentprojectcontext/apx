@@ -8,15 +8,16 @@ export const FlowAction = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("agent"), agent: Id, prompt: z.string().min(1).max(8000) }).strict(),
   z.object({ kind: z.literal("routine"), routine: Id }).strict(),
 ]);
+const FlowPredicates = z
+  .array(z.object({ path: z.array(z.string().min(1).max(128)).min(1).max(16), equals: Scalar }).strict())
+  .max(32);
 export const FlowDefinition = z
   .object({
     id: Id,
     projectId: Id,
     name: z.string().min(1).max(120),
     enabled: z.boolean(),
-    predicates: z
-      .array(z.object({ path: z.array(z.string().min(1).max(128)).min(1).max(16), equals: Scalar }).strict())
-      .max(32),
+    predicates: FlowPredicates,
     tableKey: z.string().min(1).max(128),
     readKeys: z.array(z.string().min(1).max(128)).max(16).optional(),
     action: FlowAction,
@@ -31,6 +32,10 @@ export const FlowEvent = z.object({
   run_id: z.string().nullable(),
   run_state: z.string().nullable(),
   error: z.string().nullable(),
+  /** When the admitted run started and ended, and the fresh tokens it spent; null until it has them. */
+  run_started_at: z.string().nullable().default(null),
+  run_ended_at: z.string().nullable().default(null),
+  run_tokens: z.number().int().nullable().default(null),
 });
 export const FlowEventCursor = z
   .object({ createdAt: z.string().datetime(), eventId: z.string().min(1).max(256) })
@@ -78,6 +83,13 @@ export const flowMethods = {
     params: z.object({ flow: Id, confirm: z.literal(true), exported: z.literal(true) }).strict(),
     result: z.object({ retired: z.boolean() }),
     effect: true,
+    access: "human",
+  },
+  /** Would this data get past these checks? Nothing is saved, admitted or sent. */
+  "flows.try": {
+    params: z.object({ predicates: FlowPredicates, data: z.unknown() }).strict(),
+    result: z.object({ matches: z.boolean() }),
+    effect: false,
     access: "human",
   },
   "flows.retry": {
