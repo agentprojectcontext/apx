@@ -387,4 +387,7 @@ export const enFlow = {
   "flow.issue.credential_literal": "«{step}» has a key written in. Save it in Secrets and write secret://name.",
   "flow.issue.secret_missing": "«{step}» uses a secret that isn't in Secrets.",
   "flow.f.insert": "Add",
+  "flow.outward.callWith": "Call {host} with {method}, sending the secret {secrets}",
+  "flow.why.channel_unavailable": "The chat app wasn't running, so the message was taken back and didn't go out.",
+  "flow.issue.body_not_json": "«{step}» says its body is JSON, but it isn't valid JSON.",
 } as const;

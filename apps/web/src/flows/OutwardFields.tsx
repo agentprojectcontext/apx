@@ -19,14 +19,14 @@ function Insert({ tokens, onInsert }: { tokens: Token[]; onInsert: (token: strin
   const t = useT();
   if (!tokens.length) return null;
   return (
-    <div className="fe-tokens" role="group" aria-label={t("flow.f.insert")}>
-      <span className="fe-ins__label">{t("flow.f.insert")}</span>
+    <fieldset className="fe-tokens">
+      <legend className="fe-ins__label">{t("flow.f.insert")}</legend>
       {tokens.map((x) => (
         <Button key={x.token} size="sm" variant="outline" onClick={() => onInsert(x.token)}>
           {x.label}
         </Button>
       ))}
-    </div>
+    </fieldset>
   );
 }
 const appended = (text: string, token: string) => (text && !/\s$/.test(text) ? `${text} ${token}` : `${text}${token}`);

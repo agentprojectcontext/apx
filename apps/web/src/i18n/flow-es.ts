@@ -394,4 +394,7 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.issue.credential_literal": "«{step}» tiene una clave escrita. Guardala en Secretos y escribí secret://nombre.",
   "flow.issue.secret_missing": "«{step}» usa un secreto que no está en Secretos.",
   "flow.f.insert": "Sumar",
+  "flow.outward.callWith": "Llamar a {host} con {method}, mandando el secreto {secrets}",
+  "flow.why.channel_unavailable": "La app de chat no estaba andando, así que el mensaje se retiró y no salió.",
+  "flow.issue.body_not_json": "«{step}» dice que su body es JSON, pero no es un JSON válido.",
 };

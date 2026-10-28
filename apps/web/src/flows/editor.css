@@ -429,6 +429,10 @@
 }
 /* Placeholders a message or body can take, one click each. */
 .fe-tokens {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -436,4 +440,6 @@
 }
 .fe-tokens .fe-ins__label {
   flex-basis: 100%;
+  padding: 0;
+  margin-bottom: 2px;
 }

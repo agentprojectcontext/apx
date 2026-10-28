@@ -328,7 +328,7 @@ function outwardInput(n: FlowNode, text: string | null, t: T): string | undefine
   try {
     const v = JSON.parse(text) as Record<string, unknown>;
     if (n.kind === "notify")
-      return `${String(v.channel)} → ${v.to === "you" ? t("flow.f.toYou") : String(v.to)}\n\n${String(v.text)}`;
+      return `${String(v.channel)} → ${v.owner === true ? t("flow.f.toYou") : String(v.to)}\n\n${String(v.text)}`;
     const headers = (v.headers as { name: string; value: string }[] | undefined) ?? [];
     return [
       `${String(v.method)} ${String(v.url)}`,
@@ -346,7 +346,7 @@ function outwardOutput(n: FlowNode, text: string | null, t: T): string | undefin
   try {
     const v = JSON.parse(text) as Record<string, unknown>;
     if (n.kind === "notify")
-      return v.to === "you"
+      return v.owner === true
         ? t("flow.out.sentYou", { channel: String(v.channel) })
         : t("flow.out.sent", { to: String(v.to), channel: String(v.channel) });
     const answer =

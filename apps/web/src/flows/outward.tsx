@@ -28,7 +28,6 @@ export async function approveOutward(
   return ok ? now.keys : undefined;
 }
 
-const hostOf = (host: string) => host.replace(/:\d+$/, "");
 /** Two steps to the same person, or two calls to the same host, are said once. */
 const once = <T,>(items: T[], key: (x: T) => string) =>
   items.filter((x, i) => items.findIndex((y) => key(y) === key(x)) === i);
@@ -61,16 +60,20 @@ export function OutwardConfirm() {
           <li key={s.node}>
             {s.type ? <ChannelIcon channel={s.type} size={16} /> : <Icons.Send size={16} />}
             <span>
-              {s.to === "you"
+              {s.owner
                 ? t("flow.outward.sendYou", { channel: s.channel })
                 : t("flow.outward.send", { to: s.to, channel: s.channel })}
             </span>
           </li>
         ))}
-        {once(asking?.outward.calls ?? [], (c) => `${c.method}\u0000${hostOf(c.host)}`).map((c) => (
+        {once(asking?.outward.calls ?? [], (c) => `${c.method}\u0000${c.host}\u0000${c.secrets.join()}`).map((c) => (
           <li key={c.node}>
             <Icons.Globe size={16} />
-            <span>{t("flow.outward.call", { method: c.method, host: hostOf(c.host) })}</span>
+            <span>
+              {c.secrets.length
+                ? t("flow.outward.callWith", { method: c.method, host: c.host, secrets: c.secrets.join(", ") })
+                : t("flow.outward.call", { method: c.method, host: c.host })}
+            </span>
           </li>
         ))}
       </ul>
