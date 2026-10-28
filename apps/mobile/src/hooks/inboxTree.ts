@@ -1,3 +1,4 @@
+import { textOrder } from "../format.ts";
 import type { Thread } from "./useWorkspace";
 
 export type InboxNode = {
@@ -10,28 +11,40 @@ export type InboxNode = {
 
 const recent = (a: InboxNode, b: InboxNode) =>
   Number(Boolean(b.thread.pinned)) - Number(Boolean(a.thread.pinned)) ||
-  b.thread.updated_at.localeCompare(a.thread.updated_at) ||
-  a.key.localeCompare(b.key);
+  textOrder(b.thread.updated_at, a.thread.updated_at) ||
+  textOrder(a.key, b.key);
+
+export type InboxFilter = {
+  routines: boolean;
+  project: string;
+  /** Task chats (a task's work and the sessions under it); on unless turned off. */
+  tasks?: boolean;
+  /** Only chats one of these agents is in; empty or none: every agent. */
+  agents?: readonly string[];
+  /** The archived chats instead of the others. */
+  archived?: boolean;
+};
 
 /** Project filtering precedes parenting: a session whose parent is unavailable stays reachable as a root. */
-export function inboxTree(
-  threads: Thread[],
-  options: { routines: boolean; project: string; query?: string },
-): InboxNode[] {
+export function inboxTree(threads: Thread[], options: InboxFilter): InboxNode[] {
   const all = new Map(threads.map((thread) => [thread.id, thread]));
-  const underRoutine = (thread: Thread): boolean => {
+  const under = (thread: Thread, is: (item: Thread) => boolean): boolean => {
     const seen = new Set<string>();
     let current: Thread | undefined = thread;
     while (current && !seen.has(current.id)) {
-      if (current.kind === "routine") return true;
+      if (is(current)) return true;
       seen.add(current.id);
       current = all.get(current.parent_id ?? "");
     }
     return false;
   };
+  const agents = options.agents?.length ? new Set(options.agents) : undefined;
   const nodes = new Map<string, InboxNode>();
   for (const thread of threads) {
-    if (thread.archived || (!options.routines && underRoutine(thread))) continue;
+    if (Boolean(thread.archived) !== Boolean(options.archived)) continue;
+    if (!options.routines && under(thread, (item) => item.kind === "routine")) continue;
+    if (options.tasks === false && under(thread, (item) => item.kind === "task" || Boolean(item.task_id))) continue;
+    if (agents && !thread.agent_ids.some((id) => agents.has(id))) continue;
     if (
       options.project !== "all" &&
       (options.project === "default" ? !!thread.project_id : thread.project_id !== options.project)
@@ -42,7 +55,7 @@ export function inboxTree(
   const roots: InboxNode[] = [];
   // Break cycles deterministically, without discarding any member of the malformed chain.
   const parents = new Map<string, string>();
-  for (const node of [...nodes.values()].sort((a, b) => a.key.localeCompare(b.key))) {
+  for (const node of [...nodes.values()].sort((a, b) => textOrder(a.key, b.key))) {
     const parent = node.thread.parent_id;
     if (!parent || !nodes.has(parent)) continue;
     let cursor: string | undefined = parent;

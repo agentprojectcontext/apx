@@ -13,10 +13,24 @@ const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDat
 const dayOffset = (at: Date, now: Date) => Math.round((startOfDay(at) - startOfDay(now)) / DAY);
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const locale = (language: Lang) => (language === "es" ? "es" : "en");
+/** One formatter per language and shape: making one is slow on the phone, and every row and message asks. */
+const formats = new Map<string, Intl.DateTimeFormat>();
+function format(language: Lang, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${locale(language)}|${JSON.stringify(options)}`;
+  let made = formats.get(key);
+  if (!made) {
+    made = new Intl.DateTimeFormat(locale(language), options);
+    formats.set(key, made);
+  }
+  return made;
+}
+
+/** Plain order for ISO times and ids, without the locale rules (slow on the phone, and not needed here). */
+export const textOrder = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 export function clock(iso?: string, language: Lang = lang): string {
   const at = parse(iso);
-  return at ? new Intl.DateTimeFormat(locale(language), { hour: "2-digit", minute: "2-digit" }).format(at) : "";
+  return at ? format(language, { hour: "2-digit", minute: "2-digit" }).format(at) : "";
 }
 
 /** A chat row's time: the hour today, "Yesterday", or the date ("11 sept"). */
@@ -26,7 +40,7 @@ export function listWhen(iso?: string, now = new Date(), language: Lang = lang):
   const days = dayOffset(at, now);
   if (days === 0) return clock(iso, language);
   if (days === -1) return translator(language)("yesterday");
-  return new Intl.DateTimeFormat(locale(language), {
+  return format(language, {
     day: "numeric",
     month: "short",
     ...(at.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
@@ -50,8 +64,7 @@ export function dueWhen(iso?: string, now = new Date(), language: Lang = lang): 
   if (days === 0) return tr("today") + time;
   if (days === 1) return tr("tomorrow") + time;
   if (days === -1) return tr("yesterday");
-  if (days > 1 && days < 7)
-    return capital(new Intl.DateTimeFormat(locale(language), { weekday: "short" }).format(at).replace(".", ""));
+  if (days > 1 && days < 7) return capital(format(language, { weekday: "short" }).format(at).replace(".", ""));
   return listWhen(iso, now, language);
 }
 

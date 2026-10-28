@@ -1,5 +1,17 @@
 export { AgentAvatar, AgentPair, ProjectAvatar } from "./avatars";
-export { BottomSheet, Fab, GroupLabel, ListGroup, ListRow, PageTitle, Screen, SubHeader } from "./layout";
+export {
+  BottomSheet,
+  Fab,
+  GroupLabel,
+  ListGroup,
+  ListRow,
+  PageTitle,
+  Screen,
+  type SheetDismiss,
+  SubHeader,
+  useSheetDismiss,
+} from "./layout";
+export { type StackPage, StackSlide, usePageStack } from "./PageStack";
 export {
   ActivityPill,
   Button,

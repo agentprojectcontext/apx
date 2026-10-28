@@ -11,10 +11,13 @@ export function BottomNav<T extends string>({
   items,
   value,
   onChange,
+  onLongPress,
 }: {
   items: Array<NavItem<T>>;
   value: T;
   onChange: (id: T) => void;
+  /** A long press on a tab: its quick actions (Chats: mark all read). */
+  onLongPress?: (id: T) => void;
 }) {
   const t = useTheme();
   const s = useStyles();
@@ -30,6 +33,7 @@ export function BottomNav<T extends string>({
             accessibilityLabel={item.badge ? `${item.label}, ${item.badge}` : item.label}
             accessibilityState={{ selected: on }}
             onPress={() => onChange(item.id)}
+            onLongPress={onLongPress ? () => onLongPress(item.id) : undefined}
             style={s.tab}
           >
             <View style={s.pill}>

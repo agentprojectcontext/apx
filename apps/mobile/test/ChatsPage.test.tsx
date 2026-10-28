@@ -4,7 +4,15 @@ import { t } from "../src/i18n";
 import { ChatsPage } from "../src/pages/ChatsPage";
 import { InboxRow, ThreadAvatar } from "../src/pages/InboxRows";
 import { inboxFixtures } from "../src/preview/inboxFixtures";
+import { ALL_CHATS } from "../src/viewPrefs";
 import { deferred } from "./transport.test-support";
+
+// The contacts' pictures come through the media cache, which needs the phone's gallery module.
+jest.mock("../src/chat/mediaFiles", () => ({}));
+jest.mock(
+  "react-native-safe-area-context",
+  () => jest.requireActual("react-native-safe-area-context/jest/mock").default,
+);
 
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error("Expected fixture or rendered row");
@@ -21,8 +29,8 @@ const mount = async (patch: Partial<React.ComponentProps<typeof ChatsPage>> = {}
     refresh: jest.fn(async () => {}),
     project: "all",
     setProject: jest.fn(),
-    routines: true,
-    setRoutines: jest.fn(),
+    filter: ALL_CHATS,
+    setFilter: jest.fn(),
     ...patch,
   };
   return { ...(await render(<ChatsPage {...props} />)), props };
@@ -101,8 +109,9 @@ test("project filtering promotes cross-project descendants and local callbacks p
   expect(ui.queryByRole("button", { name: "Launch team" })).toBeNull();
   await fireEvent.press(ui.getByText("Acme"));
   expect(ui.props.setProject).toHaveBeenLastCalledWith("project_a");
-  await fireEvent.press(ui.getByRole("button", { name: t("hideRoutines") }));
-  expect(ui.props.setRoutines).toHaveBeenLastCalledWith(false);
+  await fireEvent.press(ui.getByRole("button", { name: t("filterChats") }));
+  await fireEvent.press(ui.getByRole("switch", { name: t("filterRoutines") }));
+  expect(ui.props.setFilter).toHaveBeenLastCalledWith({ ...ALL_CHATS, routines: false });
   await fireEvent.press(ui.getByRole("button", { name: t("newChat") }));
   expect(ui.props.create).toHaveBeenCalledTimes(1);
   await ui.unmount();
@@ -125,38 +134,56 @@ test("refresh indicator resets after rejection without changing or losing the li
   await ui.unmount();
 });
 
-test("single faces shrink to 38; group pairs retain 48 and delegation pairs include target then caller", async () => {
+test("single faces shrink to 34; group pairs take 42 and delegation pairs include target then caller", async () => {
   const data = inboxFixtures();
   const home = required(data.threads.find((thread) => thread.id === "home"));
-  const ui = await render(<ThreadAvatar thread={home} agents={data.agents} size={38} />);
-  expect(ui.getByLabelText("Coordinator")).toHaveStyle({ width: 38, height: 38 });
+  const ui = await render(<ThreadAvatar thread={home} agents={data.agents} size={34} />);
+  expect(ui.getByLabelText("Coordinator")).toHaveStyle({ width: 34, height: 34 });
   await ui.rerender(
     <ThreadAvatar
       thread={required(data.threads.find((thread) => thread.id === "group"))}
       agents={data.agents}
-      size={38}
+      size={34}
     />,
   );
   expect(ui.getByLabelText(t("groupAgents", { first: "Coordinator", second: "Researcher" }))).toHaveStyle({
-    width: 48,
-    height: 48,
+    width: 42,
+    height: 42,
   });
   await ui.rerender(
     <ThreadAvatar
       thread={required(data.threads.find((thread) => thread.id === "session_a"))}
       agents={data.agents}
-      size={38}
+      size={34}
       caller="agent_a"
     />,
   );
   expect(ui.getByLabelText(t("delegationPair", { target: "Researcher", caller: "Coordinator" }))).toHaveStyle({
-    width: 38,
-    height: 38,
+    width: 34,
+    height: 34,
   });
   await ui.unmount();
   const row = await render(
     <InboxRow node={required(inboxTree([home], { routines: true, project: "all" })[0])} data={data} open={jest.fn()} />,
   );
-  expect(row.getByRole("button", { name: "Launch planning" })).toHaveStyle({ paddingVertical: 8 });
+  expect(row.getByRole("button", { name: "Launch planning" })).toHaveStyle({ paddingVertical: 6 });
   await row.unmount();
+});
+
+test("a long press opens a chat's actions, archived chats have their own row and a filter shows its dot", async () => {
+  const menu = jest.fn();
+  const openArchived = jest.fn();
+  const ui = await mount({ menu, openArchived });
+  await fireEvent(ui.getByRole("button", { name: "Launch planning" }), "longPress");
+  expect(menu).toHaveBeenLastCalledWith(expect.objectContaining({ id: "home" }));
+  await fireEvent.press(ui.getByRole("button", { name: `${t("archivedChats")} 1` }));
+  expect(openArchived).toHaveBeenCalledTimes(1);
+  expect(ui.queryByRole("button", { name: t("filterChatsOn") })).toBeNull();
+  await ui.rerender(
+    <ChatsPage {...ui.props} menu={menu} openArchived={openArchived} filter={{ ...ALL_CHATS, agents: ["agent_b"] }} />,
+  );
+  expect(ui.getByRole("button", { name: t("filterChatsOn") })).toBeVisible();
+  expect(ui.queryByRole("button", { name: "Launch planning" })).toBeNull();
+  expect(ui.getByRole("button", { name: "Research sources" })).toBeVisible();
+  await ui.unmount();
 });

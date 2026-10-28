@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { t as translate } from "../i18n";
 import type { Message } from "../protocol";
+import { isComputerGroup } from "./chat/blocks";
+import { ComputerIcon } from "./chat/ComputerIcon";
 import { Icon } from "./Icon";
 import { Spinner } from "./kit";
 import { makeStyles, useTheme } from "./theme";
@@ -17,17 +19,23 @@ export function ActionGroup({ parts, waiting = false }: { parts: ToolPart[]; wai
   const running = parts.some((part) => part.status === "running");
   const failed = parts.filter((part) => part.status === "error").length;
   const one = parts.length === 1;
-  const key = running
-    ? waiting
-      ? one
-        ? "actionsWaitingOne"
-        : "actionsWaiting"
-      : one
-        ? "actionsWorkingOne"
-        : "actionsWorking"
-    : one
-      ? "actionsOne"
-      : "actionsSummary";
+  const computer = isComputerGroup(parts);
+  const key =
+    computer && !(running && waiting)
+      ? running
+        ? "toolsComputerWorking"
+        : "toolsComputerDone"
+      : running
+        ? waiting
+          ? one
+            ? "actionsWaitingOne"
+            : "actionsWaiting"
+          : one
+            ? "actionsWorkingOne"
+            : "actionsWorking"
+        : one
+          ? "actionsOne"
+          : "actionsSummary";
   const title = translate(key, {
     n: String(parts.length),
   });
@@ -41,7 +49,15 @@ export function ActionGroup({ parts, waiting = false }: { parts: ToolPart[]; wai
         style={s.heading}
       >
         <Icon name={open ? "ChevronDown" : "ChevronRight"} size={14} color={t.fgMuted} />
-        {running ? <Spinner size={14} /> : null}
+        {computer ? (
+          <ComputerIcon busy={running && !waiting} done={!running} size={16} />
+        ) : running ? (
+          waiting ? (
+            <Icon name="Hand" size={14} color={t.fgMuted} />
+          ) : (
+            <Spinner size={14} />
+          )
+        ) : null}
         <Text style={s.title}>{title}</Text>
         {failed > 0 ? <Text style={s.failed}>{translate("actionsFailed", { n: String(failed) })}</Text> : null}
       </Pressable>

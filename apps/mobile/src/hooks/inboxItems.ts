@@ -1,3 +1,4 @@
+import { textOrder } from "../format.ts";
 import type { Key } from "../i18n/index.ts";
 import type { IconName } from "../ui/Icon";
 import type { Tone } from "../ui/tone.ts";
@@ -89,7 +90,7 @@ export function inboxItems(data: Data): InboxItem[] {
   const notices = data.notices
     .filter((notice) => !notice.read_at && notice.kind !== "input")
     .map((notice) => noticeItem(notice, data, projectOf, ctx));
-  const byNewest = (a: InboxItem, b: InboxItem) => b.at.localeCompare(a.at);
+  const byNewest = (a: InboxItem, b: InboxItem) => textOrder(b.at, a.at);
   return [...inputs.sort(byNewest), ...notices.sort(byNewest)];
 }
 

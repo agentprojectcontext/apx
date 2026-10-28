@@ -112,3 +112,22 @@ test("search keeps matching descendants with ancestors, excludes siblings, and r
   assert.deepEqual(searchInbox(nodes, "absent", title), []);
   assert.equal(nodes[0]?.children.length, 2);
 });
+
+test("filters drop task chats with their sessions, keep only the picked agents, or list the archived ones", () => {
+  const threads = [
+    thread("chat"),
+    thread("task", { task_id: "t1" }),
+    thread("task_session", { parent_id: "task" }),
+    thread("other_agent", { agent_ids: ["agent_b"] }),
+    thread("old", { archived: true }),
+  ];
+  assert.deepEqual(ids(inboxTree(threads, { ...options, tasks: false })), ["chat", "other_agent"]);
+  assert.deepEqual(ids(inboxTree(threads, { ...options, agents: ["agent_b"] })), ["other_agent"]);
+  assert.deepEqual(ids(inboxTree(threads, { ...options, agents: [] })), [
+    "chat",
+    "other_agent",
+    "task",
+    "task_session",
+  ]);
+  assert.deepEqual(ids(inboxTree(threads, { ...options, archived: true })), ["old"]);
+});

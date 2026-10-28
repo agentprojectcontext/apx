@@ -5,6 +5,7 @@ import { t } from "../i18n";
 import { ChatsPage } from "../pages/ChatsPage";
 import { Button, useType } from "../ui/kit";
 import { ThemeProvider, useSystemScheme, useTheme } from "../ui/theme";
+import { ALL_CHATS } from "../viewPrefs";
 import { inboxFixtures } from "./inboxFixtures";
 
 export function InboxPreview({ exit }: { exit: () => void }) {
@@ -21,7 +22,7 @@ export function InboxPreview({ exit }: { exit: () => void }) {
 function PreviewPanel({ exit }: { exit: () => void }) {
   const [data] = useState(inboxFixtures);
   const [project, setProject] = useState("all");
-  const [routines, setRoutines] = useState(true);
+  const [filter, setFilter] = useState(ALL_CHATS);
   const [message, setMessage] = useState(t("previewReady"));
   const theme = useTheme();
   const type = useType();
@@ -41,8 +42,8 @@ function PreviewPanel({ exit }: { exit: () => void }) {
         online={false}
         project={project}
         setProject={setProject}
-        routines={routines}
-        setRoutines={setRoutines}
+        filter={filter}
+        setFilter={setFilter}
         open={(thread) => setMessage(t("previewOpened", { name: `${thread.title} (${thread.id})` }))}
         create={() => setMessage(t("previewCreate"))}
         account={() => setMessage(t("previewAccount"))}

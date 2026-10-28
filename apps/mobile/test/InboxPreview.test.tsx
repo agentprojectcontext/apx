@@ -6,6 +6,9 @@ import { t } from "../src/i18n";
 import { startPhoneNode } from "../src/phone";
 import { ApxClient } from "../src/protocol";
 
+// The contacts' pictures come through the media cache, which needs the phone's gallery module.
+jest.mock("../src/chat/mediaFiles", () => ({}));
+
 jest.mock(
   "react-native-safe-area-context",
   () => jest.requireActual("react-native-safe-area-context/jest/mock").default,

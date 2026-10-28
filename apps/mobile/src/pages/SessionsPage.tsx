@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
-import { listWhen } from "../format";
+import { listWhen, textOrder } from "../format";
 import { engineName, stateMark } from "../hooks/chatSelectors";
 import type { Engine, NativeSession, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
@@ -102,7 +102,7 @@ function EngineCard({
   const s = useStyles();
   const threads = data.threads
     .filter((thread) => thread.engine === engine.id && !thread.archived)
-    .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+    .sort((a, b) => textOrder(b.updated_at, a.updated_at))
     .slice(0, 5);
   // Sessions started outside APX (sessions.native already leaves out the ones APX resumed).
   const native = (data.sessions[engine.id] ?? []).slice(0, 3);

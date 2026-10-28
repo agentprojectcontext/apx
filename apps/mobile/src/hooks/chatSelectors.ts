@@ -1,3 +1,4 @@
+import { textOrder } from "../format.ts";
 import { type Key, t } from "../i18n/index.ts";
 import type { Agent, Job, Thread, Workspace } from "./useWorkspace";
 
@@ -20,13 +21,13 @@ export function stateMark(state?: string): StateMark {
 export function activeThreads(threads: Thread[]): Thread[] {
   return threads
     .filter((thread) => !thread.archived && (isWorking(thread.state) || thread.state === "input-required"))
-    .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+    .sort((a, b) => textOrder(b.updated_at, a.updated_at));
 }
 
 export function listedThreads(threads: Thread[]): Thread[] {
   return threads
     .filter((thread) => !thread.archived && !thread.parent_id && !["a2a", "task", "routine"].includes(thread.kind))
-    .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.updated_at.localeCompare(a.updated_at));
+    .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || textOrder(b.updated_at, a.updated_at));
 }
 
 /**
@@ -39,7 +40,7 @@ export function inboxThreads(threads: Thread[], routines: boolean): Thread[] {
     (thread) => thread.kind === "routine" && !thread.archived && !thread.parent_id && !isWorking(thread.state),
   );
   return [...listedThreads(threads), ...runs].sort(
-    (a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.updated_at.localeCompare(a.updated_at),
+    (a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || textOrder(b.updated_at, a.updated_at),
   );
 }
 
@@ -140,6 +141,20 @@ export function channelName(type: string): string {
 /** An outside engine's product name ("Claude Code"); unknown ones keep their id. */
 export function engineName(engine: string): string {
   return ENGINE_NAMES[engine] ?? engine;
+}
+
+/** A contact's chat: who is on the other side and on which app ("telegram"), never the answering agent's face. */
+export function channelIdentity(
+  thread: Thread,
+  data: Pick<Workspace, "channels" | "persons">,
+): { type?: string; person?: string; name: string } | undefined {
+  const on = thread.channel;
+  if (!on) return undefined;
+  const person = on.person_id
+    ? data.persons.find((item) => item.id === on.person_id && item.addresses.some((a) => a.channel === on.id))
+    : undefined;
+  const type = data.channels.find((item) => item.id === on.id)?.type;
+  return { ...(type ? { type } : {}), ...(person ? { person: person.id } : {}), name: person?.name || thread.title };
 }
 
 /** The line under a chat's preview: its project, then where it happens (a channel, an engine, a group, the app). */

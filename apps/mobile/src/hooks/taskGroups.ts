@@ -1,3 +1,4 @@
+import { textOrder } from "../format.ts";
 import type { Key } from "../i18n/index.ts";
 import type { Task } from "./useWorkspace";
 
@@ -30,7 +31,7 @@ const shownBy = (filter: TaskFilter) => (task: Task) =>
 /** Open tasks by group, in the design's order, leaving out empty groups; errands count as tasks. */
 export function taskGroups(tasks: Task[], filter: TaskFilter): TaskGroup[] {
   const shown = tasks.filter((task) => task.state === "open" && shownBy(filter)(task));
-  const soonest = (a: Task, b: Task) => (a.due_at ?? "~").localeCompare(b.due_at ?? "~");
+  const soonest = (a: Task, b: Task) => textOrder(a.due_at ?? "~", b.due_at ?? "~");
   return ORDER.map((group) => ({
     ...group,
     tasks: shown.filter((task) => taskGroupOf(task) === group.id).sort(soonest),
@@ -41,5 +42,5 @@ export function taskGroups(tasks: Task[], filter: TaskFilter): TaskGroup[] {
 export function closedTasks(tasks: Task[], filter: TaskFilter): Task[] {
   return tasks
     .filter((task) => task.state !== "open" && shownBy(filter)(task))
-    .sort((a, b) => b.activity_at.localeCompare(a.activity_at));
+    .sort((a, b) => textOrder(b.activity_at, a.activity_at));
 }

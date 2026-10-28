@@ -78,6 +78,11 @@ const names = [
   "Music",
   "Maximize",
   "WifiOff",
+  "CheckCheck",
+  "ListFilter",
+  "Monitor",
+  "Sparkles",
+  "ExternalLink",
 ];
 const icons = {};
 for (const name of names) {

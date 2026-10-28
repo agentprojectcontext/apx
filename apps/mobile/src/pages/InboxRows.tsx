@@ -1,16 +1,19 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { listWhen } from "../format";
-import { chatPreview, chatTitle, isWorking, routineName, threadContext } from "../hooks/chatSelectors";
+import { listWhen, textOrder } from "../format";
+import { channelIdentity, chatPreview, chatTitle, isWorking, routineName, threadContext } from "../hooks/chatSelectors";
 import { type InboxNode, nodeThreads } from "../hooks/inboxTree";
 import type { Agent, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { EngineIcon } from "../ui/EngineIcon";
 import { Icon } from "../ui/Icon";
 import { AgentAvatar, AgentPair, CountBadge, IconButton, Spinner, useType } from "../ui/kit";
+import { PersonAvatar } from "../ui/PersonAvatar";
 import { makeStyles, useTheme } from "../ui/theme";
 
 const agentOf = (id: string | undefined, agents: Agent[]) => agents.find((agent) => agent.id === id);
+/** One face in the list: small enough that more chats fit, big enough to tell agents apart. */
+export const LIST_FACE = 34;
 
 export function inboxTitle(node: InboxNode, data: Workspace): string {
   if (node.kind === "routine") return data.routines.find((r) => r.id === node.ref)?.name ?? routineName(node.thread);
@@ -18,23 +21,33 @@ export function inboxTitle(node: InboxNode, data: Workspace): string {
   return chatTitle(node.thread);
 }
 
-/** Delegations show the target first, and the caller second, including single-agent sessions. */
+/** The size a pair of faces takes in the list: a little more than one face. */
+export const PAIR_SIZE = 42;
+
+/**
+ * Delegations show the target first, and the caller second, including single-agent sessions. A contact's chat shows the
+ * contact, with their app's mark, when `data` knows the channels.
+ */
 export function ThreadAvatar({
   thread,
   agents,
   size,
   caller,
+  data,
 }: {
   thread: Thread;
   agents: Agent[];
   size: number;
   caller?: string | undefined;
+  data?: Pick<Workspace, "channels" | "persons">;
 }) {
   if (thread.engine === "claude" || thread.engine === "codex") return <EngineIcon engine={thread.engine} size={size} />;
+  const contact = data && channelIdentity(thread, data);
+  if (contact) return <PersonAvatar person={contact.person} name={contact.name} size={size} channel={contact.type} />;
   const ids = thread.kind === "a2a" ? [thread.agent_ids[0], caller ?? thread.agent_ids[1]] : thread.agent_ids;
   const [a, b] = ids.map((id) => agentOf(id, agents) ?? (id ? { id, name: id } : undefined));
   if (a && b && (thread.kind !== "a2a" || a.id !== b.id)) {
-    const pairSize = thread.kind === "a2a" ? size : size === 38 ? 48 : size + 4;
+    const pairSize = thread.kind === "a2a" ? size : size === LIST_FACE ? PAIR_SIZE : size + 4;
     const label =
       thread.kind === "a2a"
         ? t("delegationPair", { target: a.name, caller: b.name })
@@ -62,16 +75,20 @@ export function ThreadAvatar({
   );
 }
 
-export function InboxRow({
+/** Memoized: a list re-render (a sheet opening, another chat changing) leaves the rows that did not change alone. */
+export const InboxRow = memo(function InboxRow({
   node,
   data,
   open,
+  menu,
   searching = false,
   caller,
 }: {
   node: InboxNode;
   data: Workspace;
   open: (thread: Thread) => void;
+  /** A long press: the chat's own actions (read, archive, delete…). */
+  menu?: (thread: Thread) => void;
   searching?: boolean;
   caller?: string | undefined;
 }) {
@@ -86,7 +103,7 @@ export function InboxRow({
   const busy = threads.some((thread) => isWorking(thread.state));
   const waiting = threads.some((thread) => thread.state === "input-required");
   const failed = threads.some((thread) => thread.state === "failed");
-  const latest = [...threads].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0] ?? node.thread;
+  const latest = [...threads].sort((a, b) => textOrder(b.updated_at, a.updated_at))[0] ?? node.thread;
   const bundle = node.kind !== "thread";
   const ids = [...new Set(threads.flatMap((thread) => thread.agent_ids))];
   const [a, b] = ids.map((id) => agentOf(id, data.agents) ?? { id, name: id });
@@ -104,16 +121,19 @@ export function InboxRow({
           accessibilityLabel={title}
           accessibilityState={bundle ? { expanded: shown } : undefined}
           onPress={bundle ? toggle : () => open(node.thread)}
+          onLongPress={menu && !bundle ? () => menu(node.thread) : undefined}
+          delayLongPress={350}
           style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.fill }]}
         >
           <View style={s.avatar}>
             {bundle && a && b ? (
-              <AgentPair first={a} second={b} size={48} />
+              <AgentPair first={a} second={b} size={PAIR_SIZE} />
             ) : (
               <ThreadAvatar
                 thread={node.thread}
                 agents={data.agents}
-                size={38}
+                data={data}
+                size={LIST_FACE}
                 caller={data.threads.find((thread) => thread.id === node.thread.parent_id)?.agent_ids[0] ?? caller}
               />
             )}
@@ -165,6 +185,7 @@ export function InboxRow({
               node={child}
               data={data}
               open={open}
+              {...(menu ? { menu } : {})}
               searching={searching}
               caller={node.thread.agent_ids[0]}
             />
@@ -173,15 +194,15 @@ export function InboxRow({
       ) : null}
     </View>
   );
-}
+});
 
 const useStyles = makeStyles((theme) => ({
   container: { flexDirection: "row", alignItems: "center" },
-  row: { flex: 1, flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 8, paddingHorizontal: 20 },
-  avatar: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  row: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 6, paddingHorizontal: 16 },
+  avatar: { width: PAIR_SIZE, height: PAIR_SIZE, alignItems: "center", justifyContent: "center" },
   copy: { flex: 1, minWidth: 0, gap: 2 },
   line: { flexDirection: "row", alignItems: "center", gap: 8 },
   title: { flex: 1, color: theme.fg, fontSize: 15, fontWeight: "500" },
   preview: { flex: 1, color: theme.fgMuted, fontSize: 13 },
-  nested: { marginLeft: 24, borderLeftWidth: 1, borderLeftColor: theme.border },
+  nested: { marginLeft: 20, borderLeftWidth: 1, borderLeftColor: theme.border },
 }));

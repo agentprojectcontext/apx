@@ -21,20 +21,19 @@ export function OptionSheet<T extends string>({
   const theme = useTheme();
   return (
     <BottomSheet title={title} onClose={onClose}>
-      {options.map((option) => (
-        <ListRow
-          key={option.value}
-          label={option.label}
-          sub={option.sub}
-          leading={option.leading}
-          chevron={false}
-          trailing={option.value === value ? <Icon name="Check" size={18} color={theme.brand} /> : undefined}
-          onPress={() => {
-            onClose();
-            if (option.value !== value) onPick(option.value);
-          }}
-        />
-      ))}
+      {(dismiss) =>
+        options.map((option) => (
+          <ListRow
+            key={option.value}
+            label={option.label}
+            sub={option.sub}
+            leading={option.leading}
+            chevron={false}
+            trailing={option.value === value ? <Icon name="Check" size={18} color={theme.brand} /> : undefined}
+            onPress={() => dismiss(() => option.value !== value && onPick(option.value))}
+          />
+        ))
+      }
     </BottomSheet>
   );
 }

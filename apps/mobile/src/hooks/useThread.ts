@@ -13,12 +13,16 @@ import {
 } from "../protocol";
 
 type Usage = { context?: number; window?: number };
+/** How long a chat shows the computer ready before the chip goes. */
+const READY_SHOWN_MS = 4000;
 /** The newest run that reported how full the chat is. */
 const usageOf = (runs: Array<{ started_at: string; usage?: Usage }>) =>
-  [...runs].sort((a, b) => b.started_at.localeCompare(a.started_at)).find((run) => run.usage?.context)?.usage;
+  [...runs].sort((a, b) => textOrder(b.started_at, a.started_at)).find((run) => run.usage?.context)?.usage;
 
 import { APP_CLIENT } from "../appInfo";
 import { isNewChat } from "../chat/newChat";
+import { textOrder } from "../format";
+import type { ComputerStage } from "../ui/chat/ComputerProgress";
 import { isWorking } from "./chatSelectors";
 
 function upsert(messages: Message[], message: Message, matchOptimistic = true): Message[] {
@@ -41,6 +45,15 @@ function upsert(messages: Message[], message: Message, matchOptimistic = true): 
   );
 }
 
+/** What each chat showed when it was last left, so opening it again draws at once while the core is asked. */
+const seen = new Map<string, { messages: Message[]; thread?: Thread }>();
+const SEEN_MAX = 20;
+function remember(threadId: string, entry: { messages: Message[]; thread?: Thread }) {
+  seen.delete(threadId);
+  seen.set(threadId, entry);
+  if (seen.size > SEEN_MAX) seen.delete(seen.keys().next().value as string);
+}
+
 /** Subscribe before loading, fold streamed messages, and reconnect after interruptions. */
 function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -49,17 +62,20 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
   const [error, setError] = useState("");
   const [thread, setThread] = useState<Thread>();
   const [usage, setUsage] = useState<Usage>();
+  const [computer, setComputer] = useState<ComputerStage>();
   const reload = useRef<() => Promise<void>>(async () => {});
   useEffect(() => {
     let socket: ApxSocket | undefined;
     let stopped = false;
     let retry: ReturnType<typeof setTimeout> | undefined;
     let refetch: ReturnType<typeof setTimeout> | undefined;
+    let readyShown: ReturnType<typeof setTimeout> | undefined;
     let attempt = 0;
     const changes = new Map<string, Message>();
     const lastSeq = new Map<string, number>();
     const deleted = new Set<string>();
     let loadVersion = 0;
+    let appliedVersion = 0;
     let stateVersion = 0;
     const load = async () => {
       // A new chat is not in the core until its first message: the socket only says whether the core is reachable.
@@ -68,7 +84,9 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
       const requestStateVersion = stateVersion;
       try {
         const result = await client.call("threads.get", { thread: threadId });
-        if (stopped || requestVersion !== loadVersion) return;
+        // An older answer arriving after a newer one is stale; one arriving first still shows.
+        if (stopped || requestVersion < appliedVersion) return;
+        appliedVersion = requestVersion;
         if (requestStateVersion === stateVersion) {
           setState(result.thread.state);
           setThread(result.thread);
@@ -77,7 +95,9 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
         setMessages((current) => {
           let merged = [...result.messages, ...current.filter((message) => message.id.startsWith("local_"))];
           for (const message of changes.values()) merged = upsert(merged, message);
-          return merged.filter((message) => !deleted.has(message.id)).sort((a, b) => a.seq - b.seq);
+          const next = merged.filter((message) => !deleted.has(message.id)).sort((a, b) => a.seq - b.seq);
+          remember(threadId, { messages: next.filter((m) => !m.id.startsWith("local_")), thread: result.thread });
+          return next;
         });
         setError("");
       } catch (err) {
@@ -141,6 +161,12 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
               changes.set(updated.id, updated);
               return upsert(current, updated);
             });
+          } else if (event.type === "computer.progress" && event.thread_id === threadId) {
+            if (readyShown) clearTimeout(readyShown);
+            readyShown = undefined;
+            // A computer that did not start says so in the chat; ready shows a moment, then the chat is clear again.
+            setComputer(event.stage === "failed" ? undefined : event.stage);
+            if (event.stage === "ready") readyShown = setTimeout(() => setComputer(undefined), READY_SHOWN_MS);
           } else if (event.type === "message.deleted" && event.thread_id === threadId) {
             for (const id of event.message_ids) {
               deleted.add(id);
@@ -149,6 +175,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
             setMessages((current) => current.filter((message) => !deleted.has(message.id)));
           }
         });
+        // The first load ran beside the handshake; this one, once subscribed, catches what came in between.
         await load();
         if (stopped) return;
         setOnline(true);
@@ -167,22 +194,41 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
         retry = setTimeout(() => void connect(), waits[Math.min(attempt++, waits.length - 1)]);
       }
     };
-    setMessages([]);
-    setThread(undefined);
+    const cached = seen.get(threadId);
+    setMessages(cached?.messages ?? []);
+    setThread(cached?.thread);
+    if (cached?.thread) setState(cached.thread.state);
     setUsage(undefined);
-    setState("idle");
+    setComputer(undefined);
+    if (!cached?.thread) setState("idle");
     setError("");
     setOnline(false);
+    // Asked over HTTP at once, not after the socket's handshake: the chat shows sooner.
+    void load();
     void connect();
     return () => {
       stopped = true;
       socket?.close();
       if (retry) clearTimeout(retry);
       if (refetch) clearTimeout(refetch);
+      if (readyShown) clearTimeout(readyShown);
     };
   }, [client, threadId, onUnpair]);
 
-  return { messages, setMessages, online, state, setState, error, setError, reload, thread, setThread, usage };
+  return {
+    messages,
+    setMessages,
+    online,
+    state,
+    setState,
+    error,
+    setError,
+    reload,
+    thread,
+    setThread,
+    usage,
+    computer,
+  };
 }
 
 /** Native counterpart of the web's live store: subscribe, load, fold events, recover missing parts. */
@@ -191,8 +237,20 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
   const sequence = useRef(0);
   const [stopping, setStopping] = useState(false);
   const stopPending = useRef(false);
-  const { messages, setMessages, online, state, setState, error, setError, reload, thread, setThread, usage } =
-    useThreadFeed(client, threadId, onUnpair);
+  const {
+    messages,
+    setMessages,
+    online,
+    state,
+    setState,
+    error,
+    setError,
+    reload,
+    thread,
+    setThread,
+    usage,
+    computer,
+  } = useThreadFeed(client, threadId, onUnpair);
   const send = useCallback(
     async (text: string, attachments: string[] = []) => {
       const local: Message = {
@@ -259,5 +317,5 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
     },
     [client, threadId, setThread],
   );
-  return { messages, online, state, error, send, respond, stop, stopping, thread, usage, setModel, client };
+  return { messages, online, state, error, send, respond, stop, stopping, thread, usage, setModel, client, computer };
 }

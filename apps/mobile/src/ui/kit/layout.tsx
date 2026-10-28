@@ -1,13 +1,27 @@
-import { Children, Fragment, isValidElement } from "react";
 import {
+  Children,
+  createContext,
+  Fragment,
+  isValidElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
+import {
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Pressable,
   type RefreshControlProps,
   ScrollView,
   type StyleProp,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
   type ViewStyle,
 } from "react-native";
@@ -205,7 +219,25 @@ export function Fab({ label, icon, onPress }: { label: string; icon: IconName; o
   );
 }
 
-/** A sheet from the bottom over a dimmed screen; a tap outside closes it. */
+/** Slides the sheet down and closes it; `then` (what a pick in it does) runs at once, while it slides. */
+export type SheetDismiss = (then?: () => void) => void;
+const SheetDismissContext = createContext<SheetDismiss | undefined>(undefined);
+/** Inside a sheet: closes it with its slide; outside one, `fallback`. */
+export function useSheetDismiss(fallback: () => void): SheetDismiss {
+  const dismiss = useContext(SheetDismissContext);
+  return (
+    dismiss ??
+    ((then) => {
+      fallback();
+      then?.();
+    })
+  );
+}
+
+/**
+ * A sheet that rises from the bottom over a dimmed screen. A tap outside, back or a drag down slides it away; a pick
+ * inside closes it the same way through `useSheetDismiss` (or the children function's `dismiss`).
+ */
 export function BottomSheet({
   title,
   onClose,
@@ -213,21 +245,88 @@ export function BottomSheet({
 }: {
   title?: string;
   onClose: () => void;
-  children: React.ReactNode;
+  children: React.ReactNode | ((dismiss: SheetDismiss) => React.ReactNode);
 }) {
   const s = useStyles();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const rise = useRef(new Animated.Value(height)).current;
+  const dim = useRef(new Animated.Value(0)).current;
+  const closing = useRef(false);
+  // A sheet the screen already took away (another opened in its place) must not close what came after it.
+  const mounted = useRef(true);
+  useEffect(
+    () => () => {
+      mounted.current = false;
+    },
+    [],
+  );
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(dim, { toValue: 1, duration: 220, useNativeDriver: false }),
+      Animated.timing(rise, { toValue: 0, duration: 280, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+    ]).start();
+  }, [dim, rise]);
+  const dismiss = useCallback<SheetDismiss>(
+    (then) => {
+      if (closing.current) return;
+      closing.current = true;
+      Animated.parallel([
+        Animated.timing(dim, { toValue: 0, duration: 180, useNativeDriver: false }),
+        Animated.timing(rise, {
+          toValue: height,
+          duration: 200,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: false,
+        }),
+      ]).start(() => mounted.current && close.current());
+      then?.();
+    },
+    [dim, rise, height],
+  );
+  const drag = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) => g.dy > 6 && Math.abs(g.dy) > Math.abs(g.dx),
+        onPanResponderMove: (_, g) => rise.setValue(Math.max(0, g.dy)),
+        onPanResponderRelease: (_, g) => {
+          if (g.dy > 90 || g.vy > 0.9) dismiss();
+          else Animated.spring(rise, { toValue: 0, bounciness: 4, useNativeDriver: false }).start();
+        },
+      }),
+    [rise, dismiss],
+  );
   return (
-    <Modal transparent statusBarTranslucent navigationBarTranslucent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      transparent
+      statusBarTranslucent
+      navigationBarTranslucent
+      animationType="none"
+      onRequestClose={() => dismiss()}
+    >
       <KeyboardAvoidingView behavior="padding" style={s.sheetRoot}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel={tr("close")} />
-        <View style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 12) + 18 }]}>
-          <View style={s.handle} />
-          {title ? <Text style={s.sheetTitle}>{title}</Text> : null}
-          <ScrollView style={{ flexGrow: 0 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            {children}
-          </ScrollView>
-        </View>
+        <Animated.View style={[StyleSheet.absoluteFill, s.backdrop, { opacity: dim }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => dismiss()} accessibilityLabel={tr("close")} />
+        </Animated.View>
+        <Animated.View
+          style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 12) + 18, transform: [{ translateY: rise }] }]}
+        >
+          <View {...drag.panHandlers} style={s.grip}>
+            <View style={s.handle} />
+            {title ? <Text style={s.sheetTitle}>{title}</Text> : null}
+          </View>
+          <SheetDismissContext.Provider value={dismiss}>
+            <ScrollView
+              style={{ flexGrow: 0 }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {typeof children === "function" ? children(dismiss) : children}
+            </ScrollView>
+          </SheetDismissContext.Provider>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -275,7 +374,9 @@ const useStyles = makeStyles((t) => ({
     shadowOffset: { width: 0, height: 8 },
   },
   fabText: { color: t.accentFg, fontSize: 14, fontWeight: "500" },
-  sheetRoot: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0, 0, 0, 0.45)" },
+  sheetRoot: { flex: 1, justifyContent: "flex-end" },
+  backdrop: { backgroundColor: "rgba(0, 0, 0, 0.45)" },
+  grip: { paddingBottom: 2 },
   sheet: {
     paddingTop: 10,
     paddingHorizontal: 12,
