@@ -2,6 +2,7 @@ import type { Result } from "@apx/protocol";
 import {
   Badge,
   Button,
+  Dialog,
   FlowStepTile,
   IconButton,
   Icons,
@@ -10,6 +11,7 @@ import {
   SegmentedControl,
   Skeleton,
   Switch,
+  Textarea,
 } from "@apx/ui";
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
@@ -18,11 +20,34 @@ import { useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
-import { loadRuns, type Shown, setEnabled, shownGraph, whoOf } from "./data.ts";
+import {
+  issueText,
+  legacyGraph,
+  loadRun,
+  loadRuns,
+  type RunDetail,
+  type Schedules,
+  type Shown,
+  setEnabled,
+  shownGraph,
+  whoOf,
+} from "./data.ts";
 import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { stepDetail } from "./look.tsx";
-import { logClock, OUTCOME, outcomeOf, runFacts, runWhen, tokens, viewRun } from "./run-view.ts";
-import { type Flow, type FlowNode, type FlowRun, hookPath, STEP } from "./steps.tsx";
+import {
+  dueTime,
+  logClock,
+  nextWhen,
+  OUTCOME,
+  outcomeOf,
+  ranLate,
+  runFacts,
+  runWhen,
+  tokens,
+  viewGraphRun,
+  viewRun,
+} from "./run-view.ts";
+import { type Flow, type FlowNode, type FlowRun, hookPath, isTrigger, STEP, scheduleName } from "./steps.tsx";
 import "./detail.css";
 
 type Cursor = Result<"flows.events">["nextCursor"];
@@ -31,11 +56,16 @@ const RAIL = { min: 260, max: 640, initial: 360 };
 /** One flow: its steps as they ran in the chosen run, what each step did, and its runs at the right. */
 export function FlowDetail({
   flow,
+  schedule,
+  timeZone,
   onBack,
   onEdit,
   onChanged,
 }: {
   flow: Flow;
+  /** Its schedule and next time, when it starts on one. */
+  schedule: Schedules[string] | undefined;
+  timeZone: string;
   onBack: () => void;
   onEdit: () => void;
   onChanged: () => void;
@@ -78,38 +108,63 @@ export function FlowDetail({
   }, [flow.id, revision]);
   // A run still going is read again until it ends.
   const going = runs?.some((e) => e.state === "pending" || (e.state === "admitted" && !e.run_ended_at));
+  const run = runs?.find((e) => e.event_id === runId);
+  // A graph run's steps come one by one from the core; read again with the runs while it goes on.
+  const [detail, setDetail] = useState<RunDetail>();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: each read of the runs reads the chosen one again
+  useEffect(() => {
+    let live = true;
+    if (run?.executor !== "graph") {
+      setDetail(undefined);
+      return;
+    }
+    void loadRun(flow.id, run.event_id).then(
+      (d) => live && setDetail(d),
+      () => live && setDetail(undefined),
+    );
+    return () => {
+      live = false;
+    };
+  }, [flow.id, run?.event_id, run?.executor, runs]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: each load of the runs arms the next read
   useEffect(() => {
-    if (!going) return;
-    const timer = setTimeout(() => setRevision((n) => n + 1), 3000);
+    // A run going is followed closely; a flow that is on is looked at now and then for new runs.
+    if (!going && !flow.enabled) return;
+    const timer = setTimeout(() => setRevision((n) => n + 1), going ? 3000 : 10_000);
     return () => clearTimeout(timer);
-  }, [going, runs]);
-  const run = runs?.find((e) => e.event_id === runId);
+  }, [going, runs, flow.enabled]);
   const who = useCallback((n: FlowNode) => whoOf(n, agents, routines), [agents, routines]);
-  const view = useMemo(
-    () => (shown ? viewRun(shown.graph, flow.id, run, t, who) : undefined),
-    [shown, flow.id, run, t, who],
-  );
+  // What the chosen run ran: its own revision, the old definition for a legacy run of a published flow, or now.
+  const graph = useMemo(() => {
+    if (run?.executor === "graph") return detail?.event === run.event_id ? detail.graph : undefined;
+    if (run && !run.current) return legacyGraph(flow, t);
+    return shown?.graph;
+  }, [run, detail, flow, t, shown]);
+  const view = useMemo(() => {
+    if (!graph) return undefined;
+    if (run?.executor === "graph") return detail ? viewGraphRun(detail, flow.id, t, who) : undefined;
+    return viewRun(graph, flow.id, run, t, who);
+  }, [graph, detail, flow.id, run, t, who]);
   const look = useCallback(
     (n: FlowNode): StepLook => {
       const v = view?.steps.get(n.id);
       return {
         title: n.label,
-        ...stepDetail(n, flow.id, agents, routines),
+        ...stepDetail(n, flow.id, agents, routines, t),
         ...(v?.state ? { state: v.state } : {}),
         ...(v?.order ? { order: v.order } : {}),
         ...(v?.badge ? { badge: v.badge } : {}),
       };
     },
-    [view, flow.id, agents, routines],
+    [view, flow.id, agents, routines, t],
   );
   const toggle = async (on: boolean) => {
     setBusy(true);
     try {
       await setEnabled(flow, on);
       onChanged();
-    } catch {
-      notify(t("flow.ed.saveFailed"));
+    } catch (e) {
+      notify(issueText(e, shown?.draft ?? undefined, t) ?? t("flow.ed.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -121,24 +176,65 @@ export function FlowDetail({
     setCursor(page.nextCursor);
   };
   const project = projects.find((p) => p.id === flow.projectId)?.name ?? flow.projectId;
+  const [asking, setAsking] = useState<string>();
+  const [stopping, setStopping] = useState(false);
+  const published = shown?.publishedRevision != null;
+  /** A webhook flow asks for a body, prefilled with the last one kept; a schedule flow runs at once. */
+  const runNow = async () => {
+    if (schedule) return void start({});
+    setAsking(await lastBody(flow.id, runs));
+  };
+  const start = async (data: unknown) => {
+    setBusy(true);
+    try {
+      const r = await client.call("flows.run_now", { flow: flow.id, data });
+      setAsking(undefined);
+      notify(t(r.state === "ignored" ? "flow.now.empty" : "flow.now.started"), "info");
+      setRunId(r.event);
+      setRevision((n) => n + 1);
+    } catch {
+      notify(t("flow.now.failed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const cancel = async () => {
+    if (!run) return;
+    setBusy(true);
+    try {
+      const r = await client.call("flows.cancel_run", { flow: flow.id, event: run.event_id });
+      notify(
+        t(r.cancelled ? (r.state === "uncertain" ? "flow.stop.uncertain" : "flow.stop.done") : "flow.stop.ended"),
+        "info",
+      );
+      setStopping(false);
+      setRevision((n) => n + 1);
+    } catch {
+      notify(t("flow.stop.failed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const live = run?.executor === "graph" && run.state === "pending";
   const outcome = run ? outcomeOf(run, flow.predicates.length) : undefined;
   const facts = run ? runFacts(run, t) : undefined;
   // Until one is chosen, the step that hands work to the crew (or the last one) is open.
   const node =
-    shown?.graph.nodes.find((n) => n.id === nodeId) ??
-    shown?.graph.nodes.find((n) => n.kind === "agent" || n.kind === "routine") ??
-    shown?.graph.nodes.at(-1);
+    graph?.nodes.find((n) => n.id === nodeId) ??
+    graph?.nodes.find((n) => n.kind === "agent" || n.kind === "routine" || n.kind === "llm") ??
+    graph?.nodes.at(-1);
   return (
     <div className="fd">
       <div className="fd__main">
         <header className="fd__head">
           <IconButton label={t("flow.back")} icon={<Icons.ArrowLeft size={16} />} onClick={onBack} />
-          <FlowStepTile icon={STEP.webhook.icon} tone="warning" size="lg" />
+          <FlowStepTile icon={STEP[schedule ? "schedule" : "webhook"].icon} tone="warning" size="lg" />
           <div className="fd__name">
             <h1>{flow.name}</h1>
             <span>
-              {project} · {t("flow.triggerHook", { path: hookPath(flow.id) })} ·{" "}
-              {t("flow.steps", { count: shown?.graph.nodes.length ?? "…" })}
+              {project} ·{" "}
+              {schedule ? scheduleName(schedule.cron, t) : t("flow.triggerHook", { path: hookPath(flow.id) })} ·{" "}
+              {t("flow.steps", { count: graph?.nodes.length ?? "…" })}
             </span>
           </div>
           <div className="fd__tools">
@@ -149,6 +245,17 @@ export function FlowDetail({
               disabled={busy}
               onCheckedChange={(on) => void toggle(on)}
             />
+            {published && (
+              <Button
+                variant="secondary"
+                leadingIcon={<Icons.Play size={14} />}
+                disabled={busy || !flow.enabled}
+                title={flow.enabled ? undefined : t("flow.now.off")}
+                onClick={() => void runNow()}
+              >
+                {t("flow.now.run")}
+              </Button>
+            )}
             <Button variant="primary" leadingIcon={<Icons.Pencil size={14} />} onClick={onEdit}>
               {t("flow.edit")}
             </Button>
@@ -162,14 +269,30 @@ export function FlowDetail({
             </Badge>
             {facts?.took && <span>{facts.took}</span>}
             {facts?.tokens && <span>{facts.tokens}</span>}
-            {view && shown && <span>{t("flow.stepsRan", { ran: view.ran, total: shown.graph.nodes.length })}</span>}
+            {view && graph && <span>{t("flow.stepsRan", { ran: view.ran, total: graph.nodes.length })}</span>}
+            {run.source === "owner" && <Badge tone="neutral">{t("flow.byYou")}</Badge>}
+            {run.scheduled_at && ranLate(run) && (
+              <span className="fd__late">{t("flow.late", { time: dueTime(run.scheduled_at, timeZone) })}</span>
+            )}
+            {live && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="fd__stop"
+                leadingIcon={<Icons.Square size={12} />}
+                disabled={busy}
+                onClick={() => setStopping(true)}
+              >
+                {t("flow.stop.button")}
+              </Button>
+            )}
           </div>
         )}
-        {shown?.draftPending && <p className="fd__draft">{t("flow.draftPending")}</p>}
+        {shown?.draftPending && <p className="fd__draft">{t(flow.enabled ? "flow.draftBlocked" : "flow.draftOff")}</p>}
         <div className="fd__canvas">
-          {shown ? (
+          {graph ? (
             <FlowCanvas
-              graph={shown.graph}
+              graph={graph}
               look={look}
               selected={node?.id ?? null}
               onSelect={(id) => {
@@ -177,7 +300,7 @@ export function FlowDetail({
                 setNodeId(id);
                 setTab("step");
               }}
-              fitKey={flow.id}
+              fitKey={`${flow.id}:${run?.executor === "graph" ? `r${detail?.revision ?? ""}` : run?.current === false ? "old" : "now"}`}
             >
               {run && (
                 <div className="fd__legend" aria-hidden="true">
@@ -186,7 +309,9 @@ export function FlowDetail({
                   <span className="is-failed">{t("flow.legend.stepFailed")}</span>
                 </div>
               )}
-              <span className="fd__version">{t("flow.current")}</span>
+              <span className={run && !run.current ? "fd__version is-old" : "fd__version"}>
+                {t(run && !run.current ? "flow.previous" : "flow.current")}
+              </span>
             </FlowCanvas>
           ) : (
             <Skeleton width="100%" height="100%" />
@@ -194,7 +319,7 @@ export function FlowDetail({
         </div>
         <StepPanel
           flow={flow}
-          nodes={shown?.graph.nodes ?? []}
+          nodes={graph?.nodes ?? []}
           node={node}
           run={run}
           view={view}
@@ -229,7 +354,15 @@ export function FlowDetail({
                 onClick={() => setRail((r) => ({ ...r, open: false }))}
               />
             </div>
-            <span className="fd__railnext">{flow.enabled ? t("flow.nextWhen") : t("flow.off")}</span>
+            <span className="fd__railnext">
+              {!flow.enabled
+                ? t("flow.off")
+                : schedule
+                  ? schedule.next_at
+                    ? t("flow.nextAt", { when: nextWhen(schedule.next_at, timeZone, t) })
+                    : t("flow.next.none")
+                  : t("flow.nextWhen")}
+            </span>
             {runs && runs.length > 0 && (
               <RunBars
                 size="lg"
@@ -296,7 +429,106 @@ export function FlowDetail({
           />
         </aside>
       )}
+      <RunNowDialog
+        body={asking}
+        busy={busy}
+        onClose={() => setAsking(undefined)}
+        onStart={(data) => void start(data)}
+      />
+      <Dialog
+        open={stopping}
+        onOpenChange={setStopping}
+        title={t("flow.stop.title")}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setStopping(false)}>
+              {t("flow.stop.keep")}
+            </Button>
+            <Button variant="danger" disabled={busy} onClick={() => void cancel()}>
+              {t("flow.stop.button")}
+            </Button>
+          </>
+        }
+      >
+        {t("flow.stop.body")}
+      </Dialog>
     </div>
+  );
+}
+
+/** The body of the last run that kept one, as editable JSON; an empty object when none did. */
+async function lastBody(flow: string, runs: FlowRun[] | undefined): Promise<string> {
+  const last = runs?.find((e) => e.executor === "graph" && e.state !== "ignored" && e.source !== "schedule");
+  if (!last) return "{}";
+  try {
+    const d = await loadRun(flow, last.event_id);
+    const start = d.steps.find((s) => d.graph.nodes.some((n) => n.id === s.node && isTrigger(n.kind)));
+    // A body kept with credentials blanked out would send the placeholders: start from an empty one instead.
+    if (!start?.output || start.truncated || start.output.includes("[redacted]")) return "{}";
+    return JSON.stringify(JSON.parse(start.output), null, 2);
+  } catch {
+    return "{}";
+  }
+}
+
+/** A webhook flow run by hand: the person writes (or keeps) the body it gets, as if it had been POSTed. */
+function RunNowDialog(props: {
+  body: string | undefined;
+  busy: boolean;
+  onClose: () => void;
+  onStart: (data: unknown) => void;
+}) {
+  const t = useT();
+  const [text, setText] = useState("");
+  const [bad, setBad] = useState(false);
+  useEffect(() => {
+    if (props.body !== undefined) {
+      setText(props.body);
+      setBad(false);
+    }
+  }, [props.body]);
+  const go = () => {
+    try {
+      props.onStart(JSON.parse(text));
+    } catch {
+      setBad(true);
+    }
+  };
+  return (
+    <Dialog
+      open={props.body !== undefined}
+      onOpenChange={(o) => !o && props.onClose()}
+      title={t("flow.now.title")}
+      footer={
+        <>
+          <Button variant="secondary" onClick={props.onClose}>
+            {t("common.cancel")}
+          </Button>
+          <Button disabled={props.busy} leadingIcon={<Icons.Play size={14} />} onClick={go}>
+            {t("flow.now.run")}
+          </Button>
+        </>
+      }
+    >
+      <div className="fd__now">
+        <p>{t("flow.now.body")}</p>
+        <Textarea
+          aria-label={t("flow.now.sample")}
+          rows={8}
+          className="fd__mono"
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setBad(false);
+          }}
+        />
+        {bad && (
+          <p className="fd__nowerr" role="alert">
+            {t("flow.ed.tryBadJson")}
+          </p>
+        )}
+      </div>
+    </Dialog>
   );
 }
 

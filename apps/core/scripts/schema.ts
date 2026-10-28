@@ -20,7 +20,7 @@ const pascal = (s: string) =>
 const tables = (
   db
     .prepare(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '%_fts%' ORDER BY name",
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '%\\_fts%' ESCAPE '\\' ORDER BY name",
     )
     .all() as Array<{ name: string }>
 ).map((t) => t.name);

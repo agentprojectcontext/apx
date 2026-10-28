@@ -2701,3 +2701,60 @@ a contact's and a read-only folder do not carry it. The default prompt's budget 
 from 7,500 to 8,000 for it (`PROMPT_SIZE.md`). Rejected: a lint word list for jargon (it would ban words, not
 explanations aimed at the wrong reader), and treating E2E as visual review (it proves a click works, not that
 the screen makes sense).
+
+<a id="d-167"></a>
+## D-167 — 2026-10-28 — A published Flow graph runs as drawn, on a small executor that never repeats an uncertain step
+The graph foundation stored drafts and refused every publication until an executor existed. Its design asked for
+much more than running a graph: execution modes with a return to legacy, quarantine, paginated export sessions with
+chained digests, a cross-node call/token budget, a value journal quota, fencing epochs and a cancel outbox. Each is
+a reasonable answer to a risk; together they kept anything from running.
+
+The executor that shipped keeps the guarantees that protect the owner and drops the machinery whose risk is bounded
+some other way:
+
+- **Revisions are immutable and pinned.** Publishing (CAS on the draft version and the published revision) inserts a
+  new revision and consumes the draft. Admission pins revision, redacted payload, deadline and node rows in the same
+  transaction as the `(flow,event)` dedup. Saving a draft or publishing never wakes or rewrites an event. Events
+  admitted by the legacy executor keep `executor='legacy'` and drain on it untouched; nothing is migrated.
+- **A step runs once.** Database steps commit their effect and checkpoint together. A model step commits
+  `dispatched` synchronously just before its single transport call (one exact model, no retry, no fallback, no
+  token renewal, no tools); a restart that finds it without output marks it `uncertain` for the owner, never
+  re-sends it. Agent and routine steps link their run to the step in the transaction that admits it, through the
+  router with an internal context no transport can set, and are never readmitted. Their output is the run's own
+  final answer; a failed, canceled, cut or silent run blocks what follows.
+- **Everything ends.** Each event has an absolute 10-minute deadline persisted at admission, each model step its own
+  timeout. At the deadline pending steps are cancelled, waiting runs are asked to cancel, and late results are kept
+  out of the graph. Disabling a Flow stops new steps; its deadline keeps running.
+- **Payloads stay data.** Bindings are fixed in the revision; the payload never picks an agent, routine, model, tool or
+  path. Values are redacted with the shared credential matcher (like legacy events) and capped at 32 KiB.
+- **Bounds instead of budgets.** At most four model steps per graph (one call each, ≤ 2,048 output tokens, ≤ 120 s),
+  32 nodes, one active event per Flow (FIFO) and four Flows advancing at once; agent and routine runs keep their
+  existing limits.
+
+Rejected for now: execution modes and return to legacy (a Flow returns to legacy by retiring and recreating it),
+quarantine (no database ever held a publication), export sessions and receipts (the CLI export now includes the graph
+and each run's steps; retirement keeps the owner's explicit `confirm-exported`), a cross-node budget and a cancel
+outbox (a canceled request is retried on every recovery pass). A routine step reuses the reviewed legacy routine
+admission, binding re-checked against the pinned revision, and keeps its usual delivery to the owner.
+
+## D-168 — 2026-10-28 — A schedule Flow ticks on the routine scheduler's beat and owes at most one run
+A Flow can start from a schedule (a five-field cron, in the owner's time zone) as well as from a POST. Its ticks come
+from the routine scheduler's existing beat (`officeScheduler` → `flows.tick`), not from a second loop or a timer per
+Flow. Each schedule Flow keeps one moment, `since`, that its next time is counted from:
+
+- **One run per time due, at most one owed.** A beat that finds a time due admits one event, `schedule:<due time>`,
+  through the same admission transaction as a POST (dedup per Flow and scheduled time, pinned to the published
+  revision), and moves `since` to the beat. Times missed while the core was off run once when it starts, not once
+  each: a backlog of a schedule is noise, and repeating work the owner thought was skipped is worse. The run records
+  when it was due, so the screen can say it started late. A failed admission spends the time too, as a routine's does.
+- **Off owes nothing.** Turning a Flow off deletes its `since`; turned on again it counts from then.
+- **One way in each.** Admission checks the source against the pinned revision's trigger: a schedule Flow has no
+  public route and refuses a POST, a webhook Flow never ticks. The owner's "Run now" goes through the same admission,
+  marked `owner`: an empty event for a schedule Flow, the sample body (untrusted, redacted like any payload) for a
+  webhook one. A cron that could fire twice within five minutes is refused, like a routine's.
+- **Cancel follows the deadline rule.** The owner stops a going run in one transaction: steps not started are
+  cancelled, a model call that may have been sent is left uncertain (never re-sent), a run a step handed work to is
+  asked to stop. The run ends cancelled, or uncertain when a step is. Owner-only.
+
+Rejected: a timer per Flow (a second clock to keep right across sleep and restarts), catching up every missed time,
+and letting a webhook Flow tick or a schedule Flow take POSTs "for testing" (that is what Run now is for).

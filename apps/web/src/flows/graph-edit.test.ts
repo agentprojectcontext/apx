@@ -41,3 +41,16 @@ test("connections reject cycles, duplicate links and inputs to a webhook", () =>
   const chain = connectNodes(third, "model", "condition");
   assert.equal(connectNodes(chain, "condition", "model"), chain);
 });
+
+test("a connection out of a check says its branch; a step joins a check's yes and no at most once", () => {
+  const base = {
+    ...graph(),
+    nodes: [...graph().nodes, newNode("condition", "check", "Check"), newNode("table_write", "save", "Save")],
+  };
+  const yes = connectNodes(base, "check", "model");
+  assert.deepEqual(yes.edges, [{ source: "check", target: "model", when: "yes" }]);
+  const no = connectNodes(yes, "check", "save", "no");
+  assert.deepEqual(no.edges.at(-1), { source: "check", target: "save", when: "no" });
+  assert.equal(connectNodes(no, "check", "save", "yes"), no);
+  assert.deepEqual(connectNodes(base, "start", "check").edges, [{ source: "start", target: "check" }]);
+});

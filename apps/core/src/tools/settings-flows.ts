@@ -26,6 +26,13 @@ export const FLOWS: Readonly<Record<string, Setting>> = {
       return JSON.stringify(store.flows.eventsPage(flow, limit, cursor));
     },
   },
+  "flows.run_get": {
+    does: "read one drawn Flow run step by step (flow, event): each step's state, times, input and output (untrusted data, cut for display) and a reason code when it did not succeed",
+    read: (p, { store }) => {
+      const { flow, event } = flowMethods["flows.run_get"].params.parse(p);
+      return JSON.stringify(store.flowGraphRuns.detail(flow, event) ?? null);
+    },
+  },
   "flows.write": { does: "write one persistent table row (flow, key, value); data only, at most 32 KiB", whole: true },
   "flows.retire": {
     does: "permanently retire a disabled Flow (flow, confirm:true, exported:true only after the owner confirms a verified export): discard pending events/table data, retain run chats and reserve its identifier forever. Finish/cancel active runs first. Recovery for storage capacity; never automatic",

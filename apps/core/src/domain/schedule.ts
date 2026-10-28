@@ -62,35 +62,75 @@ export function parseCron(expr: string): Cron {
   };
 }
 
+/** The wall-clock fields a cron reads at a moment: this machine's, or a named time zone's. */
+type Local = { month: number; day: number; weekday: number; hour: number; minute: number };
+const machine = (d: Date): Local => ({
+  month: d.getMonth() + 1,
+  day: d.getDate(),
+  weekday: d.getDay(),
+  hour: d.getHours(),
+  minute: d.getMinutes(),
+});
+const zones = new Map<string, Intl.DateTimeFormat>();
+const WEEKDAYS: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+function zoned(timeZone: string): (d: Date) => Local {
+  let f = zones.get(timeZone);
+  if (!f) {
+    f = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hourCycle: "h23",
+      month: "numeric",
+      day: "numeric",
+      weekday: "short",
+      hour: "numeric",
+      minute: "numeric",
+    });
+    zones.set(timeZone, f);
+  }
+  const format = f;
+  return (d) => {
+    const p = Object.fromEntries(format.formatToParts(d).map((x) => [x.type, x.value]));
+    return {
+      month: Number(p.month),
+      day: Number(p.day),
+      weekday: WEEKDAYS[p.weekday ?? ""] ?? 0,
+      hour: Number(p.hour),
+      minute: Number(p.minute),
+    };
+  };
+}
+
 /** Cron's day rule: with both day fields restricted, either one matching is enough; otherwise both must. */
-function dayMatches(c: Cron, t: Date): boolean {
-  const d = c.day.has(t.getDate());
-  const w = c.weekday.has(t.getDay());
+function dayMatches(c: Cron, t: Local): boolean {
+  const d = c.day.has(t.day);
+  const w = c.weekday.has(t.weekday);
   return c.anyDay || c.anyWeekday ? d && w : d || w;
 }
 
 /**
- * The first minute after `from` the cron allows (local time); undefined if none within four years. It steps forward
- * on real time and reads the local fields at each step, so a clock change (an hour repeated or skipped) can never
- * send it back before `from`.
+ * The first minute after `from` the cron allows, in `timeZone` (default: this machine's); undefined if none within
+ * four years. It steps forward on real time and reads the local fields at each step, so a clock change (an hour
+ * repeated or skipped) can never send it back before `from`.
  */
-export function nextCron(c: Cron, from: Date): Date | undefined {
+export function nextCron(c: Cron, from: Date, timeZone?: string): Date | undefined {
   const MIN = 60_000;
+  const local = timeZone ? zoned(timeZone) : machine;
   let t = Math.floor(from.getTime() / MIN) * MIN + MIN;
   const limit = from.getTime() + 4 * 366 * 24 * 3600_000;
   while (t < limit) {
     const d = new Date(t);
-    const minutes = d.getHours() * 60 + d.getMinutes();
-    if (!c.month.has(d.getMonth() + 1) || !dayMatches(c, d)) {
+    const l = local(d);
+    const minutes = l.hour * 60 + l.minute;
+    if (!c.month.has(l.month) || !dayMatches(c, l)) {
       // Towards the next local day, an hour short so a clock change cannot skip its first hour.
       t += Math.max(60, 24 * 60 - minutes - 60) * MIN;
       continue;
     }
-    if (!c.hour.has(d.getHours())) {
-      t += (60 - d.getMinutes()) * MIN;
+    if (!c.hour.has(l.hour)) {
+      t += (60 - l.minute) * MIN;
       continue;
     }
-    if (!c.minute.has(d.getMinutes())) {
+    if (!c.minute.has(l.minute)) {
       t += MIN;
       continue;
     }
@@ -126,4 +166,26 @@ export function checkSchedule(s: Schedule): void {
   if (s.kind === "every" && (!Number.isFinite(s.minutes) || s.minutes < MIN_GAP_MIN))
     throw new Error(`every needs ${MIN_GAP_MIN} minutes or more`);
   if (s.kind === "once" && Number.isNaN(Date.parse(s.at))) throw new Error(`"${s.at}" is not a date`);
+}
+
+/**
+ * Why a Flow's cron can't run, or undefined: it must parse and never fire twice within the minimum gap. Its times
+ * over eight days from a fixed moment stand for it (a gap only on rare days is still caught when it ticks).
+ */
+export function flowCronProblem(cron: string): "invalid" | "too_often" | undefined {
+  let c: Cron;
+  try {
+    c = parseCron(cron);
+  } catch {
+    return "invalid";
+  }
+  const start = Date.UTC(2026, 0, 5);
+  let at = nextCron(c, new Date(start), "UTC");
+  if (!at) return "invalid";
+  while (at && at.getTime() < start + 8 * 24 * 3600_000) {
+    const next = nextCron(c, at, "UTC");
+    if (next && next.getTime() - at.getTime() < MIN_GAP_MIN * 60_000) return "too_often";
+    at = next;
+  }
+  return undefined;
 }

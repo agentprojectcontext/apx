@@ -66,15 +66,20 @@ export function planFlowGraphStep(
       add("cancelled", control.cancelled ? "cancelled" : "deadline");
       continue;
     }
-    const parents = graph.edges.filter((edge) => edge.target === node.id).map((edge) => edge.source);
+    const incoming = graph.edges.filter((edge) => edge.target === node.id);
+    const parents = incoming.map((edge) => edge.source);
     if (parents.some((id) => active.has(requiredSnapshot(snapshots, id).state))) continue;
     if (parents.some((id) => unsuccessful.has(requiredSnapshot(snapshots, id).state))) {
       add("blocked", "parent_failed");
       continue;
     }
-    const skipped = parents.some((id) => {
-      const parent = requiredSnapshot(snapshots, id);
-      return parent.state === "skipped" || (byId.get(id)?.kind === "condition" && !conditionMatched(parent.output));
+    // A check's "yes" branch goes on when it matched, its "no" branch when it did not.
+    const skipped = incoming.some(({ source, when }) => {
+      const parent = requiredSnapshot(snapshots, source);
+      return (
+        parent.state === "skipped" ||
+        (byId.get(source)?.kind === "condition" && conditionMatched(parent.output) !== (when !== "no"))
+      );
     });
     add(skipped ? "skipped" : "ready", skipped ? "parent_skipped" : "parents_succeeded");
   }

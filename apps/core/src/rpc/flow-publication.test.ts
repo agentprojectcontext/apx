@@ -33,7 +33,7 @@ const graphs: FlowGraph[] = [
   },
 ];
 
-test("HTTP and WS reject every non-LLM graph publication without changing drafts or legacy state", async () => {
+test("HTTP and WS publish each drawing as a new revision without touching legacy data or waking events", async () => {
   const llm = scriptedLlm(() => say("Must not run"));
   const env = await startCore({ llm });
   try {
@@ -52,42 +52,55 @@ test("HTTP and WS reject every non-LLM graph publication without changing drafts
     await env.client.call("flows.set", { ...legacy, enabled: false });
     const beforeLegacy = env.core.store.flows.get(legacy.id);
     const beforeRows = env.core.store.flows.rows(legacy.id, 10);
-    const beforeEvents = env.core.store.flows.events(legacy.id, 10);
     const socket = await env.client.connect();
+    let revision: number | null = null;
     try {
       for (const graph of graphs) {
-        const previous = await env.client.call("flows.graph_get", { flow: legacy.id });
-        const saved = await env.client.call("flows.draft_save", {
-          flow: legacy.id,
-          expectedVersion: previous.draftVersion,
-          graph,
-        });
-        assert.ok(saved.draftVersion);
-        assert.equal((await env.client.call("flows.validate", { flow: legacy.id, graph })).valid, true);
-        const params = { flow: legacy.id, expectedDraftVersion: saved.draftVersion, expectedPublishedRevision: null };
         for (const client of [env.client, socket]) {
+          const previous = await client.call("flows.graph_get", { flow: legacy.id });
+          // A second client publishing the same drawing finds nothing new to publish.
+          const saved: { draftVersion: number | null } = await client.call("flows.draft_save", {
+            flow: legacy.id,
+            expectedVersion: previous.draftVersion,
+            graph: { ...graph, layout: [{ node: "start", x: revision ?? 0, y: client === socket ? 1 : 0 }] },
+          });
+          const params: { flow: string; expectedDraftVersion: number; expectedPublishedRevision: number | null } = {
+            flow: legacy.id,
+            expectedDraftVersion: saved.draftVersion ?? 0,
+            expectedPublishedRevision: revision,
+          };
+          const published: { publishedRevision: number | null; draft: unknown } = await client.call(
+            "flows.publish",
+            params,
+          );
+          assert.equal(published.publishedRevision, (revision ?? 0) + 1);
+          assert.equal(published.draft, null);
           await assert.rejects(client.call("flows.publish", params), (error: unknown) => {
             assert.ok(error instanceof ApxError);
             assert.equal(error.code, "conflict");
-            assert.equal(error.retryable, false);
-            assert.deepEqual(error.detail, { reason: "graph_execution_unavailable" });
-            assert.match(error.message, /publication is unavailable/);
             return true;
           });
-          assert.deepEqual(await client.call("flows.graph_get", { flow: legacy.id }), saved);
+          revision = published.publishedRevision;
           assert.deepEqual(env.core.store.flows.get(legacy.id), beforeLegacy);
           assert.deepEqual(env.core.store.flows.rows(legacy.id, 10), beforeRows);
-          assert.deepEqual(env.core.store.flows.events(legacy.id, 10), beforeEvents);
+          assert.deepEqual(
+            env.core.store.flows.events(legacy.id, 10).map((e) => [e.event_id, e.state]),
+            [["original", "written"]],
+          );
         }
       }
     } finally {
       socket.close();
       await socket.closed;
     }
+    assert.equal(revision, graphs.length * 2);
+    // Only the switch and name change on a published Flow; its old definition stays as history.
+    await assert.rejects(env.client.call("flows.set", { ...legacy, tableKey: "other" }), /drawing/);
     await env.client.call("flows.set", legacy);
-    assert.equal(env.core.store.flows.receive(legacy.id, "original", { text: "Replacement" }), "duplicate");
-    assert.equal(env.core.store.flows.receive(legacy.id, "next", { text: "Next" }), "written");
-    assert.deepEqual(env.core.store.flows.rows(legacy.id, 10)[0]?.value, { text: "Next" });
+    assert.equal(
+      env.core.store.flows.receive(legacy.id, "original", { text: "Replacement" }, () => {}),
+      "duplicate",
+    );
     assert.equal(llm.calls.length, 0);
   } finally {
     await env.core.close();

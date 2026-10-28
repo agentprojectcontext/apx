@@ -23,7 +23,10 @@ test("export follows every row and event cursor and refuses a live Flow", async 
       if (method === "flows.events") {
         const cursor = params.cursor as { eventId: string } | undefined;
         const start = cursor === undefined ? 0 : Number(cursor.eventId) + 1;
-        const events = Array.from({ length: Math.min(100, 205 - start) }, (_, i) => ({ event_id: String(start + i) }));
+        const events = Array.from({ length: Math.min(100, 205 - start) }, (_, i) => ({
+          event_id: String(start + i),
+          executor: start + i === 7 ? "graph" : "legacy",
+        }));
         return {
           events,
           nextCursor:
@@ -32,6 +35,8 @@ test("export follows every row and event cursor and refuses a live Flow", async 
               : null,
         };
       }
+      if (method === "flows.graph_get") return { flow: "f", draft: null, publishedRevision: 1 };
+      if (method === "flows.run_get") return { event: params.event, steps: [] };
       throw new Error(`Unexpected method: ${method}`);
     },
   } as unknown as ApxClient;
@@ -42,11 +47,15 @@ test("export follows every row and event cursor and refuses a live Flow", async 
   const saved = JSON.parse(output[0] ?? "null") as {
     rows: Array<{ key: string }>;
     events: Array<{ event_id: string }>;
+    graph: { publishedRevision: number };
+    runs: unknown[];
   };
   assert.equal(saved.rows.length, 205);
   assert.equal(saved.rows.at(-1)?.key, "204");
   assert.equal(saved.events.length, 205);
   assert.equal(saved.events.at(-1)?.event_id, "204");
+  assert.equal(saved.graph.publishedRevision, 1);
+  assert.deepEqual(saved.runs, [{ event: "7", steps: [] }]);
   assert.equal(calls.filter((c) => c.method === "flows.rows").length, 3);
   assert.equal(calls.filter((c) => c.method === "flows.events").length, 3);
   assert.ok(

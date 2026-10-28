@@ -17,8 +17,11 @@ export type CallContext = {
   device?: { id: string; name: string } | undefined;
   /** Set when an agent's tool calls a method in-process: which agent, in which run, thread and tool call. */
   agent?: { id: string; run_id: string; thread_id: string; call_id?: string | undefined } | undefined;
-  /** Internal Flow admission: the event and its run commit together. Never accepted from a transport. */
-  flowEvent?: { flow: string; event: string };
+  /**
+   * Internal Flow admission: the event (or, with `graph`, one step of its pinned revision) and its run commit
+   * together. Never accepted from a transport.
+   */
+  flowEvent?: { flow: string; event: string; graph?: { revision: number; node: string } };
   /** Core-only certificates bound to reviewed memory text and sources; never decoded from request params. */
   memoryReviewed?: readonly string[] | undefined;
   /** Set by the channel manager only (never from a request): who wrote on which channel conversation. */

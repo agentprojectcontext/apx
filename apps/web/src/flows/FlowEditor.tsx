@@ -1,3 +1,4 @@
+import type { Result } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
 import { shapeOfGraph } from "@apx/protocol/flow-shape";
 import { Button, Dialog, FlowStepTile, IconButton, Icons, Input, Popover, Select, Textarea } from "@apx/ui";
@@ -7,13 +8,23 @@ import { useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
-import { shownGraph } from "./data.ts";
+import { describeIssue, issueText, shownGraph } from "./data.ts";
 import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { connectNodes, moveNode, newNode, removeNode } from "./graph-edit.ts";
 import { Inspector } from "./Inspector.tsx";
 import { stepDetail } from "./look.tsx";
 import { STARTERS, type Starter, starterGraph } from "./starters.ts";
-import { type Flow, type FlowGraph, type FlowNode, isSoon, PALETTE, STEP, type StepKind } from "./steps.tsx";
+import {
+  type Flow,
+  type FlowGraph,
+  type FlowNode,
+  isSoon,
+  isTrigger,
+  PALETTE,
+  STEP,
+  type StepKind,
+  triggerOf,
+} from "./steps.tsx";
 import "./editor.css";
 
 const EMPTY: FlowGraph = { schemaVersion: 2, nodes: [], edges: [], layout: [] };
@@ -41,6 +52,10 @@ function blank(n: FlowNode): boolean {
       return !n.agent || !n.prompt.trim();
     case "routine":
       return !n.routine;
+    case "llm":
+      return !n.model || !n.prompt.trim();
+    case "schedule":
+      return !n.cron.trim();
     default:
       return false;
   }
@@ -81,10 +96,14 @@ export function FlowEditor({
   const [graph, setGraph] = useState<FlowGraph | undefined>(flow ? undefined : undefined);
   const [saved, setSaved] = useState<string>("");
   const [version, setVersion] = useState<number | null>(null);
+  // The revision new events run, once the flow runs a published drawing.
+  const [published, setPublished] = useState<number | null>(null);
+  // Why the drawing can't run, as the core checked it: null when it can, undefined before a check.
+  const [problem, setProblem] = useState<string | null>();
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const [trial, setTrial] = useState<{ matches: boolean } | null>(null);
+  const [trial, setTrial] = useState<Map<string, TryStep> | null>(null);
   // What the last save said, shown in the top bar until the next change.
   const [said, setSaid] = useState<{ text: string; error?: boolean } | null>(null);
   // Load once: what the flow runs now, or its draft with your last changes.
@@ -103,6 +122,7 @@ export function FlowEditor({
       const g = s.draftPending && s.draft ? s.draft : s.graph;
       setGraph(g);
       setVersion(s.draftVersion);
+      setPublished(s.publishedRevision);
       setSaved(JSON.stringify([g, flow.name]));
     });
     return () => {
@@ -118,7 +138,24 @@ export function FlowEditor({
     [allRoutines, projectId],
   );
   const g = graph ?? EMPTY;
-  const shape = useMemo(() => shapeOfGraph(g), [g]);
+  // The core checks the drawing as it changes (its agents, routines and models in this project), before the first
+  // save too: a new flow is checked as one of the chosen project.
+  useEffect(() => {
+    if (!graph || (!flow && !projectId)) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      if (graph.nodes.some(blank) || !triggerOf(graph)) return setProblem(undefined);
+      const target = flow ? { flow: flow.id } : { project: projectId };
+      void client.call("flows.validate", { ...target, graph: tidy(graph, t) }).then(
+        (r) => live && setProblem(r.issues[0] ? describeIssue(r.issues[0], graph, t) : null),
+        () => live && setProblem(undefined),
+      );
+    }, 400);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [flow, graph, projectId, t]);
   const dirty = graph !== undefined && JSON.stringify(flow ? [g, name] : [g, flow, name]) !== saved;
   const change = (next: FlowGraph) => {
     setGraph(next);
@@ -134,7 +171,7 @@ export function FlowEditor({
     // A new AI step starts with the super-agent; any agent of the crew can be chosen instead.
     const secretary = agents.find((a) => a.kind === "secretary");
     const node = made.kind === "agent" && secretary ? { ...made, agent: secretary.id } : made;
-    const from = kind === "webhook" ? undefined : (sel ?? g.nodes.at(-1));
+    const from = isTrigger(kind) ? undefined : (sel ?? g.nodes.at(-1));
     const at = from ? g.layout.find((p) => p.node === from.id) : undefined;
     const below = g.layout.filter((p) => at && p.x === at.x + 280).length;
     let next: FlowGraph = {
@@ -148,19 +185,25 @@ export function FlowEditor({
   };
   const look = useCallback(
     (n: FlowNode): StepLook => {
-      const base = { title: n.label || t(STEP[n.kind].label), ...stepDetail(n, flow?.id, allAgents, allRoutines) };
-      if (!trial) return n.kind === "llm" ? { ...base, muted: true } : base;
-      const reached = trial.matches || n.kind === "webhook" || n.kind === "condition";
-      return {
-        ...base,
-        state: reached ? "ran" : "skipped",
-        badge:
-          n.kind === "condition"
-            ? t(trial.matches ? "flow.log.yes" : "flow.log.no")
-            : reached
-              ? "ok"
-              : t("flow.legend.stepSkipped"),
-      };
+      const base = { title: n.label || t(STEP[n.kind].label), ...stepDetail(n, flow?.id, allAgents, allRoutines, t) };
+      const s = trial?.get(n.id);
+      if (!s) return base;
+      switch (s.state) {
+        case "ran":
+          return {
+            ...base,
+            state: "ran",
+            badge: s.matched === null ? "ok" : t(s.matched ? "flow.log.yes" : "flow.log.no"),
+          };
+        case "would_run":
+          return { ...base, state: "ran", badge: t("flow.ed.tryWouldBadge") };
+        case "skipped":
+          return { ...base, state: "skipped", badge: t("flow.legend.stepSkipped") };
+        case "missing":
+          return { ...base, state: "failed", badge: t("flow.ed.tryMissingBadge") };
+        default:
+          return { ...base, badge: t("flow.ed.tryUnknownBadge") };
+      }
     },
     [trial, flow?.id, allAgents, allRoutines, t],
   );
@@ -170,7 +213,7 @@ export function FlowEditor({
       ? t("flow.ed.needName")
       : !projectId
         ? t("flow.ed.needProject")
-        : !g.nodes.some((n) => n.kind === "webhook")
+        : !triggerOf(g)
           ? t("flow.ed.needTrigger")
           : undefined;
     const incomplete = g.nodes.find(blank);
@@ -186,9 +229,11 @@ export function FlowEditor({
     const clean = tidy(g, t);
     const result = shapeOfGraph(clean);
     const id = flow?.id ?? slug(name);
+    // A flow that runs its old definition keeps it while the drawing stands for one (or gets one when new).
+    const legacy = published === null && (result.ok || !flow);
     setBusy(true);
     try {
-      if (result.ok || !flow) {
+      if (legacy) {
         const s = result.ok
           ? result.shape
           : { predicates: [], readKeys: [], tableKey: "latest", action: { kind: "none" as const } };
@@ -202,26 +247,45 @@ export function FlowEditor({
           action: s.action,
           ...(s.readKeys.length ? { readKeys: s.readKeys } : {}),
         });
-      }
+      } else if (flow && name.trim() !== flow.name) await client.call("flows.set", { ...flow, name: name.trim() });
       const doc = await client.call("flows.draft_save", { flow: id, expectedVersion: version, graph: clean });
-      setVersion(doc.draftVersion);
+      let next = { version: doc.draftVersion, published: doc.publishedRevision };
+      const { issues } = await client.call("flows.validate", { flow: id, graph: clean });
+      const first = issues[0];
+      let text: string;
+      if (first) text = t("flow.ed.savedCant", { reason: describeIssue(first, clean, t) });
+      else if (published === null && result.ok) text = t(flow?.enabled ? "flow.ed.savedRuns" : "flow.ed.savedOff");
+      else if (flow?.enabled && doc.draft && doc.draftVersion !== null) {
+        // On, a saved drawing runs: new events use it, events already received finish as they started.
+        const out = await client.call("flows.publish", {
+          flow: id,
+          expectedDraftVersion: doc.draftVersion,
+          expectedPublishedRevision: doc.publishedRevision,
+        });
+        next = { version: out.draftVersion, published: out.publishedRevision };
+        text = t("flow.ed.savedPublished");
+      } else text = t(flow?.enabled ? "flow.ed.savedRuns" : "flow.ed.savedOn");
+      setVersion(next.version);
+      setPublished(next.published);
+      setProblem(first ? describeIssue(first, clean, t) : null);
       setGraph(clean);
       setSaved(JSON.stringify([clean, name]));
-      setSaid({
-        text: t(!result.ok ? "flow.ed.savedDraft" : flow?.enabled ? "flow.ed.savedRuns" : "flow.ed.savedOff"),
-      });
+      setSaid({ text, ...(first ? { error: true } : {}) });
+      if (first?.node) setSelected(first.node);
       onSaved(id);
     } catch (e) {
       setSaid({
         error: true,
-        text: t(e instanceof ApxError && e.code === "conflict" ? "flow.ed.conflict" : "flow.ed.saveFailed"),
+        text:
+          issueText(e, clean, t) ??
+          t(e instanceof ApxError && e.code === "conflict" ? "flow.ed.conflict" : "flow.ed.saveFailed"),
       });
     } finally {
       setBusy(false);
     }
   };
   const close = () => (dirty ? setLeaving(true) : onClose());
-  const hasTrigger = g.nodes.some((n) => n.kind === "webhook");
+  const hasTrigger = Boolean(triggerOf(g));
   const project = projects.find((p) => p.id === projectId);
   return (
     <div className="fe" role="dialog" aria-modal="true" aria-label={name || t("flow.ed.untitled")}>
@@ -267,12 +331,7 @@ export function FlowEditor({
           </span>
         )}
         <span className="fe-top__spacer" />
-        <TryRun
-          graph={g}
-          shape={shape}
-          who={(id) => allAgents[id]?.name ?? allRoutines.find((r) => r.id === id)?.name ?? id}
-          onResult={setTrial}
-        />
+        <TryRun graph={g} tidy={() => tidy(g, t)} onResult={setTrial} />
         <Button disabled={busy || !graph} onClick={() => void save()}>
           {t("flow.ed.save")}
         </Button>
@@ -284,7 +343,7 @@ export function FlowEditor({
               <span className="fe-pal__label">{t(group.group)}</span>
               {group.kinds.map((kind) => {
                 const soon = isSoon(kind);
-                const taken = kind === "webhook" && hasTrigger;
+                const taken = isTrigger(kind) && hasTrigger;
                 const meta = STEP[kind];
                 return (
                   <button
@@ -322,7 +381,7 @@ export function FlowEditor({
               onSelect={setSelected}
               edit={{
                 move: (id, x, y) => change(moveNode(g, id, x, y)),
-                connect: (source, target) => change(connectNodes(g, source, target)),
+                connect: (source, target, when) => change(connectNodes(g, source, target, when)),
               }}
               minimap={g.nodes.length > 0}
               // A step added or removed is fitted into view with the rest, never left past the edge.
@@ -345,13 +404,19 @@ export function FlowEditor({
             projectId={projectId}
             agents={agents}
             routines={routines}
-            shape={shape}
+            problem={problem}
             update={(n) => change({ ...g, nodes: g.nodes.map((x) => (x.id === n.id ? n : x)) })}
             remove={(id) => {
               change(removeNode(g, id));
               setSelected(null);
             }}
             select={setSelected}
+            branch={(source, target, when) =>
+              change({
+                ...g,
+                edges: g.edges.map((e) => (e.source === source && e.target === target ? { ...e, when } : e)),
+              })
+            }
             unlink={(source, target) =>
               change({ ...g, edges: g.edges.filter((e) => !(e.source === source && e.target === target)) })
             }
@@ -379,40 +444,46 @@ export function FlowEditor({
   );
 }
 
+type TryStep = Result<"flows.try_graph">["steps"][number];
+
+/** Sample data through the drawing, branches and all, as a run would check it; nothing is saved or sent. */
 function TryRun({
   graph,
-  shape,
-  who,
+  tidy: tidied,
   onResult,
 }: {
   graph: FlowGraph;
-  shape: ReturnType<typeof shapeOfGraph>;
-  who: (id: string) => string;
-  onResult: (r: { matches: boolean } | null) => void;
+  tidy: () => FlowGraph;
+  onResult: (r: Map<string, TryStep> | null) => void;
 }) {
   const t = useT();
+  const timed = triggerOf(graph)?.kind === "schedule";
   const [open, setOpen] = useState(false);
-  const [sample, setSample] = useState('{\n  "type": "lead"\n}');
+  const [sample, setSample] = useState<string>();
   const [answer, setAnswer] = useState("");
+  const text = sample ?? (timed ? "{}" : '{\n  "type": "lead"\n}');
   const go = async () => {
-    if (!shape.ok) return setAnswer(t("flow.ed.tryNeedsShape"));
+    if (!triggerOf(graph)) return setAnswer(t("flow.ed.needTrigger"));
+    if (graph.nodes.some(blank)) return setAnswer(t("flow.ed.tryNeedsShape"));
     let data: unknown;
     try {
-      data = JSON.parse(sample);
+      data = JSON.parse(text);
     } catch {
       return setAnswer(t("flow.ed.tryBadJson"));
     }
     try {
-      const { matches } = await client.call("flows.try", { predicates: shape.shape.predicates, data });
-      onResult({ matches });
-      const a = shape.shape.action;
-      const target = a.kind === "agent" ? who(a.agent) : a.kind === "routine" ? who(a.routine) : undefined;
+      const drawn = tidied();
+      const { steps } = await client.call("flows.try_graph", { graph: drawn, data });
+      onResult(new Map(steps.map((s) => [s.node, s])));
+      const name = (id: string) => drawn.nodes.find((n) => n.id === id)?.label ?? id;
+      const missing = steps.find((s) => s.state === "missing");
+      const work = steps.filter((s) => s.state === "would_run").map((s) => name(s.node));
       setAnswer(
-        !matches
-          ? t("flow.ed.tryStop")
-          : target
-            ? t("flow.ed.tryPassAction", { key: shape.shape.tableKey, who: target })
-            : t("flow.ed.tryPass", { key: shape.shape.tableKey }),
+        missing
+          ? t("flow.ed.tryMissing", { step: name(missing.node) })
+          : work.length
+            ? t("flow.ed.tryWould", { steps: work.join(", ") })
+            : t("flow.ed.tryStop"),
       );
     } catch {
       setAnswer(t("flow.ed.tryFailed"));
@@ -436,12 +507,12 @@ function TryRun({
     >
       <div className="fe-try">
         <strong>{t("flow.ed.tryTitle")}</strong>
-        <p>{t("flow.ed.tryHint")}</p>
+        <p>{t(timed ? "flow.ed.tryHintTimed" : "flow.ed.tryHint")}</p>
         <Textarea
           aria-label={t("flow.ed.trySample")}
           rows={6}
           className="fe-mono"
-          value={sample}
+          value={text}
           onChange={(e) => setSample(e.target.value)}
         />
         <Button size="sm" onClick={() => void go()}>

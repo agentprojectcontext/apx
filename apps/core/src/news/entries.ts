@@ -82,6 +82,34 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "flow-graphs",
+    since: "2.11.2",
+    title: "Flows run as drawn, with branches and model steps",
+    applies: (f) => f.secretary && f.channels > 0,
+    text: "A Flow now runs exactly the steps drawn in its editor: checks have yes and no branches, steps can join again, each step can receive what arrived or an earlier step's result, and a direct model step asks one set-up model once, without tools. Saving a drawing while the Flow is on (or turning it on) makes it what runs for new events; events already received finish with their version. Each run shows every step with its times, input, output and why it stopped. A model call is never sent twice: if its answer is lost the run is marked for the owner to look at. Each run has 10 minutes.",
+    actions: [
+      {
+        label: { en: "Draw a branched Flow", es: "Dibujar un Flow con caminos" },
+        prompt:
+          "Help me plan a Flow with a yes/no check and the steps on each branch, then open it in the Flows editor, still off, for me to review.",
+      },
+    ],
+  },
+  {
+    id: "flow-schedules",
+    since: "2.11.2",
+    title: "Flows can run on a schedule, run now and be stopped",
+    applies: (f) => f.secretary && f.channels > 0,
+    text: "A Flow can now start on a schedule instead of a webhook: every 5 minutes, every hour, weekdays at 08:30, daily at 03:00 or any cron, in the owner's time zone, with the next runs shown in its editor and list. If APX was off at a run's time, the Flow runs once when APX starts, not once per missed time. Any published Flow has Run now on its page (a webhook Flow asks for a sample body, filled in with the last one it received), and a run that is going can be stopped: steps that haven't started don't run, and a model step already sent is left for the owner to look at, never sent again.",
+    actions: [
+      {
+        label: { en: "Schedule a Flow", es: "Programar un Flow" },
+        prompt:
+          "Help me plan a Flow that runs on a schedule (when, in my time zone, and what each step does), then open it in the Flows editor, still off, for me to review.",
+      },
+    ],
+  },
+  {
     id: "restricted-public-ingress",
     since: "2.11.2",
     title: "A public address without exposing the private app",

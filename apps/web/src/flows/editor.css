@@ -289,6 +289,21 @@
   border-radius: var(--apx-row-radius);
   font-size: 13px;
 }
+.fe-outs__row .fe-outs__when {
+  flex: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  padding: 1px 7px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+  font-size: 11px;
+}
+.fe-outs__row .fe-outs__when.is-no {
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+}
 .fe-outs__row span {
   flex: 1;
   min-width: 0;
@@ -392,4 +407,23 @@
     border-left: 0;
     border-top: 1px solid var(--apx-border);
   }
+}
+.fe-presets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* Four presets do not fit one line of the side panel: they wrap instead of overflowing. */
+.fe-presets .apx-segmented {
+  flex-wrap: wrap;
+  height: auto;
+}
+.fe-next {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.fe-next__error {
+  color: var(--apx-danger);
 }

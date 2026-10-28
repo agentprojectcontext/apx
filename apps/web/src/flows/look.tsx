@@ -2,8 +2,9 @@ import type { Agent, Routine } from "@apx/protocol";
 import { AgentAvatar } from "@apx/ui";
 import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
+import type { MessageKey } from "../i18n/index.ts";
 import { agentOf, whoOf } from "./data.ts";
-import { dotted, type FlowNode, hookPath, literal } from "./steps.tsx";
+import { dotted, type FlowNode, hookPath, literal, presetOf } from "./steps.tsx";
 
 /** The one line under a step's name that tells it apart from others of its kind. */
 export function stepDetail(
@@ -11,10 +12,15 @@ export function stepDetail(
   flow: string | undefined,
   agents: Record<string, Agent>,
   routines: Routine[],
+  t?: (key: MessageKey) => string,
 ): { detail?: ReactNode; detailPlain?: boolean } {
   switch (n.kind) {
     case "webhook":
       return { detail: flow ? `POST ${hookPath(flow)}` : "POST" };
+    case "schedule": {
+      const preset = presetOf(n.cron);
+      return preset && t ? { detail: t(preset.label), detailPlain: true } : { detail: n.cron };
+    }
     case "condition":
       return n.input.kind === "event" && n.input.path.length
         ? { detail: `${dotted(n.input.path)} = ${literal(n.equals)}` }

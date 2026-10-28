@@ -41,13 +41,15 @@ En la rama de integración todavía no publicada, **Novedades del equipo** y **M
 
 Una corrida que se perdió con el core apagado corre una vez cuando vuelve, nunca dos.
 
-## Flows por webhook
+## Flows
 
 En la rama de integración todavía no publicada, abrí **Flows** en el sidebar global junto a **Tareas** y **Recursos**.
-La lista muestra todos los flows de todos los proyectos con sus pasos, el agente al que le pasan trabajo, una barra por
-cada una de sus últimas rondas y un interruptor de encendido; el menú de proyecto la acota. El acceso de Rutinas abre
-esta misma pantalla global. Los enlaces directos usan `#view=flows` o `#view=flows&scope=<project-id>`; los botones del
-chat pueden usar `apx:flows` o `apx:flows/<project-id>`.
+La lista muestra todos los flows de todos los proyectos con sus pasos, cuántos usan IA, una barra por cada una de sus
+últimas rondas y un interruptor de encendido; el menú de proyecto la acota. El acceso de Rutinas abre esta misma
+pantalla global. Los enlaces directos usan `#view=flows`, `#view=flows&scope=<project-id>`,
+`#view=flows&flow=<flow-id>` (sus rondas) o `#view=flows&flow=<flow-id>&edit=1` (su editor); los botones del chat
+pueden usar `apx:flows`, `apx:flows/<project-id>`, `apx:flows/<project-id>/<flow-id>` o
+`apx:flows/<project-id>/<flow-id>/edit`.
 
 **Nuevo flow** abre el editor, en blanco o desde una forma de arranque. Sumá pasos desde la izquierda (se unen después
 del paso elegido), arrastrá desde el punto de salida de un paso para unir dos pasos y configurá cada uno a la derecha:
@@ -55,25 +57,54 @@ del paso elegido), arrastrá desde el punto de salida de un paso para unir dos p
 | Paso | Qué hace |
 |---|---|
 | Webhook entrante | Arranca el flow cuando un servicio manda un POST. Su URL aparece al guardar. |
-| Condición | Sigue solo si un campo de lo que llegó tiene un valor (`form.tier` es `A`). Sin modelo. |
-| Leer tabla | Trae filas guardadas a la ronda, para el agente. Sin modelo. |
-| Guardar en la tabla | Guarda lo que llegó con una clave. Todo flow tiene uno. Sin modelo. |
-| Modelo IA | Le da una tarea a un agente del crew. Gasta tokens. |
+| Horario | Arranca el flow a horas fijas: **Cada 5 min**, **Cada hora**, **Hábiles 08:30**, **Diario 03:00** o una expresión cron (minuto, hora, día, mes, día de la semana), en tu zona horaria. El panel lateral muestra las próximas rondas. |
+| Condición | Compara un campo de lo que llegó con un valor (`form.tier` es `A`). Los pasos unidos a su punto **Sí** corren si coincide; los unidos a **No**, si no coincide. Sin modelo. |
+| Leer tabla | Trae filas guardadas a la ronda. Sin modelo. |
+| Guardar en la tabla | Guarda lo que llegó, un campo o el resultado de un paso anterior con una clave. Sin modelo. |
+| Modelo IA | Le da una tarea a un agente del crew, con lo que llegó o el resultado de un paso anterior. Gasta tokens. |
 | Rutina | Corre una rutina manual del proyecto. |
+| Modelo directo | Le pregunta una vez a un modelo configurado, sin herramientas, y pasa su respuesta. Gasta tokens. |
 
-Horario, SQL, Webhook saliente, Cmd y Avisar aparecen como **Pronto** y todavía no se pueden sumar. Hoy un flow corre un
-solo camino en este orden: webhook, condiciones, leer, guardar y un agente o rutina. Si el dibujo tiene esa forma,
-**Guardar** lo convierte en lo que corre y el panel dice *Corre así como está*. Cualquier otra forma queda como
-borrador y el panel dice qué le falta; el flow sigue corriendo su última versión que se podía correr. **Probar ronda**
-prueba datos de ejemplo contra las condiciones sin guardar, mandar ni pasarle nada a un agente. Guardar nunca corre
-nada, y un flow nuevo arranca apagado.
+Un flow tiene un solo disparador. SQL, Webhook saliente, Cmd y Avisar aparecen como **Pronto** y todavía no se pueden sumar. Un flow corre como
+está dibujado: los pasos pueden abrirse en caminos y volver a juntarse, y cada paso puede recibir lo que llegó o el
+resultado de un paso anterior. En **Sigue con**, el chip **Sí** o **No** de una condición pasa esa conexión al otro
+camino. El panel dice *Corre así como está* o por qué todavía no puede correr (un agente fuera del proyecto, un modelo
+sin configurar, dos pasos que guardan en la misma clave sin orden entre ellos, un horario más seguido que cada 5
+minutos), también en un flow nuevo antes de guardarlo por primera vez.
+
+**Guardar** conserva tu dibujo. Si el flow está prendido, guardar también lo convierte en lo que corre: los eventos
+nuevos lo usan y los que ya llegaron terminan con la versión con la que empezaron. Si está apagado, prenderlo convierte
+tu último dibujo guardado en lo que corre. Un flow con la forma vieja de un solo camino (webhook, condiciones, leer,
+guardar y un agente o rutina) sigue corriendo como antes hasta que guardes un dibujo que esa forma no puede representar.
+**Probar ronda** sigue datos de ejemplo por las condiciones y los caminos y marca los pasos a los que llegaría, sin
+guardar, leer la tabla, mandar ni pasarle nada a un agente; un paso que necesita la respuesta de otro dice que depende
+de ella.
+Guardar nunca corre nada, y un flow nuevo arranca apagado.
 
 Al abrir un flow ves sus pasos como corrieron en la ronda elegida (numerados, en verde si corrieron, punteados si no,
-en rojo si fallaron), qué recibió y qué dio cada paso, un log con las horas que registró APX y las rondas a la derecha
-con su duración y tokens. Un arranque fallido se reintenta desde ahí, y un paso que le pasó trabajo a un agente abre su
-chat.
+en rojo si fallaron), qué recibió y qué dio cada paso, cuándo empezó y terminó, un log y las rondas a la derecha con su
+duración y tokens. Una ronda hecha con un dibujo anterior muestra ese dibujo y dice **Versión anterior**. Una ronda que
+cortó una condición marca esa condición con **no** y los pasos siguientes como no corridos. Un paso que le pasó trabajo
+a un agente abre su chat.
 
-Un Flow pertenece a un proyecto y no tiene cron ni disparador periódico. Encendelo antes de crear su token en
+Cada ronda tiene 10 minutos desde que llega su evento; un paso de modelo tiene su propio límite (hasta 2 minutos). Los
+pasos que llaman a un modelo se mandan una vez y nunca más: si APX se detiene o la respuesta no llega a tiempo después
+de mandar el pedido, la ronda dice **Para revisar** en lugar de reintentar, porque el modelo pudo haberlo hecho igual.
+Apagar un flow frena los pasos nuevos; una ronda que estaba esperando termina igual al llegar su límite. Un flow corre
+un evento por vez, en el orden en que llegaron.
+
+**Correr ahora**, en la página del flow, lo arranca en el momento por el mismo camino que su disparador. Un flow con
+horario corre con un evento vacío; uno con webhook te pide el cuerpo que recibe, cargado con el último que llegó, y lo
+trata como cualquier dato de afuera. La ronda dice **La arrancaste vos**. **Detener ronda**, en una ronda que está
+corriendo, la frena: los pasos que no empezaron no corren y un paso que ya se le mandó a un modelo queda **Para
+revisar**, sin volver a mandarse.
+
+Un flow con horario corre mientras APX está prendido. Si APX estaba apagado a la hora de una ronda, el flow corre una
+vez al arrancar APX (no una por cada hora que se perdió) y esa ronda dice que arrancó tarde. Un flow apagado no corre
+por horario y, al prenderlo de nuevo, cuenta desde ese momento. Un flow con horario no tiene dirección: nunca recibe un
+POST, y uno con webhook nunca corre por horario.
+
+Un Flow pertenece a un proyecto. Encendé un flow con webhook antes de crear su token en
 **Configuración → Dispositivos → Endpoints**. El acceso público se configura por separado y nunca expone el RPC privado
 ni el panel.
 

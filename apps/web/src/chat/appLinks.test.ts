@@ -22,7 +22,10 @@ test("an app link says what it opens, so its button can show the place's icon an
   assert.deepEqual(kindOf("apx:tasks"), { kind: "tasks" });
   assert.deepEqual(kindOf("apx:flows"), { kind: "flows" });
   assert.deepEqual(kindOf("apx:flows/prj_1"), { kind: "flows", project: "prj_1" });
-  assert.equal(kindOf("apx:flows/prj_1/invalid"), undefined);
+  assert.deepEqual(kindOf("apx:flows/prj_1/inbox"), { kind: "flows", project: "prj_1", flow: "inbox" });
+  assert.deepEqual(kindOf("apx:flows/prj_1/inbox/edit"), { kind: "flows", project: "prj_1", flow: "inbox" });
+  assert.equal(kindOf("apx:flows/prj_1/inbox/delete"), undefined);
+  assert.equal(kindOf("apx:tasks/task_1/more/edit"), undefined);
   assert.deepEqual(kindOf("apx:settings/desktop"), { kind: "settings", section: "desktop" });
   assert.deepEqual(kindOf("apx:config"), { kind: "settings", section: "account" });
   assert.deepEqual(kindOf("apx:resources/mcp"), { kind: "resources", tab: "mcp" });

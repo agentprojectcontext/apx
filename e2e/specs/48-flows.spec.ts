@@ -51,20 +51,16 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   await named.getByRole("button", { name: "Sumar Condición" }).click();
   await named.getByRole("textbox", { name: "Campo" }).fill("type");
   await named.getByRole("textbox", { name: "Es", exact: true }).fill("message");
-  // The new check hangs off the webhook beside the save: two paths, so it saves only as a draft for now.
-  await named.getByRole("button", { name: "Salir del editor" }).focus();
-  await named.locator(".react-flow__pane").click({ position: { x: 20, y: 20 } });
-  await expect(named.getByText(/Por ahora se guarda como borrador/)).toBeVisible();
-  // Join it into the chain: webhook → check → save.
+  // The new check hangs off the webhook beside the save; join it into the chain: webhook → check → save.
   await named.locator('.react-flow__node[data-id="webhook-1"]').click();
   await named.getByRole("button", { name: "Quitar conexión" }).first().click();
   await named.locator('.react-flow__node[data-id="condition-1"]').dragTo(named.locator(".react-flow__pane"), {
     targetPosition: { x: 200, y: 200 },
   });
-  const out = named.locator('.react-flow__node[data-id="condition-1"] .fc-handle--out');
+  // A check has two ways out: «Sí» goes on when it matches.
+  const out = named.locator('.react-flow__node[data-id="condition-1"] .fc-handle--yes');
   await out.dragTo(named.locator('.react-flow__node[data-id="table_write-1"] .fc-handle--in'));
   await named.locator(".react-flow__pane").click({ position: { x: 20, y: 20 } });
-  await expect(named.getByText("Corre así como está.")).toBeVisible();
 
   // The agent step needs an instruction before saving.
   await named.getByRole("button", { name: "Guardar", exact: true }).click();
@@ -76,10 +72,10 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   await named.getByRole("button", { name: "Probar ronda" }).click();
   await page.getByRole("textbox", { name: "Datos que llegan" }).fill('{"type":"delivery"}');
   await page.getByRole("button", { name: "Probar", exact: true }).click();
-  await expect(page.getByText("Las condiciones la cortarían. No se guardaría nada.")).toBeVisible();
+  await expect(page.getByText("Las condiciones la cortarían. No correría nada.")).toBeVisible();
   await page.getByRole("textbox", { name: "Datos que llegan" }).fill('{"type":"message"}');
   await page.getByRole("button", { name: "Probar", exact: true }).click();
-  await expect(page.getByText(/^Pasaría las condiciones, se guardaría en «latest» y le llegaría a /)).toBeVisible();
+  await expect(page.getByText(/^Llegaría a: .*Modelo IA/)).toBeVisible();
   await page.keyboard.press("Escape");
   expect(await world.llmCalls()).toBe(calls);
 

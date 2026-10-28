@@ -67,18 +67,14 @@ resume pending work; no cron or periodic model call is added. Owner-only `flows.
 the CLI and approved super-agent settings. Agent events stay external/untrusted; routines must be manual-only in the
 same project. See [Flows](FLOWS.md) for bounds, retry semantics and deployment.
 
-Versioned graph editing (`domain/flow-graphs.ts`, `rpc/flow-graphs.ts`) is a separate owner-only persistence
-foundation behind `flows.graph_get`, `flows.draft_save`, `flows.validate` and `flows.publish`. Draft saves do not
-activate or enqueue work. Publication is unconditionally blocked in the domain for every graph, including graphs
-without LLM nodes, until execution, recovery and complete graph export exist. HTTP/WS return a non-retryable
-conflict with `detail.reason: graph_execution_unavailable`, preserving drafts and all legacy state. Legacy
-resume/retry stays available. LLM drafts are editable but cannot validate until provider validation exists.
-Legacy activation/replacement of stored published graphs remains blocked. Additive tables preserve
-legacy events and snapshots; `flow_events.executor` keeps graph checkpoints out of legacy admission and retry.
-Published graph retirement is blocked until a complete graph export exists. Owner-only `flows.draft_discard`
-explicitly discards never-published drafts with CAS and a persisted monotonic tombstone; it leaves legacy data and
-credentials alone. Isolated storage retention tests protect current publications and event/checkpoint snapshots;
-the primitive is not called by the blocked publication method and does not establish an executable graph. See [Flows](FLOWS.md#versioned-graph-foundation-not-executable).
+Drawn graphs (`domain/flow-graphs.ts`, `domain/flow-graph-runs.ts`, `flow-graph-executor.ts`, `rpc/flow-graphs.ts`)
+run as published. `flows.publish` (owner-only, CAS) makes an immutable revision; each event is pinned to the revision
+it was admitted with, in the same transaction as the `(flow,event)` dedup, and `flow_events.executor` keeps legacy
+events on the legacy worker. Steps checkpoint durably: database steps commit with their effect, a model step commits
+`dispatched` before its one gateway call (`once`) and becomes `uncertain`, never re-sent, if no answer is stored;
+agent and routine steps link their run in the router's admission transaction through an internal `flowEvent.graph`
+context. Runs have a 10-minute deadline on the injected clock. `flows.run_get` shows each step. See
+[Flows](FLOWS.md#drawn-graphs-graph-executor) and [D-167](DECISIONS.md#d-167).
 
 Secretary capabilities (team news and important mail) are configured in Settings → Super-agent, not the routine action picker. `secretary.set` reuses existing scheduled rows and their IDs, prompts, cursors and history; there is no startup rewrite or replay. The existing mail pipeline still requires readable Gmail. Capability switches survive profile saves and profile changes; timing values still come from profile settings.
 

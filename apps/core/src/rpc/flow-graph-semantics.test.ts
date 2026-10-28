@@ -17,7 +17,7 @@ const graph: FlowGraph = {
   layout: [],
 };
 
-test("HTTP and WS validate explicit write dependencies without executing or altering legacy data", async () => {
+test("HTTP and WS refuse to publish unordered writes to one key, without executing or altering legacy data", async () => {
   const llm = scriptedLlm(() => say("Must not run"));
   const env = await startCore({ llm });
   try {
@@ -53,7 +53,7 @@ test("HTTP and WS validate explicit write dependencies without executing or alte
         assert.deepEqual(ordered, { valid: true, issues: [] });
       }
       const saved = await env.client.call("flows.draft_save", { flow: legacy.id, expectedVersion: null, graph });
-      assert.equal(saved.executionAvailable, false);
+      assert.equal(saved.executionAvailable, true);
       assert.deepEqual(saved.draft, graph);
       assert.ok(saved.draftVersion);
       for (const client of [env.client, socket]) {
@@ -63,7 +63,7 @@ test("HTTP and WS validate explicit write dependencies without executing or alte
             expectedDraftVersion: saved.draftVersion,
             expectedPublishedRevision: null,
           }),
-          /publication is unavailable/,
+          /explicit dependency/,
         );
         assert.deepEqual(await client.call("flows.graph_get", { flow: legacy.id }), saved);
       }
