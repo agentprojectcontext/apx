@@ -140,7 +140,7 @@ export const enFlow = {
   "flow.ed.discard": "Leave",
   "flow.ed.keep": "Keep editing",
   "flow.ed.needName": "Give the flow a name.",
-  "flow.ed.needProject": "Choose its project.",
+  "flow.ed.needProject": "Choose a project.",
   "flow.ed.needTrigger": "Add the incoming webhook.",
   "flow.ed.complete": "Complete «{step}».",
   "flow.ed.savedRuns": "Saved. It runs as drawn.",

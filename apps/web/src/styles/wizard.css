@@ -32,13 +32,10 @@
 .wiz__head button {
   -webkit-app-region: no-drag;
 }
-/* Desktop app: the brand clears the traffic lights (macOS), the exit button clears the overlay (Windows, Linux). */
-.wiz__head.is-mac:not(.is-fullscreen) {
-  padding-left: 84px;
-}
-.wiz__head.is-win,
-.wiz__head.is-linux {
-  padding-right: 148px;
+/* Desktop app: the brand and the exit button clear the window controls (topbar.css). */
+.wiz__head.is-desktop {
+  padding-left: max(28px, calc(20px + var(--window-controls-start, 0px)));
+  padding-right: max(28px, calc(20px + var(--window-controls-end, 0px)));
 }
 .wiz__brand {
   display: flex;

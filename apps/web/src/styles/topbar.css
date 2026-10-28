@@ -1,3 +1,22 @@
+/* Window controls (desktop app). A bar at the window's top edge takes the classes of useDesktopClass() (shell/desktop.ts)
+   and leaves this room: the traffic lights at the left on a Mac, none in native fullscreen; the overlay at the right on
+   Windows and Linux. A layer over the shell gets the same classes, so its bar clears them too. */
+.is-desktop.is-mac:not(.is-fullscreen) {
+  --window-controls-start: 64px;
+}
+.is-desktop.is-win,
+.is-desktop.is-linux {
+  --window-controls-end: 128px;
+}
+/* The bar moves the window, except where it has controls. Drag regions ignore what is drawn on top, so a layer over
+   the topbar marks its own bar and controls, and popups opt out. */
+.window-bar.is-desktop {
+  -webkit-app-region: drag;
+}
+.window-bar.is-desktop :is(button, a, input, textarea, [role="combobox"]),
+.apx-portal > * {
+  -webkit-app-region: no-drag;
+}
 /* Unified window bar. Tokens only; sizes from --shell-* (shell/layout.ts). */
 .topbar {
   container: topbar / inline-size;
@@ -143,12 +162,11 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
   -webkit-app-region: drag;
   border-bottom-color: color-mix(in srgb, var(--apx-border) 80%, transparent);
 }
-.topbar.is-desktop.is-mac:not(.is-fullscreen) .topbar__left {
-  padding-left: 78px;
+.topbar.is-desktop .topbar__left {
+  padding-left: calc(14px + var(--window-controls-start, 0px));
 }
-.topbar.is-desktop.is-win .topbar__right,
-.topbar.is-desktop.is-linux .topbar__right {
-  padding-right: 140px;
+.topbar.is-desktop .topbar__right {
+  padding-right: calc(12px + var(--window-controls-end, 0px));
 }
 .topbar.is-desktop button,
 .topbar.is-desktop a,

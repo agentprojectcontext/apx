@@ -6,6 +6,7 @@ import { client } from "../data/client.ts";
 import { useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { useDesktopClass } from "../shell/desktop.ts";
 import { shownGraph } from "./data.ts";
 import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { connectNodes, moveNode, newNode, removeNode } from "./graph-edit.ts";
@@ -70,6 +71,8 @@ export function FlowEditor({
   onSaved: (id: string) => void;
 }) {
   const t = useT();
+  // Over the whole window, its bar sits where the window controls are.
+  const desktop = useDesktopClass();
   const projects = useData((s) => s.projects);
   const allAgents = useData((s) => s.agents);
   const allRoutines = useRoutines((s) => s.routines);
@@ -222,7 +225,7 @@ export function FlowEditor({
   const project = projects.find((p) => p.id === projectId);
   return (
     <div className="fe" role="dialog" aria-modal="true" aria-label={name || t("flow.ed.untitled")}>
-      <header className="fe-top">
+      <header className={`fe-top window-bar${desktop}`}>
         <IconButton label={t("flow.ed.close")} icon={<Icons.X size={16} />} onClick={close} />
         <Input
           aria-label={t("flow.ed.name")}

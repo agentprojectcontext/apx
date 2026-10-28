@@ -143,7 +143,7 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.ed.discard": "Salir",
   "flow.ed.keep": "Seguir editando",
   "flow.ed.needName": "Ponele un nombre al flow.",
-  "flow.ed.needProject": "Elegí su proyecto.",
+  "flow.ed.needProject": "Elegí un proyecto.",
   "flow.ed.needTrigger": "Sumá el webhook entrante.",
   "flow.ed.complete": "Completá «{step}».",
   "flow.ed.savedRuns": "Guardado. Corre así como está.",
