@@ -6,7 +6,7 @@ import { redactSecrets } from "../redact-secrets.ts";
 import { cap, untrusted } from "../tools/result.ts";
 import type { Asker } from "./task-work.ts";
 
-function lineage(store: Store, run: Pick<RunRecord, "id" | "thread_id">): string[] {
+export function runLineage(store: Store, run: Pick<RunRecord, "id" | "thread_id">): string[] {
   const visited = new Set<string>();
   let id: string | undefined = run.id;
   while (id && !visited.has(id)) {
@@ -19,7 +19,7 @@ function lineage(store: Store, run: Pick<RunRecord, "id" | "thread_id">): string
 }
 
 const resumes = (store: Store, run: Pick<RunRecord, "id" | "thread_id">, target: string | undefined) =>
-  Boolean(target && lineage(store, run).includes(target));
+  Boolean(target && runLineage(store, run).includes(target));
 
 export function handedOff(store: Store, run: Pick<RunRecord, "id" | "thread_id">): string | undefined {
   const handoff = store.threads.context(run.thread_id).task_handoff;
@@ -50,7 +50,7 @@ export function checkSelfHandoff(store: Store, asker: Asker, project: string | u
     );
   if (context.client || context.room || store.settings.read("computer_chats").includes(source.id))
     throw conflict("this chat cannot transfer execution to a separate task session; continue here");
-  if (lineage(store, run).some((id) => store.runs.children(id).length))
+  if (runLineage(store, run).some((id) => store.runs.children(id).length))
     throw conflict(
       "already delegated work in this turn: continue here with the existing helpers; do not create another executor",
     );

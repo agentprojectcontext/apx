@@ -15,6 +15,7 @@ import type { Display } from "./display.ts";
 import { MAX_ACTIVE_DELEGATIONS, MAX_DEPTH } from "./limits.ts";
 import { MAX_AUTO_PARTS, stalled } from "./progress.ts";
 import { answerOf as answered, type Outcome, outcomeNote, outcomeOf } from "./run-outcome.ts";
+import { runLineage } from "./task-handoff.ts";
 
 export type Caller = { run: RunRecord; agent: AgentRecord; display: Display };
 
@@ -32,6 +33,8 @@ export type DelegateTo = {
   folder?: string | undefined;
   /** How far the session may change that folder: never further than the caller may. */
   write?: WritePolicy | undefined;
+  /** Explicitly different work from this turn's task assignments, not a retry of their goal. */
+  independent?: boolean | undefined;
 };
 
 /** Where a delegated session works in a folder: the folder and the write policy it gets. */
@@ -364,7 +367,12 @@ export function createDelegations(deps: {
       thread_id: sub.id,
       agent_id: child.agent_id,
       trigger: "a2a",
-      input: { origin, text: continueText(child), continues: child.id },
+      input: {
+        origin,
+        text: continueText(child),
+        continues: child.id,
+        ...(child.input?.task_independent ? { task_independent: true } : {}),
+      },
       parent_run_id: parent.id,
       depth: child.depth,
       deadline_at: new Date(Date.now() + deps.windowMs(sub.id)).toISOString(),
@@ -482,6 +490,13 @@ export function createDelegations(deps: {
         ? existing.project_id
         : // A project's agent works in its own project, wherever it is asked from; a worker or a global agent in the chat's.
           (req.project ?? (worker ? parentThread.project_id : (to.project_id ?? parentThread.project_id)));
+      const dispatched = store.threads.context(parentThread.id).task_dispatches;
+      const assigned =
+        !worker && !req.independent && dispatched && runLineage(store, from.run).includes(dispatched.run)
+          ? dispatched.tasks.find((t) => t.agent === to.id && t.project === projectId)
+          : undefined;
+      if (assigned)
+        return `refused: ${to.name} already received task ${assigned.task} in this turn. Its task session is the executor; do not open a duplicate delegation. Use task_get for its existing sessions and report, not another executor. Only for a genuinely different goal, set independent=true and explain the separate outcome in task; never use it to retry this work.`;
       const place = workspaceOf(store, from.agent, worker ? from.agent : to, parentThread, projectId, req);
       if (typeof place === "string") return place;
       if (existing && place && (existing.cwd !== place.cwd || existing.write !== place.write)) {
@@ -563,6 +578,7 @@ export function createDelegations(deps: {
             run_id: from.run.id,
           },
           text: task,
+          ...(req.independent ? { task_independent: true } : {}),
         },
         parent_run_id: from.run.id,
         depth: from.run.depth + 1,

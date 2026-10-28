@@ -64,6 +64,7 @@ export type ToolContext = {
       project?: string | undefined;
       folder?: string | undefined;
       write?: WritePolicy | undefined;
+      independent?: boolean | undefined;
     },
     task: string,
     waitMs: number,

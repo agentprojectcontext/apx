@@ -72,6 +72,8 @@ export type ThreadContext = {
   asked_from?: string;
   /** An immediate self-task takes execution from this run only; later owner turns stay independent. */
   task_handoff?: { task: string; run: string };
+  /** One execution channel per teammate in a turn, including work started through task assignment. */
+  task_dispatches?: { run: string; tasks: Array<{ task: string; agent: string; project?: string | undefined }> };
   /** The source of a self-task's existing findings, without copying trusted instructions or permissions. */
   handoff_from?: { thread: string; run: string };
   /** Native tool permissions cannot be revoked or reliably correlated with completion by every harness. */

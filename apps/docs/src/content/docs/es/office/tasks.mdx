@@ -19,6 +19,22 @@ Antes de crear otra tarea, los agentes tienen la instrucción de revisar las tar
 existente si ya cubre el mismo trabajo o uno muy relacionado. No es una detección automática de duplicados.
 Para una tarea que cambia código, mirá [dónde va ese trabajo](/es/office/code/#dónde-una-tarea-cambia-código).
 
+## Registrar versus empezar el trabajo
+
+Si pedís una acción, el agente debe hacerla con sus herramientas o pasarla una sola vez al especialista necesario,
+no reemplazar el resultado por movimientos del tablero. Un trabajo largo puede tener una tarea como seguimiento
+interno, pero debe arrancar y devolver un resultado o un bloqueo concreto.
+
+Para registrar una idea sin empezar a trabajar, pedí una tarea solo de captura y dejala **sin asignar**. Una tarea
+con responsable y descripción inicia su propia sesión, salvo que sea propuesta, esté programada para después o
+esté pausada por límites de agentes. Asignar y delegar son alternativas para arrancar, no dos pasos que haya que
+hacer juntos. Dentro de un mismo turno (incluida la recuperación tras un reinicio), APX impide mezclar ejecución por
+tarea y delegación al mismo agente y proyecto, aunque cambie la redacción. Un trabajo realmente distinto puede usar
+la opción explícita `independent` de la herramienta de delegación y un pedido que nombre el resultado separado; no
+sirve para reintentos ni para el mismo objetivo. Esa distinción queda registrada en el turno delegado. La protección
+no detecta duplicados semánticos entre chats o turnos posteriores, ni puede verificar que el agente tenga razón al
+declarar que son trabajos independientes.
+
 ## Qué tiene una tarea
 
 | Campo | Valores |

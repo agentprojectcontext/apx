@@ -266,7 +266,7 @@ export function taskTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "First task_list: if an open task is the same or close, continue that one. Create a task, with an assignee and a description so it starts (subtasks too). Immediate self-assignment transfers execution: end this turn; do not duplicate work. Do this before delegating helpers. Your role's own work: create it; reviews, QA or another area's work: propose it. A delegate proposes to its caller; a global agent's task goes to the assignee's project. A promise: person, owed_by, due_at.",
+        "First task_list: if an open task is the same or close, continue that one. Record requested tasks or track substantial work, not every action. Capture only: omit assignee; nothing starts. To execute, give assignee and description (subtasks too): assignment already starts a task session; never also delegate that work. Immediate self-assignment transfers execution: end this turn. Reviews or another area's work: propose it; a delegate proposes to its caller. A global agent's task goes to the assignee's project. A promise: person, owed_by, due_at.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
         description: z.string().max(5000).optional(),
@@ -290,9 +290,9 @@ export function taskTools(store: Store, home: string): Tool[] {
         const under = t.parent_id ? `, a subtask of ${t.parent_id}` : "";
         if (t.proposed)
           return `proposed ${t.id}${under}: it starts when the owner accepts it. Tell them what you proposed and why, in one line each.`;
-        // A task with nobody on it never starts: say so while the agent can still fix it.
+        // Unassigned tasks are valid capture-only records, not work already in progress.
         if (!t.assignee && t.kind === "task")
-          return `created ${t.id} in ${t.status}${under}, with nobody on it: it will not start. Assign it with task_update (the agent who does it, or yourself), or ask the owner who should.`;
+          return `created ${t.id} in ${t.status}${under}, unassigned: capture only, no execution started. If the owner only wanted to record it, you are done. Assign with task_update and a description only when execution is wanted.`;
         if (t.assignee && !t.description.trim()) return `created ${t.id} in ${t.status}${under}. ${UNSPECIFIED}`;
         // Its close reports back to this chat (DECISIONS.md#d-076): no need to watch the board for it.
         const back =
