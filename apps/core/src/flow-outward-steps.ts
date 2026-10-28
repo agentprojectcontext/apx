@@ -40,10 +40,6 @@ export const OUTWARD_WHY = {
   start: "not_started",
 } as const;
 
-/** The uncertain reason a step's kind leaves when its effect may have happened. */
-export const uncertainWhy = (kind: FlowNode["kind"] | undefined) =>
-  kind === "notify" ? OUTWARD_WHY.sendUnknown : kind === "http" ? OUTWARD_WHY.requestUnknown : "model_uncertain";
-
 /** Sends a notify step's text through the owner's channels. */
 export type FlowNotifier = {
   /** Sends as the owner to the step's fixed destination; throws when it is gone. Returns the outbox item. */

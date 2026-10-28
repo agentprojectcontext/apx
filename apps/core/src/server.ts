@@ -468,8 +468,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     outside: {
       secret: (ref, project) => secrets.resolveIn(ref, project) !== undefined,
       allowHttp: config.flowHttpAllow,
+      home: config.home,
     },
     http: { policy: flowHttpPolicy(config.flowHttpAllow), secret: (ref, project) => secrets.resolveIn(ref, project) },
+    home: config.home,
   });
   const stopFlowEvents = bus.on((event) => {
     if (event.type === "run.updated" && event.run.ended_at) flows.kick();

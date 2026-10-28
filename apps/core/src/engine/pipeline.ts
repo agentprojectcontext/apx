@@ -26,7 +26,8 @@ export const STEP_OUTPUT_CHARS = 8000;
 /** Where the owner's prompt takes the pre-command's output (its first one); without it, after the prompt. */
 const PRE_SLOT = "{{pre_output}}";
 
-export type StepResult = { output: string; exit: number | null; timedOut: boolean };
+/** `output` is both streams as they came; `stdout` and `stderr` each on its own, all tail-capped. */
+export type StepResult = { output: string; exit: number | null; timedOut: boolean; stdout?: string; stderr?: string };
 
 /** A mail as a mail routine sees it: who, what, and Gmail's labels (IMPORTANT, CATEGORY_PROMOTIONS…). */
 export type MailArrival = {
@@ -65,13 +66,17 @@ export function mailLines(mail: MailArrival[]): string {
     .join("\n");
 }
 
-/** Runs one owner command in this system's shell in `cwd`; resolves with its (tail-capped) output whatever happens. */
+/**
+ * Runs one owner command in this system's shell in `cwd`; resolves with its (tail-capped) output whatever happens.
+ * `stdin`, when given, is what the command reads, then closed.
+ */
 export function runStep(
   command: string,
-  o: { cwd: string; env: Record<string, string>; signal: AbortSignal; timeoutMs?: number },
+  o: { cwd: string; env: Record<string, string>; signal: AbortSignal; timeoutMs?: number; stdin?: string },
 ): Promise<StepResult> {
   return new Promise((resolve) => {
     let out = "";
+    const streams = { stdout: "", stderr: "" };
     let timedOut = false;
     let settled = false;
     let stopping = false;
@@ -82,20 +87,38 @@ export function runStep(
       settled = true;
       clearTimeout(timer);
       o.signal.removeEventListener("abort", stop);
-      resolve({ output: (out + extra).slice(-STEP_OUTPUT_CHARS), exit, timedOut });
+      resolve({
+        output: (out + extra).slice(-STEP_OUTPUT_CHARS),
+        exit,
+        timedOut,
+        stdout: streams.stdout.slice(-STEP_OUTPUT_CHARS),
+        stderr: streams.stderr.slice(-STEP_OUTPUT_CHARS),
+      });
     };
     let child: ReturnType<typeof spawnCommand>;
     try {
-      child = spawnCommand(command, { cwd: o.cwd, env, stdio: ["ignore", "pipe", "pipe"] });
+      child = spawnCommand(command, {
+        cwd: o.cwd,
+        env,
+        stdio: [o.stdin === undefined ? "ignore" : "pipe", "pipe", "pipe"],
+      });
     } catch (err) {
-      resolve({ output: err instanceof Error ? err.message : String(err), exit: null, timedOut: false });
+      const output = err instanceof Error ? err.message : String(err);
+      resolve({ output, exit: null, timedOut: false, stdout: "", stderr: output });
       return;
     }
-    const keep = (b: Buffer) => {
-      out = (out + b.toString("utf8")).slice(-STEP_OUTPUT_CHARS * 2);
+    const keep = (stream: "stdout" | "stderr") => (b: Buffer) => {
+      const text = b.toString("utf8");
+      out = (out + text).slice(-STEP_OUTPUT_CHARS * 2);
+      streams[stream] = (streams[stream] + text).slice(-STEP_OUTPUT_CHARS * 2);
     };
-    child.stdout?.on("data", keep);
-    child.stderr?.on("data", keep);
+    child.stdout?.on("data", keep("stdout"));
+    child.stderr?.on("data", keep("stderr"));
+    if (o.stdin !== undefined) {
+      // A command that never reads its input, or stops early, closes the pipe: that is not its failure.
+      child.stdin?.on("error", () => {});
+      child.stdin?.end(o.stdin);
+    }
     // Its own process group: stopping it also stops what it started. Something that left the group (setsid) may
     // still hold the pipes, so the step ends now instead of waiting for them to close.
     function stop() {

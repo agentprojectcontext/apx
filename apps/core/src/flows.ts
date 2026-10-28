@@ -92,6 +92,8 @@ export function createFlows(deps: {
   /** What HTTP steps may reach and how they read secrets. */
   outside?: FlowOutside | undefined;
   http?: FlowHttpDeps | undefined;
+  /** APX's folder: where a project without a folder of its own runs a Flow's commands. */
+  home?: string | undefined;
 }) {
   const { store } = deps;
   const graphs = deps.llm
@@ -104,6 +106,7 @@ export function createFlows(deps: {
         timers: deps.timers,
         notifier: deps.notifier,
         http: deps.http,
+        home: deps.home,
       })
     : undefined;
   const model = deps.model ?? (() => false);

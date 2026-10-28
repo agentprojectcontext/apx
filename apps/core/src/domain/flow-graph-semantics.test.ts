@@ -214,10 +214,11 @@ test("bindings require successful predecessors and preserve JSON values without 
 });
 
 test("conditions use exact JSON scalar equality, not truthiness, coercion or templating", () => {
-  assert.deepEqual(evaluateFlowCondition(condition, true), { matched: true });
+  const reads = { resolve: () => null, vars: new Map() };
+  assert.deepEqual(evaluateFlowCondition(condition, true, reads), { matched: true });
   for (const input of [false, "true", 1, null, {}, [], "{{true}}"])
-    assert.deepEqual(evaluateFlowCondition(condition, input), { matched: false });
-  assert.deepEqual(evaluateFlowCondition({ ...condition, equals: null }, null), { matched: true });
+    assert.deepEqual(evaluateFlowCondition(condition, input, reads), { matched: false });
+  assert.deepEqual(evaluateFlowCondition({ ...condition, equals: null }, null, reads), { matched: true });
 });
 
 test("bounded JSON rejects non-JSON, accessors, cycles, sparse arrays and byte/depth overflow", () => {

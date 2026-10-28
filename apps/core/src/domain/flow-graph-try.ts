@@ -1,20 +1,27 @@
-// "Try a run" for any drawing: the run's own planner, checks and bindings over sample data, with no effect. Steps
-// that would read a table, write one, call a model or start a run are only said to run; what they would give back is
-// unknown, so a step that needs it can't be told.
+// "Try a run" for any drawing: the run's own planner, checks, variables and bindings over sample data, with no effect.
+// Steps that would read a table, write one, call a model, run code or a command, query a database or start a run are
+// only said to run; what they would give back is unknown, so a step that needs it can't be told.
 import type { FlowBinding, FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowVarIndex } from "./flow-expr.ts";
 import {
+  conditionBranch,
   evaluateFlowCondition,
+  evaluateFlowVars,
+  FLOW_OTHERWISE,
   type FlowNodeSnapshot,
+  flowCases,
+  flowVarIndex,
   planFlowGraphStep,
   resolveFlowInput,
 } from "./flow-graph-semantics.ts";
-import { flowNodeTemplates } from "./flow-graph-validate.ts";
+import { flowNodeBindings, flowNodeTemplates } from "./flow-graph-validate.ts";
 import { flowTemplateBindings, parseFlowTemplate, renderFlowTemplate } from "./flow-template.ts";
 
 export type FlowTryStep = {
   node: string;
   state: "ran" | "would_run" | "skipped" | "unknown" | "missing";
   matched: boolean | null;
+  branch: string | null;
 };
 
 /**
@@ -23,9 +30,10 @@ export type FlowTryStep = {
  * placeholder came out empty.
  */
 function outwardTry(
-  node: Extract<FlowGraph["nodes"][number], { kind: "notify" | "http" }>,
+  node: Extract<FlowGraph["nodes"][number], { kind: "notify" | "http" | "sql" | "cmd" }>,
   data: unknown,
   snapshots: Map<string, FlowNodeSnapshot>,
+  vars: FlowVarIndex,
 ): [FlowTryStep["state"], FlowNodeSnapshot] {
   const resolve = (b: FlowBinding) => resolveFlowInput(b, data, snapshots);
   const quiet = node.kind === "notify" && node.onlyIfContent;
@@ -33,27 +41,28 @@ function outwardTry(
   for (const template of flowNodeTemplates(node)) {
     try {
       empty =
-        renderFlowTemplate(parseFlowTemplate(template), resolve, { missing: quiet ? "empty" : "throw" }).empty && empty;
+        renderFlowTemplate(parseFlowTemplate(template, vars), resolve, { missing: quiet ? "empty" : "throw" }).empty &&
+        empty;
     } catch {
-      const upstream = flowTemplateBindings(template).some((b) => b.kind === "node");
-      return [upstream ? "unknown" : "missing", { state: "failed" }];
+      return [unknownOrMissing(flowTemplateBindings(template, vars), snapshots), { state: "failed" }];
     }
   }
   if (quiet && empty) return ["skipped", { state: "skipped" }];
   return ["would_run", { state: "uncertain" }];
 }
 
+/** An answer of an earlier step that isn't known yet makes it unknown; a field the data lacks, missing. */
+const unknownOrMissing = (reads: FlowBinding[], snapshots: Map<string, FlowNodeSnapshot>): FlowTryStep["state"] =>
+  reads.some((b) => b.kind === "node" && snapshots.get(b.node)?.state !== "succeeded") ? "unknown" : "missing";
+
 export function tryFlowGraph(graph: FlowGraph, data: unknown): FlowTryStep[] {
   const snapshots = new Map<string, FlowNodeSnapshot>(graph.nodes.map((n) => [n.id, { state: "pending" }]));
   const said = new Map<string, FlowTryStep>();
-  const set = (
-    node: string,
-    state: FlowTryStep["state"],
-    snapshot: FlowNodeSnapshot,
-    matched: boolean | null = null,
-  ) => {
+  const vars = flowVarIndex(graph);
+  const reads = { resolve: (b: FlowBinding) => resolveFlowInput(b, data, snapshots), vars };
+  const set = (node: string, state: FlowTryStep["state"], snapshot: FlowNodeSnapshot, branch: string | null = null) => {
     snapshots.set(node, snapshot);
-    said.set(node, { node, state, matched });
+    said.set(node, { node, state, matched: branch === null ? null : branch !== FLOW_OTHERWISE, branch });
   };
   for (let guard = 0; guard <= graph.nodes.length; guard++) {
     const decisions = planFlowGraphStep(graph, snapshots);
@@ -77,8 +86,22 @@ export function tryFlowGraph(graph: FlowGraph, data: unknown): FlowTryStep[] {
         set(node.id, "would_run", { state: "uncertain" });
         continue;
       }
-      if (node.kind === "notify" || node.kind === "http") {
-        set(node.id, ...outwardTry(node, data, snapshots));
+      if (node.kind === "notify" || node.kind === "http" || node.kind === "sql" || node.kind === "cmd") {
+        set(node.id, ...outwardTry(node, data, snapshots, vars));
+        continue;
+      }
+      if (node.kind === "vars" || node.kind === "condition") {
+        try {
+          const equals = node.kind === "condition" && flowCases(node).some((c) => c.match.kind === "equals");
+          const input = equals ? resolveFlowInput(node.input, data, snapshots) : null;
+          if (node.kind === "vars") set(node.id, "ran", { state: "succeeded", output: evaluateFlowVars(node, reads) });
+          else {
+            const out = evaluateFlowCondition(node, input, reads);
+            set(node.id, "ran", { state: "succeeded", output: out }, conditionBranch(out));
+          }
+        } catch {
+          set(node.id, unknownOrMissing(flowNodeBindings(node, vars), snapshots), { state: "failed" });
+        }
         continue;
       }
       let input: unknown;
@@ -93,11 +116,6 @@ export function tryFlowGraph(graph: FlowGraph, data: unknown): FlowTryStep[] {
         set(node.id, upstream ? "unknown" : "missing", { state: "failed" });
         continue;
       }
-      if (node.kind === "condition") {
-        const out = evaluateFlowCondition(node, input);
-        set(node.id, "ran", { state: "succeeded", output: out }, out.matched);
-        continue;
-      }
       // A step that does work: it would run, and later steps can't use its answer.
       set(
         node.id,
@@ -106,5 +124,5 @@ export function tryFlowGraph(graph: FlowGraph, data: unknown): FlowTryStep[] {
       );
     }
   }
-  return graph.nodes.map((n) => said.get(n.id) ?? { node: n.id, state: "unknown", matched: null });
+  return graph.nodes.map((n) => said.get(n.id) ?? { node: n.id, state: "unknown", matched: null, branch: null });
 }

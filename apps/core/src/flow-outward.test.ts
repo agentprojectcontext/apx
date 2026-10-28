@@ -179,7 +179,7 @@ test("publishing a send needs the owner to have seen where it goes, and a destin
     assert.equal(named.sends[0]?.owner, false);
     assert.deepEqual(outward.keys, [`send:chat:contact:${alex}`]);
     const base = { flow: "tell", expectedDraftVersion: draft.draftVersion ?? 0, expectedPublishedRevision: null };
-    await assert.rejects(env.client.call("flows.publish", base), /Confirm where it sends/);
+    await assert.rejects(env.client.call("flows.publish", base), /Confirm what it sends/);
     await assert.rejects(env.client.call("flows.publish", { ...base, outward: ["send:chat:room:900"] }), /Confirm/);
     const doc = await env.client.call("flows.publish", { ...base, outward: outward.keys });
     assert.equal(doc.publishedRevision, 1);

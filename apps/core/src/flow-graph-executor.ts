@@ -2,11 +2,16 @@
 // once. Each step goes through its checkpoint, so it runs once; a step whose effect is uncertain is left for the owner,
 // never repeated. Nothing here polls: receipts, management changes, a run ending, startup and deadlines wake it.
 import { createHash } from "node:crypto";
-import type { FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
-import type { FlowGraphRun, FlowStepKey } from "./domain/flow-graph-runs.ts";
+import type { FlowBinding, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
+import { type FlowGraphRun, type FlowStepKey, flowUncertainWhy } from "./domain/flow-graph-runs.ts";
 import {
+  conditionBranch,
   evaluateFlowCondition,
+  evaluateFlowVars,
+  FLOW_OTHERWISE,
   type FlowNodeSnapshot,
+  flowCases,
+  flowVarIndex,
   planFlowGraphStep,
   resolveFlowInput,
   summarizeFlowGraph,
@@ -15,7 +20,8 @@ import { TERMINAL } from "./domain/runs.ts";
 import type { Store } from "./domain/store.ts";
 import type { RunTimers } from "./engine/engine.ts";
 import { answerOf } from "./engine/run-outcome.ts";
-import { createOutwardSteps, type FlowHttpDeps, type FlowNotifier, uncertainWhy } from "./flow-outward-steps.ts";
+import { createOutwardSteps, type FlowHttpDeps, type FlowNotifier } from "./flow-outward-steps.ts";
+import { createWorkSteps } from "./flow-work-steps.ts";
 import type { Log } from "./log.ts";
 import type { Llm } from "./providers/llm.ts";
 import { type ErrorKind, ProviderError } from "./providers/types.ts";
@@ -49,14 +55,22 @@ const WHY = {
 class StepStopped extends Error {}
 /** Provider answers that turned the request down before doing it; anything else after sending is unknown. */
 const REFUSALS = new Set<ErrorKind>(["auth", "bad_request", "model_gone", "context", "quota", "rate_limit"]);
-const WORK = new Set<FlowNode["kind"]>(["table_write", "llm", "agent", "routine", "notify", "http"]);
+const WORK = new Set<FlowNode["kind"]>(["table_write", "llm", "agent", "routine", "notify", "http", "sql", "cmd"]);
 
-/** The first check that said no, when no step that does work ran: the run was cut short there. */
+/** The first check that went by otherwise, when no step that does work ran: the run was cut short there. */
 function cutBy(run: FlowGraphRun): string | undefined {
   const ran = run.graph.nodes.some((n) => WORK.has(n.kind) && run.steps.get(n.id)?.state === "succeeded");
   if (ran) return undefined;
+  const otherwise = (id: string) => {
+    const s = run.steps.get(id);
+    try {
+      return s?.state === "succeeded" && conditionBranch(s.output) === FLOW_OTHERWISE;
+    } catch {
+      return false;
+    }
+  };
   return run.graph.nodes
-    .filter((n) => n.kind === "condition" && (run.steps.get(n.id)?.output as { matched?: unknown })?.matched === false)
+    .filter((n) => n.kind === "condition" && otherwise(n.id))
     .map((n) => n.id)
     .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))[0];
 }
@@ -71,6 +85,8 @@ export type FlowGraphExecutorDeps = {
   timers?: RunTimers | undefined;
   notifier?: FlowNotifier | undefined;
   http?: FlowHttpDeps | undefined;
+  /** APX's folder: where a project without a folder of its own runs its commands. */
+  home?: string | undefined;
 };
 
 export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
@@ -91,6 +107,16 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
     timers,
     notifier: deps.notifier,
     http: deps.http,
+    track(ac, run) {
+      calls.set(ac, runKey(run.flow, run.event));
+      return () => calls.delete(ac);
+    },
+  });
+
+  const work = createWorkSteps({
+    store,
+    timers,
+    home: deps.home,
     track(ac, run) {
       calls.set(ac, runKey(run.flow, run.event));
       return () => calls.delete(ac);
@@ -132,7 +158,7 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
           ["running"],
           "uncertain",
           at,
-          uncertainWhy(run.graph.nodes.find((n) => n.id === step.node)?.kind),
+          flowUncertainWhy(run.graph.nodes.find((n) => n.id === step.node)?.kind),
         );
       else if (step.state === "running" || step.state === "waiting_run")
         runs.settle(k, ["running", "waiting_run"], "cancelled", at, WHY.deadline);
@@ -293,6 +319,17 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
       await outward.http(run, node, k, snapshots);
       return true;
     }
+    // Code, SQL and commands run in processes of their own (flow-work-steps.ts).
+    if (node.kind === "js" || node.kind === "sql" || node.kind === "cmd") {
+      if (node.kind === "js") await work.js(run, node, k, snapshots);
+      else if (node.kind === "sql") await work.sql(run, node, k, snapshots);
+      else await work.cmd(run, node, k, snapshots);
+      return true;
+    }
+    const reads = {
+      resolve: (b: FlowBinding) => resolveFlowInput(b, run.payload, snapshots),
+      vars: flowVarIndex(run.graph),
+    };
     let input: unknown;
     try {
       input =
@@ -302,7 +339,13 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
             ? { keys: node.keys }
             : node.kind === "table_write"
               ? { key: node.key, value: resolveFlowInput(node.value, run.payload, snapshots) }
-              : resolveFlowInput(node.input, run.payload, snapshots);
+              : node.kind === "vars"
+                ? undefined
+                : node.kind === "condition"
+                  ? flowCases(node).some((c) => c.match.kind === "equals")
+                    ? resolveFlowInput(node.input, run.payload, snapshots)
+                    : null
+                  : resolveFlowInput(node.input, run.payload, snapshots);
     } catch {
       runs.settle(k, ["pending"], "failed", at, WHY.missing);
       return true;
@@ -329,7 +372,9 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
       case "schedule":
         return pure(() => run.payload);
       case "condition":
-        return pure(() => evaluateFlowCondition(node, input));
+        return pure(() => evaluateFlowCondition(node, input, reads), WHY.missing);
+      case "vars":
+        return pure(() => evaluateFlowVars(node, reads), WHY.missing);
       case "table_read":
         return pure(() => ({ rows: store.flows.readRows(run.flow, node.keys) }));
       case "table_write":

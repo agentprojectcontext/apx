@@ -1,11 +1,13 @@
 // What a drawing does outside APX: where its notify steps send as the owner and which hosts its HTTP steps call.
 // Publishing a revision is the owner's approval of exactly that list (DECISIONS.md#d-169), so the destinations are
 // fixed fields of the revision, checked against the owner's own channels, contacts and secrets.
+import { createHash } from "node:crypto";
 import type { FlowGraph, FlowGraphIssue, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
 import type { ChannelConfig } from "./channels/types.ts";
 import { flowHttpUrlProblem } from "./domain/flow-http-url.ts";
 import { OWNER_ID } from "./domain/persons.ts";
 import type { Store } from "./domain/store.ts";
+import { flowDatabaseFile, flowFolder } from "./flow-work-steps.ts";
 import { redactedJson } from "./log.ts";
 
 type Notify = Extract<FlowNode, { kind: "notify" }>;
@@ -17,6 +19,8 @@ export type FlowOutside = {
   secret(ref: string, project: string): boolean;
   /** A test's exact `host:port` destinations that are not public (empty in a real core). */
   allowHttp?: readonly string[] | undefined;
+  /** APX's folder, for where a project's commands run and its databases are. */
+  home?: string | undefined;
 };
 
 /** `secret://name` references in a header value; a name is letters, digits and `_ - . / ~`. */
@@ -48,10 +52,18 @@ function httpHost(node: Http): string {
   }
 }
 
-/** The sends and calls a drawing makes, and the keys the owner approves by publishing it. */
-export function flowOutward(store: Store, graph: FlowGraph) {
+/** What a command or a write is, as the owner approves it: any change to it is a new approval. */
+const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 32);
+
+/**
+ * The sends, calls, commands and database writes a drawing makes, and the keys the owner approves by publishing it.
+ * `folder` is where its commands run, as the panel shows it.
+ */
+export function flowOutward(store: Store, graph: FlowGraph, folder = "") {
   const sends: { node: string; channel: string; type: string; to: string; owner: boolean }[] = [];
   const calls: { node: string; method: string; host: string; secrets: string[] }[] = [];
+  const commands: { node: string; command: string; folder: string }[] = [];
+  const writes: { node: string; database: string }[] = [];
   const secretsOf = (n: Http) => [
     ...new Set(n.headers.flatMap((h) => (h.value.match(SECRET_REF) ?? []).map((r) => r.slice(9)))),
   ];
@@ -68,6 +80,8 @@ export function flowOutward(store: Store, graph: FlowGraph) {
     }
     if (node.kind === "http")
       calls.push({ node: node.id, method: node.method, host: httpHost(node), secrets: secretsOf(node) });
+    if (node.kind === "cmd") commands.push({ node: node.id, command: node.command, folder });
+    if (node.kind === "sql" && node.mode === "write") writes.push({ node: node.id, database: node.database });
   }
   const keys = [
     ...graph.nodes.flatMap((n) =>
@@ -76,10 +90,14 @@ export function flowOutward(store: Store, graph: FlowGraph) {
         : n.kind === "http"
           ? // Which secrets go to which address is part of what the owner allows.
             [`call:${n.method}:${n.url}`, ...secretsOf(n).map((s) => `secret:${s}:${n.url}`)]
-          : [],
+          : n.kind === "cmd"
+            ? [`cmd:${digest([n.command, n.env, n.stdin, n.continueOnError])}`]
+            : n.kind === "sql" && n.mode === "write"
+              ? [`write:${digest([n.database, n.query, n.params])}`]
+              : [],
     ),
   ];
-  return { keys: [...new Set(keys)].sort(), sends, calls };
+  return { keys: [...new Set(keys)].sort(), sends, calls, commands, writes };
 }
 
 /** Issues only the owner's own setup can raise: a destination or a secret that is not there, a key typed in. */
@@ -91,7 +109,18 @@ export function flowOutwardIssues(
 ): FlowGraphIssue[] {
   const issues: FlowGraphIssue[] = [];
   const add = (code: string, node: string, message: string) => issues.push({ code, node, message });
+  const folder = graph.nodes.some((n) => n.kind === "cmd" || n.kind === "sql")
+    ? flowFolder(store, outside?.home, project)
+    : undefined;
   for (const node of graph.nodes) {
+    if ((node.kind === "cmd" || node.kind === "sql") && !folder)
+      add("folder_unavailable", node.id, "The project's folder is not on this computer");
+    else if (node.kind === "sql" && folder && !flowDatabaseFile(folder, outside?.home, node))
+      add(
+        "database_unavailable",
+        node.id,
+        node.mode === "read" ? "There is no such database in the project" : "Its folder is not in the project",
+      );
     if (node.kind === "notify" && !notifyDestination(store, node))
       add("destination_unavailable", node.id, "Pick a channel and someone on it, or one of its rooms");
     if (node.kind !== "http") continue;

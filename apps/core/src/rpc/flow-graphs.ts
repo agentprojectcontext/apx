@@ -4,6 +4,7 @@ import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, conflict, notFound } from "../errors.ts";
 import { type FlowOutside, flowOutward } from "../flow-outward.ts";
 import { type FlowModelCheck, flowGraphIssues } from "../flows.ts";
+import { tildeHome } from "../paths.ts";
 import type { Handlers } from "./router.ts";
 
 export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?: FlowOutside) {
@@ -55,8 +56,8 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
       return { valid: issues.length === 0, issues };
     },
     "flows.outward": ({ flow, graph }) => {
-      found(flow);
-      return flowOutward(store, graph);
+      const project = store.projects.get(found(flow).projectId);
+      return flowOutward(store, graph, project?.path ? tildeHome(project.path) : (project?.name ?? ""));
     },
     "flows.publish": ({ flow, expectedDraftVersion, expectedPublishedRevision, outward }) => {
       const definition = found(flow);
@@ -69,10 +70,11 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
               message: issues[0]?.message ?? "The drawing cannot run",
               detail: { issues },
             });
-          // Sending as the owner and calling other services is approved by publishing what the owner was shown.
+          // Sending as the owner, calling other services, running commands and changing databases are approved by
+          // publishing what the owner was shown.
           const { keys } = flowOutward(store, graph);
           if (keys.length && JSON.stringify([...new Set(outward ?? [])].sort()) !== JSON.stringify(keys))
-            throw conflict("Confirm where it sends and what it calls before it runs", {
+            throw conflict("Confirm what it sends, calls, runs and changes before it runs", {
               reason: "outward_unconfirmed",
               keys,
             });

@@ -1,6 +1,10 @@
 import type { FlowBinding, FlowGraph, FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
-import { resolveFlowBinding, validateFlowGraph } from "./flow-graph-validate.ts";
+import { evalFlowExpr, type FlowVarIndex, flowTruthy, parseFlowExpr } from "./flow-expr.ts";
+import { FLOW_OTHERWISE, flowCases, resolveFlowBinding, validateFlowGraph } from "./flow-graph-validate.ts";
 
+export { FLOW_OTHERWISE, flowBranches, flowCases, flowVarIndex } from "./flow-graph-validate.ts";
+
+type Condition = Extract<FlowNode, { kind: "condition" }>;
 export type FlowNodeState =
   | "pending"
   | "running"
@@ -54,7 +58,7 @@ export function planFlowGraphStep(
   if (!control.cancelled && !control.deadlineExceeded) {
     for (const node of nodes) {
       const snapshot = requiredSnapshot(snapshots, node.id);
-      if (node.kind === "condition" && snapshot.state === "succeeded") conditionMatched(snapshot.output);
+      if (node.kind === "condition" && snapshot.state === "succeeded") conditionBranch(snapshot.output);
     }
   }
   const decisions: FlowStepDecision[] = [];
@@ -73,12 +77,12 @@ export function planFlowGraphStep(
       add("blocked", "parent_failed");
       continue;
     }
-    // A check's "yes" branch goes on when it matched, its "no" branch when it did not.
+    // Out of a check, only the way it took goes on ("yes" when the connection names none).
     const skipped = incoming.some(({ source, when }) => {
       const parent = requiredSnapshot(snapshots, source);
       return (
         parent.state === "skipped" ||
-        (byId.get(source)?.kind === "condition" && conditionMatched(parent.output) !== (when !== "no"))
+        (byId.get(source)?.kind === "condition" && conditionBranch(parent.output) !== (when ?? "yes"))
       );
     });
     add(skipped ? "skipped" : "ready", skipped ? "parent_skipped" : "parents_succeeded");
@@ -92,13 +96,17 @@ function requiredSnapshot(snapshots: ReadonlyMap<string, FlowNodeSnapshot>, id: 
   return snapshot;
 }
 
-function conditionMatched(output: unknown): boolean {
+/** The way a check went: `{case}` now, `{matched}` in runs a yes/no check made before cases. */
+export function conditionBranch(output: unknown): string {
   const value = boundedFlowValue(output);
-  if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid condition output");
-  const matched = Object.getOwnPropertyDescriptor(value, "matched");
-  if (!matched || !("value" in matched) || typeof matched.value !== "boolean" || Object.keys(value).length !== 1)
+  if (value === null || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length !== 1)
     throw new Error("Invalid condition output");
-  return matched.value;
+  const matched = Object.getOwnPropertyDescriptor(value, "matched");
+  if (matched && "value" in matched && typeof matched.value === "boolean") return matched.value ? "yes" : "no";
+  const taken = Object.getOwnPropertyDescriptor(value, "case");
+  if (taken && "value" in taken && typeof taken.value === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(taken.value))
+    return taken.value;
+  throw new Error("Invalid condition output");
 }
 
 export function resolveFlowInput(
@@ -117,11 +125,50 @@ export function resolveFlowInput(
   );
 }
 
+/** What an expression reads and how: a binding's value from the run, and where each variable is set. */
+export type FlowReads = { resolve: (b: FlowBinding) => unknown; vars: FlowVarIndex };
+
+/**
+ * The first case that holds names the way out, else otherwise. An equals case compares the check's input. A yes/no
+ * check drawn before cases says `{matched}`, as its runs always have.
+ */
 export function evaluateFlowCondition(
-  node: Extract<FlowNode, { kind: "condition" }>,
+  node: Condition,
   input: unknown,
-): { matched: boolean } {
-  return { matched: boundedFlowValue(input) === node.equals };
+  reads: FlowReads,
+): { case: string } | { matched: boolean } {
+  const value = boundedFlowValue(input);
+  let taken = FLOW_OTHERWISE;
+  for (const c of flowCases(node)) {
+    const holds =
+      c.match.kind === "equals"
+        ? value === c.match.value
+        : flowTruthy(evalFlowExpr(parseFlowExpr(c.match.expr), reads.resolve, reads.vars));
+    if (holds) {
+      taken = c.id;
+      break;
+    }
+  }
+  return node.cases ? { case: taken } : { matched: taken !== FLOW_OTHERWISE };
+}
+
+/** A variables step's values, in order: each may read the ones set before it in the same step. */
+export function evaluateFlowVars(node: Extract<FlowNode, { kind: "vars" }>, reads: FlowReads): Record<string, unknown> {
+  const out: Record<string, unknown> = Object.create(null);
+  const resolve = (b: FlowBinding) => {
+    if (b.kind !== "node" || b.node !== node.id) return reads.resolve(b);
+    // One of this step's own: only one set above it.
+    const [name, ...rest] = b.path;
+    if (name === undefined || !Object.hasOwn(out, name)) throw new Error("Flow variable is not set yet");
+    return resolveFlowBinding({ kind: "node", node: node.id, path: rest }, null, new Map([[node.id, out[name]]]));
+  };
+  for (const v of node.vars)
+    out[v.name] = boundedFlowValue(
+      v.value.kind === "literal"
+        ? v.value.value
+        : (evalFlowExpr(parseFlowExpr(v.value.expr), resolve, reads.vars) ?? null),
+    );
+  return boundedFlowValue(out) as Record<string, unknown>;
 }
 
 export function summarizeFlowGraph(

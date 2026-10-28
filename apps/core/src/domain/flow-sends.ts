@@ -1,10 +1,10 @@
-// Messages a Flow sent as the owner and requests that change something, kept a day for their hourly limits
-// (DECISIONS.md#d-169).
+// Messages a Flow sent as the owner, and requests, commands and database writes that change something, kept a day for
+// their hourly limits (DECISIONS.md#d-169, #d-170).
 import type { Db } from "../db/db.ts";
 import { qb, sql } from "./sql.ts";
 
 const KEPT_MS = 24 * 3600_000;
-export type FlowSendKind = "message" | "request";
+export type FlowSendKind = "message" | "request" | "command" | "write";
 
 export function flowSendsRepo(db: Db) {
   const { one, run } = sql(db);
