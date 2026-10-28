@@ -1815,6 +1815,17 @@ export const es: Partial<Record<MessageKey, string>> = {
   "config.superagent": "Super-agente",
   "super.lead": "{name} es quien te escribe por tus canales, corre las rutinas del día y reparte el trabajo.",
   "super.edit": "Editar a {name}",
+  "super.capabilities": "Capacidades de secretaría",
+  "super.capabilitiesHint":
+    "Asistencia propia del superagente, no rutinas que tengas que crear. Se conservan tus instrucciones y la actividad existente. Activar programa la próxima revisión; no envía nada ahora.",
+  "super.mailAvailability":
+    "Lee mails nuevos sólo con Gmail conectado usando tu propio cliente de Google. Si no, espera sin llamar al modelo. SMTP solo no permite leer tu bandeja.",
+  "super.customize": "Personalizar instrucciones",
+  "super.instructions": "Instrucciones",
+  "super.connectMail": "Conexión de Gmail",
+  "super.mailConnected": "Gmail está conectado para lectura. Se respetan la disponibilidad por proyecto y las horas de silencio.",
+  "super.mailWaiting": "La revisión de mails espera una conexión de Gmail con acceso de lectura.",
+  "super.lastCheck": "Última revisión",
   "super.talk": "Cómo te habla",
   "super.where": "Por dónde te habla",
   "super.whereHint":
@@ -1822,7 +1833,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "prof.lead":
     "Para qué está tu super-agente. Un perfil le da un rol, rutinas con su horario y los ajustes que leen; lo cambiás cuando quieras. Sus rutinas también están en Rutinas.",
   "prof.none": "Ninguno",
-  "prof.noneHint": "Contesta cuando le escribís y no hace nada por su cuenta.",
+  "prof.noneHint": "Sin rutinas de perfil. Las capacidades de secretaría conservan sus propios interruptores.",
   "prof.installed": "Instalado",
   "prof.install": "Instalar perfil",
   "prof.installHint": "Una carpeta de esta máquina con un apx-profile.json: su rol, rutinas y ajustes.",

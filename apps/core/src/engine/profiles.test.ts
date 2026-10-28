@@ -100,7 +100,15 @@ test("the super-agent's prompt says its role while the profile is on", async () 
   assert.match(await system(), /formally \(usted\)/);
   await env.client.call("profiles.set", { id: null, values: {} });
   const kept = env.core.store.routines.list().filter((r) => r.origin?.startsWith("secretary:"));
-  assert.ok(kept.length === 5 && kept.every((r) => !r.enabled), "none turns its routines off and keeps them");
+  assert.equal(kept.length, 5);
+  assert.ok(
+    kept.filter((r) => r.action !== "mail" && r.action !== "relay").every((r) => !r.enabled),
+    "none turns profile routines off",
+  );
+  assert.ok(
+    kept.filter((r) => r.action === "mail" || r.action === "relay").every((r) => r.enabled),
+    "capabilities remain independent of the profile",
+  );
   assert.doesNotMatch(await system(), /chief of staff/);
   await set({});
 });
@@ -168,7 +176,8 @@ test("another profile takes over: the secretary's routines turn off, the new one
   assert.deepEqual(one?.schedule, { kind: "cron", cron: "0 10 * * *" });
   assert.equal(one?.name, "Una cosa para hoy", "named in the owner's language");
   const secretary = env.core.store.routines.list().filter((r) => r.origin?.startsWith("secretary:"));
-  assert.ok(secretary.every((r) => !r.enabled));
+  assert.ok(secretary.filter((r) => r.action !== "mail" && r.action !== "relay").every((r) => !r.enabled));
+  assert.ok(secretary.filter((r) => r.action === "mail" || r.action === "relay").every((r) => r.enabled));
   await assert.rejects(env.client.call("profiles.set", { id: "nope", values: {} }), /not_found|profile nope/);
   await set({});
 });

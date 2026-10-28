@@ -4,6 +4,7 @@ import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { NoticeChannelSelect } from "./NoticeChannel.tsx";
 import { ProfilePicker } from "./ProfilePicker.tsx";
+import { SecretaryCapabilities } from "./SecretaryCapabilities.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 
 /** The super-agent: where it writes to the owner, how often, and what it is for (its profile). */
@@ -41,6 +42,7 @@ export function ProfileSection() {
         </Button>
       </SettingRow>
 
+      <SecretaryCapabilities />
       <SubHead>{t("config.profile")}</SubHead>
       <ProfilePicker />
     </>

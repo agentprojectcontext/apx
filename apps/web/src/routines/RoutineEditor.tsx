@@ -14,8 +14,6 @@ const ACTIONS: Array<{ value: RoutineAction; key: MessageKey; hint: MessageKey; 
   { value: "message", key: "routines.action.message", hint: "routines.action.messageHint", icon: Icons.Send },
   { value: "shell", key: "routines.action.shell", hint: "routines.action.shellHint", icon: Icons.Terminal },
   { value: "watch", key: "routines.action.watch", hint: "routines.action.watchHint", icon: Icons.Eye },
-  { value: "relay", key: "routines.action.relay", hint: "routines.action.relayHint", icon: Icons.Inbox },
-  { value: "mail", key: "routines.action.mail", hint: "routines.action.mailHint", icon: Icons.Mail },
 ];
 
 /** "Go on" after the pre-command: always, only if it printed something, only if it succeeded or failed, never. */

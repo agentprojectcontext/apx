@@ -106,14 +106,16 @@ export function ProfilePicker({ actions }: { actions?: ReactNode }) {
           ))}
 
           {current.routines.length > 0 && <SubHead>{t("prof.routines")}</SubHead>}
-          {state.routines.map((r) => (
-            <RoutineLine
-              key={r.id}
-              routine={r}
-              changed={state.changed.includes(r.id)}
-              onRestore={() => void restoreProfileRoutine(r.id)}
-            />
-          ))}
+          {state.routines
+            .filter((r) => r.action !== "relay" && r.action !== "mail")
+            .map((r) => (
+              <RoutineLine
+                key={r.id}
+                routine={r}
+                changed={state.changed.includes(r.id)}
+                onRestore={() => void restoreProfileRoutine(r.id)}
+              />
+            ))}
           {current.source === "owner" && (
             <div className="tgtoken">
               <Button

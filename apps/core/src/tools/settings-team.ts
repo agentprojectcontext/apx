@@ -95,6 +95,25 @@ export const TEAM: Readonly<Record<string, Setting>> = {
     says: (p, { store }) =>
       `Delete the routine ${inlineName(store.routines.get(str(p.routine))?.name ?? str(p.routine))}`,
   },
+  "secretary.set": {
+    does: "enable or disable team news (action relay) or important mail (action mail); optional id selects an existing capability, prompt customizes instructions",
+    says: (p) =>
+      `${p.enabled ? "Enable" : "Disable"} ${p.action === "mail" ? "important mail" : "team news"}${p.prompt ? " with custom instructions" : ""}`,
+    now: (p, { store }) => {
+      const agent = store.agents.list().find((a) => a.kind === "secretary");
+      const r = store.routines
+        .list()
+        .find((r) => (p.id ? r.id === p.id : r.action === p.action && !r.project_id && r.agent_id === agent?.id));
+      return r
+        ? {
+            action: r.action,
+            ...(p.id ? { id: r.id } : {}),
+            enabled: r.enabled,
+            ...(p.prompt === undefined ? {} : { prompt: r.prompt }),
+          }
+        : undefined;
+    },
+  },
   "profiles.list": {
     does: "the agent profiles that give the super-agent a line of work, the running one and its values",
     read: (_p, { store, profiles }) => {

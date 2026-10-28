@@ -1,7 +1,7 @@
 // Profiles: what the super-agent is for, as data (an apx-profile.json). APX ships some; the owner installs more from a
 // folder. The running one adds a block to the super-agent's system prompt and keeps its routines on the super-agent
-// in step with its settings: created or adopted (from v1), rescheduled, on while it runs. They stay ordinary routines:
-// the owner may edit their prompts (kept on later saves) and put the default back. See DECISIONS.md#d-037
+// in step with its settings. Mail and team news reuse the scheduler as secretary capabilities; their explicit
+// on/off choices survive profile saves and changes. See DECISIONS.md#d-037
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -66,7 +66,7 @@ export function valuesFor(m: ProfileManifest, values: Values): Values {
 }
 
 /** `{{key}}` in a text, from the values; a choice gives its option's prompt line. */
-function fill(text: string, m: ProfileManifest, values: Values): string {
+export function fill(text: string, m: ProfileManifest, values: Values): string {
   return text.replace(/\{\{([a-z][a-z0-9_]*)\}\}/g, (_, key: string) => {
     const field = m.settings.find((f) => f.key === key);
     const v = values[key];
@@ -87,7 +87,7 @@ export function profileBlock(store: Store, roots: readonly ProfileRoot[]): strin
     .join("\n");
 }
 
-function scheduleOf(r: ProfileRoutine, m: ProfileManifest, values: Values): Schedule {
+export function scheduleOf(r: ProfileRoutine, m: ProfileManifest, values: Values): Schedule {
   if (r.schedule.kind === "cron") return { kind: "cron", cron: fill(r.schedule.cron, m, values).trim() };
   const hours = Number(typeof r.schedule.hours === "number" ? r.schedule.hours : fill(r.schedule.hours, m, values));
   return { kind: "every", minutes: Math.round(Math.max(1, Number.isFinite(hours) ? hours : 1) * 60) };
@@ -119,10 +119,11 @@ export function applyProfile(
   },
 ): ActiveProfile {
   const m = o.manifest;
+  const previous = activeProfile(store);
   const active: ActiveProfile = m ? { id: m.id, values: valuesFor(m, o.values) } : { id: null, values: {} };
   store.settings.write("profile", active);
   for (const r of profileRoutines(store))
-    if (r.enabled && (!m || !r.origin?.startsWith(`${m.id}:`)))
+    if (r.action !== "relay" && r.action !== "mail" && r.enabled && (!m || !r.origin?.startsWith(`${m.id}:`)))
       store.routines.update(r.id, { ...r, next_run_at: undefined, enabled: false });
   const agent = store.agents.list().find((a) => a.kind === "secretary");
   if (!m || !agent) return active;
@@ -131,25 +132,43 @@ export function applyProfile(
     const origin = originOf(m.id, spec.key);
     const mine =
       all.find((r) => r.origin === origin) ??
-      all.find((r) => !r.origin && spec.v1.includes(r.name) && r.agent_id === agent.id);
-    const schedule = scheduleOf(spec, m, active.values);
+      all.find((r) => !r.origin && spec.v1.includes(r.name) && r.agent_id === agent.id) ??
+      (spec.action === "relay" || spec.action === "mail"
+        ? all.find((r) => r.action === spec.action && r.agent_id === agent.id)
+        : undefined);
+    const capability = spec.action === "relay" || spec.action === "mail";
+    const desired = scheduleOf(spec, m, active.values);
+    const timingChanged =
+      previous.id === m.id &&
+      JSON.stringify(scheduleOf(spec, m, valuesFor(m, previous.values))) !== JSON.stringify(desired);
+    const schedule = capability && mine && !timingChanged ? mine.schedule : desired;
     const pre = spec.pre_command !== undefined ? fill(spec.pre_command, m, active.values).trim() : mine?.pre_command;
     const draft = {
       name: mine?.name ?? textIn(spec.name, o.lang),
-      agent_id: agent.id,
+      agent_id: capability && mine ? mine.agent_id : agent.id,
       project_id: undefined,
       schedule,
       action: spec.action,
       // The owner's edits to a profile routine stay; a v1 routine it adopts gets v2's prompt (v1's names v1's tools).
-      prompt: mine?.origin ? mine.prompt : fill(spec.prompt, m, active.values),
+      prompt:
+        mine && (mine.origin || spec.action === "relay" || spec.action === "mail")
+          ? mine.prompt
+          : fill(spec.prompt, m, active.values),
       pre_command: pre || undefined,
       post_command: mine?.post_command,
       call_model: mine?.call_model ?? ("always" as const),
-      anchor: spec.anchor,
+      anchor: capability && mine ? mine.anchor : spec.anchor,
       max_steps: mine?.max_steps,
-      origin,
-      enabled: true,
-      next_run_at: o.nextFor(schedule),
+      origin: capability && mine?.origin ? mine.origin : origin,
+      enabled: capability && mine ? mine.enabled : true,
+      next_run_at:
+        capability && mine
+          ? !mine.enabled
+            ? undefined
+            : timingChanged
+              ? o.nextFor(schedule)
+              : mine.next_run_at
+          : o.nextFor(schedule),
     };
     if (mine) store.routines.update(mine.id, draft);
     else store.routines.create(draft);

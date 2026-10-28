@@ -60,7 +60,9 @@ export function AgentDetail({
     return {
       chats: mine.filter((th) => th.kind !== "a2a" && th.kind !== "task" && th.kind !== "routine").length,
       tasks: Object.values(tasks).filter((x) => x.state === "open" && x.assignee === agent.id).length,
-      routines: routines.filter((x) => x.agent_id === agent.id && x.enabled).length,
+      routines: routines.filter(
+        (x) => x.agent_id === agent.id && x.enabled && x.action !== "relay" && x.action !== "mail",
+      ).length,
       last,
     };
   }, [threads, tasks, routines, agent.id]);

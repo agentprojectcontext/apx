@@ -1796,6 +1796,17 @@ export const en = {
   "config.superagent": "Super-agent",
   "super.lead": "{name} is the one who writes to you on your channels, runs the day's routines and hands out the work.",
   "super.edit": "Edit {name}",
+  "super.capabilities": "Secretary capabilities",
+  "super.capabilitiesHint":
+    "Built-in assistance, not routines to create. Existing instructions and activity are kept. Enabling schedules the next check; it does not send anything now.",
+  "super.mailAvailability":
+    "Reads new mail only with Gmail connected using your own Google client. Otherwise it waits without calling a model. SMTP alone cannot read your inbox.",
+  "super.customize": "Customize instructions",
+  "super.instructions": "Instructions",
+  "super.connectMail": "Gmail connection",
+  "super.mailConnected": "Gmail is connected for reading. Project availability and quiet hours still apply.",
+  "super.mailWaiting": "Mail checking is waiting for a Gmail connection with read access.",
+  "super.lastCheck": "Last check",
   "super.talk": "How it reaches you",
   "super.where": "Where it writes to you",
   "super.whereHint":
@@ -1803,7 +1814,7 @@ export const en = {
   "prof.lead":
     "What your super-agent is for. A profile gives it a role, routines on their own schedule and the settings they read; switch it any time. Its routines live in Routines too.",
   "prof.none": "None",
-  "prof.noneHint": "It answers when you write and does nothing on its own.",
+  "prof.noneHint": "No profile routines. Secretary capabilities keep their own switches.",
   "prof.installed": "Installed",
   "prof.install": "Install profile",
   "prof.installHint": "A folder on this machine with an apx-profile.json: its role, routines and settings.",

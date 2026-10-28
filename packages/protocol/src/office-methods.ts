@@ -218,10 +218,20 @@ export const officeMethods = {
     effect: true,
     access: "human",
   },
-  /**
-   * The profiles APX knows (its own and the owner's), the one the super-agent runs, and the routines it keeps;
-   * `changed` names those whose prompt is no longer the one the profile ships (Restore puts it back).
-   */
+  /** Changes a secretary capability without replacing its scheduled record, cursor or history. */
+  "secretary.set": {
+    params: z
+      .object({
+        action: z.enum(["relay", "mail"]),
+        id: Id.optional(),
+        enabled: z.boolean(),
+        prompt: z.string().trim().min(1).max(20_000).optional(),
+      })
+      .strict(),
+    result: Routine,
+    effect: true,
+    access: "human",
+  },
   "profiles.list": {
     params: z.object({}).strict(),
     result: z.object({

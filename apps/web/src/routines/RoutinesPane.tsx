@@ -36,7 +36,9 @@ export function RoutinesPane({ projectId }: { projectId: string }) {
     void loadRoutines();
   }, []);
   const global = projectId === DEFAULT_PID;
-  const list = all.filter((r) => (global ? !r.project_id : r.project_id === projectId));
+  const list = all.filter(
+    (r) => r.action !== "relay" && r.action !== "mail" && (global ? !r.project_id : r.project_id === projectId),
+  );
   const current = list.find((r) => r.id === open);
   const blank: RoutineDraft = {
     name: "",

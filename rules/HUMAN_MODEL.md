@@ -67,6 +67,8 @@ resume pending work; no cron or periodic model call is added. Owner-only `flows.
 the CLI and approved super-agent settings. Agent events stay external/untrusted; routines must be manual-only in the
 same project. See [Flows](FLOWS.md) for bounds, retry semantics and deployment.
 
+Secretary capabilities (team news and important mail) are configured in Settings → Super-agent, not the routine action picker. `secretary.set` reuses existing scheduled rows and their IDs, prompts, cursors and history; there is no startup rewrite or replay. The existing mail pipeline still requires readable Gmail. Capability switches survive profile saves and profile changes; timing values still come from profile settings.
+
 ## 3. Modules and dependency direction
 
 - `packages/protocol` ← used by everything. Isomorphic: no Node-only imports.

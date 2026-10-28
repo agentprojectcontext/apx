@@ -54,7 +54,8 @@ export function useTeamInfo(leadId: string | undefined, leadLabel: string) {
     for (const task of Object.values(tasks))
       if (task.state === "open" && task.assignee) open.set(task.assignee, (open.get(task.assignee) ?? 0) + 1);
     const rts = new Map<string, number>();
-    for (const r of routines) rts.set(r.agent_id, (rts.get(r.agent_id) ?? 0) + 1);
+    for (const r of routines)
+      if (r.action !== "relay" && r.action !== "mail") rts.set(r.agent_id, (rts.get(r.agent_id) ?? 0) + 1);
     return { chats, open, rts };
   }, [threads, tasks, routines]);
 

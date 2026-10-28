@@ -29,6 +29,7 @@ const AREA: Readonly<Record<string, string>> = {
   routines: "a routine",
   flows: "a Flow",
   profiles: "an agent profile",
+  secretary: "a secretary capability",
   tasks: "a task",
   threads: "a chat",
   sessions: "the imported sessions",

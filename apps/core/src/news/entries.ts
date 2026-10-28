@@ -52,6 +52,20 @@ export type NewsEntry = {
 
 export const NEWS: readonly NewsEntry[] = [
   {
+    id: "secretary-capabilities",
+    since: "2.11.2",
+    title: "Choose what your secretary watches for you",
+    applies: (f) => f.secretary || f.google.gmailReadable,
+    text: "Settings → Super-agent has independent switches and custom instructions for Team news and Important mail. They are no longer actions in New routine. Existing scheduled records, prompts, mail cursors and history are reused without replay. Profile changes do not reactivate disabled capabilities. Important mail requires readable Gmail with the owner's own Google client; SMTP alone is not readable. Changing a switch schedules the next check, not an immediate send.",
+    actions: [
+      {
+        label: { en: "Review secretary capabilities", es: "Revisar capacidades de secretaría" },
+        prompt:
+          "Show me my team news and important mail settings and help me review them without enabling anything yet.",
+      },
+    ],
+  },
+  {
     id: "webhook-flows",
     since: "2.11.2",
     title: "Run work only when a webhook arrives",
