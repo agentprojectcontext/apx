@@ -9,27 +9,35 @@ export class CdpTab {
   readonly #wc: WebContents;
   readonly #page: CdpPage;
   #attached = false;
+  onInvalidate: () => void = () => {};
 
   constructor(wc: WebContents) {
     this.#wc = wc;
     this.#page = new CdpPage((method, params) => this.send(method, params), {
       selectAllModifiers: process.platform === "darwin" ? 4 : 2,
     });
+    wc.debugger.on("detach", () => {
+      this.#attached = false;
+      this.#invalidate();
+    });
+    wc.on("did-navigate", () => this.#invalidate());
+    wc.on("did-navigate-in-page", () => this.#invalidate());
   }
 
   async attach(): Promise<void> {
     if (this.#attached) return;
     const dbg = this.#wc.debugger;
     dbg.attach("1.3");
-    dbg.on("detach", () => {
-      this.#attached = false;
-    });
     this.#attached = true;
     // Runtime.enable is deliberately not called: it is a classic bot-detection signal.
     await this.send("Page.enable");
     await this.send("DOM.enable");
     await this.send("Accessibility.enable");
-    this.#wc.on("did-navigate", () => this.#page.forget());
+  }
+
+  #invalidate(): void {
+    this.#page.forget();
+    this.onInvalidate();
   }
 
   send<T = unknown>(method: string, params?: object): Promise<T> {
@@ -44,8 +52,16 @@ export class CdpTab {
     return this.#page.snapshot(maxChars);
   }
 
-  evaluate(script: string, origin: string, document: string) {
-    return this.#page.evaluate(script, origin, document);
+  get consentEpoch(): string {
+    return this.#page.consentEpoch;
+  }
+
+  approvalContext(origin: string, document: string) {
+    return this.#page.approvalContext(origin, document);
+  }
+
+  evaluate(script: string, origin: string, document: string, epoch?: string) {
+    return this.#page.evaluate(script, origin, document, epoch);
   }
 
   click(ref: string) {

@@ -329,7 +329,7 @@ export type Author = z.infer<typeof Author>;
  * `agent_id` is that agent's; without one, every agent's. `project` answers a folder card: the folder becomes a
  * read-only folder of the chat's project (never a grant).
  */
-export const ApprovalScope = z.enum(["once", "session", "always", "project"]);
+export const ApprovalScope = z.enum(["once", "session", "always", "project", "tab", "turn"]);
 export type ApprovalScope = z.infer<typeof ApprovalScope>;
 /** Ends the key of a grant for a tool's calls that always ask (a destructive command, a routine change). */
 export const STRICT_APPROVAL = "#always";
@@ -338,7 +338,17 @@ export const ToolApproval = z.object({
   server: z.string(),
   project_id: Id.optional(),
   tool: z.string(),
-  scope: z.enum(["session", "always"]),
+  scope: z.enum(["session", "always", "tab", "turn"]),
+  browser: z
+    .object({
+      origin: z.string(),
+      tab: z.string(),
+      epoch: z.string(),
+      run: Id,
+      title: z.string().max(200).optional(),
+      tab_number: z.number().int().positive().optional(),
+    })
+    .optional(),
   thread_id: Id.optional(),
   agent_id: Id.optional(),
   /**
@@ -521,6 +531,16 @@ const KnownPart = z.discriminatedUnion("type", [
     /** For a confirmation: the tool and a readable summary of its arguments. */
     tool: z.string().optional(),
     detail: z.string().optional(),
+    browser: z
+      .object({
+        origin: z.string(),
+        title: z.string().max(200).optional(),
+        tab_number: z.number().int().positive().optional(),
+        document: z.string(),
+        path: z.string().optional(),
+        sha256: z.string().optional(),
+      })
+      .optional(),
     change: FileChange.optional(),
     options: z.array(z.string()).optional(),
     /** A question whose options may be picked several at once. */

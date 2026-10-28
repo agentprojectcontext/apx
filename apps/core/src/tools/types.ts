@@ -95,6 +95,12 @@ export type CheckContext = Pick<ToolContext, "agent" | "thread">;
 
 export type Tool = {
   approval?: ApprovalTarget;
+  approvalForCall?:
+    | ((
+        args: Record<string, unknown>,
+        ctx: Pick<ToolContext, "agent" | "thread" | "run" | "call">,
+      ) => Promise<ApprovalTarget>)
+    | undefined;
   /** Review requires the complete app card, not a shortened channel message. */
   appOnly?: true;
   name: string;
@@ -166,6 +172,10 @@ export function defineTool<S extends Args>(def: {
   args: S;
   effect: Effect;
   appOnly?: true;
+  approvalForCall?: (
+    args: z.output<S>,
+    ctx: Pick<ToolContext, "agent" | "thread" | "run" | "call">,
+  ) => Promise<ApprovalTarget>;
   confirm?: Confirm | ((args: z.output<S>) => Confirm);
   untrustedWhy?: UntrustedWhy;
   deadlineMs: number;
@@ -185,12 +195,19 @@ export function defineTool<S extends Args>(def: {
   run(args: z.output<S>, ctx: ToolContext): Promise<string>;
 }): Tool {
   const { $schema: _, ...parameters } = z.toJSONSchema(def.args, { io: "input" }) as Record<string, unknown>;
+  const approvalForCall = def.approvalForCall;
   return {
     name: def.name,
     description: def.description,
     parameters,
     effect: def.effect,
     ...(def.appOnly ? { appOnly: true as const } : {}),
+    ...(approvalForCall
+      ? {
+          approvalForCall: (a: Record<string, unknown>, ctx: Pick<ToolContext, "agent" | "thread" | "run" | "call">) =>
+            approvalForCall(a as z.output<S>, ctx),
+        }
+      : {}),
     confirm: (a) => (typeof def.confirm === "function" ? def.confirm(a as z.output<S>) : (def.confirm ?? "never")),
     deadlineMs: def.deadlineMs,
     ...(def.untrustedWhy ? { untrustedWhy: def.untrustedWhy } : {}),

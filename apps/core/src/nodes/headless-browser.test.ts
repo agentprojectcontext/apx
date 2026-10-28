@@ -193,6 +193,60 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
   assert.deepEqual(browser.list(), []);
 });
 
+test("real Chromium retires consent on reload, in-page navigation and tab closure", async () => {
+  const tab = (await browser.handle("browser.open", { url: `${base}/`, by: "reader" })) as TabInfo;
+  const snapshot = async () => (await browser.handle("browser.snapshot", { tab: tab.tab })) as { document: string };
+  const context = async (document: string) =>
+    (await browser.handle("browser.approval_context", {
+      tab: tab.tab,
+      origin: base,
+      document,
+    })) as { epoch: string };
+  try {
+    const first = await snapshot();
+    const consent = await context(first.document);
+    for (let i = 0; i < 3; i++) {
+      const result = (await browser.handle("browser.evaluate", {
+        tab: tab.tab,
+        origin: base,
+        document: first.document,
+        epoch: consent.epoch,
+        script: String(i),
+        by: "reader",
+      })) as { json: string };
+      assert.equal(result.json, String(i));
+    }
+    await browser.handle("browser.history", { tab: tab.tab, action: "reload", by: "reader" });
+    const second = await snapshot();
+    assert.notEqual((await context(second.document)).epoch, consent.epoch);
+    await assert.rejects(
+      browser.handle("browser.evaluate", {
+        tab: tab.tab,
+        origin: base,
+        document: second.document,
+        epoch: consent.epoch,
+        script: "42",
+        by: "reader",
+      }),
+      /permission expired/,
+    );
+    const next = await context(second.document);
+    await browser.handle("browser.evaluate", {
+      tab: tab.tab,
+      origin: base,
+      document: second.document,
+      epoch: next.epoch,
+      script: "history.pushState({}, '', '/prices')",
+      by: "reader",
+    });
+    const third = await snapshot();
+    assert.notEqual((await context(third.document)).epoch, next.epoch);
+  } finally {
+    await browser.handle("browser.close", { tab: tab.tab });
+  }
+  await assert.rejects(context("doc1"), /tab|unknown|not found/i);
+});
+
 test("a remote browser transport failure kills its process and never launches host Chrome", async () => {
   const input = new PassThrough();
   const output = new PassThrough();

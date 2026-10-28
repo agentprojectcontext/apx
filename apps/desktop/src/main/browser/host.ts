@@ -76,7 +76,14 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
 
   info(tab: Tab): TabInfo {
     const wc = tab.view.webContents;
-    return { tab: tab.id, url: wc.getURL(), title: wc.getTitle(), profile: tab.profile, control: tab.control };
+    return {
+      tab: tab.id,
+      url: wc.getURL(),
+      title: wc.getTitle(),
+      profile: tab.profile,
+      control: tab.control,
+      consent_epoch: tab.cdp.consentEpoch,
+    };
   }
 
   list(): TabInfo[] {
@@ -160,10 +167,14 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         if (p.submit) await this.#settle(tab);
         return { ok: true, url: tab.view.webContents.getURL() };
       }
+      case "browser.approval_context": {
+        const p = browserMethods["browser.approval_context"].params.parse(raw);
+        return this.#readable(p.tab).cdp.approvalContext(p.origin, p.document);
+      }
       case "browser.evaluate": {
         const p = browserMethods["browser.evaluate"].params.parse(raw);
         const tab = this.#drive(p.tab, p.by);
-        const result = await tab.cdp.evaluate(p.script, p.origin, p.document);
+        const result = await tab.cdp.evaluate(p.script, p.origin, p.document, p.epoch);
         return { url: tab.view.webContents.getURL(), ...result };
       }
       case "browser.screenshot": {
@@ -285,6 +296,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
       wc.on(ev as "did-stop-loading", () => this.emit("changed"));
     }
     const cdp = new CdpTab(wc);
+    cdp.onInvalidate = () => this.emit("changed");
     const tab: Tab = { id, profile, view, cdp, control, used: Date.now() };
     this.#tabs.set(id, tab);
     this.select(id);
