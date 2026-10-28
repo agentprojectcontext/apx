@@ -63,6 +63,7 @@ export const browserMethods = {
       url: z.string(),
       title: z.string(),
       tree: z.string(),
+      document: z.string().optional(),
       refs: z.number().int(),
       truncated: z.boolean(),
     }),
@@ -81,7 +82,15 @@ export const browserMethods = {
     effect: true,
   },
   "browser.evaluate": {
-    params: z.object({ tab: Tab, origin: Url, script: z.string().min(1).max(64_000), by: By }).strict(),
+    params: z
+      .object({
+        tab: Tab,
+        origin: Url,
+        document: z.string().min(1).max(500),
+        script: z.string().min(1).max(64_000),
+        by: By,
+      })
+      .strict(),
     result: z.object({ url: z.string(), json: z.string().max(16_000) }),
     effect: true,
     access: "human",

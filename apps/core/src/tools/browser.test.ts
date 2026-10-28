@@ -39,7 +39,12 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
     };
   if (!afterTool && said.includes("evaluate file") && requestedFile)
     return {
-      ...callTool("jsfile", "browser_evaluate", { tab: "t1", origin: "https://example.com", ...requestedFile }),
+      ...callTool("jsfile", "browser_evaluate", {
+        tab: "t1",
+        origin: "https://example.com",
+        document: "doc1",
+        ...requestedFile,
+      }),
       model,
     };
   if (!afterTool && said.includes("evaluate code"))
@@ -48,6 +53,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
         tab: "t1",
         script: "Promise.resolve(42)",
         origin: "https://example.com",
+        document: "doc1",
       }),
       model,
     };
@@ -139,13 +145,13 @@ test("JavaScript reaches the node only after approval, even in Total; agents can
     }
     const agent = new ApxClient({ url: env.core.url, actor: "agent" });
     await assert.rejects(
-      agent.call("browser.evaluate", { tab: "t1", script: "1", origin: "https://example.com" }),
+      agent.call("browser.evaluate", { tab: "t1", script: "1", origin: "https://example.com", document: "doc1" }),
       /human|owner|agent/i,
     );
     const socket = await agent.connect();
     try {
       await assert.rejects(
-        socket.call("browser.evaluate", { tab: "t1", script: "1", origin: "https://example.com" }),
+        socket.call("browser.evaluate", { tab: "t1", script: "1", origin: "https://example.com", document: "doc1" }),
         /human|owner|agent/i,
       );
     } finally {
@@ -153,7 +159,7 @@ test("JavaScript reaches the node only after approval, even in Total; agents can
       await socket.closed;
     }
     assert.deepEqual(evaluations, [
-      { tab: "t1", script: "Promise.resolve(42)", origin: "https://example.com", by: "roby" },
+      { tab: "t1", script: "Promise.resolve(42)", origin: "https://example.com", document: "doc1", by: "roby" },
     ]);
   } finally {
     await env.client.call("agents.update", { agent: "roby", autonomy: null });
@@ -178,7 +184,13 @@ test("a local script changed while approval waits executes only the source displ
     fs.writeFileSync(file, "throw new Error('changed after approval')");
     await env.client.call("runs.respond", { input: card.id, decision: "approve" });
     await env.settle(thread);
-    assert.deepEqual(evaluations.at(-1), { tab: "t1", origin: "https://example.com", script, by: "roby" });
+    assert.deepEqual(evaluations.at(-1), {
+      tab: "t1",
+      origin: "https://example.com",
+      document: "doc1",
+      script,
+      by: "roby",
+    });
     assert.equal(evaluations.length, before + 1);
   } finally {
     requestedFile = undefined;

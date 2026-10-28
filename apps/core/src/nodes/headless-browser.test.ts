@@ -34,7 +34,12 @@ before(async () => {
     if (req.url === "/to-apx") return res.writeHead(302, { location: `http://127.0.0.1:${apxPort}/rpc` }).end();
     const page = PAGES[req.url?.split("?")[0] ?? ""];
     if (page === undefined) return res.writeHead(404).end();
-    res.writeHead(200, { "content-type": "text/html" }).end(page);
+    res
+      .writeHead(200, {
+        "content-type": "text/html",
+        "content-security-policy": "script-src 'none'; object-src 'none'",
+      })
+      .end(page);
   });
   await new Promise<void>((r) => srv.listen(0, "127.0.0.1", r));
   base = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
@@ -116,11 +121,13 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
     t.diagnostic(chromeStderr || "No browser stderr");
     throw error;
   })) as TabInfo;
+  const snap = (await browser.handle("browser.snapshot", { tab: tab.tab })) as { tree: string; document: string };
   const evaluated = (await browser.handle("browser.evaluate", {
     tab: tab.tab,
     by: "roby",
     script: "Promise.resolve({title: document.title, path: location.pathname})",
     origin: base,
+    document: snap.document,
   })) as { json: string; url: string };
   assert.deepEqual(JSON.parse(evaluated.json), { title: "Acme home", path: "/" });
   assert.equal(evaluated.url, `${base}/`);
@@ -129,6 +136,7 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
       tab: tab.tab,
       by: "roby",
       origin: "https://northwind.example",
+      document: snap.document,
       script: "document.title = 'wrong'",
     }),
     /origin changed/,
@@ -137,14 +145,14 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
     browser.handle("browser.evaluate", {
       tab: tab.tab,
       by: "roby",
-      script: "throw new Error('expected failure')",
+      script: "(() => { throw new Error('expected failure') })()",
       origin: base,
+      document: snap.document,
     }),
     /expected failure/,
   );
   assert.equal(tab.title, "Acme home");
   assert.deepEqual(tab.control.kind, "agent");
-  const snap = (await browser.handle("browser.snapshot", { tab: tab.tab })) as { tree: string };
   assert.match(snap.tree, /^<untrusted_web source=/, "page content is marked as outside data");
   const link = /link "Prices" \[(e\d+)\]/.exec(snap.tree)?.[1];
   const search = /textbox "Search" \[(e\d+)\]/.exec(snap.tree)?.[1];
@@ -157,6 +165,16 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
   );
   const clicked = (await browser.handle("browser.click", { tab: tab.tab, ref: link, by: "roby" })) as { url: string };
   assert.equal(clicked.url, `${base}/prices`);
+  await assert.rejects(
+    browser.handle("browser.evaluate", {
+      tab: tab.tab,
+      by: "roby",
+      origin: base,
+      document: snap.document,
+      script: "document.title = 'wrong'",
+    }),
+    /context|object|document/i,
+  );
   const text = (await browser.handle("browser.text", { tab: tab.tab })) as { text: string };
   assert.match(text.text, /From 10 a month/);
   await assert.rejects(

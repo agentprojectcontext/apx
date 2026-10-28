@@ -2647,7 +2647,10 @@ The complete app card identifies tab, expected origin and the complete immutable
 cannot approve execution. Local `.js` files require normal folder
 read permission and an exact SHA-256 match before approval; the same in-memory snapshot is executed, never a reopened
 path. VM chats refuse host file inputs. The underlying RPC is human-only, unavailable to outside MCP clients, and the
-normal profile and user/handoff controls remain. The browser checks the approved origin immediately before evaluating.
+normal profile and user/handoff controls remain. The latest snapshot supplies a bounded Chromium review handle capturing the exact document and URL. Execution uses
+that retained context and checks document, URL and approved origin before any source runs. Reloading, navigation,
+changing an SPA route or taking another snapshot invalidate the old approval context. Source runs as a DevTools function,
+not page eval; CSP does not need unsafe-eval. Expressions return their value; statement files need an explicit return.
 Results and page errors are untrusted and bounded; scripts are not a sandbox, and timeouts stop waiting rather than
 cancel or undo effects. An uncertain send must be inspected, never automatically retried. Credential use remains
 prohibited by policy and owner review, not claimed as mechanically prevented for arbitrary JavaScript.

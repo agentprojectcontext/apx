@@ -510,7 +510,14 @@ export function createHeadlessBrowser(deps: {
           const snap = await t.page.snapshot(p.max_chars);
           // Page text is data, never instructions, wherever it ends up (rule 10).
           const tree = `<untrusted_web source="${t.url}">\n${snap.tree}\n</untrusted_web>`;
-          return { url: t.url, title: t.title, tree, refs: snap.refs, truncated: snap.truncated };
+          return {
+            url: t.url,
+            title: t.title,
+            tree,
+            refs: snap.refs,
+            truncated: snap.truncated,
+            document: snap.document,
+          };
         }
         case "browser.click": {
           const p = browserMethods["browser.click"].params.parse(raw);
@@ -531,7 +538,7 @@ export function createHeadlessBrowser(deps: {
         case "browser.evaluate": {
           const p = browserMethods["browser.evaluate"].params.parse(raw);
           const t = drive(p.tab, p.by);
-          const result = await t.page.evaluate(p.script, p.origin);
+          const result = await t.page.evaluate(p.script, p.origin, p.document);
           return { url: t.url, ...result };
         }
         case "browser.screenshot": {

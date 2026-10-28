@@ -11,6 +11,11 @@ import { defineTool, type ToolContext } from "./types.ts";
 const Args = z.object({
   tab: z.string().min(1),
   origin: z.string().url().max(4096).describe("exact expected http(s) page origin; inspect the tab first"),
+  document: z
+    .string()
+    .min(1)
+    .max(500)
+    .describe("document reference from the latest browser_snapshot; fails if the page reloads"),
   script: z.string().min(1).max(64_000).optional().describe("JavaScript expression; use an async IIFE for statements"),
   path: z.string().min(1).max(500).optional().describe("local .js file instead of script, relative to the work folder"),
   sha256: z
@@ -80,7 +85,7 @@ export function browserEvaluateTool(
     explain: (a) => {
       const script = snapshots.get(a);
       if (script === undefined) throw new Error("JavaScript source was not prepared for approval");
-      return `Tab: ${a.tab}\nOrigin: ${a.origin}\n${a.path ? `File: ${a.path}\nSHA-256: ${a.sha256}\n` : ""}Review all code; it may send or expose private page data.\n\n${script}`;
+      return `Tab: ${a.tab}\nOrigin: ${a.origin}\nDocument: ${a.document}\n${a.path ? `File: ${a.path}\nSHA-256: ${a.sha256}\n` : ""}Review all code; it may send or expose private page data.\n\n${script}`;
     },
     outside: (a, ctx) =>
       a.path === undefined
@@ -97,7 +102,13 @@ export function browserEvaluateTool(
       snapshots.delete(a);
       if (script === undefined) throw new Error("JavaScript source was not prepared for approval");
       const tab = await own(ctx, a.tab);
-      const result = await ctx.callAsOwner("browser.evaluate", { tab, origin: a.origin, script, by: ctx.agent.id });
+      const result = await ctx.callAsOwner("browser.evaluate", {
+        tab,
+        origin: a.origin,
+        document: a.document,
+        script,
+        by: ctx.agent.id,
+      });
       return untrusted("web_javascript", { tab, source: result.url }, result.json);
     },
   });
