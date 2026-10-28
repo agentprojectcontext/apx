@@ -126,7 +126,7 @@ test("a translation keeps the placeholders of its English text", () => {
 
 test("the routine steps hint shows the core's default, never a number of its own (DECISIONS.md#d-116)", () => {
   for (const messages of [base, esBase]) {
-    const hint = messages["routines.maxStepsHint"];
+    const hint = messages["routines.maxStepsHint"] ?? "";
     assert.match(hint, /\{steps\}/);
     assert.doesNotMatch(hint.replace("5", "").replace("200", ""), /\d/);
   }
@@ -134,7 +134,8 @@ test("the routine steps hint shows the core's default, never a number of its own
 
 test("the memory hint shows the desktop's idle tab time, never a number of its own", () => {
   for (const messages of [base, esBase]) {
-    assert.match(messages["desktop.memoryHint"], /\{minutes\}/);
-    assert.doesNotMatch(messages["desktop.memoryHint"].replace("4 GB", ""), /\d/);
+    const hint = messages["desktop.memoryHint"] ?? "";
+    assert.match(hint, /\{minutes\}/);
+    assert.doesNotMatch(hint.replace("4 GB", ""), /\d/);
   }
 });
