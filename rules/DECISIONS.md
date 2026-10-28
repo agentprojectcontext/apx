@@ -2657,3 +2657,22 @@ prohibited by policy and owner review, not claimed as mechanically prevented for
 
 Rejected: silently treating approval as technical containment, silently bypassing the ordinary guards, or calling a
 read-only snapshot console equivalent to executing code against the owner's actual page.
+
+## D-166 — 2026-10-28 — Screens talk to the person, and a UI change is looked at before it is done
+Flows and the public address reached the owner as a JSON form and a settings section that explained its own
+plumbing: "token bearer", "RPC", "listener", "registered routes", which channels sign their requests, what APX "does
+not promise", and the same address and the same sentence twice. Every gate was green: the change workflow measured
+types, tests, runtime, security and architecture, and nothing measured what a person sees or reads. Reviewers'
+caveats were written into hints, and the agents' own terse register (how they write to each other) became the UI's.
+
+UI text now addresses the person (AGENTS.md rule 31): what they can do, what happens, what they decide. Internals,
+which integration a mechanism serves, review caveats and repeated facts go to docs. Before and after:
+
+- "Every Flow needs its own bearer token… LINE and Teams use their platform signatures instead." →
+  "Addresses other services can call. Revoke one you no longer use."
+- "Only registered routes are reachable: never the panel or the API." → nothing: it is a guarantee, not a choice.
+
+A UI change also has a reference before and screenshots of the running build after, reviewed by the designer
+(rule 32, [UI changes](WORKFLOW.md#ui-changes)). Rejected: a lint word list for jargon (it would ban words, not
+explanations aimed at the wrong reader), and treating E2E as visual review (it proves a click works, not that
+the screen makes sense).
