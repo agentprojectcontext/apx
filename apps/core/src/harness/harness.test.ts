@@ -6,7 +6,7 @@ import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore, texts } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
-import { removeDir, waitFor } from "../testkit/platform.ts";
+import { removeDir, tempDir, waitFor } from "../testkit/platform.ts";
 import { scratchRoot } from "../tools/folders.ts";
 import type { Harness, TurnIO } from "./index.ts";
 
@@ -384,7 +384,8 @@ test("an outside agent's file tools never change git's folder, even in total, as
 
 test("an outside agent's command that writes outside its folders is put to the owner, as our shell's is", async () => {
   const t0 = await session("claude");
-  const away = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
+  await using tmp = tempDir("apx-away-");
+  const away = tmp.path;
   await env.client.call("agents.update", { agent: "roby", autonomy: "manual" });
   try {
     const asks = [{ kind: "execute", command: `touch ${sh(away)}/made.txt` }];
@@ -399,13 +400,13 @@ test("an outside agent's command that writes outside its folders is put to the o
     assert.equal(answer?.type === "text" ? answer.text : "", "[false]");
   } finally {
     await env.client.call("agents.update", { agent: "roby", autonomy: null });
-    await removeDir(away);
   }
 });
 
 test("an outside agent whose rules turn acting outside off keeps to its folders, even in total, as ours does", async () => {
   const t0 = await session("claude");
-  const away = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
+  await using tmp = tempDir("apx-away-");
+  const away = tmp.path;
   fs.writeFileSync(path.join(away, "notes.txt"), "elsewhere");
   await env.client.call("agents.update", { agent: "roby", autonomy: "total", rules: { outside: "off" } });
   try {
@@ -420,7 +421,6 @@ test("an outside agent whose rules turn acting outside off keeps to its folders,
     assert.equal(answer?.type === "text" ? answer.text : "", "[false,false,true]");
   } finally {
     await env.client.call("agents.update", { agent: "roby", autonomy: null, rules: null });
-    await removeDir(away);
   }
 });
 
