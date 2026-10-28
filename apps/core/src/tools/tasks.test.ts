@@ -59,9 +59,10 @@ test("task titles by the owner or their agents read plainly; a contact's request
   );
 });
 
-test("a task an agent leaves with nobody on it says it will not start, so the agent assigns it or asks", async () => {
+test("an unassigned capture says nothing started and does not require assignment", async () => {
   const said = await list("create: Fix the new chat picker");
-  assert.match(said, /created task_\w+ in backlog, with nobody on it: it will not start\. Assign it/);
+  assert.match(said, /created task_\w+ in backlog, unassigned: capture only, no execution started/);
+  assert.match(said, /only when execution is wanted/);
 });
 
 test("task_create tells the agent to look for the same open task before making another", async () => {

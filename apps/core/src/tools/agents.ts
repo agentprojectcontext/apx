@@ -120,7 +120,7 @@ export function agentTools(store: Store): Tool[] {
     defineTool({
       name: "delegate",
       description:
-        "Hand a task to another agent or to a worker you define (it uses your model and tools); give one, not both. A worker of your own is for substantial independent work that would overwhelm your context, or when the owner asks for a helper or a review. In task give the goal, what you found, the paths you checked, a method you know works, the project and the expected result. Asking an agent again continues its session. The answer comes back within wait_s, or later in a new turn: never poll for it.",
+        "Hand work to another agent or to a worker you define (it uses your model and tools); give one, not both. Task assignment already starts its executor: do not also delegate that work. A worker of your own is for substantial independent work that would overwhelm your context, or when the owner asks for a helper or a review. In task give the goal, what you found, the paths you checked, a method you know works, the project and the expected result. Asking an agent again continues its session. The answer comes back within wait_s, or later in a new turn: never poll for it.",
       args: z
         .object({
           agent: z.string().optional().describe("agent id or unique name"),
@@ -139,6 +139,10 @@ export function agentTools(store: Store): Tool[] {
             .describe("project name, id, or a path inside it: the agent works in that folder"),
           write: WritePolicy.optional().describe("in its folder; never more than yours"),
           task: z.string().min(1),
+          independent: z
+            .boolean()
+            .optional()
+            .describe("distinct work from this turn's task assignments; never the same goal or a retry"),
           wait_s: z.number().int().min(0).max(120).optional().describe("seconds to wait inside this turn (default 60)"),
         })
         .refine((a) => !(a.agent && a.worker), { message: "give agent or worker, not both; omit the unused field" }),
@@ -160,7 +164,15 @@ export function agentTools(store: Store): Tool[] {
         const inner = project?.path && path.isAbsolute(named) ? path.relative(project.path, path.resolve(named)) : "";
         const folder = inner && !inner.startsWith("..") && !path.isAbsolute(inner) ? inner : undefined;
         return ctx.delegate(
-          { agent, session: a.session, worker: a.worker, project: project?.id, folder, write: a.write },
+          {
+            agent,
+            session: a.session,
+            worker: a.worker,
+            project: project?.id,
+            folder,
+            write: a.write,
+            independent: a.independent,
+          },
           a.task,
           (a.wait_s ?? 60) * 1000,
         );

@@ -147,6 +147,8 @@ export type Attachment = { media_id: string; kind: "image" | "audio" | "file"; m
 export type RunInput = {
   origin: Origin;
   text: string;
+  /** Delegation explicitly handles a different goal from task assignments in its caller's turn. */
+  task_independent?: boolean;
   attachments?: Attachment[];
   /** The executing turn's project context, independent of later chat moves. */
   project_at_start?: { id: string; name: string };

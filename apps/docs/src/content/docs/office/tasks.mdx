@@ -19,6 +19,21 @@ Before creating another task, agents are instructed to check the open tasks and 
 it already covers the same or closely related work. This is not automatic duplicate detection. For a task that
 changes code, see [where the code work goes](/office/code/#where-a-task-changes-code).
 
+## Recording versus starting work
+
+Ask for an action and the agent should do it with its tools, or hand it once to the needed specialist—not substitute
+board updates for a result. Long work can use a task for internal tracking, but it must actually start and report a
+result or a concrete blocker.
+
+To record an idea without starting work, ask for a capture-only task and leave it **unassigned**. A task with an
+assignee and a description starts its own work session unless it is proposed, scheduled for later or paused by
+agent limits. Assignment and delegation are alternative ways to start work, not two steps to perform together.
+Within one turn (including a restart recovery), APX prevents mixing task execution and delegation for the same
+teammate and project, even when the wording differs. Genuinely different work can use the delegation tool's explicit
+`independent` flag and a brief naming the separate outcome; it is not for retries or the same goal. This distinction
+is recorded with the delegated run. The guard is not semantic duplicate detection across chats or later turns, and
+it cannot verify that an agent's claim of independent work is correct.
+
 ## What a task has
 
 | Field | Values |

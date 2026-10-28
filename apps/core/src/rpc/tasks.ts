@@ -24,7 +24,7 @@ import { ancestors } from "../engine/ancestry.ts";
 import { agentTrip, trip } from "../engine/breaker.ts";
 import type { Engine } from "../engine/engine.ts";
 import { ownerMentionProblem } from "../engine/office.ts";
-import { checkSelfHandoff } from "../engine/task-handoff.ts";
+import { checkSelfHandoff, runLineage } from "../engine/task-handoff.ts";
 import { awaitAgent } from "../engine/task-inbox.ts";
 import { reportClose } from "../engine/task-report.ts";
 import {
@@ -143,6 +143,30 @@ export function taskHandlers(
       start_at?: string;
     },
   ) => {
+    if (
+      ctx.agent &&
+      candidate.assignee &&
+      candidate.description?.trim() &&
+      !candidate.proposed &&
+      !startsLater(candidate)
+    ) {
+      const source = { id: ctx.agent.run_id, thread_id: ctx.agent.thread_id };
+      const delegated = runLineage(store, source)
+        .flatMap((id) => store.runs.children(id))
+        .find((run) => {
+          const thread = store.threads.get(run.thread_id);
+          return (
+            run.agent_id === candidate.assignee &&
+            !run.input?.task_independent &&
+            thread?.project_id === candidate.project_id &&
+            !store.threads.context(run.thread_id).worker
+          );
+        });
+      if (delegated)
+        throw conflict(
+          "this teammate already received a delegation in this turn: continue its existing session, not a second task executor",
+        );
+    }
     if (
       !ctx.agent ||
       candidate.assignee !== ctx.agent.id ||

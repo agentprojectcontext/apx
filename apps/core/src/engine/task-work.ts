@@ -18,7 +18,7 @@ import type { AdmitFn } from "./engine.ts";
 import { mentioned, mentionsOwner, taskCommentAttention } from "./office.ts";
 import { outcomeOf } from "./run-outcome.ts";
 import { continueTask } from "./task-continue.ts";
-import { checkSelfHandoff, markHandoff } from "./task-handoff.ts";
+import { checkSelfHandoff, markHandoff, runLineage } from "./task-handoff.ts";
 import { answersOwner, ownerTurnEnded } from "./task-inbox.ts";
 import { closedIn, reportClose } from "./task-report.ts";
 
@@ -159,6 +159,17 @@ export function startTaskWork(
   const source = self ? store.threads.get(asker.thread_id) : undefined;
   const work = ask(store, admit, task, agentId, text, asker, author, sessionFor(store, task, agentId, source));
   if (self) markHandoff(store, task, asker, work);
+  const sourceRun = asker.kind === "agent" ? store.runs.get(asker.run_id) : undefined;
+  if (asker.kind === "agent" && sourceRun && !sourceRun.ended_at) {
+    const previous = store.threads.context(asker.thread_id).task_dispatches;
+    const source = { id: asker.run_id, thread_id: asker.thread_id };
+    const tasks = previous && runLineage(store, source).includes(previous.run) ? previous.tasks : [];
+    const dispatch = { task: task.id, agent: agentId, project: task.project_id };
+    const kept = tasks.filter((t) => t.task !== task.id || t.agent !== agentId || t.project !== task.project_id);
+    store.threads.mergeContext(asker.thread_id, {
+      task_dispatches: { run: asker.run_id, tasks: [...kept, dispatch] },
+    });
+  }
   return work;
 }
 
