@@ -15,6 +15,7 @@ export {
   PERSON_RELATIONS,
   PROTOCOL_VERSION,
   pairingLink,
+  QUIET_HOURS,
   randomAgentName,
   SURFACE_STATE_MAX,
   TURN_STEPS,

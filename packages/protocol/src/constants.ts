@@ -41,6 +41,9 @@ export const FILE_PAYLOAD_BYTES =
  */
 export const TURN_STEPS = 150;
 
+/** Quiet hours as they start when the owner turns them on, on any app. */
+export const QUIET_HOURS = { from: "22:00", to: "07:30" } as const;
+
 /** Maximum UTF-8 document snapshot rendered in the side panel. */
 export const DOCUMENT_MAX_BYTES = 400_000;
 

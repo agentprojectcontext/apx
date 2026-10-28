@@ -1,6 +1,6 @@
 // The owner's notice preferences, stored in settings and always read through the schema (bad values fall back), and
 // the quiet hours they set.
-import type { NoticePrefs } from "@apx/protocol";
+import { type NoticePrefs, noticeChannelChoice } from "@apx/protocol";
 import { minutesOf } from "./hours.ts";
 import type { Origin } from "./runs.ts";
 import type { Store } from "./store.ts";
@@ -18,8 +18,7 @@ export function saveNoticePrefs(store: Store, prefs: NoticePrefs): NoticePrefs {
  * No chat app takes what APX says unasked: the tray and paired phones only. A phone picked before every phone was told
  * is the same choice (DECISIONS.md#d-161).
  */
-export const appOnly = (prefs: Pick<NoticePrefs, "channel">): boolean =>
-  prefs.channel === "none" || Boolean(prefs.channel?.startsWith("device:"));
+export const appOnly = (prefs: Pick<NoticePrefs, "channel">): boolean => noticeChannelChoice(prefs.channel) === "none";
 
 /**
  * A turn on the owner's side that follows their word (theirs, an answer, the result of what they asked): it may answer
