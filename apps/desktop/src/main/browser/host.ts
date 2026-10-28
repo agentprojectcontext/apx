@@ -137,7 +137,14 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         const snap = await tab.cdp.snapshot(p.max_chars);
         // Page text is data, never instructions, wherever it ends up (rule 10).
         const tree = `<untrusted_web source="${wc.getURL()}">\n${snap.tree}\n</untrusted_web>`;
-        return { url: wc.getURL(), title: wc.getTitle(), tree, refs: snap.refs, truncated: snap.truncated };
+        return {
+          url: wc.getURL(),
+          title: wc.getTitle(),
+          tree,
+          refs: snap.refs,
+          truncated: snap.truncated,
+          document: snap.document,
+        };
       }
       case "browser.click": {
         const p = browserMethods["browser.click"].params.parse(raw);
@@ -156,7 +163,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
       case "browser.evaluate": {
         const p = browserMethods["browser.evaluate"].params.parse(raw);
         const tab = this.#drive(p.tab, p.by);
-        const result = await tab.cdp.evaluate(p.script, p.origin);
+        const result = await tab.cdp.evaluate(p.script, p.origin, p.document);
         return { url: tab.view.webContents.getURL(), ...result };
       }
       case "browser.screenshot": {

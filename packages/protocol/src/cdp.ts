@@ -1,7 +1,7 @@
 // Driving one page over the Chrome DevTools Protocol, the same way wherever the page lives: the desktop app's tabs
 // (Electron's debugger) or the core's own headless Chrome. Refs are backendNodeIds from the accessibility tree
 // (stable while the document lives, DOM untouched).
-import { evaluatePage } from "./cdp-evaluate.ts";
+import { captureDocument, evaluatePage } from "./cdp-evaluate.ts";
 import { ApxError } from "./client.ts";
 
 type AXNode = {
@@ -67,7 +67,8 @@ export class CdpPage {
     this.#refs.clear();
   }
 
-  async snapshot(maxChars: number): Promise<{ tree: string; refs: number; truncated: boolean }> {
+  async snapshot(maxChars: number): Promise<{ tree: string; refs: number; truncated: boolean; document: string }> {
+    const document = await captureDocument(this.#send);
     await this.#send("DOM.getDocument", { depth: 0 });
     const { nodes } = await this.#send<{ nodes: AXNode[] }>("Accessibility.getFullAXTree");
     const byId = new Map(nodes.map((n) => [n.nodeId, n]));
@@ -105,11 +106,11 @@ export class CdpPage {
       }
     };
     if (root) visit(root, 0);
-    return { tree: lines.join("\n"), refs: i, truncated };
+    return { tree: lines.join("\n"), refs: i, truncated, document };
   }
 
-  evaluate(script: string, origin: string) {
-    return withTimeout(evaluatePage(this.#send, script, origin), 7_000);
+  evaluate(script: string, origin: string, document: string) {
+    return withTimeout(evaluatePage(this.#send, script, origin, document), 7_000);
   }
 
   async click(ref: string): Promise<void> {

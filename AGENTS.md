@@ -167,6 +167,18 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     assessments or known false docs, not a justified no-change result. See [D-159](rules/DECISIONS.md#d-159) and the
     [documentation impact contract](rules/WORKFLOW.md#documentation-impact-contract). `[review]`
 
+31. **Screens talk to the person, not about the code.** UI text says what the person can do, what happens and what
+    they must decide, in words they use. Never on screen: internal names (RPC, listener, route, bearer, payload,
+    module or method names), which integration a mechanism exists for, security caveats from reviews ("never the
+    panel or the API", "APX does not promise…"), or a fact another section of the same screen already shows. Those
+    belong in docs. Lists show what the person has, with one action each where it is needed.
+    [D-166](rules/DECISIONS.md#d-166). `[review]`
+
+32. **A screen nobody looked at is not done.** UI work starts from a reference (the owner's, the design system's or
+    a sketch the designer made) and ends with screenshots of the running build, desktop and phone width, reviewed by
+    the designer against it. A form or JSON field is not a stand-in for a requested visual experience
+    ([UI changes](rules/WORKFLOW.md#ui-changes)). `[review]`
+
 ### Code comments
 
 1–2 lines, only the non-obvious *why*. No history, incidents, dates or rejected alternatives in code: those go to

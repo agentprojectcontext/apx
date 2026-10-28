@@ -25,23 +25,7 @@ export default function EngineUsageQuick({ report }: { report: Report | undefine
     <span className="engine-usage-quick" aria-hidden="true">
       {quickWindows(report).map(({ engine, remaining }) => (
         <span className="engine-usage-quick__item" key={engine.id} data-testid="engine-usage-quick">
-          <span className="engine-usage-quick__ring">
-            <svg viewBox="0 0 28 28" width="28" height="28" aria-hidden="true">
-              <circle cx="14" cy="14" r="12" fill="none" stroke="var(--apx-border)" strokeWidth="2" />
-              <circle
-                cx="14"
-                cy="14"
-                r="12"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                pathLength="100"
-                strokeDasharray={`${remaining} 100`}
-                transform="rotate(-90 14 14)"
-              />
-            </svg>
-            <EngineIcon engine={engine.id} size={14} />
-          </span>
+          <EngineIcon engine={engine.id} tile size={16} />
           <span>{remaining}%</span>
         </span>
       ))}

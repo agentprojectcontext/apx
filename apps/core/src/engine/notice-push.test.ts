@@ -10,7 +10,8 @@ import { createNoticePush } from "./notice-push.ts";
 test("every tray notice reaches the owner's phones; in quiet hours only questions and errors", async () => {
   const home = tempDir("apx-notice-push-");
   const bus = createBus();
-  const store = createStore(openDb(home.path), bus);
+  const db = openDb(home.path);
+  const store = createStore(db, bus);
   const sent: string[] = [];
   let at = new Date(2026, 9, 27, 15, 0);
   const pusher = createNoticePush({
@@ -37,6 +38,8 @@ test("every tray notice reaches the owner's phones; in quiet hours only question
     assert.deepEqual(sent.slice(2), ["Roby asks", "Telegram failed"]);
   } finally {
     pusher.stop();
+    // Windows cannot remove a database file that is still open.
+    db.close();
     await home.remove();
   }
 });

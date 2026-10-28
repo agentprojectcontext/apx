@@ -139,6 +139,25 @@ permanently only after the cause is proven.
 - **Release check:** v2 ships as `v2.x.y` tags ([`RELEASE.md`](RELEASE.md)); a fix is not out until its tag is. v2 must never
   touch v1's files: it uses port `7440` and `~/.apx/v2`.
 
+## UI changes
+
+Any change a person sees in the panel, desktop or phone (AGENTS.md rules 31–32, [D-166](DECISIONS.md#d-166)).
+The steps above prove the code works; these prove the screen makes sense.
+
+- **Plan:** write the person's job in one sentence ("connect a service that sends events, see what arrived, turn it
+  off"), then the reference: the owner's design or capture, the closest existing screen, or a sketch the designer
+  makes first. No reference, no implementation: ask for one. The designer owns the screen; engineering roles do not
+  design it alone, however small the first version.
+- **Implement:** build from `@apx/ui` components (`Select`, `SegmentedControl`, `MasterDetail`, `EmptyState`…),
+  never native controls or one-off layouts when a component exists. Fields take values a person knows; JSON, IDs and
+  paths are for the CLI and docs. Write the copy with the screen, by rule 31: each fact once, each list item with
+  only the action it needs.
+- **Review:** the designer opens the running build and attaches screenshots at desktop and phone width, in English
+  and Spanish, with the empty, filled and error states. Read every string aloud as the person: if it explains how
+  APX works instead of what they can do, rewrite it. A static read of the diff is not a UI review.
+- **Owner brief:** include those screenshots. A UI change reported without them is `UNVERIFIED`, whatever the E2E
+  says.
+
 ## Documentation impact contract
 
 Applies to every feature and fix, including a small fix that skips the full workflow (AGENTS.md rule 30, [D-159](DECISIONS.md#d-159)).

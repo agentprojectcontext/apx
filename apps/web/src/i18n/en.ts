@@ -14,6 +14,7 @@ import { enTelemetry } from "./en-telemetry.ts";
 import type { enFlow } from "./flow-en.ts";
 import type { enIngress } from "./ingress-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
+import type { enSecretary } from "./secretary-en.ts";
 import type { SysUsageKey } from "./sysusage-en.ts";
 import type { enThreadDialogs } from "./thread-dialogs-en.ts";
 
@@ -1797,17 +1798,6 @@ export const en = {
   "config.superagent": "Super-agent",
   "super.lead": "{name} is the one who writes to you on your channels, runs the day's routines and hands out the work.",
   "super.edit": "Edit {name}",
-  "super.capabilities": "Secretary capabilities",
-  "super.capabilitiesHint":
-    "Built-in assistance, not routines to create. Existing instructions and activity are kept. Enabling schedules the next check; it does not send anything now.",
-  "super.mailAvailability":
-    "Reads new mail only with Gmail connected using your own Google client. Otherwise it waits without calling a model. SMTP alone cannot read your inbox.",
-  "super.customize": "Customize instructions",
-  "super.instructions": "Instructions",
-  "super.connectMail": "Gmail connection",
-  "super.mailConnected": "Gmail is connected for reading. Project availability and quiet hours still apply.",
-  "super.mailWaiting": "Mail checking is waiting for a Gmail connection with read access.",
-  "super.lastCheck": "Last check",
   "super.talk": "How it reaches you",
   "super.where": "Where it writes to you",
   "super.whereHint":
@@ -1873,4 +1863,5 @@ export type MessageKey =
   | keyof typeof enEmailSignatures
   | keyof typeof enThreadDialogs
   | keyof typeof enIngress
-  | keyof typeof enFlow;
+  | keyof typeof enFlow
+  | keyof typeof enSecretary;
