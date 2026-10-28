@@ -6,7 +6,7 @@ import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore, texts } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
-import { removeDir } from "../testkit/platform.ts";
+import { removeDir, waitFor } from "../testkit/platform.ts";
 import { scratchRoot } from "../tools/folders.ts";
 import type { Harness, TurnIO } from "./index.ts";
 
@@ -19,7 +19,8 @@ const fake = (id: "claude" | "codex"): Harness => ({
   async run(io) {
     seen.push({ harness: id, io, outside: io.outside() });
     // "probe [...]" asks the core about each of its own tool calls, as Claude Code's canUseTool does.
-    const probe = /^probe (.*)$/s.exec(String(io.input.content).split("\n").at(-1) ?? "");
+    // A delegated turn's words come framed as another agent's: the probe is the line that starts with it.
+    const probe = /^probe (\[.*\])$/m.exec(String(io.input.content));
     if (probe) {
       const asked = JSON.parse(probe[1] ?? "[]") as Array<{ kind: string; path?: string; command?: string }>;
       const said: boolean[] = [];
@@ -318,6 +319,47 @@ test("an external session gets an owner's attachment in its temp folder despite 
     true,
   );
   assert.deepEqual(fs.readFileSync(file), bytes);
+});
+
+test("an outside agent in a delegated session that asks before changes asks for its edit, as our own loop does", async () => {
+  const t0 = await session("claude");
+  const { store } = env.core;
+  const top = store.threads.get(t0.id);
+  const sub = (write: "ask" | "auto") =>
+    store.threads.create({
+      kind: "a2a",
+      title: `helper ${write}`,
+      agent_ids: ["roby"],
+      parent_id: t0.id,
+      project_id: t0.project_id,
+      cwd: top?.cwd,
+      write,
+      engine: "claude",
+    });
+  const probe = (threadId: string) =>
+    env.core.engine.admit({
+      thread_id: threadId,
+      agent_id: "roby",
+      trigger: "a2a",
+      origin: { kind: "agent", id: "roby", name: "Roby", thread_id: t0.id, run_id: "run_top" },
+      text: `probe ${JSON.stringify([{ kind: "edit", path: path.join(top?.cwd ?? "", "a.ts") }])}`,
+    });
+  const answer = async (threadId: string) => {
+    const t = await env.settle(threadId);
+    const part = t.messages.at(-1)?.parts.find((p) => p.type === "text");
+    return part?.type === "text" ? part.text : "";
+  };
+  const free = sub("auto");
+  probe(free.id);
+  assert.equal(await answer(free.id), "[true]", "a session that edits freely edits");
+  const asking = sub("ask");
+  probe(asking.id);
+  const card = await waitFor(
+    async () => (await env.client.call("runs.pending", { thread: asking.id })).inputs[0],
+    "a card",
+  );
+  await env.client.call("runs.respond", { input: card.id, decision: "deny" });
+  assert.equal(await answer(asking.id), "[false]");
 });
 
 test("an outside agent reads its project's read-only folders without asking and may never change them", async () => {

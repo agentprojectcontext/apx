@@ -1,7 +1,15 @@
 // The one place that decides whether an agent's tool call runs, waits for the owner, or is refused.
-import { type AgentRules, type Autonomy, DEFAULT_AUTONOMY, type RulePolicy, ToolRisk } from "@apx/protocol";
+import {
+  type AgentRules,
+  type Autonomy,
+  DEFAULT_AUTONOMY,
+  type RulePolicy,
+  type Thread,
+  ToolRisk,
+} from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
+import { worksInFolder } from "../domain/threads.ts";
 import { SUPER_AGENT_TOOLS } from "./agent-set.ts";
 import type { Reach } from "./folders.ts";
 import type { Confirm, Effect, KeepsCard, Tool, UntrustedWhy } from "./types.ts";
@@ -184,6 +192,16 @@ export function decide(
   // Outside content gates what acts in the owner's name or keeps something of theirs, not files and commands here.
   if (level === "untrusted" && untrusted) return { kind: "confirm", why: "untrusted", reason: OUTSIDE };
   return { kind: "allow" };
+}
+
+/**
+ * A delegated session capped at ask (its caller could do no more) asks before changing files, whichever loop runs it:
+ * ours or an outside agent's (DECISIONS.md#d-126). `changes`: the call would change something.
+ */
+export function sessionGate(thread: Pick<Thread, "kind" | "cwd" | "write">, d: Decision, changes: boolean): Decision {
+  if (d.kind !== "allow" || !changes || thread.kind !== "a2a" || !worksInFolder(thread) || thread.write !== "ask")
+    return d;
+  return { kind: "confirm", why: "asks_every", reason: "this session asks before changing files" };
 }
 
 /** An edit in the folder the agent works in, as an outside agent's own tool asks for it (engine/executor.ts approve). */
