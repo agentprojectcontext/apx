@@ -1,7 +1,7 @@
 // Google Calendar, Gmail and Drive as APX tools, offered only while the owner's account is connected and on in the
 // thread's project (Tool.when). What other people wrote (events they invited to, mail, files) comes back as outside
-// data. An event only on the owner's calendar needs no OK; inviting people, cancelling and writing a draft are strong
-// actions that ask (DECISIONS.md#d-130); sending mail always waits for the owner. Gmail's reading tools need the
+// data. An event only on the owner's calendar needs no OK; cancelling and writing a draft ask (DECISIONS.md#d-130);
+// sending mail, invitations and updates emailed to an event's guests included, always waits for the owner. Gmail's reading tools need the
 // owner's own client; APX's own client only sends (gmail_send).
 import { z } from "zod";
 import { calendarApi } from "../integrations/calendar.ts";
@@ -25,6 +25,13 @@ const Line = z
   .string()
   .max(300)
   .regex(/^[^\r\n]*$/, "one line");
+
+/** The call emails an event's guests: asked for, an invitation, or a new guest list with someone on it. */
+const emailsGuests = (a: {
+  notify_guests?: boolean | undefined;
+  add_attendees?: string[] | undefined;
+  attendees?: string[] | undefined;
+}) => Boolean(a.notify_guests || a.add_attendees?.length || a.attendees?.length);
 
 const lines = (rows: unknown[]) => rows.map((r) => JSON.stringify(r)).join("\n");
 
@@ -90,8 +97,8 @@ export function googleTools(g: Google | undefined): Tool[] {
         meet: z.boolean().optional(),
       }),
       effect: "external",
-      // Only on the owner's calendar it is theirs; an invitation speaks to other people in their name.
-      confirm: (a) => (a.attendees?.length ? "ask" : "never"),
+      // Only on the owner's calendar it is theirs; an invitation is an email to other people in their name.
+      confirm: (a) => (a.attendees?.length ? "always" : "never"),
       deadlineMs: 30_000,
       when: onCalendar,
       title: (a) => `Created the event ${a.title ?? ""}`.trim(),
@@ -102,7 +109,7 @@ export function googleTools(g: Google | undefined): Tool[] {
     defineTool({
       name: "calendar_update_event",
       description:
-        "Change an event of the owner's Google Calendar by id (from calendar_events or calendar_create_event); only what is given changes. Attendees hear about it.",
+        "Change an event of the owner's Google Calendar by id (from calendar_events or calendar_create_event); only what is given changes. Guests are emailed only with notify_guests or when you invite someone, and the owner confirms that first.",
       args: z.object({
         id: z.string().min(1).max(1024),
         title: Line.optional(),
@@ -115,29 +122,36 @@ export function googleTools(g: Google | undefined): Tool[] {
         remove_attendees: Emails.optional(),
         attendees: Emails.optional().describe("the whole new list, instead of add/remove"),
         meet: z.boolean().optional().describe("add a Google Meet link"),
+        notify_guests: z.boolean().optional().describe("email the guests about this change"),
       }),
       effect: "external",
-      confirm: (a) => (a.add_attendees?.length || a.attendees?.length ? "ask" : "never"),
+      confirm: (a) => (emailsGuests(a) ? "always" : "never"),
       deadlineMs: 30_000,
       when: onCalendar,
       title: (a) => (a.title ? `Changed the event ${a.title}` : "Changed an event"),
       async run(a) {
-        return JSON.stringify(await cal.update({ ...a, calendar: "primary" }));
+        const { notify_guests: _, ...change } = a;
+        const notify = emailsGuests(a);
+        const event = await cal.update({ ...change, calendar: "primary", notify });
+        const untold = !notify && event.attendees?.length;
+        return `${JSON.stringify(event)}${untold ? "\nIts guests were not emailed; to tell them, call again with notify_guests (the owner confirms it)." : ""}`;
       },
     }),
     defineTool({
       name: "calendar_cancel_event",
-      description: "Cancel (delete) an event of the owner's Google Calendar by id; its attendees are told.",
-      args: z.object({ id: z.string().min(1).max(1024) }),
+      description:
+        "Cancel (delete) an event of the owner's Google Calendar by id; with notify_guests its guests are emailed, after the owner confirms.",
+      args: z.object({ id: z.string().min(1).max(1024), notify_guests: z.boolean().optional() }),
       effect: "external",
-      confirm: "ask",
+      confirm: (a) => (a.notify_guests ? "always" : "ask"),
       deadlineMs: 30_000,
       when: onCalendar,
       title: () => "Cancelled an event",
       async run(a) {
-        const was = await cal.get({ ...a, calendar: "primary" });
-        await cal.cancel({ ...a, calendar: "primary" });
-        return `cancelled ${was.title} (${was.start ?? "no start"})`;
+        const was = await cal.get({ id: a.id, calendar: "primary" });
+        await cal.cancel({ id: a.id, calendar: "primary", notify: a.notify_guests });
+        const untold = !a.notify_guests && was.attendees?.length ? "; its guests were not emailed" : "";
+        return `cancelled ${was.title} (${was.start ?? "no start"})${untold}`;
       },
     }),
     defineTool({

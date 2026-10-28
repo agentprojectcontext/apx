@@ -1950,6 +1950,10 @@ cancels. Confirmations follow D-106's strong actions: an event only on the owner
 Doc APX writes are the owner's own and do not ask; inviting people, cancelling and sharing a file speak to others in
 the owner's name and ask; sending mail still always asks.
 
+Changed 2026-10-28: moving an event with guests, taking guests off or cancelling emailed them (`sendUpdates: "all"`)
+with no card, since only adding guests asked. Now Calendar writes with `sendUpdates: "none"` unless the call emails
+guests on purpose (an invitation, or `notify_guests`), and such a call is `always`, as `gmail_send` is.
+
 <a id="d-131"></a>
 ## D-131 — 2026-10-22 — One owner per task, hand-offs through tasks, and follow-ups an agent proposes
 **One owner per task.** The agent a task is given to carries it end to end; it uses its own workers for separate
