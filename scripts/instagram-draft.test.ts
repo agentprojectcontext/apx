@@ -69,6 +69,55 @@ test("Instagram helper composes once, fails closed on a recipient mismatch, and 
       /expected recipient/,
     );
     assert.equal(await page.locator(".bubble").count(), 0);
+    await page.clock.install();
+    await page.reload();
+    await page.addScriptTag({ path: script });
+    await page.evaluate(
+      (args) => {
+        const state = globalThis as unknown as {
+          apxInstagramDraft: (args: object) => Promise<{ status: string }>;
+          clicks: number;
+          outcomes: Promise<PromiseSettledResult<{ status: string }>[]>;
+        };
+        state.clicks = 0;
+        document.querySelector("button")?.addEventListener("click", () => {
+          state.clicks++;
+          const editor = document.querySelector('[role="textbox"]');
+          if (!editor) throw new Error("Missing test editor");
+          const text = editor.textContent;
+          setTimeout(() => {
+            const bubble = document.createElement("div");
+            bubble.className = "bubble";
+            bubble.textContent = text;
+            document.querySelector("#messages")?.append(bubble);
+            editor.textContent = "";
+          }, 500);
+        });
+        state.outcomes = Promise.allSettled([state.apxInstagramDraft(args), state.apxInstagramDraft(args)]);
+      },
+      { ...options, text: "Concurrent test draft", send: true, confirmSend: "SEND acme" },
+    );
+    await page.clock.runFor(1000);
+    const concurrent = await page.evaluate(async () => {
+      const state = globalThis as unknown as {
+        clicks: number;
+        outcomes: Promise<PromiseSettledResult<{ status: string }>[]>;
+      };
+      const outcomes = await state.outcomes;
+      return {
+        clicks: state.clicks,
+        outcomes: outcomes.map((result) =>
+          result.status === "fulfilled"
+            ? { status: result.status, value: result.value.status }
+            : { status: result.status, reason: String(result.reason) },
+        ),
+      };
+    });
+    assert.equal(concurrent.clicks, 1, "concurrent invocations must never click send twice");
+    assert.deepEqual(concurrent.outcomes.map((result) => result.status).sort(), ["fulfilled", "rejected"]);
+    assert.match(concurrent.outcomes.find((result) => result.status === "rejected")?.reason ?? "", /claimed/);
+    assert.equal(concurrent.outcomes.find((result) => result.status === "fulfilled")?.value, "bubble_verified");
+    assert.equal(await page.locator(".bubble").count(), 1);
     await page.close();
   } finally {
     await browser.close();

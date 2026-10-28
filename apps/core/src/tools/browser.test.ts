@@ -169,7 +169,7 @@ test("JavaScript reaches the node only after approval, even in Total; agents can
 test("a local script changed while approval waits executes only the source displayed on the card", async () => {
   const dir = tempDir("apx-browser-source-");
   try {
-    const script = "Promise.resolve({answer: 42})";
+    const script = `/*${"review ".repeat(3400)}*/\nPromise.resolve({answer: 42})`;
     const file = path.join(dir.path, "probe.js");
     fs.writeFileSync(file, script);
     requestedFile = { path: "probe.js", sha256: createHash("sha256").update(script).digest("hex") };
@@ -180,6 +180,7 @@ test("a local script changed while approval waits executes only the source displ
     await env.client.call("threads.send", { thread, text: "evaluate file" });
     const card = await waitFor(async () => (await env.client.call("runs.pending", { thread })).inputs[0]);
     assert.match(card.detail ?? "", /Promise.resolve\(\{answer: 42\}\)$/);
+    assert.ok(card.detail?.endsWith(script), "the approval must show all source, including beyond 20000 characters");
     assert.equal(evaluations.length, before);
     fs.writeFileSync(file, "throw new Error('changed after approval')");
     await env.client.call("runs.respond", { input: card.id, decision: "approve" });
