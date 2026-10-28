@@ -10,6 +10,7 @@ import { secureRequestKey } from "./request-key.ts";
 export {
   AGENT_NAMES,
   ARTIFACT_FILE_EXT,
+  CHANNEL_DEFAULTS,
   DOCUMENT_MAX_BYTES,
   ErrorCode,
   PERSON_RELATIONS,

@@ -1,6 +1,7 @@
 // Methods behind the app screens: agents, projects, threads, surfaces.
 import { z } from "zod";
 import { composerMethods } from "./composer-methods.ts";
+import { CHANNEL_DEFAULTS } from "./constants.ts";
 import {
   Agent,
   AgentListing,
@@ -1059,8 +1060,8 @@ export const appMethods = {
             owner_thread: z.enum(["home", "own"]).default("home"),
             self_owner: z.boolean().optional(),
             rooms: ChannelRooms.optional(),
-            closers: ChannelClosers.default("silent"),
-            research: ChannelResearch.default("owner"),
+            closers: ChannelClosers.default(CHANNEL_DEFAULTS.closers),
+            research: ChannelResearch.default(CHANNEL_DEFAULTS.research),
             hours: ChannelHours.optional(),
             email: ChannelEmail.optional(),
           })

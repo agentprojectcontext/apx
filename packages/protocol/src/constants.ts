@@ -41,6 +41,12 @@ export const FILE_PAYLOAD_BYTES =
  */
 export const TURN_STEPS = 150;
 
+/**
+ * What a channel does when the owner set nothing: a closer ("ok", "gracias") is left in silence, and its sealed chats
+ * search the web only when the owner asks (DECISIONS.md#d-059).
+ */
+export const CHANNEL_DEFAULTS = { closers: "silent", research: "owner" } as const;
+
 /** Quiet hours as they start when the owner turns them on, on any app. */
 export const QUIET_HOURS = { from: "22:00", to: "07:30" } as const;
 

@@ -111,3 +111,19 @@ test("stickers: the owner approves what a sticker means; the agent reads its sti
   assert.match(answer, /"mate shared, all good"/);
   assert.equal(h.env.core.store.stickers.get(sticker)?.meaning, "mate shared, all good");
 });
+
+test("channels: one saved before closers and research existed reads with their defaults (DECISIONS.md#d-059)", async () => {
+  const store = h.env.core.store;
+  const saved = store.settings.read("channels");
+  store.settings.write(
+    "channels",
+    saved.map((c) => (c.id === "tg" ? { ...c, closers: undefined, research: undefined } : c)),
+  );
+  try {
+    const { answer } = await h.ask({ method: "channels.list" });
+    assert.match(answer, /closers: silent, research: owner/);
+    assert.doesNotMatch(answer, /undefined/);
+  } finally {
+    store.settings.write("channels", saved);
+  }
+});

@@ -1,6 +1,6 @@
 // apx_settings, the people the owner talks to and how: contacts, channels and their stickers, the owner's own profile
 // and when they are notified. A channel's sign-in and what its sealed chats may do stay the owner's (DECISIONS.md#d-138).
-import type { ChannelHours, Person } from "@apx/protocol";
+import { CHANNEL_DEFAULTS, type ChannelHours, type Person } from "@apx/protocol";
 import { autoApproves } from "../channels/stickers.ts";
 import { noticePrefs } from "../domain/notices.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
@@ -59,8 +59,8 @@ function channelLine(store: Store, c: Channel): string {
     c.enabled ? "on" : "off",
     `answered by ${inlineName(store.agents.get(c.agent_id)?.name ?? c.agent_id)}`,
     `strangers: ${c.strangers}`,
-    `closers: ${c.closers}`,
-    `research: ${c.research}`,
+    `closers: ${c.closers ?? CHANNEL_DEFAULTS.closers}`,
+    `research: ${c.research ?? CHANNEL_DEFAULTS.research}`,
     c.hours ? `hours ${hoursText(c.hours)}` : "any hour",
   ];
   return `- ${inlineName(c.label ?? c.id)} [${c.id}] (${bits.join(", ")})${rooms ? `; rooms: ${rooms}` : ""}`;
