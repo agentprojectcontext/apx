@@ -101,6 +101,7 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   browser_type: (a) => `Escribió en ${str(a.ref)}`,
   browser_use_my_login: (a) => `Usó tu sesión en ${str(a.domain)}`,
   browser_handoff: (a) => `Te pidió: ${str(a.reason, 60)}`,
+  browser_evaluate: () => "Ejecutó JavaScript en el navegador",
   message_contact: (a) => `Le escribió a ${str(a.to ?? "un contacto")}`,
   channel_post: (a) => (a.room ? `Publicó en #${str(a.room).replace(/^#/, "")}` : "Publicó en una sala"),
   open_document: (a) => `Abrió el documento ${a.title ? str(a.title) : file(a.path, "")}`,
