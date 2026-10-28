@@ -38,8 +38,9 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   await named.getByRole("combobox", { name: "Proyecto", exact: true }).click();
   await page.getByRole("option", { name: `flow-intake-${stamp}`, exact: true }).click();
   await expect(named.getByRole("combobox", { name: "Proyecto", exact: true })).toHaveText(`flow-intake-${stamp}`);
-  // Coming-soon kinds are listed but can't be added.
-  await expect(named.getByRole("button", { name: "SQL · Pronto" })).toBeDisabled();
+  // Every kind in the list can be added.
+  await expect(named.getByRole("button", { name: "Sumar SQL" })).toBeEnabled();
+  await expect(named.getByRole("button", { name: "Sumar Cmd" })).toBeEnabled();
   // Webhook → save → AI model, each added after the last one.
   await named.getByRole("button", { name: "Sumar Webhook entrante" }).click();
   await named.getByRole("button", { name: "Sumar Guardar en la tabla" }).click();
@@ -49,8 +50,10 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   // A check between the webhook and the save: choose the webhook, then add a check after it.
   await named.locator('.react-flow__node[data-id="webhook-1"]').click();
   await named.getByRole("button", { name: "Sumar Condición" }).click();
+  // Its case compares a field with a value.
+  await named.getByRole("radio", { name: "Es", exact: true }).click();
   await named.getByRole("textbox", { name: "Campo" }).fill("type");
-  await named.getByRole("textbox", { name: "Es", exact: true }).fill("message");
+  await named.getByRole("textbox", { name: "Valor", exact: true }).fill("message");
   // The new check hangs off the webhook beside the save; join it into the chain: webhook → check → save.
   await named.locator('.react-flow__node[data-id="webhook-1"]').click();
   await named.getByRole("button", { name: "Quitar conexión" }).first().click();
