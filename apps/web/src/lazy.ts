@@ -165,7 +165,7 @@ export const ModelList = lazy(() => import("./config/models/ModelList.tsx").then
 // The editor and its languages load when the first text file opens.
 export const CodeView = lazy(() => import("./project/files/CodeView.tsx").then((m) => ({ default: m.CodeView })));
 
-export const FlowsPane = lazy(() => import("./routines/FlowsPane.tsx").then((m) => ({ default: m.FlowsPane })));
+export const FlowsPane = lazy(() => import("./routines/FlowsPane"));
 
 // The searchable picker (base-ui's combobox) loads after the first paint: the inbox's new-chat button has one.
 export const SearchSelect = lazy(() =>

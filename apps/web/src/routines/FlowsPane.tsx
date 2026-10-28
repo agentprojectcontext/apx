@@ -2,6 +2,7 @@ import { Badge, Button, EmptyState, Icons, Skeleton } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { useData } from "../data/state.ts";
+import GraphDraft from "../flows/Draft.tsx";
 import { usePack, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { FlowDetail } from "./FlowDetail.tsx";
@@ -9,7 +10,7 @@ import { FlowEditor } from "./FlowEditor.tsx";
 import { draftFlow, type Flow, type FlowDraft } from "./flow-form.ts";
 import "./flows.css";
 
-export function FlowsPane({ projectId }: { projectId?: string | undefined }) {
+export default function FlowsPane({ projectId }: { projectId?: string | undefined }) {
   const projects = useData((s) => s.projects);
   const ready = usePack("flow");
   const t = useT();
@@ -17,6 +18,7 @@ export function FlowsPane({ projectId }: { projectId?: string | undefined }) {
   const flows = loaded?.flows;
   const [editing, setEditing] = useState<{ draft: FlowDraft; creating: boolean }>();
   const [selected, setSelected] = useState<string>();
+  const [graphFlow, setGraphFlow] = useState<string>();
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const refresh = useCallback(() => setRevision((n) => n + 1), []);
@@ -35,6 +37,7 @@ export function FlowsPane({ projectId }: { projectId?: string | undefined }) {
       live = false;
     };
   }, [projectId, revision, t]);
+  if (graphFlow && ready) return <GraphDraft key={graphFlow} flow={graphFlow} close={() => setGraphFlow(undefined)} />;
   if (!ready) return <Skeleton width="100%" height={80} />;
   return (
     <section className="page flows" aria-label={t("flow.title")}>
@@ -97,6 +100,9 @@ export function FlowsPane({ projectId }: { projectId?: string | undefined }) {
                 onClick={() => setSelected(selected === flow.id ? undefined : flow.id)}
               >
                 {flow.name}
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setGraphFlow(flow.id)}>
+                {t("flow.graph.open")}
               </Button>
               <Badge>{t(flow.enabled ? "flow.enabled" : "flow.disabled")}</Badge>
               <span>{projects.find((p) => p.id === flow.projectId)?.name ?? flow.projectId}</span>

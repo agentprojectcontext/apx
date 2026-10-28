@@ -1,6 +1,7 @@
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
 import { type Flows, validateFlowBinding } from "../flows.ts";
+import { flowGraphHandlers } from "./flow-graphs.ts";
 import type { Handlers } from "./router.ts";
 
 export function flowHandlers(
@@ -14,6 +15,7 @@ export function flowHandlers(
     return flow;
   };
   return {
+    ...flowGraphHandlers(store),
     "flows.list": ({ project }) => ({ flows: store.flows.list(project) }),
     "flows.set": (flow) => {
       validateFlowBinding(store, flow);
@@ -50,7 +52,7 @@ export function flowHandlers(
         result = store.flows.retire(flow);
       } catch {
         throw badRequest(
-          "Disable the Flow and finish or cancel its active runs before retiring it; the identifier stays reserved",
+          "Disable the Flow and finish or cancel its active runs before retiring it; graph retirement is unavailable until complete graph export is supported; the identifier stays reserved",
         );
       }
       try {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { flowGraphMethods } from "./flow-graph.ts";
 
 const Id = z.string().regex(/^[A-Za-z0-9_-]{1,100}$/);
 const Scalar = z.union([z.string().max(4096), z.number().finite(), z.boolean(), z.null()]);
@@ -36,6 +37,7 @@ export const FlowEventCursor = z
   .strict();
 export type FlowEventCursor = z.infer<typeof FlowEventCursor>;
 export const flowMethods = {
+  ...flowGraphMethods,
   "flows.list": {
     params: z.object({ project: Id.optional() }).strict(),
     result: z.object({ flows: z.array(FlowDefinition) }),

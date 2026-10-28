@@ -11,6 +11,12 @@ export function retireFlow(db: Db, id: string) {
     const flow = db.prepare("SELECT enabled FROM flows WHERE id=?").get(id);
     if (!flow) return { retired: false };
     if (flow.enabled) throw new Error("Disable the Flow before retiring it");
+    if (
+      db
+        .prepare("SELECT 1 FROM flow_graph_drafts WHERE flow_id=? AND (discarded=0 OR published_revision IS NOT NULL)")
+        .get(id)
+    )
+      throw new Error("Graph retirement requires a complete graph export, which is not available yet");
     const active = db
       .prepare(
         "SELECT 1 FROM flow_events e JOIN runs r ON r.id=e.run_id WHERE e.flow_id=? AND r.ended_at IS NULL LIMIT 1",

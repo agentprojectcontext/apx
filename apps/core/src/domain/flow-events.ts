@@ -18,7 +18,9 @@ export function flowEventsRepo(db: Db) {
   const api = {
     admissionInput(flow: string, event: string) {
       const row = db
-        .prepare("SELECT payload,action FROM flow_events WHERE flow_id=? AND event_id=? AND state='pending'")
+        .prepare(
+          "SELECT payload,action FROM flow_events WHERE flow_id=? AND event_id=? AND executor='legacy' AND state='pending'",
+        )
         .get(flow, event);
       if (!row) throw new Error("Flow event is no longer pending");
       return {
@@ -55,7 +57,7 @@ export function flowEventsRepo(db: Db) {
     pending(limit = 20, after = 0) {
       return db
         .prepare(
-          "SELECT e.rowid AS cursor,e.flow_id,e.event_id,e.payload,e.action,e.thread_id FROM flow_events e JOIN flows f ON f.id=e.flow_id WHERE e.state='pending' AND f.enabled=1 AND e.rowid>? ORDER BY e.rowid LIMIT ?",
+          "SELECT e.rowid AS cursor,e.flow_id,e.event_id,e.payload,e.action,e.thread_id FROM flow_events e JOIN flows f ON f.id=e.flow_id WHERE e.executor='legacy' AND e.state='pending' AND f.enabled=1 AND e.rowid>? ORDER BY e.rowid LIMIT ?",
         )
         .all(after, limit)
         .map((r) => ({
@@ -70,7 +72,7 @@ export function flowEventsRepo(db: Db) {
     setThread(flow: string, event: string, thread: string) {
       const changed = db
         .prepare(
-          "UPDATE flow_events SET thread_id=? WHERE flow_id=? AND event_id=? AND state='pending' AND thread_id IS NULL",
+          "UPDATE flow_events SET thread_id=? WHERE flow_id=? AND event_id=? AND executor='legacy' AND state='pending' AND thread_id IS NULL",
         )
         .run(thread, flow, event);
       if (!changed.changes) throw new Error("Flow event already has a thread or is no longer pending");
@@ -78,28 +80,30 @@ export function flowEventsRepo(db: Db) {
     admitted(flow: string, event: string, run: string) {
       const changed = db
         .prepare(
-          "UPDATE flow_events SET state='admitted', run_id=?, error=NULL WHERE flow_id=? AND event_id=? AND state='pending'",
+          "UPDATE flow_events SET state='admitted', run_id=?, error=NULL WHERE flow_id=? AND event_id=? AND executor='legacy' AND state='pending'",
         )
         .run(run, flow, event);
       if (!changed.changes) throw new Error("Flow event is no longer pending");
     },
     fail(flow: string, event: string) {
       db.prepare(
-        "UPDATE flow_events SET state='failed',error='Action could not be admitted; review its binding before retrying' WHERE flow_id=? AND event_id=? AND state='pending'",
+        "UPDATE flow_events SET state='failed',error='Action could not be admitted; review its binding before retrying' WHERE flow_id=? AND event_id=? AND executor='legacy' AND state='pending'",
       ).run(flow, event);
     },
     retry(flow: string, event: string) {
       return sql(db).tx(() => {
         if (
           !db
-            .prepare("SELECT 1 FROM flow_events WHERE flow_id=? AND event_id=? AND state='failed' AND run_id IS NULL")
+            .prepare(
+              "SELECT 1 FROM flow_events WHERE flow_id=? AND event_id=? AND executor='legacy' AND state='failed' AND run_id IS NULL",
+            )
             .get(flow, event)
         )
           return { queued: false };
         checkFlowCapacity(db, flow);
         const result = db
           .prepare(
-            "UPDATE flow_events SET state='pending',error=NULL WHERE flow_id=? AND event_id=? AND state='failed' AND run_id IS NULL",
+            "UPDATE flow_events SET state='pending',error=NULL WHERE flow_id=? AND event_id=? AND executor='legacy' AND state='failed' AND run_id IS NULL",
           )
           .run(flow, event);
         return { queued: Boolean(result.changes) };
