@@ -36,7 +36,10 @@ export const AgentRules = z.object({
 });
 export type AgentRules = z.infer<typeof AgentRules>;
 
-/** What each autonomy amounts to per risk, as the editor shows it before an agent sets rules of its own. */
+/**
+ * What each autonomy amounts to per risk, only as the editor shows it: the core runs the mode itself, so this is never
+ * saved as an agent's rules (DECISIONS.md#d-090).
+ */
 export const AUTONOMY_RULES: Record<Autonomy, Required<AgentRules>> = {
   manual: { read: "auto", write: "ask", outside: "ask", irreversible: "ask" },
   auto: { read: "auto", write: "auto", outside: "ask", irreversible: "ask" },

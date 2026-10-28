@@ -76,8 +76,9 @@ there, with a note saying so.
 An agent can also have its own rule for each kind of action, over its autonomy: **read and look**, **change the
 project**, **act outside in your name** and **irreversible**. Each one runs without asking, asks, or is off (its tools
 are taken away). Set them in the agent's editor under **Rules by case**, or in its file as
-`rules: write=auto, outside=ask`. An agent that used the project's autonomy gets its own rules for every case the first
-time you change one, so later changes to the project no longer reach it; **Use the project's again** undoes that.
+`rules: write=auto, outside=ask`. An agent that used the project's autonomy takes that mode as its own the first time you
+change a rule, with only that case changed, so later changes to the project no longer reach it; **Use the project's
+again** undoes both.
 What you granted it for good still runs without asking, and a helper keeps its own rules over its caller's mode.
 
 ## Approving

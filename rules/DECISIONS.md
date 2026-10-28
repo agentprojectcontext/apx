@@ -1087,6 +1087,11 @@ keeps when and from which chat it was given (`tools.grant_set`). A grant with a 
 freely, so it is not handed on to another agent. `orchestrator: true` marks the head of a team explicitly and `orchestrator: false` says an agent is not it; the
 guesses by role ("orchestrator", "CEO", "lead") remain only for files that say neither.
 
+Changed 2026-10-28: the editor wrote its four-value summary of the project's mode as the agent's rules, and that summary
+is not what the core runs (an Auto agent began asking before reading outside, an Accept edits one stopped asking before
+commands). Leaving the project's mode now copies that mode as the agent's own `autonomy` and saves only the changed case
+as a rule; "Use the project's again" clears both. `AUTONOMY_RULES` is display only.
+
 <a id="d-091"></a>
 ## D-091 — 2026-10-16 — A run no one watches gets more steps, and a routine can set its own
 Our own loop gave every turn 14 model calls, and a routine that reviews several issues ran out halfway and ended with
@@ -1605,8 +1610,7 @@ The owner's other requests in the same report, all through that rule:
 
 Left as they are, and why: the board's project scope for tasks and memory scopes are about which project's data an
 agent sees, not its mode; the 60-action computer-use check is a runaway guard; the Rules editor writing all four
-rules when an agent leaves its project's mode freezes them over a later mode change (none on this machine today),
-which is a product question for that page; the owner's own Claude Code settings still apply to Claude Code's tools.
+rules when an agent leaves its project's mode froze them over a later mode change (settled in D-090's 2026-10-28 change); the owner's own Claude Code settings still apply to Claude Code's tools.
 
 <a id="d-116"></a>
 ## D-116 — 2026-10-21 — 150 steps a turn, and a cut delegate goes on while it makes progress
