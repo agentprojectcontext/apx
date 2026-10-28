@@ -9,8 +9,10 @@ test("public ingress is configurable outside channel settings without exposing t
     .fill("dispositivos");
   await page.getByRole("option", { name: /Dispositivos/ }).click();
   await expect(page.getByRole("heading", { name: "Dirección pública", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Endpoints públicos", exact: true })).toBeVisible();
-  await expect(page.getByText("Creá un Flow con webhook para registrar un endpoint.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Endpoints", exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Todavía no hay endpoints. Creá un Flow que arranque con un webhook y aparece acá."),
+  ).toBeVisible();
   const health = await rpc<{ code_sha: string }>("system.health");
   expect(health.code_sha).toMatch(/^[a-f0-9]{7,40}$/);
   if (process.env.E2E_EXPECTED_SHA) expect(health.code_sha).toBe(process.env.E2E_EXPECTED_SHA);

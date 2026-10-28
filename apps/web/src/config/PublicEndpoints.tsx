@@ -1,5 +1,5 @@
 import type { PublicEndpointInfo } from "@apx/protocol";
-import { Badge, Button, EmptyState, Icons, SettingRow, Skeleton } from "@apx/ui";
+import { Badge, Button, EmptyState, IconButton, Icons, Input, SettingRow, Skeleton } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
@@ -74,46 +74,47 @@ export function PublicEndpoints() {
         </EmptyState>
       )}
       {routes?.map((route) => (
-        <SettingRow
-          key={route.path}
-          title={route.label}
-          description={<code>{base ? `${base}${route.path}` : route.path}</code>}
-        >
+        <SettingRow key={route.path} title={route.label} description={<code>{route.path}</code>}>
           <div className="config__headactions">
             <Badge tone={route.enabled ? "brand" : "neutral"}>
               {t(route.enabled ? "ingress.enabled" : "ingress.revoked")}
             </Badge>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void change(route.path, true)}>
-              {t(route.enabled ? "ingress.rotate" : "ingress.enable")}
-            </Button>
-            {route.enabled && (
+            {base && (
+              <IconButton
+                size="sm"
+                label={t("ingress.copyUrl")}
+                icon={<Icons.Copy size={14} />}
+                disabled={busy}
+                onClick={() => void copy(`${base}${route.path}`)}
+              />
+            )}
+            {route.enabled ? (
               <Button size="sm" variant="secondary" disabled={busy} onClick={() => void change(route.path, false)}>
                 {t("ingress.revoke")}
               </Button>
-            )}
-            {base && (
-              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void copy(`${base}${route.path}`)}>
-                {t("hooks.copy")}
+            ) : (
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void change(route.path, true)}>
+                {t("ingress.create")}
               </Button>
             )}
           </div>
         </SettingRow>
       ))}
       {credential && (
-        <div className="access__note" role="status">
-          <div>
-            <p>{t("ingress.tokenHint", { path: credential.path })}</p>
-            <code style={{ overflowWrap: "anywhere" }}>{credential.value}</code>
-            <div className="config__headactions">
-              <Button size="sm" variant="secondary" onClick={() => void copy(credential.value)}>
-                {t("ingress.copyToken")}
-              </Button>
-              <Button size="sm" variant="secondary" onClick={() => setCredential(undefined)}>
-                {t("ingress.hideToken")}
-              </Button>
-            </div>
+        <SettingRow title={t("ingress.tokenTitle")} description={t("ingress.tokenHint")}>
+          <div className="config__headactions">
+            <Input readOnly aria-label={t("ingress.tokenTitle")} value={credential.value} />
+            <IconButton
+              size="sm"
+              label={t("ingress.copyToken")}
+              icon={<Icons.Copy size={14} />}
+              onClick={() => void copy(credential.value)}
+            />
+            <Button size="sm" variant="secondary" onClick={() => setCredential(undefined)}>
+              {t("ingress.hideToken")}
+            </Button>
           </div>
-        </div>
+        </SettingRow>
       )}
     </>
   );
