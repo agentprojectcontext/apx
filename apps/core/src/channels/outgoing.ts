@@ -123,6 +123,11 @@ export function createOutgoing(deps: {
       channel?: string | undefined;
       /** `channel` is a channel's id, never a type: a Flow's fixed destination. */
       exact?: boolean | undefined;
+      /**
+       * A Flow of the owner's sent it (its name): the chat's agent reads it as the owner's note, never as its own words,
+       * since the text may carry what an outside service sent.
+       */
+      flow?: string | undefined;
       by?: string | undefined;
       files?: string[] | undefined;
       omit_signature?: boolean | undefined;
@@ -133,7 +138,15 @@ export function createOutgoing(deps: {
     const recent = recentOf(thread.id);
     // To the owner on a chat app it is a notice like any other: without sound in their quiet hours.
     const silent = owner && quietNow(store);
-    const outbox = post(thread, pick.cfg.id, pick.conversation, text, { ...o, logged: !owner, silent });
+    const outbox = post(thread, pick.cfg.id, pick.conversation, text, {
+      ...o,
+      logged: !owner && !o.flow,
+      silent,
+    });
+    if (o.flow && !owner)
+      store.modelLog.append(thread.id, undefined, [
+        { role: "user", content: `[Your owner's flow "${o.flow}" sent this in this chat:]\n${text}` },
+      ]);
     return { thread: thread.id, channel: pick.cfg.label, recent, outbox };
   }
 

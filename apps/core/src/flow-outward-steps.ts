@@ -15,6 +15,8 @@ type Http = Extract<FlowNode, { kind: "http" }>;
 
 /** Messages a Flow may send as the owner in an hour; the next one fails, unsent. */
 export const FLOW_SENDS_PER_HOUR = 20;
+/** Requests that may change something (POST, PUT) a Flow makes in an hour; the next one fails, unsent. */
+export const FLOW_CALLS_PER_HOUR = 60;
 /** How long a send waits for its channel to say how it went before it is left to look at. */
 const SEND_WAIT_MS = 60_000;
 const BODY_LIMIT = 32 * 1024;
@@ -27,6 +29,7 @@ export const OUTWARD_WHY = {
   destination: "destination_unavailable",
   sendFailed: "send_failed",
   sendUnknown: "send_uncertain",
+  channelDown: "channel_unavailable",
   refused: "destination_refused",
   requestFailed: "request_failed",
   requestUnknown: "request_uncertain",
@@ -44,10 +47,18 @@ export const uncertainWhy = (kind: FlowNode["kind"] | undefined) =>
 /** Sends a notify step's text through the owner's channels. */
 export type FlowNotifier = {
   /** Sends as the owner to the step's fixed destination; throws when it is gone. Returns the outbox item. */
-  send(node: Notify, text: string): { outbox: string };
+  send(node: Notify, text: string, flow: string): { outbox: string };
   /** How the send went, waiting up to `ms`: sent, failed, uncertain or still queued. */
   settled(outbox: string, ms: number): Promise<{ state: string }>;
+  /** Takes back a send no channel has taken yet; false once it may have gone out. */
+  withdraw(outbox: string): boolean;
 };
+
+/**
+ * What a payload put in a message can't become a link or a ping in the owner's name: a Markdown link loses its form
+ * and an @handle its mention (a zero-width space after the @).
+ */
+export const plainBound = (text: string) => text.replace(/\]\(/g, "] (").replace(/@(?=[\w.-])/g, "@\u200b");
 export type FlowHttpDeps = { policy: FlowHttpPolicy; secret(ref: string, project: string): string | undefined };
 
 class StepRefused extends Error {
@@ -84,7 +95,19 @@ const TEXTUAL = /^(text\/|application\/(json|xml|javascript|x-www-form-urlencode
 
 /** What a step keeps of an answer: status, a bounded text or JSON body, binary only said, the secrets it used cut. */
 export function answerOutput(a: FlowHttpAnswer, secrets: readonly string[]) {
-  const scrub = (t: string) => secrets.reduce((x, s) => (s.length >= 4 ? x.split(s).join("[secret]") : x), t);
+  // A secret may come back as it was sent, URL-encoded, or JSON-escaped (cut again in the parsed value).
+  const forms = secrets
+    .filter((s) => s.length >= 4)
+    .flatMap((s) => [s, encodeURIComponent(s), JSON.stringify(s).slice(1, -1), s.replaceAll("/", "\\/")]);
+  const scrub = (t: string) => forms.reduce((x, s) => x.split(s).join("[secret]"), t);
+  const deep = (v: unknown): unknown =>
+    typeof v === "string"
+      ? scrub(v)
+      : Array.isArray(v)
+        ? v.map(deep)
+        : v && typeof v === "object"
+          ? Object.fromEntries(Object.entries(v).map(([k, x]) => [scrub(k), deep(x)]))
+          : v;
   const type = String(a.headers["content-type"] ?? "").slice(0, 200);
   const out: Record<string, unknown> = {
     status: a.status,
@@ -109,7 +132,7 @@ export function answerOutput(a: FlowHttpAnswer, secrets: readonly string[]) {
   const clean = scrub(text);
   if (!a.truncated && (/json/i.test(type) || /^\s*[[{]/.test(clean))) {
     try {
-      const json = boundedFlowValue(JSON.parse(clean));
+      const json = deep(boundedFlowValue(JSON.parse(clean)));
       if (Buffer.byteLength(JSON.stringify(json)) <= SHOWN_JSON) {
         out.json = json;
         return out;
@@ -145,6 +168,7 @@ export function createOutwardSteps(deps: {
     try {
       const out = renderFlowTemplate(parseFlowTemplate(node.text), resolve, {
         missing: node.onlyIfContent ? "empty" : "throw",
+        bound: plainBound,
       });
       if (node.onlyIfContent && (out.empty || !out.text.trim())) {
         runs.settle(k, ["pending"], "skipped", now(), W.nothing);
@@ -161,7 +185,7 @@ export function createOutwardSteps(deps: {
       fail(k, "pending", W.destination);
       return;
     }
-    const input = { channel: dest.channel.label, to: dest.to, text };
+    const input = { channel: dest.channel.label, to: dest.to, ...(dest.owner ? { owner: true } : {}), text };
     try {
       if (!runs.claim(k, input, now(), "reserved")) return;
     } catch {
@@ -171,16 +195,17 @@ export function createOutwardSteps(deps: {
     // Rate, record and the commit that it may go out: one transaction, before the channel is asked.
     const at = now();
     const go = store.tx(() => {
-      if (store.flowSends.count(run.flow, new Date(at.getTime() - 3600_000)) >= FLOW_SENDS_PER_HOUR) return "limited";
+      const since = new Date(at.getTime() - 3600_000);
+      if (store.flowSends.count(run.flow, "message", since) >= FLOW_SENDS_PER_HOUR) return "limited";
       if (!runs.dispatch(k, at, run.deadline)) return "ended";
-      store.flowSends.add(run.flow, at);
+      store.flowSends.add(run.flow, "message", at);
       return "go";
     });
     if (go === "limited") fail(k, "running", W.limited);
     if (go !== "go") return;
     let outbox: string;
     try {
-      outbox = deps.notifier.send(node, text).outbox;
+      outbox = deps.notifier.send(node, text, store.flows.get(run.flow)?.name ?? run.flow).outbox;
     } catch {
       // Refused before anything was queued: the contact or room is no longer there.
       fail(k, "running", W.destination);
@@ -195,8 +220,13 @@ export function createOutwardSteps(deps: {
         ac.signal.addEventListener("abort", () => resolve({ state: "stopped" }), { once: true }),
       ),
     ]).finally(untrack);
+    // Not taken by its channel yet (it isn't running): taken back, so it never goes out later in the owner's name. A
+    // core closing leaves it queued: it goes out after the restart, and the step says to look.
+    const closing = (ac.signal.reason as Error | undefined)?.message === "closing";
+    const withdrawn = d.state !== "sent" && !closing && deps.notifier.withdraw(outbox);
     if (d.state === "stopped") return;
-    if (d.state === "sent") runs.succeed(k, "running", { ...input, delivery: "sent" }, now(), run.deadline);
+    if (withdrawn) fail(k, "running", W.channelDown);
+    else if (d.state === "sent") runs.succeed(k, "running", { ...input, delivery: "sent" }, now(), run.deadline);
     else if (d.state === "failed") fail(k, "running", W.sendFailed);
     else fail(k, "running", W.sendUnknown, "uncertain");
   }
@@ -250,6 +280,19 @@ export function createOutwardSteps(deps: {
     } catch {
       fail(k, "pending", W.value);
       return;
+    }
+    if (!retryable) {
+      const at = now();
+      const limited = store.tx(() => {
+        if (store.flowSends.count(run.flow, "request", new Date(at.getTime() - 3600_000)) >= FLOW_CALLS_PER_HOUR)
+          return true;
+        store.flowSends.add(run.flow, "request", at);
+        return false;
+      });
+      if (limited) {
+        fail(k, "running", W.limited);
+        return;
+      }
     }
     const ac = new AbortController();
     const untrack = deps.track(ac, run);

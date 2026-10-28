@@ -207,6 +207,15 @@ test("an answer is read up to its cap, binary is only said, JSON is kept as data
   );
   assert.deepEqual(echoed.json, { price: 71240, echo: "Bearer [secret]" });
   assert.equal(JSON.stringify(echoed).includes("tok-ACME"), false);
+  // Escaped by the service (PHP escapes "/"), or URL-encoded: cut all the same.
+  const slashed = "tok/EN+abc123==";
+  for (const raw of ['{"echo":"tok\\/EN+abc123=="}', `{"echo":"${encodeURIComponent(slashed)}"}`]) {
+    const out = answerOutput(
+      { status: 200, headers: { "content-type": "application/json" }, bytes: Buffer.from(raw), truncated: false },
+      [slashed],
+    );
+    assert.equal(JSON.stringify(out).includes("abc123"), false, raw);
+  }
 });
 
 test("a request cut before any answer says whether it was sent", async () => {

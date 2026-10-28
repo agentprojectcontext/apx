@@ -32,12 +32,12 @@ export function notifyDestination(store: Store, node: Notify) {
   if (!channel?.enabled) return undefined;
   if (node.to.kind === "room") {
     const room = channel.rooms?.rooms.find((r) => r.id === (node.to as { room: string }).room);
-    return room ? { channel, to: `#${room.name || room.id}`, room } : undefined;
+    return room ? { channel, to: `#${room.name || room.id}`, owner: false, room } : undefined;
   }
   const person = store.persons.get(node.to.person);
   if (!person || person.role === "blocked") return undefined;
   if (!person.addresses.some((a) => a.channel === channel.id)) return undefined;
-  return { channel, to: person.id === OWNER_ID ? "you" : person.name, person };
+  return { channel, to: person.name, owner: person.id === OWNER_ID, person };
 }
 
 function httpHost(node: Http): string {
@@ -50,8 +50,11 @@ function httpHost(node: Http): string {
 
 /** The sends and calls a drawing makes, and the keys the owner approves by publishing it. */
 export function flowOutward(store: Store, graph: FlowGraph) {
-  const sends: { node: string; channel: string; type: string; to: string }[] = [];
-  const calls: { node: string; method: string; host: string }[] = [];
+  const sends: { node: string; channel: string; type: string; to: string; owner: boolean }[] = [];
+  const calls: { node: string; method: string; host: string; secrets: string[] }[] = [];
+  const secretsOf = (n: Http) => [
+    ...new Set(n.headers.flatMap((h) => (h.value.match(SECRET_REF) ?? []).map((r) => r.slice(9)))),
+  ];
   for (const node of graph.nodes) {
     if (node.kind === "notify") {
       const d = notifyDestination(store, node);
@@ -60,16 +63,19 @@ export function flowOutward(store: Store, graph: FlowGraph) {
         channel: d?.channel.label ?? node.channel,
         type: d?.channel.type ?? "",
         to: d?.to ?? "?",
+        owner: d?.owner ?? false,
       });
     }
-    if (node.kind === "http") calls.push({ node: node.id, method: node.method, host: httpHost(node) });
+    if (node.kind === "http")
+      calls.push({ node: node.id, method: node.method, host: httpHost(node), secrets: secretsOf(node) });
   }
   const keys = [
     ...graph.nodes.flatMap((n) =>
       n.kind === "notify"
         ? [`send:${n.channel}:${n.to.kind === "room" ? `room:${n.to.room}` : `contact:${n.to.person}`}`]
         : n.kind === "http"
-          ? [`call:${n.method}:${n.url}`]
+          ? // Which secrets go to which address is part of what the owner allows.
+            [`call:${n.method}:${n.url}`, ...secretsOf(n).map((s) => `secret:${s}:${n.url}`)]
           : [],
     ),
   ];

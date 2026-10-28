@@ -271,9 +271,16 @@ export const flowGraphMethods = {
       .object({
         /** Keys to pass back to `flows.publish` once the owner has seen them. */
         keys: z.array(z.string()),
-        /** `to` is "you" for the owner; `type` is the channel's kind, for its icon. */
-        sends: z.array(z.object({ node: FlowNodeId, channel: z.string(), type: z.string(), to: z.string() }).strict()),
-        calls: z.array(z.object({ node: FlowNodeId, method: z.string(), host: z.string() }).strict()),
+        /** `owner`: it goes to the owner themselves; `type` is the channel's kind, for its icon. */
+        sends: z.array(
+          z
+            .object({ node: FlowNodeId, channel: z.string(), type: z.string(), to: z.string(), owner: z.boolean() })
+            .strict(),
+        ),
+        /** `secrets`: the names of the secrets it sends to that address. */
+        calls: z.array(
+          z.object({ node: FlowNodeId, method: z.string(), host: z.string(), secrets: z.array(z.string()) }).strict(),
+        ),
       })
       .strict(),
     effect: false,
@@ -289,7 +296,7 @@ export const flowGraphMethods = {
          * Where the drawing sends and which hosts it calls, as `flows.outward` lists them for this draft: the owner saw
          * them before it runs. Required, and must match, when the draft has notify or http steps.
          */
-        outward: z.array(z.string().max(400)).max(16).optional(),
+        outward: z.array(z.string().max(2400)).max(160).optional(),
       })
       .strict(),
     result: FlowGraphDocument,

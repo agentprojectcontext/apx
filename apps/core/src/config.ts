@@ -202,7 +202,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     webDist: env.APX_WEB_DIST || undefined,
     v1: { url: env.APX_V1_URL ?? "http://127.0.0.1:7430", home: env.APX_V1_HOME ?? path.join(os.homedir(), ".apx") },
     telegramApi: env.APX_TELEGRAM_API || undefined,
-    flowHttpAllow: list(env.APX_FLOW_HTTP_ALLOW).filter((a) => /^(127\.0\.0\.1|\[::1\]|::1):\d{1,5}$/.test(a)),
+    flowHttpAllow: list(env.APX_FLOW_HTTP_ALLOW).filter((a) => /^127\.0\.0\.1:\d{1,5}$/.test(a)),
     discord:
       env.APX_DISCORD_API && env.APX_DISCORD_GATEWAY
         ? { api: env.APX_DISCORD_API, gateway: env.APX_DISCORD_GATEWAY, cdn: env.APX_DISCORD_API }

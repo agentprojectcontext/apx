@@ -169,6 +169,7 @@ export interface FlowSchedulesTable {
 
 export interface FlowSendsTable {
   flow_id: string;
+  kind: string;
   at: string;
 }
 

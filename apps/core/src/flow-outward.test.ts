@@ -6,7 +6,7 @@ import type { FlowGraph, FlowNode } from "../../../packages/protocol/src/flow-gr
 import type { ChannelAdapter, OutFile } from "./channels/types.ts";
 import type { Presentation } from "./domain/channels.ts";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";
-import { FLOW_SENDS_PER_HOUR } from "./flow-outward-steps.ts";
+import { FLOW_CALLS_PER_HOUR, FLOW_SENDS_PER_HOUR } from "./flow-outward-steps.ts";
 import { tempDir, waitFor } from "./testkit/platform.ts";
 
 type Env = Awaited<ReturnType<typeof startCore>>;
@@ -166,7 +166,17 @@ test("publishing a send needs the owner to have seen where it goes, and a destin
     const graph = chain(hook, notify("say", { kind: "contact", person: alex }, "New lead: $trigger.company"));
     const draft = await env.client.call("flows.draft_save", { flow: "tell", expectedVersion: null, graph });
     const outward = await env.client.call("flows.outward", { flow: "tell", graph });
-    assert.deepEqual(outward.sends, [{ node: "say", channel: "Discord", type: "discord", to: "Alex Acme" }]);
+    assert.deepEqual(outward.sends, [
+      { node: "say", channel: "Discord", type: "discord", to: "Alex Acme", owner: false },
+    ]);
+    // A contact who calls themselves "you" is still not the owner.
+    const you = env.core.store.persons.create({ name: "you", role: "contact" });
+    env.core.store.persons.link(you.id, { channel: "chat", external_id: "you-1" });
+    const named = await env.client.call("flows.outward", {
+      flow: "tell",
+      graph: chain(hook, notify("say", { kind: "contact", person: you.id }, "Hi")),
+    });
+    assert.equal(named.sends[0]?.owner, false);
     assert.deepEqual(outward.keys, [`send:chat:contact:${alex}`]);
     const base = { flow: "tell", expectedDraftVersion: draft.draftVersion ?? 0, expectedPublishedRevision: null };
     await assert.rejects(env.client.call("flows.publish", base), /Confirm where it sends/);
@@ -221,9 +231,16 @@ test("the payload fills the words only: the send goes to the drawn contact whate
       text: "Lead: Northwind ($ 12)",
     });
     assert.equal(JSON.parse(s.say?.output ?? "null").delivery, "sent");
-    // The text is kept in Alex's chat as the owner's words.
+    // Alex's chat agent reads it as the owner's flow's note, never as words it said itself (they came from outside).
     const chatThread = env.core.store.threads.byConversation("chat", "alex-1");
     assert.ok(chatThread);
+    const log = env.core.store.modelLog.list(chatThread.id).map((e) => e.item as { role: string; content: string });
+    assert.equal(log.filter((m) => m.role === "assistant").length, 0);
+    assert.match(log.at(-1)?.content ?? "", /^\[Your owner's flow "leads" sent this in this chat:\]\nLead: Northwind/);
+    // What the payload brings can't become a link or a mention in the owner's name; the owner's own text can.
+    await post(env, flow, "e2", { company: "[Pay here](https://evil.example) @mallory", size: 1 });
+    assert.equal((await ended(env, flow, "e2")).state, "succeeded");
+    assert.equal(chat.sent[1]?.text, "Lead: [Pay here] (https://evil.example) @\u200bmallory ($ 1)");
   } finally {
     await env.core.close();
     await env.cleanup();
@@ -283,7 +300,7 @@ test("a Flow sends at most its hourly limit; the next one fails without going ou
       chain(hook, notify("say", { kind: "contact", person: alex }, "Ping $trigger.n")),
     );
     const now = new Date();
-    for (let i = 0; i < FLOW_SENDS_PER_HOUR - 1; i++) env.core.store.flowSends.add(flow, now);
+    for (let i = 0; i < FLOW_SENDS_PER_HOUR - 1; i++) env.core.store.flowSends.add(flow, "message", now);
     await post(env, flow, "last", { n: 1 });
     assert.equal((await ended(env, flow, "last")).state, "succeeded");
     await post(env, flow, "over", { n: 2 });
@@ -531,5 +548,95 @@ test("a schedule whose last run is still going skips its time and says so, inste
     await env.core.close();
     await env.cleanup();
     await hang.close();
+  }
+});
+
+test("a message to a channel that isn't running is taken back at once, never sent later", async () => {
+  let starts = 0;
+  const sent: string[] = [];
+  const down: ChannelAdapter = {
+    caps: { typing: false, buttons: false },
+    start: async () => {
+      starts++;
+      throw new Error("the chat app is down");
+    },
+    stop: async () => {},
+    send: async (_c: string, p: Presentation) => {
+      sent.push(p.text);
+      return {};
+    },
+  };
+  const env = await startCore({ llm: scriptedLlm(() => say("unused")), channelAdapters: { discord: () => down } });
+  try {
+    await env.client.call("channels.set", {
+      id: "chat",
+      channel: { type: "discord", agent_id: "roby" },
+      token: "acme-bot-token",
+    });
+    await waitFor(() => starts > 0, "the channel tried to start");
+    const alex = env.core.store.persons.create({ name: "Alex Acme", role: "contact" });
+    env.core.store.persons.link(alex.id, { channel: "chat", external_id: "alex-1" });
+    const flow = await publish(
+      env,
+      "down",
+      chain(hook, notify("say", { kind: "contact", person: alex.id }, "Hi $trigger.n")),
+    );
+    await post(env, flow, "e", { n: 1 });
+    assert.equal((await ended(env, flow, "e")).state, "failed");
+    assert.equal(steps(env, flow, "e").say?.error, "channel_unavailable");
+    const item = env.core.store.channels.outbox.recent(5)[0];
+    assert.equal(item?.state, "failed");
+    assert.deepEqual(sent, []);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("calls that may change something have an hourly limit; consent names the secrets each address gets", async () => {
+  const api = await service((_req, res) => res.end("{}"));
+  const env = await startCore({ llm: scriptedLlm(() => say("unused")), flowHttpAllow: [`127.0.0.1:${api.port}`] });
+  try {
+    await env.client.call("secrets.set", { name: "acme_key", value: SECRET });
+    const graph = chain(hook, {
+      id: "call",
+      kind: "http",
+      label: "Call",
+      method: "POST",
+      url: `${api.url}/x`,
+      headers: [{ name: "Authorization", value: "Bearer secret://acme_key" }],
+      body: "",
+      timeoutMs: 5000,
+    });
+    const flow = await publish(env, "calls", graph);
+    const { keys, calls } = await env.client.call("flows.outward", { flow, graph });
+    assert.deepEqual(keys, [`call:POST:${api.url}/x`, `secret:acme_key:${api.url}/x`]);
+    assert.deepEqual(calls[0]?.secrets, ["acme_key"]);
+    const now = new Date();
+    for (let i = 0; i < FLOW_CALLS_PER_HOUR; i++) env.core.store.flowSends.add(flow, "request", now);
+    await post(env, flow, "over", { a: 1 });
+    assert.equal((await ended(env, flow, "over")).state, "failed");
+    assert.equal(steps(env, flow, "over").call?.error, "rate_limited");
+    assert.equal(api.seen.length, 0);
+    // A body said to be JSON must be JSON: values are never pasted into JSON text.
+    const project = env.core.store.flows.get(flow)?.projectId ?? "";
+    const { issues } = await env.client.call("flows.validate", {
+      project,
+      graph: chain(hook, {
+        id: "call",
+        kind: "http",
+        label: "Call",
+        method: "POST",
+        url: "https://api.example.com/x",
+        headers: [{ name: "Content-Type", value: "application/json" }],
+        body: '{"n": $trigger.n}',
+        timeoutMs: 5000,
+      }),
+    });
+    assert.ok(issues.some((i) => i.code === "body_not_json"));
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+    await api.close();
   }
 });

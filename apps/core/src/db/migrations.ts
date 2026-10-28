@@ -997,9 +997,9 @@ export const MIGRATIONS: readonly string[] = [
   // Each message a Flow sent as the owner, for its hourly limit; ticks a schedule skipped while a run was going.
   `
   CREATE TABLE flow_sends (
-    flow_id TEXT NOT NULL REFERENCES flows(id) ON DELETE CASCADE, at TEXT NOT NULL
+    flow_id TEXT NOT NULL REFERENCES flows(id) ON DELETE CASCADE, kind TEXT NOT NULL, at TEXT NOT NULL
   );
-  CREATE INDEX flow_sends_flow ON flow_sends(flow_id, at);
+  CREATE INDEX flow_sends_flow ON flow_sends(flow_id, kind, at);
   ALTER TABLE flow_schedules ADD COLUMN skipped INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE flow_schedules ADD COLUMN skipped_at TEXT;
   `,

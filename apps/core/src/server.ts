@@ -437,7 +437,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     clock: opts.clock,
     // A notify step's destination is its revision's: channel and person or room by id (flow-outward.ts).
     notifier: {
-      send(node, text) {
+      send(node, text, flow) {
         const d = notifyDestination(store, node);
         if (!d) throw new Error("destination unavailable");
         const sent =
@@ -446,10 +446,24 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
             : channels.messageContact((d as { person: { id: string } }).person.id, text, {
                 channel: d.channel.id,
                 exact: true,
+                flow,
               });
         return { outbox: sent.outbox };
       },
-      settled: (outbox, ms) => channels.settled(outbox, ms),
+      // A channel that isn't running won't take it: no point waiting, it is withdrawn at once.
+      settled: (outbox, ms) => {
+        const item = store.channels.outbox.get(outbox);
+        const running = channels.info().find((c) => c.id === item?.channel)?.status === "running";
+        return running ? channels.settled(outbox, ms) : Promise.resolve({ state: item?.state ?? "failed" });
+      },
+      withdraw(outbox) {
+        const item = store.channels.outbox.get(outbox);
+        // Part of a long message already went out: that one is not taken back.
+        if (!item || item.body.skip) return false;
+        if (!store.channels.outbox.withdraw(outbox, "withdrawn: the channel was not running")) return false;
+        if (item.message_id) store.messages.setDelivery(item.message_id, "failed");
+        return true;
+      },
     },
     outside: {
       secret: (ref, project) => secrets.resolveIn(ref, project) !== undefined,

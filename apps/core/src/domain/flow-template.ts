@@ -61,12 +61,12 @@ export const flowValueText = (value: unknown): string =>
 /**
  * Fills a template. `resolve` returns a binding's value or throws when it is unavailable; `missing: "empty"` reads an
  * unavailable field as empty instead. `literal` rewrites literal text only (where secret references may be read),
- * never a bound value. Returns the text and whether every placeholder came out empty.
+ * never a bound value; `bound` rewrites bound values only. Returns the text and whether every placeholder came out empty.
  */
 export function renderFlowTemplate(
   parts: FlowTemplatePart[],
   resolve: (binding: FlowBinding) => unknown,
-  o: { missing?: "throw" | "empty"; literal?: (text: string) => string } = {},
+  o: { missing?: "throw" | "empty"; literal?: (text: string) => string; bound?: (text: string) => string } = {},
 ): { text: string; empty: boolean } {
   let text = "";
   let placeholders = 0;
@@ -85,7 +85,7 @@ export function renderFlowTemplate(
       value = undefined;
     }
     if (!emptyFlowValue(value)) filled++;
-    text += flowValueText(value);
+    text += o.bound ? o.bound(flowValueText(value)) : flowValueText(value);
   }
   return { text, empty: placeholders > 0 && filled === 0 };
 }

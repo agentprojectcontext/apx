@@ -65,6 +65,15 @@ function outwardIssues(node: FlowNode, add: (code: string, message: string, node
   if (problem === "secret") add("url_secret", "Secrets go in a header, not in the address", node.id);
   if (node.method === "GET" && node.body) add("get_body", "A GET request has no body", node.id);
   if (node.body.includes("secret://")) add("body_secret", "Secrets go in a header, not in the body", node.id);
+  // Said to be JSON, a body must be JSON for its values to be filled as JSON (never pasted into its text).
+  const type = node.headers.find((h) => h.name.toLowerCase() === "content-type")?.value ?? "";
+  if (/json/i.test(type) && node.body.trim()) {
+    try {
+      JSON.parse(node.body);
+    } catch {
+      add("body_not_json", "The body is not JSON", node.id);
+    }
+  }
   const names = new Set<string>();
   for (const h of node.headers) {
     const name = h.name.toLowerCase();

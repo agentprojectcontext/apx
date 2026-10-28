@@ -437,6 +437,18 @@ export function channelsRepo({ one, all, run }: Sql) {
             .where("id", "=", id),
         );
       },
+      /** Takes back an item no sender has taken yet: false once it is being sent or was. */
+      withdraw(id: string, error: string): boolean {
+        return (
+          run(
+            qb
+              .updateTable("outbox")
+              .set({ state: "failed", error, updated_at: now() })
+              .where("id", "=", id)
+              .where("state", "=", "queued"),
+          ) > 0
+        );
+      },
       fail(id: string, state: "failed" | "uncertain", error: string): void {
         run(qb.updateTable("outbox").set({ state, error, updated_at: now() }).where("id", "=", id));
       },
