@@ -137,6 +137,8 @@ export const ChannelTreeRow = lazy(() =>
 
 // Message parts load with the first message that has one, not with the chat.
 export const SurfacePart = lazy(() => import("./chat/parts/SurfacePart.tsx").then((m) => ({ default: m.SurfacePart })));
+// A browser card shows only in a chat whose agent used a browser.
+export const BrowserPart = lazy(() => import("./chat/parts/BrowserPart.tsx").then((m) => ({ default: m.BrowserPart })));
 export const ChoicesPart = lazy(() => import("./chat/parts/ChoicesPart.tsx").then((m) => ({ default: m.ChoicesPart })));
 export const ConnectPart = lazy(() => import("./chat/parts/ConnectPart.tsx").then((m) => ({ default: m.ConnectPart })));
 export const MediaGroup = lazy(() => import("./chat/parts/MediaGroup.tsx"));

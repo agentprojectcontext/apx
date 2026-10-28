@@ -198,7 +198,8 @@ export function createFlows(deps: {
      * last run is still going skips it.
      */
     tick(at: Date) {
-      const zone = flowTimeZone(store);
+      // Looked up only for a schedule that is on: it loads ICU data (~9 MB) a core without schedules never needs.
+      let zone: string | undefined;
       let admitted = false;
       const busy = new Set(store.flowGraphRuns.active().map((e) => e.flow));
       for (const s of store.flowSchedules.all()) {
@@ -210,6 +211,7 @@ export function createFlows(deps: {
         }
         let due: Date | undefined;
         try {
+          zone ??= flowTimeZone(store);
           due = dueFlowTick(s.cron, new Date(since), at, zone);
         } catch {
           continue;

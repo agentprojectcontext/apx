@@ -9,6 +9,7 @@ import { baseRef, effortLabel, splitRef } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import {
+  BrowserPart,
   ChoicesPart,
   ConnectPart,
   InputPart,
@@ -22,7 +23,6 @@ import { copyableQuote } from "./CopyableQuote.tsx";
 import { runnableCode } from "./codeRunner.tsx";
 import { linkMenu } from "./LinkMenu.tsx";
 import { MessageActions } from "./MessageActions.tsx";
-import { BrowserPart } from "./parts/BrowserPart.tsx";
 import { ChangesPart } from "./parts/ChangesPart.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { ImageGenerationPreview } from "./parts/ImageGenerationPreview.tsx";
@@ -196,7 +196,11 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
         </Suspense>
       );
     case "browser":
-      return <BrowserPart part={p} agent={agent} threadId={message.thread_id} />;
+      return (
+        <Suspense fallback={null}>
+          <BrowserPart part={p} agent={agent} threadId={message.thread_id} />
+        </Suspense>
+      );
     case "image":
       // One with a source is in its message's picture grid; one without has nothing to show.
       return null;
