@@ -35,6 +35,8 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
         : callTool("s0", "browser_text", { tab: "t1" })),
       model,
     };
+  if (!afterTool && said.includes("evaluate code"))
+    return { ...callTool("js1", "browser_evaluate", { tab: "t1", script: "Promise.resolve(42)" }), model };
   if (afterTool)
     return { ...say(`Done: ${String(req.messages.findLast((m) => m.role === "tool")?.content).slice(0, 200)}`), model };
   if (said.includes("look"))
@@ -48,6 +50,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
 let env: Awaited<ReturnType<typeof startCore>>;
 let desktop: ApxSocket;
 const snapshots: number[] = [];
+const evaluations: unknown[] = [];
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9]);
 const holds: Array<{ run: string; tabs: string[] }> = [];
 const tabs = [
@@ -63,6 +66,10 @@ before(async () => {
   desktop = await new ApxClient({ url: env.core.url }).connect("node", ["browser"]);
   desktop.onRequest(async (method, params) => {
     if (method === "browser.tabs") return { tabs };
+    if (method === "browser.evaluate") {
+      evaluations.push(params);
+      return { url: "https://example.com/", json: "42" };
+    }
     if (method === "browser.open") {
       const { url } = params as { url: string };
       opened.push(url);
@@ -99,6 +106,34 @@ after(async () => {
   desktop.close();
   await env.core.close();
   await env.cleanup();
+});
+
+test("JavaScript reaches the node only after approval, even in Total; agents cannot bypass the tool", async () => {
+  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  try {
+    for (const decision of ["deny", "approve"] as const) {
+      const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+      await env.client.call("threads.send", { thread, text: "evaluate code" });
+      const card = await waitFor(async () => (await env.client.call("runs.pending", { thread })).inputs[0]);
+      assert.equal(card.tool, "browser_evaluate");
+      assert.equal(evaluations.length, 0);
+      await env.client.call("runs.respond", { input: card.id, decision });
+      await env.settle(thread);
+      assert.equal(evaluations.length, decision === "approve" ? 1 : 0);
+    }
+    const agent = new ApxClient({ url: env.core.url, actor: "agent" });
+    await assert.rejects(agent.call("browser.evaluate", { tab: "t1", script: "1" }), /human|owner|agent/i);
+    const socket = await agent.connect();
+    try {
+      await assert.rejects(socket.call("browser.evaluate", { tab: "t1", script: "1" }), /human|owner|agent/i);
+    } finally {
+      socket.close();
+      await socket.closed;
+    }
+    assert.deepEqual(evaluations, [{ tab: "t1", script: "Promise.resolve(42)", by: "roby" }]);
+  } finally {
+    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+  }
 });
 
 test("browser_snapshot waits the seconds asked before reading the page", async () => {

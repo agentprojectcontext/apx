@@ -1,6 +1,7 @@
 // Driving one page over the Chrome DevTools Protocol, the same way wherever the page lives: the desktop app's tabs
 // (Electron's debugger) or the core's own headless Chrome. Refs are backendNodeIds from the accessibility tree
 // (stable while the document lives, DOM untouched).
+import { evaluatePage } from "./cdp-evaluate.ts";
 import { ApxError } from "./client.ts";
 
 type AXNode = {
@@ -105,6 +106,10 @@ export class CdpPage {
     };
     if (root) visit(root, 0);
     return { tree: lines.join("\n"), refs: i, truncated };
+  }
+
+  evaluate(script: string) {
+    return withTimeout(evaluatePage(this.#send, script), 7_000);
   }
 
   async click(ref: string): Promise<void> {

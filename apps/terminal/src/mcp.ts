@@ -25,6 +25,7 @@ const DESCRIPTIONS: Record<BrowserMethod, string> = {
   "browser.click": "Click the element with the given ref (take a snapshot first).",
   "browser.type":
     "Type into a field by ref. Password, one-time-code and card fields are refused: ask the user to take control and log in.",
+  "browser.evaluate": "",
   "browser.screenshot": "JPEG screenshot of a tab.",
   "browser.close": "Close a tab.",
   "browser.history": "Go back, forward or reload a tab.",

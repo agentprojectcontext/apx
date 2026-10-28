@@ -116,6 +116,21 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
     t.diagnostic(chromeStderr || "No browser stderr");
     throw error;
   })) as TabInfo;
+  const evaluated = (await browser.handle("browser.evaluate", {
+    tab: tab.tab,
+    by: "roby",
+    script: "Promise.resolve({title: document.title, path: location.pathname})",
+  })) as { json: string; url: string };
+  assert.deepEqual(JSON.parse(evaluated.json), { title: "Acme home", path: "/" });
+  assert.equal(evaluated.url, `${base}/`);
+  await assert.rejects(
+    browser.handle("browser.evaluate", {
+      tab: tab.tab,
+      by: "roby",
+      script: "throw new Error('expected failure')",
+    }),
+    /expected failure/,
+  );
   assert.equal(tab.title, "Acme home");
   assert.deepEqual(tab.control.kind, "agent");
   const snap = (await browser.handle("browser.snapshot", { tab: tab.tab })) as { tree: string };

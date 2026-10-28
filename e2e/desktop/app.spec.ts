@@ -119,8 +119,8 @@ test("the desktop header shares the native title bar and keeps its search center
 
 test("the app lends its browser to the core, and a tab opened through the core is listed", async () => {
   await until(async () => {
-    const h = await rpc<{ subsystems: Record<string, { status: string }> }>("system.health");
-    return h.subsystems.browser?.status === "ok";
+    const h = await rpc<{ subsystems: Record<string, { status: string; detail?: string }> }>("system.health");
+    return h.subsystems.browser?.status === "ok" && h.subsystems.browser.detail === "apx-desktop";
   }, 20_000);
   // The app's own origins are blocked in tabs: the sandbox's control API is an ordinary page.
   const page = `http://127.0.0.1:${process.env.E2E_CONTROL_PORT ?? 7461}/info`;
@@ -130,6 +130,18 @@ test("the app lends its browser to the core, and a tab opened through the core i
     return r.tabs.find((t) => t.tab === tab) ? r.tabs : undefined;
   });
   expect(tabs.find((t) => t.tab === tab)?.url).toBe(page);
+  const evaluated = await rpc<{ json: string; url: string }>("browser.evaluate", {
+    tab,
+    by: "e2e",
+    script: "Promise.resolve({origin: location.origin, ready: !!document.body})",
+  });
+  expect(JSON.parse(evaluated.json)).toEqual({ origin: new URL(page).origin, ready: true });
+  expect(evaluated.url).toBe(page);
+  await rpc("browser.control", { tab, mode: "user" });
+  await expect(rpc("browser.evaluate", { tab, by: "e2e", script: "1" })).rejects.toThrow(/human has/);
+  await rpc("browser.control", { tab, mode: "idle" });
+  const returned = await rpc<{ json: string }>("browser.evaluate", { tab, by: "e2e", script: "2 + 2" });
+  expect(returned.json).toBe("4");
   await rpc("browser.close", { tab });
 });
 

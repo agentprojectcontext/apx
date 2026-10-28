@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
 import { pruneUploads, saveUpload } from "../services/uploads.ts";
+import { browserEvaluateTool } from "./browser-evaluate.ts";
 import { cap, untrusted } from "./result.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 import { urlConfirm } from "./web.ts";
@@ -101,6 +102,7 @@ export function browserTools(store: Store, home: string, vm?: { hasThread(id: st
   };
 
   return [
+    browserEvaluateTool(store, home, own, vm),
     defineTool({
       needsCap: BROWSER_CAP,
       name: "browser_open",

@@ -14,6 +14,7 @@ export const BY_TOOL: Readonly<Record<string, string>> = {
   "routines.run": "routine_set",
   "pairing.respond": "answer_contact_request",
   "browser.import_cookies": "browser_use_my_login",
+  "browser.evaluate": "browser_evaluate",
   "asana.write": "asana",
 };
 

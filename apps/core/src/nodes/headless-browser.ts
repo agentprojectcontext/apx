@@ -528,6 +528,12 @@ export function createHeadlessBrowser(deps: {
           await refresh(t);
           return { ok: true, url: t.url };
         }
+        case "browser.evaluate": {
+          const p = browserMethods["browser.evaluate"].params.parse(raw);
+          const t = drive(p.tab, p.by);
+          const result = await t.page.evaluate(p.script);
+          return { url: t.url, ...result };
+        }
         case "browser.screenshot": {
           const p = browserMethods["browser.screenshot"].params.parse(raw);
           const data = await get(p.tab).page.screenshot();

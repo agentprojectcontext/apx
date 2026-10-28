@@ -2,6 +2,7 @@
 // only to an owner it applies to. See rules/DECISIONS.md#d-117
 import type { Store } from "../domain/store.ts";
 import { CATALOG } from "../integrations/catalog.ts";
+import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 
 /** What an entry may ask about this install before it is told. */
 export type NewsFacts = {
@@ -51,6 +52,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  BROWSER_JAVASCRIPT_NEWS,
   {
     id: "secretary-capabilities",
     since: "2.11.2",

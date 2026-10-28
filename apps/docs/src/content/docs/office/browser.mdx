@@ -34,6 +34,25 @@ The embedded browser refuses to type into password, one-time code and card field
 always a hand-off to you. Agents are also told never to ask for passwords in chat.
 </Aside>
 
+## Approved JavaScript execution
+
+On unreleased staging builds, an agent can use `browser_evaluate` in its existing APX tab. Supply either a JavaScript
+expression in `script`, or a local `.js` `path` plus the SHA-256 of its exact bytes in `sha256`. File access follows the
+agent's normal folder permissions; URLs are not script sources. VM chats accept inline code only, never host files.
+Use an async IIFE for statements and return a value:
+`(async () => ({ title: document.title }))()`.
+
+Every execution needs your confirmation, even in Total. Review the entire script (and the exact file matching the hash)
+before approving: arbitrary JavaScript can read private page data or send requests as your signed-in account. The normal
+typing tool's credential-field protection is **not a JavaScript sandbox**. Never approve code handling passwords, 2FA or
+card data. The tab's profile and take-control/handoff rules still apply. This method is not exposed to outside MCP clients.
+
+APX awaits promises and returns untrusted JSON text (up to 16,000 characters); undefined becomes null, bigint becomes text,
+and circular or oversized results fail. Scripts are limited to 64,000 characters (files: bytes). Chromium has a 5-second
+execution limit and APX stops waiting after 7 seconds. A timeout is **not cancellation or rollback**: timers, requests or
+other side effects may continue. Verify the page before retrying, especially after a send. This adds an agent tool, not a
+new DevTools panel or remote debugging port. Desktop must load the matching new build; a core-only restart is not enough.
+
 ## Profiles
 
 Each agent browses with one of three profiles, set per agent in **Settings › Agents** (or the agent's own panel):

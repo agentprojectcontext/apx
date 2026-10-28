@@ -153,6 +153,12 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         if (p.submit) await this.#settle(tab);
         return { ok: true, url: tab.view.webContents.getURL() };
       }
+      case "browser.evaluate": {
+        const p = browserMethods["browser.evaluate"].params.parse(raw);
+        const tab = this.#drive(p.tab, p.by);
+        const result = await tab.cdp.evaluate(p.script);
+        return { url: tab.view.webContents.getURL(), ...result };
+      }
       case "browser.screenshot": {
         const p = browserMethods["browser.screenshot"].params.parse(raw);
         const jpeg = await this.#get(p.tab).cdp.screenshot();

@@ -44,6 +44,10 @@ export class CdpTab {
     return this.#page.snapshot(maxChars);
   }
 
+  evaluate(script: string) {
+    return this.#page.evaluate(script);
+  }
+
   click(ref: string) {
     return this.#page.click(ref);
   }
