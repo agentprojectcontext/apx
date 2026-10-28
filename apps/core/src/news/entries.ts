@@ -82,6 +82,20 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "flow-graphs",
+    since: "2.11.2",
+    title: "Flows run as drawn, with branches and model steps",
+    applies: (f) => f.secretary && f.channels > 0,
+    text: "A Flow now runs exactly the steps drawn in its editor: checks have yes and no branches, steps can join again, each step can receive what arrived or an earlier step's result, and a direct model step asks one set-up model once, without tools. Saving a drawing while the Flow is on (or turning it on) makes it what runs for new events; events already received finish with their version. Each run shows every step with its times, input, output and why it stopped. A model call is never sent twice: if its answer is lost the run is marked for the owner to look at. Each run has 10 minutes.",
+    actions: [
+      {
+        label: { en: "Draw a branched Flow", es: "Dibujar un Flow con caminos" },
+        prompt:
+          "Help me plan a Flow with a yes/no check and the steps on each branch, then open it in the Flows editor, still off, for me to review.",
+      },
+    ],
+  },
+  {
     id: "restricted-public-ingress",
     since: "2.11.2",
     title: "A public address without exposing the private app",
