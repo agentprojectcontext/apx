@@ -129,9 +129,9 @@ See [D-167](DECISIONS.md#d-167) for what the executor keeps and what the design 
 
 **Documents and revisions.** `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate` and
 `flows.publish` are owner-only. Graphs use `schemaVersion: 2`, at most 32 typed nodes (webhook, schedule, condition,
-table_read, table_write, llm, agent, routine, notify, http), 64 edges, four llm nodes, eight notify + http nodes and
-128 KiB. Edges out of a condition carry `when: "yes" |
-"no"` (absent means yes). Bindings are `literal`, `event` (a path in the payload) or `node` (a path in an earlier
+table_read, table_write, llm, agent, routine, notify, http, vars, js, sql, cmd), 64 edges, four llm nodes, eight
+notify + http nodes, eight js + sql + cmd nodes and 128 KiB. Edges out of a condition carry `when`: one of its ways out
+(see [Checks with cases…](#checks-with-cases-variables-code-sql-and-commands)). Bindings are `literal`, `event` (a path in the payload) or `node` (a path in an earlier
 step's output); no code or expression is evaluated, and `__proto__`/`constructor`/`prototype` are refused. Draft saves
 use `expectedVersion` CAS; saving a drawing equal to the publication keeps no draft. `flows.validate` and publication
 check the DAG, reachability from the webhook, ancestor bindings, ordered writes to one key, branches only out of
@@ -329,6 +329,81 @@ save. The detail draws the revision a run used (legacy runs of a published Flow 
 definition) and says **Previous version** when it is not the current one. Coming-soon kinds (SQL, Cmd) are not in the
 schema and cannot be added. Notify picks its channel and person or room from the owner's own lists; its message and an
 outgoing webhook's body have **Add** buttons for `$trigger.` and each earlier step's result.
+
+## Checks with cases, variables, code, SQL and commands
+
+See [D-170](DECISIONS.md#d-170). None calls a model.
+
+**Checks.** A `condition` has `input` and either `cases` (1–15: `{id, label, match: {kind: "equals", value} |
+{kind: "expr", expr}}`) or, as drawings before cases had, `equals` (read as one case `yes`). The first case that holds
+names the way out, else `no` ("otherwise"); `no` can't be a case id. Edges out of a check carry `when` = a case id or
+`no` (absent means `yes`); `branch_unknown` when it names a way the check doesn't have. A check with cases records
+`{case}`; one with `equals` still records `{matched}`, and readers take both. `flows.try_graph` adds `branch`.
+
+**Expressions** (`domain/flow-expr.ts`): `$trigger[.a]`, `$steps.<step>[.a]` or `$steps["my-step"]`, `$vars.<name>`,
+literals (numbers, quoted text, `true`, `false`, `null`, `[…]`), `== != < <= > >=`, `&& || !` (and `and or not`),
+`+ - * / %`, `? :`, field access `.a` / `[x]`, and `len lower upper trim contains startsWith endsWith number text
+round floor ceil abs min max join exists`. Parsed and evaluated over JSON: nothing is run as code, a missing field or
+a prototype field is `null`, arithmetic on non-numbers is `null`, text grows to 32 KiB at most, sources to 1,000
+characters, nesting to 32. Steps and variables are named, never computed, so validation checks each is an ancestor
+(`expr_invalid`, `binding_ancestor`).
+
+**Variables.** `vars: [{name, value: {kind: "literal", value} | {kind: "expr", expr}}]` (1–16; names
+`[A-Za-z_][A-Za-z0-9_]*` but `__proto__`/`constructor`/`prototype`) set once per run, in order; a value may read the
+ones above it in the same step (`var_order` otherwise). Names are unique across the graph (`var_duplicate`). Later
+steps read `$vars.name` in expressions and templates: a binding to the step that sets it, path `[name, …]`. Output:
+the object of values.
+
+**JavaScript** (`js {code ≤ 8 KB, input, timeoutMs 100–10,000}`): the body of `function (input, vars)` (`vars`: the
+values of ancestor variables steps), strict mode. It runs in a child `node --permission` (it may read only its runner
+file; no other files, processes or workers), `--disallow-code-generation-from-strings`, a 64 MB heap, an empty
+environment, cwd the temp folder, inside a `vm` context made from `Object.create(null)` with no code from strings or
+Wasm, so none of the host (no `require`, `process`, `fetch`, timers) is in reach; Node 24's permission model doesn't
+cover the network, so that context is the boundary. Input in and output out are JSON text; the result must not be a
+promise, is capped at 64 KiB and bounded as any value. The vm limit stops the code, the parent kills the process 1.5 s
+later. Reasons: `code_failed` (with its message in `output.error`), `code_timeout`, `code_too_large`. No effect: a
+restart runs it again.
+
+**SQL** (`sql {database, mode: read|write, query, params: [{name, value}], maxRows 1–500, timeoutMs 1–30 s}`): one
+statement on a SQLite file inside the Flow's project folder (relative path, no `..`, `~`, `file:` or absolute;
+`database_invalid`). At run time the path must not be a link (even a dangling one), its real path must be inside the
+folder, never one of APX's own files (inside APX's folder only a project's side folder counts), and a read needs the
+file (`database_unavailable`). Parameters are templates bound as `:name` values (a lone placeholder keeps its JSON
+type; objects go as JSON text, booleans as 0/1); `?` and a `:name` without a value are refused. It runs in a child
+Node (killed at its limit) with `node:sqlite`, which ignores the permission model, so an authorizer decides: reads
+(`SELECT`, `READ`, functions, recursive CTEs) on `main` only, and for a write also insert, update, delete and create
+table or index; `ATTACH`, `PRAGMA`, triggers, views, temp objects, `load_extension` and other databases are denied,
+the first keyword must be `SELECT`/`WITH`/`VALUES` (plus `INSERT`/`UPDATE`/`DELETE`/`REPLACE`/`CREATE` for a write,
+since `VACUUM INTO` asks no authorizer), and a second statement is refused. Reads open read only with `query_only`;
+`trusted_schema` is off and SQLite's heap is capped at 64 MB. Output: `{columns, rows, count, truncated}` (rows and
+24 KiB cut) and, for a write, `{changes, last_id}`. A write commits `dispatched` (and its hourly count, 120) before
+the child starts; a statement SQLite refused changed nothing (`query_failed`, failed); stopped, cut or killed after
+that it is `write_uncertain`, never run again.
+
+**Commands** (`cmd {command ≤ 4 KB, env: [{name, value}] ≤ 16, stdin ≤ 16 KB, timeoutMs 1 s–2 min,
+continueOnError}`): the owner's command through routines' `runStep` in the project's folder (`workDir`; a project
+without one gets its side folder), its own process group, stopped as a tree. Its environment is `commandEnv` (no
+credentials) minus connection strings, plus the step's variables; names that change how programs run (`PATH`, `HOME`,
+`IFS`, `BASH_ENV`, `LD_*`, `DYLD_*`, `NODE_*`, `*PATH`, `*_HOME`, `*OPTIONS`, `*_PROXY`, Windows profile folders…)
+are refused (`env_refused`), and a `$trigger`/`$steps`/`$vars` in the command text is refused (`command_placeholder`):
+values reach it only as variable values and standard input, never as shell text. Output `{exit, ok, stdout, stderr}`
+(each tail-capped at 8,000 characters). A non-zero exit fails the step (`command_failed`, output kept) unless
+`continueOnError`, when a later check reads `exit`. It commits `dispatched` with its hourly count (60) right before it
+starts; a time limit (`command_timeout`), a signal, **Stop run**, the deadline or a core that dies leave it
+`uncertain` (`command_uncertain`), never run again.
+
+**Consent.** `flows.outward` also lists `commands {node, command, folder}` and `writes {node, database}`; their keys
+are `cmd:<hash>` and `write:<hash>` of the real folder and everything the step does (command, variables, input,
+continue on error; database, query, values), so any change asks again. At most eight `js` + `sql` + `cmd` steps per
+graph (`process_limit`). Known limit: moving a project's folder after publishing keeps running there until the next
+publish; the core opens a database by path a moment after checking it.
+
+**Español:** La **Condición** prueba sus casos en orden (un campo *es* un valor, o una **fórmula**) y sigue por el primero
+que se cumple; si no, por **No** (con más de un caso, **Si no**). Las fórmulas son datos, nunca código. **Variables**
+nombra valores (`$vars.nombre`). **JavaScript** corre aparte, sin archivos, internet ni programas, con tiempo y
+memoria máximos. **SQL** hace una instrucción en un archivo SQLite del proyecto con valores siempre aparte (`:nombre`);
+una escritura se aprueba al publicar y nunca se repite. **Cmd** corre un comando en la carpeta del proyecto; los
+valores le llegan solo como variables y entrada. Un comando o una escritura cortados quedan **Para revisar**.
 
 ## Verification and rollout
 

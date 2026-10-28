@@ -2804,3 +2804,53 @@ values can't form links or mentions; consent keys include which secret goes to w
 limit (60); JSON-escaped and URL-encoded echoes of a secret are cut. Known limit, not changed here: the CLI's
 "not inside an agent's command" is a client-side courtesy; the core trusts every loopback caller as the owner, for
 every owner method, and relies on D-106's "APX's own API always asks" for agents' shells.
+
+<a id="d-170"></a>
+## D-170 — 2026-10-28 — A Flow's checks branch into cases, and code, SQL and commands run apart, at most once when they change something
+The Flows palette listed SQL and Cmd as coming soon, a check had only yes and no, and the owner asked for a JavaScript
+block and named values. Each new block runs payload data next to something powerful (a shell, a database, a
+JavaScript engine), so the rule is the one D-169 set for sends: the owner decides what runs when publishing, and
+what arrives only ever travels as data.
+
+- **Checks are switches; formulas are data.** A check tries up to 15 cases in order (its input *is* a value, or a
+  formula holds) and goes on by the first, else by `no`. A drawing from before keeps its one value as case `yes` and
+  keeps recording `{matched}`: revisions are immutable (D-167), so nothing is migrated; every reader takes both forms.
+  Formulas and variables use a small expression language parsed and evaluated over JSON in the core (comparisons,
+  logic, arithmetic, a fixed list of functions): never `eval`, never a sandbox for owner code in the core's process.
+  Steps and variables are named in the text, not computed, so validation proves each is an ancestor.
+- **Code runs apart.** A JavaScript step runs in a child Node with the permission model on (no files, processes or
+  workers), no code from strings, a 64 MB heap, an empty environment and a deadline, and inside it in a `vm` context
+  built from nothing of the host. `node:vm` alone is no boundary and Node 24's permission model does not restrict the
+  network: the context is what keeps `require`, `process` and `fetch` out of reach, the process what bounds time,
+  memory and files. Only JSON text crosses either way; the result is capped and untrusted.
+- **SQL binds and is told what it may do.** One statement on a SQLite file inside the Flow's project, in a child
+  process so a runaway query is killed. Values are always bound parameters. `node:sqlite` ignores the permission
+  model, so its authorizer allows reads (and, for a write, inserts, updates, deletes and new tables or indexes) on the
+  main database only; another file (`ATTACH`, `VACUUM INTO`, which asks no authorizer and is refused by its first
+  word), pragmas, triggers and extensions never run. The file is the project's: no link, no climbing out, never APX's
+  own. Postgres and MySQL are left out (a driver per engine and a network path for little the owner asked): SQLite
+  files and the Flow's own tables (Read table, Save to table) cover what Flows need now.
+- **A command is the owner's text; the payload is its environment.** Cmd runs the published command through routines'
+  `runStep` in the project's folder, with `commandEnv` (no credentials, no connection strings) plus the step's
+  variables. What arrives reaches it only as variable values and standard input; a placeholder in the command text is
+  refused at validation, and so are variable names that change how programs run. Two minutes at most, output
+  tail-capped, the exit code readable by a later check when the step goes on after an error.
+- **Changing something happens at most once.** A SQL write and a command commit `dispatched`, with an hourly count
+  (120 writes, 60 commands), right before they start. A statement SQLite refused changed nothing and fails; a write or
+  command cut by the deadline, **Stop run**, a time limit, a signal or a core that died is **Needs a look**, never run
+  again. Reads and code change nothing and start over after a restart.
+- **Publishing approves the folder and the text.** The allow dialog names each command with its folder and each
+  database a step changes; the publish keys hash the real folder and everything the step does, so editing either, or
+  the same step in another folder, asks again.
+
+Rejected: running the owner's JavaScript in a worker or a `vm` in the core (one escape away from everything the core
+holds), interpolating values into SQL or the command with escaping (escaping is per dialect and per shell, binding is
+not), letting a webhook choose the database or the folder, and re-running an uncertain command "because it is
+local".
+
+The independent security review added: a database path that is a link is refused even when it points nowhere yet;
+APX's own files are never a step's database when a project's folder holds APX's home; the approval includes the
+folder; a command a signal ended is uncertain, not "couldn't start"; commands lose connection strings too. Known
+limits: SQLite's defensive mode is not exposed by `node:sqlite` (every pragma is denied instead); the database is
+opened by path a moment after the core checks it; a project's folder moved after publishing is used until the next
+publish.

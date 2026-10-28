@@ -124,6 +124,20 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "flow-steps",
+    since: "2.11.2",
+    title: "Flows branch into cases, and run code, SQL and commands",
+    applies: (f) => f.secretary,
+    text: "A Flow's check can now have several cases (a field is a value, or a formula holds) and goes on by the first that holds, else by otherwise. New blocks, none of which calls a model: Variables names values once for later steps; JavaScript runs a short function apart, with no files, internet or programs; SQL reads or writes a SQLite database in the project's folder with values always kept apart from the query; Cmd runs a shell command in the project's folder, values reaching it only as variables and input. Before a Flow runs a command or changes a database the owner allows it, and one that gets cut is left for the owner to look at, never run again.",
+    actions: [
+      {
+        label: { en: "Sort things with a Flow", es: "Ordenar con un Flow" },
+        prompt:
+          "Help me plan a Flow that sorts what arrives into cases (what starts it, each case and what each way does, any database or command it uses), then open it in the Flows editor, still off, for me to review.",
+      },
+    ],
+  },
+  {
     id: "restricted-public-ingress",
     since: "2.11.2",
     title: "A public address without exposing the private app",
