@@ -43,8 +43,8 @@ no es un `git push`.
 |---|---|
 | `never` | Leer archivos, buscar en la web, buscar en las notas, listar tareas, guardar una nota, comandos de shell que sólo leen en esta máquina (`ls`, `find . | grep`, `git log`, `git branch -a`): corren aunque haya contenido de afuera en el turno. |
 | `untrusted` | Escribir archivos del proyecto, escribirle a un contacto, publicar en un canal, tipear en el navegador, olvidar una nota, darle una herramienta a otro agente, la ubicación del teléfono, abrir una URL con query string, asignarle una tarea a un agente. |
-| `ask` | Cualquier comando de shell que no sea claramente de sólo lectura, escribir `AGENTS.md` o algo dentro de `.apc/`, mirar o abrir apps en tu pantalla. |
-| `always` | Comandos de shell destructivos (`rm -rf`, `sudo`, `git push`, `git reset --hard`…), comandos que llegan a la API o la CLI de APX, mandar un iMessage, responderle a un contacto, usar tu sesión del navegador, hacer clic, tipear o apretar teclas en tu pantalla. |
+| `ask` | Cualquier comando de shell que no sea claramente de sólo lectura, mirar o abrir apps en tu pantalla. |
+| `always` | Comandos de shell destructivos (`rm -rf`, `sudo`, `git push`, `git reset --hard`…), cambiar `AGENTS.md` o algo dentro de `.apc/` (con una herramienta de archivos o un comando), comandos que llegan a la API o la CLI de APX, mandar un iMessage, responderle a un contacto, usar tu sesión del navegador, hacer clic, tipear o apretar teclas en tu pantalla. |
 
 Y así se cruzan. "Acá" es escribir un archivo o correr un comando en la carpeta donde trabaja el agente:
 

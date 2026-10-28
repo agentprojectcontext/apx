@@ -43,8 +43,8 @@ Every tool call has a level, and some depend on their arguments: a read-only `gi
 |---|---|
 | `never` | Reading files, searching the web, recalling notes, listing tasks, saving a note, shell commands that only read on this machine (`ls`, `find . | grep`, `git log`, `git branch -a`): they run even with outside content in the turn. |
 | `untrusted` | Writing files in the project, messaging a contact, posting to a channel, typing in the browser, forgetting a note, giving another agent a tool, the phone's location, opening a URL with a query string, assigning a task to an agent. |
-| `ask` | Any shell command that is not plainly read-only, writing `AGENTS.md` or anything in `.apc/`, looking at or opening apps on your screen. |
-| `always` | Destructive shell commands (`rm -rf`, `sudo`, `git push`, `git reset --hard`…), commands that reach APX's own API or CLI, sending an iMessage, answering a contact, using your browser login, clicking, typing or pressing keys on your screen. |
+| `ask` | Any shell command that is not plainly read-only, looking at or opening apps on your screen. |
+| `always` | Destructive shell commands (`rm -rf`, `sudo`, `git push`, `git reset --hard`…), changing `AGENTS.md` or anything in `.apc/` (with a file tool or a command), commands that reach APX's own API or CLI, sending an iMessage, answering a contact, using your browser login, clicking, typing or pressing keys on your screen. |
 
 And this is how they meet. "Here" is a file write or a command in the folder the agent works in:
 
