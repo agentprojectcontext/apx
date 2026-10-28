@@ -325,6 +325,11 @@ export function taskHandlers(
       const checker = reviewerOf(reviewer, target);
       if (c.proposed === false && agentScope(ctx)) throw unauthorized("only the owner accepts a proposed task");
       const accepting = Boolean(cur.proposed) && c.proposed === false;
+      // Handing it to another agent follows the rules of giving it new: deep or back up the chain, it is a proposal.
+      const forced =
+        ctx.agent && c.assignee && c.assignee !== cur.assignee && !cur.proposed
+          ? proposalReason(store, cur.parent_id, c.assignee, ctx.agent.id)
+          : undefined;
       // Its agent stays only if it can work there.
       const keeper = c.assignee !== undefined ? c.assignee : cur.assignee;
       if (checker && checker === keeper) throw badRequest("reviewer: the agent doing it does not review its own work");
@@ -343,7 +348,8 @@ export function taskHandlers(
         Boolean(cur.start_at) &&
         !startsLater({ ...cur, start_at: dueOf(start_at) ?? undefined }) &&
         store.threads.byTask(cur.id).length === 0;
-      const starting = !unassign && keeper && (keeper !== cur.assignee || completing || unscheduled || accepting);
+      const starting =
+        !forced && !unassign && keeper && (keeper !== cur.assignee || completing || unscheduled || accepting);
       if (starting) {
         refuseHandOn(ctx);
         checkTransfer(ctx, {
@@ -363,6 +369,7 @@ export function taskHandlers(
           task,
           {
             ...c,
+            ...(forced ? { proposed: true } : {}),
             ...(moving ? { project_id: target ?? null } : {}),
             ...(unassign ? { assignee: null } : {}),
             ...(tags !== undefined ? { tags: tagsOf(tags) ?? [] } : {}),
@@ -380,6 +387,7 @@ export function taskHandlers(
           startTaskWork(store, engine.admit, updated, updated.assignee, askerOf(ctx), { transfer: true });
         return updated;
       });
+      if (forced) noticeTaskProposed(store, changed);
       // Put in review (or given another checker while in review): whoever checks it hears now.
       const reviewing = changed.state === "open" && changed.status === "review";
       // An agent answering another one (or inside a review) asks no reviewer: no loop of reviews.
