@@ -6,6 +6,7 @@ import { FLOW_RUN_MS } from "./domain/flow-graphs.ts";
 import { flowsRepo } from "./domain/flows.ts";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";
 import type { Llm, LlmRequest } from "./providers/llm.ts";
+import { ProviderError } from "./providers/types.ts";
 import { manualTimers, tempDir, waitFor } from "./testkit/platform.ts";
 
 type Env = Awaited<ReturnType<typeof startCore>>;
@@ -500,6 +501,92 @@ test("events of one Flow run one at a time, oldest first; turning it off stops n
     gates[1]?.("two");
     assert.equal((await ended(env, flow, "b")).state, "succeeded");
     assert.equal(env.core.store.flows.readRows(flow, ["last"]).last, "Second");
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("runs past their deadline end at once even while their Flow is busy, without spinning the clock", async () => {
+  const timers = manualTimers();
+  const held = heldLlm({ dispatch: true });
+  const env = await startCore({ llm: held, runTimers: timers });
+  try {
+    const flow = await publish(env, "busy", {
+      schemaVersion: 2,
+      nodes: [hook, { ...model("think"), timeoutMs: 120_000 }],
+      edges: [{ source: "start", target: "think" }],
+      layout: [],
+    });
+    await post(env, flow, "a1", { text: "First" });
+    await post(env, flow, "a2", { text: "Second" });
+    await waitFor(() => held.calls.length === 1, "the first model call");
+    // Both deadlines pass while the first run still holds the Flow: tick must come back.
+    timers.tick(FLOW_RUN_MS);
+    assert.equal((await ended(env, flow, "a2")).state, "cancelled");
+    assert.equal(steps(env, flow, "a2").think?.state, "cancelled");
+    assert.equal((await ended(env, flow, "a1")).state, "uncertain");
+    assert.equal(held.calls.length, 1);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("data no step could carry is refused at admission, and the Flow's next event runs", async () => {
+  const llm = scriptedLlm(() => say("Must not run"));
+  const env = await startCore({ llm });
+  try {
+    const flow = await publish(env, "poison", {
+      schemaVersion: 2,
+      nodes: [hook, { id: "save", kind: "table_write", label: "Save", key: "last", value: event(["text"]) }],
+      edges: [{ source: "start", target: "save" }],
+      layout: [],
+    });
+    let deep: unknown = 1;
+    for (let i = 0; i < 40; i++) deep = [deep];
+    assert.equal((await post(env, flow, "deep", { a: 1, b: deep })).status, 400);
+    // Redaction makes each short token longer: past 32 KiB once redacted, so it is refused too.
+    const tokens = Object.fromEntries(Array.from({ length: 2600 }, (_, i) => [`k${i}_token`, 1]));
+    assert.ok(Buffer.byteLength(JSON.stringify({ id: "grow", data: tokens })) < 65536);
+    assert.equal((await post(env, flow, "grow", tokens)).status, 400);
+    await post(env, flow, "ok", { text: "Fine" });
+    assert.equal((await ended(env, flow, "ok")).state, "succeeded");
+    assert.equal(env.core.store.flows.readRows(flow, ["last"]).last, "Fine");
+    assert.deepEqual(
+      env.core.store.flows.events(flow, 10).map((e) => e.event_id),
+      ["ok"],
+    );
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("after sending, a refusal fails the model step; an overloaded or cut answer leaves it uncertain", async () => {
+  let kind: "bad_request" | "overloaded" = "bad_request";
+  const llm: Llm = {
+    label: () => "fake/fake-1",
+    async complete(req) {
+      req.onDispatch?.();
+      throw new ProviderError(kind, "provider said no");
+    },
+  };
+  const env = await startCore({ llm });
+  try {
+    const flow = await publish(env, "refused", {
+      schemaVersion: 2,
+      nodes: [hook, model("think")],
+      edges: [{ source: "start", target: "think" }],
+      layout: [],
+    });
+    await post(env, flow, "no", { text: "Hello" });
+    assert.equal((await ended(env, flow, "no")).state, "failed");
+    assert.equal(steps(env, flow, "no").think?.error, "model_refused");
+    kind = "overloaded";
+    await post(env, flow, "busy", { text: "Hello" });
+    assert.equal((await ended(env, flow, "busy")).state, "uncertain");
+    assert.equal(steps(env, flow, "busy").think?.error, "model_uncertain");
   } finally {
     await env.core.close();
     await env.cleanup();

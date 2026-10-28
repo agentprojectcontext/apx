@@ -39,7 +39,12 @@ export type FlowGraphRun = {
 };
 
 /** Stored values: bounded JSON (32 KiB) with credentials redacted, as legacy events are. */
-export const storedFlowValue = (value: unknown): string => redactedJson(boundedFlowValue(value));
+export function storedFlowValue(value: unknown): string {
+  const text = redactedJson(boundedFlowValue(value));
+  // Redaction can make a value longer ("[redacted]" in place of a short token): the bound holds after it too.
+  if (Buffer.byteLength(text) > 32768) throw new Error("Flow value exceeds 32 KiB");
+  return text;
+}
 const parsed = (text: string | null): unknown => (text === null ? undefined : JSON.parse(text));
 const PREVIEW = 4000;
 const preview = (text: string | null) =>
@@ -78,17 +83,17 @@ export function flowGraphRunsRepo(db: Db) {
       .where("node_id", "=", k.node);
   const api = {
     /** Runs still going, oldest admission first. */
-    active(): { flow: string; event: string }[] {
+    active(): { flow: string; event: string; deadline: number }[] {
       return all(
         qb
           .selectFrom("flow_graph_events as g")
           .innerJoin("flow_events as e", (j) =>
             j.onRef("e.flow_id", "=", "g.flow_id").onRef("e.event_id", "=", "g.event_id"),
           )
-          .select(["g.flow_id", "g.event_id"])
+          .select(["g.flow_id", "g.event_id", "g.deadline_at"])
           .where("g.state", "=", "pending")
           .orderBy(raw`e.rowid`),
-      ).map((r) => ({ flow: r.flow_id, event: r.event_id }));
+      ).map((r) => ({ flow: r.flow_id, event: r.event_id, deadline: Date.parse(r.deadline_at) }));
     },
     load(flow: string, event: string): FlowGraphRun | undefined {
       const head = one(

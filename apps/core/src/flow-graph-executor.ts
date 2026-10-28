@@ -17,7 +17,7 @@ import type { RunTimers } from "./engine/engine.ts";
 import { answerOf } from "./engine/run-outcome.ts";
 import type { Log } from "./log.ts";
 import type { Llm } from "./providers/llm.ts";
-import { ProviderError } from "./providers/types.ts";
+import { type ErrorKind, ProviderError } from "./providers/types.ts";
 import type { Dispatch } from "./rpc/router.ts";
 
 /** Flows advancing at the same time; each runs one event at a time. */
@@ -46,6 +46,8 @@ const WHY = {
   value: "value_too_large",
 } as const;
 class StepStopped extends Error {}
+/** Provider answers that turned the request down before doing it; anything else after sending is unknown. */
+const REFUSALS = new Set<ErrorKind>(["auth", "bad_request", "model_gone", "context", "quota", "rate_limit"]);
 const WORK = new Set<FlowNode["kind"]>(["table_write", "llm", "agent", "routine"]);
 
 /** The first check that said no, when no step that does work ran: the run was cut short there. */
@@ -184,7 +186,7 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
       const at = now();
       if (!sent) runs.settle(k, ["running"], err instanceof StepStopped ? "cancelled" : "failed", at, WHY.model);
       // A refusal is the provider's answer; a cut connection or a timeout leaves it unknown.
-      else if (err instanceof ProviderError && err.kind !== "network")
+      else if (err instanceof ProviderError && REFUSALS.has(err.kind))
         runs.settle(k, ["running"], "failed", at, WHY.refused);
       else runs.settle(k, ["running"], "uncertain", at, WHY.unknown);
     } finally {
@@ -202,7 +204,16 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
   ) {
     const dispatch = deps.dispatch();
     const flow = store.flows.get(run.flow);
-    if (!dispatch || !flow) return;
+    const agent = node.kind === "agent" ? store.agents.get(node.agent) : undefined;
+    // The agent may have moved since admission: a Flow's step only hands work to one of its project or a global one.
+    if (
+      !dispatch ||
+      !flow ||
+      (node.kind === "agent" && (!agent || (agent.project_id && agent.project_id !== flow.projectId)))
+    ) {
+      runs.settle(k, ["running"], "failed", now(), WHY.start);
+      return;
+    }
     const ctx = {
       transport: "internal" as const,
       role: "operator" as const,
@@ -266,29 +277,38 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
       runs.settle(k, ["pending"], "failed", at, WHY.missing);
       return true;
     }
+    // A value too large or not data fails its step, never the whole queue behind it.
+    const pure = (effect: () => unknown, why: string = WHY.value) => {
+      try {
+        runs.runPure(k, input, at, effect);
+      } catch {
+        runs.settle(k, ["pending"], "failed", at, why);
+      }
+      return true;
+    };
+    const claim = (phase: "reserved" | null) => {
+      try {
+        return runs.claim(k, input, at, phase);
+      } catch {
+        runs.settle(k, ["pending"], "failed", at, WHY.value);
+        return false;
+      }
+    };
     switch (node.kind) {
       case "webhook":
-        runs.runPure(k, input, at, () => run.payload);
-        return true;
+        return pure(() => run.payload);
       case "condition":
-        runs.runPure(k, input, at, () => evaluateFlowCondition(node, input));
-        return true;
+        return pure(() => evaluateFlowCondition(node, input));
       case "table_read":
-        runs.runPure(k, input, at, () => ({ rows: store.flows.readRows(run.flow, node.keys) }));
-        return true;
+        return pure(() => ({ rows: store.flows.readRows(run.flow, node.keys) }));
       case "table_write":
-        try {
-          runs.runPure(k, input, at, () => {
-            const value = (input as { value: unknown }).value;
-            store.flows.write(run.flow, node.key, value);
-            return { value };
-          });
-        } catch {
-          runs.settle(k, ["pending"], "failed", at, WHY.table);
-        }
-        return true;
+        return pure(() => {
+          const value = (input as { value: unknown }).value;
+          store.flows.write(run.flow, node.key, value);
+          return { value };
+        }, WHY.table);
       case "llm":
-        if (runs.claim(k, input, at, "reserved")) await callModel(run, node, k, input);
+        if (claim("reserved")) await callModel(run, node, k, input);
         return true;
       case "agent":
       case "routine": {
@@ -296,7 +316,9 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
           const last = store.routines.get(node.routine)?.last;
           if (last && !TERMINAL.has(last.state)) return false;
         }
-        if (runs.claim(k, input, at, null)) await startRun(run, node, k, input);
+        // Before the router is up nothing can start: the step waits, unclaimed.
+        if (!deps.dispatch()) return false;
+        if (claim(null)) await startRun(run, node, k, input);
         return true;
       }
     }
@@ -359,15 +381,24 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
     }
   }
 
-  /** Wakes at the earliest deadline of the runs still going. */
+  /** Ends every run past its deadline now, whether or not its Flow has a free slot or is busy with another. */
+  function expireDue() {
+    const at = now();
+    for (const e of runs.active()) {
+      if (e.deadline > at.getTime()) continue;
+      const run = runs.load(e.flow, e.event);
+      if (run) expire(run, at);
+    }
+  }
+
+  /** Wakes at the earliest deadline still ahead; one already passed was ended by `expireDue`. */
   function arm() {
     disarm?.();
     disarm = undefined;
     if (closed) return;
-    const next = Math.min(
-      ...runs.active().map((e) => runs.load(e.flow, e.event)?.deadline ?? Number.POSITIVE_INFINITY),
-    );
-    if (Number.isFinite(next)) disarm = timers.after(Math.max(0, next - timers.now()), api.kick);
+    const at = timers.now();
+    const next = Math.min(...runs.active().map((e) => (e.deadline > at ? e.deadline : Number.POSITIVE_INFINITY)));
+    if (Number.isFinite(next)) disarm = timers.after(next - at, api.kick);
   }
 
   const api = {
@@ -377,8 +408,9 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
         recovered = true;
         const uncertain = runs.recover(now());
         if (uncertain) log.warn({ steps: uncertain }, "Flow model steps stopped after sending are marked uncertain");
-        stopOrphans();
       }
+      expireDue();
+      stopOrphans();
       for (const { flow } of runs.active()) wanted.add(flow);
       pump();
       arm();

@@ -3,6 +3,7 @@ import type { Db } from "../db/db.ts";
 import { redactedJson } from "../log.ts";
 import { checkFlowCapacity, FlowCapacityError } from "./flow-events.ts";
 import { retainFlowGraphRevisions } from "./flow-graph-retention.ts";
+import { storedFlowValue } from "./flow-graph-runs.ts";
 import { sql } from "./sql.ts";
 
 export class FlowGraphConflict extends Error {}
@@ -126,9 +127,9 @@ export function flowGraphsRepo(db: Db) {
           throw new Error("Invalid event id");
         if (db.prepare("SELECT 1 FROM flow_events WHERE flow_id=? AND event_id=?").get(flow, event))
           return { state: "duplicate" as const };
-        const raw = JSON.stringify(payload);
-        if (raw === undefined || Buffer.byteLength(raw) > 32768) throw new Error("Flow value exceeds 32 KiB");
-        const text = redactedJson(payload);
+        // The same bound every step's value has (size after redaction, depth): data its first step could not
+        // carry is refused here instead of stalling the Flow's queue.
+        const text = storedFlowValue(payload);
         if (Number(db.prepare("SELECT count(*) AS n FROM flow_events").get()?.n) >= 10000)
           throw new FlowCapacityError("Flow event capacity exceeded");
         if (Number(db.prepare("SELECT count(*) AS n FROM flow_events WHERE flow_id=?").get(flow)?.n) >= 10000)
