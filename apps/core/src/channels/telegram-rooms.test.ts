@@ -193,8 +193,9 @@ test("a room past its hourly cap tells the owner in the app's tray and on their 
     "in the tray",
   );
   assert.equal(notice.level, "warn");
-  assert.ok(
-    tg.messagesTo(OWNER.id).some((m) => String(m.body.text) === notice.body),
+  // The chat app's copy goes through the outbox, a moment after the tray's.
+  await waitFor(
+    () => tg.messagesTo(OWNER.id).some((m) => String(m.body.text) === notice.body),
     "the same words on the owner's chat app",
   );
   await setRooms(false);
