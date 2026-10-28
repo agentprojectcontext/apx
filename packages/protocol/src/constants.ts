@@ -35,6 +35,30 @@ export const FILE_PAYLOAD_BYTES =
   Math.ceil((Math.max(UPLOAD_LIMITS.fileBytes, UPLOAD_LIMITS.audioBytes, UPLOAD_LIMITS.imageBytes) * 4) / 3) +
   64 * 1024;
 
+/**
+ * Model calls a turn on APX's own loop may make before it must answer: a long piece of work fits. A routine may set
+ * its own; the panel shows this as its default (DECISIONS.md#d-116).
+ */
+export const TURN_STEPS = 150;
+
+/**
+ * What a channel does when the owner set nothing: a closer ("ok", "gracias") is left in silence, and its sealed chats
+ * search the web only when the owner asks (DECISIONS.md#d-059).
+ */
+export const CHANNEL_DEFAULTS = { closers: "silent", research: "owner" } as const;
+
+/** Minutes a tab of the desktop's browser stays open off screen with no agent or owner using it. */
+export const BROWSER_TAB_IDLE_MIN = 10;
+
+/** Quiet hours as they start when the owner turns them on, on any app. */
+export const QUIET_HOURS = { from: "22:00", to: "07:30" } as const;
+
+/** Model calls the memory work (capture, dreaming) may make in a day when the owner set none. */
+export const DAILY_MEMORY_CALLS = 20;
+
+/** Longest negative prompt an image may carry, saved as a default or given by an agent. */
+export const NEGATIVE_PROMPT_MAX = 2000;
+
 /** Maximum UTF-8 document snapshot rendered in the side panel. */
 export const DOCUMENT_MAX_BYTES = 400_000;
 

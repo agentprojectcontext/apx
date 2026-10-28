@@ -1,18 +1,10 @@
 // The agent editor's permission pages: autonomy (with its budget), rules by case and the browser profile.
-import {
-  type Agent,
-  AUTONOMY_RULES,
-  Autonomy,
-  type Result,
-  type RulePolicy,
-  type ToolApproval,
-  type ToolRisk,
-} from "@apx/protocol";
+import { type Agent, Autonomy, type Result, type RulePolicy, type ToolApproval, type ToolRisk } from "@apx/protocol";
 import { Button, Dialog, SegmentedControl } from "@apx/ui";
 import { type ReactNode, useState } from "react";
 import { type MessageKey, useT } from "../../../i18n/index.ts";
 import { AgentBudgetField } from "../AgentBudgetField.tsx";
-import { type Draft, effectiveRule, POLICIES, RISKS } from "./draft.ts";
+import { backToProject, type Draft, effectiveRule, leaveProject, POLICIES, RISKS } from "./draft.ts";
 
 type Catalog = Result<"agents.tools">["tools"];
 type PageProps = { agent: Agent; draft: Draft; edit: (patch: Partial<Draft>) => void };
@@ -145,7 +137,7 @@ export function RulesPage({
   const inherits = !d.autonomy && !Object.keys(d.rules).length;
   const level = d.autonomy || projectAutonomy;
   const grantedTools = new Set(granted.map((g) => g.tool));
-  // Going from the project's to its own: every case becomes its own, so the project no longer changes it.
+  // Going from the project's to its own: it keeps the project's mode as its own, so the project no longer changes it.
   const set = (risk: ToolRisk, policy: RulePolicy) =>
     inherits ? setLeaving({ risk, policy }) : edit({ rules: { ...d.rules, [risk]: policy } });
   const reset = (risk: ToolRisk) => {
@@ -167,7 +159,7 @@ export function RulesPage({
       {Object.keys(d.rules).length > 0 && (
         <div className="agentedit__note">
           <span>{t("agentedit.ownRulesNote")}</span>
-          <button type="button" className="agentedit__link" onClick={() => edit({ rules: {} })}>
+          <button type="button" className="agentedit__link" onClick={() => edit(backToProject)}>
             {t("agentedit.backToProject")}
           </button>
         </div>
@@ -236,7 +228,7 @@ export function RulesPage({
               </Button>
               <Button
                 onClick={() => {
-                  edit({ rules: { ...AUTONOMY_RULES[projectAutonomy], [leaving.risk]: leaving.policy } });
+                  edit(leaveProject(projectAutonomy, leaving.risk, leaving.policy));
                   setLeaving(undefined);
                 }}
               >

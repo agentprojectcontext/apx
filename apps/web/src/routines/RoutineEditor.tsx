@@ -1,4 +1,5 @@
 import type { CallModel, RoutineAction } from "@apx/protocol";
+import { TURN_STEPS } from "@apx/protocol/client";
 import { Button, Dialog, Field, Icons, Input, SegmentedControl, Select, SuggestTextarea, Switch } from "@apx/ui";
 import { type ReactNode, useState } from "react";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
@@ -132,14 +133,14 @@ export function RoutineEditor({ draft, onClose }: { draft: RoutineDraft; onClose
             </Field>
           )}
           {!shell && d.action !== "message" && (
-            <Field label={t("routines.maxSteps")} hint={t("routines.maxStepsHint")}>
+            <Field label={t("routines.maxSteps")} hint={t("routines.maxStepsHint", { steps: TURN_STEPS })}>
               {(id) => (
                 <Input
                   id={id}
                   type="number"
                   min={5}
                   max={200}
-                  placeholder="60"
+                  placeholder={String(TURN_STEPS)}
                   invalid={!stepsOk}
                   value={d.max_steps}
                   onChange={(e) => set({ max_steps: e.currentTarget.value })}

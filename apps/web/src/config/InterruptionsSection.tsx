@@ -1,4 +1,5 @@
 import type { NoticePrefs, Nudge } from "@apx/protocol";
+import { QUIET_HOURS } from "@apx/protocol/client";
 import { Badge, Button, EmptyState, Icons, Input, SettingRow, Switch } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { loadChannels, saveNotices, useChannels } from "../data/channels.ts";
@@ -85,7 +86,11 @@ export function InterruptionsSection() {
             size="sm"
             checked={quiet}
             onCheckedChange={(on) =>
-              save(on ? { quiet_from: "22:00", quiet_to: "07:30" } : { quiet_from: undefined, quiet_to: undefined })
+              save(
+                on
+                  ? { quiet_from: QUIET_HOURS.from, quiet_to: QUIET_HOURS.to }
+                  : { quiet_from: undefined, quiet_to: undefined },
+              )
             }
             aria-label={t("tg.quiet")}
           />

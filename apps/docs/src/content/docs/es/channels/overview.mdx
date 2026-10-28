@@ -158,8 +158,9 @@ los días en que responde y desde cuándo hasta cuándo, en la zona horaria de t
 horario que termina después de medianoche es del día en que empieza (viernes 20:00–02:00 cubre las primeras horas del
 sábado).
 
-- Fuera del horario, el mensaje de un contacto queda en su chat, sin leer para vos y sin llamar al modelo: no se
-  responde nada.
+- Fuera del horario, el mensaje de un contacto queda en su chat, sin leer para vos, y no corre ningún turno: no se
+  responde nada. Una nota de voz igual se transcribe y un sticker se nombra, para que la respuesta de después los
+  pueda leer.
 - Cuando empieza el horario, cada chat que esperó recibe **una** respuesta a todo lo que esa persona mandó mientras
   tanto. Los chats se responden de a pocos, primero el que esperó más. A un contacto supervisado le llega el borrador
   en ese momento.
@@ -183,9 +184,11 @@ terminal muestra más:
 10-08T09:02  sent      telegram  notice  Resumen de la mañana: 3 tareas vencen hoy…`}</Terminal>
 
 En **Avisos para vos**, **Las confirmaciones te siguen** manda a tu canal una pregunta que un agente hizo en la app y
-nadie contestó (al minuto, a los 2 o a los 10 minutos, o nunca), con botones en Telegram; en los demás te recuerda
-responderla en la app ([qué canales actúan con tu palabra](#qué-canales-actúan-con-tu-palabra)). El horario de silencio y el tope
-diario están en **Configuración › Interrupciones**.
+nadie contestó (al minuto, a los 2 o a los 10 minutos, o nunca). Las preguntas de tu super-agente llegan enteras, con
+botones en Telegram y opciones numeradas en WhatsApp y Signal; en los demás te recuerda responderla en la app ([qué
+canales actúan con tu palabra](#qué-canales-actúan-con-tu-palabra)). La pregunta de otro agente llega como una línea de
+tu super-agente que dice quién espera y para qué ("Fausto te espera: …"), sin botones, para responderla en la app. El
+horario de silencio y el tope diario están en **Configuración › Interrupciones**.
 
 ## Notas de voz
 

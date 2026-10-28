@@ -1,6 +1,7 @@
 // What every channel's settings share: who answers and how, who waits to be let in, the people on it, what was sent,
 // and how notices reach the owner.
 import type { ChannelClosers, ChannelHours, ChannelInfo, ChannelResearch, OutboxItem, Person } from "@apx/protocol";
+import { CHANNEL_DEFAULTS } from "@apx/protocol/client";
 import { Badge, Button, IconButton, Icons, Input, Menu, SegmentedControl, SettingRow, Switch } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { ownerOn, PairingRow } from "../channels/StartRows.tsx";
@@ -87,11 +88,14 @@ export function Behavior({
         />
       </SettingRow>
       {REACTS.has(channel.type) && (
-        <SettingRow title={t("ch.closers")} description={t(`ch.closersHint.${channel.closers ?? "silent"}`)}>
+        <SettingRow
+          title={t("ch.closers")}
+          description={t(`ch.closersHint.${channel.closers ?? CHANNEL_DEFAULTS.closers}`)}
+        >
           <SegmentedControl
             size="sm"
             label={t("ch.closers")}
-            value={channel.closers ?? "silent"}
+            value={channel.closers ?? CHANNEL_DEFAULTS.closers}
             onValueChange={(v) => void save({ closers: v as ChannelClosers })}
             options={[
               { value: "silent", label: t("ch.closers.silent") },
@@ -100,11 +104,14 @@ export function Behavior({
           />
         </SettingRow>
       )}
-      <SettingRow title={t("ch.research")} description={t(`ch.researchHint.${channel.research ?? "owner"}`)}>
+      <SettingRow
+        title={t("ch.research")}
+        description={t(`ch.researchHint.${channel.research ?? CHANNEL_DEFAULTS.research}`)}
+      >
         <SegmentedControl
           size="sm"
           label={t("ch.research")}
-          value={channel.research ?? "owner"}
+          value={channel.research ?? CHANNEL_DEFAULTS.research}
           onValueChange={(v) => void save({ research: v as ChannelResearch })}
           options={[
             { value: "off", label: t("ch.research.off") },

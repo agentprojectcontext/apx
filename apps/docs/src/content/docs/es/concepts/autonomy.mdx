@@ -21,7 +21,7 @@ el de su proyecto, y un proyecto sin modo está en **Auto**.
 | Modo | En el panel | Qué significa |
 |---|---|---|
 | `manual` | Manual: pregunta antes de cada cambio | Todo lo que cambia algo te espera, y también leer fuera del proyecto. |
-| `auto` | Auto: pregunta solo lo fuerte | El de por defecto. Lee cualquier carpeta de la máquina salvo la de APX; escribe archivos y corre comandos en la carpeta donde trabaja y en su carpeta temporal sin preguntar, lea lo que lea el turno. Pregunta antes de mandar mensajes o publicar en tu nombre, pagar, borrar, escribir fuera de su proyecto y lo marcado `always`. |
+| `auto` | Auto: pregunta solo lo fuerte | El de por defecto. Lee cualquier carpeta de la máquina salvo la de APX; escribe archivos y corre comandos en la carpeta donde trabaja y en su carpeta temporal sin preguntar, lea lo que lea el turno. Pregunta antes de mandar mensajes o publicar en tu nombre, pagar, borrar, escribir fuera de tus proyectos y lo marcado `always`. |
 | `accept_edits` | Acepta ediciones: edita archivos, pregunta antes de comandos | Como Auto para archivos; un comando de shell que cambia algo pregunta antes. |
 | `plan` | Plan: lee y propone, no cambia nada | Lee en cualquier lado y responde con un plan. Cualquier llamada que cambiaría algo se rechaza y al agente se le dice que lo proponga. |
 | `total` | Total: no pregunta nada | Nada te espera, en cualquier carpeta salvo la de APX. Es tu elección explícita, para agentes en los que confiás para trabajar solos. |
@@ -30,8 +30,10 @@ Un tipo de cambio te espera en cualquier modo, Total incluido: que tu super-agen
 (tus contactos, canales, agentes, perfil y demás ajustes). Además pasa solo cuando se lo pediste vos, en tu chat o
 respondiendo a su pregunta: si otro agente se lo pide a tu super-agente, no cambia nada y no se te pregunta.
 
-Escribir fuera del proyecto, en Auto o Acepta ediciones, muestra una tarjeta para esa llamada: **Solo esta vez** lo deja
-escribir ahí una vez, no se guarda nada. Los archivos escritos antes de estos modos siguen funcionando: `ask` se lee
+En Auto y Acepta ediciones, tus otros proyectos registrados y sus worktrees de git se escriben como la carpeta del
+agente: los registraste vos. Escribir en cualquier otra carpeta muestra una tarjeta para esa llamada: **Solo esta vez**
+lo deja escribir ahí una vez, y **Permitirle siempre a este agente cambiarla** se lo permite a ese agente para siempre (se
+revoca en sus permisos). Los archivos escritos antes de estos modos siguen funcionando: `ask` se lee
 como Manual y `standard` o `edits` como Auto.
 
 ## Qué pregunta cada herramienta
@@ -41,10 +43,10 @@ no es un `git push`.
 
 | Nivel | Ejemplos |
 |---|---|
-| `never` | Leer archivos, buscar en la web, buscar en las notas, listar tareas, guardar una nota, comandos de shell que sólo leen en esta máquina (`ls`, `find . | grep`, `git log`, `git branch -a`): corren aunque haya contenido de afuera en el turno. |
+| `never` | Leer archivos, buscar en la web, buscar en las notas, listar tareas, guardar una nota, mirar tu pantalla, comandos de shell que sólo leen en esta máquina (`ls`, `find . | grep`, `git log`, `git branch -a`): corren aunque haya contenido de afuera en el turno. |
 | `untrusted` | Escribir archivos del proyecto, escribirle a un contacto, publicar en un canal, tipear en el navegador, olvidar una nota, darle una herramienta a otro agente, la ubicación del teléfono, abrir una URL con query string, asignarle una tarea a un agente. |
-| `ask` | Cualquier comando de shell que no sea claramente de sólo lectura, escribir `AGENTS.md` o algo dentro de `.apc/`, mirar o abrir apps en tu pantalla. |
-| `always` | Comandos de shell destructivos (`rm -rf`, `sudo`, `git push`, `git reset --hard`…), comandos que llegan a la API o la CLI de APX, mandar un iMessage, responderle a un contacto, usar tu sesión del navegador, hacer clic, tipear o apretar teclas en tu pantalla. |
+| `ask` | Cualquier comando de shell que no sea claramente de sólo lectura, abrir apps en tu pantalla. |
+| `always` | Comandos de shell destructivos (`rm -rf`, `sudo`, `git push`, `git reset --hard`…), cambiar `AGENTS.md` o algo dentro de `.apc/` (con una herramienta de archivos o un comando), comandos que llegan a la API o la CLI de APX, mandar un iMessage, responderle a un contacto, usar tu sesión del navegador, hacer clic, tipear o apretar teclas en tu pantalla. |
 
 Y así se cruzan. "Acá" es escribir un archivo o correr un comando en la carpeta donde trabaja el agente:
 
@@ -57,9 +59,10 @@ Y así se cruzan. "Acá" es escribir un archivo o correr un comando en la carpet
 
 <Aside type="caution" title="Total es total">
   Un agente en `total` no pregunta nada, ni siquiera las acciones `always`: comandos destructivos, mensajes a
-  contactos, tu sesión del navegador. Dáselo a agentes cuyo trabajo firmarías sin leer. Hay dos cosas que lo frenan
-  igual: el navegador nunca tipea contraseñas ni números de tarjeta, y el control de pantalla vuelve a preguntar cada
-  60 acciones.
+  contactos. Dáselo a agentes cuyo trabajo firmarías sin leer. Algunas cosas lo frenan igual: lo que configuraste en
+  APX (dejar entrar a un contacto, los límites de los agentes, los ajustes que cambia tu super-agente) pregunta en su
+  tarjeta; copiar tu sesión del navegador pregunta hasta que se lo permitas a ese agente para siempre; el navegador
+  nunca tipea contraseñas ni números de tarjeta; y el control de pantalla vuelve a preguntar cada 60 acciones.
 </Aside>
 
 Cuando uno de tus agentes le delega a otro, el ayudante trabaja en el **modo de quien le pide**, no en el suyo: un
@@ -73,9 +76,9 @@ sesión nueva con el mismo agente ahí, con una nota que lo dice.
 Un agente también puede tener su propia regla para cada tipo de acción, por encima de su autonomía: **leer y mirar**,
 **cambiar cosas del proyecto**, **actuar afuera en tu nombre** e **irreversible**. Cada una corre sin preguntar,
 pregunta, o está apagada (le saca esas herramientas). Se ajustan en el editor del agente, en **Reglas por caso**, o en
-su archivo como `rules: write=auto, outside=ask`. Un agente que usaba la autonomía del proyecto pasa a tener reglas
-propias para todos los casos la primera vez que cambiás una, así los cambios del proyecto ya no le llegan; **Volver a
-usar las del proyecto** lo deshace. Lo que le concediste para siempre sigue corriendo sin preguntar, y un ayudante
+su archivo como `rules: write=auto, outside=ask`. Un agente que usaba la autonomía del proyecto toma ese modo como
+propio la primera vez que cambiás una regla, y solo cambia ese caso, así los cambios del proyecto ya no le llegan;
+**Volver a usar las del proyecto** deshace las dos cosas. Lo que le concediste para siempre sigue corriendo sin preguntar, y un ayudante
 mantiene sus reglas propias sobre el modo de quien le pide.
 
 ## Aprobar
@@ -84,11 +87,12 @@ Cuando una acción espera, el chat muestra una tarjeta **Necesita tu OK** con lo
 responder:
 
 - **Aceptar una vez**: sólo esta llamada.
-- **Aceptar durante esta sesión**: este tipo de llamada, en este chat, hasta que lo archives o APX se reinicie.
+- **Aceptar durante esta sesión**: este tipo de llamada, en este chat, hasta que lo archives o lo borres.
 - **Aceptar siempre para este agente**: de acá en adelante, en todos los chats. Lo podés revocar en Recursos.
 - **Rechazar**: al agente se le dice que no y sigue sin eso.
 
-Una acción `always` sólo se puede aprobar de a una: la siguiente vuelve a preguntar, elijas lo que elijas antes.
+Una acción `always` tiene las mismas cuatro respuestas, separadas de las otras llamadas de la herramienta: permitir
+sus llamadas comunes nunca cubre las destructivas. Lo que configuraste en APX se aprueba de a una llamada.
 
 En el editor del agente, **Concedidos** lista lo que le permitiste para siempre. Podés limitar un permiso a ciertas
 rutas, dominios o nombres (`app/Http/, github.com`: sólo corren sin preguntar las llamadas cuyos argumentos coinciden)

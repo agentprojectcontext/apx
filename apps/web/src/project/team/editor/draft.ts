@@ -54,4 +54,20 @@ export const POLICIES: readonly RulePolicy[] = ["auto", "ask", "off"];
 export const effectiveRule = (d: Draft, project: Autonomy, risk: ToolRisk): RulePolicy =>
   d.rules[risk] ?? AUTONOMY_RULES[d.autonomy || project][risk];
 
+/**
+ * Leaving the project's mode for a rule of its own: the agent keeps that mode as its own and only the changed case
+ * gets a rule, so every other case acts as the core runs that mode (DECISIONS.md#d-090).
+ */
+export const leaveProject = (
+  project: Autonomy,
+  risk: ToolRisk,
+  policy: RulePolicy,
+): Pick<Draft, "autonomy" | "rules"> => ({
+  autonomy: project,
+  rules: { [risk]: policy },
+});
+
+/** Back to the project's: no mode and no rules of its own. */
+export const backToProject: Pick<Draft, "autonomy" | "rules"> = { autonomy: "", rules: {} };
+
 export const sameValue = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);

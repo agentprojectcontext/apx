@@ -39,6 +39,9 @@ const readJson = (file: string): Record<string, unknown> | undefined => {
 };
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 
+/** A folder as the owner knows it: ~/.apx rather than the whole path. */
+const shownPath = (p: string) => (p.startsWith(os.homedir()) ? `~${p.slice(os.homedir().length)}` : p);
+
 /** APX v1 on this machine: its folder has a config.json. Only names and counts come back, never its settings. */
 export function findV1(home: string) {
   const config = readJson(path.join(home, "config.json"));
@@ -50,10 +53,8 @@ export function findV1(home: string) {
   const icon = sa && typeof sa === "object" ? str((sa as Record<string, unknown>).icon) : undefined;
   const blob = icon && /^[a-z]{2,20}$/.test(icon) ? icon : undefined;
   const owner = str(identity?.owner_name);
-  const user = os.homedir();
   return {
-    // Shown to the owner as they know it: ~/.apx.
-    home: home.startsWith(user) ? `~${home.slice(user.length)}` : home,
+    home: shownPath(home),
     projects: v1Projects(home).length,
     ...(version ? { version } : {}),
     ...(agent ? { agent_name: agent } : {}),
@@ -74,6 +75,7 @@ export function setupHandlers(deps: V1ImportDeps & { v1Url?: string }) {
       // Anything the owner already said means this install is in use: the setup does not open on its own then.
       fresh: !store.messages.anyFromOwner(),
       v1: findV1(v1Home),
+      home: shownPath(deps.v2Home),
       ...(fs.existsSync(TERMINAL) ? { terminal: TERMINAL } : {}),
     }),
     "setup.take_over_cli": async () => {

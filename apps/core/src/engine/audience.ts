@@ -2,7 +2,7 @@
 // no tools of the engine's own, no memory, no projects, no other conversations, only this chat — plus, when the owner
 // allows it for that person, one of the narrow contact tools (tools/contact.ts), and web search and reading where the
 // channel allows research. See DECISIONS.md#d-014, DECISIONS.md#d-059
-import { ChannelRooms, type Message, type Person, type Thread } from "@apx/protocol";
+import { CHANNEL_DEFAULTS, ChannelRooms, type Message, type Person, type Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Origin } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -43,7 +43,8 @@ export function audienceOf(store: Store, thread: Pick<Thread, "id" | "channel">)
  */
 export function sealedWeb(store: Store, audience: Audience, origin: Origin): boolean {
   if (audience.kind !== "contact") return false;
-  const level = store.settings.read("channels").find((c) => c.id === audience.channel)?.research ?? "owner";
+  const level =
+    store.settings.read("channels").find((c) => c.id === audience.channel)?.research ?? CHANNEL_DEFAULTS.research;
   const owner = origin.kind === "user" || (origin.kind === "channel" && origin.role === "owner");
   return level === "everyone" || (level === "owner" && owner);
 }

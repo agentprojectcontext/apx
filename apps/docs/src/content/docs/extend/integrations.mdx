@@ -80,7 +80,7 @@ Each Google part connects on its own, so you choose what your agents reach: **Go
 
 | Part | What agents can do | Asks you first |
 |---|---|---|
-| Google Calendar | Read events, find free time, create and change events, add or remove guests, add a Meet link, cancel | Inviting people and cancelling |
+| Google Calendar | Read events, find free time, create and change events, add or remove guests, add a Meet link, cancel | Anything that emails guests (an invitation, telling them of a change or a cancellation), and cancelling |
 | Gmail | Send mail. With your own client: also search and read mail, and write drafts | Sending always asks; writing a draft asks |
 | Google Drive | Write Docs and share them; find and read them. With your own client: find and read your whole Drive (Docs, Sheets, Slides, text files) | Sharing |
 
@@ -88,7 +88,8 @@ APX's sign-in asks Google only for what it can get verified without a paid secur
 or the rest of your Drive. To read mail, connect your mailbox in **Channels › Email**; for the whole of Gmail and Drive,
 use your own OAuth client.
 
-An event only on your calendar goes in without asking. Events, mail and files come back to agents as outside data,
+An event only on your calendar goes in without asking. Moving an event or taking guests off changes only your
+calendar; the guests are emailed only when the agent asks to tell them, and you confirm that first. Events, mail and files come back to agents as outside data,
 never as instructions. With your own client, Google shows "Google hasn't verified this app": choose **Advanced** and
 continue.
 

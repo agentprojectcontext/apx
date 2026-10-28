@@ -1,4 +1,3 @@
-import type { Run, Thread } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { watchDelegation } from "./delegationWatch.ts";
@@ -38,23 +37,7 @@ export function refreshDelegation(thread: string, force = false): Promise<void> 
   return pending;
 }
 
-export function latestDelegatedRun(runs: Record<string, Run>, thread: string): Run | undefined {
-  return Object.values(runs)
-    .filter((r) => r.thread_id === thread)
-    .sort((a, b) => b.started_at.localeCompare(a.started_at) || Number(!b.ended_at) - Number(!a.ended_at))[0];
-}
-
-export type DelegationState = "loading" | "working" | "queued" | "waiting" | "stopped" | "completed";
-
-export function delegationState(thread: Thread | undefined, run: Run | undefined): DelegationState {
-  if (!thread || !run) return "loading";
-  if (thread.state === "working" || thread.state === "submitted") return "working";
-  if (thread.state === "queued") return "queued";
-  if (thread.state === "input-required") return "waiting";
-  return run.state === "completed" && run.end_reason !== "step_limit" && run.end_reason !== "deadline"
-    ? "completed"
-    : "stopped";
-}
+export { type DelegationState, delegationState, latestDelegatedRun } from "@apx/protocol/delegation";
 
 /** The core checks the run again atomically, so another click cannot queue a duplicate or interrupt new work. */
 export async function continueDelegation(thread: string, run: string): Promise<void> {

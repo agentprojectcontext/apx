@@ -1,3 +1,4 @@
+import { noticeChannelChoice } from "@apx/protocol/notices";
 import { Select } from "@apx/ui";
 import { useEffect } from "react";
 import { loadChannels, saveNotices, useChannels } from "../data/channels.ts";
@@ -16,8 +17,7 @@ export function NoticeChannelSelect({ label }: { label: string }) {
     void loadChannels();
   }, []);
   if (!prefs) return null;
-  // A phone picked before every phone was told is the app-only choice now.
-  const value = !prefs.channel ? "auto" : prefs.channel.startsWith("device:") ? "none" : prefs.channel;
+  const value = noticeChannelChoice(prefs.channel);
   return (
     <Select
       label={label}

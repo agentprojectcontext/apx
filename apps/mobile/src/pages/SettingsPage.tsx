@@ -96,13 +96,7 @@ export function SettingsPage({
           />
         </ListGroup>
         {prefs ? (
-          <NoticePreferences
-            prefs={prefs}
-            change={change}
-            data={data}
-            device={`device:${creds.device}`}
-            status={notifications.status.state}
-          />
+          <NoticePreferences prefs={prefs} change={change} data={data} status={notifications.status.state} />
         ) : null}
         <Text style={s.label}>{t("setLook")}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>

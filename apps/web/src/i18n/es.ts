@@ -858,7 +858,7 @@ export const es: Partial<Record<MessageKey, string>> = {
     "El modo en que trabajan los agentes que no tienen uno propio. Lo guarda APX, no la carpeta.",
   "project.autonomy.manual.hint": "Te pide el OK para todo lo que cambia algo, y antes de leer fuera del proyecto.",
   "project.autonomy.auto.hint":
-    "Lee cualquier carpeta, escribe y corre comandos en el proyecto sin preguntar. Pregunta antes de mensajes, pagos, borrar y escribir fuera del proyecto.",
+    "Lee cualquier carpeta, escribe y corre comandos en el proyecto sin preguntar. Pregunta antes de mensajes, pagos, borrar y escribir fuera de tus proyectos.",
   "project.autonomy.accept_edits.hint": "Como Auto, pero pregunta antes de cada comando que cambia algo.",
   "project.autonomy.plan.hint": "Lee y propone cambios; no cambia nada hasta que cambies el modo.",
   "project.autonomy.total.hint":
@@ -1450,7 +1450,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "quick.openApp": "Abrir en la app",
   "config.desktop": "Escritorio",
   "desktop.memoryHint":
-    "APX usa {total} ahora. Si pasa de 4 GB, te avisa qué proceso consume más. Las pestañas sin uso se cierran a los 30 minutos.",
+    "APX usa {total} ahora. Si pasa de 4 GB, te avisa qué proceso consume más. Las pestañas sin uso se cierran a los {minutes} minutos.",
   "desktop.memory.core": "Core (agentes, canales, datos)",
   "desktop.memory.main": "APX (principal)",
   "desktop.memory.gpu": "GPU",
@@ -1795,7 +1795,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "routines.anchor": "Llega siempre",
   "routines.maxSteps": "Pasos por corrida",
   "routines.maxStepsHint":
-    "Cuántas llamadas al modelo puede hacer cada corrida antes de tener que responder (de 5 a 200). Vacío: 60.",
+    "Cuántas llamadas al modelo puede hacer cada corrida antes de tener que responder (de 5 a 200). Vacío: {steps}.",
   "routines.anchorHint":
     "Encendido: sus novedades llegan siempre, aunque sea de noche o ya se haya llegado al tope diario (para el resumen de la mañana o de la tarde). Apagado: entran en tu presupuesto de interrupciones.",
   "nudge.where": "App de chat para los avisos",

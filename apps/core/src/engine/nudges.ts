@@ -5,8 +5,10 @@
 // marking 👎, it stays in the tray only. Answers to the owner's own messages never come here.
 
 import type { Nudge } from "@apx/protocol";
+import { dayStart } from "../domain/hours.ts";
 import { inQuietHours, noticePrefs, quietEnd } from "../domain/notices.ts";
 import { nudgeId } from "../domain/nudges.ts";
+import { ownerTimeZone } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
 import { untrusted } from "../tools/result.ts";
 import { audienceOf } from "./audience.ts";
@@ -96,6 +98,8 @@ export type Offer = {
   critical?: boolean | undefined;
   /** Another agent's (not the super-agent's): told in the team news when a relay routine runs. */
   relay?: boolean | undefined;
+  /** Sends it its own way (an agent's message_contact, with its channel and files); held, it goes as plain text. */
+  send?: (() => boolean) | undefined;
 };
 
 /** A relay routine is on: the super-agent tells the owner the other agents' news, in one message. */
@@ -115,7 +119,7 @@ export function createNudges(deps: {
   function deliver(o: Offer, exempt: boolean, reason?: string): Nudge["state"] {
     const id = nudgeId();
     const rate = rateable(o.kind) ? id : undefined;
-    const state = deps.send(o.text, o.thread_id, rate) ? "sent" : "no_channel";
+    const state = (o.send ? o.send() : deps.send(o.text, o.thread_id, rate)) ? "sent" : "no_channel";
     store.nudges.add({ id, ...strip(o), at: clock().toISOString(), state, exempt, ...(reason ? { reason } : {}) });
     return state;
   }
@@ -125,14 +129,14 @@ export function createNudges(deps: {
     const prefs = noticePrefs(store);
     if (o.asked) return deliver(o, true);
     if (o.critical && prefs.critical_skips_budget) return deliver(o, true, "critical");
-    const dayStart = new Date(at);
-    dayStart.setHours(0, 0, 0, 0);
+    const zone = ownerTimeZone(store);
     const drop = (reason: string) => {
       store.nudges.add({ ...strip(o), at: at.toISOString(), state: "dropped", reason, exempt: false });
       return "dropped" as const;
     };
-    if (muted(store, o.kind, at)) return drop("you marked this kind unhelpful");
-    if (prefs.budget_per_day > 0 && store.nudges.countedSince(dayStart.toISOString()) >= prefs.budget_per_day)
+    // Something critical is never muted, whether or not it may skip the cap (DECISIONS.md#d-034).
+    if (!o.critical && muted(store, o.kind, at)) return drop("you marked this kind unhelpful");
+    if (prefs.budget_per_day > 0 && store.nudges.countedSince(dayStart(at, zone).toISOString()) >= prefs.budget_per_day)
       return drop("daily cap reached");
     const within = (last: string | undefined, min: number) =>
       min > 0 && last !== undefined && at.getTime() - Date.parse(last) < min * 60_000;
@@ -159,7 +163,8 @@ export function createNudges(deps: {
         return unhelpful ? "dropped" : "relay";
       }
       const prefs = noticePrefs(store);
-      if (inQuietHours(prefs, at) && !(o.critical && prefs.critical_wakes)) {
+      const zone = ownerTimeZone(store);
+      if (inQuietHours(prefs, at, zone) && !(o.critical && prefs.critical_wakes)) {
         store.nudges.add({
           ...strip(o),
           at: at.toISOString(),
@@ -167,7 +172,7 @@ export function createNudges(deps: {
           reason: "quiet hours",
           // Whether it would skip the cap once the window ends.
           exempt: Boolean(o.asked || (o.critical && prefs.critical_skips_budget)),
-          hold_until: quietEnd(prefs, at).toISOString(),
+          hold_until: quietEnd(prefs, at, zone).toISOString(),
         });
         return "held";
       }
@@ -179,7 +184,8 @@ export function createNudges(deps: {
       const held = store.nudges.heldUntil(at.toISOString());
       const [first] = held;
       if (!first) return;
-      const asked = held.every((n) => n.exempt);
+      // A reminder the owner set waits out quiet hours but never counts: the message it goes in is not dropped.
+      const asked = held.some((n) => n.exempt);
       const state = pass(
         held.length === 1
           ? { kind: first.kind, text: first.text, thread_id: first.thread_id, project_id: first.project_id, asked }
@@ -194,9 +200,8 @@ export function createNudges(deps: {
     },
     /** Today's count against the cap. */
     today(): { sent: number; cap: number } {
-      const dayStart = new Date(clock());
-      dayStart.setHours(0, 0, 0, 0);
-      return { sent: store.nudges.countedSince(dayStart.toISOString()), cap: noticePrefs(store).budget_per_day };
+      const since = dayStart(clock(), ownerTimeZone(store)).toISOString();
+      return { sent: store.nudges.countedSince(since), cap: noticePrefs(store).budget_per_day };
     },
   };
 }

@@ -854,7 +854,7 @@ export const en = {
   "project.autonomy.manual.hint":
     "Asks your OK for everything that changes something, and before reading outside the project.",
   "project.autonomy.auto.hint":
-    "Reads any folder, writes and runs commands in the project without asking. Asks before messages, payments, deleting and writing outside the project.",
+    "Reads any folder, writes and runs commands in the project without asking. Asks before messages, payments, deleting and writing outside your projects.",
   "project.autonomy.accept_edits.hint": "Like Auto, but asks before any command that changes something.",
   "project.autonomy.plan.hint": "Reads and proposes changes; changes nothing until you switch the mode.",
   "project.autonomy.total.hint": "Asks you nothing, in any folder but APX's. Only for projects you fully trust.",
@@ -1446,7 +1446,7 @@ export const en = {
   "quick.openApp": "Open in the app",
   "config.desktop": "Desktop",
   "desktop.memoryHint":
-    "APX is using {total}. Above 4 GB it tells you which process uses the most. Idle tabs close after 30 minutes.",
+    "APX is using {total}. Above 4 GB it tells you which process uses the most. Idle tabs close after {minutes} minutes.",
   "desktop.memory.core": "Core (agents, channels, data)",
   "desktop.memory.main": "APX (main)",
   "desktop.memory.gpu": "GPU",
@@ -1777,7 +1777,7 @@ export const en = {
   "nudge.open": "Open Interruptions",
   "routines.anchor": "Always arrives",
   "routines.maxSteps": "Steps per run",
-  "routines.maxStepsHint": "How many model calls each run may make before it must answer (5 to 200). Empty: 60.",
+  "routines.maxStepsHint": "How many model calls each run may make before it must answer (5 to 200). Empty: {steps}.",
   "routines.anchorHint":
     "On: its news always arrives, even at night or past the daily cap (for a morning or evening brief). Off: it goes through your interruption budget.",
   "nudge.where": "Chat app for notices",

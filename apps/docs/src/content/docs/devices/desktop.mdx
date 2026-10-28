@@ -61,8 +61,9 @@ Some things hold in every autonomy level, even total:
 - Every 60 actions in one turn the agent asks you before going on.
 - Password fields are refused.
 
-Looking at the screen is an `ask` tool; clicking, typing and pressing keys are `always` tools, so they ask in every
-autonomy except total (see [Autonomy](/concepts/autonomy/)). Linux does not lend this capability yet.
+Looking at the screen changes nothing, so it runs without asking (Manual still asks); opening an app is an `ask` tool;
+clicking, typing and pressing keys are `always` tools, so they ask in every autonomy except total (see
+[Autonomy](/concepts/autonomy/)). Linux does not lend this capability yet.
 
 ## The browser your agents drive
 
@@ -136,8 +137,8 @@ The installed app updates itself. Every few hours it checks the release feed and
 shows it in the top bar. On your word it downloads the installer for your system and checks it against its `.sha256`:
 
 - **Linux** (AppImage) and **Windows** finish on their own and open again.
-- **macOS** opens the disk image for you to drag APX in. The app isn't signed yet, so it can't replace itself
-  silently.
+- **macOS** unpacks the new app beside the one running and swaps itself in when you click **Restart now**, or
+  when you quit it.
 
 A bundled local core updates with Desktop. With a remote core, Desktop coordinates a shared release over the
 authenticated APX connection, without SSH. The server updates once; each Desktop app can activate its package only

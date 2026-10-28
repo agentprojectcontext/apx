@@ -213,17 +213,20 @@ APX mantiene la delegación con correa:
 
 | Límite | Valor |
 |---|---|
-| Cuántos niveles se anidan | 2 (tu agente → un ayudante → el ayudante del ayudante) |
+| Cuántos niveles se anidan | 1 (tu agente → un ayudante; el ayudante hace el trabajo él mismo y no le pide nada a nadie más) |
 | Delegaciones a la vez desde un chat | 3 |
 | Tiempo que una delegación puede pasar sin avanzar | 6 minutos; un comando que sigue corriendo cuenta como avance |
 | Tiempo que puede trabajar una sola delegación, avance o no | 2 horas |
 | Turnos que los agentes arrancan solos sin vos | Sin límite por defecto: terminan lo que les pediste. Si prendés **Poner límites** en **Cuando los agentes trabajan solos** (arranca en 100 turnos o 5.000.000 tokens nuevos; lo leído de la caché no cuenta), la cadena se pausa ahí hasta que escribas |
 
 Una delegación que se queda sin pasos o sin tiempo no se pierde. Lo que reportó es un informe de avance, no un
-resultado, y APX la hace seguir una vez en la misma sesión, que conserva su contexto; te llega un aviso en el chat (y en
-el canal donde vive ese chat) que dice qué agente llegó a qué límite y qué hizo hasta ahora, con un botón para abrir la
-sesión y, mientras APX la hace seguir, otro para detenerla. Si vuelve a cortarse, el agente que la pidió recibe el informe y decide: delegar sólo lo que falta
-en la misma sesión, o avisarte. Ese agente también puede detener una sesión que arrancó mientras sigue trabajando.
+resultado, y APX la hace seguir en la misma sesión, que conserva su contexto: siempre una vez, y después de nuevo cada
+vez que la última parte avanzó (algunas llamadas funcionaron, algo se hizo, no dio vueltas sobre las mismas llamadas),
+hasta 8 partes seguidas. Mientras APX la hace seguir ves un aviso tranquilo sólo en el chat, con un botón para abrir la
+sesión y otro para detenerla. Cuando una parte no avanza, o se acaban las partes, APX para y el agente que la pidió
+recibe el informe y el motivo: te avisa, y el aviso en el chat, la bandeja y tu canal dice qué agente llegó a qué límite
+y qué hizo hasta ahora, con un botón para continuar. Ese agente también puede detener una sesión que arrancó mientras
+sigue trabajando.
 
 Una delegación trabaja en el modo de quien la pidió, con sus propias reglas por caso, y sólo recibe las herramientas
 que todos los agentes de la cadena pueden usar.
@@ -231,9 +234,10 @@ que todos los agentes de la cadena pueden usar.
 Una delegación puede trabajar en una carpeta de un proyecto, como un worktree de git: quien la pide nombra el proyecto
 con una ruta dentro de él, y las rutas relativas y los comandos del ayudante arrancan ahí, nunca fuera del proyecto (un
 enlace que sale de él se rechaza). También puede decir cuánto puede cambiar esa carpeta el ayudante (`ask`, `auto` o
-`read-only`). El ayudante nunca llega más lejos que quien lo llamó: en un hilo de código, no más que la política de ese
-hilo; en otro lado, `ask`, salvo que pida `auto` y pueda hacer cambios por su cuenta. Su resultado vuelve a quien lo
-pidió como el de cualquier delegación.
+`read-only`). El ayudante nunca llega más lejos que quien lo llamó: si no se nombra un límite recibe lo máximo que
+puede quien lo llamó, nunca más que el modo de quien lo llamó (en un hilo de código, la política de ese hilo), el modo
+del ayudante o el del proyecto; nombrar uno sólo lo achica. Su resultado vuelve a quien lo pidió como el de cualquier
+delegación.
 
 ## Una sola forma de hablarle a un agente
 

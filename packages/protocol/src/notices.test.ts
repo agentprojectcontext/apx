@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { noticeText } from "./notices.ts";
+import { noticeChannelChoice, noticeText } from "./notices.ts";
 
 const paused = {
   code: "breaker.paused",
@@ -18,4 +18,11 @@ test("the core's own text stays when there is no translation or it carries detai
   const failed = { code: "run.failed", text: "Could not finish: HTTP 429" };
   assert.equal(noticeText(failed, "es"), failed.text);
   assert.equal(noticeText({ code: "run.failed", text: "Could not finish." }, "es"), "No pude terminar.");
+});
+
+test("every app reads the chat app for notices the same way; an old phone choice is the app only (DECISIONS.md#d-161)", () => {
+  assert.equal(noticeChannelChoice(undefined), "auto");
+  assert.equal(noticeChannelChoice("none"), "none");
+  assert.equal(noticeChannelChoice("device:dev_1"), "none");
+  assert.equal(noticeChannelChoice("tg"), "tg");
 });

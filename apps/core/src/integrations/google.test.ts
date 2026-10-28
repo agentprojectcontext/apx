@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { googleTools } from "../tools/google.ts";
 import { calendarApi, flattenEvent, gaps } from "./calendar.ts";
 import { driveApi, driveQuery } from "./drive.ts";
 import { bodyOf, gmailApi, rawMessage } from "./gmail.ts";
@@ -282,7 +283,7 @@ test("Calendar create and update preserve date kinds, invitations, meeting reque
   });
   const changed = fake.seen.at(-1);
   assert.equal(changed?.method, "PATCH");
-  assert.ok(changed?.url.endsWith("/event%2F1?sendUpdates=all"));
+  assert.ok(changed?.url.endsWith("/event%2F1?sendUpdates=none"), "no email unless asked");
   assert.deepEqual(changed?.body, {
     summary: "",
     description: "",
@@ -290,6 +291,35 @@ test("Calendar create and update preserve date kinds, invitations, meeting reque
     attendees: [],
     start: { date: "2026-05-05" },
   });
+});
+
+test("guests of an event are emailed only when the call says so, and that always waits for the owner (DECISIONS.md#d-130)", async () => {
+  const { g, start, fake } = setup();
+  await g.finish("good-code", start().searchParams.get("state") ?? "");
+  fake.respond((_url, init) => ({
+    id: "event/2",
+    summary: "Review",
+    attendees: [{ email: "user@example.com" }],
+    ...(init?.body ? JSON.parse(String(init.body)) : {}),
+  }));
+  const tools = new Map(googleTools(g).map((t) => [t.name, t]));
+  const level = (name: string, args: Record<string, unknown>) => tools.get(name)?.confirm(args);
+  assert.equal(level("calendar_create_event", { title: "Solo", start: "2026-05-04", end: "2026-05-05" }), "never");
+  assert.equal(level("calendar_create_event", { title: "Review", attendees: ["user@example.com"] }), "always");
+  // Moving an event with guests, or taking them off, changes only the owner's calendar unless they are to be told.
+  assert.equal(level("calendar_update_event", { id: "event/2", start: "2026-05-06" }), "never");
+  assert.equal(level("calendar_update_event", { id: "event/2", attendees: [] }), "never");
+  assert.equal(level("calendar_update_event", { id: "event/2", remove_attendees: ["user@example.com"] }), "never");
+  assert.equal(level("calendar_update_event", { id: "event/2", add_attendees: ["user@example.com"] }), "always");
+  assert.equal(level("calendar_update_event", { id: "event/2", start: "2026-05-06", notify_guests: true }), "always");
+  assert.equal(level("calendar_cancel_event", { id: "event/2" }), "ask");
+  assert.equal(level("calendar_cancel_event", { id: "event/2", notify_guests: true }), "always");
+  const ctx = {} as never;
+  const moved = String(await tools.get("calendar_update_event")?.run({ id: "event/2", start: "2026-05-06" }, ctx));
+  assert.ok(fake.seen.at(-1)?.url.endsWith("sendUpdates=none"));
+  assert.match(moved, /guests were not emailed/);
+  await tools.get("calendar_update_event")?.run({ id: "event/2", start: "2026-05-06", notify_guests: true }, ctx);
+  assert.ok(fake.seen.at(-1)?.url.endsWith("sendUpdates=all"));
 });
 
 test("Calendar free-time normalizes unsorted invalid busy data and respects minimum duration and result limit", async () => {
@@ -549,7 +579,9 @@ test("Calendar adds and removes guests on the current list, keeps their answers,
   await api.cancel({ calendar: "primary", id: "e1" });
   const del = fake.seen.at(-1);
   assert.equal(del?.method, "DELETE");
-  assert.equal(new URL(del?.url ?? "").searchParams.get("sendUpdates"), "all");
+  assert.equal(new URL(del?.url ?? "").searchParams.get("sendUpdates"), "none", "guests are told only when asked");
+  await api.cancel({ calendar: "primary", id: "e1", notify: true });
+  assert.equal(new URL(fake.seen.at(-1)?.url ?? "").searchParams.get("sendUpdates"), "all");
 });
 
 test("a Drive query escapes the words and never lists the trash", () => {

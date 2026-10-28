@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { closedTasks, taskGroups } from "./taskGroups.ts";
+import { closedTasks, runningThreads, taskGroupOf, taskGroups } from "./taskGroups.ts";
 import type { Task } from "./useWorkspace";
 
 const task = (id: string, extra: Partial<Task> = {}): Task => ({
@@ -66,4 +66,13 @@ test("closed tasks, done and dropped, list the latest first and follow the filte
     closedTasks(tasks, "task").map((item) => item.id),
     ["b", "a"],
   );
+});
+
+test("the phone groups like the panel: a task worked in a running chat is in progress (DECISIONS.md#d-129)", () => {
+  const worked = task("w", { status: "todo" });
+  const thread = { id: "chat-w", kind: "loose", title: "w", agent_ids: ["noor"], task_id: "w", state: "working" };
+  const running = runningThreads([thread as never], [worked]);
+  assert.equal(taskGroupOf(worked, running), "doing");
+  assert.equal(taskGroupOf(worked), "pending");
+  assert.equal(taskGroupOf(task("r", { status: "review" })), "blocked", "a review no agent does is the owner's");
 });

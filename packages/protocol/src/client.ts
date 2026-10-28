@@ -10,13 +10,18 @@ import { secureRequestKey } from "./request-key.ts";
 export {
   AGENT_NAMES,
   ARTIFACT_FILE_EXT,
+  BROWSER_TAB_IDLE_MIN,
+  CHANNEL_DEFAULTS,
+  DAILY_MEMORY_CALLS,
   DOCUMENT_MAX_BYTES,
   ErrorCode,
   PERSON_RELATIONS,
   PROTOCOL_VERSION,
   pairingLink,
+  QUIET_HOURS,
   randomAgentName,
   SURFACE_STATE_MAX,
+  TURN_STEPS,
   UPLOAD_LIMITS,
 } from "./constants.ts";
 

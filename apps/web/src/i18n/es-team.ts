@@ -251,7 +251,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "agentedit.grantedRun": "{count} concedidas corren sin preguntar: {tools}.",
   "agentedit.leaveProjectTitle": "¿Dejar de usar las reglas del proyecto?",
   "agentedit.leaveProjectBody":
-    "{name} hoy usa el modo de {project}. Al cambiar una regla pasa a tener reglas propias para todos los casos: los cambios que hagas después en el modo del proyecto ya no le llegan. Podés volver al del proyecto en Modo de permisos.",
+    "{name} hoy usa el modo de {project}. Al cambiar una regla, ese modo pasa a ser suyo y solo cambia este caso: los cambios que hagas después en el modo del proyecto ya no le llegan. Podés volver al del proyecto cuando quieras.",
   "agentedit.leaveProjectOk": "Usar reglas propias",
   "agentedit.ownRulesNote": "Usa reglas propias. Los cambios en el modo del proyecto no le llegan.",
   "agentedit.backToProject": "Volver a usar las del proyecto",
@@ -260,7 +260,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "agentedit.autonomyManualHint": "Te pide permiso antes de cada acción que cambia algo.",
   "agentedit.autonomyAuto": "Auto",
   "agentedit.autonomyAutoHint":
-    "Lee en cualquier lado y trabaja en su proyecto sin preguntar. Pregunta solo mensajes, pagos, borrar y escribir afuera.",
+    "Lee en cualquier lado y trabaja en su proyecto sin preguntar. Pregunta solo mensajes, pagos, borrar y escribir fuera de tus proyectos.",
   "agentedit.autonomyAcceptEdits": "Acepta ediciones",
   "agentedit.autonomyAcceptEditsHint": "Como Auto, y pregunta antes de cada comando que cambia algo.",
   "agentedit.autonomyPlan": "Plan",

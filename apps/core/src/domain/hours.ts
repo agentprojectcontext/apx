@@ -22,6 +22,11 @@ export function localTime(at: Date, timeZone?: string): { day: number; minutes: 
   return { day: WEEKDAYS.indexOf(part("weekday")), minutes: Number(part("hour")) * 60 + Number(part("minute")) };
 }
 
+/** Midnight of `at`'s day on the clocks of `timeZone` (none: this machine's). */
+export function dayStart(at: Date, timeZone?: string): Date {
+  return new Date(at.getTime() - localTime(at, timeZone).minutes * 60_000 - (at.getTime() % 60_000));
+}
+
 /**
  * Whether `at` falls in the hours. Hours past midnight belong to the day they start on: Friday 20:00–02:00 covers the
  * first two hours of Saturday, not of Friday.

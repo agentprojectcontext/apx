@@ -10,7 +10,9 @@
     "./cdp": "./src/cdp.ts",
     "./exit": "./src/exit.ts",
     "./notices": "./src/notices.ts",
-    "./flow-shape": "./src/flow-shape.ts"
+    "./flow-shape": "./src/flow-shape.ts",
+    "./task-groups": "./src/task-groups.ts",
+    "./delegation": "./src/delegation.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",

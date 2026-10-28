@@ -89,9 +89,11 @@ El router decide qué modelo responde cada turno. Está en **Configuración › 
 
 <Shot name="settings-router" alt="Configuración, Router: dos reglas arriba y una cadena de tres modelos abajo" caption="Configuración › Router" />
 
-Un turno pasa al modelo siguiente **sólo si el que falló todavía no había usado ninguna herramienta**. Si ya corrió
-una, el turno falla con honestidad: reintentar en otro modelo podría hacer lo mismo dos veces. Cuando sí cambia, el
-chat muestra un aviso con qué modelo no respondió y por qué.
+Un modelo que falla con un error que puede pasar tiene cuatro intentos, con esperas que se duplican hasta 8
+segundos; si el proveedor pide esperar menos de 30 segundos se espera, y una espera más larga pasa de largo enseguida.
+Después ese paso va al modelo siguiente de la cadena. Vale para cualquier paso de un turno, antes o después de que
+corra una herramienta: cada paso sólo le pregunta al modelo qué hacer, así que nada corre dos veces. Cuando cambia, el
+chat muestra un aviso con qué modelo no respondió, por qué y cuál siguió.
 
 ## Por agente, por chat, por defecto
 

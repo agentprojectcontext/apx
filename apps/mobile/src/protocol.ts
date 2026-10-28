@@ -3,7 +3,7 @@ import { randomUUID } from "expo-crypto";
 import { type ClientOptions, ApxClient as ProtocolClient } from "../../../packages/protocol/src/client.ts";
 import type { Params } from "../../../packages/protocol/src/index.ts";
 
-export { ApxError, type ApxSocket, UPLOAD_LIMITS } from "../../../packages/protocol/src/client.ts";
+export { ApxError, type ApxSocket, QUIET_HOURS, UPLOAD_LIMITS } from "../../../packages/protocol/src/client.ts";
 export type {
   CoreEvent,
   Message,
@@ -14,7 +14,7 @@ export type {
   TaskEvent,
   Thread,
 } from "../../../packages/protocol/src/index.ts";
-export { noticeText } from "../../../packages/protocol/src/notices.ts";
+export { noticeChannelChoice, noticeText } from "../../../packages/protocol/src/notices.ts";
 
 /** The owner's answer to a pending input: a decision (with how long it lasts) or a text. */
 export type Answer = Omit<Params<"runs.respond">, "input">;

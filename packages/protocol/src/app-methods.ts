@@ -1,6 +1,7 @@
 // Methods behind the app screens: agents, projects, threads, surfaces.
 import { z } from "zod";
 import { composerMethods } from "./composer-methods.ts";
+import { CHANNEL_DEFAULTS } from "./constants.ts";
 import {
   Agent,
   AgentListing,
@@ -102,6 +103,9 @@ const Sent = z.object({
   delivery: z.object({ state: OutboxState, error: z.string().optional() }),
 });
 
+/** A message to the owner their notice budget did not let through now: held for quiet hours, or dropped. */
+const Withheld = z.object({ withheld: z.enum(["held", "dropped"]) });
+
 const MemoryJobs = z.array(
   z.object({
     id: Id,
@@ -154,6 +158,8 @@ export const appMethods = {
           projects: z.number().int(),
         })
         .nullable(),
+      /** This APX's own home, where its data lives (as the owner knows it: ~/…). */
+      home: z.string(),
       /** The folder of this APX's command (apps/terminal), to put `apx` on the PATH from there. */
       terminal: z.string().optional(),
       /** APX v1's daemon still answers beside this one: routines and bots would run twice. */
@@ -1059,8 +1065,8 @@ export const appMethods = {
             owner_thread: z.enum(["home", "own"]).default("home"),
             self_owner: z.boolean().optional(),
             rooms: ChannelRooms.optional(),
-            closers: ChannelClosers.default("silent"),
-            research: ChannelResearch.default("owner"),
+            closers: ChannelClosers.default(CHANNEL_DEFAULTS.closers),
+            research: ChannelResearch.default(CHANNEL_DEFAULTS.research),
             hours: ChannelHours.optional(),
             email: ChannelEmail.optional(),
           })
@@ -1104,7 +1110,7 @@ export const appMethods = {
         files: z.array(Id).max(5).optional(),
       })
       .strict(),
-    result: Sent,
+    result: z.union([Sent, Withheld]),
     effect: true,
   },
   /**

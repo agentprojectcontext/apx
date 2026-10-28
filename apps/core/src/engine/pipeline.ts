@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { CallModel, Routine } from "@apx/protocol";
-import { inQuietHours, noticePrefs } from "../domain/notices.ts";
+import { quietNow } from "../domain/notices.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import { freshSignals, signalLines, watchSignals } from "../domain/signals.ts";
 import type { Store } from "../domain/store.ts";
@@ -199,7 +199,7 @@ export function routinePipeline(o: {
    */
   const watch = (result: StepResult | undefined) => {
     const now = new Date();
-    if (inQuietHours(noticePrefs(o.store), now)) {
+    if (quietNow(o.store, now)) {
       o.store.routines.modelCalled(o.run.id, false);
       return { call: false, prompt: (t: string) => t };
     }
@@ -225,7 +225,7 @@ export function routinePipeline(o: {
    * instructions. In the owner's quiet hours it waits, like a watch: the first run after tells all of it.
    */
   const relay = (result: StepResult | undefined) => {
-    const news = inQuietHours(noticePrefs(o.store), new Date()) ? undefined : takeTeamNews(o.store);
+    const news = quietNow(o.store) ? undefined : takeTeamNews(o.store);
     o.store.routines.modelCalled(o.run.id, Boolean(news));
     if (!news) return { call: false, prompt: (t: string) => t };
     const block = untrusted("team_news", { count: String(news.count) }, news.lines);
@@ -243,7 +243,7 @@ export function routinePipeline(o: {
   const mail = async (result: StepResult | undefined) => {
     const none = { call: false, prompt: (t: string) => t };
     const source = o.mail;
-    if (!source?.readable(routine.project_id) || inQuietHours(noticePrefs(o.store), new Date())) {
+    if (!source?.readable(routine.project_id) || quietNow(o.store)) {
       o.store.routines.modelCalled(o.run.id, false);
       return none;
     }

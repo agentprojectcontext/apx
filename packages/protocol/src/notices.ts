@@ -179,3 +179,10 @@ export function noticeText(
   if (!Object.hasOwn(noticeEn, key) || (!part.vars && part.text.includes(":"))) return part.text;
   return fill(NOTICES[lang][key as NoticeKey], part.vars);
 }
+
+/**
+ * The chat app the owner picked for notices, as every app shows it: "auto" (the first that knows them), a channel's id,
+ * or "none" (the app and paired phones only). A phone picked before every phone was told is "none" (DECISIONS.md#d-161).
+ */
+export const noticeChannelChoice = (channel: string | undefined): string =>
+  !channel ? "auto" : channel === "none" || channel.startsWith("device:") ? "none" : channel;

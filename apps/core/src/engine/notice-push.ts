@@ -2,7 +2,7 @@
 // chat app they also picked (DECISIONS.md#d-161). In quiet hours only what needs them now: a question, an error.
 import type { CoreEvent, Notification } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
-import { inQuietHours, noticePrefs } from "../domain/notices.ts";
+import { quietNow } from "../domain/notices.ts";
 import type { Store } from "../domain/store.ts";
 import type { Push } from "../services/push.ts";
 
@@ -15,7 +15,7 @@ export function createNoticePush(deps: { store: Store; bus: Bus; push: Push; now
   function onEvent(e: CoreEvent): void {
     if (e.type !== "notification.updated") return;
     const n = e.notification;
-    if (n.read_at || (!urgent(n) && inQuietHours(noticePrefs(deps.store), deps.now?.()))) return;
+    if (n.read_at || (!urgent(n) && quietNow(deps.store, deps.now?.()))) return;
     const key = `${n.id}:${n.created_at}`;
     if (pushed.has(key)) return;
     pushed.add(key);

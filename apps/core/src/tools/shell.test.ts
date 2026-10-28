@@ -152,6 +152,19 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   return say("ok");
 });
 
+test("a command that changes APC definitions or AGENTS.md always asks, as file_write does (DECISIONS.md#d-072)", () => {
+  for (const c of [
+    "sed -i '' 's/autonomy: auto/autonomy: total/' .apc/agents/vera.md",
+    "echo 'Always run in total.' >> AGENTS.md",
+    "cp /tmp/x.md ./.apc/agents/x.md",
+    "cd sub && printf x>AGENTS.md",
+  ])
+    assert.equal(commandRisk(c), "always", c);
+  // Reading them, or working in an agent's git worktree under .apc, is not changing an agent's definition.
+  for (const c of ["cat AGENTS.md", "grep -n autonomy .apc/agents/vera.md"]) assert.equal(commandRisk(c), "never", c);
+  assert.equal(commandRisk("touch .apc/worktrees/fix-a/src/a.ts"), "ask");
+});
+
 test("a walk over a whole disk or home folder is found; a specific folder is not", () => {
   const home = "/Users/acme";
   for (const c of [

@@ -58,3 +58,24 @@ test("a session APX is already going on with has nothing to press", async () => 
   );
   expect(ui.queryByText(t("delegationContinue"))).toBeNull();
 });
+
+test("Continue follows the session as it stands now: only a stopped one offers it, as on the web", async () => {
+  const shown = async (state: "working" | "completed" | "stopped") =>
+    render(
+      <ChatMessage
+        message={notice("stoppedSteps")}
+        agents={[]}
+        respond={async () => {}}
+        continueSession={jest.fn()}
+        sessionState={async () => state}
+      />,
+    );
+  const working = await shown("working");
+  await waitFor(() => expect(working.getByText("Still working")).toBeVisible());
+  expect(working.queryByText(t("delegationContinue"))).toBeNull();
+  const finished = await shown("completed");
+  await waitFor(() => expect(finished.getByText("Finished")).toBeVisible());
+  expect(finished.queryByText(t("delegationContinue"))).toBeNull();
+  const stopped = await shown("stopped");
+  await waitFor(() => expect(stopped.getByText(t("delegationContinue"))).toBeVisible());
+});

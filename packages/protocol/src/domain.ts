@@ -1,6 +1,6 @@
 // Domain shapes every client renders. Run states follow A2A task states so an A2A adapter stays thin.
 import { z } from "zod";
-import { PERSON_RELATIONS } from "./constants.ts";
+import { NEGATIVE_PROMPT_MAX, PERSON_RELATIONS } from "./constants.ts";
 
 export const Id = z.string().min(1).max(128);
 
@@ -36,7 +36,10 @@ export const AgentRules = z.object({
 });
 export type AgentRules = z.infer<typeof AgentRules>;
 
-/** What each autonomy amounts to per risk, as the editor shows it before an agent sets rules of its own. */
+/**
+ * What each autonomy amounts to per risk, only as the editor shows it: the core runs the mode itself, so this is never
+ * saved as an agent's rules (DECISIONS.md#d-090).
+ */
 export const AUTONOMY_RULES: Record<Autonomy, Required<AgentRules>> = {
   manual: { read: "auto", write: "ask", outside: "ask", irreversible: "ask" },
   auto: { read: "auto", write: "auto", outside: "ask", irreversible: "ask" },
@@ -1199,7 +1202,7 @@ export const ImageDefaults = z.object({
   height: z.number().int().min(64).max(4096),
   steps: z.number().int().min(1).max(200),
   cfg_scale: z.number().min(0).max(50),
-  negative_prompt: z.string().max(2000),
+  negative_prompt: z.string().max(NEGATIVE_PROMPT_MAX),
   count: z.number().int().min(1).max(8),
 });
 export type ImageDefaults = z.infer<typeof ImageDefaults>;
@@ -1285,7 +1288,7 @@ export const NoticePrefs = z.object({
    */
   channel: z.string().optional(),
   /**
-   * Quiet hours (local time, "HH:MM"): what APX would say unasked waits until they end (and then goes together); answers
+   * Quiet hours ("HH:MM" in the owner's time zone): what APX would say unasked waits until they end (and then goes together); answers
    * and questions still arrive, without sound.
    */
   quiet_from: z

@@ -188,7 +188,7 @@ APX only adds `AGENTS.md` and `.apc/` to them.
 - ~/.apx/v2/
   - apx.db all state: agents, threads, tasks, memory, settings (SQLite)
   - core.env the core's token, host and public address, when set
-  - secrets.json secret values, where the system keychain is not used
+  - secrets.json secret values, only where there is no system keyring
   - skills/ your global skills
   - extensions/
   - projects/ APX's side of each project, such as its widgets
@@ -198,7 +198,9 @@ APX only adds `AGENTS.md` and `.apc/` to them.
   - app/ the installed core, for server installs
 </FileTree>
 
-On macOS, secret values go to your login Keychain; elsewhere they go to `secrets.json` with owner-only permissions.
+Secret values go to your login Keychain on macOS, to your keyring (Secret Service) on Linux and to `secrets.dpapi`,
+sealed with DPAPI, on Windows. Only a server with no keyring keeps them in `secrets.json`, readable only by you. See
+[Configuration](/reference/configuration/).
 
 ## Updates
 
@@ -219,9 +221,10 @@ works offline; only asking about them in that chat runs a turn. The notes are co
 English. A new install starts quiet, and `APX_WHATS_NEW=off` turns the chat off.
 
 When a release brings something your super-agent can now do for you (say, update your widgets), it tells you once, in
-its own words and your language, on your preferred channel, with a button for each thing it offers. Only that message
-calls a model, and only when something applies to you; a new install is told nothing. `APX_NEWS=off` turns it off, and
-`apx news` lists what there is.
+its own words and your language, in its chat in the app (marked unread). If you picked a chat app for notices, the
+message goes there too, with a button for each thing it offers; without one, the app is where you read it. Only that
+message calls a model, and only when something applies to you; a new install is told nothing. `APX_NEWS=off` turns it
+off, and `apx news` lists what there is.
 
 ## Uninstall
 

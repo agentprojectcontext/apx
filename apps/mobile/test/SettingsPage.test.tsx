@@ -106,7 +106,7 @@ test("a previous settings load cannot replace the current load's result", async 
   await ui.unmount();
 });
 
-test("quiet hours restore their previous range and phone routing uses the paired device id", async () => {
+test("quiet hours restore their previous range; the chat app for notices may be none, as in the panel (DECISIONS.md#d-161)", async () => {
   const quiet = { ...prefs, quiet_from: "21:30", quiet_to: "08:15" };
   const save = jest.fn(async (p: NoticePrefs) => p);
   const load = async () => quiet;
@@ -117,8 +117,11 @@ test("quiet hours restore their previous range and phone routing uses the paired
   expect(ui.queryByText("21:30")).toBeNull();
   await fireEvent.press(ui.getByRole("switch", { name: t("setQuietOn") }));
   expect(save).toHaveBeenLastCalledWith(quiet);
+  // Every phone is told: this one is shown, not picked.
   await fireEvent.press(ui.getByText(t("setThisPhone")));
-  expect(save).toHaveBeenLastCalledWith({ ...quiet, channel: `device:${credentials.device}` });
+  expect(save).toHaveBeenLastCalledWith(quiet);
+  await fireEvent.press(ui.getByText(t("setNone")));
+  expect(save).toHaveBeenLastCalledWith({ ...quiet, channel: "none" });
   await fireEvent.press(ui.getByText(t("setAuto")));
   expect(save).toHaveBeenLastCalledWith({ ...quiet, channel: undefined });
   await ui.unmount();

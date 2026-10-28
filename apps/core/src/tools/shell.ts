@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
+import { namesApc } from "../engine/paths.ts";
 import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { insideReal } from "../paths.ts";
 import { commandShell } from "../processes.ts";
@@ -81,7 +82,9 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
   // So does APX's own CLI, which finds the port by itself.
   if (runsApxCli(c)) return "always";
   // Only reading, here: where it reads is the folder rule's to judge (commandFolder), not the owner's to approve.
-  return readsOnly(c) ? "never" : "ask";
+  if (readsOnly(c)) return "never";
+  // APC definitions and AGENTS.md set agents' modes: changed by a command as by file_write, the owner says yes first.
+  return c.split(/[\s;&|<>()'"`=]+/).some((w) => w && namesApc(w)) ? "always" : "ask";
 }
 
 /** Programs that run the command after them: `env apx …`, `xargs apx`, `bash -c "apx …"`, `pnpm exec apx`. */

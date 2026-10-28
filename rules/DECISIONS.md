@@ -172,7 +172,7 @@ the core. A plugin process reads only its folder,
 writes only its data folder and starts no processes (Node's permission model); Node does not restrict the network, so
 the runner also refuses raw socket modules and makes `fetch` refuse this machine and metadata addresses — a best-effort
 guard so a plugin cannot call APX's loopback API as the owner. Plugins watch declared events and may add context to
-owner turns (outside data, capped, 2 s); they never call APX.
+owner turns (outside data, capped, 2.5 s); they never call APX.
 
 ## D-019 — 2026-10-01 — Outside apps get a scoped client token and always act as a model
 An app such as Claude Code connects with its own token (`x-apx-client`, apart from `APX_TOKEN`'s Authorization
@@ -323,6 +323,10 @@ quiet hours. Something critical may skip the cap (on by default) and, as a separ
 the owner's own messages, confirmations and pairing never pass through the gate. Feedback (👍/👎) and the agent's own
 `notify_owner` tool come next and use the same gate.
 
+Changed 2026-10-28: quiet hours and the day the cap counts read the machine's clock while channel hours (D-136) read the
+owner's time zone, so a core on UTC silenced the phone at the wrong hours. Both now use the owner's profile time zone
+(`ownerTimeZone`, the machine's when unset), through `quietNow` and `dayStart`.
+
 <a id="d-032"></a>
 ## D-032 — 2026-10-04 — The phone lends location and camera as a node, and takes notices by push
 The paired phone opens a second socket as a node lending `location` and `camera`; its tools (`phone_location`,
@@ -361,6 +365,11 @@ No learned model, no per-signal scoring: two counts and a rule the owner can rea
 routine's thread (its answer is already delivered) and between agents (the answer goes back to the asker), and it is
 not among a contact's tools. It asks the owner's OK while outside content is in the turn: an injected page must not
 write to the owner in APX's voice. The tool reports what the gate did, so a dropped message is not retried.
+
+Changed 2026-10-28: `message_contact` with `to="me"` was a second way to the owner's phone with no cap, quiet hours or
+👎. An agent's message to the owner in a run the owner did not ask for (`ownerAsked`) now goes through the same budget
+in `channels.message`, as `agent:<id>`, keeping its channel and files when it goes now; held for quiet hours, only its
+text goes later. In a run the owner asked for ("send it to my WhatsApp") it goes as before.
 
 <a id="d-036"></a>
 ## D-036 — 2026-10-04 — A commitment ends kept, missed or released; a new date is an event, not an outcome
@@ -868,7 +877,9 @@ calls nobody. It is not offered `delegate` (`MAX_DEPTH` 1), `delegate` refuses f
 comments summon no one, and a consult's answer asks nobody (this replaces D-073's two-hop cascade). The board stays
 open: it may still create and assign tasks, which start their agent's own work, bounded by the turn's depth
 (`MAX_MENTION_DEPTH`). The owner's agent, and an agent working its own task, can still delegate and consult. Amended by
-[D-077](#d-077): the delegate names who owns the rest and the caller asks them.
+[D-077](#d-077): the delegate names who owns the rest and the caller asks them. The board part is amended by
+[D-079](#d-079) (an answering agent gives nobody task work) and [D-082](#d-082) (no fixed depth: the owner's limit,
+off by default since [D-160](#d-160)).
 
 <a id="d-075"></a>
 ## D-075 — 2026-10-14 — The core gives agents their own `apx`
@@ -1084,6 +1095,11 @@ of its text arguments starts with one, or is a URL on that domain) and an `expir
 keeps when and from which chat it was given (`tools.grant_set`). A grant with a condition never counts as using a tool
 freely, so it is not handed on to another agent. `orchestrator: true` marks the head of a team explicitly and `orchestrator: false` says an agent is not it; the
 guesses by role ("orchestrator", "CEO", "lead") remain only for files that say neither.
+
+Changed 2026-10-28: the editor wrote its four-value summary of the project's mode as the agent's rules, and that summary
+is not what the core runs (an Auto agent began asking before reading outside, an Accept edits one stopped asking before
+commands). Leaving the project's mode now copies that mode as the agent's own `autonomy` and saves only the changed case
+as a rule; "Use the project's again" clears both. `AUTONOMY_RULES` is display only.
 
 <a id="d-091"></a>
 ## D-091 — 2026-10-16 — A run no one watches gets more steps, and a routine can set its own
@@ -1415,6 +1431,7 @@ is kept as `projects.context_chars` and sent as `Project.agents_md_chars` only p
 settings and by `apx projects list`. `.apc/memory.md` shares the cap and agent-facing marker, but has no CLI/UI notice.
 What reaches the prompt whole is superseded by [D-157](#d-157): every call now carries an AGENTS.md's first 8,000
 characters and the headings of the rest; the 200,000 limit, its marker and the owner's notice stay as they are.
+[D-158](#d-158) restores it whole.
 
 
 <a id="d-111"></a>
@@ -1602,8 +1619,7 @@ The owner's other requests in the same report, all through that rule:
 
 Left as they are, and why: the board's project scope for tasks and memory scopes are about which project's data an
 agent sees, not its mode; the 60-action computer-use check is a runaway guard; the Rules editor writing all four
-rules when an agent leaves its project's mode freezes them over a later mode change (none on this machine today),
-which is a product question for that page; the owner's own Claude Code settings still apply to Claude Code's tools.
+rules when an agent leaves its project's mode froze them over a later mode change (settled in D-090's 2026-10-28 change); the owner's own Claude Code settings still apply to Claude Code's tools.
 
 <a id="d-116"></a>
 ## D-116 — 2026-10-21 — 150 steps a turn, and a cut delegate goes on while it makes progress
@@ -1933,6 +1949,10 @@ current guest list (`add_attendees`/`remove_attendees`, answers kept), adds a Me
 cancels. Confirmations follow D-106's strong actions: an event only on the owner's calendar, a change to one, and a
 Doc APX writes are the owner's own and do not ask; inviting people, cancelling and sharing a file speak to others in
 the owner's name and ask; sending mail still always asks.
+
+Changed 2026-10-28: moving an event with guests, taking guests off or cancelling emailed them (`sendUpdates: "all"`)
+with no card, since only adding guests asked. Now Calendar writes with `sendUpdates: "none"` unless the call emails
+guests on purpose (an invitation, or `notify_guests`), and such a call is `always`, as `gmail_send` is.
 
 <a id="d-131"></a>
 ## D-131 — 2026-10-22 — One owner per task, hand-offs through tasks, and follow-ups an agent proposes

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { dueWhen } from "../format";
-import { closedTasks, type TaskFilter, type TaskGroup, taskGroups } from "../hooks/taskGroups";
+import { closedTasks, runningThreads, type TaskFilter, type TaskGroup, taskGroups } from "../hooks/taskGroups";
 import type { Task, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { type TaskActions, TaskMenu } from "../tasks/TaskMenu";
@@ -40,7 +40,10 @@ export function TasksPage({
   const [menu, setMenu] = useState<string>();
   const menuTask = data.tasks.find((item) => item.id === menu);
   const [showClosed, setShowClosed] = useState(false);
-  const groups = useMemo(() => taskGroups(data.tasks, filter), [data.tasks, filter]);
+  const groups = useMemo(
+    () => taskGroups(data.tasks, filter, runningThreads(data.threads, data.tasks)),
+    [data.tasks, data.threads, filter],
+  );
   const closed = useMemo(() => closedTasks(data.tasks, filter), [data.tasks, filter]);
   return (
     <View style={{ flex: 1 }}>

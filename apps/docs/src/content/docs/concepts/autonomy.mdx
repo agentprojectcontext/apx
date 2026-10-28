@@ -21,7 +21,7 @@ project with none is on **Auto**.
 | Mode | In the panel | What it means |
 |---|---|---|
 | `manual` | Manual: asks before every change | Anything that changes something waits for you, and so does reading outside the project. |
-| `auto` | Auto: asks only for strong actions | The default. Reads any folder on the machine but APX's own; writes files and runs commands in the folder it works in and its temp folder without asking, whatever the turn read. It asks before sending messages or posts in your name, paying, deleting, writing outside its project, and anything marked `always`. |
+| `auto` | Auto: asks only for strong actions | The default. Reads any folder on the machine but APX's own; writes files and runs commands in the folder it works in and its temp folder without asking, whatever the turn read. It asks before sending messages or posts in your name, paying, deleting, writing outside your projects, and anything marked `always`. |
 | `accept_edits` | Accept edits: edits files, asks before commands | As Auto for files; a shell command that changes something asks first. |
 | `plan` | Plan: reads and proposes, changes nothing | Reads anywhere and answers with a plan. Any call that would change something is refused and the agent is told to propose it instead. |
 | `total` | Total: asks for nothing | Nothing waits for you, in any folder but APX's own. Your explicit choice, for agents you trust to run on their own. |
@@ -31,8 +31,10 @@ One kind of change waits for you in every mode, Total included: your super-agent
 your chat or as the answer to its question: if another agent asks your super-agent for it, nothing changes and you are
 not asked.
 
-Writing outside the project, in Auto or Accept edits, raises a card for that call: **Only this time** lets it write
-there once, nothing is kept. Files written before these modes existed keep working: `ask` reads as Manual and
+In Auto and Accept edits, your other registered projects and their git worktrees are written like the agent's own
+folder: you registered them. Writing in any other folder raises a card for that call: **Only this time** lets it write
+there once, and **Always let this agent change it** lets that agent write there for good (revoke it in its
+permissions). Files written before these modes existed keep working: `ask` reads as Manual and
 `standard` or `edits` as Auto.
 
 ## What each tool asks
@@ -41,10 +43,10 @@ Every tool call has a level, and some depend on their arguments: a read-only `gi
 
 | Tool level | Examples |
 |---|---|
-| `never` | Reading files, searching the web, recalling notes, listing tasks, saving a note, shell commands that only read on this machine (`ls`, `find . | grep`, `git log`, `git branch -a`): they run even with outside content in the turn. |
+| `never` | Reading files, searching the web, recalling notes, listing tasks, saving a note, looking at your screen, shell commands that only read on this machine (`ls`, `find . | grep`, `git log`, `git branch -a`): they run even with outside content in the turn. |
 | `untrusted` | Writing files in the project, messaging a contact, posting to a channel, typing in the browser, forgetting a note, giving another agent a tool, the phone's location, opening a URL with a query string, assigning a task to an agent. |
-| `ask` | Any shell command that is not plainly read-only, writing `AGENTS.md` or anything in `.apc/`, looking at or opening apps on your screen. |
-| `always` | Destructive shell commands (`rm -rf`, `sudo`, `git push`, `git reset --hard`…), commands that reach APX's own API or CLI, sending an iMessage, answering a contact, using your browser login, clicking, typing or pressing keys on your screen. |
+| `ask` | Any shell command that is not plainly read-only, opening apps on your screen. |
+| `always` | Destructive shell commands (`rm -rf`, `sudo`, `git push`, `git reset --hard`…), changing `AGENTS.md` or anything in `.apc/` (with a file tool or a command), commands that reach APX's own API or CLI, sending an iMessage, answering a contact, using your browser login, clicking, typing or pressing keys on your screen. |
 
 And this is how they meet. "Here" is a file write or a command in the folder the agent works in:
 
@@ -56,9 +58,11 @@ And this is how they meet. "Here" is a file write or a command in the folder the
 | `always` | Asks | Asks | Asks | Refused | Runs |
 
 <Aside type="caution" title="Total means total">
-  An agent on `total` asks for nothing, `always` actions included: destructive commands, messages to contacts, your
-  browser login. Give it to agents whose work you'd sign without reading. Two things still stop it: the browser
-  never types passwords or card numbers, and screen control still checks in every 60 actions.
+  An agent on `total` asks for nothing, `always` actions included: destructive commands, messages to contacts.
+  Give it to agents whose work you'd sign without reading. A few things still stop it: what you set up in APX
+  (letting a contact in, agents' limits, the settings your super-agent changes) asks on its card; copying your
+  browser login asks until you allow it for that agent for good; the browser never types passwords or card numbers;
+  and screen control still checks in every 60 actions.
 </Aside>
 
 When one of your agents delegates to another, the helper works in its **caller's mode**, not its own: an agent on
@@ -72,8 +76,9 @@ there, with a note saying so.
 An agent can also have its own rule for each kind of action, over its autonomy: **read and look**, **change the
 project**, **act outside in your name** and **irreversible**. Each one runs without asking, asks, or is off (its tools
 are taken away). Set them in the agent's editor under **Rules by case**, or in its file as
-`rules: write=auto, outside=ask`. An agent that used the project's autonomy gets its own rules for every case the first
-time you change one, so later changes to the project no longer reach it; **Use the project's again** undoes that.
+`rules: write=auto, outside=ask`. An agent that used the project's autonomy takes that mode as its own the first time you
+change a rule, with only that case changed, so later changes to the project no longer reach it; **Use the project's
+again** undoes both.
 What you granted it for good still runs without asking, and a helper keeps its own rules over its caller's mode.
 
 ## Approving
@@ -81,11 +86,12 @@ What you granted it for good still runs without asking, and a helper keeps its o
 When an action waits, the chat shows a **Needs your OK** card with what the agent wants to do. You can answer:
 
 - **Approve once**: just this call.
-- **Approve for this session**: this kind of call, in this chat, until you archive it or APX restarts.
+- **Approve for this session**: this kind of call, in this chat, until you archive or delete it.
 - **Always allow for this agent**: from now on, in every chat. You can revoke it in Resources.
 - **Decline**: the agent is told no and carries on without it.
 
-An `always` action can only be approved once: the next one asks again, whatever you chose before.
+An `always` action has the same four answers, kept apart from the tool's other calls: allowing a tool's ordinary
+calls never covers its destructive ones. What you set up in APX is approved one call at a time.
 
 In the agent's editor, **Granted** lists what you allowed for good. You can narrow a grant to some paths, domains or
 names (`app/Http/, github.com`: only calls whose arguments match run without asking) or give it an end date, after

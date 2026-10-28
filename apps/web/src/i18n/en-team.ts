@@ -246,7 +246,7 @@ export const enTeam = {
   "agentedit.grantedRun": "{count} granted run without asking: {tools}.",
   "agentedit.leaveProjectTitle": "Stop using the project's rules?",
   "agentedit.leaveProjectBody":
-    "{name} uses the mode of {project} today. Changing a rule gives it rules of its own for every case: later changes to the project's mode will no longer reach it. You can go back to the project's in Permission mode.",
+    "{name} uses the mode of {project} today. Changing a rule makes that mode its own, with only this case changed: later changes to the project's mode will no longer reach it. You can go back to the project's at any time.",
   "agentedit.leaveProjectOk": "Use its own rules",
   "agentedit.ownRulesNote": "It uses its own rules. Changes to the project's mode do not reach it.",
   "agentedit.backToProject": "Use the project's again",
@@ -255,7 +255,7 @@ export const enTeam = {
   "agentedit.autonomyManualHint": "Asks your permission before every action that changes something.",
   "agentedit.autonomyAuto": "Auto",
   "agentedit.autonomyAutoHint":
-    "Reads anywhere and works in its project without asking. Asks only for messages, payments, deleting and writing outside.",
+    "Reads anywhere and works in its project without asking. Asks only for messages, payments, deleting and writing outside your projects.",
   "agentedit.autonomyAcceptEdits": "Accept edits",
   "agentedit.autonomyAcceptEditsHint": "Like Auto, and asks before any command that changes something.",
   "agentedit.autonomyPlan": "Plan",

@@ -194,7 +194,7 @@ están; APX solo les suma `AGENTS.md` y `.apc/`.
 - ~/.apx/v2/
   - apx.db todo el estado: agentes, hilos, tareas, memoria, configuración (SQLite)
   - core.env el token del core, el host y la dirección pública, si los configurás
-  - secrets.json los valores secretos, donde no se usa el llavero del sistema
+  - secrets.json los valores secretos, solo donde no hay llavero del sistema
   - skills/ tus skills globales
   - extensions/
   - projects/ el lado de APX de cada proyecto, como sus widgets
@@ -204,8 +204,9 @@ están; APX solo les suma `AGENTS.md` y `.apc/`.
   - app/ el core instalado, en instalaciones de servidor
 </FileTree>
 
-En macOS, los valores secretos van a tu llavero de sesión (Keychain); en el resto, a `secrets.json` con permisos solo
-para vos.
+Los valores secretos van a tu llavero de sesión (Keychain) en macOS, a tu llavero (Secret Service) en Linux y a
+`secrets.dpapi`, sellado con DPAPI, en Windows. Solo un servidor sin llavero los guarda en `secrets.json`, que solo
+podés leer vos. Mirá [Configuración](/es/reference/configuration/).
 
 ## Actualizaciones
 
@@ -227,8 +228,9 @@ los commits, así que ese chat está en inglés. Una instalación nueva arranca 
 chat.
 
 Cuando una versión trae algo que tu super-agente ahora puede hacer por vos (por ejemplo, actualizar tus widgets), te
-lo cuenta una vez, con sus palabras y en tu idioma, por tu canal preferido, con un botón por cada cosa que ofrece. Solo
-ese mensaje llama a un modelo, y solo cuando algo te aplica; a una instalación nueva no se le cuenta nada.
+lo cuenta una vez, con sus palabras y en tu idioma, en su chat de la app (marcado como no leído). Si elegiste una app
+de chat para los avisos, el mensaje llega ahí también, con un botón por cada cosa que ofrece; si no, lo leés en la app.
+Solo ese mensaje llama a un modelo, y solo cuando algo te aplica; a una instalación nueva no se le cuenta nada.
 `APX_NEWS=off` lo apaga, y `apx news` lista lo que hay.
 
 ## Desinstalar

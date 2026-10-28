@@ -19,7 +19,7 @@ import { useVoiceNote } from "./chat/useVoiceNote";
 import type { Creds } from "./creds";
 import { dayLabel } from "./format";
 import { channelIdentity, engineName, isWorking, routineName, threadContext } from "./hooks/chatSelectors";
-import { continueSession } from "./hooks/continueSession";
+import { continueSession, sessionState } from "./hooks/continueSession";
 import { useThread } from "./hooks/useThread";
 import type { Thread, Workspace } from "./hooks/useWorkspace";
 import { t } from "./i18n";
@@ -241,6 +241,7 @@ export function ChatScreen({
                   respond={live.respond}
                   goOn={(thread, mode) => live.client.call("threads.go_on", { thread, mode })}
                   continueSession={(session) => continueSession(live.client, session)}
+                  sessionState={(session) => sessionState(live.client, session)}
                   {...(onOpenThread ? { openThread: onOpenThread } : {})}
                 />
               )
