@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Origin } from "../domain/runs.ts";
-import { agentsMdOf, type Sections, sectionLines, turnInput } from "./context.ts";
+import { agentsMdOf, type Sections, sectionLines, turnInput, VISUAL_CHECK } from "./context.ts";
 
 const owner: Origin = {
   kind: "channel",
@@ -52,6 +52,12 @@ test("the sections are only those a chat's turns call for: none for a plain chat
   assert.doesNotMatch(sectionLines({ mode: "manual" }).join("\n"), /Phone chats|computer/);
   assert.match(sectionLines({ computer: "home" }).join("\n"), /Computer: not used from Home/);
   assert.match(sectionLines({ write: "read-only" }).join("\n"), /Writes there: read-only \(nothing here may change/);
+});
+
+test("whoever can change files is told to look at a visible change running; a read-only folder and a plain chat are not", () => {
+  for (const write of ["auto", "ask"] as const) assert.ok(sectionLines({ write }).includes(`- ${VISUAL_CHECK}`), write);
+  assert.ok(!sectionLines({ write: "read-only" }).includes(`- ${VISUAL_CHECK}`));
+  assert.ok(!sectionLines({ mode: "auto" }).includes(`- ${VISUAL_CHECK}`));
 });
 
 test("a turn opens with one context header: the facts line, then the folder and the computer", () => {

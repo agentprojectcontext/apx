@@ -2673,6 +2673,9 @@ which integration a mechanism serves, review caveats and repeated facts go to do
 - "Only registered routes are reachable: never the panel or the API." → nothing: it is a guarantee, not a choice.
 
 A UI change also has a reference before and screenshots of the running build after, reviewed by the designer
-(rule 32, [UI changes](WORKFLOW.md#ui-changes)). Rejected: a lint word list for jargon (it would ban words, not
+(rule 32, [UI changes](WORKFLOW.md#ui-changes)). The harness says it too, in every project: an agent or worker whose
+folder can change is told, in its prompt's "Your folder" section, to see a visible change running in its browser and
+report it with a picture, never leaving the check to the owner (`VISUAL_CHECK` in `engine/context.ts`). A plain chat
+and a read-only folder do not carry it, so the default prompt's budget is unchanged. Rejected: a lint word list for jargon (it would ban words, not
 explanations aimed at the wrong reader), and treating E2E as visual review (it proves a click works, not that
 the screen makes sense).

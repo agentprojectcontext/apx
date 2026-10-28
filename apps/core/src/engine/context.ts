@@ -289,6 +289,10 @@ export type Sections = {
   write?: NonNullable<Thread["write"]> | undefined;
 };
 
+/** Told to whoever can change files: a change a person sees is checked running, never left to the owner (D-166). */
+export const VISUAL_CHECK =
+  "A change a person sees (a screen, a page, an app's text) is done only once you saw it running: start or reload it (a dev server with shell background=true), open it in your browser, click through what changed, check its errors and its words as that person reads them, fix what you find, and report what you saw with a picture. Never ask the owner to check it; what no browser can show is UNVERIFIED.";
+
 export const COMPUTER_WORKSPACE = (dir: string) =>
   `Shared Linux computer: ${dir}, as your own unprivileged user on your own screen. Shell and browser tools run there; web access uses the protected proxy. When it is off, start it with the computer tool.`;
 const COMPUTER_ASK = "Start it only for work the owner wants on it; if they did not say, ask them first.";
@@ -299,6 +303,7 @@ export function sectionLines(s: Sections, workspace = ""): string[] {
   return [
     ...(s.mode ? ["", `## Permission mode: ${MODE_NAMES[s.mode]}`, `- ${MODES[s.mode]}`, `- ${ASK_RULE}`] : []),
     ...(s.write ? ["", "## Your folder", `- Writes there: ${WRITES[s.write]}.`] : []),
+    ...(s.write && s.write !== "read-only" ? [`- ${VISUAL_CHECK}`] : []),
     ...(s.onComputer ? ["", "## The computer", `- ${COMPUTER_WORKSPACE(workspace)}`, `- ${COMPUTER_ASK}`] : []),
     ...(s.computer === "home" ? ["", "## The computer", `- ${HOME_COMPUTER}`] : []),
     ...(s.computer === "chat" && !s.onComputer ? ["", "## The computer", `- ${COMPUTER_ASK}`] : []),
