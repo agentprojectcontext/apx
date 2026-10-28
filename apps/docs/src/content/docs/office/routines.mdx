@@ -42,18 +42,42 @@ A run missed while the core was off runs once when it comes back, never twice.
 
 ## Webhook Flows
 
-In the unreleased integration branch, open **Flows** in the global sidebar beside **Tasks** and **Resources**. The initial view lists all projects; **Filter by project** narrows it. **New Flow** lets you choose a project, prefilled from the filter; editing keeps that project fixed. The Routines tab's shortcut opens this same global screen. Direct links use `#view=flows` or `#view=flows&scope=<project-id>`; chat buttons may use `apx:flows` or `apx:flows/<project-id>`.
+In the unreleased integration branch, open **Flows** in the global sidebar beside **Tasks** and **Resources**. The list
+shows every flow across projects with its steps, the agent it hands work to, a bar for each of its last runs and an
+on/off switch; the project menu narrows it. The Routines tab's shortcut opens this same global screen. Direct links use
+`#view=flows` or `#view=flows&scope=<project-id>`; chat buttons may use `apx:flows` or `apx:flows/<project-id>`.
 
-A Flow belongs to a project and has no cron or periodic trigger.
-Start disabled, choose equality filters and a durable table destination, then optionally bind a fixed agent or a
-manual-only routine in that project. Enable it before creating its route credential in **Settings → Devices → Public
-endpoints**. Public access is configured separately; it never exposes private RPC or the panel.
+**New flow** opens the editor, blank or from a starter shape. Add steps from the left (they join after the step you
+chose), drag from a step's output dot to join two steps, and set each step at the right:
+
+| Step | What it does |
+|---|---|
+| Incoming webhook | Starts the flow when a service sends a POST. Its address appears once the flow is saved. |
+| Check | Goes on only if a field of what arrived has a value (`form.tier` is `A`). No model. |
+| Read table | Brings saved rows into the run, for the agent. No model. |
+| Save to table | Keeps what arrived under a key. Every flow has one. No model. |
+| AI model | Gives a task to an agent of the crew. Spends tokens. |
+| Routine | Runs a manual routine of the project. |
+
+Schedule, SQL, outgoing Webhook, Cmd and Notify show as **Soon** and can't be added yet. Today a flow runs one path in
+this order: webhook, checks, read, save, then one agent or routine. When the drawing has that shape, **Save** makes it
+what runs, and the side panel says *Runs as drawn*. Any other shape is kept as a draft and the panel says what keeps it
+from running; the flow goes on running its last runnable version. **Try a run** checks sample data against the checks
+without saving, sending or calling an agent. Saving never runs anything, and a new flow starts off.
+
+Opening a flow shows its steps as they ran in the chosen run (numbered, green when they ran, dashed when they didn't,
+red when they failed), what each step got and gave, a log with the times APX recorded, and the runs at the right with
+their duration and tokens. A failed start can be retried from there, and a step that handed work to an agent opens its
+chat.
+
+A Flow belongs to a project and has no cron or periodic trigger. Turn it on before creating its token in
+**Settings → Devices → Endpoints**. Public access is configured separately; it never exposes private RPC or the panel.
 
 Send JSON such as `{"id":"order-42","data":{"status":"paid"}}` to `POST /flows/<id>` with that route's bearer
 token. Keep the same event ID on retries. Empty, duplicate or nonmatching events do not call a model; matching work
 uses the saved binding, not an identity or command chosen by the payload. Tables and event history persist across
 restarts. A linked agent run can still fail, and external effects are not guaranteed exactly once. The panel shows
-up to 50 rows and events; the private `flows.rows` and `flows.events` protocol methods provide paginated inspection.
+the last 50 runs at a time (**Show older runs** pages back) and up to 20 rows of the table; the private `flows.rows` and `flows.events` protocol methods provide paginated inspection.
 
 Rotation invalidates the previous token immediately. If deleting its stored secret fails, a non-authorizing cleanup
 reference survives for retry at core startup or the next rotation; the newly activated credential is still returned.

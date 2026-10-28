@@ -9,7 +9,8 @@
     "./client": "./src/client.ts",
     "./cdp": "./src/cdp.ts",
     "./exit": "./src/exit.ts",
-    "./notices": "./src/notices.ts"
+    "./notices": "./src/notices.ts",
+    "./flow-shape": "./src/flow-shape.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",

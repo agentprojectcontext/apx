@@ -43,17 +43,46 @@ Una corrida que se perdió con el core apagado corre una vez cuando vuelve, nunc
 
 ## Flows por webhook
 
-En la rama de integración todavía no publicada, abrí **Flows** en el sidebar global junto a **Tareas** y **Recursos**. La vista inicial reúne todos los proyectos; **Filtrar por proyecto** la acota. **Nuevo Flow** permite elegir proyecto, preseleccionado según el filtro; al editar, el proyecto queda fijo. El acceso de Rutinas abre esta misma pantalla global. Los enlaces directos usan `#view=flows` o `#view=flows&scope=<project-id>`; los botones del chat pueden usar `apx:flows` o `apx:flows/<project-id>`.
+En la rama de integración todavía no publicada, abrí **Flows** en el sidebar global junto a **Tareas** y **Recursos**.
+La lista muestra todos los flows de todos los proyectos con sus pasos, el agente al que le pasan trabajo, una barra por
+cada una de sus últimas rondas y un interruptor de encendido; el menú de proyecto la acota. El acceso de Rutinas abre
+esta misma pantalla global. Los enlaces directos usan `#view=flows` o `#view=flows&scope=<project-id>`; los botones del
+chat pueden usar `apx:flows` o `apx:flows/<project-id>`.
 
-Un Flow pertenece a un proyecto y no tiene cron ni disparador periódico. Crealo desactivado, elegí filtros de igualdad y una tabla durable de destino; opcionalmente vinculá un
-agente fijo o una rutina manual de ese proyecto. Activá el Flow antes de crear su credencial en **Configuración →
-Dispositivos → Endpoints públicos**. El acceso público se configura por separado y nunca expone el RPC privado ni el panel.
+**Nuevo flow** abre el editor, en blanco o desde una forma de arranque. Sumá pasos desde la izquierda (se unen después
+del paso elegido), arrastrá desde el punto de salida de un paso para unir dos pasos y configurá cada uno a la derecha:
+
+| Paso | Qué hace |
+|---|---|
+| Webhook entrante | Arranca el flow cuando un servicio manda un POST. Su URL aparece al guardar. |
+| Condición | Sigue solo si un campo de lo que llegó tiene un valor (`form.tier` es `A`). Sin modelo. |
+| Leer tabla | Trae filas guardadas a la ronda, para el agente. Sin modelo. |
+| Guardar en la tabla | Guarda lo que llegó con una clave. Todo flow tiene uno. Sin modelo. |
+| Modelo IA | Le da una tarea a un agente del crew. Gasta tokens. |
+| Rutina | Corre una rutina manual del proyecto. |
+
+Horario, SQL, Webhook saliente, Cmd y Avisar aparecen como **Pronto** y todavía no se pueden sumar. Hoy un flow corre un
+solo camino en este orden: webhook, condiciones, leer, guardar y un agente o rutina. Si el dibujo tiene esa forma,
+**Guardar** lo convierte en lo que corre y el panel dice *Corre así como está*. Cualquier otra forma queda como
+borrador y el panel dice qué le falta; el flow sigue corriendo su última versión que se podía correr. **Probar ronda**
+prueba datos de ejemplo contra las condiciones sin guardar, mandar ni pasarle nada a un agente. Guardar nunca corre
+nada, y un flow nuevo arranca apagado.
+
+Al abrir un flow ves sus pasos como corrieron en la ronda elegida (numerados, en verde si corrieron, punteados si no,
+en rojo si fallaron), qué recibió y qué dio cada paso, un log con las horas que registró APX y las rondas a la derecha
+con su duración y tokens. Un arranque fallido se reintenta desde ahí, y un paso que le pasó trabajo a un agente abre su
+chat.
+
+Un Flow pertenece a un proyecto y no tiene cron ni disparador periódico. Encendelo antes de crear su token en
+**Configuración → Dispositivos → Endpoints**. El acceso público se configura por separado y nunca expone el RPC privado
+ni el panel.
 
 Enviá JSON como `{"id":"order-42","data":{"status":"paid"}}` a `POST /flows/<id>` con el token bearer de esa ruta.
 Conservá el mismo ID de evento en los reintentos. Los eventos vacíos, duplicados o que no coinciden con los filtros no
 llaman al modelo; el trabajo coincidente usa el vínculo guardado, no una identidad ni un comando elegido por el payload.
 Las tablas y el historial persisten tras reiniciar. Una ejecución vinculada puede fallar y no se garantiza exactamente
-un efecto en servicios externos. El panel muestra hasta 50 filas y eventos; los métodos privados del protocolo
+un efecto en servicios externos. El panel muestra las últimas 50 rondas (**Ver rondas anteriores** trae más) y hasta 20
+filas de la tabla; los métodos privados del protocolo
 `flows.rows` y `flows.events` permiten inspeccionarlos con paginación.
 
 Rotar invalida el token anterior inmediatamente. Si falla el borrado de su secreto, queda una referencia que no autoriza

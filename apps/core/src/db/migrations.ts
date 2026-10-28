@@ -945,4 +945,34 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX flow_events_pending ON flow_events(state, created_at);
   `,
   `CREATE TABLE retired_flows (id TEXT PRIMARY KEY);`,
+  `
+  ALTER TABLE flow_events ADD COLUMN executor TEXT NOT NULL DEFAULT 'legacy';
+  CREATE TABLE flow_graph_drafts (
+    flow_id TEXT PRIMARY KEY REFERENCES flows(id) ON DELETE CASCADE,
+    version INTEGER NOT NULL, graph TEXT NOT NULL, published_revision INTEGER,
+    discarded INTEGER NOT NULL DEFAULT 0 CHECK(discarded IN (0,1))
+  );
+  CREATE TABLE flow_graph_revisions (
+    flow_id TEXT NOT NULL REFERENCES flows(id) ON DELETE CASCADE,
+    revision INTEGER NOT NULL, graph TEXT NOT NULL, created_at TEXT NOT NULL,
+    PRIMARY KEY(flow_id, revision)
+  );
+  CREATE TABLE flow_graph_events (
+    flow_id TEXT NOT NULL, event_id TEXT NOT NULL, revision INTEGER NOT NULL,
+    payload TEXT NOT NULL, deadline_at TEXT NOT NULL,
+    PRIMARY KEY(flow_id, event_id),
+    UNIQUE(flow_id, event_id, revision),
+    FOREIGN KEY(flow_id, event_id) REFERENCES flow_events(flow_id, event_id) ON DELETE CASCADE,
+    FOREIGN KEY(flow_id, revision) REFERENCES flow_graph_revisions(flow_id, revision) ON DELETE CASCADE
+  );
+  CREATE TABLE flow_graph_nodes (
+    flow_id TEXT NOT NULL, event_id TEXT NOT NULL, revision INTEGER NOT NULL, node_id TEXT NOT NULL,
+    state TEXT NOT NULL, input TEXT, output TEXT,
+    run_id TEXT REFERENCES runs(id), thread_id TEXT REFERENCES threads(id), error TEXT,
+    PRIMARY KEY(flow_id, event_id, revision, node_id),
+    FOREIGN KEY(flow_id, event_id, revision) REFERENCES flow_graph_events(flow_id, event_id, revision) ON DELETE CASCADE
+  );
+  CREATE INDEX flow_graph_events_revision ON flow_graph_events(flow_id, revision);
+  CREATE INDEX flow_graph_nodes_revision ON flow_graph_nodes(flow_id, revision);
+  `,
 ];

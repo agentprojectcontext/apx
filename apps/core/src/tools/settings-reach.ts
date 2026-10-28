@@ -58,6 +58,10 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "tools.grant_set": POWER,
   "tools.revoke": POWER,
   "mcp.trust": POWER,
+  // The visual draft is edited in the panel's Flows editor; publication stays blocked (rules/FLOWS.md).
+  "flows.draft_save": "the owner draws a Flow's steps in the panel's editor",
+  "flows.draft_discard": "the owner deletes a Flow draft on purpose",
+  "flows.publish": "graph publication is unavailable until a graph executor exists",
   "mcp.approveTool": POWER,
   "environments.enable": POWER,
   "environments.bind": POWER,

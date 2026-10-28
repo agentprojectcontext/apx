@@ -9,6 +9,7 @@ import { channelsRepo } from "./channels.ts";
 import { clientsRepo } from "./clients.ts";
 import { devicesRepo } from "./devices.ts";
 import { extensionsRepo } from "./extensions.ts";
+import { flowGraphsRepo } from "./flow-graphs.ts";
 import { flowsRepo } from "./flows.ts";
 import { inputsRepo } from "./inputs.ts";
 import { jobsRepo } from "./jobs.ts";
@@ -49,6 +50,7 @@ export function createStore(db: Db, bus: Bus) {
   return {
     tx: q.tx,
     flows: flowsRepo(db),
+    flowGraphs: flowGraphsRepo(db),
     projects: projectsRepo(q, teamChanged),
     agents: agentsRepo(q, teamChanged),
     threads: threadsRepo(q, bus, approvals.endSession),

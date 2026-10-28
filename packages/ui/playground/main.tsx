@@ -6,6 +6,7 @@ import {
 } from "../src";
 import "../src/styles/tokens.css";
 import "../src/styles/components.css";
+import "../src/styles/components/flow.css";
 
 function Screen({ look, mode }: { look: ApxLook; mode: ApxMode }) {
   const classic = look === "classic";

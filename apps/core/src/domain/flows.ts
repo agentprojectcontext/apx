@@ -3,6 +3,7 @@ import type { Db } from "../db/db.ts";
 import { redactedJson } from "../log.ts";
 import { matchesFlowPredicates } from "./flow-evaluate.ts";
 import { checkFlowCapacity, FlowCapacityError, flowEventsRepo } from "./flow-events.ts";
+import { FlowGraphUnavailable, hasPublishedFlowGraph } from "./flow-graphs.ts";
 import { checkFlowIdentifier, retireFlow } from "./flow-retirement.ts";
 import { sql } from "./sql.ts";
 
@@ -39,6 +40,8 @@ const definition = (row: SavedFlow) =>
 export function saveFlow(db: Db, value: FlowDefinition): void {
   const flow = Definition.parse(value);
   checkFlowIdentifier(db, flow.id);
+  if (hasPublishedFlowGraph(db, flow.id))
+    throw new FlowGraphUnavailable("Published graph configuration cannot be replaced by a legacy definition");
   if (redactedJson(flow) !== JSON.stringify(flow))
     throw new Error("Flow definitions must use secret references, not credentials");
   matchesFlowPredicates({}, flow.predicates);
@@ -114,6 +117,7 @@ export function flowsRepo(db: Db) {
       return tx(() => {
         const flow = api.get(flowId);
         if (!flow?.enabled) throw new Error("Flow not found or disabled");
+        if (hasPublishedFlowGraph(db, flowId)) throw new FlowGraphUnavailable("Graph execution is not available yet");
         if (db.prepare("SELECT 1 FROM flow_events WHERE flow_id=? AND event_id=?").get(flowId, eventId))
           return "duplicate";
         if (Number(db.prepare("SELECT count(*) AS n FROM flow_events WHERE flow_id=?").get(flowId)?.n) >= MAX_EVENTS)

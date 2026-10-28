@@ -1,6 +1,8 @@
+import { matchesFlowPredicates } from "../domain/flow-evaluate.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
 import { type Flows, validateFlowBinding } from "../flows.ts";
+import { flowGraphHandlers } from "./flow-graphs.ts";
 import type { Handlers } from "./router.ts";
 
 export function flowHandlers(
@@ -14,6 +16,7 @@ export function flowHandlers(
     return flow;
   };
   return {
+    ...flowGraphHandlers(store),
     "flows.list": ({ project }) => ({ flows: store.flows.list(project) }),
     "flows.set": (flow) => {
       validateFlowBinding(store, flow);
@@ -50,7 +53,7 @@ export function flowHandlers(
         result = store.flows.retire(flow);
       } catch {
         throw badRequest(
-          "Disable the Flow and finish or cancel its active runs before retiring it; the identifier stays reserved",
+          "Disable the Flow and finish or cancel its active runs before retiring it; graph retirement is unavailable until complete graph export is supported; the identifier stays reserved",
         );
       }
       try {
@@ -59,6 +62,17 @@ export function flowHandlers(
         throw badRequest("Flow data is absent, but credential cleanup failed; retry retirement to finish cleanup");
       }
       return result;
+    },
+    "flows.try": ({ predicates, data }) => {
+      const text = JSON.stringify(data);
+      if (text === undefined || Buffer.byteLength(text) > 32768) throw badRequest("Sample data exceeds 32 KiB");
+      // Same rule as admission: only a nonempty object can match.
+      const object = data !== null && typeof data === "object" && !Array.isArray(data) && Object.keys(data).length > 0;
+      try {
+        return { matches: object && matchesFlowPredicates(data, predicates) };
+      } catch {
+        throw badRequest("Invalid Flow checks");
+      }
     },
     "flows.retry": ({ flow, event }) => {
       found(flow);

@@ -1,5 +1,5 @@
 import type { HookError, HookMode, WebhooksState } from "@apx/protocol";
-import { Badge, Button, Icons, Input, SegmentedControl, SettingRow, Skeleton } from "@apx/ui";
+import { Badge, Button, IconButton, Icons, Input, SegmentedControl, SettingRow, Skeleton } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
@@ -156,9 +156,7 @@ export function PublicAddress({ channelId }: { channelId?: string }) {
             {address ? (
               <>
                 <code className="devices__url">{address}</code>
-                <Button size="sm" variant="secondary" leadingIcon={<Icons.Copy size={14} />} onClick={copy}>
-                  {t("hooks.copy")}
-                </Button>
+                <IconButton size="sm" label={t("hooks.copy")} icon={<Icons.Copy size={14} />} onClick={copy} />
               </>
             ) : (
               <Badge tone="neutral">{t("hooks.notUp")}</Badge>
