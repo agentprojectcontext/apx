@@ -315,10 +315,5 @@ export const SURFACE_STATE_MAX = 64_000;
  */
 export const ARTIFACT_FILE_EXT = ".apxart";
 
-/** The super-agent's capabilities: one routine each, turned on and off in its settings rather than listed with routines. */
-export const CAPABILITY_ACTIONS = ["relay", "mail", "calendar"] as const;
-export type CapabilityAction = (typeof CAPABILITY_ACTIONS)[number];
-export const isCapability = (action: string): action is CapabilityAction =>
-  (CAPABILITY_ACTIONS as readonly string[]).includes(action);
 /** How long before an event its reminder comes, in minutes: from 5 up to a week ahead. */
 export const CALENDAR_LEAD = { min: 5, max: 7 * 24 * 60, default: 30 } as const;

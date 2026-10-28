@@ -1,5 +1,4 @@
 import type { Agent, Run } from "@apx/protocol";
-import { isCapability } from "@apx/protocol/client";
 import { Icons } from "@apx/ui";
 import { useCallback, useEffect, useMemo } from "react";
 import { activeProfileName, loadProfiles, useProfiles } from "../../data/profiles.ts";
@@ -55,7 +54,8 @@ export function useTeamInfo(leadId: string | undefined, leadLabel: string) {
     for (const task of Object.values(tasks))
       if (task.state === "open" && task.assignee) open.set(task.assignee, (open.get(task.assignee) ?? 0) + 1);
     const rts = new Map<string, number>();
-    for (const r of routines) if (!isCapability(r.action)) rts.set(r.agent_id, (rts.get(r.agent_id) ?? 0) + 1);
+    for (const r of routines)
+      if (r.action !== "relay" && r.action !== "mail") rts.set(r.agent_id, (rts.get(r.agent_id) ?? 0) + 1);
     return { chats, open, rts };
   }, [threads, tasks, routines]);
 

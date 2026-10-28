@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
-import { type CalendarEvent, dueEvents, eventLines } from "./calendar-reminders.ts";
+import { after, before, test } from "node:test";
+import { officeScheduler } from "../office-wiring.ts";
+import { waitFor } from "../testkit/platform.ts";
+import type { Attention } from "./attention.ts";
+import { type CalendarEvent, calendarReminders, dueEvents } from "./calendar-reminders.ts";
+import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 const now = new Date("2026-05-04T17:55:00-03:00");
 const ev = (id: string, start: string, more: Partial<CalendarEvent> = {}): CalendarEvent => ({
@@ -54,12 +58,85 @@ test("all-day, declined and cancelled events are never reminded", () => {
   assert.deepEqual(due.due, []);
 });
 
-test("each event line says what, when, in how many minutes and where", () => {
-  const line = eventLines([ev("doctor", "2026-05-04T18:20:00-03:00", { location: "Clinic" })], now);
-  assert.deepEqual(JSON.parse(line), {
-    title: "doctor",
-    start: "2026-05-04T18:20:00-03:00",
-    in_minutes: 25,
-    location: "Clinic",
+let env: Awaited<ReturnType<typeof startCore>>;
+let clock = now;
+let connected = false;
+const calendar: CalendarEvent[] = [];
+const asked: Array<{ from: string; to: string }> = [];
+const sent: string[] = [];
+let office: ReturnType<typeof officeScheduler>;
+
+before(async () => {
+  env = await startCore({ llm: scriptedLlm(() => say("ok")), clock: () => new Date(2000, 0, 1) });
+  env.core.store.settings.write("owner_profile", {
+    ...env.core.store.settings.read("owner_profile"),
+    timezone: "America/Argentina/Buenos_Aires",
   });
+  const store = env.core.store;
+  office = officeScheduler({
+    store,
+    admit: () => {
+      throw new Error("no runs here");
+    },
+    attention: { add() {} } as unknown as Attention,
+    notifyOwner: (body) => {
+      sent.push(body.text);
+      return true;
+    },
+    checks: (remind) => [
+      calendarReminders({
+        store,
+        source: {
+          readable: () => connected,
+          between: async (from, to) => {
+            asked.push({ from, to });
+            return calendar.filter((e) => (e.start ?? "") >= from && (e.start ?? "") <= to);
+          },
+        },
+        remind: (texts) => remind(texts, "event"),
+      }),
+    ],
+    log: { info() {}, warn() {}, error() {}, debug() {} } as never,
+    now: () => clock,
+  });
+});
+after(async () => {
+  await env.core.close();
+  await env.cleanup();
+});
+
+const minutes = (m: number) => new Date(clock.getTime() + m * 60_000).toISOString();
+const step = (m: number) => (clock = new Date(clock.getTime() + m * 60_000));
+/** One beat of the office clock, and the check it started has answered. */
+const beat = async () => {
+  office.tick();
+  await new Promise((res) => setImmediate(res));
+};
+
+test("reminders stay off until the owner turns them on in Calendar's settings, and need Calendar connected", async () => {
+  calendar.push(ev("Doctor", minutes(20), { location: "Clinic" }));
+  await beat();
+  connected = true;
+  step(1);
+  await beat();
+  assert.deepEqual(asked, [], "off by default: Calendar is never asked");
+  env.core.store.settings.write("calendar_reminders", { enabled: true, lead_min: 30 });
+  connected = false;
+  step(1);
+  await beat();
+  assert.deepEqual(asked, [], "not connected: nothing to ask");
+});
+
+test("an event about to start is told once, in a fixed line in the owner's language and time zone", async () => {
+  connected = true;
+  calendar.push(ev("Planning with Northwind", minutes(90)));
+  step(1);
+  await beat();
+  await waitFor(() => sent.length === 1, "the reminder");
+  assert.equal(asked.at(-1)?.to, minutes(30), "only the lead time ahead");
+  assert.equal(sent[0], "A las 18:15 (en 17 min): Doctor. Clinic");
+  step(1);
+  await beat();
+  await waitFor(() => asked.length === 2, "the next check");
+  assert.equal(sent.length, 1, "each event once");
 });

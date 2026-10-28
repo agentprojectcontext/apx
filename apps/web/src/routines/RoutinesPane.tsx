@@ -1,5 +1,4 @@
 import type { Routine } from "@apx/protocol";
-import { isCapability } from "@apx/protocol/client";
 import { AgentAvatar, Button, EmptyState, IconButton, Icons, Menu, Switch } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { aheadLabel, shortWhen } from "../common/format.ts";
@@ -36,7 +35,9 @@ export function RoutinesPane({ projectId }: { projectId: string }) {
     void loadRoutines();
   }, []);
   const global = projectId === DEFAULT_PID;
-  const list = all.filter((r) => !isCapability(r.action) && (global ? !r.project_id : r.project_id === projectId));
+  const list = all.filter(
+    (r) => r.action !== "relay" && r.action !== "mail" && (global ? !r.project_id : r.project_id === projectId),
+  );
   const current = list.find((r) => r.id === open);
   const blank: RoutineDraft = {
     name: "",
@@ -132,11 +133,9 @@ function RoutineRow(props: {
           ? t("routines.flow.relay", { agent: props.agentName })
           : r.action === "mail"
             ? t("routines.flow.mail", { agent: props.agentName })
-            : r.action === "calendar"
-              ? t("routines.flow.calendar", { agent: props.agentName })
-              : r.action === "message"
-                ? t("routines.flow.message")
-                : undefined,
+            : r.action === "message"
+              ? t("routines.flow.message")
+              : undefined,
     r.post_command && t("routines.flow.post"),
   ].filter(Boolean);
   return (

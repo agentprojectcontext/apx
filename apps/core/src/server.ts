@@ -49,6 +49,7 @@ import { createStore } from "./domain/store.ts";
 import { announceRelease } from "./domain/whats-new.ts";
 import { createAttention } from "./engine/attention.ts";
 import { keepAwake, sleepWatch } from "./engine/awake.ts";
+import { calendarReminders } from "./engine/calendar-reminders.ts";
 import { createEngine, type RunTimers } from "./engine/engine.ts";
 import type { InputWaits } from "./engine/inputs.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
@@ -527,10 +528,6 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       historyId: () => gmailApi(google).historyId(),
       arrived: (from) => gmailApi(google).arrived(from),
     },
-    calendar: {
-      readable: (project) => google.usable("google-calendar", project),
-      between: async (from, to) => (await calendarApi(google).list({ from, to, max: 20, calendar: "primary" })).events,
-    },
     afterRun: (run) => {
       upkeep.afterRun(run);
       memoryMaintenance.afterRun(run);
@@ -574,6 +571,18 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     notifyOwner: (body, threadId) => channels.notifyOwner(body, "notice", threadId),
     openHeld: () => channels.openHeld((a) => engine.admit(a)),
     flowTick: (at) => flows.tick(at),
+    checks: (remind) => [
+      calendarReminders({
+        store,
+        source: {
+          readable: () => google.usable("google-calendar", undefined),
+          between: async (from, to) =>
+            // The lead can be days: enough events that a busy week is not cut short.
+            (await calendarApi(google).list({ from, to, max: 250, calendar: "primary" })).events,
+        },
+        remind: (texts, events) => remind(texts, `event:${events.map((e) => e.id).join(",")}`),
+      }),
+    ],
     log,
     ...(opts.clock ? { now: opts.clock } : {}),
   });

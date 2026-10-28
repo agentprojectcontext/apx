@@ -1,5 +1,4 @@
 import type { Localized, ProfileField, Routine } from "@apx/protocol";
-import { isCapability } from "@apx/protocol/client";
 import { Button, Dialog, Icons, Input, SegmentedControl, Select, SettingRow, Skeleton, Tag } from "@apx/ui";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
@@ -108,7 +107,7 @@ export function ProfilePicker({ actions }: { actions?: ReactNode }) {
 
           {current.routines.length > 0 && <SubHead>{t("prof.routines")}</SubHead>}
           {state.routines
-            .filter((r) => !isCapability(r.action))
+            .filter((r) => r.action !== "relay" && r.action !== "mail")
             .map((r) => (
               <RoutineLine
                 key={r.id}

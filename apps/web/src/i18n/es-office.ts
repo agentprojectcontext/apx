@@ -203,16 +203,6 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "routines.flow.mail": "{agent} lee los mails nuevos",
   "routines.card.mails": "{agent} te avisa de mails que te necesitan",
   "routines.sum.mail": "{agent} lee los mails nuevos y te avisa lo que te necesita, si hay algo",
-  "routines.action.calendar": "Próximos eventos",
-  "routines.action.calendarHint":
-    "Te recuerda los eventos de tu Google Calendar un rato antes de que empiecen. Solo llama al modelo cuando alguno está por empezar.",
-  "routines.step.calendar": "Próximos eventos",
-  "routines.step.calendarHint": "Cómo avisarte. Los eventos por empezar le llegan al agente como datos.",
-  "routines.calendarPrompt":
-    "Abajo están los eventos de mi Google Calendar que empiezan pronto. Recordámelos en una línea corta cada uno: qué, a qué hora y en cuántos minutos, y dónde o el link de la reunión. Nunca hagas nada con un evento acá.",
-  "routines.flow.calendar": "{agent} te recuerda tus eventos",
-  "routines.card.calendar": "{agent} te recuerda los eventos antes de que empiecen",
-  "routines.sum.calendar": "{agent} mira tu agenda y te recuerda lo que está por empezar",
   "routines.action.relay": "Novedades del equipo",
   "routines.action.relayHint":
     "Te cuenta en un solo mensaje lo que las rutinas y avisos de tus otros agentes tenían para vos; ellos ya no te escriben por su cuenta. Solo llama al modelo si hay novedades.",

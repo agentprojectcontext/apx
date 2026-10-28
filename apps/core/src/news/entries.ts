@@ -54,6 +54,25 @@ export type NewsEntry = {
 export const NEWS: readonly NewsEntry[] = [
   BROWSER_JAVASCRIPT_NEWS,
   {
+    id: "event-reminders",
+    since: "2.11.2",
+    title: "Reminders before your events",
+    applies: (f) => f.google.calendar,
+    text:
+      "Google Calendar can now remind the owner of each event shortly before it starts (30 minutes by default): when, " +
+      "how soon, what and where or the meeting link, in one line on their channel. All-day and declined events are left " +
+      "out, and no model is called. It is off until turned on in Configure integration on Google Calendar's " +
+      "page (Resources › Integrations), where the lead time is set too; quiet hours hold reminders like any the owner asked for.",
+    actions: [
+      {
+        label: { en: "Turn on reminders", es: "Activar recordatorios" },
+        prompt:
+          "Turn on reminders for my Google Calendar events, then tell me in a line how long before they come and " +
+          "where I can change it.",
+      },
+    ],
+  },
+  {
     id: "temporary-browser-consent",
     since: "2.11.2",
     title: "Approve browser scripts for a tab or one turn",
@@ -64,25 +83,6 @@ export const NEWS: readonly NewsEntry[] = [
         label: { en: "Review temporary browser consent", es: "Revisar permisos temporales del navegador" },
         prompt:
           "Explain the temporary tab and current-turn choices on browser JavaScript approvals and how to revoke them. Do not execute JavaScript or change any permission yet.",
-      },
-    ],
-  },
-  {
-    id: "event-reminders",
-    since: "2.11.2",
-    title: "Reminders before your events",
-    applies: (f) => f.google.calendar,
-    text:
-      "The super-agent can now remind the owner of each Google Calendar event shortly before it starts (30 minutes " +
-      "by default): what, when and where or the meeting link. It checks every 5 minutes and calls the model only when " +
-      "an event is about to start; all-day and declined events are left out. It is Upcoming events in Settings › " +
-      "Super-agent, and the secretary profile's Remind events sets how long before.",
-    actions: [
-      {
-        label: { en: "Turn on reminders", es: "Activar recordatorios" },
-        prompt:
-          "Turn on reminders for my Google Calendar events, then tell me in a line how long before they come and how " +
-          "I can change it.",
       },
     ],
   },
@@ -166,7 +166,7 @@ export const NEWS: readonly NewsEntry[] = [
     since: "2.11.2",
     title: "Keep connection settings separate from email preferences",
     applies: (f) => f.google.gmail || f.email,
-    text: "Integrations now separate editing a connection from configuring preferences. Gmail's local email signature is in Configure integration, alongside project availability. Email channels also allow adding and selecting multiple SMTP mailboxes, each with its own signature and existing channel preferences. Account settings hold an optional global text/HTML signature, editable before connecting an account. A specific account signature wins; an explicitly disabled account signature blocks the global fallback, and a message can omit either. Existing account signatures are preserved. No Gmail settings are changed or signatures imported.",
+    text: "Integrations now separate editing a connection from configuring preferences. Gmail's local email signature is in Configure integration. Email channels also allow adding and selecting multiple SMTP mailboxes, each with its own signature and existing channel preferences. Account settings hold an optional global text/HTML signature, editable before connecting an account. A specific account signature wins; an explicitly disabled account signature blocks the global fallback, and a message can omit either. Existing account signatures are preserved. No Gmail settings are changed or signatures imported.",
     actions: [
       {
         label: { en: "Review email preferences", es: "Revisar preferencias de email" },

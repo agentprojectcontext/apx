@@ -7,8 +7,6 @@ import { computerApproval } from "../environments/computer.ts";
 import { inlineName } from "./result.ts";
 import { agentName, ownersField, type Params, projectName, quoted, type Setting, str } from "./settings-kit.ts";
 
-const CAPABILITY_NAME = { relay: "team news", mail: "important mail", calendar: "event reminders" } as const;
-
 const AUTONOMY = "how far agents may act stays the owner's (DECISIONS.md#d-060)";
 const names = (store: Parameters<typeof agentName>[0], ids: unknown) =>
   (Array.isArray(ids) ? ids : []).map((a) => agentName(store, a)).join(", ");
@@ -98,9 +96,9 @@ export const TEAM: Readonly<Record<string, Setting>> = {
       `Delete the routine ${inlineName(store.routines.get(str(p.routine))?.name ?? str(p.routine))}`,
   },
   "secretary.set": {
-    does: "enable or disable team news (action relay), important mail (action mail) or event reminders (action calendar); optional id selects an existing capability, prompt customizes instructions",
+    does: "enable or disable team news (action relay) or important mail (action mail); optional id selects an existing capability, prompt customizes instructions",
     says: (p) =>
-      `${p.enabled ? "Enable" : "Disable"} ${CAPABILITY_NAME[str(p.action) as keyof typeof CAPABILITY_NAME] ?? "team news"}${p.prompt ? " with custom instructions" : ""}`,
+      `${p.enabled ? "Enable" : "Disable"} ${p.action === "mail" ? "important mail" : "team news"}${p.prompt ? " with custom instructions" : ""}`,
     now: (p, { store }) => {
       const agent = store.agents.list().find((a) => a.kind === "secretary");
       const r = store.routines

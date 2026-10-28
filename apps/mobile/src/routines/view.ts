@@ -3,7 +3,7 @@ import { ago, ahead } from "../format.ts";
 import { type Key, type Lang, lang, translator } from "../i18n/index.ts";
 import { weeklyOf } from "./cron.ts";
 
-type Action = "agent" | "message" | "shell" | "watch" | "mail" | "calendar";
+type Action = "agent" | "message" | "shell" | "watch" | "mail";
 type RoutineLike = {
   enabled: boolean;
   action: string;
@@ -64,11 +64,9 @@ export function flowText(r: RoutineLike, agentName: string, language: Lang = lan
         ? tr("rtWatch", { agent: agentName })
         : action === "mail"
           ? tr("rtMail", { agent: agentName })
-          : action === "calendar"
-            ? tr("rtCalendar", { agent: agentName })
-            : action === "message"
-              ? tr("rtMessage")
-              : undefined,
+          : action === "message"
+            ? tr("rtMessage")
+            : undefined,
     r.post_command && tr("rtPost"),
   ]
     .filter(Boolean)
@@ -79,7 +77,7 @@ export function flowText(r: RoutineLike, agentName: string, language: Lang = lan
 export function runOutcome(run: RoutineRun, action: string): "failed" | "live" | "skipped" | "told" | "ran" {
   if (run.state === "failed") return "failed";
   if (run.state !== "completed" && run.state !== "canceled") return "live";
-  const usesAgent = action === "agent" || action === "watch" || action === "mail" || action === "calendar";
+  const usesAgent = action === "agent" || action === "watch" || action === "mail";
   const skipped = usesAgent ? run.model_called === false : action === "message" && !run.delivered;
   if (skipped) return "skipped";
   return run.delivered ? "told" : "ran";

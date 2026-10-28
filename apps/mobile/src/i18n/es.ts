@@ -294,7 +294,6 @@ export const es: Record<Key, string> = {
   rtCommand: "Comando",
   rtWatch: "{agent} vigila",
   rtMail: "{agent} lee los mails nuevos",
-  rtCalendar: "{agent} te recuerda tus eventos",
   rtSummary: "{on} de {all} activas",
   rtRunNow: "Correr ahora",
   rtEnabled: "Activa",

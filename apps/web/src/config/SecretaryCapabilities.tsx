@@ -1,5 +1,4 @@
-import type { CapabilityAction, Result, Routine } from "@apx/protocol";
-import { CAPABILITY_ACTIONS } from "@apx/protocol/client";
+import type { Result, Routine } from "@apx/protocol";
 import { Button, SettingRow, Skeleton, Switch, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
@@ -42,7 +41,7 @@ export function SecretaryCapabilities() {
       {!ready ? (
         <Skeleton height={80} />
       ) : (
-        CAPABILITY_ACTIONS.map((action) => {
+        (["relay", "mail"] as const).map((action) => {
           const entries = routines.filter((r) => r.action === action);
           return entries.length ? (
             entries.map((r) => <Capability key={r.id} action={action} routine={r} />)
@@ -55,24 +54,13 @@ export function SecretaryCapabilities() {
   );
 }
 
-const TITLE = {
-  relay: "routines.action.relay",
-  mail: "routines.action.mail",
-  calendar: "routines.action.calendar",
-} as const;
-const DESCRIPTION = {
-  relay: "routines.action.relayHint",
-  mail: "super.mailAvailability",
-  calendar: "super.calendarAvailability",
-} as const;
-
-function Capability({ action, routine }: { action: CapabilityAction; routine?: Routine }) {
+function Capability({ action, routine }: { action: "relay" | "mail"; routine?: Routine }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
   const [prompt, setPrompt] = useState(routine?.prompt ?? "");
-  const title = t(TITLE[action]);
+  const title = t(action === "relay" ? "routines.action.relay" : "routines.action.mail");
   const save = async (enabled: boolean, text?: string) => {
     setBusy(true);
     setError("");
@@ -93,7 +81,10 @@ function Capability({ action, routine }: { action: CapabilityAction; routine?: R
   };
   return (
     <div>
-      <SettingRow title={title} description={t(DESCRIPTION[action])}>
+      <SettingRow
+        title={title}
+        description={t(action === "relay" ? "routines.action.relayHint" : "super.mailAvailability")}
+      >
         <Switch
           aria-label={title}
           checked={routine?.enabled ?? false}
@@ -128,7 +119,7 @@ function Capability({ action, routine }: { action: CapabilityAction; routine?: R
           </Button>
         </div>
       )}
-      {action !== "relay" && (
+      {action === "mail" && (
         <Button
           size="sm"
           variant="ghost"
@@ -137,7 +128,7 @@ function Capability({ action, routine }: { action: CapabilityAction; routine?: R
             go.resources("integrations");
           }}
         >
-          {t(action === "mail" ? "super.connectMail" : "super.connectCalendar")}
+          {t("super.connectMail")}
         </Button>
       )}
       {editing && (

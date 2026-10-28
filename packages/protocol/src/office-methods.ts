@@ -1,6 +1,5 @@
 // Methods behind the office: tasks and commitments, routines, the attention tray and extensions.
 import { z } from "zod";
-import { CAPABILITY_ACTIONS } from "./constants.ts";
 import { Id, Message, Nudge, Run, Thread } from "./domain.ts";
 import {
   ActiveProfile,
@@ -223,7 +222,7 @@ export const officeMethods = {
   "secretary.set": {
     params: z
       .object({
-        action: z.enum(CAPABILITY_ACTIONS),
+        action: z.enum(["relay", "mail"]),
         id: Id.optional(),
         enabled: z.boolean(),
         prompt: z.string().trim().min(1).max(20_000).optional(),

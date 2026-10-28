@@ -12,7 +12,6 @@ import type { RuntimeHomes } from "../skills/runtimes.ts";
 import { fromTeam } from "../tools/result.ts";
 import type { Tool } from "../tools/types.ts";
 import { agentTrip, keepWhilePaused, trip } from "./breaker.ts";
-import type { CalendarSource } from "./calendar-reminders.ts";
 import { frameInput } from "./context.ts";
 import { actionsNote, actionsOf, createDelegations, endedAs, endNote } from "./delegation.ts";
 import type { Display } from "./display.ts";
@@ -230,8 +229,6 @@ export function createEngine(deps: {
   desktopLinked?: () => boolean;
   /** The owner's Gmail, for mail routines. */
   mail?: MailSource;
-  /** The owner's Google Calendar, for event reminders. */
-  calendar?: CalendarSource;
   /** Work on the thread once a run ended (title, compaction); never blocks the next run. */
   afterRun?: (run: RunRecord) => void;
 }) {

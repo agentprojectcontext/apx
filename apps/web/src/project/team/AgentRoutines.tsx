@@ -1,5 +1,4 @@
 import type { Agent } from "@apx/protocol";
-import { isCapability } from "@apx/protocol/client";
 import { Badge, EmptyState, IconButton, Icons, Switch } from "@apx/ui";
 import { aheadLabel, shortWhen } from "../../common/format.ts";
 import { draftOf, runRoutine, saveRoutine, useRoutines } from "../../data/routines.ts";
@@ -14,7 +13,9 @@ import { RUN_STATE } from "./AgentActivity.tsx";
  */
 export function AgentRoutines({ agent }: { agent: Agent }) {
   const t = useT();
-  const routines = useRoutines((s) => s.routines).filter((r) => r.agent_id === agent.id && !isCapability(r.action));
+  const routines = useRoutines((s) => s.routines).filter(
+    (r) => r.agent_id === agent.id && r.action !== "relay" && r.action !== "mail",
+  );
   if (!routines.length)
     return (
       <EmptyState icon={<Icons.HeartPulse />} title={t("agent.routines.empty")}>
