@@ -151,6 +151,11 @@ export async function tasks(client: ApxClient, [sub, id, ...rest]: string[], opt
     return;
   }
   if ((sub === "done" || sub === "drop" || sub === "reopen") && id) {
+    // From an agent's command it would close as the owner, with no note of what was verified (DECISIONS.md#d-162).
+    if (process.env.APX_AGENT !== undefined)
+      throw new Error(
+        `apx tasks ${sub} acts as the owner, so it does not run inside an agent's command: use task_close.`,
+      );
     await client.call("tasks.close", {
       task: id,
       state: sub === "done" ? "done" : sub === "drop" ? "dropped" : "open",
