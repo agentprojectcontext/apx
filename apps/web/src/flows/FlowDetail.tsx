@@ -158,7 +158,7 @@ export function FlowDetail({
         ...(v?.badge ? { badge: v.badge } : {}),
       };
     },
-    [view, flow.id, agents, routines, t],
+    [view, flow.id, agents, routines, t, known],
   );
   const toggle = async (on: boolean) => {
     setBusy(true);
