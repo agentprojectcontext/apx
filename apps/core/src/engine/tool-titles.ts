@@ -96,6 +96,7 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   stop_session: (a) => `Detuvo la sesión ${str(a.session)}`,
   browser_open: (a) => `Abrió ${host(a.url)}`,
   browser_snapshot: () => "Leyó la página",
+  browser_evaluate: () => "Ejecutó JavaScript en el navegador",
   browser_text: () => "Leyó el texto",
   browser_click: (a) => `Hizo clic en ${str(a.ref)}`,
   browser_type: (a) => `Escribió en ${str(a.ref)}`,

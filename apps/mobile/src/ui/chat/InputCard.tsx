@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import { type Key, t } from "../../i18n";
 import type { Answer, Message } from "../../protocol";
+import { BrowserHelp, BrowserReview } from "../BrowserReview";
 import { Icon, type IconName } from "../Icon";
 import { Button, Tag } from "../kit";
 import { makeStyles, useTheme } from "../theme";
@@ -23,6 +24,8 @@ const SCOPE: Partial<Record<string, Key>> = {
   session: "inputSessionScope",
   always: "inputAgentScope",
   project: "inputProjectScope",
+  tab: "browserTab",
+  turn: "browserTurn",
 };
 /** A long patch shows its start; the rest is on the computer. */
 const DIFF_LINES = 40;
@@ -41,13 +44,16 @@ function SettledInput({ part, state }: { part: InputPart; state: Settled }) {
   const s = useStyles();
   const [open, setOpen] = useState(false);
   const action = isAction(part);
-  const what = part.folders
-    ? t("inputAskedFolder")
-    : action
-      ? t("inputAskedAction")
-      : part.kind === "confirm"
-        ? t("inputAsked", { tool: part.tool ?? t("inputAnAction") })
-        : t("inputAskedQuestion");
+  const what =
+    part.tool === "browser_evaluate"
+      ? t("browserTitle")
+      : part.folders
+        ? t("inputAskedFolder")
+        : action
+          ? t("inputAskedAction")
+          : part.kind === "confirm"
+            ? t("inputAsked", { tool: part.tool ?? t("inputAnAction") })
+            : t("inputAskedQuestion");
   const scope = part.approval_scope ? SCOPE[part.approval_scope] : undefined;
   const outcome = [
     t(action && state === "approved" ? "inputAccepted" : DONE[state].label),
@@ -85,7 +91,7 @@ function SettledInput({ part, state }: { part: InputPart; state: Settled }) {
       </Pressable>
       {open ? (
         <View style={s.settledBody}>
-          <Text style={s.prompt}>{part.prompt}</Text>
+          <Text style={s.prompt}>{part.tool === "browser_evaluate" ? t("browserTitle") : part.prompt}</Text>
           <Detail part={part} />
           {part.answer && part.kind === "confirm" ? <Text style={s.help}>“{part.answer}”</Text> : null}
         </View>
@@ -99,9 +105,11 @@ function Detail({ part }: { part: InputPart }) {
   const theme = useTheme();
   const s = useStyles();
   const change = part.change;
+  if (part.tool === "browser_evaluate" && part.browser)
+    return <BrowserReview review={part.browser} source={part.detail ?? ""} />;
   if (!change)
     return part.detail ? (
-      <Text numberOfLines={6} style={s.code}>
+      <Text selectable numberOfLines={part.tool === "browser_evaluate" ? undefined : 6} style={s.code}>
         {part.detail}
       </Text>
     ) : null;
@@ -162,6 +170,11 @@ function PendingInput({ part, respond }: { part: InputPart; respond: Respond }) 
       size="md"
       variant={primary ? "primary" : "secondary"}
       label={t(label)}
+      accessibilityHint={
+        part.tool === "browser_evaluate"
+          ? `${t("browserScopeHelp")}${key === "tab" ? ` ${t("browserTabHelp")}` : key === "turn" ? ` ${t("browserTurnHelp")}` : ""}`
+          : undefined
+      }
       busy={busy === key}
       disabled={Boolean(busy)}
       onPress={() => answer(key, value)}
@@ -177,7 +190,7 @@ function PendingInput({ part, respond }: { part: InputPart; respond: Respond }) 
         </Tag>
         <Text style={s.state}>{t("waitsForYou")}</Text>
       </View>
-      <Text style={s.prompt}>{part.prompt}</Text>
+      <Text style={s.prompt}>{part.tool === "browser_evaluate" ? t("browserTitle") : part.prompt}</Text>
       {part.folders?.length ? (
         <View style={s.folders}>
           {part.folders.map((folder) => (
@@ -188,7 +201,13 @@ function PendingInput({ part, respond }: { part: InputPart; respond: Respond }) 
         </View>
       ) : null}
       <Detail part={part} />
-      {scopes && !part.folders ? <Text style={s.help}>{t("scopeHelp")}</Text> : null}
+      {scopes && !part.folders ? (
+        part.tool === "browser_evaluate" ? (
+          <BrowserHelp />
+        ) : (
+          <Text style={s.help}>{t("scopeHelp")}</Text>
+        )
+      ) : null}
       {part.kind === "confirm" ? (
         <View style={s.actions}>
           {part.folders ? (
@@ -219,6 +238,11 @@ function PendingInput({ part, respond }: { part: InputPart; respond: Respond }) 
                     true,
                   )
                 : null}
+              {(["tab", "turn"] as const)
+                .filter((scope) => scopes?.includes(scope))
+                .map((scope) =>
+                  button(scope, scope === "tab" ? "approveTab" : "approveTurn", { decision: "approve", scope }),
+                )}
               {scopes?.includes("session")
                 ? button("session", "approveSession", { decision: "approve", scope: "session" })
                 : null}

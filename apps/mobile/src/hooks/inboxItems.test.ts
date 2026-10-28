@@ -76,6 +76,23 @@ test("a confirmation that can last longer offers approving for the session and a
   );
 });
 
+test("browser JavaScript opens the chat for full source review instead of approving from the inbox preview", () => {
+  const [item] = inboxItems(
+    data({
+      inputs: [
+        input("js", {
+          tool: "browser_evaluate",
+          detail: "https://example.test\nconst value = 1;",
+          approval_scopes: ["once", "tab", "turn"],
+        }),
+      ],
+    }),
+  );
+  assert.deepEqual(item?.primary.action, { kind: "open", thread: "t1" });
+  assert.equal(item?.more, undefined);
+  assert.equal(item?.body, "https://example.test\nconst value = 1;");
+});
+
 test("a question opens its chat to answer and shows its options", () => {
   const [item] = inboxItems(data({ inputs: [input("q", { kind: "question", options: ["Yes", "No"] })] }));
   assert.equal(item?.label, "inboxQuestion");

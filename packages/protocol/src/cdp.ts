@@ -55,6 +55,8 @@ export class CdpPage {
   readonly #send: CdpSend;
   readonly #selectAll: number;
   #refs = new Map<string, number>();
+  #epoch = crypto.randomUUID();
+  #review: { document: string; epoch: string } | undefined;
 
   /** `selectAllModifiers`: the modifier bits for "select all" on the machine the page runs on (Meta=4 on a Mac). */
   constructor(send: CdpSend, opts: { selectAllModifiers: number }) {
@@ -62,13 +64,35 @@ export class CdpPage {
     this.#selectAll = opts.selectAllModifiers;
   }
 
+  get consentEpoch(): string {
+    return this.#epoch;
+  }
+
   /** A new document: the refs of the last snapshot point at nothing now. */
   forget(): void {
     this.#refs.clear();
+    this.#review = undefined;
+    this.#epoch = crypto.randomUUID();
+  }
+
+  async approvalContext(origin: string, document: string): Promise<{ epoch: string }> {
+    const epoch = this.#epoch;
+    if (this.#review?.document !== document || this.#review.epoch !== epoch)
+      throw new ApxError({ code: "bad_request", message: "Page review changed; take a new snapshot" });
+    await withTimeout(evaluatePage(this.#send, "null", origin, document), 7_000);
+    this.#assertEpoch(epoch);
+    return { epoch };
+  }
+
+  #assertEpoch(epoch: string): void {
+    if (epoch !== this.#epoch)
+      throw new ApxError({ code: "bad_request", message: "Browser permission expired; inspect and approve again" });
   }
 
   async snapshot(maxChars: number): Promise<{ tree: string; refs: number; truncated: boolean; document: string }> {
+    const epoch = this.#epoch;
     const document = await captureDocument(this.#send);
+    this.#review = { document, epoch };
     await this.#send("DOM.getDocument", { depth: 0 });
     const { nodes } = await this.#send<{ nodes: AXNode[] }>("Accessibility.getFullAXTree");
     const byId = new Map(nodes.map((n) => [n.nodeId, n]));
@@ -109,7 +133,12 @@ export class CdpPage {
     return { tree: lines.join("\n"), refs: i, truncated, document };
   }
 
-  evaluate(script: string, origin: string, document: string) {
+  evaluate(script: string, origin: string, document: string, epoch?: string) {
+    if (epoch !== undefined) {
+      this.#assertEpoch(epoch);
+      if (this.#review?.document !== document || this.#review.epoch !== epoch)
+        throw new ApxError({ code: "bad_request", message: "Page review changed; take a new snapshot" });
+    }
     return withTimeout(evaluatePage(this.#send, script, origin, document), 7_000);
   }
 

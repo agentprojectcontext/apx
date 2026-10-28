@@ -173,6 +173,16 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+.inputcard__browser {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+textarea.inputcard__detail {
+  width: 100%;
+  resize: vertical;
+}
 /* A file write to confirm: the card takes the chat's width so the patch reads without wrapping. */
 .inputcard.has-change {
   max-width: none;

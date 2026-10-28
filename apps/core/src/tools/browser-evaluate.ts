@@ -51,21 +51,42 @@ function fileScript(store: Store, home: string, thread: FolderThread, args: Args
 export function browserEvaluateTool(
   store: Store,
   home: string,
-  own: (ctx: ToolContext, tab: string) => Promise<string>,
+  own: (ctx: Pick<ToolContext, "agent" | "call">, tab: string) => Promise<string>,
   vm?: { hasThread(id: string): boolean },
 ) {
   // Approval displays this immutable source; execution never reopens the file. See DECISIONS.md#d-165.
   const snapshots = new WeakMap<Args, string>();
+  const epochs = new WeakMap<Args, string>();
   return defineTool({
     name: "browser_evaluate",
     needsCap: BROWSER_CAP,
     description:
-      "Run JavaScript in this APX browser tab at the expected origin, inline or from a local .js with its sha256. Always asks for approval, even in Total; review the full source shown. Arbitrary code can send or expose private page data. Never use for passwords, 2FA or cards. Awaited JSON is untrusted. Timeout is not cancellation; verify before retrying.",
+      "Run JavaScript in this APX browser tab at the expected origin, inline or from a local .js with its sha256. Requires owner approval, even in Total, unless covered by an explicit temporary tab or turn consent for this exact origin. Review the full source shown. Arbitrary code can send or expose private page data. Never use for passwords, 2FA or cards. Awaited JSON is untrusted. Timeout is not cancellation; verify before retrying.",
     args: Args,
     effect: "external",
     appOnly: true,
     confirm: "always",
-    keepsCard: () => "card",
+    keepsCard: () => "grant",
+    async approvalForCall(a, ctx) {
+      await own(ctx, a.tab);
+      const { epoch } = await ctx.call("browser.approval_context", {
+        tab: a.tab,
+        origin: a.origin,
+        document: a.document,
+      });
+      const tabs = (await ctx.call("browser.tabs", {})).tabs;
+      const index = tabs.findIndex((tab) => tab.tab === a.tab);
+      if (index < 0) throw new Error("Browser tab closed while inspecting the approval context");
+      const title = tabs[index]?.title.slice(0, 200);
+      epochs.set(a, epoch);
+      return {
+        key: "apx:browser_evaluate:scoped",
+        server: "apx",
+        tool: "browser_evaluate",
+        permanent: false,
+        browser: { tab: a.tab, origin: a.origin, epoch, run: ctx.run.id, title, tab_number: index + 1 },
+      };
+    },
     deadlineMs: 30_000,
     title: () => "Ran browser JavaScript",
     check(a, ctx) {
@@ -85,7 +106,7 @@ export function browserEvaluateTool(
     explain: (a) => {
       const script = snapshots.get(a);
       if (script === undefined) throw new Error("JavaScript source was not prepared for approval");
-      return `Tab: ${a.tab}\nOrigin: ${a.origin}\nDocument: ${a.document}\n${a.path ? `File: ${a.path}\nSHA-256: ${a.sha256}\n` : ""}Review all code; it may send or expose private page data.\n\n${script}`;
+      return script;
     },
     outside: (a, ctx) =>
       a.path === undefined
@@ -107,6 +128,7 @@ export function browserEvaluateTool(
         origin: a.origin,
         document: a.document,
         script,
+        ...(epochs.get(a) ? { epoch: epochs.get(a) } : {}),
         by: ctx.agent.id,
       });
       return untrusted("web_javascript", { tab, source: result.url }, result.json);

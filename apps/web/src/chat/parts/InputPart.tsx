@@ -1,11 +1,13 @@
 import "../../styles/screens.css";
 import type { ApprovalScope, FileChange, Part } from "@apx/protocol";
 import { ActionGroup, Button, Icons, MarkdownView } from "@apx/ui";
-import { Fragment, useState } from "react";
+import { Fragment, useId, useState } from "react";
+import { ApprovalText } from "../../common/ApprovalText.tsx";
 import { useMarkdownLabels } from "../../common/useMarkdownLabels.ts";
 import { respond } from "../../data/actions.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
 import { DiffView } from "../../panel/DiffView.tsx";
+import { BrowserHelp, BrowserReview } from "./BrowserReview.tsx";
 
 const DONE: Record<Exclude<Extract<Part, { type: "input" }>["state"], "pending">, MessageKey> = {
   approved: "input.approved",
@@ -30,6 +32,14 @@ const DONE_ICON = {
 
 /** An agent waiting for the owner: approve or decline an action, or answer a question. Once settled, one line. */
 export function InputPart({ part }: { part: InputPartData }) {
+  return (
+    <ApprovalText preserve>
+      <InputBody part={part} />
+    </ApprovalText>
+  );
+}
+
+function InputBody({ part }: { part: InputPartData }) {
   const { state } = part;
   if (state !== "pending") return <SettledInput part={part} state={state} />;
   return <PendingInput part={part} />;
@@ -40,13 +50,16 @@ function SettledInput({ part, state }: { part: InputPartData; state: Exclude<Inp
   const t = useT();
   const Icon = DONE_ICON[state];
   const action = isAction(part);
-  const what = part.folders
-    ? t("input.askedFolder")
-    : action
-      ? t("input.askedAction")
-      : part.kind === "confirm"
-        ? t("input.asked", { tool: part.tool ?? t("input.anAction") })
-        : t("input.askedQuestion");
+  const what =
+    part.tool === "browser_evaluate"
+      ? t("input.browserTitle")
+      : part.folders
+        ? t("input.askedFolder")
+        : action
+          ? t("input.askedAction")
+          : part.kind === "confirm"
+            ? t("input.asked", { tool: part.tool ?? t("input.anAction") })
+            : t("input.askedQuestion");
   return (
     <ActionGroup
       className={`turn__tools inputline is-${state}`}
@@ -57,6 +70,8 @@ function SettledInput({ part, state }: { part: InputPartData; state: Exclude<Inp
           <span className={`inputline__state is-${state}`}>
             <Icon size={12} />
             {t(action && state === "approved" ? "input.accepted" : DONE[state])}
+            {part.approval_scope === "tab" && ` · ${t("input.tabScope")}`}
+            {part.approval_scope === "turn" && ` · ${t("input.turnScope")}`}
             {part.approval_scope === "session" && ` · ${t("input.sessionScope")}`}
             {part.approval_scope === "always" && ` · ${t("input.agentScope")}`}
             {part.approval_scope === "project" && ` · ${t("input.projectScope")}`}
@@ -77,6 +92,8 @@ function SettledInput({ part, state }: { part: InputPartData; state: Exclude<Inp
 /** What the agent asks, as Markdown; a folder card shows the folders it names as code, after the words before them. */
 function Prompt({ part }: { part: InputPartData }) {
   const mdLabels = useMarkdownLabels();
+  const t = useT();
+  if (part.tool === "browser_evaluate") return <p className="inputcard__prompt">{t("input.browserTitle")}</p>;
   const folders = part.folders ?? [];
   const at = folders[0] ? part.prompt.indexOf(folders[0]) : -1;
   if (at < 0) return <MarkdownView source={part.prompt} size="sm" className="inputcard__prompt" labels={mdLabels} />;
@@ -95,8 +112,16 @@ function Prompt({ part }: { part: InputPartData }) {
 
 /** What the call would do: the file's patch when the core could make one, else its arguments. */
 function Detail({ part }: { part: InputPartData }) {
+  const t = useT();
   if (part.change) return <ProposedChange change={part.change} />;
-  return part.detail ? <code className="inputcard__detail">{part.detail}</code> : null;
+  if (part.tool === "browser_evaluate" && part.browser)
+    return <BrowserReview review={part.browser} source={part.detail ?? ""} />;
+  if (!part.detail) return null;
+  return part.tool === "browser_evaluate" ? (
+    <textarea className="inputcard__detail" aria-label={t("input.callDetail")} rows={12} readOnly value={part.detail} />
+  ) : (
+    <code className="inputcard__detail">{part.detail}</code>
+  );
 }
 
 function ProposedChange({ change }: { change: FileChange }) {
@@ -123,6 +148,8 @@ function PendingInput({ part }: { part: InputPartData }) {
   const [picked, setPicked] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const action = isAction(part);
+  const helpId = useId();
+  const browserHelp = part.tool === "browser_evaluate" ? helpId : undefined;
   const tick = (o: string) => setPicked((p) => (p.includes(o) ? p.filter((x) => x !== o) : [...p, o]));
   const send = async (a: { decision?: "approve" | "deny"; text?: string; scope?: ApprovalScope }) => {
     setBusy(true);
@@ -139,10 +166,16 @@ function PendingInput({ part }: { part: InputPartData }) {
       </div>
       <Prompt part={part} />
       <Detail part={part} />
-      {part.approval_scopes && !part.folders && <p className="resd__note">{t("input.scopeHelp")}</p>}
+      {part.approval_scopes &&
+        !part.folders &&
+        (part.tool === "browser_evaluate" ? (
+          <BrowserHelp id={helpId} />
+        ) : (
+          <p className="resd__note">{t("input.scopeHelp")}</p>
+        ))}
       {part.kind === "confirm" && part.folders && (
         <div className="inputcard__actions">
-          <Button size="sm" loading={busy} onClick={() => send({ decision: "approve" })}>
+          <Button size="sm" aria-describedby={browserHelp} loading={busy} onClick={() => send({ decision: "approve" })}>
             {t("input.folderOnce")}
           </Button>
           {part.approval_scopes?.includes("project") && (
@@ -165,7 +198,13 @@ function PendingInput({ part }: { part: InputPartData }) {
               {t(part.folders.length > 1 ? "input.folderAlwaysMany" : "input.folderAlways")}
             </Button>
           )}
-          <Button size="sm" variant="secondary" disabled={busy} onClick={() => send({ decision: "deny" })}>
+          <Button
+            size="sm"
+            aria-describedby={browserHelp}
+            variant="secondary"
+            disabled={busy}
+            onClick={() => send({ decision: "deny" })}
+          >
             {t("input.folderDeny")}
           </Button>
         </div>
@@ -174,10 +213,29 @@ function PendingInput({ part }: { part: InputPartData }) {
         <div className="inputcard__actions">
           {/* A permission (the computer) has no "only this time": it is this chat or for good. */}
           {(!part.approval_scopes || part.approval_scopes.includes("once")) && (
-            <Button size="sm" loading={busy} onClick={() => send({ decision: "approve" })}>
+            <Button
+              size="sm"
+              aria-describedby={browserHelp}
+              loading={busy}
+              onClick={() => send({ decision: "approve" })}
+            >
               {t(action ? "input.accept" : part.approval_scopes ? "input.approveOnce" : "input.approve")}
             </Button>
           )}
+          {(["tab", "turn"] as const)
+            .filter((scope) => part.approval_scopes?.includes(scope))
+            .map((scope) => (
+              <Button
+                key={scope}
+                aria-describedby={browserHelp}
+                size="sm"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => send({ decision: "approve", scope })}
+              >
+                {t(scope === "tab" ? "input.approveTab" : "input.approveTurn")}
+              </Button>
+            ))}
           {part.approval_scopes?.includes("session") && (
             <Button
               size="sm"
@@ -198,7 +256,13 @@ function PendingInput({ part }: { part: InputPartData }) {
               {t("input.approveAlways")}
             </Button>
           )}
-          <Button size="sm" variant="secondary" disabled={busy} onClick={() => send({ decision: "deny" })}>
+          <Button
+            size="sm"
+            aria-describedby={browserHelp}
+            variant="secondary"
+            disabled={busy}
+            onClick={() => send({ decision: "deny" })}
+          >
             {t("input.deny")}
           </Button>
         </div>

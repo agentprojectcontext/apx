@@ -54,6 +54,20 @@ export type NewsEntry = {
 export const NEWS: readonly NewsEntry[] = [
   BROWSER_JAVASCRIPT_NEWS,
   {
+    id: "temporary-browser-consent",
+    since: "2.11.2",
+    title: "Approve browser scripts for a tab or one turn",
+    applies: () => true,
+    text: "The browser JavaScript card offers Allow once, Allow in this tab and During this turn. Temporary consent allows new scripts without another card, but only for the same agent, chat and exact approved origin. Tab consent ends on navigation, reload, closure or browser reconnection; turn consent covers only the current run, including other tabs on the same origin. Tab consent expires within 30 minutes; turn consent lasts until the run ends, without an extra consent time limit. Both are lost on core restart and can be revoked. They never grant other tools, agents, chats or future routines. Scripts can read private data or send as the signed-in account; passwords, 2FA and card handling remain prohibited. An updated Desktop build is required for embedded tabs.",
+    actions: [
+      {
+        label: { en: "Review temporary browser consent", es: "Revisar permisos temporales del navegador" },
+        prompt:
+          "Explain the temporary tab and current-turn choices on browser JavaScript approvals and how to revoke them. Do not execute JavaScript or change any permission yet.",
+      },
+    ],
+  },
+  {
     id: "secretary-capabilities",
     since: "2.11.2",
     title: "Choose what your secretary watches for you",

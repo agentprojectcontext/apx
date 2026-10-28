@@ -1,4 +1,4 @@
-// Resources screen calls: skills, MCP servers and variables. Each returns undefined (and shows a notice) on failure.
+// Resource calls return undefined on failure; screens with inline recovery can handle the notice themselves.
 import type { McpServerStatus, SecretInfo, SkillCandidate, SkillImportSource, SkillInfo } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
@@ -6,11 +6,13 @@ import { notify } from "./notices.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-async function attempt<T>(work: () => Promise<T>): Promise<T | undefined> {
+type FailureOptions = { quiet?: boolean };
+
+async function attempt<T>(work: () => Promise<T>, options: FailureOptions = {}): Promise<T | undefined> {
   try {
     return await work();
   } catch (e) {
-    notify(t("res.error", { error: errText(e) }));
+    if (!options.quiet) notify(t("res.error", { error: errText(e) }));
     return undefined;
   }
 }
@@ -96,9 +98,13 @@ export const getInheritance = (project: string) => attempt(() => client.call("re
 export const setInheritance = (project: string, kind: "skills" | "mcp", on: boolean) =>
   attempt(() => client.call("resources.inherit", { project, kind, on }));
 
-export const listApprovals = () => attempt(async () => (await client.call("tools.approvals", {})).approvals);
-export const revokeApproval = (key: string, thread?: string, agent?: string) =>
-  attempt(() => client.call("tools.revoke", { key, ...(thread ? { thread } : {}), ...(agent ? { agent } : {}) }));
+export const listApprovals = (options?: FailureOptions) =>
+  attempt(async () => (await client.call("tools.approvals", {})).approvals, options);
+export const revokeApproval = (key: string, thread?: string, agent?: string, options?: FailureOptions) =>
+  attempt(
+    () => client.call("tools.revoke", { key, ...(thread ? { thread } : {}), ...(agent ? { agent } : {}) }),
+    options,
+  );
 /** Its tools and their permissions, or why the server did not start (`error`). */
 export const mcpPermissions = (s: McpServerStatus, project?: string) =>
   attempt(() => client.call("mcp.tools", { scope: s.scope, server: s.name, ...scoped(project) }));

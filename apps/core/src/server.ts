@@ -217,8 +217,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   const broker = createNodeBroker();
   const push = createPush({ expoUrl: config.expoPushUrl, onError: (err) => log.warn({ err }, "push not delivered") });
-  broker.onEvent((_node, event) => {
-    if (event.type !== "tabs.changed") return;
+  broker.onEvent((node, event) => {
+    if (event.type !== "tabs.changed" || broker.withCap(BROWSER_CAP)?.session !== node.session) return;
     // A node's tabs are checked here, once: operators trust what the core pushes.
     const raw = (event.payload as { tabs?: unknown[] }).tabs ?? [];
     const tabs = raw.flatMap((t) => {

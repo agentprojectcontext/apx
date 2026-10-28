@@ -3,8 +3,9 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { type ApprovalScope, COMPUTER_GRANT, STRICT_APPROVAL, ToolApproval } from "@apx/protocol";
 import { z } from "zod";
+import { type BrowserConsentContext, browserConsents } from "./browser-consents.ts";
 import { settingsRepo } from "./settings.ts";
-import type { Sql } from "./sql.ts";
+import { qb, type Sql } from "./sql.ts";
 
 export type ApprovalTarget = {
   key: string;
@@ -13,13 +14,18 @@ export type ApprovalTarget = {
   /** Declared read-only: shown as such; any tool can be approved for good, the owner decides. */
   permanent: boolean;
   project_id?: string | undefined;
+  browser?: BrowserConsentContext | undefined;
 };
 /** Grants that are one agent's even "for this chat": another agent in that chat is not covered (DECISIONS.md#d-151). */
 const PER_AGENT = new Set([COMPUTER_GRANT]);
 
 /** The computer is a permission, not one call: this chat or for good (DECISIONS.md#d-151). */
 export const approvalScopes = (a: ApprovalTarget): ApprovalScope[] =>
-  a.key === COMPUTER_GRANT ? ["session", "always"] : ["once", "session", "always"];
+  a.browser
+    ? ["once", "tab", "turn"]
+    : a.key === COMPUTER_GRANT
+      ? ["session", "always"]
+      : ["once", "session", "always"];
 
 /** The server name of APX's own tools in grants (an MCP server's is its approval id). */
 export const APX_SERVER = "apx";
@@ -91,6 +97,15 @@ const live = (g: ToolApproval) => !g.expires_at || Date.parse(g.expires_at) > Da
 
 export function approvalsRepo(q: Sql) {
   const settings = settingsRepo(q);
+  const browser = browserConsents((id, thread, agent) => {
+    const run = q.one(qb.selectFrom("runs").select(["state", "thread_id", "agent_id"]).where("id", "=", id));
+    return (
+      !!run &&
+      run.thread_id === thread &&
+      run.agent_id === agent &&
+      (run.state === "working" || run.state === "input-required")
+    );
+  });
   const listeners = new Set<() => void>();
   const onceSchema = z.array(
     z.object({ key: z.string(), until: z.number(), binding: z.string().optional(), server: z.string().optional() }),
@@ -136,9 +151,14 @@ export function approvalsRepo(q: Sql) {
     }
   };
   const write = (rows: ToolApproval[]) => settings.set("tool_approvals", JSON.stringify(rows));
+  let browserConsentGuard: ((context: BrowserConsentContext, agent: string) => boolean) | undefined;
   const repo = {
+    setBrowserConsentGuard(guard: (context: BrowserConsentContext, agent: string) => boolean): void {
+      browserConsentGuard = guard;
+    },
     /** Without `agent`, only grants for every agent count; a grant with a condition needs the call's `args`. */
     allows(a: ApprovalTarget, thread?: string, agent?: string, args?: unknown): boolean {
+      if (a.browser) return !!thread && !!agent && browser.allows(a.browser, thread, agent);
       return (
         read().some(
           (g) =>
@@ -150,9 +170,21 @@ export function approvalsRepo(q: Sql) {
         (!!thread && sessions.has(sessionKey(a.key, thread, agent)))
       );
     },
-    grant(a: ApprovalTarget, scope: ApprovalScope, thread: string, agent?: string): void {
+    browserVersion(a: ApprovalTarget, thread: string, agent: string): number | undefined {
+      return a.browser ? browser.version(a.browser, thread, agent) : undefined;
+    },
+    grant(a: ApprovalTarget, scope: ApprovalScope, thread: string, agent?: string, browserVersion?: number): void {
       // A folder card's `project` adds a read-only folder (inputs.respond), never a grant.
       if (scope === "once" || scope === "project") return;
+      if (a.browser || scope === "tab" || scope === "turn") {
+        if (!a.browser || !agent || (scope !== "tab" && scope !== "turn"))
+          throw new Error("Invalid browser approval scope");
+        if (browserVersion === undefined) throw new Error("Browser consent requires a freshly validated approval");
+        if (scope === "tab" && browserConsentGuard && !browserConsentGuard(a.browser, agent)) return;
+        browser.grant(a.browser, scope, thread, agent, browserVersion);
+        for (const listener of listeners) listener();
+        return;
+      }
       const g: ToolApproval = {
         key: a.key,
         server: a.server,
@@ -173,6 +205,9 @@ export function approvalsRepo(q: Sql) {
         saveSessions();
       } else write([...read().filter((r) => r.key !== a.key || r.agent_id !== g.agent_id), g]);
       for (const listener of listeners) listener();
+    },
+    decline(a: ApprovalTarget, thread: string, agent: string): void {
+      if (a.browser) browser.deny(a.browser, thread, agent);
     },
     subscribe(listener: () => void): () => void {
       listeners.add(listener);
@@ -230,10 +265,15 @@ export function approvalsRepo(q: Sql) {
         .filter((d) => path.isAbsolute(d));
     },
     list(thread?: string): ToolApproval[] {
-      return [...read(), ...[...sessions.values()].filter((g) => !thread || g.thread_id === thread)];
+      return [
+        ...read(),
+        ...[...sessions.values()].filter((g) => !thread || g.thread_id === thread),
+        ...browser.list(thread),
+      ];
     },
     /** Without `agent`, the grant for every agent; one agent's grants are revoked by naming it. */
     revoke(key: string, thread?: string, agent?: string): void {
+      browser.revoke(key, thread, agent);
       if (!thread) write(read().filter((g) => g.key !== key || g.agent_id !== agent));
       settings.set("tool_once_grants", JSON.stringify(onceRead().filter((g) => g.binding !== key)));
       if (!agent)
@@ -248,6 +288,7 @@ export function approvalsRepo(q: Sql) {
       for (const listener of listeners) listener();
     },
     endSession(thread: string): void {
+      browser.endThread(thread);
       const before = sessions.size;
       for (const [k, g] of sessions) if (g.thread_id === thread) sessions.delete(k);
       if (sessions.size !== before) saveSessions();

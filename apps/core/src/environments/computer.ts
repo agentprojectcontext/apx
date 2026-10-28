@@ -1,4 +1,4 @@
-import { COMPUTER_GRANT } from "@apx/protocol";
+import { COMPUTER_GRANT, type TabInfo } from "@apx/protocol";
 import type { ApprovalTarget } from "../domain/approvals.ts";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
@@ -92,7 +92,10 @@ export function createComputer(store: Store, config: ComputerConfig) {
     }
     return lease;
   };
-  const guest = guestOperations(store, config, control, touch);
+  let browserChanged: (run: string, tabs: readonly TabInfo[]) => void = () => {};
+  const guest = guestOperations(store, config, control, touch, (screen, tabs) => {
+    for (const claim of ledger.claims()) if (claim.screen === screen) browserChanged(claim.run, tabs);
+  });
   /** What the next start gives the VM; a disk already larger stays as it is, since Lima only grows one. */
   const resources = (): ComputerResources => {
     const wanted = resolveResources(store.settings.read("computer"), host);
@@ -176,6 +179,17 @@ export function createComputer(store: Store, config: ComputerConfig) {
     onReady(fn: (e: ReadyEvent) => void, stage: (thread: string, stage: ReadyStage) => void = () => {}) {
       wake = fn;
       progress = stage;
+    },
+    onBrowserChange(fn: (run: string, tabs: readonly TabInfo[]) => void) {
+      browserChanged = fn;
+    },
+    /** Synchronous lifecycle proof without starting a browser or renewing the computer's activity. */
+    browserConsentState(run: string) {
+      const claim = ledger.forRun(run);
+      if (!claim) return undefined;
+      const lease = control(claim.screen).status();
+      if (lease.changing || lease.control !== "agent") return undefined;
+      return { agent: claim.agent, tabs: guest.browserTabs(claim.screen) };
     },
     /** The visible browser on the screen this run holds. */
     browser: (run: string) => {
@@ -310,6 +324,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
       return claim;
     },
     release(run: string) {
+      browserChanged(run, []);
       ledger.release(run);
     },
     /** The owner turns an allowed agent's screen on or off while the computer runs, with no run of the agent. */
@@ -328,6 +343,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
     async control(screen: number, mode: "agent" | "human", cancel: (thread: string) => number) {
       config.lifecycle?.assertRunning();
       await control(screen).change(mode, async () => {
+        for (const active of ledger.claims()) if (active.screen === screen) browserChanged(active.run, []);
         const claim = ledger.claims().find((c) => c.screen === screen);
         if (claim && mode === "human" && cancel(claim.thread))
           store.messages.add({
@@ -382,6 +398,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
       if (now.phase === "stopping") throw conflict("Computer is shutting down; start it again once it is off");
       const refusal = startRefusal(resources(), await freeMemory(), resourceLimits(host).memory_gib.min, pastReserve);
       if (refusal) throw conflict(refusalText(refusal), refusal);
+      for (const claim of ledger.claims()) browserChanged(claim.run, []);
       ledger.reset();
       for (const lease of leases.values()) lease.reset();
       touch();
@@ -391,7 +408,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
     /** The chat goes back to this Mac; a screen it holds is let go (its desktop stays up until room is needed). */
     leave(id: string, run?: string) {
       const claim = ledger.forThread(id);
-      if (claim && (!run || claim.run === run)) ledger.release(claim.run);
+      if (claim && (!run || claim.run === run)) vm.release(claim.run);
       store.settings.write(
         "computer_chats",
         chats().filter((chat) => chat !== id),
@@ -402,6 +419,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
     async halt(reason: StopReason, cancel: (thread: string) => void = () => {}) {
       if (!config.lifecycle) throw unavailable("this VM has no lifecycle controller");
       const holders = ledger.claims();
+      for (const claim of holders) browserChanged(claim.run, []);
       // Stopped on purpose: whoever waited for it to come up is not woken to be told it did not.
       ready.cancel();
       config.lifecycle.stop();

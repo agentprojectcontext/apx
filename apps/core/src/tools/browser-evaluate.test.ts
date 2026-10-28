@@ -55,7 +55,7 @@ test("browser JavaScript always retains approval, validates source, and wraps ob
   );
   const args = { tab: "mine", origin, document: "doc1", script: "1" };
   await tool.check?.(args, ctx);
-  assert.match(tool.explain?.(args) ?? "", /Tab: mine\nOrigin: https:\/\/example.com[\s\S]*\n1$/);
+  assert.equal(tool.explain?.(args), "1");
   assert.match(await tool.run(args, ctx), /untrusted.*web_javascript/s);
   assert.deepEqual(calls, [
     { method: "browser.evaluate", params: { tab: "mine", origin, document: "doc1", script: "1", by: "reader" } },

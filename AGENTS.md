@@ -89,7 +89,8 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     agent's own reads, edits and commands where it works do not ([D-106](rules/DECISIONS.md#d-106),
     [D-108](rules/DECISIONS.md#d-108)). The embedded browser never types passwords or payment data. Reviewed arbitrary
     JavaScript is an explicit owner-approved exception to mechanical field containment, not permission to handle
-    credentials; every execution keeps its card and exact source/origin binding ([D-165](rules/DECISIONS.md#d-165)). `[review]`
+    credentials; execution requires its card or explicit temporary tab/turn consent, with exact origin and current
+    document binding ([D-165](rules/DECISIONS.md#d-165)). Temporary consent never becomes a global tool grant. `[review]`
 11. **Secrets by reference** (`secret://…`), resolved only inside the handler; never in prompts, logs or traces.
     `[review]`
 12. **Never `assistant` role for observations**; cap size and detect binary on every tool result entering

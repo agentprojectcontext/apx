@@ -1,10 +1,12 @@
-import { BROWSER_CAP, BROWSER_HOLD, BROWSER_METHODS, type BrowserMethod } from "@apx/protocol";
+import { BROWSER_CAP, BROWSER_HOLD, BROWSER_METHODS, type BrowserMethod, type TabInfo } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import { TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Computer } from "../environments/computer.ts";
 import { conflict, unauthorized, unavailable } from "../errors.ts";
 import type { NodeBroker } from "../nodes/broker.ts";
+import { bindBrowserEpoch, browserEpochBackend, unbindBrowserEpoch } from "../nodes/browser-consent-binding.ts";
+import { browserConsentCurrent, reconcileBrowserConsents } from "../nodes/browser-consent-reconcile.ts";
 import { createBrowserHolds } from "../nodes/browser-holds.ts";
 import type { HeadlessBrowser } from "../nodes/headless-browser.ts";
 import type { Handler } from "./router.ts";
@@ -45,9 +47,60 @@ export function browserHandlers(
       }
     );
   });
-  bus?.on((e) => {
-    if (e.type === "run.updated" && TERMINAL.has(e.run.state)) holds.end(e.run.id);
+  const backend = () => (local() ? "headless" : (broker.withCap(BROWSER_CAP)?.session ?? "unavailable"));
+  let connection = backend();
+  let observedTabs: readonly TabInfo[] | undefined;
+  store?.approvals.setBrowserConsentGuard((context, agent) => {
+    const source = browserEpochBackend(context.epoch);
+    if (source?.startsWith("vm:")) {
+      const state = vm?.browserConsentState(context.run);
+      return !!(
+        source === `vm:${context.run}` &&
+        state?.agent === agent &&
+        browserConsentCurrent(context, agent, source, state.tabs)
+      );
+    }
+    return browserConsentCurrent(context, agent, backend(), observedTabs);
   });
+  vm?.onBrowserChange((run, tabs) => {
+    if (store) reconcileBrowserConsents(store, `vm:${run}`, tabs);
+  });
+  broker.onConnectionChange(() => {
+    const next = backend();
+    if (next !== connection) {
+      observedTabs = undefined;
+      if (store) reconcileBrowserConsents(store, next, []);
+    }
+    connection = next;
+  });
+  bus?.on((e) => {
+    if (e.type === "run.updated" && TERMINAL.has(e.run.state)) {
+      holds.end(e.run.id);
+      for (const grant of store?.approvals.list() ?? [])
+        if (grant.browser?.run === e.run.id && browserEpochBackend(grant.browser.epoch)?.startsWith("vm:"))
+          store?.approvals.revoke(grant.key, grant.thread_id, grant.agent_id);
+    }
+    if (e.type === "browser.tabs" && store) {
+      observedTabs = e.tabs;
+      reconcileBrowserConsents(store, backend(), e.tabs);
+    }
+  });
+  const invokeBound = async (
+    method: BrowserMethod,
+    params: unknown,
+    backend: string,
+    invoke: (params: unknown) => Promise<unknown>,
+  ) => {
+    const epoch = (params as { epoch?: string }).epoch;
+    const bound =
+      method === "browser.evaluate" && epoch !== undefined
+        ? { ...(params as object), epoch: unbindBrowserEpoch(backend, epoch) }
+        : params;
+    const out = await invoke(bound);
+    return method === "browser.approval_context"
+      ? { epoch: bindBrowserEpoch(backend, (out as { epoch: string }).epoch) }
+      : out;
+  };
   const forward =
     (method: BrowserMethod): Handler<BrowserMethod> =>
     async (params, ctx) => {
@@ -59,11 +112,17 @@ export function browserHandlers(
           throw conflict("VM browser does not belong to this active run");
         // Checked on every call: the owner may take the permission away while the turn runs.
         if (!vm.permitted(run.agent_id, thread)) throw unauthorized("this agent may not use the computer");
-        return (await vm.browser(run.id).handle(method, params)) as never;
+        return (await invokeBound(method, params, `vm:${run.id}`, (bound) =>
+          vm.browser(run.id).handle(method, bound),
+        )) as never;
       }
-      const out = await (local()
-        ? headless?.handle(method, params)
-        : broker.invoke(BROWSER_CAP, method, params, deadlineFor(method, params)));
+      const isLocal = local();
+      const backend = isLocal ? "headless" : (broker.withCap(BROWSER_CAP)?.session ?? "unavailable");
+      const out = await invokeBound(method, params, backend, async (bound) =>
+        isLocal
+          ? headless?.handle(method, bound)
+          : broker.invoke(BROWSER_CAP, method, bound, deadlineFor(method, bound)),
+      );
       const tab =
         (params as { tab?: unknown }).tab ?? (method === "browser.open" ? (out as { tab?: unknown }).tab : undefined);
       if (ctx.agent && method !== "browser.close" && typeof tab === "string") holds.hold(ctx.agent.run_id, tab);

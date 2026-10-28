@@ -39,6 +39,18 @@ export const inputPartOf = (r: InputRecord): Extract<Part, { type: "input" }> =>
   prompt: r.prompt,
   ...(r.tool ? { tool: r.tool } : {}),
   ...(r.detail ? { detail: r.detail } : {}),
+  ...(r.approval?.browser && typeof r.args?.document === "string"
+    ? {
+        browser: {
+          origin: r.approval.browser.origin,
+          title: r.approval.browser.title,
+          tab_number: r.approval.browser.tab_number,
+          document: r.args.document,
+          ...(typeof r.args.path === "string" ? { path: r.args.path } : {}),
+          ...(typeof r.args.sha256 === "string" ? { sha256: r.args.sha256 } : {}),
+        },
+      }
+    : {}),
   ...(r.change ? { change: r.change } : {}),
   ...(r.options ? { options: r.options } : {}),
   ...(r.multi ? { multi: true } : {}),
@@ -216,7 +228,7 @@ export function createInputs(deps: {
           waiting.set(rec.id, resolve);
           timer = setTimeout(() => resolve(o.stays ? current() : expire()), waitMs);
           // A shutdown keeps the input open (the answer wakes the agent after the restart); anything else closes it.
-          stop = () => resolve(o.signal.reason instanceof Shutdown ? current() : expire());
+          stop = () => resolve(o.signal.reason instanceof Shutdown && !o.approval?.browser ? current() : expire());
           if (o.signal.aborted) stop();
           o.signal.addEventListener("abort", stop, { once: true });
         });
@@ -255,6 +267,11 @@ export function createInputs(deps: {
         throw badRequest("approval scope requires approving a confirmation");
       if (scope !== "once" && !rec.approval_scopes?.includes(scope))
         throw badRequest("this approval scope is not available for this tool");
+      if (rec.approval?.browser && a.decision === "approve") {
+        const run = store.runs.get(rec.run_id);
+        if (!waiting.has(id) || run?.state !== "input-required")
+          throw conflict("This browser approval's turn ended; request a new evaluation and review it again");
+      }
       // "Allow reading it in this project": the folder joins the project's read-only folders, checked as projects.update.
       const project = scope === "project" ? store.threads.get(rec.thread_id)?.project_id : undefined;
       const why = scope === "project" && rec.folders ? cannotKeep(rec.thread_id, rec.folders) : undefined;
@@ -270,8 +287,9 @@ export function createInputs(deps: {
       }
       const settled = store.tx(() => {
         const r = store.inputs.settle(id, state, text, state === "approved" ? scope : undefined);
-        if (r && state === "approved" && rec.approval)
+        if (r && state === "approved" && rec.approval && !rec.approval.browser)
           store.approvals.grant(rec.approval, scope, rec.thread_id, rec.agent_id);
+        if (r && state === "denied" && rec.approval) store.approvals.decline(rec.approval, rec.thread_id, rec.agent_id);
         if (r && scope === "always" && rec.folders_write)
           for (const dir of rec.folders ?? [])
             store.approvals.grant(writeFolderApproval(dir), "always", rec.thread_id, rec.agent_id);

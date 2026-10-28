@@ -5,7 +5,7 @@ import path from "node:path";
 
 import type { MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
-import { strictApproval } from "../domain/approvals.ts";
+import { type ApprovalTarget, strictApproval } from "../domain/approvals.ts";
 import type { InputRecord } from "../domain/inputs.ts";
 import type { JobRecord } from "../domain/jobs.ts";
 import { ownerAsked, type RunRecord } from "../domain/runs.ts";
@@ -18,6 +18,7 @@ import { authorize, decide, keepsCard, sessionGate } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk } from "../tools/shell.ts";
 import type { CheckContext, Confirm, ScopedThread, Tool, ToolContext } from "../tools/types.ts";
+import { prepareBrowserConsent } from "./browser-consent.ts";
 import type { Display } from "./display.ts";
 import { folderBinding, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
@@ -328,18 +329,33 @@ export function createExecutor(o: {
     const keeps = keepsCard(tool, args, agent);
     // A call that always asks has its own grant, apart from the tool's ordinary one (DECISIONS.md#d-089); one that
     // keeps its card whatever is granted offers none (DECISIONS.md#d-143).
-    const target =
-      keeps === "card"
-        ? undefined
-        : level === "always" && tool.approval
-          ? strictApproval(tool.approval)
-          : tool.approval;
+    let target: ApprovalTarget | undefined;
+    try {
+      target = tool.approvalForCall
+        ? await tool.approvalForCall(args, {
+            agent,
+            thread: callThread,
+            run,
+            call: (method, params) => o.call(method, params, { run, callId }),
+          })
+        : keeps === "card"
+          ? undefined
+          : level === "always" && tool.approval
+            ? strictApproval(tool.approval)
+            : tool.approval;
+    } catch (error) {
+      return { ok: false, text: `not run: ${failure(error)}` };
+    }
+    const approvalVersion = target && store.approvals.browserVersion(target, thread.id, agent.id);
+    const granted = !!target && store.approvals.allows(target, thread.id, agent.id, args);
+    let checkConsentAtDispatch = !!target?.browser && granted;
+    let pendingBrowserScope: "tab" | "turn" | undefined;
     if (
       gate.kind === "confirm" &&
       // The owner just said yes to this very call on its folder card: manual's ask for every change is answered.
       !(lent.asked && gate.why === "asks_every" && !keeps) &&
-      !(target && store.approvals.allows(target, thread.id, agent.id, args)) &&
-      !o.inputs.takeGrant(thread.id, agent.id, name, raw, target?.key)
+      !granted &&
+      (target?.browser || !o.inputs.takeGrant(thread.id, agent.id, name, raw, target?.key))
     ) {
       const answer = await o.inputs.ask({
         run,
@@ -355,7 +371,7 @@ export function createExecutor(o: {
         // A preview that fails only costs the patch: the owner still sees the arguments.
         change: await tool.preview?.(args, { agent, thread: callThread }).catch(() => undefined),
         external: o.external(),
-        stays: true,
+        stays: !target?.browser,
         appOnly: tool.ownerSetting?.(args) || tool.appOnly,
         signal,
       });
@@ -364,6 +380,32 @@ export function createExecutor(o: {
       if (no) {
         card("error", no.card);
         return { ok: false, text: no.text };
+      }
+      if (target?.browser) {
+        try {
+          const prepared = await prepareBrowserConsent({
+            store,
+            target,
+            scope: answer.approval_scope,
+            version: approvalVersion,
+            thread: thread.id,
+            agent: agent.id,
+            signal,
+            current: async () =>
+              tool.approvalForCall?.(args, {
+                agent,
+                thread: callThread,
+                run,
+                call: (method, params) => o.call(method, params, { run, callId }),
+              }),
+          });
+          if (prepared && (answer.approval_scope === "tab" || answer.approval_scope === "turn"))
+            pendingBrowserScope = answer.approval_scope;
+        } catch (error) {
+          const detail = failure(error);
+          card("error", detail);
+          return { ok: false, text: `not run: ${detail}` };
+        }
       }
     }
 
@@ -401,7 +443,28 @@ export function createExecutor(o: {
       // A tool that always asks acts as the owner once this call passed its card (answered or granted above), or
       // where the mode or rule let it run unasked and it keeps no card (DECISIONS.md#d-143).
       ...(level === "always" && (gate.kind === "confirm" || !keeps)
-        ? { callAsOwner: (method, params) => o.call(method, params, { run, callId, owner: true }) }
+        ? {
+            callAsOwner: async (method, params) => {
+              if (target?.browser && store.approvals.browserVersion(target, thread.id, agent.id) !== approvalVersion)
+                throw new Error("Browser approval was revoked or declined; request approval again");
+              if (checkConsentAtDispatch && target && !store.approvals.allows(target, thread.id, agent.id, args))
+                throw new Error("Browser consent was revoked or expired; request approval again");
+              const result = await o.call(method, params, { run, callId, owner: true });
+              if (pendingBrowserScope && target?.browser && method === "browser.evaluate") {
+                const state = store.runs.get(run.id)?.state;
+                // The first successful dispatch proves its context; revocation only prevents future consent.
+                if (
+                  !signal.aborted &&
+                  (state === "working" || state === "input-required") &&
+                  store.approvals.browserVersion(target, thread.id, agent.id) === approvalVersion
+                )
+                  store.approvals.grant(target, pendingBrowserScope, thread.id, agent.id, approvalVersion);
+                pendingBrowserScope = undefined;
+                checkConsentAtDispatch = true;
+              }
+              return result;
+            },
+          }
         : {}),
       delegate: o.delegate,
       askOwner: (prompt, options, canContinue, multi) =>

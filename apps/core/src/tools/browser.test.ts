@@ -86,6 +86,7 @@ before(async () => {
   desktop = await new ApxClient({ url: env.core.url }).connect("node", ["browser"]);
   desktop.onRequest(async (method, params) => {
     if (method === "browser.tabs") return { tabs };
+    if (method === "browser.approval_context") return { epoch: "epoch1" };
     if (method === "browser.evaluate") {
       evaluations.push(params);
       return { url: "https://example.com/", json: "42" };
@@ -137,7 +138,14 @@ test("JavaScript reaches the node only after approval, even in Total; agents can
       const card = await waitFor(async () => (await env.client.call("runs.pending", { thread })).inputs[0]);
       assert.equal(card.tool, "browser_evaluate");
       assert.equal(env.core.store.inputs.get(card.id)?.app_only, true);
-      assert.match(card.detail ?? "", /Tab: t1[\s\S]*Origin: https:\/\/example.com[\s\S]*Promise.resolve\(42\)/);
+      assert.equal(card.detail, "Promise.resolve(42)");
+      const parts = (await env.client.call("threads.get", { thread })).messages.flatMap((message) => message.parts);
+      const approval = parts.find((part) => part.type === "input" && part.input_id === card.id);
+      assert.ok(approval?.type === "input");
+      assert.equal(approval.browser?.origin, "https://example.com");
+      assert.equal(approval.browser?.document, "doc1");
+      assert.equal(approval.browser?.tab_number, 1);
+      assert.ok(approval.browser?.title);
       assert.equal(evaluations.length, 0);
       await env.client.call("runs.respond", { input: card.id, decision });
       await env.settle(thread);
@@ -159,7 +167,14 @@ test("JavaScript reaches the node only after approval, even in Total; agents can
       await socket.closed;
     }
     assert.deepEqual(evaluations, [
-      { tab: "t1", script: "Promise.resolve(42)", origin: "https://example.com", document: "doc1", by: "roby" },
+      {
+        tab: "t1",
+        script: "Promise.resolve(42)",
+        origin: "https://example.com",
+        document: "doc1",
+        epoch: "epoch1",
+        by: "roby",
+      },
     ]);
   } finally {
     await env.client.call("agents.update", { agent: "roby", autonomy: null });
@@ -190,6 +205,7 @@ test("a local script changed while approval waits executes only the source displ
       origin: "https://example.com",
       document: "doc1",
       script,
+      epoch: "epoch1",
       by: "roby",
     });
     assert.equal(evaluations.length, before + 1);

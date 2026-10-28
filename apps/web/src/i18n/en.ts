@@ -1,4 +1,5 @@
 import { noticeEn } from "@apx/protocol/notices";
+import type { ApprovalKey } from "./approvals-en.ts";
 import type { ComputerKey } from "./computer-en.ts";
 import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
@@ -65,6 +66,10 @@ export const en = {
   "common.done": "Done",
   "common.refresh": "Refresh",
   "common.retry": "Retry",
+  "common.browserPermissionsLoading": "Loading browser permissions…",
+  "common.browserPermissionsFailed": "Could not show browser permissions. Reload to try again.",
+  "common.optionsLoading": "Loading options…",
+  "common.optionsFailed": "These options could not be shown. Reload to try again.",
   "common.running": "Running",
   "common.search": "Search",
   "common.soon": "Soon",
@@ -358,26 +363,6 @@ export const en = {
   "account.nameHint": "How the panel shows you and how your agents know you.",
   "account.cloud": "Cloud account",
   "account.cloudHint": "Sync across devices and share with your team.",
-  "input.confirmTitle": "Needs your OK",
-  "input.actionTitle": "Accept this action?",
-  "input.accept": "Accept",
-  "input.accepted": "Accepted",
-  "input.askedAction": "Proposed an action",
-  "input.questionTitle": "Question for you",
-  "input.approve": "Approve",
-  "input.deny": "Decline",
-  "input.approved": "Approved",
-  "input.denied": "Declined",
-  "input.answered": "Answered",
-  "input.expired": "Expired",
-  "input.withdrawn": "Withdrawn",
-  "input.asked": "Asked to use {tool}",
-  "input.askedQuestion": "Asked you a question",
-  "input.anAction": "an action",
-  "input.answerPlaceholder": "Type your answer and press Enter",
-  "input.send": "Send",
-  "input.skip": "Skip",
-  "input.skipped": "(skipped)",
   "error.respond": "Could not send your answer: {error}",
   "running.label": "Processes",
   "running.aria": "{working} running, {waiting} waiting, {background} in the background",
@@ -1857,6 +1842,7 @@ export const en = {
 /** Every key the panel may show: these, and those of the packs loaded with their screens (messages.ts PACKS). */
 export type MessageKey =
   | keyof typeof en
+  | ApprovalKey
   | ComputerKey
   | ReceivedKey
   | SysUsageKey

@@ -1,7 +1,7 @@
 // `apx mcp`: stdio MCP server that exposes the core's browser.* methods as tools, so any MCP client
 // (Claude Code, Codex, …) can drive the APX embedded browser; with a client token, also chat with APX's agents.
 // It forwards through the protocol; no logic here.
-import { type BrowserMethod, browserMethods, methodAccess } from "@apx/protocol";
+import { type BrowserMethod, browserMethods, SCOPE_METHODS } from "@apx/protocol";
 import { type ApxClient, ApxError } from "@apx/protocol/client";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -26,6 +26,7 @@ const DESCRIPTIONS: Record<BrowserMethod, string> = {
   "browser.type":
     "Type into a field by ref. Password, one-time-code and card fields are refused: ask the user to take control and log in.",
   "browser.evaluate": "",
+  "browser.approval_context": "",
   "browser.screenshot": "JPEG screenshot of a tab.",
   "browser.close": "Close a tab.",
   "browser.history": "Go back, forward or reload a tab.",
@@ -45,7 +46,7 @@ export async function runMcp(client: ApxClient, agent: string, chat = false): Pr
   // The owner's controls are not tools: the core refuses them to agent clients; listing them would only mislead.
   // Neither are the browser's, for an app whose token has no browser scope.
   const methods = (await mayBrowse(client, chat))
-    ? (Object.keys(browserMethods) as BrowserMethod[]).filter((m) => methodAccess(m) !== "human")
+    ? (Object.keys(browserMethods) as BrowserMethod[]).filter((m) => SCOPE_METHODS.browser.includes(m))
     : [];
   for (const method of methods) {
     const def = browserMethods[method];

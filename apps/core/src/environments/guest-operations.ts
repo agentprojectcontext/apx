@@ -1,5 +1,6 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
+import type { TabInfo } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import { conflict, unauthorized } from "../errors.ts";
 import { createHeadlessBrowser } from "../nodes/headless-browser.ts";
@@ -30,6 +31,7 @@ export function guestOperations(
   config: ComputerConfig,
   control: (screen: number) => ComputerControl,
   touch: () => void = () => {},
+  browserChange: (screen: number, tabs: readonly TabInfo[]) => void = () => {},
 ) {
   const env = config.env ?? { PATH: process.env.PATH, HOME: process.env.HOME, LIMA_HOME: config.limaHome };
   const binary = config.executable ?? (() => "limactl");
@@ -49,7 +51,7 @@ export function guestOperations(
     browser = createHeadlessBrowser({
       dir: "",
       blockedPorts: () => new Set(),
-      onChange: () => {},
+      onChange: (tabs) => browserChange(screen, tabs),
       remote: {
         selectAllModifiers: 2,
         check: (method) => control(screen).checkCdp(method),
@@ -85,6 +87,7 @@ export function guestOperations(
     watching: () => streams.size > 0,
     /** The screens someone is looking at now. */
     watched: () => new Set([...streams.values()].map((s) => s.screen)),
+    browserTabs: (screen: number) => browsers.get(screen)?.list() ?? [],
     browser(screen: number) {
       const browser = browserOf(screen);
       return {
