@@ -733,14 +733,16 @@
 }
 .int__head {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   align-items: center;
 }
 .int__titles {
   display: flex;
-  flex: 1;
+  flex: 1 1 200px;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 .int__titles b {
   font-size: var(--apx-text-lg);
@@ -750,6 +752,14 @@
   margin: 0;
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-sm);
+}
+.int__lead {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  gap: 8px;
+  align-items: center;
 }
 .int__usehead {
   display: flex;

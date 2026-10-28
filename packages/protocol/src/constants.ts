@@ -320,3 +320,5 @@ export const CAPABILITY_ACTIONS = ["relay", "mail", "calendar"] as const;
 export type CapabilityAction = (typeof CAPABILITY_ACTIONS)[number];
 export const isCapability = (action: string): action is CapabilityAction =>
   (CAPABILITY_ACTIONS as readonly string[]).includes(action);
+/** How long before an event its reminder comes, in minutes: from 5 up to a week ahead. */
+export const CALENDAR_LEAD = { min: 5, max: 7 * 24 * 60, default: 30 } as const;

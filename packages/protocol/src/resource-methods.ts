@@ -1,7 +1,17 @@
 // Methods behind Resources: skills (read, edit, on/off per project), MCP servers (approve, test, on/off per
 // project) and variables (stored secrets: names, a hint and where they are used; never the values).
 import { z } from "zod";
+import { CALENDAR_LEAD } from "./constants.ts";
 import { ConnectOffer, Id, McpServerStatus, ToolApproval } from "./domain.ts";
+
+/** Google Calendar tells the owner of an event this many minutes before it starts, while it is on. */
+export const CalendarReminders = z.object({
+  enabled: z.boolean(),
+  lead_min: z.number().int().min(CALENDAR_LEAD.min).max(CALENDAR_LEAD.max),
+});
+export type CalendarReminders = z.infer<typeof CalendarReminders>;
+/** An integration's own settings; only the ones it has are present. */
+const IntegrationSettings = z.object({ reminders: CalendarReminders.optional() });
 
 const McpTarget = z
   .object({ scope: z.enum(["global", "project"]), server: z.string(), project: Id.optional() })
@@ -359,6 +369,8 @@ export const resourceMethods = {
            * account it is connected as, whether APX ships a client of its own (no Cloud Console needed) and which
            * client it is signed in with.
            */
+          /** What its settings hold, beside where it is used: an email signature, event reminders. */
+          settings: z.array(z.enum(["signature", "reminders"])).optional(),
           oauth: z
             .object({
               redirect_uri: z.string(),
@@ -421,6 +433,20 @@ export const resourceMethods = {
     params: z.object({ query: z.string().min(1).max(200) }).strict(),
     result: z.object({ found: z.array(ConnectOffer.extend({ connected: z.boolean() })) }),
     effect: false,
+  },
+  /** An integration's own settings, beside where it is used: Google Calendar's event reminders. */
+  "integrations.settings": {
+    params: z.object({ id: z.string().max(40) }).strict(),
+    result: IntegrationSettings,
+    effect: false,
+    access: "human",
+  },
+  /** Changes an integration's own settings; a field left out keeps its value. */
+  "integrations.configure": {
+    params: z.object({ id: z.string().max(40), reminders: CalendarReminders.partial().strict().optional() }).strict(),
+    result: IntegrationSettings,
+    effect: true,
+    access: "human",
   },
   /** Disconnects one: its server and its secrets go. */
   "integrations.disconnect": {
