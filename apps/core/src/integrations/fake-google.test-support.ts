@@ -15,6 +15,8 @@ export async function fakeGoogle() {
   /** Mail that reached the inbox after the start, each with the history id it arrived at. */
   const inbox: Array<{ id: string; from: string; subject: string; labels: string[]; at: number }> = [];
   let historyId = 100;
+  /** Events added to the calendar after the start (besides the fixed one). */
+  const scheduled: Array<Record<string, unknown>> = [];
   const server = http.createServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://google.test");
     let body = "";
@@ -64,6 +66,7 @@ export async function fakeGoogle() {
               end: { dateTime: "2026-05-04T11:00:00-03:00" },
               attendees: [{ email: "ana@example.com", responseStatus: "needsAction" }],
             },
+            ...scheduled,
           ],
         });
       if (url.pathname === "/calendar/v3/calendars/primary/events" && req.method === "POST") {
@@ -124,6 +127,10 @@ export async function fakeGoogle() {
     arrive(m: { id: string; from: string; subject: string; labels?: string[] }) {
       historyId += 1;
       inbox.push({ ...m, labels: m.labels ?? [], at: historyId });
+    },
+    /** An event goes on the calendar, as Google's API returns it. */
+    schedule(e: Record<string, unknown>) {
+      scheduled.push(e);
     },
     close: () => new Promise<void>((r) => server.close(() => r())),
   };

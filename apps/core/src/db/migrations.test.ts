@@ -380,3 +380,24 @@ test("a Home left on the computer comes back to the Mac; other chats on it stay"
     cleanup();
   }
 });
+
+test("a calendar routine goes with its runs; the other routines stay", () => {
+  const { db, cleanup } = upgradeFrom("DELETE FROM routines WHERE action = 'calendar'", (db) => {
+    const routine = db.prepare(
+      "INSERT INTO routines (id, name, agent_id, schedule, prompt, action, created_at, updated_at) VALUES (?, ?, 'roby', '{}', 'p', ?, '2026-10-28', '2026-10-28')",
+    );
+    routine.run("rtn_events", "Upcoming events", "calendar");
+    routine.run("rtn_mail", "Important mail", "mail");
+    db.prepare(
+      "INSERT INTO routine_runs (routine_id, thread_id, started_at, run_id) VALUES ('rtn_events', 'th_1', '2026-10-28', 'run_1')",
+    ).run();
+  });
+  try {
+    const ids = (db.prepare("SELECT id FROM routines ORDER BY id").all() as Array<{ id: string }>).map((r) => r.id);
+    assert.deepEqual(ids, ["rtn_mail"]);
+    assert.deepEqual(db.prepare("SELECT * FROM routine_runs").all(), []);
+  } finally {
+    db.close();
+    cleanup();
+  }
+});

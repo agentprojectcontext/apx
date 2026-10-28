@@ -133,7 +133,8 @@ test("Tailscale status refreshes while Devices remains open", async ({ page }) =
 });
 
 test("an older status response cannot undo an access change", async ({ page }) => {
-  let reads = 0;
+  let holdNextRead = false;
+  let heldRead = false;
   let release: (() => void) | undefined;
   const stale = new Promise<void>((resolve) => {
     release = resolve;
@@ -148,8 +149,12 @@ test("an older status response cannot undo an access change", async ({ page }) =
   };
   await page.route("**/rpc/access.get", async (route) => {
     const snapshot = { ...state };
-    const held = ++reads === 2;
-    if (held) await stale;
+    const held = holdNextRead;
+    if (held) {
+      holdNextRead = false;
+      heldRead = true;
+      await stale;
+    }
     await route.fulfill({
       headers: held ? { "x-e2e-stale": "1" } : {},
       json: { ok: true, result: snapshot },
@@ -170,8 +175,9 @@ test("an older status response cannot undo an access change", async ({ page }) =
     .fill("dispositivos");
   await page.getByRole("option", { name: /Dispositivos/ }).click();
   await expect(page.getByText("Desconectado", { exact: true })).toBeVisible();
+  holdNextRead = true;
   await page.getByRole("button", { name: "Revisar", exact: true }).click();
-  await expect.poll(() => reads).toBe(2);
+  await expect.poll(() => heldRead).toBe(true);
   // Further reads see the new mode, but the held response keeps the old snapshot.
   await page.getByRole("radio", { name: "Red local" }).click();
   await expect(page.getByRole("radio", { name: "Red local" })).toBeChecked();

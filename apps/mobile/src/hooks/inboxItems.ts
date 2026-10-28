@@ -50,7 +50,10 @@ export function inboxItems(data: Data): InboxItem[] {
       const { thread, name } = projectOf(input.thread_id);
       const notice = data.notices.find((item) => item.kind === "input" && item.ref === input.id);
       const confirm = input.kind === "confirm";
-      const scopes = confirm ? (input.approval_scopes ?? []) : [];
+      // Browser code must be reviewed in full in the chat, not approved from a truncated preview.
+      const reviewInChat =
+        input.tool === "browser_evaluate" || input.approval_scopes?.some((s) => s === "tab" || s === "turn");
+      const scopes = confirm && !reviewInChat ? (input.approval_scopes ?? []) : [];
       const more = [
         ...(scopes.includes("session")
           ? [
@@ -79,9 +82,11 @@ export function inboxItems(data: Data): InboxItem[] {
         body: input.detail,
         quote: input.options?.length ? input.options.join(" · ") : undefined,
         agentId: input.agent_id,
-        primary: confirm
-          ? { label: more.length ? "approveOnce" : "approve", action: { kind: "approve", input: input.id } }
-          : { label: "reply", action: { kind: "open", thread: input.thread_id } },
+        primary: reviewInChat
+          ? { label: "view", action: { kind: "open", thread: input.thread_id } }
+          : confirm
+            ? { label: more.length ? "approveOnce" : "approve", action: { kind: "approve", input: input.id } }
+            : { label: "reply", action: { kind: "open", thread: input.thread_id } },
         secondary: { label: "view", action: { kind: "open", thread: input.thread_id } },
         ...(more.length ? { more } : {}),
         notice,

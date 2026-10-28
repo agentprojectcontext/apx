@@ -74,7 +74,7 @@ export function browserTools(store: Store, home: string, vm?: { hasThread(id: st
   };
 
   /** An agent only touches tabs of its own profile, and not while another agent is driving them. */
-  const own = async (ctx: ToolContext, id: string): Promise<string> => {
+  const own = async (ctx: Pick<ToolContext, "agent" | "call">, id: string): Promise<string> => {
     const t = (await ctx.call("browser.tabs", {})).tabs.find((x) => x.tab === id);
     if (!t) throw new Error(`unknown tab ${id}; open one with browser_open`);
     if (t.profile !== profileFor(ctx.agent))

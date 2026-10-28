@@ -45,12 +45,24 @@ Se respetan los permisos habituales de carpetas; no se cargan scripts desde URLs
 inline, nunca archivos del host. Para sentencias, usá una IIFE async
 que devuelva un valor: `(async () => ({ title: document.title }))()`.
 
-Cada ejecución pide confirmación en la app (panel, Desktop o teléfono), incluso en Total; un mensaje recortado en un
-canal no permite aprobarla. Pasá el `origin` exacto esperado (por ejemplo,
+La ejecución requiere confirmación en la app (panel, Desktop o teléfono), incluso en Total; un mensaje recortado en un
+canal no permite aprobarla. Podés elegir **Aceptar una vez**, **Permitir en esta pestaña** o **Durante este turno**.
+El consentimiento temporal permite código nuevo sin otra confirmación: no queda limitado al código de la primera tarjeta.
+Las dos opciones temporales se limitan al mismo agente, conversación y origen exacto aprobado y se pierden al reiniciar
+el core. El permiso por pestaña vence como máximo a los 30 minutos y también termina al cerrarla, navegar o recargar
+(incluso dentro del mismo origen), o al reconectar el navegador. El permiso por turno dura hasta que termine esta
+ejecución, sin un límite de tiempo adicional; no dura toda la conversación. Puede cubrir otras pestañas solo en ese mismo origen exacto. No pasa a otro agente, sesión delegada,
+turno futuro ni rutina. Podés revocar un consentimiento activo sin esperar su vencimiento. Rechazar una tarjeta no
+concede nada; si terminó el turno que esperaba, hay que pedir una tarjeta nueva. No son permisos globales de herramienta.
+En el panel o Desktop, abrí **Recursos → Permisos activos del navegador** para revisarlos y revocarlos; en el teléfono,
+abrí **Permisos activos del navegador** dentro del chat.
+
+Pasá el `origin` exacto esperado (por ejemplo,
 `https://example.com`, sin ruta). La tarjeta muestra pestaña, origen y código completo; se guarda una copia del archivo
 antes de aprobar y se ejecutan esos mismos bytes. Pasá también la referencia `document` del último `browser_snapshot`:
 se vincula al contexto exacto de Chromium y a su URL, no solo al origen. Navegar, recargar, cambiar la URL o tomar otro
-snapshot la invalida; tomá uno nuevo y volvé a aprobar. Si cambió el origen, no se evalúa. Revisá todo el código antes de
+snapshot invalida esa referencia de documento; tomá uno nuevo y volvé a aprobar salvo que siga vigente un consentimiento
+temporal aplicable. Si cambió el origen, no se evalúa. Revisá todo el código antes de
 aprobar: JavaScript arbitrario puede leer datos privados o mandar solicitudes con tu sesión iniciada.
 La protección de campos sensibles de la herramienta de escritura **no es un sandbox para JavaScript**. No apruebes código
 que maneje contraseñas, códigos 2FA ni tarjetas. Se mantienen el perfil y el control/handoff de la pestaña. Este método
@@ -58,7 +70,7 @@ no se expone a clientes MCP externos.
 
 APX espera promesas y devuelve texto JSON no confiable (hasta 16.000 caracteres); undefined pasa a null, bigint a texto,
 y los resultados circulares o demasiado grandes fallan. El límite del script es 64.000 caracteres (archivos: bytes).
-Chromium tiene un límite de ejecución de 5 segundos y APX deja de esperar a los 7. Un timeout **no cancela ni revierte**:
+APX deja de esperar la evaluación de Chromium a los 7 segundos. Un timeout **no cancela ni revierte**:
 timers, solicitudes u otros efectos pueden continuar. Verificá la página antes de reintentar, especialmente un envío.
 Esto agrega una herramienta para agentes, no un panel DevTools ni un puerto de depuración. Desktop debe cargar el build
 nuevo compatible; reiniciar solo el core no alcanza.

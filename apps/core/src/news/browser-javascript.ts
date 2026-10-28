@@ -5,7 +5,7 @@ export const BROWSER_JAVASCRIPT_NEWS: NewsEntry = {
   since: "2.11.2",
   title: "Approved scripts in your APX browser",
   applies: () => true,
-  text: "Agents can run an inline JavaScript expression or an approved local .js file in their existing APX browser tab, without another browser or a remote debugging port. Every execution keeps an approval card even in Total. Review code first: it can read private page data or send as your signed-in account. File hashes bind approval to exact bytes. Timeouts stop waiting, not side effects. A matching updated Desktop build is required when using embedded tabs.",
+  text: "Agents can run an inline JavaScript expression or an approved local .js file in their existing APX browser tab, without another browser or a remote debugging port. Execution requires an app approval even in Total, unless covered by an explicit temporary consent for this tab or current turn on the exact approved origin. Review code first: it can read private page data or send as your signed-in account. File hashes bind approval to exact bytes. Timeouts stop waiting, not side effects. A matching updated Desktop build is required when using embedded tabs.",
   actions: [
     {
       label: { en: "Try a read-only script", es: "Probar un script de lectura" },

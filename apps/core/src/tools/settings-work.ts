@@ -234,6 +234,23 @@ export const WORK: Readonly<Record<string, Setting>> = {
     named: ["project", "server", "on"],
     says: (p, { store }) => `Turn the MCP server ${str(p.server)} ${on(p.on)} in ${projectName(store, p.project)}`,
   },
+  "integrations.settings": {
+    does: "an integration's own settings (id; google-calendar: event reminders on or off and how many minutes before)",
+    read: (p, { store }) =>
+      str(p.id) === "google-calendar"
+        ? `event reminders: ${JSON.stringify(store.settings.read("calendar_reminders"))}`
+        : "no settings of its own",
+  },
+  "integrations.configure": {
+    does: "change an integration's own settings (id; reminders: {enabled, lead_min} for google-calendar, minutes 5 to 10080)",
+    says: (p) => {
+      const r = (p.reminders ?? {}) as { enabled?: boolean; lead_min?: number };
+      const when = typeof r.lead_min === "number" ? ` ${r.lead_min} minutes before each event` : "";
+      return `${r.enabled === undefined ? "Change" : r.enabled ? "Turn on" : "Turn off"} event reminders${when}`;
+    },
+    now: (p, { store }) =>
+      str(p.id) === "google-calendar" ? { id: p.id, reminders: store.settings.read("calendar_reminders") } : undefined,
+  },
   "extensions.enable": {
     does: "turn an installed extension on or off (id, enabled)",
     says: (p, { store }) =>

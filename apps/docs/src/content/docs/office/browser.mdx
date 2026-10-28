@@ -42,19 +42,30 @@ agent's normal folder permissions; URLs are not script sources. VM chats accept 
 Use an async IIFE for statements and return a value:
 `(async () => ({ title: document.title }))()`.
 
-Every execution needs confirmation in the app (panel, Desktop or phone), even in Total; a shortened channel message
-cannot approve it. Supply the exact expected `origin` (for example,
+Execution requires confirmation in the app (panel, Desktop or phone), even in Total; a shortened channel message
+cannot approve it. Choose **Approve once**, **Allow in this tab**, or **During this turn**. Temporary consent allows new
+scripts without another confirmation: it is not limited to the source shown on the first card. Both temporary options
+are limited to the same agent, conversation and exact approved origin and are lost when the core restarts.
+Tab consent expires after at most 30 minutes and also ends on closing, navigating or reloading the tab
+(including same-origin reload), or reconnecting the browser. Turn consent lasts until this execution ends, with no
+extra consent time limit; it does not last for the conversation. It can cover other tabs
+only on that exact origin. It never applies to another agent, delegated session, future turn or routine. You can revoke
+an active consent without waiting for it to expire. Denying a card grants nothing; a card whose waiting turn ended must
+be requested again. These are not global tool permissions. In the panel or Desktop, open **Resources → Active browser permissions** to review and revoke them; on the phone, open **Active browser permissions** in the chat.
+
+Supply the exact expected `origin` (for example,
 `https://example.com`, without a path). The card shows tab, origin and full source; local files are snapshotted before
 approval and execution uses those same bytes. Pass the `document` reference from the latest `browser_snapshot` too:
 execution is bound to that exact Chromium context and URL, not just the origin. Navigation, reload, changed URL or another
-snapshot invalidate it; take a fresh snapshot and approve again. A changed origin is refused before evaluating. Review the entire script
+snapshot invalidate that document reference; take a fresh snapshot, and approve again unless an applicable temporary
+consent remains. A changed origin is refused before evaluating. Review the entire script
 before approving: arbitrary JavaScript can read private page data or send requests as your signed-in account. The normal
 typing tool's credential-field protection is **not a JavaScript sandbox**. Never approve code handling passwords, 2FA or
 card data. The tab's profile and take-control/handoff rules still apply. This method is not exposed to outside MCP clients.
 
 APX awaits promises and returns untrusted JSON text (up to 16,000 characters); undefined becomes null, bigint becomes text,
-and circular or oversized results fail. Scripts are limited to 64,000 characters (files: bytes). Chromium has a 5-second
-execution limit and APX stops waiting after 7 seconds. A timeout is **not cancellation or rollback**: timers, requests or
+and circular or oversized results fail. Scripts are limited to 64,000 characters (files: bytes). APX stops waiting
+for the Chromium evaluation after 7 seconds. A timeout is **not cancellation or rollback**: timers, requests or
 other side effects may continue. Verify the page before retrying, especially after a send. This adds an agent tool, not a
 new DevTools panel or remote debugging port. Desktop must load the matching new build; a core-only restart is not enough.
 

@@ -994,6 +994,8 @@ export const MIGRATIONS: readonly string[] = [
     flow_id TEXT PRIMARY KEY REFERENCES flows(id) ON DELETE CASCADE, since TEXT NOT NULL
   );
   `,
+  // Event reminders left the routines for Google Calendar's own settings: a routine kept for them goes, with its runs.
+  `DELETE FROM routines WHERE action = 'calendar';`,
   // Each message a Flow sent as the owner, for its hourly limit; ticks a schedule skipped while a run was going.
   `
   CREATE TABLE flow_sends (

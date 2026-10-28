@@ -5,6 +5,7 @@ import {
   AgentBudgets,
   AgentLimits,
   BaseProject,
+  CALENDAR_LEAD,
   ChannelInfo,
   EmailSignatures,
   EmailSignatureValue,
@@ -112,6 +113,14 @@ export const SETTINGS = {
   base_project: entry(BaseProject, { name: "Default" }),
   /** The base project's areas and roles (a real project keeps them in its .apc/organization.json). */
   base_org: entry(Organization, { areas: [], roles: [] }),
+  /** Google Calendar's event reminders: off and 30 minutes ahead until the owner chooses; each field falls back alone. */
+  calendar_reminders: entry(
+    z.object({
+      enabled: z.boolean().catch(false),
+      lead_min: z.number().int().min(CALENDAR_LEAD.min).max(CALENDAR_LEAD.max).catch(CALENDAR_LEAD.default),
+    }),
+    { enabled: false, lead_min: CALENDAR_LEAD.default },
+  ),
   /** The profile the super-agent runs and the owner's values for it (none until the owner picks one). */
   profile: entry(ActiveProfile, { id: null, values: {} }),
   /**

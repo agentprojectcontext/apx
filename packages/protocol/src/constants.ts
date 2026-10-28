@@ -314,3 +314,6 @@ export const SURFACE_STATE_MAX = 64_000;
  * kept for the marketplace's packaged apps and extensions. See DECISIONS.md#d-118.
  */
 export const ARTIFACT_FILE_EXT = ".apxart";
+
+/** How long before an event its reminder comes, in minutes: from 5 up to a week ahead. */
+export const CALENDAR_LEAD = { min: 5, max: 7 * 24 * 60, default: 30 } as const;

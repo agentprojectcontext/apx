@@ -292,6 +292,10 @@ test("Codex writes in an auto code chat in auto, accept edits and total, whateve
   assert.equal(codexWrites({ ...io("total", false), thread: { ...thread, write: "ask" } } as TurnIO), true);
   assert.equal(codexWrites({ ...io("auto", false), thread: { ...thread, write: "ask" } } as TurnIO), false);
   assert.equal(codexWrites({ ...io("total", false), thread: { ...thread, write: "read-only" } } as TurnIO), false);
+  // A delegated session its caller capped at ask asks before changes, whoever runs it; Codex cannot ask, so it reads
+  // (DECISIONS.md#d-126).
+  const capped = { ...thread, kind: "a2a", write: "ask" } as unknown as TurnIO["thread"];
+  assert.equal(codexWrites({ ...io("total", false), thread: capped } as TurnIO), false);
   // The agent's own rule for writing wins over its mode, as for every other agent (DECISIONS.md#d-090).
   const ruled = (autonomy: string, write: string) =>
     ({ thread, agent: { autonomy, rules: { write } }, outside: () => false }) as unknown as TurnIO;
@@ -379,6 +383,31 @@ test("an outside agent's file tools never change git's folder, even in total, as
     assert.equal(answer?.type === "text" ? answer.text : "", "[false,false,true,true]");
   } finally {
     await env.client.call("agents.update", { agent: "roby", autonomy: null });
+  }
+});
+
+test("an outside agent's edit of APC files or AGENTS.md always asks, even when its rules act outside on their own, as file_write does", async () => {
+  const t0 = await session("claude");
+  const cwd = env.core.store.threads.get(t0.id)?.cwd ?? "";
+  await env.client.call("agents.update", { agent: "roby", autonomy: "auto", rules: { outside: "auto" } });
+  try {
+    const asks = [
+      { kind: "edit", path: path.join(cwd, ".apc", "agents", "roby.md") },
+      { kind: "edit", path: "AGENTS.md" },
+    ];
+    await env.client.call("threads.send", { thread: t0.id, text: `probe ${JSON.stringify(asks)}` });
+    for (const what of ["the APC file", "AGENTS.md"]) {
+      const card = await waitFor(
+        async () => (await env.client.call("runs.pending", { thread: t0.id })).inputs[0],
+        `a card for ${what}`,
+      );
+      await env.client.call("runs.respond", { input: card.id, decision: "deny" });
+    }
+    const t = await env.settle(t0.id);
+    const answer = t.messages.at(-1)?.parts.find((p) => p.type === "text");
+    assert.equal(answer?.type === "text" ? answer.text : "", "[false,false]");
+  } finally {
+    await env.client.call("agents.update", { agent: "roby", autonomy: null, rules: null });
   }
 });
 

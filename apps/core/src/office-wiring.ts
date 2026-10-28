@@ -4,13 +4,15 @@
 // The same clock picks up, hourly, assigned tasks whose work never started, and revives tasks whose work stopped with
 // nobody on it (engine/task-stall.ts), and hands the owner's task comments that named no one to an agent
 // (engine/task-inbox.ts), and answers the contacts who wrote outside a channel's attention hours once they begin
-// (channels/held.ts). A provider limit that stops the agents is told once per stall.
+// (channels/held.ts). A provider limit that stops the agents is told once per stall. Background checks (an integration's
+// reminders, engine/background.ts) run on the same clock.
 import { channelTexts } from "./channels/texts.ts";
 import type { Presentation } from "./domain/channels.ts";
 import { ownerTimeZone } from "./domain/owner.ts";
 import type { Store } from "./domain/store.ts";
 import { previewOf } from "./domain/threads.ts";
 import type { Attention } from "./engine/attention.ts";
+import { type BackgroundCheck, createBackground } from "./engine/background.ts";
 import type { AdmitFn } from "./engine/engine.ts";
 import { createNudges } from "./engine/nudges.ts";
 import { createStallNotices, resetLabel } from "./engine/provider-limit.ts";
@@ -35,6 +37,8 @@ export function officeScheduler(deps: {
   openHeld?: () => number;
   /** Schedule Flows due at this beat start their runs (flows.ts): the same clock, no second one. */
   flowTick?: (at: Date) => void;
+  /** Work kept on this clock; `remind` tells the owner something they asked to hear (tray and channel). */
+  checks?: (remind: (texts: string[], ref: string) => void) => BackgroundCheck[];
   log: Log;
   now?: () => Date;
 }) {
@@ -45,27 +49,36 @@ export function officeScheduler(deps: {
     digest: (texts) => channelTexts(store).digest(texts),
     ...(deps.now ? { now: deps.now } : {}),
   });
-  let pickedAt = Number.NEGATIVE_INFINITY;
-  let stallsAt = Number.NEGATIVE_INFINITY;
+  const remind = (texts: string[], ref: string) => {
+    const [first] = texts;
+    if (!first) return;
+    const text = texts.length === 1 ? first : channelTexts(store).reminders(texts);
+    attention.add({ kind: "due", level: "info", title: first, body: text, ref });
+    nudges.offer({ kind: "reminder", text, asked: true });
+  };
+  const background = createBackground(deps.log, [
+    // Assigned tasks that never started are picked up once an hour.
+    { id: "task-pickup", everyMs: PICKUP_EVERY_MS, run: () => void pickUpTasks(store, deps.admit) },
+    {
+      id: "task-stalls",
+      everyMs: STALL_CHECK_EVERY_MS,
+      run: (at) => {
+        const { revived, told } = reviveStalled(store, deps.admit, at);
+        if (revived || told) deps.log.info({ revived, told }, "stalled tasks");
+      },
+    },
+    ...(deps.checks?.(remind) ?? []),
+  ]);
   const scheduler = createScheduler({
     store,
     admit: deps.admit,
     log: deps.log,
     ...(deps.now ? { now: deps.now } : {}),
     eachTick: (at) => {
-      // Assigned tasks that never started are picked up once an hour.
-      if (at.getTime() - pickedAt >= PICKUP_EVERY_MS) {
-        pickedAt = at.getTime();
-        pickUpTasks(store, deps.admit);
-      }
+      background.tick(at);
       handOwnerComments(store, deps.admit, at);
       // A task given a start time begins then, not at the next hourly pickup.
       startScheduled(store, deps.admit, at);
-      if (at.getTime() - stallsAt >= STALL_CHECK_EVERY_MS) {
-        stallsAt = at.getTime();
-        const { revived, told } = reviveStalled(store, deps.admit, at);
-        if (revived || told) deps.log.info({ revived, told }, "stalled tasks");
-      }
       const texts = channelTexts(store);
       const asked: Array<{ text: string; thread_id: string }> = [];
       for (const t of store.tasks.remindDue(at.toISOString())) {

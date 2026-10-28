@@ -103,8 +103,11 @@ const Sent = z.object({
   delivery: z.object({ state: OutboxState, error: z.string().optional() }),
 });
 
-/** A message to the owner their notice budget did not let through now: held for quiet hours, or dropped. */
-const Withheld = z.object({ withheld: z.enum(["held", "dropped"]) });
+/**
+ * A message to the owner that did not go to a chat app: held for quiet hours, dropped by their notice budget, or kept
+ * in the app's tray because they chose to be told only in the app.
+ */
+const Withheld = z.object({ withheld: z.enum(["held", "dropped", "app_only"]) });
 
 const MemoryJobs = z.array(
   z.object({

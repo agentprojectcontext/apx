@@ -98,6 +98,21 @@ function fanOut(messages: Message[], said: string): Array<{ name: string; argume
 
 /** A tool call to make instead of answering, if the conversation asks for one. */
 function toolCall(messages: Message[], said: string): { name: string; arguments: string } | undefined {
+  if (/^evaluate browser three times/i.test(said)) {
+    const sinceOwner = messages.slice(messages.findLastIndex((message) => message.role === "user"));
+    const done = sinceOwner.filter((message) => message.role === "tool").length;
+    return done < 3
+      ? {
+          name: "browser_evaluate",
+          arguments: JSON.stringify({
+            tab: "consent-tab",
+            origin: "https://example.com",
+            document: "consent-doc",
+            script: String(done),
+          }),
+        }
+      : undefined;
+  }
   if (/^read MCP twice/i.test(said)) {
     const last = messages.at(-1);
     if (last?.role !== "tool") return { name: "mcp_notes_echo", arguments: JSON.stringify({ text: "first" }) };

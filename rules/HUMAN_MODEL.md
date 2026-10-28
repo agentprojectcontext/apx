@@ -47,7 +47,15 @@ operation; preparation never blocks creation or ordinary chat.
 Node capabilities (`browser.*`): the handler is `apps/core/src/rpc/browser.ts`, which asks
 `apps/core/src/nodes/broker.ts` to send the same method + params to the connected desktop over its socket; the
 desktop executes it in `apps/desktop/src/main/browser/host.ts` (re-validating params and tab control) and the
-core validates the answer against the registry. No desktop connected → `unavailable` immediately.
+core validates the answer against the registry. Without a desktop node, the core can use its own headless Chromium.
+
+Browser JavaScript approval uses the same tool executor and input cards. A dynamic approval target obtains a trusted
+`browser.approval_context` through the router, validating the current snapshot's document and exact origin. The core
+binds that opaque page epoch to the active browser connection before offering once/tab/turn scopes. Tab and turn
+consents live only in `domain/browser-consents.ts`, surfaced through the existing `tools.approvals`/`tools.revoke` methods;
+normal durable tool grants cannot authorize them. The browser validates the page epoch again before executing immutable
+source. Navigation and reload retire tab consent; turn consent is limited to its active run and approved exact origin.
+Both are agent/chat scoped and revocable. Tab consent is capped at 30 minutes; turn consent ends with its run, without an additional consent timeout. See [D-165](DECISIONS.md#d-165).
 
 The registry is `packages/protocol/src/methods.ts`. Adding a method = registry entry + handler; every client
 gets the types. There is no other way into a handler.

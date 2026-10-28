@@ -113,7 +113,8 @@ export type PendingInput = {
   detail?: string;
   options?: string[];
   /** How long an approval may last, when the core offers more than once. */
-  approval_scopes?: Array<"once" | "session" | "always">;
+  approval_scopes?: Array<"once" | "session" | "always" | "tab" | "turn">;
+  tool?: string;
   state: string;
 };
 export type Routine = {

@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import { type TestContext, test } from "node:test";
 import type { McpServerStatus } from "@apx/protocol";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { useNotices } from "./notices.ts";
+
+function Notices() {
+  return createElement(
+    "output",
+    null,
+    useNotices()
+      .map((notice) => notice.text)
+      .join(" | "),
+  );
+}
 
 const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
 Object.defineProperty(globalThis, "window", {
@@ -8,6 +21,7 @@ Object.defineProperty(globalThis, "window", {
   value: { location: { origin: "http://panel.example.test" } },
 });
 const resources = await import("./resources.ts");
+const { t: translate } = await import("../i18n/index.ts");
 if (windowDescriptor) Object.defineProperty(globalThis, "window", windowDescriptor);
 else Reflect.deleteProperty(globalThis, "window");
 
@@ -71,6 +85,50 @@ test("resource reads and writes preserve global and project scope and return res
   assert.deepEqual(calls[0], ["skills.list", {}]);
   assert.deepEqual(calls[1], ["skills.list", { project: "prj_1" }]);
   assert.deepEqual(calls.at(-1), ["tools.revoke", { key: "tools:key", thread: "thr_1", agent: "roby" }]);
+});
+
+test("temporary browser grants retain origin and scope and revoke only the selected chat and agent grant", async (t) => {
+  const grants = ["tab", "turn"].map((scope) => ({
+    key: `browser:${scope}`,
+    server: "native",
+    tool: "browser_evaluate",
+    scope,
+    browser: { origin: "https://example.test", tab: "tab_1", epoch: "epoch_1", run: "run_1" },
+    thread_id: "thr_1",
+    agent_id: "agent_reader",
+    expires_at: "2026-10-28T10:30:00Z",
+  }));
+  const calls = mockRpc(t, { "tools.approvals": { approvals: grants }, "tools.revoke": {} });
+  assert.deepEqual(await resources.listApprovals(), grants);
+  assert.deepEqual(await resources.revokeApproval("browser:turn", "thr_1", "agent_reader"), {});
+  assert.deepEqual(calls, [
+    ["tools.approvals", {}],
+    ["tools.revoke", { key: "browser:turn", thread: "thr_1", agent: "agent_reader" }],
+  ]);
+});
+
+test("inline browser errors suppress duplicate notices without silencing other approval controls", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const failure = new Error("Browser permission temporarily unavailable");
+  const handlers: Record<string, unknown> = { "tools.approvals": failure, "tools.revoke": failure };
+  const calls = mockRpc(t, handlers);
+  const before = renderToStaticMarkup(createElement(Notices));
+  assert.equal(await resources.listApprovals({ quiet: true }), undefined);
+  assert.equal(await resources.revokeApproval("browser:tab", "thr_1", "reader", { quiet: true }), undefined);
+  assert.equal(renderToStaticMarkup(createElement(Notices)), before);
+  handlers["tools.approvals"] = { approvals: [] };
+  handlers["tools.revoke"] = {};
+  assert.deepEqual(await resources.listApprovals({ quiet: true }), []);
+  assert.deepEqual(await resources.revokeApproval("browser:tab", "thr_1", "reader", { quiet: true }), {});
+  assert.equal(renderToStaticMarkup(createElement(Notices)), before);
+  handlers["tools.revoke"] = failure;
+  assert.equal(await resources.revokeApproval("mcp:read"), undefined);
+  assert.equal(
+    renderToStaticMarkup(createElement(Notices)),
+    renderToStaticMarkup(createElement("output", null, translate("res.error", { error: failure.message }))),
+  );
+  assert.deepEqual(calls.at(-2), ["tools.revoke", { key: "browser:tab", thread: "thr_1", agent: "reader" }]);
+  assert.deepEqual(calls.at(-1), ["tools.revoke", { key: "mcp:read" }]);
 });
 
 test("bulk MCP mode only changes tools not already at the requested approval state", async (t) => {

@@ -126,7 +126,9 @@ export function isMethodName(name: string): name is MethodName {
 /** The methods an outside app may call, by scope; anything else is refused to it. */
 export const SCOPE_METHODS: Record<"chat" | "browser", readonly MethodName[]> = {
   chat: ["agents.list", "threads.create", "threads.get", "threads.send"],
-  browser: (Object.keys(browserMethods) as MethodName[]).filter((m) => methodAccess(m) !== "human"),
+  browser: (Object.keys(browserMethods) as MethodName[]).filter(
+    (m) => methodAccess(m) !== "human" && m !== "browser.approval_context",
+  ),
 };
 
 /** Whether a method may be called without the core's token (see MethodDef.open). */

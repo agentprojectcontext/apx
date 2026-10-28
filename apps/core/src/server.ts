@@ -49,6 +49,7 @@ import { createStore } from "./domain/store.ts";
 import { announceRelease } from "./domain/whats-new.ts";
 import { createAttention } from "./engine/attention.ts";
 import { keepAwake, sleepWatch } from "./engine/awake.ts";
+import { calendarReminders } from "./engine/calendar-reminders.ts";
 import { createEngine, type RunTimers } from "./engine/engine.ts";
 import type { InputWaits } from "./engine/inputs.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
@@ -78,6 +79,7 @@ import { readIdentity } from "./identity.ts";
 import { createIdleTrim } from "./idle-memory.ts";
 import { type IMessageOps, systemIMessage } from "./imessage.ts";
 import { createAsana } from "./integrations/asana.ts";
+import { calendarApi } from "./integrations/calendar.ts";
 import { gmailApi } from "./integrations/gmail.ts";
 import { createGoogle } from "./integrations/google.ts";
 import { apxGoogleClient, clientFromPair } from "./integrations/google-client.ts";
@@ -220,8 +222,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   const broker = createNodeBroker();
   const push = createPush({ expoUrl: config.expoPushUrl, onError: (err) => log.warn({ err }, "push not delivered") });
-  broker.onEvent((_node, event) => {
-    if (event.type !== "tabs.changed") return;
+  broker.onEvent((node, event) => {
+    if (event.type !== "tabs.changed" || broker.withCap(BROWSER_CAP)?.session !== node.session) return;
     // A node's tabs are checked here, once: operators trust what the core pushes.
     const raw = (event.payload as { tabs?: unknown[] }).tabs ?? [];
     const tabs = raw.flatMap((t) => {
@@ -608,6 +610,18 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     notifyOwner: (body, threadId) => channels.notifyOwner(body, "notice", threadId),
     openHeld: () => channels.openHeld((a) => engine.admit(a)),
     flowTick: (at) => flows.tick(at),
+    checks: (remind) => [
+      calendarReminders({
+        store,
+        source: {
+          readable: () => google.usable("google-calendar", undefined),
+          between: async (from, to) =>
+            // The lead can be days: enough events that a busy week is not cut short.
+            (await calendarApi(google).list({ from, to, max: 250, calendar: "primary" })).events,
+        },
+        remind: (texts, events) => remind(texts, `event:${events.map((e) => e.id).join(",")}`),
+      }),
+    ],
     log,
     ...(opts.clock ? { now: opts.clock } : {}),
   });

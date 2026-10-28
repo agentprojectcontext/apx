@@ -164,7 +164,14 @@ While developing against a scratch state, set `APX_HOME` to a temp dir so `~/.ap
 ```bash
 pnpm preflight                     # check:private, check:schema, lint, typecheck, unit tests
 pnpm verify                        # preflight, all-suite execution coverage, then lightness budgets
+pnpm verify --stream               # the same, with every step's output as it runs
 ```
+Both run through `scripts/verify.ts`, which expands the root scripts they name (`preflight:static`, `test`,
+`test:coverage:all`) into steps and stops at the first failure with its exit code. In a terminal it keeps one status
+line: step k of N, a bar, time for the step and in total, and the time left estimated from each step's last passing
+duration (`node_modules/.cache/apx-verify/history.json`; none on the first run). The steps' output goes to
+`node_modules/.cache/apx-verify/logs/`, and only a failing step's is shown. Outside a terminal (CI, a log file) or with
+`--stream`, the output streams and the status is one plain line per step start and end.
 
 ## 5a. End to end (Playwright)
 ```bash

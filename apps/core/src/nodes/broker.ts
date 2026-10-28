@@ -22,14 +22,17 @@ export function createNodeBroker() {
   const nodes = new Map<string, NodeLink>();
   const pending = new Map<string, Pending>();
   const eventListeners = new Set<(node: NodeLink, event: EventFrame) => void>();
+  const connectionListeners = new Set<() => void>();
 
   return {
     attach(link: NodeLink) {
       nodes.set(link.session, link);
+      for (const listener of connectionListeners) listener();
     },
 
     detach(session: string) {
       nodes.delete(session);
+      for (const listener of connectionListeners) listener();
       for (const [id, p] of pending) {
         if (p.session !== session) continue;
         clearTimeout(p.timer);
@@ -83,6 +86,11 @@ export function createNodeBroker() {
     event(session: string, event: EventFrame) {
       const node = nodes.get(session);
       if (node) for (const l of eventListeners) l(node, event);
+    },
+
+    onConnectionChange(listener: () => void) {
+      connectionListeners.add(listener);
+      return () => connectionListeners.delete(listener);
     },
 
     onEvent(listener: (node: NodeLink, event: EventFrame) => void) {

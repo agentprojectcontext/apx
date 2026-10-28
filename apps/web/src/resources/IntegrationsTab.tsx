@@ -23,6 +23,7 @@ import { notify } from "../data/notices.ts";
 import { signInMcp } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { isKey, useT } from "../i18n/index.ts";
+import { CalendarReminders } from "./CalendarReminders.tsx";
 import { GoogleSignInForm } from "./GoogleSignIn.tsx";
 import type { TabProps } from "./ResourcesView.tsx";
 
@@ -33,6 +34,9 @@ export const describe = (i: Pick<Integration, "id" | "description">, t: ReturnTy
   const key = `int.desc.${i.id.replaceAll("-", "")}`;
   return isKey(key) ? t(key) : i.description;
 };
+/** It has settings of its own (a signature needs the account it signs for). */
+const configurable = (i: Integration) =>
+  Boolean(i.settings?.includes("reminders") || (i.settings?.includes("signature") && i.oauth?.account));
 /** Nothing to type: it signs in through the owner's browser (or needs no account at all). */
 const viaBrowser = (i: Integration) => !i.oauth && i.fields.length === 0;
 
@@ -277,69 +281,73 @@ function IntegrationDetail({
         <Button size="sm" variant="secondary" leadingIcon={<Icons.Pencil size={14} />} onClick={() => setAccount(true)}>
           {t("int.editConnection")}
         </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          leadingIcon={<Icons.Settings size={14} />}
-          onClick={() => setPreferences(true)}
-        >
-          {t("int.configure")}
-        </Button>
+        {configurable(i) && (
+          <Button
+            size="sm"
+            variant="secondary"
+            leadingIcon={<Icons.Settings size={14} />}
+            onClick={() => setPreferences(true)}
+          >
+            {t("int.configure")}
+          </Button>
+        )}
         <Button size="sm" variant="ghost" loading={busy} onClick={() => void disconnect()}>
           {t("int.disconnect")}
         </Button>
       </header>
       <p className="int__desc">{describe(i, t)}</p>
       {viaBrowser(i) && <BrowserSignIn id={i.id} />}
+      <div className="int__usehead">
+        <b>{t("int.usedIn")}</b>
+        <SegmentedControl
+          size="sm"
+          label={t("int.usedIn")}
+          value={mode}
+          onValueChange={(v) => (v === "all" ? void everywhere() : setMode("chosen"))}
+          options={[
+            { value: "all", label: t("int.allProjects") },
+            { value: "chosen", label: t("int.chosen") },
+          ]}
+        />
+      </div>
+      <div className="int__rows">
+        <div className="int__row">
+          <ProjectTile tone="brand" initial="D" size={28} />
+          <span className="int__rowmain">
+            <b>Default</b>
+            <span>{t("int.defaultAlways")}</span>
+          </span>
+          <Badge>{t("int.on")}</Badge>
+        </div>
+        {projects.map((p) => {
+          const on = !i.off_in.includes(p.id);
+          return (
+            <div key={p.id} className="int__row">
+              <ProjectTile tone="info" initial={p.name.slice(0, 1).toUpperCase()} size={28} />
+              <span className="int__rowmain">
+                <b>{p.name}</b>
+                <span>{on ? t("int.on") : t("int.off")}</span>
+              </span>
+              <Switch
+                size="sm"
+                aria-label={p.name}
+                checked={on}
+                disabled={mode === "all"}
+                onCheckedChange={(v) => void onToggle(i.id, p.id, v)}
+              />
+            </div>
+          );
+        })}
+      </div>
+
       {preferences && (
         <Dialog open title={t("int.configure")} onOpenChange={(open) => !open && setPreferences(false)}>
-          {i.id === "gmail" && i.oauth?.account && (
+          {i.settings?.includes("signature") && i.oauth?.account && (
             <EmailSignatures
               target={{ transport: "gmail", account: i.oauth.account, sender: i.oauth.account, label: i.label }}
             />
           )}
-          <div className="int__usehead">
-            <b>{t("int.usedIn")}</b>
-            <SegmentedControl
-              size="sm"
-              label={t("int.usedIn")}
-              value={mode}
-              onValueChange={(v) => (v === "all" ? void everywhere() : setMode("chosen"))}
-              options={[
-                { value: "all", label: t("int.allProjects") },
-                { value: "chosen", label: t("int.chosen") },
-              ]}
-            />
-          </div>
-          <div className="int__rows">
-            <div className="int__row">
-              <ProjectTile tone="brand" initial="D" size={28} />
-              <span className="int__rowmain">
-                <b>Default</b>
-                <span>{t("int.defaultAlways")}</span>
-              </span>
-              <Badge>{t("int.on")}</Badge>
-            </div>
-            {projects.map((p) => {
-              const on = !i.off_in.includes(p.id);
-              return (
-                <div key={p.id} className="int__row">
-                  <ProjectTile tone="info" initial={p.name.slice(0, 1).toUpperCase()} size={28} />
-                  <span className="int__rowmain">
-                    <b>{p.name}</b>
-                    <span>{on ? t("int.on") : t("int.off")}</span>
-                  </span>
-                  <Switch
-                    size="sm"
-                    aria-label={p.name}
-                    checked={on}
-                    disabled={mode === "all"}
-                    onCheckedChange={(v) => void onToggle(i.id, p.id, v)}
-                  />
-                </div>
-              );
-            })}
-          </div>
+          {i.settings?.includes("reminders") && <CalendarReminders id={i.id} />}
         </Dialog>
       )}
       {account && (

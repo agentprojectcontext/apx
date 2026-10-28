@@ -70,6 +70,9 @@ const es = {
   noticeLostTitle: "Un aviso no te llegó",
   noticeLost: (channels: string, why: string, text: string) =>
     `Ningún canal pudo entregarlo (${channels}${why ? `: ${why}` : ""}). Decía: «${text}»`,
+  locale: "es",
+  event: (title: string, time: string, inMin: number, where: string[]) =>
+    `A las ${time} (en ${inMin} min): ${title}.${where.map((w) => ` ${w}`).join(" ·")}`,
   reminders: (lines: string[]) => `Recordatorios:\n${lines.map((l) => `• ${l}`).join("\n")}`,
   digest: (texts: string[]) => `Mientras estabas en silencio:\n\n${texts.join("\n\n—\n\n")}`,
   suggested: (name: string, label: string, said: string, draft: string) =>
@@ -162,6 +165,9 @@ const en: typeof es = {
   noticeLostTitle: "A notice didn't reach you",
   noticeLost: (channels, why, text) =>
     `No channel could deliver it (${channels}${why ? `: ${why}` : ""}). It said: "${text}"`,
+  locale: "en-US",
+  event: (title, time, inMin, where) =>
+    `At ${time} (in ${inMin} min): ${title}.${where.map((w) => ` ${w}`).join(" ·")}`,
   reminders: (lines) => `Reminders:\n${lines.map((l) => `• ${l}`).join("\n")}`,
   digest: (texts) => `While your quiet hours lasted:\n\n${texts.join("\n\n—\n\n")}`,
   suggested: (name, label, said, draft) => `${name} wrote to you on ${label}:\n${said}\n\nI'd answer:\n"${draft}"`,

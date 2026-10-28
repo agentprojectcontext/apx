@@ -15,6 +15,9 @@ const BUTTON: Record<Size, { height: number; px: number; font: number; icon: num
 /** A pill button: `primary` is the ink accent, `secondary` a quiet fill. */
 export function Button({
   label,
+  accessibilityLabel,
+  accessibilityHint,
+  accessibilityExpanded,
   onPress,
   variant = "primary",
   size = "lg",
@@ -24,6 +27,9 @@ export function Button({
   style,
 }: {
   label: string;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+  accessibilityExpanded?: boolean;
   onPress: () => void;
   variant?: "primary" | "secondary";
   size?: Size;
@@ -39,7 +45,9 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ disabled: Boolean(disabled), busy: Boolean(busy) }}
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: Boolean(disabled), busy: Boolean(busy), expanded: accessibilityExpanded }}
       disabled={disabled || busy}
       onPress={onPress}
       style={({ pressed }) => [
