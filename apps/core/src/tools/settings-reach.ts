@@ -62,6 +62,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "flows.draft_save": "the owner draws a Flow's steps in the panel's editor",
   "flows.draft_discard": "the owner deletes a Flow draft on purpose",
   "flows.publish": "the owner makes a drawing what runs by saving it on, or turning the Flow on, in the editor",
+  "flows.run_now": "the owner starts a Flow by hand from its page, with the body they reviewed",
+  "flows.cancel_run": "the owner stops a Flow run they are looking at",
   "mcp.approveTool": POWER,
   "environments.enable": POWER,
   "environments.bind": POWER,
