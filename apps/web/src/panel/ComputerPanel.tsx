@@ -11,6 +11,7 @@ import { PanelHeader } from "./SidePanel.tsx";
 import { useComputer } from "./useComputer.ts";
 import { useVmDisplay } from "./useVmDisplay.ts";
 import "../styles/computer.css";
+import { setupSizes } from "./computerSizes.ts";
 
 /** The shared computer: the chat agent's screen (or another one picked), its lease, and setup when it is off. */
 function ComputerPanelBody() {
@@ -40,6 +41,7 @@ function ComputerPanelBody() {
   const chat = status?.chat;
   const allow = Boolean(chat?.agent && chat.permitted === false);
   const r = status?.resources;
+  const sizes = setupSizes(r);
   // Running, the badge says what it runs with; the settings below say what its next start gets.
   const now = ready ? status?.running_resources : undefined;
   const badge = { cpus: now?.cpus ?? r?.cpus ?? 0, memory: now?.memory_gib ?? r?.memory_gib ?? 0 };
@@ -163,9 +165,9 @@ function ComputerPanelBody() {
           {/* Off: one sentence, for why it is off; never set up yet: what it takes. */}
           {phase === "stopped" ? (
             <p role="status">{t(`computer.lastStop.${stoppedBy || "owner"}`)}</p>
-          ) : (
-            <p>{t("computer.setupHint", { memory: r?.memory_gib ?? 4, disk: (r?.disk_gib ?? 24) + 2 })}</p>
-          )}
+          ) : sizes ? (
+            <p>{t("computer.setupHint", sizes)}</p>
+          ) : null}
           {allow && !preparing && <p>{t("computer.notAllowed", { agent: chat?.agent_name ?? "" })}</p>}
           {preparing && (
             <p role="status">
