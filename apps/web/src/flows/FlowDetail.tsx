@@ -18,10 +18,20 @@ import { useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
-import { loadRuns, type Shown, setEnabled, shownGraph, whoOf } from "./data.ts";
+import {
+  issueText,
+  legacyGraph,
+  loadRun,
+  loadRuns,
+  type RunDetail,
+  type Shown,
+  setEnabled,
+  shownGraph,
+  whoOf,
+} from "./data.ts";
 import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { stepDetail } from "./look.tsx";
-import { logClock, OUTCOME, outcomeOf, runFacts, runWhen, tokens, viewRun } from "./run-view.ts";
+import { logClock, OUTCOME, outcomeOf, runFacts, runWhen, tokens, viewGraphRun, viewRun } from "./run-view.ts";
 import { type Flow, type FlowNode, type FlowRun, hookPath, STEP } from "./steps.tsx";
 import "./detail.css";
 
@@ -78,18 +88,43 @@ export function FlowDetail({
   }, [flow.id, revision]);
   // A run still going is read again until it ends.
   const going = runs?.some((e) => e.state === "pending" || (e.state === "admitted" && !e.run_ended_at));
+  const run = runs?.find((e) => e.event_id === runId);
+  // A graph run's steps come one by one from the core; read again with the runs while it goes on.
+  const [detail, setDetail] = useState<RunDetail>();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: each read of the runs reads the chosen one again
+  useEffect(() => {
+    let live = true;
+    if (run?.executor !== "graph") {
+      setDetail(undefined);
+      return;
+    }
+    void loadRun(flow.id, run.event_id).then(
+      (d) => live && setDetail(d),
+      () => live && setDetail(undefined),
+    );
+    return () => {
+      live = false;
+    };
+  }, [flow.id, run?.event_id, run?.executor, runs]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: each load of the runs arms the next read
   useEffect(() => {
-    if (!going) return;
-    const timer = setTimeout(() => setRevision((n) => n + 1), 3000);
+    // A run going is followed closely; a flow that is on is looked at now and then for new runs.
+    if (!going && !flow.enabled) return;
+    const timer = setTimeout(() => setRevision((n) => n + 1), going ? 3000 : 10_000);
     return () => clearTimeout(timer);
-  }, [going, runs]);
-  const run = runs?.find((e) => e.event_id === runId);
+  }, [going, runs, flow.enabled]);
   const who = useCallback((n: FlowNode) => whoOf(n, agents, routines), [agents, routines]);
-  const view = useMemo(
-    () => (shown ? viewRun(shown.graph, flow.id, run, t, who) : undefined),
-    [shown, flow.id, run, t, who],
-  );
+  // What the chosen run ran: its own revision, the old definition for a legacy run of a published flow, or now.
+  const graph = useMemo(() => {
+    if (run?.executor === "graph") return detail?.event === run.event_id ? detail.graph : undefined;
+    if (run && !run.current) return legacyGraph(flow, t);
+    return shown?.graph;
+  }, [run, detail, flow, t, shown]);
+  const view = useMemo(() => {
+    if (!graph) return undefined;
+    if (run?.executor === "graph") return detail ? viewGraphRun(detail, flow.id, t, who) : undefined;
+    return viewRun(graph, flow.id, run, t, who);
+  }, [graph, detail, flow.id, run, t, who]);
   const look = useCallback(
     (n: FlowNode): StepLook => {
       const v = view?.steps.get(n.id);
@@ -108,8 +143,8 @@ export function FlowDetail({
     try {
       await setEnabled(flow, on);
       onChanged();
-    } catch {
-      notify(t("flow.ed.saveFailed"));
+    } catch (e) {
+      notify(issueText(e, shown?.draft ?? undefined, t) ?? t("flow.ed.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -125,9 +160,9 @@ export function FlowDetail({
   const facts = run ? runFacts(run, t) : undefined;
   // Until one is chosen, the step that hands work to the crew (or the last one) is open.
   const node =
-    shown?.graph.nodes.find((n) => n.id === nodeId) ??
-    shown?.graph.nodes.find((n) => n.kind === "agent" || n.kind === "routine") ??
-    shown?.graph.nodes.at(-1);
+    graph?.nodes.find((n) => n.id === nodeId) ??
+    graph?.nodes.find((n) => n.kind === "agent" || n.kind === "routine" || n.kind === "llm") ??
+    graph?.nodes.at(-1);
   return (
     <div className="fd">
       <div className="fd__main">
@@ -138,7 +173,7 @@ export function FlowDetail({
             <h1>{flow.name}</h1>
             <span>
               {project} · {t("flow.triggerHook", { path: hookPath(flow.id) })} ·{" "}
-              {t("flow.steps", { count: shown?.graph.nodes.length ?? "…" })}
+              {t("flow.steps", { count: graph?.nodes.length ?? "…" })}
             </span>
           </div>
           <div className="fd__tools">
@@ -162,14 +197,14 @@ export function FlowDetail({
             </Badge>
             {facts?.took && <span>{facts.took}</span>}
             {facts?.tokens && <span>{facts.tokens}</span>}
-            {view && shown && <span>{t("flow.stepsRan", { ran: view.ran, total: shown.graph.nodes.length })}</span>}
+            {view && graph && <span>{t("flow.stepsRan", { ran: view.ran, total: graph.nodes.length })}</span>}
           </div>
         )}
-        {shown?.draftPending && <p className="fd__draft">{t("flow.draftPending")}</p>}
+        {shown?.draftPending && <p className="fd__draft">{t(flow.enabled ? "flow.draftBlocked" : "flow.draftOff")}</p>}
         <div className="fd__canvas">
-          {shown ? (
+          {graph ? (
             <FlowCanvas
-              graph={shown.graph}
+              graph={graph}
               look={look}
               selected={node?.id ?? null}
               onSelect={(id) => {
@@ -177,7 +212,7 @@ export function FlowDetail({
                 setNodeId(id);
                 setTab("step");
               }}
-              fitKey={flow.id}
+              fitKey={`${flow.id}:${run?.executor === "graph" ? `r${detail?.revision ?? ""}` : run?.current === false ? "old" : "now"}`}
             >
               {run && (
                 <div className="fd__legend" aria-hidden="true">
@@ -186,7 +221,9 @@ export function FlowDetail({
                   <span className="is-failed">{t("flow.legend.stepFailed")}</span>
                 </div>
               )}
-              <span className="fd__version">{t("flow.current")}</span>
+              <span className={run && !run.current ? "fd__version is-old" : "fd__version"}>
+                {t(run && !run.current ? "flow.previous" : "flow.current")}
+              </span>
             </FlowCanvas>
           ) : (
             <Skeleton width="100%" height="100%" />
@@ -194,7 +231,7 @@ export function FlowDetail({
         </div>
         <StepPanel
           flow={flow}
-          nodes={shown?.graph.nodes ?? []}
+          nodes={graph?.nodes ?? []}
           node={node}
           run={run}
           view={view}

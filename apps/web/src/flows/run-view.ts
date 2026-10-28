@@ -1,13 +1,32 @@
 import type { FlowStepState, RunBar } from "@apx/ui";
 import { formatNumber, formatSeconds, shortWhen } from "../common/format.ts";
-import { currentLocale, type MessageKey } from "../i18n/index.ts";
+import { currentLocale, isKey, type MessageKey } from "../i18n/index.ts";
+import type { RunDetail } from "./data.ts";
 import { chainOrder, dotted, type FlowGraph, type FlowNode, type FlowRun, hookPath, literal } from "./steps.tsx";
 
 type T = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
 /** How a whole run ended, from what the core recorded: the event's state and its linked run. */
-export type RunOutcome = "done" | "saved" | "cut" | "empty" | "failed" | "live" | "pending" | "waiting";
+export type RunOutcome =
+  | "done"
+  | "saved"
+  | "cut"
+  | "empty"
+  | "failed"
+  | "live"
+  | "pending"
+  | "waiting"
+  | "uncertain"
+  | "timeout";
 export function outcomeOf(e: FlowRun, checks: number): RunOutcome {
+  if (e.executor === "graph") {
+    if (e.state === "pending") return "live";
+    if (e.state === "ignored") return "empty";
+    if (e.state === "succeeded") return e.stopped_by ? "cut" : "done";
+    if (e.state === "uncertain") return "uncertain";
+    if (e.state === "cancelled") return "timeout";
+    return "failed";
+  }
   if (e.state === "ignored") return checks ? "cut" : "empty";
   if (e.state === "written") return "saved";
   if (e.state === "pending") return "pending";
@@ -29,6 +48,8 @@ export const OUTCOME: Record<
   live: { label: "flow.run.live", bar: "live", tone: "info" },
   pending: { label: "flow.run.pending", bar: "live", tone: "info" },
   waiting: { label: "flow.run.waiting", bar: "live", tone: "warning" },
+  uncertain: { label: "flow.run.uncertain", bar: "failed", tone: "warning" },
+  timeout: { label: "flow.run.timeout", bar: "failed", tone: "danger" },
 };
 
 // Same clock as the rest of the panel: 24 h in Spanish, the locale's own otherwise.
@@ -118,14 +139,23 @@ export function viewRun(
           text: t("flow.log.arrived", { path: hookPath(flow), id: e.event_id }),
         });
         break;
-      case "condition":
+      case "condition": {
+        // The core records the first check the data did not pass: those before it passed, those after never ran.
+        const at = checks.indexOf(n);
+        const stop = e.stopped_at;
+        const passed = matched || (stop !== null && at < stop);
+        const unknown = !matched && stop === null;
+        if (outcome === "empty" || (!matched && stop !== null && at > stop)) {
+          put(n, { state: "skipped", badge: t("flow.legend.stepSkipped"), input, output: t("flow.notRun") });
+          break;
+        }
         put(n, {
-          state: outcome === "empty" ? "skipped" : "ran",
-          badge: outcome === "empty" ? t("flow.legend.stepSkipped") : t(matched ? "flow.log.yes" : "flow.log.no"),
+          state: "ran",
+          ...(unknown ? {} : { badge: t(passed ? "flow.log.yes" : "flow.log.no") }),
           input,
-          output: outcome === "empty" ? t("flow.notRun") : t(matched ? "flow.out.matched" : "flow.out.noMatch"),
+          output: t(passed ? "flow.out.matched" : unknown ? "flow.out.noMatch" : "flow.out.thisNo"),
         });
-        if (n === checks[0] && outcome !== "empty")
+        if (n === checks[0])
           log.push({
             at: e.created_at,
             node: n.id,
@@ -133,6 +163,7 @@ export function viewRun(
             tone: matched ? "ok" : undefined,
           });
         break;
+      }
       case "table_read":
         if (!matched) skipped(checks.length ? "flow.notRunCheck" : "flow.notRun");
         else put(n, { state: "ran", badge: "ok", input, output: t("flow.out.read", { keys: n.keys.join(", ") }) });
@@ -238,7 +269,123 @@ export const logClock = clock;
 /** Whole-run summary under the header: duration from arrival to the end of its run, and tokens it spent. */
 export function runFacts(e: FlowRun, t: T) {
   return {
-    took: e.run_ended_at ? lasted(e.created_at, e.run_ended_at) : undefined,
+    took: (e.ended_at ?? e.run_ended_at) ? lasted(e.created_at, e.ended_at ?? e.run_ended_at) : undefined,
     tokens: e.run_tokens ? t("flow.tokens", { count: tokens(e.run_tokens) }) : undefined,
   };
+}
+
+const JSON_TEXT = (text: string | null) => {
+  if (text === null) return "";
+  try {
+    const value: unknown = JSON.parse(text);
+    if (typeof value === "string") return value;
+    if (
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      "text" in value &&
+      typeof value.text === "string"
+    )
+      return value.text;
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return text;
+  }
+};
+
+/** What each step of a drawn flow did in one graph run, from the core's per-step records. */
+export function viewGraphRun(run: RunDetail, flow: string, t: T, who: (n: FlowNode) => string): RunView {
+  const steps = new Map<string, StepView>();
+  const log: LogLine[] = [];
+  const records = new Map(run.steps.map((s) => [s.node, s]));
+  let order = 0;
+  let ran = 0;
+  for (const n of chainOrder(run.graph)) {
+    const r = records.get(n.id);
+    const settings = inputOf(n, flow, t, who);
+    if (!r) {
+      steps.set(n.id, { input: settings, output: run.state === "ignored" ? t("flow.out.empty") : "" });
+      continue;
+    }
+    const took = r.started_at && r.ended_at ? lasted(r.started_at, r.ended_at) : undefined;
+    const matched = n.kind === "condition" && r.state === "succeeded" ? r.output === '{"matched":true}' : undefined;
+    const state: StepView["state"] =
+      r.state === "succeeded"
+        ? "ran"
+        : r.state === "failed" || r.state === "uncertain"
+          ? "failed"
+          : r.state === "running" || r.state === "waiting_run"
+            ? "live"
+            : r.state === "pending"
+              ? undefined
+              : "skipped";
+    const output =
+      r.state === "succeeded"
+        ? matched === undefined
+          ? JSON_TEXT(r.output)
+          : t(matched ? "flow.out.matched" : "flow.out.thisNo")
+        : r.state === "skipped"
+          ? t("flow.notRunBranch")
+          : r.state === "blocked"
+            ? t("flow.notRunFailed")
+            : r.state === "pending"
+              ? t("flow.out.waiting")
+              : r.state === "running" || r.state === "waiting_run"
+                ? t("flow.out.working")
+                : whyText(r.error, t);
+    const badge =
+      matched !== undefined
+        ? t(matched ? "flow.log.yes" : "flow.log.no")
+        : r.state === "succeeded"
+          ? took
+            ? `ok · ${took}`
+            : "ok"
+          : r.state === "uncertain"
+            ? t("flow.run.uncertain")
+            : r.state === "failed"
+              ? t("flow.legend.stepFailed")
+              : r.state === "running" || r.state === "waiting_run"
+                ? t("flow.run.live")
+                : r.state === "pending"
+                  ? undefined
+                  : t("flow.legend.stepSkipped");
+    const counted = state && state !== "skipped";
+    if (counted) ran++;
+    steps.set(n.id, {
+      ...(state ? { state } : {}),
+      ...(counted ? { order: ++order } : {}),
+      ...(badge ? { badge } : {}),
+      input: r.input === null ? settings : JSON_TEXT(r.input),
+      output,
+      ...(r.run_id ? { run: r.run_id } : {}),
+    });
+    const name = n.label;
+    if (r.started_at && (n.kind === "agent" || n.kind === "routine" || n.kind === "llm"))
+      log.push({ at: r.started_at, node: n.id, text: t("flow.log.started", { who: name }) });
+    if (r.ended_at && r.state !== "skipped" && r.state !== "blocked")
+      log.push({
+        at: r.ended_at,
+        node: n.id,
+        text:
+          matched !== undefined
+            ? t("flow.log.checked", { step: name, result: t(matched ? "flow.log.yes" : "flow.log.no") })
+            : r.state === "succeeded"
+              ? t("flow.log.ended", { who: name })
+              : `${t("flow.log.failed", { who: name })} · ${whyText(r.error, t)}`,
+        tone: r.state === "succeeded" ? "ok" : "err",
+      });
+  }
+  log.push({
+    at: run.created_at,
+    node: run.graph.nodes.find((n) => n.kind === "webhook")?.id ?? "",
+    text: t("flow.log.arrived", { path: hookPath(flow), id: run.event }),
+  });
+  log.sort((a, b) => a.at.localeCompare(b.at));
+  return { steps, log, ran };
+}
+
+/** A step's recorded reason, in the person's words. */
+export function whyText(code: string | null, t: T): string {
+  const key = `flow.why.${code ?? "other"}`;
+  return isKey(key) ? t(key) : t("flow.why.other");
 }

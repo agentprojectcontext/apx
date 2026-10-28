@@ -6,7 +6,7 @@ import { client } from "../data/client.ts";
 import { useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { shownGraph } from "./data.ts";
+import { describeIssue, issueText, shownGraph } from "./data.ts";
 import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { connectNodes, moveNode, newNode, removeNode } from "./graph-edit.ts";
 import { Inspector } from "./Inspector.tsx";
@@ -40,6 +40,8 @@ function blank(n: FlowNode): boolean {
       return !n.agent || !n.prompt.trim();
     case "routine":
       return !n.routine;
+    case "llm":
+      return !n.model || !n.prompt.trim();
     default:
       return false;
   }
@@ -78,6 +80,10 @@ export function FlowEditor({
   const [graph, setGraph] = useState<FlowGraph | undefined>(flow ? undefined : undefined);
   const [saved, setSaved] = useState<string>("");
   const [version, setVersion] = useState<number | null>(null);
+  // The revision new events run, once the flow runs a published drawing.
+  const [published, setPublished] = useState<number | null>(null);
+  // Why the drawing can't run, as the core checked it: null when it can, undefined before a check.
+  const [problem, setProblem] = useState<string | null>();
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -100,6 +106,7 @@ export function FlowEditor({
       const g = s.draftPending && s.draft ? s.draft : s.graph;
       setGraph(g);
       setVersion(s.draftVersion);
+      setPublished(s.publishedRevision);
       setSaved(JSON.stringify([g, flow.name]));
     });
     return () => {
@@ -116,6 +123,22 @@ export function FlowEditor({
   );
   const g = graph ?? EMPTY;
   const shape = useMemo(() => shapeOfGraph(g), [g]);
+  // The core checks the drawing as it changes (its agents, routines and models in this project).
+  useEffect(() => {
+    if (!flow || !graph) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      if (graph.nodes.some(blank) || !graph.nodes.some((n) => n.kind === "webhook")) return setProblem(undefined);
+      void client.call("flows.validate", { flow: flow.id, graph: tidy(graph, t) }).then(
+        (r) => live && setProblem(r.issues[0] ? describeIssue(r.issues[0], graph, t) : null),
+        () => live && setProblem(undefined),
+      );
+    }, 400);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [flow, graph, t]);
   const dirty = graph !== undefined && JSON.stringify(flow ? [g, name] : [g, flow, name]) !== saved;
   const change = (next: FlowGraph) => {
     setGraph(next);
@@ -146,7 +169,7 @@ export function FlowEditor({
   const look = useCallback(
     (n: FlowNode): StepLook => {
       const base = { title: n.label || t(STEP[n.kind].label), ...stepDetail(n, flow?.id, allAgents, allRoutines) };
-      if (!trial) return n.kind === "llm" ? { ...base, muted: true } : base;
+      if (!trial) return base;
       const reached = trial.matches || n.kind === "webhook" || n.kind === "condition";
       return {
         ...base,
@@ -183,9 +206,11 @@ export function FlowEditor({
     const clean = tidy(g, t);
     const result = shapeOfGraph(clean);
     const id = flow?.id ?? slug(name);
+    // A flow that runs its old definition keeps it while the drawing stands for one (or gets one when new).
+    const legacy = published === null && (result.ok || !flow);
     setBusy(true);
     try {
-      if (result.ok || !flow) {
+      if (legacy) {
         const s = result.ok
           ? result.shape
           : { predicates: [], readKeys: [], tableKey: "latest", action: { kind: "none" as const } };
@@ -199,19 +224,38 @@ export function FlowEditor({
           action: s.action,
           ...(s.readKeys.length ? { readKeys: s.readKeys } : {}),
         });
-      }
+      } else if (flow && name.trim() !== flow.name) await client.call("flows.set", { ...flow, name: name.trim() });
       const doc = await client.call("flows.draft_save", { flow: id, expectedVersion: version, graph: clean });
-      setVersion(doc.draftVersion);
+      let next = { version: doc.draftVersion, published: doc.publishedRevision };
+      const { issues } = await client.call("flows.validate", { flow: id, graph: clean });
+      const first = issues[0];
+      let text: string;
+      if (first) text = t("flow.ed.savedCant", { reason: describeIssue(first, clean, t) });
+      else if (published === null && result.ok) text = t(flow?.enabled ? "flow.ed.savedRuns" : "flow.ed.savedOff");
+      else if (flow?.enabled && doc.draft && doc.draftVersion !== null) {
+        // On, a saved drawing runs: new events use it, events already received finish as they started.
+        const out = await client.call("flows.publish", {
+          flow: id,
+          expectedDraftVersion: doc.draftVersion,
+          expectedPublishedRevision: doc.publishedRevision,
+        });
+        next = { version: out.draftVersion, published: out.publishedRevision };
+        text = t("flow.ed.savedPublished");
+      } else text = t(flow?.enabled ? "flow.ed.savedRuns" : "flow.ed.savedOn");
+      setVersion(next.version);
+      setPublished(next.published);
+      setProblem(first ? describeIssue(first, clean, t) : null);
       setGraph(clean);
       setSaved(JSON.stringify([clean, name]));
-      setSaid({
-        text: t(!result.ok ? "flow.ed.savedDraft" : flow?.enabled ? "flow.ed.savedRuns" : "flow.ed.savedOff"),
-      });
+      setSaid({ text, ...(first ? { error: true } : {}) });
+      if (first?.node) setSelected(first.node);
       onSaved(id);
     } catch (e) {
       setSaid({
         error: true,
-        text: t(e instanceof ApxError && e.code === "conflict" ? "flow.ed.conflict" : "flow.ed.saveFailed"),
+        text:
+          issueText(e, clean, t) ??
+          t(e instanceof ApxError && e.code === "conflict" ? "flow.ed.conflict" : "flow.ed.saveFailed"),
       });
     } finally {
       setBusy(false);
@@ -319,7 +363,7 @@ export function FlowEditor({
               onSelect={setSelected}
               edit={{
                 move: (id, x, y) => change(moveNode(g, id, x, y)),
-                connect: (source, target) => change(connectNodes(g, source, target)),
+                connect: (source, target, when) => change(connectNodes(g, source, target, when)),
               }}
               minimap={g.nodes.length > 0}
               fitKey={`${flow?.id ?? "new"}:${g.nodes.length ? "some" : "none"}`}
@@ -341,13 +385,19 @@ export function FlowEditor({
             projectId={projectId}
             agents={agents}
             routines={routines}
-            shape={shape}
+            problem={problem}
             update={(n) => change({ ...g, nodes: g.nodes.map((x) => (x.id === n.id ? n : x)) })}
             remove={(id) => {
               change(removeNode(g, id));
               setSelected(null);
             }}
             select={setSelected}
+            branch={(source, target, when) =>
+              change({
+                ...g,
+                edges: g.edges.map((e) => (e.source === source && e.target === target ? { ...e, when } : e)),
+              })
+            }
             unlink={(source, target) =>
               change({ ...g, edges: g.edges.filter((e) => !(e.source === source && e.target === target)) })
             }

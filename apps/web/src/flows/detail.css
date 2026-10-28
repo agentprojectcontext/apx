@@ -117,6 +117,10 @@
   font-size: 11px;
   color: var(--apx-fg-muted);
 }
+.fd__version.is-old {
+  border-color: var(--apx-warning);
+  color: var(--apx-fg);
+}
 .fd__panel {
   display: flex;
   flex-direction: column;
@@ -363,8 +367,12 @@
 }
 
 @media (max-width: 760px) {
-  .fd__version {
+  .fd__version:not(.is-old) {
     display: none;
+  }
+  .fd__version.is-old {
+    top: auto;
+    bottom: 12px;
   }
   .fd {
     flex-direction: column;

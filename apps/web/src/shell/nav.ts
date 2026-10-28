@@ -106,6 +106,9 @@ export type NavState = {
   taskId: string | undefined;
   /** Project filter of the global Flows screen; undefined lists every project. */
   flowProject: string | undefined;
+  /** The flow open on the Flows screen (its runs), and whether its editor is open over it. */
+  flowId: string | undefined;
+  flowEdit: boolean;
   /** A task open over any other screen (from a chat), so the owner does not leave it. */
   peekTaskId: string | undefined;
 };
@@ -159,7 +162,13 @@ function fromHash(): Partial<NavState> {
         }
       : {}),
     ...(view && VIEWS.includes(view) ? { view: view as View } : {}),
-    ...(view === "flows" ? { flowProject: h.get("scope") ?? undefined } : {}),
+    ...(view === "flows"
+      ? {
+          flowProject: h.get("scope") ?? undefined,
+          flowId: h.get("flow") ?? undefined,
+          flowEdit: h.get("edit") === "1",
+        }
+      : {}),
     ...(app ? { view: "app" as const, appId: app } : {}),
     ...(channel ? { view: "channel" as const, channelId: channel, channelThread: h.get("chat") ?? undefined } : {}),
     // An engine's view opens on one of its sessions or on none: never on the chat the app started with.
@@ -200,6 +209,8 @@ export const nav = createStore<NavState>({
   taskId: undefined,
   peekTaskId: undefined,
   flowProject: undefined,
+  flowId: undefined,
+  flowEdit: false,
   ...fromHash(),
 });
 
@@ -216,6 +227,8 @@ type Place = Pick<
   | "engineId"
   | "taskId"
   | "flowProject"
+  | "flowId"
+  | "flowEdit"
   | "resourcesTab"
   | "listInFront"
   | "panel"
@@ -242,6 +255,8 @@ function placeOf(s: NavState): Place {
     engineId: s.engineId,
     taskId: s.taskId,
     flowProject: s.flowProject,
+    flowId: s.flowId,
+    flowEdit: s.flowEdit,
     resourcesTab: s.resourcesTab,
     listInFront: s.listInFront,
     panel: s.panel,
@@ -266,6 +281,8 @@ function samePlace(a: Place, b: Place): boolean {
     a.channelThread === b.channelThread &&
     a.engineId === b.engineId &&
     a.flowProject === b.flowProject &&
+    a.flowId === b.flowId &&
+    a.flowEdit === b.flowEdit &&
     a.resourcesTab === b.resourcesTab &&
     a.listInFront === b.listInFront
   );
@@ -316,6 +333,8 @@ nav.subscribe(() => {
   } else if (s.view === "tasks" || s.view === "flows" || s.view === "resources" || s.view === "computers") {
     h.set("view", s.view);
     if (s.view === "flows" && s.flowProject) h.set("scope", s.flowProject);
+    if (s.view === "flows" && s.flowId) h.set("flow", s.flowId);
+    if (s.view === "flows" && s.flowId && s.flowEdit) h.set("edit", "1");
     if (s.view === "tasks" && s.taskId) h.set("task", s.taskId);
   } else if (s.view === "channel" && s.channelId) {
     h.set("channel", s.channelId);
@@ -441,8 +460,9 @@ export const go = {
   app(appId: string) {
     nav.set({ view: "app", appId });
   },
-  flows(flowProject?: string) {
-    nav.set({ view: "flows", flowProject });
+  /** The Flows screen; with a flow, its runs, and with `edit` its editor over them. */
+  flows(flowProject?: string, flowId?: string, flowEdit = false) {
+    nav.set({ view: "flows", flowProject, flowId, flowEdit: Boolean(flowId) && flowEdit });
   },
   view(view: "tasks" | "resources" | "computers") {
     nav.set({ view });

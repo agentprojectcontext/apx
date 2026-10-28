@@ -8,6 +8,7 @@ import type { MessageKey } from "../i18n/index.ts";
 export type Flow = Result<"flows.set">;
 export type FlowRun = Result<"flows.events">["events"][number];
 export type FlowDraftParams = Params<"flows.set">;
+export type FlowBinding = import("../../../../packages/protocol/src/flow-graph.ts").FlowBinding;
 export type { FlowGraph, FlowNode };
 
 /** Kinds the current executor runs, and the ones the palette shows as coming soon (never added or saved). */
@@ -41,14 +42,14 @@ export const STEP: Record<StepKind | SoonKind, Meta> = {
   cmd: { icon: <Icons.Terminal />, tone: "neutral", label: "flow.kind.cmd", body: "flow.kind.cmdBody" },
   agent: { icon: <Icons.Sparkles />, tone: "violet", label: "flow.kind.agent", body: "flow.kind.agentBody" },
   routine: { icon: <Icons.Repeat />, tone: "violet", label: "flow.kind.routine", body: "flow.kind.routineBody" },
-  llm: { icon: <Icons.Brain />, tone: "violet", label: "flow.kind.llm" },
+  llm: { icon: <Icons.Brain />, tone: "violet", label: "flow.kind.llm", body: "flow.kind.llmBody" },
   notify: { icon: <Icons.Send />, tone: "brand", label: "flow.kind.notify", body: "flow.kind.notifyBody" },
 };
 
 export const PALETTE: { group: MessageKey; kinds: (StepKind | SoonKind)[] }[] = [
   { group: "flow.group.trigger", kinds: ["webhook", "schedule"] },
   { group: "flow.group.steps", kinds: ["condition", "table_read", "table_write", "sql", "http", "cmd"] },
-  { group: "flow.group.crew", kinds: ["agent", "routine"] },
+  { group: "flow.group.crew", kinds: ["agent", "routine", "llm"] },
   { group: "flow.group.output", kinds: ["notify"] },
 ];
 export const isSoon = (kind: string): kind is SoonKind =>

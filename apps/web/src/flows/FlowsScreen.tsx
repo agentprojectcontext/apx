@@ -18,22 +18,25 @@ import { loadRoutines, useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { FlowDetail, FlowEditor } from "../lazy.ts";
-import { go } from "../shell/nav.ts";
-import { agentOf, loadFlows, loadRuns, setEnabled } from "./data.ts";
+import { go, useNav } from "../shell/nav.ts";
+import { agentOf, issueText, loadFlows, loadRuns, type Published, setEnabled } from "./data.ts";
 import { OUTCOME, outcomeOf, runWhen } from "./run-view.ts";
 import { STARTERS, type Starter } from "./starters.ts";
-import { chipsOf, type Flow, type FlowRun, STEP } from "./steps.tsx";
+import { chipsOf, type Flow, type FlowRun, STEP, type StepKind } from "./steps.tsx";
 import "@apx/ui/flow.css";
 import "./flows.css";
-
-type Screen = { kind: "list" } | { kind: "detail"; id: string } | { kind: "editor"; id?: string; starter?: Starter };
 
 /** Flows across projects: a list, a flow's runs, and the full-screen editor, all on this one screen. */
 export default function FlowsScreen({ projectId }: { projectId?: string | undefined }) {
   const ready = usePack("flow");
-  const [flows, setFlows] = useState<Flow[]>();
+  const flowId = useNav((s) => s.flowId);
+  const flowEdit = useNav((s) => s.flowEdit);
+  const [data, setData] = useState<{ flows: Flow[]; published: Published }>();
   const [failed, setFailed] = useState(false);
-  const [screen, setScreen] = useState<Screen>({ kind: "list" });
+  // A new flow's editor, before it has an id to link to.
+  const [creating, setCreating] = useState<Starter>();
+  // The flow a new editor first saved: the same editor stays open on it, without reloading.
+  const [born, setBorn] = useState<string>();
   const [revision, setRevision] = useState(0);
   const refresh = useCallback(() => setRevision((n) => n + 1), []);
   useEffect(() => {
@@ -44,7 +47,7 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
     let live = true;
     setFailed(false);
     loadFlows().then(
-      (list) => live && setFlows(list),
+      (list) => live && setData(list),
       () => live && setFailed(true),
     );
     return () => {
@@ -52,7 +55,15 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
     };
   }, [revision]);
   if (!ready) return <Skeleton width="100%" height={80} />;
-  const open = screen.kind !== "list" && screen.id ? flows?.find((f) => f.id === screen.id) : undefined;
+  const flows = data?.flows;
+  const open = flowId ? flows?.find((f) => f.id === flowId) : undefined;
+  // A new flow's editor stays open while its first save comes back as a flow with an id.
+  if (creating && open) setCreating(undefined);
+  const show = (id?: string, edit = false) => {
+    setCreating(undefined);
+    setBorn(undefined);
+    go.flows(projectId, id, edit);
+  };
   return (
     <>
       {open ? (
@@ -60,34 +71,41 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
           <FlowDetail
             key={open.id}
             flow={open}
-            onBack={() => setScreen({ kind: "list" })}
-            onEdit={() => setScreen({ kind: "editor", id: open.id })}
+            onBack={() => show()}
+            onEdit={() => show(open.id, true)}
             onChanged={refresh}
           />
         </Suspense>
       ) : (
         <FlowList
           flows={flows}
+          published={data?.published ?? {}}
           failed={failed}
           projectId={projectId}
           revision={revision}
           retry={refresh}
-          onOpen={(id) => setScreen({ kind: "detail", id })}
-          onEdit={(id) => setScreen({ kind: "editor", id })}
-          onNew={(starter) => setScreen({ kind: "editor", starter })}
+          onOpen={(id) => show(id)}
+          onEdit={(id) => show(id, true)}
+          onNew={(starter) => {
+            setBorn(undefined);
+            go.flows(projectId);
+            setCreating(starter);
+          }}
           onChanged={refresh}
         />
       )}
-      {screen.kind === "editor" && (
+      {(creating || (open && flowEdit)) && (
         <Suspense fallback={null}>
           <FlowEditor
+            key={creating || (born && born === open?.id) ? "new" : open?.id}
             flow={open}
-            starter={screen.starter}
+            starter={creating}
             projectId={projectId}
-            onClose={() => setScreen(open ? { kind: "detail", id: open.id } : { kind: "list" })}
+            onClose={() => show(open?.id)}
             onSaved={(id) => {
+              if (creating) setBorn(id);
               refresh();
-              setScreen({ kind: "editor", id });
+              go.flows(projectId, id, true);
             }}
           />
         </Suspense>
@@ -98,6 +116,7 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
 
 function FlowList(props: {
   flows: Flow[] | undefined;
+  published: Published;
   failed: boolean;
   projectId: string | undefined;
   revision: number;
@@ -169,6 +188,7 @@ function FlowList(props: {
                 <FlowRow
                   key={f.id}
                   flow={f}
+                  kinds={props.published[f.id]?.kinds}
                   revision={props.revision}
                   onOpen={() => props.onOpen(f.id)}
                   onEdit={() => props.onEdit(f.id)}
@@ -238,6 +258,8 @@ function Starters({ project, onNew }: { project: boolean; onNew: (s: Starter) =>
 
 function FlowRow(props: {
   flow: Flow;
+  /** A published drawing's step kinds, in the order they run; its old definition says nothing then. */
+  kinds: string[] | undefined;
   revision: number;
   onOpen: () => void;
   onEdit: () => void;
@@ -261,10 +283,15 @@ function FlowRow(props: {
       live = false;
     };
   }, [flow.id, props.revision]);
-  const shape = shapeOfDefinition(flow);
-  const agent = agentOf(flow.action, agents, routines);
-  const who =
-    flow.action.kind === "agent"
+  const drawn = props.kinds?.filter((k): k is StepKind => k !== "webhook" && k in STEP);
+  const chips = drawn ?? chipsOf(shapeOfDefinition(flow));
+  const crew = drawn?.filter((k) => k === "agent" || k === "routine" || k === "llm").length;
+  const agent = drawn ? undefined : agentOf(flow.action, agents, routines);
+  const who = drawn
+    ? crew
+      ? t("flow.crewSteps", { count: crew })
+      : undefined
+    : flow.action.kind === "agent"
       ? (agent?.name ?? flow.action.agent)
       : flow.action.kind === "routine"
         ? (routines.find((r) => r.id === (flow.action as { routine: string }).routine)?.name ?? flow.action.routine)
@@ -277,8 +304,8 @@ function FlowRow(props: {
     try {
       await setEnabled(flow, on);
       props.onChanged();
-    } catch {
-      notify(t("flow.ed.saveFailed"));
+    } catch (e) {
+      notify(issueText(e, undefined, t) ?? t("flow.ed.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -296,7 +323,7 @@ function FlowRow(props: {
           </span>
         </span>
         <span className="flowrow__chips">
-          {chipsOf(shape).map((k, i) => (
+          {chips.map((k, i) => (
             // Chips are positions in the chain.
             // biome-ignore lint/suspicious/noArrayIndexKey: positional
             <FlowStepTile key={i} icon={STEP[k].icon} tone={STEP[k].tone} size="sm" label={t(STEP[k].label)} />
@@ -305,7 +332,7 @@ function FlowRow(props: {
         <span className="flowrow__model">
           {who ? (
             <>
-              <AgentAvatar name={agent?.name ?? who} blob={blobOf(agent)} size={20} animated={false} />
+              {!drawn && <AgentAvatar name={agent?.name ?? who} blob={blobOf(agent)} size={20} animated={false} />}
               <span>{who}</span>
             </>
           ) : (

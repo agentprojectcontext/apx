@@ -45,9 +45,11 @@ export function connectionError(graph: FlowGraph, source: string, target: string
   }
   return null;
 }
-export function connectNodes(graph: FlowGraph, source: string, target: string): FlowGraph {
+/** Joins two steps; out of a check, `when` says by which branch (yes unless "no"). */
+export function connectNodes(graph: FlowGraph, source: string, target: string, when?: "yes" | "no"): FlowGraph {
   if (connectionError(graph, source, target)) return graph;
-  return { ...graph, edges: [...graph.edges, { source, target }] };
+  const check = graph.nodes.find((n) => n.id === source)?.kind === "condition";
+  return { ...graph, edges: [...graph.edges, { source, target, ...(check ? { when: when ?? "yes" } : {}) }] };
 }
 export function moveNode(graph: FlowGraph, id: string, x: number, y: number): FlowGraph {
   const point = { node: id, x: Math.max(-100000, Math.min(100000, x)), y: Math.max(-100000, Math.min(100000, y)) };

@@ -47,12 +47,29 @@
 .fc:not(.is-edit) .fc-handle {
   visibility: hidden;
 }
+.fc .fc-handle--yes {
+  background: var(--apx-brand);
+}
+.fc .fc-handle--no {
+  background: var(--apx-fg-subtle);
+}
+.fc .fc-edge .react-flow__edge-text {
+  font-size: 11px;
+  fill: var(--apx-fg-muted);
+}
+.fc .fc-edge .react-flow__edge-textbg {
+  fill: var(--apx-surface-raised);
+  stroke: var(--apx-border);
+}
 .fc .fc-edge .react-flow__edge-path {
   stroke: var(--apx-border-strong);
   stroke-width: 1.5;
 }
 .fc .fc-edge.is-ran .react-flow__edge-path {
   stroke: var(--apx-brand);
+}
+.fc .fc-edge.is-no .react-flow__edge-path {
+  stroke-dasharray: 5 4;
 }
 .fc.is-edit .react-flow__node-step {
   cursor: grab;

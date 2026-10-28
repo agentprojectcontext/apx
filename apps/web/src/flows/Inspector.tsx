@@ -1,5 +1,4 @@
 import type { Agent, Routine } from "@apx/protocol";
-import type { FlowShapeResult } from "@apx/protocol/flow-shape";
 import {
   AgentAvatar,
   Button,
@@ -15,18 +14,33 @@ import {
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { blobOf } from "../data/identity.ts";
+import { forAgents, useModels } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
-import { type MessageKey, useT } from "../i18n/index.ts";
+import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
-import { chainOrder, dotted, type FlowGraph, type FlowNode, hookPath, STEP } from "./steps.tsx";
+import { chainOrder, dotted, type FlowBinding, type FlowGraph, type FlowNode, hookPath, STEP } from "./steps.tsx";
 
-type T = ReturnType<typeof useT>;
-
-/** Why the drawn flow does not run yet, in the person's words. */
-function problemText(shape: FlowShapeResult, graph: FlowGraph, t: T): string | undefined {
-  if (shape.ok) return undefined;
-  const step = graph.nodes.find((n) => n.id === shape.problem.node)?.label ?? "";
-  return t(`flow.problem.${shape.problem.code}` as MessageKey, { step });
+/** What a step gives the next ones: the part of its result a later step receives. */
+const RESULT: Partial<Record<FlowNode["kind"], string[]>> = {
+  llm: ["text"],
+  agent: ["text"],
+  routine: ["text"],
+  table_read: ["rows"],
+  table_write: ["value"],
+};
+/** Steps whose result can reach `id`: every step on a path before it, except the trigger (that is the event). */
+function earlier(graph: FlowGraph, id: string): FlowNode[] {
+  const seen = new Set<string>();
+  const todo = [id];
+  while (todo.length) {
+    const at = todo.pop();
+    for (const e of graph.edges)
+      if (e.target === at && !seen.has(e.source)) {
+        seen.add(e.source);
+        todo.push(e.source);
+      }
+  }
+  return chainOrder(graph).filter((n) => seen.has(n.id) && RESULT[n.kind]);
 }
 
 /** The panel at the right: the chosen step's settings, or every step in order with how the flow runs. */
@@ -37,16 +51,19 @@ export function Inspector(props: {
   projectId: string;
   agents: Agent[];
   routines: Routine[];
-  shape: FlowShapeResult;
+  /** Why the saved drawing can't run, when the core said so; undefined until it has been checked. */
+  problem: string | null | undefined;
   update: (n: FlowNode) => void;
   remove: (id: string) => void;
   select: (id: string | null) => void;
   unlink: (source: string, target: string) => void;
+  /** Moves a connection out of a check to its other branch. */
+  branch: (source: string, target: string, when: "yes" | "no") => void;
 }) {
   const t = useT();
   const { graph, selected: n } = props;
   if (!n) {
-    const problem = problemText(props.shape, graph, t);
+    const { problem } = props;
     return (
       <div className="fe-ins">
         <div className="fe-ins__title">
@@ -63,9 +80,9 @@ export function Inspector(props: {
           ))}
           {!graph.nodes.length && <span className="fe-ins__muted">{t("flow.ed.noSteps")}</span>}
         </div>
-        {graph.nodes.length > 0 && (
+        {graph.nodes.length > 0 && problem !== undefined && (
           <div className={problem ? "fe-shape is-draft" : "fe-shape"}>
-            {problem ? t("flow.ed.draftOnly", { reason: problem }) : t("flow.ed.runsAsDrawn")}
+            {problem ? t("flow.ed.cantRun", { reason: problem }) : t("flow.ed.runsAsDrawn")}
           </div>
         )}
       </div>
@@ -99,6 +116,18 @@ export function Inspector(props: {
           <span className="fe-ins__label">{t("flow.ed.next")}</span>
           {outs.map((e) => (
             <div key={e.target} className="fe-outs__row">
+              {n.kind === "condition" && (
+                <button
+                  type="button"
+                  className={e.when === "no" ? "fe-outs__when is-no" : "fe-outs__when"}
+                  aria-label={t(e.when === "no" ? "flow.ed.toYes" : "flow.ed.toNo", {
+                    step: graph.nodes.find((x) => x.id === e.target)?.label ?? "",
+                  })}
+                  onClick={() => props.branch(e.source, e.target, e.when === "no" ? "yes" : "no")}
+                >
+                  {t(e.when === "no" ? "flow.f.no" : "flow.f.yes")}
+                </button>
+              )}
               <span>{graph.nodes.find((x) => x.id === e.target)?.label}</span>
               <IconButton
                 label={t("flow.ed.unlink")}
@@ -186,6 +215,7 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode }) {
             </Field>
           )}
           <p className="fe-note">{t("flow.f.checkNote")}</p>
+          <p className="fe-note">{t("flow.f.branchNote")}</p>
         </>
       );
     }
@@ -220,6 +250,13 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode }) {
               />
             )}
           </Field>
+          <InputPicker
+            label={t("flow.f.saveWhat")}
+            graph={props.graph}
+            n={n}
+            value={n.value}
+            onChange={(value) => update({ ...n, value })}
+          />
           <p className="fe-note">{t("flow.f.saveNote")}</p>
         </>
       );
@@ -253,6 +290,13 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode }) {
               />
             )}
           </Field>
+          <InputPicker
+            label={t("flow.f.receives")}
+            graph={props.graph}
+            n={n}
+            value={n.input}
+            onChange={(input) => update({ ...n, input })}
+          />
           <p className="fe-note">{t("flow.f.agentNote")}</p>
         </>
       );
@@ -274,12 +318,129 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode }) {
               )
             }
           </Field>
+          <InputPicker
+            label={t("flow.f.receives")}
+            graph={props.graph}
+            n={n}
+            value={n.input}
+            onChange={(input) => update({ ...n, input })}
+          />
           <p className="fe-note">{t("flow.f.routineNote")}</p>
         </>
       );
     case "llm":
-      return <p className="fe-note">{t("flow.f.llmNote")}</p>;
+      return <ModelFields {...props} n={n} />;
   }
+}
+
+function ModelFields(props: Parameters<typeof Inspector>[0] & { n: Extract<FlowNode, { kind: "llm" }> }) {
+  const t = useT();
+  const { n, update } = props;
+  const catalog = useModels((s) => s.catalog);
+  // Only a model API the owner set up: one exact model, called once, never a CLI engine.
+  const options = catalog
+    .filter(forAgents)
+    .flatMap((e) =>
+      e.models.filter((m) => m.chat).map((m) => ({ value: `${e.id}/${m.id}`, label: m.name, hint: e.label })),
+    );
+  if (n.model && !options.some((o) => o.value === n.model)) options.push({ value: n.model, label: n.model, hint: "" });
+  return (
+    <>
+      <Field label={t("flow.f.model")}>
+        {() => (
+          <Select
+            label={t("flow.f.model")}
+            value={n.model || null}
+            placeholder={t("flow.f.choose")}
+            onValueChange={(v) => update({ ...n, model: v ?? "" })}
+            options={options}
+          />
+        )}
+      </Field>
+      <Field label={t("flow.f.task")}>
+        {(id) => (
+          <Textarea
+            id={id}
+            rows={6}
+            maxLength={8000}
+            value={n.prompt}
+            onChange={(e) => update({ ...n, prompt: e.target.value })}
+          />
+        )}
+      </Field>
+      <InputPicker
+        label={t("flow.f.receives")}
+        graph={props.graph}
+        n={n}
+        value={n.input}
+        onChange={(input) => update({ ...n, input })}
+      />
+      <p className="fe-note">{t("flow.f.llmNote")}</p>
+    </>
+  );
+}
+
+/** What a step receives: what arrived (all of it or one field), or the result of a step before it. */
+function InputPicker({
+  label,
+  graph,
+  n,
+  value,
+  onChange,
+}: {
+  label: string;
+  graph: FlowGraph;
+  n: FlowNode;
+  value: FlowBinding;
+  onChange: (b: FlowBinding) => void;
+}) {
+  const t = useT();
+  const before = earlier(graph, n.id);
+  const from = value.kind === "node" ? value.node : "event";
+  return (
+    <>
+      <Field label={label}>
+        {() => (
+          <Select
+            label={label}
+            value={from}
+            onValueChange={(v) => {
+              const step = before.find((x) => x.id === v);
+              onChange(
+                step ? { kind: "node", node: step.id, path: RESULT[step.kind] ?? [] } : { kind: "event", path: [] },
+              );
+            }}
+            options={[
+              { value: "event", label: t("flow.f.fromEvent") },
+              ...before.map((x) => ({ value: x.id, label: t("flow.f.fromStep", { step: x.label }) })),
+            ]}
+          />
+        )}
+      </Field>
+      {value.kind === "event" && (
+        <Field label={t("flow.f.part")} hint={t("flow.f.partHint")}>
+          {(id) => (
+            <Input
+              id={id}
+              value={dotted(value.path)}
+              className="fe-mono"
+              placeholder={t("flow.f.partAll")}
+              onChange={(e) =>
+                onChange({
+                  kind: "event",
+                  path: e.target.value
+                    .split(".")
+                    .map((x) => x.trim())
+                    .filter(Boolean)
+                    .slice(0, 16),
+                })
+              }
+            />
+          )}
+        </Field>
+      )}
+    </>
+  );
 }
 
 function HookFields({ flowId }: { flowId: string | undefined }) {
