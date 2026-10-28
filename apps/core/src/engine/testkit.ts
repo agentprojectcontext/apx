@@ -130,6 +130,8 @@ export async function startCore(opts: {
   telemetrySink?: TelemetrySink;
   /** The release this core starts on and its notes; none tells nothing. */
   releases?: ReleaseSource;
+  /** Loopback servers a test's Flow HTTP steps may reach (`127.0.0.1:port`). */
+  flowHttpAllow?: string[];
 }) {
   const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx-engine-"));
   // A provider named "fake" so refs like "fake/fake-1" are valid; the scripted model answers for it.
@@ -145,6 +147,7 @@ export async function startCore(opts: {
       ...(opts.googleApi ? { googleApi: opts.googleApi } : {}),
       ...(opts.googleClient ? { googleClient: opts.googleClient } : {}),
       ...(opts.expoPushUrl ? { expoPushUrl: opts.expoPushUrl } : {}),
+      ...(opts.flowHttpAllow ? { flowHttpAllow: opts.flowHttpAllow } : {}),
     }),
     {
       quiet: true,

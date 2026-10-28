@@ -21,7 +21,10 @@ export type FlowStepRow = {
   state: FlowNodeState;
   input: unknown;
   output: unknown;
-  /** A model step: `reserved` before its call, `dispatched` once the call may have reached the provider. */
+  /**
+   * A step with an effect outside (a model call, a message, a non-GET request): `reserved` before it, `dispatched`
+   * once it may have reached the other side.
+   */
   phase: "reserved" | "dispatched" | null;
   run_id: string | null;
   thread_id: string | null;
@@ -324,12 +327,33 @@ export function flowGraphRunsRepo(db: Db) {
                 .where("g.state", "=", "pending"),
             ),
           );
-        const uncertain = run(
-          live(qb.updateTable("flow_graph_nodes"))
-            .set({ state: "uncertain", ended_at: at.toISOString(), error: "model_uncertain" })
-            .where("state", "=", "running")
-            .where("phase", "=", "dispatched"),
+        // Which kind of effect it was decides what the owner is told to check: a model call, a message, a request.
+        const sent = all(
+          qb
+            .selectFrom("flow_graph_nodes as n")
+            .innerJoin("flow_graph_events as g", (j) =>
+              j.onRef("g.flow_id", "=", "n.flow_id").onRef("g.event_id", "=", "n.event_id"),
+            )
+            .innerJoin("flow_graph_revisions as r", (j) =>
+              j.onRef("r.flow_id", "=", "n.flow_id").onRef("r.revision", "=", "n.revision"),
+            )
+            .select(["n.flow_id", "n.event_id", "n.revision", "n.node_id", "r.graph"])
+            .where("g.state", "=", "pending")
+            .where("n.state", "=", "running")
+            .where("n.phase", "=", "dispatched"),
         );
+        let uncertain = 0;
+        for (const r of sent) {
+          const kind = FlowGraph.parse(JSON.parse(r.graph)).nodes.find((n) => n.id === r.node_id)?.kind;
+          const error =
+            kind === "notify" ? "send_uncertain" : kind === "http" ? "request_uncertain" : "model_uncertain";
+          uncertain += run(
+            step({ flow: r.flow_id, event: r.event_id, revision: r.revision, node: r.node_id })
+              .set({ state: "uncertain", ended_at: at.toISOString(), error })
+              .where("state", "=", "running")
+              .where("phase", "=", "dispatched"),
+          );
+        }
         run(
           live(qb.updateTable("flow_graph_nodes"))
             .set({ state: "pending", phase: null, started_at: null, input: null })

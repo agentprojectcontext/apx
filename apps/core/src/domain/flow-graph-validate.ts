@@ -4,15 +4,76 @@ import {
   type FlowGraphIssue,
   type FlowNode,
 } from "../../../../packages/protocol/src/flow-graph.ts";
+import { flowHttpUrlProblem } from "./flow-http-url.ts";
+import { flowTemplateBindings, parseFlowTemplate } from "./flow-template.ts";
 import { flowCronProblem } from "./schedule.ts";
 
 /** A run starts at its one trigger: a POST or a schedule. */
 export const isFlowTrigger = (node: FlowNode): boolean => node.kind === "webhook" || node.kind === "schedule";
 
+/** Steps that act outside APX: a message sent as the owner, a request to another service. */
+export const isFlowOutward = (node: FlowNode): boolean => node.kind === "notify" || node.kind === "http";
+const OUTWARD_LIMIT = 8;
+
+/** The templates of a step, where its placeholders are. */
+export function flowNodeTemplates(node: FlowNode): string[] {
+  if (node.kind === "notify") return [node.text];
+  if (node.kind === "http") return [...node.headers.map((h) => h.value), node.body];
+  return [];
+}
+
 export function flowNodeBindings(node: FlowNode): FlowBinding[] {
   if (node.kind === "condition" || node.kind === "llm" || node.kind === "agent" || node.kind === "routine")
     return [node.input];
-  return node.kind === "table_write" ? [node.value] : [];
+  if (node.kind === "table_write") return [node.value];
+  try {
+    return flowNodeTemplates(node).flatMap(flowTemplateBindings);
+  } catch {
+    // validateFlowGraph says why.
+    return [];
+  }
+}
+
+/** Headers the request sets itself, or that would change how it reaches the service. */
+const OWN_HEADERS = new Set([
+  "host",
+  "content-length",
+  "transfer-encoding",
+  "connection",
+  "upgrade",
+  "keep-alive",
+  "te",
+  "trailer",
+  "expect",
+  "proxy-authorization",
+  "proxy-connection",
+]);
+
+function outwardIssues(node: FlowNode, add: (code: string, message: string, node?: string) => void) {
+  for (const template of flowNodeTemplates(node)) {
+    try {
+      parseFlowTemplate(template);
+    } catch {
+      add("template_invalid", "A placeholder names no step or field", node.id);
+    }
+  }
+  if (node.kind === "notify" && !node.text.trim()) add("message_empty", "The message is empty", node.id);
+  if (node.kind !== "http") return;
+  const problem = flowHttpUrlProblem(node.url);
+  if (problem === "invalid") add("url_invalid", "The address is not a web address", node.id);
+  // A private address is checked with the owner's setup (flow-outward.ts), where a test may let its own server in.
+  if (problem === "secret") add("url_secret", "Secrets go in a header, not in the address", node.id);
+  if (node.method === "GET" && node.body) add("get_body", "A GET request has no body", node.id);
+  if (node.body.includes("secret://")) add("body_secret", "Secrets go in a header, not in the body", node.id);
+  const names = new Set<string>();
+  for (const h of node.headers) {
+    const name = h.name.toLowerCase();
+    if (OWN_HEADERS.has(name) || name.startsWith("proxy-"))
+      add("header_refused", "That header is set by the request itself", node.id);
+    if (names.has(name)) add("header_duplicate", "Each header once", node.id);
+    names.add(name);
+    if (/[\r\n\0]/.test(h.value)) add("header_invalid", "A header value is one line", node.id);
+  }
 }
 
 export function validateFlowGraph(value: FlowGraph): FlowGraphIssue[] {
@@ -36,6 +97,9 @@ export function validateFlowGraph(value: FlowGraph): FlowGraphIssue[] {
   }
   if (graph.nodes.filter((node) => node.kind === "llm").length > 4)
     add("model_limit", "A graph supports at most four LLM nodes");
+  if (graph.nodes.filter(isFlowOutward).length > OUTWARD_LIMIT)
+    add("outward_limit", "A graph sends or calls out at most eight times");
+  for (const node of graph.nodes) outwardIssues(node, add);
   const parents = new Map<string, Set<string>>([...nodes.keys()].map((id) => [id, new Set()]));
   const edges = new Set<string>();
   for (const edge of graph.edges) {

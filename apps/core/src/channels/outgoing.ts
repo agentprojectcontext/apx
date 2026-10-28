@@ -76,13 +76,13 @@ export function createOutgoing(deps: {
    * A person's chat on a channel: the one with their latest words (on `channel`, an id or type, when given), else a new
    * empty one on the first channel that knows them, its answers going back to them.
    */
-  function chatWith(personId: string, channel?: string) {
+  function chatWith(personId: string, channel?: string, exact = false) {
     const person = store.persons.get(personId);
     if (!person || person.role === "blocked") throw new Error(`${personId} is not one of the owner's contacts`);
-    const wanted = channel?.toLowerCase();
+    const wanted = exact ? channel : channel?.toLowerCase();
     const options = person.addresses.flatMap((a) => {
       const cfg = configs().find((c) => c.id === a.channel);
-      if (!cfg || (wanted && cfg.id !== wanted && cfg.type !== wanted)) return [];
+      if (!cfg || (wanted && cfg.id !== wanted && (exact || cfg.type !== wanted))) return [];
       const chat = store.threads.byConversation(cfg.id, a.external_id);
       return [{ cfg, conversation: a.external_id, chat, running: deps.live(cfg.id)?.status === "running" }];
     });
@@ -121,12 +121,14 @@ export function createOutgoing(deps: {
     /** `by`: the agent writing; none: the owner themselves. `files`: media ids sent with it. */
     o: {
       channel?: string | undefined;
+      /** `channel` is a channel's id, never a type: a Flow's fixed destination. */
+      exact?: boolean | undefined;
       by?: string | undefined;
       files?: string[] | undefined;
       omit_signature?: boolean | undefined;
     },
   ): Posted {
-    const { pick, owner, thread } = chatWith(personId, o.channel);
+    const { pick, owner, thread } = chatWith(personId, o.channel, o.exact);
     // The chat's agent answers the contact's reply knowing it wrote this first (the owner's own chat logs its turns).
     const recent = recentOf(thread.id);
     // To the owner on a chat app it is a notice like any other: without sound in their quiet hours.
@@ -166,6 +168,23 @@ export function createOutgoing(deps: {
       );
     }
     const { cfg, room: r } = exact[0] as (typeof exact)[number];
+    return postIn(cfg, r, text, o);
+  }
+
+  /** A listed room of a channel, by their ids: a Flow's fixed destination, never matched by name. */
+  function postToRoom(channelId: string, roomId: string, text: string): Posted {
+    const cfg = configs().find((c) => c.id === channelId && c.enabled);
+    const r = cfg?.rooms?.rooms.find((x) => x.id === roomId);
+    if (!cfg || !r) throw new Error("that room is not listed on the channel");
+    return postIn(cfg, r, text, {});
+  }
+
+  function postIn(
+    cfg: ChannelConfig,
+    r: NonNullable<ChannelConfig["rooms"]>["rooms"][number],
+    text: string,
+    o: { by?: string | undefined; files?: string[] | undefined },
+  ): Posted {
     const thread = rooms.thread(cfg, r);
     const recent = recentOf(thread.id);
     const named = roomMentions(quietMentions(text), store.channels.inbox.people(cfg.id, r.id));
@@ -239,6 +258,7 @@ export function createOutgoing(deps: {
     settled,
     messageContact,
     postInRoom,
+    postToRoom,
     avatar,
     presence,
     /** A person's chat on a channel, made (empty) when they have none yet. */

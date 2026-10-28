@@ -45,6 +45,41 @@ export const FlowNode = z.discriminatedUnion("kind", [
     })
     .strict(),
   z.object({ ...Base, kind: z.literal("routine"), routine: FlowId, input: FlowBinding }).strict(),
+  /**
+   * Sends `text` (a template) as the owner to a contact or room the owner picked; the destination is fixed in the
+   * revision, never taken from the payload. `onlyIfContent` skips the send when every placeholder came out empty.
+   */
+  z
+    .object({
+      ...Base,
+      kind: z.literal("notify"),
+      channel: FlowId,
+      to: z.discriminatedUnion("kind", [
+        z.object({ kind: z.literal("contact"), person: FlowId }).strict(),
+        z.object({ kind: z.literal("room"), room: z.string().min(1).max(200) }).strict(),
+      ]),
+      text: z.string().min(1).max(4000),
+      onlyIfContent: z.boolean(),
+    })
+    .strict(),
+  /** Calls a URL fixed in the revision; header values and body are templates, secrets only as `secret://name`. */
+  z
+    .object({
+      ...Base,
+      kind: z.literal("http"),
+      method: z.enum(["GET", "POST", "PUT"]),
+      url: z.string().min(8).max(2000),
+      headers: z
+        .array(
+          z
+            .object({ name: z.string().regex(/^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,100}$/), value: z.string().max(4000) })
+            .strict(),
+        )
+        .max(16),
+      body: z.string().max(16000),
+      timeoutMs: z.number().int().min(1000).max(30000),
+    })
+    .strict(),
 ]);
 export type FlowNode = z.infer<typeof FlowNode>;
 export const FlowGraph = z
@@ -108,7 +143,9 @@ export const FlowStepRecord = z
     truncated: z.boolean(),
     /**
      * Why it did not succeed, as a code: missing_value, table_full, model_unavailable, model_refused, model_cut,
-     * model_uncertain, not_started, run_failed, run_canceled, run_silent, deadline, value_too_large, owner_cancelled, cancelled_after_send.
+     * model_uncertain, not_started, run_failed, run_canceled, run_silent, deadline, value_too_large, owner_cancelled,
+     * cancelled_after_send; notify: nothing_to_tell (skipped), rate_limited, destination_unavailable, send_failed,
+     * send_uncertain; http: destination_refused, request_failed, request_uncertain, value_invalid, secret_missing.
      */
     error: z.string().nullable(),
     run_id: z.string().nullable(),
@@ -227,12 +264,31 @@ export const flowGraphMethods = {
     effect: false,
     access: "human",
   },
+  /** Where a drawing would send as the owner and which hosts it would call, in words to show before publishing. */
+  "flows.outward": {
+    params: z.object({ flow: FlowId, graph: FlowGraph }).strict(),
+    result: z
+      .object({
+        /** Keys to pass back to `flows.publish` once the owner has seen them. */
+        keys: z.array(z.string()),
+        sends: z.array(z.object({ node: FlowNodeId, channel: z.string(), to: z.string() }).strict()),
+        calls: z.array(z.object({ node: FlowNodeId, method: z.string(), host: z.string() }).strict()),
+      })
+      .strict(),
+    effect: false,
+    access: "human",
+  },
   "flows.publish": {
     params: z
       .object({
         flow: FlowId,
         expectedDraftVersion: z.number().int().min(1),
         expectedPublishedRevision: z.number().int().min(1).nullable(),
+        /**
+         * Where the drawing sends and which hosts it calls, as `flows.outward` lists them for this draft: the owner saw
+         * them before it runs. Required, and must match, when the draft has notify or http steps.
+         */
+        outward: z.array(z.string().max(400)).max(16).optional(),
       })
       .strict(),
     result: FlowGraphDocument,

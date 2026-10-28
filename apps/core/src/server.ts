@@ -66,6 +66,8 @@ import { type ComputerConfig, createComputer } from "./environments/computer.ts"
 import { managedVmConfig } from "./environments/managed.ts";
 import { computerWatchdog } from "./environments/watchdog.ts";
 import { errorMessage } from "./errors.ts";
+import { flowHttpPolicy } from "./flow-http.ts";
+import { notifyDestination } from "./flow-outward.ts";
 import { createFlows } from "./flows.ts";
 import { thisRunner, writeApxCommand } from "./harness/apx-command.ts";
 import type { CliStatus } from "./harness/detect.ts";
@@ -433,6 +435,27 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     cancelThread: (thread) => engine.cancel(thread),
     timers: opts.runTimers,
     clock: opts.clock,
+    // A notify step's destination is its revision's: channel and person or room by id (flow-outward.ts).
+    notifier: {
+      send(node, text) {
+        const d = notifyDestination(store, node);
+        if (!d) throw new Error("destination unavailable");
+        const sent =
+          "room" in d && d.room
+            ? channels.postToRoom(d.channel.id, d.room.id, text)
+            : channels.messageContact((d as { person: { id: string } }).person.id, text, {
+                channel: d.channel.id,
+                exact: true,
+              });
+        return { outbox: sent.outbox };
+      },
+      settled: (outbox, ms) => channels.settled(outbox, ms),
+    },
+    outside: {
+      secret: (ref, project) => secrets.resolveIn(ref, project) !== undefined,
+      allowHttp: config.flowHttpAllow,
+    },
+    http: { policy: flowHttpPolicy(config.flowHttpAllow), secret: (ref, project) => secrets.resolveIn(ref, project) },
   });
   const stopFlowEvents = bus.on((event) => {
     if (event.type === "run.updated" && event.run.ended_at) flows.kick();
