@@ -7,7 +7,7 @@ import { fakeWhatsApp } from "../channels/fake-whatsapp.test-support.ts";
 import { whatsappAdapter } from "../channels/whatsapp.ts";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { v1Schedule } from "../import/v1-setup.ts";
-import { realpath } from "../paths.ts";
+import { realpath, samePath } from "../paths.ts";
 import { removeDir } from "../testkit/platform.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -250,6 +250,8 @@ after(async () => {
 test("the setup finds v1 and counts what it has, reading only real projects", async () => {
   const s = await env.client.call("setup.status", {});
   assert.equal(s.done, false);
+  // The home this core runs on, not one guessed from v1's.
+  assert.ok(samePath(s.home.replace(/^~/, os.homedir()), env.home), s.home);
   assert.equal(s.fresh, true);
   assert.deepEqual(
     { version: s.v1?.version, agent: s.v1?.agent_name, blob: s.v1?.agent_blob, projects: s.v1?.projects },

@@ -158,6 +158,8 @@ export const appMethods = {
           projects: z.number().int(),
         })
         .nullable(),
+      /** This APX's own home, where its data lives (as the owner knows it: ~/…). */
+      home: z.string(),
       /** The folder of this APX's command (apps/terminal), to put `apx` on the PATH from there. */
       terminal: z.string().optional(),
       /** APX v1's daemon still answers beside this one: routines and bots would run twice. */

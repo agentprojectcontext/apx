@@ -400,6 +400,7 @@ const DONE_MS = 2400;
 export function DoneStep({ name, onFinish }: { name: string; onFinish: () => void }) {
   const t = useT();
   const home = useSetup((s) => s.status?.v1?.home);
+  const dataHome = useSetup((s) => s.status?.home);
   const terminal = useSetup((s) => s.status?.terminal);
   const [cli, setCli] = useState<{ busy?: boolean; ok?: boolean; skip?: boolean; detail?: string }>({});
   const asks = Boolean(home && terminal) && !cli.ok && !cli.skip;
@@ -423,7 +424,7 @@ export function DoneStep({ name, onFinish }: { name: string; onFinish: () => voi
       <h1 className="wiz__hero is-done">
         {name} <span className="is-green">{t("setup.done.ready")}</span>
       </h1>
-      <p className="wiz__body">{t("setup.done.body", { home: home ? `${home}/v2` : "~/.apx/v2" })}</p>
+      <p className="wiz__body">{t("setup.done.body", { home: dataHome ?? "" })}</p>
       {/* With v1 installed, `apx` is v1's: one click makes it this one. */}
       {home && terminal && (
         <div className="wiz__card wiz__takeover">
