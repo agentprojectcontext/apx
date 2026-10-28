@@ -166,7 +166,7 @@ test("publishing a send needs the owner to have seen where it goes, and a destin
     const graph = chain(hook, notify("say", { kind: "contact", person: alex }, "New lead: $trigger.company"));
     const draft = await env.client.call("flows.draft_save", { flow: "tell", expectedVersion: null, graph });
     const outward = await env.client.call("flows.outward", { flow: "tell", graph });
-    assert.deepEqual(outward.sends, [{ node: "say", channel: "Discord", to: "Alex Acme" }]);
+    assert.deepEqual(outward.sends, [{ node: "say", channel: "Discord", type: "discord", to: "Alex Acme" }]);
     assert.deepEqual(outward.keys, [`send:chat:contact:${alex}`]);
     const base = { flow: "tell", expectedDraftVersion: draft.draftVersion ?? 0, expectedPublishedRevision: null };
     await assert.rejects(env.client.call("flows.publish", base), /Confirm where it sends/);

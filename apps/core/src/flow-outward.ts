@@ -50,12 +50,17 @@ function httpHost(node: Http): string {
 
 /** The sends and calls a drawing makes, and the keys the owner approves by publishing it. */
 export function flowOutward(store: Store, graph: FlowGraph) {
-  const sends: { node: string; channel: string; to: string }[] = [];
+  const sends: { node: string; channel: string; type: string; to: string }[] = [];
   const calls: { node: string; method: string; host: string }[] = [];
   for (const node of graph.nodes) {
     if (node.kind === "notify") {
       const d = notifyDestination(store, node);
-      sends.push({ node: node.id, channel: d?.channel.label ?? node.channel, to: d?.to ?? "?" });
+      sends.push({
+        node: node.id,
+        channel: d?.channel.label ?? node.channel,
+        type: d?.channel.type ?? "",
+        to: d?.to ?? "?",
+      });
     }
     if (node.kind === "http") calls.push({ node: node.id, method: node.method, host: httpHost(node) });
   }

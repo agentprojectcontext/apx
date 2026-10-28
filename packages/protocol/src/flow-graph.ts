@@ -271,7 +271,8 @@ export const flowGraphMethods = {
       .object({
         /** Keys to pass back to `flows.publish` once the owner has seen them. */
         keys: z.array(z.string()),
-        sends: z.array(z.object({ node: FlowNodeId, channel: z.string(), to: z.string() }).strict()),
+        /** `to` is "you" for the owner; `type` is the channel's kind, for its icon. */
+        sends: z.array(z.object({ node: FlowNodeId, channel: z.string(), type: z.string(), to: z.string() }).strict()),
         calls: z.array(z.object({ node: FlowNodeId, method: z.string(), host: z.string() }).strict()),
       })
       .strict(),
