@@ -210,10 +210,14 @@ characters). `onlyIfContent`: every placeholder empty (absent, null, blank, `[]`
 (`nothing_to_tell`) and its descendants skip; off, an absent field fails `missing_value`. Sending: claim `reserved`, then
 one transaction checks the Flow's hourly limit (20 rows in `flow_sends` in the last hour, else `rate_limited`, nothing
 sent), records the send and commits `dispatched`; then the channel's outbox takes it (`messageContact` with an exact
-channel id, or `postToRoom` by ids, never by name) and the step waits up to 60 s: `sent` → succeeded with
-`{channel, to, text, delivery}`; refused → `send_failed`; uncertain or still queued → `uncertain` (`send_uncertain`). A
-restart, Stop run or the deadline after `dispatched` leaves it uncertain; it is never sent again. The message is kept in
-that chat as the owner's words; room posts go through the room's mention rules (no `@everyone`).
+channel id, or `postToRoom` by ids, never by name) and the step waits up to 60 s (none when the channel isn't running):
+`sent` → succeeded with `{channel, to, owner?, text, delivery}`; refused → `send_failed`; an item no channel has taken
+yet is withdrawn (`channel_unavailable`, it never goes out later), also on Stop run and at the deadline; one being sent
+or uncertain → `uncertain` (`send_uncertain`). A restart after `dispatched` leaves it uncertain and the outbox may still
+deliver it once; it is never sent again by the step. In a contact's chat the message is the owner's words, and that
+chat's agent reads it as a user-role note ("Your owner's flow … sent this"), never as its own. Bound values lose link
+and mention form (`](` → `] (`, `@` + zero-width space), so a payload can't hide a link or ping someone in the owner's
+name; the owner's own text keeps Markdown and mentions. Room posts follow the room's mention rules (no `@everyone`).
 
 **http** `{method: GET|POST|PUT, url, headers ≤ 16, body, timeoutMs 1–30 s}`. The URL is fixed: http(s) only, no
 credentials, no `secret://`, no placeholders; a literal private address or a name without a dot is refused
@@ -227,20 +231,28 @@ the egress policy (`vmAddressAllowed`: public Internet only; no loopback, privat
 mapped, documentation ranges or this host's interfaces, else `destination_refused`), the socket connects to the checked
 address through a pinned `lookup` (TLS still verifies the name) and its remote address is checked again before any
 byte is written. No redirects are followed (3xx and `location` are the output), no environment proxy, `agent: false`.
-A non-GET commits `dispatched` on connect, before writing; after that, no answer is `uncertain`
+A non-GET first counts against the Flow's hourly limit (60, `rate_limited`, nothing sent) and commits `dispatched` on
+connect, before writing; after that, no answer is `uncertain`
 (`request_uncertain`), before it `request_failed`. A GET never commits `dispatched` (a restart runs it again) and tries
 once more after a network error with no answer. Any HTTP answer succeeds, so a check can branch on it: output
 `{status, ok, bytes, truncated, content_type?, location?, json? | body? | binary}` — at most 256 KiB read, JSON kept
 when it fits 24 KiB, else up to 16 KiB of text; binary (by type, NUL or invalid UTF-8) only said. Resolved secret values
-are cut from the answer (`[secret]`) and the shared redactor runs on every stored value; the recorded input shows
+are cut from the answer as sent, URL-encoded and JSON-escaped, in the text and in every string of parsed JSON
+(`[secret]`), and the shared redactor runs on every stored value; the recorded input shows
 `secret://name`. Logs carry no URL, payload or answer. `APX_FLOW_HTTP_ALLOW` (exact loopback `host:port`, comma-separated,
 config-injected) lets a test core reach its own fake service; a real core leaves it empty.
 
 **Consent.** `flows.outward {flow, graph}` lists what a drawing does outside: `sends` (channel label and kind, `to`:
 a name or `you`), `calls` (method, host) and `keys` (`send:<channel>:contact:<person>` / `send:<channel>:room:<room>` /
-`call:<method>:<url>`). `flows.publish` refuses a draft with notify or http steps (`outward_unconfirmed`) unless its
+`call:<method>:<url>`, `secret:<name>:<url>` for each secret a call sends). `flows.publish` refuses a draft with notify or http steps (`outward_unconfirmed`) unless its
 `outward` equals those keys. The panel asks the owner (**Let this flow act for you?**) when a key is not in the
 published revision's list, and publishes with the keys they allowed; Not now keeps the previous revision.
+
+A body whose `Content-Type` says JSON must be valid JSON (`body_not_json`), so values are never pasted into JSON text.
+
+**Known limit.** `apx flows run|stop` refuse when `APX_AGENT` is set, a courtesy check: the core can't tell an agent's
+own loopback call from the owner's, as for every owner method; what stops an agent's shell from calling APX's API is
+D-106's "APX's own API always asks".
 
 **Schedules that outrun their interval.** A beat that finds a time due while the Flow still has a pending run skips it:
 `since` moves on, `flow_schedules.skipped` counts it and `skipped_at` keeps when, logged without payload. Nothing queues

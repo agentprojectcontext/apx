@@ -2797,3 +2797,10 @@ Rejected: a confirmation card per run (a Flow is unattended; a card per webhook 
 letting the payload or a step's output choose a contact or URL "with an allow-list" (the list would be the revision
 anyway), following redirects with a re-check per hop (one more path to get wrong, for little the owner needs), and a
 separate egress proxy process for the core (the policy and a pinned socket give the same guarantee in process).
+
+The independent security review added: a message no channel has taken yet is withdrawn rather than left to go out
+days later; a Flow's message in a contact's chat is a user-role note for its agent, never the agent's own words; bound
+values can't form links or mentions; consent keys include which secret goes to which URL; non-GET calls get an hourly
+limit (60); JSON-escaped and URL-encoded echoes of a secret are cut. Known limit, not changed here: the CLI's
+"not inside an agent's command" is a client-side courtesy; the core trusts every loopback caller as the owner, for
+every owner method, and relies on D-106's "APX's own API always asks" for agents' shells.

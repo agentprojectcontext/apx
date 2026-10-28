@@ -115,8 +115,9 @@ sends without asking again.
 
 Each send and each call that changes something goes out once: if APX stops or the other side doesn't answer after it
 went out, the step says **Needs a look** instead of repeating it (check the chat or the service). A GET, which changes
-nothing, tries once more if the connection fails before any answer. A flow sends at most 20 messages an hour; the next
-one fails without going out. An outgoing webhook only calls addresses on the internet: an address on this computer or
+nothing, tries once more if the connection fails before any answer. A flow sends at most 20 messages an hour, and makes at most 60 calls that
+change something; the next one fails without going out. A message to a chat app that isn't running is taken back,
+not sent later. An outgoing webhook only calls addresses on the internet: an address on this computer or
 a private network is refused, also when a name points there, and redirects are not followed. Its answer is kept up to
 256 KB read (16 KB of text), files are only said, and a secret it used never shows in the run, only `secret://name`.
 
