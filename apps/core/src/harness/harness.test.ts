@@ -291,6 +291,12 @@ test("Codex writes in an auto code chat in auto, accept edits and total, whateve
   assert.equal(codexWrites({ ...io("total", false), thread: { ...thread, write: "ask" } } as TurnIO), true);
   assert.equal(codexWrites({ ...io("auto", false), thread: { ...thread, write: "ask" } } as TurnIO), false);
   assert.equal(codexWrites({ ...io("total", false), thread: { ...thread, write: "read-only" } } as TurnIO), false);
+  // The agent's own rule for writing wins over its mode, as for every other agent (DECISIONS.md#d-090).
+  const ruled = (autonomy: string, write: string) =>
+    ({ thread, agent: { autonomy, rules: { write } }, outside: () => false }) as unknown as TurnIO;
+  assert.equal(codexWrites(ruled("total", "off")), false, "writing turned off stays off in total");
+  assert.equal(codexWrites(ruled("total", "ask")), false, "a write that would ask waits, and Codex cannot ask");
+  assert.equal(codexWrites(ruled("manual", "auto")), true, "writing on its own is allowed over manual");
 });
 
 test("an external session gets an owner's attachment in its temp folder despite omitting agent framing", async () => {

@@ -186,6 +186,10 @@ export function decide(
   return { kind: "allow" };
 }
 
+/** An edit in the folder the agent works in, as an outside agent's own tool asks for it (engine/executor.ts approve). */
+export const editsInFolder = (agent: AgentRecord, untrusted: boolean): Decision =>
+  decide("ask", "local", agent, untrusted, true);
+
 /**
  * How far an agent's files reach (folders.ts Reach): `all` on total or its own rule to act outside on its own,
  * `card` on manual or its own rule to ask before acting outside, `fenced` when its own rule turns that off, else `read`.
