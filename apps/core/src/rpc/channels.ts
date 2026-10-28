@@ -9,12 +9,13 @@ import { autoApproves } from "../channels/stickers.ts";
 import { normalJid } from "../channels/whatsapp.ts";
 import { publicOutbox } from "../domain/channels.ts";
 import { dayStart } from "../domain/hours.ts";
-import { noticePrefs, saveNoticePrefs } from "../domain/notices.ts";
+import { appOnly, noticePrefs, saveNoticePrefs } from "../domain/notices.ts";
 import { ownerTimeZone } from "../domain/owner.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { ownerAsked } from "../domain/runs.ts";
 import type { Sticker } from "../domain/stickers.ts";
 import type { Store } from "../domain/store.ts";
+import { previewOf } from "../domain/threads.ts";
 import type { Nudges } from "../engine/nudges.ts";
 import { badRequest, CallError, errorMessage, notFound } from "../errors.ts";
 import type { Handlers } from "./router.ts";
@@ -84,13 +85,25 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       // An agent writing to the owner unasked goes through their notice budget, as notify_owner does (DECISIONS.md#d-035).
       if (person === OWNER_ID && ctx.agent && !askedByOwner(ctx.agent.run_id)) {
         const thread = store.threads.get(ctx.agent.thread_id);
+        // With the app only chosen, it goes as any unasked notice: the tray, never a chat app (DECISIONS.md#d-161).
+        const inApp = appOnly(noticePrefs(store));
         const state = nudges.offer({
           kind: `agent:${ctx.agent.id}`,
           text,
           thread_id: thread?.id,
           project_id: thread?.project_id,
-          send,
+          ...(inApp ? {} : { send }),
         });
+        if (inApp) {
+          store.notifications.add({
+            kind: "agent",
+            level: "info",
+            title: store.agents.get(ctx.agent.id)?.name ?? ctx.agent.id,
+            body: previewOf(text),
+            ...(thread ? { thread_id: thread.id } : {}),
+          });
+          return { withheld: state === "held" || state === "dropped" ? state : "app_only" };
+        }
         if (state === "held" || state === "dropped") return { withheld: state };
       } else send();
       if (!sent) throw badRequest("the owner has no chat app to write to");

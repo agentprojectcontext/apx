@@ -701,6 +701,43 @@ test("an agent writing to the owner unasked goes through the notice budget; aske
   }
 });
 
+test("with the app only chosen, an agent writing to the owner unasked reaches the tray, never the chat app (DECISIONS.md#d-161)", async () => {
+  const { store } = env.core;
+  store.persons.owner();
+  if (!store.persons.ownerAddress("tg"))
+    store.persons.link(OWNER_ID, { channel: "tg", external_id: String(OWNER.id), label: "Telegram" });
+  const prefs = await env.client.call("notices.get", {});
+  const { quiet_from: _f, quiet_to: _t, ...open } = prefs;
+  await env.client.call("notices.set", { ...open, channel: "none", budget_per_day: 0, kind_gap_min: 0 });
+  const pings = () =>
+    tg.sent.filter((m) => m.method === "sendMessage" && String(m.body.text).includes("Ping from the agent")).length;
+  const before = pings();
+  try {
+    const r = await env.client.call("routines.set", {
+      name: "App only ping",
+      agent: "roby",
+      schedule: { kind: "manual" },
+      prompt: "ping me on telegram",
+    });
+    const run = await env.client.call("routines.run", { routine: r.id });
+    await env.settle(run.thread_id);
+    assert.equal(pings(), before, "nothing reached Telegram");
+    const told = await env.client.call("threads.get", { thread: run.thread_id });
+    assert.ok(
+      told.messages.some((m) => m.parts.some((p) => p.type === "text" && p.text.includes("only in the APX app"))),
+      "the agent heard where it went",
+    );
+    const tray = (await env.client.call("notifications.list", {})).notifications;
+    assert.ok(
+      tray.some((n) => n.kind === "agent" && /Ping from the agent/.test(n.body)),
+      "in the tray",
+    );
+    await env.client.call("routines.remove", { routine: r.id });
+  } finally {
+    await env.client.call("notices.set", prefs);
+  }
+});
+
 test("with its own chat chosen, the owner's words on the channel are answered there, not in Home (DECISIONS.md#d-129)", async () => {
   const save = (owner_thread: "home" | "own") =>
     env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby", owner_thread } });
