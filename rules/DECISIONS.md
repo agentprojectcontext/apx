@@ -2642,9 +2642,19 @@ that arbitrary page code cannot retain a mechanical guarantee against reading or
 requests or sending as the signed-in account. This is a narrow exception for `browser_evaluate`, not a change to the
 ordinary browser typing guard, navigation policy or a permission to handle passwords, 2FA or card data.
 
-Every execution retains its own approval card, including Total and an agent rule set to auto; no persistent grants.
+Execution requires an app approval, including Total and an agent rule set to auto. The owner can approve once,
+for this tab, or during this turn; `session` remains the existing durable chat grant and is not offered here.
+Temporary consent is held only in core memory, limited to the exact conversation, agent and approved HTTP(S) origin,
+and activates only after its first approved execution succeeds on the host. A tab consent has a maximum lifetime of
+30 minutes and also binds the browser connection and Chromium page epoch;
+closing, navigating or reloading the tab, or reconnecting the browser invalidates it. Same-origin reload is deliberately
+not an exception: inspect a fresh snapshot and approve again. A turn consent covers other tabs only on that exact
+origin and only within the current run, without an additional consent timeout; never a future turn, delegation,
+routine or restarted core. Both scopes are
+revocable through the owner's existing approval controls. Neither is a global tool grant or a grant to other tools.
 The complete app card identifies tab, expected origin and the complete immutable source; shortened channel messages
-cannot approve execution. Local `.js` files require normal folder
+cannot approve execution. New sources within a temporary consent do not open another card: this is explicitly broader
+than approving the displayed source once. A card whose original waiting turn ended cannot grant browser execution. Local `.js` files require normal folder
 read permission and an exact SHA-256 match before approval; the same in-memory snapshot is executed, never a reopened
 path. VM chats refuse host file inputs. The underlying RPC is human-only, unavailable to outside MCP clients, and the
 normal profile and user/handoff controls remain. The latest snapshot supplies a bounded Chromium review handle capturing the exact document and URL. Execution uses
