@@ -25,7 +25,8 @@ test("the owner changes the limits on agents working on their own in Config › 
   await limitsOn.click();
   await expect.poll(() => rpc<Limits>("agents.limits")).toMatchObject({ runs: 100, tokens: 5_000_000 });
   await rpc("agents.set_limits", { runs: 30, tokens: 1_500_000 });
-  await page.reload();
+  // Ctrl+K only answers once the panel is up again.
+  await open(page);
   await page.keyboard.press("ControlOrMeta+k");
   await page
     .getByRole("combobox", { name: "Buscar" })

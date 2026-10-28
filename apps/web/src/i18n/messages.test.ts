@@ -12,6 +12,8 @@ import { enIngress } from "./ingress-en.ts";
 import { esIngress } from "./ingress-es.ts";
 import { enReceived } from "./received-en.ts";
 import { esReceived } from "./received-es.ts";
+import { enSecretary } from "./secretary-en.ts";
+import { esSecretary } from "./secretary-es.ts";
 import { enSysUsage } from "./sysusage-en.ts";
 import { esSysUsage } from "./sysusage-es.ts";
 import { enThreadDialogs } from "./thread-dialogs-en.ts";
@@ -70,6 +72,16 @@ test("signature strings load as a separate pack in both languages", async () => 
   }
 });
 
+test("secretary capability strings load only with the super-agent's settings in both languages", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const base = await loadMessages(lang);
+    const pack = await loadPack("secretary", lang);
+    for (const key of Object.keys(enSecretary) as (keyof typeof enSecretary)[]) assert.equal(base[key], undefined);
+    assert.deepEqual(pack, lang === "en" ? enSecretary : esSecretary);
+  }
+});
+
 // A pack's strings belong to the language as much as the main chunk's.
 const en = {
   ...base,
@@ -80,6 +92,7 @@ const en = {
   ...enThreadDialogs,
   ...enIngress,
   ...enFlow,
+  ...enSecretary,
 };
 const es = {
   ...esBase,
@@ -90,6 +103,7 @@ const es = {
   ...esThreadDialogs,
   ...esIngress,
   ...esFlow,
+  ...esSecretary,
 };
 
 // Each language is loaded alone, so a key it lacks would show as the bare key.

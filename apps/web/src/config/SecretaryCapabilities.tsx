@@ -3,11 +3,12 @@ import { Button, SettingRow, Skeleton, Switch, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { loadRoutines, useRoutines } from "../data/routines.ts";
-import { useT } from "../i18n/index.ts";
+import { usePack, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { SubHead } from "./SectionHead.tsx";
 
 export function SecretaryCapabilities() {
+  const strings = usePack("secretary");
   const t = useT();
   const routines = useRoutines((s) => s.routines);
   const ready = useRoutines((s) => s.ready);
@@ -27,6 +28,7 @@ export function SecretaryCapabilities() {
       live = false;
     };
   }, []);
+  if (!strings) return <Skeleton height={80} />;
   return (
     <>
       <SubHead>{t("super.capabilities")}</SubHead>
