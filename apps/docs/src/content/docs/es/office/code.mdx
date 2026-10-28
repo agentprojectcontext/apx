@@ -52,7 +52,7 @@ agente, no una garantía de que Git ya haya integrado o limpiado los cambios aut
 | Política | Qué significa |
 |---|---|
 | **Pregunta antes de cambiar** (`ask`) | La de siempre. Las ediciones y los comandos pasan por las aprobaciones de la [autonomía](/es/concepts/autonomy/) del agente. Codex no puede preguntar en medio de un turno, así que con esta política solo lee. |
-| **Edita libremente** (`auto`) | Las sesiones de Claude Code y Codex editan archivos dentro de la carpeta sin preguntar (nunca la config de git, `.apc/` ni `AGENTS.md`). Los comandos siguen la autonomía del agente. |
+| **Edita libremente** (`auto`) | Las sesiones de Claude Code y Codex editan archivos dentro de la carpeta sin preguntar (nunca `.apc/` ni `AGENTS.md`, y nada en `.git`, con ninguna autonomía: git se usa con comandos). Los comandos siguen la autonomía del agente. |
 | **Sólo lectura** (`read-only`) | Solo lee. Lo que necesitaría tu OK se rechaza. |
 
 ### Trabajar en la carpeta desde cualquier chat

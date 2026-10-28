@@ -1,6 +1,7 @@
 // The one executor every tool call goes through, whatever harness made it: check the arguments, ask the policy,
 // wait for the owner when it says so, record the step, run with a deadline, keep the full output and hand the
 // model a capped copy.
+import path from "node:path";
 
 import type { MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
@@ -21,7 +22,7 @@ import type { Display } from "./display.ts";
 import { folderBinding, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { confirmPrompt, folderPrompt } from "./owner-words.ts";
-import { guarded, pathsOf } from "./paths.ts";
+import { guarded, inGitFolder, pathsOf } from "./paths.ts";
 import type { Permissions } from "./permissions.ts";
 import { handedOff } from "./task-handoff.ts";
 import { toolTitle } from "./tool-titles.ts";
@@ -505,8 +506,9 @@ export function createExecutor(o: {
     const ran = req.kind === "execute" && typeof command === "string";
     const refusedCommand = ran ? judgeCommand(o.permissions.harnessRoots(scope), command, base) : undefined;
     if (refusedCommand) judged.push(refusedCommand);
-    // No answer of the owner's opens a read-only folder or APX's own.
+    // No answer of the owner's opens a read-only folder or APX's own, nor lets a file tool change git's folder.
     if (judged.some((r) => "refused" in r && !r.offer)) return false;
+    if (!reading && paths.some((p) => inGitFolder(path.resolve(base, p)))) return false;
     const inside = judged.every((r) => !("refused" in r));
     const own = externalLevel(req.kind, inside, command);
     // Outside the folders it may use, the owner says yes unless its mode lets it on its own.

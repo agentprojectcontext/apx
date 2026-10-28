@@ -2,6 +2,7 @@
 // takes, base64 for a server elsewhere and a real path for one on this machine. See DECISIONS.md#d-107
 import fs from "node:fs";
 import type { Store } from "../domain/store.ts";
+import { inGitFolder } from "../engine/paths.ts";
 import { mimeOf } from "../services/attachment-files.ts";
 import { chatMedia, MEDIA_ID, mediaName, mediaToTemp } from "../services/media-temp.ts";
 import { type FolderThread, folderAccess } from "../tools/folders.ts";
@@ -193,7 +194,7 @@ export function agentFiles(store: Store, home: string, thread: FolderThread & { 
     }
     const r = folderAccess(store, home, thread, ref);
     if ("refused" in r) throw new Error(`refused: ${r.refused}`);
-    if (r.at.split(/[\\/]/).includes(".git")) throw new Error("refused: the .git folder is off limits");
+    if (inGitFolder(r.at)) throw new Error("refused: the .git folder is off limits");
     const stat = fs.statSync(r.at, { throwIfNoEntry: false });
     if (!stat?.isFile()) throw new Error(`${ref} ${stat ? "is not a file" : "does not exist"}`);
     const name = r.at.split(/[\\/]/).at(-1) ?? "file";
