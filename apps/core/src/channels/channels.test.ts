@@ -450,6 +450,7 @@ test("a message an agent sends the owner on a chat app arrives without sound in 
   // What goes to the platform: the outbox item the owner's chat app gets.
   const send = async (text: string) => {
     const sent = await env.client.call("channels.message", { person: OWNER_ID, text, channel: "tg" });
+    assert.ok("thread" in sent, "the owner's own request is sent, never withheld");
     const chat = store.threads.get(sent.thread)?.channel;
     const item = chat && store.channels.outbox.last(chat.id, chat.conversation);
     assert.equal(item?.text, text);
