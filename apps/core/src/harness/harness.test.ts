@@ -292,6 +292,10 @@ test("Codex writes in an auto code chat in auto, accept edits and total, whateve
   assert.equal(codexWrites({ ...io("total", false), thread: { ...thread, write: "ask" } } as TurnIO), true);
   assert.equal(codexWrites({ ...io("auto", false), thread: { ...thread, write: "ask" } } as TurnIO), false);
   assert.equal(codexWrites({ ...io("total", false), thread: { ...thread, write: "read-only" } } as TurnIO), false);
+  // A delegated session its caller capped at ask asks before changes, whoever runs it; Codex cannot ask, so it reads
+  // (DECISIONS.md#d-126).
+  const capped = { ...thread, kind: "a2a", write: "ask" } as unknown as TurnIO["thread"];
+  assert.equal(codexWrites({ ...io("total", false), thread: capped } as TurnIO), false);
   // The agent's own rule for writing wins over its mode, as for every other agent (DECISIONS.md#d-090).
   const ruled = (autonomy: string, write: string) =>
     ({ thread, agent: { autonomy, rules: { write } }, outside: () => false }) as unknown as TurnIO;

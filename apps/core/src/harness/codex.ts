@@ -4,7 +4,7 @@ import path from "node:path";
 import { Codex, type ModelReasoningEffort } from "@openai/codex-sdk";
 import { worksInFolder } from "../domain/threads.ts";
 import { codexImageDir, imagesIn } from "../services/codex-images.ts";
-import { editsInFolder, modeOf } from "../tools/policy.ts";
+import { editsInFolder, modeOf, sessionGate } from "../tools/policy.ts";
 import { harnessEnv } from "./env.ts";
 import { effortPart, type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
 import { linkedWorktreeWritableDirs } from "./worktree.ts";
@@ -18,8 +18,9 @@ const READ_ONLY_NOTE =
  */
 export function codexWrites(io: Pick<TurnIO, "thread" | "agent" | "outside">): boolean {
   if (!worksInFolder(io.thread) || io.thread.write === "read-only") return false;
-  // The same rule as any agent's edit in its folder (its mode and its own rules); a card it would wait on is a no.
-  if (editsInFolder(io.agent, io.outside()).kind !== "allow") return false;
+  // The same rule as any agent's edit in its folder (its mode, its own rules and a delegated session's cap,
+  // DECISIONS.md#d-126); a card it would wait on is a no.
+  if (sessionGate(io.thread, editsInFolder(io.agent, io.outside()), true).kind !== "allow") return false;
   return io.thread.write === "auto" || modeOf(io.agent) === "total";
 }
 
