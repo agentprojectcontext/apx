@@ -54,8 +54,10 @@ test("the sections are only those a chat's turns call for: none for a plain chat
   assert.match(sectionLines({ write: "read-only" }).join("\n"), /Writes there: read-only \(nothing here may change/);
 });
 
-test("whoever can change files is told to look at a visible change running; a read-only folder and a plain chat are not", () => {
-  for (const write of ["auto", "ask"] as const) assert.ok(sectionLines({ write }).includes(`- ${VISUAL_CHECK}`), write);
+test("whoever can change files is told to look at a visible change running, under its folder or on its own", () => {
+  const folder = sectionLines({ write: "auto", edits: true });
+  assert.equal(folder.indexOf(`- ${VISUAL_CHECK}`), folder.indexOf("## Your folder") + 2);
+  assert.ok(sectionLines({ mode: "auto", edits: true }).includes("## Changes people see"));
   assert.ok(!sectionLines({ write: "read-only" }).includes(`- ${VISUAL_CHECK}`));
   assert.ok(!sectionLines({ mode: "auto" }).includes(`- ${VISUAL_CHECK}`));
 });

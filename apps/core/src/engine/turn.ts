@@ -665,6 +665,11 @@ function sectionsFor(deps: TurnDeps, turn: Turn, mode: Autonomy): Sections {
     computer: allowed ? (vm?.serves(thread.id) ? "chat" : thread.kind === "home" ? "home" : undefined) : undefined,
     onComputer: Boolean(vm?.hasThread(thread.id)),
     write: thread.cwd && thread.write ? thread.write : undefined,
+    // Project agents edit its files from task chats too, not only from a code folder's chat.
+    edits:
+      thread.cwd && thread.write
+        ? thread.write !== "read-only"
+        : !contact && acts && mode !== "plan" && Boolean(thread.project_id ?? agent.project_id),
   };
 }
 

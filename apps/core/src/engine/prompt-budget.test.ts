@@ -18,7 +18,7 @@ const BUDGET = { system: 10_000, tools: 30_000 };
  * The same for an owner who set things up: a WhatsApp channel with stickers, the computer allowed, instructions of
  * their own, an "about" and a project with a 20k-char AGENTS.md. Feature growth shows here first.
  */
-const REALISTIC = { system: 7_500, tools: 29_000, input: 600 };
+const REALISTIC = { system: 8_000, tools: 29_000, input: 600 };
 
 const llm = scriptedLlm(() => say("ok"));
 let env: Awaited<ReturnType<typeof startCore>>;
