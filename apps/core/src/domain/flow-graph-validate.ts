@@ -4,6 +4,10 @@ import {
   type FlowGraphIssue,
   type FlowNode,
 } from "../../../../packages/protocol/src/flow-graph.ts";
+import { flowCronProblem } from "./schedule.ts";
+
+/** A run starts at its one trigger: a POST or a schedule. */
+export const isFlowTrigger = (node: FlowNode): boolean => node.kind === "webhook" || node.kind === "schedule";
 
 export function flowNodeBindings(node: FlowNode): FlowBinding[] {
   if (node.kind === "condition" || node.kind === "llm" || node.kind === "agent" || node.kind === "routine")
@@ -22,8 +26,14 @@ export function validateFlowGraph(value: FlowGraph): FlowGraphIssue[] {
     if (nodes.has(node.id)) add("duplicate_node", "Node identifiers must be unique", node.id);
     nodes.set(node.id, node);
   }
-  const triggers = graph.nodes.filter((node) => node.kind === "webhook");
-  if (triggers.length !== 1) add("trigger_count", "A graph needs exactly one webhook trigger");
+  const triggers = graph.nodes.filter(isFlowTrigger);
+  if (triggers.length !== 1) add("trigger_count", "A graph needs exactly one trigger");
+  for (const node of graph.nodes) {
+    if (node.kind !== "schedule") continue;
+    const problem = flowCronProblem(node.cron);
+    if (problem === "invalid") add("schedule_invalid", "The schedule is not a valid cron expression", node.id);
+    if (problem === "too_often") add("schedule_too_often", "A schedule runs at most every five minutes", node.id);
+  }
   if (graph.nodes.filter((node) => node.kind === "llm").length > 4)
     add("model_limit", "A graph supports at most four LLM nodes");
   const parents = new Map<string, Set<string>>([...nodes.keys()].map((id) => [id, new Set()]));
@@ -40,8 +50,9 @@ export function validateFlowGraph(value: FlowGraph): FlowGraphIssue[] {
     if (edge.source === edge.target) add("self_edge", "A node cannot connect to itself", edge.target);
     if (edge.when && nodes.get(edge.source)?.kind !== "condition")
       add("branch_source", "Only a check has yes and no branches", edge.target);
-    if (nodes.get(edge.target)?.kind === "webhook")
-      add("trigger_input", "The webhook trigger cannot have incoming connections", edge.target);
+    const target = nodes.get(edge.target);
+    if (target && isFlowTrigger(target))
+      add("trigger_input", "The trigger cannot have incoming connections", edge.target);
   }
   const ancestors = new Map<string, Set<string>>();
   const visiting = new Set<string>();
@@ -64,7 +75,7 @@ export function validateFlowGraph(value: FlowGraph): FlowGraphIssue[] {
   };
   for (const node of graph.nodes) {
     const before = visit(node.id);
-    if (node.kind !== "webhook" && triggers.length === 1 && !before.has(triggers[0]?.id ?? ""))
+    if (!isFlowTrigger(node) && triggers.length === 1 && !before.has(triggers[0]?.id ?? ""))
       add("disconnected", "Every node must be reachable from the trigger", node.id);
     for (const binding of flowNodeBindings(node)) {
       if (binding.kind === "node" && (binding.node === node.id || !before.has(binding.node)))

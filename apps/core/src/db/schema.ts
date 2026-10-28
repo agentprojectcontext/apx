@@ -108,6 +108,8 @@ export interface FlowEventsTable {
   error: string | null;
   executor: Generated<string>;
   stopped_at: number | null;
+  source: Generated<string>;
+  scheduled_at: string | null;
 }
 
 export interface FlowGraphDraftsTable {
@@ -156,6 +158,11 @@ export interface FlowRowsTable {
   flow_id: string;
   key: string;
   value: string;
+}
+
+export interface FlowSchedulesTable {
+  flow_id: string;
+  since: string;
 }
 
 export interface FlowsTable {
@@ -684,6 +691,7 @@ export interface Database {
   flow_graph_nodes: FlowGraphNodesTable;
   flow_graph_revisions: FlowGraphRevisionsTable;
   flow_rows: FlowRowsTable;
+  flow_schedules: FlowSchedulesTable;
   flows: FlowsTable;
   harness_sessions: HarnessSessionsTable;
   idempotency: IdempotencyTable;

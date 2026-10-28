@@ -4,15 +4,34 @@ import { redactedJson } from "../log.ts";
 import { checkFlowCapacity, FlowCapacityError } from "./flow-events.ts";
 import { retainFlowGraphRevisions } from "./flow-graph-retention.ts";
 import { storedFlowValue } from "./flow-graph-runs.ts";
+import { isFlowTrigger } from "./flow-graph-validate.ts";
 import { sql } from "./sql.ts";
 
 export class FlowGraphConflict extends Error {}
 export class FlowGraphUnavailable extends Error {}
 /** An event's run deadline, fixed at admission (DECISIONS.md#d-167). */
 export const FLOW_RUN_MS = 600_000;
-/** The same rule as legacy admission: only a nonempty object can start a run. */
-const runnable = (data: unknown) =>
-  data !== null && typeof data === "object" && !Array.isArray(data) && Object.keys(data).length > 0;
+const object = (data: unknown) => data !== null && typeof data === "object" && !Array.isArray(data);
+/** The same rule as legacy admission: only a nonempty object can start a webhook's run; a schedule's needs none. */
+const runnable = (data: unknown, trigger: FlowGraph["nodes"][number]["kind"] | undefined) =>
+  object(data) && (trigger === "schedule" || Object.keys(data as object).length > 0);
+
+/** What started an event: a POST, its schedule or the owner's "Run now", and when a schedule had it due. */
+export type FlowEventSource = { source: "webhook" | "schedule" | "owner"; scheduledAt?: string | undefined };
+/** The event came by a way its Flow does not start from (a POST to a schedule Flow, a tick of a webhook one). */
+export class FlowTriggerMismatch extends Error {}
+
+/** The trigger kind a published Flow starts from, or undefined when it runs no drawing. */
+export function publishedFlowTrigger(db: Db, flow: string): "webhook" | "schedule" | undefined {
+  const row = db
+    .prepare(
+      "SELECT r.graph FROM flow_graph_drafts d JOIN flow_graph_revisions r ON r.flow_id=d.flow_id AND r.revision=d.published_revision WHERE d.flow_id=?",
+    )
+    .get(flow);
+  if (!row) return undefined;
+  const trigger = FlowGraph.parse(JSON.parse(String(row.graph))).nodes.find(isFlowTrigger);
+  return trigger?.kind === "schedule" ? "schedule" : "webhook";
+}
 
 export function hasPublishedFlowGraph(db: Db, flow: string): boolean {
   return Boolean(
@@ -35,6 +54,8 @@ export function flowGraphsRepo(db: Db) {
     return text;
   };
   const api = {
+    /** What the published drawing starts from; undefined when the Flow runs no drawing. */
+    trigger: (flow: string) => publishedFlowTrigger(db, flow),
     get(flow: string) {
       found(flow);
       const draft = db.prepare("SELECT * FROM flow_graph_drafts WHERE flow_id=?").get(flow);
@@ -118,11 +139,22 @@ export function flowGraphsRepo(db: Db) {
      * One transaction with the `(flow,event)` dedup: the event, its revision, redacted payload, deadline and steps.
      * Data that cannot start a run is recorded as ignored, with no steps.
      */
-    admit(flow: string, event: string, payload: unknown, now: Date, authorize: (graph: FlowGraph) => void) {
+    admit(
+      flow: string,
+      event: string,
+      payload: unknown,
+      now: Date,
+      authorize: (graph: FlowGraph) => void,
+      from: FlowEventSource = { source: "webhook" },
+    ) {
       return tx(() => {
         if (!found(flow).enabled) throw new Error("Flow is disabled");
         const current = api.get(flow);
         if (!current.published || current.publishedRevision === null) throw new Error("Flow has no published graph");
+        // Checked against the revision pinned here: a schedule Flow never takes a POST, a webhook one never ticks.
+        const trigger = current.published.nodes.find(isFlowTrigger)?.kind;
+        if (from.source !== "owner" && from.source !== trigger)
+          throw new FlowTriggerMismatch("The Flow does not start that way");
         if (!event || event.length > 256 || redactedJson(event) !== JSON.stringify(event))
           throw new Error("Invalid event id");
         if (db.prepare("SELECT 1 FROM flow_events WHERE flow_id=? AND event_id=?").get(flow, event))
@@ -134,7 +166,7 @@ export function flowGraphsRepo(db: Db) {
           throw new FlowCapacityError("Flow event capacity exceeded");
         if (Number(db.prepare("SELECT count(*) AS n FROM flow_events WHERE flow_id=?").get(flow)?.n) >= 10000)
           throw new FlowCapacityError("Flow event capacity exceeded");
-        const runs = runnable(JSON.parse(text));
+        const runs = runnable(JSON.parse(text), trigger);
         if (runs) {
           authorize(current.published);
           checkFlowCapacity(db, flow);
@@ -142,8 +174,8 @@ export function flowGraphsRepo(db: Db) {
         const state = runs ? ("pending" as const) : ("ignored" as const);
         const at = now.toISOString();
         db.prepare(
-          "INSERT INTO flow_events(flow_id,event_id,state,created_at,executor) VALUES (?,?,?,?,'graph-v2')",
-        ).run(flow, event, state, at);
+          "INSERT INTO flow_events(flow_id,event_id,state,created_at,executor,source,scheduled_at) VALUES (?,?,?,?,'graph-v2',?,?)",
+        ).run(flow, event, state, at, from.source, from.scheduledAt ?? null);
         db.prepare(
           "INSERT INTO flow_graph_events(flow_id,event_id,revision,payload,deadline_at,state,ended_at) VALUES (?,?,?,?,?,?,?)",
         ).run(

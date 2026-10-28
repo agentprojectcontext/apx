@@ -10,7 +10,8 @@ const runTokens =
 // published; a graph event is the current one while its revision is still the published one.
 const shape = `CASE WHEN e.executor='legacy' THEN 'legacy' ELSE 'graph' END AS executor, g.revision AS revision,
   CASE WHEN e.executor='legacy' THEN d.published_revision IS NULL ELSE g.revision IS d.published_revision END AS current,
-  e.stopped_at AS stopped_at, g.stopped_by AS stopped_by, g.ended_at AS ended_at`;
+  e.stopped_at AS stopped_at, g.stopped_by AS stopped_by, g.ended_at AS ended_at, e.source AS source,
+  e.scheduled_at AS scheduled_at`;
 
 export class FlowCapacityError extends Error {}
 const occupied =

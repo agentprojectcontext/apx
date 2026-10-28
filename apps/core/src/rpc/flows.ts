@@ -1,9 +1,13 @@
 import { matchesFlowPredicates } from "../domain/flow-evaluate.ts";
 import { flowGraphOrder } from "../domain/flow-graph-semantics.ts";
+import { tryFlowGraph } from "../domain/flow-graph-try.ts";
+import { validateFlowGraph } from "../domain/flow-graph-validate.ts";
 import { FlowGraphUnavailable } from "../domain/flow-graphs.ts";
+import { nextFlowTick } from "../domain/flow-schedules.ts";
+import { flowCronProblem } from "../domain/schedule.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
-import { type FlowModelCheck, type Flows, flowGraphIssues, validateFlowBinding } from "../flows.ts";
+import { type FlowModelCheck, type Flows, flowGraphIssues, flowTimeZone, validateFlowBinding } from "../flows.ts";
 import { flowGraphHandlers } from "./flow-graphs.ts";
 import type { Handlers } from "./router.ts";
 
@@ -13,6 +17,7 @@ export function flowHandlers(
   credentials: import("../public-credentials.ts").PublicCredentials,
   model: FlowModelCheck,
 ) {
+  const flowsNow = () => flows.now();
   const found = (id: string) => {
     const flow = store.flows.get(id);
     if (!flow) throw notFound("Flow not found");
@@ -23,15 +28,24 @@ export function flowHandlers(
     "flows.list": ({ project }) => {
       const flows = store.flows.list(project);
       const published: Record<string, { revision: number; kinds: string[] }> = {};
+      const schedules: Record<string, { cron: string; next_at: string | null }> = {};
+      const zone = flowTimeZone(store);
+      const at = flowsNow();
       for (const f of flows) {
         const doc = store.flowGraphs.get(f.id);
-        if (doc.published && doc.publishedRevision !== null)
-          published[f.id] = {
-            revision: doc.publishedRevision,
-            kinds: flowGraphOrder(doc.published).map((n) => n.kind),
+        if (!doc.published || doc.publishedRevision === null) continue;
+        published[f.id] = {
+          revision: doc.publishedRevision,
+          kinds: flowGraphOrder(doc.published).map((n) => n.kind),
+        };
+        const trigger = doc.published.nodes.find((n) => n.kind === "schedule");
+        if (trigger?.kind === "schedule")
+          schedules[f.id] = {
+            cron: trigger.cron,
+            next_at: f.enabled ? (nextFlowTick(trigger.cron, at, zone)?.toISOString() ?? null) : null,
           };
       }
-      return { flows, published };
+      return { flows, published, schedules, time_zone: zone };
     },
     "flows.set": (flow) => {
       const previous = store.flows.get(flow.id);
@@ -94,6 +108,38 @@ export function flowHandlers(
         return { matches: object && matchesFlowPredicates(data, predicates) };
       } catch {
         throw badRequest("Invalid Flow checks");
+      }
+    },
+    "flows.next_runs": ({ cron }) => {
+      const zone = flowTimeZone(store);
+      const error = flowCronProblem(cron) ?? null;
+      const next: string[] = [];
+      let at = flowsNow();
+      while (!error && next.length < 3) {
+        const n = nextFlowTick(cron, at, zone);
+        if (!n) break;
+        next.push(n.toISOString());
+        at = n;
+      }
+      return { next, time_zone: zone, error };
+    },
+    "flows.run_now": ({ flow, data }) => {
+      found(flow);
+      return flows.runNow(flow, data ?? {}, flowsNow());
+    },
+    "flows.cancel_run": ({ flow, event }) => {
+      found(flow);
+      const state = flows.cancel(flow, event) ?? null;
+      return { cancelled: state !== null, state };
+    },
+    "flows.try_graph": ({ graph, data }) => {
+      const text = JSON.stringify(data);
+      if (text === undefined || Buffer.byteLength(text) > 32768) throw badRequest("Sample data exceeds 32 KiB");
+      if (validateFlowGraph(graph).length) throw badRequest("The drawing can't run as it is");
+      try {
+        return { steps: tryFlowGraph(graph, data) };
+      } catch {
+        throw badRequest("That sample can't be tried");
       }
     },
     "flows.retry": ({ flow, event }) => {

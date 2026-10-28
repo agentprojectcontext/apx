@@ -1,11 +1,15 @@
+import { randomUUID } from "node:crypto";
 import type { FlowGraph, FlowGraphIssue } from "../../../packages/protocol/src/flow-graph.ts";
 import type { FlowDefinition } from "../../../packages/protocol/src/flow-methods.ts";
 import { FlowCapacityError } from "./domain/flow-events.ts";
 import { validateFlowGraph } from "./domain/flow-graph-validate.ts";
+import { FlowTriggerMismatch } from "./domain/flow-graphs.ts";
+import { dueFlowTick } from "./domain/flow-schedules.ts";
+import { ownerTimeZone } from "./domain/owner.ts";
 import { TERMINAL } from "./domain/runs.ts";
 import type { Store } from "./domain/store.ts";
 import type { RunTimers } from "./engine/engine.ts";
-import { badRequest, notFound } from "./errors.ts";
+import { badRequest, conflict, errorMessage, notFound } from "./errors.ts";
 import { createFlowGraphExecutor } from "./flow-graph-executor.ts";
 import type { Log } from "./log.ts";
 import type { Llm } from "./providers/llm.ts";
@@ -13,6 +17,10 @@ import type { Dispatch } from "./rpc/router.ts";
 import type { PublicRoutes } from "./transport/hooks.ts";
 
 export type { FlowDefinition };
+
+/** The zone schedules run in: the owner's, else this machine's. */
+export const flowTimeZone = (store: Store): string =>
+  ownerTimeZone(store) ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 export function validateFlowBinding(store: Store, flow: FlowDefinition) {
   if (!store.projects.get(flow.projectId)) throw notFound("Flow project not found");
@@ -70,6 +78,8 @@ export function createFlows(deps: {
   model?: FlowModelCheck | undefined;
   cancelThread?: ((thread: string) => void) | undefined;
   timers?: RunTimers | undefined;
+  /** The office clock schedules tick on (tests set it); else the timers' or the wall's. */
+  clock?: (() => Date) | undefined;
 }) {
   const { store } = deps;
   const graphs = deps.llm
@@ -163,6 +173,77 @@ export function createFlows(deps: {
     } while (requested && !closed);
   }
   const api = {
+    /** The Flows' clock: injected timers in tests, the wall clock otherwise. */
+    now: () => deps.clock?.() ?? new Date(deps.timers?.now() ?? Date.now()),
+    /**
+     * One beat of the routine scheduler (no clock of its own): each schedule Flow that is on and has a time due
+     * admits one event for it, `schedule:<due time>`, however many times it missed (DECISIONS.md#d-168).
+     */
+    tick(at: Date) {
+      const zone = flowTimeZone(store);
+      let admitted = false;
+      for (const s of store.flowSchedules.all()) {
+        if (!s.enabled) continue;
+        const since = store.flowSchedules.since(s.flow);
+        if (!since) {
+          store.flowSchedules.start(s.flow, at);
+          continue;
+        }
+        let due: Date | undefined;
+        try {
+          due = dueFlowTick(s.cron, new Date(since), at, zone);
+        } catch {
+          continue;
+        }
+        if (!due) continue;
+        const flow = store.flows.get(s.flow);
+        if (!flow) continue;
+        const when = due.toISOString();
+        try {
+          const state = store.tx(() => {
+            store.flowSchedules.advance(s.flow, at);
+            return store.flows.receive(s.flow, `schedule:${when}`, { scheduled_at: when }, authorize(flow), at, {
+              source: "schedule",
+              scheduledAt: when,
+            });
+          });
+          admitted ||= state === "pending";
+        } catch (err) {
+          // The time is spent either way: a Flow that can't take it must not be retried every beat.
+          store.flowSchedules.advance(s.flow, at);
+          deps.log.warn({ flow: s.flow, err: errorMessage(err, 120) }, "a scheduled Flow run was not admitted");
+        }
+      }
+      if (admitted) api.kick();
+    },
+    /**
+     * The owner starts a published Flow now, through its trigger's admission: a schedule Flow with an empty event,
+     * a webhook one with the sample body (untrusted data, like any POST).
+     */
+    runNow(id: string, data: unknown, at: Date) {
+      const flow = store.flows.get(id);
+      if (!flow) throw notFound("Flow not found");
+      const trigger = store.flowGraphs.trigger(id);
+      if (!trigger) throw conflict("Publish the drawing before running it");
+      if (!flow.enabled) throw conflict("Turn the flow on to run it");
+      const event = `owner:${randomUUID()}`;
+      try {
+        const state = store.flows.receive(id, event, trigger === "schedule" ? {} : data, authorize(flow), at, {
+          source: "owner",
+        });
+        if (state === "pending") api.kick();
+        return { event, state: state as "pending" | "ignored" | "duplicate" };
+      } catch (err) {
+        if (err instanceof FlowCapacityError) throw conflict("This flow has too many runs waiting");
+        if (err instanceof FlowTriggerMismatch) throw conflict("This flow can't be run by hand");
+        throw badRequest("That body can't start a run");
+      }
+    },
+    /** Stops a graph run that is going; owner-only through its method. */
+    cancel(id: string, event: string) {
+      if (!graphs) return undefined;
+      return graphs.cancel(id, event);
+    },
     kick() {
       graphs?.kick();
       if (closed) return;
@@ -182,12 +263,13 @@ export function createFlows(deps: {
     publicEndpoints() {
       return store.flows
         .list()
-        .filter((f) => f.enabled)
+        .filter((f) => f.enabled && store.flowGraphs.trigger(f.id) !== "schedule")
         .map((f) => ({ path: `/flows/${f.id}`, label: f.name }));
     },
     routes: ((pathname) => {
       const id = /^\/flows\/([A-Za-z0-9_-]{1,128})$/.exec(pathname)?.[1];
-      if (!id || !store.flows.get(id)?.enabled) return;
+      // A schedule Flow has no address: a POST to it is as unknown as one to no Flow.
+      if (!id || !store.flows.get(id)?.enabled || store.flowGraphs.trigger(id) === "schedule") return;
       return {
         id: `flow:${id}`,
         methods: ["POST"],

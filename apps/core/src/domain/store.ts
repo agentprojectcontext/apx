@@ -11,6 +11,7 @@ import { devicesRepo } from "./devices.ts";
 import { extensionsRepo } from "./extensions.ts";
 import { flowGraphRunsRepo } from "./flow-graph-runs.ts";
 import { flowGraphsRepo } from "./flow-graphs.ts";
+import { flowSchedulesRepo } from "./flow-schedules.ts";
 import { flowsRepo } from "./flows.ts";
 import { inputsRepo } from "./inputs.ts";
 import { jobsRepo } from "./jobs.ts";
@@ -53,6 +54,7 @@ export function createStore(db: Db, bus: Bus) {
     flows: flowsRepo(db),
     flowGraphs: flowGraphsRepo(db),
     flowGraphRuns: flowGraphRunsRepo(db),
+    flowSchedules: flowSchedulesRepo(db),
     projects: projectsRepo(q, teamChanged),
     agents: agentsRepo(q, teamChanged),
     threads: threadsRepo(q, bus, approvals.endSession),

@@ -79,7 +79,9 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
   let recovered = false;
   const wanted = new Set<string>();
   const advancing = new Map<string, Promise<void>>();
-  const calls = new Set<AbortController>();
+  /** Model calls in flight, by the run they belong to. */
+  const calls = new Map<AbortController, string>();
+  const runKey = (flow: string, event: string) => `${flow}\u0000${event}`;
   let disarm: (() => void) | undefined;
 
   const keyOf = (run: FlowGraphRun, node: string): FlowStepKey => ({
@@ -150,7 +152,7 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
     input: unknown,
   ) {
     const ac = new AbortController();
-    calls.add(ac);
+    calls.set(ac, runKey(run.flow, run.event));
     const stop = timers.after(Math.max(0, Math.min(node.timeoutMs, run.deadline - timers.now())), () =>
       ac.abort(new StepStopped("deadline")),
     );
@@ -266,7 +268,7 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
     let input: unknown;
     try {
       input =
-        node.kind === "webhook"
+        node.kind === "webhook" || node.kind === "schedule"
           ? undefined
           : node.kind === "table_read"
             ? { keys: node.keys }
@@ -296,6 +298,7 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
     };
     switch (node.kind) {
       case "webhook":
+      case "schedule":
         return pure(() => run.payload);
       case "condition":
         return pure(() => evaluateFlowCondition(node, input));
@@ -415,10 +418,22 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
       pump();
       arm();
     },
+    /**
+     * The owner stops a run: its checkpoint ends it (DECISIONS.md#d-168), then its model call in flight is aborted and
+     * the runs its steps started are asked to stop. Undefined when it was not going.
+     */
+    cancel(flow: string, event: string) {
+      const state = runs.cancel(flow, event, now());
+      if (!state) return undefined;
+      for (const [ac, key] of calls) if (key === runKey(flow, event)) ac.abort(new StepStopped("cancelled"));
+      stopOrphans();
+      api.kick();
+      return state;
+    },
     async close() {
       closed = true;
       disarm?.();
-      for (const ac of calls) ac.abort(new StepStopped("closing"));
+      for (const ac of calls.keys()) ac.abort(new StepStopped("closing"));
       await Promise.allSettled(advancing.values());
     },
   };

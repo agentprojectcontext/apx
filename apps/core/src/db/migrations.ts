@@ -986,4 +986,12 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE flow_graph_nodes ADD COLUMN phase TEXT;
   CREATE INDEX flow_graph_events_state ON flow_graph_events(state);
   `,
+  // What started each Flow run and, for a schedule, when it was due; `since` is where the next tick is counted from.
+  `
+  ALTER TABLE flow_events ADD COLUMN source TEXT NOT NULL DEFAULT 'webhook';
+  ALTER TABLE flow_events ADD COLUMN scheduled_at TEXT;
+  CREATE TABLE flow_schedules (
+    flow_id TEXT PRIMARY KEY REFERENCES flows(id) ON DELETE CASCADE, since TEXT NOT NULL
+  );
+  `,
 ];

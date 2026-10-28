@@ -19,6 +19,8 @@ const Base = { id: FlowNodeId, label: z.string().min(1).max(120) };
 const Key = z.string().min(1).max(128);
 export const FlowNode = z.discriminatedUnion("kind", [
   z.object({ ...Base, kind: z.literal("webhook") }).strict(),
+  /** Five-field cron in the owner's time zone; presets are crons too. */
+  z.object({ ...Base, kind: z.literal("schedule"), cron: z.string().min(9).max(120) }).strict(),
   z.object({ ...Base, kind: z.literal("condition"), input: FlowBinding, equals: JsonLiteral }).strict(),
   z.object({ ...Base, kind: z.literal("table_read"), keys: z.array(Key).min(1).max(16) }).strict(),
   z.object({ ...Base, kind: z.literal("table_write"), key: Key, value: FlowBinding }).strict(),
@@ -106,7 +108,7 @@ export const FlowStepRecord = z
     truncated: z.boolean(),
     /**
      * Why it did not succeed, as a code: missing_value, table_full, model_unavailable, model_refused, model_cut,
-     * model_uncertain, not_started, run_failed, run_canceled, run_silent, deadline, value_too_large.
+     * model_uncertain, not_started, run_failed, run_canceled, run_silent, deadline, value_too_large, owner_cancelled.
      */
     error: z.string().nullable(),
     run_id: z.string().nullable(),
@@ -115,6 +117,8 @@ export const FlowStepRecord = z
   .strict();
 export type FlowStepRecord = z.infer<typeof FlowStepRecord>;
 export const FlowRunState = z.enum(["pending", "succeeded", "failed", "uncertain", "cancelled", "ignored"]);
+/** What started a run: a POST, its schedule, or the owner's "Run now". */
+export const FlowRunSource = z.enum(["webhook", "schedule", "owner"]);
 export const FlowRunDetail = z
   .object({
     flow: FlowId,
@@ -127,6 +131,9 @@ export const FlowRunDetail = z
     created_at: z.string(),
     ended_at: z.string().nullable(),
     deadline_at: z.string(),
+    source: FlowRunSource,
+    /** A scheduled run: the time it was due (it can start later, once, when the core was off then). */
+    scheduled_at: z.string().nullable(),
     steps: z.array(FlowStepRecord),
   })
   .strict();
@@ -151,8 +158,12 @@ export const flowGraphMethods = {
     effect: true,
     access: "human",
   },
+  /** A new Flow, not saved yet, is checked against the project it will belong to. */
   "flows.validate": {
-    params: z.object({ flow: FlowId, graph: FlowGraph }).strict(),
+    params: z
+      .object({ flow: FlowId.optional(), project: FlowId.optional(), graph: FlowGraph })
+      .strict()
+      .refine((p) => (p.flow === undefined) !== (p.project === undefined), "Pass a flow or a project"),
     result: z.object({ valid: z.boolean(), issues: z.array(FlowGraphIssue) }).strict(),
     effect: false,
     access: "human",
@@ -161,6 +172,58 @@ export const flowGraphMethods = {
   "flows.run_get": {
     params: z.object({ flow: FlowId, event: z.string().min(1).max(256) }).strict(),
     result: FlowRunDetail,
+    effect: false,
+    access: "human",
+  },
+  /** When a cron fires next in the owner's time zone; `error` says why it can't be used. */
+  "flows.next_runs": {
+    params: z.object({ cron: z.string().min(1).max(120) }).strict(),
+    result: z
+      .object({
+        next: z.array(z.string()).max(3),
+        time_zone: z.string(),
+        error: z.enum(["invalid", "too_often"]).nullable(),
+      })
+      .strict(),
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Starts a published, enabled Flow now through the same admission as its trigger: a schedule Flow with an empty
+   * event, a webhook Flow with the sample body given (untrusted, like any payload).
+   */
+  "flows.run_now": {
+    params: z.object({ flow: FlowId, data: z.unknown().optional() }).strict(),
+    result: z.object({ event: z.string(), state: z.enum(["pending", "ignored", "duplicate"]) }).strict(),
+    effect: true,
+    access: "human",
+  },
+  /** Stops a run that is going: pending steps are cancelled, a model call already sent is left to look at. */
+  "flows.cancel_run": {
+    params: z.object({ flow: FlowId, event: z.string().min(1).max(256) }).strict(),
+    result: z.object({ cancelled: z.boolean(), state: FlowRunState.nullable() }).strict(),
+    effect: true,
+    access: "human",
+  },
+  /**
+   * What a drawing would do with this data: checks and bindings as a run evaluates them. Reads no table, saves
+   * nothing, calls no model and starts no run; steps that do work say they would run.
+   */
+  "flows.try_graph": {
+    params: z.object({ graph: FlowGraph, data: z.unknown() }).strict(),
+    result: z
+      .object({
+        steps: z.array(
+          z
+            .object({
+              node: FlowNodeId,
+              state: z.enum(["ran", "would_run", "skipped", "unknown", "missing"]),
+              matched: z.boolean().nullable(),
+            })
+            .strict(),
+        ),
+      })
+      .strict(),
     effect: false,
     access: "human",
   },

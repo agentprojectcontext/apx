@@ -194,9 +194,12 @@ test("additive migration leaves legacy pending payload, action, rows and dedupli
       db
         .prepare("SELECT * FROM flow_events")
         .all()
-        .map(({ executor, stopped_at, ...row }) => {
+        .map(({ executor, stopped_at, source, scheduled_at, ...row }) => {
           assert.equal(executor, "legacy");
           assert.equal(stopped_at, null);
+          // Every event before schedules came by POST.
+          assert.equal(source, "webhook");
+          assert.equal(scheduled_at, null);
           return row;
         }),
       before,

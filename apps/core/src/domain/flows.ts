@@ -4,7 +4,13 @@ import type { Db } from "../db/db.ts";
 import { redactedJson } from "../log.ts";
 import { firstFailedPredicate, matchesFlowPredicates } from "./flow-evaluate.ts";
 import { checkFlowCapacity, FlowCapacityError, flowEventsRepo } from "./flow-events.ts";
-import { FlowGraphUnavailable, flowGraphsRepo, hasPublishedFlowGraph } from "./flow-graphs.ts";
+import {
+  type FlowEventSource,
+  FlowGraphUnavailable,
+  FlowTriggerMismatch,
+  flowGraphsRepo,
+  hasPublishedFlowGraph,
+} from "./flow-graphs.ts";
 import { checkFlowIdentifier, retireFlow } from "./flow-retirement.ts";
 import { sql } from "./sql.ts";
 
@@ -70,6 +76,8 @@ export function saveFlow(db: Db, value: FlowDefinition): void {
       JSON.stringify(flow.readKeys ?? []),
     );
   if (!result.changes) throw new Error("Flow belongs to another project");
+  // Off, a schedule owes nothing: turned on again, it counts from then.
+  if (!flow.enabled) db.prepare("DELETE FROM flow_schedules WHERE flow_id=?").run(flow.id);
 }
 
 export function flowsRepo(db: Db) {
@@ -139,6 +147,7 @@ export function flowsRepo(db: Db) {
       payload: unknown,
       authorize?: (graph: FlowGraph) => void,
       at = new Date(),
+      from: FlowEventSource = { source: "webhook" },
     ): "duplicate" | "ignored" | "written" | "pending" {
       if (!eventId || eventId.length > 256 || redactedJson(eventId) !== JSON.stringify(eventId))
         throw new Error("Invalid event id");
@@ -149,8 +158,10 @@ export function flowsRepo(db: Db) {
         if (!flow?.enabled) throw new Error("Flow not found or disabled");
         if (hasPublishedFlowGraph(db, flowId)) {
           if (!authorize) throw new FlowGraphUnavailable("Graph admission needs its binding check");
-          return graphs.admit(flowId, eventId, payload, at, authorize).state;
+          return graphs.admit(flowId, eventId, payload, at, authorize, from).state;
         }
+        // Only a drawing runs on a schedule or by hand; a legacy definition takes POSTs alone.
+        if (from.source !== "webhook") throw new FlowTriggerMismatch("The Flow does not start that way");
         if (db.prepare("SELECT 1 FROM flow_events WHERE flow_id=? AND event_id=?").get(flowId, eventId))
           return "duplicate";
         if (Number(db.prepare("SELECT count(*) AS n FROM flow_events WHERE flow_id=?").get(flowId)?.n) >= MAX_EVENTS)

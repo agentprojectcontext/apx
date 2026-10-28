@@ -35,8 +35,22 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck) {
       found(flow);
       return write(() => store.flowGraphs.discardDraft(flow, expectedVersion));
     },
-    "flows.validate": ({ flow, graph }) => {
-      const issues = flowGraphIssues(store, found(flow), graph, model);
+    "flows.validate": ({ flow, project, graph }) => {
+      // A Flow not saved yet is checked as one of its project, off, with nothing else defined.
+      const definition =
+        flow !== undefined
+          ? found(flow)
+          : {
+              id: "new",
+              projectId: project ?? "",
+              name: "New",
+              enabled: false,
+              predicates: [],
+              tableKey: "latest",
+              action: { kind: "none" as const },
+            };
+      if (flow === undefined && !store.projects.get(definition.projectId)) throw notFound("Project not found");
+      const issues = flowGraphIssues(store, definition, graph, model);
       return { valid: issues.length === 0, issues };
     },
     "flows.publish": ({ flow, expectedDraftVersion, expectedPublishedRevision }) => {

@@ -2716,3 +2716,25 @@ quarantine (no database ever held a publication), export sessions and receipts (
 and each run's steps; retirement keeps the owner's explicit `confirm-exported`), a cross-node budget and a cancel
 outbox (a canceled request is retried on every recovery pass). A routine step reuses the reviewed legacy routine
 admission, binding re-checked against the pinned revision, and keeps its usual delivery to the owner.
+
+## D-168 — 2026-10-28 — A schedule Flow ticks on the routine scheduler's beat and owes at most one run
+A Flow can start from a schedule (a five-field cron, in the owner's time zone) as well as from a POST. Its ticks come
+from the routine scheduler's existing beat (`officeScheduler` → `flows.tick`), not from a second loop or a timer per
+Flow. Each schedule Flow keeps one moment, `since`, that its next time is counted from:
+
+- **One run per time due, at most one owed.** A beat that finds a time due admits one event, `schedule:<due time>`,
+  through the same admission transaction as a POST (dedup per Flow and scheduled time, pinned to the published
+  revision), and moves `since` to the beat. Times missed while the core was off run once when it starts, not once
+  each: a backlog of a schedule is noise, and repeating work the owner thought was skipped is worse. The run records
+  when it was due, so the screen can say it started late. A failed admission spends the time too, as a routine's does.
+- **Off owes nothing.** Turning a Flow off deletes its `since`; turned on again it counts from then.
+- **One way in each.** Admission checks the source against the pinned revision's trigger: a schedule Flow has no
+  public route and refuses a POST, a webhook Flow never ticks. The owner's "Run now" goes through the same admission,
+  marked `owner`: an empty event for a schedule Flow, the sample body (untrusted, redacted like any payload) for a
+  webhook one. A cron that could fire twice within five minutes is refused, like a routine's.
+- **Cancel follows the deadline rule.** The owner stops a going run in one transaction: steps not started are
+  cancelled, a model call that may have been sent is left uncertain (never re-sent), a run a step handed work to is
+  asked to stop. The run ends cancelled, or uncertain when a step is. Owner-only.
+
+Rejected: a timer per Flow (a second clock to keep right across sleep and restarts), catching up every missed time,
+and letting a webhook Flow tick or a schedule Flow take POSTs "for testing" (that is what Run now is for).

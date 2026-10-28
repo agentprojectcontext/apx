@@ -25,6 +25,7 @@ export type FlowShapeResult = { ok: true; shape: FlowShape } | { ok: false; prob
 const idPattern = /^[A-Za-z0-9_-]{1,100}$/;
 const RANK: Record<FlowNode["kind"], number> = {
   webhook: 0,
+  schedule: 0,
   condition: 1,
   table_read: 2,
   table_write: 3,

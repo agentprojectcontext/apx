@@ -432,6 +432,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     model: flowModel,
     cancelThread: (thread) => engine.cancel(thread),
     timers: opts.runTimers,
+    clock: opts.clock,
   });
   const stopFlowEvents = bus.on((event) => {
     if (event.type === "run.updated" && event.run.ended_at) flows.kick();
@@ -567,6 +568,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     attention,
     notifyOwner: (body, threadId) => channels.notifyOwner(body, "notice", threadId),
     openHeld: () => channels.openHeld((a) => engine.admit(a)),
+    flowTick: (at) => flows.tick(at),
     log,
     ...(opts.clock ? { now: opts.clock } : {}),
   });

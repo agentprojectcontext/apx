@@ -263,6 +263,52 @@ export function flowGraphRunsRepo(db: Db) {
       });
     },
     /**
+     * The owner stops a run that is going, in one transaction: steps not started are cancelled, a model call that may
+     * have been sent stays uncertain (never sent again), anything else starting or waiting is cancelled. The run
+     * ends cancelled, or uncertain when a step is. Undefined when it was not going.
+     */
+    cancel(flow: string, event: string, at: Date): "cancelled" | "uncertain" | undefined {
+      return tx(() => {
+        const head = one(
+          qb
+            .selectFrom("flow_graph_events")
+            .select(["revision", "state"])
+            .where("flow_id", "=", flow)
+            .where("event_id", "=", event),
+        );
+        if (head?.state !== "pending") return undefined;
+        const iso = at.toISOString();
+        const nodes = () =>
+          qb
+            .updateTable("flow_graph_nodes")
+            .where("flow_id", "=", flow)
+            .where("event_id", "=", event)
+            .where("revision", "=", head.revision);
+        run(
+          nodes()
+            .set({ state: "uncertain", ended_at: iso, error: "model_uncertain" })
+            .where("state", "=", "running")
+            .where("phase", "=", "dispatched"),
+        );
+        run(
+          nodes()
+            .set({ state: "cancelled", ended_at: iso, error: "owner_cancelled" })
+            .where("state", "in", ["pending", "running", "waiting_run"]),
+        );
+        const uncertain = one(
+          qb
+            .selectFrom("flow_graph_nodes")
+            .select("node_id")
+            .where("flow_id", "=", flow)
+            .where("event_id", "=", event)
+            .where("state", "=", "uncertain"),
+        );
+        const state = uncertain ? "uncertain" : "cancelled";
+        api.finish(flow, event, state, at);
+        return state;
+      });
+    },
+    /**
      * After a restart: a model call that may have been sent is uncertain, never sent again; one reserved but not
      * sent, or a run step that admitted no run, can start over.
      */
@@ -326,6 +372,8 @@ export function flowGraphRunsRepo(db: Db) {
             "g.ended_at",
             "r.graph",
             "e.created_at",
+            "e.source",
+            "e.scheduled_at",
             "d.published_revision",
           ])
           .where("g.flow_id", "=", flow)
@@ -373,6 +421,8 @@ export function flowGraphRunsRepo(db: Db) {
         created_at: head.created_at,
         ended_at: head.ended_at,
         deadline_at: head.deadline_at,
+        source: head.source as FlowRunDetail["source"],
+        scheduled_at: head.scheduled_at,
         steps,
       };
     },

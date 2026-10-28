@@ -48,6 +48,10 @@ export const FlowEvent = z.object({
   stopped_by: z.string().nullable().default(null),
   /** When a graph run ended. */
   ended_at: z.string().nullable().default(null),
+  /** What started it: a POST, its schedule or the owner's "Run now". */
+  source: z.enum(["webhook", "schedule", "owner"]).default("webhook"),
+  /** A scheduled run: the time it was due; later than `created_at` by more than a minute means it ran late, once. */
+  scheduled_at: z.string().nullable().default(null),
 });
 export const FlowEventCursor = z
   .object({ createdAt: z.string().datetime(), eventId: z.string().min(1).max(256) })
@@ -57,10 +61,16 @@ export const flowMethods = {
   ...flowGraphMethods,
   "flows.list": {
     params: z.object({ project: Id.optional() }).strict(),
-    /** `published`: for each Flow that runs a drawing, its revision and step kinds in the order they run. */
+    /**
+     * `published`: for each Flow that runs a drawing, its revision and step kinds in the order they run.
+     * `schedules`: for each that runs on a schedule, its cron and next time (null while off); `time_zone` is the
+     * owner's, the one crons run in.
+     */
     result: z.object({
       flows: z.array(FlowDefinition),
       published: z.record(z.string(), z.object({ revision: z.number().int(), kinds: z.array(z.string()) })).default({}),
+      schedules: z.record(z.string(), z.object({ cron: z.string(), next_at: z.string().nullable() })).default({}),
+      time_zone: z.string().default("UTC"),
     }),
     effect: false,
     access: "human",
