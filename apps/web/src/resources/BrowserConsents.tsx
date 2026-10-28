@@ -1,12 +1,21 @@
 import type { ToolApproval } from "@apx/protocol";
 import { Button, Dialog } from "@apx/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ApprovalText } from "../common/ApprovalText.tsx";
 import { listApprovals, revokeApproval } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 
 /** Temporary browser permissions remain reachable while an agent is running. */
 export function BrowserConsents() {
+  return (
+    <ApprovalText context="browser">
+      <BrowserConsentsBody />
+    </ApprovalText>
+  );
+}
+
+function BrowserConsentsBody() {
   const t = useT();
   const agents = useData((s) => s.agents);
   const threads = useData((s) => s.threads);

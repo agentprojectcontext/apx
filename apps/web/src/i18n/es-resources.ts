@@ -2,25 +2,6 @@
 import type { MessageKey } from "./en.ts";
 
 export const esResources: Partial<Record<MessageKey, string>> = {
-  "res.browserTabNumber": "Pestaña {n}",
-  "res.browserPermissionNumber": "Permiso {n}",
-  "res.browserUntitled": "Pestaña sin título",
-  "res.browserRevokeLabel": "Revocar permiso: {context}",
-  "res.browserRevoked": "Permiso revocado: {context}. El código ya enviado o en ejecución no se detiene.",
-  "res.browserPermissions": "Permisos activos del navegador",
-  "res.browserPermissionsHelp":
-    "Permisos temporales de JavaScript para el agente, chat y sitio indicados. Revocar bloquea llamadas futuras, no el código ya enviado o en ejecución. Actualizá para ver los permisos vigentes.",
-  "res.browserRefresh": "Actualizar permisos",
-  "res.browserLoadFailed": "No se pudieron cargar los permisos del navegador. Actualizá para reintentar.",
-  "res.browserRevokeFailed": "No se pudo revocar este permiso del navegador. Actualizá para reintentar.",
-  "res.browserNone": "No hay permisos temporales activos del navegador.",
-  "res.browserTab": "Esta pestaña",
-  "res.browserTurn": "Este turno",
-  "res.browserAgent": "Agente",
-  "res.browserChat": "Chat",
-  "res.browserTurnEnds": "Termina cuando finaliza esta ejecución.",
-  "res.browserExpires": "Vence {at}",
-  "res.browserRevoke": "Revocar permiso",
   "res.toolsMode": "Permisos de tools",
   "res.toolsMode.ask": "Preguntar",
   "res.toolsMode.all": "Todas permitidas",

@@ -20,6 +20,10 @@ export function loadMessages(lang: Language): Promise<Messages> {
 
 /** Strings only one late screen shows: loaded with it (index.ts usePack), never with the first screen. */
 const PACKS = {
+  approvals: {
+    en: () => import("./approvals-en.ts").then((m) => m.enApprovals),
+    es: () => import("./approvals-es.ts").then((m) => m.esApprovals),
+  },
   flow: {
     en: () => import("./flow-en.ts").then((m) => m.enFlow),
     es: () => import("./flow-es.ts").then((m) => m.esFlow),

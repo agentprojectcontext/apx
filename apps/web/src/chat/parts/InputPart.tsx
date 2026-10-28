@@ -2,6 +2,7 @@ import "../../styles/screens.css";
 import type { ApprovalScope, FileChange, Part } from "@apx/protocol";
 import { ActionGroup, Button, Icons, MarkdownView } from "@apx/ui";
 import { Fragment, useId, useState } from "react";
+import { ApprovalText } from "../../common/ApprovalText.tsx";
 import { useMarkdownLabels } from "../../common/useMarkdownLabels.ts";
 import { respond } from "../../data/actions.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
@@ -31,6 +32,14 @@ const DONE_ICON = {
 
 /** An agent waiting for the owner: approve or decline an action, or answer a question. Once settled, one line. */
 export function InputPart({ part }: { part: InputPartData }) {
+  return (
+    <ApprovalText preserve>
+      <InputBody part={part} />
+    </ApprovalText>
+  );
+}
+
+function InputBody({ part }: { part: InputPartData }) {
   const { state } = part;
   if (state !== "pending") return <SettledInput part={part} state={state} />;
   return <PendingInput part={part} />;

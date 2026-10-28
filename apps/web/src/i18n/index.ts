@@ -34,9 +34,10 @@ async function show(lang: Language): Promise<void> {
   for (const l of listeners) l();
 }
 
-async function addPack(pack: Pack): Promise<void> {
-  asked.add(pack);
-  const lang = shown?.lang;
+/** Guarded screens request a language explicitly and handle loading or failure on the screen itself. */
+export async function addPack(pack: Pack, language?: Language): Promise<void> {
+  if (!language) asked.add(pack);
+  const lang = language ?? shown?.lang;
   if (!lang || shown?.packs.has(pack)) return;
   const messages = await loadPack(pack, lang);
   if (shown?.lang !== lang || shown.packs.has(pack)) return;

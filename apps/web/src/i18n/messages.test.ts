@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { enApprovals } from "./approvals-en.ts";
+import { esApprovals } from "./approvals-es.ts";
 import { enComputer } from "./computer-en.ts";
 import { esComputer } from "./computer-es.ts";
 import { en as base } from "./en.ts";
@@ -16,6 +18,21 @@ import { enSysUsage } from "./sysusage-en.ts";
 import { esSysUsage } from "./sysusage-es.ts";
 import { enThreadDialogs } from "./thread-dialogs-en.ts";
 import { esThreadDialogs } from "./thread-dialogs-es.ts";
+
+test("approval details do not load with the first screen in either language", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const messages = await loadMessages(lang);
+    assert.equal(messages["input.browserSafety"], undefined);
+    assert.equal(messages["input.confirmTitle"], undefined);
+    assert.equal(messages["res.browserPermissionsHelp"], undefined);
+    assert.equal(messages["input.sessionScope"], lang === "en" ? "This session" : "Esta sesión");
+    for (const key of Object.keys(enApprovals) as (keyof typeof enApprovals)[]) {
+      assert.equal(messages[key], undefined);
+    }
+    assert.deepEqual(await loadPack("approvals", lang), lang === "en" ? enApprovals : esApprovals);
+  }
+});
 
 test("thread dialog strings load only with their pack in both languages", async () => {
   const { loadMessages, loadPack } = await import("./messages.ts");
@@ -73,6 +90,7 @@ test("signature strings load as a separate pack in both languages", async () => 
 // A pack's strings belong to the language as much as the main chunk's.
 const en = {
   ...base,
+  ...enApprovals,
   ...enComputer,
   ...enReceived,
   ...enSysUsage,
@@ -83,6 +101,7 @@ const en = {
 };
 const es = {
   ...esBase,
+  ...esApprovals,
   ...esComputer,
   ...esReceived,
   ...esSysUsage,

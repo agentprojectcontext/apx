@@ -99,7 +99,12 @@ for (const [width, scope, language] of [
       await expect(card).toBeHidden();
       await until(async () => evaluations === 3);
       await expect(page.locator(".inputline")).toHaveCount(1);
-      await open(page, "#view=resources");
+      await page.keyboard.press("ControlOrMeta+k");
+      await page
+        .getByRole("combobox", { name: spanish ? "Buscar" : "Search" })
+        .or(page.getByRole("textbox", { name: spanish ? "Buscar" : "Search" }))
+        .fill(spanish ? "Recursos" : "Resources");
+      await page.getByRole("option", { name: spanish ? /Recursos/ : /Resources/ }).click();
       await page.getByRole("button", { name: permissions, exact: true }).click();
       const dialog = page.getByRole("dialog");
       await expect(dialog.getByRole("button", { name: spanish ? "Cerrar" : "Close", exact: true })).toBeVisible();
