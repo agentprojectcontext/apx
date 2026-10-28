@@ -344,10 +344,11 @@ test("cancelling a run mid-way: pending steps are cancelled, a model call alread
     assert.deepEqual(out, { cancelled: true, state: "uncertain" });
     const detail = await env.client.call("flows.run_get", { flow, event: started.event });
     assert.equal(detail.state, "uncertain");
+    assert.equal(events(env, flow).find((e) => e.event_id === started.event)?.cancelled_by_owner, true);
     const by = Object.fromEntries(detail.steps.map((s) => [s.node, [s.state, s.error]]));
     assert.deepEqual(by, {
       tick: ["succeeded", null],
-      think: ["uncertain", "model_uncertain"],
+      think: ["uncertain", "cancelled_after_send"],
       save: ["cancelled", "owner_cancelled"],
     });
     // The call in flight was stopped and never sent again.

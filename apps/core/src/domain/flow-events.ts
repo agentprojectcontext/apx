@@ -11,7 +11,8 @@ const runTokens =
 const shape = `CASE WHEN e.executor='legacy' THEN 'legacy' ELSE 'graph' END AS executor, g.revision AS revision,
   CASE WHEN e.executor='legacy' THEN d.published_revision IS NULL ELSE g.revision IS d.published_revision END AS current,
   e.stopped_at AS stopped_at, g.stopped_by AS stopped_by, g.ended_at AS ended_at, e.source AS source,
-  e.scheduled_at AS scheduled_at`;
+  e.scheduled_at AS scheduled_at, EXISTS(SELECT 1 FROM flow_graph_nodes n WHERE n.flow_id=e.flow_id AND
+  n.event_id=e.event_id AND n.error IN ('owner_cancelled','cancelled_after_send')) AS cancelled_by_owner`;
 
 export class FlowCapacityError extends Error {}
 const occupied =
@@ -54,7 +55,9 @@ export function flowEventsRepo(db: Db) {
           cursor?.eventId ?? null,
           limit,
         )
-        .map((r) => FlowEvent.parse({ ...r, current: Boolean(r.current) }));
+        .map((r) =>
+          FlowEvent.parse({ ...r, current: Boolean(r.current), cancelled_by_owner: Boolean(r.cancelled_by_owner) }),
+        );
     },
     eventsPage(id: string, limit: number, cursor?: FlowEventCursor) {
       const found = api.events(id, limit + 1, cursor);

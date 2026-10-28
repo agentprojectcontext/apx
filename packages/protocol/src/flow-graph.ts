@@ -108,7 +108,7 @@ export const FlowStepRecord = z
     truncated: z.boolean(),
     /**
      * Why it did not succeed, as a code: missing_value, table_full, model_unavailable, model_refused, model_cut,
-     * model_uncertain, not_started, run_failed, run_canceled, run_silent, deadline, value_too_large, owner_cancelled.
+     * model_uncertain, not_started, run_failed, run_canceled, run_silent, deadline, value_too_large, owner_cancelled, cancelled_after_send.
      */
     error: z.string().nullable(),
     run_id: z.string().nullable(),

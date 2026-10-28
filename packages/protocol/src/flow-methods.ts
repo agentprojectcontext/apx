@@ -52,6 +52,8 @@ export const FlowEvent = z.object({
   source: z.enum(["webhook", "schedule", "owner"]).default("webhook"),
   /** A scheduled run: the time it was due; later than `created_at` by more than a minute means it ran late, once. */
   scheduled_at: z.string().nullable().default(null),
+  /** The owner stopped it ("Cancel run"); it ended cancelled, or uncertain when a step had been sent. */
+  cancelled_by_owner: z.boolean().default(false),
 });
 export const FlowEventCursor = z
   .object({ createdAt: z.string().datetime(), eventId: z.string().min(1).max(256) })

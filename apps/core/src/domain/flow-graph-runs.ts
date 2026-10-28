@@ -286,7 +286,7 @@ export function flowGraphRunsRepo(db: Db) {
             .where("revision", "=", head.revision);
         run(
           nodes()
-            .set({ state: "uncertain", ended_at: iso, error: "model_uncertain" })
+            .set({ state: "uncertain", ended_at: iso, error: "cancelled_after_send" })
             .where("state", "=", "running")
             .where("phase", "=", "dispatched"),
         );
