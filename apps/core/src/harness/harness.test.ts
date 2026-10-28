@@ -382,6 +382,27 @@ test("an outside agent's file tools never change git's folder, even in total, as
   }
 });
 
+test("an outside agent's command that writes outside its folders is put to the owner, as our shell's is", async () => {
+  const t0 = await session("claude");
+  const away = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
+  await env.client.call("agents.update", { agent: "roby", autonomy: "manual" });
+  try {
+    const asks = [{ kind: "execute", command: `touch ${sh(away)}/made.txt` }];
+    await env.client.call("threads.send", { thread: t0.id, text: `probe ${JSON.stringify(asks)}` });
+    const card = await waitFor(
+      async () => (await env.client.call("runs.pending", { thread: t0.id })).inputs[0],
+      "a card",
+    );
+    await env.client.call("runs.respond", { input: card.id, decision: "deny" });
+    const t = await env.settle(t0.id);
+    const answer = t.messages.at(-1)?.parts.find((p) => p.type === "text");
+    assert.equal(answer?.type === "text" ? answer.text : "", "[false]");
+  } finally {
+    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+    await removeDir(away);
+  }
+});
+
 test("an outside agent reads its project's read-only folders without asking and may never change them", async () => {
   const t0 = await session("claude");
   const ref = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));

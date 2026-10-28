@@ -16,7 +16,7 @@ import type { TurnIO } from "../harness/index.ts";
 import { MCP_CALL, MCP_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
 import { authorize, decide, keepsCard, sessionGate } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
-import { commandRisk, judgeCommand } from "../tools/shell.ts";
+import { commandRisk } from "../tools/shell.ts";
 import type { CheckContext, Confirm, ScopedThread, Tool, ToolContext } from "../tools/types.ts";
 import type { Display } from "./display.ts";
 import { folderBinding, type Inputs } from "./inputs.ts";
@@ -504,7 +504,7 @@ export function createExecutor(o: {
     const judged = paths.map((p) => o.permissions.harnessPath(scope, p, !reading));
     // A command is held to the shell tool's folder rule: what it reads readable, what it writes writable.
     const ran = req.kind === "execute" && typeof command === "string";
-    const refusedCommand = ran ? judgeCommand(o.permissions.harnessRoots(scope), command, base) : undefined;
+    const refusedCommand = ran ? o.permissions.harnessCommand(scope, command, base) : undefined;
     if (refusedCommand) judged.push(refusedCommand);
     // No answer of the owner's opens a read-only folder or APX's own, nor lets a file tool change git's folder.
     if (judged.some((r) => "refused" in r && !r.offer)) return false;
