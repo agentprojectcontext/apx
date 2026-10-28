@@ -29,7 +29,7 @@ test("the editor creates an area, takes its own rules after a warning, and searc
   await area.getByRole("button", { name: "Crear" }).click();
   await expect(editor.getByRole("combobox", { name: "Área" })).toHaveText(/Finanzas/);
 
-  // It followed the project's autonomy: changing one rule warns that it now goes its own way in every case.
+  // It followed the project's autonomy: changing one rule warns that it now keeps that mode as its own.
   await editor.getByRole("button", { name: "Reglas por caso" }).click();
   await editor.getByRole("radio", { name: "Apagada" }).last().click();
   const warn = page.getByRole("dialog", { name: "¿Dejar de usar las reglas del proyecto?" });
@@ -43,11 +43,17 @@ test("the editor creates an area, takes its own rules after a warning, and searc
 
   await editor.getByRole("button", { name: "Guardar y cerrar" }).click();
   await expect(editor).toHaveCount(0);
-  const ledger = await rpc<{ agent: { area?: string; rules?: Record<string, string> } }>("agents.get", {
-    agent: "ledger",
-  });
+  const ledger = await rpc<{ agent: { area?: string; autonomy?: string; rules?: Record<string, string> } }>(
+    "agents.get",
+    {
+      agent: "ledger",
+    },
+  );
   expect(ledger.agent.area).toBe("finanzas");
-  expect(ledger.agent.rules).toEqual({ read: "auto", write: "auto", outside: "ask", irreversible: "off" });
+  // The project's mode becomes its own and only the changed case is a rule, so every other case acts as that mode runs
+  // (DECISIONS.md#d-090).
+  expect(ledger.agent.autonomy).toBe("auto");
+  expect(ledger.agent.rules).toEqual({ irreversible: "off" });
 
   // Back to how other specs expect it.
   await rpc("agents.archive", { agent: "ledger" });
