@@ -131,7 +131,8 @@ export function createNudges(deps: {
       store.nudges.add({ ...strip(o), at: at.toISOString(), state: "dropped", reason, exempt: false });
       return "dropped" as const;
     };
-    if (muted(store, o.kind, at)) return drop("you marked this kind unhelpful");
+    // Something critical is never muted, whether or not it may skip the cap (DECISIONS.md#d-034).
+    if (!o.critical && muted(store, o.kind, at)) return drop("you marked this kind unhelpful");
     if (prefs.budget_per_day > 0 && store.nudges.countedSince(dayStart.toISOString()) >= prefs.budget_per_day)
       return drop("daily cap reached");
     const within = (last: string | undefined, min: number) =>
@@ -179,7 +180,8 @@ export function createNudges(deps: {
       const held = store.nudges.heldUntil(at.toISOString());
       const [first] = held;
       if (!first) return;
-      const asked = held.every((n) => n.exempt);
+      // A reminder the owner set waits out quiet hours but never counts: the message it goes in is not dropped.
+      const asked = held.some((n) => n.exempt);
       const state = pass(
         held.length === 1
           ? { kind: first.kind, text: first.text, thread_id: first.thread_id, project_id: first.project_id, asked }

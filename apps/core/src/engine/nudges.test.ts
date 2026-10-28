@@ -138,9 +138,27 @@ test("a routine's news can be rated; a kind marked 👎 twice stops reaching the
   assert.equal(nudges.offer({ kind: "routine:Watch", text: "brief", anchor: true }), "sent");
   assert.match(ratingNote(env.core.store, "routine:Watch", clock), /0 of these messages useful and 2 not useful/);
 
+  // Something critical is never muted, even where it may not skip the cap.
+  prefs({ budget_per_day: 0, project_gap_min: 0, kind_gap_min: 0, critical_skips_budget: false });
+  assert.equal(nudges.offer({ kind: "routine:Watch", text: "on fire", critical: true }), "sent");
+
   await new Promise((r) => setTimeout(r, 5));
   await rate(first, "up");
   assert.equal(offer(), "sent", "a later 👍 lifts it");
   assert.equal(ratingNote(env.core.store, "routine:Never", clock), "");
   await assert.rejects(rate("ndg_missing", "up"));
+});
+
+test("a reminder held in quiet hours with other news still arrives past the cap (DECISIONS.md#d-031)", () => {
+  const quiet = { quiet_from: "22:00", quiet_to: "07:30", project_gap_min: 0, kind_gap_min: 0 };
+  prefs({ ...quiet, budget_per_day: 1, critical_wakes: true, critical_skips_budget: false });
+  at(23, 0, 20);
+  assert.equal(nudges.offer({ kind: "routine:b", text: "night news" }), "held");
+  assert.equal(nudges.offer({ kind: "reminder", text: "take the pills", asked: true }), "held");
+  // Something critical woke the owner and used the day's one message before the quiet hours ended.
+  at(6, 0, 21);
+  assert.equal(nudges.offer({ kind: "alarm", text: "fire", critical: true }), "sent");
+  at(7, 31, 21);
+  nudges.release();
+  assert.match(sent.at(-1) ?? "", /take the pills/);
 });
