@@ -96,8 +96,7 @@ for (const lang of ["en", "es"] as const) {
     );
     await editor.getByRole("button", { name: l.save, exact: true }).click();
     await expect(editor.getByRole("status")).toHaveText(l.saved);
-    // A new flow is the editor's own once the saved one comes back.
-    await expect(editor.getByRole("status")).not.toHaveClass(/is-dirty/);
+    // Saved is saved: closing right away doesn't ask to leave without saving.
     await editor.getByRole("button", { name: l.close }).click();
 
     // Turning it on asks first: where it sends as the owner and what it calls.

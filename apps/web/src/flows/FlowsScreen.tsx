@@ -106,7 +106,8 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
             flow={open}
             starter={creating}
             projectId={projectId}
-            onClose={() => show(open?.id)}
+            // A flow saved for the first time closes to its page, even before the list has it back.
+            onClose={() => show(open?.id ?? born)}
             onSaved={(id) => {
               if (creating) setBorn(id);
               refresh();

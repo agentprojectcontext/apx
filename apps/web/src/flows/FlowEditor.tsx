@@ -119,7 +119,7 @@ export function FlowEditor({
       const sec = Object.values(allAgents).find((a) => a.kind === "secretary");
       const g = starterGraph(starter ?? STARTERS.blank, t, sec?.id);
       setGraph(g);
-      setSaved(JSON.stringify([g, flow, ""]));
+      setSaved(JSON.stringify([g, ""]));
       return;
     }
     void shownGraph(flow, t).then((s) => {
@@ -161,7 +161,8 @@ export function FlowEditor({
       clearTimeout(timer);
     };
   }, [flow, graph, projectId, t]);
-  const dirty = graph !== undefined && JSON.stringify(flow ? [g, name] : [g, flow, name]) !== saved;
+  // The same measure before and after a new flow's first save, so it isn't unsaved while the saved flow comes back.
+  const dirty = graph !== undefined && JSON.stringify([g, name]) !== saved;
   const change = (next: FlowGraph) => {
     setGraph(next);
     setTrial(null);
