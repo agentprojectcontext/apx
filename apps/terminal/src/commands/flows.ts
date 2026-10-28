@@ -54,7 +54,12 @@ export async function flows(client: ApxClient, [sub = "help", ...args]: string[]
         events.push(...page.events);
         eventCursor = page.nextCursor ?? undefined;
       } while (eventCursor);
-      result = { definition, rows, events };
+      // A published drawing and its runs step by step (values over 4,000 characters are cut, marked `truncated`).
+      const graph = await client.call("flows.graph_get", { flow });
+      const runs: Result<"flows.run_get">[] = [];
+      for (const e of events)
+        if (e.executor === "graph") runs.push(await client.call("flows.run_get", { flow, event: e.event_id }));
+      result = { definition, rows, events, graph, runs };
       break;
     }
     case "write":

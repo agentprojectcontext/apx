@@ -7,7 +7,7 @@ import { openDb } from "../db/db.ts";
 import { MIGRATIONS } from "../db/migrations.ts";
 import { tempDir } from "../testkit/platform.ts";
 import { validateFlowGraph } from "./flow-graph-validate.ts";
-import { FlowGraphUnavailable, flowGraphsRepo } from "./flow-graphs.ts";
+import { FlowGraphConflict, flowGraphsRepo } from "./flow-graphs.ts";
 import { flowsRepo, saveFlow } from "./flows.ts";
 
 const authorizeGraph = (value: FlowGraph) => assert.deepEqual(validateFlowGraph(value), []);
@@ -35,32 +35,52 @@ const seed = (db: DatabaseSync) => {
   saveFlow(db, definition);
 };
 
-test("draft CAS remains editable while the domain rejects all publication without mutating legacy state", async () => {
+test("publishing needs the exact draft and revision, keeps revisions immutable and leaves no draft behind", async () => {
   const temp = tempDir();
   const db = openDb(temp.path);
   try {
     seed(db);
     const repo = flowGraphsRepo(db);
-    assert.throws(() => repo.publish("f"), FlowGraphUnavailable);
+    assert.throws(() => repo.publish("f", 1, null, authorizeGraph), FlowGraphConflict);
     assert.equal(repo.saveDraft("f", null, graph).draftVersion, 1);
     assert.throws(() => repo.saveDraft("f", null, graph), /draft changed/);
     const before = repo.get("f");
-    assert.throws(() => repo.publish("f"), FlowGraphUnavailable);
-    assert.deepEqual(repo.get("f"), before);
-    assert.throws(() => flowsRepo(db).retire("f"), /complete graph export/);
-    const edited = repo.saveDraft("f", 1, { ...graph, layout: [{ node: "start", x: 10, y: 20 }] });
-    assert.equal(edited.draftVersion, 2);
-    assert.throws(() => repo.publish("f"), FlowGraphUnavailable);
-    assert.deepEqual(repo.get("f"), edited);
-    saveFlow(db, { ...definition, enabled: true });
-    assert.throws(() => repo.publish("f"), FlowGraphUnavailable);
-    assert.equal(db.prepare("SELECT enabled FROM flows WHERE id='f'").get()?.enabled, 1);
-    assert.equal(db.prepare("SELECT count(*) AS n FROM flow_events").get()?.n, 0);
-    assert.equal(db.prepare("SELECT count(*) AS n FROM flow_graph_revisions").get()?.n, 0);
-    assert.equal(db.prepare("SELECT count(*) AS n FROM flow_graph_nodes").get()?.n, 0);
+    assert.throws(() => repo.publish("f", 2, null, authorizeGraph), FlowGraphConflict);
+    assert.throws(() => repo.publish("f", 1, 1, authorizeGraph), FlowGraphConflict);
     assert.throws(
       () =>
-        repo.saveDraft("f", 2, {
+        repo.publish("f", 1, null, () => {
+          throw new Error("binding refused");
+        }),
+      /binding refused/,
+    );
+    assert.deepEqual(repo.get("f"), before);
+    const published = repo.publish("f", 1, null, authorizeGraph);
+    assert.equal(published.publishedRevision, 1);
+    assert.deepEqual(published.published, graph);
+    assert.equal(published.draft, null);
+    assert.equal(published.draftVersion, 2);
+    const first = db.prepare("SELECT graph,created_at FROM flow_graph_revisions WHERE revision=1").get();
+    // Saving the same drawing keeps no second copy; another drawing is a draft until it is published.
+    assert.equal(repo.saveDraft("f", 2, graph).draft, null);
+    const moved = { ...graph, layout: [{ node: "start", x: 10, y: 20 }] };
+    const edited = repo.saveDraft("f", 3, moved);
+    assert.deepEqual(edited.draft, moved);
+    assert.equal(repo.publish("f", 4, 1, authorizeGraph).publishedRevision, 2);
+    assert.deepEqual(
+      { ...db.prepare("SELECT graph,created_at FROM flow_graph_revisions WHERE revision=1").get() },
+      {
+        ...first,
+      },
+    );
+    assert.equal(db.prepare("SELECT count(*) AS n FROM flow_events").get()?.n, 0);
+    assert.equal(db.prepare("SELECT count(*) AS n FROM flow_graph_nodes").get()?.n, 0);
+    // A published Flow keeps its old definition as history: only its name and switch change.
+    saveFlow(db, { ...definition, name: "Renamed", enabled: true });
+    assert.throws(() => saveFlow(db, { ...definition, tableKey: "other" }), /legacy definition/);
+    assert.throws(
+      () =>
+        repo.saveDraft("f", 5, {
           ...graph,
           nodes: [{ id: "start", kind: "webhook", label: "Bearer apx_test_secret_123456789012345678901234567890" }],
         }),
@@ -80,7 +100,7 @@ function seedStoredRevision(db: DatabaseSync, revision: number) {
   db.prepare("UPDATE flow_graph_drafts SET published_revision=? WHERE flow_id='f'").run(revision);
 }
 
-test("repository storage admission pins fixture revisions atomically without certifying graph execution", async () => {
+test("admission pins the revision, payload and deadline atomically with the dedup", async () => {
   const temp = tempDir();
   let db = openDb(temp.path);
   try {
@@ -88,12 +108,14 @@ test("repository storage admission pins fixture revisions atomically without cer
     let repo = flowGraphsRepo(db);
     repo.saveDraft("f", null, graph);
     seedStoredRevision(db, 1);
-    assert.throws(() => repo.publish("f"), FlowGraphUnavailable);
     db.prepare("UPDATE flows SET enabled=1 WHERE id='f'").run();
     const now = new Date("2026-01-01T00:00:00Z");
+    assert.deepEqual(repo.admit("f", "empty", {}, now, authorizeGraph), { state: "ignored", revision: 1 });
+    assert.equal(db.prepare("SELECT count(*) AS n FROM flow_graph_nodes").get()?.n, 0);
+    db.prepare("DELETE FROM flow_events").run();
     assert.throws(
       () =>
-        repo.admit("f", "denied", {}, now, () => {
+        repo.admit("f", "denied", { text: "work" }, now, () => {
           throw new Error("Action authorization revoked");
         }),
       /authorization revoked/,
@@ -121,11 +143,8 @@ test("repository storage admission pins fixture revisions atomically without cer
     db.prepare("UPDATE flows SET enabled=0 WHERE id='f'").run();
     repo.saveDraft("f", 1, { ...graph, layout: [{ node: "start", x: 3, y: 4 }] });
     seedStoredRevision(db, 2);
-    const before = repo.get("f");
-    assert.throws(() => repo.publish("f"), FlowGraphUnavailable);
-    assert.deepEqual(repo.get("f"), before);
     assert.throws(() => repo.discardDraft("f", 2), /Published/);
-    assert.throws(() => saveFlow(db, { ...definition, enabled: true }), /legacy definition/);
+    assert.throws(() => saveFlow(db, { ...definition, enabled: true, tableKey: "other" }), /legacy definition/);
     db.close();
     db = openDb(temp.path);
     repo = flowGraphsRepo(db);
@@ -136,8 +155,11 @@ test("repository storage admission pins fixture revisions atomically without cer
     assert.equal(accepted?.deadline_at, "2026-01-01T00:10:00.000Z");
     assert.equal(JSON.parse(String(accepted?.payload)).text, "first");
     assert.ok(!String(accepted?.payload).includes("sensitive"));
-    assert.throws(() => flowsRepo(db).receive("f", "public", { text: "work" }), /not available/);
+    // A published Flow admits only with its binding check, and pins the revision published now.
+    assert.throws(() => flowsRepo(db).receive("f", "public", { text: "work" }), /binding check/);
     assert.equal(db.prepare("SELECT count(*) AS n FROM flow_events").get()?.n, 1);
+    assert.equal(flowsRepo(db).receive("f", "public", { text: "work" }, authorizeGraph, now), "pending");
+    assert.equal(db.prepare("SELECT revision FROM flow_graph_events WHERE event_id='public'").get()?.revision, 2);
   } finally {
     db.close();
     await temp.remove();
@@ -149,8 +171,9 @@ test("additive migration leaves legacy pending payload, action, rows and dedupli
   let db = new DatabaseSync(path.join(temp.path, "apx.db"));
   try {
     db.exec("PRAGMA foreign_keys=ON; CREATE TABLE meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)");
-    for (const migration of MIGRATIONS.slice(0, -1)) db.exec(migration);
-    db.prepare("INSERT INTO meta(key,value) VALUES ('schema_version',?)").run(String(MIGRATIONS.length - 1));
+    const graphs = MIGRATIONS.findIndex((m) => m.includes("CREATE TABLE flow_graph_drafts"));
+    for (const migration of MIGRATIONS.slice(0, graphs)) db.exec(migration);
+    db.prepare("INSERT INTO meta(key,value) VALUES ('schema_version',?)").run(String(graphs));
     db.prepare("INSERT INTO projects(id,name,created_at) VALUES ('p','Project','now')").run();
     db.prepare(
       "INSERT INTO flows(id,project_id,name,enabled,predicates,table_key,action,read_keys) VALUES ('f','p','Inbox',1,'[]','latest',?,'[]')",
@@ -171,8 +194,12 @@ test("additive migration leaves legacy pending payload, action, rows and dedupli
       db
         .prepare("SELECT * FROM flow_events")
         .all()
-        .map(({ executor, ...row }) => {
+        .map(({ executor, stopped_at, source, scheduled_at, ...row }) => {
           assert.equal(executor, "legacy");
+          assert.equal(stopped_at, null);
+          // Every event before schedules came by POST.
+          assert.equal(source, "webhook");
+          assert.equal(scheduled_at, null);
           return row;
         }),
       before,

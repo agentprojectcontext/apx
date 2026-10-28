@@ -8,11 +8,12 @@ import type { MessageKey } from "../i18n/index.ts";
 export type Flow = Result<"flows.set">;
 export type FlowRun = Result<"flows.events">["events"][number];
 export type FlowDraftParams = Params<"flows.set">;
+export type FlowBinding = import("../../../../packages/protocol/src/flow-graph.ts").FlowBinding;
 export type { FlowGraph, FlowNode };
 
 /** Kinds the current executor runs, and the ones the palette shows as coming soon (never added or saved). */
 export type StepKind = FlowNode["kind"];
-export type SoonKind = "schedule" | "sql" | "http" | "cmd" | "notify";
+export type SoonKind = "sql" | "http" | "cmd" | "notify";
 
 type Meta = { icon: ReactNode; tone: FlowStepTone; label: MessageKey; body?: MessageKey };
 export const STEP: Record<StepKind | SoonKind, Meta> = {
@@ -41,18 +42,36 @@ export const STEP: Record<StepKind | SoonKind, Meta> = {
   cmd: { icon: <Icons.Terminal />, tone: "neutral", label: "flow.kind.cmd", body: "flow.kind.cmdBody" },
   agent: { icon: <Icons.Sparkles />, tone: "violet", label: "flow.kind.agent", body: "flow.kind.agentBody" },
   routine: { icon: <Icons.Repeat />, tone: "violet", label: "flow.kind.routine", body: "flow.kind.routineBody" },
-  llm: { icon: <Icons.Brain />, tone: "violet", label: "flow.kind.llm" },
+  llm: { icon: <Icons.Brain />, tone: "violet", label: "flow.kind.llm", body: "flow.kind.llmBody" },
   notify: { icon: <Icons.Send />, tone: "brand", label: "flow.kind.notify", body: "flow.kind.notifyBody" },
 };
 
 export const PALETTE: { group: MessageKey; kinds: (StepKind | SoonKind)[] }[] = [
   { group: "flow.group.trigger", kinds: ["webhook", "schedule"] },
   { group: "flow.group.steps", kinds: ["condition", "table_read", "table_write", "sql", "http", "cmd"] },
-  { group: "flow.group.crew", kinds: ["agent", "routine"] },
+  { group: "flow.group.crew", kinds: ["agent", "routine", "llm"] },
   { group: "flow.group.output", kinds: ["notify"] },
 ];
 export const isSoon = (kind: string): kind is SoonKind =>
-  kind === "schedule" || kind === "sql" || kind === "http" || kind === "cmd" || kind === "notify";
+  kind === "sql" || kind === "http" || kind === "cmd" || kind === "notify";
+/** A run starts at its one trigger: an incoming POST or a schedule. */
+export const isTrigger = (kind: string): kind is "webhook" | "schedule" => kind === "webhook" || kind === "schedule";
+/** The drawing's trigger, if it has one. */
+export const triggerOf = (graph: FlowGraph) => graph.nodes.find((n) => isTrigger(n.kind));
+
+/** Schedules people pick by name; any other is written as a cron. */
+export const SCHEDULE_PRESETS: { cron: string; label: MessageKey }[] = [
+  { cron: "*/5 * * * *", label: "flow.cron.every5" },
+  { cron: "0 * * * *", label: "flow.cron.hourly" },
+  { cron: "30 8 * * 1-5", label: "flow.cron.weekdays" },
+  { cron: "0 3 * * *", label: "flow.cron.daily" },
+];
+/** A schedule as people say it: its preset's name, else its cron. */
+export const scheduleName = (cron: string, t: (key: MessageKey) => string) => {
+  const preset = presetOf(cron);
+  return preset ? t(preset.label) : cron;
+};
+export const presetOf = (cron: string) => SCHEDULE_PRESETS.find((p) => p.cron === cron.trim().replace(/\s+/g, " "));
 
 export const hookPath = (flow: string) => `/flows/${flow}`;
 
@@ -79,7 +98,7 @@ export function chainOrder(graph: FlowGraph): FlowNode[] {
     out.push(n);
     for (const e of graph.edges) if (e.source === n.id) visit(byId.get(e.target));
   };
-  for (const n of graph.nodes) if (n.kind === "webhook") visit(n);
+  for (const n of graph.nodes) if (isTrigger(n.kind)) visit(n);
   for (const n of graph.nodes) visit(n);
   return out;
 }

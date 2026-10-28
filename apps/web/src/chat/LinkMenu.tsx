@@ -91,7 +91,7 @@ function usePlaceHint(place: AppPlace | undefined): string {
     case "tasks":
       return t("link.go.tasks");
     case "flows":
-      return t("nav.flows");
+      return place.flow ? t("link.go.flow") : t("nav.flows");
     case "resources":
       return t("link.go.resources", { name: t(`res.tab.${place.tab}`) });
     case "inbox":

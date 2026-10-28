@@ -1,10 +1,12 @@
-# Webhook Flows
+# Flows
 
-A Flow is project-owned, event-driven work. It has no timer or cron schedule. The core runs deterministic filtering and table operations first; an optional fixed action is admitted only for new, matching, nonempty data.
+A Flow is project-owned, event-driven work. A published drawing starts from one trigger: an incoming webhook or a
+schedule ([Schedules, Run now and Stop run](#schedules-run-now-and-stop-run)); a legacy definition only takes webhooks.
+The core runs deterministic filtering and table operations first; an optional fixed action is admitted only for new, matching, nonempty data.
 
 ## Operate a Flow
 
-Open **Flows** in the global sidebar beside Tasks and Resources. It lists all projects; the project menu narrows it. **New flow** opens the full-screen editor (blank or from a starter) and the new Flow starts disabled in the chosen project (the active filter prefills it); editing keeps the saved project fixed and the identifier is derived from the name once. See [Panel editor](#panel-editor) for how a drawing becomes the definition. Direct panel links use `#view=flows` or `#view=flows&scope=<project-id>`; chat links use `apx:flows` or `apx:flows/<project-id>`. The project's Routines tab has a shortcut to the same global screen, not an embedded second screen. Choose a stable identifier, name, equality predicates, a destination table key and an action:
+Open **Flows** in the global sidebar beside Tasks and Resources. It lists all projects; the project menu narrows it. **New flow** opens the full-screen editor (blank or from a starter) and the new Flow starts disabled in the chosen project (the active filter prefills it); editing keeps the saved project fixed and the identifier is derived from the name once. See [Panel editor](#panel-editor) for how a drawing becomes the definition. Direct panel links use `#view=flows`, `#view=flows&scope=<project-id>`, `#view=flows&flow=<flow-id>` (its runs) or `#view=flows&flow=<flow-id>&edit=1` (its editor); chat links use `apx:flows`, `apx:flows/<project-id>`, `apx:flows/<project-id>/<flow-id>` or `apx:flows/<project-id>/<flow-id>/edit`. The project's Routines tab has a shortcut to the same global screen, not an embedded second screen. Choose a stable identifier, name, equality predicates, a destination table key and an action:
 
 - **Table only:** persist matching data without calling a model.
 - **Agent:** a fixed agent and fixed prompt. Each event gets its own ordinary chat; incoming data is framed as an untrusted external request, never as the owner's instruction.
@@ -12,9 +14,9 @@ Open **Flows** in the global sidebar beside Tasks and Resources. It lists all pr
 
 A global agent or an agent in the Flow's project is allowed. Cross-project bindings are rejected and checked again before admission. Public payloads cannot select an agent, routine, tool, shell command or identity. Changes require the owner, either directly or through an approved `apx_settings` change. Route token rotation and revocation remain owner-only.
 
-The Flow detail shows the current definition as a read-only canvas with what each step did in the chosen run, the
-step's input/output and a log built only from recorded times (event arrival, run start and end, fresh run tokens), and
-a resizable runs rail (50 per page, **Show older runs** pages back). Selecting the save step shows up to 20 table rows,
+The Flow detail shows, read-only, the drawing the chosen run used with what each step did (graph runs: each step's
+recorded times, input, output and reason; legacy runs: the checks up to the one that stopped it, the save and the run
+it linked), a log built only from recorded times, and a resizable runs rail (50 per page, **Show older runs** pages back). Selecting the save step shows up to 20 table rows,
 read-only; manual row writes are CLI/protocol only (`apx flows write`). It is not a complete export or inspection view. The private `flows.rows` and `flows.events` methods page through the complete table/history with a limit up to 100 and a `nextCursor`; see the export procedure below. Retirement is available through CLI or approved settings changes, not the panel. Equality predicates traverse own properties only; prototype-related paths are rejected. Optional `readKeys` in the protocol/CLI definition snapshots up to 16 fixed table keys before writing the matching event to `tableKey`. The agent receives those snapshots together with the event. No payload text is evaluated as code. Editing the Flow or its table does not rewrite an already accepted event's action or snapshots.
 
 ## Public entry
@@ -65,10 +67,17 @@ Empty objects, non-object values, nonmatching events and duplicates do not invok
 
 ## Protocol, CLI and tools
 
-All management operations use the private protocol registry: `flows.list`, `flows.set`, `flows.rows`, `flows.write`, `flows.events`, `flows.retry`, `flows.retire`, `flows.try`. External `chat` tokens cannot call them.
+All management operations use the private protocol registry: `flows.list`, `flows.set`, `flows.rows`, `flows.write`, `flows.events`, `flows.retry`, `flows.retire`, `flows.try`, and for drawings `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate`, `flows.publish`, `flows.run_get`, `flows.next_runs`, `flows.run_now`, `flows.cancel_run`, `flows.try_graph`. External `chat` tokens cannot call them.
 
 `flows.events` rows carry `run_started_at`, `run_ended_at` and `run_tokens` (fresh tokens, counted as in run usage:
-input less cached plus output) from the linked run, `null` until the run has them. `flows.try {predicates, data}` is a
+input less cached plus output) from the linked run, `null` until the run has them. They also say which executor
+admitted the event (`executor`: `legacy` or `graph`), the graph `revision` it runs, whether that is still what runs
+(`current`; a legacy event of a published Flow is `false`), `stopped_at` (legacy: index of the first check the data
+did not pass) and, for graph runs, `stopped_by` (the check that said no when no step doing work ran) and `ended_at`.
+Graph run states are `pending`, `succeeded`, `failed`, `uncertain`, `cancelled` or `ignored`. Rows also carry `source`
+(`webhook`, `schedule` or `owner`), `scheduled_at` (a schedule's due time) and `cancelled_by_owner`.
+`flows.list` adds `schedules` (each schedule Flow's cron and `next_at`, null while off) and `time_zone`. `flows.list` adds
+`published`: each published Flow's revision and step kinds in run order. `flows.try {predicates, data}` is a
 dry run with the admission rule (a nonempty object that matches every predicate); it reads no table, saves no event,
 admits no run and calls no model. Sample data is limited to 32 KiB.
 
@@ -92,8 +101,9 @@ exist. `flows.events {flow, limit, cursor?}` sorts by creation time and event ID
 `{createdAt, eventId}`. Pass `nextCursor` unchanged into the next request and continue until it is `null`, not merely
 until a page has fewer than 100 items. Cursors are scoped by the `flow` on each request and never grant access.
 
-The CLI `export` command follows every page and prints one JSON object containing the definition, all table rows and
-all event-history metadata. It requires the selected Flow to be disabled in the selected project. Exports are
+The CLI `export` command follows every page and prints one JSON object containing the definition, all table rows,
+all event-history metadata, the graph document (`flows.graph_get`) and each graph run step by step (`flows.run_get`;
+step values over 4,000 characters are cut and marked `truncated`). It requires the selected Flow to be disabled in the selected project. Exports are
 read-only, not cross-request database snapshots: finish/cancel active runs and stop manual edits for a stable backup.
 Run chats and private pending-action payload snapshots are not exported or restored by this command. Retirement
 still discards pending work; reconcile any work you need before acknowledging deletion. The export is not an import
@@ -110,101 +120,133 @@ pendientes, que se descartan al retirar el Flow. El límite de eventos retenidos
 
 The super-agent discovers the same operations through the existing `apx_settings` tool's `flows` area. No new always-loaded tool, custom script language, polling model, public RPC proxy or duplicate scheduler is introduced.
 
-## Versioned graph foundation (not executable)
+## Drawn graphs (graph executor)
 
-The private owner-only protocol supports `flows.graph_get`, `flows.draft_save`, `flows.draft_discard` and
-`flows.validate` for an existing Flow. Graphs use `schemaVersion: 2`, bounded typed nodes, explicit edges and
-structured event/output bindings; no code or expressions are evaluated. Draft saves require `expectedVersion`
-(`null` for the first save). Stale writes fail instead of overwriting another editor. Validation checks DAGs,
-connectivity, ancestor output references and project action bindings. Writes to the same table key require an
-explicit ancestor dependency; an incidental node identifier or canvas position is not a write-order guarantee.
-Isolated pure graph semantics tests cover ordinal topological order, AND joins, bounded JSON bindings and condition
-results. Those helpers do not admit events, persist execution state or run a worker; they do not unlock publication.
-Structurally valid but disconnected drafts
-can be saved for further editing. A valid structural result does not mean the graph is executable.
-Credential-pattern checks are not complete secret detection or redaction: never put credentials in graph labels,
-prompts or literal values; use the existing dedicated credential configuration.
+See [D-167](DECISIONS.md#d-167) for what the executor keeps and what the design left out.
 
-**This is persistence and validation infrastructure, not a working graph executor.** The graph document reports
-`executionAvailable: false`; LLM, agent and routine graph nodes do not run. `flows.publish` remains registered but
-is unconditionally blocked in the domain and over both HTTP and WS until execution, recovery and complete graph
-export are supported. The error is a non-retryable conflict with `detail.reason: graph_execution_unavailable`.
-This applies to all graphs, including webhook-only graphs and graphs without LLM nodes; disabling a Flow, draining
-its queue or passing structural validation does not unlock publication. Rejection does not change the draft,
-published revision, legacy definition, public credential, rows, event snapshots or admitted runs.
-LLM nodes can be saved in drafts, but validation additionally reports `llm_execution_unavailable` for every model,
-including configured providers and CLI references. No model is certified as available until the graph executor and
-provider validation exist; this does not establish consent to send particular data or a successful model call.
+**Documents and revisions.** `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate` and
+`flows.publish` are owner-only. Graphs use `schemaVersion: 2`, at most 32 typed nodes (webhook, condition, table_read,
+table_write, llm, agent, routine), 64 edges, four llm nodes and 128 KiB. Edges out of a condition carry `when: "yes" |
+"no"` (absent means yes). Bindings are `literal`, `event` (a path in the payload) or `node` (a path in an earlier
+step's output); no code or expression is evaluated, and `__proto__`/`constructor`/`prototype` are refused. Draft saves
+use `expectedVersion` CAS; saving a drawing equal to the publication keeps no draft. `flows.validate` and publication
+check the DAG, reachability from the webhook, ancestor bindings, ordered writes to one key, branches only out of
+checks, agents and manual routines of the Flow's project, and llm models: one exact `provider/model` (no effort
+suffix) of an active provider with its key or sign-in; CLI and ACP engines are refused.
 
-Graphs are limited to 32 nodes, 64 edges, four LLM nodes and 128 KiB. The storage foundation has revision,
-event and checkpoint tables plus internal admission and bounded retention primitives; none is a graph executor.
-Retention is tested only as an isolated storage primitive: it reserves space below 100 revisions per Flow and
-10,000 globally, never pruning a current publication or a revision referenced by an event/checkpoint. It is not
-called by the blocked publication method, and no public operation creates graph revisions or graph admissions.
-Stored graph snapshots, if present, remain isolated from the legacy dispatcher and cannot be discarded as if they
-were legacy-only data. No recovery worker or external effect retry exists for graph checkpoints. Graph-shaped
-configuration must not be treated as a runnable workflow.
+`flows.publish {flow, expectedDraftVersion, expectedPublishedRevision}` validates the draft inside its transaction,
+inserts the next revision (rows are never updated; old ones are pruned only when no event or step references them) and
+consumes the draft. Publishing does not enable the Flow, rotate credentials, touch rows or wake events. A published
+Flow admits new events for its graph; its legacy definition stays as history and `flows.set` changes only its `name`
+and `enabled` (turning it on re-checks the published drawing's bindings). There is no return to legacy: retire and
+recreate. Legacy pending and failed events keep `executor='legacy'` and drain on the legacy worker, including retry.
 
-Existing definitions, table rows, pending action/read snapshots and admitted runs stay on the legacy executor.
-Adding these tables does not convert or enqueue old events. Disabling a Flow still pauses its legacy pending
-admission; already admitted runs keep their ordinary lifecycle. A graph draft or a rejected publication does not
-prevent legacy edits, activation, explicit retry, deduplication or normal dispatch, including after restart. Resume
-legacy work using its existing controls; graph publication remains blocked even after the queue has drained.
-The legacy export command does not yet include graph drafts, revisions or checkpoints; do not retire a graph Flow
-assuming that legacy export is a complete graph backup. Retirement is blocked for published graphs and undiscarded
-drafts until complete graph export is supported.
+**Admission.** The public route authenticates, then `receive` decides in one transaction with the `(flow,event)`
+dedup: it pins the revision published now, the payload (redacted, at most 32 KiB after redaction and 32 levels deep,
+else `400`), an absolute deadline 10 minutes later and one pending row per step. Empty or non-object data is recorded
+`ignored` with no steps. Agent and routine bindings and models are checked again at admission (a broken drawing
+refuses events).
 
-To undo an accidental draft on a never-published Flow, use owner-only `flows.draft_discard` with `flow`, the exact
-`expectedVersion` and `confirm:true`. This deliberately deletes the draft, not the legacy definition, rows, events
-or public credential; keep any graph you need before confirming. It does not activate or retire the Flow. Published
-graphs cannot be discarded this way. A discarded draft leaves a monotonically increasing version token even though
-`draft` is `null`; a subsequent save must use that returned `draftVersion`, not `null`. This prevents stale editors
-from deleting or recreating a newer draft, including after restart. The discarded marker no longer blocks ordinary
-legacy retirement, which still requires disablement, exported confirmation and no active runs.
+**Execution.** One run per Flow at a time, oldest admission first; four Flows advance at once. Steps are chosen by
+ordinal id among the ready ones (AND joins: a step waits for every parent; a failed, blocked, uncertain or cancelled
+parent blocks it, a skipped parent or the other branch of a check skips it). Database steps (webhook, condition,
+table_read, table_write) commit claim, effect and output in one transaction. An llm step claims `reserved`, commits
+`dispatched` synchronously right before the single gateway call (`once`: one model, one attempt, no fallback, no token
+renewal; no tools; system = the step's prompt, user = `Untrusted input JSON:` + its input) and stores `{text}` only for
+a complete answer before the deadline. After sending, a provider refusal fails the step; a timeout, cut connection,
+overload or restart leaves it `uncertain`, never re-sent. Agent and routine steps go through `threads.create`,
+`threads.send` and `routines.run` with an internal `flowEvent.graph` context (never from a transport); the run is
+linked to the step in the transaction that admits it, and the step's output is that run's own final answer. A failed,
+canceled, cut or silent run fails the step. The routine admission reuses the legacy one (owner actor inside the core
+only, binding re-checked against the pinned revision) and keeps the routine's usual delivery.
 
-**Español:** La validación exige una dependencia explícita de ancestro entre escrituras a la misma clave de tabla;
-el identificador del nodo o su posición en el canvas no garantizan el orden de escritura. Las pruebas aisladas de
-semántica pura cubren orden topológico ordinal, joins AND, bindings JSON acotados y resultados de condiciones.
-Esos helpers no admiten eventos, persisten ejecuciones ni integran un worker; no habilitan publicación.
-La base de grafos versionados todavía no ejecuta nodos: devuelve `executionAvailable: false`.
-Guardar un borrador no activa ni publica. `flows.publish` queda registrado pero bloqueado incondicionalmente en el
-dominio y por HTTP/WS hasta contar con ejecución, recuperación y exportación completa del grafo. Devuelve conflicto
-no reintentable con `detail.reason: graph_execution_unavailable`. Incluye todos los grafos, con o sin LLM; ni
-validar, desactivar el Flow ni drenar su cola desbloquea la publicación. El rechazo conserva borrador, publicación,
-definición legacy, credencial pública, filas, snapshots de eventos y runs admitidos. Un resultado estructural válido
-no certifica ejecución. Los nodos LLM se pueden guardar, pero la validación informa además
-`llm_execution_unavailable` para cualquier modelo hasta contar con ejecutor y validación del proveedor; no certifica
-disponibilidad ni llamadas reales. Guardar o intentar publicar no bloquea edición, activación, retry explícito,
-deduplicación ni ejecución legacy, incluso tras reiniciar; usá sus controles habituales para reanudarla. La migración
-conserva tablas, eventos y acciones legacy sin reproducirlos. La exportación legacy todavía no incluye borradores,
-revisiones ni checkpoints del grafo; no la uses como respaldo completo para retirarlo. El retiro queda bloqueado
-si existe un grafo publicado o un borrador sin descartar.
-Para deshacer un borrador accidental nunca publicado, `flows.draft_discard` exige `flow`, `expectedVersion` exacto
-y `confirm:true`. El descarte elimina deliberadamente ese borrador, no la definición legacy, filas, eventos ni
-credencial pública; guardá antes cualquier grafo que necesites. No activa ni retira el Flow y no permite descartar
-publicaciones. Devuelve `draft:null` con un `draftVersion` creciente que debés usar en el siguiente guardado, incluso
-tras reiniciar: no vuelvas a `null`. Tras descartar, el marcador ya no bloquea el retiro legacy con sus controles
-habituales. Las tablas de revisiones/eventos/checkpoints y las primitivas internas de admisión/retención son
-infraestructura de almacenamiento, no un ejecutor. La retención se prueba de forma aislada: reserva lugar bajo
-100 revisiones por Flow y 10.000 globales, sin podar publicaciones actuales ni referencias de eventos/checkpoints.
-No la llama el método de publicación bloqueado y ninguna operación pública crea revisiones ni admisiones de grafo.
-Los snapshots de grafo existentes, si los hubiera, siguen separados del dispatcher legacy. Los controles por
-patrones no detectan ni redactan todos los secretos: no pongas credenciales en etiquetas, prompts o valores del
-grafo; usá la configuración dedicada.
+**Deadlines and restarts.** Each llm step stops at its `timeoutMs` (≤ 120 s) or the run's deadline. At the deadline,
+pending steps are cancelled, a sent model call stays uncertain, waiting runs are asked to stop (repeated on every wake
+until they end) and late answers are ignored. Disabling a Flow stops new steps; the deadline keeps running. On start
+a `dispatched` step without output becomes `uncertain`; a `reserved` one, or a run step that admitted no run, goes back
+to pending. Clock and timers are injected (`runTimers`).
+
+**Records.** Each step keeps `started_at`, `ended_at`, its input and output (redacted, ≤ 32 KiB), a reason code
+(`missing_value`, `table_full`, `model_unavailable`, `model_refused`, `model_cut`, `model_uncertain`, `not_started`,
+`run_failed`, `run_canceled`, `run_silent`, `deadline`, `value_too_large`) and its run/thread. `flows.run_get {flow,
+event}` returns the run's revision graph, whether it is current, its state and times, and each step with input and
+output cut to 4,000 characters for display. Logs carry no payload or provider text.
+
+**Retirement.** A Flow retires once disabled, with no run going, no linked run still active and no unpublished draft
+(publish or discard it first), after the owner's `confirm-exported`.
+
+**Español:** Un dibujo publicado corre tal cual. Publicar (`flows.publish`, con CAS sobre la versión del borrador y la
+revisión publicada) crea una revisión inmutable y consume el borrador; no enciende el Flow ni toca eventos. Cada evento
+queda fijado a la revisión con la que entró; los eventos legacy pendientes o fallidos siguen en el ejecutor legacy. Las
+condiciones tienen caminos **Sí** y **No**; los pasos reciben lo que llegó o el resultado de un paso anterior. Un paso de
+modelo se manda una sola vez, sin herramientas ni reintentos: si después de mandarlo no llega respuesta (tiempo,
+corte, reinicio) queda **para revisar** y nunca se reenvía. Cada ronda tiene 10 minutos desde que llega; al vencer se
+cancelan los pasos pendientes y se piden detener los trabajos en curso. Un Flow corre un evento por vez, en orden.
+`flows.run_get` muestra cada paso con sus tiempos, entrada y salida acotadas y el motivo si no terminó bien. Para
+retirar un Flow publicado: apagalo, esperá que terminen sus rondas, publicá o descartá cambios sin publicar y
+confirmá la exportación.
+
+## Schedules, Run now and Stop run
+
+See [D-168](DECISIONS.md#d-168).
+
+**Schedule trigger.** `{kind: "schedule", cron}`: five fields (minute hour day month weekday, with `*`, lists, ranges
+and steps, as routines), evaluated in the owner's time zone (`owner_profile.timezone`, else the machine's). The panel's
+presets are crons: `*/5 * * * *`, `0 * * * *`, `30 8 * * 1-5`, `0 3 * * *`. Validation refuses a second trigger, a cron
+it can't parse (`schedule_invalid`) and one that fires twice within five minutes (`schedule_too_often`).
+`flows.next_runs {cron}` returns the next three times and the zone for the editor.
+
+**Ticks.** The routine scheduler's beat (every 15 s, `officeScheduler` → `flows.tick`) is the only clock; no Flow has a
+timer of its own. Each schedule Flow keeps `since` in `flow_schedules`. On a beat, an enabled published schedule Flow
+with no row starts counting (nothing owed); one whose next time after `since` has passed admits a single event
+`schedule:<due ISO>` with payload `{scheduled_at}` through `receive` (the same transaction and `(flow,event)` dedup as a
+POST, pinned to the published revision) and moves `since` to the beat. Times missed while the core was off therefore
+run once on start; the event records `scheduled_at` and the panel says it started late. A failed admission (capacity,
+broken binding) spends the time too and is logged without payload. Turning a Flow off deletes its row.
+
+**One way in.** Admission compares the source with the pinned revision's trigger: `webhook` needs a webhook trigger
+(and a nonempty object, as before), `schedule` a schedule trigger; a schedule Flow has no public route and is left out
+of the endpoint list. A legacy definition admits only webhooks.
+
+**Run now.** `flows.run_now {flow, data?}` (owner-only, idempotency key required) needs a published, enabled Flow. The
+event is `owner:<uuid>`, `source: "owner"`, admitted by the same path: a schedule Flow gets `{}` whatever was sent, a
+webhook Flow gets `data`, redacted and bounded like any payload (an empty body is `ignored`). The panel prefills it with
+the trigger step's recorded output of the last run that kept one.
+
+**Stop run.** `flows.cancel_run {flow, event}` (owner-only) ends a pending graph run in one transaction: pending,
+starting and waiting steps become `cancelled` (`owner_cancelled`), a model step already `dispatched` becomes
+`uncertain` (`cancelled_after_send`, never re-sent); the run ends `uncertain` if any step is, else `cancelled`. The
+executor then aborts its model call in flight and asks runs its steps started to stop (as at a deadline). An ended run
+returns `{cancelled: false}`.
+
+**Try a run.** `flows.try_graph {graph, data}` walks the run's own planner over sample data (≤ 32 KiB): triggers and
+checks are evaluated, a branch not taken is skipped, a step that does work is `would_run`, a step whose binding needs an
+earlier step's answer is `unknown`, one whose event field is absent is `missing`. It reads no table, writes nothing,
+calls no model and starts no run. `flows.validate` takes `project` instead of `flow` to check a drawing not saved yet.
+
+**Español:** Un Flow publicado arranca por webhook o por horario (cron de cinco campos en la zona horaria del dueño).
+El único reloj es el pulso del scheduler de rutinas: cada horario vencido entra una sola vez, por la misma admisión que
+un POST, con id `schedule:<hora>`; si el core estuvo apagado corre una vez al arrancar, no una por cada hora perdida, y
+la ronda dice que arrancó tarde. Apagado no corre ni acumula. Un Flow con horario no tiene dirección pública y uno con
+webhook nunca corre por horario. **Correr ahora** (`flows.run_now`) usa la misma admisión, marcada como del dueño: evento
+vacío para horario, el cuerpo de ejemplo (dato no confiable) para webhook. **Detener ronda** (`flows.cancel_run`) cancela
+los pasos pendientes y deja **para revisar** un paso de modelo ya mandado, sin reenviarlo. **Probar ronda**
+(`flows.try_graph`) sigue los caminos sin efectos.
 
 ## Panel editor
 
-The editor draws the graph schema above and decides what to save with `shapeOfGraph` in
-`packages/protocol/src/flow-shape.ts`. A graph the current executor runs is one path from the single webhook in this
-order: checks (event field equals a literal), at most one table read, exactly one table write of the whole event, then
-at most one agent (whole event as input) or routine. Such a graph is saved with `flows.set` as the definition it stands
-for, then with `flows.draft_save` to keep its step names and positions; the detail shows that draft only while it
-still matches the definition (`sameShape`), otherwise it draws the definition. Any other graph is saved only as a
-draft and the screen names the step that keeps it from running; the definition stays as it was. A brand-new Flow whose
-first save is draft-only gets a disabled table-only definition so the draft has a Flow to belong to. Nothing runs on
-save, `flows.publish` is never called, and coming-soon kinds (schedule, SQL, outgoing webhook, Cmd, notify) are not in
-the schema and cannot be added. Because editor saves keep a draft, retiring such a Flow first needs
-`flows.draft_discard` (see above) until complete graph export exists.
+The editor draws the graph schema above. **Save** stores the drawing as a draft (`flows.draft_save`); for a Flow that
+still runs its legacy definition, a drawing with the legacy shape (`shapeOfGraph` in `packages/protocol/src/flow-shape.ts`:
+one path, checks, at most one read, one save, then at most one agent or routine) is also saved as that definition with
+`flows.set`, as before. When the Flow is on, saving also publishes the drawing; when it is off, turning it on (list or
+detail switch) publishes the last saved drawing first. The core's validation runs as the drawing changes and the side
+panel says *Runs as drawn* or why it can't run, in the owner's words. A brand-new Flow whose first drawing is not the
+legacy shape gets a disabled table-only definition so the drawing has a Flow to belong to. Checks have **Yes** and
+**No** outlets; the chip next to each connection in **Goes on to** switches its branch. **Try a run**
+(`flows.try_graph`) follows any drawing. A new Flow's drawing is validated against its chosen project before the first
+save. The detail draws the revision a run used (legacy runs of a published Flow draw the old
+definition) and says **Previous version** when it is not the current one. Coming-soon kinds (SQL, outgoing webhook, Cmd,
+notify) are not in the schema and cannot be added.
 
 ## Verification and rollout
 

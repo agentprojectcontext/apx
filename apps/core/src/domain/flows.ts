@@ -1,9 +1,16 @@
+import type { FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
 import { FlowDefinition as Definition } from "../../../../packages/protocol/src/flow-methods.ts";
 import type { Db } from "../db/db.ts";
 import { redactedJson } from "../log.ts";
-import { matchesFlowPredicates } from "./flow-evaluate.ts";
+import { firstFailedPredicate, matchesFlowPredicates } from "./flow-evaluate.ts";
 import { checkFlowCapacity, FlowCapacityError, flowEventsRepo } from "./flow-events.ts";
-import { FlowGraphUnavailable, hasPublishedFlowGraph } from "./flow-graphs.ts";
+import {
+  type FlowEventSource,
+  FlowGraphUnavailable,
+  FlowTriggerMismatch,
+  flowGraphsRepo,
+  hasPublishedFlowGraph,
+} from "./flow-graphs.ts";
 import { checkFlowIdentifier, retireFlow } from "./flow-retirement.ts";
 import { sql } from "./sql.ts";
 
@@ -37,10 +44,19 @@ const definition = (row: SavedFlow) =>
     readKeys: JSON.parse(row.read_keys),
   });
 
+/** A published Flow keeps its old definition as history: only its name and switch change. */
+function onlyNameOrSwitch(db: Db, flow: FlowDefinition): boolean {
+  const row = db.prepare("SELECT * FROM flows WHERE id=?").get(flow.id) as SavedFlow | undefined;
+  if (!row) return false;
+  const kept = (f: FlowDefinition) =>
+    JSON.stringify([f.projectId, f.predicates, f.tableKey, f.action, f.readKeys ?? []]);
+  return kept(definition(row)) === kept(flow);
+}
+
 export function saveFlow(db: Db, value: FlowDefinition): void {
   const flow = Definition.parse(value);
   checkFlowIdentifier(db, flow.id);
-  if (hasPublishedFlowGraph(db, flow.id))
+  if (hasPublishedFlowGraph(db, flow.id) && !onlyNameOrSwitch(db, flow))
     throw new FlowGraphUnavailable("Published graph configuration cannot be replaced by a legacy definition");
   if (redactedJson(flow) !== JSON.stringify(flow))
     throw new Error("Flow definitions must use secret references, not credentials");
@@ -60,10 +76,13 @@ export function saveFlow(db: Db, value: FlowDefinition): void {
       JSON.stringify(flow.readKeys ?? []),
     );
   if (!result.changes) throw new Error("Flow belongs to another project");
+  // Off, a schedule owes nothing: turned on again, it counts from then.
+  if (!flow.enabled) db.prepare("DELETE FROM flow_schedules WHERE flow_id=?").run(flow.id);
 }
 
 export function flowsRepo(db: Db) {
   const tx = sql(db).tx;
+  const graphs = flowGraphsRepo(db);
   const api = {
     get(id: string): FlowDefinition | undefined {
       const row = db.prepare("SELECT * FROM flows WHERE id=?").get(id) as SavedFlow | undefined;
@@ -88,6 +107,15 @@ export function flowsRepo(db: Db) {
         .all(id, cursor, limit)
         .map((r) => ({ key: String(r.key), value: JSON.parse(String(r.value)) as unknown }));
     },
+    /** The rows saved under these keys; keys with no row are left out. */
+    readRows(id: string, keys: readonly string[]): Record<string, unknown> {
+      return Object.fromEntries(
+        keys.flatMap((key) => {
+          const row = db.prepare("SELECT value FROM flow_rows WHERE flow_id=? AND key=?").get(id, key);
+          return row ? [[key, JSON.parse(String(row.value)) as unknown]] : [];
+        }),
+      );
+    },
     rowsPage(id: string, limit: number, cursor?: string) {
       const found = api.rows(id, limit + 1, cursor);
       const rows = found.slice(0, limit);
@@ -109,7 +137,18 @@ export function flowsRepo(db: Db) {
     },
     ...flowEventsRepo(db),
     retire: (id: string) => retireFlow(db, id),
-    receive(flowId: string, eventId: string, payload: unknown): "duplicate" | "ignored" | "written" | "pending" {
+    /**
+     * A published Flow admits the event for its graph (pinned to the revision published now, `authorize` checking
+     * its bindings); any other runs the legacy definition. Either way in one transaction with the dedup.
+     */
+    receive(
+      flowId: string,
+      eventId: string,
+      payload: unknown,
+      authorize?: (graph: FlowGraph) => void,
+      at = new Date(),
+      from: FlowEventSource = { source: "webhook" },
+    ): "duplicate" | "ignored" | "written" | "pending" {
       if (!eventId || eventId.length > 256 || redactedJson(eventId) !== JSON.stringify(eventId))
         throw new Error("Invalid event id");
       const value = jsonValue(payload);
@@ -117,19 +156,22 @@ export function flowsRepo(db: Db) {
       return tx(() => {
         const flow = api.get(flowId);
         if (!flow?.enabled) throw new Error("Flow not found or disabled");
-        if (hasPublishedFlowGraph(db, flowId)) throw new FlowGraphUnavailable("Graph execution is not available yet");
+        if (hasPublishedFlowGraph(db, flowId)) {
+          if (!authorize) throw new FlowGraphUnavailable("Graph admission needs its binding check");
+          return graphs.admit(flowId, eventId, payload, at, authorize, from).state;
+        }
+        // Only a drawing runs on a schedule or by hand; a legacy definition takes POSTs alone.
+        if (from.source !== "webhook") throw new FlowTriggerMismatch("The Flow does not start that way");
         if (db.prepare("SELECT 1 FROM flow_events WHERE flow_id=? AND event_id=?").get(flowId, eventId))
           return "duplicate";
         if (Number(db.prepare("SELECT count(*) AS n FROM flow_events WHERE flow_id=?").get(flowId)?.n) >= MAX_EVENTS)
           throw new FlowCapacityError("Flow event history is full");
         if (Number(db.prepare("SELECT count(*) AS n FROM flow_events").get()?.n) >= 10000)
           throw new FlowCapacityError("Flow event history is full");
-        const matches =
-          data !== null &&
-          typeof data === "object" &&
-          !Array.isArray(data) &&
-          Object.keys(data).length > 0 &&
-          matchesFlowPredicates(data, flow.predicates);
+        const object =
+          data !== null && typeof data === "object" && !Array.isArray(data) && Object.keys(data).length > 0;
+        const failed = object ? firstFailedPredicate(data, flow.predicates) : -1;
+        const matches = object && failed === -1;
         const state = !matches ? "ignored" : flow.action.kind === "none" ? "written" : "pending";
         if (state === "pending") checkFlowCapacity(db, flowId);
         const reads = matches
@@ -141,14 +183,15 @@ export function flowsRepo(db: Db) {
         const snapshot = reads.length ? jsonValue({ event: data, rows: reads }) : value;
         if (matches) api.write(flowId, flow.tableKey, data);
         db.prepare(
-          "INSERT INTO flow_events(flow_id,event_id,state,created_at,payload,action) VALUES (?,?,?,?,?,?)",
+          "INSERT INTO flow_events(flow_id,event_id,state,created_at,payload,action,stopped_at) VALUES (?,?,?,?,?,?,?)",
         ).run(
           flowId,
           eventId,
           state,
-          new Date().toISOString(),
+          at.toISOString(),
           state === "pending" ? snapshot : null,
           JSON.stringify(flow.action),
+          failed === -1 ? null : failed,
         );
         return state;
       });

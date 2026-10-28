@@ -33,6 +33,8 @@ export function officeScheduler(deps: {
   notifyOwner: (body: Presentation, threadId: string | undefined) => boolean;
   /** Answers contacts' chats whose channel's attention hours began; how many it started. */
   openHeld?: () => number;
+  /** Schedule Flows due at this beat start their runs (flows.ts): the same clock, no second one. */
+  flowTick?: (at: Date) => void;
   log: Log;
   now?: () => Date;
 }) {
@@ -84,6 +86,11 @@ export function officeScheduler(deps: {
         });
       nudges.release();
       deps.openHeld?.();
+      try {
+        deps.flowTick?.(at);
+      } catch (err) {
+        deps.log.warn({ err: String(err).slice(0, 200) }, "scheduled flows could not tick");
+      }
     },
     deliver: ({ routine, run, text, failed }) => {
       const texts = channelTexts(store);

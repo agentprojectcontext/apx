@@ -19,7 +19,7 @@ import {
 } from "@xyflow/react";
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { useT } from "../i18n/index.ts";
-import { type FlowGraph, type FlowNode, STEP } from "./steps.tsx";
+import { type FlowGraph, type FlowNode, isTrigger, STEP } from "./steps.tsx";
 import "@xyflow/react/dist/style.css";
 import "./canvas.css";
 
@@ -32,7 +32,13 @@ export type StepLook = {
   order?: number;
   muted?: boolean;
 };
-type StepData = StepLook & { kind: FlowNode["kind"]; kindLabel: string; trigger: boolean };
+type StepData = StepLook & {
+  kind: FlowNode["kind"];
+  kindLabel: string;
+  trigger: boolean;
+  /** A check's two ways out, named for the person. */
+  branches?: { yes: string; no: string } | undefined;
+};
 
 function StepNode({ data, selected }: NodeProps<Node<StepData>>) {
   const meta = STEP[data.kind];
@@ -51,7 +57,28 @@ function StepNode({ data, selected }: NodeProps<Node<StepData>>) {
       selected={selected}
     >
       {!data.trigger && <Handle type="target" position={Position.Left} className="fc-handle fc-handle--in" />}
-      <Handle type="source" position={Position.Right} className="fc-handle fc-handle--out" />
+      {data.branches ? (
+        <>
+          <Handle
+            id="yes"
+            type="source"
+            position={Position.Right}
+            className="fc-handle fc-handle--out fc-handle--yes"
+            style={{ top: "32%" }}
+            title={data.branches.yes}
+          />
+          <Handle
+            id="no"
+            type="source"
+            position={Position.Right}
+            className="fc-handle fc-handle--out fc-handle--no"
+            style={{ top: "68%" }}
+            title={data.branches.no}
+          />
+        </>
+      ) : (
+        <Handle type="source" position={Position.Right} className="fc-handle fc-handle--out" />
+      )}
     </FlowStep>
   );
 }
@@ -103,7 +130,11 @@ type Props = {
   selected: string | null;
   onSelect: (id: string | null) => void;
   /** The editor moves and joins steps; the detail only selects them. */
-  edit?: { move: (id: string, x: number, y: number) => void; connect: (source: string, target: string) => void };
+  edit?: {
+    move: (id: string, x: number, y: number) => void;
+    /** `when`: which way out of a check the connection leaves by. */
+    connect: (source: string, target: string, when?: "yes" | "no") => void;
+  };
   minimap?: boolean;
   /** Changing it fits the view again (another run, another flow). */
   fitKey: string;
@@ -118,7 +149,13 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fit
         id: n.id,
         type: "step",
         position: graph.layout.find((p) => p.node === n.id) ?? { x: i * 280, y: 0 },
-        data: { ...look(n), kind: n.kind, kindLabel: t(STEP[n.kind].label), trigger: n.kind === "webhook" },
+        data: {
+          ...look(n),
+          kind: n.kind,
+          kindLabel: t(STEP[n.kind].label),
+          trigger: isTrigger(n.kind),
+          branches: n.kind === "condition" ? { yes: t("flow.f.yes"), no: t("flow.f.no") } : undefined,
+        },
         selected: n.id === selected,
         draggable: Boolean(edit),
         connectable: Boolean(edit),
@@ -131,13 +168,31 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fit
     const s = look(graph.nodes.find((n) => n.id === id) as FlowNode).state;
     return s === "ran" || s === "failed" || s === "live";
   };
-  const edges: Edge[] = graph.edges.map((e) => ({
-    id: `${e.source}:${e.target}`,
-    source: e.source,
-    target: e.target,
-    type: "smoothstep",
-    className: ran(e.source) && ran(e.target) ? "fc-edge is-ran" : "fc-edge",
-  }));
+  const checks = new Set(graph.nodes.filter((n) => n.kind === "condition").map((n) => n.id));
+  const edges: Edge[] = graph.edges.map((e) => {
+    const when = checks.has(e.source) ? (e.when ?? "yes") : undefined;
+    return {
+      id: `${e.source}:${e.target}`,
+      source: e.source,
+      target: e.target,
+      type: "smoothstep",
+      ...(when
+        ? {
+            sourceHandle: when,
+            label: t(when === "no" ? "flow.f.no" : "flow.f.yes"),
+            labelBgPadding: [6, 2] as [number, number],
+            labelBgBorderRadius: 6,
+          }
+        : {}),
+      className: [
+        "fc-edge",
+        ran(e.source) && ran(e.target) ? "is-ran" : "",
+        when === "no" ? "is-no" : when ? "is-yes" : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    };
+  });
   const changeNodes = (changes: NodeChange<Node<StepData>>[]) => {
     onNodesChange(changes);
     for (const change of changes) if (change.type === "select" && change.selected) onSelect(change.id);
@@ -152,7 +207,11 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fit
         onNodeClick={(_, n) => onSelect(n.id)}
         onPaneClick={() => onSelect(null)}
         onNodeDragStop={(_, n) => edit?.move(n.id, Math.round(n.position.x), Math.round(n.position.y))}
-        onConnect={(c: Connection) => c.source && c.target && edit?.connect(c.source, c.target)}
+        onConnect={(c: Connection) =>
+          c.source &&
+          c.target &&
+          edit?.connect(c.source, c.target, checks.has(c.source) ? (c.sourceHandle === "no" ? "no" : "yes") : undefined)
+        }
         nodesDraggable={Boolean(edit)}
         nodesConnectable={Boolean(edit)}
         minZoom={0.2}

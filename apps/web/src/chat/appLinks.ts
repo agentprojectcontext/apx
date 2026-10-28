@@ -10,7 +10,7 @@ export type AppPlace =
   | { kind: "settings"; section: ConfigSection; open: () => void }
   | { kind: "task"; id: string; open: () => void }
   | { kind: "tasks"; open: () => void }
-  | { kind: "flows"; project?: string; open: () => void }
+  | { kind: "flows"; project?: string; flow?: string; open: () => void }
   | { kind: "resources"; tab: ResourceTab; open: () => void }
   | { kind: "inbox"; open: () => void }
   | { kind: "chat"; id: string; open: () => void }
@@ -19,9 +19,11 @@ export type AppPlace =
 
 /** The place an `apx:` link names; undefined when it names none. */
 export function appPlace(href: string): AppPlace | undefined {
-  const m = /^apx:([a-z]+)(?:\/([\w-]+))?(?:\/([\w-]+))?$/i.exec(href.trim());
+  const m = /^apx:([a-z]+)(?:\/([\w-]+))?(?:\/([\w-]+))?(?:\/([\w-]+))?$/i.exec(href.trim());
   if (!m) return undefined;
-  const [, where = "", a, b] = m;
+  const [, where = "", a, b, c] = m;
+  // Only a flow's link goes three deep: apx:flows/<project>/<flow>/edit.
+  if (c !== undefined && where.toLowerCase() !== "flows") return undefined;
   switch (where.toLowerCase()) {
     case "settings":
     case "config": {
@@ -31,7 +33,13 @@ export function appPlace(href: string): AppPlace | undefined {
     case "tasks":
       return a ? { kind: "task", id: a, open: () => go.task(a) } : { kind: "tasks", open: () => go.view("tasks") };
     case "flows":
-      return b ? undefined : { kind: "flows", ...(a ? { project: a } : {}), open: () => go.flows(a) };
+      if (c !== undefined && c !== "edit") return undefined;
+      return {
+        kind: "flows",
+        ...(a ? { project: a } : {}),
+        ...(b ? { flow: b } : {}),
+        open: () => go.flows(a, b, c === "edit"),
+      };
     case "resources": {
       const tab: ResourceTab | undefined = a === undefined ? "skills" : isIn(RESOURCE_TABS, a) ? a : undefined;
       return tab ? { kind: "resources", tab, open: () => go.resources(tab, true) } : undefined;

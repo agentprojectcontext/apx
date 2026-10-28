@@ -1,4 +1,6 @@
 // Routines, for the owner only: an agent's scheduled work and its history.
+
+import type { FlowStepKey } from "../domain/flow-graph-runs.ts";
 import { checkSchedule } from "../domain/schedule.ts";
 import type { Store } from "../domain/store.ts";
 import {
@@ -164,6 +166,8 @@ export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots
     },
     "routines.run": ({ routine }, ctx) =>
       store.tx(() => {
+        if (ctx.flowEvent?.graph)
+          return runGraphStep(store, scheduler, routine, { ...ctx.flowEvent, ...ctx.flowEvent.graph });
         const source = ctx.flowEvent ? store.flows.admissionInput(ctx.flowEvent.flow, ctx.flowEvent.event) : undefined;
         if (source) {
           const binding = store.routines.get(routine);
@@ -189,4 +193,27 @@ export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots
       return { runs: store.routines.runs(routine, limit) };
     },
   } satisfies Partial<Handlers>;
+}
+
+/**
+ * A graph step starts its routine: the routine must be the one its pinned revision names, manual-only and in the
+ * Flow's project; the run gets the step's input as the untrusted event data and is linked to the step at once.
+ */
+function runGraphStep(store: Store, scheduler: Scheduler, routine: string, step: FlowStepKey) {
+  const run = store.flowGraphRuns.load(step.flow, step.event);
+  const node = run?.revision === step.revision ? run.graph.nodes.find((n) => n.id === step.node) : undefined;
+  const binding = store.routines.get(routine);
+  const flow = store.flows.get(step.flow);
+  if (
+    node?.kind !== "routine" ||
+    node.routine !== routine ||
+    !flow?.enabled ||
+    binding?.project_id !== flow.projectId ||
+    binding.schedule.kind !== "manual"
+  )
+    throw badRequest("Flow routine binding changed");
+  const data = store.flowGraphRuns.startingInput(step);
+  const started = scheduler.runNow(routine, { flow: step.flow, id: step.event, data });
+  store.flowGraphRuns.linkRun(step, started.run_id);
+  return started;
 }

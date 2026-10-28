@@ -975,4 +975,23 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX flow_graph_events_revision ON flow_graph_events(flow_id, revision);
   CREATE INDEX flow_graph_nodes_revision ON flow_graph_nodes(flow_id, revision);
   `,
+  // Graph runs: how each run and step ended and when; `phase` marks a model call sent (DECISIONS.md#d-167).
+  `
+  ALTER TABLE flow_events ADD COLUMN stopped_at INTEGER;
+  ALTER TABLE flow_graph_events ADD COLUMN state TEXT NOT NULL DEFAULT 'pending';
+  ALTER TABLE flow_graph_events ADD COLUMN ended_at TEXT;
+  ALTER TABLE flow_graph_events ADD COLUMN stopped_by TEXT;
+  ALTER TABLE flow_graph_nodes ADD COLUMN started_at TEXT;
+  ALTER TABLE flow_graph_nodes ADD COLUMN ended_at TEXT;
+  ALTER TABLE flow_graph_nodes ADD COLUMN phase TEXT;
+  CREATE INDEX flow_graph_events_state ON flow_graph_events(state);
+  `,
+  // What started each Flow run and, for a schedule, when it was due; `since` is where the next tick is counted from.
+  `
+  ALTER TABLE flow_events ADD COLUMN source TEXT NOT NULL DEFAULT 'webhook';
+  ALTER TABLE flow_events ADD COLUMN scheduled_at TEXT;
+  CREATE TABLE flow_schedules (
+    flow_id TEXT PRIMARY KEY REFERENCES flows(id) ON DELETE CASCADE, since TEXT NOT NULL
+  );
+  `,
 ];

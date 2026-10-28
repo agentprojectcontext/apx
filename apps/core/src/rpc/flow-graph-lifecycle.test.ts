@@ -42,7 +42,7 @@ test("explicit draft discard uses owner authorization and CAS across discard, re
     );
     await assert.rejects(
       env.client.call("flows.retire", { flow: flow.id, confirm: true, exported: true }),
-      /graph retirement/,
+      /unpublished changes/,
     );
     await env.client.call("flows.draft_save", { flow: flow.id, expectedVersion: 1, graph });
     await assert.rejects(
@@ -93,7 +93,7 @@ test("explicit draft discard uses owner authorization and CAS across discard, re
   }
 });
 
-test("a rejected publication leaves the never-published draft discardable and the legacy Flow retireable", async () => {
+test("a refused publication changes nothing; a published Flow retires with no extra step once off and idle", async () => {
   const llm = scriptedLlm(() => say("Must not run"));
   const env = await startCore({ llm });
   try {
@@ -107,22 +107,39 @@ test("a rejected publication leaves the never-published draft discardable and th
       tableKey: "latest",
       action: { kind: "none" },
     });
-    await env.client.call("flows.draft_save", { flow: "retained", expectedVersion: null, graph });
+    const unknown: FlowGraph = {
+      ...graph,
+      nodes: [
+        ...graph.nodes,
+        {
+          id: "think",
+          kind: "llm",
+          label: "Think",
+          model: "nowhere/none",
+          prompt: "Summarize",
+          input: { kind: "event", path: [] },
+          maxOutputTokens: 100,
+          timeoutMs: 5000,
+        },
+      ],
+      edges: [{ source: "start", target: "think" }],
+    };
+    await env.client.call("flows.draft_save", { flow: "retained", expectedVersion: null, graph: unknown });
     const saved = await env.client.call("flows.graph_get", { flow: "retained" });
     await assert.rejects(
       env.client.call("flows.publish", { flow: "retained", expectedDraftVersion: 1, expectedPublishedRevision: null }),
-      /publication is unavailable/,
+      /model is not set up/,
     );
     assert.deepEqual(await env.client.call("flows.graph_get", { flow: "retained" }), saved);
-    assert.equal(saved.publishedRevision, null);
-    assert.deepEqual(saved.draft, graph);
-    assert.equal(env.core.store.flows.events("retained", 10).length, 0);
-    const discarded = await env.client.call("flows.draft_discard", {
+    await env.client.call("flows.draft_save", { flow: "retained", expectedVersion: 1, graph });
+    const published = await env.client.call("flows.publish", {
       flow: "retained",
-      expectedVersion: 1,
-      confirm: true,
+      expectedDraftVersion: 2,
+      expectedPublishedRevision: null,
     });
-    assert.equal(discarded.draft, null);
+    assert.equal(published.publishedRevision, 1);
+    assert.equal(published.draft, null);
+    assert.equal(env.core.store.flows.events("retained", 10).length, 0);
     assert.equal(
       (await env.client.call("flows.retire", { flow: "retained", confirm: true, exported: true })).retired,
       true,

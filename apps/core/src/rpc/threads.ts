@@ -69,7 +69,8 @@ function createThread(
       ...(folder ? { cwd: folder, write: write ?? "ask" } : {}),
       ...(engine ? { engine } : {}),
     });
-    if (ctx.flowEvent) store.flows.setThread(ctx.flowEvent.flow, ctx.flowEvent.event, t.id);
+    if (ctx.flowEvent?.graph) store.flowGraphRuns.linkThread({ ...ctx.flowEvent, ...ctx.flowEvent.graph }, t.id);
+    else if (ctx.flowEvent) store.flows.setThread(ctx.flowEvent.flow, ctx.flowEvent.event, t.id);
     // The engine is the session: it always runs it, never the router.
     if (engine) store.threads.mergeContext(t.id, { model_choice: { model: engine, router: false } });
     return engine ? (store.threads.get(t.id) ?? t) : t;
@@ -337,7 +338,9 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
               run_id: "",
             },
           });
-          if (ctx.flowEvent) store.flows.admitted(ctx.flowEvent.flow, ctx.flowEvent.event, sent.run.id);
+          if (ctx.flowEvent?.graph)
+            store.flowGraphRuns.linkRun({ ...ctx.flowEvent, ...ctx.flowEvent.graph }, sent.run.id, thread);
+          else if (ctx.flowEvent) store.flows.admitted(ctx.flowEvent.flow, ctx.flowEvent.event, sent.run.id);
           return sent;
         });
       // The owner writing in the app: answers stay in the app (not on the channel the last message came from), except in

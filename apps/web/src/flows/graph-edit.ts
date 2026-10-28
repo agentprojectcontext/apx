@@ -6,6 +6,8 @@ export function newNode(kind: NodeKind, id: string, label: string): FlowNode {
   switch (kind) {
     case "webhook":
       return { id, label, kind };
+    case "schedule":
+      return { id, label, kind, cron: "30 8 * * 1-5" };
     case "condition":
       return { id, label, kind, input, equals: "" };
     case "table_read":
@@ -31,7 +33,8 @@ export function removeNode(graph: FlowGraph, id: string): FlowGraph {
 export function connectionError(graph: FlowGraph, source: string, target: string): string | null {
   if (!graph.nodes.some((n) => n.id === source) || !graph.nodes.some((n) => n.id === target)) return "missing";
   if (source === target) return "self";
-  if (graph.nodes.find((n) => n.id === target)?.kind === "webhook") return "trigger";
+  const into = graph.nodes.find((n) => n.id === target)?.kind;
+  if (into === "webhook" || into === "schedule") return "trigger";
   if (graph.edges.some((e) => e.source === source && e.target === target)) return "duplicate";
   if (graph.edges.length >= 64) return "limit";
   const seen = new Set<string>();
@@ -45,9 +48,11 @@ export function connectionError(graph: FlowGraph, source: string, target: string
   }
   return null;
 }
-export function connectNodes(graph: FlowGraph, source: string, target: string): FlowGraph {
+/** Joins two steps; out of a check, `when` says by which branch (yes unless "no"). */
+export function connectNodes(graph: FlowGraph, source: string, target: string, when?: "yes" | "no"): FlowGraph {
   if (connectionError(graph, source, target)) return graph;
-  return { ...graph, edges: [...graph.edges, { source, target }] };
+  const check = graph.nodes.find((n) => n.id === source)?.kind === "condition";
+  return { ...graph, edges: [...graph.edges, { source, target, ...(check ? { when: when ?? "yes" } : {}) }] };
 }
 export function moveNode(graph: FlowGraph, id: string, x: number, y: number): FlowGraph {
   const point = { node: id, x: Math.max(-100000, Math.min(100000, x)), y: Math.max(-100000, Math.min(100000, y)) };

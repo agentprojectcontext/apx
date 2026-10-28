@@ -775,6 +775,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "link.go.settings": "Abrir Configuración",
   "link.go.settingsSection": "Abrir Configuración › {name}",
   "link.go.task": "Abrir la tarea «{name}» sobre el chat",
+  "link.go.flow": "Abrir el flujo",
   "link.go.tasks": "Abrir el tablero de tareas",
   "link.go.resources": "Abrir Recursos › {name}",
   "link.go.inbox": "Abrir el inbox",

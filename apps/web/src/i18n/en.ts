@@ -771,6 +771,7 @@ export const en = {
   "link.go.settings": "Open Settings",
   "link.go.settingsSection": "Open Settings › {name}",
   "link.go.task": "Open the task “{name}” over the chat",
+  "link.go.flow": "Open the flow",
   "link.go.tasks": "Open the task board",
   "link.go.resources": "Open Resources › {name}",
   "link.go.inbox": "Open the inbox",
