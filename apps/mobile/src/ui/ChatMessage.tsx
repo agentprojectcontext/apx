@@ -8,6 +8,7 @@ import type { Agent } from "../hooks/useWorkspace";
 import { lang, t } from "../i18n";
 import { type Answer, type Message, noticeText } from "../protocol";
 import { ActionGroup } from "./ActionGroup";
+import { BrowserHelp, BrowserReview } from "./BrowserReview";
 import { Icon } from "./Icon";
 import { Button, Spinner, Tag } from "./kit";
 import { Markdown } from "./Markdown";
@@ -288,14 +289,23 @@ function InputCard({ part, respond }: { part: InputPart; respond: Respond }) {
           {pending ? t("waitsForYou") : part.state === "withdrawn" ? t("withdrawn") : (part.answer ?? t("answered"))}
         </Text>
       </View>
-      <Text style={s.cardText}>{part.prompt}</Text>
-      {part.detail ? (
-        <Text numberOfLines={4} style={s.code}>
+      {!pending && (part.approval_scope === "tab" || part.approval_scope === "turn") ? (
+        <Text style={s.cardState}>{t(part.approval_scope === "tab" ? "browserTab" : "browserTurn")}</Text>
+      ) : null}
+      <Text style={s.cardText}>{part.tool === "browser_evaluate" ? t("browserTitle") : part.prompt}</Text>
+      {part.tool === "browser_evaluate" && part.browser ? (
+        <BrowserReview review={part.browser} source={part.detail ?? ""} />
+      ) : part.detail ? (
+        <Text selectable numberOfLines={part.tool === "browser_evaluate" ? undefined : 4} style={s.code}>
           {part.detail}
         </Text>
       ) : null}
       {pending && part.kind === "confirm" && part.approval_scopes ? (
-        <Text style={s.cardHelp}>{t("scopeHelp")}</Text>
+        part.tool === "browser_evaluate" ? (
+          <BrowserHelp />
+        ) : (
+          <Text style={s.cardHelp}>{t("scopeHelp")}</Text>
+        )
       ) : null}
       {pending ? (
         <View style={s.cardActions}>
@@ -304,10 +314,25 @@ function InputCard({ part, respond }: { part: InputPart; respond: Respond }) {
               <Button
                 size="md"
                 label={t(part.approval_scopes ? "approveOnce" : "approve")}
+                accessibilityHint={part.tool === "browser_evaluate" ? t("browserScopeHelp") : undefined}
                 busy={busy === "approve"}
                 disabled={Boolean(busy)}
                 onPress={() => answer("approve", { decision: "approve" })}
               />
+              {(["tab", "turn"] as const)
+                .filter((scope) => part.approval_scopes?.includes(scope))
+                .map((scope) => (
+                  <Button
+                    key={scope}
+                    size="md"
+                    variant="secondary"
+                    label={t(scope === "tab" ? "approveTab" : "approveTurn")}
+                    accessibilityHint={`${t("browserScopeHelp")} ${t(scope === "tab" ? "browserTabHelp" : "browserTurnHelp")}`}
+                    busy={busy === scope}
+                    disabled={Boolean(busy)}
+                    onPress={() => answer(scope, { decision: "approve", scope })}
+                  />
+                ))}
               {part.approval_scopes?.includes("session") ? (
                 <Button
                   size="md"

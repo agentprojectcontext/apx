@@ -15,6 +15,7 @@ import { useThread } from "./hooks/useThread";
 import type { Thread, Workspace } from "./hooks/useWorkspace";
 import { t } from "./i18n";
 import type { Message } from "./protocol";
+import { BrowserConsents } from "./ui/BrowserConsents";
 import { ChatComposer } from "./ui/ChatComposer";
 import { ChatMenu } from "./ui/ChatMenu";
 import { ChatMessage } from "./ui/ChatMessage";
@@ -175,6 +176,9 @@ export function ChatScreen({
           />
         )}
       </View>
+      {!fresh ? (
+        <BrowserConsents client={live.client} thread={base.id} agents={data.agents} threads={data.threads} />
+      ) : null}
       {showsStartHint({ rows: rows.length, working, fresh, loaded: Boolean(live.thread) }) ? (
         <View style={s.empty}>
           <EmptyState icon="MessageCircle" title={t("chatWith", { name })} body={t("chatStartHint")} />

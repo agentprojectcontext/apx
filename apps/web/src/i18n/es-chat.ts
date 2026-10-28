@@ -2,10 +2,31 @@
 import type { MessageKey } from "./en.ts";
 
 export const esChat: Partial<Record<MessageKey, string>> = {
+  "input.browserTechnical": "Detalles técnicos",
+  "input.browserDocument": "Documento",
+  "input.browserFile": "Archivo",
+  "input.browserHash": "SHA-256",
+  "input.browserTabHelp": "Pestaña: hasta 30 minutos; termina antes al navegar, recargar, cerrar o reconectar.",
+  "input.browserTurnHelp": "Turno: cubre las pestañas de este origen hasta que termine esta ejecución.",
+  "input.browserMore": "Límites y seguridad",
+  "input.browserSafety":
+    "Todos los permisos temporales terminan al reiniciar. El código puede leer datos privados o enviar como vos. Nunca lo uses para contraseñas, 2FA ni tarjetas. Revocar bloquea llamadas futuras, no el código ya enviado o en ejecución.",
+  "input.browserManage": "Gestioná o revocá permisos en Recursos.",
+  "input.browserTitle": "¿Permitir JavaScript en esta página?",
+  "input.browserOrigin": "Sitio web",
+  "input.browserSource": "Código JavaScript completo",
+  "input.browserTabNumber": "Pestaña {n}",
   "chat.agentProgress": "Avance de {name}",
   "chat.agentResponse": "Respuesta de {name}",
   "chat.agentMessage": "Mensaje de {name}",
   "input.approveOnce": "Aceptar una vez",
+  "input.callDetail": "Detalles y código completos de la llamada",
+  "input.approveTab": "Permitir en esta pestaña",
+  "input.approveTurn": "Durante este turno",
+  "input.tabScope": "Esta pestaña",
+  "input.turnScope": "Este turno",
+  "input.browserScopeHelp":
+    "Solo este origen exacto, agente y chat. El permiso temporal permite ejecutar después código distinto sin mostrarlo ni pedir otra aprobación. Puede leer o enviar datos privados.",
   "input.approveSession": "Aceptar durante esta sesión",
   "input.approveAlways": "Aceptar siempre para este agente",
   "input.sessionScope": "Esta sesión",
