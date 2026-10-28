@@ -1,4 +1,5 @@
 import type { DiskSpace, SystemUsage } from "@apx/protocol";
+import { BROWSER_TAB_IDLE_MIN } from "@apx/protocol/client";
 import { Button, Dialog, IconButton, Icons, Meter, Skeleton } from "@apx/ui";
 import "../styles/usage.css";
 import { refreshUsage, useUsage } from "../data/usage.ts";
@@ -116,7 +117,9 @@ function UsageDetail() {
                 onClick={refreshUsage}
               />
             </div>
-            <p className="usage__note">{t("desktop.memoryHint", { total: size(apxMb) })}</p>
+            <p className="usage__note">
+              {t("desktop.memoryHint", { total: size(apxMb), minutes: BROWSER_TAB_IDLE_MIN })}
+            </p>
             <ProcessList t={t} rows={rows} limit={14} />
           </section>
           <HomeBlock t={t} usage={usage} />

@@ -47,6 +47,9 @@ export const TURN_STEPS = 150;
  */
 export const CHANNEL_DEFAULTS = { closers: "silent", research: "owner" } as const;
 
+/** Minutes a tab of the desktop's browser stays open off screen with no agent or owner using it. */
+export const BROWSER_TAB_IDLE_MIN = 10;
+
 /** Quiet hours as they start when the owner turns them on, on any app. */
 export const QUIET_HOURS = { from: "22:00", to: "07:30" } as const;
 

@@ -1446,7 +1446,7 @@ export const en = {
   "quick.openApp": "Open in the app",
   "config.desktop": "Desktop",
   "desktop.memoryHint":
-    "APX is using {total}. Above 4 GB it tells you which process uses the most. Idle tabs close after 30 minutes.",
+    "APX is using {total}. Above 4 GB it tells you which process uses the most. Idle tabs close after {minutes} minutes.",
   "desktop.memory.core": "Core (agents, channels, data)",
   "desktop.memory.main": "APX (main)",
   "desktop.memory.gpu": "GPU",

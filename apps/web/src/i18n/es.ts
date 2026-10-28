@@ -1450,7 +1450,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "quick.openApp": "Abrir en la app",
   "config.desktop": "Escritorio",
   "desktop.memoryHint":
-    "APX usa {total} ahora. Si pasa de 4 GB, te avisa qué proceso consume más. Las pestañas sin uso se cierran a los 30 minutos.",
+    "APX usa {total} ahora. Si pasa de 4 GB, te avisa qué proceso consume más. Las pestañas sin uso se cierran a los {minutes} minutos.",
   "desktop.memory.core": "Core (agentes, canales, datos)",
   "desktop.memory.main": "APX (principal)",
   "desktop.memory.gpu": "GPU",

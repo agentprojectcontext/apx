@@ -131,3 +131,10 @@ test("the routine steps hint shows the core's default, never a number of its own
     assert.doesNotMatch(hint.replace("5", "").replace("200", ""), /\d/);
   }
 });
+
+test("the memory hint shows the desktop's idle tab time, never a number of its own", () => {
+  for (const messages of [base, esBase]) {
+    assert.match(messages["desktop.memoryHint"], /\{minutes\}/);
+    assert.doesNotMatch(messages["desktop.memoryHint"].replace("4 GB", ""), /\d/);
+  }
+});
