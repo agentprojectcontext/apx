@@ -323,6 +323,10 @@ quiet hours. Something critical may skip the cap (on by default) and, as a separ
 the owner's own messages, confirmations and pairing never pass through the gate. Feedback (👍/👎) and the agent's own
 `notify_owner` tool come next and use the same gate.
 
+Changed 2026-10-28: quiet hours and the day the cap counts read the machine's clock while channel hours (D-136) read the
+owner's time zone, so a core on UTC silenced the phone at the wrong hours. Both now use the owner's profile time zone
+(`ownerTimeZone`, the machine's when unset), through `quietNow` and `dayStart`.
+
 <a id="d-032"></a>
 ## D-032 — 2026-10-04 — The phone lends location and camera as a node, and takes notices by push
 The paired phone opens a second socket as a node lending `location` and `camera`; its tools (`phone_location`,

@@ -8,7 +8,9 @@ import type { Channels } from "../channels/manager.ts";
 import { autoApproves } from "../channels/stickers.ts";
 import { normalJid } from "../channels/whatsapp.ts";
 import { publicOutbox } from "../domain/channels.ts";
+import { dayStart } from "../domain/hours.ts";
 import { noticePrefs, saveNoticePrefs } from "../domain/notices.ts";
+import { ownerTimeZone } from "../domain/owner.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { ownerAsked } from "../domain/runs.ts";
 import type { Sticker } from "../domain/stickers.ts";
@@ -159,11 +161,10 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
 
     "notices.get": () => noticePrefs(store),
     "notices.log": ({ limit }) => {
-      const dayStart = new Date();
-      dayStart.setHours(0, 0, 0, 0);
+      const since = dayStart(new Date(), ownerTimeZone(store)).toISOString();
       return {
         items: store.nudges.list(limit),
-        today: { sent: store.nudges.countedSince(dayStart.toISOString()), cap: noticePrefs(store).budget_per_day },
+        today: { sent: store.nudges.countedSince(since), cap: noticePrefs(store).budget_per_day },
       };
     },
     "notices.feedback": ({ id, feedback }) => {

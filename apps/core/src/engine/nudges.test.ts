@@ -162,3 +162,28 @@ test("a reminder held in quiet hours with other news still arrives past the cap 
   nudges.release();
   assert.match(sent.at(-1) ?? "", /take the pills/);
 });
+
+test("quiet hours and the day's count follow the owner's time zone, not this computer's clock", () => {
+  const store = env.core.store;
+  const profile = store.settings.read("owner_profile");
+  // A zone far from any test machine's: Tokyo has no daylight saving.
+  store.settings.write("owner_profile", { ...profile, timezone: "Asia/Tokyo" });
+  try {
+    prefs({ quiet_from: "22:00", quiet_to: "07:30", budget_per_day: 1, project_gap_min: 0, kind_gap_min: 0 });
+    clock = new Date("2026-11-02T14:00:00Z"); // 23:00 in Tokyo
+    assert.equal(nudges.offer({ kind: "routine:tz", text: "late in Tokyo" }), "held");
+    const held = store.nudges.list(1)[0];
+    assert.equal(held?.text, "late in Tokyo");
+    clock = new Date("2026-11-02T22:31:00Z"); // 07:31 in Tokyo
+    nudges.release();
+    assert.deepEqual(sent, ["late in Tokyo"], "it went when Tokyo's quiet hours ended");
+    // That went at 07:31 on Tokyo's 3 November, which ends at 15:00 UTC: until then the day's one is used.
+    prefs({ budget_per_day: 1, project_gap_min: 0, kind_gap_min: 0 });
+    clock = new Date("2026-11-03T14:59:00Z");
+    assert.equal(nudges.offer({ kind: "routine:tz2", text: "same Tokyo day" }), "dropped");
+    clock = new Date("2026-11-03T15:01:00Z");
+    assert.equal(nudges.offer({ kind: "routine:tz3", text: "next Tokyo day" }), "sent");
+  } finally {
+    store.settings.write("owner_profile", profile);
+  }
+});

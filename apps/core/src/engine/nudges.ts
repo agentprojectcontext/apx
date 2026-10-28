@@ -5,8 +5,10 @@
 // marking 👎, it stays in the tray only. Answers to the owner's own messages never come here.
 
 import type { Nudge } from "@apx/protocol";
+import { dayStart } from "../domain/hours.ts";
 import { inQuietHours, noticePrefs, quietEnd } from "../domain/notices.ts";
 import { nudgeId } from "../domain/nudges.ts";
+import { ownerTimeZone } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
 import { untrusted } from "../tools/result.ts";
 import { audienceOf } from "./audience.ts";
@@ -127,15 +129,14 @@ export function createNudges(deps: {
     const prefs = noticePrefs(store);
     if (o.asked) return deliver(o, true);
     if (o.critical && prefs.critical_skips_budget) return deliver(o, true, "critical");
-    const dayStart = new Date(at);
-    dayStart.setHours(0, 0, 0, 0);
+    const zone = ownerTimeZone(store);
     const drop = (reason: string) => {
       store.nudges.add({ ...strip(o), at: at.toISOString(), state: "dropped", reason, exempt: false });
       return "dropped" as const;
     };
     // Something critical is never muted, whether or not it may skip the cap (DECISIONS.md#d-034).
     if (!o.critical && muted(store, o.kind, at)) return drop("you marked this kind unhelpful");
-    if (prefs.budget_per_day > 0 && store.nudges.countedSince(dayStart.toISOString()) >= prefs.budget_per_day)
+    if (prefs.budget_per_day > 0 && store.nudges.countedSince(dayStart(at, zone).toISOString()) >= prefs.budget_per_day)
       return drop("daily cap reached");
     const within = (last: string | undefined, min: number) =>
       min > 0 && last !== undefined && at.getTime() - Date.parse(last) < min * 60_000;
@@ -162,7 +163,8 @@ export function createNudges(deps: {
         return unhelpful ? "dropped" : "relay";
       }
       const prefs = noticePrefs(store);
-      if (inQuietHours(prefs, at) && !(o.critical && prefs.critical_wakes)) {
+      const zone = ownerTimeZone(store);
+      if (inQuietHours(prefs, at, zone) && !(o.critical && prefs.critical_wakes)) {
         store.nudges.add({
           ...strip(o),
           at: at.toISOString(),
@@ -170,7 +172,7 @@ export function createNudges(deps: {
           reason: "quiet hours",
           // Whether it would skip the cap once the window ends.
           exempt: Boolean(o.asked || (o.critical && prefs.critical_skips_budget)),
-          hold_until: quietEnd(prefs, at).toISOString(),
+          hold_until: quietEnd(prefs, at, zone).toISOString(),
         });
         return "held";
       }
@@ -198,9 +200,8 @@ export function createNudges(deps: {
     },
     /** Today's count against the cap. */
     today(): { sent: number; cap: number } {
-      const dayStart = new Date(clock());
-      dayStart.setHours(0, 0, 0, 0);
-      return { sent: store.nudges.countedSince(dayStart.toISOString()), cap: noticePrefs(store).budget_per_day };
+      const since = dayStart(clock(), ownerTimeZone(store)).toISOString();
+      return { sent: store.nudges.countedSince(since), cap: noticePrefs(store).budget_per_day };
     },
   };
 }

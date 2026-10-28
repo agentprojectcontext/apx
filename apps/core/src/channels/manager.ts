@@ -8,7 +8,7 @@ import { type ChannelInfo, type CoreEvent, noticeText, type Part } from "@apx/pr
 import type { Bus } from "../bus.ts";
 import type { AuxAbout } from "../domain/aux-calls.ts";
 import { type OutboxRow, ownerActsOn, type Presentation } from "../domain/channels.ts";
-import { appOnly, followsOwner, inQuietHours, noticePrefs } from "../domain/notices.ts";
+import { appOnly, followsOwner, noticePrefs, quietNow } from "../domain/notices.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { RunRecord } from "../domain/runs.ts";
@@ -164,7 +164,7 @@ export function createChannels(deps: {
         kind,
         body: {
           ...shownOn(l.config.id, body),
-          ...(inQuietHours(prefs) ? { silent: true } : {}),
+          ...(quietNow(store) ? { silent: true } : {}),
         },
       });
       return true;
@@ -586,7 +586,7 @@ export function createChannels(deps: {
         kind: "notice",
         body: {
           ...shownOn(to.channel, { text, ...(buttons ? { buttons } : {}) }),
-          ...(inQuietHours(prefs) ? { silent: true } : {}),
+          ...(quietNow(store) ? { silent: true } : {}),
         },
       });
       return;

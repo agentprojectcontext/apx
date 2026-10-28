@@ -1288,7 +1288,7 @@ export const NoticePrefs = z.object({
    */
   channel: z.string().optional(),
   /**
-   * Quiet hours (local time, "HH:MM"): what APX would say unasked waits until they end (and then goes together); answers
+   * Quiet hours ("HH:MM" in the owner's time zone): what APX would say unasked waits until they end (and then goes together); answers
    * and questions still arrive, without sound.
    */
   quiet_from: z
