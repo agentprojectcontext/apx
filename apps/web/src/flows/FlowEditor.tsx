@@ -1,6 +1,6 @@
 import { ApxError } from "@apx/protocol/client";
 import { shapeOfGraph } from "@apx/protocol/flow-shape";
-import { Button, Dialog, FlowStepTile, IconButton, Icons, Input, Select, Spinner } from "@apx/ui";
+import { Button, FlowStepTile, IconButton, Icons, Input, Select, Spinner } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Drawer } from "../common/Drawer.tsx";
 import { client } from "../data/client.ts";
@@ -17,6 +17,7 @@ import { FlowChat } from "./FlowChat.tsx";
 import { EditorHistory } from "./FlowHistory.tsx";
 import { connectNodes, disconnectNodes, moveNode, newNode, removeCase, removeNode } from "./graph-edit.ts";
 import { Inspector, StepList } from "./Inspector.tsx";
+import { LeaveDialog, useLeave } from "./LeaveDialog.tsx";
 import { stepDetail } from "./look.tsx";
 import { approveOutward } from "./outward.tsx";
 import { useRunLog } from "./RunLog.tsx";
@@ -89,7 +90,6 @@ export function FlowEditor({
   // On a phone the step types sit behind a button.
   const [palette, setPalette] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [leaving, setLeaving] = useState(false);
   const [trial, setTrial] = useState<Map<string, TryStep> | null>(null);
   // What the last save said, shown in the top bar until the next change.
   const [said, setSaid] = useState<{ text: string; error?: boolean } | null>(null);
@@ -441,16 +441,9 @@ export function FlowEditor({
     }
     return id && !dirty ? id : saveDraft();
   };
-  // Where leaving goes once the owner keeps or drops unsaved edits: out of the editor, or to a table in Tables.
-  const [leaveTo, setLeaveTo] = useState<{ go: () => void }>();
-  const away = (go: () => void) => {
-    test.close();
-    if (!dirty) return go();
-    setLeaveTo({ go });
-    setLeaving(true);
-  };
+  // Out of the editor, or to a table in Tables: unsaved edits are asked about first.
+  const { leaving, away, leave, openChange } = useLeave(dirty, onClose, test.close);
   const close = () => away(onClose);
-  const leave = () => (leaveTo ?? { go: onClose }).go();
   const hasTrigger = Boolean(triggerOf(g));
 
   const agentName = allAgents[draftBy ?? ""]?.name ?? boss?.name ?? "";
@@ -763,39 +756,14 @@ export function FlowEditor({
           )}
         </div>
       </div>
-      <Dialog
+      <LeaveDialog
         open={leaving}
-        onOpenChange={(open) => {
-          setLeaving(open);
-          if (!open) setLeaveTo(undefined);
-        }}
-        title={t("flow.ed.discardTitle")}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setLeaving(false)}>
-              {t("flow.ed.keep")}
-            </Button>
-            <Button variant="danger" onClick={leave}>
-              {t("flow.ed.discard")}
-            </Button>
-            {!locked && (
-              <Button
-                disabled={busy}
-                onClick={() =>
-                  void saveDraft().then((ok) => {
-                    setLeaving(false);
-                    if (ok) leave();
-                  })
-                }
-              >
-                {t("flow.ed.saveDraft")}
-              </Button>
-            )}
-          </>
-        }
-      >
-        {t(locked ? "flow.ed.discardBody" : "flow.ed.leaveDraftBody")}
-      </Dialog>
+        onOpenChange={openChange}
+        locked={locked}
+        busy={busy}
+        leave={leave}
+        saveDraft={saveDraft}
+      />
     </div>
   );
 }
