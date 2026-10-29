@@ -145,8 +145,11 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   await expect(page.getByText("4 de 4 pasos corrieron")).toBeVisible();
   await expect(page.getByText(/^Respondió .+ en APX/)).toBeVisible();
   await page.getByRole("radio", { name: "Ronda completa" }).click();
-  await expect(page.getByRole("log")).toContainText("recibido POST");
-  await expect(page.getByRole("log")).toContainText("Modelo IA terminó");
+  // The whole run's log says what arrived, as text, then each step as it started and ended.
+  const log = page.getByRole("log");
+  await expect(log).toContainText(`Llegó un evento · POST /flows/${flow?.path}`);
+  await expect(log).toContainText('"text": "<script>outside</script>"');
+  await expect(log).toContainText("«Modelo IA» terminó");
   // A run cut at the check shows the steps after it as not run.
   await cut.click();
   await expect(page.getByText("2 de 4 pasos corrieron")).toBeVisible();
