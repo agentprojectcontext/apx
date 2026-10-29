@@ -138,7 +138,12 @@ test("a save names its table and fills its key; a read in the same run gets that
     const page = await env.client.call("flows.rows", { flow: "leads", table: "leads", limit: 1 });
     assert.equal(page.rows[0]?.key, "alex@example.com");
     assert.ok(page.nextCursor);
-    const next = await env.client.call("flows.rows", { flow: "leads", table: "leads", limit: 1, cursor: page.nextCursor });
+    const next = await env.client.call("flows.rows", {
+      flow: "leads",
+      table: "leads",
+      limit: 1,
+      cursor: page.nextCursor,
+    });
     assert.deepEqual(
       next.rows.map((r) => r.key),
       ["sam@example.com"],
@@ -219,12 +224,14 @@ test("a variable holding a secret is read only in a command's environment; elsew
     });
     assert.ok(leaks.issues.some((i) => i.code === "secret_var_text" && i.message.includes("$vars.token")));
     assert.ok(
-      (await issuesOf(env, "secret-var", chain(hook, vars("secret://acme_key"), save("s", { key: "$vars.token" })))).includes(
-        "secret_var_text",
-      ),
+      (
+        await issuesOf(env, "secret-var", chain(hook, vars("secret://acme_key"), save("s", { key: "$vars.token" })))
+      ).includes("secret_var_text"),
     );
     // A secret beside other text is not a reference: it would be read as plain text.
-    assert.ok((await issuesOf(env, "secret-var", chain(hook, vars("Bearer secret://acme_key")))).includes("secret_var_shape"));
+    assert.ok(
+      (await issuesOf(env, "secret-var", chain(hook, vars("Bearer secret://acme_key")))).includes("secret_var_shape"),
+    );
     // A secret the variable names that is not in Secrets is said before publishing.
     const missing = chain(hook, vars("secret://nobody"), cmd([{ name: "KEY", value: "$vars.token" }]));
     assert.ok((await issuesOf(env, "secret-var", missing)).includes("secret_missing"));
