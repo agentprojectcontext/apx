@@ -53,7 +53,9 @@ test("a read makes its table and a column with no save in the Flow, and a run re
   await editor.getByRole("textbox", { name: "Name of the new column" }).fill("email");
   await shot(page, "read-new-column-name");
   await editor.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(editor.locator(".ft-chips")).toContainText("$steps.table_read-1.email");
+  // The read brings every column, ticked, each with the name a later step reads.
+  await expect(editor.getByRole("checkbox", { name: "email" })).toBeChecked();
+  await expect(editor.locator(".ft-picks")).toContainText("$steps.table_read-1.email");
   await editor.getByRole("textbox", { name: "Key", exact: true }).fill("$trigger.id");
   await shot(page, "read-new-column");
   const tables = await rpc<Result<"tables.list">>("tables.list", { project });

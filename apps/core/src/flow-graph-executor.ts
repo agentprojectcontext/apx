@@ -16,7 +16,8 @@ import {
   resolveFlowInput,
   summarizeFlowGraph,
 } from "./domain/flow-graph-semantics.ts";
-import { flowReadCells, flowRowCells } from "./domain/flow-table-cells.ts";
+import { flowPickCells, flowReadCells, flowRowCells } from "./domain/flow-table-cells.ts";
+import { FlowTableRequired } from "./domain/flow-tables.ts";
 import { parseFlowTemplate, renderFlowTemplate } from "./domain/flow-template.ts";
 import { TERMINAL } from "./domain/runs.ts";
 import type { Store } from "./domain/store.ts";
@@ -55,6 +56,7 @@ const WHY = {
   silent: "run_silent",
   deadline: "deadline",
   value: "value_too_large",
+  required: "required_empty",
 } as const;
 class StepStopped extends Error {}
 /** Provider answers that turned the request down before doing it; anything else after sending is unknown. */
@@ -350,6 +352,8 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
     const reads = {
       resolve: (b: FlowBinding) => resolveFlowInput(b, run.payload, snapshots),
       vars: flowVarIndex(run.graph),
+      // A check's comparison may read APX's own values (`$apx.now`).
+      ...(node.kind === "condition" ? { apx: flowApx(store, run, at) } : {}),
     };
     // A row's key may name what arrived (`$trigger.email`): filled now, a missing value fails the step.
     const rowKey = (key: string) =>
@@ -391,8 +395,11 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
     const pure = (effect: () => unknown, why: string = WHY.value) => {
       try {
         runs.runPure(k, input, at, effect);
-      } catch {
-        runs.settle(k, ["pending"], "failed", at, why);
+      } catch (error) {
+        // A save that would leave a required column empty names it (DECISIONS.md#d-180).
+        if (error instanceof FlowTableRequired)
+          runs.settle(k, ["pending"], "failed", at, WHY.required, { required: error.columns });
+        else runs.settle(k, ["pending"], "failed", at, why);
       }
       return true;
     };
@@ -423,13 +430,19 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
         return pure(() => {
           const { keys } = input as { keys: string[] };
           if (!table) return { rows: store.flows.readRows(run.flow, keys) };
+          // The columns it brings, all of them unless it chose (DECISIONS.md#d-180).
+          const brings = node.columns ? columns.filter((c) => node.columns?.includes(c)) : columns;
           if (node.latest) {
             const rows = store.flowTables.latest(project, table, node.latest);
-            return { ...flowReadCells(columns, rows[0]?.value), rows };
+            const kept = node.columns ? rows.map((r) => ({ ...r, value: flowPickCells(brings, r.value) })) : rows;
+            return { ...flowReadCells(brings, rows[0]?.value), rows: kept };
           }
-          const rows = store.flowTables.read(project, table, keys);
+          const found = store.flowTables.read(project, table, keys);
+          const rows = node.columns
+            ? Object.fromEntries(Object.entries(found).map(([key, v]) => [key, flowPickCells(brings, v)]))
+            : found;
           const row = keys[0] !== undefined && keys[0] in rows ? rows[keys[0]] : null;
-          return { ...flowReadCells(columns, row), rows, row };
+          return { ...flowReadCells(brings, row), rows, row };
         });
       }
       case "table_write": {

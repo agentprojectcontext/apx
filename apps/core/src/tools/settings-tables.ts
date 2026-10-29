@@ -111,6 +111,12 @@ export const TABLES: Readonly<Record<string, Setting>> = {
     says: (p, d) =>
       `Rename the column ${inlineName(str(p.column))} of ${tableName(p, d)} to ${inlineName(str(p.name))}`,
   },
+  "tables.column_required": {
+    does: "mark a column of a table required or not (project, table, column, required): a save that leaves it empty is refused",
+    named: ["project", "table", "column", "required"],
+    says: (p, d) =>
+      `${p.required === false ? "Stop requiring" : "Require"} the column ${inlineName(str(p.column))} of ${tableName(p, d)}`,
+  },
   "tables.column_remove": {
     does: "remove a column of a table and its value in every row (project, table, column)",
     named: ["project", "table", "column"],

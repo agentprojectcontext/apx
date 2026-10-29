@@ -195,6 +195,7 @@ export interface FlowTableDefsTable {
   columns: Generated<string>;
   created_at: string;
   updated_at: string;
+  required: Generated<string>;
 }
 
 export interface FlowTablesTable {

@@ -4,6 +4,7 @@ import { AgentAvatar } from "@apx/ui";
 import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
 import type { MessageKey } from "../i18n/index.ts";
+import { rulesText } from "./compare.ts";
 import { agentOf, type Known, whoOf } from "./data.ts";
 import { dotted, type FlowNode, hookPath, literal, presetOf } from "./steps.tsx";
 
@@ -29,6 +30,8 @@ export function stepDetail(
       const first = cases[0];
       if (cases.length > 1 && t) return { detail: t("flow.d.cases", { count: cases.length }), detailPlain: true };
       if (first?.match.kind === "expr") return first.match.expr ? { detail: first.match.expr } : {};
+      if (first?.match.kind === "all" || first?.match.kind === "any")
+        return t && first.match.rules.some((r) => r.left.trim()) ? { detail: rulesText(first.match, t) } : {};
       return first && n.input.kind === "event" && n.input.path.length
         ? { detail: `${dotted(n.input.path)} = ${literal(first.match.value)}` }
         : {};

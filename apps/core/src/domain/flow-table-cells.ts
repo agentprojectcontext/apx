@@ -37,3 +37,9 @@ export function flowReadCells(columns: readonly string[], row: unknown): Record<
   const cells = row === null || row === undefined ? {} : tableCells(row);
   return Object.fromEntries(columns.map((c) => [c, Object.hasOwn(cells, c) ? cells[c] : null]));
 }
+
+/** A row with only these columns' cells, for a read that chose its columns. */
+export function flowPickCells(columns: readonly string[], row: unknown): Record<string, unknown> {
+  const cells = row === null || row === undefined ? {} : tableCells(row);
+  return Object.fromEntries(columns.flatMap((c) => (Object.hasOwn(cells, c) ? [[c, cells[c]]] : [])));
+}

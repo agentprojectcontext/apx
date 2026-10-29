@@ -10,7 +10,8 @@ export class CallError extends Error {
   }
 }
 
-export const badRequest = (message: string) => new CallError({ code: ErrorCode.BadRequest, message });
+export const badRequest = (message: string, detail?: unknown) =>
+  new CallError({ code: ErrorCode.BadRequest, message, ...(detail === undefined ? {} : { detail }) });
 export const notFound = (what: string) => new CallError({ code: ErrorCode.NotFound, message: `${what} not found` });
 export const unauthorized = (message: string) => new CallError({ code: ErrorCode.Unauthorized, message });
 /** `detail` carries what a client needs to say it in its own words (a refusal's numbers). */

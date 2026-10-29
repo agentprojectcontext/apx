@@ -8,6 +8,7 @@ import { listSecrets } from "../data/resources.ts";
 import { useT } from "../i18n/index.ts";
 import { VariableDialog } from "../resources/VariablesTab.tsx";
 import { AiFields, aiNote } from "./AiFields.tsx";
+import { CaseFields } from "./CaseFields.tsx";
 import { type Address, HookFields } from "./HookFields.tsx";
 import { InputPicker } from "./InputPicker.tsx";
 import { HttpFields, NotifyFields } from "./OutwardFields.tsx";
@@ -17,7 +18,7 @@ import { TableReadFields, TableWriteFields } from "./TableFields.tsx";
 import type { Values } from "./Template.tsx";
 import { useColumns } from "./tables-data.ts";
 import { valueGroups } from "./values.ts";
-import { CaseFields, CmdFields, JsFields, SqlFields, VarsFields } from "./WorkFields.tsx";
+import { CmdFields, JsFields, SqlFields, VarsFields } from "./WorkFields.tsx";
 
 /**
  * What step `n`'s template fields can insert, by field: the project's secrets (and the owner's for every project) are
@@ -116,6 +117,8 @@ export function Inspector(props: {
   branch: (source: string, target: string, when: string) => void;
   /** Takes a case out of a check, and the connections that left by it. */
   removeCase: (check: string, id: string) => void;
+  /** Opens a table in the Flows screen's Tables, asking first when the drawing has unsaved changes. */
+  openTable: (table: string) => void;
 }) {
   const t = useT();
   const { graph, selected: n } = props;
@@ -207,11 +210,24 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode; values: 
       return <CmdFields n={n} update={update} values={props.values} projectId={props.projectId} />;
     case "table_read":
       return (
-        <TableReadFields n={n} graph={props.graph} projectId={props.projectId} values={props.values} update={update} />
+        <TableReadFields
+          n={n}
+          projectId={props.projectId}
+          values={props.values}
+          update={update}
+          openTable={props.openTable}
+        />
       );
     case "table_write":
       return (
-        <TableWriteFields n={n} graph={props.graph} projectId={props.projectId} values={props.values} update={update} />
+        <TableWriteFields
+          n={n}
+          graph={props.graph}
+          projectId={props.projectId}
+          values={props.values}
+          update={update}
+          openTable={props.openTable}
+        />
       );
     case "agent":
       return (

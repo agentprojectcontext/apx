@@ -149,3 +149,72 @@
     padding: 12px 0 20px;
   }
 }
+
+/* Read: the columns it brings, each ticked, with the variable a later step reads. */
+.ft-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ft-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.ft-var {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 60%;
+  overflow: hidden;
+  padding: 1px 6px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: transparent;
+  color: var(--apx-fg-muted);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ft-var:hover {
+  background: var(--apx-fill);
+  color: var(--apx-fg);
+}
+.ft-intables.apx-btn {
+  align-self: flex-start;
+}
+/* A required column: its name and an asterisk. */
+.ft-required {
+  color: var(--apx-danger);
+}
+/* Save: how a row will look, its key and each column with what fills it. */
+.ft-preview {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+  font-size: 12.5px;
+}
+.ft-preview__row {
+  display: contents;
+}
+.ft-preview dt {
+  color: var(--apx-fg-muted);
+}
+.ft-preview dd {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ft-preview .is-muted {
+  color: var(--apx-fg-muted);
+}

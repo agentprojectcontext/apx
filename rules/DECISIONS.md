@@ -3283,3 +3283,42 @@ reusing `flow_graph_revisions` with a draft-history table beside it (two tables 
 pruned by what runs point at, not by what the owner may want back), storing a published entry by reference to its
 revision (it would vanish when the revision is pruned), a diff per entry instead of the drawing (a version must draw on
 its own), and letting an agent restore (it would move the owner's draft back without them looking).
+
+<a id="d-180"></a>
+## D-180 — 2026-10-29 — A check compares with the same picker as every field; a read picks its columns; a column can be required
+The owner tried a real Flow and found the step fields uneven: a check's **Field** took only a dotted path of what
+arrived (no previous step, no variable), picking **Formula** made it disappear, a case held one "equals", a read listed
+`$steps.<read>.<column>` chips nobody could choose from, a save's whole value mixed a source picker with a path field,
+and nothing said a column must be filled. One pattern for all of them: a label, one field with the `{}` picker, a
+short help line.
+
+- **Comparisons in a case.** A case's `match` gains `{kind: "all" | "any", rules: [{left, op, right, type}]}` (1–10
+  rules): every rule holds, or one does. `left` and `right` are templates, read like a save's column
+  (`domain/flow-compare.ts`): one placeholder alone keeps its value, a field the data lacks is empty, a step with no
+  answer yet can't be told. `type` is how both sides are read: `text` (`equals`, `not_equals`, `contains`,
+  `starts_with`, exact), `number` (`equals`, `not_equals`, `gt`, `lt`, `gte`, `lte`; a side that is no number never
+  holds) or `boolean` (`"true"`/`"false"`); `empty`/`not_empty` read `left` alone. Both sides are step templates, so
+  ancestors, secret variables and placeholders are checked as everywhere else. `flowComparisonGap` names a rule with no
+  field, nothing to compare with, an op its type doesn't offer or a typed value its type can't read, as `flowStepGap`'s
+  `cases`: drafts keep it (D-177), publishing names it.
+- **Nothing stored changes.** `equals` and `expr` cases and the old `equals` check stay valid and run as before; no
+  migration (rule 14), every reader takes all forms. The editor shows an `equals` case as the one comparison it is and
+  saves it as one once edited; a new check starts with one comparison. **Formula** stays as the free-form tab.
+- **A read picks its columns.** `table_read.columns?` (absent: every column, also ones added later) brings only those,
+  at the top level and in each row. One it names that the table no longer has is `column_missing`, as for a save.
+- **A required column.** `flow_table_defs.required` (JSON names; a migration adds it, empty) and
+  `tables.column_required {project, table, column, required}`; `TableInfo.required` lists them, and renaming or
+  removing a column carries it. Every write (Flows, the owner's grid, an agent's `tables.write`) whose resulting row
+  leaves a required cell empty (absent, null, blank, `[]`, `{}`) is refused naming the columns; in a run that step
+  fails with `required_empty` and `output.required`. `flowDraftIssues` names a save by column that fills no value for a
+  required column as `step_incomplete`, and the editor's `stepGap` does too, so Save names it before publishing. A save
+  of one value whole is checked on what arrives. Admission does not refuse a published Flow for it: marking a column
+  required should not stop Flows that do fill it, so the refusal is per run.
+- **The super-agent** reads the shapes in the `apx-flows` skill; marking a column required changes what the owner's
+  Flows may save, so `tables.column_required` waits for the owner's card, like renaming one.
+
+No news entry: these are fields the owner fills in the editor, not something the super-agent offers to do. Rejected:
+kind tabs at the case level (a case like "verified is yes and email contains @" mixes types, so each
+comparison has its own), loose comparison (`"9" < "10"` as text), refusing admission for a required column (it would
+stop every run, also those that fill it), storing columns as objects in the catalog (a migration of every table for
+one flag), and case-insensitive text by default (exact is what the formula did; `lower()` in a formula remains).

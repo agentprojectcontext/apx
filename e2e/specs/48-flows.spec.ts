@@ -56,10 +56,10 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   // A check between the webhook and the save: choose the webhook (the new steps moved it out of view), then add a check after it.
   await named.locator(".fe-order__row", { hasText: "Webhook entrante" }).click();
   await named.getByRole("button", { name: "Sumar Condición" }).click();
-  // Its case compares a field with a value.
+  // Its case compares a field of what arrived with a value.
   await named.getByRole("radio", { name: "Texto", exact: true }).click();
-  await named.getByRole("textbox", { name: "Campo" }).fill("type");
-  await named.getByRole("textbox", { name: "Es", exact: true }).fill("message");
+  await named.getByRole("textbox", { name: "Qué mira", exact: true }).fill("$trigger.type");
+  await named.getByRole("textbox", { name: "Con qué compara", exact: true }).fill("message");
   // The new check hangs off the webhook beside the save; join it into the chain: webhook → check → save.
   await named.locator(".fe-order__row", { hasText: "Webhook entrante" }).click();
   await named.getByRole("button", { name: "Quitar conexión" }).first().click();

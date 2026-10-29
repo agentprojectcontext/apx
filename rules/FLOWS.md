@@ -374,7 +374,10 @@ inset) and **Exit** at the right, through the same unsaved-changes guard. The pr
 step's crew is an `AgentGrid` of the project's agents plus the super-agent, the read and save steps list
 `tables.list`, and steps that need a project say so until one is chosen. A variable's value and every key take a
 `TemplateField`; the secrets group offers **Save a secret** (Resources' `VariableDialog`). A check's cases and a
-variables step's values are a flat list (`.fe-item`), never cards inside the panel.
+variables step's values are a flat list (`.fe-item`), never cards inside the panel. A case (`CaseFields.tsx`) is its
+name, then **Compare** or **Formula** tabs, then the inputs in place: each comparison a field (`{}` picker), a
+comparison chosen from the type's list (text, number, yes or no) and a value (`{}` picker, hidden for empty), joined by
+**All**/**Any** once there are two.
 
 ## Version history
 
@@ -425,8 +428,17 @@ literal text (`deps.http.secret`), scrub stdout and stderr with `secretScrubber`
 
 See [D-170](DECISIONS.md#d-170). None calls a model.
 
-**Checks.** A `condition` has `input` and either `cases` (1–15: `{id, label, match: {kind: "equals", value} |
-{kind: "expr", expr}}`) or, as drawings before cases had, `equals` (read as one case `yes`). The first case that holds
+**Checks.** A `condition` has `input` and either `cases` (1–15: `{id, label, match: {kind: "all" | "any", rules} |
+{kind: "expr", expr} | {kind: "equals", value}}`) or, as drawings before cases had, `equals` (read as one case `yes`).
+A case of comparisons ([D-180](DECISIONS.md#d-180)) holds when every rule holds (`all`) or one does (`any`); a rule is
+`{left, op, right, type}` (1–10 per case), both sides templates (`domain/flow-compare.ts`: one placeholder alone keeps
+its value, a field the data lacks is empty, a step with no answer yet throws), `type` `text` (`equals`, `not_equals`,
+`contains`, `starts_with`, exact), `number` (`equals`, `not_equals`, `gt`, `lt`, `gte`, `lte`; a side that is no number
+never holds) or `boolean` (`"true"`/`"false"`), and `empty`/`not_empty` reading only `left`. `flowComparisonGap`
+(`flow-cases.ts`) names a rule with no field, no right side, an op its type doesn't offer or a typed value its type
+can't read, so `flowStepGap` says `cases`. Both sides are step templates (`flowNodeTemplates`), so ancestors, secret
+variables and `template_invalid` are checked as for any template. `equals` cases stay valid and run as drawn; the editor
+keeps showing a formula as a formula and makes new cases of comparisons. The first case that holds
 names the way out, else `no` ("otherwise"); `no` can't be a case id. Edges out of a check carry `when` = a case id or
 `no` (absent means `yes`); `branch_unknown` when it names a way the check doesn't have. A check with cases records
 `{case}`; one with `equals` still records `{matched}`, and readers take both. `flows.try_graph` adds `branch`.
@@ -505,24 +517,32 @@ See [D-173](DECISIONS.md#d-173) and [D-176](DECISIONS.md#d-176). A project's tab
 per field, anything else is its `value` column (`tableCells`, `packages/protocol/src/table-cells.ts`). Methods
 (`table-methods.ts`, `rpc/tables.ts`): `tables.list {project?}`, `tables.get {project, table, limit, cursor}` (newest
 first, cursor `updated_at|key`), and, with an idempotency key, `tables.create`, `tables.rename`, `tables.remove`,
-`tables.column_add|column_rename|column_remove`, `tables.write {key, values, replace?}` (merges cells; a new field adds
-a column) and `tables.delete_rows`. The owner reaches every project, an agent's own tool its project (`flowReach`).
+`tables.column_add|column_rename|column_remove|column_required`, `tables.write {key, values, replace?}` (merges cells; a
+new field adds a column) and `tables.delete_rows`. `flow_table_defs.required` (JSON names, [D-180](DECISIONS.md#d-180))
+lists required columns; `TableInfo.required` returns them in the table's order. A write whose resulting row leaves one
+empty (absent, null, blank, `[]`, `{}`) throws `FlowTableRequired` (`bad_request` with `detail.columns` through the
+router); renaming or removing a column carries it along. The owner reaches every project, an agent's own tool its project (`flowReach`).
 
-`table_write {table?, key, value | columns}` and `table_read {table?, keys, latest?}` name a table of the Flow's
+`table_write {table?, key, value | columns}` and `table_read {table?, keys, latest?, columns?}` name a table of the Flow's
 project (`FlowTableName`); without `table` they use the Flow's own table (`flow_rows`). Keys may hold placeholders,
 filled by the executor (`rowKey` in `flow-graph-executor.ts`; missing value: `missing_value`). `columns: [{name, value
 template}]` fills cells (`flowRowCells` in `domain/flow-table-cells.ts`: one placeholder alone keeps its value, absent
 is null) and merges into the row; `value` saves one value whole. A read returns `{rows, row, ...columns}` for keys or
 `{rows: [{key, value, updated_at}], ...columns}` for `latest`, the columns the first row's or null (`flowReadCells`);
-a save returns `{key, value}`. Validation: `read_what` (neither or both of keys and latest), `read_table` (latest needs
+a save returns `{key, value}`. A read with `columns` brings only those (top level and each row, `flowPickCells`); one it
+names that the table no longer has is `column_missing`. A save that would leave a required column empty fails its step
+with `required_empty` and `output: {required: [...]}`; `flowDraftIssues` names a save by column that fills no value for
+a required column as `step_incomplete` (`requiredGaps` in `flows.ts`), so drafts keep it and publishing names it. Validation: `read_what` (neither or both of keys and latest), `read_table` (latest needs
 a table), `save_what` (exactly one of value or columns, columns need a table), `column_twice`, `unordered_write` per
 table and key, and in the Flow's project (`flowGraphIssues`) `table_missing` and `column_missing`: publishing is refused
 and a published Flow's admission refuses events until the owner picks a table again. A table removed between admission
 and its step fails that step with `table_missing`. The editor's Read and Save list every table, make one ("New table")
-and add columns ("New column") on the spot (`TableFields.tsx`, `tables-data.ts`); the `{}` picker offers a read's
-columns as `$steps.<read>.<column>`. The Flows screen's **Tables** (`TablesView.tsx`, lazy) shows a project's tables,
-their columns and rows; rows, tables and columns are added, edited, renamed and removed there. The super-agent reaches
-them through `apx_settings`' `tables` area (D-176).
+and add columns ("New column") on the spot (`TableFields.tsx`, `tables-data.ts`); a read ticks the columns it brings
+(all by default, each with its `$steps.<read>.<column>` to copy), a save marks required columns with an asterisk and
+its whole value is one `{}` field (`bindingOfTemplate`, `values.ts`); the `{}` picker offers a read's chosen columns. The Flows screen's **Tables** (`TablesView.tsx`, lazy) shows a project's tables,
+their columns and rows; rows, tables and columns are added, edited, renamed and removed there, and a column's menu
+marks it required. The super-agent reaches
+them through `apx_settings`' `tables` area (D-176); `tables.column_required` waits for the owner's OK.
 
 `domain/flow-secret-vars.ts`: `flowSecretVars` finds variables whose literal is exactly `secret://name`;
 `secretTemplate` parses a header or command variable and swaps each `$vars.name` part of one for a text part holding

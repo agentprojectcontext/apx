@@ -1,6 +1,6 @@
 import { ApxError } from "@apx/protocol/client";
 import { shapeOfGraph } from "@apx/protocol/flow-shape";
-import { Button, Dialog, FlowStepTile, IconButton, Icons, Input, Select, Spinner } from "@apx/ui";
+import { Button, FlowStepTile, IconButton, Icons, Input, Select, Spinner } from "@apx/ui";
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
 import { Drawer } from "../common/Drawer.tsx";
 import { client } from "../data/client.ts";
@@ -8,7 +8,8 @@ import { useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
-import { blank } from "./complete.ts";
+import { go } from "../shell/nav.ts";
+import { blank, blankWith } from "./complete.ts";
 import { describeIssue, issueText, shownGraph, useKnown, whoOf } from "./data.ts";
 import { slug, tidy } from "./drawing.ts";
 import { type Cover, FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
@@ -16,6 +17,7 @@ import { FlowChat } from "./FlowChat.tsx";
 import { EditorHistory } from "./FlowHistory.tsx";
 import { connectNodes, disconnectNodes, moveNode, newNode, removeCase, removeNode } from "./graph-edit.ts";
 import { Inspector, StepList } from "./Inspector.tsx";
+import { LeaveDialog, useLeave } from "./LeaveDialog.tsx";
 import { stepDetail } from "./look.tsx";
 import { approveOutward } from "./outward.tsx";
 import { useRunLog } from "./RunLog.tsx";
@@ -36,6 +38,7 @@ import {
 } from "./steps.tsx";
 import { type LogPlace, TestDock, TestLog, TestStepCard } from "./TestMode.tsx";
 import { TryRun, type TryStep } from "./TryRun.tsx";
+import { useTables } from "./tables-data.ts";
 import { useFlowAddress } from "./useFlowAddress.ts";
 import { useFlowChat } from "./useFlowChat.ts";
 import { useFlowTest } from "./useFlowTest.ts";
@@ -90,7 +93,6 @@ export function FlowEditor({
   // On a phone the step types sit behind a button.
   const [palette, setPalette] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [leaving, setLeaving] = useState(false);
   const [trial, setTrial] = useState<Map<string, TryStep> | null>(null);
   // What the last save said, shown in the top bar until the next change.
   const [said, setSaid] = useState<{ text: string; error?: boolean } | null>(null);
@@ -157,6 +159,9 @@ export function FlowEditor({
     [allRoutines, projectId],
   );
   const g = graph ?? EMPTY;
+  // A save that leaves a required column of its table empty is unfinished too (DECISIONS.md#d-180).
+  const tables = useTables(projectId || undefined);
+  const unfinished = blankWith((table) => tables?.find((x) => x.name === table)?.required ?? []);
   // The core checks the drawing as it changes (its agents, routines and models in this project), before the first
   // save too: a new flow is checked as one of the chosen project.
   useEffect(() => {
@@ -278,7 +283,7 @@ export function FlowEditor({
         : !triggerOf(g)
           ? t("flow.ed.needTrigger")
           : undefined;
-    const incomplete = g.nodes.find(blank);
+    const incomplete = g.nodes.find(unfinished);
     if (missing || incomplete) {
       setSaid({
         error: true,
@@ -423,7 +428,7 @@ export function FlowEditor({
   };
   /** A test runs what is saved: an unfinished step is named, unsaved edits are saved as a draft first. */
   const prepareTest = async (): Promise<string | undefined> => {
-    const incomplete = g.nodes.find(blank);
+    const incomplete = g.nodes.find(unfinished);
     if (!triggerOf(g) || incomplete) {
       setSaid({
         error: true,
@@ -439,11 +444,9 @@ export function FlowEditor({
     }
     return id && !dirty ? id : saveDraft();
   };
-  const close = () => {
-    test.close();
-    if (dirty) setLeaving(true);
-    else onClose();
-  };
+  // Out of the editor, or to a table in Tables: unsaved edits are asked about first.
+  const { leaving, away, leave, openChange } = useLeave(dirty, onClose, test.close);
+  const close = () => away(onClose);
   const hasTrigger = Boolean(triggerOf(g));
 
   const agentName = allAgents[draftBy ?? ""]?.name ?? boss?.name ?? "";
@@ -729,6 +732,7 @@ export function FlowEditor({
                     })
                   }
                   removeCase={(check, id) => change(removeCase(g, check, id))}
+                  openTable={(table) => away(() => go.tables(projectId, table))}
                   unlink={(source, target) =>
                     change({ ...g, edges: g.edges.filter((e) => !(e.source === source && e.target === target)) })
                   }
@@ -757,36 +761,14 @@ export function FlowEditor({
           )}
         </div>
       </div>
-      <Dialog
+      <LeaveDialog
         open={leaving}
-        onOpenChange={setLeaving}
-        title={t("flow.ed.discardTitle")}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setLeaving(false)}>
-              {t("flow.ed.keep")}
-            </Button>
-            <Button variant="danger" onClick={onClose}>
-              {t("flow.ed.discard")}
-            </Button>
-            {!locked && (
-              <Button
-                disabled={busy}
-                onClick={() =>
-                  void saveDraft().then((ok) => {
-                    setLeaving(false);
-                    if (ok) onClose();
-                  })
-                }
-              >
-                {t("flow.ed.saveDraft")}
-              </Button>
-            )}
-          </>
-        }
-      >
-        {t(locked ? "flow.ed.discardBody" : "flow.ed.leaveDraftBody")}
-      </Dialog>
+        onOpenChange={openChange}
+        locked={locked}
+        busy={busy}
+        leave={leave}
+        saveDraft={saveDraft}
+      />
     </div>
   );
 }

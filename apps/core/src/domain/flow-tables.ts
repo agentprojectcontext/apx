@@ -17,6 +17,8 @@ export type FlowTableInfo = {
   project: string;
   name: string;
   columns: string[];
+  /** Columns a save never leaves empty (DECISIONS.md#d-180). */
+  required: string[];
   rows: number;
   created_at: string;
   updated_at: string;
@@ -25,6 +27,28 @@ export type FlowTableInfo = {
 export class FlowTableMissing extends Error {}
 /** The name is taken, or the column is already there or not there. */
 export class FlowTableConflict extends Error {}
+/** A save would leave these required columns empty in the row (DECISIONS.md#d-180). */
+export class FlowTableRequired extends Error {
+  readonly columns: string[];
+  constructor(columns: string[]) {
+    super(`Fill the required ${columns.length === 1 ? "column" : "columns"} ${columns.join(", ")}`);
+    this.columns = columns;
+  }
+}
+
+/** Nothing in it: absent, null, blank text, an empty list or object. */
+const emptyCell = (value: unknown) =>
+  value === undefined ||
+  value === null ||
+  (typeof value === "string" && !value.trim()) ||
+  (Array.isArray(value) && value.length === 0) ||
+  (typeof value === "object" && value !== null && !Array.isArray(value) && Object.keys(value).length === 0);
+
+/** The required columns a row would leave empty. */
+export const emptyRequired = (required: readonly string[], row: unknown): string[] => {
+  const cells = tableCells(row);
+  return required.filter((c) => emptyCell(Object.hasOwn(cells, c) ? cells[c] : undefined));
+};
 
 const parsed = (r: { key: string; value: string; updated_at: string }): FlowTableRow => ({
   key: r.key,
@@ -54,14 +78,19 @@ export function flowTablesRepo(db: Db) {
   };
   const def = (project: string, name: string) =>
     one(qb.selectFrom("flow_table_defs").selectAll().where("project_id", "=", project).where("name", "=", name));
-  const info = (d: NonNullable<ReturnType<typeof def>>): FlowTableInfo => ({
-    project: d.project_id,
-    name: d.name,
-    columns: JSON.parse(d.columns) as string[],
-    rows: count(d.project_id, d.name),
-    created_at: d.created_at,
-    updated_at: d.updated_at,
-  });
+  const info = (d: NonNullable<ReturnType<typeof def>>): FlowTableInfo => {
+    const columns = JSON.parse(d.columns) as string[];
+    const required = new Set(JSON.parse(d.required) as string[]);
+    return {
+      project: d.project_id,
+      name: d.name,
+      columns,
+      required: columns.filter((c) => required.has(c)),
+      rows: count(d.project_id, d.name),
+      created_at: d.created_at,
+      updated_at: d.updated_at,
+    };
+  };
   const get = (project: string, name: string) => {
     const d = def(project, name);
     return d ? info(d) : undefined;
@@ -71,11 +100,16 @@ export function flowTablesRepo(db: Db) {
     if (!t) throw new FlowTableMissing("Table");
     return t;
   };
-  const setColumns = (project: string, name: string, columns: string[], at = now()) =>
+  /** The columns in order; `required` changes which must be filled (kept to columns the table has). */
+  const setColumns = (project: string, name: string, columns: string[], at = now(), required?: string[]) =>
     run(
       qb
         .updateTable("flow_table_defs")
-        .set({ columns: JSON.stringify(columns), updated_at: at })
+        .set({
+          columns: JSON.stringify(columns),
+          ...(required ? { required: JSON.stringify(required.filter((c) => columns.includes(c))) } : {}),
+          updated_at: at,
+        })
         .where("project_id", "=", project)
         .where("name", "=", name),
     );
@@ -180,11 +214,8 @@ export function flowTablesRepo(db: Db) {
         rewrite(project, name, column, (cells) =>
           Object.fromEntries(Object.entries(cells).map(([k, v]) => [k === column ? to : k, v])),
         );
-        setColumns(
-          project,
-          name,
-          t.columns.map((c) => (c === column ? to : c)),
-        );
+        const renamed = (c: string) => (c === column ? to : c);
+        setColumns(project, name, t.columns.map(renamed), now(), t.required.map(renamed));
         return must(project, name);
       });
     },
@@ -193,11 +224,18 @@ export function flowTablesRepo(db: Db) {
         const t = must(project, name);
         if (!t.columns.includes(column)) throw new FlowTableMissing("Column");
         rewrite(project, name, column, ({ [column]: _gone, ...rest }) => rest);
-        setColumns(
-          project,
-          name,
-          t.columns.filter((c) => c !== column),
-        );
+        const left = t.columns.filter((c) => c !== column);
+        setColumns(project, name, left, now(), t.required);
+        return must(project, name);
+      });
+    },
+    /** Marks a column required or not; rows saved before keep what they have. */
+    requireColumn(project: string, name: string, column: string, required: boolean): FlowTableInfo {
+      return tx(() => {
+        const t = must(project, name);
+        if (!t.columns.includes(column)) throw new FlowTableMissing("Column");
+        const next = required ? [...t.required, column] : t.required.filter((c) => c !== column);
+        setColumns(project, name, t.columns, now(), next);
         return must(project, name);
       });
     },
@@ -223,6 +261,8 @@ export function flowTablesRepo(db: Db) {
           if (count() >= MAX_ALL) throw new FlowCapacityError("Flow tables are full");
         }
         const next = o.merge && was ? { ...tableCells(parsed(was).value), ...tableCells(value) } : value;
+        const empty = emptyRequired(t.required, next);
+        if (empty.length) throw new FlowTableRequired(empty);
         const stored = redactedJson(next);
         if (Buffer.byteLength(stored) > MAX_VALUE) throw new Error("Flow value exceeds 32 KiB");
         const at = now();

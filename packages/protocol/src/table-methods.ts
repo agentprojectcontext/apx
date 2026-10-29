@@ -9,6 +9,8 @@ export const TableInfo = z.object({
   project: z.string(),
   name: z.string(),
   columns: z.array(z.string()),
+  /** Columns a save never leaves empty, in the table's order (DECISIONS.md#d-180). */
+  required: z.array(z.string()),
   rows: z.number().int(),
   created_at: z.string(),
   updated_at: z.string(),
@@ -65,6 +67,15 @@ export const tableMethods = {
   /** Renames the column in every row too. */
   "tables.column_rename": {
     params: z.object({ ...Table, column: FlowColumnName, name: FlowColumnName }).strict(),
+    result: Changed,
+    effect: true,
+  },
+  /**
+   * Marks a column required or not: a save that would leave it empty in a row is refused, and a Flow's save that
+   * doesn't fill it is unfinished. Rows saved before keep what they have.
+   */
+  "tables.column_required": {
+    params: z.object({ ...Table, column: FlowColumnName, required: z.boolean() }).strict(),
     result: Changed,
     effect: true,
   },

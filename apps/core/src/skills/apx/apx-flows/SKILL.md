@@ -46,18 +46,25 @@ fields marked *template* take placeholders: `$trigger.form.email`, `$steps.<step
 |---|---|
 | `webhook` | (none): POST with JSON starts it |
 | `schedule` | `cron`: five fields in the owner's time zone, at most every five minutes (`"30 8 * * 1-5"`) |
-| `condition` | `input` binding; `cases: [{id, label, match: {kind: "equals", value} \| {kind: "expr", expr}}]` (1–15). Ways out: each case id, then `"no"` |
+| `condition` | `cases: [{id, label, match}]` (1–15), the first that holds is the way out, then `"no"`. `match`: `{kind: "all" \| "any", rules: [{left, op, right, type}]}` (1–10 comparisons, every one or at least one), or `{kind: "expr", expr}`. Older checks keep `{kind: "equals", value}` on the `input` binding |
 | `vars` | `vars: [{name, value: {kind: "literal", value} \| {kind: "expr", expr}}]`; later steps read `$vars.name` |
 | `js` | `code`: body of `function (input, vars)` returning JSON; `input` binding; `timeoutMs` 100–10000. No files, network or programs |
 | `sql` | `database` (SQLite file in the project folder), `mode: read\|write`, `query` with `:name` parameters, `params: [{name, value template}]`, `maxRows` 1–500, `timeoutMs` 1000–30000 |
 | `cmd` | `command` (fixed text, no placeholders), `env: [{name, value template}]`, `stdin` template, `timeoutMs` 1000–120000, `continueOnError` |
-| `table_read` | `table` (a table of the project), `keys: [template]` or `latest: 1–100`. Later steps read `$steps.<id>.<column>` (the first row's; empty when there is none), `.row`, `.rows` |
-| `table_write` | `table`, `key` template, `columns: [{name, value template}]` (columns of the table; one placeholder alone keeps its value as it is; saving again changes only these columns), or `value` binding to save one value whole |
+| `table_read` | `table` (a table of the project), `keys: [template]` or `latest: 1–100`, `columns?: [name]` (the ones it brings; absent, all). Later steps read `$steps.<id>.<column>` (the first row's; empty when there is none), `.row`, `.rows` |
+| `table_write` | `table`, `key` template, `columns: [{name, value template}]` (columns of the table; one placeholder alone keeps its value as it is; saving again changes only these columns; every required column needs one), or `value` binding to save one value whole |
 | `agent` (AI model) | `agent` (an agent id of the project, or the super-agent) **or** `bot: {name, system}`; `prompt`; `input` binding; `model?` (`engine/model#effort`) |
 | `llm` | `model` (`provider/model` of a set-up API), `prompt`, `input`, `maxOutputTokens` 1–2048, `timeoutMs` 1000–120000 |
 | `routine` | `routine` (a manual routine of the project), `input` |
 | `notify` | `channel` (a channel id), `to: {kind: "contact", person} \| {kind: "room", room}`, `text` template, `onlyIfContent` |
 | `http` | `method: GET\|POST\|PUT`, `url` (fixed, public), `headers: [{name, value template}]` (keys only as `secret://NAME`), `body` template, `timeoutMs` 1000–30000 |
+
+A comparison: `left` and `right` are templates (`"$steps.normalize.username"`, `"pro"`, `"$trigger.limit"`); `type` is
+how both are read: `text` (`equals`, `not_equals`, `contains`, `starts_with`, exact, capitals count), `number`
+(`equals`, `not_equals`, `gt`, `lt`, `gte`, `lte`) or `boolean` (`equals`, `not_equals` with `"true"` or `"false"`).
+`empty` and `not_empty` read only `left` (leave `right` `""`). A field that did not arrive is empty; a side that is not
+a number or a yes or no never holds. Example: `{"kind": "all", "rules": [{"left": "$trigger.verified", "op": "equals",
+"right": "true", "type": "boolean"}, {"left": "$trigger.email", "op": "not_empty", "right": "", "type": "text"}]}`.
 
 Expressions (`expr`): `$trigger.a`, `$steps.s.a`, `$vars.x`, literals, `== != < <= > >=`, `&& || !`, `+ - * / %`,
 `? :`, and `len lower upper trim contains startsWith endsWith number text round floor ceil abs min max join exists`.
@@ -78,6 +85,9 @@ A project's tables hold rows by key, a value per column; Flows read and save the
 - `tables.create {project, name, columns?}`: name in lowercase letters, digits, `_`, `-`; columns start with a letter,
   digit or `_` (`rows` and `row` are taken).
 - `tables.column_add {project, table, column}`.
+- A table's `required` columns are never left empty: `tables.write` that would is refused, a Flow save by column must
+  fill each one, and a run whose value comes out empty fails that step (`required_empty`). Marking one
+  (`tables.column_required {project, table, column, required}`) waits for the owner's OK.
 - `tables.write {project, table, key, values: {column: value}, replace?}`: "add this lead to leads" is one call; a new
   column in `values` is added. `tables.delete_rows {project, table, keys}`.
 - Renaming or removing a table or a column (`tables.rename`, `tables.remove`, `tables.column_rename`,

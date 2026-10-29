@@ -1,16 +1,13 @@
-// Settings of a check's cases, variables, code, SQL and commands (DECISIONS.md#d-170). Values from what arrived reach
+// Settings of variables, code, SQL and commands (DECISIONS.md#d-170); a check's cases are in CaseFields.tsx. Values from what arrived reach
 // SQL and commands only as bound values, variables and input, so those fields take placeholders and the query and
 // the command's text never do.
-import { flowCases } from "@apx/protocol/flow-cases";
 import { Button, Field, IconButton, Icons, Input, SegmentedControl, Switch, Textarea } from "@apx/ui";
 import { type ReactNode, useEffect, useState } from "react";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { nextCaseId, withCases } from "./graph-edit.ts";
-import { branchesOf, dotted, type FlowNode } from "./steps.tsx";
+import type { FlowNode } from "./steps.tsx";
 import { Template, type Values } from "./Template.tsx";
 
-type Condition = Extract<FlowNode, { kind: "condition" }>;
 type Vars = Extract<FlowNode, { kind: "vars" }>;
 type Js = Extract<FlowNode, { kind: "js" }>;
 type Sql = Extract<FlowNode, { kind: "sql" }>;
@@ -118,7 +115,7 @@ function ValueField({
 }
 
 /** One case or variable in a flat list: its name as the line's title, a remove button, then its value. */
-function Item({
+export function Item({
   name,
   nameLabel,
   placeholder,
@@ -152,105 +149,6 @@ function Item({
       </div>
       {children}
     </section>
-  );
-}
-
-/** A check: its cases in order, each a value its field must have or a formula that must hold, then otherwise. */
-export function CaseFields({
-  n,
-  update,
-  removeCase,
-  values,
-}: {
-  n: Condition;
-  update: Update;
-  removeCase: (id: string) => void;
-  values: Values;
-}) {
-  const t = useT();
-  const cases = flowCases(n);
-  const names = branchesOf(n, t);
-  const set = (i: number, c: (typeof cases)[number]) =>
-    update({ ...withCases(n), cases: cases.map((x, j) => (j === i ? c : x)) });
-  const compares = cases.some((c) => c.match.kind === "equals");
-  const path = n.input.kind === "event" ? dotted(n.input.path) : "";
-  return (
-    <>
-      {compares && (
-        <Field label={t("flow.f.field")} hint={t("flow.f.fieldHint")}>
-          {(id) => (
-            <Input
-              id={id}
-              value={path}
-              className="fe-mono"
-              placeholder="form.tier"
-              onChange={(e) =>
-                update({
-                  ...n,
-                  input: {
-                    kind: "event",
-                    path: e.target.value
-                      .split(".")
-                      .map((s) => s.trim())
-                      .filter(Boolean),
-                  },
-                })
-              }
-            />
-          )}
-        </Field>
-      )}
-      <div className="fe-list">
-        <span className="fe-ins__label">{t("flow.f.cases")}</span>
-        {cases.map((c, i) => (
-          <Item
-            key={c.id}
-            name={c.label}
-            nameLabel={t("flow.f.caseName")}
-            placeholder={names[i]?.label}
-            onName={(label) => set(i, { ...c, label: label.slice(0, 60) })}
-            remove={
-              cases.length > 1
-                ? { label: t("flow.f.caseRemove", { name: names[i]?.label ?? "" }), run: () => removeCase(c.id) }
-                : undefined
-            }
-          >
-            <ValueField
-              label={t(c.match.kind === "expr" ? "flow.f.caseHolds" : "flow.f.caseIs")}
-              value={c.match.kind === "expr" ? c.match : { kind: "literal", value: c.match.value }}
-              values={values}
-              placeholder="$trigger.amount > 100"
-              onChange={(v) =>
-                set(i, {
-                  ...c,
-                  match: v.kind === "expr" ? v : { kind: "equals", value: v.value },
-                })
-              }
-            />
-          </Item>
-        ))}
-        <div className="fe-item is-otherwise">
-          <span className="fe-item__else">{names.at(-1)?.label}</span>
-          <span className="fe-ins__muted">{t("flow.f.otherwiseHint")}</span>
-        </div>
-      </div>
-      {cases.length < 15 && (
-        <Button
-          size="sm"
-          variant="outline"
-          leadingIcon={<Icons.Plus size={14} />}
-          onClick={() =>
-            update({
-              ...withCases(n),
-              cases: [...cases, { id: nextCaseId(n), label: "", match: { kind: "expr", expr: "" } }],
-            })
-          }
-        >
-          {t("flow.f.caseAdd")}
-        </Button>
-      )}
-      <p className="fe-note">{t("flow.f.caseNote")}</p>
-    </>
   );
 }
 

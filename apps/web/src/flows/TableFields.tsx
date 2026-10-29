@@ -1,16 +1,17 @@
-// Save to table and Read table around the project's tables (DECISIONS.md#d-173, #d-176): both pick any table of the
-// project or make a new one on the spot, empty, and add columns as they go. A save fills a value per column (or keeps
-// one value whole); a read gets one key or the latest rows, and later steps read each column.
+// Save to table and Read table around the project's tables (DECISIONS.md#d-173, #d-176, #d-180): both pick any table
+// of the project or make a new one on the spot, empty, and add columns as they go. A save fills a value per column,
+// required ones marked, or keeps one value whole; a read gets one row by its key or the latest rows, with the columns
+// it ticks, and later steps read each column.
 import type { TableInfo } from "@apx/protocol";
-import { Field, Icons, SegmentedControl, Select } from "@apx/ui";
+import { Button, Checkbox, Field, Icons, SegmentedControl, Select } from "@apx/ui";
 import { useState } from "react";
+import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
-import { InputPicker } from "./InputPicker.tsx";
 import { NewName } from "./NewName.tsx";
 import type { FlowGraph, FlowNode } from "./steps.tsx";
 import { Template, type Values } from "./Template.tsx";
 import { addColumn, columnName, createTable, useTables } from "./tables-data.ts";
-import { ownTable, tableName } from "./values.ts";
+import { bindingOfTemplate, ownTable, readColumns, tableName, templateOfBinding } from "./values.ts";
 import "./tables.css";
 
 type Write = Extract<FlowNode, { kind: "table_write" }>;
@@ -96,18 +97,51 @@ function NewColumn({ projectId, table, onAdded }: { projectId: string; table: st
   );
 }
 
+/** A variable a later step reads, small and copied with a click. */
+function CopyName({ text }: { text: string }) {
+  const t = useT();
+  return (
+    <button
+      type="button"
+      className="ft-var fe-mono"
+      title={t("flow.f.copy")}
+      onClick={() =>
+        void navigator.clipboard.writeText(text).then(
+          () => notify(t("flow.f.copied"), "info"),
+          () => undefined,
+        )
+      }
+    >
+      {text}
+      <Icons.Copy size={11} aria-hidden />
+    </button>
+  );
+}
+
+/** Where a table's columns are renamed and removed: the Flows screen's Tables. */
+function InTables({ table, open }: { table: string; open: (table: string) => void }) {
+  const t = useT();
+  return (
+    <Button size="sm" variant="link" className="ft-intables" onClick={() => open(table)}>
+      {t("flow.tbl.inTables", { name: table })}
+    </Button>
+  );
+}
+
 export function TableWriteFields({
   n,
   graph,
   projectId,
   values,
   update,
+  openTable,
 }: {
   n: Write;
   graph: FlowGraph;
   projectId: string;
   values: Values;
   update: (n: FlowNode) => void;
+  openTable: (table: string) => void;
 }) {
   const t = useT();
   const tables = useTables(projectId || undefined);
@@ -127,8 +161,8 @@ export function TableWriteFields({
     const order = chosen?.columns ?? [];
     update({ ...mode(true), columns: next.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name)) });
   };
-  const from = n.value?.kind === "node" ? n.value.node : undefined;
-  const what = from ? graph.nodes.find((x) => x.id === from)?.label : undefined;
+  const required = new Set(chosen?.required ?? []);
+  const whole = templateOfBinding(n.value ?? { kind: "event", path: [] }, graph);
   return (
     <>
       <TablePick
@@ -175,57 +209,139 @@ export function TableWriteFields({
       {byColumn && chosen ? (
         <div className="ft-columns">
           {chosen.columns.length === 0 && <p className="fe-note">{t("flow.tbl.noColumns")}</p>}
-          {chosen.columns.map((c) => (
-            <Field key={c} label={c}>
-              {(id) => (
-                <Template
-                  id={id}
-                  field="column"
-                  values={values}
-                  singleLine
-                  spellCheck={false}
-                  maxLength={8000}
-                  value={cell(c)}
-                  placeholder={t("flow.tbl.cellEmpty")}
-                  onValueChange={(v) => setCell(c, v)}
-                />
-              )}
-            </Field>
-          ))}
+          {chosen.columns.map((c) => {
+            const needed = required.has(c);
+            return (
+              <Field
+                key={c}
+                label={
+                  <span className="ft-colname">
+                    {c}
+                    {needed && (
+                      <span className="ft-required" title={t("flow.tbl.required")}>
+                        {" *"}
+                      </span>
+                    )}
+                  </span>
+                }
+                error={needed && !cell(c).trim() ? t("flow.tbl.requiredEmpty") : undefined}
+              >
+                {(id) => (
+                  <Template
+                    id={id}
+                    field="column"
+                    values={values}
+                    singleLine
+                    spellCheck={false}
+                    maxLength={8000}
+                    value={cell(c)}
+                    placeholder={needed ? t("flow.tbl.cellRequired") : t("flow.tbl.cellEmpty")}
+                    onValueChange={(v) => setCell(c, v)}
+                  />
+                )}
+              </Field>
+            );
+          })}
           <NewColumn projectId={projectId} table={chosen.name} />
         </div>
       ) : (
         !byColumn && (
-          <>
-            <InputPicker
-              label={t("flow.f.saveWhat")}
-              graph={graph}
-              n={n}
-              value={n.value ?? { kind: "event", path: [] }}
-              onChange={(value) => update({ ...n, value })}
-            />
-            {n.table && <p className="fe-note">{t("flow.tbl.wholeNote")}</p>}
-          </>
+          <Field label={t("flow.f.saveWhat")} hint={t("flow.tbl.wholeHint")}>
+            {(id) => (
+              <Template
+                id={id}
+                field="whole"
+                values={values}
+                singleLine
+                spellCheck={false}
+                maxLength={8000}
+                value={whole}
+                placeholder="$trigger"
+                onValueChange={(v) => update({ ...n, value: bindingOfTemplate(v, graph) })}
+              />
+            )}
+          </Field>
         )
       )}
       <div className="fe-row-preview">
         <span className="fe-ins__label">{t("flow.tbl.rowLooks")}</span>
-        <div className="fe-row-preview__row">
-          <code className="apx-tfield__chip">{n.key.trim() || t("flow.f.key")}</code>
-          <Icons.ArrowRight size={12} />
-          <span>
-            {byColumn
-              ? (n.columns ?? []).map((c) => c.name).join(", ") || t("flow.tbl.nothingYet")
-              : what
-                ? t("flow.f.fromStep", { step: what })
-                : n.value?.kind === "event" && n.value.path.length
-                  ? n.value.path.join(".")
-                  : t("flow.f.fromEvent")}
-          </span>
-        </div>
+        <dl className="ft-preview">
+          <dt>{t("flow.f.key")}</dt>
+          <dd className="fe-mono">{n.key.trim() || "…"}</dd>
+          {byColumn ? (
+            (chosen?.columns ?? []).map((c) => (
+              <div key={c} className="ft-preview__row">
+                <dt className="fe-mono">{c}</dt>
+                <dd className={cell(c).trim() ? "fe-mono" : "is-muted"}>
+                  {cell(c).trim() || t(required.has(c) ? "flow.tbl.requiredEmpty" : "flow.tbl.keeps")}
+                </dd>
+              </div>
+            ))
+          ) : (
+            <div className="ft-preview__row">
+              <dt>{t("flow.tbl.value")}</dt>
+              <dd className="fe-mono">{whole || "$trigger"}</dd>
+            </div>
+          )}
+        </dl>
       </div>
+      {n.table && <InTables table={n.table} open={openTable} />}
       <p className="fe-note">{t(byColumn ? "flow.tbl.saveNoteColumns" : "flow.f.saveNote")}</p>
     </>
+  );
+}
+
+/** The columns a read brings, ticked: all of them unless it chose (DECISIONS.md#d-180). */
+function ReadColumns({
+  n,
+  table,
+  projectId,
+  update,
+  openTable,
+}: {
+  n: Read;
+  table: TableInfo;
+  projectId: string;
+  update: (n: FlowNode) => void;
+  openTable: (table: string) => void;
+}) {
+  const t = useT();
+  const brings = new Set(readColumns(n, table.columns));
+  const pick = (column: string, on: boolean) => {
+    const next = table.columns.filter((c) => (c === column ? on : brings.has(c)));
+    const { columns: _c, ...rest } = n;
+    // Every column ticked is the read as it was: it keeps bringing columns added later.
+    update(next.length === table.columns.length ? rest : { ...rest, columns: next });
+  };
+  return (
+    <div className="ft-columns">
+      <span className="fe-ins__label">{t("flow.tbl.brings")}</span>
+      {table.columns.length ? (
+        <div className="ft-picks">
+          {table.columns.map((c) => (
+            <div key={c} className="ft-pick">
+              <Checkbox
+                checked={brings.has(c)}
+                // At least one column: a read that brings none reads nothing.
+                disabled={brings.has(c) && brings.size === 1}
+                label={<span className="fe-mono">{c}</span>}
+                onCheckedChange={(on) => pick(c, on)}
+              />
+              {brings.has(c) && <CopyName text={`$steps.${n.id}.${c}`} />}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="fe-note">{t("flow.tbl.noColumnsRead")}</p>
+      )}
+      <NewColumn
+        projectId={projectId}
+        table={table.name}
+        onAdded={(c) => n.columns && update({ ...n, columns: [...n.columns, c] })}
+      />
+      <InTables table={table.name} open={openTable} />
+      {table.rows === 0 && <p className="fe-note">{t("flow.tbl.emptyNote")}</p>}
+    </div>
   );
 }
 
@@ -234,12 +350,13 @@ export function TableReadFields({
   projectId,
   values,
   update,
+  openTable,
 }: {
   n: Read;
-  graph: FlowGraph;
   projectId: string;
   values: Values;
   update: (n: FlowNode) => void;
+  openTable: (table: string) => void;
 }) {
   const t = useT();
   const tables = useTables(projectId || undefined);
@@ -252,7 +369,7 @@ export function TableReadFields({
         projectId={projectId}
         tables={tables}
         onTable={(table) => {
-          const { table: _t, latest: _l, ...rest } = n;
+          const { table: _t, latest: _l, columns: _c, ...rest } = n;
           update(
             table
               ? { ...rest, table: table.name, ...(n.latest ? { latest: n.latest } : {}) }
@@ -276,6 +393,7 @@ export function TableReadFields({
               { value: "latest", label: t("flow.tbl.latest") },
             ]}
           />
+          <span className="fe-ins__muted">{t(latest ? "flow.tbl.latestHint" : "flow.tbl.oneKeyHint")}</span>
         </div>
       )}
       {latest ? (
@@ -307,24 +425,7 @@ export function TableReadFields({
           )}
         </Field>
       )}
-      {chosen && (
-        <div className="ft-columns">
-          <span className="fe-ins__label">{t("flow.tbl.columns")}</span>
-          {chosen.columns.length ? (
-            <div className="ft-chips">
-              {chosen.columns.map((c) => (
-                <code key={c} className="apx-tfield__chip">
-                  $steps.{n.id}.{c}
-                </code>
-              ))}
-            </div>
-          ) : (
-            <p className="fe-note">{t("flow.tbl.noColumnsRead")}</p>
-          )}
-          <NewColumn projectId={projectId} table={chosen.name} />
-          {chosen.rows === 0 && <p className="fe-note">{t("flow.tbl.emptyNote")}</p>}
-        </div>
-      )}
+      {chosen && <ReadColumns n={n} table={chosen} projectId={projectId} update={update} openTable={openTable} />}
       <p className="fe-note">{t(latest ? "flow.tbl.noteLatest" : "flow.tbl.noteKey", { step: n.id })}</p>
     </>
   );

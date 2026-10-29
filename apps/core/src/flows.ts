@@ -65,6 +65,8 @@ export function flowGraphIssues(
         issues.push({ code: "table_missing", node: node.id, message: `The table ${node.table} is not in the project` });
       else if (node.kind === "table_write" && node.columns?.some((c) => !table.columns.includes(c.name)))
         issues.push({ code: "column_missing", node: node.id, message: "A column it fills is not in the table" });
+      else if (node.kind === "table_read" && node.columns?.some((c) => !table.columns.includes(c)))
+        issues.push({ code: "column_missing", node: node.id, message: "A column it reads is not in the table" });
     }
     try {
       if (node.kind === "agent" && !node.bot)
@@ -112,7 +114,30 @@ export function flowDraftIssues(
   outside?: FlowOutside,
 ): FlowGraphIssue[] {
   const gaps = flowGapIssues(draft);
+  const named = new Set(gaps.map((g) => g.node));
+  gaps.push(...requiredGaps(store, definition.projectId, draft).filter((g) => !named.has(g.node)));
   return gaps.length ? gaps : flowGraphIssues(store, definition, FlowGraph.parse(draft), model, outside);
+}
+
+/**
+ * A save by column that leaves a required column of its table unfilled is unfinished (DECISIONS.md#d-180): what runs
+ * would be refused at that step. A save of one value whole is checked when it runs, on what arrives.
+ */
+function requiredGaps(store: Store, project: string, draft: FlowDraftGraph): FlowGraphIssue[] {
+  return draft.nodes.flatMap((node) => {
+    if (node.kind !== "table_write" || !node.table || !node.columns) return [];
+    const required = store.flowTables.get(project, node.table)?.required ?? [];
+    const empty = required.filter((c) => !node.columns?.some((x) => x.name === c && x.value.trim()));
+    return empty.length
+      ? [
+          {
+            code: "step_incomplete",
+            node: node.id,
+            message: `Step "${node.label}" needs its required ${empty.join(", ")} before it can run`,
+          },
+        ]
+      : [];
+  });
 }
 
 export function createFlows(deps: {

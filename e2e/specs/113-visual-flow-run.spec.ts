@@ -32,8 +32,8 @@ for (const lang of ["en", "es"] as const) {
             newName: "Name of the new table",
             create: "Add",
             text: "Text",
-            field: "Field",
-            is: "Is",
+            field: "What it looks at",
+            is: "Compared with",
             value: "Value",
             key: "Key",
             saved: "Saved. New events run it as drawn.",
@@ -48,8 +48,8 @@ for (const lang of ["en", "es"] as const) {
             newName: "Nombre de la tabla nueva",
             create: "Sumar",
             text: "Texto",
-            field: "Campo",
-            is: "Es",
+            field: "Qué mira",
+            is: "Con qué compara",
             value: "Valor",
             key: "Clave",
             saved: "Guardado. Los eventos nuevos lo corren como está dibujado.",
@@ -64,7 +64,7 @@ for (const lang of ["en", "es"] as const) {
     await node("save").click();
     await editor.getByRole("button", { name: l.addCheck }).click();
     await editor.getByRole("radio", { name: l.text, exact: true }).click();
-    await editor.getByRole("textbox", { name: l.field, exact: true }).fill("type");
+    await editor.getByRole("textbox", { name: l.field, exact: true }).fill("$trigger.type");
     await editor.getByRole("textbox", { name: l.is, exact: true }).fill("order");
     // Each save names a table of the project; the first makes it, the second picks it from the list.
     await editor.getByRole("button", { name: l.addSave }).click();

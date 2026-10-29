@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FLOW_CASE_RULES, FLOW_COMPARE_OPS, FLOW_COMPARE_TYPES } from "./flow-cases.ts";
 
 const FlowId = z.string().min(1).max(100);
 export const FlowNodeId = z.string().regex(/^[A-Za-z0-9_-]{1,100}$/);
@@ -56,14 +57,32 @@ function stepSchema(fill: Fill) {
   const Base = { id: FlowNodeId, label: z.string().min(1).max(120) };
   /** A small expression over `$trigger`, `$steps.<step>` and `$vars.<name>` (domain/flow-expr.ts): never code. */
   const FlowExpr = fill.text(1000);
+  /**
+   * One comparison of a case (DECISIONS.md#d-180): `left` and `right` are templates (`$steps.normalize.username`,
+   * text, or both), compared as `type` says; `empty` and `not_empty` read no `right`.
+   */
+  const FlowComparison = z
+    .object({
+      left: fill.text(1000),
+      op: z.enum(FLOW_COMPARE_OPS),
+      right: z.string().max(1000),
+      type: z.enum(FLOW_COMPARE_TYPES),
+    })
+    .strict();
+  const Rules = z.array(FlowComparison).min(1).max(FLOW_CASE_RULES);
   const FlowCase = z
     .object({
       id: FlowBranchId,
       label: z.string().max(60),
-      /** `equals`: the check's input is this value; `expr`: the expression comes out true. */
+      /**
+       * `equals`: the check's input is this value; `expr`: the expression comes out true; `all`/`any`: every
+       * comparison holds, or at least one.
+       */
       match: z.discriminatedUnion("kind", [
         z.object({ kind: z.literal("equals"), value: JsonLiteral }).strict(),
         z.object({ kind: z.literal("expr"), expr: FlowExpr }).strict(),
+        z.object({ kind: z.literal("all"), rules: Rules }).strict(),
+        z.object({ kind: z.literal("any"), rules: Rules }).strict(),
       ]),
     })
     .strict();
@@ -165,6 +184,8 @@ function stepSchema(fill: Fill) {
         /** Keys to read, each may hold placeholders; empty when it reads the `latest` rows. */
         keys: z.array(fill.text(128)).max(16),
         latest: z.number().int().min(1).max(100).optional(),
+        /** The columns it brings, in the table's order; absent, every column (DECISIONS.md#d-180). */
+        columns: z.array(FlowColumnName).max(FLOW_TABLE_COLUMNS).optional(),
       })
       .strict(),
     z
@@ -335,7 +356,8 @@ export const FlowStepRecord = z
     output: z.string().nullable(),
     truncated: z.boolean(),
     /**
-     * Why it did not succeed, as a code: missing_value, table_full, model_unavailable, model_refused, model_cut,
+     * Why it did not succeed, as a code: missing_value, table_full, table_missing, required_empty (a save left a
+     * required column empty; `output.required` names them), model_unavailable, model_refused, model_cut,
      * model_uncertain, not_started, run_failed, run_canceled, run_silent, deadline, value_too_large, owner_cancelled,
      * cancelled_after_send; notify: nothing_to_tell (skipped), rate_limited, destination_unavailable, send_failed,
      * send_uncertain; http: destination_refused, request_failed, request_uncertain, value_invalid, secret_missing;

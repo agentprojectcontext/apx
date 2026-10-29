@@ -3,6 +3,7 @@ import {
   type FlowCase,
   flowBranches,
   flowCases,
+  flowCompareAlone,
 } from "../../../../packages/protocol/src/flow-cases.ts";
 import { flowGraphGaps } from "../../../../packages/protocol/src/flow-complete.ts";
 import {
@@ -58,6 +59,7 @@ const IN_COMMAND = /\$(trigger|steps|vars|apx)\b/;
 
 /** The templates of a step, where its placeholders are. */
 export function flowNodeTemplates(node: FlowNode): string[] {
+  if (node.kind === "condition") return flowCases(node).flatMap((c) => flowCaseTemplates(c));
   if (node.kind === "notify") return [node.text];
   if (node.kind === "http") return [...node.headers.map((h) => h.value), node.body];
   if (node.kind === "sql") return node.params.map((p) => p.value);
@@ -66,6 +68,12 @@ export function flowNodeTemplates(node: FlowNode): string[] {
   if (node.kind === "table_write") return [node.key, ...(node.columns ?? []).map((c) => c.value)];
   return [];
 }
+
+/** Both sides of each comparison of a case (DECISIONS.md#d-180); `empty` and `not_empty` read only the field. */
+export const flowCaseTemplates = (c: FlowCase): string[] =>
+  c.match.kind === "all" || c.match.kind === "any"
+    ? c.match.rules.flatMap((r) => (flowCompareAlone(r.op) ? [r.left] : [r.left, r.right]))
+    : [];
 
 /** The expressions of a step: a check's cases, a variables step's values. */
 export function flowNodeExprs(node: FlowNode): string[] {
@@ -421,6 +429,13 @@ export function validateFlowGraph(value: FlowGraph): FlowGraphIssue[] {
   return issues;
 }
 
+/** The field a binding names is not in the value (the step it reads did give one). */
+export class FlowFieldUnavailable extends Error {
+  constructor() {
+    super("Flow input field is unavailable");
+  }
+}
+
 export function resolveFlowBinding(
   binding: FlowBinding,
   event: unknown,
@@ -437,11 +452,11 @@ export function resolveFlowBinding(
       (Array.isArray(value) && (!/^(0|[1-9][0-9]*)$/.test(segment) || Number(segment) >= value.length)) ||
       !Object.hasOwn(value, segment)
     )
-      throw new Error("Flow input field is unavailable");
+      throw new FlowFieldUnavailable();
     const descriptor = Object.getOwnPropertyDescriptor(value, segment);
-    if (!descriptor?.enumerable || !("value" in descriptor)) throw new Error("Flow input field is unavailable");
+    if (!descriptor?.enumerable || !("value" in descriptor)) throw new FlowFieldUnavailable();
     value = descriptor.value;
   }
-  if (value === undefined) throw new Error("Flow input field is unavailable");
+  if (value === undefined) throw new FlowFieldUnavailable();
   return value;
 }

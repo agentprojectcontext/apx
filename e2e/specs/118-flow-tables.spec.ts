@@ -150,7 +150,7 @@ for (const lang of ["en", "es"] as const) {
     await editor.getByRole("button", { name: l.create, exact: true }).click();
     await expect(editor.getByRole("combobox", { name: l.table })).toContainText("leads_web");
     await editor.getByRole("textbox", { name: l.key }).fill("$trigger.email");
-    await expect(side.locator(".fe-row-preview code")).toHaveText("$trigger.email");
+    await expect(side.locator(".ft-preview dd").first()).toHaveText("$trigger.email");
     await shot(page, `table-save-${lang}`);
 
     // A read after it picks that table, still empty, and reads the key back.

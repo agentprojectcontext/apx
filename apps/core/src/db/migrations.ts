@@ -1107,4 +1107,8 @@ export const MIGRATIONS: readonly string[] = [
   DELETE FROM flow_graph_history WHERE entry <= (
     SELECT max(h.entry) - 50 FROM flow_graph_history h WHERE h.flow_id = flow_graph_history.flow_id);
   `,
+  // A table's columns may be required: a save never leaves one empty (DECISIONS.md#d-180). None is, to begin with.
+  `
+  ALTER TABLE flow_table_defs ADD COLUMN required TEXT NOT NULL DEFAULT '[]';
+  `,
 ];

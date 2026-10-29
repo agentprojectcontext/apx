@@ -2,6 +2,7 @@ import { FLOW_OTHERWISE, flowCases } from "@apx/protocol/flow-cases";
 import type { FlowStepState, RunBar } from "@apx/ui";
 import { formatNumber, formatSeconds, shortWhen } from "../common/format.ts";
 import { currentLocale, isKey, type MessageKey } from "../i18n/index.ts";
+import { rulesText } from "./compare.ts";
 import type { RunDetail } from "./data.ts";
 import {
   branchesOf,
@@ -305,9 +306,11 @@ export function inputOf(n: FlowNode, flow: string, t: T, who: (n: FlowNode) => s
             ? t("flow.in.otherwise")
             : c.match.kind === "expr"
               ? c.match.expr
-              : n.input.kind === "event"
-                ? t("flow.in.check", { field: dotted(n.input.path), value: literal(c.match.value) })
-                : literal(c.match.value);
+              : c.match.kind === "all" || c.match.kind === "any"
+                ? rulesText(c.match, t)
+                : n.input.kind === "event"
+                  ? t("flow.in.check", { field: dotted(n.input.path), value: literal(c.match.value) })
+                  : literal(c.match.value);
           return `${b.label}: ${rule}`;
         })
         .join("\n");
