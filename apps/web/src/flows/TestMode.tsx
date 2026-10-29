@@ -1,7 +1,7 @@
 // The editor while the owner tests with a real event (DECISIONS.md#d-178): the button in the top bar, the strip that
 // says what the test is doing, the log at the bottom and a step's card, read-only.
 import { Badge, Button, IconButton, Icons, ResizeHandle, Spinner } from "@apx/ui";
-import { type CSSProperties, useEffect, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { usePublicBase } from "./address.ts";
@@ -112,13 +112,47 @@ export function TestStrip(props: {
 
 const LOG = { min: 120, max: 560, initial: 240 };
 
-/** The log at the bottom, like a terminal: it can be made taller, folded, or closed to go back to editing. */
-export function TestLog(props: { entries: LogEntry[]; waiting: string | undefined; onClose: () => void }) {
+/** Where the log sits now: its height, and how much of the canvas it lies over (a sheet on a phone; 0 beside it). */
+export type LogPlace = { height: number; over: number };
+
+/**
+ * The log at the bottom, like a terminal: it can be made taller, folded, or closed to go back to editing. `onPlace`
+ * hears where it settled after each change, so the canvas fits its steps in what stays visible.
+ */
+export function TestLog(props: {
+  entries: LogEntry[];
+  waiting: string | undefined;
+  onClose: () => void;
+  onPlace: (place: LogPlace | null) => void;
+}) {
   const t = useT();
   const [height, setHeight] = useState(LOG.initial);
   const [open, setOpen] = useState(true);
+  const box = useRef<HTMLElement>(null);
+  const onPlace = useRef(props.onPlace);
+  onPlace.current = props.onPlace;
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Settled, not every pixel of a drag: the canvas has its new size by then.
+    const said = new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const h = Math.round(el.getBoundingClientRect().height);
+        onPlace.current({ height: h, over: getComputedStyle(el).position === "absolute" ? h : 0 });
+      }, 120);
+    });
+    said.observe(el);
+    return () => {
+      clearTimeout(timer);
+      said.disconnect();
+      onPlace.current(null);
+    };
+  }, []);
   return (
     <section
+      ref={box}
       className={open ? "fe-log" : "fe-log is-folded"}
       style={{ "--fe-log": `${height}px` } as CSSProperties}
       aria-label={t("flow.tlog.title")}

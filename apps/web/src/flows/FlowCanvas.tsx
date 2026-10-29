@@ -211,7 +211,14 @@ type Props = {
    * Clicking a step, or a new request, pans it to the middle of what `cover` leaves visible; `card`: a card is open
    * over the canvas now, so fitting the view leaves its part out too.
    */
-  focus?: { request: { id: string; seq: number } | null; cover: Cover; card: boolean; onClick: (id: string) => void };
+  focus?: {
+    request: { id: string; seq: number } | null;
+    cover: Cover;
+    card: boolean;
+    /** What a fit leaves out, when it isn't the card's (a log over the canvas with no card open). */
+    fit?: Cover | undefined;
+    onClick: (id: string) => void;
+  };
   children?: ReactNode;
 };
 
@@ -329,7 +336,7 @@ export function FlowCanvas({
         <FitOnce
           fitKey={fitKey}
           first={fitSteps?.length ? [...fitSteps] : graph.nodes.slice(0, 2).map((n) => n.id)}
-          cover={focus?.card ? focus.cover : undefined}
+          cover={focus?.fit ?? (focus?.card ? focus.cover : undefined)}
           whole={still}
         />
         {focus && <Focus request={focus.request} cover={focus.cover} />}

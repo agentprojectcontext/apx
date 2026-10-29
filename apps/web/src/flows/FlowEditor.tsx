@@ -33,7 +33,7 @@ import {
   type StepKind,
   triggerOf,
 } from "./steps.tsx";
-import { TestButton, TestLog, TestStepCard, TestStrip } from "./TestMode.tsx";
+import { type LogPlace, TestButton, TestLog, TestStepCard, TestStrip } from "./TestMode.tsx";
 import { TryRun, type TryStep } from "./TryRun.tsx";
 import { useFlowAddress } from "./useFlowAddress.ts";
 import { useFlowChat } from "./useFlowChat.ts";
@@ -445,6 +445,21 @@ export function FlowEditor({
   const agentName = allAgents[draftBy ?? ""]?.name ?? boss?.name ?? "";
   const stepCard = sel && !chatOpen && !locked ? sel : undefined;
   const timed = triggerOf(g)?.kind === "schedule";
+  // The test's log: beside the canvas it makes it shorter (a new fit), as a sheet on a phone it covers its bottom.
+  const [log, setLog] = useState<LogPlace | null>(null);
+  const cardOpen = Boolean(stepCard || (chatOpen && chat));
+  const over = log?.over ?? 0;
+  const coverNow = useCallback<Cover>(
+    (w, h) => {
+      const c = cover(w, h);
+      return { right: c.right, bottom: Math.max(c.bottom, over) };
+    },
+    [over],
+  );
+  const fitCover = useMemo<Cover | undefined>(
+    () => (cardOpen ? coverNow : over ? () => ({ right: 0, bottom: over }) : undefined),
+    [cardOpen, coverNow, over],
+  );
   return (
     <div className="fe" role="dialog" aria-modal="true" aria-label={name || t("flow.ed.untitled")}>
       <header className={`fe-top window-bar${desktop}`}>
@@ -612,9 +627,9 @@ export function FlowEditor({
                 minimap={g.nodes.length > 0}
                 // A step the owner adds is centred like a clicked one (`centre`); another flow, or steps an agent just drew,
                 // fit the view again.
-                fitKey={`${id ?? "new"}:${ask.drawn}`}
+                fitKey={`${id ?? "new"}:${ask.drawn}:${log ? log.height : "-"}`}
                 fitSteps={ask.fitSteps}
-                focus={{ request: focus, cover, card: Boolean(stepCard || (chatOpen && chat)), onClick: centre }}
+                focus={{ request: focus, cover: coverNow, fit: fitCover, card: cardOpen, onClick: centre }}
               />
             )}
             {locked && (
@@ -707,6 +722,7 @@ export function FlowEditor({
           </div>
           {test.state.phase !== "idle" && test.state.phase !== "starting" && (
             <TestLog
+              onPlace={setLog}
               entries={testLog}
               waiting={test.state.phase === "listening" ? t("flow.tlog.waiting") : undefined}
               onClose={test.close}

@@ -293,6 +293,7 @@
 .fe-card .fe-ins {
   padding: 0;
 }
+.fe-main:has(> .fe-log) .fc-minimap,
 .fe-canvas:has(> .fe-card) .fc-minimap {
   display: none;
 }

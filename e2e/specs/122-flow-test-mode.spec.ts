@@ -66,6 +66,15 @@ const post = async (address: string, data: unknown, headers: Record<string, stri
     body: JSON.stringify({ id: "e2e", data }),
   });
 
+/** Whether a step sits wholly in the canvas above the log. */
+async function clearOfLog(page: Page, id: string) {
+  const step = await page.locator(`.fe .react-flow__node[data-id="${id}"]`).boundingBox();
+  const log = await page.locator(".fe-log").boundingBox();
+  const canvas = await page.locator(".fe-canvas").boundingBox();
+  if (!step || !log || !canvas) return false;
+  return step.y >= canvas.y && step.y + step.height <= log.y - 8;
+}
+
 test.afterEach(async () => {
   await rpc("webhooks.set", { mode: "off" });
 });
@@ -106,6 +115,9 @@ for (const phone of [false, true]) {
     await expect(strip).toContainText(`${HOST}/flows/test/${route}`);
     await expect(editor.getByRole("button", { name: "Guardar", exact: true })).toBeDisabled();
     await expect(editor.locator(".fe-log")).toContainText("Esperando el evento…");
+    // The view fits again in what the log leaves visible, and the minimap gives way to it.
+    await expect.poll(() => clearOfLog(page, "hook")).toBe(true);
+    await expect(editor.locator(".fc-minimap")).toBeHidden();
     await shot(page, `editor-listening-${at}`);
 
     // Nothing is published and the Flow is off; the POST runs what was drawn.
