@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import { COVERAGE_CHUNKS_FILE } from "../../scripts/coverage-maps.ts";
@@ -18,10 +19,45 @@ const coverageProvenance: Plugin = {
   },
 };
 
+// A page still open on the previous build fetches its lazy parts by their old names: keep that build's chunks one more
+// build, so a rebuild doesn't reload the panel under someone mid-work. Never in a packaged build (APX_VERSION).
+function keepPreviousChunks(): Plugin {
+  let out = "";
+  const kept = new Map<string, Buffer>();
+  const list = () => path.join(out, ".chunks.json");
+  return {
+    name: "keep-previous-chunks",
+    apply: "build",
+    configResolved(config) {
+      out = path.resolve(config.root, config.build.outDir);
+    },
+    buildStart() {
+      kept.clear();
+      if (process.env.APX_VERSION || process.env.APX_TEST_COVERAGE === "1") return;
+      let previous: string[] = [];
+      try {
+        previous = JSON.parse(fs.readFileSync(list(), "utf8")) as string[];
+      } catch {
+        return;
+      }
+      // The entry is found by its index-*.js name: only the newest one may be on disk.
+      for (const file of previous)
+        if (file.startsWith("assets/") && !/^assets\/index-/.test(file))
+          try {
+            kept.set(file, fs.readFileSync(path.join(out, file)));
+          } catch {}
+    },
+    writeBundle(_options, bundle) {
+      for (const [file, body] of kept) if (!(file in bundle)) fs.writeFileSync(path.join(out, file), body);
+      fs.writeFileSync(list(), JSON.stringify(Object.keys(bundle)));
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, import.meta.dirname, "VITE_");
   return {
-    plugins: [react(), coverageProvenance],
+    plugins: [react(), coverageProvenance, keepPreviousChunks()],
     define: {
       // The build's own version when pnpm package names it (APX_VERSION), else the last tag and the commits past it.
       "import.meta.env.VITE_APX_VERSION": JSON.stringify(
