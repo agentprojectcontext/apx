@@ -6,8 +6,10 @@
 
 .composer__model {
   display: inline-flex;
+  flex: 0 1 auto;
   align-items: center;
   gap: 5px;
+  min-width: 0;
   max-width: 220px;
   height: 26px;
   padding: 0 8px;
@@ -27,6 +29,7 @@
   color: var(--apx-fg);
 }
 .composer__model .selectbtn__text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -198,6 +201,19 @@
 @media (max-width: 640px) {
   .composer__model {
     max-width: 120px;
+  }
+}
+/* A composer in a narrow card (a floating chat), whatever the window's width: the model gives way first, then the
+   context chip keeps only its ring, so the mic and send stay inside. */
+.chat__composer {
+  container-type: inline-size;
+}
+@container (max-width: 440px) {
+  .composer__model {
+    max-width: 150px;
+  }
+  .ctxchip__text {
+    display: none;
   }
 }
 
