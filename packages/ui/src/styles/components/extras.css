@@ -177,13 +177,16 @@
 /* ── SettingRow ────────────────────────────────────────────────────────────── */
 .apx-setting {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 24px;
+  column-gap: 24px;
+  row-gap: 8px;
   padding: 12px 0;
   border-top: 1px solid var(--apx-border);
 }
+/* The text keeps room to read: a control too wide to sit beside it on a narrow screen goes under it. */
 .apx-setting__text {
-  flex: 1;
+  flex: 1 1 180px;
   min-width: 0;
 }
 .apx-setting__title {
