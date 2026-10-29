@@ -44,5 +44,6 @@ test("picking the secretary seeds its routines; a new time moves the morning bri
       .filter((r) => r.origin && !["secretary:mail", "secretary:team-news"].includes(r.origin))
       .every((r) => !r.enabled),
   ).toBe(true);
-  for (const action of ["relay", "mail"]) await rpc("secretary.set", { action, enabled: false });
+  // Mail checks are set in the Gmail integration now; the relay is the one action left here.
+  await rpc("secretary.set", { action: "relay", enabled: false });
 });
