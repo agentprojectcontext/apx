@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FlowDraftGraph, FlowGraphDocument, flowGraphMethods } from "./flow-graph.ts";
+import { flowHistoryMethods } from "./flow-history.ts";
 import { FLOW_PATH, FLOW_PATH_SAVED } from "./flow-path.ts";
 
 const Id = z.string().regex(/^[A-Za-z0-9_-]{1,100}$/);
@@ -69,6 +70,7 @@ export const FlowEventCursor = z
 export type FlowEventCursor = z.infer<typeof FlowEventCursor>;
 export const flowMethods = {
   ...flowGraphMethods,
+  ...flowHistoryMethods,
   "flows.list": {
     params: z.object({ project: Id.optional() }).strict(),
     /**

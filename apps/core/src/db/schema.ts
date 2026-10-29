@@ -134,6 +134,18 @@ export interface FlowGraphEventsTable {
   stopped_by: string | null;
 }
 
+export interface FlowGraphHistoryTable {
+  flow_id: string;
+  entry: Generated<number>;
+  at: string;
+  kind: string;
+  saved_by: string | null;
+  restored_from: number | null;
+  revision: number | null;
+  steps: number;
+  graph: string;
+}
+
 export interface FlowGraphNodesTable {
   flow_id: string;
   event_id: string;
@@ -717,6 +729,7 @@ export interface Database {
   flow_events: FlowEventsTable;
   flow_graph_drafts: FlowGraphDraftsTable;
   flow_graph_events: FlowGraphEventsTable;
+  flow_graph_history: FlowGraphHistoryTable;
   flow_graph_nodes: FlowGraphNodesTable;
   flow_graph_revisions: FlowGraphRevisionsTable;
   flow_rows: FlowRowsTable;

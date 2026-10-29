@@ -3246,3 +3246,40 @@ a test" (it sends for real), and pinning the draft by reference instead of a rev
 change what runs mid-run). Known limit: a Flow whose address has no key yet accepts a test event from whoever knows the
 test address during those five minutes; production never takes one without its key.
 
+
+<a id="d-179"></a>
+## D-179 — 2026-10-29 — Each save of a Flow's drawing leaves a version the owner can look at and bring back
+The owner wants every save of a Flow to leave a revision they can look at later, and go back to one. The core kept only
+the current draft (`flow_graph_drafts`, overwritten on each save) and the published drawings (`flow_graph_revisions`,
+which also hold test pins and are pruned by what runs point at), so a draft saved over another was gone.
+
+- **One history table.** `flow_graph_history (flow_id, entry, at, kind, saved_by, restored_from, revision, steps,
+  graph)`, written inside the save's own transaction by `saveDraft` and `publish` (`domain/flow-graph-history.ts`).
+  Kinds: `draft` (the owner's **Save draft** or **Save**, `flows.create`, an agent's draft), `published` and `restored`.
+  A save whose drawing equals the newest entry's adds nothing; publishing what the owner just saved turns that entry
+  into the published one, so one **Save** is one entry, while publishing an agent's draft adds the owner's entry
+  beside the agent's. `saved_by` is who the drawing is kept as drawn by (the draft's own `saved_by`), so the owner's
+  edits saved over an agent's unreviewed draft stay the agent's. Test pins never enter it. The migration starts each
+  Flow with its published revisions and its waiting draft.
+- **Bounded.** The newest 50 entries per Flow, plus every published entry whose revision a run or what runs still
+  points at (those are already bounded by the revisions' own retention); a Flow's entries go with it (`ON DELETE
+  CASCADE`). Each entry keeps its drawing (at most 128 KiB, as a draft), so a version stays readable after its revision
+  is pruned. Entry numbers grow per Flow and are never reused.
+- **Methods.** `flows.history {flow}` and `flows.history_get {flow, entry}` follow D-174's reach (the owner, an
+  agent's own tool for its project). `flows.history_restore {flow, entry, expectedVersion, confirm: true}` is the
+  owner's (effect, idempotency key): the entry becomes the draft with the version read, a stale one is a conflict, and
+  it never publishes; the owner's **Save** does, as before. An entry an agent drew comes back as that agent's draft, so
+  turning the Flow on still opens it for review (D-174); the history shows the owner as who restored it.
+- **Where it shows.** The Flow page's rail switches between **Runs** and **History**; a version picked is drawn
+  read-only, labelled "Version #n · when · who", with **Restore as draft** (asks first). The editor's top bar has a
+  history button with the same list in a popover; restoring replaces the canvas and says so first when there are
+  unsaved edits. The bar keeps its other buttons: on a phone it already wraps to two lines, and one icon fits.
+- **The super-agent** reads versions through `apx_settings`' `flows.history {flow, entry?}` (asked like
+  `flows.graph_get` while outside content is in the turn, since a version's drawing goes back to the model), to say
+  what changed. Restoring stays the owner's (`OWNER_ONLY`); the fields are in the `apx-flows` skill, not the prompt.
+
+No news entry: restoring is the owner's own act in the panel, not something the super-agent offers to do. Rejected:
+reusing `flow_graph_revisions` with a draft-history table beside it (two tables to page together, and revisions are
+pruned by what runs point at, not by what the owner may want back), storing a published entry by reference to its
+revision (it would vanish when the revision is pruned), a diff per entry instead of the drawing (a version must draw on
+its own), and letting an agent restore (it would move the owner's draft back without them looking).

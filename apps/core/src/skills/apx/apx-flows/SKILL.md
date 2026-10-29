@@ -19,6 +19,9 @@ or running: say it is ready for them to review and turn on.
 - `flows.draft_save {flow, expectedVersion, graph}`: replace the whole drawing; `expectedVersion` is the
   `draftVersion` you read (null when there was none). If someone saved meanwhile, read again and redo it.
 - `flows.validate {flow}`: whether the draft can run, and why not.
+- `flows.history {flow, entry?}`: the Flow's saved versions, newest first (number, when, who, draft saved, published or
+  restored, steps); with `entry`, that version's drawing, to tell the owner what changed between two. Bringing one back
+  is the owner's, from the Flow's page or the editor: never offer to do it yourself.
 
 Every save answers with what still keeps it from running, step by step: fix those with more edits. The chat shows the
 owner a card with the drawing and **Open in the editor**. Places on the canvas are filled in for you; `{op: "tidy"}`

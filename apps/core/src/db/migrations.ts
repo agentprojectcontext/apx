@@ -1081,4 +1081,30 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE flow_events ADD COLUMN headers TEXT;
   ALTER TABLE flow_graph_revisions ADD COLUMN test INTEGER NOT NULL DEFAULT 0;
   `,
+  // Each save that changes a Flow's drawing leaves an entry the owner can look at and bring back
+  // (DECISIONS.md#d-179). Flows from before start with what they published and their waiting draft.
+  `
+  CREATE TABLE flow_graph_history (
+    flow_id TEXT NOT NULL REFERENCES flows(id) ON DELETE CASCADE,
+    entry INTEGER NOT NULL,
+    at TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK(kind IN ('draft','published','restored')),
+    saved_by TEXT,
+    restored_from INTEGER,
+    revision INTEGER,
+    steps INTEGER NOT NULL,
+    graph TEXT NOT NULL,
+    PRIMARY KEY(flow_id, entry)
+  );
+  INSERT INTO flow_graph_history(flow_id,entry,at,kind,revision,steps,graph)
+    SELECT flow_id, row_number() OVER (PARTITION BY flow_id ORDER BY revision), created_at, 'published', revision,
+      coalesce(json_array_length(graph,'$.nodes'),0), graph
+    FROM flow_graph_revisions WHERE test = 0;
+  INSERT INTO flow_graph_history(flow_id,entry,at,kind,saved_by,steps,graph)
+    SELECT d.flow_id, coalesce((SELECT max(h.entry) FROM flow_graph_history h WHERE h.flow_id=d.flow_id),0)+1,
+      strftime('%Y-%m-%dT%H:%M:%fZ','now'), 'draft', d.saved_by, coalesce(json_array_length(d.graph,'$.nodes'),0), d.graph
+    FROM flow_graph_drafts d WHERE d.discarded = 0;
+  DELETE FROM flow_graph_history WHERE entry <= (
+    SELECT max(h.entry) - 50 FROM flow_graph_history h WHERE h.flow_id = flow_graph_history.flow_id);
+  `,
 ];
