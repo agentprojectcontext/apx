@@ -40,10 +40,10 @@ function AgentComputerBody({ agent, onTurnOn }: { agent: string; onTurnOn(): voi
         </Tooltip>
       </dt>
       <dd className="teamdetail__computer">
-        <span className={at.state === "off" ? "teamdetail__muted" : undefined}>{state}</span>
         <Button size="sm" variant="secondary" onClick={() => (at.state === "off" ? onTurnOn() : go.view("computers"))}>
           {t(at.state === "off" ? "agent.computer.turnOn" : "agent.computer.open")}
         </Button>
+        <span className={at.state === "off" ? "teamdetail__muted" : undefined}>{state}</span>
       </dd>
     </>
   );
