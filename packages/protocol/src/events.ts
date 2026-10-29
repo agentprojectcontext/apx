@@ -43,6 +43,29 @@ export const CoreEvent = z.discriminatedUnion("type", [
     draft_version: z.number().int().nullable(),
     by: z.string().nullable(),
   }),
+  /**
+   * A Flow's test (DECISIONS.md#d-178): it started waiting for an event until `until`, stopped or ran out of time, one
+   * arrived and started the run `event`, or one arrived that the drawing could not take.
+   */
+  z.object({
+    type: z.literal("flow.test"),
+    flow: z.string(),
+    state: z.enum(["listening", "stopped", "expired", "received", "refused"]),
+    until: z.string().nullable(),
+    event: z.string().nullable(),
+  }),
+  /**
+   * A drawn Flow's run moved: a step started or ended, or the run ended. Ids and states only; what each step was given
+   * and gave back is read with `flows.run_get`.
+   */
+  z.object({
+    type: z.literal("flow.run"),
+    flow: z.string(),
+    event: z.string(),
+    state: z.enum(["pending", "succeeded", "failed", "uncertain", "cancelled", "ignored"]),
+    test: z.boolean(),
+    steps: z.array(z.object({ node: z.string(), state: z.string() })),
+  }),
   /** Agents or projects changed (from any client, an agent's tool or a project's files): reload both lists. */
   z.object({ type: z.literal("team.updated") }),
   z.object({ type: z.literal("browser.tabs"), tabs: z.array(TabInfo) }),

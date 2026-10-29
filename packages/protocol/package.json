@@ -14,6 +14,7 @@
     "./flow-cases": "./src/flow-cases.ts",
     "./flow-complete": "./src/flow-complete.ts",
     "./flow-edit": "./src/flow-edit.ts",
+    "./flow-path": "./src/flow-path.ts",
     "./task-groups": "./src/task-groups.ts",
     "./delegation": "./src/delegation.ts"
   },

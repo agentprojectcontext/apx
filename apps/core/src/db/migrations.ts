@@ -1071,4 +1071,14 @@ export const MIGRATIONS: readonly string[] = [
     )
   );
   `,
+  // A Flow's public address is its own path (DECISIONS.md#d-178): a Flow from before keeps its identifier, so every
+  // address that answered still does. Test runs are marked, and the drawing a test ran is a revision marked too.
+  `
+  ALTER TABLE flows ADD COLUMN path TEXT NOT NULL DEFAULT '';
+  UPDATE flows SET path = id;
+  CREATE UNIQUE INDEX flows_path ON flows(path);
+  ALTER TABLE flow_events ADD COLUMN test INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE flow_events ADD COLUMN headers TEXT;
+  ALTER TABLE flow_graph_revisions ADD COLUMN test INTEGER NOT NULL DEFAULT 0;
+  `,
 ];

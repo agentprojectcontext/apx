@@ -98,7 +98,7 @@ test("retired routes lose credentials, remain unavailable, and cannot inherit an
   try {
     const project = (await env.client.call("projects.register", { path: folder.path, init: true })).project.id;
     const a = { ...flow(project, "first"), action: { kind: "none" as const } };
-    const b = { ...a, id: "second" };
+    const b = { ...a, id: "second", name: "second" };
     await env.client.call("flows.set", a);
     await env.client.call("flows.set", b);
     const credential = await env.client.call("public_routes.rotate", { path: "/flows/first" });

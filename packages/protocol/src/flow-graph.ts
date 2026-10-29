@@ -370,6 +370,16 @@ export const FlowRunDetail = z
     source: FlowRunSource,
     /** A scheduled run: the time it was due (it can start later, once, when the core was off then). */
     scheduled_at: z.string().nullable(),
+    /** A test from the editor: it ran the saved drawing, and the Flow need not be on (DECISIONS.md#d-178). */
+    test: z.boolean(),
+    /**
+     * What arrived, for a run a POST started: a few of its headers (never a key) and its data as stored (redacted,
+     * at most 4,000 characters; `truncated` says it was cut). Null for a schedule's or the owner's run.
+     */
+    arrived: z
+      .object({ headers: z.record(z.string(), z.string()), body: z.string(), truncated: z.boolean() })
+      .strict()
+      .nullable(),
     steps: z.array(FlowStepRecord),
   })
   .strict();
@@ -445,6 +455,38 @@ export const flowGraphMethods = {
   "flows.run_now": {
     params: z.object({ flow: FlowId, data: z.unknown().optional() }).strict(),
     result: z.object({ event: z.string(), state: z.enum(["pending", "ignored", "duplicate"]) }).strict(),
+    effect: true,
+    access: "human",
+  },
+  /**
+   * Tests the saved drawing (the draft, or what runs when there is none) with a real event, the Flow on or off
+   * (DECISIONS.md#d-178). A webhook Flow waits up to five minutes for one POST to `/flows/test/<path>`; a schedule
+   * Flow runs once now with no data. `outward` is what `flows.outward` lists for that drawing, as for publishing: a
+   * test sends, calls, runs and writes for real.
+   */
+  "flows.test_start": {
+    params: z
+      .object({
+        flow: FlowId,
+        expectedDraftVersion: z.number().int().min(1).nullable(),
+        outward: z.array(z.string().max(2400)).max(160).optional(),
+      })
+      .strict(),
+    result: z
+      .object({
+        /** While it waits: when it stops waiting, and the address to send to (path only; the host is the owner's). */
+        listening: z.object({ until: z.string(), path: z.string() }).strict().nullable(),
+        /** A schedule Flow's run, started at once. */
+        event: z.string().nullable(),
+      })
+      .strict(),
+    effect: true,
+    access: "human",
+  },
+  /** Stops waiting for a test event; a test run already going goes on (`flows.cancel_run` stops it). */
+  "flows.test_stop": {
+    params: z.object({ flow: FlowId }).strict(),
+    result: z.object({ stopped: z.boolean() }).strict(),
     effect: true,
     access: "human",
   },

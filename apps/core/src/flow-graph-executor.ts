@@ -91,11 +91,27 @@ export type FlowGraphExecutorDeps = {
   http?: FlowHttpDeps | undefined;
   /** APX's folder: where a project without a folder of its own runs its commands. */
   home?: string | undefined;
+  /** A step of a run started or ended, or the run ended: an open screen follows it live. */
+  moved?: ((flow: string, event: string) => void) | undefined;
 };
 
 export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
   const { store, log } = deps;
-  const runs = store.flowGraphRuns;
+  const saved = store.flowGraphRuns;
+  const told = <T>(flow: string, event: string, changed: T): T => {
+    if (changed) deps.moved?.(flow, event);
+    return changed;
+  };
+  // Every checkpoint that moves a step or ends a run says so; the screen reads the run itself (`flows.run_get`).
+  const runs: typeof saved = {
+    ...saved,
+    runPure: (k, ...rest) => told(k.flow, k.event, saved.runPure(k, ...rest)),
+    claim: (k, ...rest) => told(k.flow, k.event, saved.claim(k, ...rest)),
+    succeed: (k, ...rest) => told(k.flow, k.event, saved.succeed(k, ...rest)),
+    settle: (k, ...rest) => told(k.flow, k.event, saved.settle(k, ...rest)),
+    finish: (flow, event, ...rest) => told(flow, event, saved.finish(flow, event, ...rest)),
+    cancel: (flow, event, at) => told(flow, event, saved.cancel(flow, event, at)),
+  };
   const timers = deps.timers ?? wall;
   const now = () => new Date(timers.now());
   let closed = false;
@@ -468,7 +484,8 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
       if (moved) continue;
       const ready = decisions.find((d) => d.decision === "ready");
       const node = ready && run.graph.nodes.find((n) => n.id === ready.node);
-      if (node && store.flows.get(flow)?.enabled && (await execute(run, node))) continue;
+      // A Flow turned off starts no new step; an owner's test runs off too (DECISIONS.md#d-178).
+      if (node && (run.test || store.flows.get(flow)?.enabled) && (await execute(run, node))) continue;
       const state = summarizeFlowGraph(snapshotsOf(run));
       if (state === "pending" || state === "running") return false;
       runs.finish(flow, event, state, at, state === "succeeded" ? cutBy(run) : undefined);

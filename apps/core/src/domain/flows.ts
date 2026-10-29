@@ -1,5 +1,6 @@
 import type { FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
 import { FlowDefinition as Definition } from "../../../../packages/protocol/src/flow-methods.ts";
+import { flowPathOf, flowPathProblem, freeFlowPath } from "../../../../packages/protocol/src/flow-path.ts";
 import type { Db } from "../db/db.ts";
 import { redactedJson } from "../log.ts";
 import { firstFailedPredicate, matchesFlowPredicates } from "./flow-evaluate.ts";
@@ -31,6 +32,7 @@ type SavedFlow = {
   table_key: string;
   action: string;
   read_keys: string;
+  path: string;
 };
 const definition = (row: SavedFlow) =>
   Definition.parse({
@@ -42,7 +44,24 @@ const definition = (row: SavedFlow) =>
     tableKey: row.table_key,
     action: JSON.parse(row.action),
     readKeys: JSON.parse(row.read_keys),
+    path: row.path,
   });
+
+/** Another Flow's address is this one (or would read as it, case aside). */
+const pathTaken = (db: Db, path: string, flow?: string) =>
+  Boolean(db.prepare("SELECT 1 FROM flows WHERE lower(path)=lower(?) AND id IS NOT ?").get(path, flow ?? null));
+/** A path the owner chose, refused when it is not one or another Flow has it. */
+export class FlowPathError extends Error {
+  readonly problem: "taken" | "invalid" | "reserved";
+  constructor(problem: "taken" | "invalid" | "reserved") {
+    super(`Flow path ${problem}`);
+    this.problem = problem;
+  }
+}
+function checkNewPath(db: Db, path: string, flow: string) {
+  const problem = flowPathProblem(path) ?? (pathTaken(db, path, flow) ? "taken" : undefined);
+  if (problem) throw new FlowPathError(problem);
+}
 
 /** A published Flow keeps its old definition as history: only its name and switch change. */
 function onlyNameOrSwitch(db: Db, flow: FlowDefinition): boolean {
@@ -56,14 +75,18 @@ function onlyNameOrSwitch(db: Db, flow: FlowDefinition): boolean {
 export function saveFlow(db: Db, value: FlowDefinition): void {
   const flow = Definition.parse(value);
   checkFlowIdentifier(db, flow.id);
+  const saved = db.prepare("SELECT path FROM flows WHERE id=?").get(flow.id) as { path: string } | undefined;
+  // A new Flow's address comes from its name unless the owner chose one; a saved one keeps its own until renamed.
+  const path = flow.path ?? saved?.path ?? freeFlowPath(flowPathOf(flow.name), (p) => pathTaken(db, p, flow.id));
+  if (path !== saved?.path) checkNewPath(db, path, flow.id);
   if (hasPublishedFlowGraph(db, flow.id) && !onlyNameOrSwitch(db, flow))
     throw new FlowGraphUnavailable("Published graph configuration cannot be replaced by a legacy definition");
   if (redactedJson(flow) !== JSON.stringify(flow))
     throw new Error("Flow definitions must use secret references, not credentials");
   matchesFlowPredicates({}, flow.predicates);
   const result = db
-    .prepare(`INSERT INTO flows(id, project_id, name, enabled, predicates, table_key, action, read_keys) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET name=excluded.name, enabled=excluded.enabled, predicates=excluded.predicates, table_key=excluded.table_key, action=excluded.action, read_keys=excluded.read_keys
+    .prepare(`INSERT INTO flows(id, project_id, name, enabled, predicates, table_key, action, read_keys, path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET name=excluded.name, enabled=excluded.enabled, predicates=excluded.predicates, table_key=excluded.table_key, action=excluded.action, read_keys=excluded.read_keys, path=excluded.path
     WHERE flows.project_id=excluded.project_id`)
     .run(
       flow.id,
@@ -74,6 +97,7 @@ export function saveFlow(db: Db, value: FlowDefinition): void {
       flow.tableKey,
       JSON.stringify(flow.action),
       JSON.stringify(flow.readKeys ?? []),
+      path,
     );
   if (!result.changes) throw new Error("Flow belongs to another project");
   // Off, a schedule owes nothing: turned on again, it counts from then.
@@ -87,6 +111,28 @@ export function flowsRepo(db: Db) {
     get(id: string): FlowDefinition | undefined {
       const row = db.prepare("SELECT * FROM flows WHERE id=?").get(id) as SavedFlow | undefined;
       return row ? definition(row) : undefined;
+    },
+    /** The Flow whose public address is `/flows/<path>`. */
+    byPath(path: string): FlowDefinition | undefined {
+      const row = db.prepare("SELECT * FROM flows WHERE path=?").get(path) as SavedFlow | undefined;
+      return row ? definition(row) : undefined;
+    },
+    /** Whether `flow` (or a new Flow, without one) could take this path, and the first free one from it. */
+    pathCheck(path: string, flow?: string) {
+      const problem = flowPathProblem(path) ?? (pathTaken(db, path, flow) ? ("taken" as const) : undefined);
+      const base = flowPathProblem(path) ? flowPathOf(path) : path;
+      return { ok: !problem, problem: problem ?? null, free: freeFlowPath(base, (p) => pathTaken(db, p, flow)) };
+    },
+    /** A new address: the old one stops answering. Undefined when the Flow is gone. */
+    setPath(id: string, path: string): FlowDefinition | undefined {
+      return tx(() => {
+        const flow = api.get(id);
+        if (!flow) return undefined;
+        if (flow.path === path) return flow;
+        checkNewPath(db, path, id);
+        db.prepare("UPDATE flows SET path=? WHERE id=?").run(path, id);
+        return api.get(id);
+      });
     },
     list(project?: string): FlowDefinition[] {
       const rows =
@@ -148,6 +194,7 @@ export function flowsRepo(db: Db) {
       authorize?: (graph: FlowGraph) => void,
       at = new Date(),
       from: FlowEventSource = { source: "webhook" },
+      headers?: Record<string, string>,
     ): "duplicate" | "ignored" | "written" | "pending" {
       if (!eventId || eventId.length > 256 || redactedJson(eventId) !== JSON.stringify(eventId))
         throw new Error("Invalid event id");
@@ -158,7 +205,7 @@ export function flowsRepo(db: Db) {
         if (!flow?.enabled) throw new Error("Flow not found or disabled");
         if (hasPublishedFlowGraph(db, flowId)) {
           if (!authorize) throw new FlowGraphUnavailable("Graph admission needs its binding check");
-          return graphs.admit(flowId, eventId, payload, at, authorize, from).state;
+          return graphs.admit(flowId, eventId, payload, at, authorize, from, headers).state;
         }
         // Only a drawing runs on a schedule or by hand; a legacy definition takes POSTs alone.
         if (from.source !== "webhook") throw new FlowTriggerMismatch("The Flow does not start that way");

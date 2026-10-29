@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FlowDraftGraph, FlowGraphDocument, flowGraphMethods } from "./flow-graph.ts";
+import { FLOW_PATH, FLOW_PATH_SAVED } from "./flow-path.ts";
 
 const Id = z.string().regex(/^[A-Za-z0-9_-]{1,100}$/);
 const Scalar = z.union([z.string().max(4096), z.number().finite(), z.boolean(), z.null()]);
@@ -21,6 +22,11 @@ export const FlowDefinition = z
     tableKey: z.string().min(1).max(128),
     readKeys: z.array(z.string().min(1).max(128)).max(16).optional(),
     action: FlowAction,
+    /**
+     * Its public address, `/flows/<path>`: unique among the owner's Flows, from its name when made; a Flow from before
+     * paths keeps its identifier. Left out of `flows.set`, it stays as it is (DECISIONS.md#d-178).
+     */
+    path: z.string().regex(FLOW_PATH_SAVED).optional(),
   })
   .strict();
 export type FlowDefinition = z.infer<typeof FlowDefinition>;
@@ -54,6 +60,8 @@ export const FlowEvent = z.object({
   scheduled_at: z.string().nullable().default(null),
   /** The owner stopped it ("Cancel run"); it ended cancelled, or uncertain when a step had been sent. */
   cancelled_by_owner: z.boolean().default(false),
+  /** A test the owner started from the editor: it ran the saved drawing, not what runs (DECISIONS.md#d-178). */
+  test: z.boolean().default(false),
 });
 export const FlowEventCursor = z
   .object({ createdAt: z.string().datetime(), eventId: z.string().min(1).max(256) })
@@ -99,9 +107,36 @@ export const flowMethods = {
    * (DECISIONS.md#d-174). Its identifier comes from the name; turning it on and publishing stay the owner's.
    */
   "flows.create": {
-    params: z.object({ project: Id, name: z.string().trim().min(1).max(120), graph: FlowDraftGraph }).strict(),
+    params: z
+      .object({
+        project: Id,
+        name: z.string().trim().min(1).max(120),
+        graph: FlowDraftGraph,
+        /** The address the owner chose before saving; else one from the name. */
+        path: z.string().regex(FLOW_PATH).optional(),
+      })
+      .strict(),
     result: z.object({ flow: FlowDefinition, document: FlowGraphDocument }).strict(),
     effect: true,
+  },
+  /**
+   * Whether a Flow can take this address: `taken` by another Flow, `invalid` or `reserved` as written; `free` is the
+   * first free one from it (itself when it is free). `flow`: the Flow asking, whose own address is free to it.
+   */
+  "flows.path_check": {
+    params: z.object({ path: z.string().max(200), flow: Id.optional() }).strict(),
+    result: z
+      .object({ ok: z.boolean(), problem: z.enum(["taken", "invalid", "reserved"]).nullable(), free: z.string() })
+      .strict(),
+    effect: false,
+    access: "human",
+  },
+  /** A new address for a Flow: the old one stops answering at once; its key, if it had one, moves with it. */
+  "flows.path_set": {
+    params: z.object({ flow: Id, path: z.string().regex(FLOW_PATH) }).strict(),
+    result: FlowDefinition,
+    effect: true,
+    access: "human",
   },
   "flows.rows": {
     params: z

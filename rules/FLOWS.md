@@ -24,14 +24,14 @@ read-only; manual row writes are CLI/protocol only (`apx flows write`). It is no
 The shared [public ingress](PUBLIC_INGRESS.md) registers only enabled Flow paths. Enable the Flow, then use Settings → Devices → Endpoints to create a separate route credential. Configure the public tunnel independently; enabling a Flow does not publish the private panel or RPC.
 
 ```
-POST /flows/<id>
+POST /flows/<path>
 Authorization: Bearer <route token>
 Content-Type: application/json
 
 {"id":"stable-source-event-id","data":{"type":"message","text":"Hello"}}
 ```
 
-The envelope accepts only `id` and `data`. The source must supply a stable event ID, not a new random identifier on every retry. The Flow ID comes from the authenticated URL, never from event data. Gateway authentication happens before the callback and the callback receives no bearer header.
+The envelope accepts only `id` and `data`. The source must supply a stable event ID, not a new random identifier on every retry. The Flow comes from the authenticated URL's path, never from event data. A Flow's path is its own ([D-178](DECISIONS.md#d-178)): from its name when made (`leads-from-the-form`, `-2` when taken), chosen in the webhook step's card before the first save, renamed there later (`flows.path_set`; the old address stops at once, its token moves with it). A Flow from before paths has its identifier as its path. Gateway authentication happens before the callback and the callback receives no bearer header.
 
 - `202`: the event/filter result and any table write have committed durably. `state` is `ignored`, `written`, `pending` or `duplicate`. It is an acceptance receipt, not proof that the action completed.
 - `400`: malformed/oversized data or an invalid envelope; fix the request before retrying.
@@ -71,7 +71,7 @@ Empty objects, non-object values, nonmatching events and duplicates do not invok
 list shows those, marked **Draft**, and a Flow's page draws the draft (with **What runs** to switch when a drawing runs)
 instead of the table-only definition a new drawing belongs to ([D-177](DECISIONS.md#d-177)).
 
-All management operations use the private protocol registry: `flows.list`, `flows.set`, `flows.rows`, `flows.write`, `flows.events`, `flows.retry`, `flows.retire`, `flows.try`, and for drawings `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate`, `flows.outward`, `flows.publish`, `flows.run_get`, `flows.next_runs`, `flows.run_now`, `flows.cancel_run`, `flows.try_graph`, and `flows.create` for a new
+All management operations use the private protocol registry: `flows.list`, `flows.set`, `flows.rows`, `flows.write`, `flows.events`, `flows.retry`, `flows.retire`, `flows.try`, and for drawings `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate`, `flows.outward`, `flows.publish`, `flows.run_get`, `flows.next_runs`, `flows.run_now`, `flows.cancel_run`, `flows.try_graph`, `flows.test_start`, `flows.test_stop`, `flows.path_check`, `flows.path_set`, and `flows.create` for a new
 drawn Flow. External `chat` tokens cannot call them; see [Agents drawing Flows](#agents-drawing-flows) for the ones an
 agent's tool reaches.
 
@@ -311,10 +311,25 @@ returns `{cancelled: false}`. A notify or non-GET HTTP step already `dispatched`
 CLI calls both (`apx flows run|stop`, refused inside an agent's command); they stay out of the super-agent's
 `apx_settings` reach, since a run can now send as the owner.
 
-**Try a run.** `flows.try_graph {graph, data}` walks the run's own planner over sample data (≤ 32 KiB): triggers and
+**Simulate** (formerly *Try a run*). `flows.try_graph {graph, data}` walks the run's own planner over sample data (≤ 32 KiB): triggers and
 checks are evaluated, a branch not taken is skipped, a step that does work is `would_run`, a step whose binding needs an
 earlier step's answer is `unknown`, one whose event field is absent is `missing`. It reads no table, writes nothing,
 calls no model and starts no run. `flows.validate` takes `project` instead of `flow` to check a drawing not saved yet.
+
+**Test with a real event.** See [D-178](DECISIONS.md#d-178). `flows.test_start {flow, expectedDraftVersion,
+outward}` (owner-only, idempotency key) tests the saved drawing, the draft or else what runs, whether the Flow is on or
+off: it is checked like publishing (`step_incomplete` first) and needs the same `outward` keys, since a test sends,
+calls, runs and writes for real. The drawing is pinned as a revision marked `test` (reused when the same drawing is
+tested again). A webhook Flow then waits five minutes for one POST to `/flows/test/<path>` (same envelope, limits and,
+once the address has one, token as `/flows/<path>`; not waiting, every test address answers the same 404 and nothing
+runs); a schedule Flow runs once now (`source: "owner"`). `flows.test_stop` stops waiting. The run is `test:<uuid>`,
+`test: true` in `flows.events` and `flows.run_get`, with the same deadline and terminal states as any run; it does not
+count as the Flow's last run in the list and never makes a schedule skip. `flows.run_get` also returns `arrived`: a POST's
+shown headers (a test's `content-type`, `content-length`, `user-agent`, `idempotency-key`; production's
+`content-type` and `idempotency-key`) and its stored data. `flows.set` refuses changing a saved Flow's `path`: only
+`flows.path_set` renames. Live: `flow.test`
+(listening, stopped, expired, received, refused) and `flow.run` (ids and step states on every checkpoint); the panel
+reads the values with `flows.run_get`.
 
 **Español:** Un Flow publicado arranca por webhook o por horario (cron de cinco campos en la zona horaria del dueño).
 El único reloj es el pulso del scheduler de rutinas: cada horario vencido entra una sola vez, por la misma admisión que
@@ -322,8 +337,11 @@ un POST, con id `schedule:<hora>`; si el core estuvo apagado corre una vez al ar
 la ronda dice que arrancó tarde. Apagado no corre ni acumula. Un Flow con horario no tiene dirección pública y uno con
 webhook nunca corre por horario. **Correr ahora** (`flows.run_now`) usa la misma admisión, marcada como del dueño: evento
 vacío para horario, el cuerpo de ejemplo (dato no confiable) para webhook. **Detener ronda** (`flows.cancel_run`) cancela
-los pasos pendientes y deja **para revisar** un paso de modelo ya mandado, sin reenviarlo. **Probar ronda**
-(`flows.try_graph`) sigue los caminos sin efectos.
+los pasos pendientes y deja **para revisar** un paso de modelo ya mandado, sin reenviarlo. **Simular**
+(`flows.try_graph`) sigue los caminos sin efectos. **Escuchar un evento de prueba** (`flows.test_start`) corre de verdad
+el dibujo guardado con un evento real que llega a `/flows/test/<path>` (cinco minutos, uno solo), aunque el Flow esté
+apagado; antes pide el mismo permiso que publicar. Con horario, **Probar ahora** corre una vez ya. La ronda queda marcada
+como **Prueba**.
 
 ## Panel editor
 
@@ -339,8 +357,13 @@ one path, checks, at most one read, one save, then at most one agent or routine)
 detail switch) publishes the last saved drawing first. The core's validation runs as the drawing changes and the side
 panel says *Runs as drawn* or why it can't run, in the owner's words. A brand-new Flow whose first drawing is not the
 legacy shape gets a disabled table-only definition so the drawing has a Flow to belong to. Checks have **Yes** and
-**No** outlets; the chip next to each connection in **Goes on to** switches its branch. **Try a run**
-(`flows.try_graph`) follows any drawing. A new Flow's drawing is validated against its chosen project before the first
+**No** outlets; the chip next to each connection in **Goes on to** switches its branch. **Simulate**
+(`flows.try_graph`) follows any drawing. **Listen for a test event** (**Test now** for a schedule) saves unsaved edits
+as a draft, names a step still to finish, asks **Let this flow act for you?** when the drawing does something new, and
+shows the test address with a countdown and **Stop**; while it tests the canvas is read-only (a step's card shows its
+input and output) and the log at the bottom (`RunLog.tsx`, foldable, resizable, a sheet on a phone) says what arrived
+and each step as it starts and ends. **Back to editing** closes it. The webhook step's card shows both addresses on the
+public host from the start, and its path is a button to rename it. A new Flow's drawing is validated against its chosen project before the first
 save. The detail draws the revision a run used (legacy runs of a published Flow draw the old
 definition) and says **Previous version** when it is not the current one. Notify picks its channel and person or room
 from the owner's own lists. Every template field (message, headers, body, SQL values, command variables and input) is a

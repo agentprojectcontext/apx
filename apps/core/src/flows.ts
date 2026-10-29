@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { CoreEvent } from "@apx/protocol";
 import { type FlowDraftGraph, FlowGraph, type FlowGraphIssue } from "../../../packages/protocol/src/flow-graph.ts";
 import type { FlowDefinition } from "../../../packages/protocol/src/flow-methods.ts";
 import { FlowCapacityError } from "./domain/flow-events.ts";
@@ -14,6 +15,7 @@ import { flowEngineOf } from "./flow-ai-step.ts";
 import { createFlowGraphExecutor } from "./flow-graph-executor.ts";
 import { type FlowOutside, flowOutwardIssues } from "./flow-outward.ts";
 import type { FlowHttpDeps, FlowNotifier } from "./flow-outward-steps.ts";
+import { createFlowTests, flowEventOf, shownHeaders } from "./flow-tests.ts";
 import type { Log } from "./log.ts";
 import type { Llm } from "./providers/llm.ts";
 import type { Dispatch } from "./rpc/router.ts";
@@ -131,8 +133,27 @@ export function createFlows(deps: {
   http?: FlowHttpDeps | undefined;
   /** APX's folder: where a project without a folder of its own runs a Flow's commands. */
   home?: string | undefined;
+  /** Where open screens hear of tests and of runs moving. */
+  tell?: ((event: CoreEvent) => void) | undefined;
 }) {
   const { store } = deps;
+  const tell = deps.tell ?? (() => {});
+  /** A run moved: ids and states only, the screen reads the rest. */
+  const moved = (flow: string, event: string) => {
+    const run = store.flowGraphRuns.load(flow, event);
+    if (run)
+      tell({
+        type: "flow.run",
+        flow,
+        event,
+        state: run.state,
+        test: run.test,
+        steps: run.graph.nodes.flatMap((n) => {
+          const step = run.steps.get(n.id);
+          return step ? [{ node: n.id, state: step.state }] : [];
+        }),
+      });
+  };
   const graphs = deps.llm
     ? createFlowGraphExecutor({
         store,
@@ -144,6 +165,7 @@ export function createFlows(deps: {
         notifier: deps.notifier,
         http: deps.http,
         home: deps.home,
+        moved,
       })
     : undefined;
   const model = deps.model ?? (() => false);
@@ -152,6 +174,26 @@ export function createFlows(deps: {
     if (flowGraphIssues(store, flow, graph, model, deps.outside).length)
       throw new FlowBindingChanged("Flow graph binding changed");
   };
+  const timers = deps.timers ?? {
+    now: () => Date.now(),
+    after(ms: number, callback: () => void) {
+      const timer = setTimeout(callback, ms);
+      timer.unref?.();
+      return () => clearTimeout(timer);
+    },
+  };
+  const tests = createFlowTests({
+    store,
+    timers,
+    now: () => api.now(),
+    tell,
+    kick: () => api.kick(),
+    authorize: (id) => (graph) => {
+      const flow = store.flows.get(id);
+      if (!flow) throw new FlowBindingChanged("Flow is gone");
+      authorize(flow)(graph);
+    },
+  });
   let closed = false;
   let running: Promise<void> | undefined;
   let requested = false;
@@ -230,6 +272,8 @@ export function createFlows(deps: {
   const api = {
     /** What checks outward steps against the owner's secrets (and a test's own servers). */
     outside: deps.outside,
+    /** The owner's tests with a real event (DECISIONS.md#d-178). */
+    tests,
     /** The Flows' clock: injected timers in tests, the wall clock otherwise. */
     now: () => deps.clock?.() ?? new Date(deps.timers?.now() ?? Date.now()),
     /**
@@ -241,7 +285,13 @@ export function createFlows(deps: {
       // Looked up only for a schedule that is on: it loads ICU data (~9 MB) a core without schedules never needs.
       let zone: string | undefined;
       let admitted = false;
-      const busy = new Set(store.flowGraphRuns.active().map((e) => e.flow));
+      // An owner's test going doesn't make a schedule skip its time.
+      const busy = new Set(
+        store.flowGraphRuns
+          .active()
+          .filter((e) => !e.test)
+          .map((e) => e.flow),
+      );
       for (const s of store.flowSchedules.all()) {
         if (!s.enabled) continue;
         const since = store.flowSchedules.since(s.flow);
@@ -326,41 +376,37 @@ export function createFlows(deps: {
     },
     async close() {
       closed = true;
+      tests.close();
       await Promise.all([running, graphs?.close()]);
     },
     publicEndpoints() {
       return store.flows
         .list()
         .filter((f) => f.enabled && store.flowGraphs.trigger(f.id) !== "schedule")
-        .map((f) => ({ path: `/flows/${f.id}`, label: f.name }));
+        .map((f) => ({ path: `/flows/${f.path ?? f.id}`, label: f.name }));
     },
+    /** `/flows/<path>`: the Flow with that address, on and started by a POST (DECISIONS.md#d-178). */
     routes: ((pathname) => {
-      const id = /^\/flows\/([A-Za-z0-9_-]{1,128})$/.exec(pathname)?.[1];
+      const path = /^\/flows\/([A-Za-z0-9_-]{1,100})$/.exec(pathname)?.[1];
+      const found = path ? store.flows.byPath(path) : undefined;
       // A schedule Flow has no address: a POST to it is as unknown as one to no Flow.
-      if (!id || !store.flows.get(id)?.enabled || store.flowGraphs.trigger(id) === "schedule") return;
+      if (!found?.enabled || store.flowGraphs.trigger(found.id) === "schedule") return;
+      const id = found.id;
       return {
         id: `flow:${id}`,
         methods: ["POST"],
         authorize: () => true,
         async handle(request, signal) {
           if (signal.aborted) return { status: 503 };
-          if (request.body.length > 65536) return { status: 413 };
-          if (!request.headers["content-type"]?.startsWith("application/json")) return { status: 415 };
+          const event = flowEventOf(request);
+          if ("status" in event) return event;
+          if (signal.aborted) return { status: 503 };
           try {
-            const body: unknown = JSON.parse(request.body.toString("utf8"));
-            if (!body || typeof body !== "object" || Array.isArray(body)) return { status: 400 };
-            const event = body as Record<string, unknown>;
-            if (
-              Object.keys(event).some((key) => key !== "id" && key !== "data") ||
-              typeof event.id !== "string" ||
-              !Object.hasOwn(event, "data")
-            )
-              return { status: 400 };
-            if (signal.aborted) return { status: 503 };
             const flow = store.flows.get(id);
-            if (!flow) return { status: 404 };
+            if (!flow || flow.path !== path) return { status: 404 };
             const at = new Date(deps.timers?.now() ?? Date.now());
-            const state = store.flows.receive(id, event.id, event.data, authorize(flow), at);
+            const headers = shownHeaders(request.headers);
+            const state = store.flows.receive(id, event.id, event.data, authorize(flow), at, undefined, headers);
             if (state === "pending") api.kick();
             return { status: 202, body: { state } };
           } catch (error) {

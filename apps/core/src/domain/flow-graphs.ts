@@ -54,6 +54,69 @@ export function flowGraphsRepo(db: Db) {
     if (redactedJson(graph) !== text) throw new Error("Flow configuration cannot contain credentials");
     return text;
   };
+  /** Admits an event on a pinned drawing, inside the caller's transaction. */
+  const enter = (
+    flow: string,
+    event: string,
+    payload: unknown,
+    now: Date,
+    authorize: (graph: FlowGraph) => void,
+    from: FlowEventSource,
+    pinned: { revision: number; graph: FlowGraph; test: boolean },
+    headers: Record<string, string> | undefined,
+  ) => {
+    // Checked against the revision pinned here: a schedule Flow never takes a POST, a webhook one never ticks.
+    const trigger = pinned.graph.nodes.find(isFlowTrigger)?.kind;
+    if (from.source !== "owner" && from.source !== trigger)
+      throw new FlowTriggerMismatch("The Flow does not start that way");
+    if (!event || event.length > 256 || redactedJson(event) !== JSON.stringify(event))
+      throw new Error("Invalid event id");
+    if (db.prepare("SELECT 1 FROM flow_events WHERE flow_id=? AND event_id=?").get(flow, event))
+      return { state: "duplicate" as const };
+    // The same bound every step's value has (size after redaction, depth): data its first step could not carry is
+    // refused here instead of stalling the Flow's queue.
+    const text = storedFlowValue(payload);
+    if (Number(db.prepare("SELECT count(*) AS n FROM flow_events").get()?.n) >= 10000)
+      throw new FlowCapacityError("Flow event capacity exceeded");
+    if (Number(db.prepare("SELECT count(*) AS n FROM flow_events WHERE flow_id=?").get(flow)?.n) >= 10000)
+      throw new FlowCapacityError("Flow event capacity exceeded");
+    const runs = runnable(JSON.parse(text), trigger);
+    if (runs) {
+      authorize(pinned.graph);
+      checkFlowCapacity(db, flow);
+    }
+    const state = runs ? ("pending" as const) : ("ignored" as const);
+    const at = now.toISOString();
+    db.prepare(
+      "INSERT INTO flow_events(flow_id,event_id,state,created_at,executor,source,scheduled_at,test,headers) VALUES (?,?,?,?,'graph-v2',?,?,?,?)",
+    ).run(
+      flow,
+      event,
+      state,
+      at,
+      from.source,
+      from.scheduledAt ?? null,
+      Number(pinned.test),
+      headers ? redactedJson(headers) : null,
+    );
+    db.prepare(
+      "INSERT INTO flow_graph_events(flow_id,event_id,revision,payload,deadline_at,state,ended_at) VALUES (?,?,?,?,?,?,?)",
+    ).run(
+      flow,
+      event,
+      pinned.revision,
+      text,
+      new Date(now.getTime() + FLOW_RUN_MS).toISOString(),
+      state,
+      runs ? null : at,
+    );
+    if (runs)
+      for (const node of pinned.graph.nodes)
+        db.prepare(
+          "INSERT INTO flow_graph_nodes(flow_id,event_id,revision,node_id,state) VALUES (?,?,?,?,'pending')",
+        ).run(flow, event, pinned.revision, node.id);
+    return { state, revision: pinned.revision };
+  };
   const api = {
     /** What the published drawing starts from; undefined when the Flow runs no drawing. */
     trigger: (flow: string) => publishedFlowTrigger(db, flow),
@@ -137,7 +200,8 @@ export function flowGraphsRepo(db: Db) {
     },
     /**
      * One transaction with the `(flow,event)` dedup: the event, its revision, redacted payload, deadline and steps.
-     * Data that cannot start a run is recorded as ignored, with no steps.
+     * Data that cannot start a run is recorded as ignored, with no steps. `headers`: the few a POST brought worth
+     * showing, already chosen and redacted.
      */
     admit(
       flow: string,
@@ -146,53 +210,65 @@ export function flowGraphsRepo(db: Db) {
       now: Date,
       authorize: (graph: FlowGraph) => void,
       from: FlowEventSource = { source: "webhook" },
+      headers?: Record<string, string>,
     ) {
       return tx(() => {
         if (!found(flow).enabled) throw new Error("Flow is disabled");
         const current = api.get(flow);
         if (!current.published || current.publishedRevision === null) throw new Error("Flow has no published graph");
-        // Checked against the revision pinned here: a schedule Flow never takes a POST, a webhook one never ticks.
-        const trigger = current.published.nodes.find(isFlowTrigger)?.kind;
-        if (from.source !== "owner" && from.source !== trigger)
-          throw new FlowTriggerMismatch("The Flow does not start that way");
-        if (!event || event.length > 256 || redactedJson(event) !== JSON.stringify(event))
-          throw new Error("Invalid event id");
-        if (db.prepare("SELECT 1 FROM flow_events WHERE flow_id=? AND event_id=?").get(flow, event))
-          return { state: "duplicate" as const };
-        // The same bound every step's value has (size after redaction, depth): data its first step could not
-        // carry is refused here instead of stalling the Flow's queue.
-        const text = storedFlowValue(payload);
-        if (Number(db.prepare("SELECT count(*) AS n FROM flow_events").get()?.n) >= 10000)
-          throw new FlowCapacityError("Flow event capacity exceeded");
-        if (Number(db.prepare("SELECT count(*) AS n FROM flow_events WHERE flow_id=?").get(flow)?.n) >= 10000)
-          throw new FlowCapacityError("Flow event capacity exceeded");
-        const runs = runnable(JSON.parse(text), trigger);
-        if (runs) {
-          authorize(current.published);
-          checkFlowCapacity(db, flow);
-        }
-        const state = runs ? ("pending" as const) : ("ignored" as const);
-        const at = now.toISOString();
-        db.prepare(
-          "INSERT INTO flow_events(flow_id,event_id,state,created_at,executor,source,scheduled_at) VALUES (?,?,?,?,'graph-v2',?,?)",
-        ).run(flow, event, state, at, from.source, from.scheduledAt ?? null);
-        db.prepare(
-          "INSERT INTO flow_graph_events(flow_id,event_id,revision,payload,deadline_at,state,ended_at) VALUES (?,?,?,?,?,?,?)",
-        ).run(
+        const pinned = { revision: current.publishedRevision, graph: current.published, test: false };
+        return enter(flow, event, payload, now, authorize, from, pinned, headers);
+      });
+    },
+    /**
+     * The drawing an owner's test runs, kept as a revision marked as a test so its runs can point at it; the same
+     * drawing tested again reuses it (DECISIONS.md#d-178). Never what new events run.
+     */
+    testRevision(flow: string, graph: FlowGraph): number {
+      const text = encoded(graph);
+      return tx(() => {
+        found(flow);
+        const same = db
+          .prepare(
+            "SELECT revision FROM flow_graph_revisions WHERE flow_id=? AND test=1 AND graph=? ORDER BY revision DESC LIMIT 1",
+          )
+          .get(flow, text);
+        if (same) return Number(same.revision);
+        retainFlowGraphRevisions(db, flow);
+        const revision =
+          Number(db.prepare("SELECT max(revision) AS n FROM flow_graph_revisions WHERE flow_id=?").get(flow)?.n ?? 0) +
+          1;
+        db.prepare("INSERT INTO flow_graph_revisions(flow_id,revision,graph,created_at,test) VALUES (?,?,?,?,1)").run(
           flow,
-          event,
-          current.publishedRevision,
+          revision,
           text,
-          new Date(now.getTime() + FLOW_RUN_MS).toISOString(),
-          state,
-          runs ? null : at,
+          new Date().toISOString(),
         );
-        if (runs)
-          for (const node of current.published.nodes)
-            db.prepare(
-              "INSERT INTO flow_graph_nodes(flow_id,event_id,revision,node_id,state) VALUES (?,?,?,?,'pending')",
-            ).run(flow, event, current.publishedRevision, node.id);
-        return { state, revision: current.publishedRevision };
+        return revision;
+      });
+    },
+    /**
+     * A test's event, run on the drawing pinned when the owner started the test, whether the Flow is on or off; `graph`
+     * is that drawing's text, so a revision number pruned and given again never runs another drawing.
+     */
+    admitTest(
+      flow: string,
+      event: string,
+      payload: unknown,
+      now: Date,
+      { revision, graph }: { revision: number; graph: string },
+      authorize: (graph: FlowGraph) => void,
+      from: FlowEventSource,
+      headers?: Record<string, string>,
+    ) {
+      return tx(() => {
+        found(flow);
+        const row = db
+          .prepare("SELECT graph FROM flow_graph_revisions WHERE flow_id=? AND revision=? AND test=1")
+          .get(flow, revision);
+        if (!row || String(row.graph) !== graph) throw new FlowGraphConflict("The tested drawing is gone");
+        const pinned = { revision, graph: FlowGraph.parse(JSON.parse(String(row.graph))), test: true };
+        return enter(flow, event, payload, now, authorize, from, pinned, headers);
       });
     },
   };
