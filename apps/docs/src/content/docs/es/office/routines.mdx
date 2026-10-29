@@ -63,8 +63,8 @@ teléfono los tipos de paso se abren desde **Sumar un paso** y la tarjeta es una
 | Condición | Prueba sus casos en orden y sigue por el primero que se cumple; si no, por su última salida. Un caso es un campo de lo que llegó que *es* un valor (`form.tier` es `A`) o una **fórmula** (`$trigger.amount > 100 && $vars.vip`). Con un caso se lee **Sí** y **No**; con más, cada caso tiene su punto, con su nombre, y además **Si no**. Sin modelo. |
 | Variables | Nombra valores una vez para los pasos que siguen: texto, un número, sí o no, o una fórmula sobre `$trigger`, `$steps` y las variables de arriba. Los pasos siguientes los leen como `$vars.nombre`. Un valor puede guardar una clave elegida de tu lista (`secret://nombre`): se usa solo en los headers de un webhook saliente y en las variables de un comando, y un flow que la pone en un mensaje, un cuerpo o una instrucción no se puede guardar para que corra. Sin modelo. |
 | JavaScript | El cuerpo de una función corta que recibe `input` (lo que llegó o el resultado de un paso anterior) y `vars`, y devuelve lo que los pasos siguientes leen como `$steps.<paso>`. Corre aparte, con tiempo máximo, y no puede abrir archivos, usar internet ni correr programas. Sin modelo. |
-| Leer tabla | Elige una de las tablas del proyecto (muestra cuántas filas tiene cada una) y lee una clave, como `$trigger.email`, o sus últimas filas. Los pasos siguientes leen `$steps.<paso>.row` o `.rows`. Un Leer tabla después de un Guardar en la tabla ofrece primero la tabla de ese paso. Sin modelo. |
-| Guardar en la tabla | Elige una de las tablas del proyecto, o una nueva que nombrás ahí (se crea con su primera fila), y guarda lo que llegó, un campo o el resultado de un paso anterior con una clave. La clave puede salir de lo que llegó (`$trigger.email`); guardar otra vez con la misma clave reemplaza esa fila. Sin modelo. |
+| Leer tabla | Elige cualquiera de las tablas del proyecto (muestra cuántas filas tiene cada una), o crea una nueva ahí, y lee una clave, como `$trigger.email`, o sus últimas filas. Los pasos siguientes leen cada columna como `$steps.<paso>.<columna>` (de la fila, o de la más nueva), y la fila o las filas enteras como `.row` y `.rows`. Una tabla vacía no lee nada. Sin modelo. |
+| Guardar en la tabla | Elige cualquiera de las tablas del proyecto, o crea una nueva ahí, y la llena **Por columna** (qué va en cada columna, de lo que llegó o de un paso anterior) o guarda un **Valor entero**. **Columna nueva** suma una columna en el momento. La clave puede salir de lo que llegó (`$trigger.email`); guardar otra vez con la misma clave cambia solo las columnas que llena. Sin modelo. |
 | SQL | Una instrucción sobre un archivo SQLite en la carpeta del proyecto (`data/app.db`). Los valores van aparte de la consulta, como `:nombre` con una línea `nombre: $trigger.email`, nunca adentro. **Solo lectura** lee filas (`$steps.<paso>.rows`, hasta 500); apagado, puede agregar, cambiar y borrar filas y agregar tablas o índices. Sin modelo. |
 | Modelo IA | Le da una tarea a un agente del crew o a un bot de este flow, con lo que llegó o el resultado de un paso anterior, en el harness y el modelo que elijas (ver abajo). Gasta tokens. |
 | Rutina | Corre una rutina manual del proyecto. |
@@ -169,6 +169,19 @@ computadora o de una red privada se rechaza, también cuando un nombre apunta ah
 respuesta se leen hasta 256 KB (16 KB de texto), los archivos solo se mencionan, y un secreto que usó nunca aparece en
 la ronda, solo `secret://nombre`.
 
+### Tablas
+
+Las tablas de un proyecto guardan lo que tus flows guardan, una fila por clave y un valor por columna. Cambiá la
+pantalla de Flows a **Tablas** para verlas: elegí una tabla para ver sus columnas y filas, **Sumar fila**, tocá la
+clave de una fila para cambiarla o borrarla, sumá una columna con **Columna nueva**, y renombrá o borrá una tabla o una
+columna desde su menú. Una tabla creada acá, o por tu super-agente, queda para que cualquier flow la lea: Leer y
+Guardar listan todas las tablas del proyecto y pueden crear una tabla o una columna nueva sin salir del paso.
+
+Pedile a tu super-agente en cualquier chat ("sumá este lead a la tabla leads", "¿qué hay en la tabla pedidos?") y lee o
+llena una tabla sin un flow. Si el chat tenía un mensaje de otra persona o una página web, te pregunta antes de cambiar
+una tabla; renombrar o borrar una tabla o una columna siempre pregunta. Un flow cuya tabla o columna se renombró o
+borró deja de tomar eventos, y su editor dice qué paso la perdió: elegí la tabla de nuevo y guardá.
+
 ### Pedile un flow a tu super-agente
 
 Pedilo en cualquier chat ("cuando llegue un lead de la web, guardalo y avisame por Telegram") y tu super-agente dibuja el
@@ -196,8 +209,8 @@ Conservá el mismo ID de evento en los reintentos. Los eventos vacíos, duplicad
 llaman al modelo; el trabajo coincidente usa el vínculo guardado, no una identidad ni un comando elegido por el payload.
 Las tablas y el historial persisten tras reiniciar. Una ejecución vinculada puede fallar y no se garantiza exactamente
 un efecto en servicios externos. El panel muestra las últimas 50 rondas (**Ver rondas anteriores** trae más) y hasta 20
-filas de la tabla; los métodos privados del protocolo
-`flows.rows` y `flows.events` permiten inspeccionarlos con paginación.
+filas de la tabla, con un enlace a la tabla entera en **Tablas**; los métodos privados del protocolo
+`tables.get`, `flows.rows` y `flows.events` permiten inspeccionarlos con paginación.
 
 Rotar invalida el token anterior inmediatamente. Si falla el borrado de su secreto, queda una referencia que no autoriza
 pedidos, para reintentar la limpieza al iniciar el core o en la próxima rotación; la credencial nueva se devuelve igual.

@@ -10,12 +10,20 @@ import { EMAIL } from "./settings-email.ts";
 import { FLOWS } from "./settings-flows.ts";
 import type { Params, Setting, SettingsDeps } from "./settings-kit.ts";
 import { PEOPLE } from "./settings-people.ts";
+import { TABLES } from "./settings-tables.ts";
 import { TEAM } from "./settings-team.ts";
 import { WORK } from "./settings-work.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 /** What the super-agent may read and change, by method. */
-export const SETTINGS: Readonly<Record<string, Setting>> = { ...PEOPLE, ...TEAM, ...WORK, ...EMAIL, ...FLOWS };
+export const SETTINGS: Readonly<Record<string, Setting>> = {
+  ...PEOPLE,
+  ...TEAM,
+  ...WORK,
+  ...EMAIL,
+  ...FLOWS,
+  ...TABLES,
+};
 
 /** The area a method belongs to, as its card's title names it ("Changed a channel"). */
 const AREA: Readonly<Record<string, string>> = {
@@ -28,6 +36,7 @@ const AREA: Readonly<Record<string, string>> = {
   agents: "the agents",
   routines: "a routine",
   flows: "a Flow",
+  tables: "a table",
   profiles: "an agent profile",
   secretary: "a secretary capability",
   tasks: "a task",

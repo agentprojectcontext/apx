@@ -10,6 +10,7 @@ import { badRequest, notFound } from "../errors.ts";
 import { type FlowModelCheck, type Flows, flowGraphIssues, flowTimeZone, validateFlowBinding } from "../flows.ts";
 import { flowGraphHandlers } from "./flow-graphs.ts";
 import type { Handlers } from "./router.ts";
+import { tableHandlers } from "./tables.ts";
 
 export function flowHandlers(
   store: Store,
@@ -27,6 +28,7 @@ export function flowHandlers(
   };
   return {
     ...graphHandlers,
+    ...tableHandlers(store),
     "flows.publish": (params, ctx) => {
       const scheduleOf = () => store.flowGraphs.get(params.flow).published?.nodes.find((n) => n.kind === "schedule");
       const before = JSON.stringify(scheduleOf() ?? null);
@@ -93,17 +95,9 @@ export function flowHandlers(
         throw badRequest("Invalid Flow definition or capacity exceeded");
       }
     },
-    "flows.rows": ({ flow, table, limit, cursor }) => {
-      const f = found(flow);
-      if (!table) return store.flows.rowsPage(flow, limit, cursor);
-      const rows = store.flowTables.latest(f.projectId, table, limit + 1, cursor);
-      const page = rows.slice(0, limit);
-      const last = page.at(-1);
-      return { rows: page, nextCursor: rows.length > limit && last ? `${last.updated_at}|${last.key}` : null };
-    },
-    "flows.tables": ({ project }) => {
-      if (!store.projects.get(project)) throw notFound("Project not found");
-      return { tables: store.flowTables.list(project) };
+    "flows.rows": ({ flow, limit, cursor }) => {
+      found(flow);
+      return store.flows.rowsPage(flow, limit, cursor);
     },
     "flows.write": ({ flow, key, value }) => {
       found(flow);

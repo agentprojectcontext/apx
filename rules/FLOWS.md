@@ -337,7 +337,7 @@ lists for that field, and placeholders read as badges. Secrets are offered only 
 (`SECRET_FIELDS`: headers and command variables). The top bar keeps the name at the left (past the window-controls
 inset) and **Exit** at the right, through the same unsaved-changes guard. The project drives the side panel: the AI
 step's crew is an `AgentGrid` of the project's agents plus the super-agent, the read and save steps list
-`flows.tables`, and steps that need a project say so until one is chosen. A variable's value and every key take a
+`tables.list`, and steps that need a project say so until one is chosen. A variable's value and every key take a
 `TemplateField`; the secrets group offers **Save a secret** (Resources' `VariableDialog`). A check's cases and a
 variables step's values are a flat list (`.fe-item`), never cards inside the panel.
 
@@ -439,15 +439,31 @@ valores le llegan solo como variables y entrada. Un comando o una escritura cort
 
 ## Project tables and secret variables
 
-See [D-173](DECISIONS.md#d-173). `table_write {table?, key, value}` and `table_read {table?, keys, latest?}` name a
-table of the Flow's project (`FlowTableName`); without `table` they use the Flow's own table (`flow_rows`). Keys may
-hold placeholders, filled by the executor (`rowKey` in `flow-graph-executor.ts`; missing value: `missing_value`). Rows
-are in `flow_tables`, through `domain/flow-tables.ts` (`list`, `write`, `read`, `latest`). A read returns `{rows, row}`
-for keys or `{rows: [{key, value, updated_at}]}` for `latest`; a save returns `{key, value}`. Validation: `read_what`
-(neither or both of keys and latest), `read_table` (latest needs a table), `unordered_write` now per table and key.
-`flows.tables {project}` lists `{name, rows, updated_at}`; `flows.rows {flow, table}` pages a table newest first
-(cursor `updated_at|key`). The editor lists the project's tables and the ones the drawing saves to, so a read after a
-save on a new table is offered it first.
+See [D-173](DECISIONS.md#d-173) and [D-176](DECISIONS.md#d-176). A project's tables are a catalog,
+`flow_table_defs (project_id, name, columns, created_at, updated_at)`, beside their rows in `flow_tables`
+(`domain/flow-tables.ts`: `list`, `get`, `create`, `rename`, `remove`, `addColumn`, `renameColumn`, `removeColumn`,
+`write`, `deleteRows`, `read`, `latest`). A table exists once made, empty or not; a row saved as an object has a cell
+per field, anything else is its `value` column (`tableCells`, `packages/protocol/src/table-cells.ts`). Methods
+(`table-methods.ts`, `rpc/tables.ts`): `tables.list {project?}`, `tables.get {project, table, limit, cursor}` (newest
+first, cursor `updated_at|key`), and, with an idempotency key, `tables.create`, `tables.rename`, `tables.remove`,
+`tables.column_add|column_rename|column_remove`, `tables.write {key, values, replace?}` (merges cells; a new field adds
+a column) and `tables.delete_rows`. The owner reaches every project, an agent's own tool its project (`flowReach`).
+
+`table_write {table?, key, value | columns}` and `table_read {table?, keys, latest?}` name a table of the Flow's
+project (`FlowTableName`); without `table` they use the Flow's own table (`flow_rows`). Keys may hold placeholders,
+filled by the executor (`rowKey` in `flow-graph-executor.ts`; missing value: `missing_value`). `columns: [{name, value
+template}]` fills cells (`flowRowCells` in `domain/flow-table-cells.ts`: one placeholder alone keeps its value, absent
+is null) and merges into the row; `value` saves one value whole. A read returns `{rows, row, ...columns}` for keys or
+`{rows: [{key, value, updated_at}], ...columns}` for `latest`, the columns the first row's or null (`flowReadCells`);
+a save returns `{key, value}`. Validation: `read_what` (neither or both of keys and latest), `read_table` (latest needs
+a table), `save_what` (exactly one of value or columns, columns need a table), `column_twice`, `unordered_write` per
+table and key, and in the Flow's project (`flowGraphIssues`) `table_missing` and `column_missing`: publishing is refused
+and a published Flow's admission refuses events until the owner picks a table again. A table removed between admission
+and its step fails that step with `table_missing`. The editor's Read and Save list every table, make one ("New table")
+and add columns ("New column") on the spot (`TableFields.tsx`, `tables-data.ts`); the `{}` picker offers a read's
+columns as `$steps.<read>.<column>`. The Flows screen's **Tables** (`TablesView.tsx`, lazy) shows a project's tables,
+their columns and rows; rows, tables and columns are added, edited, renamed and removed there. The super-agent reaches
+them through `apx_settings`' `tables` area (D-176).
 
 `domain/flow-secret-vars.ts`: `flowSecretVars` finds variables whose literal is exactly `secret://name`;
 `secretTemplate` parses a header or command variable and swaps each `$vars.name` part of one for a text part holding

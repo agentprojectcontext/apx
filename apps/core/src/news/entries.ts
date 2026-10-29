@@ -192,10 +192,15 @@ export const NEWS: readonly NewsEntry[] = [
   {
     id: "flow-tables",
     since: "2.11.2",
-    title: "Flows save to the project's tables, and a variable can hold a key",
+    title: "Project tables: see them, fill them, and let Flows read them",
     applies: (f) => f.secretary,
-    text: "A Flow's Save to table step now picks one of the project's tables or names a new one, and its key can come from what arrived, like the sender's email, so each sender keeps one row. Read table picks a table, showing how many rows it has, and reads one key or its latest rows; a read placed after a save is offered that table first. A Flow variable can hold one of the owner's secrets, picked from the list: it is used only in a request's headers or a command's variables, never in a message or an instruction.",
+    text: "Each project now has tables of its own, a row per key and a value per column. The owner sees them on the Flows screen under Tables, where they add, change and delete rows and make tables and columns. A Flow's Read and Save steps pick any table of the project, or make a new table or column right there; a save fills it column by column and a read gives later steps each column. The super-agent can read a table or fill it without a Flow, like adding a lead to the leads table, and a Flow reads it later. A Flow variable can hold one of the owner's secrets, picked from the list: it is used only in a request's headers or a command's variables, never in a message or an instruction.",
     actions: [
+      {
+        label: { en: "Make a leads table", es: "Crear una tabla de leads" },
+        prompt:
+          "Make a leads table in the project I pick, with name, email and stage columns, and tell me how to fill it from a Flow or by asking you.",
+      },
       {
         label: { en: "Keep leads in a table", es: "Guardar leads en una tabla" },
         prompt:

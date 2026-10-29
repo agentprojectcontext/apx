@@ -15,6 +15,8 @@ before(async () => {
   h = await settingsCore();
   acme = (await h.env.client.call("projects.create", { name: "Acme" })).project.id;
   northwind = (await h.env.client.call("projects.create", { name: "Northwind" })).project.id;
+  // The table the drawings here save to: a step names a table that exists (DECISIONS.md#d-176).
+  await h.env.client.call("tables.create", { project: acme, name: "leads" });
   await h.env.client.call("agents.create", { project_id: acme, slug: "acme-writer", name: "Acme Writer" });
   h.env.core.bus.on((e) => {
     if (e.type === "flow.draft") events.push(e);

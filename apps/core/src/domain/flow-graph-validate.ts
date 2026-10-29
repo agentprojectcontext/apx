@@ -60,7 +60,7 @@ export function flowNodeTemplates(node: FlowNode): string[] {
   if (node.kind === "sql") return node.params.map((p) => p.value);
   if (node.kind === "cmd") return [...node.env.map((e) => e.value), node.stdin];
   if (node.kind === "table_read") return node.keys;
-  if (node.kind === "table_write") return [node.key];
+  if (node.kind === "table_write") return [node.key, ...(node.columns ?? []).map((c) => c.value)];
   return [];
 }
 
@@ -77,7 +77,7 @@ export function flowNodeBindings(node: FlowNode, vars: FlowVarIndex = new Map())
     if (flowCases(node).some((c) => c.match.kind === "equals")) own.push(node.input);
   } else if (node.kind === "llm" || node.kind === "agent" || node.kind === "routine" || node.kind === "js")
     own.push(node.input);
-  else if (node.kind === "table_write") own.push(node.value);
+  else if (node.kind === "table_write" && node.value) own.push(node.value);
   try {
     own.push(...flowNodeTemplates(node).flatMap((t) => flowTemplateBindings(t, vars)));
     for (const expr of flowNodeExprs(node)) own.push(...flowExprBindings(parseFlowExpr(expr), vars));
@@ -200,6 +200,13 @@ function outwardIssues(node: FlowNode, add: Add, vars: FlowVarIndex) {
       add("read_what", "Read one key or the latest rows", node.id);
     if (node.latest && !node.table) add("read_table", "Pick a table to read its latest rows", node.id);
   }
+  if (node.kind === "table_write") {
+    // A save keeps what it is given as a whole, or a value per column of a project's table (DECISIONS.md#d-176).
+    if (node.columns ? node.value !== undefined || !node.table : node.value === undefined)
+      add("save_what", "Save a value per column of a table, or one value as a whole", node.id);
+    const names = (node.columns ?? []).map((c) => c.name);
+    if (new Set(names).size !== names.length) add("column_twice", "A column is filled twice", node.id);
+  }
   if (node.kind !== "http") return;
   const problem = flowHttpUrlProblem(node.url);
   if (problem === "invalid") add("url_invalid", "The address is not a web address", node.id);
@@ -270,7 +277,7 @@ function secretVarIssues(graph: FlowGraph, add: Add, vars: FlowVarIndex) {
     if (node.kind === "condition" && flowCases(node).some((c) => c.match.kind === "equals")) check(node.input);
     if (node.kind === "llm" || node.kind === "agent" || node.kind === "routine" || node.kind === "js")
       check(node.input);
-    if (node.kind === "table_write") check(node.value);
+    if (node.kind === "table_write" && node.value) check(node.value);
     for (const text of flowUnfilledTexts(node)) for (const name of secretVarsNamed(text, secrets)) read.add(name);
     for (const name of read)
       add(

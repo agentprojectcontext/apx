@@ -1,0 +1,151 @@
+/* A project's tables: the editor's Read and Save steps and the Flows screen's Tables. */
+.ft-new {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ft-new__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ft-new__row .apx-input {
+  flex: 1;
+  min-width: 0;
+}
+.ft-new__error {
+  font-size: 12px;
+  color: var(--apx-danger);
+}
+.ft-columns {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ft-columns > .apx-btn {
+  align-self: flex-start;
+}
+.ft-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Tables view */
+.ft-view {
+  min-height: 460px;
+  border-top: 1px solid var(--apx-border);
+}
+.ft-list__new {
+  padding: 0 2px 8px;
+}
+.ft-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 18px 24px;
+  min-width: 0;
+}
+.ft-detail > .apx-btn,
+.ft-detail > .ft-new {
+  align-self: flex-start;
+}
+.ft-detail > .ft-new {
+  width: min(420px, 100%);
+}
+.ft-detail__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ft-detail__title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ft-detail__title h2 {
+  margin: 0;
+  font-family: var(--apx-font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ft-detail__title span {
+  font-size: 12px;
+  color: var(--apx-fg-muted);
+}
+.ft-grid {
+  overflow-x: auto;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+}
+.ft-grid table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ft-grid th,
+.ft-grid td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--apx-border);
+  text-align: left;
+  vertical-align: middle;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ft-grid thead th {
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--apx-fg-muted);
+  background: var(--apx-fill);
+}
+.ft-grid tbody tr:last-child th,
+.ft-grid tbody tr:last-child td {
+  border-bottom: 0;
+}
+.ft-grid tbody th {
+  font-weight: 400;
+}
+.ft-grid__col {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.ft-grid__key {
+  all: unset;
+  cursor: pointer;
+  color: var(--apx-fg);
+  text-decoration: underline;
+  text-decoration-color: var(--apx-border);
+  text-underline-offset: 3px;
+}
+.ft-grid__key:hover {
+  text-decoration-color: currentColor;
+}
+.ft-grid__none {
+  color: var(--apx-fg-muted);
+  text-align: center;
+}
+.ft-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ft-dialog__delete {
+  margin-right: auto;
+  color: var(--apx-danger);
+}
+.ft-dialog__ask {
+  margin-right: auto;
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .ft-detail {
+    padding: 12px 0 20px;
+  }
+}

@@ -109,6 +109,9 @@ export type NavState = {
   /** The flow open on the Flows screen (its runs), and whether its editor is open over it. */
   flowId: string | undefined;
   flowEdit: boolean;
+  /** The Flows screen shows the project's tables instead of its Flows, with one of them open. */
+  flowTables: boolean;
+  flowTable: string | undefined;
   /** A task open over any other screen (from a chat), so the owner does not leave it. */
   peekTaskId: string | undefined;
 };
@@ -167,6 +170,8 @@ function fromHash(): Partial<NavState> {
           flowProject: h.get("scope") ?? undefined,
           flowId: h.get("flow") ?? undefined,
           flowEdit: h.get("edit") === "1",
+          flowTables: h.get("tab") === "tables",
+          flowTable: h.get("tab") === "tables" ? (h.get("table") ?? undefined) : undefined,
         }
       : {}),
     ...(app ? { view: "app" as const, appId: app } : {}),
@@ -211,6 +216,8 @@ export const nav = createStore<NavState>({
   flowProject: undefined,
   flowId: undefined,
   flowEdit: false,
+  flowTables: false,
+  flowTable: undefined,
   ...fromHash(),
 });
 
@@ -228,6 +235,8 @@ const PLACE = [
   "flowProject",
   "flowId",
   "flowEdit",
+  "flowTables",
+  "flowTable",
   "resourcesTab",
   "listInFront",
   "panel",
@@ -297,6 +306,8 @@ nav.subscribe(() => {
     if (s.view === "flows" && s.flowProject) h.set("scope", s.flowProject);
     if (s.view === "flows" && s.flowId) h.set("flow", s.flowId);
     if (s.view === "flows" && s.flowId && s.flowEdit) h.set("edit", "1");
+    if (s.view === "flows" && !s.flowId && s.flowTables) h.set("tab", "tables");
+    if (s.view === "flows" && !s.flowId && s.flowTables && s.flowTable) h.set("table", s.flowTable);
     if (s.view === "tasks" && s.taskId) h.set("task", s.taskId);
   } else if (s.view === "channel" && s.channelId) {
     h.set("channel", s.channelId);
@@ -424,7 +435,18 @@ export const go = {
   },
   /** The Flows screen; with a flow, its runs, and with `edit` its editor over them. */
   flows(flowProject?: string, flowId?: string, flowEdit = false) {
-    nav.set({ view: "flows", flowProject, flowId, flowEdit: Boolean(flowId) && flowEdit });
+    nav.set({
+      view: "flows",
+      flowProject,
+      flowId,
+      flowEdit: Boolean(flowId) && flowEdit,
+      flowTables: false,
+      flowTable: undefined,
+    });
+  },
+  /** The Flows screen's Tables: a project's tables, with one open. */
+  tables(flowProject?: string, flowTable?: string) {
+    nav.set({ view: "flows", flowProject, flowId: undefined, flowEdit: false, flowTables: true, flowTable });
   },
   view(view: "tasks" | "resources" | "computers") {
     nav.set({ view });

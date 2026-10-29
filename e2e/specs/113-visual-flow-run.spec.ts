@@ -30,6 +30,7 @@ for (const lang of ["en", "es"] as const) {
             table: "Table",
             newTable: "New table",
             newName: "Name of the new table",
+            create: "Add",
             text: "Text",
             field: "Field",
             is: "Is",
@@ -45,6 +46,7 @@ for (const lang of ["en", "es"] as const) {
             table: "Tabla",
             newTable: "Tabla nueva",
             newName: "Nombre de la tabla nueva",
+            create: "Sumar",
             text: "Texto",
             field: "Campo",
             is: "Es",
@@ -64,11 +66,13 @@ for (const lang of ["en", "es"] as const) {
     await editor.getByRole("radio", { name: l.text, exact: true }).click();
     await editor.getByRole("textbox", { name: l.field, exact: true }).fill("type");
     await editor.getByRole("textbox", { name: l.is, exact: true }).fill("order");
-    // Each save names a table of the project; the first creates it, the second picks it from the list.
+    // Each save names a table of the project; the first makes it, the second picks it from the list.
     await editor.getByRole("button", { name: l.addSave }).click();
     await editor.getByRole("combobox", { name: l.table, exact: true }).click();
     await page.getByRole("option", { name: l.newTable }).click();
     await editor.getByRole("textbox", { name: l.newName }).fill("sorted");
+    await editor.getByRole("button", { name: l.create, exact: true }).click();
+    await expect(editor.getByRole("combobox", { name: l.table, exact: true })).toContainText("sorted");
     await editor.getByRole("textbox", { name: l.key, exact: true }).fill("orders");
     await node("condition-1").click();
     await editor.getByRole("button", { name: l.addSave }).click();
@@ -105,7 +109,7 @@ for (const lang of ["en", "es"] as const) {
     }
     await expect
       .poll(async () =>
-        (await rpc<Result<"flows.rows">>("flows.rows", { flow, table: "sorted", limit: 10 })).rows
+        (await rpc<Result<"tables.get">>("tables.get", { project, table: "sorted", limit: 10 })).rows
           .map((r) => r.key)
           .sort(),
       )

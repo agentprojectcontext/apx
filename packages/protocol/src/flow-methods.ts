@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FlowGraph, FlowGraphDocument, FlowTableName, flowGraphMethods } from "./flow-graph.ts";
+import { FlowGraph, FlowGraphDocument, flowGraphMethods } from "./flow-graph.ts";
 
 const Id = z.string().regex(/^[A-Za-z0-9_-]{1,100}$/);
 const Scalar = z.union([z.string().max(4096), z.number().finite(), z.boolean(), z.null()]);
@@ -102,8 +102,6 @@ export const flowMethods = {
     params: z
       .object({
         flow: Id,
-        /** A table of the Flow's project, newest rows first; absent, the Flow's own table by key. */
-        table: FlowTableName.optional(),
         limit: z.number().int().min(1).max(100).default(50),
         cursor: z.string().min(1).max(200).optional(),
       })
@@ -111,15 +109,6 @@ export const flowMethods = {
     result: z.object({
       rows: z.array(z.object({ key: z.string(), value: z.unknown(), updated_at: z.string().optional() })),
       nextCursor: z.string().nullable(),
-    }),
-    effect: false,
-    access: "human",
-  },
-  /** The tables a project's Flows save to, with how many rows each has and when it last changed. */
-  "flows.tables": {
-    params: z.object({ project: Id }).strict(),
-    result: z.object({
-      tables: z.array(z.object({ name: z.string(), rows: z.number().int(), updated_at: z.string() })),
     }),
     effect: false,
     access: "human",

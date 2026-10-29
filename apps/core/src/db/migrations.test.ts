@@ -431,3 +431,37 @@ test("the mail routine becomes Gmail's mail check, keeping its switch, its minut
     cleanup();
   }
 });
+
+test("a project's tables are kept with their rows, columns from the rows' fields, and those a drawing names", () => {
+  const { db, cleanup } = upgradeFrom("CREATE TABLE flow_table_defs", (db) => {
+    db.prepare("INSERT INTO projects (id, name, created_at) VALUES ('p', 'Acme', '2026-10-01')").run();
+    const row = db.prepare(
+      "INSERT INTO flow_tables (project_id, name, key, value, updated_at) VALUES ('p', ?, ?, ?, ?)",
+    );
+    row.run("leads", "a", '{"email":"a@example.com","name":"A"}', "2026-10-02T00:00:00.000Z");
+    row.run("leads", "b", '{"name":"B","stage":"new","Bad Field":1,"rows":2}', "2026-10-03T00:00:00.000Z");
+    row.run("leads", "c", '"just text"', "2026-10-04T00:00:00.000Z");
+    row.run("notes", "x", "3", "2026-10-05T00:00:00.000Z");
+    db.prepare(
+      "INSERT INTO flows (id, project_id, enabled, predicates, table_key) VALUES ('f', 'p', 0, '[]', 'latest')",
+    ).run();
+    const graph = { nodes: [{ id: "r", kind: "table_read", label: "R", table: "drawn", keys: ["k"] }], edges: [] };
+    db.prepare("INSERT INTO flow_graph_drafts (flow_id, version, graph) VALUES ('f', 1, ?)").run(JSON.stringify(graph));
+  });
+  try {
+    const defs = db.prepare("SELECT name, columns FROM flow_table_defs WHERE project_id = 'p' ORDER BY name").all();
+    assert.deepEqual(
+      defs.map((d) => [d.name, JSON.parse(String(d.columns))]),
+      [
+        ["drawn", []],
+        ["leads", ["email", "name", "stage", "value"]],
+        ["notes", ["value"]],
+      ],
+    );
+    // Every row stays as it was.
+    assert.equal(db.prepare("SELECT value FROM flow_tables WHERE key = 'c'").get()?.value, '"just text"');
+  } finally {
+    db.close();
+    cleanup();
+  }
+});

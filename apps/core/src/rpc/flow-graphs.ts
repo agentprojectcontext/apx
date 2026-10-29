@@ -56,22 +56,28 @@ const idFor = (name: string) =>
       .slice(0, 60) || "flow"
   }-${randomBytes(3).toString("hex").slice(0, 4)}`;
 
+/**
+ * Who reaches a project's Flows and tables: the owner every project; an agent's own tool its project, or any when it
+ * is global; an outside app, a channel or an agent's shell (no agent behind the call) none (DECISIONS.md#d-174).
+ * Returns the project an agent is kept to, undefined for the owner or a global agent.
+ */
+export function flowReach(store: Store, missing: string) {
+  return (ctx: CallContext, projectId?: string): string | undefined => {
+    if (ctx.actor === "human" && !ctx.client && !ctx.channel) return undefined;
+    const agent = ctx.agent && !ctx.client && !ctx.channel ? store.agents.get(ctx.agent.id) : undefined;
+    if (!agent) throw unauthorized("Flows and tables are reserved to the owner and their agents' tools");
+    if (agent.project_id && projectId !== undefined && agent.project_id !== projectId) throw notFound(missing);
+    return agent.project_id ?? undefined;
+  };
+}
+
 export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?: FlowOutside, bus?: Bus) {
   const found = (id: string) => {
     const flow = store.flows.get(id);
     if (!flow) throw notFound("Flow not found");
     return flow;
   };
-  /**
-   * The owner reaches every Flow. An agent's own tool reaches the Flows of its project, or any when it is global;
-   * an outside app, a channel or an agent's shell (no agent behind the call) reaches none (DECISIONS.md#d-174).
-   */
-  const reach = (ctx: CallContext, projectId: string) => {
-    if (ctx.actor === "human" && !ctx.client && !ctx.channel) return;
-    const agent = ctx.agent && !ctx.client && !ctx.channel ? store.agents.get(ctx.agent.id) : undefined;
-    if (!agent) throw unauthorized("Flows are reserved to the owner and their agents' tools");
-    if (agent.project_id && agent.project_id !== projectId) throw notFound("Flow not found");
-  };
+  const reach = flowReach(store, "Flow not found");
   const reached = (ctx: CallContext, id: string) => {
     const flow = found(id);
     reach(ctx, flow.projectId);

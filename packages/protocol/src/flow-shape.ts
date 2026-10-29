@@ -111,8 +111,8 @@ export function shapeOfGraph(graph: FlowGraph): FlowShapeResult {
         shape.readKeys = node.keys;
         break;
       case "table_write":
-        if (node.table || placeholder(node.key)) return fail("kind", node);
-        if (!wholeEvent(node.value)) return fail("input", node);
+        if (node.table || node.columns || placeholder(node.key)) return fail("kind", node);
+        if (!node.value || !wholeEvent(node.value)) return fail("input", node);
         shape.tableKey = node.key;
         break;
       case "agent":

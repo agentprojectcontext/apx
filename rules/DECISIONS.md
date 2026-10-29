@@ -3047,3 +3047,47 @@ Rejected: a tool of its own for every agent (a new definition in every prompt, a
 which the super-agent changes for them; other agents ask it), letting agents publish with a confirmation card (one
 yes would make a drawing the owner never opened run unattended), and keeping drafts owner-only behind
 `callAsOwner` (it exists only for calls that always ask, and a draft should not).
+
+<a id="d-176"></a>
+## D-176 — 2026-10-29 — A project's tables exist on their own, with columns, and are filled outside Flows too
+The owner tried Read and Save and was blocked: a read offered nothing until some Flow had saved a row ("save first"),
+a table had no columns to fill or read, and nowhere showed what a table held. They want to make tables and columns
+freely, from either step or from a place of their own, and have the super-agent fill one without a Flow ("add this
+lead to the leads table") for a Flow to read later.
+
+- **A catalog per project.** `flow_table_defs (project_id, name, columns JSON, created_at, updated_at)` beside the rows
+  in `flow_tables`. A table exists once made (`tables.create`), empty or not; rows keep their JSON values, a row saved
+  as an object has a cell per field, anything else is the cell of a `value` column (`tableCells`). The migration keeps
+  every row and makes a table for each name with rows or named in a drawing (draft or published), its columns from the
+  fields of its rows in the order they first appeared (fields that can't be a column's name stay in the row, unshown).
+- **Methods** (`table-methods.ts`, through the router): `tables.list {project?}`, `tables.get {project, table, limit,
+  cursor}`, and with an idempotency key `tables.create`, `tables.rename`, `tables.remove`, `tables.column_add`,
+  `tables.column_rename` and `tables.column_remove` (both rewrite every row), `tables.write {key, values, replace?}`
+  (changes the cells given and keeps the others; a field with no column adds one) and `tables.delete_rows`. They
+  replace `flows.tables` and `flows.rows`' `table`. Who reaches them is D-174's rule for Flows: the owner every
+  project, an agent's own tool its project (or any when global), an outside app, a channel or an agent's shell none.
+  Column names: letters, digits, `_` and `-`, up to 64, never `rows` or `row`; at most 50 per table.
+- **Steps.** `table_write` takes `columns: [{name, value template}]` or `value` (one value whole; an empty table
+  saved that way takes its columns from what arrives). By column, one placeholder alone keeps its value as it is, an
+  absent one is empty (only the key fails the step when missing), and saving again changes only those columns. A read
+  gives `rows`, `row` and every column of the table at the top level (`$steps.<read>.<column>`), the first row's or
+  empty, so an empty table reads nothing and fails nothing.
+- **A table renamed or removed.** A step naming a table the project doesn't have is `table_missing`, and a save filling
+  a column the table doesn't have is `column_missing`: the drawing can't be published, and a published Flow stops
+  taking events (admission refuses, as for an agent that moved) until the owner picks a table again. The core never
+  rewrites the owner's drawings to follow a rename. If it goes between admission and the step, the step fails with
+  `table_missing`.
+- **The editor and Tables.** Read and Save list every table of the project, make a new one on the spot ("New table")
+  and add columns ("New column") to the chosen one; the "save first" gate is gone. The Flows screen switches between
+  Flows and Tables (`#view=flows&tab=tables&table=<name>`): a table's columns and rows in a grid, rows added, edited
+  and deleted, tables and columns made, renamed and deleted with a confirmation.
+- **The super-agent**, through `apx_settings`' `tables` area: `tables.list` and `tables.get` (rows wrapped as
+  untrusted data, so a change after reading them asks), and `tables.create`, `tables.column_add`, `tables.write`,
+  `tables.delete_rows` as its own calls, asked only while outside content is in the turn (D-174's rule: rows are data
+  in the owner's project, D-106). Renaming or removing a table or a column changes what the owner's Flows read, so
+  those go through the owner's card every time. Field shapes are in the `apx-flows` skill.
+
+Rejected: keeping tables implicit with a "declared in a drawing" list (the owner had no place to see or fill them),
+storing a column type (text, number…: values stay JSON as they arrive), following a rename into published drawings
+(it would change what runs without the owner publishing), and failing a run's step instead of its admission when a
+table is gone (the owner hears of it once, in the editor, instead of in every run).

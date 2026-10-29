@@ -25,6 +25,7 @@ import {
 } from "./steps.tsx";
 import { TableReadFields, TableWriteFields } from "./TableFields.tsx";
 import type { Values } from "./Template.tsx";
+import { useColumns } from "./tables-data.ts";
 import { valueGroups } from "./values.ts";
 import { CaseFields, CmdFields, JsFields, SqlFields, VarsFields } from "./WorkFields.tsx";
 
@@ -48,9 +49,10 @@ function useValues(graph: FlowGraph, n: FlowNode | undefined, projectId: string)
       live = false;
     };
   }, [projectId, loaded]);
+  const columnsOf = useColumns(projectId || undefined);
   const action = { label: t("flow.v.saveSecret"), when: "secret://", onSelect: () => setAdding(true) };
   const values: Values = (field) =>
-    n ? valueGroups(graph, n, field, secrets, t, (kind) => t(STEP[kind].label), action) : [];
+    n ? valueGroups(graph, n, field, secrets, t, (kind) => t(STEP[kind].label), action, columnsOf) : [];
   const dialog = adding && (
     <VariableDialog
       row={undefined}
@@ -123,8 +125,6 @@ export function Inspector(props: {
   branch: (source: string, target: string, when: string) => void;
   /** Takes a case out of a check, and the connections that left by it. */
   removeCase: (check: string, id: string) => void;
-  /** Puts a new save-to-table step just before this one. */
-  saveBefore: (id: string) => void;
 }) {
   const t = useT();
   const { graph, selected: n } = props;
@@ -216,14 +216,7 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode; values: 
       return <CmdFields n={n} update={update} values={props.values} projectId={props.projectId} />;
     case "table_read":
       return (
-        <TableReadFields
-          n={n}
-          graph={props.graph}
-          projectId={props.projectId}
-          values={props.values}
-          update={update}
-          addSave={() => props.saveBefore(n.id)}
-        />
+        <TableReadFields n={n} graph={props.graph} projectId={props.projectId} values={props.values} update={update} />
       );
     case "table_write":
       return (
