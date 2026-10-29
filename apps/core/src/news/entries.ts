@@ -190,6 +190,20 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "flow-tables",
+    since: "2.11.2",
+    title: "Flows save to the project's tables, and a variable can hold a key",
+    applies: (f) => f.secretary,
+    text: "A Flow's Save to table step now picks one of the project's tables or names a new one, and its key can come from what arrived, like the sender's email, so each sender keeps one row. Read table picks a table, showing how many rows it has, and reads one key or its latest rows; a read placed after a save is offered that table first. A Flow variable can hold one of the owner's secrets, picked from the list: it is used only in a request's headers or a command's variables, never in a message or an instruction.",
+    actions: [
+      {
+        label: { en: "Keep leads in a table", es: "Guardar leads en una tabla" },
+        prompt:
+          "Help me plan a Flow that saves each incoming lead to a project table under its email and reads it back later, then open it in the Flows editor, still off, for me to review.",
+      },
+    ],
+  },
+  {
     id: "flow-ai-step",
     since: "2.11.2",
     title: "A Flow's AI step: an agent or a bot of its own, on the model you pick",

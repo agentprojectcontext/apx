@@ -16,12 +16,13 @@ import {
   resolveFlowInput,
   summarizeFlowGraph,
 } from "./domain/flow-graph-semantics.ts";
+import { parseFlowTemplate, renderFlowTemplate } from "./domain/flow-template.ts";
 import { TERMINAL } from "./domain/runs.ts";
 import type { Store } from "./domain/store.ts";
 import type { RunTimers } from "./engine/engine.ts";
 import { answerOf } from "./engine/run-outcome.ts";
 import { planFlowAiStep } from "./flow-ai-step.ts";
-import { createOutwardSteps, type FlowHttpDeps, type FlowNotifier } from "./flow-outward-steps.ts";
+import { createOutwardSteps, type FlowHttpDeps, type FlowNotifier, flowApx } from "./flow-outward-steps.ts";
 import { createWorkSteps } from "./flow-work-steps.ts";
 import type { Log } from "./log.ts";
 import type { Llm } from "./providers/llm.ts";
@@ -332,15 +333,29 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
       resolve: (b: FlowBinding) => resolveFlowInput(b, run.payload, snapshots),
       vars: flowVarIndex(run.graph),
     };
+    // A row's key may name what arrived (`$trigger.email`): filled now, a missing value fails the step.
+    const rowKey = (key: string) =>
+      renderFlowTemplate(parseFlowTemplate(key, reads.vars), reads.resolve, {
+        apx: flowApx(store, run, at),
+      }).text.trim();
+    const table = node.kind === "table_read" || node.kind === "table_write" ? node.table : undefined;
     let input: unknown;
     try {
       input =
         node.kind === "webhook" || node.kind === "schedule"
           ? undefined
           : node.kind === "table_read"
-            ? { keys: node.keys }
+            ? {
+                ...(table ? { table } : {}),
+                keys: node.keys.map(rowKey),
+                ...(node.latest ? { latest: node.latest } : {}),
+              }
             : node.kind === "table_write"
-              ? { key: node.key, value: resolveFlowInput(node.value, run.payload, snapshots) }
+              ? {
+                  ...(table ? { table } : {}),
+                  key: rowKey(node.key),
+                  value: resolveFlowInput(node.value, run.payload, snapshots),
+                }
               : node.kind === "vars"
                 ? undefined
                 : node.kind === "condition"
@@ -378,12 +393,20 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
       case "vars":
         return pure(() => evaluateFlowVars(node, reads), WHY.missing);
       case "table_read":
-        return pure(() => ({ rows: store.flows.readRows(run.flow, node.keys) }));
+        return pure(() => {
+          const { keys } = input as { keys: string[] };
+          if (!table) return { rows: store.flows.readRows(run.flow, keys) };
+          const project = store.flows.get(run.flow)?.projectId ?? "";
+          if (node.latest) return { rows: store.flowTables.latest(project, table, node.latest) };
+          const rows = store.flowTables.read(project, table, keys);
+          return { rows, row: keys[0] !== undefined && keys[0] in rows ? rows[keys[0]] : null };
+        });
       case "table_write":
         return pure(() => {
-          const value = (input as { value: unknown }).value;
-          store.flows.write(run.flow, node.key, value);
-          return { value };
+          const { key, value } = input as { key: string; value: unknown };
+          if (!table) store.flows.write(run.flow, key, value);
+          else store.flowTables.write(store.flows.get(run.flow)?.projectId ?? "", table, key, value);
+          return { key, value };
         }, WHY.table);
       case "llm":
         if (claim("reserved")) await callModel(run, node, k, input);

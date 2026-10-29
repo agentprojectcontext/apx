@@ -31,6 +31,11 @@ export interface TemplateValue {
 export interface TemplateGroup {
   label: string;
   values: readonly TemplateValue[];
+  /**
+   * Something to do from this group ("Save a secret"), last in it: shown when the whole list is open, or when what is
+   * being typed starts with `when`. A group with an action shows even with no values.
+   */
+  action?: { label: string; onSelect: () => void; when?: string };
 }
 
 export interface TemplateFieldProps extends Omit<TextareaProps, "value" | "onChange"> {
@@ -48,9 +53,11 @@ export interface TemplateFieldProps extends Omit<TextareaProps, "value" | "onCha
   pickLabel: string;
   /** Said in the list when nothing matches. */
   emptyText?: string;
+  /** One line: Enter never breaks it, pasted line breaks become spaces (a key, an address). */
+  singleLine?: boolean;
 }
 
-type Flat = TemplateValue & { group: string };
+type Flat = TemplateValue & { group: string; run?: () => void; when?: string };
 
 /**
  * What is being typed before the caret: from the last trigger in the current word ("KEY=$st" → "$st"), so a value can
@@ -67,11 +74,16 @@ function typedAt(text: string, caret: number, triggers: readonly string[]): { st
 /** The values a typed word asks for: `{{name` by name or text, anything else by how the text starts. */
 function matching(all: readonly Flat[], word: string): Flat[] {
   const q = (word.startsWith("{{") ? word.slice(2) : word).toLowerCase();
+  const acts = all.filter((v) => v.run && v.when && word.toLowerCase().startsWith(v.when));
+  const values = all.filter((v) => !v.run);
   if (word.startsWith("{{"))
-    return all.filter((v) => v.insert.toLowerCase().includes(q) || v.label.toLowerCase().includes(q));
-  return all.filter(
-    (v) => v.insert.toLowerCase().startsWith(q) || (q.length > 1 && v.label.toLowerCase().includes(q.slice(1))),
-  );
+    return [...values.filter((v) => v.insert.toLowerCase().includes(q) || v.label.toLowerCase().includes(q)), ...acts];
+  return [
+    ...values.filter(
+      (v) => v.insert.toLowerCase().startsWith(q) || (q.length > 1 && v.label.toLowerCase().includes(q.slice(1))),
+    ),
+    ...acts,
+  ];
 }
 
 /** The text with its placeholders drawn as badges, in the same metrics as the textarea above it. */
@@ -109,6 +121,7 @@ export function TemplateField({
   triggers = ["{{", "$", "secret://"],
   pickLabel,
   emptyText,
+  singleLine = false,
   className,
   onKeyDown,
   rows = 2,
@@ -125,13 +138,31 @@ export function TemplateField({
   const [closed, setClosed] = useState(true);
   /** Opened by the button: every value, inserted at the caret. */
   const [browsing, setBrowsing] = useState(false);
-  const all = useMemo(() => groups.flatMap((g) => g.values.map((v) => ({ ...v, group: g.label }))), [groups]);
+  const all = useMemo<Flat[]>(
+    () =>
+      groups.flatMap((g) => [
+        ...g.values.map((v) => ({ ...v, group: g.label })),
+        ...(g.action
+          ? [{ insert: "", label: g.action.label, group: g.label, run: g.action.onSelect, when: g.action.when }]
+          : []),
+      ]),
+    [groups],
+  );
   const { start, word } = typedAt(value, caret, triggers);
   const typed = !closed && word.length > 0;
-  const matches = browsing ? all : typed ? matching(all, word).filter((v) => v.insert !== word) : [];
+  const matches = browsing ? all : typed ? matching(all, word).filter((v) => v.run || v.insert !== word) : [];
   // A typed word that matches nothing ("$5") opens nothing; the button always shows what there is.
   const open = browsing || matches.length > 0;
-  const pick = (v: TemplateValue) => {
+  const close = () => {
+    setBrowsing(false);
+    setClosed(true);
+  };
+  const pick = (v: Flat) => {
+    if (v.run) {
+      close();
+      v.run();
+      return;
+    }
     const from = browsing ? caret : start;
     const next = value.slice(0, from) + v.insert + value.slice(caret);
     const at = from + v.insert.length;
@@ -149,10 +180,6 @@ export function TemplateField({
     ref.current.focus();
     ref.current.setSelectionRange(at, at);
   }, [value]);
-  const close = () => {
-    setBrowsing(false);
-    setClosed(true);
-  };
   const keys = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (open && matches.length) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -172,6 +199,7 @@ export function TemplateField({
       close();
       return;
     }
+    if (singleLine && e.key === "Enter") e.preventDefault();
     onKeyDown?.(e);
   };
   // The list floats over everything (a side panel's scroll would clip it): fixed, under or above the field.
@@ -209,19 +237,20 @@ export function TemplateField({
     .map((g) => ({ label: g.label, values: matches.filter((m) => m.group === g.label) }))
     .filter((g) => g.values.length);
   return (
-    <div className={cx("apx-tfield", className)}>
+    <div className={cx("apx-tfield", singleLine && "is-single", className)}>
       <div ref={back} className="apx-tfield__mirror apx-textarea" aria-hidden="true">
         {mirror(value, pattern, secretPattern)}
       </div>
       <Textarea
         {...rest}
-        rows={rows}
+        rows={singleLine ? 1 : rows}
         ref={ref}
         value={value}
         className="apx-tfield__input"
         aria-controls={open ? listId : undefined}
         onChange={(e) => {
-          onValueChange(e.currentTarget.value);
+          const text = e.currentTarget.value;
+          onValueChange(singleLine ? text.replace(/[\r\n]+/g, " ") : text);
           track(e.currentTarget);
         }}
         onKeyDown={keys}
@@ -265,21 +294,21 @@ export function TemplateField({
                   const i = index;
                   return (
                     <button
-                      key={`${g.label}:${v.insert}`}
+                      key={`${g.label}:${v.run ? "+" : v.insert}`}
                       type="button"
                       role="option"
                       tabIndex={-1}
                       aria-selected={i === active}
-                      className={cx("apx-tfield__item", i === active && "is-active")}
+                      className={cx("apx-tfield__item", i === active && "is-active", v.run && "is-action")}
                       onMouseDown={(e) => {
                         e.preventDefault();
                         pick(v);
                       }}
                     >
-                      {v.secret ? <Icons.KeyRound size={12} /> : null}
+                      {v.run ? <Icons.Plus size={12} /> : v.secret ? <Icons.KeyRound size={12} /> : null}
                       <span className="apx-tfield__label">{v.label}</span>
                       {v.hint && <span className="apx-tfield__hint">{v.hint}</span>}
-                      <code className={cx("apx-tfield__chip", v.secret && "is-secret")}>{v.insert}</code>
+                      {!v.run && <code className={cx("apx-tfield__chip", v.secret && "is-secret")}>{v.insert}</code>}
                     </button>
                   );
                 })}

@@ -145,3 +145,21 @@ test("a changed setting is a different shape", () => {
   assert.equal(sameShape(shape, { ...shape, tableKey: "other" }), false);
   assert.equal(sameShape(shape, { ...shape }), true);
 });
+
+test("a project's named table, the latest rows or a key filled from the data run only as a drawing", () => {
+  const graph = FlowGraph.parse(graphOfDefinition(shapeOfDefinition(definition), label));
+  const change = (id: string, patch: object) => ({
+    ...graph,
+    nodes: graph.nodes.map((n) => (n.id === id ? { ...n, ...patch } : n)),
+  });
+  for (const g of [
+    change("save", { table: "leads" }),
+    change("save", { key: "$trigger.email" }),
+    change("read", { table: "leads" }),
+    change("read", { keys: [], latest: 5 }),
+    change("read", { keys: ["$trigger.email"] }),
+  ]) {
+    const result = shapeOfGraph(FlowGraph.parse(g));
+    assert.equal(result.ok ? "ok" : result.problem.code, "kind");
+  }
+});

@@ -11,7 +11,7 @@ import { useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
 import { describeIssue, issueText, shownGraph, useKnown } from "./data.ts";
 import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
-import { connectNodes, moveNode, newNode, removeCase, removeNode } from "./graph-edit.ts";
+import { connectNodes, insertBefore, moveNode, newNode, removeCase, removeNode } from "./graph-edit.ts";
 import { Inspector } from "./Inspector.tsx";
 import { stepDetail } from "./look.tsx";
 import { approveOutward } from "./outward.tsx";
@@ -28,6 +28,7 @@ import {
   type StepKind,
   triggerOf,
 } from "./steps.tsx";
+import { ownTable, savedTableBefore } from "./values.ts";
 import "./editor.css";
 
 const EMPTY: FlowGraph = { schemaVersion: 2, nodes: [], edges: [], layout: [] };
@@ -61,9 +62,9 @@ function blank(n: FlowNode): boolean {
     case "cmd":
       return !n.command.trim();
     case "table_read":
-      return !n.keys.some((k) => k.trim());
+      return (!n.table && !ownTable(n)) || (n.latest === undefined && !n.keys.some((k) => k.trim()));
     case "table_write":
-      return !n.key.trim();
+      return (!n.table && !ownTable(n)) || !n.key.trim();
     case "agent":
       return (n.bot ? !n.bot.name.trim() || !n.bot.system.trim() : !n.agent) || !n.prompt.trim();
     case "routine":
@@ -86,6 +87,7 @@ const tidy = (g: FlowGraph, t: ReturnType<typeof useT>): FlowGraph => ({
   nodes: g.nodes.map((n) => {
     const label = n.label.trim() || t(STEP[n.kind].label);
     if (n.kind === "table_read") return { ...n, label, keys: n.keys.map((k) => k.trim()).filter(Boolean) };
+    if (n.kind === "table_write") return { ...n, label, key: n.key.trim() };
     if (n.kind === "http") return { ...n, label, url: n.url.trim(), body: n.method === "GET" ? "" : n.body };
     if (n.kind === "condition" && n.cases)
       return { ...n, label, cases: n.cases.map((c) => ({ ...c, label: c.label.trim() })) };
@@ -154,8 +156,12 @@ export function FlowEditor({
       live = false;
     };
   }, []);
+  // The project's agents and, always, the super-agent, first.
   const agents = useMemo(
-    () => Object.values(allAgents).filter((a) => !a.project_id || a.project_id === projectId),
+    () =>
+      Object.values(allAgents)
+        .filter((a) => a.kind === "secretary" || (projectId && a.project_id === projectId))
+        .sort((a, b) => Number(b.kind === "secretary") - Number(a.kind === "secretary")),
     [allAgents, projectId],
   );
   const routines = useMemo(
@@ -211,7 +217,17 @@ export function FlowEditor({
         ? branchesOf(from, t).find((b) => !g.edges.some((e) => e.source === from.id && (e.when ?? "yes") === b.id))?.id
         : undefined;
     if (from) next = connectNodes(next, from.id, node.id, way);
+    // A read after a save reads the table that save names.
+    const table = node.kind === "table_read" ? savedTableBefore(next, node.id) : undefined;
+    if (table) next = { ...next, nodes: next.nodes.map((n) => (n.id === node.id ? { ...n, table } : n)) };
     change(next);
+    setSelected(node.id);
+  };
+  const saveBefore = (id: string) => {
+    let i = 1;
+    while (g.nodes.some((n) => n.id === `table_write-${i}`)) i++;
+    const node = newNode("table_write", `table_write-${i}`, t(STEP.table_write.label));
+    change(insertBefore(g, id, node));
     setSelected(node.id);
   };
   const look = useCallback(
@@ -456,6 +472,7 @@ export function FlowEditor({
               })
             }
             removeCase={(check, id) => change(removeCase(g, check, id))}
+            saveBefore={saveBefore}
             unlink={(source, target) =>
               change({ ...g, edges: g.edges.filter((e) => !(e.source === source && e.target === target)) })
             }

@@ -2961,3 +2961,35 @@ echoed transformed (base64, hex), can survive in the run.
 Rejected: capping an agent step's tools to a fixed safe list (the owner asked for full power; the agent's own rules already
 say what it may use), a second "direct model" block beside it (one block; old drawings keep theirs), letting a bot
 delegate (a bot has no team to speak for), and letting a CLI session read APX memory through framing (D-043).
+
+<a id="d-173"></a>
+## D-173 — 2026-10-29 — A Flow saves to the project's named tables, and a variable may hold a secret's reference
+The owner tried the editor and could not use **Read table** and **Save to table**: each Flow had one unnamed table
+with a fixed key, nothing listed what was saved, and a read had to name keys up front. They also found no way to put a
+key of theirs in a variable. Two changes, both on the graph executor only (a drawing that uses either is not the legacy
+shape, `flow-shape.ts`):
+
+- **Tables belong to the project, by name.** `table_write` and `table_read` take an optional `table` (lowercase
+  letters, digits, `_`, `-`; up to 40). Rows live in `flow_tables (project_id, name, key, value, updated_at)`; a table
+  exists once a row is saved in it, so the editor creates one by naming it in a save, and a read later in the drawing
+  is offered that name before any row exists. A save's `key` and a read's `keys` may hold placeholders
+  (`$trigger.email`), filled when the step runs; a missing value fails the step, a key is one line of at most 128
+  characters and never a credential. A read takes one or more keys (`rows` by key and `row`, the first one's value) or
+  `latest: 1–100` (newest first). `flows.tables {project}` lists names, row counts and last change; `flows.rows` takes
+  `table` for its rows, newest first. Limits: 1,000 rows per table, 100 tables per project, 10,000 rows across the
+  install, 32 KiB per value. Without `table` a step keeps the Flow's own table (a definition drawn as a graph), as before.
+- **A variable may hold `secret://name` and nothing else.** It stays that reference everywhere: in the run, in its
+  output, in a message. Where a step reads secrets itself (D-169: an HTTP header; D-172: a command's environment),
+  a `$vars.name` placeholder stands for the reference as the owner's own text, so it resolves, is named in the allow
+  dialog, is scrubbed and is checked for existence like a typed `secret://`. The swap happens on the parsed template
+  (a placeholder part becomes a text part), never by rewriting the raw text, so a placeholder before it can't swallow it.
+  Any other read is refused (`secret_var_text`, naming the variable): a placeholder in a message, a body, SQL values, a
+  command's input, a key or a formula (followed by a dot or a field too), a step's input bound to the variable or to the
+  whole variables step, and the name written in a prompt, an address, a query or a command's text. JavaScript never sees
+  it among its `vars`. A literal with `secret://` beside other text is refused too (`secret_var_shape`), since it would
+  be read as plain text. A formula never yields a reference that resolves: only a
+  literal counts, so a payload can't build one. HTTP headers also read ordinary `$vars`, as other templates do.
+
+Rejected: tables per Flow with a picker of other Flows' tables (the owner thinks in the project's data, not in Flows),
+an explicit create method (a table nobody saved to yet is a name in a drawing), and resolving a secret variable in any
+text that leaves (rule 11: it would put the key in a message or a prompt).

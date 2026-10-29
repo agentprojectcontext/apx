@@ -331,7 +331,11 @@ from the owner's own lists. Every template field (message, headers, body, SQL va
 `TemplateField` (`packages/ui`): `{{`, `$`, `secret://` or its button offer the values `apps/web/src/flows/values.ts`
 lists for that field, and placeholders read as badges. Secrets are offered only where the core resolves them
 (`SECRET_FIELDS`: headers and command variables). The top bar keeps the name at the left (past the window-controls
-inset) and **Exit** at the right, through the same unsaved-changes guard.
+inset) and **Exit** at the right, through the same unsaved-changes guard. The project drives the side panel: the AI
+step's crew is an `AgentGrid` of the project's agents plus the super-agent, the read and save steps list
+`flows.tables`, and steps that need a project say so until one is chosen. A variable's value and every key take a
+`TemplateField`; the secrets group offers **Save a secret** (Resources' `VariableDialog`). A check's cases and a
+variables step's values are a flat list (`.fe-item`), never cards inside the panel.
 
 ## AI model steps
 
@@ -428,6 +432,30 @@ nombra valores (`$vars.nombre`). **JavaScript** corre aparte, sin archivos, inte
 memoria máximos. **SQL** hace una instrucción en un archivo SQLite del proyecto con valores siempre aparte (`:nombre`);
 una escritura se aprueba al publicar y nunca se repite. **Cmd** corre un comando en la carpeta del proyecto; los
 valores le llegan solo como variables y entrada. Un comando o una escritura cortados quedan **Para revisar**.
+
+## Project tables and secret variables
+
+See [D-173](DECISIONS.md#d-173). `table_write {table?, key, value}` and `table_read {table?, keys, latest?}` name a
+table of the Flow's project (`FlowTableName`); without `table` they use the Flow's own table (`flow_rows`). Keys may
+hold placeholders, filled by the executor (`rowKey` in `flow-graph-executor.ts`; missing value: `missing_value`). Rows
+are in `flow_tables`, through `domain/flow-tables.ts` (`list`, `write`, `read`, `latest`). A read returns `{rows, row}`
+for keys or `{rows: [{key, value, updated_at}]}` for `latest`; a save returns `{key, value}`. Validation: `read_what`
+(neither or both of keys and latest), `read_table` (latest needs a table), `unordered_write` now per table and key.
+`flows.tables {project}` lists `{name, rows, updated_at}`; `flows.rows {flow, table}` pages a table newest first
+(cursor `updated_at|key`). The editor lists the project's tables and the ones the drawing saves to, so a read after a
+save on a new table is offered it first.
+
+`domain/flow-secret-vars.ts`: `flowSecretVars` finds variables whose literal is exactly `secret://name`;
+`secretTemplate` parses a header or command variable and swaps each `$vars.name` part of one for a text part holding
+its reference; `flowOutward`, `flowOutwardIssues` (`secretRefs`, `secretKeyText`) and both steps read those same parts.
+`secret_var_text` refuses every other read (template and formula bindings, step inputs, the whole variables step,
+names in unfilled texts); `secret_var_shape` a mixed literal. JS steps get their `vars` without secret variables. The panel
+offers secrets in a variable's value and, through `$vars`, only where they resolve.
+
+**Español:** **Guardar en la tabla** guarda en una tabla del proyecto, por nombre: se crea al escribirle el nombre. La
+clave puede salir de lo que llegó (`$trigger.email`). **Leer tabla** elige una tabla y lee una clave o las últimas
+filas. Una variable puede guardar una clave (`secret://nombre`): solo se usa en un header o en una variable de un
+comando; en un mensaje, un cuerpo o una instrucción se rechaza.
 
 ## Verification and rollout
 

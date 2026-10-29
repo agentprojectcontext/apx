@@ -133,3 +133,17 @@ export function chainOrder(graph: FlowGraph): FlowNode[] {
   for (const n of graph.nodes) visit(n);
   return out;
 }
+
+/** `node` placed just before `target`: what led into the target now leads into it, and it leads into the target. */
+export function insertBefore(graph: FlowGraph, target: string, node: FlowNode): FlowGraph {
+  const at = graph.layout.find((p) => p.node === target);
+  return {
+    ...graph,
+    nodes: [...graph.nodes, node],
+    edges: [
+      ...graph.edges.map((e) => (e.target === target ? { ...e, target: node.id } : e)),
+      { source: node.id, target },
+    ],
+    layout: [...graph.layout, { node: node.id, x: at?.x ?? 0, y: (at?.y ?? 0) + 140 }],
+  };
+}

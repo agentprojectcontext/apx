@@ -22,6 +22,9 @@
   neither is in the Claude Design project yet.
 - TemplateField is new (a text field whose placeholders read as badges, with a grouped value picker), for Flow
   steps, and the icon set gained Braces: neither is in the Claude Design project yet.
+- AgentGrid is new (agents as two-column cards, for a Flow's AI step); TemplateField gained one-line fields and a
+  group action ("Save a secret"); minimal dark fields gained a hairline border so they read on any panel. None is in
+  the Claude Design project yet.
 - MarkdownView now renders safe pipe tables; its remote preview and bundle need a re-sync.
 - Lint fixes (DECISIONS.md#d-005) changed markup in Avatar, AgentAvatar, Checkbox, Switch, SegmentedControl (now a
   Base UI RadioGroup), DayDivider, VoiceNote and the list keys of ActionGroup/StepList/EntityCard/Menu/Kbd/

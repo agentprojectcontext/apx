@@ -7,6 +7,9 @@ const L = {
     name: "Flow name",
     addSchedule: "Add Schedule",
     addSave: "Add Save to table",
+    table: "Table",
+    newTable: "New table",
+    newName: "Name of the new table",
     hourly: "Every hour",
     key: "Key",
     save: "Save",
@@ -26,6 +29,9 @@ const L = {
     name: "Nombre del flow",
     addSchedule: "Sumar Horario",
     addSave: "Sumar Guardar en la tabla",
+    table: "Tabla",
+    newTable: "Tabla nueva",
+    newName: "Nombre de la tabla nueva",
     hourly: "Cada hora",
     key: "Clave",
     save: "Guardar",
@@ -62,6 +68,9 @@ for (const lang of ["en", "es"] as const) {
     await editor.getByRole("radio", { name: l.hourly }).click();
     await expect(editor.getByRole("textbox", { name: /cron/i })).toHaveValue("0 * * * *");
     await editor.getByRole("button", { name: l.addSave }).click();
+    await editor.getByRole("combobox", { name: l.table, exact: true }).click();
+    await page.getByRole("option", { name: l.newTable }).click();
+    await editor.getByRole("textbox", { name: l.newName }).fill("ticks");
     await editor.getByRole("textbox", { name: l.key, exact: true }).fill("tick");
     await editor.getByRole("button", { name: l.save, exact: true }).click();
     await expect(editor.getByRole("status")).toHaveText(l.saved);
@@ -84,7 +93,8 @@ for (const lang of ["en", "es"] as const) {
     await expect(page.locator(".fd__runline")).toContainText(l.byYou);
     const [run] = (await rpc<Result<"flows.events">>("flows.events", { flow })).events;
     expect(run).toMatchObject({ source: "owner", state: "succeeded", scheduled_at: null });
-    expect((await rpc<Result<"flows.rows">>("flows.rows", { flow })).rows).toEqual([{ key: "tick", value: {} }]);
+    const { rows } = await rpc<Result<"flows.rows">>("flows.rows", { flow, table: "ticks" });
+    expect(rows.map((r) => [r.key, r.value])).toEqual([["tick", {}]]);
   });
 
   test(`a webhook flow runs now with a sample body, and a run that is going can be stopped (${lang})`, async ({

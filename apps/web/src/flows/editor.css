@@ -276,27 +276,23 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 4px 4px 10px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-row-radius);
-  font-size: 13px;
+  min-height: 32px;
+  padding: 0 4px 0 10px;
+  border-radius: var(--apx-control-radius);
+  background: var(--apx-fill);
+  font-size: 12.5px;
 }
 .fe-outs__row .fe-outs__when {
   flex: none;
-  border: 0;
-  font: inherit;
-  cursor: pointer;
-  padding: 1px 7px;
-  border-radius: var(--apx-radius-pill);
-  background: var(--apx-brand-soft);
-  color: var(--apx-brand-soft-fg);
-  font-size: 11px;
 }
-.fe-outs__row .fe-outs__when.is-no {
-  background: var(--apx-fill);
-  color: var(--apx-fg-muted);
+/* A check's way out, picked in the row: a raised chip, so it reads on the row's fill. */
+.fe-outs__row .fe-outs__when .apx-field {
+  height: 24px;
+  min-height: 24px;
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-sm);
 }
-.fe-outs__row span {
+.fe-outs__row > span:not(.fe-outs__when) {
   flex: 1;
   min-width: 0;
   white-space: nowrap;
@@ -312,10 +308,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 4px 4px 10px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-bg);
+  padding: 4px 4px 4px 12px;
+  border-radius: var(--apx-control-radius);
+  background: var(--apx-fill);
 }
 .fe-copy__box code {
   flex: 1;
@@ -419,47 +414,114 @@
 .fe-next__error {
   color: var(--apx-danger);
 }
-/* A check's cases and a variables step's values: one card each, in order. */
-.fe-cases {
+/* A check's cases and a variables step's values: a flat list, a hairline between items, never cards in the panel. */
+.fe-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-.fe-case {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-  min-inline-size: 0;
-  margin: 0;
-  border: 0;
-  padding: 10px;
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-fill);
-}
-.fe-case__head {
-  display: flex;
-  align-items: center;
   gap: 6px;
 }
-.fe-case__head > :first-child {
+.fe-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 0 12px;
+  border-top: 1px solid var(--apx-border);
+}
+.fe-item__head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+/* The item's name reads as its title; it shows it is a field only when pointed at or typed in. */
+.fe .fe-item__name {
   flex: 1;
   min-width: 0;
+  margin-left: -10px;
+  background: transparent;
+  border-color: transparent;
+  font-weight: var(--apx-weight-medium);
 }
-.fe-case.is-otherwise {
+.fe .fe-item__name:hover {
+  background: var(--apx-fill);
+}
+.fe .fe-item__name:focus-within {
+  background: var(--apx-input-bg);
+  border-color: var(--apx-border-strong);
+}
+.fe-item.is-otherwise {
   flex-direction: row;
   align-items: baseline;
   flex-wrap: wrap;
   gap: 4px 8px;
-  background: transparent;
-  border: 1px dashed var(--apx-border-strong);
+  padding-bottom: 0;
 }
-.fe-case__else {
+.fe-item__else {
   font-size: 13px;
   font-weight: 500;
 }
-.fe-case .apx-segmented {
+.fe-value {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fe-value__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+.fe-value .apx-segmented {
   align-self: flex-start;
+}
+/* What a step needs a project for, before one is chosen. */
+.fe-needs {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+/* How a saved row will look: its key, an arrow, what it holds. */
+.fe-row-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fe-row-preview__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 12px;
+  height: 32px;
+  border-radius: var(--apx-control-radius);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: 12.5px;
+}
+.fe-row-preview__row code {
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+}
+.fe-row-preview__row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fe-empty-tables {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
 }
 .fe-folder {
   overflow-wrap: anywhere;

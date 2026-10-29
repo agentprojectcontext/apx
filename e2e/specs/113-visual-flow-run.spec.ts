@@ -27,6 +27,10 @@ for (const lang of ["en", "es"] as const) {
         ? {
             addCheck: "Add Check",
             addSave: "Add Save to table",
+            table: "Table",
+            newTable: "New table",
+            newName: "Name of the new table",
+            text: "Text",
             field: "Field",
             is: "Is",
             value: "Value",
@@ -38,6 +42,10 @@ for (const lang of ["en", "es"] as const) {
         : {
             addCheck: "Sumar Condición",
             addSave: "Sumar Guardar en la tabla",
+            table: "Tabla",
+            newTable: "Tabla nueva",
+            newName: "Nombre de la tabla nueva",
+            text: "Texto",
             field: "Campo",
             is: "Es",
             value: "Valor",
@@ -53,13 +61,19 @@ for (const lang of ["en", "es"] as const) {
     const node = (id: string) => editor.locator(`.react-flow__node[data-id="${id}"]`);
     await node("save").click();
     await editor.getByRole("button", { name: l.addCheck }).click();
-    await editor.getByRole("radio", { name: l.is, exact: true }).click();
+    await editor.getByRole("radio", { name: l.text, exact: true }).click();
     await editor.getByRole("textbox", { name: l.field, exact: true }).fill("type");
-    await editor.getByRole("textbox", { name: l.value, exact: true }).fill("order");
+    await editor.getByRole("textbox", { name: l.is, exact: true }).fill("order");
+    // Each save names a table of the project; the first creates it, the second picks it from the list.
     await editor.getByRole("button", { name: l.addSave }).click();
+    await editor.getByRole("combobox", { name: l.table, exact: true }).click();
+    await page.getByRole("option", { name: l.newTable }).click();
+    await editor.getByRole("textbox", { name: l.newName }).fill("sorted");
     await editor.getByRole("textbox", { name: l.key, exact: true }).fill("orders");
     await node("condition-1").click();
     await editor.getByRole("button", { name: l.addSave }).click();
+    await editor.getByRole("combobox", { name: l.table, exact: true }).click();
+    await page.getByRole("option", { name: /^sorted/ }).click();
     await editor.getByRole("textbox", { name: l.key, exact: true }).fill("others");
     // The second one goes on the check's free way out, «No».
     await node("condition-1").click();
@@ -91,9 +105,11 @@ for (const lang of ["en", "es"] as const) {
     }
     await expect
       .poll(async () =>
-        (await rpc<Result<"flows.rows">>("flows.rows", { flow, limit: 10 })).rows.map((r) => r.key).sort(),
+        (await rpc<Result<"flows.rows">>("flows.rows", { flow, table: "sorted", limit: 10 })).rows
+          .map((r) => r.key)
+          .sort(),
       )
-      .toEqual(["latest", "orders", "others"]);
+      .toEqual(["orders", "others"]);
     expect(await world.llmCalls()).toBe(calls);
     // The detail shows the last run, «No» taken: the check said no, only its branch ran.
     await page.reload();

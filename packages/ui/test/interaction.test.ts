@@ -150,3 +150,32 @@ test("date presets commit and close, clear restores the empty value, and action 
     await expect(page.getByText("Refused", { exact: true })).toBeVisible();
     await expect(page.locator("li.apx-actions__item.is-failed")).toBeVisible();
   }));
+
+test("agent cards choose by click and arrows, keep the chosen one in sight and show the rest on demand", async () =>
+  mounted(async (page) => {
+    const group = page.getByRole("radiogroup", { name: "Agent", exact: true });
+    await expect(group.getByRole("radio")).toHaveCount(6);
+    await expect(group.getByRole("radio", { name: /Agent 8/ })).toHaveAttribute("aria-checked", "true");
+    await group.getByRole("radio", { name: /Agent 2/ }).click();
+    await expect(page.getByTestId("agent")).toHaveText("a2");
+    await group.getByRole("radio", { name: /Agent 2/ }).press("ArrowRight");
+    await expect(page.getByTestId("agent")).toHaveText("a3");
+    await page.getByRole("button", { name: "Show all 8", exact: true }).click();
+    await expect(group.getByRole("radio")).toHaveCount(8);
+  }));
+
+test("a one-line template field keeps one line and offers a group's action when nothing is there yet", async () =>
+  mounted(async (page) => {
+    const field = page.getByRole("textbox", { name: "Row key", exact: true });
+    await field.fill("lead");
+    await field.press("Enter");
+    await expect(page.getByTestId("key")).toHaveText('"lead"');
+    await field.fill("");
+    await field.pressSequentially("$tr");
+    await field.press("Enter");
+    await expect(page.getByTestId("key")).toHaveText('"$trigger.email"');
+    await field.fill("");
+    await field.pressSequentially("secret://");
+    await page.getByRole("option", { name: "Save a secret" }).click();
+    await expect(page.getByTestId("events")).toContainText("save secret");
+  }));

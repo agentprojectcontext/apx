@@ -173,6 +173,14 @@ export interface FlowSendsTable {
   at: string;
 }
 
+export interface FlowTablesTable {
+  project_id: string;
+  name: string;
+  key: string;
+  value: string;
+  updated_at: string;
+}
+
 export interface FlowsTable {
   id: string;
   project_id: string;
@@ -701,6 +709,7 @@ export interface Database {
   flow_rows: FlowRowsTable;
   flow_schedules: FlowSchedulesTable;
   flow_sends: FlowSendsTable;
+  flow_tables: FlowTablesTable;
   flows: FlowsTable;
   harness_sessions: HarnessSessionsTable;
   idempotency: IdempotencyTable;

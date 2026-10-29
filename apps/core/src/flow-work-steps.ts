@@ -16,6 +16,7 @@ import {
   resolveFlowInput,
 } from "./domain/flow-graph-semantics.ts";
 import { FLOW_ENV_REFUSED, flowDatabaseProblem } from "./domain/flow-graph-validate.ts";
+import { flowSecretVars, secretTemplate } from "./domain/flow-secret-vars.ts";
 import { flowSqlShape, SQL_READS, SQL_WRITES } from "./domain/flow-sql.ts";
 import { type FlowApx, parseFlowTemplate, renderFlowTemplate } from "./domain/flow-template.ts";
 import type { Store } from "./domain/store.ts";
@@ -109,6 +110,8 @@ function varsBefore(run: FlowGraphRun, id: string, snapshots: Map<string, FlowNo
     if (n.kind === "vars" && before.has(n.id) && s?.state === "succeeded" && s.output && typeof s.output === "object")
       Object.assign(out, s.output);
   }
+  // Code never sees a variable holding a secret, not even its reference (DECISIONS.md#d-173).
+  for (const name of flowSecretVars(run.graph).keys()) delete out[name];
   return out;
 }
 
@@ -419,10 +422,12 @@ export function createWorkSteps(deps: {
     const apx = flowApx(store, run, now());
     const project = store.flows.get(run.flow)?.projectId ?? "";
     let stdin: string;
+    const secretVars = flowSecretVars(run.graph);
     try {
       for (const e of node.env) {
         if (FLOW_ENV_REFUSED.test(e.name)) throw new StepRefused(W.start);
-        const parts = parseFlowTemplate(e.value, flowVarIndex(run.graph));
+        const parts = secretTemplate(e.value, flowVarIndex(run.graph), secretVars);
+        if (!parts) throw new StepRefused(W.missing);
         // A secret is read only in the owner's own text, never in a value the payload brought (DECISIONS.md#d-172).
         env[e.name] = renderFlowTemplate(parts, resolve, {
           apx,

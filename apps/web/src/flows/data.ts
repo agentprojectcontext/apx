@@ -64,7 +64,9 @@ export function issueText(error: unknown, graph: FlowGraph | undefined, t: T): s
 export function describeIssue(issue: FlowGraphIssue, graph: FlowGraph | undefined, t: T): string {
   const step = graph?.nodes.find((n) => n.id === issue.node)?.label ?? "";
   const key = `flow.issue.${issue.code}`;
-  return isKey(key) ? t(key, { step }) : t("flow.issue.other", { step });
+  // An issue about a variable names it, as the core wrote it ($vars.name).
+  const name = issue.message.match(/\$vars\.[A-Za-z0-9_]+/)?.[0] ?? "";
+  return isKey(key) ? t(key, { step, name }) : t("flow.issue.other", { step });
 }
 
 export type Shown = {

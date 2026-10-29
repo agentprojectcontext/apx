@@ -1023,4 +1023,12 @@ export const MIGRATIONS: readonly string[] = [
   DELETE FROM meta WHERE substr(key, 1, 18) = 'setting:mail_seen:';
   DELETE FROM routines WHERE action = 'mail';
   `,
+  // Tables a project's Flows save to by name and read back (DECISIONS.md#d-173); newest first by updated_at.
+  `
+  CREATE TABLE flow_tables (
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE, name TEXT NOT NULL, key TEXT NOT NULL,
+    value TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(project_id, name, key)
+  );
+  CREATE INDEX flow_tables_recent ON flow_tables(project_id, name, updated_at);
+  `,
 ];

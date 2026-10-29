@@ -20,7 +20,7 @@ export const STARTERS = {
 export function starterGraph(s: Starter, t: T, agent?: string): FlowGraph {
   const nodes = s.kinds.map((kind, i) => {
     const n = newNode(kind, `${kind}-${i + 1}`, t(STEP[kind].label));
-    if (n.kind === "table_write") return { ...n, key: "latest" };
+    if (n.kind === "table_write") return { ...n, table: "events", key: "latest" };
     if (n.kind === "agent" && agent) return { ...n, agent };
     return n;
   });

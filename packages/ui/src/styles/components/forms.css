@@ -505,8 +505,99 @@
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-xs);
 }
+.apx-tfield__item.is-action {
+  color: var(--apx-fg-muted);
+}
+.apx-tfield__item.is-action:hover,
+.apx-tfield__item.is-action.is-active {
+  color: var(--apx-fg);
+}
+/* One line, shaped like an Input; a long value wraps and the field grows with it. */
+.apx-tfield.is-single .apx-tfield__mirror,
+.apx-tfield.is-single .apx-tfield__input {
+  min-height: var(--apx-control-h-md);
+  padding-top: 6px;
+  padding-bottom: 6px;
+  border-radius: var(--apx-control-radius);
+  resize: none;
+  field-sizing: content;
+}
+.apx-tfield.is-single .apx-tfield__pick {
+  top: 4px;
+  right: 4px;
+  border-radius: 50%;
+}
 .apx-tfield__empty {
   padding: 8px;
   font-size: var(--apx-text-sm);
   color: var(--apx-fg-subtle);
+}
+
+/* AgentGrid: agents as cards in two columns, the chosen one outlined */
+.apx-agentgrid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.apx-agentgrid__cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.apx-agentgrid__card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: transparent;
+  color: var(--apx-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--apx-duration),
+    background var(--apx-duration);
+}
+.apx-agentgrid__card:hover {
+  background: var(--apx-fill);
+}
+.apx-agentgrid__card.is-selected {
+  border-color: var(--apx-fg);
+  background: var(--apx-fill);
+}
+.apx-agentgrid__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.apx-agentgrid__name,
+.apx-agentgrid__role {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.apx-agentgrid__name {
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.apx-agentgrid__role {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.apx-agentgrid__more {
+  align-self: flex-start;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--apx-fg-muted);
+  font: inherit;
+  font-size: var(--apx-text-sm);
+  cursor: pointer;
+}
+.apx-agentgrid__more:hover {
+  color: var(--apx-fg);
 }

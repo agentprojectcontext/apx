@@ -3,7 +3,7 @@
 // the command's text never do.
 import { flowCases } from "@apx/protocol/flow-cases";
 import { Button, Field, IconButton, Icons, Input, SegmentedControl, Switch, Textarea } from "@apx/ui";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { nextCaseId, withCases } from "./graph-edit.ts";
@@ -18,51 +18,140 @@ type Cmd = Extract<FlowNode, { kind: "cmd" }>;
 type Literal = string | number | boolean | null;
 type Update = (n: FlowNode) => void;
 
-const typeOf = (v: Literal) => (typeof v === "number" ? "number" : typeof v === "boolean" ? "bool" : "text");
+type Value = { kind: "literal"; value: Literal } | { kind: "expr"; expr: string };
+type ValueKind = "text" | "number" | "bool" | "expr";
+const kindOf = (v: Value): ValueKind =>
+  v.kind === "expr" ? "expr" : typeof v.value === "number" ? "number" : typeof v.value === "boolean" ? "bool" : "text";
+const fresh = (k: ValueKind): Value =>
+  k === "expr" ? { kind: "expr", expr: "" } : { kind: "literal", value: k === "number" ? 0 : k === "bool" ? true : "" };
 
-/** A value typed as text, a number or yes/no, for a case to compare with or a variable to hold. */
-function LiteralField({ label, value, onChange }: { label: string; value: Literal; onChange: (v: Literal) => void }) {
+/**
+ * What a case compares with or a variable holds: text, a number, yes or no, or a formula over what came before. The
+ * label and its kind sit on one line, the value under them. `text` is the field a text value is typed in: a variable's
+ * may hold a secret (picked like any value), a case compares as typed.
+ */
+function ValueField({
+  label,
+  value,
+  onChange,
+  values,
+  text,
+  placeholder,
+}: {
+  label: string;
+  value: Value;
+  onChange: (v: Value) => void;
+  values: Values;
+  text?: "varText";
+  placeholder: string;
+}) {
   const t = useT();
-  const kind = typeOf(value);
+  const kind = kindOf(value);
+  const literal = value.kind === "literal" ? value.value : null;
   return (
-    <>
-      <SegmentedControl
-        size="sm"
-        label={t("flow.f.type")}
-        value={kind}
-        onValueChange={(v) => onChange(v === "number" ? 0 : v === "bool" ? true : "")}
-        options={[
-          { value: "text", label: t("flow.f.text") },
-          { value: "number", label: t("flow.f.number") },
-          { value: "bool", label: t("flow.f.bool") },
-        ]}
-      />
-      {typeof value === "boolean" ? (
+    <div className="fe-value">
+      <div className="fe-value__head">
+        <span className="fe-ins__label">{label}</span>
+        <SegmentedControl
+          size="sm"
+          label={t("flow.f.type")}
+          value={kind}
+          onValueChange={(k) => k !== kind && onChange(fresh(k as ValueKind))}
+          options={[
+            { value: "text", label: t("flow.f.text") },
+            { value: "number", label: t("flow.f.number") },
+            { value: "bool", label: t("flow.f.bool") },
+            { value: "expr", label: t("flow.f.caseFormula") },
+          ]}
+        />
+      </div>
+      {value.kind === "expr" ? (
+        <Template
+          aria-label={t("flow.f.caseFormula")}
+          field="formula"
+          values={values}
+          singleLine
+          className="fe-mono"
+          spellCheck={false}
+          maxLength={1000}
+          value={value.expr}
+          placeholder={placeholder}
+          onValueChange={(expr) => onChange({ kind: "expr", expr })}
+        />
+      ) : typeof literal === "boolean" ? (
         <SegmentedControl
           size="sm"
           label={label}
-          value={value ? "yes" : "no"}
-          onValueChange={(v) => onChange(v === "yes")}
+          value={literal ? "yes" : "no"}
+          onValueChange={(v) => onChange({ kind: "literal", value: v === "yes" })}
           options={[
             { value: "yes", label: t("flow.f.yes") },
             { value: "no", label: t("flow.f.no") },
           ]}
         />
+      ) : typeof literal === "number" ? (
+        <Input
+          aria-label={label}
+          value={String(literal)}
+          inputMode="decimal"
+          onChange={(e) => onChange({ kind: "literal", value: Number(e.target.value.replace(",", ".")) || 0 })}
+        />
+      ) : text ? (
+        <Template
+          aria-label={label}
+          field={text}
+          values={values}
+          singleLine
+          maxLength={8000}
+          value={String(literal ?? "")}
+          onValueChange={(v) => onChange({ kind: "literal", value: v })}
+        />
       ) : (
-        <Field label={label}>
-          {(id) => (
-            <Input
-              id={id}
-              value={String(value ?? "")}
-              inputMode={typeof value === "number" ? "decimal" : undefined}
-              onChange={(e) =>
-                onChange(typeof value === "number" ? Number(e.target.value.replace(",", ".")) || 0 : e.target.value)
-              }
-            />
-          )}
-        </Field>
+        <Input
+          aria-label={label}
+          value={String(literal ?? "")}
+          onChange={(e) => onChange({ kind: "literal", value: e.target.value })}
+        />
       )}
-    </>
+    </div>
+  );
+}
+
+/** One case or variable in a flat list: its name as the line's title, a remove button, then its value. */
+function Item({
+  name,
+  nameLabel,
+  placeholder,
+  mono,
+  onName,
+  remove,
+  children,
+}: {
+  name: string;
+  nameLabel: string;
+  placeholder?: string;
+  mono?: boolean;
+  onName: (v: string) => void;
+  remove?: { label: string; run: () => void } | undefined;
+  children: ReactNode;
+}) {
+  return (
+    <section className="fe-item" aria-label={name || placeholder}>
+      <div className="fe-item__head">
+        <Input
+          size="sm"
+          className={mono ? "fe-item__name fe-mono" : "fe-item__name"}
+          aria-label={nameLabel}
+          value={name}
+          maxLength={64}
+          placeholder={placeholder}
+          spellCheck={false}
+          onChange={(e) => onName(e.target.value)}
+        />
+        {remove && <IconButton size="sm" label={remove.label} icon={<Icons.X size={12} />} onClick={remove.run} />}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -71,10 +160,12 @@ export function CaseFields({
   n,
   update,
   removeCase,
+  values,
 }: {
   n: Condition;
   update: Update;
   removeCase: (id: string) => void;
+  values: Values;
 }) {
   const t = useT();
   const cases = flowCases(n);
@@ -92,6 +183,7 @@ export function CaseFields({
               id={id}
               value={path}
               className="fe-mono"
+              placeholder="form.tier"
               onChange={(e) =>
                 update({
                   ...n,
@@ -108,61 +200,37 @@ export function CaseFields({
           )}
         </Field>
       )}
-      <div className="fe-cases">
+      <div className="fe-list">
+        <span className="fe-ins__label">{t("flow.f.cases")}</span>
         {cases.map((c, i) => (
-          <fieldset key={c.id} className="fe-case" aria-label={names[i]?.label}>
-            <div className="fe-case__head">
-              <Input
-                aria-label={t("flow.f.caseName")}
-                value={c.label}
-                maxLength={60}
-                placeholder={names[i]?.label}
-                onChange={(e) => set(i, { ...c, label: e.target.value })}
-              />
-              {cases.length > 1 && (
-                <IconButton
-                  label={t("flow.f.caseRemove", { name: names[i]?.label ?? "" })}
-                  icon={<Icons.X size={12} />}
-                  onClick={() => removeCase(c.id)}
-                />
-              )}
-            </div>
-            <SegmentedControl
-              size="sm"
-              label={t("flow.f.caseKind")}
-              value={c.match.kind}
-              onValueChange={(v) =>
+          <Item
+            key={c.id}
+            name={c.label}
+            nameLabel={t("flow.f.caseName")}
+            placeholder={names[i]?.label}
+            onName={(label) => set(i, { ...c, label: label.slice(0, 60) })}
+            remove={
+              cases.length > 1
+                ? { label: t("flow.f.caseRemove", { name: names[i]?.label ?? "" }), run: () => removeCase(c.id) }
+                : undefined
+            }
+          >
+            <ValueField
+              label={t(c.match.kind === "expr" ? "flow.f.caseHolds" : "flow.f.caseIs")}
+              value={c.match.kind === "expr" ? c.match : { kind: "literal", value: c.match.value }}
+              values={values}
+              placeholder="$trigger.amount > 100"
+              onChange={(v) =>
                 set(i, {
                   ...c,
-                  match: v === "expr" ? { kind: "expr", expr: "" } : { kind: "equals", value: "" },
+                  match: v.kind === "expr" ? v : { kind: "equals", value: v.value },
                 })
               }
-              options={[
-                { value: "equals", label: t("flow.f.caseIs") },
-                { value: "expr", label: t("flow.f.caseFormula") },
-              ]}
             />
-            {c.match.kind === "equals" ? (
-              <LiteralField
-                label={t("flow.f.varValue")}
-                value={c.match.value}
-                onChange={(value) => set(i, { ...c, match: { kind: "equals", value } })}
-              />
-            ) : (
-              <Input
-                aria-label={t("flow.f.caseFormula")}
-                value={c.match.expr}
-                maxLength={1000}
-                className="fe-mono"
-                spellCheck={false}
-                placeholder="$trigger.amount > 100"
-                onChange={(e) => set(i, { ...c, match: { kind: "expr", expr: e.target.value } })}
-              />
-            )}
-          </fieldset>
+          </Item>
         ))}
-        <div className="fe-case is-otherwise">
-          <span className="fe-case__else">{names.at(-1)?.label}</span>
+        <div className="fe-item is-otherwise">
+          <span className="fe-item__else">{names.at(-1)?.label}</span>
           <span className="fe-ins__muted">{t("flow.f.otherwiseHint")}</span>
         </div>
       </div>
@@ -186,66 +254,40 @@ export function CaseFields({
   );
 }
 
-/** Variables: each a name later steps read as $vars.name, and a value or a formula over what came before. */
-export function VarsFields({ n, update }: { n: Vars; update: Update }) {
+/** Variables: each a name later steps read as $vars.name, and a value (a secret among them) or a formula. */
+export function VarsFields({ n, update, values }: { n: Vars; update: Update; values: Values }) {
   const t = useT();
   const set = (i: number, v: Vars["vars"][number]) => update({ ...n, vars: n.vars.map((x, j) => (j === i ? v : x)) });
   return (
     <>
-      <div className="fe-cases">
+      <div className="fe-list">
+        <span className="fe-ins__label">{t("flow.f.vars")}</span>
         {n.vars.map((v, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: a variable's name is what is being typed
-          <fieldset key={i} className="fe-case" aria-label={v.name}>
-            <div className="fe-case__head">
-              <Input
-                aria-label={t("flow.f.varName")}
-                value={v.name}
-                maxLength={64}
-                className="fe-mono"
-                spellCheck={false}
-                onChange={(e) => set(i, { ...v, name: e.target.value.replace(/[^A-Za-z0-9_]/g, "_") })}
-              />
-              {n.vars.length > 1 && (
-                <IconButton
-                  label={t("flow.f.varRemove", { name: v.name })}
-                  icon={<Icons.X size={12} />}
-                  onClick={() => update({ ...n, vars: n.vars.filter((_, j) => j !== i) })}
-                />
-              )}
-            </div>
-            <SegmentedControl
-              size="sm"
-              label={t("flow.f.caseKind")}
-              value={v.value.kind}
-              onValueChange={(k) =>
-                set(i, {
-                  ...v,
-                  value: k === "expr" ? { kind: "expr", expr: "" } : { kind: "literal", value: "" },
-                })
-              }
-              options={[
-                { value: "literal", label: t("flow.f.varValue") },
-                { value: "expr", label: t("flow.f.caseFormula") },
-              ]}
+          <Item
+            // biome-ignore lint/suspicious/noArrayIndexKey: a variable's name is what is being typed
+            key={i}
+            name={v.name}
+            nameLabel={t("flow.f.varName")}
+            mono
+            onName={(name) => set(i, { ...v, name: name.replace(/[^A-Za-z0-9_]/g, "_") })}
+            remove={
+              n.vars.length > 1
+                ? {
+                    label: t("flow.f.varRemove", { name: v.name }),
+                    run: () => update({ ...n, vars: n.vars.filter((_, j) => j !== i) }),
+                  }
+                : undefined
+            }
+          >
+            <ValueField
+              label={t("flow.f.varValue")}
+              value={v.value}
+              values={values}
+              text="varText"
+              placeholder="$trigger.price * $trigger.qty"
+              onChange={(value) => set(i, { ...v, value })}
             />
-            {v.value.kind === "literal" ? (
-              <LiteralField
-                label={t("flow.f.varValue")}
-                value={v.value.value}
-                onChange={(value) => set(i, { ...v, value: { kind: "literal", value } })}
-              />
-            ) : (
-              <Input
-                aria-label={t("flow.f.caseFormula")}
-                value={v.value.expr}
-                maxLength={1000}
-                className="fe-mono"
-                spellCheck={false}
-                placeholder="$trigger.price * $trigger.qty"
-                onChange={(e) => set(i, { ...v, value: { kind: "expr", expr: e.target.value } })}
-              />
-            )}
-          </fieldset>
+          </Item>
         ))}
       </div>
       {n.vars.length < 16 && (
