@@ -182,6 +182,7 @@
                       "**/ResourcesScreen.tsx",
                       "**/RunnableCode.tsx",
                       "**/ScreenLive.tsx",
+                      "**/FlowCard.tsx",
                       "**/FlowDetail.tsx",
                       "**/FlowEditor.tsx",
                       "**/FlowsScreen.tsx",

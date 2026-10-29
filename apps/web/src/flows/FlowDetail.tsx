@@ -15,6 +15,7 @@ import {
 } from "@apx/ui";
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
+import { useFlowDraft } from "../data/flowDrafts.ts";
 import { notify } from "../data/notices.ts";
 import { useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
@@ -84,13 +85,16 @@ export function FlowDetail({
   const [rail, setRail] = useState({ open: true, width: RAIL.initial });
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
+  // An agent's draft, or one saved in another window, is drawn as soon as it is saved.
+  const drawn = useFlowDraft(flow.id);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a changed drawing is read again
   useEffect(() => {
     let live = true;
     void shownGraph(flow, t).then((s) => live && setShown(s));
     return () => {
       live = false;
     };
-  }, [flow, t]);
+  }, [flow, t, drawn]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new revision reads the runs again
   useEffect(() => {
     let live = true;

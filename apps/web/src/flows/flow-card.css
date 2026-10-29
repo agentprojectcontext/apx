@@ -1,0 +1,83 @@
+.flowcard {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 640px;
+  overflow: hidden;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  box-sizing: border-box;
+}
+.flowcard--gone {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.flowcard__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+.flowcard__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-raised);
+  color: var(--apx-fg-muted);
+}
+.flowcard__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.flowcard__name,
+.flowcard__project {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.flowcard__name {
+  color: var(--apx-fg);
+  font-size: var(--apx-text-sm);
+  font-weight: 600;
+}
+.flowcard__project {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.flowcard__canvas {
+  height: 200px;
+  border-top: 1px solid var(--apx-border);
+  border-bottom: 1px solid var(--apx-border);
+}
+.flowcard__canvas .fc.is-still .react-flow__pane {
+  cursor: default;
+}
+.flowcard__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  padding: 8px 12px;
+}
+.flowcard__hint {
+  flex: 1;
+  min-width: 160px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+@media (max-width: 600px) {
+  .flowcard__canvas {
+    height: 170px;
+  }
+}

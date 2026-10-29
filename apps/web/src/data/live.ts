@@ -6,6 +6,7 @@ import { documentToOpen } from "../panel/documents.ts";
 import { go, nav } from "../shell/nav.ts";
 import { bootstrap, refetchLoaded } from "./actions.ts";
 import { client } from "./client.ts";
+import { flowDraftChanged } from "./flowDrafts.ts";
 import { jobsChanged } from "./jobs.ts";
 import { loadNotifications, notificationChanged } from "./notifications.ts";
 import { denied } from "./pairing.ts";
@@ -216,6 +217,9 @@ function apply(ev: CoreEvent): void {
       return;
     case "team.updated":
       teamChanged();
+      return;
+    case "flow.draft":
+      flowDraftChanged(ev.flow);
       return;
     case "browser.tabs":
       // The core checks a node's tabs before pushing them.

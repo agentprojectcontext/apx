@@ -159,6 +159,19 @@ not sent later. An outgoing webhook only calls addresses on the internet: an add
 a private network is refused, also when a name points there, and redirects are not followed. Its answer is kept up to
 256 KB read (16 KB of text), files are only said, and a secret it used never shows in the run, only `secret://name`.
 
+### Ask your super-agent for a flow
+
+Ask in any chat ("when a lead arrives on the site, save it and tell me on Telegram") and your super-agent draws the
+flow in the right project, or changes the steps of one you have. It places the steps, checks what keeps the drawing
+from running and fixes it. The chat shows the flow's drawing, whether it is a draft, and **Open in the editor**.
+
+What it saves is a draft: nothing runs until you review it in the editor and turn the flow on (or save it while on).
+Messages, calls, commands and database writes still ask **Let this flow act for you?** first. If the chat had a
+message from someone else or a web page in it, the super-agent asks you before it saves the draft. How freely an AI
+model step acts (its permission mode, whether it can ask other agents) is yours to set in the editor. The list and a
+flow's page show the agent's changes as soon as they are saved; an editor you have open keeps what is on screen, so
+exit and open it again to see them (saving over them tells you the flow changed).
+
 The CLI starts and stops runs too: `apx flows run <flow> ['<sample body JSON>']` and `apx flows stop <flow> <event>`.
 They act as you, so they refuse to run inside an agent's command.
 

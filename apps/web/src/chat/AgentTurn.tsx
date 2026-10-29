@@ -12,6 +12,7 @@ import {
   BrowserPart,
   ChoicesPart,
   ConnectPart,
+  FlowCard,
   InputPart,
   MediaGroup,
   ReceivedDialog,
@@ -178,6 +179,7 @@ function cardKey(p: Part, i: number): string {
   if (p.type === "subthread") return `t:${p.thread_id}`;
   if (p.type === "browser") return `b:${p.tab}`;
   if (p.type === "input") return `i:${p.input_id}`;
+  if (p.type === "flow") return `f:${p.flow}`;
   return `${p.type}:${i}`;
 }
 
@@ -228,6 +230,12 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
       return (
         <Suspense fallback={null}>
           <ConnectPart part={p} threadId={message.thread_id} messageId={message.id} />
+        </Suspense>
+      );
+    case "flow":
+      return (
+        <Suspense fallback={null}>
+          <FlowCard part={p} />
         </Suspense>
       );
     default:
