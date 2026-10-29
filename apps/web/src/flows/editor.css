@@ -419,22 +419,6 @@
 .fe-next__error {
   color: var(--apx-danger);
 }
-/* Placeholders a message or body can take, one click each. */
-.fe-tokens {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  min-inline-size: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-.fe-tokens .fe-ins__label {
-  flex-basis: 100%;
-  padding: 0;
-  margin-bottom: 2px;
-}
 /* A check's cases and a variables step's values: one card each, in order. */
 .fe-cases {
   display: flex;
@@ -479,4 +463,13 @@
 }
 .fe-folder {
   overflow-wrap: anywhere;
+}
+/* Model and effort side by side; the effort only when the model takes one. */
+.fe-ai__model {
+  display: flex;
+  gap: 8px;
+}
+.fe-ai__model > .apx-formfield {
+  flex: 1;
+  min-width: 0;
 }

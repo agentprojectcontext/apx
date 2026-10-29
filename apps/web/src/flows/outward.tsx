@@ -83,6 +83,7 @@ export function OutwardConfirm() {
             <span>
               {c.folder ? t("flow.outward.run", { folder: c.folder }) : t("flow.outward.runHere")}
               <code className="fe-outward__code">{c.command}</code>
+              {c.secrets.length > 0 && t("flow.outward.runWith", { secrets: c.secrets.join(", ") })}
             </span>
           </li>
         ))}

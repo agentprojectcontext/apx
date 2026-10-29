@@ -632,6 +632,7 @@ function StepPanel({
                   >
                     {step?.output}
                   </span>
+                  {step?.answered && <span className="fd__answered">{step.answered}</span>}
                   <span className="fd__actions">
                     {step?.run && (
                       <Button size="sm" variant="secondary" onClick={() => void openChat(step.run as string)}>

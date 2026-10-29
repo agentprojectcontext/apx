@@ -32,7 +32,7 @@ for (const lang of ["en", "es"] as const) {
             value: "Value",
             key: "Key",
             saved: "Saved. New events run it as drawn.",
-            close: "Close the editor",
+            close: "Exit the editor",
             done: "Complete",
           }
         : {

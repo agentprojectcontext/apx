@@ -11,7 +11,7 @@ const L = {
     key: "Key",
     save: "Save",
     saved: "Saved. Turn it on to run it as drawn.",
-    close: "Close the editor",
+    close: "Exit the editor",
     toggle: (n: string) => `Turn ${n} on or off`,
     runNow: "Run now",
     byYou: "Started by you",

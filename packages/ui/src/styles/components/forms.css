@@ -377,3 +377,136 @@
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-xs);
 }
+
+/* TemplateField: a textarea over a mirror of its text, where placeholders read as badges */
+.apx-tfield {
+  position: relative;
+}
+.apx-tfield__mirror,
+.apx-tfield .apx-tfield__input {
+  padding-right: 38px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  scrollbar-gutter: stable;
+}
+.apx-tfield__mirror {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  resize: none;
+}
+.apx-tfield:focus-within .apx-tfield__mirror {
+  border-color: var(--apx-border-strong);
+  background: var(--apx-surface);
+}
+/* Only the caret and the selection show: the mirror under it draws the text. */
+.apx-tfield .apx-tfield__input,
+.apx-tfield .apx-tfield__input:focus {
+  position: relative;
+  background: transparent;
+  border-color: transparent;
+  color: transparent;
+  caret-color: var(--apx-fg);
+}
+.apx-tfield .apx-tfield__input::selection {
+  background: var(--apx-info-soft);
+  color: transparent;
+}
+/* A badge keeps the text's own metrics: tint and a ring, no padding, so the caret stays where the letters are. */
+.apx-tfield__chip {
+  border-radius: 4px;
+  background: var(--apx-info-soft);
+  box-shadow: 0 0 0 2px var(--apx-info-soft);
+  color: var(--apx-info-soft-fg);
+}
+.apx-tfield__chip.is-secret {
+  background: var(--apx-warning-soft);
+  box-shadow: 0 0 0 2px var(--apx-warning-soft);
+  color: var(--apx-warning-soft-fg);
+}
+.apx-tfield__pick {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: calc(var(--apx-radius-md) - 4px);
+  background: transparent;
+  color: var(--apx-fg-muted);
+  cursor: pointer;
+}
+.apx-tfield__pick:hover {
+  background: var(--apx-fill-hover, var(--apx-fill));
+  color: var(--apx-fg);
+}
+/* Placed by the component (fixed, in the portal) so a side panel's scroll never clips it. */
+.apx-tfield__list {
+  z-index: 20;
+  padding: 4px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-md);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.apx-tfield__set {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.apx-tfield__group {
+  padding: 8px 8px 4px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.apx-tfield__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: calc(var(--apx-radius-md) - 4px);
+  background: none;
+  color: var(--apx-fg);
+  font: inherit;
+  font-size: var(--apx-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.apx-tfield__item.is-active,
+.apx-tfield__item:hover {
+  background: var(--apx-popup-hover, var(--apx-fill));
+}
+.apx-tfield__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.apx-tfield__hint {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+  white-space: nowrap;
+}
+.apx-tfield__item .apx-tfield__chip {
+  margin-left: auto;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+}
+.apx-tfield__empty {
+  padding: 8px;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-subtle);
+}

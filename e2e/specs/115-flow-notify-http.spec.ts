@@ -19,7 +19,7 @@ const L = {
     outgoing: "Outgoing webhook",
     save: "Save",
     saved: "Saved. Turn it on to run it as drawn.",
-    close: "Close the editor",
+    close: "Exit the editor",
     toggle: (n: string) => `Turn ${n} on or off`,
     allowTitle: "Let this flow act for you?",
     sendYou: "Send you a message on Telegram",

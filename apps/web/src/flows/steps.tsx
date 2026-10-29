@@ -5,6 +5,9 @@ import { type FlowStepTone, Icons } from "@apx/ui";
 import type { ReactNode } from "react";
 import type { FlowGraph, FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
 import type { MessageKey } from "../i18n/index.ts";
+import { isTrigger } from "./graph-edit.ts";
+
+export { chainOrder, dotted, isTrigger } from "./graph-edit.ts";
 
 export type Flow = Result<"flows.set">;
 export type FlowRun = Result<"flows.events">["events"][number];
@@ -54,7 +57,8 @@ export const PALETTE: { group: MessageKey; kinds: StepKind[] }[] = [
     group: "flow.group.steps",
     kinds: ["condition", "vars", "js", "table_read", "table_write", "sql", "http", "cmd"],
   },
-  { group: "flow.group.crew", kinds: ["agent", "routine", "llm"] },
+  // A direct model call stays in drawings that have one; new ones use the AI model step.
+  { group: "flow.group.crew", kinds: ["agent", "routine"] },
   { group: "flow.group.output", kinds: ["notify"] },
 ];
 type Condition = Extract<FlowNode, { kind: "condition" }>;
@@ -77,8 +81,6 @@ export function branchesOf(n: Condition, t: T): { id: string; label: string }[] 
 /** The name of the way out `id` of a check. */
 export const branchName = (n: Condition, id: string, t: T) => branchesOf(n, t).find((b) => b.id === id)?.label ?? id;
 
-/** A run starts at its one trigger: an incoming POST or a schedule. */
-export const isTrigger = (kind: string): kind is "webhook" | "schedule" => kind === "webhook" || kind === "schedule";
 /** The drawing's trigger, if it has one. */
 export const triggerOf = (graph: FlowGraph) => graph.nodes.find((n) => isTrigger(n.kind));
 
@@ -98,8 +100,6 @@ export const presetOf = (cron: string) => SCHEDULE_PRESETS.find((p) => p.cron ==
 
 export const hookPath = (flow: string) => `/flows/${flow}`;
 
-/** A field path as people write it: form.tier. */
-export const dotted = (path: readonly string[]) => path.join(".");
 export const literal = (v: string | number | boolean | null) => (typeof v === "string" ? `"${v}"` : String(v));
 
 /** Steps after the trigger, as chips in a list row. */
@@ -109,19 +109,3 @@ export const chipsOf = (shape: FlowShape): StepKind[] => [
   "table_write",
   ...(shape.action.kind === "none" ? [] : [shape.action.kind]),
 ];
-
-/** Steps in the order they run: along the path from the trigger, then any step not on it. */
-export function chainOrder(graph: FlowGraph): FlowNode[] {
-  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
-  const seen = new Set<string>();
-  const out: FlowNode[] = [];
-  const visit = (n: FlowNode | undefined) => {
-    if (!n || seen.has(n.id)) return;
-    seen.add(n.id);
-    out.push(n);
-    for (const e of graph.edges) if (e.source === n.id) visit(byId.get(e.target));
-  };
-  for (const n of graph.nodes) if (isTrigger(n.kind)) visit(n);
-  for (const n of graph.nodes) visit(n);
-  return out;
-}

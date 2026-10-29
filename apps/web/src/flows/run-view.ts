@@ -136,6 +136,8 @@ export type StepView = {
   /** Pointing at the agent's chat or a retry, when the step has one. */
   run?: string;
   retry?: boolean;
+  /** An AI model step: who answered, on which harness and model. */
+  answered?: string;
 };
 export type LogLine = { at: string; node: string; text: string; tone?: "ok" | "err" };
 export type RunView = { steps: Map<string, StepView>; log: LogLine[]; ran: number };
@@ -532,6 +534,18 @@ export function viewGraphRun(run: RunDetail, flow: string, t: T, who: (n: FlowNo
             : (outwardInput(n, r.input, t) ?? JSON_TEXT(r.input)),
       output,
       ...(r.run_id ? { run: r.run_id } : {}),
+      ...(n.kind === "agent" && r.answered
+        ? {
+            answered: t("flow.ai.answered", {
+              who: who(n),
+              harness:
+                r.answered.harness === "native"
+                  ? t("flow.ai.apx")
+                  : r.answered.harness.charAt(0).toUpperCase() + r.answered.harness.slice(1),
+              model: r.answered.model ?? t("flow.ai.ownModel"),
+            }),
+          }
+        : {}),
     });
     const name = n.label;
     if (
