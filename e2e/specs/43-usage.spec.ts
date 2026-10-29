@@ -14,4 +14,8 @@ test("the usage panel shows the auxiliary model's tokens for the chat's title", 
   const panel = page.getByRole("complementary", { name: "Panel lateral" });
   await expect(panel.getByText("Modelo auxiliar", { exact: true })).toBeVisible();
   await expect(panel.getByText("120 entrada · 8 salida · Título", { exact: true })).toBeVisible();
+  // A value reads on one line beside its label, not squeezed into a narrow column.
+  const value = panel.locator("dd", { hasText: "120 entrada · 8 salida · Título" });
+  const line = await value.evaluate((dd) => Number.parseFloat(getComputedStyle(dd).lineHeight));
+  expect(await value.evaluate((dd) => dd.getBoundingClientRect().height)).toBeLessThan(line * 1.5);
 });

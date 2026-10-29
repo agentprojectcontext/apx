@@ -94,7 +94,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.usage {
+.chatusage {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -103,30 +103,30 @@
   gap: 14px;
   padding: 16px;
 }
-.usage__context {
+.chatusage__context {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.usage__contexttext {
+.chatusage__contexttext {
   font-size: var(--apx-text-sm);
   color: var(--apx-fg);
 }
-.usage__bar {
+.chatusage__bar {
   height: 4px;
   border-radius: 2px;
   background: var(--apx-fill);
   overflow: hidden;
 }
-.usage__bar > span {
+.chatusage__bar > span {
   display: block;
   height: 100%;
   background: var(--apx-accent);
 }
-.usage__kv {
+.chatusage__kv {
   margin: 0;
 }
-.usage__row {
+.chatusage__row {
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -134,19 +134,19 @@
   border-bottom: 1px solid var(--apx-border);
   font-size: var(--apx-text-sm);
 }
-.usage__row dt {
+.chatusage__row dt {
   color: var(--apx-fg-muted);
 }
-.usage__row dd {
+.chatusage__row dd {
   margin: 0;
   font-family: var(--apx-meta-font);
   text-align: right;
 }
-.usage__label {
+.chatusage__label {
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-subtle);
 }
-.usage__runs {
+.chatusage__runs {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -154,17 +154,17 @@
   flex-direction: column;
   gap: 6px;
 }
-.usage__run {
+.chatusage__run {
   display: flex;
   align-items: center;
   gap: 10px;
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-muted);
 }
-.usage__when {
+.chatusage__when {
   flex: 1;
 }
-.usage__dur {
+.chatusage__dur {
   font-variant-numeric: tabular-nums;
 }
 .share__url {

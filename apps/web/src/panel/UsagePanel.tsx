@@ -103,36 +103,36 @@ export function UsagePanel() {
     ]);
   const context = contextOf(runs);
   return (
-    <div className="usage">
+    <div className="chatusage">
       {context?.window && (
-        <div className="usage__context">
-          <div className="usage__contexttext">
+        <div className="chatusage__context">
+          <div className="chatusage__contexttext">
             {t("usage.context", { used: formatNumber(context.used), window: formatNumber(context.window) })}
           </div>
-          <div className="usage__bar" aria-hidden="true">
+          <div className="chatusage__bar" aria-hidden="true">
             <span style={{ width: `${Math.min(100, (context.used / context.window) * 100)}%` }} />
           </div>
         </div>
       )}
-      <dl className="usage__kv">
+      <dl className="chatusage__kv">
         {rows.map(([k, v]) => (
-          <div key={k} className="usage__row">
+          <div key={k} className="chatusage__row">
             <dt>{k}</dt>
             <dd>{v}</dd>
           </div>
         ))}
       </dl>
-      <div className="usage__label">{t("usage.recent")}</div>
-      <ul className="usage__runs">
+      <div className="chatusage__label">{t("usage.recent")}</div>
+      <ul className="chatusage__runs">
         {runs.slice(0, 12).map((r) => {
           const s = secs(r);
           return (
-            <li key={r.id} className="usage__run">
+            <li key={r.id} className="chatusage__run">
               <Badge tone={r.state in STATE_TONE ? STATE_TONE[r.state as keyof typeof STATE_TONE] : "info"}>
                 {t(STATE_LABEL[r.state])}
               </Badge>
-              <span className="usage__when">{shortWhen(r.started_at)}</span>
-              <span className="usage__dur">{s != null ? formatSeconds(s) : "…"}</span>
+              <span className="chatusage__when">{shortWhen(r.started_at)}</span>
+              <span className="chatusage__dur">{s != null ? formatSeconds(s) : "…"}</span>
             </li>
           );
         })}
