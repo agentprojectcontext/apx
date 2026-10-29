@@ -216,6 +216,13 @@ A core on a temp home with the fake model: startup, idle memory and CPU, protoco
 once quiet again, and the panel's first load (gzip). Each number has a budget in `scripts/perf-budget.json`;
 going over fails. Raising a budget is a regression: it needs a reason in the commit body.
 
+The memory numbers are `ps` RSS. On macOS the memory compressor takes a varying part of the core's malloc pages
+out of it, so the same commit reads anywhere from ~90 to ~145 MB idle (and `rss_after_turns_mb` swings the same
+way) depending on how loaded the machine is. A difference between two commits measured once each on a Mac says
+nothing. Compare them where nothing is compressed: CI's Linux job, or a `node:24` container (within ~1 MB from
+run to run). On a Mac, `vmmap -summary <pid>` lists each region's dirty and compressed sizes; their sum stays
+about the same between a low reading and a high one.
+
 The first load is read from the built `apps/web/dist` (`scripts/bundle.ts`), never from source:
 `initial_bundle_gzip_kb` is what `index.html` names plus the chunks it imports statically; `boot_gzip_kb` adds the
 heavier language chunk `main.tsx` waits for, with its own static imports — what a first screen really downloads.
