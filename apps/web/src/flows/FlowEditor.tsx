@@ -1,21 +1,17 @@
 import { ApxError } from "@apx/protocol/client";
 import { shapeOfGraph } from "@apx/protocol/flow-shape";
 import { Button, Dialog, FlowStepTile, IconButton, Icons, Input, Select, Spinner } from "@apx/ui";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Drawer } from "../common/Drawer.tsx";
 import { client } from "../data/client.ts";
-import { useLastFlowDraft } from "../data/flowDrafts.ts";
-import { isPending, secretary } from "../data/identity.ts";
 import { useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
-import { askWords, type Fresh, sameGraph, takeAgentDraft } from "./agentDraft.ts";
 import { describeIssue, issueText, shownGraph, useKnown } from "./data.ts";
 import { blank, slug, tidy } from "./drawing.ts";
 import { type Cover, FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { FlowChat } from "./FlowChat.tsx";
-import { chatIsEmpty, flowChatOf, newFlowChat, rememberFlowChat } from "./flowChat.ts";
 import { connectNodes, moveNode, newNode, removeCase, removeNode } from "./graph-edit.ts";
 import { Inspector, StepList } from "./Inspector.tsx";
 import { stepDetail } from "./look.tsx";
@@ -34,6 +30,7 @@ import {
   triggerOf,
 } from "./steps.tsx";
 import { TryRun, type TryStep } from "./TryRun.tsx";
+import { useFlowChat } from "./useFlowChat.ts";
 import { savedTableBefore } from "./values.ts";
 import "./editor.css";
 
@@ -91,17 +88,26 @@ export function FlowEditor({
   const id = flow?.id ?? made;
   // The agent whose saved draft waits for the owner's review (their Save makes it theirs).
   const [draftBy, setDraftBy] = useState<string | null>(null);
-  // Steps the agent just added or changed, marked for a moment; `drawn` counts its drawings, each fitted into view.
-  const [fresh, setFresh] = useState<Fresh>(new Map());
-  const [drawn, setDrawn] = useState(0);
-  const boss = useData((s) => secretary(s.agents));
-  const [chat, setChat] = useState<string>();
-  const [chatOpen, setChatOpen] = useState(false);
-  const [notice, setNotice] = useState<string>();
-  // While the agent works in the chat the canvas is its: the owner watches, edits wait for its turn to end.
-  const locked = useData((s) => isPending(chat ? s.threads[chat]?.state : undefined));
-  // A new flow the agent was asked to make: the next one it makes in this project is this one.
-  const awaiting = useRef(false);
+  const ask = useFlowChat(
+    { id, projectId, name, graph, saved, version, draftBy },
+    {
+      graph: setGraph,
+      saved: setSaved,
+      version: setVersion,
+      published: setPublished,
+      draftBy: setDraftBy,
+      name: setName,
+      made: setMade,
+      said: setSaid,
+      clearTrial: () => setTrial(null),
+      closeStep: () => {
+        setSelected(null);
+        setPalette(false);
+      },
+      onSaved,
+    },
+  );
+  const { boss, chat, open: chatOpen, setOpen: setChatOpen, notice, locked, fresh } = ask;
   // Load once: what the flow runs now, or its draft with your last changes.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the flow is loaded when the editor opens, not after each save
   useEffect(() => {
@@ -316,156 +322,8 @@ export function FlowEditor({
   const close = () => (dirty ? setLeaving(true) : onClose());
   const hasTrigger = Boolean(triggerOf(g));
 
-  // What was last saved or loaded: the drawing and the name.
-  const lastSaved = (): [FlowGraph, string] => {
-    const [graph, savedName] = JSON.parse(saved) as [FlowGraph, string];
-    return [graph, savedName];
-  };
-  const projectName = projects.find((p) => p.id === projectId)?.name ?? "";
-  const openChat = async (fresh = false) => {
-    if (!boss || locked) return;
-    const thread =
-      (!fresh && (chat ?? (id ? flowChatOf(id) : undefined))) ||
-      (await newFlowChat(boss.id, projectId, name.trim() || t("flow.ed.untitled")));
-    if (!thread) return;
-    if (id) rememberFlowChat(id, thread);
-    setChat(thread);
-    setSelected(null);
-    setPalette(false);
-    setNotice(undefined);
-    setChatOpen(true);
-  };
-  /**
-   * Before each message: the owner's unsaved edits are saved as a draft, so the agent starts from what the owner sees;
-   * the first message says which Flow it is about (in the turn, not the agent's instructions).
-   */
-  const prepare = async (words: string): Promise<string | null> => {
-    setNotice(undefined);
-    if (!chat || !graph) return null;
-    const [was, savedName] = lastSaved();
-    const edited = !sameGraph(g, was);
-    let flowId = id;
-    let flowName = savedName || name.trim();
-    if (edited) {
-      const incomplete = g.nodes.find(blank);
-      if (incomplete || !g.nodes.length) {
-        setNotice(
-          incomplete
-            ? t("flow.chat.finish", {
-                step: incomplete.label || t(STEP[incomplete.kind].label),
-                name: boss?.name ?? "",
-              })
-            : t("flow.chat.empty"),
-        );
-        return null;
-      }
-      const clean = tidy(g, t);
-      try {
-        if (flowId) {
-          // Over an agent's draft not yet reviewed, it stays waiting for the owner's Save.
-          const doc = await client.call("flows.draft_save", {
-            flow: flowId,
-            expectedVersion: version,
-            graph: clean,
-            ...(draftBy ? { unreviewed: true as const } : {}),
-          });
-          setVersion(doc.draftVersion);
-          setPublished(doc.publishedRevision);
-          setDraftBy(doc.draftBy);
-        } else {
-          const out = await client.call("flows.create", {
-            project: projectId,
-            name: name.trim() || t("flow.ed.untitled"),
-            graph: clean,
-          });
-          flowId = out.flow.id;
-          flowName = out.flow.name;
-          setMade(flowId);
-          setName(flowName);
-          setVersion(out.document.draftVersion);
-          rememberFlowChat(flowId, chat);
-          onSaved(flowId);
-        }
-      } catch (e) {
-        setNotice(
-          issueText(e, clean, t) ??
-            t(e instanceof ApxError && e.code === "conflict" ? "flow.ed.conflict" : "flow.ed.saveFailed"),
-        );
-        return null;
-      }
-      setGraph(clean);
-      setSaved(JSON.stringify([clean, flowName]));
-    }
-    const first = chatIsEmpty(chat);
-    if (first && !flowId) awaiting.current = true;
-    const context = !first
-      ? undefined
-      : flowId
-        ? t("flow.chat.context", { name: flowName || t("flow.ed.untitled"), flow: flowId, project: projectName })
-        : t(name.trim() ? "flow.chat.contextNewNamed" : "flow.chat.contextNew", {
-            name: name.trim(),
-            project: projectName,
-            projectId,
-          });
-    return askWords(words, [context, edited && !first ? t("flow.chat.changed") : undefined]);
-  };
-  // An agent's saved drawing shows at once; a new flow the agent was asked to make becomes this editor's flow.
-  const last = useLastFlowDraft();
-  // biome-ignore lint/correctness/useExhaustiveDependencies: each change the core tells is taken once, as it comes
-  useEffect(() => {
-    if (!last || last.by === null || !graph) return;
-    const adopt = !id && awaiting.current && last.project === projectId && last.by === boss?.id;
-    if (!adopt && last.flow !== id) return;
-    let live = true;
-    void (async () => {
-      const doc = await client.call("flows.graph_get", { flow: last.flow });
-      const incoming = doc.draft ?? doc.published;
-      if (!live || !incoming) return;
-      let [was, savedName] = lastSaved();
-      if (adopt) {
-        awaiting.current = false;
-        savedName =
-          (await client.call("flows.list", { project: projectId })).flows.find((f) => f.id === last.flow)?.name ?? name;
-        was = g;
-        setMade(last.flow);
-        if (!name.trim()) setName(savedName);
-        if (chat) rememberFlowChat(last.flow, chat);
-        onSaved(last.flow);
-      }
-      const take = takeAgentDraft(g, was, incoming);
-      if (take.kind === "keep") {
-        setSaid({ error: true, text: t("flow.ed.agentElsewhere", { name: allAgents[last.by ?? ""]?.name ?? "" }) });
-        return;
-      }
-      setVersion(doc.draftVersion);
-      setPublished(doc.publishedRevision);
-      setDraftBy(doc.draftBy);
-      setSaved(JSON.stringify([incoming, savedName]));
-      if (take.kind === "take") {
-        setGraph(incoming);
-        setFresh(take.fresh);
-        setDrawn((n) => n + 1);
-        setTrial(null);
-        setSaid(null);
-      }
-    })().catch(() => undefined);
-    return () => {
-      live = false;
-    };
-  }, [last?.seq]);
-  useEffect(() => {
-    if (!fresh.size) return;
-    const timer = setTimeout(() => setFresh(new Map()), 6000);
-    return () => clearTimeout(timer);
-  }, [fresh]);
-  // The agent at work closes the step card: nothing is edited under it.
-  useEffect(() => {
-    if (locked) setSelected(null);
-  }, [locked]);
   const agentName = allAgents[draftBy ?? ""]?.name ?? boss?.name ?? "";
   const stepCard = sel && !chatOpen && !locked ? sel : undefined;
-  // What the agent just added is what a phone's fit shows, not the first steps.
-  const fitSteps = useMemo(() => [...fresh].filter(([, how]) => how === "new").map(([step]) => step), [fresh]);
   return (
     <div className="fe" role="dialog" aria-modal="true" aria-label={name || t("flow.ed.untitled")}>
       <header className={`fe-top window-bar${desktop}`}>
@@ -523,7 +381,7 @@ export function FlowEditor({
             title={!id && !projectId ? t("flow.ed.needProject") : undefined}
             aria-label={t("flow.ed.ask", { name: boss.name })}
             aria-pressed={chatOpen}
-            onClick={() => (chatOpen ? setChatOpen(false) : void openChat())}
+            onClick={() => (chatOpen ? setChatOpen(false) : void ask.openChat())}
           >
             <span className="fe-top__ask-text">{t("flow.ed.ask", { name: boss.name })}</span>
           </Button>
@@ -605,8 +463,8 @@ export function FlowEditor({
               minimap={g.nodes.length > 0}
               // A step the owner adds is centred like a clicked one (`centre`); another flow, or steps an agent just drew,
               // fit the view again.
-              fitKey={`${id ?? "new"}:${drawn}`}
-              fitSteps={fitSteps}
+              fitKey={`${id ?? "new"}:${ask.drawn}`}
+              fitSteps={ask.fitSteps}
               focus={{ request: focus, cover, card: Boolean(stepCard || (chatOpen && chat)), onClick: centre }}
             />
           )}
@@ -639,8 +497,8 @@ export function FlowEditor({
               threadId={chat}
               notice={notice}
               onClose={() => setChatOpen(false)}
-              onRestart={() => void openChat(true)}
-              prepare={prepare}
+              onRestart={() => void ask.openChat(true)}
+              prepare={ask.prepare}
             />
           )}
           {stepCard && (

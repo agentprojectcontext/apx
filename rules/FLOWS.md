@@ -520,7 +520,7 @@ discards, publications and `flows.create` emit `flow.draft {flow, project, draft
 for the owner); the panel's `data/flowDrafts.ts` counts them per Flow, and the list, a Flow's detail and its chat cards
 read the drawing again. The open editor takes them too (below).
 
-**Asking from the editor** ([D-175](DECISIONS.md#d-175)). **Ask {name}** opens `FlowChat` (`flows/FlowChat.tsx`), a
+**Asking from the editor** ([D-175](DECISIONS.md#d-175), `flows/useFlowChat.ts`). **Ask {name}** opens `FlowChat` (`flows/FlowChat.tsx`), a
 loose thread with the super-agent in the Flow's project, in the step card's place (one `Drawer inset` card at a time;
 the canvas `focus.card` makes the fit leave it out). Threads are remembered per Flow in `localStorage`
 (`apx.flowChats`, `flows/flowChat.ts`). The composer's `prepare` hook runs before each message: unsaved edits go first
