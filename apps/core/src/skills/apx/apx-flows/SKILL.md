@@ -44,8 +44,8 @@ fields marked *template* take placeholders: `$trigger.form.email`, `$steps.<step
 
 | kind | fields |
 |---|---|
-| `webhook` | (none): POST with JSON starts it |
-| `schedule` | `cron`: five fields in the owner's time zone, at most every five minutes (`"30 8 * * 1-5"`) |
+| `webhook` | `methods` (optional): `["POST"]` (default, JSON `{"id", "data"}`), `["GET"]` (query parameters are the data) or both. Its key is the owner's, in the editor |
+| `schedule` | `cron`: five fields in the owner's time zone, at most every five minutes (`"30 8 * * 1-5"`); days with different times join up to seven with `;` (`"0 4,5,6 * * 1; 15 9 * * 3,5"`) |
 | `condition` | `cases: [{id, label, match}]` (1–15), the first that holds is the way out, then `"no"`. `match`: `{kind: "all" \| "any", rules: [{left, op, right, type}]}` (1–10 comparisons, every one or at least one), or `{kind: "expr", expr}`. Older checks keep `{kind: "equals", value}` on the `input` binding |
 | `vars` | `vars: [{name, value: {kind: "literal", value} \| {kind: "expr", expr}}]`; later steps read `$vars.name` |
 | `js` | `code`: body of `function (input, vars)` returning JSON; `input` binding; `timeoutMs` 100–10000. No files, network or programs |

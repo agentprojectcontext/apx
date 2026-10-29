@@ -151,6 +151,7 @@ export const FLOW_ELSEWHERE: Readonly<Record<string, string>> = {
   "flows.next_runs": "the editor's preview of a schedule's next times while the owner types it",
   "flows.outward": "the editor's list of what a drawing sends out, shown before the owner publishes it",
   "flows.path_check": "the editor checks a new address is free before the owner sets it",
+  "flows.token": "the webhook card shows its key to the owner; a key never reaches a model",
   "flows.try": "the owner tries a Flow's rules on a sample event in the editor",
   "flows.try_graph": "the owner tries one step on sample input in the editor",
 };

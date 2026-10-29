@@ -73,7 +73,7 @@ Empty objects, non-object values, nonmatching events and duplicates do not invok
 list shows those, marked **Draft**, and a Flow's page draws the draft (with **What runs** to switch when a drawing runs)
 instead of the table-only definition a new drawing belongs to ([D-177](DECISIONS.md#d-177)).
 
-All management operations use the private protocol registry: `flows.list`, `flows.set`, `flows.rows`, `flows.write`, `flows.events`, `flows.retry`, `flows.retire`, `flows.try`, and for drawings `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate`, `flows.outward`, `flows.publish`, `flows.run_get`, `flows.next_runs`, `flows.run_now`, `flows.cancel_run`, `flows.try_graph`, `flows.test_start`, `flows.test_stop`, `flows.path_check`, `flows.path_set`, and `flows.create` for a new
+All management operations use the private protocol registry: `flows.list`, `flows.set`, `flows.rows`, `flows.write`, `flows.events`, `flows.retry`, `flows.retire`, `flows.try`, and for drawings `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate`, `flows.outward`, `flows.publish`, `flows.run_get`, `flows.next_runs`, `flows.run_now`, `flows.cancel_run`, `flows.try_graph`, `flows.test_start`, `flows.test_stop`, `flows.path_check`, `flows.path_set`, `flows.token`, `flows.token_rotate`, and `flows.create` for a new
 drawn Flow. External `chat` tokens cannot call them; see [Agents drawing Flows](#agents-drawing-flows) for the ones an
 agent's tool reaches.
 
