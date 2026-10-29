@@ -157,12 +157,25 @@
   font-size: 12px;
   color: var(--apx-fg-muted);
 }
-.fe-side {
-  width: 330px;
-  flex: none;
-  overflow: auto;
-  border-left: 1px solid var(--apx-border);
-  background: var(--apx-surface);
+/* The chosen step's card floats over the canvas; the minimap under it steps aside. */
+.fe-card .fe-ins {
+  padding: 0;
+}
+.fe-canvas:has(> .fe-card) .fc-minimap {
+  display: none;
+}
+.fe-pal-toggle.apx-btn {
+  display: none;
+}
+.fe-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--apx-border);
+}
+.fe-list .fe-ins__title {
+  padding: 0 8px;
 }
 .fe-ins {
   padding: 16px;
@@ -341,23 +354,6 @@
   align-self: flex-start;
 }
 
-@media (max-width: 900px) {
-  .fe-pal {
-    width: 64px;
-    padding: 10px 6px;
-  }
-  .fe-pal__label,
-  .fe-pal__text,
-  .fe-pal__hint {
-    display: none;
-  }
-  .fe-pal__item {
-    justify-content: center;
-  }
-  .fe-side {
-    width: 280px;
-  }
-}
 @media (max-width: 640px) {
   .fe-top {
     flex-wrap: wrap;
@@ -373,26 +369,29 @@
     display: none;
   }
   .fe-body {
-    flex-direction: column;
+    position: relative;
   }
+  /* The step types open over the canvas from a button, and close once one is added. */
   .fe-pal {
-    width: auto;
-    flex-direction: row;
-    overflow-x: auto;
-    border-right: 0;
-    border-bottom: 1px solid var(--apx-border);
+    display: none;
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 7;
+    width: min(300px, 85%);
   }
-  .fe-pal__group {
-    flex-direction: row;
+  .fe-pal.is-open {
+    display: flex;
   }
-  .fe-canvas {
-    min-height: 320px;
+  .fe-pal-toggle.apx-btn {
+    display: inline-flex;
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 5;
   }
-  .fe-side {
-    width: auto;
-    max-height: 40vh;
-    border-left: 0;
-    border-top: 1px solid var(--apx-border);
+  .fe-pal.is-open ~ .fe-canvas .fe-pal-toggle.apx-btn {
+    left: calc(min(300px, 85%) + 12px);
+    z-index: 8;
   }
 }
 .fe-presets {

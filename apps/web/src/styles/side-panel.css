@@ -216,8 +216,8 @@
 /* The page under an open drawer makes room for it, so the list sits beside the detail; a narrow page keeps ~480px
    of list and lets the drawer cover the rest. */
 @media (min-width: 768px) {
-  .page:has(.drawer),
-  .project__body:has(.drawer) {
+  .page:has(.drawer:not(.drawer--inset)),
+  .project__body:has(.drawer:not(.drawer--inset)) {
     padding-right: min(584px, max(0px, 100% - 480px));
   }
 }
@@ -236,6 +236,30 @@
     width: auto;
     border: 0;
     border-radius: 0;
+  }
+}
+/* Over a canvas: a card inside its parent, a bottom sheet on a phone. */
+.drawer.drawer--inset {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  left: auto;
+  z-index: 6;
+  width: min(400px, calc(100% - 24px));
+  border: 1px solid var(--apx-border);
+  border-radius: 16px;
+}
+@media (max-width: 640px) {
+  .drawer.drawer--inset {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    height: 60%;
+    border-width: 1px 0 0;
+    border-radius: 16px 16px 0 0;
   }
 }
 

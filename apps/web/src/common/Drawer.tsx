@@ -9,6 +9,7 @@ const OPEN_POPUP = '[role="dialog"][data-open], [role="menu"][data-open], [role=
 /**
  * A panel over the right edge of the page: the list beside it keeps its place and width; on a narrow window it takes
  * the whole width. × or Escape closes it; `back` steps out of a nested view (a routine's run → the routine).
+ * `inset` floats it over its positioned parent instead of the page (a canvas), and as a bottom sheet on a phone.
  */
 export function Drawer(props: {
   label: string;
@@ -17,23 +18,31 @@ export function Drawer(props: {
   back?: { label: string; onClick: () => void };
   actions?: ReactNode;
   className?: string;
+  inset?: boolean;
   children: ReactNode;
 }) {
   const t = useT();
+  const self = useRef<HTMLElement>(null);
   const close = useRef(props.onClose);
   close.current = props.back?.onClick ?? props.onClose;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
       const target = e.target instanceof Element ? e.target : null;
-      if (target?.closest(POPUP) || document.querySelector(OPEN_POPUP)) return;
+      // A dialog the drawer itself sits in (a full-screen editor) is not a popup over it.
+      const popup = target?.closest(POPUP);
+      if ((popup && !popup.contains(self.current)) || document.querySelector(OPEN_POPUP)) return;
       close.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   return (
-    <aside className={props.className ? `drawer ${props.className}` : "drawer"} aria-label={props.label}>
+    <aside
+      ref={self}
+      className={["drawer", props.inset && "drawer--inset", props.className].filter(Boolean).join(" ")}
+      aria-label={props.label}
+    >
       <header className="drawer__head">
         {props.back && (
           <IconButton

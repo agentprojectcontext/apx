@@ -75,19 +75,49 @@ const NEEDS_PROJECT: Partial<Record<FlowNode["kind"], "flow.need.tables" | "flow
     sql: "flow.need.folder",
   };
 
-/** The panel at the right: the chosen step's settings, or every step in order with how the flow runs. */
+/** Every step in order, to jump to one, and whether the flow runs as drawn. */
+export function StepList(props: {
+  graph: FlowGraph;
+  /** Why the saved drawing can't run, when the core said so; undefined until it has been checked. */
+  problem: string | null | undefined;
+  select: (id: string) => void;
+}) {
+  const t = useT();
+  const { graph, problem } = props;
+  return (
+    <div className="fe-list">
+      <div className="fe-ins__title">
+        <h2>{t("flow.ed.steps")}</h2>
+        <span>{t("flow.ed.stepsHint")}</span>
+      </div>
+      <div className="fe-order">
+        {chainOrder(graph).map((s, i) => (
+          <button key={s.id} type="button" className="fe-order__row" onClick={() => props.select(s.id)}>
+            <span className="fe-order__i">{i + 1}</span>
+            <FlowStepTile icon={STEP[s.kind].icon} tone={STEP[s.kind].tone} />
+            <span className="fe-order__name">{s.label}</span>
+          </button>
+        ))}
+        {!graph.nodes.length && <span className="fe-ins__muted">{t("flow.ed.noSteps")}</span>}
+      </div>
+      {graph.nodes.length > 0 && problem !== undefined && (
+        <div className={problem ? "fe-shape is-draft" : "fe-shape"}>
+          {problem ? t("flow.ed.cantRun", { reason: problem }) : t("flow.ed.runsAsDrawn")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The chosen step's settings, in the card over the canvas. */
 export function Inspector(props: {
   graph: FlowGraph;
-  selected: FlowNode | undefined;
+  selected: FlowNode;
   flowId: string | undefined;
   projectId: string;
   agents: Agent[];
   routines: Routine[];
-  /** Why the saved drawing can't run, when the core said so; undefined until it has been checked. */
-  problem: string | null | undefined;
   update: (n: FlowNode) => void;
-  remove: (id: string) => void;
-  select: (id: string | null) => void;
   unlink: (source: string, target: string) => void;
   /** Moves a connection out of a check to another of its ways out. */
   branch: (source: string, target: string, when: string) => void;
@@ -99,32 +129,6 @@ export function Inspector(props: {
   const t = useT();
   const { graph, selected: n } = props;
   const [values, dialog] = useValues(graph, n, props.projectId);
-  if (!n) {
-    const { problem } = props;
-    return (
-      <div className="fe-ins">
-        <div className="fe-ins__title">
-          <h2>{t("flow.ed.steps")}</h2>
-          <span>{t("flow.ed.stepsHint")}</span>
-        </div>
-        <div className="fe-order">
-          {chainOrder(graph).map((s, i) => (
-            <button key={s.id} type="button" className="fe-order__row" onClick={() => props.select(s.id)}>
-              <span className="fe-order__i">{i + 1}</span>
-              <FlowStepTile icon={STEP[s.kind].icon} tone={STEP[s.kind].tone} />
-              <span className="fe-order__name">{s.label}</span>
-            </button>
-          ))}
-          {!graph.nodes.length && <span className="fe-ins__muted">{t("flow.ed.noSteps")}</span>}
-        </div>
-        {graph.nodes.length > 0 && problem !== undefined && (
-          <div className={problem ? "fe-shape is-draft" : "fe-shape"}>
-            {problem ? t("flow.ed.cantRun", { reason: problem }) : t("flow.ed.runsAsDrawn")}
-          </div>
-        )}
-      </div>
-    );
-  }
   const meta = STEP[n.kind];
   const outs = graph.edges.filter((e) => e.source === n.id);
   return (
@@ -135,7 +139,6 @@ export function Inspector(props: {
           <span>{t(meta.label)}</span>
           {meta.body && <span>{t(meta.body)}</span>}
         </div>
-        <IconButton label={t("flow.ed.delete")} icon={<Icons.Trash2 size={14} />} onClick={() => props.remove(n.id)} />
       </div>
       <Field label={t("flow.ed.stepName")}>
         {(id) => (

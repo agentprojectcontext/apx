@@ -129,6 +129,8 @@ export const enFlow = {
   "flow.ed.steps": "Steps",
   "flow.ed.stepsHint": "Choose one to edit it.",
   "flow.ed.noSteps": "No steps yet.",
+  "flow.ed.stepSettings": "Step settings",
+  "flow.ed.addStep": "Add a step",
   "flow.ed.stepName": "Step name",
   "flow.ed.delete": "Delete step",
   "flow.ed.next": "Goes on to",
