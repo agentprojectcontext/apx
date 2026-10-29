@@ -192,6 +192,12 @@
   gap: 4px;
   min-width: 0;
 }
+.fd__rowshead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
 .fd__label {
   font-size: 11px;
   color: var(--apx-fg-subtle);

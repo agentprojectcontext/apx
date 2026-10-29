@@ -92,7 +92,8 @@ export function StepPanel({
           {tab === "step" && node && (
             <div className="fd__io">
               <div>
-                <span className="fd__label">{t("flow.input")}</span>
+                {/* With no run picked, what shows is how the step is set up, not what it received. */}
+                <span className="fd__label">{t(run ? "flow.input" : "flow.setup")}</span>
                 <span className="fd__value">{step?.input}</span>
               </div>
               {run && (
@@ -185,13 +186,17 @@ function Rows({ flow, project, table }: { flow: string; project: string; table: 
   }, [flow, project, table, made, tables]);
   return (
     <div className="fd__rows">
-      <span className="fd__label">{t("flow.rows")}</span>
-      {table && (
-        <Button size="sm" variant="link" onClick={() => go.tables(project, table)}>
-          {t("flow.tables.open", { name: table })}
-        </Button>
+      <div className="fd__rowshead">
+        <span className="fd__label">{table ? t("flow.rowsOf", { name: table }) : t("flow.rows")}</span>
+        {table && (
+          <Button size="sm" variant="link" onClick={() => go.tables(project, table)}>
+            {t("flow.tables.openShort")}
+          </Button>
+        )}
+      </div>
+      {rows?.length === 0 && (
+        <span className="fd__value is-muted">{t(made ? "flow.noRows" : "flow.tableNotMade")}</span>
       )}
-      {rows?.length === 0 && <span className="fd__value is-muted">{t("flow.noRows")}</span>}
       {rows?.map((r) => (
         <div key={r.key} className="fd__row">
           <code>{r.key}</code>
