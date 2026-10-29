@@ -40,11 +40,12 @@ export type Setting = {
   whole?: true;
   /**
    * Run as the agent's own call through the router, not as the owner's: a Flow's drawing, which runs nothing until the
-   * owner publishes it. A change asks the owner only while outside content is in the turn; `reads` asks nobody
-   * (DECISIONS.md#d-174).
+   * owner publishes it. `confirm`: `untrusted` asks the owner only while outside content is in the turn (a change, or
+   * a read that hands back a whole drawing); `reads` names it a look (DECISIONS.md#d-174).
    */
   own?: {
     reads?: true;
+    confirm: "never" | "untrusted";
     args: z.ZodType;
     run: (p: Params, d: SettingsDeps, ctx: Pick<ToolContext, "call" | "upsertPart">) => Promise<string>;
   };

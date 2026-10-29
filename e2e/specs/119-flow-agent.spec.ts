@@ -87,3 +87,24 @@ test("a Flow the super-agent draws shows in the chat and opens in the editor", a
   await expect(page).toHaveURL(new RegExp(`view=flows.*flow=${flow}.*edit=1`));
   await expect(page.getByRole("textbox", { name: "Nombre del flow" })).toHaveValue("New leads");
 });
+
+test("turning on a Flow an agent drew opens it for review instead of running it", async ({ page }) => {
+  await rpc("setup.finish", {});
+  const project = (await rpc<{ project: { id: string } }>("projects.create", { name: "Acme review" })).project.id;
+  const chat = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Review" });
+  await open(page, `#thread=${chat.id}`);
+  await page.getByRole("textbox", { name: /Escribile/ }).fill(`draw a flow in ${project}`);
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".flowcard")).toContainText("Borrador");
+  const flow = (await rpc<Result<"flows.list">>("flows.list", { project })).flows[0]?.id ?? "";
+
+  await open(page, `#view=flows&scope=${project}`);
+  await page.getByRole("switch", { name: "Encender o apagar New leads" }).click();
+  await expect(
+    page.getByText("Un agente dibujó estos cambios: revisalos y guardalos, después prendé el flow."),
+  ).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`flow=${flow}.*edit=1`));
+  const doc = await rpc<Result<"flows.graph_get">>("flows.graph_get", { flow });
+  expect(doc.publishedRevision).toBeNull();
+  expect((await rpc<Result<"flows.list">>("flows.list", { project })).flows[0]?.enabled).toBe(false);
+});

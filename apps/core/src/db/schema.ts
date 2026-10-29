@@ -118,6 +118,7 @@ export interface FlowGraphDraftsTable {
   graph: string;
   published_revision: number | null;
   discarded: Generated<number>;
+  saved_by: string | null;
 }
 
 export interface FlowGraphEventsTable {

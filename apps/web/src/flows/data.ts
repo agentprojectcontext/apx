@@ -5,7 +5,9 @@ import { useEffect, useMemo } from "react";
 import type { FlowGraphIssue } from "../../../../packages/protocol/src/flow-graph.ts";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { client } from "../data/client.ts";
-import { isKey, type MessageKey } from "../i18n/index.ts";
+import { notify } from "../data/notices.ts";
+import { isKey, type MessageKey, t as translate } from "../i18n/index.ts";
+import { go, nav } from "../shell/nav.ts";
 import { approveOutward } from "./outward.tsx";
 import { type Flow, type FlowGraph, type FlowNode, type FlowRun, STEP } from "./steps.tsx";
 
@@ -34,11 +36,17 @@ export async function setEnabled(flow: Flow, enabled: boolean) {
 
 /**
  * Publishes the saved drawing when it differs from what runs; nothing when there is nothing new. False when it sends
- * or calls somewhere new and the owner said no.
+ * or calls somewhere new and the owner said no, or when an agent drew it: then its editor opens for the owner to look
+ * at it and save it first (DECISIONS.md#d-174).
  */
 export async function publishSaved(flow: Flow): Promise<boolean> {
   const doc = await client.call("flows.graph_get", { flow: flow.id });
   if (!doc.draft || doc.draftVersion === null) return true;
+  if (doc.draftBy) {
+    notify(translate("flow.reviewAgent"), "info");
+    go.flows(nav.get().flowProject, flow.id, true);
+    return false;
+  }
   if (!doc.published) {
     const shape = shapeOfGraph(doc.draft);
     if (shape.ok && sameShape(shape.shape, shapeOfDefinition(flow))) return true;

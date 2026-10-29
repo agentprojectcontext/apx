@@ -68,12 +68,14 @@ export function flowGraphsRepo(db: Db) {
         flow,
         draftVersion: draft ? Number(draft.version) : null,
         draft: draft && !draft.discarded ? JSON.parse(String(draft.graph)) : null,
+        draftBy: draft && !draft.discarded && draft.saved_by ? String(draft.saved_by) : null,
         publishedRevision: revision,
         published: published ? JSON.parse(String(published.graph)) : null,
         executionAvailable: true,
       });
     },
-    saveDraft(flow: string, expectedVersion: number | null, graph: FlowGraph) {
+    /** `by`: the agent whose tool saved it; none for the owner. */
+    saveDraft(flow: string, expectedVersion: number | null, graph: FlowGraph, by?: string) {
       const text = encoded(graph);
       return tx(() => {
         const current = api.get(flow);
@@ -81,12 +83,9 @@ export function flowGraphsRepo(db: Db) {
           throw new FlowGraphConflict("Flow draft changed; refresh before saving");
         // The drawing that runs keeps no second copy: nothing is left to discard before retiring.
         const published = current.published !== null && JSON.stringify(current.published) === text;
-        db.prepare(`INSERT INTO flow_graph_drafts(flow_id,version,graph,discarded) VALUES (?,1,?,?)
-          ON CONFLICT(flow_id) DO UPDATE SET version=version+1,graph=excluded.graph,discarded=excluded.discarded`).run(
-          flow,
-          published ? "{}" : text,
-          Number(published),
-        );
+        db.prepare(`INSERT INTO flow_graph_drafts(flow_id,version,graph,discarded,saved_by) VALUES (?,1,?,?,?)
+          ON CONFLICT(flow_id) DO UPDATE SET version=version+1,graph=excluded.graph,discarded=excluded.discarded,
+          saved_by=excluded.saved_by`).run(flow, published ? "{}" : text, Number(published), by ?? null);
         return api.get(flow);
       });
     },

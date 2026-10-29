@@ -59,6 +59,7 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.fit": "Encuadrar",
   "flow.canvas": "Pasos del flow",
   "flow.card.label": "Flow {name}",
+  "flow.reviewAgent": "Un agente dibujó estos cambios: revisalos y guardalos, después prendé el flow.",
   "flow.card.draft": "Borrador",
   "flow.card.published": "Publicado",
   "flow.card.newHint": "Todavía no corre: revisalo en el editor y prendelo.",

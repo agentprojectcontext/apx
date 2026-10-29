@@ -250,6 +250,8 @@ export const FlowGraphDocument = z
     flow: FlowId,
     draftVersion: z.number().int().min(1).nullable(),
     draft: FlowGraph.nullable(),
+    /** The agent whose tool saved the draft, null for the owner: turning the Flow on opens it for review first. */
+    draftBy: z.string().nullable().default(null),
     publishedRevision: z.number().int().min(1).nullable(),
     published: FlowGraph.nullable(),
     /** Published graphs run: new events use `publishedRevision`, events already admitted keep theirs. */

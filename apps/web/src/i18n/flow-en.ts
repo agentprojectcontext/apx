@@ -57,6 +57,7 @@ export const enFlow = {
   "flow.fit": "Fit to screen",
   "flow.canvas": "Steps of the flow",
   "flow.card.label": "Flow {name}",
+  "flow.reviewAgent": "An agent drew these changes: look them over and save them, then turn the flow on.",
   "flow.card.draft": "Draft",
   "flow.card.published": "Published",
   "flow.card.newHint": "It doesn't run yet: review it in the editor and turn it on.",

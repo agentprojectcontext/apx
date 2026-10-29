@@ -136,10 +136,10 @@ export function settingsTools(
     const s = a.method ? SETTINGS[a.method] : undefined;
     return !!s && !s.read && !s.own && a.params !== undefined;
   };
-  /** A change to a Flow's draft: the agent's own call, asked only with outside content in the turn. */
+  /** A Flow drawing's change or whole read: the agent's own call, asked only with outside content in the turn. */
   const drafts = (a: Args) => {
     const s = a.method ? SETTINGS[a.method] : undefined;
-    return !!s?.own && !s.own.reads && a.params !== undefined;
+    return s?.own?.confirm === "untrusted" && a.params !== undefined;
   };
   const filled = (a: Args) => {
     const s = settingOf(a.method ?? "");

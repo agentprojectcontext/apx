@@ -261,6 +261,8 @@ export const FLOW_DRAFTS: Readonly<Record<string, Setting>> = {
     does: `read a Flow's drawing (flow; which: draft or published, default the draft if there is one) as JSON steps and connections, with draftVersion for flows.draft_save. ${SKILL}`,
     own: {
       reads: true,
+      // The whole drawing (commands, addresses, prompts) goes back to the model: asked with outside content around.
+      confirm: "untrusted",
       args: ARGS.graph_get,
       async run(p, d, ctx) {
         const { flow, which } = ARGS.graph_get.parse(p);
@@ -282,6 +284,7 @@ export const FLOW_DRAFTS: Readonly<Record<string, Setting>> = {
     does: "check whether a Flow's saved draft (or, without one, what runs) can run, and why not, step by step",
     own: {
       reads: true,
+      confirm: "never",
       args: ARGS.validate,
       async run(p, _d, ctx) {
         const { flow } = ARGS.validate.parse(p);
@@ -296,6 +299,7 @@ export const FLOW_DRAFTS: Readonly<Record<string, Setting>> = {
   "flows.create": {
     does: `make a new Flow in a project, off, with a drawing as its draft (project, name, and graph {nodes, edges} or edits). Places are filled in. The owner turns it on from the editor. ${SKILL}`,
     own: {
+      confirm: "untrusted",
       args: ARGS.create,
       async run(p, d, ctx) {
         const a = ARGS.create.parse(p);
@@ -312,6 +316,7 @@ export const FLOW_DRAFTS: Readonly<Record<string, Setting>> = {
   "flows.draft_save": {
     does: `change a Flow's draft (flow): edits [{op: add (step, after?, when?) | update (step, set) | remove (step) | connect (from, to, when?) | disconnect (from, to) | tidy}] on the latest draft, or a whole graph with expectedVersion. New steps get places. Publishing stays the owner's, in the editor. ${SKILL}`,
     own: {
+      confirm: "untrusted",
       args: ARGS.draft_save,
       async run(p, d, ctx) {
         const a = ARGS.draft_save.parse(p);

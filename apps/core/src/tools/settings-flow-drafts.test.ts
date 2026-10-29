@@ -175,6 +175,36 @@ test("how freely an AI step acts stays the owner's", async () => {
   assert.equal((await doc(id)).draftVersion, 1);
 });
 
+test("a step the owner limited keeps its limits, who it runs as and its place; who drew the draft is kept", async () => {
+  const id = madeId((await h.ask(leads())).answer);
+  assert.equal((await doc(id)).draftBy, "roby");
+  const mine = (await doc(id)).draft as FlowGraph;
+  const limited = {
+    id: "think",
+    kind: "agent" as const,
+    label: "Think",
+    agent: "roby",
+    prompt: "Sum up",
+    autonomy: "manual" as const,
+    input: { kind: "event" as const, path: [] },
+  };
+  await h.env.client.call("flows.draft_save", {
+    flow: id,
+    expectedVersion: 1,
+    graph: { ...mine, nodes: [...mine.nodes, limited], edges: [...mine.edges, { source: "save", target: "think" }] },
+  });
+  assert.equal((await doc(id)).draftBy, null);
+  const edit = async (edits: object[]) =>
+    (await h.ask({ method: "flows.draft_save", params: { flow: id, edits } })).answer;
+  assert.match(
+    await edit([{ op: "update", step: "think", set: { bot: { name: "Any", system: "Do it." } } }]),
+    /not saved: step "think" runs with limits the owner set: its bot stays as the owner chose it/,
+  );
+  assert.match(await edit([{ op: "remove", step: "think" }]), /only the owner removes it, in the editor/);
+  assert.match(await edit([{ op: "update", step: "think", set: { prompt: "Sum it up in a line" } }]), /draftVersion 3/);
+  assert.equal((await doc(id)).draftBy, "roby");
+});
+
 test("an agent reaches the Flows of its project only, and nothing reaches them without an agent behind it", async () => {
   const id = madeId((await h.ask(leads())).answer);
   const as = (agent: string) => ({
@@ -212,12 +242,13 @@ test("an agent reaches the Flows of its project only, and nothing reaches them w
   assert.ok(!publish.ok && /reserved to the owner/.test(publish.error.message));
 });
 
-test("drafts ask only with outside content in the turn, reads never, and turning a Flow on always", () => {
+test("drafts and whole drawings ask only with outside content in the turn, checks never, and turning a Flow on always", () => {
   const [tool] = settingsTools(h.env.core.store);
   const confirm = (method: string, params?: object) => tool?.confirm({ method, ...(params ? { params } : {}) });
   assert.equal(confirm("flows.draft_save", { flow: "x", edits: [{ op: "tidy" }] }), "untrusted");
   assert.equal(confirm("flows.create", { project: acme, name: "x", edits: [{ op: "tidy" }] }), "untrusted");
-  assert.equal(confirm("flows.graph_get", { flow: "x" }), "never");
+  // A whole drawing goes back to the model: asked with outside content around, like a change.
+  assert.equal(confirm("flows.graph_get", { flow: "x" }), "untrusted");
   assert.equal(confirm("flows.validate", { flow: "x" }), "never");
   assert.equal(
     confirm("flows.set", {

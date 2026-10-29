@@ -38,6 +38,12 @@ export function flowHandlers(
       }
       return doc;
     },
+    "flows.create": (params, ctx) => {
+      const made = graphHandlers["flows.create"](params, ctx);
+      // A new identifier never inherits a route credential left by a Flow of a deleted project.
+      credentials.revoke(`/flows/${made.flow.id}`);
+      return made;
+    },
     "flows.list": ({ project }) => {
       const flows = store.flows.list(project);
       const published: Record<string, { revision: number; kinds: string[] }> = {};

@@ -3022,13 +3022,26 @@ merged with it yet: that comes with the editor's own chat.
 another app's agent) can ask the super-agent for a Flow that posts out, calls a URL, runs a command, JS or SQL, or
 reads a secret. A draft does none of it: nothing runs until the owner publishes, which is their act in the editor
 (Save with the Flow on, or turning it on), and publishing still lists every send, call, command and database write
-for their OK (D-169, D-170), secrets included by name (D-173). Two gaps remained and are closed: an agent could change
-an existing draft's text (an HTTP body, a message, JS) without changing what the publish card lists, so draft changes
-ask the owner (`confirm: "untrusted"`) whenever outside content is in the turn; and how freely an AI step acts
-(`autonomy`, `write`, `delegate`, D-172) is the owner's (D-060), so an agent's draft that sets or changes them is
-refused. Turning a Flow on through `apx_settings`' `flows.set` keeps its card. Known limit: the panel's toggle
-publishes the last saved draft, so an owner who turns on a Flow without opening it publishes what an agent drew; the
-card for anything that leaves still asks, and the chat card says the Flow does not run yet.
+for their OK (D-169, D-170), secrets included by name (D-173). The independent review found what that card does not
+cover, and each is closed:
+
+- **Text behind an approved destination.** A changed message, HTTP body, JS or AI prompt to a place already allowed
+  adds no new key, and the panel's on switch published the last saved draft unseen. Drafts now record who saved them
+  (`flow_graph_drafts.saved_by`, `draftBy` in the document): the switch never publishes an agent's draft, it opens the
+  editor with "An agent drew these changes: look them over and save them"; the owner's Save makes the draft theirs.
+  Another agent can relay outside words as the team's (D-071), so the `untrusted` card alone was not enough.
+- **Outside content in the turn.** Draft changes, and `flows.graph_get` (it hands the whole drawing, commands,
+  addresses and prompts back to the model), ask the owner (`confirm: "untrusted"`) whenever outside content is in the
+  turn.
+- **An AI step's limits.** How freely it acts (`autonomy`, `write`, `delegate`, D-172) is the owner's (D-060): an
+  agent's draft that sets or changes them is refused. A step the owner limited keeps its `agent`, `bot` and `model`
+  (the limit would otherwise move to another agent) and can't be removed by an agent (removing it and adding another
+  would drop the limit), checked against the draft and, when an agent saved the draft, what runs.
+- `flows.create` revokes any route credential left under the new identifier, as `flows.set` does.
+
+Turning a Flow on through `apx_settings`' `flows.set` keeps its card. Known limits: the open editor does not take an
+agent's later draft (its next save conflicts); `flow.draft` reaches every operator socket with ids only, as other
+events do.
 
 Rejected: a tool of its own for every agent (a new definition in every prompt, and Flows are the owner's settings,
 which the super-agent changes for them; other agents ask it), letting agents publish with a confirmation card (one

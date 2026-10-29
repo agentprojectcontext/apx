@@ -490,9 +490,12 @@ path, rows ordered by their parents. Both live in `packages/protocol/src/flow-ed
 **Who reaches it.** In the handlers (`rpc/flow-graphs.ts`): the owner (actor `human`, no client or channel) reaches
 every Flow; an agent's in-process call reaches a Flow whose project is its own, or any for a global agent (another
 project's is `not_found`); a call with no agent behind it (`actor: agent` over HTTP or WebSocket) is `unauthorized`.
-An agent's draft may not set or change an AI step's `autonomy`, `write` or `delegate` (`ownersFieldChange`). In
-`apx_settings` these are `own` settings: a change is `confirm: "untrusted"` (asks the owner only while outside content
-is in the turn), a read asks nobody, and both run with `ctx.call`, never `callAsOwner`.
+An agent's draft may not set or change an AI step's `autonomy`, `write` or `delegate`, nor change the `agent`, `bot` or
+`model` of, or remove, a step the owner limited (`ownersFieldChange`). Drafts keep `saved_by` (`draftBy`: the agent,
+null for the owner); the panel's on switch (`publishSaved`) never publishes an agent's draft and opens its editor
+instead. In `apx_settings` these are `own` settings: a change and `flows.graph_get` are `confirm: "untrusted"` (they
+ask the owner only while outside content is in the turn), `flows.validate` asks nobody, and all run with `ctx.call`,
+never `callAsOwner`. `flows.create` revokes a route credential left under its new id.
 
 **The card and the event.** A save or a new Flow upserts a `flow` part `{flow, project, name}` in the answer; the panel
 draws it with `FlowCard` (lazy, `apps/web/src/lazy.ts`): name, project, **Draft** or **Published**, a still

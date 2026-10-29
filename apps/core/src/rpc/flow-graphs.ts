@@ -14,16 +14,33 @@ import type { Handlers } from "./router.ts";
 
 /** How freely a Flow's AI step acts: the owner sets it in the editor, an agent's draft keeps what is there. */
 const OWNERS_FIELDS = ["autonomy", "write", "delegate"] as const;
+/** Who an AI step runs as: under the owner's limits these stay too, so a limit never moves to another agent. */
+const WHO = ["agent", "bot", "model"] as const;
+type AiStep = Extract<FlowGraph["nodes"][number], { kind: "agent" }>;
+const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
-/** A step's field the owner keeps that this drawing would change from the one saved, in words; undefined if none. */
-export function ownersFieldChange(before: FlowGraph | null, after: FlowGraph): string | undefined {
-  for (const n of after.nodes) {
-    if (n.kind !== "agent") continue;
-    const was = before?.nodes.find((b) => b.id === n.id && b.kind === "agent") as typeof n | undefined;
-    const field = OWNERS_FIELDS.find((f) => JSON.stringify(n[f] ?? null) !== JSON.stringify(was?.[f] ?? null));
+/**
+ * Why an agent's drawing would change what the owner keeps, in words; undefined if it does not. `saved` is the draft
+ * and what runs: an AI step's limits stay as they are, and a step the owner limited keeps who it runs as and stays in
+ * the drawing (removing it and adding another would drop the limit).
+ */
+export function ownersFieldChange(saved: readonly (FlowGraph | null)[], after: FlowGraph): string | undefined {
+  const steps = (g: FlowGraph | null) => (g?.nodes ?? []).filter((n): n is AiStep => n.kind === "agent");
+  const current = saved.find((g) => g !== null) ?? null;
+  for (const n of steps(after)) {
+    const was = steps(current).find((b) => b.id === n.id);
+    const field = OWNERS_FIELDS.find((f) => !same(n[f], was?.[f]));
     if (field)
       return `step "${n.id}": ${field} stays the owner's (how freely an AI step acts is set in the editor); leave it out`;
   }
+  for (const g of saved)
+    for (const limited of steps(g).filter((b) => OWNERS_FIELDS.some((f) => b[f] !== undefined))) {
+      const now = steps(after).find((n) => n.id === limited.id);
+      if (!now) return `step "${limited.id}" runs with limits the owner set: only the owner removes it, in the editor`;
+      const was = steps(current).find((b) => b.id === limited.id) ?? limited;
+      const who = WHO.find((f) => !same(now[f], was[f]));
+      if (who) return `step "${limited.id}" runs with limits the owner set: its ${who} stays as the owner chose it`;
+    }
   return undefined;
 }
 
@@ -60,11 +77,15 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
     reach(ctx, flow.projectId);
     return flow;
   };
+  /** The agent behind a call that is not the owner's own. */
+  const byAgent = (ctx: CallContext) => (ctx.actor === "human" ? undefined : ctx.agent?.id);
   /** An agent's draft leaves the owner's fields as they are. */
   const agentKeeps = (ctx: CallContext, flow: string | undefined, graph: FlowGraph) => {
     if (ctx.actor === "human") return;
     const doc = flow ? store.flowGraphs.get(flow) : undefined;
-    const changed = ownersFieldChange(doc?.draft ?? doc?.published ?? null, graph);
+    // A draft the owner saved is theirs to have changed; one an agent saved is checked against what runs too.
+    const saved = doc?.draft && doc.draftBy === null ? [doc.draft] : [doc?.draft ?? null, doc?.published ?? null];
+    const changed = ownersFieldChange(saved, graph);
     if (changed) throw badRequest(changed);
   };
   const told = <D extends { flow: string; draftVersion: number | null }>(
@@ -110,7 +131,7 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
       return told(
         ctx,
         definition.projectId,
-        write(() => store.flowGraphs.saveDraft(flow, expectedVersion, graph)),
+        write(() => store.flowGraphs.saveDraft(flow, expectedVersion, graph, byAgent(ctx))),
       );
     },
     "flows.draft_discard": ({ flow, expectedVersion }, ctx) => {
@@ -139,7 +160,7 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
             tableKey: "latest",
             action: { kind: "none" },
           });
-          return { flow, document: store.flowGraphs.saveDraft(id, null, graph) };
+          return { flow, document: store.flowGraphs.saveDraft(id, null, graph, byAgent(ctx)) };
         }),
       );
       told(ctx, project, made.document);
