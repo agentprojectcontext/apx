@@ -3048,6 +3048,7 @@ which the super-agent changes for them; other agents ask it), letting agents pub
 yes would make a drawing the owner never opened run unattended), and keeping drafts owner-only behind
 `callAsOwner` (it exists only for calls that always ask, and a draft should not).
 
+<a id="d-175"></a>
 ## D-175 — 2026-10-29 — The owner asks the super-agent from the Flow editor and watches it draw
 D-174 let the super-agent draw Flow drafts from any chat, but the open editor did not take them (its next save was a
 conflict). The owner now asks from inside the editor: **Ask {name}** in its top bar opens a chat with the
@@ -3095,6 +3096,7 @@ owner's first message (their bubble would show text they never typed: rule 31), 
 `threads.send` (the binding lasts as long as the editor, not one message); merging the
 owner's unsaved edits with the agent's step by step (two writers on one drawing; saving first is simpler and loses
 nothing); letting the owner's pre-send save make an agent's draft theirs (it would skip D-174's review).
+
 <a id="d-176"></a>
 ## D-176 — 2026-10-29 — A project's tables exist on their own, with columns, and are filled outside Flows too
 The owner tried Read and Save and was blocked: a read offered nothing until some Flow had saved a row ("save first"),

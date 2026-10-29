@@ -135,7 +135,8 @@ test("a new flow the super-agent is asked to make becomes the editor's flow", as
   await expect(page).toHaveURL(new RegExp(`flow=${flow}.*edit=1`));
 
   await editor.getByRole("button", { name: "Guardar", exact: true }).click();
-  await expect(editor.getByRole("status").filter({ hasText: "Guardado" })).toBeVisible();
-  expect((await rpc<Result<"flows.graph_get">>("flows.graph_get", { flow })).draftBy).toBeNull();
+  // Saved, and the owner's now (it can't run until its table exists in the project: D-176).
+  await expect(editor.getByText(/^Guardado/)).toBeVisible();
+  await expect.poll(async () => (await rpc<Result<"flows.graph_get">>("flows.graph_get", { flow })).draftBy).toBeNull();
   expect((await rpc<Result<"flows.list">>("flows.list", { project })).flows).toHaveLength(1);
 });
