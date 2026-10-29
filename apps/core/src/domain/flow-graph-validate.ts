@@ -4,11 +4,14 @@ import {
   flowBranches,
   flowCases,
 } from "../../../../packages/protocol/src/flow-cases.ts";
+import { flowGraphGaps } from "../../../../packages/protocol/src/flow-complete.ts";
 import {
   type FlowBinding,
+  type FlowDraftGraph,
   FlowGraph,
   type FlowGraphIssue,
   type FlowNode,
+  FlowNode as FlowNodeSchema,
 } from "../../../../packages/protocol/src/flow-graph.ts";
 import { FlowExprError, type FlowVarIndex, flowExprBindings, parseFlowExpr } from "./flow-expr.ts";
 import { flowHttpUrlProblem } from "./flow-http-url.ts";
@@ -286,6 +289,25 @@ function secretVarIssues(graph: FlowGraph, add: Add, vars: FlowVarIndex) {
         node.id,
       );
   }
+}
+
+/**
+ * Steps of a draft that still need a setting, one issue each (`step_incomplete`, naming the step and the setting):
+ * the editor's rule (`flowStepGap`), and any other setting what runs refuses (DECISIONS.md#d-177).
+ */
+export function flowGapIssues(graph: Pick<FlowDraftGraph, "nodes">): FlowGraphIssue[] {
+  const gaps = new Map(flowGraphGaps(graph).map((g) => [g.node.id, g.field]));
+  for (const node of graph.nodes) {
+    if (gaps.has(node.id)) continue;
+    const parsed = FlowNodeSchema.safeParse(node);
+    if (!parsed.success) gaps.set(node.id, String(parsed.error.issues[0]?.path[0] ?? "settings"));
+  }
+  return graph.nodes.flatMap((n) => {
+    const field = gaps.get(n.id);
+    return field
+      ? [{ code: "step_incomplete", node: n.id, message: `Step "${n.label}" needs its ${field} before it can run` }]
+      : [];
+  });
 }
 
 export function validateFlowGraph(value: FlowGraph): FlowGraphIssue[] {

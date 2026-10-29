@@ -85,6 +85,47 @@ test("the super-agent makes a Flow, off, with a tidy draft, without asking, and 
   );
 });
 
+test("a step the agent adds without its settings waits in the draft, named as what to finish", async () => {
+  const id = madeId((await h.ask(leads())).answer);
+  const answer = (
+    await h.ask({
+      method: "flows.draft_save",
+      params: {
+        flow: id,
+        edits: [
+          { op: "add", after: "save", step: { kind: "cmd", id: "run", label: "Run it" } },
+          { op: "add", after: "run", step: { kind: "notify", id: "tell", label: "Tell me", text: "Done" } },
+        ],
+      },
+    })
+  ).answer;
+  assert.match(answer, /^Saved the draft of .*draftVersion 2\./);
+  assert.match(
+    answer,
+    /- step "run" \(Run it\): Step "Run it" needs its command before it can run \[step_incomplete\]/,
+  );
+  assert.match(
+    answer,
+    /- step "tell" \(Tell me\): Step "Tell me" needs its channel before it can run \[step_incomplete\]/,
+  );
+  const saved = (await doc(id)).draft as FlowGraph;
+  assert.deepEqual(
+    saved.nodes.find((n) => n.id === "run"),
+    {
+      id: "run",
+      label: "Run it",
+      kind: "cmd",
+      command: "",
+      env: [],
+      stdin: "",
+      timeoutMs: 30000,
+      continueOnError: false,
+    },
+  );
+  // Validate reads the saved draft and says the same.
+  assert.match((await h.ask({ method: "flows.validate", params: { flow: id } })).answer, /needs its command/);
+});
+
 test("edits change the latest draft, place new steps beside theirs and say why it can't run", async () => {
   const id = madeId((await h.ask(leads())).answer);
   const edit = (edits: object[]) => h.ask({ method: "flows.draft_save", params: { flow: id, edits } });
@@ -109,19 +150,27 @@ test("edits change the latest draft, place new steps beside theirs and say why i
     (await edit([{ op: "remove", step: "ghost" }])).answer,
     /no step "ghost"; the steps are hook, save, think/,
   );
+  // An empty setting is kept in the draft and named as what keeps it from running (DECISIONS.md#d-177).
   assert.match(
     (await edit([{ op: "update", step: "save", set: { key: "" } }])).answer,
+    /draftVersion 3\.[\s\S]*It can't run yet:\n- step "save" \(Save[^)]*\): .*key.*\[step_incomplete\]/,
+  );
+  assert.equal(((await doc(id)).draft as FlowGraph).nodes.find((n) => n.id === "save")?.kind, "table_write");
+  // A shape that is not a step's is still refused.
+  assert.match(
+    (await edit([{ op: "update", step: "save", set: { key: 7 } }])).answer,
     /not saved: the drawing is not valid:\n- step "save" \(table_write\): key: /,
   );
   const fixed = (
     await edit([
+      { op: "update", step: "save", set: { key: "$trigger.email" } },
       { op: "update", step: "think", set: { agent: "roby" } },
       { op: "disconnect", from: "save", to: "think" },
       { op: "connect", from: "hook", to: "think" },
       { op: "tidy" },
     ])
   ).answer;
-  assert.match(fixed, /draftVersion 3\.[\s\S]*It can run as drawn/);
+  assert.match(fixed, /draftVersion 4\.[\s\S]*It can run as drawn/);
   const tidy = (await doc(id)).draft as FlowGraph;
   assert.deepEqual(
     tidy.layout.map((p) => [p.node, p.x, p.y]),
@@ -131,8 +180,8 @@ test("edits change the latest draft, place new steps beside theirs and say why i
       ["think", 280, 80],
     ],
   );
-  // A failed edit saved nothing: three saves, three versions.
-  assert.equal((await doc(id)).draftVersion, 3);
+  // A failed edit saved nothing: four saves, four versions.
+  assert.equal((await doc(id)).draftVersion, 4);
 });
 
 test("a whole drawing needs the version it was read at, so the owner's newer save is never overwritten", async () => {

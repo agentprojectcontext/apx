@@ -43,6 +43,27 @@ export function flowGraphOrder(graph: FlowGraph): FlowNode[] {
   return ordered;
 }
 
+/**
+ * A draft's steps in the order they would run, for a list to show: as `flowGraphOrder`, but a drawing that can't run
+ * yet (a loop, a step joined to nothing) keeps its other steps in the order they were drawn.
+ */
+export function flowDraftOrder(graph: Pick<FlowGraph, "nodes" | "edges">): FlowNode[] {
+  const remaining = new Map(graph.nodes.map((node) => [node.id, node]));
+  const completed = new Set<string>();
+  const ordered: FlowNode[] = [];
+  while (remaining.size) {
+    const next =
+      [...remaining.values()]
+        .filter((node) => graph.edges.every((edge) => edge.target !== node.id || completed.has(edge.source)))
+        .sort((a, b) => ordinal(a.id, b.id))[0] ?? [...remaining.values()][0];
+    if (!next) break;
+    ordered.push(next);
+    completed.add(next.id);
+    remaining.delete(next.id);
+  }
+  return ordered;
+}
+
 export function planFlowGraphStep(
   graph: FlowGraph,
   snapshots: ReadonlyMap<string, FlowNodeSnapshot>,

@@ -3140,3 +3140,47 @@ Rejected: keeping tables implicit with a "declared in a drawing" list (the owner
 storing a column type (text, number…: values stay JSON as they arrive), following a rename into published drawings
 (it would change what runs without the owner publishing), and failing a run's step instead of its admission when a
 table is gone (the owner hears of it once, in the editor, instead of in every run).
+
+<a id="d-177"></a>
+## D-177 — 2026-10-29 — A draft keeps a Flow as drawn so far; only what runs must be complete
+The owner asked for **Save draft** beside **Save** in the Flow editor. Save refused a drawing with a step missing a
+setting, and on a Flow that is on it published at once, so work in progress could not be kept without running it. The
+core refused the same drafts: one schema, `FlowGraph`, parsed drafts and what runs, and an empty code, query, command,
+prompt, address or message was `min(1)`.
+
+- **Two shapes, one definition.** `packages/protocol/src/flow-graph.ts` builds every step from one factory with two
+  fillings: `FlowNode`/`FlowGraph` (what runs: publishing, admission, runs, `flows.try_graph`, `flows.outward`, the
+  executor) and `FlowDraftNode`/`FlowDraftGraph`, which lets a setting a step needs be empty (text, a name, an id, an
+  address) and checks everything else as before: ids, kinds, sizes, limits, bindings, connections, places.
+  `flows.draft_save`, `flows.create`, `flows.validate` and the draft in `FlowGraphDocument` take the draft shape; the
+  published drawing stays strict. Both shapes infer the same TypeScript type.
+- **What "complete" means lives once.** `flowStepGap` (`packages/protocol/src/flow-complete.ts`, no zod, so the panel
+  loads it) names the first setting a step still needs, the rules the editor had in `blank` (whitespace counts as
+  empty). A protocol test empties every text of a complete step of each kind and requires that any value the draft
+  shape accepts and the runnable one refuses is one `flowStepGap` names. The core's `flowDraftIssues` reports each such
+  step as `step_incomplete` (step and setting), falling back to the runnable schema for anything stricter (a cron
+  shorter than five fields), before the other checks; `flows.validate` and `flows.publish` use it, so turning a Flow on
+  (which publishes its draft) refuses it too, naming the step. Admission and turning on a published Flow keep
+  `flowGraphIssues` on the published drawing, unchanged.
+- **The editor's one extra ask.** A read or save step without a table uses the Flow's own table (D-173); the core keeps
+  running those, and the executor tests rely on it. The editor has no way to show that table except for the step an old
+  definition was drawn as, so its `stepGap` (`apps/web/src/flows/complete.ts`) also asks for a table there. That is
+  stricter than the core, never looser, so what the editor publishes always passes.
+- **Save draft.** It needs a name and a project (the Flow lives in one) and at least one step, nothing else; it saves
+  with `flows.draft_save` (`flows.create` for a new Flow) and never publishes, also when the Flow is on: "Draft saved.
+  What runs doesn't change." Over an agent's draft it passes `unreviewed: true`, so the review D-174 asks for still
+  waits for **Save**. **Save** keeps its meaning. The leave prompt offers **Save draft**. On a phone the button reads
+  **Draft** and **Exit** becomes an icon on the name's line; a save's status gets a line of its own.
+- **Asking the super-agent** no longer waits for every step to be finished: the unsaved drawing goes as a draft as it
+  is (D-175's `unreviewed` unchanged). An agent's `add` keeps a new step's empty settings instead of dropping them, and
+  its answer lists them as what keeps the drawing from running.
+- **Where a draft shows.** `flows.list` returns `drafts` (version and step kinds) for each Flow whose saved draft is not
+  what runs; the list shows those steps with **Draft**. The Flow's page draws the draft while one waits, marked
+  **Draft**, with **What runs** to switch when something drawn runs; a run picked shows the revision it used. A Flow
+  made by `flows.create` has a table-only definition only so the drawing has a Flow to belong to: it is never shown as
+  its drawing while a draft waits.
+
+Old data needs no migration: every saved draft and revision passed the strict schema, which the draft shape accepts.
+Rejected: a `draft` flag on steps (two meanings for one field), loosening `FlowGraph` and checking completeness only at
+publish (the executor and `flows.try_graph` would have to trust every reader), and a menu for Save draft on a phone
+(two taps for the safe action; the bar fits with a shorter label).

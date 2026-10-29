@@ -14,13 +14,19 @@ import {
   removeNode,
 } from "@apx/protocol/flow-edit";
 import { z } from "zod";
-import { FlowGraph, type FlowGraphIssue, type FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
+import {
+  FlowDraftGraph,
+  FlowGraph,
+  type FlowGraphIssue,
+  type FlowNode,
+} from "../../../../packages/protocol/src/flow-graph.ts";
 import { CallError as CoreCallError } from "../errors.ts";
 import type { Params, Setting } from "./settings-kit.ts";
 import { projectName } from "./settings-kit.ts";
 import type { ToolContext } from "./types.ts";
 
-type Graph = z.infer<typeof FlowGraph>;
+/** A draft: steps may keep settings empty until the owner publishes (DECISIONS.md#d-177). */
+type Graph = z.infer<typeof FlowDraftGraph>;
 type Doc = { flow: string; draftVersion: number | null; draft: Graph | null; published: Graph | null };
 type Caller = Pick<ToolContext, "call" | "upsertPart">;
 
@@ -118,9 +124,9 @@ function parseIssues(graph: unknown, error: z.ZodError): string[] {
   });
 }
 
-/** A drawing that parses, or why it doesn't. */
+/** A drawing that parses as a draft, or why it doesn't. */
 function parsed(graph: unknown): Graph {
-  const r = FlowGraph.safeParse(graph);
+  const r = FlowDraftGraph.safeParse(graph);
   if (r.success) return r.data;
   throw new EditError(
     `the drawing is not valid:\n${parseIssues(graph, r.error)
@@ -136,14 +142,12 @@ function freeId(graph: Graph, kind: string): string {
   for (let i = 2; ; i++) if (!taken.has(`${kind}_${i}`)) return `${kind}_${i}`;
 }
 
-/** A new step: the agent's fields over a new step's, without the empty ones a person fills in the editor. */
+/** A new step: the agent's fields over a new step's; settings it leaves empty wait in the draft, named by validate. */
 function stepOf(graph: Graph, step: z.infer<typeof Step>): FlowNode {
   const id = typeof step.id === "string" && step.id ? step.id : freeId(graph, step.kind);
   if (graph.nodes.some((n) => n.id === id)) throw new EditError(`there is already a step "${id}"`);
   const label = typeof step.label === "string" && step.label ? step.label : LABELS[step.kind];
-  const base = Object.fromEntries(
-    Object.entries(newNode(step.kind, id, label)).filter(([k, v]) => v !== "" || k in step),
-  );
+  const base: Record<string, unknown> = { ...newNode(step.kind, id, label) };
   // An AI step names an agent or a bot, never both: a bot given leaves the agent out.
   if (step.kind === "agent" && "bot" in step) delete base.agent;
   return { ...base, ...step, id, label } as FlowNode;

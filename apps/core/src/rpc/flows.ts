@@ -1,5 +1,6 @@
+import { sameShape, shapeOfDefinition, shapeOfGraph } from "@apx/protocol/flow-shape";
 import { matchesFlowPredicates } from "../domain/flow-evaluate.ts";
-import { flowGraphOrder } from "../domain/flow-graph-semantics.ts";
+import { flowDraftOrder, flowGraphOrder } from "../domain/flow-graph-semantics.ts";
 import { tryFlowGraph } from "../domain/flow-graph-try.ts";
 import { validateFlowGraph } from "../domain/flow-graph-validate.ts";
 import { FlowGraphUnavailable } from "../domain/flow-graphs.ts";
@@ -55,8 +56,15 @@ export function flowHandlers(
       > = {};
       const zone = flowTimeZone(store);
       const at = flowsNow();
+      const drafts: Record<string, { version: number; kinds: string[] }> = {};
       for (const f of flows) {
         const doc = store.flowGraphs.get(f.id);
+        // A draft that is not what runs is what the list shows (an old definition's own drawing runs as it is).
+        if (doc.draft && doc.draftVersion !== null) {
+          const shape = doc.published ? undefined : shapeOfGraph(doc.draft);
+          if (!shape?.ok || !sameShape(shape.shape, shapeOfDefinition(f)))
+            drafts[f.id] = { version: doc.draftVersion, kinds: flowDraftOrder(doc.draft).map((n) => n.kind) };
+        }
         if (!doc.published || doc.publishedRevision === null) continue;
         published[f.id] = {
           revision: doc.publishedRevision,
@@ -70,7 +78,7 @@ export function flowHandlers(
             ...store.flowSchedules.skips(f.id),
           };
       }
-      return { flows, published, schedules, time_zone: zone };
+      return { flows, published, drafts, schedules, time_zone: zone };
     },
     "flows.set": (flow) => {
       const previous = store.flows.get(flow.id);

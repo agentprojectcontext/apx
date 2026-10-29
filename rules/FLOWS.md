@@ -67,6 +67,10 @@ Empty objects, non-object values, nonmatching events and duplicates do not invok
 
 ## Protocol, CLI and tools
 
+`flows.list` also returns `drafts`: for each Flow whose saved draft is not what runs, its version and step kinds; the
+list shows those, marked **Draft**, and a Flow's page draws the draft (with **What runs** to switch when a drawing runs)
+instead of the table-only definition a new drawing belongs to ([D-177](DECISIONS.md#d-177)).
+
 All management operations use the private protocol registry: `flows.list`, `flows.set`, `flows.rows`, `flows.write`, `flows.events`, `flows.retry`, `flows.retire`, `flows.try`, and for drawings `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate`, `flows.outward`, `flows.publish`, `flows.run_get`, `flows.next_runs`, `flows.run_now`, `flows.cancel_run`, `flows.try_graph`, and `flows.create` for a new
 drawn Flow. External `chat` tokens cannot call them; see [Agents drawing Flows](#agents-drawing-flows) for the ones an
 agent's tool reaches.
@@ -136,7 +140,10 @@ See [D-167](DECISIONS.md#d-167) for what the executor keeps and what the design 
 table_read, table_write, llm, agent, routine, notify, http, vars, js, sql, cmd), 64 edges, four llm nodes, eight
 notify + http nodes, eight js + sql + cmd nodes and 128 KiB. Edges out of a condition carry `when`: one of its ways out
 (see [Checks with cases…](#checks-with-cases-variables-code-sql-and-commands)). Bindings are `literal`, `event` (a path in the payload) or `node` (a path in an earlier
-step's output); no code or expression is evaluated, and `__proto__`/`constructor`/`prototype` are refused. Draft saves
+step's output); no code or expression is evaluated, and `__proto__`/`constructor`/`prototype` are refused. Drafts
+(`FlowDraftGraph`) may keep a step's settings empty; what is published, run, tried or listed outward is `FlowGraph`,
+complete ([D-177](DECISIONS.md#d-177)). `flowStepGap` (`packages/protocol/src/flow-complete.ts`) names the first setting a
+step still needs; `flows.validate` and publishing report it as `step_incomplete` before any other check. Draft saves
 use `expectedVersion` CAS; saving a drawing equal to the publication keeps no draft. `flows.validate` and publication
 check the DAG, reachability from the webhook, ancestor bindings, ordered writes to one key, branches only out of
 checks, agents and manual routines of the Flow's project, and llm models: one exact `provider/model` (no effort
@@ -320,7 +327,12 @@ los pasos pendientes y deja **para revisar** un paso de modelo ya mandado, sin r
 
 ## Panel editor
 
-The editor draws the graph schema above. **Save** stores the drawing as a draft (`flows.draft_save`); for a Flow that
+The editor draws the graph schema above. **Save draft** stores the drawing as it is, unfinished steps included, with
+`flows.draft_save` (`flows.create` for a new Flow, which needs a name and a project) and never publishes, also when the
+Flow is on ("Draft saved. What runs doesn't change."); over an agent's draft it passes `unreviewed: true`. The leave
+prompt offers it too. **Save** first asks for every step to be finished (`stepGap` in `apps/web/src/flows/complete.ts`:
+the core's `flowStepGap`, plus a table for a read or save other than an old definition's own), then stores the drawing
+as a draft (`flows.draft_save`); for a Flow that
 still runs its legacy definition, a drawing with the legacy shape (`shapeOfGraph` in `packages/protocol/src/flow-shape.ts`:
 one path, checks, at most one read, one save, then at most one agent or routine) is also saved as that definition with
 `flows.set`, as before. When the Flow is on, saving also publishes the drawing; when it is off, turning it on (list or
@@ -525,8 +537,7 @@ loose thread with the super-agent in the Flow's project, in the step card's plac
 the canvas `focus.card` makes the fit leave it out). Threads are remembered per Flow in `localStorage`
 (`apx.flowChats`, `flows/flowChat.ts`). The composer's `prepare` hook runs before each message: unsaved edits go first
 as the owner's draft (`flows.draft_save`, with `unreviewed: true` over an agent's draft so `draftBy` keeps the agent;
-`flows.create` for a new Flow with changed steps), a drawing with a blank required setting keeps the message unsent,
-and the words go as typed. The chat is bound with `threads.flow_editor {thread, editor: {project, flow?} | null}`
+`flows.create` for a new Flow with changed steps), unfinished steps included, and the words go as typed. The chat is bound with `threads.flow_editor {thread, editor: {project, flow?} | null}`
 (owner-only; thread context `flow_editor`): each owner turn there gets a `[flow editor]` line in its input
 (`engine/flow-editor.ts`: the Flow's name, id, project and draft version, or for a new Flow its project and to make it
 there); closing the chat unbinds it. In that chat, the `flow` card of the open Flow is the line "Updated the drawing"
@@ -545,6 +556,11 @@ proyecto. El chat muestra una tarjeta con el dibujo y **Abrir en el editor**; el
 el detalle y la tarjeta. Desde el editor, **Pedírselo a {nombre}** abre ese chat sobre el lienzo: antes de cada mensaje
 se guardan tus cambios como borrador, mientras el agente trabaja el lienzo queda quieto y los pasos que dibuja aparecen
 marcados un momento; tu **Guardar** sigue haciéndolos tuyos.
+
+**Guardar borrador** ([D-177](DECISIONS.md#d-177)) conserva el dibujo tal como está, con pasos sin terminar, y nunca
+publica, aunque el flow esté prendido: lo que corre no cambia. **Guardar** y prender el flow piden terminar cada paso y
+dicen cuál (`step_incomplete`). La lista y la página del flow muestran el borrador marcado **Borrador**, y la página
+cambia a **Lo que corre** cuando hay un dibujo que corre.
 
 ## Verification and rollout
 
