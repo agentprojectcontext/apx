@@ -63,18 +63,19 @@ export function TryRun({
         setOpen(o);
         if (!o) setAnswer("");
       }}
-      align="end"
+      side="top"
+      align="center"
       width={340}
       label={t("flow.ed.tryTitle")}
       trigger={
         <Button
           variant="secondary"
-          className="fe-top__try"
+          className="fe-dock__try"
           leadingIcon={<Icons.FlaskConical size={14} />}
           disabled={!graph.nodes.length || disabled}
           aria-label={t("flow.ed.try")}
         >
-          <span className="fe-top__try-text">{t("flow.ed.try")}</span>
+          {t("flow.ed.try")}
         </Button>
       }
     >

@@ -63,32 +63,57 @@
   flex-shrink: 4;
   min-width: 120px;
 }
-.fe-top__draft-short,
-.fe-top__test-short {
+.fe-top__draft-short {
   display: none;
 }
-/* A test with a real event (TestMode.tsx): what it does under the top bar, its log under the canvas. */
-.fe-test {
-  flex: none;
+/* A test with a real event (TestMode.tsx): its controls float at the bottom of the canvas and grow upwards with what
+   the test is doing; its log sits under the canvas. */
+.fe-dock {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(16px + var(--fe-log-over, 0px));
+  z-index: 5;
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 10px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--apx-border);
-  background: var(--apx-info-soft);
-  color: var(--apx-info-soft-fg);
+  flex-direction: column;
+  width: fit-content;
+  max-width: 640px;
+  margin: 0 auto;
+  border: 1px solid var(--apx-border);
+  border-radius: 18px;
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-md);
   font-size: 13px;
 }
-.fe-test.is-done {
-  background: var(--apx-surface);
-  color: var(--apx-fg);
+/* Centred in what an open card leaves visible (the card's column plus its gap). */
+.fe-canvas:has(.fe-card) .fe-dock {
+  right: 428px;
 }
-.fe-test__to,
-.fe-test__left {
+.fe-dock__more {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.fe-dock.is-listening .fe-dock__more,
+.fe-dock.is-running .fe-dock__more {
+  color: var(--apx-info-soft-fg);
+}
+.fe-dock__line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.fe-dock__to,
+.fe-dock__left {
   color: var(--apx-fg-muted);
 }
-.fe-test__url {
+.fe-dock__left {
+  margin-left: auto;
+}
+.fe-dock__url {
   min-width: 0;
   padding: 2px 8px;
   border-radius: var(--apx-radius-sm);
@@ -97,8 +122,12 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
-.fe-test__spacer {
-  flex: 1;
+.fe-dock__bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px;
 }
 .fe-main {
   position: relative;
@@ -118,6 +147,9 @@
 }
 .fe-log.is-folded {
   height: auto;
+}
+.fe-log__spacer {
+  flex: 1;
 }
 .fe-log__head {
   flex: none;
@@ -578,12 +610,10 @@
   .fe-top__spacer,
   .fe-top__status,
   .fe-top__ask-text,
-  .fe-top__draft-text,
-  .fe-top__test-text {
+  .fe-top__draft-text {
     display: none;
   }
-  .fe-top__draft-short,
-  .fe-top__test-short {
+  .fe-top__draft-short {
     display: inline;
   }
   /* The log is a sheet over the bottom of the canvas; the step card stays above it. */
@@ -604,11 +634,13 @@
   .fe-main:has(.fe-card) .fe-log {
     display: none;
   }
-  .fe-top__try-text {
+  .fe-dock__to {
     display: none;
   }
-  .fe-test__to {
-    display: none;
+  /* On a phone a card is a sheet over the bottom 60% of the canvas: the test controls float just above it. */
+  .fe-canvas:has(.fe-card) .fe-dock {
+    right: 16px;
+    bottom: calc(60% + 12px);
   }
   /* The name, Ask and Exit share the first line; trying, saving a draft and saving the second. */
   .fe-top .fe-top__name,
@@ -797,13 +829,4 @@
 .fe-ai__model > .apx-formfield {
   flex: 1;
   min-width: 0;
-}
-/* A narrower bar keeps the test button short, so what a save said stays readable. */
-@media (max-width: 1440px) {
-  .fe-top__test-text {
-    display: none;
-  }
-  .fe-top__test-short {
-    display: inline;
-  }
 }

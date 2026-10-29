@@ -66,13 +66,14 @@ const post = async (address: string, data: unknown, headers: Record<string, stri
     body: JSON.stringify({ id: "e2e", data }),
   });
 
-/** Whether a step sits wholly in the canvas above the log. */
+/** Whether a step sits wholly in the canvas above the log and the floating test controls. */
 async function clearOfLog(page: Page, id: string) {
   const step = await page.locator(`.fe .react-flow__node[data-id="${id}"]`).boundingBox();
   const log = await page.locator(".fe-log").boundingBox();
+  const dock = await page.locator(".fe-dock").boundingBox();
   const canvas = await page.locator(".fe-canvas").boundingBox();
-  if (!step || !log || !canvas) return false;
-  return step.y >= canvas.y && step.y + step.height <= log.y - 8;
+  if (!step || !log || !dock || !canvas) return false;
+  return step.y >= canvas.y && step.y + step.height <= Math.min(log.y, dock.y) - 4 && dock.y + dock.height <= log.y + 1;
 }
 
 test.afterEach(async () => {
@@ -110,7 +111,7 @@ for (const phone of [false, true]) {
     // Listening asks first what the test will do for real (a command), then waits at the test address.
     await editor.getByRole("button", { name: "Escuchar un evento de prueba" }).click();
     await page.getByRole("button", { name: "Permitir" }).click();
-    const strip = editor.locator(".fe-test");
+    const strip = editor.locator(".fe-dock");
     await expect(strip).toContainText("Escuchando un evento…");
     await expect(strip).toContainText(`${HOST}/flows/test/${route}`);
     await expect(editor.getByRole("button", { name: "Guardar", exact: true })).toBeDisabled();

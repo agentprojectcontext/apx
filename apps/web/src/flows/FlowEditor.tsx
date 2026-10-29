@@ -1,7 +1,7 @@
 import { ApxError } from "@apx/protocol/client";
 import { shapeOfGraph } from "@apx/protocol/flow-shape";
 import { Button, Dialog, FlowStepTile, IconButton, Icons, Input, Select, Spinner } from "@apx/ui";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
 import { Drawer } from "../common/Drawer.tsx";
 import { client } from "../data/client.ts";
 import { useRoutines } from "../data/routines.ts";
@@ -34,7 +34,7 @@ import {
   type StepKind,
   triggerOf,
 } from "./steps.tsx";
-import { type LogPlace, TestButton, TestLog, TestStepCard, TestStrip } from "./TestMode.tsx";
+import { type LogPlace, TestDock, TestLog, TestStepCard } from "./TestMode.tsx";
 import { TryRun, type TryStep } from "./TryRun.tsx";
 import { useFlowAddress } from "./useFlowAddress.ts";
 import { useFlowChat } from "./useFlowChat.ts";
@@ -43,6 +43,9 @@ import { savedTableBefore } from "./values.ts";
 import "./editor.css";
 
 const EMPTY: FlowGraph = { schemaVersion: 2, nodes: [], edges: [], layout: [] };
+/** How much of the canvas's bottom the floating test controls take, idle and while a test goes (editor.css). */
+const DOCK = { short: 72, tall: 150 };
+
 /** What a card covers (the step's or the chat): a column at the right, or the bottom sheet on a phone (side-panel.css). */
 const cover: Cover = (w, h) =>
   w <= 640 ? { right: 0, bottom: h * 0.6 } : { right: Math.min(400, w - 24) + 12, bottom: 0 };
@@ -449,7 +452,9 @@ export function FlowEditor({
   // The test's log: beside the canvas it makes it shorter (a new fit), as a sheet on a phone it covers its bottom.
   const [log, setLog] = useState<LogPlace | null>(null);
   const cardOpen = Boolean(stepCard || (chatOpen && chat));
-  const over = log?.over ?? 0;
+  // The test controls float at the canvas's bottom, taller while a test goes: steps are fitted above them.
+  const dockTall = test.state.phase !== "idle" && test.state.phase !== "starting";
+  const over = (log?.over ?? 0) + (dockTall ? DOCK.tall : DOCK.short);
   const coverNow = useCallback<Cover>(
     (w, h) => {
       const c = cover(w, h);
@@ -457,8 +462,8 @@ export function FlowEditor({
     },
     [over],
   );
-  const fitCover = useMemo<Cover | undefined>(
-    () => (cardOpen ? coverNow : over ? () => ({ right: 0, bottom: over }) : undefined),
+  const fitCover = useMemo<Cover>(
+    () => (cardOpen ? coverNow : () => ({ right: 0, bottom: over })),
     [cardOpen, coverNow, over],
   );
   return (
@@ -523,13 +528,6 @@ export function FlowEditor({
             <span className="fe-top__ask-text">{t("flow.ed.ask", { name: boss.name })}</span>
           </Button>
         )}
-        <TestButton
-          timed={timed}
-          state={test.state}
-          disabled={busy || !graph || locked || !hasTrigger || (!id && !projectId)}
-          onStart={() => void test.start()}
-        />
-        <TryRun graph={g} tidy={() => tidy(g, t)} onResult={setTrial} disabled={testing} />
         <EditorHistory
           flow={id}
           running={published}
@@ -575,14 +573,6 @@ export function FlowEditor({
           <span className="fe-top__exit-text">{t("flow.ed.exit")}</span>
         </Button>
       </header>
-      <TestStrip
-        state={test.state}
-        path={path}
-        timed={timed}
-        onStop={() => void test.stop()}
-        onAgain={() => void test.start()}
-        onClose={test.close}
-      />
       <div className="fe-body">
         <nav className={palette ? "fe-pal is-open" : "fe-pal"} aria-label={t("flow.ed.palette")}>
           {PALETTE.map((group) => (
@@ -625,7 +615,11 @@ export function FlowEditor({
           <p className="fe-pal__hint">{t("flow.ed.paletteHint")}</p>
         </nav>
         <div className="fe-main">
-          <div className="fe-canvas">
+          <div
+            className="fe-canvas"
+            // On a phone the log lies over the canvas: the test controls float above it.
+            style={log?.over ? ({ "--fe-log-over": `${log.over}px` } as CSSProperties) : undefined}
+          >
             {graph && (
               <FlowCanvas
                 graph={g}
@@ -649,7 +643,7 @@ export function FlowEditor({
                 minimap={g.nodes.length > 0}
                 // A step the owner adds is centred like a clicked one (`centre`); another flow, or steps an agent just drew,
                 // fit the view again.
-                fitKey={`${id ?? "new"}:${ask.drawn}:${log ? log.height : "-"}`}
+                fitKey={`${id ?? "new"}:${ask.drawn}:${log ? log.height : "-"}:${dockTall ? "t" : "s"}`}
                 fitSteps={ask.fitSteps}
                 focus={{ request: focus, cover: coverNow, fit: fitCover, card: cardOpen, onClick: centre }}
               />
@@ -741,6 +735,17 @@ export function FlowEditor({
                 />
               </Drawer>
             )}
+            <TestDock
+              state={test.state}
+              path={path}
+              timed={timed}
+              disabled={busy || !graph || locked || !hasTrigger || (!id && !projectId)}
+              simulate={<TryRun graph={g} tidy={() => tidy(g, t)} onResult={setTrial} disabled={testing} />}
+              onStart={() => void test.start()}
+              onStop={() => void test.stop()}
+              onAgain={() => void test.start()}
+              onClose={test.close}
+            />
           </div>
           {test.state.phase !== "idle" && test.state.phase !== "starting" && (
             <TestLog
