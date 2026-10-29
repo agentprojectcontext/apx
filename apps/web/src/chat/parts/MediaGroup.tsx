@@ -272,7 +272,7 @@ function VideoCard({ part, root }: { part: VideoPart; root: React.RefObject<HTML
             controls
             preload="metadata"
             aria-label={part.name}
-            onLoadedData={() => setReady(true)}
+            onLoadedMetadata={() => setReady(true)}
             onError={() => setReady(true)}
           />
         )}

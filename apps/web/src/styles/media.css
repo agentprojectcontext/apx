@@ -122,7 +122,6 @@
 }
 .mediacarousel__card video,
 .mediacarousel__poster {
-  display: block;
   width: 100%;
   aspect-ratio: 9 / 16;
   max-height: 430px;
@@ -130,6 +129,7 @@
   object-fit: contain;
 }
 .mediacarousel__card video {
+  display: block;
   background: #000;
 }
 .mediacarousel__frame {
