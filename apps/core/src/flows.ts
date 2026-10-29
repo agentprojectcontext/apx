@@ -56,6 +56,14 @@ export function flowGraphIssues(
   const issues: FlowGraphIssue[] = validateFlowGraph(graph);
   issues.push(...flowOutwardIssues(store, definition.projectId, graph, outside));
   for (const node of graph.nodes) {
+    // A table renamed or removed since it was drawn stops the drawing until it names one again (DECISIONS.md#d-176).
+    if ((node.kind === "table_read" || node.kind === "table_write") && node.table) {
+      const table = store.flowTables.get(definition.projectId, node.table);
+      if (!table)
+        issues.push({ code: "table_missing", node: node.id, message: `The table ${node.table} is not in the project` });
+      else if (node.kind === "table_write" && node.columns?.some((c) => !table.columns.includes(c.name)))
+        issues.push({ code: "column_missing", node: node.id, message: "A column it fills is not in the table" });
+    }
     try {
       if (node.kind === "agent" && !node.bot)
         validateFlowBinding(store, {

@@ -51,8 +51,11 @@ const cmd = (env: { name: string; value: string }[], stdin = ""): FlowNode => ({
   continueOnError: false,
 });
 
+/** A project with an empty `leads` table, the one the steps here name. */
 async function project(env: Env, name: string) {
-  return (await env.client.call("projects.create", { name })).project.id;
+  const id = (await env.client.call("projects.create", { name })).project.id;
+  await env.client.call("tables.create", { project: id, name: "leads" });
+  return id;
 }
 /** A Flow in `projectId` with this drawing published (approving what it shows) and turned on. */
 async function publish(env: Env, id: string, projectId: string, graph: FlowGraph) {
@@ -130,16 +133,16 @@ test("a save names its table and fills its key; a read in the same run gets that
         ["sam@example.com", 2],
       ],
     );
-    const { tables } = await env.client.call("flows.tables", { project: p });
+    const { tables } = await env.client.call("tables.list", { project: p });
     assert.deepEqual(
-      tables.map((t) => [t.name, t.rows]),
-      [["leads", 2]],
+      tables.map((t) => [t.name, t.rows, t.columns]),
+      [["leads", 2, ["email", "n"]]],
     );
-    const page = await env.client.call("flows.rows", { flow: "leads", table: "leads", limit: 1 });
+    const page = await env.client.call("tables.get", { project: p, table: "leads", limit: 1 });
     assert.equal(page.rows[0]?.key, "alex@example.com");
     assert.ok(page.nextCursor);
-    const next = await env.client.call("flows.rows", {
-      flow: "leads",
+    const next = await env.client.call("tables.get", {
+      project: p,
       table: "leads",
       limit: 1,
       cursor: page.nextCursor,
@@ -150,9 +153,10 @@ test("a save names its table and fills its key; a read in the same run gets that
     );
     // A key whose field did not arrive fails the save; nothing is written.
     assert.equal((await post(env, "leads", "e4", { n: 4 })).state, "failed");
-    assert.equal((await env.client.call("flows.tables", { project: p })).tables[0]?.rows, 2);
+    assert.equal((await env.client.call("tables.list", { project: p })).tables[0]?.rows, 2);
     // Another project's tables are its own.
-    assert.deepEqual((await env.client.call("flows.tables", { project: await project(env, "Northwind") })).tables, []);
+    const other = await project(env, "Northwind");
+    assert.equal((await env.client.call("tables.get", { project: other, table: "leads" })).rows.length, 0);
   } finally {
     await env.core.close();
     await env.cleanup();
@@ -181,6 +185,8 @@ test("a table holds keys of one line and at most 1000 rows; the project lists ea
   try {
     db.prepare("INSERT INTO projects(id, name, created_at) VALUES ('p', 'Acme', '2026-01-01')").run();
     const tables = flowTablesRepo(db);
+    tables.create("p", "t");
+    tables.create("p", "u");
     assert.throws(() => tables.write("p", "t", "two\nlines", 1), /key/);
     assert.throws(() => tables.write("p", "t", " ", 1), /key/);
     for (let i = 0; i < 1000; i++) tables.write("p", "t", `k${i}`, i);

@@ -1033,4 +1033,42 @@ export const MIGRATIONS: readonly string[] = [
   `,
   // Which agent saved a Flow's draft (null: the owner): turning it on opens it for review instead (DECISIONS.md#d-174).
   `ALTER TABLE flow_graph_drafts ADD COLUMN saved_by TEXT;`,
+  // A project's tables exist on their own, with their columns in order (DECISIONS.md#d-176): every table that has rows
+  // or that a drawing names is kept, its columns taken from the fields of its rows (`value` for a row that is not one).
+  `
+  CREATE TABLE flow_table_defs (
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE, name TEXT NOT NULL,
+    columns TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+    PRIMARY KEY(project_id, name)
+  );
+  INSERT INTO flow_table_defs (project_id, name, columns, created_at, updated_at)
+    SELECT project_id, name, '[]', MIN(updated_at), MAX(updated_at) FROM flow_tables GROUP BY project_id, name;
+  INSERT OR IGNORE INTO flow_table_defs (project_id, name, columns, created_at, updated_at)
+    SELECT DISTINCT f.project_id, json_extract(n.value, '$.table'), '[]',
+      strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+    FROM (
+      SELECT flow_id, graph FROM flow_graph_drafts WHERE discarded = 0
+      UNION ALL SELECT flow_id, graph FROM flow_graph_revisions
+    ) g
+    JOIN flows f ON f.id = g.flow_id
+    JOIN projects p ON p.id = f.project_id, json_each(g.graph, '$.nodes') n
+    WHERE json_extract(n.value, '$.kind') IN ('table_read', 'table_write') AND json_type(n.value, '$.table') = 'text';
+  UPDATE flow_table_defs SET columns = (
+    SELECT json_group_array(col ORDER BY at) FROM (
+      SELECT col, MIN(at) AS at FROM (
+        SELECT j.key AS col, t.updated_at || printf(':%08d', j.id) AS at
+        FROM flow_tables t, json_each(t.value) j
+        WHERE t.project_id = flow_table_defs.project_id AND t.name = flow_table_defs.name
+          AND json_type(t.value) = 'object'
+        UNION ALL
+        SELECT 'value', t.updated_at || ':00000000' FROM flow_tables t
+        WHERE t.project_id = flow_table_defs.project_id AND t.name = flow_table_defs.name
+          AND json_type(t.value) <> 'object'
+      )
+      WHERE length(col) BETWEEN 1 AND 64 AND col NOT GLOB '*[^A-Za-z0-9_-]*' AND substr(col, 1, 1) <> '-'
+        AND col NOT IN ('rows', 'row', '__proto__', 'constructor', 'prototype')
+      GROUP BY col ORDER BY at LIMIT 50
+    )
+  );
+  `,
 ];

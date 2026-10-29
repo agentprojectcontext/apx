@@ -1,6 +1,7 @@
 // "Try a run" for any drawing: the run's own planner, checks, variables and bindings over sample data, with no effect.
 // Steps that would read a table, write one, call a model, run code or a command, query a database or start a run are
 // only said to run; what they would give back is unknown, so a step that needs it can't be told.
+
 import type { FlowBinding, FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
 import type { FlowVarIndex } from "./flow-expr.ts";
 import {
@@ -15,6 +16,7 @@ import {
   resolveFlowInput,
 } from "./flow-graph-semantics.ts";
 import { flowNodeBindings, flowNodeTemplates } from "./flow-graph-validate.ts";
+import { flowRowCells } from "./flow-table-cells.ts";
 import { flowTemplateBindings, parseFlowTemplate, renderFlowTemplate } from "./flow-template.ts";
 
 export type FlowTryStep = {
@@ -108,11 +110,13 @@ export function tryFlowGraph(graph: FlowGraph, data: unknown): FlowTryStep[] {
       try {
         input =
           node.kind === "table_write"
-            ? resolveFlowInput(node.value, data, snapshots)
+            ? node.columns
+              ? flowRowCells(node.columns, reads)
+              : resolveFlowInput(node.value ?? { kind: "event", path: [] }, data, snapshots)
             : resolveFlowInput(node.input, data, snapshots);
       } catch {
         // An unknown answer upstream, or the data lacks the field.
-        const upstream = (node.kind === "table_write" ? node.value : node.input).kind === "node";
+        const upstream = (node.kind === "table_write" ? node.value : node.input)?.kind === "node";
         set(node.id, upstream ? "unknown" : "missing", { state: "failed" });
         continue;
       }

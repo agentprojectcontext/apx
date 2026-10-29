@@ -16,6 +16,7 @@ import {
   resolveFlowInput,
   summarizeFlowGraph,
 } from "./domain/flow-graph-semantics.ts";
+import { flowReadCells, flowRowCells } from "./domain/flow-table-cells.ts";
 import { parseFlowTemplate, renderFlowTemplate } from "./domain/flow-template.ts";
 import { TERMINAL } from "./domain/runs.ts";
 import type { Store } from "./domain/store.ts";
@@ -43,6 +44,7 @@ const wall: RunTimers = {
 const WHY = {
   missing: "missing_value",
   table: "table_full",
+  tableMissing: "table_missing",
   model: "model_unavailable",
   refused: "model_refused",
   cut: "model_cut",
@@ -354,7 +356,9 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
               ? {
                   ...(table ? { table } : {}),
                   key: rowKey(node.key),
-                  value: resolveFlowInput(node.value, run.payload, snapshots),
+                  value: node.columns
+                    ? flowRowCells(node.columns, reads, flowApx(store, run, at))
+                    : resolveFlowInput(node.value ?? { kind: "event", path: [] }, run.payload, snapshots),
                 }
               : node.kind === "vars"
                 ? undefined
@@ -392,22 +396,40 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
         return pure(() => evaluateFlowCondition(node, input, reads), WHY.missing);
       case "vars":
         return pure(() => evaluateFlowVars(node, reads), WHY.missing);
-      case "table_read":
+      case "table_read": {
+        const project = store.flows.get(run.flow)?.projectId ?? "";
+        const columns = table ? store.flowTables.get(project, table)?.columns : [];
+        // Removed or renamed after the run began: the step says so instead of reading nothing.
+        if (!columns) {
+          runs.settle(k, ["pending"], "failed", at, WHY.tableMissing);
+          return true;
+        }
         return pure(() => {
           const { keys } = input as { keys: string[] };
           if (!table) return { rows: store.flows.readRows(run.flow, keys) };
-          const project = store.flows.get(run.flow)?.projectId ?? "";
-          if (node.latest) return { rows: store.flowTables.latest(project, table, node.latest) };
+          if (node.latest) {
+            const rows = store.flowTables.latest(project, table, node.latest);
+            return { ...flowReadCells(columns, rows[0]?.value), rows };
+          }
           const rows = store.flowTables.read(project, table, keys);
-          return { rows, row: keys[0] !== undefined && keys[0] in rows ? rows[keys[0]] : null };
+          const row = keys[0] !== undefined && keys[0] in rows ? rows[keys[0]] : null;
+          return { ...flowReadCells(columns, row), rows, row };
         });
-      case "table_write":
+      }
+      case "table_write": {
+        const project = store.flows.get(run.flow)?.projectId ?? "";
+        if (table && !store.flowTables.get(project, table)) {
+          runs.settle(k, ["pending"], "failed", at, WHY.tableMissing);
+          return true;
+        }
         return pure(() => {
           const { key, value } = input as { key: string; value: unknown };
           if (!table) store.flows.write(run.flow, key, value);
-          else store.flowTables.write(store.flows.get(run.flow)?.projectId ?? "", table, key, value);
+          // A value per column changes those cells and keeps the row's others (DECISIONS.md#d-176).
+          else store.flowTables.write(project, table, key, value, { merge: Boolean(node.columns) });
           return { key, value };
         }, WHY.table);
+      }
       case "llm":
         if (claim("reserved")) await callModel(run, node, k, input);
         return true;
