@@ -17,11 +17,110 @@ export const FlowBinding = z.discriminatedUnion("kind", [
 export type FlowBinding = z.infer<typeof FlowBinding>;
 const Base = { id: FlowNodeId, label: z.string().min(1).max(120) };
 const Key = z.string().min(1).max(128);
+/** A way out of a check: a case's id, or "no" for "otherwise" (a yes/no check is the two-case default). */
+export const FlowBranchId = z.string().regex(/^[A-Za-z0-9_-]{1,40}$/);
+/** A name later steps read as `$vars.name`, or a SQL parameter's `:name`. */
+export const FlowVarName = z
+  .string()
+  .regex(/^[A-Za-z_][A-Za-z0-9_]{0,63}$/)
+  .refine((value) => !["__proto__", "constructor", "prototype"].includes(value));
+/** A small expression over `$trigger`, `$steps.<step>` and `$vars.<name>` (domain/flow-expr.ts): never code. */
+const FlowExpr = z.string().min(1).max(1000);
+const FlowCase = z
+  .object({
+    id: FlowBranchId,
+    label: z.string().max(60),
+    /** `equals`: the check's input is this value; `expr`: the expression comes out true. */
+    match: z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal("equals"), value: JsonLiteral }).strict(),
+      z.object({ kind: z.literal("expr"), expr: FlowExpr }).strict(),
+    ]),
+  })
+  .strict();
 export const FlowNode = z.discriminatedUnion("kind", [
   z.object({ ...Base, kind: z.literal("webhook") }).strict(),
   /** Five-field cron in the owner's time zone; presets are crons too. */
   z.object({ ...Base, kind: z.literal("schedule"), cron: z.string().min(9).max(120) }).strict(),
-  z.object({ ...Base, kind: z.literal("condition"), input: FlowBinding, equals: JsonLiteral }).strict(),
+  /**
+   * A switch: the first case that holds picks the way out, else "no" (otherwise). Without `cases` it is the yes/no
+   * check drawings had before: one case "yes", `input` equals `equals`.
+   */
+  z
+    .object({
+      ...Base,
+      kind: z.literal("condition"),
+      input: FlowBinding,
+      equals: JsonLiteral.optional(),
+      cases: z.array(FlowCase).min(1).max(15).optional(),
+    })
+    .strict(),
+  /** Named values set once per run, constants or expressions; later steps read them as `$vars.name`. */
+  z
+    .object({
+      ...Base,
+      kind: z.literal("vars"),
+      vars: z
+        .array(
+          z
+            .object({
+              name: FlowVarName,
+              value: z.discriminatedUnion("kind", [
+                z.object({ kind: z.literal("literal"), value: JsonLiteral }).strict(),
+                z.object({ kind: z.literal("expr"), expr: FlowExpr }).strict(),
+              ]),
+            })
+            .strict(),
+        )
+        .min(1)
+        .max(16),
+    })
+    .strict(),
+  /** A JavaScript function body of `input` and `vars` that returns JSON, run apart with no files or network. */
+  z
+    .object({
+      ...Base,
+      kind: z.literal("js"),
+      code: z.string().min(1).max(8000),
+      input: FlowBinding,
+      timeoutMs: z.number().int().min(100).max(10000),
+    })
+    .strict(),
+  /**
+   * One statement on a SQLite file inside the Flow's project. Values reach it only as bound `:name` parameters
+   * (templates); a read caps its rows, a write is a side effect the owner allowed by publishing.
+   */
+  z
+    .object({
+      ...Base,
+      kind: z.literal("sql"),
+      database: z.string().min(1).max(500),
+      mode: z.enum(["read", "write"]),
+      query: z.string().min(1).max(8000),
+      params: z.array(z.object({ name: FlowVarName, value: z.string().max(2000) }).strict()).max(32),
+      maxRows: z.number().int().min(1).max(500),
+      timeoutMs: z.number().int().min(1000).max(30000),
+    })
+    .strict(),
+  /**
+   * A shell command in the Flow's project folder, fixed in the revision. Values reach it only through environment
+   * variables and its standard input (templates), never inside the command text.
+   */
+  z
+    .object({
+      ...Base,
+      kind: z.literal("cmd"),
+      command: z.string().min(1).max(4000),
+      env: z
+        .array(
+          z.object({ name: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,63}$/), value: z.string().max(4000) }).strict(),
+        )
+        .max(16),
+      stdin: z.string().max(16000),
+      timeoutMs: z.number().int().min(1000).max(120000),
+      /** On, a command that exits with an error still succeeds, so a check can read its exit code. */
+      continueOnError: z.boolean(),
+    })
+    .strict(),
   z.object({ ...Base, kind: z.literal("table_read"), keys: z.array(Key).min(1).max(16) }).strict(),
   z.object({ ...Base, kind: z.literal("table_write"), key: Key, value: FlowBinding }).strict(),
   z
@@ -86,9 +185,9 @@ export const FlowGraph = z
   .object({
     schemaVersion: z.literal(2),
     nodes: z.array(FlowNode).min(1).max(32),
-    /** `when` picks a check's branch: "yes" (the default) runs when it matched, "no" when it did not. */
+    /** `when` picks a check's way out: a case's id ("yes", the default, is the first) or "no" for otherwise. */
     edges: z
-      .array(z.object({ source: FlowNodeId, target: FlowNodeId, when: z.enum(["yes", "no"]).optional() }).strict())
+      .array(z.object({ source: FlowNodeId, target: FlowNodeId, when: FlowBranchId.optional() }).strict())
       .max(64),
     layout: z
       .array(
@@ -145,7 +244,11 @@ export const FlowStepRecord = z
      * Why it did not succeed, as a code: missing_value, table_full, model_unavailable, model_refused, model_cut,
      * model_uncertain, not_started, run_failed, run_canceled, run_silent, deadline, value_too_large, owner_cancelled,
      * cancelled_after_send; notify: nothing_to_tell (skipped), rate_limited, destination_unavailable, send_failed,
-     * send_uncertain; http: destination_refused, request_failed, request_uncertain, value_invalid, secret_missing.
+     * send_uncertain; http: destination_refused, request_failed, request_uncertain, value_invalid, secret_missing;
+     * js: code_failed, code_timeout, code_too_large, code_stopped; sql: database_unavailable, query_failed,
+     * query_timeout, write_uncertain, write_limited; cmd: folder_unavailable, command_failed, command_timeout,
+     * command_uncertain, command_limited. A failed step may
+     * keep in `output` what it said (an error message, a command's output).
      */
     error: z.string().nullable(),
     run_id: z.string().nullable(),
@@ -256,6 +359,8 @@ export const flowGraphMethods = {
               node: FlowNodeId,
               state: z.enum(["ran", "would_run", "skipped", "unknown", "missing"]),
               matched: z.boolean().nullable(),
+              /** A check that ran: the way out it took (a case's id, or "no"). */
+              branch: z.string().nullable(),
             })
             .strict(),
         ),
@@ -264,7 +369,10 @@ export const flowGraphMethods = {
     effect: false,
     access: "human",
   },
-  /** Where a drawing would send as the owner and which hosts it would call, in words to show before publishing. */
+  /**
+   * Where a drawing would send as the owner, which hosts it would call, the commands it would run and the databases it
+   * would change, in words to show before publishing.
+   */
   "flows.outward": {
     params: z.object({ flow: FlowId, graph: FlowGraph }).strict(),
     result: z
@@ -281,6 +389,10 @@ export const flowGraphMethods = {
         calls: z.array(
           z.object({ node: FlowNodeId, method: z.string(), host: z.string(), secrets: z.array(z.string()) }).strict(),
         ),
+        /** Commands it runs on this computer, in the project's folder. */
+        commands: z.array(z.object({ node: FlowNodeId, command: z.string(), folder: z.string() }).strict()),
+        /** Database files it changes. */
+        writes: z.array(z.object({ node: FlowNodeId, database: z.string() }).strict()),
       })
       .strict(),
     effect: false,
@@ -294,7 +406,7 @@ export const flowGraphMethods = {
         expectedPublishedRevision: z.number().int().min(1).nullable(),
         /**
          * Where the drawing sends and which hosts it calls, as `flows.outward` lists them for this draft: the owner saw
-         * them before it runs. Required, and must match, when the draft has notify or http steps.
+         * them before it runs. Required, and must match, when the draft has notify, http, cmd or SQL write steps.
          */
         outward: z.array(z.string().max(2400)).max(160).optional(),
       })

@@ -14,6 +14,18 @@ import { boundedFlowValue, type FlowNodeState } from "./flow-graph-semantics.ts"
 import { qb, sql } from "./sql.ts";
 
 export type FlowRunState = FlowRunDetail["state"];
+
+/** What the owner is told to check when a step with an effect stopped after it may have happened. */
+export const flowUncertainWhy = (kind: FlowNode["kind"] | undefined) =>
+  kind === "notify"
+    ? "send_uncertain"
+    : kind === "http"
+      ? "request_uncertain"
+      : kind === "cmd"
+        ? "command_uncertain"
+        : kind === "sql"
+          ? "write_uncertain"
+          : "model_uncertain";
 /** Which step of which run: the revision is part of the key, so a step of another version never matches. */
 export type FlowStepKey = { flow: string; event: string; revision: number; node: string };
 export type FlowStepRow = {
@@ -193,14 +205,29 @@ export function flowGraphRunsRepo(db: Db) {
             0,
       );
     },
-    /** Moves a step on without output: skipped, blocked, failed, uncertain or cancelled. `error` is a short reason. */
-    settle(k: FlowStepKey, from: readonly FlowNodeState[], to: FlowNodeState, at: Date, error?: string): boolean {
+    /**
+     * Moves a step on: skipped, blocked, failed, uncertain or cancelled. `error` is a short reason; `output`, what a
+     * failed step said (a message, a command's output), kept when it fits as data.
+     */
+    settle(
+      k: FlowStepKey,
+      from: readonly FlowNodeState[],
+      to: FlowNodeState,
+      at: Date,
+      error?: string,
+      output?: unknown,
+    ): boolean {
+      let said: string | null = null;
+      if (output !== undefined)
+        try {
+          said = storedFlowValue(output);
+        } catch {}
       return tx(
         () =>
           going(k) &&
           run(
             step(k)
-              .set({ state: to, ended_at: at.toISOString(), error: error ?? null })
+              .set({ state: to, ended_at: at.toISOString(), error: error ?? null, ...(said ? { output: said } : {}) })
               .where("state", "in", [...from]),
           ) > 0,
       );
@@ -345,8 +372,7 @@ export function flowGraphRunsRepo(db: Db) {
         let uncertain = 0;
         for (const r of sent) {
           const kind = FlowGraph.parse(JSON.parse(r.graph)).nodes.find((n) => n.id === r.node_id)?.kind;
-          const error =
-            kind === "notify" ? "send_uncertain" : kind === "http" ? "request_uncertain" : "model_uncertain";
+          const error = flowUncertainWhy(kind);
           uncertain += run(
             step({ flow: r.flow_id, event: r.event_id, revision: r.revision, node: r.node_id })
               .set({ state: "uncertain", ended_at: at.toISOString(), error })

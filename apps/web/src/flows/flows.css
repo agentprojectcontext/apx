@@ -338,3 +338,15 @@
   flex: none;
   color: var(--apx-fg-muted);
 }
+.fe-outward__code {
+  display: block;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-surface);
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow: auto;
+}

@@ -56,18 +56,22 @@ chose), drag from a step's output dot to join two steps, and set each step at th
 |---|---|
 | Incoming webhook | Starts the flow when a service sends a POST. Its address appears once the flow is saved. |
 | Schedule | Starts the flow at set times: **Every 5 min**, **Every hour**, **Weekdays 08:30**, **Daily 03:00** or a cron expression (minute, hour, day, month, weekday), in your time zone. The side panel shows the next runs. |
-| Check | Compares a field of what arrived with a value (`form.tier` is `A`). Steps joined to its **Yes** dot run when it matches, steps joined to **No** when it doesn't. No model. |
+| Check | Tries its cases in order and goes on by the first that holds, else by its last way out. A case is a field of what arrived *is* a value (`form.tier` is `A`) or a **formula** (`$trigger.amount > 100 && $vars.vip`). One case reads as **Yes** and **No**; with more, each case has its own dot, named, plus **Otherwise**. No model. |
+| Variables | Names values once for the steps after it, as fixed values or formulas over `$trigger`, `$steps` and the variables above. Later steps read them as `$vars.name`. No model. |
+| JavaScript | A short function body that gets `input` (what arrived or an earlier step's result) and `vars`, and returns what the next steps read as `$steps.<step>`. It runs apart, with a time limit, and can't open files, use the internet or run programs. No model. |
 | Read table | Brings saved rows into the run. No model. |
 | Save to table | Keeps what arrived, a field of it or an earlier step's result under a key. No model. |
+| SQL | One statement on a SQLite file in the project's folder (`data/app.db`). Values go in apart from the query, as `:name` with a line `name: $trigger.email`, never inside it. **Read only** reads rows (`$steps.<step>.rows`, at most 500); off, it can add, change and delete rows and add tables or indexes. No model. |
 | AI model | Gives a task to an agent of the crew, with what arrived or an earlier step's result. Spends tokens. |
 | Routine | Runs a manual routine of the project. |
 | Direct model | Asks one set-up model once, without tools, and passes its answer on. Spends tokens. |
 | Outgoing webhook | Calls a URL with GET, POST or PUT. Headers and body can carry values of the run; a key goes in a header as `secret://name`, from **Secrets**. Later steps read its answer as `$steps.<step>.status`, `.ok` and `.json` (or `.body` when it isn't JSON). |
+| Cmd | A shell command in the project's folder, like a routine's. Values of the run reach it only as variables (`EMAIL=$trigger.email`, read as `$EMAIL`) and as its input, never inside its text. Later steps read `$steps.<step>.stdout` and `.exit`; an error stops the flow unless **Go on if it fails** is on. It has a time limit (up to 2 minutes). |
 | Notify | Sends a message as you on one of your chat apps (Telegram, WhatsApp, Discord…) to someone you know there, to yourself, or to a room you listed. With **Only if there's something to tell**, it doesn't send when every value in the message came out empty. |
 
-A flow has one trigger. SQL and Cmd show as **Soon** and can't be added yet. A flow runs as drawn: steps
-can branch and join, and each step can receive what arrived or the result of a step before it. In **Goes on to** a
-check's **Yes** or **No** chip switches that connection to the other branch. The side panel says *Runs as drawn*, or
+A flow has one trigger. A flow runs as drawn: steps can branch and join, and each step can receive what arrived or the
+result of a step before it. In **Goes on to** you pick by which of a check's ways out each connection leaves; a step
+added after a check takes its first free way out. The side panel says *Runs as drawn*, or
 why the drawing can't run yet (an agent outside the project, a model that isn't set up, two saves to one key with no
 order between them, a schedule more often than every 5 minutes), also for a new flow before its first save.
 
@@ -86,7 +90,10 @@ its chat.
 
 Each run has 10 minutes from the moment its event arrives; a model step has its own limit (up to 2 minutes). Steps that
 call a model are sent once and never again: if APX stops or the answer doesn't come in time after the request went
-out, the run says **Needs a look** instead of trying again, because the model may have done it anyway. Turning a
+out, the run says **Needs a look** instead of trying again, because the model may have done it anyway. Commands and
+SQL writes follow the same rule: one cut by a restart, a time limit or **Stop run** is never run again. Turning on a
+flow with a command or a SQL write asks first (**Let this flow act for you?**), naming the command and the folder or
+the database; changing either asks again. Turning a
 flow off stops new steps; a run that was waiting still ends at its time limit. A flow runs one event at a time, in the
 order they arrived.
 

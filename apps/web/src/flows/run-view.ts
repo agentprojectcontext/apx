@@ -1,8 +1,11 @@
+import { FLOW_OTHERWISE, flowCases } from "@apx/protocol/flow-cases";
 import type { FlowStepState, RunBar } from "@apx/ui";
 import { formatNumber, formatSeconds, shortWhen } from "../common/format.ts";
 import { currentLocale, isKey, type MessageKey } from "../i18n/index.ts";
 import type { RunDetail } from "./data.ts";
 import {
+  branchesOf,
+  branchName,
   chainOrder,
   dotted,
   type FlowGraph,
@@ -293,9 +296,29 @@ export function inputOf(n: FlowNode, flow: string, t: T, who: (n: FlowNode) => s
       return preset ? `${t(preset.label)} · ${n.cron}` : n.cron;
     }
     case "condition":
-      return n.input.kind === "event"
-        ? t("flow.in.check", { field: dotted(n.input.path), value: literal(n.equals) })
-        : literal(n.equals);
+      return branchesOf(n, t)
+        .map((b) => {
+          const c = flowCases(n).find((x) => x.id === b.id);
+          const rule = !c
+            ? t("flow.in.otherwise")
+            : c.match.kind === "expr"
+              ? c.match.expr
+              : n.input.kind === "event"
+                ? t("flow.in.check", { field: dotted(n.input.path), value: literal(c.match.value) })
+                : literal(c.match.value);
+          return `${b.label}: ${rule}`;
+        })
+        .join("\n");
+    case "vars":
+      return n.vars
+        .map((v) => `$vars.${v.name} = ${v.value.kind === "expr" ? v.value.expr : literal(v.value.value)}`)
+        .join("\n");
+    case "js":
+      return n.code;
+    case "sql":
+      return `${n.database}\n\n${n.query}`;
+    case "cmd":
+      return `$ ${n.command}`;
     case "table_read":
       return t("flow.in.keys", { keys: n.keys.join(", ") });
     case "table_write":
@@ -322,11 +345,28 @@ const pretty = (text: string) => {
   }
 };
 
-/** What a notify or HTTP step sent or asked, from its record (secrets show as their secret://name). */
+/** What a notify, HTTP, SQL or command step sent, asked or ran, from its record (secrets show as secret://name). */
 function outwardInput(n: FlowNode, text: string | null, t: T): string | undefined {
-  if (text === null || (n.kind !== "notify" && n.kind !== "http")) return undefined;
+  if (text === null || (n.kind !== "notify" && n.kind !== "http" && n.kind !== "sql" && n.kind !== "cmd"))
+    return undefined;
   try {
     const v = JSON.parse(text) as Record<string, unknown>;
+    if (n.kind === "sql") {
+      const params = Object.entries((v.params as Record<string, unknown> | undefined) ?? {});
+      return [
+        `${String(v.database)}\n\n${String(v.query)}`,
+        ...(params.length ? ["", ...params.map(([k, x]) => `:${k} = ${JSON.stringify(x)}`)] : []),
+      ].join("\n");
+    }
+    if (n.kind === "cmd") {
+      const env = Object.entries((v.env as Record<string, string> | undefined) ?? {});
+      return [
+        `$ ${String(v.command)}`,
+        t("flow.in.folder", { folder: String(v.folder) }),
+        ...(env.length ? ["", ...env.map(([k, x]) => `${k}=${x}`)] : []),
+        ...(typeof v.stdin === "string" ? ["", v.stdin] : []),
+      ].join("\n");
+    }
     if (n.kind === "notify")
       return `${String(v.channel)} → ${v.owner === true ? t("flow.f.toYou") : String(v.to)}\n\n${String(v.text)}`;
     const headers = (v.headers as { name: string; value: string }[] | undefined) ?? [];
@@ -340,11 +380,29 @@ function outwardInput(n: FlowNode, text: string | null, t: T): string | undefine
   }
 }
 
-/** What came back: who got the message, or the service's status and answer. */
+/** What a command printed, with how it ended. */
+function commandText(v: Record<string, unknown>, t: T): string {
+  return [
+    t("flow.out.exit", { code: String(v.exit ?? "?") }),
+    ...[v.stdout, v.stderr].filter((x): x is string => typeof x === "string" && Boolean(x.trim())),
+  ].join("\n\n");
+}
+
+/** What came back: who got the message, the service's status and answer, a command's output, a query's rows. */
 function outwardOutput(n: FlowNode, text: string | null, t: T): string | undefined {
-  if (text === null || (n.kind !== "notify" && n.kind !== "http")) return undefined;
+  if (text === null || (n.kind !== "notify" && n.kind !== "http" && n.kind !== "cmd" && n.kind !== "sql"))
+    return undefined;
   try {
     const v = JSON.parse(text) as Record<string, unknown>;
+    if (n.kind === "cmd") return commandText(v, t);
+    if (n.kind === "sql") {
+      const rows = Array.isArray(v.rows) ? v.rows : undefined;
+      return [
+        ...(rows ? [t(v.truncated ? "flow.out.rowsCut" : "flow.out.rows", { count: rows.length })] : []),
+        ...(typeof v.changes === "number" ? [t("flow.out.changed", { count: v.changes })] : []),
+        ...(rows?.length ? [JSON.stringify(rows, null, 2)] : []),
+      ].join("\n\n");
+    }
     if (n.kind === "notify")
       return v.owner === true
         ? t("flow.out.sentYou", { channel: String(v.channel) })
@@ -406,7 +464,10 @@ export function viewGraphRun(run: RunDetail, flow: string, t: T, who: (n: FlowNo
       continue;
     }
     const took = r.started_at && r.ended_at ? lasted(r.started_at, r.ended_at) : undefined;
-    const matched = n.kind === "condition" && r.state === "succeeded" ? r.output === '{"matched":true}' : undefined;
+    const way = n.kind === "condition" && r.state === "succeeded" ? branchOf(r.output) : undefined;
+    const matched = way === undefined ? undefined : way !== FLOW_OTHERWISE;
+    const wayName = n.kind === "condition" && way !== undefined ? branchName(n, way, t) : undefined;
+    const many = n.kind === "condition" && flowCases(n).length > 1;
     const state: StepView["state"] =
       r.state === "succeeded"
         ? "ran"
@@ -423,7 +484,9 @@ export function viewGraphRun(run: RunDetail, flow: string, t: T, who: (n: FlowNo
         : r.state === "succeeded"
           ? matched === undefined
             ? (outwardOutput(n, r.output, t) ?? JSON_TEXT(r.output))
-            : t(matched ? "flow.out.matched" : "flow.out.thisNo")
+            : many
+              ? t("flow.out.wentBy", { way: wayName ?? "" })
+              : t(matched ? "flow.out.matched" : "flow.out.thisNo")
           : r.state === "skipped"
             ? r.error
               ? whyText(r.error, t)
@@ -434,10 +497,10 @@ export function viewGraphRun(run: RunDetail, flow: string, t: T, who: (n: FlowNo
                 ? t("flow.out.waiting")
                 : r.state === "running" || r.state === "waiting_run"
                   ? t("flow.out.working")
-                  : whyText(r.error, t);
+                  : [whyText(r.error, t), failedSaid(n, r.output, t)].filter(Boolean).join("\n\n");
     const badge =
-      matched !== undefined
-        ? t(matched ? "flow.log.yes" : "flow.log.no")
+      wayName !== undefined
+        ? wayName
         : r.state === "succeeded"
           ? took
             ? `ok · ${took}`
@@ -457,14 +520,30 @@ export function viewGraphRun(run: RunDetail, flow: string, t: T, who: (n: FlowNo
       ...(state ? { state } : {}),
       ...(counted ? { order: ++order } : {}),
       ...(badge ? { badge } : {}),
-      input: r.input === null ? settings : (outwardInput(n, r.input, t) ?? JSON_TEXT(r.input)),
+      // A check shows its rules, and the value it compared when a case compares one.
+      input:
+        n.kind === "condition"
+          ? [
+              settings,
+              ...(r.input !== null && r.input !== "null" ? [t("flow.in.compared", { value: JSON_TEXT(r.input) })] : []),
+            ].join("\n\n")
+          : r.input === null
+            ? settings
+            : (outwardInput(n, r.input, t) ?? JSON_TEXT(r.input)),
       output,
       ...(r.run_id ? { run: r.run_id } : {}),
     });
     const name = n.label;
     if (
       r.started_at &&
-      (n.kind === "agent" || n.kind === "routine" || n.kind === "llm" || n.kind === "notify" || n.kind === "http")
+      (n.kind === "agent" ||
+        n.kind === "routine" ||
+        n.kind === "llm" ||
+        n.kind === "notify" ||
+        n.kind === "http" ||
+        n.kind === "js" ||
+        n.kind === "sql" ||
+        n.kind === "cmd")
     )
       log.push({ at: r.started_at, node: n.id, text: t("flow.log.started", { who: name }) });
     if (r.ended_at && r.state !== "skipped" && r.state !== "blocked")
@@ -472,8 +551,8 @@ export function viewGraphRun(run: RunDetail, flow: string, t: T, who: (n: FlowNo
         at: r.ended_at,
         node: n.id,
         text:
-          matched !== undefined
-            ? t("flow.log.checked", { step: name, result: t(matched ? "flow.log.yes" : "flow.log.no") })
+          wayName !== undefined
+            ? t("flow.log.checked", { step: name, result: wayName })
             : r.state === "succeeded"
               ? t("flow.log.ended", { who: name })
               : `${t("flow.log.failed", { who: name })} · ${whyText(r.error, t)}`,
@@ -503,6 +582,27 @@ function startedText(run: RunDetail, t: T): string {
     return t(ranLate(run) ? "flow.out.dueLate" : "flow.out.due", { time: due });
   }
   return JSON_TEXT(trigger?.output ?? null);
+}
+
+/** The way a check went, from its record: `{case}`, or `{matched}` for a yes/no check's older runs. */
+function branchOf(output: string | null): string | undefined {
+  try {
+    const v = JSON.parse(output ?? "null") as { case?: unknown; matched?: unknown } | null;
+    if (typeof v?.case === "string") return v.case;
+    if (typeof v?.matched === "boolean") return v.matched ? "yes" : FLOW_OTHERWISE;
+  } catch {}
+  return undefined;
+}
+
+/** What a failed step said: the error its code or database gave, or what its command printed. */
+function failedSaid(n: FlowNode, output: string | null, t: T): string {
+  if (output === null) return "";
+  try {
+    const v = JSON.parse(output) as Record<string, unknown>;
+    if (typeof v.error === "string") return v.error;
+    if (n.kind === "cmd") return commandText(v, t);
+  } catch {}
+  return "";
 }
 
 /** A step's recorded reason, in the person's words. */

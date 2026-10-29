@@ -22,9 +22,10 @@ export function appPlace(href: string): AppPlace | undefined {
   const m = /^apx:([a-z]+)(?:\/([\w-]+))?(?:\/([\w-]+))?(?:\/([\w-]+))?$/i.exec(href.trim());
   if (!m) return undefined;
   const [, where = "", a, b, c] = m;
+  const to = where.toLowerCase();
   // Only a flow's link goes three deep: apx:flows/<project>/<flow>/edit.
-  if (c !== undefined && where.toLowerCase() !== "flows") return undefined;
-  switch (where.toLowerCase()) {
+  if (c !== undefined && (to !== "flows" || c !== "edit")) return undefined;
+  switch (to) {
     case "settings":
     case "config": {
       const section: ConfigSection | undefined = a === undefined ? "account" : isIn(CONFIG_SECTIONS, a) ? a : undefined;
@@ -33,7 +34,6 @@ export function appPlace(href: string): AppPlace | undefined {
     case "tasks":
       return a ? { kind: "task", id: a, open: () => go.task(a) } : { kind: "tasks", open: () => go.view("tasks") };
     case "flows":
-      if (c !== undefined && c !== "edit") return undefined;
       return {
         kind: "flows",
         ...(a ? { project: a } : {}),

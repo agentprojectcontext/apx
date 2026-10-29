@@ -16,7 +16,7 @@ export type FlowShapeProblem = {
     | "save" // no step saves what arrived
     | "check" // a check does not compare a field of what arrived with a value
     | "input" // a step reads something other than what arrived
-    | "kind"; // a step the executor does not run (model)
+    | "kind"; // a step the executor does not run (model, sends, code, SQL, commands)
   node?: string;
 };
 
@@ -34,6 +34,10 @@ const RANK: Record<FlowNode["kind"], number> = {
   llm: 5,
   notify: 5,
   http: 5,
+  vars: 5,
+  js: 5,
+  sql: 5,
+  cmd: 5,
 };
 const wholeEvent = (b: { kind: string; path?: string[] }) => b.kind === "event" && b.path?.length === 0;
 
@@ -44,8 +48,8 @@ function chain(graph: FlowGraph): FlowNode[] | FlowShapeProblem {
   const out = new Map<string, string[]>();
   const into = new Map<string, number>();
   for (const e of graph.edges) {
-    // A "no" branch is a second path: only the graph executor runs it.
-    if (e.when === "no") return { code: "branch", node: e.source };
+    // Any way out but "yes" is a second path: only the graph executor runs it.
+    if (e.when !== undefined && e.when !== "yes") return { code: "branch", node: e.source };
     out.set(e.source, [...(out.get(e.source) ?? []), e.target]);
     into.set(e.target, (into.get(e.target) ?? 0) + 1);
   }
@@ -76,12 +80,25 @@ export function shapeOfGraph(graph: FlowGraph): FlowShapeResult {
   let rank = -1;
   for (const node of path) {
     const r = RANK[node.kind];
-    if (node.kind === "llm" || node.kind === "notify" || node.kind === "http") return fail("kind", node);
+    if (
+      node.kind === "llm" ||
+      node.kind === "notify" ||
+      node.kind === "http" ||
+      node.kind === "vars" ||
+      node.kind === "js" ||
+      node.kind === "sql" ||
+      node.kind === "cmd"
+    )
+      return fail("kind", node);
     if (r < rank || (r === rank && r !== 1)) return fail("order", node);
     rank = r;
     switch (node.kind) {
       case "condition": {
-        const value = node.equals;
+        // One "is" case (a yes/no check) is a filter; an expression or more cases only the graph executor runs.
+        const only = node.cases?.length === 1 ? node.cases[0] : undefined;
+        if (node.cases && !(only?.id === "yes" && only.match.kind === "equals")) return fail("branch", node);
+        const value = only?.match.kind === "equals" ? only.match.value : node.equals;
+        if (value === undefined) return fail("check", node);
         if (node.input.kind !== "event" || node.input.path.length === 0) return fail("check", node);
         if (typeof value === "string" && value.length > 4096) return fail("check", node);
         shape.predicates.push({ path: node.input.path, equals: value });

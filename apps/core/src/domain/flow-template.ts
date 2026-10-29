@@ -1,16 +1,21 @@
-// Text with placeholders for notify messages and HTTP headers and bodies: `$trigger.a.b` reads the payload,
-// `$steps.<step>.a.b` an earlier step's output, `$$` is a dollar sign. Each placeholder is an ordinary binding, so
-// validation, ancestors and redaction are the same as for any step's input; nothing is evaluated.
+// Text with placeholders for messages, HTTP headers and bodies, SQL parameters and a command's environment and input:
+// `$trigger.a.b` reads the payload, `$steps.<step>.a.b` an earlier step's output, `$vars.name` a variable, `$$` is a
+// dollar sign. Each placeholder is an ordinary binding, so validation, ancestors and redaction are the same as for any
+// step's input; nothing is evaluated.
 import type { FlowBinding } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowVarIndex } from "./flow-expr.ts";
 
 export type FlowTemplatePart = { text: string } | { binding: FlowBinding; source: string };
 
-const PLACEHOLDER = /\$\$|\$(trigger|steps)((?:\.[A-Za-z0-9_-]+)*)/g;
+const PLACEHOLDER = /\$\$|\$(trigger|steps|vars)((?:\.[A-Za-z0-9_-]+)*)/g;
 const MAX_PLACEHOLDERS = 32;
 const FORBIDDEN = new Set(["__proto__", "constructor", "prototype"]);
 
-/** Splits a template into literal text and bindings; throws on a placeholder that names no step or a bad field. */
-export function parseFlowTemplate(template: string): FlowTemplatePart[] {
+/**
+ * Splits a template into literal text and bindings; throws on a placeholder that names no step, a variable no step
+ * sets (`vars` says where each is set) or a bad field.
+ */
+export function parseFlowTemplate(template: string, vars: FlowVarIndex = new Map()): FlowTemplatePart[] {
   const parts: FlowTemplatePart[] = [];
   let last = 0;
   let text = "";
@@ -27,7 +32,11 @@ export function parseFlowTemplate(template: string): FlowTemplatePart[] {
       throw new Error("Flow template field is not allowed");
     let binding: FlowBinding;
     if (m[1] === "trigger") binding = { kind: "event", path };
-    else {
+    else if (m[1] === "vars") {
+      const node = vars.get(path[0] ?? "");
+      if (!node) throw new Error("Flow template names no variable");
+      binding = { kind: "node", node, path };
+    } else {
       const [node, ...rest] = path;
       if (!node || !/^[A-Za-z0-9_-]{1,100}$/.test(node)) throw new Error("Flow template names no step");
       binding = { kind: "node", node, path: rest };
@@ -42,8 +51,8 @@ export function parseFlowTemplate(template: string): FlowTemplatePart[] {
   return parts;
 }
 
-export const flowTemplateBindings = (template: string): FlowBinding[] =>
-  parseFlowTemplate(template).flatMap((p) => ("binding" in p ? [p.binding] : []));
+export const flowTemplateBindings = (template: string, vars?: FlowVarIndex): FlowBinding[] =>
+  parseFlowTemplate(template, vars).flatMap((p) => ("binding" in p ? [p.binding] : []));
 
 /** Nothing to tell: absent, null, blank text, an empty list or an empty object. */
 export function emptyFlowValue(value: unknown): boolean {

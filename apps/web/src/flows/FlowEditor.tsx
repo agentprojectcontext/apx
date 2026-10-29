@@ -1,5 +1,6 @@
 import type { Result } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
+import { flowCases } from "@apx/protocol/flow-cases";
 import { shapeOfGraph } from "@apx/protocol/flow-shape";
 import { Button, Dialog, FlowStepTile, IconButton, Icons, Input, Popover, Select, Textarea } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -10,16 +11,17 @@ import { useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
 import { describeIssue, issueText, shownGraph, useKnown } from "./data.ts";
 import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
-import { connectNodes, moveNode, newNode, removeNode } from "./graph-edit.ts";
+import { connectNodes, moveNode, newNode, removeCase, removeNode } from "./graph-edit.ts";
 import { Inspector } from "./Inspector.tsx";
 import { stepDetail } from "./look.tsx";
 import { approveOutward } from "./outward.tsx";
 import { STARTERS, type Starter, starterGraph } from "./starters.ts";
 import {
+  branchesOf,
+  branchName,
   type Flow,
   type FlowGraph,
   type FlowNode,
-  isSoon,
   isTrigger,
   PALETTE,
   STEP,
@@ -43,8 +45,21 @@ const slug = (name: string) =>
 /** The step that keeps a graph from being saved, if a required setting is still blank. */
 function blank(n: FlowNode): boolean {
   switch (n.kind) {
-    case "condition":
-      return n.input.kind === "event" && n.input.path.length === 0;
+    case "condition": {
+      const cases = flowCases(n);
+      return (
+        cases.some((c) => c.match.kind === "expr" && !c.match.expr.trim()) ||
+        (cases.some((c) => c.match.kind === "equals") && n.input.kind === "event" && n.input.path.length === 0)
+      );
+    }
+    case "vars":
+      return n.vars.some((v) => !v.name || (v.value.kind === "expr" && !v.value.expr.trim()));
+    case "js":
+      return !n.code.trim();
+    case "sql":
+      return !n.database.trim() || !n.query.trim();
+    case "cmd":
+      return !n.command.trim();
     case "table_read":
       return !n.keys.some((k) => k.trim());
     case "table_write":
@@ -72,6 +87,10 @@ const tidy = (g: FlowGraph, t: ReturnType<typeof useT>): FlowGraph => ({
     const label = n.label.trim() || t(STEP[n.kind].label);
     if (n.kind === "table_read") return { ...n, label, keys: n.keys.map((k) => k.trim()).filter(Boolean) };
     if (n.kind === "http") return { ...n, label, url: n.url.trim(), body: n.method === "GET" ? "" : n.body };
+    if (n.kind === "condition" && n.cases)
+      return { ...n, label, cases: n.cases.map((c) => ({ ...c, label: c.label.trim() })) };
+    if (n.kind === "sql") return { ...n, label, database: n.database.trim() };
+    if (n.kind === "cmd") return { ...n, label, command: n.command.trim() };
     return { ...n, label };
   }),
 });
@@ -186,7 +205,12 @@ export function FlowEditor({
       nodes: [...g.nodes, node],
       layout: [...g.layout, { node: node.id, x: at ? at.x + 280 : 0, y: at ? at.y + below * 120 : 0 }],
     };
-    if (from) next = connectNodes(next, from.id, node.id);
+    // Out of a check, the first way out nothing leaves by yet.
+    const way =
+      from?.kind === "condition"
+        ? branchesOf(from, t).find((b) => !g.edges.some((e) => e.source === from.id && (e.when ?? "yes") === b.id))?.id
+        : undefined;
+    if (from) next = connectNodes(next, from.id, node.id, way);
     change(next);
     setSelected(node.id);
   };
@@ -203,7 +227,7 @@ export function FlowEditor({
           return {
             ...base,
             state: "ran",
-            badge: s.matched === null ? "ok" : t(s.matched ? "flow.log.yes" : "flow.log.no"),
+            badge: s.branch === null || n.kind !== "condition" ? "ok" : branchName(n, s.branch, t),
           };
         case "would_run":
           return { ...base, state: "ran", badge: t("flow.ed.tryWouldBadge") };
@@ -358,7 +382,6 @@ export function FlowEditor({
             <div key={group.group} className="fe-pal__group">
               <span className="fe-pal__label">{t(group.group)}</span>
               {group.kinds.map((kind) => {
-                const soon = isSoon(kind);
                 const taken = isTrigger(kind) && hasTrigger;
                 const meta = STEP[kind];
                 return (
@@ -366,19 +389,14 @@ export function FlowEditor({
                     key={kind}
                     type="button"
                     className="fe-pal__item"
-                    disabled={soon || taken}
+                    disabled={taken}
                     title={taken ? t("flow.ed.oneTrigger") : undefined}
-                    aria-label={
-                      soon ? `${t(meta.label)} · ${t("common.soon")}` : t("flow.ed.add", { kind: t(meta.label) })
-                    }
-                    onClick={() => !soon && !taken && add(kind as StepKind)}
+                    aria-label={t("flow.ed.add", { kind: t(meta.label) })}
+                    onClick={() => !taken && add(kind as StepKind)}
                   >
                     <FlowStepTile icon={meta.icon} tone={meta.tone} size="lg" />
                     <span className="fe-pal__text">
-                      <span className="fe-pal__name">
-                        {t(meta.label)}
-                        {soon && <span className="fe-pal__soon">{t("common.soon")}</span>}
-                      </span>
+                      <span className="fe-pal__name">{t(meta.label)}</span>
                       {meta.body && <span className="fe-pal__body">{t(meta.body)}</span>}
                     </span>
                   </button>
@@ -433,6 +451,7 @@ export function FlowEditor({
                 edges: g.edges.map((e) => (e.source === source && e.target === target ? { ...e, when } : e)),
               })
             }
+            removeCase={(check, id) => change(removeCase(g, check, id))}
             unlink={(source, target) =>
               change({ ...g, edges: g.edges.filter((e) => !(e.source === source && e.target === target)) })
             }

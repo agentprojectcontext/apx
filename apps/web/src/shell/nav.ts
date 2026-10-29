@@ -214,79 +214,41 @@ export const nav = createStore<NavState>({
   ...fromHash(),
 });
 
-/** A place the owner can go back to (overlays like config/palette stay out). */
-type Place = Pick<
-  NavState,
-  | "view"
-  | "projectId"
-  | "projectTab"
-  | "threadId"
-  | "appId"
-  | "channelId"
-  | "channelThread"
-  | "engineId"
-  | "taskId"
-  | "flowProject"
-  | "flowId"
-  | "flowEdit"
-  | "resourcesTab"
-  | "listInFront"
-  | "panel"
-  | "panelWide"
-  | "browserTab"
-  | "panelDocument"
-  | "panelWidget"
-  | "panelAgent"
-  | "panelThread"
-  | "panelParent"
->;
+/** A place the owner can go back to (overlays like config/palette stay out); `SAME` tells two places apart. */
+const PLACE = [
+  "view",
+  "projectId",
+  "projectTab",
+  "threadId",
+  "appId",
+  "channelId",
+  "channelThread",
+  "engineId",
+  "taskId",
+  "flowProject",
+  "flowId",
+  "flowEdit",
+  "resourcesTab",
+  "listInFront",
+  "panel",
+  "panelWide",
+  "browserTab",
+  "panelDocument",
+  "panelWidget",
+  "panelAgent",
+  "panelThread",
+  "panelParent",
+] as const satisfies readonly (keyof NavState)[];
+const SAME: readonly (typeof PLACE)[number][] = PLACE.filter(
+  (k) => k !== "taskId" && !k.startsWith("panel") && k !== "browserTab",
+);
+type Place = Pick<NavState, (typeof PLACE)[number]>;
 
 const MAX_HISTORY = 50;
 
-function placeOf(s: NavState): Place {
-  return {
-    view: s.view,
-    projectId: s.projectId,
-    projectTab: s.projectTab,
-    threadId: s.threadId,
-    appId: s.appId,
-    channelId: s.channelId,
-    channelThread: s.channelThread,
-    engineId: s.engineId,
-    taskId: s.taskId,
-    flowProject: s.flowProject,
-    flowId: s.flowId,
-    flowEdit: s.flowEdit,
-    resourcesTab: s.resourcesTab,
-    listInFront: s.listInFront,
-    panel: s.panel,
-    panelWide: s.panelWide,
-    browserTab: s.browserTab,
-    panelDocument: s.panelDocument,
-    panelWidget: s.panelWidget,
-    panelAgent: s.panelAgent,
-    panelThread: s.panelThread,
-    panelParent: s.panelParent,
-  };
-}
+const placeOf = (s: NavState): Place => Object.fromEntries(PLACE.map((k) => [k, s[k]])) as Place;
 
-function samePlace(a: Place, b: Place): boolean {
-  return (
-    a.view === b.view &&
-    a.projectId === b.projectId &&
-    a.projectTab === b.projectTab &&
-    a.threadId === b.threadId &&
-    a.appId === b.appId &&
-    a.channelId === b.channelId &&
-    a.channelThread === b.channelThread &&
-    a.engineId === b.engineId &&
-    a.flowProject === b.flowProject &&
-    a.flowId === b.flowId &&
-    a.flowEdit === b.flowEdit &&
-    a.resourcesTab === b.resourcesTab &&
-    a.listInFront === b.listInFront
-  );
-}
+const samePlace = (a: Place, b: Place): boolean => SAME.every((k) => a[k] === b[k]);
 
 type HistState = { canBack: boolean; canForward: boolean };
 const hist = createStore<HistState>({ canBack: false, canForward: false });

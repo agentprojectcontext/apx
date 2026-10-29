@@ -3,7 +3,9 @@ import { FlowGraphConflict, FlowGraphUnavailable } from "../domain/flow-graphs.t
 import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, conflict, notFound } from "../errors.ts";
 import { type FlowOutside, flowOutward } from "../flow-outward.ts";
+import { flowFolder } from "../flow-work-steps.ts";
 import { type FlowModelCheck, flowGraphIssues } from "../flows.ts";
+import { tildeHome } from "../paths.ts";
 import type { Handlers } from "./router.ts";
 
 export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?: FlowOutside) {
@@ -22,6 +24,13 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
       if (error instanceof FlowGraphConflict) throw conflict(error.message);
       throw badRequest("Invalid Flow graph, binding or capacity exceeded");
     }
+  };
+  /** What a drawing does outside, for the project it belongs to: where its commands run is part of it. */
+  const outwardOf = (projectId: string, graph: Parameters<typeof flowOutward>[1]) => {
+    const project = store.projects.get(projectId);
+    const local = graph.nodes.some((n) => n.kind === "cmd" || n.kind === "sql");
+    const place = local ? (flowFolder(store, outside?.home, projectId) ?? "") : "";
+    return flowOutward(store, graph, project?.path ? tildeHome(project.path) : (project?.name ?? ""), place);
   };
   return {
     "flows.graph_get": ({ flow }) => {
@@ -54,10 +63,7 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
       const issues = flowGraphIssues(store, definition, graph, model, outside);
       return { valid: issues.length === 0, issues };
     },
-    "flows.outward": ({ flow, graph }) => {
-      found(flow);
-      return flowOutward(store, graph);
-    },
+    "flows.outward": ({ flow, graph }) => outwardOf(found(flow).projectId, graph),
     "flows.publish": ({ flow, expectedDraftVersion, expectedPublishedRevision, outward }) => {
       const definition = found(flow);
       return write(() =>
@@ -69,10 +75,11 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
               message: issues[0]?.message ?? "The drawing cannot run",
               detail: { issues },
             });
-          // Sending as the owner and calling other services is approved by publishing what the owner was shown.
-          const { keys } = flowOutward(store, graph);
+          // Sending as the owner, calling other services, running commands and changing databases are approved by
+          // publishing what the owner was shown.
+          const { keys } = outwardOf(definition.projectId, graph);
           if (keys.length && JSON.stringify([...new Set(outward ?? [])].sort()) !== JSON.stringify(keys))
-            throw conflict("Confirm where it sends and what it calls before it runs", {
+            throw conflict("Confirm what it sends, calls, runs and changes before it runs", {
               reason: "outward_unconfirmed",
               keys,
             });

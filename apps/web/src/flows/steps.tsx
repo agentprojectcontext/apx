@@ -1,4 +1,5 @@
 import type { Params, Result } from "@apx/protocol";
+import { FLOW_OTHERWISE, flowCases } from "@apx/protocol/flow-cases";
 import type { FlowShape } from "@apx/protocol/flow-shape";
 import { type FlowStepTone, Icons } from "@apx/ui";
 import type { ReactNode } from "react";
@@ -11,12 +12,11 @@ export type FlowDraftParams = Params<"flows.set">;
 export type FlowBinding = import("../../../../packages/protocol/src/flow-graph.ts").FlowBinding;
 export type { FlowGraph, FlowNode };
 
-/** Kinds the current executor runs, and the ones the palette shows as coming soon (never added or saved). */
+/** The kinds of step a drawing can have; every one runs. */
 export type StepKind = FlowNode["kind"];
-export type SoonKind = "sql" | "cmd";
 
 type Meta = { icon: ReactNode; tone: FlowStepTone; label: MessageKey; body?: MessageKey };
-export const STEP: Record<StepKind | SoonKind, Meta> = {
+export const STEP: Record<StepKind, Meta> = {
   webhook: { icon: <Icons.Zap />, tone: "warning", label: "flow.kind.webhook", body: "flow.kind.webhookBody" },
   schedule: { icon: <Icons.Clock />, tone: "warning", label: "flow.kind.schedule", body: "flow.kind.scheduleBody" },
   condition: {
@@ -25,6 +25,8 @@ export const STEP: Record<StepKind | SoonKind, Meta> = {
     label: "flow.kind.condition",
     body: "flow.kind.conditionBody",
   },
+  vars: { icon: <Icons.Tag />, tone: "neutral", label: "flow.kind.vars", body: "flow.kind.varsBody" },
+  js: { icon: <Icons.Code />, tone: "neutral", label: "flow.kind.js", body: "flow.kind.jsBody" },
   table_read: {
     icon: <Icons.Database />,
     tone: "info",
@@ -46,13 +48,35 @@ export const STEP: Record<StepKind | SoonKind, Meta> = {
   notify: { icon: <Icons.Send />, tone: "brand", label: "flow.kind.notify", body: "flow.kind.notifyBody" },
 };
 
-export const PALETTE: { group: MessageKey; kinds: (StepKind | SoonKind)[] }[] = [
+export const PALETTE: { group: MessageKey; kinds: StepKind[] }[] = [
   { group: "flow.group.trigger", kinds: ["webhook", "schedule"] },
-  { group: "flow.group.steps", kinds: ["condition", "table_read", "table_write", "sql", "http", "cmd"] },
+  {
+    group: "flow.group.steps",
+    kinds: ["condition", "vars", "js", "table_read", "table_write", "sql", "http", "cmd"],
+  },
   { group: "flow.group.crew", kinds: ["agent", "routine", "llm"] },
   { group: "flow.group.output", kinds: ["notify"] },
 ];
-export const isSoon = (kind: string): kind is SoonKind => kind === "sql" || kind === "cmd";
+type Condition = Extract<FlowNode, { kind: "condition" }>;
+type T = (key: MessageKey, vars?: Record<string, string | number>) => string;
+
+/**
+ * A check's ways out, named for the person: a case by its name, else "Yes" for the first and "Case 2"… for the
+ * others; otherwise is "No" beside one case and "Otherwise" beside more.
+ */
+export function branchesOf(n: Condition, t: T): { id: string; label: string }[] {
+  const cases = flowCases(n);
+  return [
+    ...cases.map((c, i) => ({
+      id: c.id,
+      label: c.label.trim() || (i === 0 ? t("flow.f.yes") : t("flow.f.caseN", { n: i + 1 })),
+    })),
+    { id: FLOW_OTHERWISE, label: cases.length === 1 ? t("flow.f.no") : t("flow.f.otherwise") },
+  ];
+}
+/** The name of the way out `id` of a check. */
+export const branchName = (n: Condition, id: string, t: T) => branchesOf(n, t).find((b) => b.id === id)?.label ?? id;
+
 /** A run starts at its one trigger: an incoming POST or a schedule. */
 export const isTrigger = (kind: string): kind is "webhook" | "schedule" => kind === "webhook" || kind === "schedule";
 /** The drawing's trigger, if it has one. */

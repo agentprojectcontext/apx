@@ -92,6 +92,8 @@ export function createFlows(deps: {
   /** What HTTP steps may reach and how they read secrets. */
   outside?: FlowOutside | undefined;
   http?: FlowHttpDeps | undefined;
+  /** APX's folder: where a project without a folder of its own runs a Flow's commands. */
+  home?: string | undefined;
 }) {
   const { store } = deps;
   const graphs = deps.llm
@@ -104,6 +106,7 @@ export function createFlows(deps: {
         timers: deps.timers,
         notifier: deps.notifier,
         http: deps.http,
+        home: deps.home,
       })
     : undefined;
   const model = deps.model ?? (() => false);
@@ -198,7 +201,8 @@ export function createFlows(deps: {
      * last run is still going skips it.
      */
     tick(at: Date) {
-      const zone = flowTimeZone(store);
+      // Looked up only for a schedule that is on: it loads ICU data (~9 MB) a core without schedules never needs.
+      let zone: string | undefined;
       let admitted = false;
       const busy = new Set(store.flowGraphRuns.active().map((e) => e.flow));
       for (const s of store.flowSchedules.all()) {
@@ -210,6 +214,7 @@ export function createFlows(deps: {
         }
         let due: Date | undefined;
         try {
+          zone ??= flowTimeZone(store);
           due = dueFlowTick(s.cron, new Date(since), at, zone);
         } catch {
           continue;

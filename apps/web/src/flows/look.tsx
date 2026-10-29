@@ -1,4 +1,5 @@
 import type { Agent, Routine } from "@apx/protocol";
+import { flowCases } from "@apx/protocol/flow-cases";
 import { AgentAvatar } from "@apx/ui";
 import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
@@ -22,10 +23,30 @@ export function stepDetail(
       const preset = presetOf(n.cron);
       return preset && t ? { detail: t(preset.label), detailPlain: true } : { detail: n.cron };
     }
-    case "condition":
-      return n.input.kind === "event" && n.input.path.length
-        ? { detail: `${dotted(n.input.path)} = ${literal(n.equals)}` }
+    case "condition": {
+      const cases = flowCases(n);
+      const first = cases[0];
+      if (cases.length > 1 && t) return { detail: t("flow.d.cases", { count: cases.length }), detailPlain: true };
+      if (first?.match.kind === "expr") return first.match.expr ? { detail: first.match.expr } : {};
+      return first && n.input.kind === "event" && n.input.path.length
+        ? { detail: `${dotted(n.input.path)} = ${literal(first.match.value)}` }
         : {};
+    }
+    case "vars":
+      return { detail: n.vars.map((v) => v.name).join(", ") };
+    case "js":
+      return {
+        detail:
+          n.code
+            .split("\n")
+            .find((l) => l.trim())
+            ?.trim()
+            .slice(0, 60) ?? "",
+      };
+    case "sql":
+      return n.database ? { detail: `${n.database} · ${n.query.trim().split(/\s+/)[0]?.toUpperCase() ?? ""}` } : {};
+    case "cmd":
+      return n.command ? { detail: `$ ${n.command.split("\n")[0]?.slice(0, 60)}` } : {};
     case "table_read":
       return { detail: n.keys.filter(Boolean).join(", ") };
     case "table_write":

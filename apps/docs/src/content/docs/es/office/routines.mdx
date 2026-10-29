@@ -58,19 +58,22 @@ del paso elegido), arrastrá desde el punto de salida de un paso para unir dos p
 |---|---|
 | Webhook entrante | Arranca el flow cuando un servicio manda un POST. Su URL aparece al guardar. |
 | Horario | Arranca el flow a horas fijas: **Cada 5 min**, **Cada hora**, **Hábiles 08:30**, **Diario 03:00** o una expresión cron (minuto, hora, día, mes, día de la semana), en tu zona horaria. El panel lateral muestra las próximas rondas. |
-| Condición | Compara un campo de lo que llegó con un valor (`form.tier` es `A`). Los pasos unidos a su punto **Sí** corren si coincide; los unidos a **No**, si no coincide. Sin modelo. |
+| Condición | Prueba sus casos en orden y sigue por el primero que se cumple; si no, por su última salida. Un caso es un campo de lo que llegó que *es* un valor (`form.tier` es `A`) o una **fórmula** (`$trigger.amount > 100 && $vars.vip`). Con un caso se lee **Sí** y **No**; con más, cada caso tiene su punto, con su nombre, y además **Si no**. Sin modelo. |
+| Variables | Nombra valores una vez para los pasos que siguen, fijos o como fórmulas sobre `$trigger`, `$steps` y las variables de arriba. Los pasos siguientes los leen como `$vars.nombre`. Sin modelo. |
+| JavaScript | El cuerpo de una función corta que recibe `input` (lo que llegó o el resultado de un paso anterior) y `vars`, y devuelve lo que los pasos siguientes leen como `$steps.<paso>`. Corre aparte, con tiempo máximo, y no puede abrir archivos, usar internet ni correr programas. Sin modelo. |
 | Leer tabla | Trae filas guardadas a la ronda. Sin modelo. |
 | Guardar en la tabla | Guarda lo que llegó, un campo o el resultado de un paso anterior con una clave. Sin modelo. |
+| SQL | Una instrucción sobre un archivo SQLite en la carpeta del proyecto (`data/app.db`). Los valores van aparte de la consulta, como `:nombre` con una línea `nombre: $trigger.email`, nunca adentro. **Solo lectura** lee filas (`$steps.<paso>.rows`, hasta 500); apagado, puede agregar, cambiar y borrar filas y agregar tablas o índices. Sin modelo. |
 | Modelo IA | Le da una tarea a un agente del crew, con lo que llegó o el resultado de un paso anterior. Gasta tokens. |
 | Rutina | Corre una rutina manual del proyecto. |
 | Modelo directo | Le pregunta una vez a un modelo configurado, sin herramientas, y pasa su respuesta. Gasta tokens. |
 | Webhook saliente | Llama a una URL con GET, POST o PUT. Headers y body pueden llevar valores de la ronda; una clave va en un header como `secret://nombre`, de **Secretos**. Los pasos siguientes leen su respuesta como `$steps.<paso>.status`, `.ok` y `.json` (o `.body` si no es JSON). |
+| Cmd | Un comando de shell en la carpeta del proyecto, como el de una rutina. Los valores de la ronda le llegan solo como variables (`EMAIL=$trigger.email`, que lee como `$EMAIL`) y como su entrada, nunca dentro del texto. Los pasos siguientes leen `$steps.<paso>.stdout` y `.exit`; un error corta el flow salvo que **Seguir si falla** esté prendido. Tiene tiempo máximo (hasta 2 minutos). |
 | Avisar | Manda un mensaje como vos por una de tus apps de chat (Telegram, WhatsApp, Discord…) a alguien que conocés ahí, a vos o a una sala que listaste. Con **Solo si hay algo para contar**, no manda nada cuando todos los valores del mensaje salen vacíos. |
 
-Un flow tiene un solo disparador. SQL y Cmd aparecen como **Pronto** y todavía no se pueden sumar. Un flow corre como
-está dibujado: los pasos pueden abrirse en caminos y volver a juntarse, y cada paso puede recibir lo que llegó o el
-resultado de un paso anterior. En **Sigue con**, el chip **Sí** o **No** de una condición pasa esa conexión al otro
-camino. El panel dice *Corre así como está* o por qué todavía no puede correr (un agente fuera del proyecto, un modelo
+Un flow tiene un solo disparador. Un flow corre como está dibujado: los pasos pueden abrirse en caminos y volver a
+juntarse, y cada paso puede recibir lo que llegó o el resultado de un paso anterior. En **Sigue con** elegís por cuál
+salida de una condición sale cada conexión; un paso que sumás después de una condición toma su primera salida libre. El panel dice *Corre así como está* o por qué todavía no puede correr (un agente fuera del proyecto, un modelo
 sin configurar, dos pasos que guardan en la misma clave sin orden entre ellos, un horario más seguido que cada 5
 minutos), también en un flow nuevo antes de guardarlo por primera vez.
 
@@ -91,7 +94,10 @@ a un agente abre su chat.
 
 Cada ronda tiene 10 minutos desde que llega su evento; un paso de modelo tiene su propio límite (hasta 2 minutos). Los
 pasos que llaman a un modelo se mandan una vez y nunca más: si APX se detiene o la respuesta no llega a tiempo después
-de mandar el pedido, la ronda dice **Para revisar** en lugar de reintentar, porque el modelo pudo haberlo hecho igual.
+de mandar el pedido, la ronda dice **Para revisar** en lugar de reintentar, porque el modelo pudo haberlo hecho igual. Los
+comandos y las escrituras SQL siguen la misma regla: uno cortado por un reinicio, el tiempo máximo o **Detener ronda**
+no se vuelve a correr. Prender un flow con un comando o una escritura SQL pregunta antes (**¿Dejás que este flow actúe
+por vos?**), con el comando y la carpeta o la base; cambiar cualquiera de los dos vuelve a preguntar.
 Apagar un flow frena los pasos nuevos; una ronda que estaba esperando termina igual al llegar su límite. Un flow corre
 un evento por vez, en el orden en que llegaron.
 

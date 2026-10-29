@@ -21,6 +21,7 @@ import { go } from "../shell/nav.ts";
 import { HttpFields, NotifyFields, type Token } from "./OutwardFields.tsx";
 import { nextWhen } from "./run-view.ts";
 import {
+  branchesOf,
   chainOrder,
   dotted,
   type FlowBinding,
@@ -31,6 +32,7 @@ import {
   SCHEDULE_PRESETS,
   STEP,
 } from "./steps.tsx";
+import { CaseFields, CmdFields, JsFields, SqlFields, VarsFields } from "./WorkFields.tsx";
 
 /** What a step gives the next ones: the part of its result a later step receives. */
 const RESULT: Partial<Record<FlowNode["kind"], string[]>> = {
@@ -40,6 +42,10 @@ const RESULT: Partial<Record<FlowNode["kind"], string[]>> = {
   table_read: ["rows"],
   table_write: ["value"],
   http: [],
+  vars: [],
+  js: [],
+  sql: ["rows"],
+  cmd: ["stdout"],
 };
 /** Steps whose result can reach `id`: every step on a path before it, except the trigger (that is the event). */
 function earlier(graph: FlowGraph, id: string): FlowNode[] {
@@ -56,14 +62,20 @@ function earlier(graph: FlowGraph, id: string): FlowNode[] {
   return chainOrder(graph).filter((n) => seen.has(n.id) && RESULT[n.kind]);
 }
 
-/** Placeholders a template can use: a field of what arrived, or the result of each step before it. */
+/** Placeholders a template can use: a field of what arrived, each variable set before it, each step's result. */
 function tokensFor(graph: FlowGraph, n: FlowNode, t: ReturnType<typeof useT>): Token[] {
   return [
     { label: t("flow.f.fromEvent"), token: "$trigger." },
-    ...earlier(graph, n.id).map((s) => ({
-      label: s.label,
-      token: ["$steps", s.id, ...(s.kind === "http" ? ["json"] : (RESULT[s.kind] ?? []))].join("."),
-    })),
+    ...earlier(graph, n.id).flatMap((s) =>
+      s.kind === "vars"
+        ? s.vars.map((v) => ({ label: `$vars.${v.name}`, token: `$vars.${v.name}` }))
+        : [
+            {
+              label: s.label,
+              token: ["$steps", s.id, ...(s.kind === "http" ? ["json"] : (RESULT[s.kind] ?? []))].join("."),
+            },
+          ],
+    ),
   ];
 }
 
@@ -81,8 +93,10 @@ export function Inspector(props: {
   remove: (id: string) => void;
   select: (id: string | null) => void;
   unlink: (source: string, target: string) => void;
-  /** Moves a connection out of a check to its other branch. */
-  branch: (source: string, target: string, when: "yes" | "no") => void;
+  /** Moves a connection out of a check to another of its ways out. */
+  branch: (source: string, target: string, when: string) => void;
+  /** Takes a case out of a check, and the connections that left by it. */
+  removeCase: (check: string, id: string) => void;
 }) {
   const t = useT();
   const { graph, selected: n } = props;
@@ -141,16 +155,15 @@ export function Inspector(props: {
           {outs.map((e) => (
             <div key={e.target} className="fe-outs__row">
               {n.kind === "condition" && (
-                <button
-                  type="button"
-                  className={e.when === "no" ? "fe-outs__when is-no" : "fe-outs__when"}
-                  aria-label={t(e.when === "no" ? "flow.ed.toYes" : "flow.ed.toNo", {
-                    step: graph.nodes.find((x) => x.id === e.target)?.label ?? "",
-                  })}
-                  onClick={() => props.branch(e.source, e.target, e.when === "no" ? "yes" : "no")}
-                >
-                  {t(e.when === "no" ? "flow.f.no" : "flow.f.yes")}
-                </button>
+                <span className="fe-outs__when">
+                  <Select
+                    size="sm"
+                    label={t("flow.ed.wayOut", { step: graph.nodes.find((x) => x.id === e.target)?.label ?? "" })}
+                    value={e.when ?? "yes"}
+                    onValueChange={(v) => v && props.branch(e.source, e.target, v)}
+                    options={branchesOf(n, t).map((b) => ({ value: b.id, label: b.label }))}
+                  />
+                </span>
               )}
               <span>{graph.nodes.find((x) => x.id === e.target)?.label}</span>
               <IconButton
@@ -174,77 +187,28 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode }) {
       return <HookFields flowId={props.flowId} />;
     case "schedule":
       return <ScheduleFields cron={n.cron} onCron={(cron) => update({ ...n, cron })} />;
-    case "condition": {
-      const path = n.input.kind === "event" ? dotted(n.input.path) : "";
-      const kind = typeof n.equals === "number" ? "number" : typeof n.equals === "boolean" ? "bool" : "text";
+    case "condition":
+      return <CaseFields n={n} update={update} removeCase={(id) => props.removeCase(n.id, id)} />;
+    case "vars":
+      return <VarsFields n={n} update={update} />;
+    case "js":
       return (
         <>
-          <Field label={t("flow.f.field")} hint={t("flow.f.fieldHint")}>
-            {(id) => (
-              <Input
-                id={id}
-                value={path}
-                className="fe-mono"
-                onChange={(e) =>
-                  update({
-                    ...n,
-                    input: {
-                      kind: "event",
-                      path: e.target.value
-                        .split(".")
-                        .map((s) => s.trim())
-                        .filter(Boolean),
-                    },
-                  })
-                }
-              />
-            )}
-          </Field>
-          <SegmentedControl
-            size="sm"
-            label={t("flow.f.type")}
-            value={kind}
-            onValueChange={(v) => update({ ...n, equals: v === "number" ? 0 : v === "bool" ? true : "" })}
-            options={[
-              { value: "text", label: t("flow.f.text") },
-              { value: "number", label: t("flow.f.number") },
-              { value: "bool", label: t("flow.f.bool") },
-            ]}
+          <JsFields n={n} update={update} />
+          <InputPicker
+            label={t("flow.f.receives")}
+            graph={props.graph}
+            n={n}
+            value={n.input}
+            onChange={(input) => update({ ...n, input })}
           />
-          {typeof n.equals === "boolean" ? (
-            <SegmentedControl
-              size="sm"
-              label={t("flow.f.equals")}
-              value={n.equals ? "yes" : "no"}
-              onValueChange={(v) => update({ ...n, equals: v === "yes" })}
-              options={[
-                { value: "yes", label: t("flow.f.yes") },
-                { value: "no", label: t("flow.f.no") },
-              ]}
-            />
-          ) : (
-            <Field label={t("flow.f.equals")}>
-              {(id) => (
-                <Input
-                  id={id}
-                  value={String(n.equals ?? "")}
-                  inputMode={typeof n.equals === "number" ? "decimal" : undefined}
-                  onChange={(e) =>
-                    update({
-                      ...n,
-                      equals:
-                        typeof n.equals === "number" ? Number(e.target.value.replace(",", ".")) || 0 : e.target.value,
-                    })
-                  }
-                />
-              )}
-            </Field>
-          )}
-          <p className="fe-note">{t("flow.f.checkNote")}</p>
-          <p className="fe-note">{t("flow.f.branchNote")}</p>
+          <p className="fe-note">{t("flow.f.jsNote", { step: n.id })}</p>
         </>
       );
-    }
+    case "sql":
+      return <SqlFields n={n} update={update} tokens={tokensFor(props.graph, n, t)} />;
+    case "cmd":
+      return <CmdFields n={n} update={update} tokens={tokensFor(props.graph, n, t)} projectId={props.projectId} />;
     case "table_read":
       return (
         <>

@@ -29,6 +29,7 @@ for (const lang of ["en", "es"] as const) {
             addSave: "Add Save to table",
             field: "Field",
             is: "Is",
+            value: "Value",
             key: "Key",
             saved: "Saved. New events run it as drawn.",
             close: "Close the editor",
@@ -39,6 +40,7 @@ for (const lang of ["en", "es"] as const) {
             addSave: "Sumar Guardar en la tabla",
             field: "Campo",
             is: "Es",
+            value: "Valor",
             key: "Clave",
             saved: "Guardado. Los eventos nuevos lo corren como está dibujado.",
             close: "Salir del editor",
@@ -51,17 +53,17 @@ for (const lang of ["en", "es"] as const) {
     const node = (id: string) => editor.locator(`.react-flow__node[data-id="${id}"]`);
     await node("save").click();
     await editor.getByRole("button", { name: l.addCheck }).click();
+    await editor.getByRole("radio", { name: l.is, exact: true }).click();
     await editor.getByRole("textbox", { name: l.field, exact: true }).fill("type");
-    await editor.getByRole("textbox", { name: l.is, exact: true }).fill("order");
+    await editor.getByRole("textbox", { name: l.value, exact: true }).fill("order");
     await editor.getByRole("button", { name: l.addSave }).click();
     await editor.getByRole("textbox", { name: l.key, exact: true }).fill("orders");
     await node("condition-1").click();
     await editor.getByRole("button", { name: l.addSave }).click();
     await editor.getByRole("textbox", { name: l.key, exact: true }).fill("others");
-    // The second one goes on the check's «No» branch.
+    // The second one goes on the check's free way out, «No».
     await node("condition-1").click();
-    await editor.locator(".fe-outs__when").nth(1).click();
-    await expect(editor.locator(".fe-outs__when.is-no")).toHaveCount(1);
+    await expect(editor.locator(".fe-outs__when").nth(1)).toHaveText("No");
     const calls = await world.llmCalls();
     await editor.getByRole("button", { name: lang === "en" ? "Save" : "Guardar", exact: true }).click();
     await expect(editor.getByRole("status")).toHaveText(l.saved);
@@ -96,7 +98,7 @@ for (const lang of ["en", "es"] as const) {
     // The detail shows the last run, «No» taken: the check said no, only its branch ran.
     await page.reload();
     await expect(page.locator(".fd__runline")).toContainText(l.done);
-    await expect(page.locator('.react-flow__node[data-id="condition-1"]')).toContainText("no");
+    await expect(page.locator('.react-flow__node[data-id="condition-1"]')).toContainText("No");
     await page.locator('.react-flow__node[data-id="table_write-2"]').click();
     await expect(page.locator(".fd__io")).toContainText('"item": "Chair"');
     await page.locator('.react-flow__node[data-id="table_write-1"]').click();
