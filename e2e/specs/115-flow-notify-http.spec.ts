@@ -88,9 +88,12 @@ for (const lang of ["en", "es"] as const) {
     }
     await editor.getByRole("combobox", { name: l.to }).click();
     await page.getByRole("option", { name: l.you, exact: true }).click();
-    await editor.getByRole("textbox", { name: l.message }).fill("Lead $trigger.email:");
-    // The result of the call goes in with one click, named by its step.
-    await editor.getByRole("button", { name: l.outgoing, exact: true }).click();
+    const text = editor.getByRole("textbox", { name: l.message });
+    await text.fill("Lead $trigger.email: ");
+    // The result of the call is picked from the values the field offers, named by its step.
+    await text.press("End");
+    await text.pressSequentially("{{");
+    await page.getByRole("option", { name: new RegExp(`^${l.outgoing}.*\\$steps\\.http-1\\.json`) }).click();
     await expect(editor.getByRole("textbox", { name: l.message })).toHaveValue(
       "Lead $trigger.email: $steps.http-1.json",
     );
