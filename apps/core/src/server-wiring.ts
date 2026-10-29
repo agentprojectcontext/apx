@@ -287,7 +287,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...jobHandlers(d.store, d.engine),
     ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
     ...channelHandlers(d.store, d.channels, d.nudges),
-    ...emailSignatureHandlers(d.store),
+    ...emailSignatureHandlers(d.store, d.google),
     ...mediaHandlers(d.services, d.store),
     ...transcriptionHandlers(d.services, d.localModels),
     ...embeddingHandlers(d.localEmbeds, () => d.memory.engine()),

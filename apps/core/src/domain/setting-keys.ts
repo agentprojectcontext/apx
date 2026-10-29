@@ -6,6 +6,7 @@ import {
   AgentLimits,
   BaseProject,
   CALENDAR_LEAD,
+  CHECK_EVERY,
   ChannelInfo,
   EmailSignatures,
   EmailSignatureValue,
@@ -113,13 +114,26 @@ export const SETTINGS = {
   base_project: entry(BaseProject, { name: "Default" }),
   /** The base project's areas and roles (a real project keeps them in its .apc/organization.json). */
   base_org: entry(Organization, { areas: [], roles: [] }),
-  /** Google Calendar's event reminders: off and 30 minutes ahead until the owner chooses; each field falls back alone. */
+  /**
+   * Google Calendar's event reminders: off, 30 minutes ahead and looked at every 5 minutes until the owner chooses;
+   * each field falls back alone.
+   */
   calendar_reminders: entry(
     z.object({
       enabled: z.boolean().catch(false),
       lead_min: z.number().int().min(CALENDAR_LEAD.min).max(CALENDAR_LEAD.max).catch(CALENDAR_LEAD.default),
+      every_min: z.number().int().min(CHECK_EVERY.min).max(CHECK_EVERY.max).catch(CHECK_EVERY.default),
     }),
-    { enabled: false, lead_min: CALENDAR_LEAD.default },
+    { enabled: false, lead_min: CALENDAR_LEAD.default, every_min: CHECK_EVERY.default },
+  ),
+  /** Gmail's mail check: off, every 5 minutes, any mail outside ads and social until the owner chooses. */
+  mail_check: entry(
+    z.object({
+      enabled: z.boolean().catch(false),
+      every_min: z.number().int().min(CHECK_EVERY.min).max(CHECK_EVERY.max).catch(CHECK_EVERY.default),
+      important_only: z.boolean().catch(false),
+    }),
+    { enabled: false, every_min: CHECK_EVERY.default, important_only: false },
   ),
   /** The profile the super-agent runs and the owner's values for it (none until the owner picks one). */
   profile: entry(ActiveProfile, { id: null, values: {} }),

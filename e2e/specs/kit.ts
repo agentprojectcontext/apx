@@ -119,8 +119,9 @@ export async function until<T>(fn: () => Promise<T | undefined | false>, ms = 10
   }
 }
 
-// Noise that is not the app's: the favicon, and a fetch the browser aborts when a test navigates away.
-const IGNORED = [/favicon/i, /net::ERR_ABORTED/];
+// Noise that is not the app's: the favicon, a fetch the browser aborts when a test navigates away, and this kit's own
+// init script refused by a preview frame that runs no scripts (the signature preview).
+const IGNORED = [/favicon/i, /net::ERR_ABORTED/, /^Blocked script execution in 'about:srcdoc'.*'allow-scripts'/];
 
 export const test = base.extend<{
   page: Page;

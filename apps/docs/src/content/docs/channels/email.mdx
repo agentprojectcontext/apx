@@ -53,11 +53,15 @@ Gmail settings, existing drafts or messages already written.
 ### Gmail
 
 In **Resources › Integrations**, open Gmail. **Edit connection** changes its connection or sign-in;
-**Configure integration** opens the connected account's signature. Which projects use it is chosen on the integration's
-own page, under **Where it is used**. An integration with nothing to configure has no **Configure integration** button.
+**Configure integration** opens the new mail check and the connected account's signature. Which projects use it is
+chosen on the integration's own page, under **Where it is used**. An integration with nothing to configure has no
+**Configure integration** button.
 
-APX does not import Gmail signatures or request Gmail settings access. Copy your signature into APX if you want to
-use it here. Sending an existing Gmail draft does not append or replace its signature.
+The signature has two forms: **Formatted** (the HTML, with a preview as you type) and **Plain text** (for mail without
+formatting, required while the signature is on). With Gmail connected on your own Google client, **Bring from Gmail**
+fills both with the signature Gmail adds; what APX cannot keep (styles, tables, fonts) gives way to plain lines, and
+nothing is saved until you save. With APX's Google client Gmail's settings cannot be read: paste the signature instead.
+APX never changes Gmail's signature, and sending an existing Gmail draft does not append or replace its signature.
 
 ### SMTP mailboxes
 

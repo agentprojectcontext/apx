@@ -122,22 +122,41 @@ test("GitHub asks its own server first: a token it refuses gets the earlier open
   }
 });
 
-test("Google Calendar's reminders are its own settings: off and 30 minutes ahead until the owner changes them", async () => {
+test("Google Calendar's reminders are its own settings: off, 30 minutes ahead and every 5 minutes until the owner changes them", async () => {
   const list = (await env.client.call("integrations.list", {})).integrations;
   assert.deepEqual(list.find((i) => i.id === "google-calendar")?.settings, ["reminders"]);
-  assert.deepEqual(list.find((i) => i.id === "gmail")?.settings, ["signature"]);
+  assert.deepEqual(list.find((i) => i.id === "gmail")?.settings, ["mail", "signature"]);
   assert.equal(list.find((i) => i.id === "github")?.settings, undefined, "nothing to configure, no settings");
   const read = () => env.client.call("integrations.settings", { id: "google-calendar" });
-  assert.deepEqual(await read(), { reminders: { enabled: false, lead_min: 30 } });
+  assert.deepEqual(await read(), { reminders: { enabled: false, lead_min: 30, every_min: 5 } });
   await env.client.call("integrations.configure", { id: "google-calendar", reminders: { enabled: true } });
   await env.client.call("integrations.configure", { id: "google-calendar", reminders: { lead_min: 1440 } });
-  assert.deepEqual(await read(), { reminders: { enabled: true, lead_min: 1440 } }, "a field left out keeps its value");
-  assert.deepEqual(env.core.store.settings.read("calendar_reminders"), { enabled: true, lead_min: 1440 });
+  assert.deepEqual(
+    await read(),
+    { reminders: { enabled: true, lead_min: 1440, every_min: 5 } },
+    "a field left out keeps its value",
+  );
+  assert.deepEqual(env.core.store.settings.read("calendar_reminders"), { enabled: true, lead_min: 1440, every_min: 5 });
   await assert.rejects(
     env.client.call("integrations.configure", { id: "google-calendar", reminders: { lead_min: 2 } }),
   );
   await assert.rejects(env.client.call("integrations.configure", { id: "github", reminders: { enabled: true } }));
   await assert.rejects(env.client.call("integrations.settings", { id: "nope" }));
   assert.deepEqual(await env.client.call("integrations.settings", { id: "github" }), {});
-  assert.deepEqual(await read(), { reminders: { enabled: true, lead_min: 1440 } }, "a refused change changes nothing");
+  assert.deepEqual(
+    await read(),
+    { reminders: { enabled: true, lead_min: 1440, every_min: 5 } },
+    "a refused change changes nothing",
+  );
+});
+
+test("Gmail's mail check is its own setting: off, every 5 minutes and any mail until the owner changes it", async () => {
+  const read = () => env.client.call("integrations.settings", { id: "gmail" });
+  assert.deepEqual(await read(), { mail: { enabled: false, every_min: 5, important_only: false } });
+  await env.client.call("integrations.configure", { id: "gmail", mail: { enabled: true, every_min: 60 } });
+  await env.client.call("integrations.configure", { id: "gmail", mail: { important_only: true } });
+  assert.deepEqual(await read(), { mail: { enabled: true, every_min: 60, important_only: true } });
+  await assert.rejects(env.client.call("integrations.configure", { id: "gmail", mail: { every_min: 0 } }));
+  await assert.rejects(env.client.call("integrations.configure", { id: "google-calendar", mail: { enabled: true } }));
+  assert.deepEqual(await read(), { mail: { enabled: true, every_min: 60, important_only: true } });
 });

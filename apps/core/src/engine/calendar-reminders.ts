@@ -30,8 +30,8 @@ export type CalendarSource = {
 type Told = Record<string, string>;
 
 const TOLD_KEY = "calendar_told";
-/** Calendar is asked once a minute, so a reminder comes at most a minute after its time. */
-const EVERY_MS = 60_000;
+/** The clock beats each minute; a look due within this slack of its time happens at this beat, not the next one. */
+const SLACK_MS = 30_000;
 
 const keyOf = (e: CalendarEvent) => `${e.id}@${e.start}`;
 
@@ -81,12 +81,16 @@ export function calendarReminders(deps: {
   remind: (texts: string[], events: CalendarEvent[]) => void;
 }): BackgroundCheck {
   const { store, source } = deps;
+  let lastAt = Number.NEGATIVE_INFINITY;
   return {
     id: "calendar-reminders",
-    everyMs: EVERY_MS,
+    everyMs: 60_000,
     run: async (at) => {
-      const { enabled, lead_min } = store.settings.read("calendar_reminders");
+      const { enabled, lead_min, every_min } = store.settings.read("calendar_reminders");
       if (!enabled || !source.readable()) return;
+      // Looking less often than the lead time would let an event start between two looks, untold.
+      if (at.getTime() - lastAt < Math.min(every_min, lead_min) * 60_000 - SLACK_MS) return;
+      lastAt = at.getTime();
       const events = await source.between(at.toISOString(), new Date(at.getTime() + lead_min * 60_000).toISOString());
       let told: Told = {};
       try {

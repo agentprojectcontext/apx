@@ -22,6 +22,8 @@ export function turnName(t: T, from: JobFrom | undefined): string {
       return t("turn.from.routine", { name });
     case "surface":
       return t("turn.from.surface", { name });
+    case "mail":
+      return t("turn.from.mail");
     case "job":
     case "terminal":
       return t("turn.from.command");

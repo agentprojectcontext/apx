@@ -742,6 +742,7 @@ export const JobFrom = z.object({
     "surface",
     "channel",
     "routine",
+    "mail",
     "input_answer",
     "job",
     "terminal",

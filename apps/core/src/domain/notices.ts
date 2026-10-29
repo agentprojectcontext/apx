@@ -39,6 +39,7 @@ export function followsOwner(origin: Origin | undefined): boolean {
     case "surface":
     case "hours_began":
     case "routine":
+    case "mail":
     case "job":
     case "task_continue":
     case "stalled_task":

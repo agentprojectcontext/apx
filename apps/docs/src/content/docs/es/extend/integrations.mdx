@@ -94,8 +94,17 @@ tu propio OAuth client.
 **Avisarme de mis eventos**, en **Configurar integración** en la página de Google Calendar, te avisa de cada
 evento poco antes de que empiece (**Con cuánta anticipación**: 30 minutos por defecto, de 5 minutos a 7 días): a qué hora, en cuánto, qué es y dónde
 o el link de la reunión, en una línea en tu canal. Los eventos de todo el día y los que rechazaste quedan afuera, cada
-evento se avisa una vez (otra vez si se mueve) y no se llama a ningún modelo. Está apagado hasta que lo prendés; tus
+evento se avisa una vez (otra vez si se mueve) y no se llama a ningún modelo. **Cada cuánto mirar el calendario** elige
+cada cuánto APX le pregunta a Google (cada 5 minutos por defecto, de 1 minuto a 24 horas), nunca más espaciado que la
+anticipación, para que ningún evento quede entre dos miradas. Está apagado hasta que lo prendés; tus
 horas de silencio guardan los avisos hasta que terminan.
+
+**Avisarme de los mails nuevos**, en **Configurar integración** en la página de Gmail, hace que APX mire lo que llegó a
+tu bandeja (**Cada cuánto revisar**: cada 5 minutos por defecto, de 1 minuto a 24 horas). Publicidad, redes y listas
+quedan afuera, y con **Solo los importantes** también todo lo que Gmail no marca como importante. Preguntarle a Gmail
+no cuesta nada; solo cuando llegó algo que vale la pena tu super-agente lo lee, como datos de afuera, y te dice en una
+o dos líneas qué te necesita, o no dice nada. Necesita Gmail conectado con tu propio cliente de Google, está apagado
+hasta que lo prendés y espera durante tus horas de silencio: la primera revisión después ve lo que llegó.
 
 Un evento solo en tu calendario se crea sin preguntar. Mover un evento o sacar invitados cambia solo tu calendario; a
 los invitados les llega un mail solo cuando el agente pide avisarles, y eso primero lo confirmás vos. Eventos, mails y archivos les llegan a los agentes como datos de

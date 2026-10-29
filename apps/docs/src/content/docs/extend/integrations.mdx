@@ -91,7 +91,16 @@ use your own OAuth client.
 **Remind me of my events**, under **Configure integration** on Google Calendar's page, tells you of each event shortly
 before it starts (**How long before**: 30 minutes by default, from 5 minutes up to 7 days): when, how soon, what and where or the meeting
 link, in one line on your channel. All-day events and the ones you declined are left out, each event is told once (again
-if it moves), and no model is called. It is off until you turn it on; your quiet hours hold reminders until they end.
+if it moves), and no model is called. **How often to look at the calendar** sets how often APX asks Google (every 5
+minutes by default, from 1 minute up to 24 hours), never less often than the lead time so no event slips between two
+looks. It is off until you turn it on; your quiet hours hold reminders until they end.
+
+**Tell me about new mail**, under **Configure integration** on Gmail's page, has APX look at what reached your inbox
+(**How often to check**: every 5 minutes by default, from 1 minute up to 24 hours). Ads, social and mailing lists are
+left out, and with **Important only** so is everything Gmail does not mark important. Asking Gmail costs nothing; only
+when mail worth a look came does your super-agent read it, as outside data, and tell you in a line or two what needs
+you, or stay quiet. It needs Gmail connected with your own Google client, is off until you turn it on, and waits
+through your quiet hours: the first check after them sees what came.
 
 An event only on your calendar goes in without asking. Moving an event or taking guests off changes only your
 calendar; the guests are emailed only when the agent asks to tell them, and you confirm that first. Events, mail and files come back to agents as outside data,

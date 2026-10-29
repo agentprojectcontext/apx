@@ -84,7 +84,14 @@ agent and routine steps link their run in the router's admission transaction thr
 context. Runs have a 10-minute deadline on the injected clock. `flows.run_get` shows each step. See
 [Flows](FLOWS.md#drawn-graphs-graph-executor) and [D-167](DECISIONS.md#d-167).
 
-Secretary capabilities (team news and important mail) are configured in Settings → Super-agent, not the routine action picker. `secretary.set` reuses existing scheduled rows and their IDs, prompts, cursors and history; there is no startup rewrite or replay. The existing mail pipeline still requires readable Gmail. Capability switches survive profile saves and profile changes; timing values still come from profile settings.
+Secretary capabilities (team news) are configured in Settings → Super-agent, not the routine action picker. `secretary.set` reuses the existing scheduled row and its ID, prompt and history; there is no startup rewrite or replay. The switch survives profile saves and profile changes; timing values still come from profile settings.
+
+**Background checks** are the core's own periodic work (`engine/background.ts`): `officeScheduler` runs each on its
+`everyMs` on the office clock's beat, never two at once, and logs a failure without stopping the others. Task pickup,
+stalled tasks, Google Calendar's event reminders (`engine/calendar-reminders.ts`) and Gmail's mail check
+(`engine/mail-check.ts`) are checks; each one an integration does is turned on and timed in that integration's
+settings (`integrations.settings` / `integrations.configure`, a `SETTINGS` entry), never in the routines list.
+[D-171](DECISIONS.md#d-171) says when new periodic work is a check and when it is a routine.
 
 ## 3. Modules and dependency direction
 

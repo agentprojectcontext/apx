@@ -73,6 +73,26 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "mail-check",
+    since: "2.11.2",
+    title: "New mail is checked from Gmail's settings, as often as you choose",
+    applies: (f) => f.google.gmailReadable,
+    text:
+      "The Important mail routine is now Gmail's own mail check: it is turned on, timed (from every minute to once a " +
+      "day) and narrowed to what Gmail marks important under Configure integration on Gmail's page (Resources › " +
+      "Integrations). New mail outside ads, social and lists reaches the super-agent, who tells the owner what needs " +
+      "them or stays quiet. An owner who had the routine on keeps it on, at the same pace. The same place can now bring " +
+      "the signature the owner has in Gmail into APX.",
+    actions: [
+      {
+        label: { en: "Set up the mail check", es: "Configurar la revisión de mails" },
+        prompt:
+          "Tell me whether my Gmail mail check is on and how often it looks, then ask me whether I want it on, how often, " +
+          "and whether only important mail. Change nothing until I answer.",
+      },
+    ],
+  },
+  {
     id: "temporary-browser-consent",
     since: "2.11.2",
     title: "Approve browser scripts for a tab or one turn",
@@ -90,13 +110,12 @@ export const NEWS: readonly NewsEntry[] = [
     id: "secretary-capabilities",
     since: "2.11.2",
     title: "Choose what your secretary watches for you",
-    applies: (f) => f.secretary || f.google.gmailReadable,
-    text: "Settings → Super-agent has independent switches and custom instructions for Team news and Important mail. They are no longer actions in New routine. Existing scheduled records, prompts, mail cursors and history are reused without replay. Profile changes do not reactivate disabled capabilities. Important mail requires readable Gmail with the owner's own Google client; SMTP alone is not readable. Changing a switch schedules the next check, not an immediate send.",
+    applies: (f) => f.secretary,
+    text: "Settings → Super-agent has its own switch and custom instructions for Team news; it is no longer an action in New routine. Existing scheduled records, prompts and history are reused without replay. Profile changes do not reactivate a disabled capability. Changing the switch schedules the next check, not an immediate send. New mail is checked from Gmail's own settings.",
     actions: [
       {
         label: { en: "Review secretary capabilities", es: "Revisar capacidades de secretaría" },
-        prompt:
-          "Show me my team news and important mail settings and help me review them without enabling anything yet.",
+        prompt: "Show me my team news settings and help me review them without enabling anything yet.",
       },
     ],
   },

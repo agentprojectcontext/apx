@@ -28,9 +28,7 @@ export function useProjectCounts(pid: string): Partial<Record<ProjectTab, number
       ...(tasksReady
         ? { tasks: Object.values(tasks).filter((x) => x.state === "open" && here(x.project_id)).length }
         : {}),
-      ...(routinesReady
-        ? { routines: routines.filter((r) => r.action !== "relay" && r.action !== "mail" && here(r.project_id)).length }
-        : {}),
+      ...(routinesReady ? { routines: routines.filter((r) => r.action !== "relay" && here(r.project_id)).length } : {}),
     };
   }, [agents, threads, tasks, tasksReady, routines, routinesReady, pid]);
 }

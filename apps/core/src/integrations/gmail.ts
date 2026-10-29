@@ -121,6 +121,15 @@ export function gmailApi(g: Google) {
     return g.call<GMessage>(ID, u.toString());
   };
   return {
+    /** The signature Gmail adds for `address` (a send-as address), as Gmail keeps it: HTML, or "" when none. */
+    async signature(address: string): Promise<string> {
+      const { sendAs = [] } = await g.call<{
+        sendAs?: Array<{ sendAsEmail?: string; signature?: string; isPrimary?: boolean }>;
+      }>(ID, `${base()}/settings/sendAs`);
+      const mine = sendAs.find((s) => s.sendAsEmail?.toLowerCase() === address.toLowerCase());
+      return (mine ?? sendAs.find((s) => s.isPrimary))?.signature ?? "";
+    },
+
     /** Where the mailbox stands now: the point to ask what arrived after. */
     async historyId(): Promise<string> {
       return (await g.call<{ historyId?: string }>(ID, `${base()}/profile`)).historyId ?? "";

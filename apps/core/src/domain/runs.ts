@@ -38,6 +38,8 @@ export type Origin =
       /** When the first of them came. */
       since: string;
     }
+  /** New mail the owner's Gmail check found worth a look (engine/mail-check.ts): the mail is a third party's text. */
+  | { kind: "mail"; count: number }
   /** A routine the owner scheduled: its prompt is the owner's own words. */
   | { kind: "routine"; id: string; name: string; event?: FlowRoutineEvent }
   /** The owner answered something the agent asked, after the turn that asked had ended. */

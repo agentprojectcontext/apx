@@ -293,7 +293,6 @@ export const es: Record<Key, string> = {
   rtMessage: "Mensaje",
   rtCommand: "Comando",
   rtWatch: "{agent} vigila",
-  rtMail: "{agent} lee los mails nuevos",
   rtSummary: "{on} de {all} activas",
   rtRunNow: "Correr ahora",
   rtEnabled: "Activa",

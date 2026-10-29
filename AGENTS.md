@@ -205,5 +205,6 @@ expected `code_sha`) and the changed path is exercised for real; anything not ex
 | How to verify | [`rules/TESTING.md`](rules/TESTING.md) |
 | Fixing a bug or repairing a failing test | [`rules/TESTING.md#fix-regression-contract`](rules/TESTING.md#fix-regression-contract) |
 | Adding to the prompt or a tool | [`rules/PROMPT_SIZE.md`](rules/PROMPT_SIZE.md) |
+| Adding periodic work (polling, reminders, a job on a timer) | [`rules/DECISIONS.md#d-171`](rules/DECISIONS.md#d-171): a background check set where it lives, not a routine |
 | Product direction | `plan/01-arquitectura-v2.md`, `plan/00-plan-maestro.md` (maintainers' checkout) |
 | Design system | [`packages/ui/.design-sync/NOTES.md`](packages/ui/.design-sync/NOTES.md), `packages/ui/src/components/*.md` |

@@ -1,17 +1,26 @@
 // Methods behind Resources: skills (read, edit, on/off per project), MCP servers (approve, test, on/off per
 // project) and variables (stored secrets: names, a hint and where they are used; never the values).
 import { z } from "zod";
-import { CALENDAR_LEAD } from "./constants.ts";
+import { CALENDAR_LEAD, CHECK_EVERY } from "./constants.ts";
 import { ConnectOffer, Id, McpServerStatus, ToolApproval } from "./domain.ts";
 
 /** Google Calendar tells the owner of an event this many minutes before it starts, while it is on. */
 export const CalendarReminders = z.object({
   enabled: z.boolean(),
   lead_min: z.number().int().min(CALENDAR_LEAD.min).max(CALENDAR_LEAD.max),
+  /** How often Calendar is looked at; never less often than the lead time, so no event is missed. */
+  every_min: z.number().int().min(CHECK_EVERY.min).max(CHECK_EVERY.max),
 });
 export type CalendarReminders = z.infer<typeof CalendarReminders>;
+/** Gmail's mail check: whether new mail is looked at, how often, and whether only what Gmail marks important. */
+export const MailCheck = z.object({
+  enabled: z.boolean(),
+  every_min: z.number().int().min(CHECK_EVERY.min).max(CHECK_EVERY.max),
+  important_only: z.boolean(),
+});
+export type MailCheck = z.infer<typeof MailCheck>;
 /** An integration's own settings; only the ones it has are present. */
-const IntegrationSettings = z.object({ reminders: CalendarReminders.optional() });
+const IntegrationSettings = z.object({ reminders: CalendarReminders.optional(), mail: MailCheck.optional() });
 
 const McpTarget = z
   .object({ scope: z.enum(["global", "project"]), server: z.string(), project: Id.optional() })
@@ -369,8 +378,8 @@ export const resourceMethods = {
            * account it is connected as, whether APX ships a client of its own (no Cloud Console needed) and which
            * client it is signed in with.
            */
-          /** What its settings hold, beside where it is used: an email signature, event reminders. */
-          settings: z.array(z.enum(["signature", "reminders"])).optional(),
+          /** What its settings hold, beside where it is used: an email signature, the mail check, event reminders. */
+          settings: z.array(z.enum(["signature", "reminders", "mail"])).optional(),
           oauth: z
             .object({
               redirect_uri: z.string(),
@@ -443,7 +452,13 @@ export const resourceMethods = {
   },
   /** Changes an integration's own settings; a field left out keeps its value. */
   "integrations.configure": {
-    params: z.object({ id: z.string().max(40), reminders: CalendarReminders.partial().strict().optional() }).strict(),
+    params: z
+      .object({
+        id: z.string().max(40),
+        reminders: CalendarReminders.partial().strict().optional(),
+        mail: MailCheck.partial().strict().optional(),
+      })
+      .strict(),
     result: IntegrationSettings,
     effect: true,
     access: "human",

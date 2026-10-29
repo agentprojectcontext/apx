@@ -1202,3 +1202,40 @@
   color: var(--apx-fg-subtle);
   font-size: calc(22px * var(--apx-text-scale, 1));
 }
+
+/* Email signature editor: the format tabs and Gmail's import on one line, a roomy editor, a live preview. */
+.sig__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px 0 8px;
+}
+.sig__pane {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sig__code {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  line-height: 1.5;
+}
+.sig__preview {
+  width: 100%;
+  min-height: 120px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: #fff;
+}
+.sig__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+.sig__grow {
+  flex: 1;
+}

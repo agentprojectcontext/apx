@@ -387,15 +387,45 @@ test("a calendar routine goes with its runs; the other routines stay", () => {
       "INSERT INTO routines (id, name, agent_id, schedule, prompt, action, created_at, updated_at) VALUES (?, ?, 'roby', '{}', 'p', ?, '2026-10-28', '2026-10-28')",
     );
     routine.run("rtn_events", "Upcoming events", "calendar");
-    routine.run("rtn_mail", "Important mail", "mail");
+    routine.run("rtn_brief", "Morning brief", "agent");
     db.prepare(
       "INSERT INTO routine_runs (routine_id, thread_id, started_at, run_id) VALUES ('rtn_events', 'th_1', '2026-10-28', 'run_1')",
     ).run();
   });
   try {
     const ids = (db.prepare("SELECT id FROM routines ORDER BY id").all() as Array<{ id: string }>).map((r) => r.id);
-    assert.deepEqual(ids, ["rtn_mail"]);
+    assert.deepEqual(ids, ["rtn_brief"]);
     assert.deepEqual(db.prepare("SELECT * FROM routine_runs").all(), []);
+  } finally {
+    db.close();
+    cleanup();
+  }
+});
+
+test("the mail routine becomes Gmail's mail check, keeping its switch, its minutes and its point in the inbox", () => {
+  const { db, cleanup } = upgradeFrom("setting:mail_check", (db) => {
+    const routine = db.prepare(
+      "INSERT INTO routines (id, name, agent_id, schedule, prompt, action, enabled, created_at, updated_at) VALUES (?, ?, 'roby', '{}', 'p', ?, ?, '2026-10-28', '2026-10-28')",
+    );
+    routine.run("rtn_mail", "Important mail", "mail", 1);
+    routine.run("rtn_brief", "Morning brief", "agent", 1);
+    const meta = db.prepare("INSERT INTO meta (key, value) VALUES (?, ?)");
+    meta.run("setting:profile", JSON.stringify({ id: "secretary", values: { mail_every_min: 10 } }));
+    meta.run("setting:mail_seen:rtn_mail", "4242");
+  });
+  try {
+    const setting = (key: string) =>
+      (db.prepare("SELECT value FROM meta WHERE key = ?").get(`setting:${key}`) as { value: string } | undefined)
+        ?.value;
+    assert.deepEqual(JSON.parse(setting("mail_check") ?? "null"), {
+      enabled: true,
+      every_min: 10,
+      important_only: false,
+    });
+    assert.equal(setting("mail_seen"), "4242");
+    assert.equal(setting("mail_seen:rtn_mail"), undefined);
+    const ids = (db.prepare("SELECT id FROM routines ORDER BY id").all() as Array<{ id: string }>).map((r) => r.id);
+    assert.deepEqual(ids, ["rtn_brief"]);
   } finally {
     db.close();
     cleanup();

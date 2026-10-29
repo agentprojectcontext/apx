@@ -52,6 +52,7 @@ import { keepAwake, sleepWatch } from "./engine/awake.ts";
 import { calendarReminders } from "./engine/calendar-reminders.ts";
 import { createEngine, type RunTimers } from "./engine/engine.ts";
 import type { InputWaits } from "./engine/inputs.ts";
+import { mailCheck } from "./engine/mail-check.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
 import { createMemoryMaintenance } from "./engine/memory-maintenance.ts";
 import { createNoticePush } from "./engine/notice-push.ts";
@@ -561,12 +562,6 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     mcpServers: mcp.serversFor,
     hasCap: (cap) => Boolean(broker.withCap(cap)) || (cap === BROWSER_CAP && Boolean(headless?.available())),
     desktopLinked: () => Boolean(broker.withCap(BROWSER_CAP)),
-    // Mail routines read the inbox only with the owner's own Google client: APX's can only send.
-    mail: {
-      readable: (project) => google.usable("gmail", project) && google.full("gmail"),
-      historyId: () => gmailApi(google).historyId(),
-      arrived: (from) => gmailApi(google).arrived(from),
-    },
     afterRun: (run) => {
       upkeep.afterRun(run);
       memoryMaintenance.afterRun(run);
@@ -620,6 +615,16 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
             (await calendarApi(google).list({ from, to, max: 250, calendar: "primary" })).events,
         },
         remind: (texts, events) => remind(texts, `event:${events.map((e) => e.id).join(",")}`),
+      }),
+      mailCheck({
+        store,
+        admit: (a) => engine.admit(a),
+        // The inbox is read only with the owner's own Google client: APX's can only send.
+        source: {
+          readable: () => google.usable("gmail", undefined) && google.full("gmail"),
+          historyId: () => gmailApi(google).historyId(),
+          arrived: (from) => gmailApi(google).arrived(from),
+        },
       }),
     ],
     log,

@@ -107,7 +107,7 @@ export function ProfilePicker({ actions }: { actions?: ReactNode }) {
 
           {current.routines.length > 0 && <SubHead>{t("prof.routines")}</SubHead>}
           {state.routines
-            .filter((r) => r.action !== "relay" && r.action !== "mail")
+            .filter((r) => r.action !== "relay")
             .map((r) => (
               <RoutineLine
                 key={r.id}

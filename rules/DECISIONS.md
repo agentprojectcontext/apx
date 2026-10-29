@@ -2864,3 +2864,54 @@ folder; a command a signal ended is uncertain, not "couldn't start"; commands lo
 limits: SQLite's defensive mode is not exposed by `node:sqlite` (every pragma is denied instead); the database is
 opened by path a moment after the core checks it; a project's folder moved after publishing is used until the next
 publish.
+
+<a id="d-171"></a>
+## D-171 — 2026-10-28 — Work APX does on its own is a background check set where it lives; routines are the owner's
+The owner found Important mail among their routines, timed in the secretary profile, while Google Calendar's reminders
+had just left the routines for Calendar's own settings (a212a1077). They asked for the mail check to work the same way,
+with its pace chosen in Gmail, and for a rule so every later job follows it.
+
+**The rule.** Periodic work that comes with a feature (an integration's reminders or polling, upkeep APX does for the
+owner) is a **background check** (`engine/background.ts`) on the office clock, not a routine:
+
+- **Where it is set.** In the settings of what it belongs to: an integration's **Configure integration**
+  (`integrations.settings` / `integrations.configure`, its `settings` list naming it), or the screen of the feature.
+  Its value is one `SETTINGS` entry (`domain/setting-keys.ts`), each field falling back alone, off until the owner turns
+  it on unless it is upkeep they never see. An agent changes it with `integrations.configure` through `apx_settings`,
+  the owner's OK first.
+- **How it runs.** `{ id, everyMs, run }` passed to `officeScheduler`'s `checks`. The clock beats every minute: a check
+  whose pace is the owner's (every N minutes) runs each minute and returns at once until its time, within half a beat
+  of slack. A run never overlaps itself; a failure is logged and the next beat tries again. Its state (a cursor, what was
+  told) is a setting of its own, moved only after the work it stands for succeeded, so nothing is lost or told twice.
+  Real time never decides a test: tests call `run(at)` or tick `officeScheduler` with an injected clock.
+- **What it may do.** Cheapest first: ask the outside service (free calls), filter in code, and tell the owner a fixed
+  line (`remind`, as Calendar does) when no judgment is needed. When judgment is needed it admits **one** turn to the
+  super-agent in Home with an `Origin` of its own (`{ kind: "mail" }`) whose framing says the content is outside data,
+  that the owner is not watching and that `SKIP` says nothing; the outside text goes in `untrusted(…)`. Home's answers
+  reach the owner's chat app as any of the super-agent's do, `SKIP` sends nothing. Quiet hours: it waits without
+  moving its cursor, so the first run after sees what came.
+- **What stays a routine.** What the owner writes themselves: a prompt, a command or a message on a schedule they
+  choose, for an agent they choose. Routines show in the routines list, with runs, 👍/👎 and the daily budget. A
+  profile may still ship routines (day open, watch); a feature's own polling never becomes one.
+- **Moving one out of the routines.** A migration carries the owner's switch, pace and cursor into the new setting and
+  deletes the routine with its runs; protocol enums lose the routine action; screens point to where it now lives.
+
+**Calendar under it.** `calendar_reminders` gains `every_min` (1 to 1440, default 5): Calendar is looked at that often,
+but never less often than `lead_min`, since an event starting between two looks would never be told.
+
+**The mail check under it.** Gmail's settings hold `mail_check { enabled, every_min (1 to 1440, default 5),
+important_only }` (`CHECK_EVERY` is the range both share). Each run asks Gmail's history (D-135's cursor, now `mail_seen`), leaves out promotions, social,
+forums, spam, trash and sent (and, if chosen, what Gmail does not mark important), and only with something left admits
+a `mail` turn to the super-agent with the mail as `untrusted("emails")`. Only the owner's own Google client can read the
+inbox (D-130); with APX's the switch is shown off with a line saying so. The routine's own instructions and per-run
+history are not carried over: the check's framing holds D-135's prompt.
+
+**Signature import, beside it.** `email.signature_import` reads the send-as signature Gmail keeps (own client only) and
+returns it fitted to the signature subset (`domain/email-signature-import.ts`): allowed tags and attributes stay,
+layout tags become `div`/`span`, styles, scripts and unsafe links go, and the text form is derived from it. Nothing is
+saved and Gmail is never written: the owner reviews it in the editor and saves.
+
+Rejected: keeping Important mail as a hidden routine (a routine the owner cannot see is a second scheduler), a fixed
+line per mail with no agent (D-135's judgment of what needs the owner is the point of it), and a separate thread for
+the mail turns (its answers would not reach the owner's chat app without a reply route of their own).
+

@@ -1,6 +1,6 @@
 // Profiles: what the super-agent is for, as data (an apx-profile.json). APX ships some; the owner installs more from a
 // folder. The running one adds a block to the super-agent's system prompt and keeps its routines on the super-agent
-// in step with its settings. Mail and team news reuse the scheduler as secretary capabilities; their explicit
+// in step with its settings. Team news reuses the scheduler as a secretary capability; its explicit
 // on/off choices survive profile saves and changes. See DECISIONS.md#d-037
 import fs from "node:fs";
 import path from "node:path";
@@ -123,7 +123,7 @@ export function applyProfile(
   const active: ActiveProfile = m ? { id: m.id, values: valuesFor(m, o.values) } : { id: null, values: {} };
   store.settings.write("profile", active);
   for (const r of profileRoutines(store))
-    if (r.action !== "relay" && r.action !== "mail" && r.enabled && (!m || !r.origin?.startsWith(`${m.id}:`)))
+    if (r.action !== "relay" && r.enabled && (!m || !r.origin?.startsWith(`${m.id}:`)))
       store.routines.update(r.id, { ...r, next_run_at: undefined, enabled: false });
   const agent = store.agents.list().find((a) => a.kind === "secretary");
   if (!m || !agent) return active;
@@ -133,10 +133,8 @@ export function applyProfile(
     const mine =
       all.find((r) => r.origin === origin) ??
       all.find((r) => !r.origin && spec.v1.includes(r.name) && r.agent_id === agent.id) ??
-      (spec.action === "relay" || spec.action === "mail"
-        ? all.find((r) => r.action === spec.action && r.agent_id === agent.id)
-        : undefined);
-    const capability = spec.action === "relay" || spec.action === "mail";
+      (spec.action === "relay" ? all.find((r) => r.action === spec.action && r.agent_id === agent.id) : undefined);
+    const capability = spec.action === "relay";
     const desired = scheduleOf(spec, m, active.values);
     const timingChanged =
       previous.id === m.id &&
@@ -150,10 +148,7 @@ export function applyProfile(
       schedule,
       action: spec.action,
       // The owner's edits to a profile routine stay; a v1 routine it adopts gets v2's prompt (v1's names v1's tools).
-      prompt:
-        mine && (mine.origin || spec.action === "relay" || spec.action === "mail")
-          ? mine.prompt
-          : fill(spec.prompt, m, active.values),
+      prompt: mine && (mine.origin || capability) ? mine.prompt : fill(spec.prompt, m, active.values),
       pre_command: pre || undefined,
       post_command: mine?.post_command,
       call_model: mine?.call_model ?? ("always" as const),

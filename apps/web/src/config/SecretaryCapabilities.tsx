@@ -1,4 +1,4 @@
-import type { Result, Routine } from "@apx/protocol";
+import type { Routine } from "@apx/protocol";
 import { Button, SettingRow, Skeleton, Switch, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
@@ -12,61 +12,51 @@ export function SecretaryCapabilities() {
   const t = useT();
   const routines = useRoutines((s) => s.routines);
   const ready = useRoutines((s) => s.ready);
-  const [gmail, setGmail] = useState<Result<"integrations.list">["integrations"][number]>();
   useEffect(() => {
-    let live = true;
     void loadRoutines();
-    void client
-      .call("integrations.list", {})
-      .then((r) => {
-        if (live) setGmail(r.integrations.find((i) => i.id === "gmail"));
-      })
-      .catch(() => {
-        /* Connection availability remains unknown; the core still enforces readability. */
-      });
-    return () => {
-      live = false;
-    };
   }, []);
   if (!strings) return <Skeleton height={80} />;
+  const news = routines.filter((r) => r.action === "relay");
   return (
     <>
       <SubHead>{t("super.capabilities")}</SubHead>
       <p className="config__lead">{t("super.capabilitiesHint")}</p>
-      {gmail && (
-        <p className="pform__hint">
-          {t(gmail.connected && gmail.oauth?.client === "own" ? "super.mailConnected" : "super.mailWaiting")}
-        </p>
-      )}
       {!ready ? (
         <Skeleton height={80} />
+      ) : news.length ? (
+        news.map((r) => <Capability key={r.id} routine={r} />)
       ) : (
-        (["relay", "mail"] as const).map((action) => {
-          const entries = routines.filter((r) => r.action === action);
-          return entries.length ? (
-            entries.map((r) => <Capability key={r.id} action={action} routine={r} />)
-          ) : (
-            <Capability key={action} action={action} />
-          );
-        })
+        <Capability />
       )}
+      <SettingRow title={t("routines.action.mail")} description={t("super.mailInGmail")}>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            go.config(null);
+            go.resources("integrations");
+          }}
+        >
+          {t("super.openGmail")}
+        </Button>
+      </SettingRow>
     </>
   );
 }
 
-function Capability({ action, routine }: { action: "relay" | "mail"; routine?: Routine }) {
+function Capability({ routine }: { routine?: Routine }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
   const [prompt, setPrompt] = useState(routine?.prompt ?? "");
-  const title = t(action === "relay" ? "routines.action.relay" : "routines.action.mail");
+  const title = t("routines.action.relay");
   const save = async (enabled: boolean, text?: string) => {
     setBusy(true);
     setError("");
     try {
       await client.call("secretary.set", {
-        action,
+        action: "relay",
         id: routine?.id,
         enabled,
         ...(text === undefined ? {} : { prompt: text }),
@@ -81,10 +71,7 @@ function Capability({ action, routine }: { action: "relay" | "mail"; routine?: R
   };
   return (
     <div>
-      <SettingRow
-        title={title}
-        description={t(action === "relay" ? "routines.action.relayHint" : "super.mailAvailability")}
-      >
+      <SettingRow title={title} description={t("routines.action.relayHint")}>
         <Switch
           aria-label={title}
           checked={routine?.enabled ?? false}
@@ -118,18 +105,6 @@ function Capability({ action, routine }: { action: "relay" | "mail"; routine?: R
             {t("super.customize")}
           </Button>
         </div>
-      )}
-      {action === "mail" && (
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            go.config(null);
-            go.resources("integrations");
-          }}
-        >
-          {t("super.connectMail")}
-        </Button>
       )}
       {editing && (
         <>

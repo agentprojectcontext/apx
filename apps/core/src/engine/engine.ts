@@ -22,7 +22,6 @@ import { A2A_CAP_MS } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { relayEnded } from "./owner-relay.ts";
 import type { Permissions } from "./permissions.ts";
-import type { MailSource } from "./pipeline.ts";
 import type { ProfileRoot } from "./profiles.ts";
 import { recoverInterrupted } from "./recovery.ts";
 import { droppedResult, outcomeNote } from "./run-outcome.ts";
@@ -227,8 +226,6 @@ export function createEngine(deps: {
   hasCap?: (cap: string) => boolean;
   /** Whether a desktop app is linked as a node. */
   desktopLinked?: () => boolean;
-  /** The owner's Gmail, for mail routines. */
-  mail?: MailSource;
   /** Work on the thread once a run ended (title, compaction); never blocks the next run. */
   afterRun?: (run: RunRecord) => void;
 }) {

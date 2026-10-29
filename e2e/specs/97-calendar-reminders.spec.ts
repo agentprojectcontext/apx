@@ -1,7 +1,9 @@
 import type { Result } from "../../packages/protocol/src/index.ts";
 import { expect, open, rpc, test } from "./kit.ts";
 
-test("Google Calendar's settings turn event reminders on and choose how long before", async ({ page }) => {
+test("Google Calendar's settings turn event reminders on and choose how long before and how often to look", async ({
+  page,
+}) => {
   await rpc("setup.finish");
   const catalog = await rpc<Result<"integrations.list">>("integrations.list");
   await page.route("**/rpc/integrations.list", async (route) => {
@@ -36,13 +38,23 @@ test("Google Calendar's settings turn event reminders on and choose how long bef
   await settings.getByRole("switch", { name: "Avisarme de mis eventos" }).click();
   await expect(lead).toBeEnabled();
   await lead.fill("2");
-  await settings.getByRole("combobox", { name: "Unidad" }).click();
+  await settings.getByRole("combobox", { name: "Con cuánta anticipación: unidad", exact: true }).click();
   await page.getByRole("option", { name: "Horas" }).click();
   await expect
     .poll(
       async () =>
         (await rpc<Result<"integrations.settings">>("integrations.settings", { id: "google-calendar" })).reminders,
     )
-    .toEqual({ enabled: true, lead_min: 120 });
+    .toEqual({ enabled: true, lead_min: 120, every_min: 5 });
   await expect(settings.getByRole("spinbutton", { name: "Con cuánta anticipación" })).toHaveValue("2");
+  const every = settings.getByRole("spinbutton", { name: "Cada cuánto mirar el calendario" });
+  await expect(every).toHaveValue("5");
+  await every.fill("15");
+  await every.press("Enter");
+  await expect
+    .poll(
+      async () =>
+        (await rpc<Result<"integrations.settings">>("integrations.settings", { id: "google-calendar" })).reminders,
+    )
+    .toEqual({ enabled: true, lead_min: 120, every_min: 15 });
 });

@@ -235,21 +235,33 @@ export const WORK: Readonly<Record<string, Setting>> = {
     says: (p, { store }) => `Turn the MCP server ${str(p.server)} ${on(p.on)} in ${projectName(store, p.project)}`,
   },
   "integrations.settings": {
-    does: "an integration's own settings (id; google-calendar: event reminders on or off and how many minutes before)",
+    does: "an integration's own settings (id; google-calendar: event reminders on or off, how many minutes before and every how many minutes Calendar is looked at; gmail: the mail check on or off, every how many minutes, important mail only)",
     read: (p, { store }) =>
       str(p.id) === "google-calendar"
         ? `event reminders: ${JSON.stringify(store.settings.read("calendar_reminders"))}`
-        : "no settings of its own",
+        : str(p.id) === "gmail"
+          ? `mail check: ${JSON.stringify(store.settings.read("mail_check"))}`
+          : "no settings of its own",
   },
   "integrations.configure": {
-    does: "change an integration's own settings (id; reminders: {enabled, lead_min} for google-calendar, minutes 5 to 10080)",
+    does: "change an integration's own settings (id; reminders: {enabled, lead_min, every_min} for google-calendar, lead 5 to 10080 minutes, every 1 to 1440; mail: {enabled, every_min, important_only} for gmail, minutes 1 to 1440)",
     says: (p) => {
+      if (p.mail) {
+        const m = p.mail as { enabled?: boolean; every_min?: number; important_only?: boolean };
+        const every = typeof m.every_min === "number" ? ` every ${m.every_min} minutes` : "";
+        const only = m.important_only === undefined ? "" : m.important_only ? ", important mail only" : ", any mail";
+        return `${m.enabled === undefined ? "Change" : m.enabled ? "Turn on" : "Turn off"} the mail check${every}${only}`;
+      }
       const r = (p.reminders ?? {}) as { enabled?: boolean; lead_min?: number };
       const when = typeof r.lead_min === "number" ? ` ${r.lead_min} minutes before each event` : "";
       return `${r.enabled === undefined ? "Change" : r.enabled ? "Turn on" : "Turn off"} event reminders${when}`;
     },
     now: (p, { store }) =>
-      str(p.id) === "google-calendar" ? { id: p.id, reminders: store.settings.read("calendar_reminders") } : undefined,
+      str(p.id) === "google-calendar"
+        ? { id: p.id, reminders: store.settings.read("calendar_reminders") }
+        : str(p.id) === "gmail"
+          ? { id: p.id, mail: store.settings.read("mail_check") }
+          : undefined,
   },
   "extensions.enable": {
     does: "turn an installed extension on or off (id, enabled)",

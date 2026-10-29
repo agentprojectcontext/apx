@@ -25,6 +25,7 @@ import { useData } from "../data/state.ts";
 import { isKey, useT } from "../i18n/index.ts";
 import { CalendarReminders } from "./CalendarReminders.tsx";
 import { GoogleSignInForm } from "./GoogleSignIn.tsx";
+import { MailCheck } from "./MailCheck.tsx";
 import type { TabProps } from "./ResourcesView.tsx";
 
 export type Integration = Result<"integrations.list">["integrations"][number];
@@ -34,9 +35,12 @@ export const describe = (i: Pick<Integration, "id" | "description">, t: ReturnTy
   const key = `int.desc.${i.id.replaceAll("-", "")}`;
   return isKey(key) ? t(key) : i.description;
 };
-/** It has settings of its own (a signature needs the account it signs for). */
+/** It has settings of its own (a signature and the mail check need the account they are for). */
 const configurable = (i: Integration) =>
-  Boolean(i.settings?.includes("reminders") || (i.settings?.includes("signature") && i.oauth?.account));
+  Boolean(
+    i.settings?.includes("reminders") ||
+      (i.oauth?.account && (i.settings?.includes("signature") || i.settings?.includes("mail"))),
+  );
 /** Nothing to type: it signs in through the owner's browser (or needs no account at all). */
 const viaBrowser = (i: Integration) => !i.oauth && i.fields.length === 0;
 
@@ -341,10 +345,19 @@ function IntegrationDetail({
       </div>
 
       {preferences && (
-        <Dialog open title={t("int.configure")} onOpenChange={(open) => !open && setPreferences(false)}>
+        <Dialog open size="lg" title={t("int.configure")} onOpenChange={(open) => !open && setPreferences(false)}>
+          {i.settings?.includes("mail") && i.oauth?.account && (
+            <MailCheck id={i.id} readable={i.oauth.client === "own"} />
+          )}
           {i.settings?.includes("signature") && i.oauth?.account && (
             <EmailSignatures
-              target={{ transport: "gmail", account: i.oauth.account, sender: i.oauth.account, label: i.label }}
+              target={{
+                transport: "gmail",
+                account: i.oauth.account,
+                sender: i.oauth.account,
+                label: i.label,
+                importable: i.oauth.client === "own",
+              }}
             />
           )}
           {i.settings?.includes("reminders") && <CalendarReminders id={i.id} />}

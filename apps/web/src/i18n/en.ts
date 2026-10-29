@@ -409,6 +409,7 @@ export const en = {
   "turn.from.command": "Command ended",
   "turn.from.goOn": "Go on after the pause",
   "turn.from.stalledTask": "Resume a stalled task",
+  "turn.from.mail": "New mail",
   "turn.from.taskContinue": "Go on with the task",
   "turn.from.other": "Next turn",
   "turn.queuedAfter": "Queued after the current turn",

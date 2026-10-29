@@ -37,43 +37,6 @@ export type StepResult = {
   signal?: string;
 };
 
-/** A mail as a mail routine sees it: who, what, and Gmail's labels (IMPORTANT, CATEGORY_PROMOTIONS…). */
-export type MailArrival = {
-  id: string;
-  from: string;
-  subject: string;
-  date: string;
-  snippet: string;
-  labels: string[];
-};
-
-/** The owner's Gmail for a mail routine; `readable` is false while it cannot be read (not connected, send-only). */
-export type MailSource = {
-  readable(project: string | undefined): boolean;
-  historyId(): Promise<string>;
-  /** What reached the inbox after `from`, and where to ask from next; undefined when that point is too old. */
-  arrived(from: string): Promise<{ next: string; mail: MailArrival[] } | undefined>;
-};
-
-/** Gmail's tabs a mail routine never reads: ads, social networks, mailing lists, spam. */
-const UNREAD_TABS = new Set(["CATEGORY_PROMOTIONS", "CATEGORY_SOCIAL", "CATEGORY_FORUMS", "SPAM", "TRASH", "SENT"]);
-
-/** The mail worth a look, one line each, for the routine's agent to judge. */
-export function mailLines(mail: MailArrival[]): string {
-  return mail
-    .map((m) =>
-      JSON.stringify({
-        id: m.id,
-        from: m.from,
-        subject: m.subject,
-        date: m.date,
-        snippet: m.snippet.slice(0, 300),
-        ...(m.labels.includes("IMPORTANT") ? { gmail_important: true } : {}),
-      }),
-    )
-    .join("\n");
-}
-
 /**
  * Runs one owner command in this system's shell in `cwd`; resolves with its (tail-capped) output whatever happens.
  * `stdin`, when given, is what the command reads, then closed.
@@ -197,14 +160,7 @@ export function messageText(text: string, pre: StepResult | undefined): string {
 }
 
 /** One routine run's pipeline: the pre-step before the turn and the post-step after it, shown in the run's message. */
-export function routinePipeline(o: {
-  store: Store;
-  home: string;
-  routine: Routine;
-  run: RunRecord;
-  display: Display;
-  mail?: MailSource | undefined;
-}) {
+export function routinePipeline(o: { store: Store; home: string; routine: Routine; run: RunRecord; display: Display }) {
   const { routine, display } = o;
   // The commands run where the routine's agent works in its chat.
   const thread = o.store.threads.get(o.run.thread_id);
@@ -267,36 +223,6 @@ export function routinePipeline(o: {
     };
   };
 
-  /**
-   * A mail routine: its agent is called only when mail outside Gmail's ads, social and lists tabs reached the inbox
-   * since the last run; it reaches the agent as data. The first run starts from now; in the owner's quiet hours it
-   * waits, and the first run after sees what came.
-   */
-  const mail = async (result: StepResult | undefined) => {
-    const none = { call: false, prompt: (t: string) => t };
-    const source = o.mail;
-    if (!source?.readable(routine.project_id) || quietNow(o.store)) {
-      o.store.routines.modelCalled(o.run.id, false);
-      return none;
-    }
-    const key = `mail_seen:${routine.id}`;
-    try {
-      const from = o.store.settings.get(key);
-      const got = from ? await source.arrived(from) : undefined;
-      o.store.settings.set(key, got ? got.next : await source.historyId());
-      const worth = (got?.mail ?? []).filter((m) => !m.labels.some((l) => UNREAD_TABS.has(l)));
-      o.store.routines.modelCalled(o.run.id, worth.length > 0);
-      if (!worth.length) return none;
-      const block = untrusted("emails", { count: String(worth.length) }, mailLines(worth));
-      return { call: true, prompt: (t: string) => `${result ? withPreOutput(t, result) : t}\n\n${block}` };
-    } catch (err) {
-      // Gmail did not answer: nothing is lost, the next run asks from the same point.
-      display.notice("warn", "routine.mail", `Gmail: ${err instanceof Error ? err.message : String(err)}`);
-      o.store.routines.modelCalled(o.run.id, false);
-      return none;
-    }
-  };
-
   return {
     /**
      * Runs the pre-command (if any) and says what comes next: the model (an agent routine), a message to send as it is
@@ -307,7 +233,6 @@ export function routinePipeline(o: {
       const result = pre;
       if (routine.action === "watch") return watch(result);
       if (routine.action === "relay") return relay(result);
-      if (routine.action === "mail") return mail(result);
       const goOn = result ? callsModel(routine.call_model, result) : true;
       if (routine.action !== "agent") {
         o.store.routines.modelCalled(o.run.id, false);

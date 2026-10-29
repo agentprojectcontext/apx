@@ -222,7 +222,7 @@ export const officeMethods = {
   "secretary.set": {
     params: z
       .object({
-        action: z.enum(["relay", "mail"]),
+        action: z.enum(["relay"]),
         id: Id.optional(),
         enabled: z.boolean(),
         prompt: z.string().trim().min(1).max(20_000).optional(),

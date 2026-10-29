@@ -120,7 +120,7 @@ test("reminders stay off until the owner turns them on in Calendar's settings, a
   step(1);
   await beat();
   assert.deepEqual(asked, [], "off by default: Calendar is never asked");
-  env.core.store.settings.write("calendar_reminders", { enabled: true, lead_min: 30 });
+  env.core.store.settings.write("calendar_reminders", { enabled: true, lead_min: 30, every_min: 1 });
   connected = false;
   step(1);
   await beat();
@@ -139,4 +139,22 @@ test("an event about to start is told once, in a fixed line in the owner's langu
   await beat();
   await waitFor(() => asked.length === 2, "the next check");
   assert.equal(sent.length, 1, "each event once");
+});
+
+test("Calendar is looked at as often as the owner chose, and never less often than the lead time", async () => {
+  connected = true;
+  const looks = async (minutes: number) => {
+    const before = asked.length;
+    for (let i = 0; i < minutes; i++) {
+      step(1);
+      await beat();
+    }
+    return asked.length - before;
+  };
+  env.core.store.settings.write("calendar_reminders", { enabled: true, lead_min: 30, every_min: 10 });
+  await looks(10);
+  assert.equal(await looks(30), 3, "every ten minutes");
+  env.core.store.settings.write("calendar_reminders", { enabled: true, lead_min: 5, every_min: 60 });
+  await looks(5);
+  assert.equal(await looks(30), 6, "an hour apart would miss events: every five minutes, the lead time");
 });

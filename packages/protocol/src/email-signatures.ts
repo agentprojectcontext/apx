@@ -130,6 +130,13 @@ export const emailSignatureMethods = {
     effect: true,
     access: "human",
   },
+  /** The signature a connected Gmail account has in Gmail, made fit for APX; nothing is saved. */
+  "email.signature_import": {
+    params: z.object({ account: z.email().max(254) }).strict(),
+    result: z.object({ text: z.string(), html: z.string().optional() }),
+    effect: false,
+    access: "human",
+  },
   "email.signatures_get": {
     params: z.object({}).strict(),
     result: z.object({ signatures: EmailSignatures }),

@@ -1005,4 +1005,22 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE flow_schedules ADD COLUMN skipped INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE flow_schedules ADD COLUMN skipped_at TEXT;
   `,
+  // The mail routine became Gmail's mail check (DECISIONS.md#d-171): its switch, the profile's minutes and its point
+  // in the inbox carry over; the routine goes, with its runs.
+  `
+  INSERT INTO meta(key, value)
+    SELECT 'setting:mail_check', json_object(
+      'enabled', json(CASE WHEN r.enabled THEN 'true' ELSE 'false' END),
+      'every_min', COALESCE((SELECT json_extract(value, '$.values.mail_every_min') FROM meta WHERE key = 'setting:profile'), 5),
+      'important_only', json('false'))
+    FROM routines r
+    WHERE r.action = 'mail' AND NOT EXISTS (SELECT 1 FROM meta WHERE key = 'setting:mail_check')
+    ORDER BY r.enabled DESC LIMIT 1;
+  INSERT INTO meta(key, value)
+    SELECT 'setting:mail_seen', m.value FROM meta m JOIN routines r ON m.key = 'setting:mail_seen:' || r.id
+    WHERE r.action = 'mail' AND NOT EXISTS (SELECT 1 FROM meta WHERE key = 'setting:mail_seen')
+    ORDER BY r.enabled DESC LIMIT 1;
+  DELETE FROM meta WHERE substr(key, 1, 18) = 'setting:mail_seen:';
+  DELETE FROM routines WHERE action = 'mail';
+  `,
 ];

@@ -289,7 +289,6 @@ export const en = {
   rtMessage: "Message",
   rtCommand: "Command",
   rtWatch: "{agent} watches",
-  rtMail: "{agent} reads new mail",
   rtSummary: "{on} of {all} active",
   rtRunNow: "Run now",
   rtEnabled: "Active",
