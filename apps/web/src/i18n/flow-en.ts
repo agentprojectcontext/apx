@@ -63,6 +63,7 @@ export const enFlow = {
   "flow.card.newHint": "It doesn't run yet: review it in the editor and turn it on.",
   "flow.card.changedHint": "These changes don't run yet: review them in the editor and save.",
   "flow.card.open": "Open in the editor",
+  "flow.card.here": "Updated the drawing",
   "flow.card.gone": "The flow {name} is no longer here.",
   "flow.tab.step": "Step",
   "flow.tab.run": "Whole run",
@@ -644,11 +645,4 @@ export const enFlow = {
     "Tell {name} what this flow should do, or what to change. The steps appear here as {name} draws them, and nothing runs until you save.",
   "flow.chat.finish": "Fill in «{step}» or delete it first: {name} works on what's saved.",
   "flow.chat.empty": "Add at least one step first.",
-  "flow.chat.context":
-    '[Flow editor: I\'m looking at the flow "{name}" (id {flow}) of the project "{project}". Change its draft; I see the steps appear as you save them.]',
-  "flow.chat.contextNew":
-    '[Flow editor: I\'m starting a new flow in the project "{project}" (id {projectId}), not made yet. Make it there; I see its steps appear in the editor.]',
-  "flow.chat.contextNewNamed":
-    '[Flow editor: I\'m starting a new flow named "{name}" in the project "{project}" (id {projectId}), not made yet. Make it there; I see its steps appear in the editor.]',
-  "flow.chat.changed": "[I changed the drawing in the editor: read it again before you change it.]",
 } as const;

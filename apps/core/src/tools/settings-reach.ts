@@ -106,6 +106,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "terminal.resize": PANEL,
   "terminal.close": PANEL,
   "threads.compact": PANEL,
+  "threads.flow_editor": "the Flow editor says which Flow its own chat draws; agents read it in that chat's turns",
   "threads.delete": PANEL,
   "threads.fork": PANEL,
   "threads.read": PANEL,

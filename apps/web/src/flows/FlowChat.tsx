@@ -6,6 +6,7 @@ import { Drawer } from "../common/Drawer.tsx";
 import { loadThread } from "../data/actions.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { OpenFlow } from "./openFlow.ts";
 
 /**
  * The chat with the super-agent about the open Flow, floating over the canvas where the step card goes: the owner asks
@@ -13,12 +14,15 @@ import { useT } from "../i18n/index.ts";
  */
 export function FlowChat({
   threadId,
+  flowId,
   notice,
   onClose,
   onRestart,
   prepare,
 }: {
   threadId: string;
+  /** The Flow the editor shows: the agent's card for it is a line here, the canvas being its picture. */
+  flowId: string | undefined;
   /** Why the last message didn't go. */
   notice: string | undefined;
   onClose: () => void;
@@ -50,7 +54,9 @@ export function FlowChat({
         {load === "ready" && empty ? (
           <p className="fe-chat__hint">{t("flow.chat.hint", { name })}</p>
         ) : load === "ready" ? (
-          <Transcript thread={thread} />
+          <OpenFlow.Provider value={flowId}>
+            <Transcript thread={thread} />
+          </OpenFlow.Provider>
         ) : (
           load !== "error" && <Skeleton height={120} />
         )}

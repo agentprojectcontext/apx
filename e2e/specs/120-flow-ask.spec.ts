@@ -76,14 +76,20 @@ for (const phone of [false, true]) {
     await chat.getByRole("textbox", { name: /Escribile/ }).fill("add a cleanup step");
     await page.keyboard.press("Enter");
 
-    // The first message says which Flow it is; the step appears on the canvas, marked, with no reload.
-    await expect(chat).toContainText(`(id ${flow})`);
+    // The owner's bubble is only their words (the core tells the agent which Flow); the step appears on the
+    // canvas, marked, with no reload.
+    await expect(chat.getByText("add a cleanup step", { exact: true })).toBeVisible();
+    await expect(chat).not.toContainText("flow editor");
+    await expect(chat).not.toContainText(flow);
     const added = canvas.locator('.react-flow__node[data-id="tidy"]');
     await expect(added).toBeVisible();
     await expect(added.locator(".fc-mark")).toBeVisible();
     await expect(added).toContainText("Tidy the lead");
     await expect(canvas.locator('.react-flow__node[data-id="hook"]')).toContainText("A lead arrives");
     await expect(chat).toContainText("Got it");
+    // The answer's card for this Flow is one line here: the canvas is its picture.
+    await expect(chat.getByText("Dibujo actualizado")).toBeVisible();
+    await expect(chat.getByRole("button", { name: "Abrir en el editor" })).toHaveCount(0);
     if (!phone)
       await expect(
         editor.getByRole("status").filter({ hasText: `Lo dibujó ${boss}: revisalo y guardalo` }),
@@ -122,7 +128,7 @@ test("a new flow the super-agent is asked to make becomes the editor's flow", as
   await chat.getByRole("textbox", { name: /Escribile/ }).fill("make this flow");
   await page.keyboard.press("Enter");
 
-  await expect(chat).toContainText(`(id ${project})`);
+  await expect(chat).not.toContainText(project);
   await expect(canvas.locator(".react-flow__node")).toHaveCount(2);
   await expect(editor.getByRole("textbox", { name: "Nombre del flow" })).toHaveValue("Lead intake");
   const flow = (await rpc<Result<"flows.list">>("flows.list", { project })).flows[0]?.id ?? "";

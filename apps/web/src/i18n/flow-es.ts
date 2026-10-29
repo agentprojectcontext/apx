@@ -65,6 +65,7 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.card.newHint": "Todavía no corre: revisalo en el editor y prendelo.",
   "flow.card.changedHint": "Estos cambios todavía no corren: revisalos en el editor y guardá.",
   "flow.card.open": "Abrir en el editor",
+  "flow.card.here": "Dibujo actualizado",
   "flow.card.gone": "El flow {name} ya no está.",
   "flow.tab.step": "Paso",
   "flow.tab.run": "Ronda completa",
@@ -658,11 +659,4 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
     "Contale a {name} qué tiene que hacer este flow o qué cambiar. Los pasos aparecen acá mientras {name} los dibuja, y nada corre hasta que guardes.",
   "flow.chat.finish": "Completá «{step}» o borralo primero: {name} trabaja sobre lo guardado.",
   "flow.chat.empty": "Agregá al menos un paso primero.",
-  "flow.chat.context":
-    "[Editor de flows: estoy mirando el flow «{name}» (id {flow}) del proyecto «{project}». Cambiá su borrador; veo aparecer los pasos a medida que los guardás.]",
-  "flow.chat.contextNew":
-    "[Editor de flows: estoy empezando un flow nuevo en el proyecto «{project}» (id {projectId}), todavía sin crear. Crealo ahí; veo aparecer sus pasos en el editor.]",
-  "flow.chat.contextNewNamed":
-    "[Editor de flows: estoy empezando un flow nuevo llamado «{name}» en el proyecto «{project}» (id {projectId}), todavía sin crear. Crealo ahí; veo aparecer sus pasos en el editor.]",
-  "flow.chat.changed": "[Cambié el dibujo en el editor: leelo de nuevo antes de cambiarlo.]",
 };

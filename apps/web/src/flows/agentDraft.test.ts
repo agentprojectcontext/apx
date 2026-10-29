@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
-import { askWords, freshSteps, sameGraph, takeAgentDraft } from "./agentDraft.ts";
+import { freshSteps, sameGraph, takeAgentDraft } from "./agentDraft.ts";
 import { connectNodes, newNode } from "./graph-edit.ts";
 
 type Step = FlowGraph["nodes"][number];
@@ -76,10 +76,4 @@ test("a step moved is not marked; a step connected anew is", () => {
   assert.equal(freshSteps(before, moved).size, 0);
   const rewired = connectNodes({ ...before, edges: before.edges.filter((e) => e.target !== "save") }, "hook", "save");
   assert.deepEqual([...freshSteps(before, rewired)], [["save", "changed"]]);
-});
-
-test("the editor's notes come before the owner's words, which stay last", () => {
-  assert.equal(askWords("add a step", []), "add a step");
-  assert.equal(askWords("add a step", [undefined, "[Flow editor]"]), "[Flow editor]\n\nadd a step");
-  assert.equal(askWords("go", ["[a]", "[b]"]), "[a]\n[b]\n\ngo");
 });

@@ -1,5 +1,6 @@
 // The editor's chat with the super-agent about the open Flow: which chat each Flow continues, and making a new one.
 import { createThread } from "../data/actions.ts";
+import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { data } from "../data/state.ts";
 import { t as tr } from "../i18n/index.ts";
@@ -37,5 +38,17 @@ export async function newFlowChat(agentId: string, projectId: string, title: str
   }
 }
 
-/** Whether the chat has nothing in it yet: its first message says which Flow it is about. */
-export const chatIsEmpty = (thread: string): boolean => !data.get().messages[thread]?.length;
+/**
+ * Tells the core the chat is the open editor's: each of the owner's turns there says which Flow (or, not made yet,
+ * which project) to the agent, never in the owner's own message. `undefined` project: the editor closed.
+ */
+export function bindFlowChat(thread: string, project: string | undefined, flow?: string): Promise<boolean> {
+  const editor = project ? { project, ...(flow ? { flow } : {}) } : null;
+  return client.call("threads.flow_editor", { thread, editor }).then(
+    () => true,
+    (e: unknown) => {
+      if (editor) notify(tr("error.change", { error: e instanceof Error ? e.message : String(e) }));
+      return false;
+    },
+  );
+}

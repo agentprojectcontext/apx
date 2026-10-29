@@ -3059,15 +3059,23 @@ super-agent in a card over the canvas, and the steps it saves appear there as it
   the step card. Two cards side by side would leave little canvas to watch, and a step's settings and the chat are
   never needed together: edits wait while the agent works.
 - **The chat.** A loose thread with the super-agent in the Flow's project, remembered per Flow on this device
-  (`apx.flowChats`, as widget chats are) so **Ask** continues it; the card's ↻ starts a new one. Its first message
-  says which Flow and project it is about and that the owner is looking at the editor: it goes in the turn (the
-  owner's message, before their words), never the system prompt (rule 23). The composer's `prepare` hook adds it.
+  (`apx.flowChats`, as widget chats are) so **Ask** continues it; the card's ↻ starts a new one. The owner's
+  bubbles show only what they typed. Which Flow it is comes from the core: the editor binds the chat with
+  `threads.flow_editor {thread, editor: {project, flow?} | null}` (owner-only, kept in the thread's context as
+  `flow_editor`; rebound when the Flow gets its id, unbound when the chat closes or another replaces it), and each
+  owner turn there carries a `[flow editor]` line in the turn's input (`engine/flow-editor.ts`): the Flow's name, id,
+  project and draft version, that the owner is watching, and that nothing runs until they save; for a Flow not made
+  yet, its project and to make it there. Never the system prompt (rules 12, 23), never the stored message.
+- **Cards in that chat.** The agent's answer card for the Flow the editor shows (D-174's `flow` part) is one line,
+  "Updated the drawing": the canvas behind is its picture, and "Open in the editor" would point where the owner is.
+  A card for another Flow shows whole.
 - **Unsaved edits.** Before each message the owner's unsaved edits are saved as a draft, so the agent starts from
   what the owner sees and its edits (applied on the latest draft, D-174) never drop them. A drawing that cannot be
   saved yet (a step missing a required setting) keeps the message unsent and says which step to finish. Over an
   agent's draft the owner has not saved from the editor, that save passes `unreviewed: true`: the draft keeps the
   agent as who drew it, so turning the Flow on still opens it for review (D-174) instead of the owner's implicit save
-  making it theirs. Later messages tell the agent the drawing changed, to read it again.
+  making it theirs. The `[flow editor]` line carries the draft's version, so the agent sees when the owner changed
+  the drawing since it read it.
 - **While it works.** While the chat's turn runs the canvas is the agent's: a note "{name} is editing this flow…",
   steps can't be moved, joined, added or opened, and Save waits. Each `flow.draft` for the open Flow with `by` set
   reloads the drawing (`takeAgentDraft`, `flows/agentDraft.ts`): the canvas takes it when it has no unsaved edits,
@@ -3075,15 +3083,16 @@ super-agent in a card over the canvas, and the steps it saves appear there as it
   writing from another chat) are kept, and the bar says to reopen the editor to see its change. The owner's own saves
   (`by` null) are never reloaded.
 - **A new Flow.** The editor already needs a project. A drawing with steps the owner changed is saved first with
-  `flows.create` (one that can't be saved yet waits, as above); an untouched starter or a blank one is not: the first
-  message says to make the Flow in that project, and the next Flow the super-agent makes there while the editor waits
+  `flows.create` (one that can't be saved yet waits, as above); an untouched starter or a blank one is not: the
+  `[flow editor]` line says to make the Flow in that project, and the next Flow the super-agent makes there while the editor waits
   becomes the editor's (its id, name and drawing). Saving first needs at least one complete step, which a blank flow
   doesn't have.
 - **Review.** The status says "Drawn by {name}: look it over and save" while the draft is an agent's; the owner's
   Save makes it theirs (and publishes when the Flow is on, with its usual outward check), as before.
 
-Rejected: both cards open side by side (the canvas left is too narrow to watch); hiding the context in a field the
-transcript doesn't show (`threads.send` has none, and the owner should see what their agent was told); merging the
+Rejected: both cards open side by side (the canvas left is too narrow to watch); writing the context into the
+owner's first message (their bubble would show text they never typed: rule 31), or a per-message field on
+`threads.send` (the binding lasts as long as the editor, not one message); merging the
 owner's unsaved edits with the agent's step by step (two writers on one drawing; saving first is simpler and loses
 nothing); letting the owner's pre-send save make an agent's draft theirs (it would skip D-174's review).
 <a id="d-176"></a>

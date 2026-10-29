@@ -5,10 +5,10 @@ import { useLastFlowDraft } from "../data/flowDrafts.ts";
 import { isPending, secretary } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { askWords, type Fresh, sameGraph, takeAgentDraft } from "./agentDraft.ts";
+import { type Fresh, sameGraph, takeAgentDraft } from "./agentDraft.ts";
 import { issueText } from "./data.ts";
 import { blank, tidy } from "./drawing.ts";
-import { chatIsEmpty, flowChatOf, newFlowChat, rememberFlowChat } from "./flowChat.ts";
+import { bindFlowChat, flowChatOf, newFlowChat, rememberFlowChat } from "./flowChat.ts";
 import { type FlowGraph, STEP } from "./steps.tsx";
 
 /** What the editor holds that its chat reads: the flow, its drawing and what was last saved (`[graph, name]` JSON). */
@@ -43,7 +43,6 @@ export type EditorSet = {
  */
 export function useFlowChat(at: EditorNow, set: EditorSet) {
   const t = useT();
-  const projects = useData((s) => s.projects);
   const agents = useData((s) => s.agents);
   const boss = useData((s) => secretary(s.agents));
   const [chat, setChat] = useState<string>();
@@ -64,7 +63,8 @@ export function useFlowChat(at: EditorNow, set: EditorSet) {
     const thread =
       (!restart && (chat ?? (at.id ? flowChatOf(at.id) : undefined))) ||
       (await newFlowChat(boss.id, at.projectId, at.name.trim() || t("flow.ed.untitled")));
-    if (!thread) return;
+    // The core tells the agent which Flow in each turn's input; the owner's messages stay their own words.
+    if (!thread || !(await bindFlowChat(thread, at.projectId, at.id))) return;
     if (at.id) rememberFlowChat(at.id, thread);
     setChat(thread);
     set.closeStep();
@@ -104,7 +104,10 @@ export function useFlowChat(at: EditorNow, set: EditorSet) {
         set.made(out.flow.id);
         set.name(out.flow.name);
         set.version(out.document.draftVersion);
-        if (chat) rememberFlowChat(out.flow.id, chat);
+        if (chat) {
+          rememberFlowChat(out.flow.id, chat);
+          await bindFlowChat(chat, at.projectId, out.flow.id);
+        }
         set.onSaved(out.flow.id);
       }
     } catch (e) {
@@ -120,29 +123,17 @@ export function useFlowChat(at: EditorNow, set: EditorSet) {
   };
 
   /**
-   * Before each message: the owner's unsaved edits are saved as a draft, so the agent starts from what the owner sees;
-   * the first message says which Flow it is about (in the turn, not the agent's instructions).
+   * Before each message the owner's unsaved edits are saved as a draft, so the agent starts from what the owner sees.
+   * The words go as the owner wrote them: which Flow it is, and its draft's version, the core adds to the turn.
    */
   const prepare = async (words: string): Promise<string | null> => {
     setNotice(undefined);
     if (!chat || !g) return null;
     const [was, savedName] = lastSaved();
-    const edited = !sameGraph(g, was);
-    const flow = edited ? await saveFirst(g, savedName) : { id: at.id, name: savedName || at.name.trim() };
+    const flow = sameGraph(g, was) ? { id: at.id } : await saveFirst(g, savedName);
     if (!flow) return null;
-    const first = chatIsEmpty(chat);
-    if (first && !flow.id) awaiting.current = true;
-    const project = projects.find((p) => p.id === at.projectId)?.name ?? "";
-    const context = !first
-      ? undefined
-      : flow.id
-        ? t("flow.chat.context", { name: flow.name || t("flow.ed.untitled"), flow: flow.id, project })
-        : t(at.name.trim() ? "flow.chat.contextNewNamed" : "flow.chat.contextNew", {
-            name: at.name.trim(),
-            project,
-            projectId: at.projectId,
-          });
-    return askWords(words, [context, edited && !first ? t("flow.chat.changed") : undefined]);
+    if (!flow.id) awaiting.current = true;
+    return words;
   };
 
   // An agent's saved drawing shows at once; a new flow the agent was asked to make becomes this editor's flow.
@@ -165,7 +156,10 @@ export function useFlowChat(at: EditorNow, set: EditorSet) {
         was = g;
         set.made(last.flow);
         if (!at.name.trim()) set.name(savedName);
-        if (chat) rememberFlowChat(last.flow, chat);
+        if (chat) {
+          rememberFlowChat(last.flow, chat);
+          void bindFlowChat(chat, at.projectId, last.flow);
+        }
         set.onSaved(last.flow);
       }
       const take = takeAgentDraft(g, was, incoming);
@@ -189,6 +183,13 @@ export function useFlowChat(at: EditorNow, set: EditorSet) {
       live = false;
     };
   }, [last?.seq]);
+  // Closed or replaced, the chat is no longer the editor's: later turns there say nothing of it.
+  useEffect(
+    () => () => {
+      if (chat) void bindFlowChat(chat, undefined);
+    },
+    [chat],
+  );
   useEffect(() => {
     if (!fresh.size) return;
     const timer = setTimeout(() => setFresh(new Map()), 6000);

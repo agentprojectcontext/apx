@@ -53,9 +53,3 @@ export function takeAgentDraft(local: FlowGraph, saved: FlowGraph, incoming: Flo
   if (!sameGraph(local, saved)) return { kind: "keep" };
   return { kind: "take", graph: incoming, fresh: freshSteps(local, incoming) };
 }
-
-/** The words sent to the agent: what the editor tells it first (which Flow, or that the owner changed it), then the owner's. */
-export function askWords(words: string, notes: readonly (string | undefined)[]): string {
-  const said = notes.filter(Boolean);
-  return said.length ? `${said.join("\n")}\n\n${words}` : words;
-}

@@ -495,6 +495,7 @@ export function FlowEditor({
             <FlowChat
               key={chat}
               threadId={chat}
+              flowId={id}
               notice={notice}
               onClose={() => setChatOpen(false)}
               onRestart={() => void ask.openChat(true)}

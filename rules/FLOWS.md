@@ -526,8 +526,11 @@ the canvas `focus.card` makes the fit leave it out). Threads are remembered per 
 (`apx.flowChats`, `flows/flowChat.ts`). The composer's `prepare` hook runs before each message: unsaved edits go first
 as the owner's draft (`flows.draft_save`, with `unreviewed: true` over an agent's draft so `draftBy` keeps the agent;
 `flows.create` for a new Flow with changed steps), a drawing with a blank required setting keeps the message unsent,
-and the first message of the chat starts with `[Flow editor: … (id <flow>) …]` (a new Flow: its project's id) before
-the owner's words. While the thread's turn runs the canvas is locked (no move, join, add, step card or Save) under
+and the words go as typed. The chat is bound with `threads.flow_editor {thread, editor: {project, flow?} | null}`
+(owner-only; thread context `flow_editor`): each owner turn there gets a `[flow editor]` line in its input
+(`engine/flow-editor.ts`: the Flow's name, id, project and draft version, or for a new Flow its project and to make it
+there); closing the chat unbinds it. In that chat, the `flow` card of the open Flow is the line "Updated the drawing"
+(`OpenFlow` context, `flows/openFlow.ts`). While the thread's turn runs the canvas is locked (no move, join, add, step card or Save) under
 "{name} is editing this flow…". A `flow.draft` with `by` set for the open Flow is read with `flows.graph_get` and
 given to `takeAgentDraft` (`flows/agentDraft.ts`): `same`, `keep` (unsaved local edits stay; the bar says to reopen) or
 `take` (the canvas shows it and `freshSteps` marks new and changed steps for six seconds; a phone's fit shows the new
