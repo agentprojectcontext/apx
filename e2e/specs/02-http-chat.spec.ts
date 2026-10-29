@@ -15,7 +15,8 @@ for (const host of ["127.0.0.1", "panel.test"]) {
     await expect(page.getByRole("button", { name: "Inbox" })).toBeVisible();
     expect(await page.evaluate(() => isSecureContext)).toBe(host === "127.0.0.1");
     expect(await page.evaluate(() => typeof crypto.randomUUID)).toBe(host === "127.0.0.1" ? "function" : "undefined");
-    const before = (await rpc<{ threads: Thread[] }>("threads.list")).threads.length;
+    // Other specs share this core and its chat list is capped: count the chats that are new, not the list.
+    const before = new Set((await rpc<{ threads: Thread[] }>("threads.list")).threads.map((x) => x.id));
     const sends: string[] = [];
     page.on("request", (r) => {
       if (r.url().endsWith("/rpc/threads.send")) sends.push(r.postData() ?? "");
@@ -30,7 +31,7 @@ for (const host of ["127.0.0.1", "panel.test"]) {
     await expect(page.locator(".transcript").getByText(`Got it: HTTP first ${host}`)).toBeVisible();
     await expect(box).toHaveValue("");
     expect(sends).toHaveLength(1);
-    expect((await rpc<{ threads: Thread[] }>("threads.list")).threads).toHaveLength(before + 1);
+    expect((await rpc<{ threads: Thread[] }>("threads.list")).threads.filter((x) => !before.has(x.id))).toHaveLength(1);
     const thread = new URLSearchParams(new URL(page.url()).hash.slice(1)).get("thread");
     const saved = await rpc<{ messages: Message[] }>("threads.get", { thread });
     expect(saved.messages.filter((m) => m.author.kind === "user")).toHaveLength(1);

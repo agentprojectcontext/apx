@@ -18,23 +18,27 @@ test("the owner reads the core's log in settings, narrows it and finds the file"
   await expect(dialog.getByRole("heading", { name: "Registros" })).toBeVisible();
   await expect(dialog.getByText(log.path)).toBeVisible();
 
+  // The core's start can be far back on a core other specs have used a while: it is found by text.
   const lines = dialog.getByRole("list", { name: "Registros" });
-  await expect(lines.getByText("apx core listening")).toBeVisible();
+  await expect(lines.getByRole("listitem").first()).toBeVisible();
+  const search = dialog.getByRole("searchbox", { name: "Buscar en el registro" });
+  await search.fill("core listening");
+  await expect(lines.getByText("apx core listening").first()).toBeVisible();
 
   // Only errors: the core's start is not one.
   await dialog.getByRole("radio", { name: "Error" }).click();
   await expect(lines.getByText("apx core listening")).toHaveCount(0);
 
-  // All levels, narrowed by text.
+  // All levels again, then a text nothing logs.
   await dialog.getByRole("radio", { name: "Todos" }).click();
-  await dialog.getByRole("searchbox", { name: "Buscar en el registro" }).fill("core listening");
-  await expect(lines.getByText("apx core listening")).toBeVisible();
-  await dialog.getByRole("searchbox", { name: "Buscar en el registro" }).fill("nothing-logs-this-e2e-text");
+  await expect(lines.getByText("apx core listening").first()).toBeVisible();
+  await search.fill("nothing-logs-this-e2e-text");
   await expect(dialog.getByText("Ninguna línea coincide")).toBeVisible();
 
   // Another section and back: the view opens again with the log.
   await dialog.getByRole("button", { name: "Avanzado" }).click();
   await expect(dialog.getByRole("heading", { name: "Avanzado" })).toBeVisible();
   await dialog.getByRole("button", { name: "Registros" }).click();
-  await expect(dialog.getByRole("list", { name: "Registros" }).getByText("apx core listening")).toBeVisible();
+  await expect(dialog.getByText(log.path)).toBeVisible();
+  await expect(dialog.getByRole("list", { name: "Registros" }).getByRole("listitem").first()).toBeVisible();
 });

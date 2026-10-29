@@ -13,6 +13,11 @@ test("a queued delegation result shows, named, with its chat's working turn in t
   const root = await rpc<Thread>("threads.create", { kind: "loose", agent_id: agent.id, title: "Parity audit" });
   await page.setViewportSize({ width: 1920, height: 1080 });
   await open(page, `#thread=${root.id}&panel=processes`);
+  // Other specs share this core and may leave chats working or waiting: the popover's counts are read as a change.
+  const tabs = page.locator(".running__tabs .running__tabn");
+  await page.locator("button.running").click();
+  const was = (await tabs.allTextContents()).map(Number);
+  await page.keyboard.press("Escape");
   const mainChat = page.locator(".workspace > .chat");
   const composer = mainChat.getByRole("textbox").last();
   await composer.fill("start a worker and keep going");
@@ -28,11 +33,10 @@ test("a queued delegation result shows, named, with its chat's working turn in t
   await expect(side.getByText("Terminados (1)")).toBeVisible();
 
   await page.locator("button.running").click();
-  const tabs = page.locator(".running__tabs .running__tabn");
-  await expect(tabs.nth(0)).toHaveText("2");
-  await expect(tabs.nth(1)).toHaveText("0");
+  await expect(tabs.nth(0)).toHaveText(String((was[0] ?? 0) + 2));
+  await expect(tabs.nth(1)).toHaveText(String(was[1] ?? 0));
   const list = page.locator(".running__list");
-  await expect(list.locator(".running__row")).toContainText("Parity audit");
+  await expect(list.locator(".running__row").filter({ hasText: "Parity audit" })).toBeVisible();
   await expect(list.locator(".turns__row")).toHaveCount(1);
   await expect(list.locator(".turns__row")).toContainText("Resultado de Scout");
   await page.keyboard.press("Escape");

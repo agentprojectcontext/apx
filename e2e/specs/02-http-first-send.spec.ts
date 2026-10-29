@@ -12,7 +12,8 @@ test("a failed first send restores files and retries on the created chat without
   await page.goto(`http://panel.test:${process.env.E2E_PORT ?? 7460}/`);
   await expect(page.getByRole("button", { name: "Inbox" })).toBeVisible();
   expect(await page.evaluate(() => isSecureContext)).toBe(false);
-  const before = (await rpc<{ threads: Thread[] }>("threads.list")).threads.length;
+  // Other specs share this core and its chat list is capped: count the chats that are new, not the list.
+  const before = new Set((await rpc<{ threads: Thread[] }>("threads.list")).threads.map((x) => x.id));
   let creates = 0;
   let sends = 0;
   let id = "";
@@ -62,7 +63,7 @@ test("a failed first send restores files and retries on the created chat without
   await expect(page.locator(".transcript").getByText(/^Got it: File in your temp folder:.*first\.txt/s)).toBeVisible();
   expect(creates).toBe(1);
   expect(sends).toBe(1);
-  expect((await rpc<{ threads: Thread[] }>("threads.list")).threads).toHaveLength(before + 1);
+  expect((await rpc<{ threads: Thread[] }>("threads.list")).threads.filter((x) => !before.has(x.id))).toHaveLength(1);
   const saved = await rpc<{ messages: Message[] }>("threads.get", { thread: id });
   const owners = saved.messages.filter((m) => m.author.kind === "user");
   expect(owners).toHaveLength(1);
