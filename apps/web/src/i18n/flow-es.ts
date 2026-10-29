@@ -499,7 +499,7 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.ai.aBot": "Un bot de este flow",
   "flow.ai.botName": "Nombre del bot",
   "flow.ai.system": "Cómo trabaja",
-  "flow.ai.systemHint": "Qué es y cómo responde. No recuerda nada entre una corrida y otra.",
+  "flow.ai.systemHint": "Qué es y cómo responde. No recuerda nada entre una ronda y otra.",
   "flow.ai.harness": "Harness",
   "flow.ai.apx": "APX",
   "flow.ai.agentModel": "El modelo del agente",
@@ -517,7 +517,7 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.ai.delegateHint": "Puede pasarle trabajo a tus otros agentes o escribirles. Apagado, trabaja solo.",
   "flow.ai.noteAgent":
     "Trabaja con las instrucciones, la memoria y las herramientas del agente. Este paso gasta tokens.",
-  "flow.ai.noteBot": "Arranca de cero en cada corrida, con tus herramientas y sin memoria. Este paso gasta tokens.",
+  "flow.ai.noteBot": "Arranca de cero en cada ronda, con tus herramientas y sin memoria. Este paso gasta tokens.",
   "flow.ai.noteCli":
     "Corre en la carpeta del proyecto con las herramientas y la configuración de esa app. Este paso gasta tokens.",
   "flow.ai.answered": "Respondió {who} en {harness} · {model}",
@@ -532,7 +532,7 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.v.apx": "APX",
   "flow.v.project": "Nombre del proyecto",
   "flow.v.now": "Fecha y hora",
-  "flow.v.run": "Número de corrida",
+  "flow.v.run": "Número de ronda",
   "flow.v.secrets": "Secretos",
   "flow.v.pick": "Insertar un valor",
   "flow.v.none": "No hay coincidencias. Seguí escribiendo o elegí desde el botón.",

@@ -2864,3 +2864,39 @@ folder; a command a signal ended is uncertain, not "couldn't start"; commands lo
 limits: SQLite's defensive mode is not exposed by `node:sqlite` (every pragma is denied instead); the database is
 opened by path a moment after the core checks it; a project's folder moved after publishing is used until the next
 publish.
+
+<a id="d-171"></a>
+## D-171 — 2026-10-28 — A Flow's AI model step works with full power but alone, as an agent or a bot of the Flow
+The agent step handed the payload to an agent through `threads.send`: a full turn with the agent's instructions,
+memory, tools and the right to delegate, like a task. The owner asked for one "AI model" block whose source is an
+agent or a bot written for the Flow, on the harness, model, effort and permission mode they pick, and said a Flow
+step should be simpler than a task without being capped. The step keeps everything an agent is and drops only what
+makes one run fan out into many:
+
+- **Full tools and memory, no team by default.** The step's chat carries `flow_step` in its context. Unless the step's
+  **Can ask other agents** is on, its turns leave out delegating (`delegate`, sessions), the roster, `list_agents`,
+  `grant_tool`, `agent_set` and the task tools that wake another agent (`task_create`, `task_update`, `task_comment`,
+  `task_close`); reading tasks stays. Everything else (files, shell, browser, memory, MCP) follows the agent's own list
+  and rules. With it on, the step works as the agent does in a chat. A Flow is unattended and has a 10-minute deadline;
+  agents asking agents inside one is the open-ended part, so it is the part the owner turns on.
+- **A bot is a name and a system prompt, nothing else.** It runs as a worker of the super-agent (its instructions in the
+  thread's `worker`, a prompt of its own), never with the super-agent's persona, memory (tools and recall), settings
+  tools or team. Each run gets a new chat, so it has no history; it never delegates.
+- **One ref picks harness, model and effort.** `model` is an `engine/model#effort` ref, set as the chat's own model.
+  A model API runs on APX's loop. A CLI (Claude Code, Codex, an ACP agent) runs the step as its own session in the
+  project's folder (D-043: CLIs never run as an agent's persona); who answers travels as the brief of its first
+  message, and APX's memory does not reach it. Its permission is the session's write policy (ask, auto, read-only);
+  on APX's loop it is the mode (manual, auto, total) over the agent's own, its own rules still applying. Plan and
+  accept-edits are left out: nobody is there to review a plan.
+- **What answered is shown.** `flows.run_get` adds the harness and model of the run each AI step started; the run
+  detail names them beside the bot's or agent's name and opens the chat.
+
+Template fields gained the values a person reaches for: `$apx.project`, `$apx.now` and `$apx.run`, filled by the
+step, never bindings the payload could reach. A command's environment reads `secret://name` like an HTTP header does
+(D-169): in the owner's own text only, resolved in the step, cut from what it printed, shown as the reference, named in
+the allow dialog. The panel's picker offers secrets only in those two fields; a message, a body, SQL values or an AI
+instruction would carry a secret as text.
+
+Rejected: capping the step's tools to a fixed safe list (the owner asked for full power; the agent's own rules already
+say what it may use), a second "direct model" block beside it (one block; old drawings keep theirs), letting a bot
+delegate (a bot has no team to speak for), and letting a CLI session read APX memory through framing (D-043).

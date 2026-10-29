@@ -326,9 +326,32 @@ legacy shape gets a disabled table-only definition so the drawing has a Flow to 
 **No** outlets; the chip next to each connection in **Goes on to** switches its branch. **Try a run**
 (`flows.try_graph`) follows any drawing. A new Flow's drawing is validated against its chosen project before the first
 save. The detail draws the revision a run used (legacy runs of a published Flow draw the old
-definition) and says **Previous version** when it is not the current one. Coming-soon kinds (SQL, Cmd) are not in the
-schema and cannot be added. Notify picks its channel and person or room from the owner's own lists; its message and an
-outgoing webhook's body have **Add** buttons for `$trigger.` and each earlier step's result.
+definition) and says **Previous version** when it is not the current one. Notify picks its channel and person or room
+from the owner's own lists. Every template field (message, headers, body, SQL values, command variables and input) is a
+`TemplateField` (`packages/ui`): `{{`, `$`, `secret://` or its button offer the values `apps/web/src/flows/values.ts`
+lists for that field, and placeholders read as badges. Secrets are offered only where the core resolves them
+(`SECRET_FIELDS`: headers and command variables). The top bar keeps the name at the left (past the window-controls
+inset) and **Exit** at the right, through the same unsaved-changes guard.
+
+## AI model steps
+
+`kind: "agent"` is the panel's **AI model** block (DECISIONS.md#d-171). Its source is `agent` (an agent of the Flow's
+project or a global one) or `bot` (`{name, system}`), exactly one. `model` is an optional `engine/model#effort` ref;
+`autonomy` (manual, auto, total) applies on APX's loop, `write` (ask, auto, read-only) on a CLI's, and `delegate`
+(agents on APX's loop only) turns the team tools back on. Validation: `ai_source`, `ai_mode`; a native `model` must be a
+set-up model API (`model_unavailable`). A drawing with any of these fields is not the legacy shape.
+
+`planFlowAiStep` (`apps/core/src/flow-ai-step.ts`) decides the chat: a loose thread with the agent, or with the
+super-agent as a worker under the bot's prompt (`flowBotPrompt`), or a code thread with `engine` for a CLI; it merges
+`model_choice`, `worker` and `flow_step` into the thread's context before the first `threads.send`. `turnTools` drops
+`TEAM_TOOLS` (or `BOT_OUT`: also memory and `apx_settings`) for a step's chat; `buildContext` skips the roster and,
+for a bot, recall; `permissions.agentIn` takes `flow_step.autonomy` over the agent's mode. `flows.run_get` adds
+`answered: {harness, model}` from the run each step started.
+
+Templates also read `$apx.project`, `$apx.now` and `$apx.run` (`FLOW_APX` in `domain/flow-template.ts`); every
+step that renders a template passes `flowApx(store, run, now)`. A command's variables resolve `secret://name` in their
+literal text (`deps.http.secret`), scrub stdout and stderr with `secretScrubber`, show the reference, and
+`flows.outward` lists the names under `commands[].secrets`.
 
 ## Checks with cases, variables, code, SQL and commands
 

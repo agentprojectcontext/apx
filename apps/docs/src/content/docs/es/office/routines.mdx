@@ -64,12 +64,35 @@ del paso elegido), arrastrá desde el punto de salida de un paso para unir dos p
 | Leer tabla | Trae filas guardadas a la ronda. Sin modelo. |
 | Guardar en la tabla | Guarda lo que llegó, un campo o el resultado de un paso anterior con una clave. Sin modelo. |
 | SQL | Una instrucción sobre un archivo SQLite en la carpeta del proyecto (`data/app.db`). Los valores van aparte de la consulta, como `:nombre` con una línea `nombre: $trigger.email`, nunca adentro. **Solo lectura** lee filas (`$steps.<paso>.rows`, hasta 500); apagado, puede agregar, cambiar y borrar filas y agregar tablas o índices. Sin modelo. |
-| Modelo IA | Le da una tarea a un agente del crew, con lo que llegó o el resultado de un paso anterior. Gasta tokens. |
+| Modelo IA | Le da una tarea a un agente del crew o a un bot de este flow, con lo que llegó o el resultado de un paso anterior, en el harness y el modelo que elijas (ver abajo). Gasta tokens. |
 | Rutina | Corre una rutina manual del proyecto. |
-| Modelo directo | Le pregunta una vez a un modelo configurado, sin herramientas, y pasa su respuesta. Gasta tokens. |
+| Modelo directo | Le pregunta una vez a un modelo configurado, sin herramientas, y pasa su respuesta. Gasta tokens. Queda en los flows que ya lo tienen; los pasos nuevos usan **Modelo IA**. |
 | Webhook saliente | Llama a una URL con GET, POST o PUT. Headers y body pueden llevar valores de la ronda; una clave va en un header como `secret://nombre`, de **Secretos**. Los pasos siguientes leen su respuesta como `$steps.<paso>.status`, `.ok` y `.json` (o `.body` si no es JSON). |
-| Cmd | Un comando de shell en la carpeta del proyecto, como el de una rutina. Los valores de la ronda le llegan solo como variables (`EMAIL=$trigger.email`, que lee como `$EMAIL`) y como su entrada, nunca dentro del texto. Los pasos siguientes leen `$steps.<paso>.stdout` y `.exit`; un error corta el flow salvo que **Seguir si falla** esté prendido. Tiene tiempo máximo (hasta 2 minutos). |
+| Cmd | Un comando de shell en la carpeta del proyecto, como el de una rutina. Los valores de la ronda le llegan solo como variables (`EMAIL=$trigger.email`, que lee como `$EMAIL`) y como su entrada, nunca dentro del texto; una clave va en una variable como `secret://nombre`. Los pasos siguientes leen `$steps.<paso>.stdout` y `.exit`; un error corta el flow salvo que **Seguir si falla** esté prendido. Tiene tiempo máximo (hasta 2 minutos). |
 | Avisar | Manda un mensaje como vos por una de tus apps de chat (Telegram, WhatsApp, Discord…) a alguien que conocés ahí, a vos o a una sala que listaste. Con **Solo si hay algo para contar**, no manda nada cuando todos los valores del mensaje salen vacíos. |
+
+La barra de arriba del editor tiene el nombre del flow a la izquierda y **Salir** a la derecha, junto al estado de
+guardado, **Probar ronda** y **Guardar**; si hay cambios sin guardar, pregunta antes de salir.
+
+### Quién responde en un paso Modelo IA
+
+**Quién responde** es **Un agente** (uno del crew, con sus instrucciones, personalidad, memoria y herramientas) o **Un
+bot de este flow**: un nombre y **Cómo trabaja**, el prompt de sistema que escribís. Un bot arranca de cero en cada
+ronda: sin memoria, sin historial y sin equipo. Después elegí:
+
+- **Harness**: **APX** (el propio de APX, sobre las APIs de modelos que configuraste) o una app de esta computadora como
+  Claude Code o Codex, si está instalada. En una app, el paso corre en la carpeta del proyecto con las herramientas y la
+  configuración de esa app, en una sesión propia; quién responde va en su encargo, y la memoria de APX no le llega.
+- **Modelo** y, si el modelo lo acepta, **Esfuerzo**. Si lo dejás como está, un agente usa su propio modelo y un bot tu
+  modelo por defecto.
+- **Permisos**: en APX, los del agente, **Pregunta antes**, **Auto** o **Total**; en una app, **Pregunta antes**,
+  **Edita libre** o **Solo lectura**. Un flow corre sin nadie mirando: lo que pregunta te espera hasta el tiempo máximo
+  de la ronda.
+- **Puede pedirle a otros agentes** (solo agentes en APX), apagado de entrada. Apagado, el agente trabaja solo con todas
+  sus herramientas y su memoria, pero no puede pasarle trabajo a tus otros agentes, escribirles, ni crearles o
+  comentarles tareas. Prendido, trabaja como en un chat.
+
+La ronda muestra quién respondió, en qué harness y modelo, y **Abrir chat** abre la conversación que tuvo.
 
 Un flow tiene un solo disparador. Un flow corre como está dibujado: los pasos pueden abrirse en caminos y volver a
 juntarse, y cada paso puede recibir lo que llegó o el resultado de un paso anterior. En **Sigue con** elegís por cuál
@@ -116,7 +139,12 @@ dirección: nunca recibe un POST, y uno con webhook nunca corre por horario.
 ### Mensajes y llamadas que un flow hace por vos
 
 El texto de un paso lleva valores de la ronda: `$trigger.email` es un campo de lo que llegó, `$steps.<paso>.text` la
-respuesta de un paso anterior (los botones **Sumar** debajo del mensaje los ponen), `$$` es un signo de pesos. Lo que
+respuesta de un paso anterior, `$vars.nombre` una variable, `$apx.project`, `$apx.now` y `$apx.run` el nombre del
+proyecto, la fecha y hora y el número de ronda, y `$$` es un signo de pesos. No hace falta saberlos: en cualquier campo
+que acepta valores, escribí `{{` o `$`, o tocá el botón **{}**, y elegí entre lo que llegó, los pasos anteriores, las
+variables del flow y los valores de APX; lo que elegiste se ve como una insignia. Los **Secretos** se ofrecen solo en los
+headers de un webhook saliente y en las variables de un comando, donde el paso los lee por su cuenta; un mensaje, un
+body o una instrucción de IA nunca reciben uno. Lo que
 llega solo llena las palabras: quién recibe el mensaje es la persona o sala que elegiste, nunca una que nombren los datos.
 
 Como Avisar habla como vos y un webhook saliente actúa sobre otro servicio, la primera vez que un dibujo mandaría o

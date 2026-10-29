@@ -171,6 +171,20 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "flow-ai-step",
+    since: "2.11.2",
+    title: "A Flow's AI step: an agent or a bot of its own, on the model you pick",
+    applies: (f) => f.secretary,
+    text: "A Flow's AI model step can now be answered by an agent of the crew (with its instructions, memory and tools) or by a bot written just for that Flow: a name and how it works, starting from scratch each run. The owner picks the harness (APX, or Claude Code or Codex when they're installed), the model, the effort and how freely it acts. By default it works alone, without handing work to other agents; a switch on the step lets it. In every field that takes values, typing {{ or $ or pressing a button offers what arrived, earlier steps, variables and APX's values, shown as badges; secrets only where the step reads them itself, like a request's headers or a command's variables.",
+    actions: [
+      {
+        label: { en: "Add a bot to a Flow", es: "Sumar un bot a un Flow" },
+        prompt:
+          "Help me plan a Flow with an AI model step answered by a bot of its own (its name, how it works, what it receives and what it hands on), then open it in the Flows editor, still off, for me to review.",
+      },
+    ],
+  },
+  {
     id: "restricted-public-ingress",
     since: "2.11.2",
     title: "A public address without exposing the private app",
