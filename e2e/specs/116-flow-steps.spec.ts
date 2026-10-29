@@ -103,6 +103,8 @@ for (const lang of ["en", "es"] as const) {
     await editor.getByRole("textbox", { name: l.formula }).fill("$trigger.price * $trigger.qty");
     await editor.getByRole("button", { name: l.add(l.check) }).click();
     await editor.getByRole("textbox", { name: l.caseName }).fill(l.big);
+    // A case starts as a comparison; the formula is its other tab, in the same place.
+    await editor.getByRole("radio", { name: l.formula }).click();
     await editor.getByRole("textbox", { name: l.formula }).fill("$vars.total >= 100");
     await editor.getByRole("button", { name: l.add(l.js) }).click();
     await editor

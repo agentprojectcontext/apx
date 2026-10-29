@@ -75,3 +75,6 @@ export const columnName = (typed: string) =>
     .slice(0, 64);
 /** Names a read gives besides its columns. */
 export const RESERVED_COLUMNS: ReadonlySet<string> = new Set(["rows", "row"]);
+/** Marks a column required or not: a save never leaves a required one empty (DECISIONS.md#d-180). */
+export const requireColumn = (project: string, table: string, column: string, required: boolean) =>
+  changed(project, client.call("tables.column_required", { project, table, column, required }));

@@ -18,6 +18,8 @@ export type TemplateFieldKind =
   | "stdin"
   | "key"
   | "column"
+  | "whole"
+  | "compare"
   | "varText"
   | "formula";
 /**
@@ -88,7 +90,11 @@ function knownFields(graph: FlowGraph): string[] {
         ? [n.key, ...(n.columns ?? []).map((c) => c.value)]
         : n.kind === "table_read"
           ? n.keys
-          : [];
+          : n.kind === "condition"
+            ? (n.cases ?? []).flatMap((c) =>
+                c.match.kind === "all" || c.match.kind === "any" ? c.match.rules.flatMap((r) => [r.left, r.right]) : [],
+              )
+            : [];
     for (const text of texts)
       for (const m of text.matchAll(/\$trigger((?:\.[A-Za-z0-9_-]+)+)/g)) if (m[1]) paths.add(m[1].slice(1));
   }
@@ -141,9 +147,13 @@ export function valueGroups(
                 ? `${kindName(s.kind)} · ${s.table}`
                 : kindName(s.kind),
           },
-          // A read's columns, each its first row's value.
+          // A read's columns it brings, each its first row's value.
           ...(s.kind === "table_read" && s.table
-            ? columnsOf(s.table).map((c) => ({ insert: `$steps.${s.id}.${c}`, label: c, hint: s.label }))
+            ? readColumns(s, columnsOf(s.table)).map((c) => ({
+                insert: `$steps.${s.id}.${c}`,
+                label: c,
+                hint: s.label,
+              }))
             : []),
         ]),
     },
@@ -163,8 +173,8 @@ export function valueGroups(
       ),
     },
   ];
-  // Formulas read what arrived, steps and variables, nothing of APX's own.
-  if (field !== "formula")
+  // Formulas and a value kept whole read what arrived, steps and variables, nothing of APX's own.
+  if (field !== "formula" && field !== "whole")
     groups.push({
       label: t("flow.v.apx"),
       values: [
@@ -192,3 +202,40 @@ export const tableName = (typed: string) =>
  * one of the project's tables before it can be saved.
  */
 export const ownTable = (n: Pick<FlowNode, "id">) => n.id === DEFINITION_NODE.save || n.id === DEFINITION_NODE.read;
+
+/** The columns a read brings: those it chose, in the table's order, or every one (DECISIONS.md#d-180). */
+export const readColumns = (n: { columns?: readonly string[] | undefined }, columns: readonly string[]): string[] =>
+  n.columns ? columns.filter((c) => n.columns?.includes(c)) : [...columns];
+
+const ONE_PLACEHOLDER = /^\$(trigger|steps|vars)((?:\.[A-Za-z0-9_-]+)*)$/;
+
+/**
+ * A value a step keeps whole, as its `{}` field shows it: everything that arrived is `$trigger`, a field of it
+ * `$trigger.a.b`, an earlier step's result `$steps.<step>.a`, a variable `$vars.name`, anything else its text.
+ */
+export function templateOfBinding(b: FlowBinding, graph: Pick<FlowGraph, "nodes">): string {
+  if (b.kind === "literal") return b.value === null ? "" : String(b.value);
+  if (b.kind === "event") return ["$trigger", ...b.path].join(".");
+  const step = graph.nodes.find((x) => x.id === b.node);
+  if (step?.kind === "vars" && b.path.length) return ["$vars", ...b.path].join(".");
+  return ["$steps", b.node, ...b.path].join(".");
+}
+
+/**
+ * What a `{}` field for a whole value keeps: one placeholder alone is that value, as it is; empty is everything that
+ * arrived; anything else is saved as the text typed.
+ */
+export function bindingOfTemplate(text: string, graph: Pick<FlowGraph, "nodes">): FlowBinding {
+  const typed = text.trim();
+  if (!typed) return { kind: "event", path: [] };
+  const m = ONE_PLACEHOLDER.exec(typed);
+  if (!m) return { kind: "literal", value: text.slice(0, 8000) };
+  const path = (m[2] ?? "").split(".").filter(Boolean).slice(0, 17);
+  if (m[1] === "trigger") return { kind: "event", path: path.slice(0, 16) };
+  if (m[1] === "vars") {
+    const at = graph.nodes.find((n) => n.kind === "vars" && n.vars.some((v) => v.name === path[0]));
+    return at ? { kind: "node", node: at.id, path: path.slice(0, 16) } : { kind: "literal", value: typed };
+  }
+  const [node, ...rest] = path;
+  return node ? { kind: "node", node, path: rest.slice(0, 16) } : { kind: "literal", value: typed };
+}

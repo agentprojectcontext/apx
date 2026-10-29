@@ -748,37 +748,11 @@
   font-size: 12.5px;
   line-height: 1.5;
 }
-/* How a saved row will look: its key, an arrow, what it holds. */
+/* How a saved row will look: its key, then each column and what fills it. */
 .fe-row-preview {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-.fe-row-preview__row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  padding: 0 12px;
-  height: 32px;
-  border-radius: var(--apx-control-radius);
-  background: var(--apx-fill);
-  color: var(--apx-fg-muted);
-  font-size: 12.5px;
-}
-.fe-row-preview__row code {
-  max-width: 55%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--apx-font-mono);
-  font-size: 12px;
-}
-.fe-row-preview__row span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .fe-empty-tables {
   display: flex;

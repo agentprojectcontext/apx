@@ -1,0 +1,55 @@
+/* A check's case: its comparisons, each a field, its type, how it compares and what with, joined by and or or. */
+.fe-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fe-rules__item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fe-rules__join.apx-segmented {
+  align-self: center;
+}
+.fe-rules__add.apx-btn {
+  align-self: flex-start;
+}
+.fe-rule {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+}
+.fe-rule > .apx-segmented {
+  align-self: flex-start;
+}
+.fe-rule__head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.fe-rule__head > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+/* How it compares beside what with; on a narrow panel the value takes its own line. */
+.fe-rule__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.fe-rule__row > :first-child {
+  flex: 0 1 150px;
+  min-width: 120px;
+}
+.fe-rule__row > :last-child:not(:first-child) {
+  flex: 1 1 140px;
+  min-width: 0;
+}

@@ -1,6 +1,7 @@
 // The Flows screen's Tables (DECISIONS.md#d-176): a project's tables beside the one open, its columns and rows in a
 // grid. The owner adds, edits and deletes rows, makes tables and columns, renames and removes them.
 import type { Result, TableInfo } from "@apx/protocol";
+import { ApxError } from "@apx/protocol/client";
 import {
   Button,
   Dialog,
@@ -33,6 +34,7 @@ import {
   removeTable,
   renameColumn,
   renameTable,
+  requireColumn,
   useTables,
   writeRow,
 } from "./tables-data.ts";
@@ -157,8 +159,14 @@ function TableDetail({ table }: { table: TableInfo }) {
       setAsk(undefined);
       setEdit(undefined);
       load();
-    } catch {
-      notify(t("flow.tables.failed"));
+    } catch (e) {
+      // A save that leaves a required column empty says which (DECISIONS.md#d-180).
+      const empty = e instanceof ApxError ? (e.detail as { columns?: unknown } | undefined)?.columns : undefined;
+      notify(
+        Array.isArray(empty) && empty.length
+          ? t("flow.tables.requiredMissing", { columns: empty.join(", ") })
+          : t("flow.tables.failed"),
+      );
     } finally {
       setBusy(false);
     }
@@ -207,7 +215,13 @@ function TableDetail({ table }: { table: TableInfo }) {
       ) : !columns.length ? (
         <p className="fe-note">{t("flow.tables.noColumns")}</p>
       ) : (
-        <Grid table={table} grid={grid} onEdit={setEdit} onAsk={setAsk} />
+        <Grid
+          table={table}
+          grid={grid}
+          onEdit={setEdit}
+          onAsk={setAsk}
+          onRequire={(column, on) => void act(() => requireColumn(project, name, column, on))}
+        />
       )}
       {edit && (
         <RowDialog
@@ -225,20 +239,23 @@ function TableDetail({ table }: { table: TableInfo }) {
   );
 }
 
-/** The rows in a grid: a row's key opens it, a column's menu renames or deletes it. */
+/** The rows in a grid: a row's key opens it, a column's menu marks it required, renames or deletes it. */
 function Grid({
   table,
   grid,
   onEdit,
   onAsk,
+  onRequire,
 }: {
   table: TableInfo;
   grid: ReturnType<typeof gridRows>;
   onEdit: (e: Edit) => void;
   onAsk: (a: Ask) => void;
+  onRequire: (column: string, required: boolean) => void;
 }) {
   const t = useT();
   const { name, columns } = table;
+  const required = new Set(table.required);
   return (
     <section className="ft-grid" aria-label={name}>
       <table>
@@ -248,7 +265,14 @@ function Grid({
             {columns.map((c) => (
               <th key={c} scope="col">
                 <span className="ft-grid__col">
-                  <span className="fe-mono">{c}</span>
+                  <span className="fe-mono">
+                    {c}
+                    {required.has(c) && (
+                      <span className="ft-required" title={t("flow.tbl.required")}>
+                        {" *"}
+                      </span>
+                    )}
+                  </span>
                   <Menu
                     trigger={
                       <IconButton
@@ -259,6 +283,11 @@ function Grid({
                       />
                     }
                     items={[
+                      {
+                        label: t(required.has(c) ? "flow.tables.unrequire" : "flow.tables.require"),
+                        icon: <Icons.Check />,
+                        onSelect: () => onRequire(c, !required.has(c)),
+                      },
                       {
                         label: t("flow.tables.renameColumn"),
                         icon: <Icons.Pencil />,
@@ -401,6 +430,8 @@ function RowDialog(props: {
   const [cells, setCells] = useState(edit.cells);
   const [deleting, setDeleting] = useState(false);
   const values = changedCells(table.columns, edit.isNew ? undefined : props.before, cells);
+  const required = new Set(table.required);
+  const missing = table.columns.some((c, i) => required.has(c) && !(cells[i] ?? "").trim());
   return (
     <Dialog
       open
@@ -429,7 +460,7 @@ function RowDialog(props: {
               {t("common.cancel")}
             </Button>
             <Button
-              disabled={props.busy || !key.trim() || (!edit.isNew && !Object.keys(values).length)}
+              disabled={props.busy || !key.trim() || missing || (!edit.isNew && !Object.keys(values).length)}
               onClick={() => props.onSave(key.trim(), values)}
             >
               {t("flow.tables.saveRow")}
@@ -453,7 +484,11 @@ function RowDialog(props: {
           )}
         </Field>
         {table.columns.map((c, i) => (
-          <Field key={c} label={c}>
+          <Field
+            key={c}
+            label={required.has(c) ? `${c} *` : c}
+            hint={required.has(c) ? t("flow.tbl.required") : undefined}
+          >
             {(id) => (
               <Input
                 id={id}

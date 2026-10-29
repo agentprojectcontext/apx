@@ -8,7 +8,8 @@ import { useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
-import { blank } from "./complete.ts";
+import { go } from "../shell/nav.ts";
+import { blank, blankWith } from "./complete.ts";
 import { describeIssue, issueText, shownGraph, useKnown, whoOf } from "./data.ts";
 import { slug, tidy } from "./drawing.ts";
 import { type Cover, FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
@@ -36,6 +37,7 @@ import {
 } from "./steps.tsx";
 import { type LogPlace, TestButton, TestLog, TestStepCard, TestStrip } from "./TestMode.tsx";
 import { TryRun, type TryStep } from "./TryRun.tsx";
+import { useTables } from "./tables-data.ts";
 import { useFlowAddress } from "./useFlowAddress.ts";
 import { useFlowChat } from "./useFlowChat.ts";
 import { useFlowTest } from "./useFlowTest.ts";
@@ -154,6 +156,9 @@ export function FlowEditor({
     [allRoutines, projectId],
   );
   const g = graph ?? EMPTY;
+  // A save that leaves a required column of its table empty is unfinished too (DECISIONS.md#d-180).
+  const tables = useTables(projectId || undefined);
+  const unfinished = blankWith((table) => tables?.find((x) => x.name === table)?.required ?? []);
   // The core checks the drawing as it changes (its agents, routines and models in this project), before the first
   // save too: a new flow is checked as one of the chosen project.
   useEffect(() => {
@@ -275,7 +280,7 @@ export function FlowEditor({
         : !triggerOf(g)
           ? t("flow.ed.needTrigger")
           : undefined;
-    const incomplete = g.nodes.find(blank);
+    const incomplete = g.nodes.find(unfinished);
     if (missing || incomplete) {
       setSaid({
         error: true,
@@ -420,7 +425,7 @@ export function FlowEditor({
   };
   /** A test runs what is saved: an unfinished step is named, unsaved edits are saved as a draft first. */
   const prepareTest = async (): Promise<string | undefined> => {
-    const incomplete = g.nodes.find(blank);
+    const incomplete = g.nodes.find(unfinished);
     if (!triggerOf(g) || incomplete) {
       setSaid({
         error: true,
@@ -436,11 +441,16 @@ export function FlowEditor({
     }
     return id && !dirty ? id : saveDraft();
   };
-  const close = () => {
+  // Where leaving goes once the owner keeps or drops unsaved edits: out of the editor, or to a table in Tables.
+  const [leaveTo, setLeaveTo] = useState<{ go: () => void }>();
+  const away = (go: () => void) => {
     test.close();
-    if (dirty) setLeaving(true);
-    else onClose();
+    if (!dirty) return go();
+    setLeaveTo({ go });
+    setLeaving(true);
   };
+  const close = () => away(onClose);
+  const leave = () => (leaveTo ?? { go: onClose }).go();
   const hasTrigger = Boolean(triggerOf(g));
 
   const agentName = allAgents[draftBy ?? ""]?.name ?? boss?.name ?? "";
@@ -735,6 +745,7 @@ export function FlowEditor({
                     })
                   }
                   removeCase={(check, id) => change(removeCase(g, check, id))}
+                  openTable={(table) => away(() => go.tables(projectId, table))}
                   unlink={(source, target) =>
                     change({ ...g, edges: g.edges.filter((e) => !(e.source === source && e.target === target)) })
                   }
@@ -754,14 +765,17 @@ export function FlowEditor({
       </div>
       <Dialog
         open={leaving}
-        onOpenChange={setLeaving}
+        onOpenChange={(open) => {
+          setLeaving(open);
+          if (!open) setLeaveTo(undefined);
+        }}
         title={t("flow.ed.discardTitle")}
         footer={
           <>
             <Button variant="secondary" onClick={() => setLeaving(false)}>
               {t("flow.ed.keep")}
             </Button>
-            <Button variant="danger" onClick={onClose}>
+            <Button variant="danger" onClick={leave}>
               {t("flow.ed.discard")}
             </Button>
             {!locked && (
@@ -770,7 +784,7 @@ export function FlowEditor({
                 onClick={() =>
                   void saveDraft().then((ok) => {
                     setLeaving(false);
-                    if (ok) onClose();
+                    if (ok) leave();
                   })
                 }
               >
