@@ -59,10 +59,10 @@ del paso elegido), arrastrá desde el punto de salida de un paso para unir dos p
 | Webhook entrante | Arranca el flow cuando un servicio manda un POST. Su URL aparece al guardar. |
 | Horario | Arranca el flow a horas fijas: **Cada 5 min**, **Cada hora**, **Hábiles 08:30**, **Diario 03:00** o una expresión cron (minuto, hora, día, mes, día de la semana), en tu zona horaria. El panel lateral muestra las próximas rondas. |
 | Condición | Prueba sus casos en orden y sigue por el primero que se cumple; si no, por su última salida. Un caso es un campo de lo que llegó que *es* un valor (`form.tier` es `A`) o una **fórmula** (`$trigger.amount > 100 && $vars.vip`). Con un caso se lee **Sí** y **No**; con más, cada caso tiene su punto, con su nombre, y además **Si no**. Sin modelo. |
-| Variables | Nombra valores una vez para los pasos que siguen, fijos o como fórmulas sobre `$trigger`, `$steps` y las variables de arriba. Los pasos siguientes los leen como `$vars.nombre`. Sin modelo. |
+| Variables | Nombra valores una vez para los pasos que siguen: texto, un número, sí o no, o una fórmula sobre `$trigger`, `$steps` y las variables de arriba. Los pasos siguientes los leen como `$vars.nombre`. Un valor puede guardar una clave elegida de tu lista (`secret://nombre`): se usa solo en los headers de un webhook saliente y en las variables de un comando, y un flow que la pone en un mensaje, un cuerpo o una instrucción no se puede guardar para que corra. Sin modelo. |
 | JavaScript | El cuerpo de una función corta que recibe `input` (lo que llegó o el resultado de un paso anterior) y `vars`, y devuelve lo que los pasos siguientes leen como `$steps.<paso>`. Corre aparte, con tiempo máximo, y no puede abrir archivos, usar internet ni correr programas. Sin modelo. |
-| Leer tabla | Trae filas guardadas a la ronda. Sin modelo. |
-| Guardar en la tabla | Guarda lo que llegó, un campo o el resultado de un paso anterior con una clave. Sin modelo. |
+| Leer tabla | Elige una de las tablas del proyecto (muestra cuántas filas tiene cada una) y lee una clave, como `$trigger.email`, o sus últimas filas. Los pasos siguientes leen `$steps.<paso>.row` o `.rows`. Un Leer tabla después de un Guardar en la tabla ofrece primero la tabla de ese paso. Sin modelo. |
+| Guardar en la tabla | Elige una de las tablas del proyecto, o una nueva que nombrás ahí (se crea con su primera fila), y guarda lo que llegó, un campo o el resultado de un paso anterior con una clave. La clave puede salir de lo que llegó (`$trigger.email`); guardar otra vez con la misma clave reemplaza esa fila. Sin modelo. |
 | SQL | Una instrucción sobre un archivo SQLite en la carpeta del proyecto (`data/app.db`). Los valores van aparte de la consulta, como `:nombre` con una línea `nombre: $trigger.email`, nunca adentro. **Solo lectura** lee filas (`$steps.<paso>.rows`, hasta 500); apagado, puede agregar, cambiar y borrar filas y agregar tablas o índices. Sin modelo. |
 | Modelo IA | Le da una tarea a un agente del crew o a un bot de este flow, con lo que llegó o el resultado de un paso anterior, en el harness y el modelo que elijas (ver abajo). Gasta tokens. |
 | Rutina | Corre una rutina manual del proyecto. |
@@ -76,11 +76,16 @@ guardado, **Probar ronda** y **Guardar**; si hay cambios sin guardar, pregunta a
 
 ### Quién responde en un paso Modelo IA
 
+Un flow es de un proyecto, que se elige arriba al crear el flow: los pasos que lo necesitan (agentes, tablas, rutinas,
+una carpeta) lo dicen hasta que lo elegís. Los campos de texto ofrecen valores mientras escribís `$`, `{{` o
+`secret://`, o con su botón de llaves; donde puede ir una clave, la lista también ofrece **Guardar una clave**.
+
 **Quién responde** es **Un agente** (uno del crew, con sus instrucciones, personalidad, memoria y herramientas) o **Un
 bot de este flow**: un nombre y **Cómo trabaja**, el prompt de sistema que escribís. Un bot arranca de cero en cada
 ronda: sin memoria, sin historial y sin equipo, y trabaja solo con la web, los archivos y comandos del proyecto y su
 propio navegador, nunca con tus chats, correo, calendario o cuentas. Después elegí:
 
+- **Agente del crew**: los agentes del proyecto y, siempre, tu super-agente, como tarjetas.
 - **Harness**: **APX** (el propio de APX, sobre las APIs de modelos que configuraste) o una app de esta computadora como
   Claude Code o Codex, si está instalada. En una app, el paso corre en la carpeta del proyecto con las herramientas y la
   configuración de esa app, en una sesión propia; quién responde va en su encargo, y la memoria de APX no le llega.

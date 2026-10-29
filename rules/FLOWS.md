@@ -331,7 +331,11 @@ from the owner's own lists. Every template field (message, headers, body, SQL va
 `TemplateField` (`packages/ui`): `{{`, `$`, `secret://` or its button offer the values `apps/web/src/flows/values.ts`
 lists for that field, and placeholders read as badges. Secrets are offered only where the core resolves them
 (`SECRET_FIELDS`: headers and command variables). The top bar keeps the name at the left (past the window-controls
-inset) and **Exit** at the right, through the same unsaved-changes guard.
+inset) and **Exit** at the right, through the same unsaved-changes guard. The project drives the side panel: the AI
+step's crew is an `AgentGrid` of the project's agents plus the super-agent, the read and save steps list
+`flows.tables`, and steps that need a project say so until one is chosen. A variable's value and every key take a
+`TemplateField`; the secrets group offers **Save a secret** (Resources' `VariableDialog`). A check's cases and a
+variables step's values are a flat list (`.fe-item`), never cards inside the panel.
 
 ## AI model steps
 

@@ -12,6 +12,8 @@ it, Escape closes the list.
 - The text stays plain text: the badges are drawn under a transparent textarea in the same metrics, so typing,
   selecting, undo and paste work as in any field.
 - Offer a group only where its values work: secrets only in fields a step resolves itself.
+- A group's `action` ("Save a secret") shows last in it when the list is open or its `when` is typed, so the person
+  never meets an empty group. `singleLine` makes a one-line field shaped like an Input (a key, an address).
 
 ```tsx
 <TemplateField

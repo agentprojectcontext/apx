@@ -1,9 +1,11 @@
 // Settings of the AI model step: who answers (an agent of the crew, or a bot just for this flow), on which harness,
 // model and effort, how freely it acts, and whether it may hand work to other agents (DECISIONS.md#d-172).
 import type { Agent, CatalogEngine } from "@apx/protocol";
-import { AgentAvatar, EngineIcon, Field, Input, SegmentedControl, Select, Switch, Textarea } from "@apx/ui";
+import { AgentGrid, EngineIcon, Field, Input, SegmentedControl, Select, Switch, Textarea } from "@apx/ui";
+import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
 import { baseRef, effortLabel, forAgents, modelOf, splitRef, useModels, withEffort } from "../data/models.ts";
+import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import type { FlowNode } from "./steps.tsx";
 
@@ -38,8 +40,26 @@ function modelOptions(harness: string, catalog: readonly CatalogEngine[]) {
   );
 }
 
-export function AiFields({ n, update, agents }: { n: Ai; update: (n: FlowNode) => void; agents: Agent[] }) {
+export function AiFields({
+  n,
+  update,
+  agents,
+  projectId,
+  receives,
+}: {
+  n: Ai;
+  update: (n: FlowNode) => void;
+  /** The project's agents, the super-agent first. */
+  agents: Agent[];
+  projectId: string;
+  /** What it receives, right under the instruction. */
+  receives: ReactNode;
+}) {
   const t = useT();
+  const all = useData((s) => s.agents);
+  // An agent picked before that is not in the project's list now stays shown, so the owner sees who answers.
+  const kept = n.agent && !agents.some((a) => a.id === n.agent) ? all[n.agent] : undefined;
+  const crew = kept ? [...agents, kept] : agents;
   const catalog = useModels((s) => s.catalog);
   const bot = Boolean(n.bot);
   const harness = harnessOf(n);
@@ -109,23 +129,39 @@ export function AiFields({ n, update, agents }: { n: Ai; update: (n: FlowNode) =
           </Field>
         </>
       ) : (
-        <Field label={t("flow.f.agent")}>
-          {() => (
-            <Select
+        <div className="fe-presets">
+          <span className="fe-ins__label">{t("flow.f.agent")}</span>
+          {projectId ? (
+            <AgentGrid
               label={t("flow.f.agent")}
               value={n.agent || null}
-              placeholder={t("flow.f.choose")}
-              onValueChange={(v) => update({ ...n, agent: v ?? "" })}
-              options={agents.map((a) => ({
-                value: a.id,
-                label: a.name,
-                ...(a.role ? { hint: a.role } : {}),
-                icon: <AgentAvatar name={a.name} blob={blobOf(a)} size={16} animated={false} />,
+              onValueChange={(agent) => update({ ...n, agent })}
+              moreLabel={(count) => t("flow.ai.allAgents", { n: count })}
+              lessLabel={t("flow.ai.fewerAgents")}
+              agents={crew.map((a) => ({
+                id: a.id,
+                name: a.name,
+                role: a.role || (a.kind === "secretary" ? t("flow.ai.superAgent") : ""),
+                blob: blobOf(a),
               }))}
             />
+          ) : (
+            <p className="fe-needs">{t("flow.need.agents")}</p>
           )}
-        </Field>
+        </div>
       )}
+      <Field label={t("flow.f.task")}>
+        {(id) => (
+          <Textarea
+            id={id}
+            rows={5}
+            maxLength={8000}
+            value={n.prompt}
+            onChange={(e) => update({ ...n, prompt: e.target.value })}
+          />
+        )}
+      </Field>
+      {receives}
       <Field label={t("flow.ai.harness")}>
         {() => (
           <Select
@@ -213,17 +249,6 @@ export function AiFields({ n, update, agents }: { n: Ai; update: (n: FlowNode) =
           description={t("flow.ai.delegateHint")}
         />
       )}
-      <Field label={t("flow.f.task")}>
-        {(id) => (
-          <Textarea
-            id={id}
-            rows={5}
-            maxLength={8000}
-            value={n.prompt}
-            onChange={(e) => update({ ...n, prompt: e.target.value })}
-          />
-        )}
-      </Field>
     </>
   );
 }

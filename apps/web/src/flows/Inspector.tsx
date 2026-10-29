@@ -1,20 +1,21 @@
 import type { Agent, Routine } from "@apx/protocol";
 import { Button, Field, FlowStepTile, IconButton, Icons, Input, SegmentedControl, Select, Textarea } from "@apx/ui";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { forAgents, useModels } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { listSecrets } from "../data/resources.ts";
 import { useT } from "../i18n/index.ts";
+import { VariableDialog } from "../resources/VariablesTab.tsx";
 import { go } from "../shell/nav.ts";
 import { AiFields, aiNote } from "./AiFields.tsx";
+import { InputPicker } from "./InputPicker.tsx";
 import { HttpFields, NotifyFields } from "./OutwardFields.tsx";
 import { nextWhen } from "./run-view.ts";
 import {
   branchesOf,
   chainOrder,
-  dotted,
-  type FlowBinding,
   type FlowGraph,
   type FlowNode,
   hookPath,
@@ -22,14 +23,21 @@ import {
   SCHEDULE_PRESETS,
   STEP,
 } from "./steps.tsx";
+import { TableReadFields, TableWriteFields } from "./TableFields.tsx";
 import type { Values } from "./Template.tsx";
-import { earlier, RESULT, valueGroups } from "./values.ts";
+import { valueGroups } from "./values.ts";
 import { CaseFields, CmdFields, JsFields, SqlFields, VarsFields } from "./WorkFields.tsx";
 
-/** What step `n`'s template fields can insert, by field; the owner's secrets are loaded once. */
-function useValues(graph: FlowGraph, n: FlowNode | undefined, projectId: string): Values {
+/**
+ * What step `n`'s template fields can insert, by field: the project's secrets (and the owner's for every project) are
+ * loaded once, and the secrets group offers to save a new one, through the same dialog as Resources.
+ */
+function useValues(graph: FlowGraph, n: FlowNode | undefined, projectId: string): [Values, ReactNode] {
   const t = useT();
   const [secrets, setSecrets] = useState<string[]>([]);
+  const [adding, setAdding] = useState(false);
+  const [loaded, setLoaded] = useState(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `loaded` asks again after a secret is saved
   useEffect(() => {
     let live = true;
     void listSecrets().then((list) => {
@@ -39,9 +47,33 @@ function useValues(graph: FlowGraph, n: FlowNode | undefined, projectId: string)
     return () => {
       live = false;
     };
-  }, [projectId]);
-  return (field) => (n ? valueGroups(graph, n, field, secrets, t, (kind) => t(STEP[kind].label)) : []);
+  }, [projectId, loaded]);
+  const action = { label: t("flow.v.saveSecret"), when: "secret://", onSelect: () => setAdding(true) };
+  const values: Values = (field) =>
+    n ? valueGroups(graph, n, field, secrets, t, (kind) => t(STEP[kind].label), action) : [];
+  const dialog = adding && (
+    <VariableDialog
+      row={undefined}
+      projectId={projectId || undefined}
+      onClose={() => setAdding(false)}
+      onSaved={() => {
+        setAdding(false);
+        setLoaded((x) => x + 1);
+      }}
+    />
+  );
+  return [values, dialog];
 }
+
+/** Steps that work with a project's agents, tables, routines or folder: before one is chosen, they say so. */
+const NEEDS_PROJECT: Partial<Record<FlowNode["kind"], "flow.need.tables" | "flow.need.routines" | "flow.need.folder">> =
+  {
+    table_read: "flow.need.tables",
+    table_write: "flow.need.tables",
+    routine: "flow.need.routines",
+    cmd: "flow.need.folder",
+    sql: "flow.need.folder",
+  };
 
 /** The panel at the right: the chosen step's settings, or every step in order with how the flow runs. */
 export function Inspector(props: {
@@ -61,10 +93,12 @@ export function Inspector(props: {
   branch: (source: string, target: string, when: string) => void;
   /** Takes a case out of a check, and the connections that left by it. */
   removeCase: (check: string, id: string) => void;
+  /** Puts a new save-to-table step just before this one. */
+  saveBefore: (id: string) => void;
 }) {
   const t = useT();
   const { graph, selected: n } = props;
-  const values = useValues(graph, n, props.projectId);
+  const [values, dialog] = useValues(graph, n, props.projectId);
   if (!n) {
     const { problem } = props;
     return (
@@ -114,6 +148,7 @@ export function Inspector(props: {
         )}
       </Field>
       <Fields {...props} n={n} values={values} />
+      {dialog}
       {outs.length > 0 && (
         <div className="fe-outs">
           <span className="fe-ins__label">{t("flow.ed.next")}</span>
@@ -147,15 +182,17 @@ export function Inspector(props: {
 function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode; values: Values }) {
   const t = useT();
   const { n, update } = props;
+  const needs = NEEDS_PROJECT[n.kind];
+  if (needs && !props.projectId) return <p className="fe-needs">{t(needs)}</p>;
   switch (n.kind) {
     case "webhook":
       return <HookFields flowId={props.flowId} />;
     case "schedule":
       return <ScheduleFields cron={n.cron} onCron={(cron) => update({ ...n, cron })} />;
     case "condition":
-      return <CaseFields n={n} update={update} removeCase={(id) => props.removeCase(n.id, id)} />;
+      return <CaseFields n={n} update={update} values={props.values} removeCase={(id) => props.removeCase(n.id, id)} />;
     case "vars":
-      return <VarsFields n={n} update={update} />;
+      return <VarsFields n={n} update={update} values={props.values} />;
     case "js":
       return (
         <>
@@ -176,55 +213,36 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode; values: 
       return <CmdFields n={n} update={update} values={props.values} projectId={props.projectId} />;
     case "table_read":
       return (
-        <>
-          <Field label={t("flow.f.keys")} hint={t("flow.f.keysHint")}>
-            {(id) => (
-              <Textarea
-                id={id}
-                rows={3}
-                className="fe-mono"
-                value={n.keys.join("\n")}
-                onChange={(e) => update({ ...n, keys: e.target.value.split("\n").slice(0, 16) })}
-              />
-            )}
-          </Field>
-          <p className="fe-note">{t("flow.f.readNote")}</p>
-        </>
+        <TableReadFields
+          n={n}
+          graph={props.graph}
+          projectId={props.projectId}
+          values={props.values}
+          update={update}
+          addSave={() => props.saveBefore(n.id)}
+        />
       );
     case "table_write":
       return (
-        <>
-          <Field label={t("flow.f.key")}>
-            {(id) => (
-              <Input
-                id={id}
-                value={n.key}
-                maxLength={128}
-                className="fe-mono"
-                onChange={(e) => update({ ...n, key: e.target.value })}
-              />
-            )}
-          </Field>
-          <InputPicker
-            label={t("flow.f.saveWhat")}
-            graph={props.graph}
-            n={n}
-            value={n.value}
-            onChange={(value) => update({ ...n, value })}
-          />
-          <p className="fe-note">{t("flow.f.saveNote")}</p>
-        </>
+        <TableWriteFields n={n} graph={props.graph} projectId={props.projectId} values={props.values} update={update} />
       );
     case "agent":
       return (
         <>
-          <AiFields n={n} update={update} agents={props.agents} />
-          <InputPicker
-            label={t("flow.f.receives")}
-            graph={props.graph}
+          <AiFields
             n={n}
-            value={n.input}
-            onChange={(input) => update({ ...n, input })}
+            update={update}
+            agents={props.agents}
+            projectId={props.projectId}
+            receives={
+              <InputPicker
+                label={t("flow.f.receives")}
+                graph={props.graph}
+                n={n}
+                value={n.input}
+                onChange={(input) => update({ ...n, input })}
+              />
+            }
           />
           <p className="fe-note">{t(aiNote(n))}</p>
         </>
@@ -309,69 +327,6 @@ function ModelFields(props: Parameters<typeof Inspector>[0] & { n: Extract<FlowN
         onChange={(input) => update({ ...n, input })}
       />
       <p className="fe-note">{t("flow.f.llmNote")}</p>
-    </>
-  );
-}
-
-/** What a step receives: what arrived (all of it or one field), or the result of a step before it. */
-function InputPicker({
-  label,
-  graph,
-  n,
-  value,
-  onChange,
-}: {
-  label: string;
-  graph: FlowGraph;
-  n: FlowNode;
-  value: FlowBinding;
-  onChange: (b: FlowBinding) => void;
-}) {
-  const t = useT();
-  const before = earlier(graph, n.id);
-  const from = value.kind === "node" ? value.node : "event";
-  return (
-    <>
-      <Field label={label}>
-        {() => (
-          <Select
-            label={label}
-            value={from}
-            onValueChange={(v) => {
-              const step = before.find((x) => x.id === v);
-              onChange(
-                step ? { kind: "node", node: step.id, path: RESULT[step.kind] ?? [] } : { kind: "event", path: [] },
-              );
-            }}
-            options={[
-              { value: "event", label: t("flow.f.fromEvent") },
-              ...before.map((x) => ({ value: x.id, label: t("flow.f.fromStep", { step: x.label }) })),
-            ]}
-          />
-        )}
-      </Field>
-      {value.kind === "event" && (
-        <Field label={t("flow.f.part")} hint={t("flow.f.partHint")}>
-          {(id) => (
-            <Input
-              id={id}
-              value={dotted(value.path)}
-              className="fe-mono"
-              placeholder={t("flow.f.partAll")}
-              onChange={(e) =>
-                onChange({
-                  kind: "event",
-                  path: e.target.value
-                    .split(".")
-                    .map((x) => x.trim())
-                    .filter(Boolean)
-                    .slice(0, 16),
-                })
-              }
-            />
-          )}
-        </Field>
-      )}
     </>
   );
 }

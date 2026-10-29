@@ -57,10 +57,10 @@ chose), drag from a step's output dot to join two steps, and set each step at th
 | Incoming webhook | Starts the flow when a service sends a POST. Its address appears once the flow is saved. |
 | Schedule | Starts the flow at set times: **Every 5 min**, **Every hour**, **Weekdays 08:30**, **Daily 03:00** or a cron expression (minute, hour, day, month, weekday), in your time zone. The side panel shows the next runs. |
 | Check | Tries its cases in order and goes on by the first that holds, else by its last way out. A case is a field of what arrived *is* a value (`form.tier` is `A`) or a **formula** (`$trigger.amount > 100 && $vars.vip`). One case reads as **Yes** and **No**; with more, each case has its own dot, named, plus **Otherwise**. No model. |
-| Variables | Names values once for the steps after it, as fixed values or formulas over `$trigger`, `$steps` and the variables above. Later steps read them as `$vars.name`. No model. |
+| Variables | Names values once for the steps after it: text, a number, yes or no, or a formula over `$trigger`, `$steps` and the variables above. Later steps read them as `$vars.name`. A value can hold a secret picked from your list (`secret://name`): it is used only in an outgoing webhook's headers and a command's variables, and a flow that puts it in a message, a body or an instruction can't be saved to run. No model. |
 | JavaScript | A short function body that gets `input` (what arrived or an earlier step's result) and `vars`, and returns what the next steps read as `$steps.<step>`. It runs apart, with a time limit, and can't open files, use the internet or run programs. No model. |
-| Read table | Brings saved rows into the run. No model. |
-| Save to table | Keeps what arrived, a field of it or an earlier step's result under a key. No model. |
+| Read table | Picks one of the project's tables (it shows how many rows each has) and reads one key, like `$trigger.email`, or its latest rows. Later steps read `$steps.<step>.row` or `.rows`. A read after a save is offered that save's table first. No model. |
+| Save to table | Picks one of the project's tables, or a new one you name there (it is created with its first row), and keeps what arrived, a field of it or an earlier step's result under a key. The key can come from what arrived (`$trigger.email`); saving under the same key again replaces that row. No model. |
 | SQL | One statement on a SQLite file in the project's folder (`data/app.db`). Values go in apart from the query, as `:name` with a line `name: $trigger.email`, never inside it. **Read only** reads rows (`$steps.<step>.rows`, at most 500); off, it can add, change and delete rows and add tables or indexes. No model. |
 | AI model | Gives a task to an agent of the crew or to a bot of this flow, with what arrived or an earlier step's result, on the harness and model you pick (see below). Spends tokens. |
 | Routine | Runs a manual routine of the project. |
@@ -74,11 +74,16 @@ and **Save**; leaving with unsaved changes asks first.
 
 ### Who answers an AI model step
 
+A flow belongs to one project, chosen at the top of a new flow: the steps that need it (agents, tables, routines, a
+folder) say so until it is chosen. Text fields offer values as you type `$`, `{{` or `secret://`, or with their braces
+button; where a secret can go, the list also offers **Save a secret**.
+
 **Who answers** is **An agent** (one of the crew, with its instructions, personality, memory and tools) or **A bot for
 this flow**: a name and **How it works**, the system prompt you write. A bot starts from scratch on every run: no memory,
 no history and no team, and it works only with the web, files and commands in the project and its own browser, never
 with your chats, mail, calendar or accounts. Then pick:
 
+- **Agent of the crew**: the project's agents and, always, your super-agent, as cards.
 - **Harness**: **APX** (APX's own, on the model APIs you set up) or an app on this computer such as Claude Code or Codex,
   when it is installed. On an app, the step runs in the project's folder with that app's own tools and settings, as a
   session of its own; who answers travels as its brief, and APX's memory doesn't reach it.

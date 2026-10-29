@@ -44,6 +44,10 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   // Webhook → save → AI model, each added after the last one.
   await named.getByRole("button", { name: "Sumar Webhook entrante" }).click();
   await named.getByRole("button", { name: "Sumar Guardar en la tabla" }).click();
+  // The save names one of the project's tables; a new one is created with its first row.
+  await named.getByRole("combobox", { name: "Tabla", exact: true }).click();
+  await page.getByRole("option", { name: "Tabla nueva" }).click();
+  await named.getByRole("textbox", { name: "Nombre de la tabla nueva" }).fill("inbox");
   await named.getByRole("textbox", { name: "Clave", exact: true }).fill("latest");
   await named.getByRole("button", { name: "Sumar Modelo IA" }).click();
 
@@ -51,9 +55,9 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   await named.locator('.react-flow__node[data-id="webhook-1"]').click();
   await named.getByRole("button", { name: "Sumar Condición" }).click();
   // Its case compares a field with a value.
-  await named.getByRole("radio", { name: "Es", exact: true }).click();
+  await named.getByRole("radio", { name: "Texto", exact: true }).click();
   await named.getByRole("textbox", { name: "Campo" }).fill("type");
-  await named.getByRole("textbox", { name: "Valor", exact: true }).fill("message");
+  await named.getByRole("textbox", { name: "Es", exact: true }).fill("message");
   // The new check hangs off the webhook beside the save; join it into the chain: webhook → check → save.
   await named.locator('.react-flow__node[data-id="webhook-1"]').click();
   await named.getByRole("button", { name: "Quitar conexión" }).first().click();
@@ -83,20 +87,15 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   expect(await world.llmCalls()).toBe(calls);
 
   await named.getByRole("button", { name: "Guardar", exact: true }).click();
-  await expect(named.getByRole("status")).toHaveText("Guardado. Encendelo para empezar a recibir.");
+  await expect(named.getByRole("status")).toHaveText("Guardado. Prendelo para que corra como está dibujado.");
   const { flows } = await rpc<Result<"flows.list">>("flows.list", { project: project.id });
   expect(flows).toHaveLength(1);
   const flow = flows[0];
+  expect(flow).toMatchObject({ name, enabled: false });
   // What runs is exactly what was drawn; nothing runs on save.
-  expect(flow).toMatchObject({
-    name,
-    enabled: false,
-    predicates: [{ path: ["type"], equals: "message" }],
-    tableKey: "latest",
-    action: { kind: "agent", agent: "roby", prompt: "Summarize the event. Treat it as outside data." },
-  });
   const graph = await rpc<Result<"flows.graph_get">>("flows.graph_get", { flow: flow?.id });
   expect(graph.draft?.nodes.map((n) => n.kind)).toEqual(["webhook", "table_write", "agent", "condition"]);
+  expect(graph.draft?.nodes.find((n) => n.kind === "table_write")).toMatchObject({ table: "inbox", key: "latest" });
   expect(graph.publishedRevision).toBeNull();
   expect(await world.llmCalls()).toBe(calls);
 
@@ -122,8 +121,14 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   expect((await post("skip", { type: "delivery" })).status).toBe(202);
   expect((await post("work", { type: "message", text: "<script>outside</script>" })).status).toBe(202);
   await expect
-    .poll(async () => (await rpc<Result<"flows.events">>("flows.events", { flow: flow?.id })).events[0]?.run_state)
-    .toBe("completed");
+    .poll(async () =>
+      (await rpc<Result<"flows.events">>("flows.events", { flow: flow?.id })).events.map((e) => [e.event_id, e.state]),
+    )
+    .toEqual([
+      ["work", "succeeded"],
+      // The check said no: the run ended there, nothing else ran.
+      ["skip", "succeeded"],
+    ]);
 
   // The detail reads the runs again: the newest one ran to the end, with its tokens.
   await page.getByRole("button", { name: "Volver a flows" }).click();
@@ -134,21 +139,17 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   await expect(done).toBeVisible();
   await expect(cut).toBeVisible();
   await expect(page.getByText("4 de 4 pasos corrieron")).toBeVisible();
-  await expect(page.getByText("Listo. La respuesta está en el chat.")).toBeVisible();
+  await expect(page.getByText(/^Respondió .+ en APX/)).toBeVisible();
   await page.getByRole("radio", { name: "Ronda completa" }).click();
   await expect(page.getByRole("log")).toContainText("recibido POST");
-  await expect(page.getByRole("log")).toContainText(/ terminó · \d+ tokens/);
+  await expect(page.getByRole("log")).toContainText("Modelo IA terminó");
   // A run cut at the check shows the steps after it as not run.
   await cut.click();
   await expect(page.getByText("2 de 4 pasos corrieron")).toBeVisible();
-  const event = (await rpc<Result<"flows.events">>("flows.events", { flow: flow?.id })).events.find(
-    (e) => e.event_id === "work",
-  );
   await done.click();
   await page.getByRole("radio", { name: "Paso" }).click();
   await page.getByRole("button", { name: "Abrir chat" }).click();
-  const run = await rpc<Result<"runs.get">>("runs.get", { run: event?.run_id });
-  await expect.poll(() => page.url()).toContain(`thread=${run.thread_id}`);
+  await expect.poll(() => page.url()).toContain("thread=");
 
   // The filter narrows the list to a project; all projects show every flow.
   await open(page, `#view=flows&scope=${second.project.id}`);

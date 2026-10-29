@@ -47,10 +47,12 @@ export function stepDetail(
       return n.database ? { detail: `${n.database} · ${n.query.trim().split(/\s+/)[0]?.toUpperCase() ?? ""}` } : {};
     case "cmd":
       return n.command ? { detail: `$ ${n.command.split("\n")[0]?.slice(0, 60)}` } : {};
-    case "table_read":
-      return { detail: n.keys.filter(Boolean).join(", ") };
+    case "table_read": {
+      const what = n.latest ? `${n.latest} ↓` : n.keys.filter(Boolean).join(", ");
+      return { detail: [n.table, what].filter(Boolean).join(" · ") };
+    }
     case "table_write":
-      return n.key ? { detail: n.key } : {};
+      return n.key || n.table ? { detail: [n.table, n.key].filter(Boolean).join(" · ") } : {};
     case "agent":
     case "routine": {
       const who = whoOf(n, agents, routines);

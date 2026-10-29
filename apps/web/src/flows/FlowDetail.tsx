@@ -649,7 +649,7 @@ function StepPanel({
               )}
             </div>
           )}
-          {tab === "step" && node?.kind === "table_write" && <Rows flow={flow.id} />}
+          {tab === "step" && node?.kind === "table_write" && <Rows flow={flow.id} table={node.table} />}
           {run && (
             <div className="fd__logwrap">
               <span className="fd__label">{t("flow.log")}</span>
@@ -673,20 +673,20 @@ function StepPanel({
   );
 }
 
-/** What the save step keeps now, read from the flow's table. */
-function Rows({ flow }: { flow: string }) {
+/** What the save step keeps now: its project table's latest rows, or the flow's own table. */
+function Rows({ flow, table }: { flow: string; table: string | undefined }) {
   const t = useT();
   const [rows, setRows] = useState<{ key: string; value: unknown }[]>();
   useEffect(() => {
     let live = true;
-    void client.call("flows.rows", { flow, limit: 20 }).then(
+    void client.call("flows.rows", { flow, limit: 20, ...(table ? { table } : {}) }).then(
       (r) => live && setRows(r.rows),
       () => live && setRows([]),
     );
     return () => {
       live = false;
     };
-  }, [flow]);
+  }, [flow, table]);
   return (
     <div className="fd__rows">
       <span className="fd__label">{t("flow.rows")}</span>
