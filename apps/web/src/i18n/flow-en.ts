@@ -596,6 +596,9 @@ export const enFlow = {
   "flow.tab.label": "Show",
   "flow.tab.flows": "Flows",
   "flow.tab.tables": "Tables",
+  "flow.list.flows": "Flow list",
+  "flow.list.tables": "Table list",
+  "flow.tables.pickBody": "Its columns and rows show here, and you can change them.",
   "flow.tables.lead":
     "What your Flows save and read, by project. You and your agents can fill them too, without a Flow.",
   "flow.tables.none": "No tables yet",

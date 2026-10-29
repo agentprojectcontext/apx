@@ -14,13 +14,16 @@
 }
 .flows__head {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 14px;
+}
+.flows__top {
+  display: flex;
+  align-items: center;
   gap: 16px;
   flex-wrap: wrap;
 }
 .flows__intro {
-  flex: 1;
-  min-width: min(300px, 100%);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -30,6 +33,11 @@
   font-size: 20px;
   font-weight: 600;
 }
+.flows__section {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
 .flows__lead {
   margin: 0;
   max-width: 680px;
@@ -37,7 +45,9 @@
   color: var(--apx-fg-muted);
   text-wrap: pretty;
 }
+/* The project picker keeps the right edge whatever the view: "New flow" comes and goes beside it. */
 .flows__tools {
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 8px;

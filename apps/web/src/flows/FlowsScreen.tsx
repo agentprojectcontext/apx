@@ -173,12 +173,10 @@ function FlowList(props: {
   return (
     <section className="flows" aria-label={t("flow.title")}>
       <div className="flows__page">
+        {/* Title and its two views stay put on the left; what acts on the view sits on the right. */}
         <header className="flows__head">
-          <div className="flows__intro">
+          <div className="flows__top">
             <h1 className="flows__title">{t("flow.title")}</h1>
-            <p className="flows__lead">{t(props.tables ? "flow.tables.lead" : "flow.lead")}</p>
-          </div>
-          <div className="flows__tools">
             <SegmentedControl
               label={t("flow.tab.label")}
               value={props.tables ? "tables" : "flows"}
@@ -188,17 +186,23 @@ function FlowList(props: {
                 { value: "tables", label: t("flow.tab.tables") },
               ]}
             />
-            <Select
-              label={t("flow.projectFilter")}
-              value={projectId ?? ""}
-              onValueChange={(v) => (props.tables ? go.tables(v || undefined) : go.flows(v || undefined))}
-              options={options}
-            />
-            {!props.tables && (
-              <Button leadingIcon={<Icons.Plus size={14} />} onClick={() => props.onNew(STARTERS.blank)}>
-                {t("flow.new")}
-              </Button>
-            )}
+            <div className="flows__tools">
+              {!props.tables && (
+                <Button leadingIcon={<Icons.Plus size={14} />} onClick={() => props.onNew(STARTERS.blank)}>
+                  {t("flow.new")}
+                </Button>
+              )}
+              <Select
+                label={t("flow.projectFilter")}
+                value={projectId ?? ""}
+                onValueChange={(v) => (props.tables ? go.tables(v || undefined) : go.flows(v || undefined))}
+                options={options}
+              />
+            </div>
+          </div>
+          <div className="flows__intro">
+            <h2 className="flows__section">{t(props.tables ? "flow.list.tables" : "flow.list.flows")}</h2>
+            <p className="flows__lead">{t(props.tables ? "flow.tables.lead" : "flow.lead")}</p>
           </div>
         </header>
         {props.tables ? (

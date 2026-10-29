@@ -609,6 +609,9 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.tab.label": "Ver",
   "flow.tab.flows": "Flows",
   "flow.tab.tables": "Tablas",
+  "flow.list.flows": "Lista de flows",
+  "flow.list.tables": "Lista de tablas",
+  "flow.tables.pickBody": "Sus columnas y filas aparecen acá, y las podés cambiar.",
   "flow.tables.lead":
     "Lo que tus Flows guardan y leen, por proyecto. Vos y tus agentes también pueden llenarlas, sin un Flow.",
   "flow.tables.none": "Todavía no hay tablas",

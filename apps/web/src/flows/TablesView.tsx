@@ -119,7 +119,7 @@ export function TablesView({ projectId, table }: { projectId: string | undefined
       detail={open && <TableDetail key={`${open.project}/${open.name}`} table={open} />}
       empty={
         <EmptyState icon={<Icons.Database />} title={t("flow.tables.pick")}>
-          {t("flow.tables.lead")}
+          {t("flow.tables.pickBody")}
         </EmptyState>
       }
     />
