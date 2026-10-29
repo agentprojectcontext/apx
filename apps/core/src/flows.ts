@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { CoreEvent } from "@apx/protocol";
+import { hookMethods } from "../../../packages/protocol/src/flow-edit.ts";
 import { type FlowDraftGraph, FlowGraph, type FlowGraphIssue } from "../../../packages/protocol/src/flow-graph.ts";
 import type { FlowDefinition } from "../../../packages/protocol/src/flow-methods.ts";
 import { FlowCapacityError } from "./domain/flow-events.ts";
@@ -417,9 +418,10 @@ export function createFlows(deps: {
       // A schedule Flow has no address: a POST to it is as unknown as one to no Flow.
       if (!found?.enabled || store.flowGraphs.trigger(found.id) === "schedule") return;
       const id = found.id;
+      const published = store.flowGraphs.get(id).published;
       return {
         id: `flow:${id}`,
-        methods: ["POST"],
+        methods: published ? hookMethods(published) : ["POST"],
         authorize: () => true,
         async handle(request, signal) {
           if (signal.aborted) return { status: 503 };

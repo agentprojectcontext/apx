@@ -3,7 +3,7 @@
 // none (domain/flows.ts deletes it): turned on again it counts from then and owes nothing.
 import { FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
 import type { Db } from "../db/db.ts";
-import { nextCron, parseCron } from "./schedule.ts";
+import { nextCrons, parseCrons } from "./schedule.ts";
 import { qb, sql } from "./sql.ts";
 
 export type ScheduledFlow = { flow: string; cron: string };
@@ -77,14 +77,14 @@ export function flowSchedulesRepo(db: Db) {
 
 /** The time a schedule had due by `at`, counted from `since`; undefined when none is due yet. */
 export function dueFlowTick(cron: string, since: Date, at: Date, timeZone: string | undefined): Date | undefined {
-  const due = nextCron(parseCron(cron), since, timeZone);
+  const due = nextCrons(parseCrons(cron), since, timeZone);
   return due && due.getTime() <= at.getTime() ? due : undefined;
 }
 
 /** When a schedule fires next after `at`. */
 export function nextFlowTick(cron: string, at: Date, timeZone: string | undefined): Date | undefined {
   try {
-    return nextCron(parseCron(cron), at, timeZone);
+    return nextCrons(parseCrons(cron), at, timeZone);
   } catch {
     return undefined;
   }

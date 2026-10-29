@@ -56,8 +56,8 @@ types open from **Add a step** and the card is a sheet at the bottom:
 
 | Step | What it does |
 |---|---|
-| Incoming webhook | Starts the flow when a service sends a POST. Its card shows its address from the start, and a test address beside it (see [Testing a flow](#testing-a-flow-with-a-real-event)). |
-| Schedule | Starts the flow at set times: **Every 5 min**, **Every hour**, **Weekdays 08:30**, **Daily 03:00** or a cron expression (minute, hour, day, month, weekday), in your time zone. The side panel shows the next runs. |
+| Incoming webhook | Starts the flow when a service calls its address. Its card shows the address (production or test, one copy button), what it **Accepts** (POST with a JSON body, GET with the data as parameters, or both) and its **Key** (see [Testing a flow](#testing-a-flow-with-a-real-event)). |
+| Schedule | Starts the flow at set times in your time zone, with no cron to write: a quick choice (**Every 5 min**, **Every hour**, **Weekdays 08:30**, **Daily 03:00**), **Fixed times** (tick the days, each with one or more times, or give a group of days the same times), **Every…** (a number of minutes, hours, days or months, or a day of the week) or **Cron** by hand. The side panel shows the next runs. |
 | Check | Tries its cases in order and goes on by the first that holds, else by its last way out. A case has a name and either **Compare** or **Formula**. **Compare** holds one or more comparisons, each a value picked with `{}` (what arrived, an earlier step's result like `$steps.normalize.username`, or a variable), read as **Text**, **Number** or **Yes or no**, and compared: *is*, *is not*, *contains*, *starts with*, *is greater* or *less than*, *is at least* or *at most*, *is empty*, *is not empty*. Join two or more with **And** (all hold) or **Or** (one holds). **Formula** is free: `$trigger.amount > 100 && $vars.vip`. One case reads as **Yes** and **No**; with more, each case has its own dot, named, plus **Otherwise**. No model. |
 | Variables | Names values once for the steps after it: text, a number, yes or no, or a formula over `$trigger`, `$steps` and the variables above. Later steps read them as `$vars.name`. A value can hold a secret picked from your list (`secret://name`): it is used only in an outgoing webhook's headers and a command's variables, and a flow that puts it in a message, a body or an instruction can't be saved to run. No model. |
 | JavaScript | A short function body that gets `input` (what arrived or an earlier step's result) and `vars`, and returns what the next steps read as `$steps.<step>`. It runs apart, with a time limit, and can't open files, use the internet or run programs. No model. |
@@ -79,11 +79,18 @@ offers **Save draft** to keep them.
 
 A flow's address is `https://<your public address>/flows/<name>`, where the end comes from the flow's name
 (`leads-from-the-form`). The webhook step's card shows it from the first moment, before you save, with a copy button.
-Click the end of the address to change it; before the first save, it's kept when you save. Changing it later stops the
+**Starts with** switches the trigger between a webhook and a schedule without redrawing its connections.
+
+Click the end of the address and write the new one in place (Enter takes it, Esc cancels); before the first save, it's
+kept when you save. Changing it later stops the
 old address at once (it asks first): the services that call the flow need the new one. Its key, if it has one, stays
 the same. The address only works from outside once you set up a public address in **Devices**.
 
-Beside it is a **test address**, `…/flows/test/<name>`. It answers only while you test. **Listen for a test event** in
+Callers send the flow's **Key** in the header `Authorization: Bearer <key>`; without it they are refused. **Create key**
+makes one; you can show it, copy it, replace it with **New key** or write your own with **Use my own** (24 to 200
+letters, numbers, dots, hyphens or underscores). Replacing it stops the old key at once, so it asks first.
+
+**Test** beside **Production** shows the **test address**, `…/flows/test/<name>`. It answers only while you test. **Listen for a test event** in
 the top bar saves what you drew (it says which step to finish first, if any), asks **Let this flow act for you?** when
 the flow would send, call, run or change something new, and waits five minutes for one event at the test address. Send
 it from the service, or by hand, as a POST with JSON like `{"id": "1", "data": {"name": "Ada"}}` (with the address's
@@ -179,7 +186,8 @@ A message, a room and a person are written into the step's text with placeholder
 arrived, `$steps.<step>.text` the answer of a step before it, `$vars.name` a variable, `$apx.project`, `$apx.now` and
 `$apx.run` the project's name, the date and time and the run's number, and `$$` is a dollar sign. You don't need to
 know them: in any field that takes values, type `{{` or `$`, or press the **{}** button, and pick from what arrived,
-earlier steps, the flow's variables and APX's values; what you picked shows as a badge. **Secrets** are offered only in
+earlier steps, the flow's variables and APX's values; what you picked shows as a badge. **What it receives** works the
+same way: empty is everything that arrived, or pick one field of it or an earlier step's result. **Secrets** are offered only in
 an outgoing webhook's headers and a command's variables, where the step reads them itself; a message, a body or an AI
 instruction never gets one. What arrived only fills the words: who gets the message is the person or room you picked, never one the
 data names.
@@ -239,11 +247,12 @@ to see it.
 The CLI starts and stops runs too: `apx flows run <flow> ['<sample body JSON>']` and `apx flows stop <flow> <event>`.
 They act as you, so they refuse to run inside an agent's command.
 
-A Flow belongs to a project. Turn a webhook flow on before creating its token in
-**Settings → Devices → Endpoints**. Public access is configured separately; it never exposes private RPC or the panel.
+A Flow belongs to a project. Its key is made in the webhook step's card (**Settings → Devices → Endpoints** lists the
+addresses of the flows that are on). Public access is configured separately; it never exposes private RPC or the panel.
 
-Send JSON such as `{"id":"order-42","data":{"status":"paid"}}` to `POST /flows/<id>` with that route's bearer
-token. Keep the same event ID on retries. Empty, duplicate or nonmatching events do not call a model; matching work
+Send JSON such as `{"id":"order-42","data":{"status":"paid"}}` to `POST /flows/<path>` with the flow's key as a bearer
+token, or, when its webhook accepts GET, `GET /flows/<path>?id=order-42&status=paid` (the parameters except `id` are
+the data; a repeated one is a list; without `id` each call is a new event). Keep the same event ID on retries. Empty, duplicate or nonmatching events do not call a model; matching work
 uses the saved binding, not an identity or command chosen by the payload. Tables and event history persist across
 restarts. A linked agent run can still fail, and external effects are not guaranteed exactly once. The panel shows
 the last 50 runs at a time (**Show older runs** pages back) and up to 20 rows of the table, with a link to the whole

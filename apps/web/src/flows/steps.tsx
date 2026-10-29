@@ -4,8 +4,9 @@ import type { FlowShape } from "@apx/protocol/flow-shape";
 import { type FlowStepTone, Icons } from "@apx/ui";
 import type { ReactNode } from "react";
 import type { FlowGraph, FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
-import type { MessageKey } from "../i18n/index.ts";
+import { currentLocale, type MessageKey } from "../i18n/index.ts";
 import { isTrigger } from "./graph-edit.ts";
+import { readCron, timesText } from "./schedule-form.ts";
 
 export { chainOrder, dotted, isTrigger } from "./graph-edit.ts";
 
@@ -91,11 +92,15 @@ export const SCHEDULE_PRESETS: { cron: string; label: MessageKey }[] = [
   { cron: "30 8 * * 1-5", label: "flow.cron.weekdays" },
   { cron: "0 3 * * *", label: "flow.cron.daily" },
 ];
-/** A schedule as people say it: its preset's name, else its cron. */
+/** A schedule as people say it: its preset's name, its days and times, else its cron. */
 export const scheduleName = (cron: string, t: (key: MessageKey) => string) => {
   const preset = presetOf(cron);
-  return preset ? t(preset.label) : cron;
+  if (preset) return t(preset.label);
+  const form = readCron(cron);
+  return form.mode === "times" && cron.trim() ? timesText(form.days, currentLocale()) : cron;
 };
+/** The methods a webhook step takes, as its card and run log show them. */
+export const hookVerbs = (n: Extract<FlowNode, { kind: "webhook" }>) => (n.methods ?? ["POST"]).join(", ");
 export const presetOf = (cron: string) => SCHEDULE_PRESETS.find((p) => p.cron === cron.trim().replace(/\s+/g, " "));
 
 /** A Flow's address, from its path (DECISIONS.md#d-178); a Flow from before paths has its identifier as its path. */

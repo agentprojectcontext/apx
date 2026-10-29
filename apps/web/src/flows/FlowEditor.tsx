@@ -44,6 +44,7 @@ import { useFlowChat } from "./useFlowChat.ts";
 import { useFlowTest } from "./useFlowTest.ts";
 import { savedTableBefore } from "./values.ts";
 import "./editor.css";
+import "./triggers.css";
 
 const EMPTY: FlowGraph = { schemaVersion: 2, nodes: [], edges: [], layout: [] };
 /** How much of the canvas's bottom the floating test controls take, idle and while a test goes (editor.css). */
@@ -411,7 +412,14 @@ export function FlowEditor({
       }
       setGraph(clean);
       setSaved(JSON.stringify([clean, name]));
-      setSaid({ text: t(flow?.enabled ? "flow.ed.draftSavedRuns" : "flow.ed.draftSaved") });
+      // A draft may be unfinished; it says what is left, the same way Save would.
+      const first = (await client.call("flows.validate", { flow: target, graph: clean })).issues[0];
+      setProblem(first ? describeIssue(first, clean, t) : null);
+      setSaid(
+        first
+          ? { text: t("flow.ed.draftUnfinished", { reason: describeIssue(first, clean, t) }) }
+          : { text: t(flow?.enabled ? "flow.ed.draftSavedRuns" : "flow.ed.draftSaved") },
+      );
       onSaved(target);
       return target;
     } catch (e) {

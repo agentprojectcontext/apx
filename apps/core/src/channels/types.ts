@@ -89,7 +89,14 @@ export type AdapterIO = {
  * A request a platform sent to this channel's public address: `path` is what follows `/hooks/<channel id>` ("" or
  * "/…"), `headers` are lowercased, `body` is the bytes as they came (a signature is checked over them).
  */
-export type HookRequest = { method: string; path: string; headers: Record<string, string>; body: Buffer };
+export type HookRequest = {
+  method: string;
+  path: string;
+  headers: Record<string, string>;
+  body: Buffer;
+  /** The URL's query after `?`, raw; only routes that read it (a Flow's GET) look at it. */
+  query?: string;
+};
 export type HookResponse = {
   status: number;
   body?: string | Record<string, unknown>;

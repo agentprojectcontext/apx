@@ -168,22 +168,46 @@ export function checkSchedule(s: Schedule): void {
   if (s.kind === "once" && Number.isNaN(Date.parse(s.at))) throw new Error(`"${s.at}" is not a date`);
 }
 
+/** At most this many crons in one Flow schedule: one per day of the week. */
+export const FLOW_CRONS_MAX = 7;
+
 /**
- * Why a Flow's cron can't run, or undefined: it must parse and never fire twice within the minimum gap. Its times
- * over eight days from a fixed moment stand for it (a gap only on rare days is still caught when it ticks).
+ * A Flow's schedule: one cron, or several joined by `;` when days have different times (DECISIONS.md#d-182). Throws
+ * when any part is not a cron.
+ */
+export function parseCrons(expr: string): Cron[] {
+  const parts = expr.split(";").map((part) => part.trim());
+  if (parts.length > FLOW_CRONS_MAX) throw new Error(`at most ${FLOW_CRONS_MAX} crons`);
+  return parts.map(parseCron);
+}
+
+/** The first minute after `from` any of the crons allows. */
+export function nextCrons(crons: Cron[], from: Date, timeZone?: string): Date | undefined {
+  let first: Date | undefined;
+  for (const c of crons) {
+    const at = nextCron(c, from, timeZone);
+    if (at && (!first || at.getTime() < first.getTime())) first = at;
+  }
+  return first;
+}
+
+/**
+ * Why a Flow's schedule can't run, or undefined: every cron must parse and together they never fire twice within the
+ * minimum gap. Their times over eight days from a fixed moment stand for it (a gap only on rare days is still caught
+ * when it ticks).
  */
 export function flowCronProblem(cron: string): "invalid" | "too_often" | undefined {
-  let c: Cron;
+  let c: Cron[];
   try {
-    c = parseCron(cron);
+    c = parseCrons(cron);
   } catch {
     return "invalid";
   }
   const start = Date.UTC(2026, 0, 5);
-  let at = nextCron(c, new Date(start), "UTC");
+  let at = nextCrons(c, new Date(start), "UTC");
   if (!at) return "invalid";
   while (at && at.getTime() < start + 8 * 24 * 3600_000) {
-    const next = nextCron(c, at, "UTC");
+    const next = nextCrons(c, at, "UTC");
     if (next && next.getTime() - at.getTime() < MIN_GAP_MIN * 60_000) return "too_often";
     at = next;
   }

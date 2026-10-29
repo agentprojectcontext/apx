@@ -67,7 +67,9 @@ for (const lang of ["en", "es"] as const) {
     const editor = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: l.addSchedule }) });
     await editor.getByRole("textbox", { name: l.name }).fill(name);
     await editor.getByRole("button", { name: l.addSchedule }).click();
-    await editor.getByRole("radio", { name: l.hourly }).click();
+    await editor.getByRole("button", { name: l.hourly }).click();
+    // A quick choice is a cron: the hand-written view shows it.
+    await editor.getByRole("radio", { name: "Cron", exact: true }).click();
     await expect(editor.getByRole("textbox", { name: /cron/i })).toHaveValue("0 * * * *");
     await editor.getByRole("button", { name: l.addSave }).click();
     await editor.getByRole("combobox", { name: l.table, exact: true }).click();
