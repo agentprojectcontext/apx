@@ -1,7 +1,5 @@
-import { flowCases } from "@apx/protocol/flow-cases";
 import type { useT } from "../i18n/index.ts";
-import { type FlowGraph, type FlowNode, STEP } from "./steps.tsx";
-import { ownTable } from "./values.ts";
+import { type FlowGraph, STEP } from "./steps.tsx";
 
 /** A new flow's id from its name: a readable slug and a short random tail. */
 export const slug = (name: string) =>
@@ -15,44 +13,6 @@ export const slug = (name: string) =>
       .slice(0, 60) || "flow"
   }-${Math.random().toString(36).slice(2, 6)}`;
 
-/** The step that keeps a graph from being saved, if a required setting is still blank. */
-export function blank(n: FlowNode): boolean {
-  switch (n.kind) {
-    case "condition": {
-      const cases = flowCases(n);
-      return (
-        cases.some((c) => c.match.kind === "expr" && !c.match.expr.trim()) ||
-        (cases.some((c) => c.match.kind === "equals") && n.input.kind === "event" && n.input.path.length === 0)
-      );
-    }
-    case "vars":
-      return n.vars.some((v) => !v.name || (v.value.kind === "expr" && !v.value.expr.trim()));
-    case "js":
-      return !n.code.trim();
-    case "sql":
-      return !n.database.trim() || !n.query.trim();
-    case "cmd":
-      return !n.command.trim();
-    case "table_read":
-      return (!n.table && !ownTable(n)) || (n.latest === undefined && !n.keys.some((k) => k.trim()));
-    case "table_write":
-      return (!n.table && !ownTable(n)) || !n.key.trim();
-    case "agent":
-      return (n.bot ? !n.bot.name.trim() || !n.bot.system.trim() : !n.agent) || !n.prompt.trim();
-    case "routine":
-      return !n.routine;
-    case "llm":
-      return !n.model || !n.prompt.trim();
-    case "schedule":
-      return !n.cron.trim();
-    case "notify":
-      return !n.channel || (n.to.kind === "contact" ? !n.to.person : !n.to.room) || !n.text.trim();
-    case "http":
-      return !/^https?:\/\/[^/\s]+/.test(n.url.trim());
-    default:
-      return false;
-  }
-}
 /** Labels the graph schema needs, and blank lines left in key lists. */
 export const tidy = (g: FlowGraph, t: ReturnType<typeof useT>): FlowGraph => ({
   ...g,

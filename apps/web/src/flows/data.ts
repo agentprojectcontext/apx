@@ -8,6 +8,7 @@ import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { isKey, type MessageKey, t as translate } from "../i18n/index.ts";
 import { go, nav } from "../shell/nav.ts";
+import { blank } from "./complete.ts";
 import { approveOutward } from "./outward.tsx";
 import { type Flow, type FlowGraph, type FlowNode, type FlowRun, STEP } from "./steps.tsx";
 
@@ -15,9 +16,11 @@ type T = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
 export const loadFlows = async () => {
   const r = await client.call("flows.list", {});
-  return { flows: r.flows, published: r.published, schedules: r.schedules, timeZone: r.time_zone };
+  return { flows: r.flows, published: r.published, drafts: r.drafts, schedules: r.schedules, timeZone: r.time_zone };
 };
 export type Published = Result<"flows.list">["published"];
+/** Saved drafts that are not what runs: the list shows these, marked as drafts. */
+export type Drafts = Result<"flows.list">["drafts"];
 export type Schedules = Result<"flows.list">["schedules"];
 export const loadRuns = (flow: string, limit = 14, cursor?: Result<"flows.events">["nextCursor"]) =>
   client.call("flows.events", { flow, limit, ...(cursor ? { cursor } : {}) });
@@ -36,8 +39,8 @@ export async function setEnabled(flow: Flow, enabled: boolean) {
 
 /**
  * Publishes the saved drawing when it differs from what runs; nothing when there is nothing new. False when it sends
- * or calls somewhere new and the owner said no, or when an agent drew it: then its editor opens for the owner to look
- * at it and save it first (DECISIONS.md#d-174).
+ * or calls somewhere new and the owner said no, or when an agent drew it or a step is not finished: then its editor
+ * opens for the owner to look at it and save it first (DECISIONS.md#d-174, DECISIONS.md#d-177).
  */
 export async function publishSaved(flow: Flow): Promise<boolean> {
   const doc = await client.call("flows.graph_get", { flow: flow.id });
@@ -50,6 +53,13 @@ export async function publishSaved(flow: Flow): Promise<boolean> {
   if (!doc.published) {
     const shape = shapeOfGraph(doc.draft);
     if (shape.ok && sameShape(shape.shape, shapeOfDefinition(flow))) return true;
+  }
+  // A draft with a step not finished can't run: its editor opens on it instead (DECISIONS.md#d-177).
+  const unfinished = doc.draft.nodes.find(blank);
+  if (unfinished) {
+    notify(translate("flow.finishFirst", { step: unfinished.label }), "info");
+    go.flows(nav.get().flowProject, flow.id, true);
+    return false;
   }
   const outward = await approveOutward(flow.id, doc.draft, doc.published);
   if (!outward) return false;
@@ -87,6 +97,11 @@ export type Shown = {
   publishedRevision: number | null;
   /** The agent that saved the draft, waiting for the owner's review; null when the owner saved it. */
   draftBy: string | null;
+  /**
+   * Nothing drawn runs: only the table-only definition a new drawing gets to belong to, never shown as its drawing
+   * while a draft waits (DECISIONS.md#d-177).
+   */
+  placeholder: boolean;
 };
 
 /**
@@ -104,6 +119,7 @@ export async function shownGraph(flow: Flow, t: T): Promise<Shown> {
       draft,
       publishedRevision: doc.publishedRevision,
       draftBy: doc.draftBy,
+      placeholder: false,
     };
   const shape = draft ? shapeOfGraph(draft) : undefined;
   const runs = shape?.ok === true && sameShape(shape.shape, shapeOfDefinition(flow));
@@ -115,6 +131,7 @@ export async function shownGraph(flow: Flow, t: T): Promise<Shown> {
     draft,
     publishedRevision: null,
     draftBy: doc.draftBy,
+    placeholder: flow.action.kind === "none" && flow.predicates.length === 0,
   };
 }
 /** The legacy definition drawn as steps. */

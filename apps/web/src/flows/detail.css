@@ -57,6 +57,12 @@
   font-weight: 600;
   color: var(--apx-fg);
 }
+.fd__drafts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
 .fd__draft {
   margin: 0;
   font-size: 12px;
@@ -104,6 +110,9 @@
 }
 .fd__legend .is-failed::before {
   background: var(--apx-danger);
+}
+.fd__version.is-draft {
+  color: var(--apx-warning-soft-fg);
 }
 .fd__version {
   position: absolute;
@@ -371,10 +380,11 @@
 }
 
 @media (max-width: 760px) {
-  .fd__version:not(.is-old) {
+  .fd__version:not(.is-old, .is-draft) {
     display: none;
   }
-  .fd__version.is-old {
+  .fd__version.is-old,
+  .fd__version.is-draft {
     top: auto;
     bottom: 12px;
   }

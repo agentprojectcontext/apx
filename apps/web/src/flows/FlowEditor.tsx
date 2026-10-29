@@ -8,8 +8,9 @@ import { useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
+import { blank } from "./complete.ts";
 import { describeIssue, issueText, shownGraph, useKnown } from "./data.ts";
-import { blank, slug, tidy } from "./drawing.ts";
+import { slug, tidy } from "./drawing.ts";
 import { type Cover, FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { FlowChat } from "./FlowChat.tsx";
 import { connectNodes, moveNode, newNode, removeCase, removeNode } from "./graph-edit.ts";
@@ -319,6 +320,62 @@ export function FlowEditor({
       setBusy(false);
     }
   };
+  /**
+   * Keeps the drawing as it is, steps not finished yet included, and never publishes: what runs stays as it was until
+   * Save (DECISIONS.md#d-177). It still needs a name and a project, where the Flow lives. True once saved.
+   */
+  const saveDraft = async (): Promise<boolean> => {
+    const missing = !name.trim()
+      ? t("flow.ed.needName")
+      : !projectId
+        ? t("flow.ed.needProject")
+        : !g.nodes.length
+          ? t("flow.chat.empty")
+          : undefined;
+    if (missing) {
+      setSaid({ error: true, text: missing });
+      return false;
+    }
+    const clean = tidy(g, t);
+    setBusy(true);
+    try {
+      let target = id;
+      if (target) {
+        if (flow && name.trim() !== flow.name) await client.call("flows.set", { ...flow, name: name.trim() });
+        // Over an agent's draft not reviewed yet, it keeps waiting for the owner's Save.
+        const doc = await client.call("flows.draft_save", {
+          flow: target,
+          expectedVersion: version,
+          graph: clean,
+          ...(draftBy ? { unreviewed: true as const } : {}),
+        });
+        setVersion(doc.draftVersion);
+        setPublished(doc.publishedRevision);
+        setDraftBy(doc.draftBy);
+      } else {
+        // A new Flow is made off, with the drawing as its draft.
+        const out = await client.call("flows.create", { project: projectId, name: name.trim(), graph: clean });
+        target = out.flow.id;
+        setMade(target);
+        setVersion(out.document.draftVersion);
+      }
+      setGraph(clean);
+      setSaved(JSON.stringify([clean, name]));
+      setSaid({ text: t(flow?.enabled ? "flow.ed.draftSavedRuns" : "flow.ed.draftSaved") });
+      onSaved(target);
+      return true;
+    } catch (e) {
+      setSaid({
+        error: true,
+        text:
+          issueText(e, clean, t) ??
+          t(e instanceof ApxError && e.code === "conflict" ? "flow.ed.conflict" : "flow.ed.saveFailed"),
+      });
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
   const close = () => (dirty ? setLeaving(true) : onClose());
   const hasTrigger = Boolean(triggerOf(g));
 
@@ -356,7 +413,7 @@ export function FlowEditor({
         <span className="fe-top__spacer" />
         {said && !busy ? (
           <span
-            className={said.error ? "fe-top__status is-error" : "fe-top__status"}
+            className={said.error ? "fe-top__status is-said is-error" : "fe-top__status is-said"}
             role={said.error ? "alert" : "status"}
           >
             {said.text}
@@ -387,16 +444,29 @@ export function FlowEditor({
           </Button>
         )}
         <TryRun graph={g} tidy={() => tidy(g, t)} onResult={setTrial} />
+        <Button
+          variant="secondary"
+          className="fe-top__draft"
+          disabled={busy || !graph || locked}
+          aria-label={t("flow.ed.saveDraft")}
+          onClick={() => void saveDraft()}
+        >
+          <span className="fe-top__draft-text">{t("flow.ed.saveDraft")}</span>
+          <span className="fe-top__draft-short" aria-hidden="true">
+            {t("flow.card.draft")}
+          </span>
+        </Button>
         <Button disabled={busy || !graph || locked} onClick={() => void save()}>
           {t("flow.ed.save")}
         </Button>
         <Button
           variant="ghost"
+          className="fe-top__exit"
           leadingIcon={<Icons.LogOut size={14} />}
           aria-label={t("flow.ed.close")}
           onClick={close}
         >
-          {t("flow.ed.exit")}
+          <span className="fe-top__exit-text">{t("flow.ed.exit")}</span>
         </Button>
       </header>
       <div className="fe-body">
@@ -556,10 +626,23 @@ export function FlowEditor({
             <Button variant="danger" onClick={onClose}>
               {t("flow.ed.discard")}
             </Button>
+            {!locked && (
+              <Button
+                disabled={busy}
+                onClick={() =>
+                  void saveDraft().then((ok) => {
+                    setLeaving(false);
+                    if (ok) onClose();
+                  })
+                }
+              >
+                {t("flow.ed.saveDraft")}
+              </Button>
+            )}
           </>
         }
       >
-        {t("flow.ed.discardBody")}
+        {t(locked ? "flow.ed.discardBody" : "flow.ed.leaveDraftBody")}
       </Dialog>
     </div>
   );
