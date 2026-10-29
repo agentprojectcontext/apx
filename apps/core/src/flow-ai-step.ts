@@ -42,7 +42,11 @@ export function planFlowAiStep(store: Store, projectId: string, node: AiNode, in
       agent,
       engine,
       ...(node.write ? { write: node.write } : {}),
-      context: { model_choice: { model: node.model ?? engine, router: false } },
+      // Its APX tools follow the step's limits too: a CLI reaches them through APX's own MCP bridge.
+      context: {
+        model_choice: { model: node.model ?? engine, router: false },
+        flow_step: { delegate: false, ...(node.bot ? { bot: true } : {}) },
+      },
       text: `${who}\n\n## Task\n${node.prompt}\n\n${data}`,
     };
   }

@@ -73,6 +73,16 @@ export function flowGraphIssues(
     }
     if (node.kind === "llm" && !model(node.model))
       issues.push({ code: "model_unavailable", node: node.id, message: "The chosen model is not set up" });
+    // A CLI works in the project's folder, as a code session does.
+    if (node.kind === "agent" && flowEngineOf(node)) {
+      const project = store.projects.get(definition.projectId);
+      if (!project?.path || !project.present)
+        issues.push({
+          code: "folder_unavailable",
+          node: node.id,
+          message: "The project's folder is not on this computer",
+        });
+    }
     // APX's harness runs a model API the owner set up; a CLI's model is its own, checked when its session starts.
     if (node.kind === "agent" && node.model && !flowEngineOf(node) && !model(node.model.replace(/#[^#]*$/, "")))
       issues.push({ code: "model_unavailable", node: node.id, message: "The chosen model is not set up" });

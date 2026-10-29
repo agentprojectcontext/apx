@@ -505,7 +505,7 @@ export const enFlow = {
   "flow.ai.delegate": "Can ask other agents",
   "flow.ai.delegateHint": "It may hand work to your other agents or message them. Off, it works alone.",
   "flow.ai.noteAgent": "It works with the agent's instructions, memory and tools. This step spends tokens.",
-  "flow.ai.noteBot": "It starts from scratch each run, with your tools but no memory. This step spends tokens.",
+  "flow.ai.noteBot": "It starts from scratch each run, with the web, files and commands but none of your chats or accounts. This step spends tokens.",
   "flow.ai.noteCli": "It runs in the project's folder with that app's own tools and settings. This step spends tokens.",
   "flow.ai.answered": "Answered by {who} on {harness} · {model}",
   "flow.ai.ownModel": "its own model",

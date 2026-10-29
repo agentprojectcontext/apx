@@ -344,7 +344,8 @@ set-up model API (`model_unavailable`). A drawing with any of these fields is no
 `planFlowAiStep` (`apps/core/src/flow-ai-step.ts`) decides the chat: a loose thread with the agent, or with the
 super-agent as a worker under the bot's prompt (`flowBotPrompt`), or a code thread with `engine` for a CLI; it merges
 `model_choice`, `worker` and `flow_step` into the thread's context before the first `threads.send`. `turnTools` drops
-`TEAM_TOOLS` (or `BOT_OUT`: also memory and `apx_settings`) for a step's chat; `buildContext` skips the roster and,
+`TEAM_TOOLS` for a step's chat and keeps only `BOT_KEEPS` (and no MCP) for a bot, CLI sessions included (they reach
+APX's tools through its MCP bridge); `buildContext` skips the roster and,
 for a bot, recall; `permissions.agentIn` takes `flow_step.autonomy` over the agent's mode. `flows.run_get` adds
 `answered: {harness, model}` from the run each step started.
 

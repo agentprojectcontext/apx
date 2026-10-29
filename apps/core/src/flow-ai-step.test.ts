@@ -89,7 +89,17 @@ test("an agent in a Flow keeps its tools but delegates to no one unless the step
     assert.equal(shown?.thread_id, on.thread);
     const roby = env.core.store.agents.get("roby");
     assert.ok(roby);
-    assert.equal(createPermissions({ store: env.core.store, home: "" }).agentIn(roby, on.thread).autonomy, "total");
+    const permissions = createPermissions({ store: env.core.store, home: "" });
+    assert.equal(permissions.agentIn(roby, on.thread).autonomy, "total");
+    // A helper it hands work to works in the step's mode, not the agent's own.
+    const solo = await runOnce(env, "careful", ai({ agent: "roby", delegate: true, autonomy: "manual" }));
+    const helper = env.core.store.threads.create({
+      kind: "a2a",
+      title: "Helper",
+      agent_ids: ["roby"],
+      parent_id: solo.thread,
+    });
+    assert.equal(permissions.agentIn(roby, helper.id).autonomy, "manual");
   } finally {
     await env.core.close();
     await env.cleanup();
@@ -111,8 +121,21 @@ test("a bot of the Flow answers with its own system prompt, no memory and no tea
     const system = String(call.messages[0]?.content);
     assert.ok(system.startsWith("You are Triage, a bot"), "it speaks as the bot");
     assert.ok(system.includes(bot.system));
-    for (const name of ["delegate", "remember", "recall", "agent_set", "apx_settings"])
+    // It speaks through the super-agent, but reaches none of the owner's chats, accounts, memory or team.
+    for (const name of [
+      "delegate",
+      "remember",
+      "recall",
+      "agent_set",
+      "apx_settings",
+      "read_chat",
+      "search_chats",
+      "search_owner_notes",
+      "message_contact",
+      "mcp_search",
+    ])
       assert.ok(!toolNames(call).includes(name), `${name} is left out`);
+    assert.ok(toolNames(call).includes("web_search"), "it keeps the tools that work on the task");
   } finally {
     await env.core.close();
     await env.cleanup();
@@ -144,13 +167,34 @@ test("a CLI harness runs the agent's or the bot's brief in its own session, with
     assert.ok(plan);
     assert.equal(plan.engine, "claude");
     assert.equal(plan.write, "read-only");
-    assert.deepEqual(plan.context, { model_choice: { model: "claude/opus#high", router: false } });
+    assert.deepEqual(plan.context.model_choice, { model: "claude/opus#high", router: false });
     assert.ok(plan.text.startsWith("You are Fixer.") && plan.text.includes("Fix lint errors only."));
     assert.ok(plan.text.endsWith('Untrusted input JSON:\n{"file":"a.ts"}'));
+    // The APX tools a CLI reaches follow the step's limits too.
+    assert.deepEqual(plan.context.flow_step, { delegate: false, bot: true });
     const agent = planFlowAiStep(env.core.store, project, ai({ agent: "roby", model: "codex" }), null);
+    assert.deepEqual(agent?.context.flow_step, { delegate: false });
     assert.equal(agent?.engine, "codex");
     assert.ok(agent?.text.includes("You work as"));
     assert.equal(planFlowAiStep(env.core.store, project, ai({ agent: "nobody" }), null), undefined);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("a CLI step needs the project's folder: a project without one is told before it runs", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("Unused")) });
+  try {
+    const project = (await env.client.call("projects.create", { name: "Elsewhere" })).project.id;
+    const record = env.core.store.projects.get(project);
+    assert.ok(record);
+    env.core.store.projects.upsert({ ...record, present: false });
+    const { issues } = await env.client.call("flows.validate", {
+      project,
+      graph: graphOf(ai({ agent: "roby", model: "claude" })),
+    });
+    assert.ok(issues.some((i) => i.code === "folder_unavailable" && i.node === "ask"));
   } finally {
     await env.core.close();
     await env.cleanup();
