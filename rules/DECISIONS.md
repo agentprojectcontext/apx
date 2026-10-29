@@ -2980,11 +2980,14 @@ shape, `flow-shape.ts`):
   install, 32 KiB per value. Without `table` a step keeps the Flow's own table (a definition drawn as a graph), as before.
 - **A variable may hold `secret://name` and nothing else.** It stays that reference everywhere: in the run, in its
   output, in a message. Where a step reads secrets itself (D-169: an HTTP header; D-172: a command's environment),
-  `$vars.name` stands for the reference as the owner's own text, so it resolves, is named in the allow dialog, is scrubbed
-  and is checked for existence like a typed `secret://`. Used anywhere a secret would leave as text (a message, an
-  address, a body, SQL, a command's text or input, a key, a prompt, a formula) validation refuses it
-  (`secret_var_text`), naming the variable; a literal with `secret://` beside other text is refused too
-  (`secret_var_shape`), since it would be read as plain text. A formula never yields a reference that resolves: only a
+  a `$vars.name` placeholder stands for the reference as the owner's own text, so it resolves, is named in the allow
+  dialog, is scrubbed and is checked for existence like a typed `secret://`. The swap happens on the parsed template
+  (a placeholder part becomes a text part), never by rewriting the raw text, so a placeholder before it can't swallow it.
+  Any other read is refused (`secret_var_text`, naming the variable): a placeholder in a message, a body, SQL values, a
+  command's input, a key or a formula (followed by a dot or a field too), a step's input bound to the variable or to the
+  whole variables step, and the name written in a prompt, an address, a query or a command's text. JavaScript never sees
+  it among its `vars`. A literal with `secret://` beside other text is refused too (`secret_var_shape`), since it would
+  be read as plain text. A formula never yields a reference that resolves: only a
   literal counts, so a payload can't build one. HTTP headers also read ordinary `$vars`, as other templates do.
 
 Rejected: tables per Flow with a picker of other Flows' tables (the owner thinks in the project's data, not in Flows),

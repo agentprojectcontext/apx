@@ -9,7 +9,7 @@ import {
   flowVarIndex,
   resolveFlowInput,
 } from "./domain/flow-graph-semantics.ts";
-import { flowSecretVars, inlineSecretVars } from "./domain/flow-secret-vars.ts";
+import { flowSecretVars, secretTemplate } from "./domain/flow-secret-vars.ts";
 import { type FlowApx, parseFlowTemplate, renderFlowTemplate } from "./domain/flow-template.ts";
 import type { Store } from "./domain/store.ts";
 import type { RunTimers } from "./engine/engine.ts";
@@ -265,7 +265,8 @@ export function createOutwardSteps(deps: {
       const http = deps.http;
       const secretVars = flowSecretVars(run.graph);
       for (const h of node.headers) {
-        const parts = parseFlowTemplate(inlineSecretVars(h.value, secretVars), flowVarIndex(run.graph));
+        const parts = secretTemplate(h.value, flowVarIndex(run.graph), secretVars);
+        if (!parts) throw new StepRefused(W.invalid);
         // Secret references are read only in the owner's own text, never in a value the payload brought.
         const real = renderFlowTemplate(parts, resolve, {
           apx,

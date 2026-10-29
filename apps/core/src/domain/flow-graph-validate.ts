@@ -12,9 +12,16 @@ import {
 } from "../../../../packages/protocol/src/flow-graph.ts";
 import { FlowExprError, type FlowVarIndex, flowExprBindings, parseFlowExpr } from "./flow-expr.ts";
 import { flowHttpUrlProblem } from "./flow-http-url.ts";
-import { flowPlainTexts, flowSecretVars, looseSecretLiteral, secretVarUses } from "./flow-secret-vars.ts";
+import {
+  flowSecretVars,
+  flowUnfilledTexts,
+  looseSecretLiteral,
+  secretVarRead,
+  secretVarsNamed,
+  withSecretParts,
+} from "./flow-secret-vars.ts";
 import { flowSqlShape, SQL_READS, SQL_WRITES } from "./flow-sql.ts";
-import { flowTemplateBindings, parseFlowTemplate } from "./flow-template.ts";
+import { type FlowTemplatePart, flowTemplateBindings, parseFlowTemplate } from "./flow-template.ts";
 import { isCliRef } from "./refs.ts";
 import { flowCronProblem } from "./schedule.ts";
 
@@ -220,15 +227,52 @@ function outwardIssues(node: FlowNode, add: Add, vars: FlowVarIndex) {
   }
 }
 
-/** A variable holds a secret only as its bare reference, and is used only where the step reads secrets itself. */
-function secretVarIssues(graph: FlowGraph, add: Add) {
+/** Where a step reads secrets itself (D-169, D-172): a secret variable written there is the owner's text for it. */
+const secretTexts = (node: FlowNode): ReadonlySet<string> =>
+  new Set(
+    node.kind === "http" ? node.headers.map((h) => h.value) : node.kind === "cmd" ? node.env.map((e) => e.value) : [],
+  );
+
+/**
+ * A variable holds a secret only as its bare reference, and is read only where the step reads secrets itself: a
+ * header's or a command variable's `$vars.name`. Any other read (a message, a key, a formula, an input, the whole
+ * variables step, a prompt naming it) would carry the secret's name as text.
+ */
+function secretVarIssues(graph: FlowGraph, add: Add, vars: FlowVarIndex) {
   const secrets = flowSecretVars(graph);
   for (const node of graph.nodes) {
     if (node.kind === "vars" && node.vars.some((v) => v.value.kind === "literal" && looseSecretLiteral(v.value.value)))
       add("secret_var_shape", "A variable with a secret holds only secret://name", node.id);
     if (!secrets.size) continue;
-    const used = new Set(flowPlainTexts(node).flatMap((text) => secretVarUses(text, secrets)));
-    for (const name of used)
+    const read = new Set<string>();
+    const check = (b: FlowBinding) => {
+      const name = secretVarRead(b, graph, secrets);
+      if (name) read.add(name);
+    };
+    const own = secretTexts(node);
+    for (const template of flowNodeTemplates(node)) {
+      let parts: FlowTemplatePart[];
+      try {
+        parts = parseFlowTemplate(template, vars);
+      } catch {
+        continue; // template_invalid says why
+      }
+      const allowed = own.has(template) ? withSecretParts(parts, secrets) : parts;
+      for (const p of allowed) if ("binding" in p) check(p.binding);
+    }
+    for (const expr of flowNodeExprs(node)) {
+      try {
+        for (const b of flowExprBindings(parseFlowExpr(expr), vars)) check(b);
+      } catch {
+        // expr_invalid says why
+      }
+    }
+    if (node.kind === "condition" && flowCases(node).some((c) => c.match.kind === "equals")) check(node.input);
+    if (node.kind === "llm" || node.kind === "agent" || node.kind === "routine" || node.kind === "js")
+      check(node.input);
+    if (node.kind === "table_write") check(node.value);
+    for (const text of flowUnfilledTexts(node)) for (const name of secretVarsNamed(text, secrets)) read.add(name);
+    for (const name of read)
       add(
         "secret_var_text",
         `$vars.${name} holds a secret: use it in a request header or a command's environment`,
@@ -275,7 +319,7 @@ export function validateFlowGraph(value: FlowGraph): FlowGraphIssue[] {
     workIssues(node, add, vars);
     if (node.kind === "agent") aiIssues(node, add);
   }
-  secretVarIssues(graph, add);
+  secretVarIssues(graph, add, vars);
   const parents = new Map<string, Set<string>>([...nodes.keys()].map((id) => [id, new Set()]));
   const edges = new Set<string>();
   for (const edge of graph.edges) {

@@ -446,8 +446,10 @@ for keys or `{rows: [{key, value, updated_at}]}` for `latest`; a save returns `{
 save on a new table is offered it first.
 
 `domain/flow-secret-vars.ts`: `flowSecretVars` finds variables whose literal is exactly `secret://name`;
-`withSecretVars` writes them as their reference in HTTP headers and command variables before `flowOutward`,
-`flowOutwardIssues` and the steps read them; `secret_var_text` and `secret_var_shape` refuse the rest. The panel
+`secretTemplate` parses a header or command variable and swaps each `$vars.name` part of one for a text part holding
+its reference; `flowOutward`, `flowOutwardIssues` (`secretRefs`, `secretKeyText`) and both steps read those same parts.
+`secret_var_text` refuses every other read (template and formula bindings, step inputs, the whole variables step,
+names in unfilled texts); `secret_var_shape` a mixed literal. JS steps get their `vars` without secret variables. The panel
 offers secrets in a variable's value and, through `$vars`, only where they resolve.
 
 **Español:** **Guardar en la tabla** guarda en una tabla del proyecto, por nombre: se crea al escribirle el nombre. La

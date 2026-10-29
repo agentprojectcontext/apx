@@ -1,11 +1,16 @@
 // A variable may hold a secret's reference (`secret://name`) and nothing else. It stays a reference everywhere except
-// where a step reads secrets itself (an HTTP header, a command's environment): there `$vars.name` is the owner's own
-// text for that reference. Anywhere else the secret would travel as text, so validation refuses it (DECISIONS.md#d-173).
-import type { FlowGraph, FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
+// where a step reads secrets itself (an HTTP header, a command's environment): there a `$vars.name` placeholder, once
+// the text is parsed, stands for that reference as the owner's own text. Anywhere else the secret would travel as text,
+// or its name would, so validation refuses it (DECISIONS.md#d-173).
+import type { FlowBinding, FlowGraph, FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowVarIndex } from "./flow-expr.ts";
+import { type FlowTemplatePart, parseFlowTemplate } from "./flow-template.ts";
 
+/** `secret://name` references in owner text; a name is letters, digits and `_ - . / ~`. */
+export const SECRET_REF = /secret:\/\/[A-Za-z0-9_.~/-]{1,200}/g;
 const SECRET_ONLY = /^secret:\/\/[A-Za-z0-9_.~/-]{1,200}$/;
-/** `$$` is a dollar sign; `$vars.name` with no field after it is the variable itself. */
-const VAR_USE = /\$\$|\$vars\.([A-Za-z_][A-Za-z0-9_]{0,63})(?![A-Za-z0-9_.-])/g;
+/** A variable named in a text no step parses as a template (a prompt, a command, an address, a query). */
+const NAMED = /\$vars\.([A-Za-z_][A-Za-z0-9_]{0,63})/g;
 
 /** Variables holding a secret, by name, and the reference each holds. */
 export function flowSecretVars(graph: Pick<FlowGraph, "nodes">): Map<string, string> {
@@ -22,50 +27,90 @@ export function flowSecretVars(graph: Pick<FlowGraph, "nodes">): Map<string, str
 export const looseSecretLiteral = (value: unknown) =>
   typeof value === "string" && value.includes("secret://") && !SECRET_ONLY.test(value);
 
-/** The secret variables a text uses. */
-export function secretVarUses(text: string, secrets: ReadonlyMap<string, string>): string[] {
-  const names = new Set<string>();
-  for (const m of text.matchAll(VAR_USE)) if (m[1] && secrets.has(m[1])) names.add(m[1]);
-  return [...names];
+/** The reference a part stands for when it is exactly `$vars.name` of a variable holding a secret. */
+function heldSecret(part: FlowTemplatePart, secrets: ReadonlyMap<string, string>): string | undefined {
+  if (!("binding" in part) || part.binding.kind !== "node" || part.binding.path.length !== 1) return undefined;
+  const name = part.binding.path[0] ?? "";
+  return part.source === `$vars.${name}` ? secrets.get(name) : undefined;
 }
 
-/** The text with each secret variable written as the reference it holds. */
-export const inlineSecretVars = (text: string, secrets: ReadonlyMap<string, string>) =>
-  secrets.size ? text.replace(VAR_USE, (all, name?: string) => (name && secrets.get(name)) || all) : text;
+/** Parsed parts with each secret variable as a text part holding its reference, read like the owner's own text. */
+export const withSecretParts = (parts: FlowTemplatePart[], secrets: ReadonlyMap<string, string>) =>
+  parts.map((p) => {
+    const ref = heldSecret(p, secrets);
+    return ref ? { text: ref } : p;
+  });
 
-/** An HTTP step's headers or a command's environment with secret variables written as their references. */
-export function withSecretVars<N extends FlowNode>(node: N, secrets: ReadonlyMap<string, string>): N {
-  if (!secrets.size) return node;
-  if (node.kind === "http")
-    return { ...node, headers: node.headers.map((h) => ({ ...h, value: inlineSecretVars(h.value, secrets) })) };
-  if (node.kind === "cmd")
-    return { ...node, env: node.env.map((e) => ({ ...e, value: inlineSecretVars(e.value, secrets) })) };
-  return node;
+/**
+ * A header's or a command variable's text, parsed, with its secret variables as their references; undefined when it
+ * does not parse (validation says why).
+ */
+export function secretTemplate(
+  text: string,
+  vars: FlowVarIndex,
+  secrets: ReadonlyMap<string, string>,
+): FlowTemplatePart[] | undefined {
+  try {
+    return withSecretParts(parseFlowTemplate(text, vars), secrets);
+  } catch {
+    return undefined;
+  }
 }
 
-/** Every text of a step where a secret would leave as text: messages, bodies, prompts, keys, formulas. */
-export function flowPlainTexts(node: FlowNode): string[] {
+/** The secret references such a text reads: in its own text and through its secret variables. */
+export function secretRefs(text: string, vars: FlowVarIndex, secrets: ReadonlyMap<string, string>): string[] {
+  const parts = secretTemplate(text, vars, secrets);
+  if (!parts) return text.match(SECRET_REF) ?? [];
+  return parts.flatMap((p) => ("text" in p ? (p.text.match(SECRET_REF) ?? []) : []));
+}
+
+/**
+ * What a header or command variable stands for, for the key the owner approves: the text itself, or, when it uses a
+ * secret variable, the text with that variable written as its reference (so changing the secret asks again).
+ */
+export function secretKeyText(text: string, vars: FlowVarIndex, secrets: ReadonlyMap<string, string>): string {
+  let parts: FlowTemplatePart[];
+  try {
+    parts = parseFlowTemplate(text, vars);
+  } catch {
+    return text;
+  }
+  if (!parts.some((p) => heldSecret(p, secrets))) return text;
+  return parts.map((p) => heldSecret(p, secrets) ?? ("text" in p ? p.text : p.source)).join("");
+}
+
+/** The secret variable a binding reads: `$vars.name`, `$steps.<vars step>.name`, or the whole step that sets it. */
+export function secretVarRead(
+  b: FlowBinding,
+  graph: Pick<FlowGraph, "nodes">,
+  secrets: ReadonlyMap<string, string>,
+): string | undefined {
+  if (b.kind !== "node") return undefined;
+  const node = graph.nodes.find((n) => n.id === b.node);
+  if (node?.kind !== "vars") return undefined;
+  const held = node.vars.filter((v) => secrets.has(v.name)).map((v) => v.name);
+  if (b.path.length === 0) return held[0];
+  return held.find((name) => name === b.path[0]);
+}
+
+/** Secret variables named in texts no step fills (a prompt, a command, an address, a query). */
+export function secretVarsNamed(text: string, secrets: ReadonlyMap<string, string>): string[] {
+  return [...text.matchAll(NAMED)].flatMap((m) => (m[1] && secrets.has(m[1]) ? [m[1]] : []));
+}
+
+/** Texts of a step no step fills with values, where a variable's name would still travel. */
+export function flowUnfilledTexts(node: FlowNode): string[] {
   switch (node.kind) {
-    case "notify":
-      return [node.text];
     case "http":
-      return [node.url, node.body];
+      return [node.url];
     case "sql":
-      return [node.query, ...node.params.map((p) => p.value)];
+      return [node.query];
     case "cmd":
-      return [node.command, node.stdin];
-    case "table_read":
-      return node.keys;
-    case "table_write":
-      return [node.key];
+      return [node.command];
     case "agent":
       return [node.prompt, node.bot?.system ?? ""];
     case "llm":
       return [node.prompt];
-    case "condition":
-      return (node.cases ?? []).flatMap((c) => (c.match.kind === "expr" ? [c.match.expr] : []));
-    case "vars":
-      return node.vars.flatMap((v) => (v.value.kind === "expr" ? [v.value.expr] : []));
     default:
       return [];
   }

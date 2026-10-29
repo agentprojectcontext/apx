@@ -4,8 +4,9 @@
 import { createHash } from "node:crypto";
 import type { FlowGraph, FlowGraphIssue, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
 import type { ChannelConfig } from "./channels/types.ts";
+import { flowVarIndex } from "./domain/flow-graph-validate.ts";
 import { flowHttpUrlProblem } from "./domain/flow-http-url.ts";
-import { flowSecretVars, withSecretVars } from "./domain/flow-secret-vars.ts";
+import { flowSecretVars, SECRET_REF, secretKeyText, secretRefs } from "./domain/flow-secret-vars.ts";
 import { OWNER_ID } from "./domain/persons.ts";
 import type { Store } from "./domain/store.ts";
 import { flowDatabaseFile, flowFolder } from "./flow-work-steps.ts";
@@ -25,8 +26,8 @@ export type FlowOutside = {
   home?: string | undefined;
 };
 
-/** `secret://name` references in a header value; a name is letters, digits and `_ - . / ~`. */
-export const SECRET_REF = /secret:\/\/[A-Za-z0-9_.~/-]{1,200}/g;
+export { SECRET_REF };
+
 /** Header names that carry a credential: their value must come from Secrets. */
 const CREDENTIAL_HEADER = /^(authorization|cookie|x-api-key|api-key|apikey)$|token|secret|password|key$/i;
 
@@ -67,16 +68,20 @@ export function flowOutward(store: Store, graph: FlowGraph, folder = "", place =
   const calls: { node: string; method: string; host: string; secrets: string[] }[] = [];
   const commands: { node: string; command: string; folder: string; secrets: string[] }[] = [];
   const writes: { node: string; database: string }[] = [];
-  // Secrets are read in an HTTP step's headers and a command's environment, nowhere else.
+  // Secrets are read in an HTTP step's headers and a command's environment, nowhere else; a variable holding one
+  // counts where it is used, as the reference it holds.
+  const vars = flowVarIndex(graph);
+  const secretVars = flowSecretVars(graph);
   const secretsOf = (n: Http | Cmd) => [
     ...new Set(
-      (n.kind === "http" ? n.headers : n.env).flatMap((h) => (h.value.match(SECRET_REF) ?? []).map((r) => r.slice(9))),
+      (n.kind === "http" ? n.headers : n.env).flatMap((h) =>
+        secretRefs(h.value, vars, secretVars).map((r) => r.slice(9)),
+      ),
     ),
   ];
-  // A variable holding a secret counts where it is used, as the reference it holds.
-  const secretVars = flowSecretVars(graph);
-  const nodes = graph.nodes.map((n) => withSecretVars(n, secretVars));
-  for (const node of nodes) {
+  const keyed = (list: { name: string; value: string }[]) =>
+    list.map((e) => ({ ...e, value: secretKeyText(e.value, vars, secretVars) }));
+  for (const node of graph.nodes) {
     if (node.kind === "notify") {
       const d = notifyDestination(store, node);
       sends.push({
@@ -93,14 +98,14 @@ export function flowOutward(store: Store, graph: FlowGraph, folder = "", place =
     if (node.kind === "sql" && node.mode === "write") writes.push({ node: node.id, database: node.database });
   }
   const keys = [
-    ...nodes.flatMap((n) =>
+    ...graph.nodes.flatMap((n) =>
       n.kind === "notify"
         ? [`send:${n.channel}:${n.to.kind === "room" ? `room:${n.to.room}` : `contact:${n.to.person}`}`]
         : n.kind === "http"
           ? // Which secrets go to which address is part of what the owner allows.
             [`call:${n.method}:${n.url}`, ...secretsOf(n).map((s) => `secret:${s}:${n.url}`)]
           : n.kind === "cmd"
-            ? [`cmd:${digest([place, n.command, n.env, n.stdin, n.continueOnError])}`]
+            ? [`cmd:${digest([place, n.command, keyed(n.env), n.stdin, n.continueOnError])}`]
             : n.kind === "sql" && n.mode === "write"
               ? [`write:${digest([place, n.database, n.query, n.params])}`]
               : [],
@@ -121,8 +126,9 @@ export function flowOutwardIssues(
   const folder = graph.nodes.some((n) => n.kind === "cmd" || n.kind === "sql")
     ? flowFolder(store, outside?.home, project)
     : undefined;
+  const vars = flowVarIndex(graph);
   const secretVars = flowSecretVars(graph);
-  for (const node of graph.nodes.map((n) => withSecretVars(n, secretVars))) {
+  for (const node of graph.nodes) {
     if ((node.kind === "cmd" || node.kind === "sql") && !folder)
       add("folder_unavailable", node.id, "The project's folder is not on this computer");
     else if (node.kind === "sql" && folder && !flowDatabaseFile(folder, outside?.home, node))
@@ -138,7 +144,7 @@ export function flowOutwardIssues(
         const literal = e.value.replace(SECRET_REF, "");
         if (redactedJson({ v: literal }) !== JSON.stringify({ v: literal }))
           add("credential_literal", node.id, "Keep keys in Secrets and use secret://name in a variable");
-        for (const ref of e.value.match(SECRET_REF) ?? [])
+        for (const ref of secretRefs(e.value, vars, secretVars))
           if (!outside?.secret(ref, project)) add("secret_missing", node.id, "A secret it uses is not in Secrets");
       }
     if (node.kind !== "http") continue;
@@ -148,7 +154,7 @@ export function flowOutwardIssues(
       add("credential_literal", node.id, "Keep keys in Secrets and use secret://name in a header");
     for (const h of node.headers) {
       const literal = h.value.replace(SECRET_REF, "");
-      const refs = h.value.match(SECRET_REF) ?? [];
+      const refs = secretRefs(h.value, vars, secretVars);
       if (CREDENTIAL_HEADER.test(h.name) && !refs.length)
         add("credential_literal", node.id, "Keep keys in Secrets and use secret://name in a header");
       else if (redactedJson({ v: literal }) !== JSON.stringify({ v: literal }))

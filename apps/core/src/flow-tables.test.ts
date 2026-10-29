@@ -240,3 +240,100 @@ test("a variable holding a secret is read only in a command's environment; elsew
     await env.cleanup();
   }
 });
+
+const twoVars = (): FlowNode => ({
+  id: "set",
+  kind: "vars",
+  label: "Set",
+  vars: [
+    { name: "token", value: { kind: "literal", value: "secret://acme_key" } },
+    { name: "plain", value: { kind: "literal", value: "p" } },
+  ],
+});
+
+test("a secret variable is swapped once the text is parsed: a placeholder before it never swallows it", async () => {
+  const env = await core();
+  const SECRET = "sk-flow-var-parse-0123456789abcdef";
+  try {
+    await env.client.call("secrets.set", { name: "acme_key", value: SECRET });
+    const p = await project(env, "Acme parse");
+    const step: FlowNode = {
+      ...cmd([
+        { name: "KEY", value: "$trigger.x$vars.token" },
+        { name: "TWO", value: "$vars.plain$vars.token" },
+      ]),
+      command: 'printf "%s|%s" "$KEY" "$TWO"',
+    };
+    const graph = chain(hook, twoVars(), step);
+    await publish(env, "parse-first", p, graph);
+    const { commands } = await env.client.call("flows.outward", { flow: "parse-first", graph });
+    assert.deepEqual(commands[0]?.secrets, ["acme_key"]);
+    assert.equal((await post(env, "parse-first", "e1", { x: "a" })).state, "succeeded");
+    assert.equal(output(env, "parse-first", "e1", "call").stdout, "a[secret]|p[secret]");
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("a secret variable followed by a dot, or read as a field, is still refused where it would leave as text", async () => {
+  const env = await core();
+  try {
+    await publish(env, "dots", await project(env, "Acme dots"), chain(hook, save("keep")));
+    const notify: FlowNode = {
+      id: "tell",
+      kind: "notify",
+      label: "Tell",
+      channel: "telegram",
+      to: { kind: "contact", person: "owner" },
+      text: "Your key is $vars.token.",
+      onlyIfContent: false,
+    };
+    assert.ok((await issuesOf(env, "dots", chain(hook, twoVars(), notify))).includes("secret_var_text"));
+    assert.ok(
+      (await issuesOf(env, "dots", chain(hook, twoVars(), cmd([], "$vars.token.x")))).includes("secret_var_text"),
+    );
+    // In a command's variable it is fine, dot or not after it: the dot is the owner's text.
+    assert.ok(
+      !(await issuesOf(env, "dots", chain(hook, twoVars(), cmd([{ name: "KEY", value: "$vars.token." }])))).includes(
+        "secret_var_text",
+      ),
+    );
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("no step receives a secret variable as its input, and code never sees one among its variables", async () => {
+  const env = await core();
+  try {
+    const p = await project(env, "Acme inputs");
+    const set = { kind: "node" as const, node: "set", path: [] as string[] };
+    const js = (input: typeof set): FlowNode => ({
+      id: "code",
+      kind: "js",
+      label: "Code",
+      code: "return vars;",
+      input,
+      timeoutMs: 2000,
+    });
+    const agent: FlowNode = { id: "ask", kind: "agent", label: "Ask", agent: "roby", prompt: "Go", input: set };
+    const routine: FlowNode = { id: "run", kind: "routine", label: "Run", routine: "digest", input: set };
+    await publish(env, "inputs", p, chain(hook, twoVars(), js({ ...set, path: ["plain"] })));
+    for (const leak of [
+      js({ ...set, path: ["token"] }),
+      agent,
+      routine,
+      save("keep", { value: set }),
+      save("keep", { value: { ...set, path: ["token"] } }),
+    ])
+      assert.ok((await issuesOf(env, "inputs", chain(hook, twoVars(), leak))).includes("secret_var_text"), leak.kind);
+    // The plain variable is fine as an input; code gets the variables without the secret one.
+    assert.equal((await post(env, "inputs", "e1", { go: true })).state, "succeeded");
+    assert.deepEqual(output(env, "inputs", "e1", "code"), { plain: "p" });
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
