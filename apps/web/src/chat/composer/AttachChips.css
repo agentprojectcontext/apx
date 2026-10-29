@@ -52,10 +52,6 @@
   overflow-wrap: anywhere;
   padding-block: 6px;
 }
-.attchip__spin {
-  flex: none;
-  animation: composer-spin 1s linear infinite;
-}
 .attchip.is-audio {
   max-width: 100%;
   height: auto;

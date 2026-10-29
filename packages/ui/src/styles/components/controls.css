@@ -296,6 +296,131 @@
   }
 }
 
+/* ── MediaLoader ───────────────────────────────────────────────────────────── */
+.apx-medialoader {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--apx-fill);
+  color: var(--apx-fg-subtle);
+}
+.apx-medialoader::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--apx-fg) 6%, transparent) 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  animation: apx-sweep 1.8s ease-in-out infinite;
+}
+.apx-medialoader.is-inline {
+  display: inline-grid;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  background: none;
+  color: inherit;
+}
+.apx-medialoader.is-inline::before {
+  content: none;
+}
+.apx-medialoader__icon * {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.apx-medialoader__arc {
+  stroke-dasharray: 28 72;
+  transform-origin: 12px 12px;
+  transform-box: view-box;
+  animation: apx-spin 1.2s linear infinite;
+}
+.apx-medialoader__play {
+  animation: apx-beat 1.2s ease-in-out infinite;
+}
+.apx-medialoader__sun {
+  animation: apx-bob 1.6s ease-in-out infinite;
+}
+.apx-medialoader__hills {
+  stroke-dasharray: 100;
+  animation: apx-draw 1.6s ease-in-out infinite;
+}
+.apx-medialoader__bar {
+  animation: apx-level 1s ease-in-out infinite;
+}
+.apx-medialoader__bar:nth-child(2) {
+  animation-delay: -0.75s;
+}
+.apx-medialoader__bar:nth-child(3) {
+  animation-delay: -0.5s;
+}
+.apx-medialoader__bar:nth-child(4) {
+  animation-delay: -0.25s;
+}
+.apx-medialoader__line {
+  transform-origin: left center;
+  animation: apx-write 1.8s ease-in-out infinite;
+}
+.apx-medialoader__line:nth-child(4) {
+  animation-delay: 0.2s;
+}
+.apx-medialoader__line:nth-child(5) {
+  animation-delay: 0.4s;
+}
+@keyframes apx-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes apx-beat {
+  50% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+}
+@keyframes apx-bob {
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+@keyframes apx-draw {
+  from {
+    stroke-dashoffset: 100;
+  }
+  60%,
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes apx-level {
+  50% {
+    transform: scaleY(0.4);
+  }
+}
+@keyframes apx-write {
+  from {
+    transform: scaleX(0);
+    opacity: 0.3;
+  }
+  50%,
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .apx-medialoader::before,
+  .apx-medialoader__icon * {
+    animation: none;
+  }
+}
+
 /* ── Card ──────────────────────────────────────────────────────────────────── */
 .apx-card {
   border-radius: var(--apx-radius-xl);

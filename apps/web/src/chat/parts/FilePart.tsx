@@ -1,5 +1,5 @@
 import type { Part } from "@apx/protocol";
-import { Icons } from "@apx/ui";
+import { Icons, MediaLoader, mediaKindOf } from "@apx/ui";
 import { Suspense, useState } from "react";
 import { formatBytes } from "../../common/format.ts";
 import { audioEnded } from "../../data/audioEnd.ts";
@@ -56,7 +56,7 @@ export function FilePart({ part }: { part: Extract<Part, { type: "file" }> }) {
         <audio src={src} controls preload="metadata" aria-label={part.name} onEnded={audioEnded} />
       )}
       <button type="button" className="filepart" onClick={() => void open()} disabled={busy} title={part.name}>
-        <Icons.FileText size={14} />
+        {busy ? <MediaLoader inline kind={mediaKindOf(part.mime, part.name)} /> : <Icons.FileText size={14} />}
         <span className="filepart__name">{part.name}</span>
         <span className="filepart__size">{formatBytes(part.bytes)}</span>
       </button>

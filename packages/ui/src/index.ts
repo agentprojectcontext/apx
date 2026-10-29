@@ -70,6 +70,7 @@ export {
   type QuoteRenderer,
 } from "./components/MarkdownView";
 export { MasterDetail, type MasterDetailProps } from "./components/MasterDetail";
+export { type MediaKind, MediaLoader, type MediaLoaderProps, mediaKindOf } from "./components/MediaLoader";
 export { Menu, type MenuEntry, type MenuProps } from "./components/Menu";
 export { Message, type MessageProps } from "./components/Message";
 export { MessageMeta, type MessageMetaProps } from "./components/MessageMeta";

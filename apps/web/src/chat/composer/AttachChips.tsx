@@ -1,4 +1,4 @@
-import { Dialog, IconButton, Icons } from "@apx/ui";
+import { Dialog, IconButton, Icons, MediaLoader, mediaKindOf } from "@apx/ui";
 import { useState } from "react";
 import { useT } from "../../i18n/index.ts";
 import { AudioPart } from "../parts/lazyAudio.tsx";
@@ -6,7 +6,7 @@ import { useMediaUrl } from "../parts/useMediaUrl.ts";
 import type { Chip } from "./useAttachments.ts";
 import "./AttachChips.css";
 
-/** The files waiting to go: a thumbnail or the file's name, a spinner while uploading, the reason when refused. */
+/** The files waiting to go: a thumbnail or the file's name, an icon of its kind that moves while uploading, the reason when refused. */
 export function AttachChips({ chips, onRemove }: { chips: Chip[]; onRemove(key: string): void }) {
   const t = useT();
   return (
@@ -25,6 +25,8 @@ export function AttachChips({ chips, onRemove }: { chips: Chip[]; onRemove(key: 
             <span className="attchip__icon">
               {c.error ? (
                 <Icons.TriangleAlert size={14} />
+              ) : !c.media ? (
+                <MediaLoader inline kind={c.image ? "image" : mediaKindOf(undefined, c.name)} />
               ) : c.image ? (
                 <Icons.Image size={14} />
               ) : (
@@ -37,7 +39,7 @@ export function AttachChips({ chips, onRemove }: { chips: Chip[]; onRemove(key: 
               {c.error ?? c.name}
             </span>
           )}
-          {!c.media && !c.error && <Icons.LoaderCircle size={12} className="attchip__spin" />}
+          {!c.media && !c.error && c.image && c.preview && <MediaLoader inline kind="image" size={12} />}
           <IconButton
             size="sm"
             className="attchip__x"

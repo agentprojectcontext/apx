@@ -25,6 +25,8 @@
 - AgentGrid is new (agents as two-column cards, for a Flow's AI step); TemplateField gained one-line fields and a
   group action ("Save a secret"); minimal dark fields gained a hairline border so they read on any panel. None is in
   the Claude Design project yet.
+- MediaLoader is new (a loading file as a moving icon of its kind: image, video, audio or file); not in the Claude
+  Design project yet.
 - MarkdownView now renders safe pipe tables; its remote preview and bundle need a re-sync.
 - Lint fixes (DECISIONS.md#d-005) changed markup in Avatar, AgentAvatar, Checkbox, Switch, SegmentedControl (now a
   Base UI RadioGroup), DayDivider, VoiceNote and the list keys of ActionGroup/StepList/EntityCard/Menu/Kbd/

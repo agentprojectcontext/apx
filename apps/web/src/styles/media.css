@@ -42,6 +42,25 @@
   max-height: 420px;
   object-fit: contain;
 }
+/* While a picture loads, its loader holds the tile's place; a lone picture has no size of its own until then. */
+.mediagrid .mediagrid__tile.is-loading img {
+  position: absolute;
+  opacity: 0;
+}
+.mediagrid.is-single .mediagrid__tile.is-loading {
+  width: min(320px, 100%);
+  aspect-ratio: 4 / 3;
+}
+.mediagrid__loader {
+  position: absolute;
+  inset: 0;
+}
+.mediagallery__loader {
+  width: min(480px, calc(100vw - 48px));
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--apx-radius-lg);
+}
 .mediagrid__more {
   position: absolute;
   inset: 0;
@@ -108,8 +127,21 @@
   aspect-ratio: 9 / 16;
   max-height: 430px;
   border-radius: var(--apx-radius-lg);
-  background: #000;
   object-fit: contain;
+}
+.mediacarousel__card video {
+  background: #000;
+}
+.mediacarousel__frame {
+  position: relative;
+}
+.mediacarousel__frame .mediacarousel__poster {
+  position: absolute;
+  inset: 0;
+}
+.mediacarousel__frame video:only-child,
+.mediacarousel__frame .mediacarousel__poster:only-child {
+  position: static;
 }
 .mediacarousel__info {
   display: flex;

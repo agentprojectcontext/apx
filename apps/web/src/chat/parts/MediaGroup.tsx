@@ -1,6 +1,6 @@
 // A message's pictures as one grid that opens a viewer to step through them, and its videos as one carousel. Loaded
 // with the first message that has media, so it never weighs on the panel's first script.
-import { ContextMenu, Dialog, IconButton, Icons, Skeleton } from "@apx/ui";
+import { ContextMenu, Dialog, IconButton, Icons, MediaLoader } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { formatBytes } from "../../common/format.ts";
 import { mediaUrl } from "../../data/media.ts";
@@ -99,13 +99,26 @@ function Tile({
   onOpen: () => void;
 }) {
   const src = useImageSrc(part);
+  const [shown, setShown] = useState(false);
   const items = useImageMenu(src, nameOf(part), !part.media_id, onOpen);
-  const cls = `mediagrid__tile${wide ? " is-wide" : ""}`;
-  if (!src) return <Skeleton className={cls} />;
+  const cls = `mediagrid__tile${wide ? " is-wide" : ""}${shown ? "" : " is-loading"}`;
+  if (!src)
+    return (
+      <span className={cls}>
+        <MediaLoader kind="image" />
+      </span>
+    );
   return (
     <ContextMenu items={items} render={<button type="button" className={cls} onClick={onOpen} title={nameOf(part)} />}>
       {/* A single tile needs the image's intrinsic size; lazy loading can leave its box at zero. */}
-      <img src={src} alt={part.type === "image" ? part.alt : part.name} loading={single ? "eager" : "lazy"} />
+      <img
+        src={src}
+        alt={part.type === "image" ? part.alt : part.name}
+        loading={single ? "eager" : "lazy"}
+        onLoad={() => setShown(true)}
+        onError={() => setShown(true)}
+      />
+      {!shown && <MediaLoader kind="image" className="mediagrid__loader" />}
       {more > 0 && <span className="mediagrid__more">+{more}</span>}
     </ContextMenu>
   );
@@ -155,7 +168,7 @@ function Gallery({ parts, start, onClose }: { parts: ImageLike[]; start: number;
 function GalleryImage({ part }: { part: ImageLike }) {
   const src = useImageSrc(part);
   const items = useImageMenu(src, nameOf(part), !part.media_id);
-  if (!src) return <Skeleton />;
+  if (!src) return <MediaLoader kind="image" className="mediagallery__loader" />;
   return (
     <ContextMenu items={items} render={<span className="mediagallery__image" />}>
       <img src={src} alt={part.type === "image" ? part.alt : part.name} />
@@ -242,6 +255,7 @@ function VideoCard({ part, root }: { part: VideoPart; root: React.RefObject<HTML
     return () => seen.disconnect();
   }, [near, root]);
   const src = useMediaUrl(near ? part.media_id : undefined);
+  const [ready, setReady] = useState(false);
   const save = async () => {
     const a = document.createElement("a");
     a.href = await mediaUrl(part.media_id);
@@ -250,12 +264,20 @@ function VideoCard({ part, root }: { part: VideoPart; root: React.RefObject<HTML
   };
   return (
     <div ref={card} className="mediacarousel__card">
-      {src ? (
-        // biome-ignore lint/a11y/useMediaCaption: project videos are shared as supplied, without a separate caption track.
-        <video src={src} controls preload="metadata" aria-label={part.name} />
-      ) : (
-        <Skeleton className="mediacarousel__poster" />
-      )}
+      <div className="mediacarousel__frame">
+        {src && (
+          // biome-ignore lint/a11y/useMediaCaption: project videos are shared as supplied, without a separate caption track.
+          <video
+            src={src}
+            controls
+            preload="metadata"
+            aria-label={part.name}
+            onLoadedData={() => setReady(true)}
+            onError={() => setReady(true)}
+          />
+        )}
+        {!ready && <MediaLoader kind="video" className="mediacarousel__poster" />}
+      </div>
       <div className="mediacarousel__info">
         <span className="mediacarousel__name" title={part.name}>
           {part.name}
