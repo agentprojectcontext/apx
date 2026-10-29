@@ -1,5 +1,5 @@
-// Save to table and Read table around the project's tables: a save names a new table and a key from what arrived, a
-// read later in the drawing is offered that table and gets the row back. On the way, a variable holds a secret picked
+// Save to table and Read table around the project's tables: a save makes a new table on the spot and takes a key from
+// what arrived, a read later in the drawing is offered that table and gets the row back. On the way, a variable holds a secret picked
 // from the list (a badge), the AI step shows the crew as cards, and every field of the side panel stands apart from
 // what is behind it. FLOW_SHOTS=<folder> saves screenshots: dark and light, desktop and phone width.
 import fs from "node:fs";
@@ -22,6 +22,7 @@ const L = {
     table: "Table",
     newTable: "New table",
     newName: "Name of the new table",
+    create: "Add",
     key: "Key",
     value: "Value",
     varName: "Name",
@@ -48,6 +49,7 @@ const L = {
     table: "Tabla",
     newTable: "Tabla nueva",
     newName: "Nombre de la tabla nueva",
+    create: "Sumar",
     key: "Clave",
     value: "Valor",
     varName: "Nombre",
@@ -139,17 +141,19 @@ for (const lang of ["en", "es"] as const) {
     await editor.getByRole("textbox", { name: l.name }).fill(name);
     await editor.getByRole("button", { name: l.add(l.hook) }).click();
 
-    // The save names a table that does not exist yet; its key comes from what arrived.
+    // The save makes a table right there, empty; its key comes from what arrived.
     await editor.getByRole("button", { name: l.add(l.save) }).click();
     await editor.getByRole("combobox", { name: l.table }).click();
     await page.getByRole("option", { name: l.newTable }).click();
     await editor.getByRole("textbox", { name: l.newName }).fill("Leads Web");
     await expect(editor.getByRole("textbox", { name: l.newName })).toHaveValue("leads_web");
+    await editor.getByRole("button", { name: l.create, exact: true }).click();
+    await expect(editor.getByRole("combobox", { name: l.table })).toContainText("leads_web");
     await editor.getByRole("textbox", { name: l.key }).fill("$trigger.email");
     await expect(side.locator(".fe-row-preview code")).toHaveText("$trigger.email");
     await shot(page, `table-save-${lang}`);
 
-    // A read after it is offered that table before it has any row, and reads the key back.
+    // A read after it picks that table, still empty, and reads the key back.
     await editor.getByRole("button", { name: l.add(l.read) }).click();
     await expect(editor.getByRole("combobox", { name: l.table })).toContainText("leads_web");
     const key = editor.getByRole("textbox", { name: l.key });
@@ -218,7 +222,7 @@ for (const lang of ["en", "es"] as const) {
       .toEqual(["succeeded"]);
     const run = await rpc<Result<"flows.run_get">>("flows.run_get", { flow, event: `lead-${lang}` });
     expect(JSON.parse(run.steps.find((s) => s.node === "table_read-1")?.output ?? "null").row).toEqual(lead);
-    const { tables } = await rpc<Result<"flows.tables">>("flows.tables", { project });
+    const { tables } = await rpc<Result<"tables.list">>("tables.list", { project });
     expect(tables.map((t) => [t.name, t.rows])).toEqual([["leads_web", 1]]);
 
     // The editor now lists the table with its rows.

@@ -17,6 +17,7 @@ export type TemplateFieldKind =
   | "env"
   | "stdin"
   | "key"
+  | "column"
   | "varText"
   | "formula";
 /**
@@ -81,8 +82,14 @@ function knownFields(graph: FlowGraph): string[] {
   const add = (b: FlowBinding) => b.kind === "event" && b.path.length > 0 && paths.add(dotted(b.path));
   for (const n of graph.nodes) {
     if ("input" in n && typeof n.input === "object") add(n.input);
-    if (n.kind === "table_write") add(n.value);
-    for (const text of n.kind === "table_write" ? [n.key] : n.kind === "table_read" ? n.keys : [])
+    if (n.kind === "table_write" && n.value) add(n.value);
+    const texts =
+      n.kind === "table_write"
+        ? [n.key, ...(n.columns ?? []).map((c) => c.value)]
+        : n.kind === "table_read"
+          ? n.keys
+          : [];
+    for (const text of texts)
       for (const m of text.matchAll(/\$trigger((?:\.[A-Za-z0-9_-]+)+)/g)) if (m[1]) paths.add(m[1].slice(1));
   }
   return [...paths].sort();
@@ -99,6 +106,8 @@ export function valueGroups(
   kindName: (kind: FlowNode["kind"]) => string,
   /** What the secrets group offers to do: save one, so the owner never meets an empty list. */
   secretAction?: TemplateGroup["action"],
+  /** A project table's columns: a read's later steps are offered each one (DECISIONS.md#d-176). */
+  columnsOf: (table: string) => readonly string[] = () => [],
 ): TemplateGroup[] {
   const webhook = graph.nodes.some((x) => x.kind === "webhook");
   const before = earlier(graph, n.id);
@@ -123,14 +132,20 @@ export function valueGroups(
       label: t("flow.v.steps"),
       values: before
         .filter((s) => s.kind !== "vars")
-        .map((s) => ({
-          insert: ["$steps", s.id, ...(s.kind === "http" ? ["json"] : (RESULT[s.kind] ?? []))].join("."),
-          label: s.label,
-          hint:
-            (s.kind === "table_read" || s.kind === "table_write") && s.table
-              ? `${kindName(s.kind)} · ${s.table}`
-              : kindName(s.kind),
-        })),
+        .flatMap((s) => [
+          {
+            insert: ["$steps", s.id, ...(s.kind === "http" ? ["json"] : (RESULT[s.kind] ?? []))].join("."),
+            label: s.label,
+            hint:
+              (s.kind === "table_read" || s.kind === "table_write") && s.table
+                ? `${kindName(s.kind)} · ${s.table}`
+                : kindName(s.kind),
+          },
+          // A read's columns, each its first row's value.
+          ...(s.kind === "table_read" && s.table
+            ? columnsOf(s.table).map((c) => ({ insert: `$steps.${s.id}.${c}`, label: c, hint: s.label }))
+            : []),
+        ]),
     },
     {
       label: t("flow.v.vars"),

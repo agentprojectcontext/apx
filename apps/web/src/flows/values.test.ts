@@ -127,3 +127,32 @@ test("a read after a save on a table is offered that table; typed names become t
   assert.equal(tableName("Leads de Señal 2"), "leads_de_senal_2");
   assert.equal(tableName("  __x"), "x");
 });
+
+test("a read's columns are offered to the steps after it, each as $steps.<read>.<column>", () => {
+  const read = {
+    id: "read",
+    kind: "table_read" as const,
+    label: "Read leads",
+    table: "leads",
+    keys: ["$trigger.email"],
+  };
+  const g: FlowGraph = {
+    schemaVersion: 2,
+    nodes: [hook, read, newNode("notify", "tell", "Tell")],
+    edges: [
+      { source: "start", target: "read" },
+      { source: "read", target: "tell" },
+    ],
+    layout: [],
+  };
+  const columns = (table: string) => (table === "leads" ? ["name", "email"] : []);
+  const tell = g.nodes.find((n) => n.id === "tell") ?? hook;
+  const offered = valueGroups(g, tell, "message", [], t, (k) => k, undefined, columns).flatMap((x) =>
+    x.values.map((v) => v.insert),
+  );
+  assert.ok(offered.includes("$steps.read.rows"));
+  assert.ok(offered.includes("$steps.read.name"));
+  assert.ok(offered.includes("$steps.read.email"));
+  // A column's value never offers a secret: it is saved as text in the table.
+  assert.ok(!SECRET_FIELDS.has("column"));
+});

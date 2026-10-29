@@ -44,10 +44,12 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   // Webhook → save → AI model, each added after the last one.
   await named.getByRole("button", { name: "Sumar Webhook entrante" }).click();
   await named.getByRole("button", { name: "Sumar Guardar en la tabla" }).click();
-  // The save names one of the project's tables; a new one is created with its first row.
+  // The save names one of the project's tables; a new one is made right there, empty.
   await named.getByRole("combobox", { name: "Tabla", exact: true }).click();
   await page.getByRole("option", { name: "Tabla nueva" }).click();
   await named.getByRole("textbox", { name: "Nombre de la tabla nueva" }).fill("inbox");
+  await named.getByRole("button", { name: "Sumar", exact: true }).click();
+  await expect(named.getByRole("combobox", { name: "Tabla", exact: true })).toContainText("inbox");
   await named.getByRole("textbox", { name: "Clave", exact: true }).fill("latest");
   await named.getByRole("button", { name: "Sumar Modelo IA" }).click();
 

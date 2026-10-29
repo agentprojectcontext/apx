@@ -61,8 +61,8 @@ types open from **Add a step** and the card is a sheet at the bottom:
 | Check | Tries its cases in order and goes on by the first that holds, else by its last way out. A case is a field of what arrived *is* a value (`form.tier` is `A`) or a **formula** (`$trigger.amount > 100 && $vars.vip`). One case reads as **Yes** and **No**; with more, each case has its own dot, named, plus **Otherwise**. No model. |
 | Variables | Names values once for the steps after it: text, a number, yes or no, or a formula over `$trigger`, `$steps` and the variables above. Later steps read them as `$vars.name`. A value can hold a secret picked from your list (`secret://name`): it is used only in an outgoing webhook's headers and a command's variables, and a flow that puts it in a message, a body or an instruction can't be saved to run. No model. |
 | JavaScript | A short function body that gets `input` (what arrived or an earlier step's result) and `vars`, and returns what the next steps read as `$steps.<step>`. It runs apart, with a time limit, and can't open files, use the internet or run programs. No model. |
-| Read table | Picks one of the project's tables (it shows how many rows each has) and reads one key, like `$trigger.email`, or its latest rows. Later steps read `$steps.<step>.row` or `.rows`. A read after a save is offered that save's table first. No model. |
-| Save to table | Picks one of the project's tables, or a new one you name there (it is created with its first row), and keeps what arrived, a field of it or an earlier step's result under a key. The key can come from what arrived (`$trigger.email`); saving under the same key again replaces that row. No model. |
+| Read table | Picks any of the project's tables (it shows how many rows each has), or makes a new one there, and reads one key, like `$trigger.email`, or its latest rows. Later steps read each column as `$steps.<step>.<column>` (the row's, or the newest row's), and the whole row or rows as `.row` and `.rows`. An empty table reads nothing. No model. |
+| Save to table | Picks any of the project's tables, or makes a new one there, and fills it **By column** (what goes in each column, from what arrived or an earlier step) or saves one **Whole value**. **New column** adds a column on the spot. The key can come from what arrived (`$trigger.email`); saving under the same key again changes only the columns it fills. No model. |
 | SQL | One statement on a SQLite file in the project's folder (`data/app.db`). Values go in apart from the query, as `:name` with a line `name: $trigger.email`, never inside it. **Read only** reads rows (`$steps.<step>.rows`, at most 500); off, it can add, change and delete rows and add tables or indexes. No model. |
 | AI model | Gives a task to an agent of the crew or to a bot of this flow, with what arrived or an earlier step's result, on the harness and model you pick (see below). Spends tokens. |
 | Routine | Runs a manual routine of the project. |
@@ -161,6 +161,19 @@ not sent later. An outgoing webhook only calls addresses on the internet: an add
 a private network is refused, also when a name points there, and redirects are not followed. Its answer is kept up to
 256 KB read (16 KB of text), files are only said, and a secret it used never shows in the run, only `secret://name`.
 
+### Tables
+
+A project's tables keep what your flows save, a row per key and a value per column. Switch the Flows screen to
+**Tables** to see them: pick a table for its columns and rows, **Add row**, click a row's key to change or delete it,
+add a column with **New column**, and rename or delete a table or a column from its menu. A table made here, or by
+your super-agent, is there for any flow to read: Read and Save list every table of the project and can make a new one
+or a new column without leaving the step.
+
+Ask your super-agent in any chat ("add this lead to the leads table", "what's in the orders table?") and it reads or
+fills a table without a flow. If the chat had a message from someone else or a web page in it, it asks you before it
+changes a table; renaming or deleting a table or a column always asks. A flow whose table or column was renamed or
+deleted stops taking events, and its editor says which step lost it: pick the table again and save.
+
 ### Ask your super-agent for a flow
 
 Ask in any chat ("when a lead arrives on the site, save it and tell me on Telegram") and your super-agent draws the
@@ -186,7 +199,9 @@ Send JSON such as `{"id":"order-42","data":{"status":"paid"}}` to `POST /flows/<
 token. Keep the same event ID on retries. Empty, duplicate or nonmatching events do not call a model; matching work
 uses the saved binding, not an identity or command chosen by the payload. Tables and event history persist across
 restarts. A linked agent run can still fail, and external effects are not guaranteed exactly once. The panel shows
-the last 50 runs at a time (**Show older runs** pages back) and up to 20 rows of the table; the private `flows.rows` and `flows.events` protocol methods provide paginated inspection.
+the last 50 runs at a time (**Show older runs** pages back) and up to 20 rows of the table, with a link to the whole
+table in **Tables**; the private `tables.get`, `flows.rows` and `flows.events` protocol methods provide paginated
+inspection.
 
 Rotation invalidates the previous token immediately. If deleting its stored secret fails, a non-authorizing cleanup
 reference survives for retry at core startup or the next rotation; the newly activated credential is still returned.

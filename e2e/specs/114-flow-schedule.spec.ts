@@ -10,6 +10,7 @@ const L = {
     table: "Table",
     newTable: "New table",
     newName: "Name of the new table",
+    create: "Add",
     hourly: "Every hour",
     key: "Key",
     save: "Save",
@@ -32,6 +33,7 @@ const L = {
     table: "Tabla",
     newTable: "Tabla nueva",
     newName: "Nombre de la tabla nueva",
+    create: "Sumar",
     hourly: "Cada hora",
     key: "Clave",
     save: "Guardar",
@@ -71,6 +73,8 @@ for (const lang of ["en", "es"] as const) {
     await editor.getByRole("combobox", { name: l.table, exact: true }).click();
     await page.getByRole("option", { name: l.newTable }).click();
     await editor.getByRole("textbox", { name: l.newName }).fill("ticks");
+    await editor.getByRole("button", { name: l.create, exact: true }).click();
+    await expect(editor.getByRole("combobox", { name: l.table, exact: true })).toContainText("ticks");
     await editor.getByRole("textbox", { name: l.key, exact: true }).fill("tick");
     await editor.getByRole("button", { name: l.save, exact: true }).click();
     await expect(editor.getByRole("status")).toHaveText(l.saved);
@@ -93,7 +97,7 @@ for (const lang of ["en", "es"] as const) {
     await expect(page.locator(".fd__runline")).toContainText(l.byYou);
     const [run] = (await rpc<Result<"flows.events">>("flows.events", { flow })).events;
     expect(run).toMatchObject({ source: "owner", state: "succeeded", scheduled_at: null });
-    const { rows } = await rpc<Result<"flows.rows">>("flows.rows", { flow, table: "ticks" });
+    const { rows } = await rpc<Result<"tables.get">>("tables.get", { project, table: "ticks" });
     expect(rows.map((r) => [r.key, r.value])).toEqual([["tick", {}]]);
   });
 

@@ -12,7 +12,7 @@ import { useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
 import { describeIssue, issueText, shownGraph, useKnown } from "./data.ts";
 import { type Cover, FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
-import { connectNodes, insertBefore, moveNode, newNode, removeCase, removeNode } from "./graph-edit.ts";
+import { connectNodes, moveNode, newNode, removeCase, removeNode } from "./graph-edit.ts";
 import { Inspector, StepList } from "./Inspector.tsx";
 import { stepDetail } from "./look.tsx";
 import { approveOutward } from "./outward.tsx";
@@ -234,13 +234,6 @@ export function FlowEditor({
     setSelected(node.id);
     centre(node.id);
     setPalette(false);
-  };
-  const saveBefore = (id: string) => {
-    let i = 1;
-    while (g.nodes.some((n) => n.id === `table_write-${i}`)) i++;
-    const node = newNode("table_write", `table_write-${i}`, t(STEP.table_write.label));
-    change(insertBefore(g, id, node));
-    setSelected(node.id);
   };
   const look = useCallback(
     (n: FlowNode): StepLook => {
@@ -518,7 +511,6 @@ export function FlowEditor({
                   })
                 }
                 removeCase={(check, id) => change(removeCase(g, check, id))}
-                saveBefore={saveBefore}
                 unlink={(source, target) =>
                   change({ ...g, edges: g.edges.filter((e) => !(e.source === source && e.target === target)) })
                 }

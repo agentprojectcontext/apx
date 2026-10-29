@@ -7,6 +7,7 @@ import {
   IconButton,
   Icons,
   RunBars,
+  SegmentedControl,
   Select,
   Skeleton,
   Switch,
@@ -18,7 +19,7 @@ import { notify } from "../data/notices.ts";
 import { loadRoutines, useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { usePack, useT } from "../i18n/index.ts";
-import { FlowDetail, FlowEditor } from "../lazy.ts";
+import { FlowDetail, FlowEditor, TablesView } from "../lazy.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { agentOf, issueText, loadFlows, loadRuns, type Published, type Schedules, setEnabled } from "./data.ts";
 import { OutwardConfirm } from "./outward.tsx";
@@ -33,6 +34,8 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
   const ready = usePack("flow");
   const flowId = useNav((s) => s.flowId);
   const flowEdit = useNav((s) => s.flowEdit);
+  const tables = useNav((s) => s.flowTables);
+  const table = useNav((s) => s.flowTable);
   const [data, setData] = useState<Awaited<ReturnType<typeof loadFlows>>>();
   const [failed, setFailed] = useState(false);
   // A new flow's editor, before it has an id to link to.
@@ -90,6 +93,8 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
           timeZone={data?.timeZone ?? "UTC"}
           failed={failed}
           projectId={projectId}
+          tables={tables}
+          table={table}
           revision={revision}
           retry={refresh}
           onOpen={(id) => show(id)}
@@ -131,6 +136,9 @@ function FlowList(props: {
   timeZone: string;
   failed: boolean;
   projectId: string | undefined;
+  /** The project's tables instead of its Flows, with one open. */
+  tables: boolean;
+  table: string | undefined;
   revision: number;
   retry: () => void;
   onOpen: (id: string) => void;
@@ -156,21 +164,36 @@ function FlowList(props: {
         <header className="flows__head">
           <div className="flows__intro">
             <h1 className="flows__title">{t("flow.title")}</h1>
-            <p className="flows__lead">{t("flow.lead")}</p>
+            <p className="flows__lead">{t(props.tables ? "flow.tables.lead" : "flow.lead")}</p>
           </div>
           <div className="flows__tools">
+            <SegmentedControl
+              label={t("flow.tab.label")}
+              value={props.tables ? "tables" : "flows"}
+              onValueChange={(v) => (v === "tables" ? go.tables(projectId) : go.flows(projectId))}
+              options={[
+                { value: "flows", label: t("flow.tab.flows") },
+                { value: "tables", label: t("flow.tab.tables") },
+              ]}
+            />
             <Select
               label={t("flow.projectFilter")}
               value={projectId ?? ""}
-              onValueChange={(v) => go.flows(v || undefined)}
+              onValueChange={(v) => (props.tables ? go.tables(v || undefined) : go.flows(v || undefined))}
               options={options}
             />
-            <Button leadingIcon={<Icons.Plus size={14} />} onClick={() => props.onNew(STARTERS.blank)}>
-              {t("flow.new")}
-            </Button>
+            {!props.tables && (
+              <Button leadingIcon={<Icons.Plus size={14} />} onClick={() => props.onNew(STARTERS.blank)}>
+                {t("flow.new")}
+              </Button>
+            )}
           </div>
         </header>
-        {props.failed ? (
+        {props.tables ? (
+          <Suspense fallback={<Skeleton width="100%" height={160} />}>
+            <TablesView projectId={projectId} table={props.table} />
+          </Suspense>
+        ) : props.failed ? (
           <EmptyState
             variant="dashed"
             icon={<Icons.TriangleAlert />}
