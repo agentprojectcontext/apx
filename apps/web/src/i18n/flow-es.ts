@@ -132,6 +132,8 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.ed.steps": "Pasos",
   "flow.ed.stepsHint": "Elegí uno para editarlo.",
   "flow.ed.noSteps": "Sin pasos todavía.",
+  "flow.ed.stepSettings": "Ajustes del paso",
+  "flow.ed.addStep": "Sumar un paso",
   "flow.ed.stepName": "Nombre del paso",
   "flow.ed.delete": "Borrar paso",
   "flow.ed.next": "Sigue con",

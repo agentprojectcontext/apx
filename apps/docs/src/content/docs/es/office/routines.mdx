@@ -52,7 +52,9 @@ pueden usar `apx:flows`, `apx:flows/<project-id>`, `apx:flows/<project-id>/<flow
 `apx:flows/<project-id>/<flow-id>/edit`.
 
 **Nuevo flow** abre el editor, en blanco o desde una forma de arranque. Sumá pasos desde la izquierda (se unen después
-del paso elegido), arrastrá desde el punto de salida de un paso para unir dos pasos y configurá cada uno a la derecha:
+del paso elegido), arrastrá desde el punto de salida de un paso para unir dos pasos y tocá un paso para configurarlo en
+la tarjeta que se abre sobre el lienzo (el paso se centra sin cambiar el zoom; el lienzo, × o Escape la cierran). En el
+teléfono los tipos de paso se abren desde **Sumar un paso** y la tarjeta es una hoja abajo:
 
 | Paso | Qué hace |
 |---|---|
@@ -102,7 +104,7 @@ La ronda muestra quién respondió, en qué harness y modelo, y **Abrir chat** a
 
 Un flow tiene un solo disparador. Un flow corre como está dibujado: los pasos pueden abrirse en caminos y volver a
 juntarse, y cada paso puede recibir lo que llegó o el resultado de un paso anterior. En **Sigue con** elegís por cuál
-salida de una condición sale cada conexión; un paso que sumás después de una condición toma su primera salida libre. El panel dice *Corre así como está* o por qué todavía no puede correr (un agente fuera del proyecto, un modelo
+salida de una condición sale cada conexión; un paso que sumás después de una condición toma su primera salida libre. La lista de pasos, debajo de los tipos de paso, dice *Corre así como está* o por qué todavía no puede correr (un agente fuera del proyecto, un modelo
 sin configurar, dos pasos que guardan en la misma clave sin orden entre ellos, un horario más seguido que cada 5
 minutos), también en un flow nuevo antes de guardarlo por primera vez.
 

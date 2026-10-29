@@ -135,7 +135,7 @@ for (const lang of ["en", "es"] as const) {
     await open(page, `#view=flows&scope=${project}`);
     await page.getByRole("button", { name: l.newFlow }).first().click();
     const editor = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: l.add(l.hook) }) });
-    const side = editor.locator(".fe-side");
+    const side = editor.locator(".fe-card");
     await editor.getByRole("textbox", { name: l.name }).fill(name);
     await editor.getByRole("button", { name: l.add(l.hook) }).click();
 

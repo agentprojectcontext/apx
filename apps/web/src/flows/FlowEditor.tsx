@@ -2,17 +2,18 @@ import type { Result } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
 import { flowCases } from "@apx/protocol/flow-cases";
 import { shapeOfGraph } from "@apx/protocol/flow-shape";
-import { Button, Dialog, FlowStepTile, Icons, Input, Popover, Select, Textarea } from "@apx/ui";
+import { Button, Dialog, FlowStepTile, IconButton, Icons, Input, Popover, Select, Textarea } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Drawer } from "../common/Drawer.tsx";
 import { client } from "../data/client.ts";
 import { useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
 import { describeIssue, issueText, shownGraph, useKnown } from "./data.ts";
-import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
+import { type Cover, FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { connectNodes, insertBefore, moveNode, newNode, removeCase, removeNode } from "./graph-edit.ts";
-import { Inspector } from "./Inspector.tsx";
+import { Inspector, StepList } from "./Inspector.tsx";
 import { stepDetail } from "./look.tsx";
 import { approveOutward } from "./outward.tsx";
 import { STARTERS, type Starter, starterGraph } from "./starters.ts";
@@ -97,7 +98,11 @@ const tidy = (g: FlowGraph, t: ReturnType<typeof useT>): FlowGraph => ({
   }),
 });
 
-/** The full-screen editor: step types at the left, the canvas, and the chosen step's settings at the right. */
+/** What the step card covers: its column at the right, or the bottom sheet on a phone (as in side-panel.css). */
+const cover: Cover = (w, h) =>
+  w <= 640 ? { right: 0, bottom: h * 0.6 } : { right: Math.min(400, w - 24) + 12, bottom: 0 };
+
+/** The full-screen editor: step types at the left, the canvas, and the chosen step's settings in a card over it. */
 export function FlowEditor({
   flow,
   starter,
@@ -128,6 +133,11 @@ export function FlowEditor({
   // Why the drawing can't run, as the core checked it: null when it can, undefined before a check.
   const [problem, setProblem] = useState<string | null>();
   const [selected, setSelected] = useState<string | null>(null);
+  // A step to pan to the middle of the canvas, asked again each time.
+  const [focus, setFocus] = useState<{ id: string; seq: number } | null>(null);
+  const centre = useCallback((id: string) => setFocus((f) => ({ id, seq: (f?.seq ?? 0) + 1 })), []);
+  // On a phone the step types sit behind a button.
+  const [palette, setPalette] = useState(false);
   const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [trial, setTrial] = useState<Map<string, TryStep> | null>(null);
@@ -222,6 +232,7 @@ export function FlowEditor({
     if (table) next = { ...next, nodes: next.nodes.map((n) => (n.id === node.id ? { ...n, table } : n)) };
     change(next);
     setSelected(node.id);
+    setPalette(false);
   };
   const saveBefore = (id: string) => {
     let i = 1;
@@ -273,7 +284,10 @@ export function FlowEditor({
         text:
           missing ?? t("flow.ed.complete", { step: incomplete?.label || t(STEP[incomplete?.kind ?? "webhook"].label) }),
       });
-      if (incomplete) setSelected(incomplete.id);
+      if (incomplete) {
+        setSelected(incomplete.id);
+        centre(incomplete.id);
+      }
       return;
     }
     const clean = tidy(g, t);
@@ -397,7 +411,7 @@ export function FlowEditor({
         </Button>
       </header>
       <div className="fe-body">
-        <nav className="fe-pal" aria-label={t("flow.ed.palette")}>
+        <nav className={palette ? "fe-pal is-open" : "fe-pal"} aria-label={t("flow.ed.palette")}>
           {PALETTE.map((group) => (
             <div key={group.group} className="fe-pal__group">
               <span className="fe-pal__label">{t(group.group)}</span>
@@ -424,6 +438,15 @@ export function FlowEditor({
               })}
             </div>
           ))}
+          <StepList
+            graph={g}
+            problem={problem}
+            select={(id) => {
+              setSelected(id);
+              centre(id);
+              setPalette(false);
+            }}
+          />
           <p className="fe-pal__hint">{t("flow.ed.paletteHint")}</p>
         </nav>
         <div className="fe-canvas">
@@ -440,6 +463,7 @@ export function FlowEditor({
               minimap={g.nodes.length > 0}
               // A step added or removed is fitted into view with the rest, never left past the edge.
               fitKey={`${flow?.id ?? "new"}:${g.nodes.length}`}
+              focus={{ request: focus, cover, onClick: centre }}
             />
           )}
           {graph && !g.nodes.length && (
@@ -449,35 +473,58 @@ export function FlowEditor({
               <span>{t("flow.ed.blankBody")}</span>
             </div>
           )}
+          <Button
+            variant="secondary"
+            size="sm"
+            className="fe-pal-toggle"
+            leadingIcon={palette ? <Icons.X size={14} /> : <Icons.Plus size={14} />}
+            aria-expanded={palette}
+            onClick={() => setPalette((o) => !o)}
+          >
+            {t(palette ? "common.close" : "flow.ed.addStep")}
+          </Button>
+          {sel && (
+            <Drawer
+              inset
+              className="fe-card"
+              label={t("flow.ed.stepSettings")}
+              title={sel.label || t(STEP[sel.kind].label)}
+              onClose={() => setSelected(null)}
+              actions={
+                <IconButton
+                  size="sm"
+                  label={t("flow.ed.delete")}
+                  icon={<Icons.Trash2 size={14} />}
+                  onClick={() => {
+                    change(removeNode(g, sel.id));
+                    setSelected(null);
+                  }}
+                />
+              }
+            >
+              <Inspector
+                graph={g}
+                selected={sel}
+                flowId={flow?.id}
+                projectId={projectId}
+                agents={agents}
+                routines={routines}
+                update={(n) => change({ ...g, nodes: g.nodes.map((x) => (x.id === n.id ? n : x)) })}
+                branch={(source, target, when) =>
+                  change({
+                    ...g,
+                    edges: g.edges.map((e) => (e.source === source && e.target === target ? { ...e, when } : e)),
+                  })
+                }
+                removeCase={(check, id) => change(removeCase(g, check, id))}
+                saveBefore={saveBefore}
+                unlink={(source, target) =>
+                  change({ ...g, edges: g.edges.filter((e) => !(e.source === source && e.target === target)) })
+                }
+              />
+            </Drawer>
+          )}
         </div>
-        <aside className="fe-side">
-          <Inspector
-            graph={g}
-            selected={sel}
-            flowId={flow?.id}
-            projectId={projectId}
-            agents={agents}
-            routines={routines}
-            problem={problem}
-            update={(n) => change({ ...g, nodes: g.nodes.map((x) => (x.id === n.id ? n : x)) })}
-            remove={(id) => {
-              change(removeNode(g, id));
-              setSelected(null);
-            }}
-            select={setSelected}
-            branch={(source, target, when) =>
-              change({
-                ...g,
-                edges: g.edges.map((e) => (e.source === source && e.target === target ? { ...e, when } : e)),
-              })
-            }
-            removeCase={(check, id) => change(removeCase(g, check, id))}
-            saveBefore={saveBefore}
-            unlink={(source, target) =>
-              change({ ...g, edges: g.edges.filter((e) => !(e.source === source && e.target === target)) })
-            }
-          />
-        </aside>
       </div>
       <Dialog
         open={leaving}

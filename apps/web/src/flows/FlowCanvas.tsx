@@ -92,20 +92,58 @@ function StepNode({ data, selected }: NodeProps<Node<StepData>>) {
 const nodeTypes = { step: StepNode };
 
 /**
- * Fits the view once the steps have sizes, and again when `fitKey` changes. On a phone the whole chain would be
- * too small to read: it shows the first steps and the rest is a pan away.
+ * Fits the view once the steps have sizes, and again when `fitKey` changes, leaving out what a card covers. On a
+ * phone the whole chain would be too small to read: it shows the first steps and the rest is a pan away.
  */
-function FitOnce({ fitKey, first }: { fitKey: string; first: string[] }) {
+function FitOnce({ fitKey, first, cover }: { fitKey: string; first: string[]; cover: Cover | undefined }) {
   const { fitView } = useReactFlow();
   const ready = useNodesInitialized();
   const narrow = useStore((s) => s.width > 0 && s.width < 600);
+  const width = useStore((s) => s.width);
+  const height = useStore((s) => s.height);
   const done = useRef<string | null>(null);
   useEffect(() => {
     if (ready && done.current !== fitKey) {
       done.current = fitKey;
-      void fitView({ maxZoom: 1, padding: 0.2, ...(narrow ? { nodes: first.map((id) => ({ id })) } : {}) });
+      const c = cover?.(width, height);
+      const padding = c
+        ? {
+            top: 0.2,
+            left: 0.2,
+            right: `${c.right + 24}px` as const,
+            bottom: c.bottom ? (`${c.bottom + 24}px` as const) : 0.2,
+          }
+        : 0.2;
+      void fitView({ maxZoom: 1, padding, ...(narrow ? { nodes: first.map((id) => ({ id })) } : {}) });
     }
-  }, [ready, fitKey, fitView, narrow, first]);
+  }, [ready, fitKey, fitView, narrow, first, cover, width, height]);
+  return null;
+}
+
+/** The part of the canvas a card covers, so a step is centred in what stays visible. */
+export type Cover = (width: number, height: number) => { right: number; bottom: number };
+
+/** Pans, at the same zoom, so the asked step sits in the middle of the canvas left uncovered. */
+function Focus({ request, cover }: { request: { id: string; seq: number } | null; cover: Cover }) {
+  const { getInternalNode, getViewport, setViewport } = useReactFlow();
+  const width = useStore((s) => s.width);
+  const height = useStore((s) => s.height);
+  const size = useRef({ width, height });
+  size.current = { width, height };
+  useEffect(() => {
+    const node = request && getInternalNode(request.id);
+    if (!node) return;
+    const { width: w, height: h } = size.current;
+    const { right, bottom } = cover(w, h);
+    const { zoom } = getViewport();
+    const x = node.internals.positionAbsolute.x + (node.measured.width ?? 0) / 2;
+    const y = node.internals.positionAbsolute.y + (node.measured.height ?? 0) / 2;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    void setViewport(
+      { x: (w - right) / 2 - x * zoom, y: (h - bottom) / 2 - y * zoom, zoom },
+      { duration: still ? 0 : 250 },
+    );
+  }, [request, cover, getInternalNode, getViewport, setViewport]);
   return null;
 }
 
@@ -145,10 +183,12 @@ type Props = {
   minimap?: boolean;
   /** Changing it fits the view again (another run, another flow). */
   fitKey: string;
+  /** Clicking a step, or a new request, pans it to the middle of what `cover` leaves visible. */
+  focus?: { request: { id: string; seq: number } | null; cover: Cover; onClick: (id: string) => void };
   children?: ReactNode;
 };
 
-export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fitKey, children }: Props) {
+export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fitKey, focus, children }: Props) {
   const t = useT();
   const initial = useMemo<Node<StepData>[]>(
     () =>
@@ -212,7 +252,10 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fit
         edges={edges}
         nodeTypes={nodeTypes}
         onNodesChange={changeNodes}
-        onNodeClick={(_, n) => onSelect(n.id)}
+        onNodeClick={(_, n) => {
+          onSelect(n.id);
+          focus?.onClick(n.id);
+        }}
         onPaneClick={() => onSelect(null)}
         onNodeDragStop={(_, n) => edit?.move(n.id, Math.round(n.position.x), Math.round(n.position.y))}
         onConnect={(c: Connection) =>
@@ -237,7 +280,12 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fit
           "minimap.ariaLabel": t("flow.canvas"),
         }}
       >
-        <FitOnce fitKey={fitKey} first={graph.nodes.slice(0, 2).map((n) => n.id)} />
+        <FitOnce
+          fitKey={fitKey}
+          first={graph.nodes.slice(0, 2).map((n) => n.id)}
+          cover={focus && selected ? focus.cover : undefined}
+        />
+        {focus && <Focus request={focus.request} cover={focus.cover} />}
         <Background variant={BackgroundVariant.Dots} gap={18} size={1} className="fc-grid" />
         {minimap && (
           <MiniMap
