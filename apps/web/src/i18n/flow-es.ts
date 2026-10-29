@@ -517,7 +517,8 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.ai.delegateHint": "Puede pasarle trabajo a tus otros agentes o escribirles. Apagado, trabaja solo.",
   "flow.ai.noteAgent":
     "Trabaja con las instrucciones, la memoria y las herramientas del agente. Este paso gasta tokens.",
-  "flow.ai.noteBot": "Arranca de cero en cada ronda, con la web, archivos y comandos, sin tus chats ni cuentas. Este paso gasta tokens.",
+  "flow.ai.noteBot":
+    "Arranca de cero en cada ronda, con la web, archivos y comandos, sin tus chats ni cuentas. Este paso gasta tokens.",
   "flow.ai.noteCli":
     "Corre en la carpeta del proyecto con las herramientas y la configuración de esa app. Este paso gasta tokens.",
   "flow.ai.answered": "Respondió {who} en {harness} · {model}",
