@@ -186,7 +186,8 @@ A message, a room and a person are written into the step's text with placeholder
 arrived, `$steps.<step>.text` the answer of a step before it, `$vars.name` a variable, `$apx.project`, `$apx.now` and
 `$apx.run` the project's name, the date and time and the run's number, and `$$` is a dollar sign. You don't need to
 know them: in any field that takes values, type `{{` or `$`, or press the **{}** button, and pick from what arrived,
-earlier steps, the flow's variables and APX's values; what you picked shows as a badge. **Secrets** are offered only in
+earlier steps, the flow's variables and APX's values; what you picked shows as a badge. **What it receives** works the
+same way: empty is everything that arrived, or pick one field of it or an earlier step's result. **Secrets** are offered only in
 an outgoing webhook's headers and a command's variables, where the step reads them itself; a message, a body or an AI
 instruction never gets one. What arrived only fills the words: who gets the message is the person or room you picked, never one the
 data names.

@@ -380,7 +380,11 @@ definition) and says **Previous version** when it is not the current one. Notify
 from the owner's own lists. Every template field (message, headers, body, SQL values, command variables and input) is a
 `TemplateField` (`packages/ui`): `{{`, `$`, `secret://` or its button offer the values `apps/web/src/flows/values.ts`
 lists for that field, and placeholders read as badges. Secrets are offered only where the core resolves them
-(`SECRET_FIELDS`: headers and command variables). The top bar keeps the name at the left (past the window-controls
+(`SECRET_FIELDS`: headers and command variables). What a step receives (the `input` binding of JavaScript, AI model,
+direct model and routine steps, `InputPicker.tsx`) is the same `{}` field kept as a binding (`bindingOfTemplate`):
+empty is everything that arrived, one placeholder its value, other text a literal; it offers no `$apx.*`, which a
+binding can't hold. Instructions, code, SQL, commands and the outgoing URL stay plain text by design: values reach them
+as data, parameters or variables, never inside their text. The top bar keeps the name at the left (past the window-controls
 inset) and **Exit** at the right, through the same unsaved-changes guard. The project drives the side panel: the AI
 step's crew is an `AgentGrid` of the project's agents plus the super-agent, the read and save steps list
 `tables.list`, and steps that need a project say so until one is chosen. A variable's value and every key take a

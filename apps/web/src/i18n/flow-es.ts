@@ -276,12 +276,8 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.kind.llmBody": "Le pregunta una vez a un modelo, sin herramientas",
   "flow.f.saveWhat": "Qué guardar",
   "flow.f.receives": "Qué recibe",
+  "flow.f.receivesHint": "Vacío para todo lo que llegó. Elegí un campo o el resultado de un paso anterior con {}.",
   "flow.f.model": "Modelo",
-  "flow.f.fromEvent": "Lo que llegó",
-  "flow.f.fromStep": "El resultado de «{step}»",
-  "flow.f.part": "Campo",
-  "flow.f.partHint": "Vacío para todo, o con puntos: form.tier",
-  "flow.f.partAll": "Todo",
   "flow.ed.tryHintTimed":
     "Una ronda por horario arranca sin datos. No se guarda, no se manda nada ni se le pasa a un agente.",
   "flow.ed.tryWould": "Llegaría a: {steps}.",

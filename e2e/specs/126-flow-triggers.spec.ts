@@ -126,3 +126,51 @@ test("a schedule is set by days and times, switched to a webhook in place, which
   const rows = await rpc<Result<"tables.get">>("tables.get", { project, table: "visits", limit: 5 });
   expect(rows.rows[0]?.value).toEqual({ store: "north" });
 });
+
+test("what a step receives is picked with {} like every other value: a field of what arrived or an earlier step", async ({
+  page,
+}) => {
+  await rpc("setup.finish", {});
+  const project = (await rpc<{ project: { id: string } }>("projects.create", { name: "Acme receives" })).project.id;
+  const made = await rpc<Result<"flows.create">>("flows.create", {
+    project,
+    name: "Lead tiers",
+    graph: {
+      schemaVersion: 2,
+      nodes: [
+        { id: "start", kind: "webhook", label: "New lead" },
+        {
+          id: "tier",
+          kind: "js",
+          label: "Tier",
+          code: "return input;",
+          input: { kind: "event", path: [] },
+          timeoutMs: 2000,
+        },
+      ],
+      edges: [{ source: "start", target: "tier" }],
+      layout: [
+        { node: "start", x: 0, y: 0 },
+        { node: "tier", x: 280, y: 0 },
+      ],
+    },
+  });
+  await page.addInitScript(() => localStorage.setItem("apx.prefs", JSON.stringify({ language: "en" })));
+  await open(page, `#view=flows&scope=${project}&flow=${made.flow.id}&edit=1`);
+  const editor = page.locator(".fe");
+  await editor.locator('.react-flow__node[data-id="tier"]').click();
+  const card = editor.locator(".fe-card");
+  const receives = card.getByRole("textbox", { name: "What it receives" });
+  // Empty is everything that arrived; the picker offers it, and a field typed after it narrows it.
+  await card.getByRole("button", { name: "Insert a value" }).first().click();
+  await page.getByRole("option", { name: /Everything that arrived/ }).click();
+  await expect(card.locator(".apx-tfield").first()).toContainText("$trigger");
+  await receives.fill("$trigger.form.tier");
+  await shot(page, "receives-picker", receives);
+  await editor.getByRole("button", { name: "Save draft" }).click();
+  await expect(editor.getByRole("status")).toContainText("Draft saved");
+  const doc = await docOf(made.flow.id);
+  expect(doc.draft?.nodes.find((n) => n.id === "tier")).toMatchObject({
+    input: { kind: "event", path: ["form", "tier"] },
+  });
+});

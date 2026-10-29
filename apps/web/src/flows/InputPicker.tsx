@@ -1,68 +1,41 @@
-// What a step receives: what arrived, all of it or one field, or the result of a step before it.
-import { Field, Input, Select } from "@apx/ui";
+// What a step receives: one `{}` field, like every other value of a step (DECISIONS.md#d-180): everything that arrived,
+// a field of it, an earlier step's result or a variable, picked or typed; empty is everything that arrived.
+import { Field } from "@apx/ui";
 import { useT } from "../i18n/index.ts";
-import { dotted, type FlowBinding, type FlowGraph, type FlowNode } from "./steps.tsx";
-import { earlier, RESULT } from "./values.ts";
+import type { FlowBinding, FlowGraph } from "./steps.tsx";
+import { Template, type Values } from "./Template.tsx";
+import { bindingOfTemplate, templateOfBinding } from "./values.ts";
 
-/** What a step receives: what arrived (all of it or one field), or the result of a step before it. */
+/** What a step receives, kept as the binding its `{}` field stands for. */
 export function InputPicker({
   label,
   graph,
-  n,
+  values,
   value,
   onChange,
 }: {
   label: string;
   graph: FlowGraph;
-  n: FlowNode;
+  values: Values;
   value: FlowBinding;
   onChange: (b: FlowBinding) => void;
 }) {
   const t = useT();
-  const before = earlier(graph, n.id);
-  const from = value.kind === "node" ? value.node : "event";
   return (
-    <>
-      <Field label={label}>
-        {() => (
-          <Select
-            label={label}
-            value={from}
-            onValueChange={(v) => {
-              const step = before.find((x) => x.id === v);
-              onChange(
-                step ? { kind: "node", node: step.id, path: RESULT[step.kind] ?? [] } : { kind: "event", path: [] },
-              );
-            }}
-            options={[
-              { value: "event", label: t("flow.f.fromEvent") },
-              ...before.map((x) => ({ value: x.id, label: t("flow.f.fromStep", { step: x.label }) })),
-            ]}
-          />
-        )}
-      </Field>
-      {value.kind === "event" && (
-        <Field label={t("flow.f.part")} hint={t("flow.f.partHint")}>
-          {(id) => (
-            <Input
-              id={id}
-              value={dotted(value.path)}
-              className="fe-mono"
-              placeholder={t("flow.f.partAll")}
-              onChange={(e) =>
-                onChange({
-                  kind: "event",
-                  path: e.target.value
-                    .split(".")
-                    .map((x) => x.trim())
-                    .filter(Boolean)
-                    .slice(0, 16),
-                })
-              }
-            />
-          )}
-        </Field>
+    <Field label={label} hint={t("flow.f.receivesHint")}>
+      {(id) => (
+        <Template
+          id={id}
+          field="whole"
+          values={values}
+          singleLine
+          spellCheck={false}
+          maxLength={8000}
+          value={templateOfBinding(value, graph)}
+          placeholder="$trigger"
+          onValueChange={(v) => onChange(bindingOfTemplate(v, graph))}
+        />
       )}
-    </>
+    </Field>
   );
 }

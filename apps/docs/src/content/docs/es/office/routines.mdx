@@ -198,7 +198,8 @@ El texto de un paso lleva valores de la ronda: `$trigger.email` es un campo de l
 respuesta de un paso anterior, `$vars.nombre` una variable, `$apx.project`, `$apx.now` y `$apx.run` el nombre del
 proyecto, la fecha y hora y el número de ronda, y `$$` es un signo de pesos. No hace falta saberlos: en cualquier campo
 que acepta valores, escribí `{{` o `$`, o tocá el botón **{}**, y elegí entre lo que llegó, los pasos anteriores, las
-variables del flow y los valores de APX; lo que elegiste se ve como una insignia. Los **Secretos** se ofrecen solo en los
+variables del flow y los valores de APX; lo que elegiste se ve como una insignia. **Qué recibe** funciona igual: vacío
+es todo lo que llegó, o elegí un campo o el resultado de un paso anterior. Los **Secretos** se ofrecen solo en los
 headers de un webhook saliente y en las variables de un comando, donde el paso los lee por su cuenta; un mensaje, un
 body o una instrucción de IA nunca reciben uno. Lo que
 llega solo llena las palabras: quién recibe el mensaje es la persona o sala que elegiste, nunca una que nombren los datos.

@@ -205,7 +205,7 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode; values: 
           <InputPicker
             label={t("flow.f.receives")}
             graph={props.graph}
-            n={n}
+            values={props.values}
             value={n.input}
             onChange={(input) => update({ ...n, input })}
           />
@@ -249,7 +249,7 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode; values: 
               <InputPicker
                 label={t("flow.f.receives")}
                 graph={props.graph}
-                n={n}
+                values={props.values}
                 value={n.input}
                 onChange={(input) => update({ ...n, input })}
               />
@@ -279,7 +279,7 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode; values: 
           <InputPicker
             label={t("flow.f.receives")}
             graph={props.graph}
-            n={n}
+            values={props.values}
             value={n.input}
             onChange={(input) => update({ ...n, input })}
           />
@@ -295,7 +295,9 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode; values: 
   }
 }
 
-function ModelFields(props: Parameters<typeof Inspector>[0] & { n: Extract<FlowNode, { kind: "llm" }> }) {
+function ModelFields(
+  props: Parameters<typeof Inspector>[0] & { n: Extract<FlowNode, { kind: "llm" }>; values: Values },
+) {
   const t = useT();
   const { n, update } = props;
   const catalog = useModels((s) => s.catalog);
@@ -333,7 +335,7 @@ function ModelFields(props: Parameters<typeof Inspector>[0] & { n: Extract<FlowN
       <InputPicker
         label={t("flow.f.receives")}
         graph={props.graph}
-        n={n}
+        values={props.values}
         value={n.input}
         onChange={(input) => update({ ...n, input })}
       />
