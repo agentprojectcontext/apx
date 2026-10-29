@@ -2,6 +2,7 @@ import { createElement as h, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ActionGroup,
+  AgentGrid,
   ApxProvider,
   BrowserTabs,
   Checkbox,
@@ -15,6 +16,7 @@ import {
   SuggestTextarea,
   Switch,
   TagInput,
+  TemplateField,
 } from "../dist/index.js";
 import { LifecycleFixture } from "./lifecycle.test-support.ts";
 
@@ -35,6 +37,8 @@ function Fixture() {
   const [busy, setBusy] = useState(false);
   const [checked, setChecked] = useState(false);
   const [on, setOn] = useState(false);
+  const [agent, setAgent] = useState<string | null>("a8");
+  const [key, setKey] = useState("");
   return h(
     ApxProvider,
     {},
@@ -141,6 +145,30 @@ function Fixture() {
         h("input", { "aria-label": "Project name", defaultValue: "Acme" }),
       ),
       h(LifecycleFixture),
+      h(AgentGrid, {
+        label: "Agent",
+        value: agent,
+        onValueChange: setAgent,
+        agents: Array.from({ length: 8 }, (_, i) => ({ id: `a${i + 1}`, name: `Agent ${i + 1}`, role: "Helper" })),
+      }),
+      h("output", { "data-testid": "agent" }, agent),
+      h(TemplateField, {
+        "aria-label": "Row key",
+        singleLine: true,
+        value: key,
+        onValueChange: setKey,
+        pattern: /\$trigger(\.[\w-]+)*|secret:\/\/[\w.~/-]+/g,
+        pickLabel: "Insert a value",
+        groups: [
+          { label: "What arrived", values: [{ insert: "$trigger.email", label: "email" }] },
+          {
+            label: "Secrets",
+            values: [],
+            action: { label: "Save a secret", when: "secret://", onSelect: () => record("save secret") },
+          },
+        ],
+      }),
+      h("output", { "data-testid": "key" }, JSON.stringify(key)),
       h(ActionGroup, {
         title: "Worked",
         failed: 1,

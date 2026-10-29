@@ -137,6 +137,8 @@
   --apx-fill: #272726;
   --apx-fill-hover: #2e2e2c;
   --apx-fill-strong: #353533;
+  /* A field reads as a field on any panel or row in the dark: its fill alone is too close to the surface. */
+  --apx-input-border: rgb(255 255 255 / 0.07);
   /* A hovered row inside a menu or popup: the plain fill barely shows on a raised surface in the dark. */
   --apx-popup-hover: var(--apx-fill-strong);
   --apx-fg: #ededeb;
