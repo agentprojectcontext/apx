@@ -58,8 +58,144 @@
 .fe-top__spacer {
   flex: 1;
 }
-.fe-top__draft-short {
+/* A crowded bar gives the name's width first, so what a save said stays readable. */
+.fe-top .fe-top__name {
+  flex-shrink: 4;
+  min-width: 120px;
+}
+@media (max-width: 1200px) {
+  .fe-top__test-text {
+    display: none;
+  }
+  .fe-top__test-short {
+    display: inline;
+  }
+}
+.fe-top__draft-short,
+.fe-top__test-short {
   display: none;
+}
+/* A test with a real event (TestMode.tsx): what it does under the top bar, its log under the canvas. */
+.fe-test {
+  flex: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--apx-border);
+  background: var(--apx-info-soft);
+  color: var(--apx-info-soft-fg);
+  font-size: 13px;
+}
+.fe-test.is-done {
+  background: var(--apx-surface);
+  color: var(--apx-fg);
+}
+.fe-test__to,
+.fe-test__left {
+  color: var(--apx-fg-muted);
+}
+.fe-test__url {
+  min-width: 0;
+  padding: 2px 8px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-surface);
+  color: var(--apx-fg);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.fe-test__spacer {
+  flex: 1;
+}
+.fe-main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.fe-log {
+  position: relative;
+  flex: none;
+  height: var(--fe-log, 240px);
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--apx-border);
+  background: var(--apx-bg);
+}
+.fe-log.is-folded {
+  height: auto;
+}
+.fe-log__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 12px;
+  border-bottom: 1px solid var(--apx-border);
+  background: var(--apx-surface);
+  font-size: 13px;
+}
+.fe-log > .rlog {
+  flex: 1;
+}
+.fe-path {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+  font: inherit;
+  cursor: pointer;
+}
+.fe-path:hover,
+.fe-path:focus-visible {
+  outline: 1px solid var(--apx-brand);
+}
+.fe-pathedit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fe-pathedit__error {
+  color: var(--apx-danger);
+  font-size: 12px;
+}
+.fe-pathedit__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.fe-tstep {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.fe-tstep__io {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fe-tstep__io pre {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.fe-tstep__io pre.is-failed {
+  color: var(--apx-danger);
 }
 .fe-body {
   flex: 1;
@@ -139,6 +275,7 @@
   position: relative;
   flex: 1;
   min-width: 0;
+  min-height: 0;
 }
 .fe-blank {
   position: absolute;
@@ -430,11 +567,37 @@
   .fe-top__spacer,
   .fe-top__status,
   .fe-top__ask-text,
-  .fe-top__draft-text {
+  .fe-top__draft-text,
+  .fe-top__test-text {
     display: none;
   }
-  .fe-top__draft-short {
+  .fe-top__draft-short,
+  .fe-top__test-short {
     display: inline;
+  }
+  /* The log is a sheet over the bottom of the canvas; the step card stays above it. */
+  .fe-log {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 6;
+    height: min(var(--fe-log, 240px), 55%);
+    border-radius: 14px 14px 0 0;
+    box-shadow: var(--apx-shadow-md);
+  }
+  .fe-log > .apx-resize {
+    display: none;
+  }
+  /* One sheet at a time: a step's card covers the log until it closes. */
+  .fe-main:has(.fe-card) .fe-log {
+    display: none;
+  }
+  .fe-top__try-text {
+    display: none;
+  }
+  .fe-test__to {
+    display: none;
   }
   /* The name, Ask and Exit share the first line; trying, saving a draft and saving the second. */
   .fe-top .fe-top__name,

@@ -8,7 +8,7 @@ for (const lang of ["en", "es"] as const) {
     await rpc("setup.finish");
     const project = (await rpc<{ project: { id: string } }>("projects.create", { name: `Flow ${lang}` })).project.id;
     const flow = `run-${lang}-${project}`;
-    await rpc("flows.set", {
+    const saved = await rpc<Result<"flows.set">>("flows.set", {
       id: flow,
       projectId: project,
       name: `Northwind ${lang}`,
@@ -91,7 +91,9 @@ for (const lang of ["en", "es"] as const) {
     expect(doc.published?.edges).toContainEqual({ source: "condition-1", target: "table_write-2", when: "no" });
     await editor.getByRole("button", { name: l.close }).click();
     // Two events through the public address: one takes «Yes», the other «No». Neither calls a model.
-    const credential = await rpc<Result<"public_routes.rotate">>("public_routes.rotate", { path: `/flows/${flow}` });
+    const credential = await rpc<Result<"public_routes.rotate">>("public_routes.rotate", {
+      path: `/flows/${saved.path}`,
+    });
     const { value: token } = await rpc<Result<"secrets.reveal">>("secrets.reveal", {
       name: credential.secret_ref.slice(9),
     });
@@ -100,7 +102,7 @@ for (const lang of ["en", "es"] as const) {
       ["one", { type: "order", item: "Lamp" }],
       ["two", { type: "refund", item: "Chair" }],
     ] as const) {
-      const response = await fetch(`http://127.0.0.1:${port}/flows/${flow}`, {
+      const response = await fetch(`http://127.0.0.1:${port}/flows/${saved.path}`, {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
         body: JSON.stringify({ id, data }),

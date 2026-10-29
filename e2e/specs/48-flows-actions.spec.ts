@@ -15,7 +15,7 @@ test("a routine step that couldn't start is retried from the run, and its chat o
   };
   const routine = await rpc<Result<"routines.set">>("routines.set", routineDraft);
   const flow = "ui_routine_action";
-  await rpc("flows.set", {
+  const defined = await rpc<Result<"flows.set">>("flows.set", {
     id: flow,
     projectId: project.id,
     name: "Acme routine action",
@@ -31,13 +31,15 @@ test("a routine step that couldn't start is retried from the run, and its chat o
     enabled: false,
     schedule: { kind: "every", minutes: 1440 },
   });
-  const credential = await rpc<Result<"public_routes.rotate">>("public_routes.rotate", { path: `/flows/${flow}` });
+  const credential = await rpc<Result<"public_routes.rotate">>("public_routes.rotate", {
+    path: `/flows/${defined.path}`,
+  });
   const { value: token } = await rpc<Result<"secrets.reveal">>("secrets.reveal", {
     name: credential.secret_ref.slice(9),
   });
   const { port } = await rpc<Result<"webhooks.get">>("webhooks.get", {});
   const deliver = async () => {
-    const response = await fetch(`http://127.0.0.1:${port}/flows/${flow}`, {
+    const response = await fetch(`http://127.0.0.1:${port}/flows/${defined.path}`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({

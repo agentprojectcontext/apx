@@ -1,28 +1,18 @@
 import type { Agent, Routine } from "@apx/protocol";
-import { Button, Field, FlowStepTile, IconButton, Icons, Input, SegmentedControl, Select, Textarea } from "@apx/ui";
+import { Field, FlowStepTile, IconButton, Icons, Input, SegmentedControl, Select, Textarea } from "@apx/ui";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { forAgents, useModels } from "../data/models.ts";
-import { notify } from "../data/notices.ts";
 import { listSecrets } from "../data/resources.ts";
 import { useT } from "../i18n/index.ts";
 import { VariableDialog } from "../resources/VariablesTab.tsx";
-import { go } from "../shell/nav.ts";
 import { AiFields, aiNote } from "./AiFields.tsx";
+import { type Address, HookFields } from "./HookFields.tsx";
 import { InputPicker } from "./InputPicker.tsx";
 import { HttpFields, NotifyFields } from "./OutwardFields.tsx";
 import { nextWhen } from "./run-view.ts";
-import {
-  branchesOf,
-  chainOrder,
-  type FlowGraph,
-  type FlowNode,
-  hookPath,
-  presetOf,
-  SCHEDULE_PRESETS,
-  STEP,
-} from "./steps.tsx";
+import { branchesOf, chainOrder, type FlowGraph, type FlowNode, presetOf, SCHEDULE_PRESETS, STEP } from "./steps.tsx";
 import { TableReadFields, TableWriteFields } from "./TableFields.tsx";
 import type { Values } from "./Template.tsx";
 import { useColumns } from "./tables-data.ts";
@@ -115,7 +105,8 @@ export function StepList(props: {
 export function Inspector(props: {
   graph: FlowGraph;
   selected: FlowNode;
-  flowId: string | undefined;
+  /** The Flow's address, for the webhook step. */
+  address: Address;
   projectId: string;
   agents: Agent[];
   routines: Routine[];
@@ -189,7 +180,7 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode; values: 
   if (needs && !props.projectId) return <p className="fe-needs">{t(needs)}</p>;
   switch (n.kind) {
     case "webhook":
-      return <HookFields flowId={props.flowId} />;
+      return <HookFields address={props.address} />;
     case "schedule":
       return <ScheduleFields cron={n.cron} onCron={(cron) => update({ ...n, cron })} />;
     case "condition":
@@ -380,49 +371,6 @@ function ScheduleFields({ cron, onCron }: { cron: string; onCron: (cron: string)
         )}
       </div>
       {next && <p className="fe-note">{t("flow.f.scheduleNote", { zone: next.time_zone })}</p>}
-    </>
-  );
-}
-
-function HookFields({ flowId }: { flowId: string | undefined }) {
-  const t = useT();
-  const [base, setBase] = useState<string | null>();
-  useEffect(() => {
-    let live = true;
-    void client.call("webhooks.get", {}).then(
-      (w) => live && setBase(w.url ?? null),
-      () => live && setBase(null),
-    );
-    return () => {
-      live = false;
-    };
-  }, []);
-  const url = flowId && base ? `${base.replace(/\/$/, "")}${hookPath(flowId)}` : undefined;
-  return (
-    <>
-      <div className="fe-copy">
-        <span className="fe-ins__label">{t("flow.f.url")}</span>
-        {url ? (
-          <div className="fe-copy__box">
-            <code>{url}</code>
-            <IconButton
-              label={t("flow.f.copy")}
-              icon={<Icons.Copy size={14} />}
-              onClick={() =>
-                void navigator.clipboard.writeText(url).then(
-                  () => notify(t("flow.f.copied"), "info"),
-                  () => undefined,
-                )
-              }
-            />
-          </div>
-        ) : (
-          <span className="fe-ins__muted">{t(flowId ? "flow.f.urlNoAddress" : "flow.f.urlLater")}</span>
-        )}
-      </div>
-      <Button variant="link" size="sm" className="fe-link" onClick={() => go.config("devices")}>
-        {t("flow.f.hookNote")}
-      </Button>
     </>
   );
 }

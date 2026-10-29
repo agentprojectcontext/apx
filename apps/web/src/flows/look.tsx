@@ -10,7 +10,8 @@ import { dotted, type FlowNode, hookPath, literal, presetOf } from "./steps.tsx"
 /** The one line under a step's name that tells it apart from others of its kind. */
 export function stepDetail(
   n: FlowNode,
-  flow: string | undefined,
+  /** The Flow's path, for the webhook's address. */
+  path: string | undefined,
   agents: Record<string, Agent>,
   routines: Routine[],
   t?: (key: MessageKey, vars?: Record<string, string | number>) => string,
@@ -18,7 +19,7 @@ export function stepDetail(
 ): { detail?: ReactNode; detailPlain?: boolean } {
   switch (n.kind) {
     case "webhook":
-      return { detail: flow ? `POST ${hookPath(flow)}` : "POST" };
+      return { detail: path ? `POST ${hookPath(path)}` : "POST" };
     case "schedule": {
       const preset = presetOf(n.cron);
       return preset && t ? { detail: t(preset.label), detailPlain: true } : { detail: n.cron };

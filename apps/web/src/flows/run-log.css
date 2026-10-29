@@ -1,0 +1,83 @@
+.rlog {
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 0;
+  background: var(--apx-bg);
+  font-family: var(--apx-font-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+.rlog__entry {
+  padding: 2px 12px;
+}
+.rlog__line {
+  display: grid;
+  grid-template-columns: 64px 14px minmax(0, 1fr);
+  gap: 6px;
+}
+.rlog__at,
+.rlog__mark {
+  color: var(--apx-fg-subtle);
+  white-space: nowrap;
+}
+.rlog__title {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.rlog__entry.is-ok .rlog__mark,
+.rlog__entry.is-ok .rlog__title {
+  color: var(--apx-brand-soft-fg);
+}
+.rlog__entry.is-err .rlog__mark,
+.rlog__entry.is-err .rlog__title {
+  color: var(--apx-danger);
+}
+.rlog__entry.is-live .rlog__mark,
+.rlog__entry.is-live .rlog__title {
+  color: var(--apx-info-soft-fg);
+}
+.rlog__entry.is-muted {
+  color: var(--apx-fg-subtle);
+}
+.rlog__block {
+  margin: 2px 0 6px 84px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rlog__label {
+  color: var(--apx-fg-subtle);
+  font-size: 10.5px;
+}
+.rlog__text {
+  margin: 0;
+  max-height: 14em;
+  overflow: auto;
+  padding: 6px 8px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-fill);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: inherit;
+}
+.rlog__waiting {
+  animation: rlog-pulse 1.6s ease-in-out infinite;
+}
+@keyframes rlog-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rlog__waiting {
+    animation: none;
+  }
+}
+@media (max-width: 640px) {
+  .rlog__line {
+    grid-template-columns: 56px 12px minmax(0, 1fr);
+  }
+  .rlog__block {
+    margin-left: 0;
+  }
+}
