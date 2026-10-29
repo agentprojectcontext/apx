@@ -410,8 +410,12 @@ export const flowGraphMethods = {
         calls: z.array(
           z.object({ node: FlowNodeId, method: z.string(), host: z.string(), secrets: z.array(z.string()) }).strict(),
         ),
-        /** Commands it runs on this computer, in the project's folder. */
-        commands: z.array(z.object({ node: FlowNodeId, command: z.string(), folder: z.string() }).strict()),
+        /** Commands it runs on this computer, in the project's folder; `secrets`: those in its environment. */
+        commands: z.array(
+          z
+            .object({ node: FlowNodeId, command: z.string(), folder: z.string(), secrets: z.array(z.string()) })
+            .strict(),
+        ),
         /** Database files it changes. */
         writes: z.array(z.object({ node: FlowNodeId, database: z.string() }).strict()),
       })

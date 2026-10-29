@@ -118,6 +118,7 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
     store,
     timers,
     home: deps.home,
+    secret: deps.http?.secret,
     track(ac, run) {
       calls.set(ac, runKey(run.flow, run.event));
       return () => calls.delete(ac);
