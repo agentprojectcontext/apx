@@ -63,14 +63,6 @@
   flex-shrink: 4;
   min-width: 120px;
 }
-@media (max-width: 1200px) {
-  .fe-top__test-text {
-    display: none;
-  }
-  .fe-top__test-short {
-    display: inline;
-  }
-}
 .fe-top__draft-short,
 .fe-top__test-short {
   display: none;
@@ -786,4 +778,13 @@
 .fe-ai__model > .apx-formfield {
   flex: 1;
   min-width: 0;
+}
+/* A narrower bar keeps the test button short, so what a save said stays readable. */
+@media (max-width: 1440px) {
+  .fe-top__test-text {
+    display: none;
+  }
+  .fe-top__test-short {
+    display: inline;
+  }
 }
