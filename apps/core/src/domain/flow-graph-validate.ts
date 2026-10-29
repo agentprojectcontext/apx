@@ -14,6 +14,7 @@ import { FlowExprError, type FlowVarIndex, flowExprBindings, parseFlowExpr } fro
 import { flowHttpUrlProblem } from "./flow-http-url.ts";
 import { flowSqlShape, SQL_READS, SQL_WRITES } from "./flow-sql.ts";
 import { flowTemplateBindings, parseFlowTemplate } from "./flow-template.ts";
+import { isCliRef } from "./refs.ts";
 import { flowCronProblem } from "./schedule.ts";
 
 export { FLOW_OTHERWISE, type FlowCase, flowBranches, flowCases };
@@ -101,6 +102,15 @@ export const flowDatabaseProblem = (file: string): string | undefined =>
     : file.split("/").some((s) => s === ".." || s === "")
       ? "The database is a file inside the project, like data/app.db"
       : undefined;
+
+/** An AI model step answers as an agent or as a bot, never both; its mode is the one its harness has. */
+function aiIssues(node: Extract<FlowNode, { kind: "agent" }>, add: Add) {
+  if (Boolean(node.agent) === Boolean(node.bot)) add("ai_source", "Choose an agent or write a bot", node.id);
+  const cli = Boolean(node.model && isCliRef(node.model));
+  if (cli ? node.autonomy || node.delegate : node.write)
+    add("ai_mode", "That permission mode belongs to another harness", node.id);
+  if (node.bot && node.delegate) add("ai_mode", "A bot of the flow hands work to no one", node.id);
+}
 
 /** Checks, variables, code, SQL and commands: what the drawing alone can tell. */
 function workIssues(node: FlowNode, add: Add, vars: FlowVarIndex) {
@@ -238,6 +248,7 @@ export function validateFlowGraph(value: FlowGraph): FlowGraphIssue[] {
   for (const node of graph.nodes) {
     outwardIssues(node, add, vars);
     workIssues(node, add, vars);
+    if (node.kind === "agent") aiIssues(node, add);
   }
   const parents = new Map<string, Set<string>>([...nodes.keys()].map((id) => [id, new Set()]));
   const edges = new Set<string>();

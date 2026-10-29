@@ -40,6 +40,23 @@ const HANDOFF_TOOLS = new Set([
   "read_chat",
 ]);
 
+/**
+ * What a Flow's AI model step leaves out unless it may delegate: handing work to other agents, their sessions and tasks
+ * (a task or its comment wakes its assignee). A bot of the Flow also has no memory and no settings of the super-agent
+ * it speaks through (DECISIONS.md#d-171).
+ */
+const TEAM_TOOLS = new Set([
+  ...SESSION_TOOLS,
+  "list_agents",
+  "grant_tool",
+  "agent_set",
+  "task_create",
+  "task_update",
+  "task_comment",
+  "task_close",
+]);
+const BOT_OUT = new Set([...TEAM_TOOLS, ...MEMORY_TOOLS, "apx_settings"]);
+
 /** The kind of channel a message came on ("telegram"), for how the answer should look; none for the app. */
 export function channelKindOf(store: Store, o: Origin, replyChannel?: string | null) {
   const channel = replyChannel === null ? undefined : (replyChannel ?? (o.kind === "channel" ? o.channel : undefined));
@@ -128,8 +145,11 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
   const replyChannel = turn.input.reply_to === null ? null : turn.input.reply_to?.channel;
   const handoff = ownerOnChannel && HANDOFF_ONLY.has(channelKindOf(deps.store, o, replyChannel) ?? "");
   const only = handoff ? new Set([...HANDOFF_TOOLS].filter((n) => !named || named.has(n))) : named;
+  const step = deps.store.threads.context(turn.thread.id).flow_step;
+  const out = step?.bot ? BOT_OUT : step && !step.delegate ? TEAM_TOOLS : undefined;
   const tools = policy.tools.filter(
     (t) =>
+      !out?.has(t.name) &&
       ((callers.length < MAX_DEPTH && !turn.worker) || !SESSION_TOOLS.has(t.name)) &&
       (!only || only.has(t.name) || (t.name === MCP_SEARCH && only.has(MCP_CALL))),
   );

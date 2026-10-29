@@ -38,11 +38,14 @@ export function createPermissions(o: { store: Store; home: string }) {
   const key = (runId: string, callId: string) => `${runId}\n${callId}`;
 
   /** The agent as it acts in a thread: its own mode, else its project's; a helper in its callers' (DECISIONS.md#d-106). */
-  const agentIn = (agent: AgentRecord, threadId: string): AgentRecord =>
-    actingAs(
-      withProjectAutonomy(store, agent),
+  const agentIn = (agent: AgentRecord, threadId: string): AgentRecord => {
+    // A Flow step's mode is the one the owner picked on it, over the agent's own (DECISIONS.md#d-171).
+    const mode = store.threads.context(threadId).flow_step?.autonomy;
+    return actingAs(
+      mode ? { ...agent, autonomy: mode } : withProjectAutonomy(store, agent),
       callersOf(store, threadId).map((a) => withProjectAutonomy(store, a)),
     );
+  };
 
   /** The thread as the folder rule sees it for an agent as it acts (agentIn): its reach and the folders granted for good. */
   function scope<T extends ThreadOf>(agent: AgentRecord, thread: T): T & FolderThread {

@@ -56,6 +56,7 @@ import {
   agentsMdOf,
   CHAT_CHANNELS,
   COMPUTER_WORKSPACE,
+  flowBotPrompt,
   frameInput,
   HISTORY_BUDGET_CHARS,
   type InputBlock,
@@ -444,8 +445,10 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
   // itself: none of an agent's notes, roster, skills or framing either.
   const direct = Boolean(thread.engine);
   const sealed = turn.audience.kind === "contact" || direct;
-  const remembers = !sealed && memorySettings(store).mode !== "off";
   const ctxState = store.threads.context(thread.id);
+  // A bot of a Flow keeps no memory; a Flow step that may not delegate needs no roster (DECISIONS.md#d-171).
+  const step = ctxState.flow_step;
+  const remembers = !sealed && !step?.bot && memorySettings(store).mode !== "off";
   // A public room's turn reads the room's latest messages instead of a history of its own.
   const room = turn.audience.kind === "contact" ? turn.audience.room : undefined;
   const entries = memoryHistory(store, store.modelLog.list(thread.id), agent.id, thread.project_id);
@@ -467,7 +470,10 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
         : undefined;
   // A worker delegates to no one: it needs no roster.
   const rosterChanged =
-    !sealed && !turn.worker && (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);
+    !sealed &&
+    !turn.worker &&
+    (!step || step.delegate) &&
+    (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);
   const available = sealed
     ? []
     : agentSkills(agent, skillsFor(store, { home: deps.home, apps: deps.skillApps }, thread.project_id));
@@ -677,7 +683,10 @@ function systemFor(
   const projectId = turn.thread.project_id ?? turn.agent.project_id;
   if (turn.worker) {
     const project = projectId ? store.projects.get(projectId) : undefined;
-    const text = workerPrompt(turn.worker, turn.agent, lang, project, skills, scratch, told);
+    const bot = store.threads.context(turn.thread.id).flow_step?.bot;
+    const text = bot
+      ? flowBotPrompt(turn.worker, lang, project, skills, scratch, told)
+      : workerPrompt(turn.worker, turn.agent, lang, project, skills, scratch, told);
     return {
       text,
       parts: systemParts(text, [
