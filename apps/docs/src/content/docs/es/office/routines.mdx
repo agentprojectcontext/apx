@@ -58,8 +58,8 @@ teléfono los tipos de paso se abren desde **Sumar un paso** y la tarjeta es una
 
 | Paso | Qué hace |
 |---|---|
-| Webhook entrante | Arranca el flow cuando un servicio manda un POST. Su tarjeta muestra su dirección desde el principio, y al lado una dirección de prueba (ver [Probar un flow](#probar-un-flow-con-un-evento-real)). |
-| Horario | Arranca el flow a horas fijas: **Cada 5 min**, **Cada hora**, **Hábiles 08:30**, **Diario 03:00** o una expresión cron (minuto, hora, día, mes, día de la semana), en tu zona horaria. El panel lateral muestra las próximas rondas. |
+| Webhook entrante | Arranca el flow cuando un servicio llama a su dirección. Su tarjeta muestra la dirección (producción o prueba, un solo botón para copiar), qué **Acepta** (POST con un cuerpo JSON, GET con los datos como parámetros, o los dos) y su **Clave** (ver [Probar un flow](#probar-un-flow-con-un-evento-real)). |
+| Horario | Arranca el flow a horas fijas en tu zona horaria, sin escribir un cron: una opción rápida (**Cada 5 min**, **Cada hora**, **Hábiles 08:30**, **Diario 03:00**), **Horas fijas** (marcá los días, cada uno con una o más horas, o dale a un grupo de días las mismas horas), **Cada…** (una cantidad de minutos, horas, días o meses, o un día de la semana) o **Cron** a mano. El panel lateral muestra las próximas rondas. |
 | Condición | Prueba sus casos en orden y sigue por el primero que se cumple; si no, por su última salida. Un caso tiene un nombre y **Comparar** o **Fórmula**. **Comparar** tiene una o más comparaciones, cada una un valor elegido con `{}` (lo que llegó, el resultado de un paso anterior como `$steps.normalize.username`, o una variable), leído como **Texto**, **Número** o **Sí o no**, y comparado: *es*, *no es*, *contiene*, *empieza con*, *es mayor* o *menor que*, *es al menos* o *como mucho*, *está vacío*, *no está vacío*. Uní dos o más con **Y** (se cumplen todas) u **O** (se cumple una). **Fórmula** es libre: `$trigger.amount > 100 && $vars.vip`. Con un caso se lee **Sí** y **No**; con más, cada caso tiene su punto, con su nombre, y además **Si no**. Sin modelo. |
 | Variables | Nombra valores una vez para los pasos que siguen: texto, un número, sí o no, o una fórmula sobre `$trigger`, `$steps` y las variables de arriba. Los pasos siguientes los leen como `$vars.nombre`. Un valor puede guardar una clave elegida de tu lista (`secret://nombre`): se usa solo en los headers de un webhook saliente y en las variables de un comando, y un flow que la pone en un mensaje, un cuerpo o una instrucción no se puede guardar para que corra. Sin modelo. |
 | JavaScript | El cuerpo de una función corta que recibe `input` (lo que llegó o el resultado de un paso anterior) y `vars`, y devuelve lo que los pasos siguientes leen como `$steps.<paso>`. Corre aparte, con tiempo máximo, y no puede abrir archivos, usar internet ni correr programas. Sin modelo. |
@@ -81,12 +81,20 @@ hay cambios sin guardar, pregunta antes de salir y ofrece **Guardar borrador** p
 
 La dirección de un flow es `https://<tu dirección pública>/flows/<nombre>`, donde el final sale del nombre del flow
 (`leads-del-formulario`). La tarjeta del paso webhook la muestra desde el primer momento, antes de guardar, con un botón
-para copiarla. Tocá el final de la dirección para cambiarlo; antes de guardar por primera vez, queda cuando guardás.
+para copiarla. **Arranca con** cambia el disparador entre webhook y horario sin volver a dibujar sus conexiones.
+
+Tocá el final de la dirección y escribí el nuevo ahí mismo (Enter lo toma, Esc cancela); antes de guardar por primera
+vez, queda cuando guardás.
 Cambiarlo después hace que la dirección anterior deje de funcionar enseguida (pregunta antes): los servicios que llaman
 al flow necesitan la nueva. Su clave, si tiene, sigue siendo la misma. La dirección solo funciona desde afuera cuando
 configurás una dirección pública en **Dispositivos**.
 
-Al lado está la **dirección de prueba**, `…/flows/test/<nombre>`. Solo responde mientras probás. **Escuchar un evento de
+Quien llama manda la **Clave** del flow en el encabezado `Authorization: Bearer <clave>`; sin ella se rechaza. **Crear
+clave** hace una; podés mostrarla, copiarla, reemplazarla con **Clave nueva** o escribir la tuya con **Usar la mía** (de
+24 a 200 letras, números, puntos, guiones o guiones bajos). Reemplazarla corta la clave anterior en el acto, así que
+pregunta antes.
+
+**Prueba**, al lado de **Producción**, muestra la **dirección de prueba**, `…/flows/test/<nombre>`. Solo responde mientras probás. **Escuchar un evento de
 prueba**, arriba, guarda lo que dibujaste (si falta completar un paso, dice cuál), pregunta **¿Dejás que este flow actúe
 por vos?** cuando el flow mandaría, llamaría, correría o cambiaría algo nuevo, y espera cinco minutos un evento en la
 dirección de prueba. Mandalo desde el servicio, o a mano, como un POST con JSON como `{"id": "1", "data": {"name":
@@ -251,11 +259,13 @@ flow desde otro chat: salí y volvé a abrirlo para verlo.
 El CLI también arranca y detiene rondas: `apx flows run <flow> ['<cuerpo de ejemplo JSON>']` y
 `apx flows stop <flow> <evento>`. Actúan como vos, así que no corren dentro del comando de un agente.
 
-Un Flow pertenece a un proyecto. Encendé un flow con webhook antes de crear su token en
-**Configuración → Dispositivos → Endpoints**. El acceso público se configura por separado y nunca expone el RPC privado
-ni el panel.
+Un Flow pertenece a un proyecto. Su clave se hace en la tarjeta del paso webhook (**Configuración → Dispositivos →
+Endpoints** lista las direcciones de los flows encendidos). El acceso público se configura por separado y nunca expone el
+RPC privado ni el panel.
 
-Enviá JSON como `{"id":"order-42","data":{"status":"paid"}}` a `POST /flows/<id>` con el token bearer de esa ruta.
+Enviá JSON como `{"id":"order-42","data":{"status":"paid"}}` a `POST /flows/<ruta>` con la clave del flow como token
+bearer, o, si su webhook acepta GET, `GET /flows/<ruta>?id=order-42&status=paid` (los parámetros salvo `id` son los
+datos; uno repetido es una lista; sin `id` cada llamada es un evento nuevo).
 Conservá el mismo ID de evento en los reintentos. Los eventos vacíos, duplicados o que no coinciden con los filtros no
 llaman al modelo; el trabajo coincidente usa el vínculo guardado, no una identidad ni un comando elegido por el payload.
 Las tablas y el historial persisten tras reiniciar. Una ejecución vinculada puede fallar y no se garantiza exactamente

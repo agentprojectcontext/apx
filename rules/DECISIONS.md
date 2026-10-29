@@ -3322,3 +3322,36 @@ kind tabs at the case level (a case like "verified is yes and email contains @" 
 comparison has its own), loose comparison (`"9" < "10"` as text), refusing admission for a required column (it would
 stop every run, also those that fill it), storing columns as objects in the catalog (a migration of every table for
 one flag), and case-insensitive text by default (exact is what the formula did; `lower()` in a formula remains).
+
+## D-182 — 2026-10-29 — A Flow's triggers are set without cron or a second screen: days and times, GET, and the key in the card
+
+The owner never wants to type cron, and wants a schedule like "Monday at 04:00, 05:00 and 06:00, Wednesday at 09:15".
+The webhook card showed the address twice with two copy buttons and a line saying who can call it is managed in
+Devices, while the only way to get the key callers need was a separate Devices screen that lists enabled Flows only.
+
+- **Several crons in one field.** Different times on different days can't be one five-field cron. Options were a
+  structured schedule in the protocol (days → times), a list field, or limiting the panel to the same times every day.
+  `cron` keeps its type and may hold up to seven crons joined by `;` (one per group of days with the same times and
+  minute), 400 characters at most: every reader (scheduler beat, `flows.next_runs`, validation, the list's next time)
+  goes through `parseCrons`/`nextCrons`, and a single cron is unchanged, so nothing stored moves (rule 14). The panel
+  writes it from **Fixed times** (days down the card, each with its times, quick groups for Monday to Friday, weekend
+  and every day) and **Every…** (counts cron can repeat evenly: 5–30 minutes, 1–12 hours, days of the month, one
+  weekday, 1–12 months), reads it back, and leaves anything else in **Cron** mode. Seconds aren't possible; five
+  minutes stays the shortest gap, now over all the crons together. Past seven crons the card says so.
+- **GET as well as POST.** A webhook step's `methods` (absent = POST) are what its address answers. A GET's event is
+  its query: `id` names it (a new one when absent: such callers usually have no stable id, so no dedup), the rest is
+  data. To read it, the public listener now passes the query (`HookRequest.query`): percent-encoding is allowed there,
+  never in the path; at most 4 KiB, no fragment. The key still goes only in `Authorization`, as PUBLIC_INGRESS.md
+  says.
+- **The key in the card.** `flows.token` / `flows.token_rotate` (owner-only) read and replace a Flow's key by the Flow,
+  whether it is on or off (`public-credentials.issue`, which `public_routes.rotate` now calls too). The owner may write
+  their own key for a service that sends a fixed one (24–200 URL-safe characters); `verify` accepts that shape as well
+  as APX's. Replacing asks first: services using the old key stop at once.
+- **One trigger, switched in place.** A trigger turns into the other kind under the same id (`switchTrigger`), so its
+  connections stay; a name still the default follows the kind.
+- **Save draft says what is left.** A draft may be unfinished (D-177); saving one now names the first issue, as Save
+  does.
+
+No news entry: these are fields of the editor, not something the super-agent offers to do. Rejected: a structured
+schedule object (a migration for every schedule Flow and a second reader in every place a cron is read), a key in the
+query string (it ends up in logs and proxies), and a GET without a key (an address anyone can trigger).

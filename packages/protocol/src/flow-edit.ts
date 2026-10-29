@@ -6,6 +6,22 @@ import type { FlowBinding, FlowGraph, FlowNode } from "./flow-graph.ts";
 type Condition = Extract<FlowNode, { kind: "condition" }>;
 export type FlowNodeKind = FlowNode["kind"];
 
+/** The HTTP methods a drawing's webhook answers: POST unless it says otherwise; none without a webhook. */
+export function hookMethods(graph: FlowGraph): ("POST" | "GET")[] {
+  const hook = graph.nodes.find((n) => n.kind === "webhook");
+  return hook?.kind === "webhook" ? (hook.methods ?? ["POST"]) : [];
+}
+
+/**
+ * A trigger turned into the other kind under the same id, so its connections stay: a webhook becomes a schedule with
+ * the default times, a schedule a webhook that takes POSTs. Any other step comes back as it is.
+ */
+export function switchTrigger(node: FlowNode, label = node.label): FlowNode {
+  if (node.kind === "webhook") return newNode("schedule", node.id, label);
+  if (node.kind === "schedule") return newNode("webhook", node.id, label);
+  return node;
+}
+
 /** A step of this kind with the values a new one starts from. */
 export function newNode(kind: FlowNodeKind, id: string, label: string): FlowNode {
   const input: FlowBinding = { kind: "event", path: [] };

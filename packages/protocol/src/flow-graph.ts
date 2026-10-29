@@ -33,6 +33,9 @@ export const FlowColumnName = z
   .refine((value) => !["rows", "row", "__proto__", "constructor", "prototype"].includes(value), "a reserved name");
 /** At most this many columns in a table. */
 export const FLOW_TABLE_COLUMNS = 50;
+/** An HTTP method a webhook trigger answers. */
+export const FlowHookMethod = z.enum(["POST", "GET"]);
+export type FlowHookMethod = z.infer<typeof FlowHookMethod>;
 /** A way out of a check: a case's id, or "no" for "otherwise" (a yes/no check is the two-case default). */
 export const FlowBranchId = z.string().regex(/^[A-Za-z0-9_-]{1,40}$/);
 /** A name later steps read as `$vars.name`, or a SQL parameter's `:name`. */
@@ -87,9 +90,24 @@ function stepSchema(fill: Fill) {
     })
     .strict();
   return z.discriminatedUnion("kind", [
-    z.object({ ...Base, kind: z.literal("webhook") }).strict(),
-    /** Five-field cron in the owner's time zone; presets are crons too. */
-    z.object({ ...Base, kind: z.literal("schedule"), cron: fill.text(120, 9) }).strict(),
+    /** The HTTP methods its address answers: POST (a JSON envelope) by default, GET (the query) or both. */
+    z
+      .object({
+        ...Base,
+        kind: z.literal("webhook"),
+        methods: z
+          .array(FlowHookMethod)
+          .min(1)
+          .max(2)
+          .refine((m) => new Set(m).size === m.length, "each method once")
+          .optional(),
+      })
+      .strict(),
+    /**
+     * Five-field crons in the owner's time zone, several joined by `;` when days have different times
+     * (DECISIONS.md#d-182); presets are crons too.
+     */
+    z.object({ ...Base, kind: z.literal("schedule"), cron: fill.text(400, 9) }).strict(),
     /**
      * A switch: the first case that holds picks the way out, else "no" (otherwise). Without `cases` it is the yes/no
      * check drawings had before: one case "yes", `input` equals `equals`.
@@ -459,7 +477,7 @@ export const flowGraphMethods = {
   },
   /** When a cron fires next in the owner's time zone; `error` says why it can't be used. */
   "flows.next_runs": {
-    params: z.object({ cron: z.string().min(1).max(120) }).strict(),
+    params: z.object({ cron: z.string().min(1).max(400) }).strict(),
     result: z
       .object({
         next: z.array(z.string()).max(3),

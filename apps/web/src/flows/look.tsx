@@ -6,7 +6,7 @@ import { blobOf } from "../data/identity.ts";
 import type { MessageKey } from "../i18n/index.ts";
 import { rulesText } from "./compare.ts";
 import { agentOf, type Known, whoOf } from "./data.ts";
-import { dotted, type FlowNode, hookPath, literal, presetOf } from "./steps.tsx";
+import { dotted, type FlowNode, hookPath, hookVerbs, literal, scheduleName } from "./steps.tsx";
 
 /** The one line under a step's name that tells it apart from others of its kind. */
 export function stepDetail(
@@ -20,10 +20,10 @@ export function stepDetail(
 ): { detail?: ReactNode; detailPlain?: boolean } {
   switch (n.kind) {
     case "webhook":
-      return { detail: path ? `POST ${hookPath(path)}` : "POST" };
+      return { detail: path ? `${hookVerbs(n)} ${hookPath(path)}` : hookVerbs(n) };
     case "schedule": {
-      const preset = presetOf(n.cron);
-      return preset && t ? { detail: t(preset.label), detailPlain: true } : { detail: n.cron };
+      const named = t ? scheduleName(n.cron, t) : n.cron;
+      return named !== n.cron ? { detail: named, detailPlain: true } : { detail: n.cron };
     }
     case "condition": {
       const cases = flowCases(n);

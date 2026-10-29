@@ -24,15 +24,17 @@ Forwarded headers do not grant access and are not trusted as client identity. No
 | Resource | Methods | Authentication |
 | --- | --- | --- |
 | `/hooks/<configured-channel-id>` | POST | Only LINE and Teams; the adapter verifies the native signature/JWT before delivering any event |
-| `/flows/<flow-path>` | POST | A separate APX bearer token for that exact endpoint; the registered destination owns payload validation and execution |
-| `/flows/test/<flow-path>` | POST | Only while the owner listens for one test event on that Flow (five minutes, one event); the address's bearer token when it has one |
+| `/flows/<flow-path>` | POST, GET (as its webhook step says) | A separate APX bearer token for that exact endpoint; the registered destination owns payload validation and execution |
+| `/flows/test/<flow-path>` | POST, GET (as the drawing tested says) | Only while the owner listens for one test event on that Flow (five minutes, one event); the address's bearer token when it has one |
 | `/a/<published-share-link>` | GET, HEAD | Explicit publication; a read-only page, never artifact state, stores, secrets or actions |
 | `/_apx/kit@1[.minor[.patch]].js` | GET, HEAD | Static public widget kit only |
 
 Everything else is denied, including arbitrary prefixes, suffixes, private media URLs and RPC. Unknown routes return
 404, wrong methods 405, missing/invalid/revoked tokens 401. No query parameter or cookie supplies a public bearer token.
 Ambiguous request targets (percent encodings, backslashes, dot segments, repeated slashes, absolute URLs and control
-characters) are rejected before URL normalization. Reverse proxies must preserve the request target and enforce equally
+characters in the path; control characters, fragments or more than 4 KiB in the query) are rejected before URL
+normalization. Only a Flow's GET reads the query, decoded with `URLSearchParams` into its event's data
+([D-182](DECISIONS.md#d-182)); every other route ignores it. Reverse proxies must preserve the request target and enforce equally
 strict normalization; a proxy that rewrites an ambiguous request into a different canonical route changes this boundary.
 
 LINE and Teams are deliberate exceptions to APX bearer authentication, not unauthenticated generic webhooks. LINE

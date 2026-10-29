@@ -4,6 +4,7 @@ import { flowHistoryMethods } from "./flow-history.ts";
 import { FLOW_PATH, FLOW_PATH_SAVED } from "./flow-path.ts";
 
 const Id = z.string().regex(/^[A-Za-z0-9_-]{1,100}$/);
+const FlowToken = z.object({ token: z.string().nullable(), rotated_at: z.string().nullable() }).strict();
 const Scalar = z.union([z.string().max(4096), z.number().finite(), z.boolean(), z.null()]);
 export const FlowAction = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("none") }).strict(),
@@ -137,6 +138,31 @@ export const flowMethods = {
   "flows.path_set": {
     params: z.object({ flow: Id, path: z.string().regex(FLOW_PATH) }).strict(),
     result: FlowDefinition,
+    effect: true,
+    access: "human",
+  },
+  /** The key a webhook Flow's callers send as `Authorization: Bearer <key>`; null before it has one. */
+  "flows.token": {
+    params: z.object({ flow: Id }).strict(),
+    result: FlowToken,
+    effect: false,
+    access: "human",
+  },
+  /**
+   * A new key for a webhook Flow's address, made by APX or the owner's own (`token`, 24 to 200 letters, digits, `.`,
+   * `_`, `~` or `-`); the old one stops working at once.
+   */
+  "flows.token_rotate": {
+    params: z
+      .object({
+        flow: Id,
+        token: z
+          .string()
+          .regex(/^[A-Za-z0-9._~-]{24,200}$/)
+          .optional(),
+      })
+      .strict(),
+    result: FlowToken,
     effect: true,
     access: "human",
   },

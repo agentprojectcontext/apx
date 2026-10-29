@@ -25,16 +25,32 @@ export type PublicRoutes = (path: string) => PublicRoute | undefined;
 
 /** Reject ambiguous targets before URL parsing can erase dot segments or decode separators. */
 export function publicPath(target: string): string | undefined {
+  const [pathname = "", query] = splitTarget(target);
   if (
-    !target.startsWith("/") ||
-    target.startsWith("//") ||
-    /[%\\#]/.test(target) ||
+    !pathname.startsWith("/") ||
+    pathname.startsWith("//") ||
+    /[%\\#]/.test(pathname) ||
+    (query !== undefined && !publicQuery(target)) ||
     [...target].some((c) => c.charCodeAt(0) <= 32 || c.charCodeAt(0) === 127)
   )
     return;
-  const pathname = target.split("?")[0];
-  if (!pathname || pathname.includes("//") || pathname.split("/").some((p) => p === "." || p === "..")) return;
+  if (pathname.includes("//") || pathname.split("/").some((p) => p === "." || p === "..")) return;
   return pathname;
+}
+
+/** At most this much query, the part after `?`. */
+export const PUBLIC_QUERY_MAX = 4096;
+
+/** The target's query, percent-encoding allowed; undefined when there is none or it is too long or has a fragment. */
+export function publicQuery(target: string): string | undefined {
+  const query = splitTarget(target)[1];
+  if (query === undefined || query.length > PUBLIC_QUERY_MAX || query.includes("#")) return;
+  return query;
+}
+
+function splitTarget(target: string): [string, string | undefined] {
+  const at = target.indexOf("?");
+  return at < 0 ? [target, undefined] : [target.slice(0, at), target.slice(at + 1)];
 }
 
 export function publicRateLimit(now: () => number = Date.now, maximum = 120, windowMs = 60_000) {
@@ -161,7 +177,10 @@ function handler(o: PublicListenerOptions) {
       if (!body) return rejectUpload(req, res, controller.signal);
       answer(
         res,
-        await route.handle({ method: req.method ?? "", path: pathname ?? "", headers, body }, controller.signal),
+        await route.handle(
+          { method: req.method ?? "", path: pathname ?? "", headers, body, query: publicQuery(req.url ?? "") },
+          controller.signal,
+        ),
       );
     };
     void run()

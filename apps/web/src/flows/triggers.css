@@ -1,0 +1,183 @@
+/* The trigger cards (HookFields, ScheduleFields): fields sit in the card like every other step's, no floating boxes. */
+.trg-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.trg-row .apx-segmented,
+.trg-modes {
+  align-self: flex-start;
+}
+.trg-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+/* The address: a field holding the whole URL, wrapping, whose end is written in place. */
+.trg-url {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.trg-url__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.trg-url__box {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: var(--apx-control-h-md);
+  padding: 6px 4px 6px 12px;
+  border: 1px solid var(--apx-input-border);
+  border-radius: var(--apx-control-radius);
+  background: var(--apx-input-bg);
+  transition:
+    border-color var(--apx-duration),
+    background var(--apx-duration);
+}
+.trg-url__box:focus-within {
+  border-color: var(--apx-border-strong);
+  background: var(--apx-surface);
+}
+.trg-url__box.is-invalid {
+  border-color: var(--apx-danger);
+}
+.trg-url__text {
+  flex: 1;
+  min-width: 0;
+  padding-top: 3px;
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.trg-url__fixed {
+  color: var(--apx-fg-subtle);
+}
+.trg-url__path {
+  color: var(--apx-fg);
+  border-bottom: 1px dashed var(--apx-border-strong);
+  outline: 0;
+  cursor: text;
+}
+.trg-url__path:hover,
+.trg-url__path:focus {
+  border-bottom-color: var(--apx-brand);
+}
+.trg-key {
+  letter-spacing: 0.02em;
+}
+/* Schedule: quick choices, then the days down the card. */
+.trg-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.trg-days {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.trg-groups {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+  padding-bottom: 4px;
+}
+.trg-groups .fe-ins__label {
+  margin-right: 2px;
+}
+.trg-day {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  border-top: 1px solid var(--apx-border);
+}
+.trg-day__name {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  width: 76px;
+  height: var(--apx-control-h-sm);
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: transparent;
+  color: var(--apx-fg-muted);
+  font: inherit;
+  font-size: 13px;
+  text-transform: capitalize;
+  cursor: pointer;
+}
+.trg-day__name:hover {
+  background: var(--apx-fill);
+}
+.trg-day.is-on .trg-day__name {
+  color: var(--apx-fg);
+}
+.trg-day__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: 4px;
+}
+.trg-day.is-on .trg-day__check {
+  border-color: var(--apx-selection);
+  background: var(--apx-selection);
+  color: var(--apx-selection-fg);
+}
+.trg-day__times {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.trg-day__off {
+  line-height: var(--apx-control-h-sm);
+  font-size: 12px;
+  color: var(--apx-fg-subtle);
+}
+.fe .trg-time {
+  width: auto;
+  flex: none;
+  padding-right: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.trg-time .apx-field__input {
+  width: 104px;
+}
+.trg-every {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.trg-every__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.trg-every__row .apx-field {
+  width: auto;
+}
+.trg-url .fe-link {
+  height: auto;
+  white-space: normal;
+  text-align: left;
+}

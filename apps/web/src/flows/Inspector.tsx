@@ -1,8 +1,8 @@
 import type { Agent, Routine } from "@apx/protocol";
+import { switchTrigger } from "@apx/protocol/flow-edit";
 import { Field, FlowStepTile, IconButton, Icons, Input, SegmentedControl, Select, Textarea } from "@apx/ui";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { client } from "../data/client.ts";
 import { forAgents, useModels } from "../data/models.ts";
 import { listSecrets } from "../data/resources.ts";
 import { useT } from "../i18n/index.ts";
@@ -12,8 +12,8 @@ import { CaseFields } from "./CaseFields.tsx";
 import { type Address, HookFields } from "./HookFields.tsx";
 import { InputPicker } from "./InputPicker.tsx";
 import { HttpFields, NotifyFields } from "./OutwardFields.tsx";
-import { nextWhen } from "./run-view.ts";
-import { branchesOf, chainOrder, type FlowGraph, type FlowNode, presetOf, SCHEDULE_PRESETS, STEP } from "./steps.tsx";
+import { ScheduleFields } from "./ScheduleFields.tsx";
+import { branchesOf, chainOrder, type FlowGraph, type FlowNode, STEP } from "./steps.tsx";
 import { TableReadFields, TableWriteFields } from "./TableFields.tsx";
 import type { Values } from "./Template.tsx";
 import { useColumns } from "./tables-data.ts";
@@ -183,9 +183,17 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode; values: 
   if (needs && !props.projectId) return <p className="fe-needs">{t(needs)}</p>;
   switch (n.kind) {
     case "webhook":
-      return <HookFields address={props.address} />;
     case "schedule":
-      return <ScheduleFields cron={n.cron} onCron={(cron) => update({ ...n, cron })} />;
+      return (
+        <>
+          <TriggerKind n={n} update={update} />
+          {n.kind === "webhook" ? (
+            <HookFields address={props.address} n={n} update={update} />
+          ) : (
+            <ScheduleFields cron={n.cron} onCron={(cron) => update({ ...n, cron })} />
+          )}
+        </>
+      );
     case "condition":
       return <CaseFields n={n} update={update} values={props.values} removeCase={(id) => props.removeCase(n.id, id)} />;
     case "vars":
@@ -334,59 +342,35 @@ function ModelFields(props: Parameters<typeof Inspector>[0] & { n: Extract<FlowN
   );
 }
 
-/** How often it runs: a preset by name or a cron, with the next times in words, in the owner's time zone. */
-function ScheduleFields({ cron, onCron }: { cron: string; onCron: (cron: string) => void }) {
+/**
+ * What starts the Flow, switched in place: the step keeps its connections, and a name still the default follows the
+ * new kind.
+ */
+function TriggerKind({
+  n,
+  update,
+}: {
+  n: Extract<FlowNode, { kind: "webhook" | "schedule" }>;
+  update: (n: FlowNode) => void;
+}) {
   const t = useT();
-  const [next, setNext] = useState<{ next: string[]; time_zone: string; error: "invalid" | "too_often" | null }>();
-  useEffect(() => {
-    let live = true;
-    const timer = setTimeout(() => {
-      void client.call("flows.next_runs", { cron: cron.trim() || "-" }).then(
-        (r) => live && setNext(r),
-        () => live && setNext(undefined),
-      );
-    }, 300);
-    return () => {
-      live = false;
-      clearTimeout(timer);
-    };
-  }, [cron]);
-  const preset = presetOf(cron);
   return (
-    <>
-      <div className="fe-presets">
-        <span className="fe-ins__label">{t("flow.f.often")}</span>
-        <SegmentedControl
-          size="sm"
-          label={t("flow.f.often")}
-          value={preset?.cron ?? ""}
-          onValueChange={onCron}
-          options={SCHEDULE_PRESETS.map((p) => ({ value: p.cron, label: t(p.label) }))}
-        />
-      </div>
-      <Field label={t("flow.f.cron")} hint={t("flow.f.cronHint")}>
-        {(id) => (
-          <Input
-            id={id}
-            value={cron}
-            maxLength={120}
-            className="fe-mono"
-            spellCheck={false}
-            onChange={(e) => onCron(e.target.value)}
-          />
-        )}
-      </Field>
-      <div className="fe-next" aria-live="polite">
-        <span className="fe-ins__label">{t("flow.f.nextRuns")}</span>
-        {next?.error ? (
-          <span className="fe-next__error">
-            {t(next.error === "too_often" ? "flow.f.cronOften" : "flow.f.cronBad")}
-          </span>
-        ) : (
-          next?.next.map((at) => <span key={at}>{nextWhen(at, next.time_zone, t)}</span>)
-        )}
-      </div>
-      {next && <p className="fe-note">{t("flow.f.scheduleNote", { zone: next.time_zone })}</p>}
-    </>
+    <div className="trg-row">
+      <span className="fe-ins__label">{t("flow.trig.startsWith")}</span>
+      <SegmentedControl
+        size="sm"
+        label={t("flow.trig.startsWith")}
+        value={n.kind}
+        onValueChange={(kind) => {
+          if (kind === n.kind) return;
+          const other = kind as "webhook" | "schedule";
+          update(switchTrigger(n, n.label === t(STEP[n.kind].label) ? t(STEP[other].label) : n.label));
+        }}
+        options={[
+          { value: "webhook", label: t("flow.trig.webhook"), icon: <Icons.Zap size={14} /> },
+          { value: "schedule", label: t("flow.trig.schedule"), icon: <Icons.Clock size={14} /> },
+        ]}
+      />
+    </div>
   );
 }

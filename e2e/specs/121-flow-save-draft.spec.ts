@@ -68,7 +68,10 @@ for (const phone of [false, true]) {
     await editor.getByRole("button", { name: "Sumar JavaScript" }).click();
     await editor.getByRole("textbox", { name: "Código" }).fill("");
     await editor.getByRole("button", { name: "Guardar borrador" }).click();
-    await expect(editor.getByRole("status").filter({ hasText: "Borrador guardado." })).toBeVisible();
+    // Kept as it is, and it says what is left before it can run.
+    await expect(editor.getByRole("status")).toHaveText(
+      "Borrador guardado. Para que corra: «JavaScript» no está completo: completá lo que le falta.",
+    );
     let doc = await docOf(flow);
     expect(doc.draft?.nodes.find((n) => n.kind === "js")).toMatchObject({ code: "" });
     expect(doc.publishedRevision).toBe(1);

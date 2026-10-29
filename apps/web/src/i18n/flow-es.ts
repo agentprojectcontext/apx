@@ -1,6 +1,8 @@
 import type { enFlow } from "./flow-en.ts";
+import { esFlowTrigger } from "./flow-trigger-es.ts";
 
 export const esFlow: Record<keyof typeof enFlow, string> = {
+  ...esFlowTrigger,
   "flow.title": "Flows",
   "flow.lead":
     "Automatizaciones por pasos. Arrancan cuando un servicio manda datos a un webhook o con un horario. Las condiciones y la tabla corren sin modelo; solo un paso de Modelo IA o de rutina le pasa trabajo al crew y gasta tokens.",
@@ -178,7 +180,7 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.group.crew": "Crew",
   "flow.group.output": "Salida",
   "flow.kind.webhook": "Webhook entrante",
-  "flow.kind.webhookBody": "Lo dispara un POST externo",
+  "flow.kind.webhookBody": "Un servicio llama a su dirección",
   "flow.kind.schedule": "Horario",
   "flow.kind.scheduleBody": "Corre a una hora fija",
   "flow.kind.condition": "Condición",
@@ -204,7 +206,6 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.f.url": "URL para pegar en el servicio",
   "flow.f.urlLater": "La URL aparece acá cuando guardás.",
   "flow.f.urlNoAddress": "Primero publicá una dirección en Dispositivos.",
-  "flow.f.hookNote": "Quién puede llamarlo se administra en Dispositivos.",
   "flow.f.copy": "Copiar",
   "flow.f.copied": "Copiado",
   "flow.f.equals": "Es",
@@ -296,7 +297,6 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.cron.daily": "Diario 03:00",
   "flow.f.often": "Cada cuánto",
   "flow.f.cron": "Expresión cron",
-  "flow.f.cronHint": "Minuto, hora, día, mes y día de la semana, como 30 8 * * 1-5.",
   "flow.f.nextRuns": "Próximas rondas",
   "flow.f.cronBad": "Ese no es un horario que entienda.",
   "flow.f.cronOften": "Puede correr cada 5 minutos como mucho.",
@@ -684,12 +684,9 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.tlog.end.cancelled": "La ronda se detuvo.",
   "flow.tlog.waiting": "Esperando el evento…",
   "flow.tlog.none": "Todavía nada.",
-  "flow.addr.test": "Dirección de prueba",
   "flow.addr.testHint": "Responde solo mientras escuchás un evento de prueba en el editor.",
   "flow.addr.kept": "Esta dirección queda cuando guardás.",
-  "flow.addr.rename": "Cambiar el final de la dirección",
   "flow.addr.path": "Final de la dirección",
-  "flow.addr.use": "Usar",
   "flow.addr.taken": "Otro flow usa esta dirección.",
   "flow.addr.invalid": "Usá minúsculas, números y guiones.",
   "flow.addr.reserved": "Esa la usa la dirección de prueba. Elegí otra.",
@@ -700,7 +697,6 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.addr.changed": "Dirección cambiada.",
   "flow.addr.failed": "No se pudo cambiar la dirección.",
   "flow.addr.noHost": "Para llamarlo desde afuera, configurá una dirección pública en Dispositivos.",
-  "flow.addr.body": "Mandá un POST con JSON como {example}.",
   "flow.test.listen": "Escuchar un evento de prueba",
   "flow.test.now": "Probar ahora",
   "flow.test.waiting": "Escuchando un evento…",

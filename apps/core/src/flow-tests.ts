@@ -3,6 +3,7 @@
 // runs nothing. Listening lives in memory: a restart stops it, and nothing waits or ticks while nobody listens.
 import { randomUUID } from "node:crypto";
 import type { CoreEvent } from "@apx/protocol";
+import { hookMethods } from "../../../packages/protocol/src/flow-edit.ts";
 import type { FlowGraph } from "../../../packages/protocol/src/flow-graph.ts";
 import type { HookRequest, HookResponse } from "./channels/types.ts";
 import { FlowCapacityError } from "./domain/flow-events.ts";
@@ -19,8 +20,12 @@ const MAX_LISTENING = 16;
 /** Headers a test's log shows: what the sender said it sent, never a key. */
 const SHOWN = ["content-type", "content-length", "user-agent", "idempotency-key"];
 
-/** The body a Flow's address takes, `{"id": "...", "data": ...}` in JSON, or the answer that refuses it. */
+/**
+ * The event a Flow's address takes, or the answer that refuses it: a POST's body `{"id": "...", "data": ...}` in JSON;
+ * a GET's query, its `id` parameter as the event's id (a new one when it has none) and the rest as `data`.
+ */
 export function flowEventOf(request: HookRequest): { id: string; data: unknown } | HookResponse {
+  if (request.method === "GET") return queryEvent(request.query ?? "");
   if (request.body.length > 65536) return { status: 413 };
   if (!request.headers["content-type"]?.startsWith("application/json")) return { status: 415 };
   try {
@@ -37,6 +42,26 @@ export function flowEventOf(request: HookRequest): { id: string; data: unknown }
   } catch {
     return { status: 400 };
   }
+}
+
+/** A GET's parameters as data: one value is text, a repeated one a list. */
+function queryEvent(query: string): { id: string; data: Record<string, string | string[]> } | HookResponse {
+  const data: Record<string, string | string[]> = Object.create(null);
+  let id: string | undefined;
+  try {
+    for (const [key, value] of new URLSearchParams(query)) {
+      if (key === "id") id ??= value;
+      else if (["__proto__", "constructor", "prototype"].includes(key) || key.length > 128) return { status: 400 };
+      else {
+        const had = data[key];
+        data[key] = had === undefined ? value : [...(Array.isArray(had) ? had : [had]), value];
+      }
+    }
+  } catch {
+    return { status: 400 };
+  }
+  if (id !== undefined && (!id || id.length > 200)) return { status: 400 };
+  return { id: id ?? `get:${randomUUID()}`, data: { ...data } };
 }
 
 /** The headers worth showing with what arrived, each cut to 200 characters. */
@@ -136,9 +161,10 @@ export function createFlowTests(deps: {
         const waiting = store.flows.byPath(path);
         if (!waiting || !api.until(waiting.id)) return;
         const address = `/flows/${path}`;
+        const pinned = listening.get(waiting.id);
         return {
           id: `flow-test:${waiting.id}`,
-          methods: ["POST"],
+          methods: pinned ? hookMethods(JSON.parse(pinned.graph) as FlowGraph) : ["POST"],
           authorize: (headers) => !keys.has(address) || keys.verify(address, headers),
           async handle(request, signal) {
             if (signal.aborted) return { status: 503 };

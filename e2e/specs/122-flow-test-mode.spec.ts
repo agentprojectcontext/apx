@@ -1,4 +1,4 @@
-// Testing a Flow with a real event from its editor (DECISIONS.md#d-178): the webhook card shows both addresses, the
+// Testing a Flow with a real event from its editor (DECISIONS.md#d-178): the webhook card shows its two addresses, the
 // owner listens, a POST to the test address runs the saved drawing while the Flow is off, the steps light up and the
 // log fills, the canvas can't change meanwhile, and the Flow's page lists the run as a test. Renaming the address
 // moves it: the old one stops answering. FLOW_SHOTS=<folder> saves the card, the editor listening, mid-run and done,
@@ -99,12 +99,14 @@ for (const phone of [false, true]) {
     const node = (id: string) => editor.locator(`.react-flow__node[data-id="${id}"]`);
     await expect(node("hook")).toContainText(`POST /flows/${route}`);
 
-    // The webhook's card: both addresses on the public host, each to copy.
+    // The webhook's card: one address on the public host, production or test, and one way to copy it.
     await node("hook").click();
     const card = editor.locator(".fe-card");
     await expect(card).toContainText(`${HOST}/flows/${route}`);
+    await expect(card.getByRole("button", { name: /^Copiar la dirección/ })).toHaveCount(1);
+    await card.getByRole("radio", { name: "Prueba" }).click();
     await expect(card).toContainText(`${HOST}/flows/test/${route}`);
-    await expect(card.getByRole("button", { name: "Copiar" })).toHaveCount(2);
+    await expect(card.getByRole("button", { name: "Copiar la dirección de prueba" })).toBeVisible();
     await shot(page, `webhook-card-${at}`);
     await card.getByRole("button", { name: "Cerrar" }).first().click();
 
@@ -188,9 +190,10 @@ test("the test address answers nothing unless the owner listens, and a renamed a
   const editor = page.locator(".fe");
   await editor.locator('.react-flow__node[data-id="hook"]').click();
   const card = editor.locator(".fe-card");
-  await card.getByRole("button", { name: "Cambiar el final de la dirección" }).click();
-  await card.getByRole("textbox", { name: "Final de la dirección" }).fill("orders-renamed");
-  await card.getByRole("button", { name: "Usar" }).click();
+  // The end of the address is written in place; Enter takes it.
+  const end = card.getByRole("textbox", { name: "Final de la dirección" });
+  await end.fill("orders-renamed");
+  await end.press("Enter");
   await expect(page.getByRole("dialog", { name: "¿Cambiar la dirección?" })).toContainText(
     "La dirección anterior deja de funcionar",
   );

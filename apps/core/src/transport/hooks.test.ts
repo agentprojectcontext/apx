@@ -3,7 +3,15 @@ import http from "node:http";
 import net from "node:net";
 import { test } from "node:test";
 import { manualTimers, waitFor } from "../testkit/platform.ts";
-import { listenHooks, PUBLIC_BODY_MAX, PUBLIC_DEADLINE_MS, publicPath, publicRateLimit } from "./hooks.ts";
+import {
+  listenHooks,
+  PUBLIC_BODY_MAX,
+  PUBLIC_DEADLINE_MS,
+  PUBLIC_QUERY_MAX,
+  publicPath,
+  publicQuery,
+  publicRateLimit,
+} from "./hooks.ts";
 
 const log = { info() {}, warn() {}, error() {} };
 
@@ -19,10 +27,15 @@ test("public paths reject normalization ambiguity before parsing", () => {
     "/hooks/a\\b",
     "https://example.com/hooks/a",
     "/hooks/a#x",
-    "/hooks/a?token=%61",
+    "/hooks/a?x=1#y",
+    `/hooks/a?${"x".repeat(PUBLIC_QUERY_MAX + 1)}`,
   ])
     assert.equal(publicPath(target), undefined, target);
   assert.equal(publicPath("/hooks/a?event=one"), "/hooks/a");
+  // A query may carry percent-encoding: only a route that reads it (a Flow's GET) decodes it, never the path.
+  assert.equal(publicPath("/hooks/a?name=%61"), "/hooks/a");
+  assert.equal(publicQuery("/hooks/a?name=%61"), "name=%61");
+  assert.equal(publicQuery("/hooks/a"), undefined);
 });
 
 test("public rate buckets are bounded and reset on an injected clock", () => {

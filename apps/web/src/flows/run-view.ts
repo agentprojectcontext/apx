@@ -13,9 +13,10 @@ import {
   type FlowNode,
   type FlowRun,
   hookPath,
+  hookVerbs,
   isTrigger,
   literal,
-  presetOf,
+  scheduleName,
 } from "./steps.tsx";
 
 type T = (key: MessageKey, vars?: Record<string, string | number>) => string;
@@ -293,10 +294,10 @@ function actionStep(
 export function inputOf(n: FlowNode, flow: string, t: T, who: (n: FlowNode) => string): string {
   switch (n.kind) {
     case "webhook":
-      return `POST ${hookPath(flow)}`;
+      return `${hookVerbs(n)} ${hookPath(flow)}`;
     case "schedule": {
-      const preset = presetOf(n.cron);
-      return preset ? `${t(preset.label)} · ${n.cron}` : n.cron;
+      const named = scheduleName(n.cron, t);
+      return named !== n.cron ? `${named} · ${n.cron}` : n.cron;
     }
     case "condition":
       return branchesOf(n, t)

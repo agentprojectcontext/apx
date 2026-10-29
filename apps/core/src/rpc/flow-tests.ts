@@ -20,6 +20,20 @@ export function flowTestHandlers(store: Store, flows: Flows, credentials: Public
   };
   return {
     "flows.path_check": ({ path, flow }) => store.flows.pathCheck(path, flow),
+    "flows.token": ({ flow }) => {
+      const definition = found(flow);
+      return credentials.reveal(`/flows/${definition.path ?? definition.id}`);
+    },
+    "flows.token_rotate": ({ flow, token }) => {
+      const definition = found(flow);
+      const doc = store.flowGraphs.get(flow);
+      // A schedule Flow has no address, so no key: its drawing (saved or what runs) starts on a schedule.
+      if ((doc.draft ?? doc.published)?.nodes.some((n) => n.kind === "schedule"))
+        throw conflict("A flow that runs on a schedule has no address to protect");
+      const path = `/flows/${definition.path ?? definition.id}`;
+      credentials.issue(path, token);
+      return credentials.reveal(path);
+    },
     "flows.path_set": ({ flow, path }) => {
       const before = found(flow);
       try {

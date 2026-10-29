@@ -1,4 +1,7 @@
+import { enFlowTrigger } from "./flow-trigger-en.ts";
+
 export const enFlow = {
+  ...enFlowTrigger,
   "flow.title": "Flows",
   "flow.lead":
     "Automations in steps. They start when a service sends data to a webhook, or on a schedule. Checks and tables run without a model; only an AI model or routine step hands work to the crew and spends tokens.",
@@ -175,7 +178,7 @@ export const enFlow = {
   "flow.group.crew": "Crew",
   "flow.group.output": "Output",
   "flow.kind.webhook": "Incoming webhook",
-  "flow.kind.webhookBody": "A service sends it a POST",
+  "flow.kind.webhookBody": "A service calls its address",
   "flow.kind.schedule": "Schedule",
   "flow.kind.scheduleBody": "Runs at set times",
   "flow.kind.condition": "Check",
@@ -201,7 +204,6 @@ export const enFlow = {
   "flow.f.url": "Address to paste in the service",
   "flow.f.urlLater": "The address shows up here once you save.",
   "flow.f.urlNoAddress": "Publish an address in Devices first.",
-  "flow.f.hookNote": "Who can call it is managed in Devices.",
   "flow.f.copy": "Copy",
   "flow.f.copied": "Copied",
   "flow.f.equals": "Is",
@@ -290,7 +292,6 @@ export const enFlow = {
   "flow.cron.daily": "Daily 03:00",
   "flow.f.often": "How often",
   "flow.f.cron": "Cron expression",
-  "flow.f.cronHint": "Minute, hour, day, month and weekday, like 30 8 * * 1-5.",
   "flow.f.nextRuns": "Next runs",
   "flow.f.cronBad": "That isn't a schedule it understands.",
   "flow.f.cronOften": "It can run every 5 minutes at most.",
@@ -670,12 +671,9 @@ export const enFlow = {
   "flow.tlog.end.cancelled": "The run was stopped.",
   "flow.tlog.waiting": "Waiting for the event…",
   "flow.tlog.none": "Nothing yet.",
-  "flow.addr.test": "Test address",
   "flow.addr.testHint": "It answers only while you listen for a test event in the editor.",
   "flow.addr.kept": "This address is kept when you save.",
-  "flow.addr.rename": "Change the end of the address",
   "flow.addr.path": "End of the address",
-  "flow.addr.use": "Use it",
   "flow.addr.taken": "Another flow uses this address.",
   "flow.addr.invalid": "Use lowercase letters, numbers and hyphens.",
   "flow.addr.reserved": "The test address uses that one. Pick another.",
@@ -685,7 +683,6 @@ export const enFlow = {
   "flow.addr.changed": "Address changed.",
   "flow.addr.failed": "Couldn't change the address.",
   "flow.addr.noHost": "To call it from outside, set up a public address in Devices.",
-  "flow.addr.body": "Send a POST with JSON like {example}.",
   "flow.test.listen": "Listen for a test event",
   "flow.test.now": "Test now",
   "flow.test.waiting": "Waiting for an event…",

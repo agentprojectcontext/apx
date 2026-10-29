@@ -21,7 +21,7 @@ read-only; manual row writes are CLI/protocol only (`apx flows write`). It is no
 
 ## Public entry
 
-The shared [public ingress](PUBLIC_INGRESS.md) registers only enabled Flow paths. Enable the Flow, then use Settings → Devices → Endpoints to create a separate route credential. Configure the public tunnel independently; enabling a Flow does not publish the private panel or RPC.
+The shared [public ingress](PUBLIC_INGRESS.md) registers only enabled Flow paths. Each address has its own key, made in the webhook step's card ([D-182](DECISIONS.md#d-182)): `flows.token {flow}` reads it (null before it has one) and `flows.token_rotate {flow, token?}` (owner-only, idempotency key; refused for a schedule Flow) makes a new one, APX's (`apxp_` and 64 hex) or the owner's own (24–200 of `A-Z a-z 0-9 . _ ~ -`), revoking the old one at once; it works whether the Flow is on or off. Settings → Devices → Endpoints still lists enabled addresses. Configure the public tunnel independently; enabling a Flow does not publish the private panel or RPC.
 
 ```
 POST /flows/<path>
@@ -30,6 +30,8 @@ Content-Type: application/json
 
 {"id":"stable-source-event-id","data":{"type":"message","text":"Hello"}}
 ```
+
+A webhook step's `methods` (`["POST"]` when absent, `["GET"]` or both) are the methods its address answers; another gets `405` with `Allow`. A GET carries its event in the query: `id` is the event's id (a new random one when absent, so no dedup), every other parameter is `data` (text; a repeated name a list; `__proto__`-like names refused), the query at most 4 KiB. The key still travels only in the `Authorization` header, never the query. The same applies to the test address with the drawing being tested.
 
 The envelope accepts only `id` and `data`. The source must supply a stable event ID, not a new random identifier on every retry. The Flow comes from the authenticated URL's path, never from event data. A Flow's path is its own ([D-178](DECISIONS.md#d-178)): from its name when made (`leads-from-the-form`, `-2` when taken), chosen in the webhook step's card before the first save, renamed there later (`flows.path_set`; the old address stops at once, its token moves with it). A Flow from before paths has its identifier as its path. Gateway authentication happens before the callback and the callback receives no bearer header.
 
@@ -281,9 +283,13 @@ nombre que apunte ahí, y sin seguir redirecciones. Un horario cuya ronda anteri
 See [D-168](DECISIONS.md#d-168).
 
 **Schedule trigger.** `{kind: "schedule", cron}`: five fields (minute hour day month weekday, with `*`, lists, ranges
-and steps, as routines), evaluated in the owner's time zone (`owner_profile.timezone`, else the machine's). The panel's
-presets are crons: `*/5 * * * *`, `0 * * * *`, `30 8 * * 1-5`, `0 3 * * *`. Validation refuses a second trigger, a cron
-it can't parse (`schedule_invalid`) and one that fires twice within five minutes (`schedule_too_often`).
+and steps, as routines), evaluated in the owner's time zone (`owner_profile.timezone`, else the machine's). `cron` may
+hold up to seven such crons joined by `;` (at most 400 characters), so days can have different times
+([D-182](DECISIONS.md#d-182)): the next time is the earliest any of them allows (`parseCrons`/`nextCrons`,
+`domain/schedule.ts`). The panel's presets are crons: `*/5 * * * *`, `0 * * * *`, `30 8 * * 1-5`, `0 3 * * *`; its
+**Fixed times** and **Every…** modes write the cron (`apps/web/src/flows/schedule-form.ts`) and read it back, and a cron
+they can't read stays in **Cron** mode. Validation refuses a second trigger, a cron it can't parse (`schedule_invalid`)
+and crons that together fire twice within five minutes (`schedule_too_often`).
 `flows.next_runs {cron}` returns the next three times and the zone for the editor.
 
 **Ticks.** The routine scheduler's beat (every 15 s, `officeScheduler` → `flows.tick`) is the only clock; no Flow has a
@@ -331,7 +337,9 @@ shown headers (a test's `content-type`, `content-length`, `user-agent`, `idempot
 (listening, stopped, expired, received, refused) and `flow.run` (ids and step states on every checkpoint); the panel
 reads the values with `flows.run_get`.
 
-**Español:** Un Flow publicado arranca por webhook o por horario (cron de cinco campos en la zona horaria del dueño).
+**Español:** Un Flow publicado arranca por webhook o por horario (cron de cinco campos en la zona horaria del dueño;
+hasta siete separados por `;` cuando los días tienen horas distintas). El webhook acepta POST, GET o los dos, y su clave
+se crea, se ve, se reemplaza o se elige en la tarjeta del paso.
 El único reloj es el pulso del scheduler de rutinas: cada horario vencido entra una sola vez, por la misma admisión que
 un POST, con id `schedule:<hora>`; si el core estuvo apagado corre una vez al arrancar, no una por cada hora perdida, y
 la ronda dice que arrancó tarde. Apagado no corre ni acumula. Un Flow con horario no tiene dirección pública y uno con
@@ -362,8 +370,11 @@ legacy shape gets a disabled table-only definition so the drawing has a Flow to 
 as a draft, names a step still to finish, asks **Let this flow act for you?** when the drawing does something new, and
 shows the test address with a countdown and **Stop**; while it tests the canvas is read-only (a step's card shows its
 input and output) and the log at the bottom (`RunLog.tsx`, foldable, resizable, a sheet on a phone) says what arrived
-and each step as it starts and ends. **Back to editing** closes it. The webhook step's card shows both addresses on the
-public host from the start, and its path is a button to rename it. A new Flow's drawing is validated against its chosen project before the first
+and each step as it starts and ends. **Back to editing** closes it. The webhook step's card shows the address on the
+public host from the start, production or test (one copy), with its path written in place to rename it, the methods it
+accepts and its key; **Starts with** switches a trigger between webhook and schedule in place (`switchTrigger`,
+`packages/protocol/src/flow-edit.ts`: same id, so its connections stay). Save draft names what is left before the drawing
+can run. A new Flow's drawing is validated against its chosen project before the first
 save. The detail draws the revision a run used (legacy runs of a published Flow draw the old
 definition) and says **Previous version** when it is not the current one. Notify picks its channel and person or room
 from the owner's own lists. Every template field (message, headers, body, SQL values, command variables and input) is a

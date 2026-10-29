@@ -20,6 +20,8 @@ const Saved = z
   )
   .max(1000);
 const KEY = "public-route-credentials";
+/** What a key may be: APX's own (`apxp_` and 64 hex) or one the owner chose (DECISIONS.md#d-182). */
+export const PUBLIC_TOKEN = /^[A-Za-z0-9._~-]{24,200}$/;
 const digest = (value: string) => createHash("sha256").update(value).digest();
 const deliveryHeaders = (headers: Record<string, string>) =>
   Object.fromEntries(Object.entries(headers).filter(([name]) => name === "content-type" || name === "idempotency-key"));
@@ -74,6 +76,15 @@ export function createPublicCredentials(deps: { store: Store; secrets: Secrets; 
     },
     rotate(pathname: string) {
       if (!known(pathname)) throw badRequest("only a registered public endpoint can receive a token");
+      return api.issue(pathname);
+    },
+    /**
+     * A new key for an address whether or not it is a route now (a Flow still off), APX's or `value`; the old one
+     * stops at once. Callers check the address is one the owner may key.
+     */
+    issue(pathname: string, value?: string) {
+      if (!Path.safeParse(pathname).success) throw badRequest("invalid public endpoint path");
+      if (value !== undefined && !PUBLIC_TOKEN.test(value)) throw badRequest("invalid token");
       cleanup();
       const saved = read();
       const before = saved.find((s) => s.path === pathname);
@@ -85,7 +96,7 @@ export function createPublicCredentials(deps: { store: Store; secrets: Secrets; 
       // Journal before touching the external secret store: an interrupted creation is never untracked.
       savePending([...queued, entry.secret_ref]);
       try {
-        deps.secrets.set(name, `apxp_${randomBytes(32).toString("hex")}`);
+        deps.secrets.set(name, value ?? `apxp_${randomBytes(32).toString("hex")}`);
         deps.store.tx(() => {
           deps.store.settings.set(KEY, JSON.stringify([...saved.filter((s) => s.path !== pathname), entry]));
           savePending(before ? [...queued, before.secret_ref] : queued);
@@ -96,6 +107,14 @@ export function createPublicCredentials(deps: { store: Store; secrets: Secrets; 
       }
       cleanup();
       return entry;
+    },
+    /** The address's key and when it was made, for the owner's own screen; null when it has none. */
+    reveal(pathname: string): { token: string | null; rotated_at: string | null } {
+      const entry = read().find((s) => s.path === pathname);
+      return {
+        token: (entry && deps.secrets.resolve(entry.secret_ref)) ?? null,
+        rotated_at: entry?.rotated_at ?? null,
+      };
     },
     revoke(pathname: string) {
       if (!Path.safeParse(pathname).success) throw badRequest("invalid public endpoint path");
@@ -115,7 +134,7 @@ export function createPublicCredentials(deps: { store: Store; secrets: Secrets; 
     /** These headers carry the address's own key; false when it has none. */
     verify(pathname: string, headers: Record<string, string>): boolean {
       const supplied = headers.authorization;
-      if (!supplied || !/^Bearer apxp_[a-f0-9]{64}$/.test(supplied)) return false;
+      if (!supplied?.startsWith("Bearer ") || !PUBLIC_TOKEN.test(supplied.slice(7))) return false;
       const ref = read().find((s) => s.path === pathname)?.secret_ref;
       const expected = deps.secrets.resolve(ref);
       return Boolean(expected && timingSafeEqual(digest(supplied.slice(7)), digest(expected)));
