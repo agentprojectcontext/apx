@@ -232,6 +232,7 @@ export function FlowEditor({
     if (table) next = { ...next, nodes: next.nodes.map((n) => (n.id === node.id ? { ...n, table } : n)) };
     change(next);
     setSelected(node.id);
+    centre(node.id);
     setPalette(false);
   };
   const saveBefore = (id: string) => {
@@ -461,8 +462,8 @@ export function FlowEditor({
                 connect: (source, target, when) => change(connectNodes(g, source, target, when)),
               }}
               minimap={g.nodes.length > 0}
-              // A step added or removed is fitted into view with the rest, never left past the edge.
-              fitKey={`${flow?.id ?? "new"}:${g.nodes.length}`}
+              // A step added is centred like a clicked one (`centre`), so only another flow fits the view again.
+              fitKey={flow?.id ?? "new"}
               focus={{ request: focus, cover, onClick: centre }}
             />
           )}

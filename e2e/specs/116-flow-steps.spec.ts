@@ -117,8 +117,8 @@ for (const lang of ["en", "es"] as const) {
     await editor
       .getByRole("textbox", { name: l.values })
       .fill("email: $trigger.email\ntotal: $vars.total\ntier: $steps.js-1.tier");
-    // Back to the check: the command goes on by its other way out.
-    await editor.locator('.react-flow__node[data-id="condition-1"]').click();
+    // Back to the check, out of view by now, from the list of steps: the command goes on by its other way out.
+    await editor.locator(".fe-order__row", { hasText: l.check }).click();
     await editor.getByRole("button", { name: l.add(l.cmd) }).click();
     await editor.getByRole("textbox", { name: l.command }).fill('printf "small order from %s" "$EMAIL"');
     await editor.getByRole("textbox", { name: l.env }).fill("EMAIL=$trigger.email");

@@ -142,9 +142,14 @@ function Focus({ request, cover }: { request: { id: string; seq: number } | null
   const height = useStore((s) => s.height);
   const size = useRef({ width, height });
   size.current = { width, height };
+  // A step just added has no size yet: wait for it, then pan once per request.
+  const measured = useStore((s) => (request ? (s.nodeLookup.get(request.id)?.measured.width ?? 0) : 0) > 0);
+  const done = useRef<number | null>(null);
   useEffect(() => {
-    const node = request && getInternalNode(request.id);
+    if (!request || !measured || done.current === request.seq) return;
+    const node = getInternalNode(request.id);
     if (!node) return;
+    done.current = request.seq;
     const { width: w, height: h } = size.current;
     const { right, bottom } = cover(w, h);
     const { zoom } = getViewport();
@@ -155,7 +160,7 @@ function Focus({ request, cover }: { request: { id: string; seq: number } | null
       { x: (w - right) / 2 - x * zoom, y: (h - bottom) / 2 - y * zoom, zoom },
       { duration: still ? 0 : 250 },
     );
-  }, [request, cover, getInternalNode, getViewport, setViewport]);
+  }, [request, measured, cover, getInternalNode, getViewport, setViewport]);
   return null;
 }
 

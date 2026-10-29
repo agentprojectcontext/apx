@@ -71,10 +71,17 @@ for (const lang of ["en", "es"] as const) {
     await editor.getByRole("button", { name: l.add(l.vars) }).click();
     await editor.getByRole("button", { name: l.add(l.check) }).click();
 
-    // A new step opens its card.
+    // A new step opens its card and moves to the middle of what the card leaves visible, like a clicked one.
     const card = editor.getByRole("complementary", { name: l.card });
     await expect(card).toBeVisible();
     await expect(card.locator(".drawer__title")).toHaveText(l.check);
+    const canvas = editor.locator(".fe-canvas");
+    const offCentre = (step: Locator) => async () => {
+      const [c, k, n] = await Promise.all([canvas.boundingBox(), card.boundingBox(), step.boundingBox()]);
+      if (!c || !k || !n) return Number.POSITIVE_INFINITY;
+      return Math.abs(n.x + n.width / 2 - (c.x + (k.x - c.x) / 2));
+    };
+    await expect.poll(offCentre(editor.locator('.react-flow__node[data-id="condition-1"]'))).toBeLessThan(4);
     await shot(page, `flow-card-open-${lang}`);
 
     // The canvas closes it.
@@ -82,23 +89,21 @@ for (const lang of ["en", "es"] as const) {
     await expect(card).toBeHidden();
     await shot(page, `flow-card-closed-${lang}`);
 
+    // The first step, out of view by now, is chosen from the list of steps and moves into view.
+    const hook = editor.locator('.react-flow__node[data-id="webhook-1"]');
+    await editor.locator(".fe-order__row", { hasText: l.hook }).click();
+    await expect.poll(offCentre(hook)).toBeLessThan(4);
+    await card.getByRole("button", { name: l.close }).click();
+    await expect(card).toBeHidden();
+
     // A step clicked at another zoom keeps that zoom and lands in the middle of what the card leaves visible.
     await editor.getByRole("button", { name: l.zoomOut }).click();
     await expect.poll(() => zoomOf(editor)).toBeLessThan(1);
     const zoom = await zoomOf(editor);
-    const hook = editor.locator('.react-flow__node[data-id="webhook-1"]');
     await hook.click();
     await expect(card).toBeVisible();
     await expect(card.locator(".drawer__title")).toHaveText(l.hook);
-    const canvas = editor.locator(".fe-canvas");
-    await expect
-      .poll(async () => {
-        const [c, k, n] = await Promise.all([canvas.boundingBox(), card.boundingBox(), hook.boundingBox()]);
-        if (!c || !k || !n) return Number.POSITIVE_INFINITY;
-        const middle = c.x + (k.x - c.x) / 2;
-        return Math.abs(n.x + n.width / 2 - middle);
-      })
-      .toBeLessThan(4);
+    await expect.poll(offCentre(hook)).toBeLessThan(4);
     expect(await zoomOf(editor)).toBeCloseTo(zoom, 5);
 
     // × and Escape close it.
