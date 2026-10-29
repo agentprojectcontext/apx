@@ -354,7 +354,18 @@ export const flowGraphMethods = {
     effect: false,
   },
   "flows.draft_save": {
-    params: z.object({ flow: FlowId, expectedVersion: z.number().int().min(1).nullable(), graph: FlowGraph }).strict(),
+    params: z
+      .object({
+        flow: FlowId,
+        expectedVersion: z.number().int().min(1).nullable(),
+        graph: FlowGraph,
+        /**
+         * The owner's edits saved over an agent's draft they have not saved from the editor yet (its chat saves them
+         * before each message): the draft keeps that agent as who drew it, so it still waits for the owner's review.
+         */
+        unreviewed: z.literal(true).optional(),
+      })
+      .strict(),
     result: FlowGraphDocument,
     effect: true,
   },

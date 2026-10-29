@@ -131,13 +131,15 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
       reached(ctx, flow);
       return store.flowGraphs.get(flow);
     },
-    "flows.draft_save": ({ flow, expectedVersion, graph }, ctx) => {
+    "flows.draft_save": ({ flow, expectedVersion, graph, unreviewed }, ctx) => {
       const definition = reached(ctx, flow);
       agentKeeps(ctx, flow, graph);
+      // A stale read only names who drew it: the save itself checks the version (DECISIONS.md#d-175).
+      const drew = unreviewed && ctx.actor === "human" ? (store.flowGraphs.get(flow).draftBy ?? undefined) : undefined;
       return told(
         ctx,
         definition.projectId,
-        write(() => store.flowGraphs.saveDraft(flow, expectedVersion, graph, byAgent(ctx))),
+        write(() => store.flowGraphs.saveDraft(flow, expectedVersion, graph, byAgent(ctx) ?? drew)),
       );
     },
     "flows.draft_discard": ({ flow, expectedVersion }, ctx) => {
