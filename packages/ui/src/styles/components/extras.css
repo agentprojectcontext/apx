@@ -206,8 +206,13 @@
 /* Stacked: a control that needs the width (a paragraph to write) goes under the text. */
 .apx-setting--stacked {
   flex-direction: column;
+  flex-wrap: nowrap;
   align-items: stretch;
   gap: 8px;
+}
+/* In a column the row's 180px basis would be a height: the text takes only what it needs. */
+.apx-setting--stacked > .apx-setting__text {
+  flex: none;
 }
 .apx-setting--stacked > .apx-setting__control {
   flex: auto;
