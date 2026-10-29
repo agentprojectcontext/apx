@@ -1,18 +1,106 @@
+import { randomBytes } from "node:crypto";
 import { ErrorCode } from "@apx/protocol";
+import type { FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { Bus } from "../bus.ts";
 import { FlowGraphConflict, FlowGraphUnavailable } from "../domain/flow-graphs.ts";
 import type { Store } from "../domain/store.ts";
-import { badRequest, CallError, conflict, notFound } from "../errors.ts";
+import { badRequest, CallError, conflict, notFound, unauthorized } from "../errors.ts";
 import { type FlowOutside, flowOutward } from "../flow-outward.ts";
 import { flowFolder } from "../flow-work-steps.ts";
 import { type FlowModelCheck, flowGraphIssues } from "../flows.ts";
 import { tildeHome } from "../paths.ts";
+import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
 
-export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?: FlowOutside) {
+/** How freely a Flow's AI step acts: the owner sets it in the editor, an agent's draft keeps what is there. */
+const OWNERS_FIELDS = ["autonomy", "write", "delegate"] as const;
+/** Who an AI step runs as: under the owner's limits these stay too, so a limit never moves to another agent. */
+const WHO = ["agent", "bot", "model"] as const;
+type AiStep = Extract<FlowGraph["nodes"][number], { kind: "agent" }>;
+const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+/**
+ * Why an agent's drawing would change what the owner keeps, in words; undefined if it does not. `saved` is the draft
+ * and what runs: an AI step's limits stay as they are, and a step the owner limited keeps who it runs as and stays in
+ * the drawing (removing it and adding another would drop the limit).
+ */
+export function ownersFieldChange(saved: readonly (FlowGraph | null)[], after: FlowGraph): string | undefined {
+  const steps = (g: FlowGraph | null) => (g?.nodes ?? []).filter((n): n is AiStep => n.kind === "agent");
+  const current = saved.find((g) => g !== null) ?? null;
+  for (const n of steps(after)) {
+    const was = steps(current).find((b) => b.id === n.id);
+    const field = OWNERS_FIELDS.find((f) => !same(n[f], was?.[f]));
+    if (field)
+      return `step "${n.id}": ${field} stays the owner's (how freely an AI step acts is set in the editor); leave it out`;
+  }
+  for (const g of saved)
+    for (const limited of steps(g).filter((b) => OWNERS_FIELDS.some((f) => b[f] !== undefined))) {
+      const now = steps(after).find((n) => n.id === limited.id);
+      if (!now) return `step "${limited.id}" runs with limits the owner set: only the owner removes it, in the editor`;
+      const was = steps(current).find((b) => b.id === limited.id) ?? limited;
+      const who = WHO.find((f) => !same(now[f], was[f]));
+      if (who) return `step "${limited.id}" runs with limits the owner set: its ${who} stays as the owner chose it`;
+    }
+  return undefined;
+}
+
+/** A Flow's identifier from its name, as the panel makes one: a readable slug and a short random tail. */
+const idFor = (name: string) =>
+  `${
+    name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || "flow"
+  }-${randomBytes(3).toString("hex").slice(0, 4)}`;
+
+export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?: FlowOutside, bus?: Bus) {
   const found = (id: string) => {
     const flow = store.flows.get(id);
     if (!flow) throw notFound("Flow not found");
     return flow;
+  };
+  /**
+   * The owner reaches every Flow. An agent's own tool reaches the Flows of its project, or any when it is global;
+   * an outside app, a channel or an agent's shell (no agent behind the call) reaches none (DECISIONS.md#d-174).
+   */
+  const reach = (ctx: CallContext, projectId: string) => {
+    if (ctx.actor === "human" && !ctx.client && !ctx.channel) return;
+    const agent = ctx.agent && !ctx.client && !ctx.channel ? store.agents.get(ctx.agent.id) : undefined;
+    if (!agent) throw unauthorized("Flows are reserved to the owner and their agents' tools");
+    if (agent.project_id && agent.project_id !== projectId) throw notFound("Flow not found");
+  };
+  const reached = (ctx: CallContext, id: string) => {
+    const flow = found(id);
+    reach(ctx, flow.projectId);
+    return flow;
+  };
+  /** The agent behind a call that is not the owner's own. */
+  const byAgent = (ctx: CallContext) => (ctx.actor === "human" ? undefined : ctx.agent?.id);
+  /** An agent's draft leaves the owner's fields as they are. */
+  const agentKeeps = (ctx: CallContext, flow: string | undefined, graph: FlowGraph) => {
+    if (ctx.actor === "human") return;
+    const doc = flow ? store.flowGraphs.get(flow) : undefined;
+    // A draft the owner saved is theirs to have changed; one an agent saved is checked against what runs too.
+    const saved = doc?.draft && doc.draftBy === null ? [doc.draft] : [doc?.draft ?? null, doc?.published ?? null];
+    const changed = ownersFieldChange(saved, graph);
+    if (changed) throw badRequest(changed);
+  };
+  const told = <D extends { flow: string; draftVersion: number | null }>(
+    ctx: CallContext,
+    projectId: string,
+    doc: D,
+  ) => {
+    bus?.emit({
+      type: "flow.draft",
+      flow: doc.flow,
+      project: projectId,
+      draft_version: doc.draftVersion,
+      by: ctx.agent?.id ?? null,
+    });
+    return doc;
   };
   const write = <T>(operation: () => T): T => {
     try {
@@ -33,19 +121,54 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
     return flowOutward(store, graph, project?.path ? tildeHome(project.path) : (project?.name ?? ""), place);
   };
   return {
-    "flows.graph_get": ({ flow }) => {
-      found(flow);
+    "flows.graph_get": ({ flow }, ctx) => {
+      reached(ctx, flow);
       return store.flowGraphs.get(flow);
     },
-    "flows.draft_save": ({ flow, expectedVersion, graph }) => {
-      found(flow);
-      return write(() => store.flowGraphs.saveDraft(flow, expectedVersion, graph));
+    "flows.draft_save": ({ flow, expectedVersion, graph }, ctx) => {
+      const definition = reached(ctx, flow);
+      agentKeeps(ctx, flow, graph);
+      return told(
+        ctx,
+        definition.projectId,
+        write(() => store.flowGraphs.saveDraft(flow, expectedVersion, graph, byAgent(ctx))),
+      );
     },
-    "flows.draft_discard": ({ flow, expectedVersion }) => {
-      found(flow);
-      return write(() => store.flowGraphs.discardDraft(flow, expectedVersion));
+    "flows.draft_discard": ({ flow, expectedVersion }, ctx) => {
+      const definition = found(flow);
+      return told(
+        ctx,
+        definition.projectId,
+        write(() => store.flowGraphs.discardDraft(flow, expectedVersion)),
+      );
     },
-    "flows.validate": ({ flow, project, graph }) => {
+    "flows.create": ({ project, name, graph }, ctx) => {
+      if (!store.projects.get(project)) throw notFound("Project not found");
+      reach(ctx, project);
+      agentKeeps(ctx, undefined, graph);
+      // Off and table-only, as a new drawing the panel saves first: nothing runs until the owner publishes it.
+      const made = write(() =>
+        store.tx(() => {
+          let id = idFor(name);
+          while (store.flows.get(id)) id = idFor(name);
+          const flow = store.flows.save({
+            id,
+            projectId: project,
+            name,
+            enabled: false,
+            predicates: [],
+            tableKey: "latest",
+            action: { kind: "none" },
+          });
+          return { flow, document: store.flowGraphs.saveDraft(id, null, graph, byAgent(ctx)) };
+        }),
+      );
+      told(ctx, project, made.document);
+      return made;
+    },
+    "flows.validate": ({ flow, project, graph }, ctx) => {
+      if (flow !== undefined) reached(ctx, flow);
+      else if (project !== undefined && store.projects.get(project)) reach(ctx, project);
       // A Flow not saved yet is checked as one of its project, off, with nothing else defined.
       const definition =
         flow !== undefined
@@ -64,9 +187,9 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
       return { valid: issues.length === 0, issues };
     },
     "flows.outward": ({ flow, graph }) => outwardOf(found(flow).projectId, graph),
-    "flows.publish": ({ flow, expectedDraftVersion, expectedPublishedRevision, outward }) => {
+    "flows.publish": ({ flow, expectedDraftVersion, expectedPublishedRevision, outward }, ctx) => {
       const definition = found(flow);
-      return write(() =>
+      const doc = write(() =>
         store.flowGraphs.publish(flow, expectedDraftVersion, expectedPublishedRevision, (graph) => {
           const issues = flowGraphIssues(store, definition, graph, model, outside);
           if (issues.length)
@@ -85,6 +208,7 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
             });
         }),
       );
+      return told(ctx, definition.projectId, doc);
     },
     "flows.run_get": ({ flow, event }) => {
       found(flow);

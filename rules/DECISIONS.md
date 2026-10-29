@@ -2993,3 +2993,57 @@ shape, `flow-shape.ts`):
 Rejected: tables per Flow with a picker of other Flows' tables (the owner thinks in the project's data, not in Flows),
 an explicit create method (a table nobody saved to yet is a name in a drawing), and resolving a secret variable in any
 text that leaves (rule 11: it would put the key in a message or a prompt).
+
+<a id="d-174"></a>
+## D-174 — 2026-10-29 — Agents draw Flow drafts; what runs stays the owner's to publish
+The owner wants to ask for a Flow from any chat and have their super-agent make it, or change one, instead of drawing
+every step themselves. The super-agent does it through `apx_settings`' existing `flows` area, not a new tool
+(rule 15): `flows.list`, `flows.graph_get` (its steps and connections as compact JSON, no places), `flows.validate`,
+`flows.create {project, name, graph | edits}` and `flows.draft_save {flow, edits}` or `{flow, expectedVersion,
+graph}`. Edits are `add` (a step with only the fields it sets; ids from the kind), `update`, `remove`, `connect`,
+`disconnect` and `tidy`, applied on the latest draft (or what runs) and saved with that version, so a save the owner
+made meanwhile is a conflict, never overwritten; a whole graph needs the `draftVersion` the agent read. Every save
+answers with what keeps the drawing from running, step by step with its code, and puts a `flow` card in the chat
+(the drawing, draft or published, **Open in the editor**). New steps are placed by `placeSteps`
+(`packages/protocol/src/flow-edit.ts`, shared with the panel): right of the step they follow, on the nearest free row;
+a drawing with no places is laid out left to right. The step fields live in the `apx-flows` skill, loaded on demand:
+the prompt does not grow.
+
+**The router decides who reaches a drawing.** `flows.graph_get`, `flows.validate`, `flows.draft_save` and the new
+`flows.create` (an off, table-only Flow with the drawing as its draft, in one transaction) are no longer human-only.
+The owner reaches every Flow; an agent's own tool call (the core sets `ctx.agent`) reaches its project's Flows, or any
+when the agent is global; an outside app is out by its scopes, a channel and a call with no agent behind it (an
+agent's shell through `apx`) are refused. `flows.publish`, `flows.draft_discard`, `flows.set`, `flows.run_now` and
+`flows.cancel_run` stay the owner's. Every draft change (saved, discarded, published, made) emits `flow.draft {flow,
+project, draft_version, by}` so the list, a Flow's detail and the chat card read it again. The open editor is not
+merged with it yet: that comes with the editor's own chat.
+
+**Why a draft can be saved without asking, and when it asks.** Untrusted content (a channel message, a web page,
+another app's agent) can ask the super-agent for a Flow that posts out, calls a URL, runs a command, JS or SQL, or
+reads a secret. A draft does none of it: nothing runs until the owner publishes, which is their act in the editor
+(Save with the Flow on, or turning it on), and publishing still lists every send, call, command and database write
+for their OK (D-169, D-170), secrets included by name (D-173). The independent review found what that card does not
+cover, and each is closed:
+
+- **Text behind an approved destination.** A changed message, HTTP body, JS or AI prompt to a place already allowed
+  adds no new key, and the panel's on switch published the last saved draft unseen. Drafts now record who saved them
+  (`flow_graph_drafts.saved_by`, `draftBy` in the document): the switch never publishes an agent's draft, it opens the
+  editor with "An agent drew these changes: look them over and save them"; the owner's Save makes the draft theirs.
+  Another agent can relay outside words as the team's (D-071), so the `untrusted` card alone was not enough.
+- **Outside content in the turn.** Draft changes, and `flows.graph_get` (it hands the whole drawing, commands,
+  addresses and prompts back to the model), ask the owner (`confirm: "untrusted"`) whenever outside content is in the
+  turn.
+- **An AI step's limits.** How freely it acts (`autonomy`, `write`, `delegate`, D-172) is the owner's (D-060): an
+  agent's draft that sets or changes them is refused. A step the owner limited keeps its `agent`, `bot` and `model`
+  (the limit would otherwise move to another agent) and can't be removed by an agent (removing it and adding another
+  would drop the limit), checked against the draft and, when an agent saved the draft, what runs.
+- `flows.create` revokes any route credential left under the new identifier, as `flows.set` does.
+
+Turning a Flow on through `apx_settings`' `flows.set` keeps its card. Known limits: the open editor does not take an
+agent's later draft (its next save conflicts); `flow.draft` reaches every operator socket with ids only, as other
+events do.
+
+Rejected: a tool of its own for every agent (a new definition in every prompt, and Flows are the owner's settings,
+which the super-agent changes for them; other agents ask it), letting agents publish with a confirmation card (one
+yes would make a drawing the owner never opened run unattended), and keeping drafts owner-only behind
+`callAsOwner` (it exists only for calls that always ask, and a draft should not).

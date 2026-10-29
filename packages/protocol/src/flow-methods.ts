@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FlowTableName, flowGraphMethods } from "./flow-graph.ts";
+import { FlowGraph, FlowGraphDocument, FlowTableName, flowGraphMethods } from "./flow-graph.ts";
 
 const Id = z.string().regex(/^[A-Za-z0-9_-]{1,100}$/);
 const Scalar = z.union([z.string().max(4096), z.number().finite(), z.boolean(), z.null()]);
@@ -89,6 +89,15 @@ export const flowMethods = {
     access: "human",
   },
   "flows.set": { params: FlowDefinition, result: FlowDefinition, effect: true, access: "human" },
+  /**
+   * A new Flow in a project, off, with this drawing as its draft: what an agent's tool makes when asked for a Flow
+   * (DECISIONS.md#d-174). Its identifier comes from the name; turning it on and publishing stay the owner's.
+   */
+  "flows.create": {
+    params: z.object({ project: Id, name: z.string().trim().min(1).max(120), graph: FlowGraph }).strict(),
+    result: z.object({ flow: FlowDefinition, document: FlowGraphDocument }).strict(),
+    effect: true,
+  },
   "flows.rows": {
     params: z
       .object({

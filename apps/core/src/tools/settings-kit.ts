@@ -1,10 +1,12 @@
 // What a setting of apx_settings is made of, and the lookups its cards share: every record named as the owner names
 // it in the panel, never by a bare id. The areas are settings-people.ts, settings-team.ts and settings-work.ts.
 
+import type { z } from "zod";
 import type { TemplateRoot } from "../apc/templates.ts";
 import type { Store } from "../domain/store.ts";
 import type { ProfileRoot } from "../engine/profiles.ts";
 import { inlineName } from "./result.ts";
+import type { ToolContext } from "./types.ts";
 
 export type Params = Record<string, unknown>;
 
@@ -36,6 +38,17 @@ export type Setting = {
   shows?: (result: unknown) => string;
   /** Its card shows every value whole: a cut could hide what it runs or where a key goes. */
   whole?: true;
+  /**
+   * Run as the agent's own call through the router, not as the owner's: a Flow's drawing, which runs nothing until the
+   * owner publishes it. `confirm`: `untrusted` asks the owner only while outside content is in the turn (a change, or
+   * a read that hands back a whole drawing); `reads` names it a look (DECISIONS.md#d-174).
+   */
+  own?: {
+    reads?: true;
+    confirm: "never" | "untrusted";
+    args: z.ZodType;
+    run: (p: Params, d: SettingsDeps, ctx: Pick<ToolContext, "call" | "upsertPart">) => Promise<string>;
+  };
 };
 
 export const str = (v: unknown) => (typeof v === "string" ? v : "");

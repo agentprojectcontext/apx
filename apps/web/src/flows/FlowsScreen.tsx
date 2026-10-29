@@ -12,6 +12,7 @@ import {
   Switch,
 } from "@apx/ui";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useFlowsChanged } from "../data/flowDrafts.ts";
 import { blobOf } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import { loadRoutines, useRoutines } from "../data/routines.ts";
@@ -43,6 +44,8 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
   useEffect(() => {
     void loadRoutines();
   }, []);
+  // A Flow an agent made, or a drawing saved elsewhere, shows in the list as soon as it is saved.
+  const elsewhere = useFlowsChanged();
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new revision reads the flows again
   useEffect(() => {
     let live = true;
@@ -54,7 +57,7 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
     return () => {
       live = false;
     };
-  }, [revision]);
+  }, [revision, elsewhere]);
   if (!ready) return <Skeleton width="100%" height={80} />;
   const flows = data?.flows;
   const open = flowId ? flows?.find((f) => f.id === flowId) : undefined;

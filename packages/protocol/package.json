@@ -12,6 +12,7 @@
     "./notices": "./src/notices.ts",
     "./flow-shape": "./src/flow-shape.ts",
     "./flow-cases": "./src/flow-cases.ts",
+    "./flow-edit": "./src/flow-edit.ts",
     "./task-groups": "./src/task-groups.ts",
     "./delegation": "./src/delegation.ts"
   },

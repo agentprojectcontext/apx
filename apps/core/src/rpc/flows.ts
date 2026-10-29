@@ -16,9 +16,10 @@ export function flowHandlers(
   flows: Flows,
   credentials: import("../public-credentials.ts").PublicCredentials,
   model: FlowModelCheck,
+  bus?: import("../bus.ts").Bus,
 ) {
   const flowsNow = () => flows.now();
-  const graphHandlers = flowGraphHandlers(store, model, flows.outside);
+  const graphHandlers = flowGraphHandlers(store, model, flows.outside, bus);
   const found = (id: string) => {
     const flow = store.flows.get(id);
     if (!flow) throw notFound("Flow not found");
@@ -26,16 +27,22 @@ export function flowHandlers(
   };
   return {
     ...graphHandlers,
-    "flows.publish": (params) => {
+    "flows.publish": (params, ctx) => {
       const scheduleOf = () => store.flowGraphs.get(params.flow).published?.nodes.find((n) => n.kind === "schedule");
       const before = JSON.stringify(scheduleOf() ?? null);
-      const doc = graphHandlers["flows.publish"](params);
+      const doc = graphHandlers["flows.publish"](params, ctx);
       // A new schedule (or a trigger changed) owes nothing from the old one's count; off, it keeps none.
       if (JSON.stringify(scheduleOf() ?? null) !== before) {
         if (store.flows.get(params.flow)?.enabled) store.flowSchedules.reset(params.flow, flowsNow());
         else store.flowSchedules.stop(params.flow);
       }
       return doc;
+    },
+    "flows.create": (params, ctx) => {
+      const made = graphHandlers["flows.create"](params, ctx);
+      // A new identifier never inherits a route credential left by a Flow of a deleted project.
+      credentials.revoke(`/flows/${made.flow.id}`);
+      return made;
     },
     "flows.list": ({ project }) => {
       const flows = store.flows.list(project);

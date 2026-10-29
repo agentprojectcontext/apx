@@ -53,7 +53,7 @@ export function settingAct(a: { method?: unknown; params?: unknown }): {
   const method = typeof a.method === "string" ? a.method : "";
   const s = SETTINGS[method];
   const area = method.split(".")[0] ?? "";
-  if (!s || s.read || !a.params) return { act: "look", area };
+  if (!s || s.read || s.own?.reads || !a.params) return { act: "look", area };
   return { act: /[._](remove|delete|unregister)$/.test(method) ? "remove" : "change", area };
 }
 
@@ -134,7 +134,12 @@ export function settingsTools(
   /** A call that changes something: a setting that is not a read, with what to change. */
   const changes = (a: Args) => {
     const s = a.method ? SETTINGS[a.method] : undefined;
-    return !!s && !s.read && a.params !== undefined;
+    return !!s && !s.read && !s.own && a.params !== undefined;
+  };
+  /** A Flow drawing's change or whole read: the agent's own call, asked only with outside content in the turn. */
+  const drafts = (a: Args) => {
+    const s = a.method ? SETTINGS[a.method] : undefined;
+    return s?.own?.confirm === "untrusted" && a.params !== undefined;
   };
   const filled = (a: Args) => {
     const s = settingOf(a.method ?? "");
@@ -166,7 +171,7 @@ export function settingsTools(
       args,
       effect: "local",
       // What the owner set up is theirs: every change waits for their yes.
-      confirm: (a) => (changes(a) && !unchanged(a) ? "always" : "never"),
+      confirm: (a) => (changes(a) && !unchanged(a) ? "always" : drafts(a) ? "untrusted" : "never"),
       ownerSetting: (a) => changes(a) && !unchanged(a),
       // Long enough for a reindex or a repo's skills; a read answers at once.
       deadlineMs: 120_000,
@@ -180,7 +185,12 @@ export function settingsTools(
         if (!a.method || areas().has(a.method)) return;
         const s = settingOf(a.method);
         if (typeof s === "string") throw new Error(s);
-        if (s.setting.read || !a.params) return;
+        const own = s.setting.own?.args.safeParse(a.params ?? {});
+        if (own && a.params && !own.success)
+          throw new Error(
+            `${a.method}: ${own.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`,
+          );
+        if (s.setting.read || s.setting.own || !a.params) return;
         const refused = s.setting.refuse?.(a.params, deps);
         if (refused) throw new Error(`${a.method}: ${refused}`);
         const r = methods[s.name].params.safeParse(filled(a));
@@ -208,6 +218,7 @@ export function settingsTools(
         const s = settingOf(a.method);
         if (typeof s === "string") return s;
         if (s.setting.read) return s.setting.read(a.params ?? {}, deps);
+        if (s.setting.own) return a.params ? s.setting.own.run(a.params, deps, ctx) : `${a.method}: ${s.setting.does}`;
         if (!a.params) {
           const { $schema: _, ...schema } = z.toJSONSchema(methods[s.name].params, { io: "input" }) as Params;
           return `${a.method} takes: ${JSON.stringify(schema).slice(0, 4000)}`;

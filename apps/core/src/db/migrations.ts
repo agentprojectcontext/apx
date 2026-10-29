@@ -1031,4 +1031,6 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX flow_tables_recent ON flow_tables(project_id, name, updated_at);
   `,
+  // Which agent saved a Flow's draft (null: the owner): turning it on opens it for review instead (DECISIONS.md#d-174).
+  `ALTER TABLE flow_graph_drafts ADD COLUMN saved_by TEXT;`,
 ];

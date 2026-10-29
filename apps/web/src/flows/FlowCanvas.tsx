@@ -95,16 +95,28 @@ const nodeTypes = { step: StepNode };
  * Fits the view once the steps have sizes, and again when `fitKey` changes, leaving out what a card covers. On a
  * phone the whole chain would be too small to read: it shows the first steps and the rest is a pan away.
  */
-function FitOnce({ fitKey, first, cover }: { fitKey: string; first: string[]; cover: Cover | undefined }) {
+function FitOnce({
+  fitKey,
+  first,
+  cover,
+  whole,
+}: {
+  fitKey: string;
+  first: string[];
+  cover: Cover | undefined;
+  whole?: boolean;
+}) {
   const { fitView } = useReactFlow();
   const ready = useNodesInitialized();
-  const narrow = useStore((s) => s.width > 0 && s.width < 600);
+  const narrow = useStore((s) => s.width > 0 && s.width < 600) && !whole;
   const width = useStore((s) => s.width);
   const height = useStore((s) => s.height);
   const done = useRef<string | null>(null);
   useEffect(() => {
-    if (ready && done.current !== fitKey) {
-      done.current = fitKey;
+    // A picture of the whole drawing fits again whenever its box changes size (a phone turned, a panel opened).
+    const key = whole ? `${fitKey}:${width}` : fitKey;
+    if (ready && done.current !== key) {
+      done.current = key;
       const c = cover?.(width, height);
       const padding = c
         ? {
@@ -116,7 +128,7 @@ function FitOnce({ fitKey, first, cover }: { fitKey: string; first: string[]; co
         : 0.2;
       void fitView({ maxZoom: 1, padding, ...(narrow ? { nodes: first.map((id) => ({ id })) } : {}) });
     }
-  }, [ready, fitKey, fitView, narrow, first, cover, width, height]);
+  }, [ready, fitKey, fitView, narrow, first, cover, width, height, whole]);
   return null;
 }
 
@@ -181,6 +193,8 @@ type Props = {
     connect: (source: string, target: string, when?: string) => void;
   };
   minimap?: boolean;
+  /** A picture of the whole drawing (a chat's card): it does not pan, zoom or select, and the page scrolls over it. */
+  still?: boolean;
   /** Changing it fits the view again (another run, another flow). */
   fitKey: string;
   /** Clicking a step, or a new request, pans it to the middle of what `cover` leaves visible. */
@@ -188,7 +202,7 @@ type Props = {
   children?: ReactNode;
 };
 
-export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fitKey, focus, children }: Props) {
+export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, still, fitKey, focus, children }: Props) {
   const t = useT();
   const initial = useMemo<Node<StepData>[]>(
     () =>
@@ -246,7 +260,7 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fit
     for (const change of changes) if (change.type === "select" && change.selected) onSelect(change.id);
   };
   return (
-    <section className={edit ? "fc is-edit" : "fc"} aria-label={t("flow.canvas")}>
+    <section className={edit ? "fc is-edit" : still ? "fc is-still" : "fc"} aria-label={t("flow.canvas")}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -265,11 +279,18 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fit
         }
         nodesDraggable={Boolean(edit)}
         nodesConnectable={Boolean(edit)}
+        elementsSelectable={!still}
+        panOnDrag={!still}
+        zoomOnScroll={!still}
+        zoomOnPinch={!still}
+        zoomOnDoubleClick={!still}
+        preventScrolling={!still}
         minZoom={0.2}
         maxZoom={1.6}
         multiSelectionKeyCode={null}
         deleteKeyCode={null}
         edgesFocusable={false}
+        nodesFocusable={!still}
         proOptions={{ hideAttribution: true }}
         ariaLabelConfig={{
           "node.a11yDescription.default": t("flow.ed.stepsHint"),
@@ -284,6 +305,7 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fit
           fitKey={fitKey}
           first={graph.nodes.slice(0, 2).map((n) => n.id)}
           cover={focus && selected ? focus.cover : undefined}
+          whole={still}
         />
         {focus && <Focus request={focus.request} cover={focus.cover} />}
         <Background variant={BackgroundVariant.Dots} gap={18} size={1} className="fc-grid" />
@@ -296,7 +318,7 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, fit
             nodeClassName={(n) => `fc-mini fc-mini--${STEP[(n.data as StepData).kind].tone}`}
           />
         )}
-        <Zoom />
+        {!still && <Zoom />}
         {children}
       </ReactFlow>
     </section>
