@@ -186,8 +186,17 @@ yours.
 Messages, calls, commands and database writes still ask **Let this flow act for you?** first. If the chat had a
 message from someone else or a web page in it, the super-agent asks you before it saves the draft. How freely an AI
 model step acts (its permission mode, whether it can ask other agents) is yours to set in the editor. The list and a
-flow's page show the agent's changes as soon as they are saved; an editor you have open keeps what is on screen, so
-exit and open it again to see them (saving over them tells you the flow changed).
+flow's page show the agent's changes as soon as they are saved.
+
+**From the editor.** **Ask** (with your super-agent's name) in the editor's top bar opens a chat with it over the
+canvas, in the place of a step's settings; on a phone it is a sheet at the bottom. Say what to change and watch: while
+it works the canvas says it is editing, your steps stay still, and each step it adds or changes appears and is marked
+**New** or **Changed** for a moment. The chat is kept for that flow, so **Ask** continues it; ↻ starts a new one. Your
+own changes not saved yet are saved as a draft when you send a message, so it starts from what you see; if a step still
+misses a setting, the chat asks you to finish it first. In a new flow, choose the project first: your super-agent makes
+the flow there and the editor opens it. The top bar says **Drawn by** its name until you **Save**. An editor you have
+open without that chat keeps what is on screen if an agent changes the flow from another chat: exit and open it again
+to see it.
 
 The CLI starts and stops runs too: `apx flows run <flow> ['<sample body JSON>']` and `apx flows stop <flow> <event>`.
 They act as you, so they refuse to run inside an agent's command.

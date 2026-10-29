@@ -3048,6 +3048,44 @@ which the super-agent changes for them; other agents ask it), letting agents pub
 yes would make a drawing the owner never opened run unattended), and keeping drafts owner-only behind
 `callAsOwner` (it exists only for calls that always ask, and a draft should not).
 
+## D-175 — 2026-10-29 — The owner asks the super-agent from the Flow editor and watches it draw
+D-174 let the super-agent draw Flow drafts from any chat, but the open editor did not take them (its next save was a
+conflict). The owner now asks from inside the editor: **Ask {name}** in its top bar opens a chat with the
+super-agent in a card over the canvas, and the steps it saves appear there as it works.
+
+- **One card at a time.** The chat card takes the step card's place (same `Drawer inset`, same size, a bottom sheet on
+  a phone), so the `cover` that centres a clicked step and fits the view is the same for both; the canvas fit now
+  leaves out whichever card is open. A step chosen replaces the chat (it stays for the next **Ask**); **Ask** replaces
+  the step card. Two cards side by side would leave little canvas to watch, and a step's settings and the chat are
+  never needed together: edits wait while the agent works.
+- **The chat.** A loose thread with the super-agent in the Flow's project, remembered per Flow on this device
+  (`apx.flowChats`, as widget chats are) so **Ask** continues it; the card's ↻ starts a new one. Its first message
+  says which Flow and project it is about and that the owner is looking at the editor: it goes in the turn (the
+  owner's message, before their words), never the system prompt (rule 23). The composer's `prepare` hook adds it.
+- **Unsaved edits.** Before each message the owner's unsaved edits are saved as a draft, so the agent starts from
+  what the owner sees and its edits (applied on the latest draft, D-174) never drop them. A drawing that cannot be
+  saved yet (a step missing a required setting) keeps the message unsent and says which step to finish. Over an
+  agent's draft the owner has not saved from the editor, that save passes `unreviewed: true`: the draft keeps the
+  agent as who drew it, so turning the Flow on still opens it for review (D-174) instead of the owner's implicit save
+  making it theirs. Later messages tell the agent the drawing changed, to read it again.
+- **While it works.** While the chat's turn runs the canvas is the agent's: a note "{name} is editing this flow…",
+  steps can't be moved, joined, added or opened, and Save waits. Each `flow.draft` for the open Flow with `by` set
+  reloads the drawing (`takeAgentDraft`, `flows/agentDraft.ts`): the canvas takes it when it has no unsaved edits,
+  marking new and changed steps for a few seconds (on a phone the fit shows the new ones); unsaved edits (an agent
+  writing from another chat) are kept, and the bar says to reopen the editor to see its change. The owner's own saves
+  (`by` null) are never reloaded.
+- **A new Flow.** The editor already needs a project. A drawing with steps the owner changed is saved first with
+  `flows.create` (one that can't be saved yet waits, as above); an untouched starter or a blank one is not: the first
+  message says to make the Flow in that project, and the next Flow the super-agent makes there while the editor waits
+  becomes the editor's (its id, name and drawing). Saving first needs at least one complete step, which a blank flow
+  doesn't have.
+- **Review.** The status says "Drawn by {name}: look it over and save" while the draft is an agent's; the owner's
+  Save makes it theirs (and publishes when the Flow is on, with its usual outward check), as before.
+
+Rejected: both cards open side by side (the canvas left is too narrow to watch); hiding the context in a field the
+transcript doesn't show (`threads.send` has none, and the owner should see what their agent was told); merging the
+owner's unsaved edits with the agent's step by step (two writers on one drawing; saving first is simpler and loses
+nothing); letting the owner's pre-send save make an agent's draft theirs (it would skip D-174's review).
 <a id="d-176"></a>
 ## D-176 — 2026-10-29 — A project's tables exist on their own, with columns, and are filled outside Flows too
 The owner tried Read and Save and was blocked: a read offered nothing until some Flow had saved a row ("save first"),

@@ -32,6 +32,8 @@ export type StepLook = {
   state?: FlowStepState;
   order?: number;
   muted?: boolean;
+  /** Just added or changed by an agent: marked for a moment. */
+  mark?: boolean;
 };
 type StepData = StepLook & {
   kind: FlowNode["kind"];
@@ -70,6 +72,7 @@ function StepNode({ data, selected }: NodeProps<Node<StepData>>) {
       order={data.order}
       muted={data.muted}
       selected={selected}
+      className={data.mark ? "fc-mark" : undefined}
     >
       {!data.trigger && <Handle type="target" position={Position.Left} className="fc-handle fc-handle--in" />}
       {data.branches && data.branches.length <= 2 ? (
@@ -102,7 +105,7 @@ function FitOnce({
   whole,
 }: {
   fitKey: string;
-  first: string[];
+  first: readonly string[];
   cover: Cover | undefined;
   whole?: boolean;
 }) {
@@ -202,12 +205,29 @@ type Props = {
   still?: boolean;
   /** Changing it fits the view again (another run, another flow). */
   fitKey: string;
-  /** Clicking a step, or a new request, pans it to the middle of what `cover` leaves visible. */
-  focus?: { request: { id: string; seq: number } | null; cover: Cover; onClick: (id: string) => void };
+  /** On a phone, the steps a fit keeps in view (steps just added); the first two otherwise. */
+  fitSteps?: readonly string[];
+  /**
+   * Clicking a step, or a new request, pans it to the middle of what `cover` leaves visible; `card`: a card is open
+   * over the canvas now, so fitting the view leaves its part out too.
+   */
+  focus?: { request: { id: string; seq: number } | null; cover: Cover; card: boolean; onClick: (id: string) => void };
   children?: ReactNode;
 };
 
-export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, still, fitKey, focus, children }: Props) {
+export function FlowCanvas({
+  graph,
+  look,
+  selected,
+  onSelect,
+  edit,
+  minimap,
+  still,
+  fitKey,
+  fitSteps,
+  focus,
+  children,
+}: Props) {
   const t = useT();
   const initial = useMemo<Node<StepData>[]>(
     () =>
@@ -308,8 +328,8 @@ export function FlowCanvas({ graph, look, selected, onSelect, edit, minimap, sti
       >
         <FitOnce
           fitKey={fitKey}
-          first={graph.nodes.slice(0, 2).map((n) => n.id)}
-          cover={focus && selected ? focus.cover : undefined}
+          first={fitSteps?.length ? [...fitSteps] : graph.nodes.slice(0, 2).map((n) => n.id)}
+          cover={focus?.card ? focus.cover : undefined}
           whole={still}
         />
         {focus && <Focus request={focus.request} cover={focus.cover} />}

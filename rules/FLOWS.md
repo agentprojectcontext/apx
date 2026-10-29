@@ -518,14 +518,30 @@ draws it with `FlowCard` (lazy, `apps/web/src/lazy.ts`): name, project, **Draft*
 `FlowCanvas` of the draft (else what runs) and **Open in the editor** (`#view=flows&flow=<id>&edit=1`). Draft saves,
 discards, publications and `flows.create` emit `flow.draft {flow, project, draft_version, by}` (`by`: the agent, null
 for the owner); the panel's `data/flowDrafts.ts` counts them per Flow, and the list, a Flow's detail and its chat cards
-read the drawing again. The open editor does not take them yet: it keeps its own state and its next save conflicts.
+read the drawing again. The open editor takes them too (below).
+
+**Asking from the editor** ([D-175](DECISIONS.md#d-175)). **Ask {name}** opens `FlowChat` (`flows/FlowChat.tsx`), a
+loose thread with the super-agent in the Flow's project, in the step card's place (one `Drawer inset` card at a time;
+the canvas `focus.card` makes the fit leave it out). Threads are remembered per Flow in `localStorage`
+(`apx.flowChats`, `flows/flowChat.ts`). The composer's `prepare` hook runs before each message: unsaved edits go first
+as the owner's draft (`flows.draft_save`, with `unreviewed: true` over an agent's draft so `draftBy` keeps the agent;
+`flows.create` for a new Flow with changed steps), a drawing with a blank required setting keeps the message unsent,
+and the first message of the chat starts with `[Flow editor: … (id <flow>) …]` (a new Flow: its project's id) before
+the owner's words. While the thread's turn runs the canvas is locked (no move, join, add, step card or Save) under
+"{name} is editing this flow…". A `flow.draft` with `by` set for the open Flow is read with `flows.graph_get` and
+given to `takeAgentDraft` (`flows/agentDraft.ts`): `same`, `keep` (unsaved local edits stay; the bar says to reopen) or
+`take` (the canvas shows it and `freshSteps` marks new and changed steps for six seconds; a phone's fit shows the new
+ones). A new Flow the editor waits for adopts the next one the super-agent makes in its project. The owner's Save still
+makes the draft theirs (`draftBy` null).
 
 **Español:** El super-agente dibuja y cambia borradores de Flows desde cualquier chat con `apx_settings` (área
 `flows`): crear, leer, editar por pasos, revisar. Un borrador no corre: publicarlo (guardar con el flow prendido, o
 prenderlo) es del dueño en el editor, y lo que sale (mensajes, llamadas, comandos, escrituras) sigue pidiendo permiso.
 Con contenido de afuera en el turno, guardar un borrador pregunta. Un agente de proyecto solo llega a los flows de su
 proyecto. El chat muestra una tarjeta con el dibujo y **Abrir en el editor**; el evento `flow.draft` refresca la lista,
-el detalle y la tarjeta.
+el detalle y la tarjeta. Desde el editor, **Pedírselo a {nombre}** abre ese chat sobre el lienzo: antes de cada mensaje
+se guardan tus cambios como borrador, mientras el agente trabaja el lienzo queda quieto y los pasos que dibuja aparecen
+marcados un momento; tu **Guardar** sigue haciéndolos tuyos.
 
 ## Verification and rollout
 

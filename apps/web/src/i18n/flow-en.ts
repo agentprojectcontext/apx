@@ -631,4 +631,24 @@ export const enFlow = {
   "flow.tables.noRows": "No rows yet.",
   "flow.tables.failed": "That change couldn't be saved. Try again.",
   "flow.tables.open": "Open {name} in Tables",
+  "flow.ed.ask": "Ask {name}",
+  "flow.ed.agentEditing": "{name} is editing this flow…",
+  "flow.ed.agentDrew": "Drawn by {name}: look it over and save",
+  "flow.ed.agentElsewhere": "{name} changed this flow in another chat. Exit and open it again to see it.",
+  "flow.ed.freshNew": "New",
+  "flow.ed.freshChanged": "Changed",
+  "flow.chat.label": "Chat with {name} about this flow",
+  "flow.chat.title": "Chat with {name}",
+  "flow.chat.new": "New chat",
+  "flow.chat.hint":
+    "Tell {name} what this flow should do, or what to change. The steps appear here as {name} draws them, and nothing runs until you save.",
+  "flow.chat.finish": "Fill in «{step}» or delete it first: {name} works on what's saved.",
+  "flow.chat.empty": "Add at least one step first.",
+  "flow.chat.context":
+    '[Flow editor: I\'m looking at the flow "{name}" (id {flow}) of the project "{project}". Change its draft; I see the steps appear as you save them.]',
+  "flow.chat.contextNew":
+    '[Flow editor: I\'m starting a new flow in the project "{project}" (id {projectId}), not made yet. Make it there; I see its steps appear in the editor.]',
+  "flow.chat.contextNewNamed":
+    '[Flow editor: I\'m starting a new flow named "{name}" in the project "{project}" (id {projectId}), not made yet. Make it there; I see its steps appear in the editor.]',
+  "flow.chat.changed": "[I changed the drawing in the editor: read it again before you change it.]",
 } as const;

@@ -167,6 +167,65 @@
 .fe-pal-toggle.apx-btn {
   display: none;
 }
+/* While the super-agent works in its chat the canvas is its: a quiet note at the top, the steps still. */
+.fe-agent {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+  padding: 6px 12px;
+  transform: translateX(-50%);
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-sm);
+  color: var(--apx-fg-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.fe-canvas:has(> .fe-card) .fe-agent {
+  left: calc(50% - 206px);
+}
+/* A step the agent just added or changed. */
+.fc .apx-flowstep.fc-mark {
+  box-shadow:
+    0 0 0 2px var(--apx-brand),
+    var(--apx-shadow-sm);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .fc .apx-flowstep.fc-mark {
+    animation: fc-mark-in 0.6s var(--apx-ease);
+  }
+}
+@keyframes fc-mark-in {
+  from {
+    box-shadow:
+      0 0 0 10px transparent,
+      var(--apx-shadow-sm);
+    transform: scale(0.96);
+  }
+}
+.fe-chat__hint {
+  margin: auto 0;
+  padding: 0 8px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+  text-align: center;
+  text-wrap: pretty;
+}
+.fe-chat__notice {
+  flex: none;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-warning-soft);
+  color: var(--apx-warning-soft-fg);
+  font-size: var(--apx-text-sm);
+}
 .fe-list {
   display: flex;
   flex-direction: column;
@@ -365,8 +424,12 @@
     width: auto;
   }
   .fe-top__spacer,
-  .fe-top__status {
+  .fe-top__status,
+  .fe-top__ask-text {
     display: none;
+  }
+  .fe-canvas:has(> .fe-card) .fe-agent {
+    left: 50%;
   }
   .fe-body {
     position: relative;

@@ -645,4 +645,24 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.tables.noRows": "Todavía no hay filas.",
   "flow.tables.failed": "No se pudo guardar ese cambio. Probá de nuevo.",
   "flow.tables.open": "Abrir {name} en Tablas",
+  "flow.ed.ask": "Pedírselo a {name}",
+  "flow.ed.agentEditing": "{name} está editando este flow…",
+  "flow.ed.agentDrew": "Lo dibujó {name}: revisalo y guardalo",
+  "flow.ed.agentElsewhere": "{name} cambió este flow en otro chat. Salí y abrilo de nuevo para verlo.",
+  "flow.ed.freshNew": "Nuevo",
+  "flow.ed.freshChanged": "Cambiado",
+  "flow.chat.label": "Chat con {name} sobre este flow",
+  "flow.chat.title": "Chat con {name}",
+  "flow.chat.new": "Chat nuevo",
+  "flow.chat.hint":
+    "Contale a {name} qué tiene que hacer este flow o qué cambiar. Los pasos aparecen acá mientras {name} los dibuja, y nada corre hasta que guardes.",
+  "flow.chat.finish": "Completá «{step}» o borralo primero: {name} trabaja sobre lo guardado.",
+  "flow.chat.empty": "Agregá al menos un paso primero.",
+  "flow.chat.context":
+    "[Editor de flows: estoy mirando el flow «{name}» (id {flow}) del proyecto «{project}». Cambiá su borrador; veo aparecer los pasos a medida que los guardás.]",
+  "flow.chat.contextNew":
+    "[Editor de flows: estoy empezando un flow nuevo en el proyecto «{project}» (id {projectId}), todavía sin crear. Crealo ahí; veo aparecer sus pasos en el editor.]",
+  "flow.chat.contextNewNamed":
+    "[Editor de flows: estoy empezando un flow nuevo llamado «{name}» en el proyecto «{project}» (id {projectId}), todavía sin crear. Crealo ahí; veo aparecer sus pasos en el editor.]",
+  "flow.chat.changed": "[Cambié el dibujo en el editor: leelo de nuevo antes de cambiarlo.]",
 };

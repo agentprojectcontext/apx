@@ -38,10 +38,13 @@ export function ChatComposer({
   thread,
   agent,
   onMade = (id) => go.madeThread(thread.id, id),
+  prepare,
 }: {
   thread: Thread;
   agent: Agent | undefined;
   onMade?: (id: string) => void;
+  /** Runs before each message goes: the words to send (with what the screen adds), or null to keep them unsent. */
+  prepare?: (words: string) => Promise<string | null>;
 }) {
   const t = useT();
   const offline = useData((s) => s.connection === "offline");
@@ -105,21 +108,25 @@ export function ChatComposer({
       setText((cur) => (cur ? `${value}\n\n${cur}` : value));
       att.restore(attachments);
     };
-    if (!fresh) return void send(thread.id, words, { attachments, queue }).catch(giveBack);
-    making.current = true;
-    void (async () => {
-      try {
-        // Keep the created chat on failure: retry sends the restored files without making another chat.
-        const chat = created.current ?? (await makeChat(thread.id));
-        created.current = chat;
-        await send(chat.id, words, { attachments, queue });
-        onMade(chat.id);
-      } catch {
-        giveBack();
-      } finally {
-        making.current = false;
-      }
-    })();
+    const deliver = (said: string) => {
+      if (!fresh) return void send(thread.id, said, { attachments, queue }).catch(giveBack);
+      making.current = true;
+      void (async () => {
+        try {
+          // Keep the created chat on failure: retry sends the restored files without making another chat.
+          const chat = created.current ?? (await makeChat(thread.id));
+          created.current = chat;
+          await send(chat.id, said, { attachments, queue });
+          onMade(chat.id);
+        } catch {
+          giveBack();
+        } finally {
+          making.current = false;
+        }
+      })();
+    };
+    if (!prepare) return deliver(words);
+    void prepare(words).then((said) => (said ? deliver(said) : giveBack()), giveBack);
   };
   const pick = (input: HTMLInputElement | null) => input?.click();
 
