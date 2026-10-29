@@ -257,11 +257,11 @@ test("a secret variable is swapped once the text is parsed: a placeholder before
   try {
     await env.client.call("secrets.set", { name: "acme_key", value: SECRET });
     const p = await project(env, "Acme parse");
-    const step: FlowNode = {
-      ...cmd([
+    const step: Node<"cmd"> = {
+      ...(cmd([
         { name: "KEY", value: "$trigger.x$vars.token" },
         { name: "TWO", value: "$vars.plain$vars.token" },
-      ]),
+      ]) as Node<"cmd">),
       command: 'printf "%s|%s" "$KEY" "$TWO"',
     };
     const graph = chain(hook, twoVars(), step);
