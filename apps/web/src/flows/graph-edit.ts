@@ -1,86 +1,11 @@
 import { FLOW_OTHERWISE, flowBranches, flowCases } from "@apx/protocol/flow-cases";
-import type { FlowBinding, FlowGraph, FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowGraph, FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
 
 type Condition = Extract<FlowNode, { kind: "condition" }>;
 
+// The edits an agent's tool makes too live in the protocol package, so both draw alike.
+export { connectionError, connectNodes, newNode, removeNode } from "@apx/protocol/flow-edit";
 export type NodeKind = FlowNode["kind"];
-export function newNode(kind: NodeKind, id: string, label: string): FlowNode {
-  const input: FlowBinding = { kind: "event", path: [] };
-  switch (kind) {
-    case "webhook":
-      return { id, label, kind };
-    case "schedule":
-      return { id, label, kind, cron: "30 8 * * 1-5" };
-    case "condition":
-      // The two-case default: "yes" when its expression holds, else "no".
-      return { id, label, kind, input, cases: [{ id: "yes", label: "", match: { kind: "expr", expr: "" } }] };
-    case "vars":
-      return { id, label, kind, vars: [{ name: "value", value: { kind: "literal", value: "" } }] };
-    case "js":
-      return { id, label, kind, code: "return input;", input, timeoutMs: 2000 };
-    case "sql":
-      return {
-        id,
-        label,
-        kind,
-        database: "",
-        mode: "read",
-        query: "SELECT * FROM ",
-        params: [],
-        maxRows: 50,
-        timeoutMs: 10000,
-      };
-    case "cmd":
-      return { id, label, kind, command: "", env: [], stdin: "", timeoutMs: 30000, continueOnError: false };
-    case "table_read":
-      return { id, label, kind, keys: [""] };
-    case "table_write":
-      return { id, label, kind, key: "", value: input };
-    case "llm":
-      return { id, label, kind, model: "", prompt: "", input, maxOutputTokens: 1024, timeoutMs: 30000 };
-    case "agent":
-      return { id, label, kind, agent: "", prompt: "", input };
-    case "routine":
-      return { id, label, kind, routine: "", input };
-    case "notify":
-      return { id, label, kind, channel: "", to: { kind: "contact", person: "" }, text: "", onlyIfContent: false };
-    case "http":
-      return { id, label, kind, method: "POST", url: "https://", headers: [], body: "", timeoutMs: 10000 };
-  }
-}
-export function removeNode(graph: FlowGraph, id: string): FlowGraph {
-  return {
-    ...graph,
-    nodes: graph.nodes.filter((n) => n.id !== id),
-    edges: graph.edges.filter((e) => e.source !== id && e.target !== id),
-    layout: graph.layout.filter((p) => p.node !== id),
-  };
-}
-export function connectionError(graph: FlowGraph, source: string, target: string): string | null {
-  if (!graph.nodes.some((n) => n.id === source) || !graph.nodes.some((n) => n.id === target)) return "missing";
-  if (source === target) return "self";
-  const into = graph.nodes.find((n) => n.id === target)?.kind;
-  if (into === "webhook" || into === "schedule") return "trigger";
-  if (graph.edges.some((e) => e.source === source && e.target === target)) return "duplicate";
-  if (graph.edges.length >= 64) return "limit";
-  const seen = new Set<string>();
-  const pending = [target];
-  while (pending.length) {
-    const id = pending.pop();
-    if (!id || seen.has(id)) continue;
-    if (id === source) return "cycle";
-    seen.add(id);
-    pending.push(...graph.edges.filter((e) => e.source === id).map((e) => e.target));
-  }
-  return null;
-}
-/** Joins two steps; out of a check, `when` says by which way out (its first case unless another is named). */
-export function connectNodes(graph: FlowGraph, source: string, target: string, when?: string): FlowGraph {
-  if (connectionError(graph, source, target)) return graph;
-  const check = graph.nodes.find((n): n is Condition => n.id === source && n.kind === "condition");
-  const branch = check && (when && flowBranches(check).includes(when) ? when : flowBranches(check)[0]);
-  return { ...graph, edges: [...graph.edges, { source, target, ...(branch ? { when: branch } : {}) }] };
-}
 
 /** A check in the form that has cases: one drawn before them keeps its value as its "yes" case. */
 export function withCases(n: Condition): Condition & { cases: NonNullable<Condition["cases"]> } {

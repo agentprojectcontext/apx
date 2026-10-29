@@ -293,7 +293,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...embeddingHandlers(d.localEmbeds, () => d.memory.engine()),
     ...taskHandlers(d.store, d.engine, d.app.home, d.vm?.beforeDelete),
     ...routineHandlers(d.store, d.scheduler, d.profileRoots),
-    ...flowHandlers(d.store, d.flows, d.publicCredentials, d.flowModel),
+    ...flowHandlers(d.store, d.flows, d.publicCredentials, d.flowModel, d.bus),
     ...noticeHandlers(d.store, d.nudges),
     ...notificationHandlers(d.store),
     ...clientHandlers(d.store),

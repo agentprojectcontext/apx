@@ -1,13 +1,15 @@
 import { flowMethods } from "../../../../packages/protocol/src/flow-methods.ts";
+import { FLOW_DRAFTS, flowLines } from "./settings-flow-drafts.ts";
 import { merged, type Setting, str } from "./settings-kit.ts";
 
 export const FLOWS: Readonly<Record<string, Setting>> = {
   "flows.list": {
-    does: "list webhook-only Flows across all projects, or filter by optional project; no model work while idle",
-    read: (p, { store }) => JSON.stringify(store.flows.list(typeof p.project === "string" ? p.project : undefined)),
+    does: "list Flows across all projects, or of one (project): name, id, on or off, and their drawing's state",
+    read: (p, d) => flowLines(d, p),
   },
+  ...FLOW_DRAFTS,
   "flows.set": {
-    does: "create or replace a Flow: id, projectId, name, enabled, predicates [{path: string[], equals: scalar}], tableKey, action {kind: none|agent|routine, agent/prompt or routine}. Routine must be manual-only in the same project. Public tokens stay owner-only in Settings, Devices",
+    does: "turn a Flow on or off, or rename it (a drawn Flow takes only name and enabled); an old one without a drawing: id, projectId, name, enabled, predicates [{path: string[], equals: scalar}], tableKey, action {kind: none|agent|routine, agent/prompt or routine}. Routine must be manual-only in the same project. Public tokens stay owner-only in Settings, Devices",
     now: (p, { store }) => store.flows.get(str(p.id)),
     keep: (p, { store }) => merged(store.flows.get(str(p.id)), p),
     whole: true,

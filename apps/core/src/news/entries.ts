@@ -204,6 +204,20 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "flow-agents",
+    since: "2.11.2",
+    title: "Your super-agent draws Flows for you",
+    applies: (f) => f.secretary,
+    text: "The super-agent can now make a Flow in a project or change one's steps when the owner asks in any chat: it draws the steps, connects and places them, checks what keeps the drawing from running and fixes it. The chat shows the Flow's drawing with a button to open it in the editor. What it saves is a draft: nothing runs until the owner reviews it in the editor and turns it on, and anything that sends as them, calls a service, runs a command or changes a database still asks them first.",
+    actions: [
+      {
+        label: { en: "Draw a Flow with me", es: "Dibujar un Flow conmigo" },
+        prompt:
+          "Ask me what I want automated, then draw that Flow in the right project as a draft and show it to me here, still off, for me to review in the editor.",
+      },
+    ],
+  },
+  {
     id: "flow-ai-step",
     since: "2.11.2",
     title: "A Flow's AI step: an agent or a bot of its own, on the model you pick",

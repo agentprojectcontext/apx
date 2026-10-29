@@ -59,8 +59,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "tools.grant_set": POWER,
   "tools.revoke": POWER,
   "mcp.trust": POWER,
-  // A drawing is edited and made what runs by the owner in the panel's Flows editor (rules/FLOWS.md).
-  "flows.draft_save": "the owner draws a Flow's steps in the panel's editor",
+  // A drawing is made what runs by the owner in the panel's Flows editor (rules/FLOWS.md); agents save drafts only.
   "flows.draft_discard": "the owner deletes a Flow draft on purpose",
   "flows.publish": "the owner makes a drawing what runs by saving it on, or turning the Flow on, in the editor",
   "flows.run_now": "the owner starts a Flow by hand from its page, with the body they reviewed",

@@ -67,7 +67,9 @@ Empty objects, non-object values, nonmatching events and duplicates do not invok
 
 ## Protocol, CLI and tools
 
-All management operations use the private protocol registry: `flows.list`, `flows.set`, `flows.rows`, `flows.write`, `flows.events`, `flows.retry`, `flows.retire`, `flows.try`, and for drawings `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate`, `flows.outward`, `flows.publish`, `flows.run_get`, `flows.next_runs`, `flows.run_now`, `flows.cancel_run`, `flows.try_graph`. External `chat` tokens cannot call them.
+All management operations use the private protocol registry: `flows.list`, `flows.set`, `flows.rows`, `flows.write`, `flows.events`, `flows.retry`, `flows.retire`, `flows.try`, and for drawings `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate`, `flows.outward`, `flows.publish`, `flows.run_get`, `flows.next_runs`, `flows.run_now`, `flows.cancel_run`, `flows.try_graph`, and `flows.create` for a new
+drawn Flow. External `chat` tokens cannot call them; see [Agents drawing Flows](#agents-drawing-flows) for the ones an
+agent's tool reaches.
 
 `flows.events` rows carry `run_started_at`, `run_ended_at` and `run_tokens` (fresh tokens, counted as in run usage:
 input less cached plus output) from the linked run, `null` until the run has them. They also say which executor
@@ -121,14 +123,16 @@ no prueba que exista un respaldo externo válido. Los cursores se devuelven en `
 No hay snapshot entre solicitudes, importación ni replay: no se exportan los chats ni los payloads privados de acciones
 pendientes, que se descartan al retirar el Flow. El límite de eventos retenidos sigue vigente.
 
-The super-agent discovers the same operations through the existing `apx_settings` tool's `flows` area. No new always-loaded tool, custom script language, polling model, public RPC proxy or duplicate scheduler is introduced.
+The super-agent discovers the same operations through the existing `apx_settings` tool's `flows` area, and draws
+drafts there too ([Agents drawing Flows](#agents-drawing-flows)). No new always-loaded tool, custom script language, polling model, public RPC proxy or duplicate scheduler is introduced.
 
 ## Drawn graphs (graph executor)
 
 See [D-167](DECISIONS.md#d-167) for what the executor keeps and what the design left out.
 
-**Documents and revisions.** `flows.graph_get`, `flows.draft_save`, `flows.draft_discard`, `flows.validate` and
-`flows.publish` are owner-only. Graphs use `schemaVersion: 2`, at most 32 typed nodes (webhook, schedule, condition,
+**Documents and revisions.** `flows.draft_discard` and `flows.publish` are owner-only; `flows.graph_get`,
+`flows.draft_save` and `flows.validate` also answer an agent's tool for its project's Flows
+([Agents drawing Flows](#agents-drawing-flows)). Graphs use `schemaVersion: 2`, at most 32 typed nodes (webhook, schedule, condition,
 table_read, table_write, llm, agent, routine, notify, http, vars, js, sql, cmd), 64 edges, four llm nodes, eight
 notify + http nodes, eight js + sql + cmd nodes and 128 KiB. Edges out of a condition carry `when`: one of its ways out
 (see [Checks with cases…](#checks-with-cases-variables-code-sql-and-commands)). Bindings are `literal`, `event` (a path in the payload) or `node` (a path in an earlier
@@ -456,6 +460,53 @@ offers secrets in a variable's value and, through `$vars`, only where they resol
 clave puede salir de lo que llegó (`$trigger.email`). **Leer tabla** elige una tabla y lee una clave o las últimas
 filas. Una variable puede guardar una clave (`secret://nombre`): solo se usa en un header o en una variable de un
 comando; en un mensaje, un cuerpo o una instrucción se rechaza.
+
+## Agents drawing Flows
+
+See [D-174](DECISIONS.md#d-174). The super-agent draws through `apx_settings`' `flows` area
+(`tools/settings-flow-drafts.ts`); the step fields it needs are in the `apx-flows` skill (`skills/apx/apx-flows`), read
+with `load_skill`, never in the prompt.
+
+- `flows.list {project?}` (read): one line per Flow, on or off, its published revision and whether a draft waits.
+- `flows.graph_get {flow, which?}`: `{flow, name, project, enabled, draftVersion, publishedRevision, showing, graph:
+  {nodes, edges}}` without places.
+- `flows.validate {flow}`: the draft (or what runs) checked as `flows.validate` does, as lines `step "id" (label):
+  message [code]`.
+- `flows.create {project, name, graph | edits}` → method `flows.create`: a Flow with an id from its name, off, legacy
+  definition table-only, the drawing as draft version 1, in one transaction.
+- `flows.draft_save {flow, edits}` or `{flow, expectedVersion, graph}` → `flows.draft_save`. Edits (`add`, `update`,
+  `remove`, `connect`, `disconnect`, `tidy`) apply in order to the draft, else the published drawing, and save with the
+  version read (CAS). A whole graph needs `expectedVersion`. A new step takes `newNode`'s fields (empty ones left out),
+  an id from its kind and a label; `connectionError` refuses a missing step, a trigger as target, a loop or more than 64
+  connections; `when` must be one of the check's ways out.
+
+Every answer is text: what was saved and its `draftVersion`, and what keeps it from running, from `flows.validate`.
+A drawing that does not parse names its step and field (`step "save" (table_write): key: …`); a conflict says to read
+again. Places: `placeSteps` keeps the ones given and puts each new step right of the one before it on the nearest free
+half row (`FLOW_COLUMN` 280, `FLOW_ROW` 160); with no places at all, `layoutFlow` lays it out left to right by longest
+path, rows ordered by their parents. Both live in `packages/protocol/src/flow-edit.ts` with `newNode`, `removeNode`,
+`connectNodes` and `disconnectNodes`, which the panel's `graph-edit.ts` re-exports.
+
+**Who reaches it.** In the handlers (`rpc/flow-graphs.ts`): the owner (actor `human`, no client or channel) reaches
+every Flow; an agent's in-process call reaches a Flow whose project is its own, or any for a global agent (another
+project's is `not_found`); a call with no agent behind it (`actor: agent` over HTTP or WebSocket) is `unauthorized`.
+An agent's draft may not set or change an AI step's `autonomy`, `write` or `delegate` (`ownersFieldChange`). In
+`apx_settings` these are `own` settings: a change is `confirm: "untrusted"` (asks the owner only while outside content
+is in the turn), a read asks nobody, and both run with `ctx.call`, never `callAsOwner`.
+
+**The card and the event.** A save or a new Flow upserts a `flow` part `{flow, project, name}` in the answer; the panel
+draws it with `FlowCard` (lazy, `apps/web/src/lazy.ts`): name, project, **Draft** or **Published**, a still
+`FlowCanvas` of the draft (else what runs) and **Open in the editor** (`#view=flows&flow=<id>&edit=1`). Draft saves,
+discards, publications and `flows.create` emit `flow.draft {flow, project, draft_version, by}` (`by`: the agent, null
+for the owner); the panel's `data/flowDrafts.ts` counts them per Flow, and the list, a Flow's detail and its chat cards
+read the drawing again. The open editor does not take them yet: it keeps its own state and its next save conflicts.
+
+**Español:** El super-agente dibuja y cambia borradores de Flows desde cualquier chat con `apx_settings` (área
+`flows`): crear, leer, editar por pasos, revisar. Un borrador no corre: publicarlo (guardar con el flow prendido, o
+prenderlo) es del dueño en el editor, y lo que sale (mensajes, llamadas, comandos, escrituras) sigue pidiendo permiso.
+Con contenido de afuera en el turno, guardar un borrador pregunta. Un agente de proyecto solo llega a los flows de su
+proyecto. El chat muestra una tarjeta con el dibujo y **Abrir en el editor**; el evento `flow.draft` refresca la lista,
+el detalle y la tarjeta.
 
 ## Verification and rollout
 

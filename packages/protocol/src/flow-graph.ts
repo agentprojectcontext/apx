@@ -321,18 +321,21 @@ export const FlowRunDetail = z
   .strict();
 export type FlowRunDetail = z.infer<typeof FlowRunDetail>;
 
+/**
+ * Reading a drawing, checking it and saving a draft are open to an agent's own tool for Flows of its project (a global
+ * agent's: any), never to an outside app, a channel or an agent's shell: a draft runs nothing until the owner publishes
+ * it (DECISIONS.md#d-174). Publishing, discarding, running and stopping stay the owner's.
+ */
 export const flowGraphMethods = {
   "flows.graph_get": {
     params: z.object({ flow: FlowId }).strict(),
     result: FlowGraphDocument,
     effect: false,
-    access: "human",
   },
   "flows.draft_save": {
     params: z.object({ flow: FlowId, expectedVersion: z.number().int().min(1).nullable(), graph: FlowGraph }).strict(),
     result: FlowGraphDocument,
     effect: true,
-    access: "human",
   },
   "flows.draft_discard": {
     params: z.object({ flow: FlowId, expectedVersion: z.number().int().min(1), confirm: z.literal(true) }).strict(),
@@ -348,7 +351,6 @@ export const flowGraphMethods = {
       .refine((p) => (p.flow === undefined) !== (p.project === undefined), "Pass a flow or a project"),
     result: z.object({ valid: z.boolean(), issues: z.array(FlowGraphIssue) }).strict(),
     effect: false,
-    access: "human",
   },
   /** One graph run step by step; legacy events have no steps (use `flows.events`). */
   "flows.run_get": {
