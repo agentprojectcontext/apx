@@ -83,6 +83,9 @@ for (const phone of [false, true]) {
     await shot(page, `page-version-${at}`);
     if (phone) {
       await page.locator(".fd__rail").scrollIntoViewIfNeeded();
+      // Under the page the list fills the width it has, never past the screen's edge.
+      const rail = await page.locator(".fd__rail").boundingBox();
+      expect((rail?.x ?? 0) + (rail?.width ?? 0)).toBeLessThanOrEqual(390);
       await shot(page, `page-history-list-${at}`);
     }
 
