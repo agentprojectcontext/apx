@@ -288,7 +288,7 @@ test("a code step returns JSON for the next ones; its error stops what follows",
     await post(env, flow, "ok", { email: "alex@example.com" });
     assert.equal((await ended(env, flow, "ok")).state, "succeeded");
     assert.deepEqual(out(steps(env, flow, "ok").score), { score: 16, domain: "example.com" });
-    assert.deepEqual(out(steps(env, flow, "ok").kept), { value: "example.com" });
+    assert.deepEqual(out(steps(env, flow, "ok").kept), { key: "kept", value: "example.com" });
     await post(env, flow, "bad", { name: "no email" });
     assert.equal((await ended(env, flow, "bad")).state, "failed");
     const s = steps(env, flow, "bad");

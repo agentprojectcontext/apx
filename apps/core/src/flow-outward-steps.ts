@@ -3,7 +3,13 @@
 // without a clear answer is left uncertain for the owner, never repeated. Destinations are the revision's own fields.
 import type { FlowBinding, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
 import type { FlowGraphRun, FlowStepKey } from "./domain/flow-graph-runs.ts";
-import { boundedFlowValue, type FlowNodeSnapshot, resolveFlowInput } from "./domain/flow-graph-semantics.ts";
+import {
+  boundedFlowValue,
+  type FlowNodeSnapshot,
+  flowVarIndex,
+  resolveFlowInput,
+} from "./domain/flow-graph-semantics.ts";
+import { flowSecretVars, inlineSecretVars } from "./domain/flow-secret-vars.ts";
 import { type FlowApx, parseFlowTemplate, renderFlowTemplate } from "./domain/flow-template.ts";
 import type { Store } from "./domain/store.ts";
 import type { RunTimers } from "./engine/engine.ts";
@@ -257,8 +263,9 @@ export function createOutwardSteps(deps: {
     try {
       if (!deps.http) throw new StepRefused(W.start);
       const http = deps.http;
+      const secretVars = flowSecretVars(run.graph);
       for (const h of node.headers) {
-        const parts = parseFlowTemplate(h.value);
+        const parts = parseFlowTemplate(inlineSecretVars(h.value, secretVars), flowVarIndex(run.graph));
         // Secret references are read only in the owner's own text, never in a value the payload brought.
         const real = renderFlowTemplate(parts, resolve, {
           apx,

@@ -429,6 +429,28 @@ memoria máximos. **SQL** hace una instrucción en un archivo SQLite del proyect
 una escritura se aprueba al publicar y nunca se repite. **Cmd** corre un comando en la carpeta del proyecto; los
 valores le llegan solo como variables y entrada. Un comando o una escritura cortados quedan **Para revisar**.
 
+## Project tables and secret variables
+
+See [D-173](DECISIONS.md#d-173). `table_write {table?, key, value}` and `table_read {table?, keys, latest?}` name a
+table of the Flow's project (`FlowTableName`); without `table` they use the Flow's own table (`flow_rows`). Keys may
+hold placeholders, filled by the executor (`rowKey` in `flow-graph-executor.ts`; missing value: `missing_value`). Rows
+are in `flow_tables`, through `domain/flow-tables.ts` (`list`, `write`, `read`, `latest`). A read returns `{rows, row}`
+for keys or `{rows: [{key, value, updated_at}]}` for `latest`; a save returns `{key, value}`. Validation: `read_what`
+(neither or both of keys and latest), `read_table` (latest needs a table), `unordered_write` now per table and key.
+`flows.tables {project}` lists `{name, rows, updated_at}`; `flows.rows {flow, table}` pages a table newest first
+(cursor `updated_at|key`). The editor lists the project's tables and the ones the drawing saves to, so a read after a
+save on a new table is offered it first.
+
+`domain/flow-secret-vars.ts`: `flowSecretVars` finds variables whose literal is exactly `secret://name`;
+`withSecretVars` writes them as their reference in HTTP headers and command variables before `flowOutward`,
+`flowOutwardIssues` and the steps read them; `secret_var_text` and `secret_var_shape` refuse the rest. The panel
+offers secrets in a variable's value and, through `$vars`, only where they resolve.
+
+**Español:** **Guardar en la tabla** guarda en una tabla del proyecto, por nombre: se crea al escribirle el nombre. La
+clave puede salir de lo que llegó (`$trigger.email`). **Leer tabla** elige una tabla y lee una clave o las últimas
+filas. Una variable puede guardar una clave (`secret://nombre`): solo se usa en un header o en una variable de un
+comando; en un mensaje, un cuerpo o una instrucción se rechaza.
+
 ## Verification and rollout
 
 Tests cover authenticated HTTP ingress, private HTTP/WS management, empty/nonmatching/duplicate zero-model behavior, concurrent duplicates, token rotation/revocation, fixed project bindings, manual routine invocation, table read snapshots, bounded queues and restart recovery. Unit and scripted-model integration evidence does not establish a real provider's webhook subscription, public tunnel availability or exactly-once external sends.

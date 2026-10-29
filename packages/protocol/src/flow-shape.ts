@@ -39,6 +39,7 @@ const RANK: Record<FlowNode["kind"], number> = {
   sql: 5,
   cmd: 5,
 };
+const placeholder = (key: string) => key.includes("$");
 const wholeEvent = (b: { kind: string; path?: string[] }) => b.kind === "event" && b.path?.length === 0;
 
 /** The single path from the trigger, or the first step that keeps the graph from being one. */
@@ -105,9 +106,12 @@ export function shapeOfGraph(graph: FlowGraph): FlowShapeResult {
         break;
       }
       case "table_read":
+        // A project's table, the latest rows or a key filled from the data: only the graph executor runs them.
+        if (node.table || node.latest || !node.keys.length || node.keys.some(placeholder)) return fail("kind", node);
         shape.readKeys = node.keys;
         break;
       case "table_write":
+        if (node.table || placeholder(node.key)) return fail("kind", node);
         if (!wholeEvent(node.value)) return fail("input", node);
         shape.tableKey = node.key;
         break;

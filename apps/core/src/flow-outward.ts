@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import type { FlowGraph, FlowGraphIssue, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
 import type { ChannelConfig } from "./channels/types.ts";
 import { flowHttpUrlProblem } from "./domain/flow-http-url.ts";
+import { flowSecretVars, withSecretVars } from "./domain/flow-secret-vars.ts";
 import { OWNER_ID } from "./domain/persons.ts";
 import type { Store } from "./domain/store.ts";
 import { flowDatabaseFile, flowFolder } from "./flow-work-steps.ts";
@@ -72,7 +73,10 @@ export function flowOutward(store: Store, graph: FlowGraph, folder = "", place =
       (n.kind === "http" ? n.headers : n.env).flatMap((h) => (h.value.match(SECRET_REF) ?? []).map((r) => r.slice(9))),
     ),
   ];
-  for (const node of graph.nodes) {
+  // A variable holding a secret counts where it is used, as the reference it holds.
+  const secretVars = flowSecretVars(graph);
+  const nodes = graph.nodes.map((n) => withSecretVars(n, secretVars));
+  for (const node of nodes) {
     if (node.kind === "notify") {
       const d = notifyDestination(store, node);
       sends.push({
@@ -89,7 +93,7 @@ export function flowOutward(store: Store, graph: FlowGraph, folder = "", place =
     if (node.kind === "sql" && node.mode === "write") writes.push({ node: node.id, database: node.database });
   }
   const keys = [
-    ...graph.nodes.flatMap((n) =>
+    ...nodes.flatMap((n) =>
       n.kind === "notify"
         ? [`send:${n.channel}:${n.to.kind === "room" ? `room:${n.to.room}` : `contact:${n.to.person}`}`]
         : n.kind === "http"
@@ -117,7 +121,8 @@ export function flowOutwardIssues(
   const folder = graph.nodes.some((n) => n.kind === "cmd" || n.kind === "sql")
     ? flowFolder(store, outside?.home, project)
     : undefined;
-  for (const node of graph.nodes) {
+  const secretVars = flowSecretVars(graph);
+  for (const node of graph.nodes.map((n) => withSecretVars(n, secretVars))) {
     if ((node.kind === "cmd" || node.kind === "sql") && !folder)
       add("folder_unavailable", node.id, "The project's folder is not on this computer");
     else if (node.kind === "sql" && folder && !flowDatabaseFile(folder, outside?.home, node))

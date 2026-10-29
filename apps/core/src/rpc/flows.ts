@@ -86,9 +86,17 @@ export function flowHandlers(
         throw badRequest("Invalid Flow definition or capacity exceeded");
       }
     },
-    "flows.rows": ({ flow, limit, cursor }) => {
-      found(flow);
-      return store.flows.rowsPage(flow, limit, cursor);
+    "flows.rows": ({ flow, table, limit, cursor }) => {
+      const f = found(flow);
+      if (!table) return store.flows.rowsPage(flow, limit, cursor);
+      const rows = store.flowTables.latest(f.projectId, table, limit + 1, cursor);
+      const page = rows.slice(0, limit);
+      const last = page.at(-1);
+      return { rows: page, nextCursor: rows.length > limit && last ? `${last.updated_at}|${last.key}` : null };
+    },
+    "flows.tables": ({ project }) => {
+      if (!store.projects.get(project)) throw notFound("Project not found");
+      return { tables: store.flowTables.list(project) };
     },
     "flows.write": ({ flow, key, value }) => {
       found(flow);

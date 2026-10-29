@@ -22,6 +22,8 @@ const FlowModelRef = z
   .max(200);
 const Base = { id: FlowNodeId, label: z.string().min(1).max(120) };
 const Key = z.string().min(1).max(128);
+/** A table of the Flow's project, by name: lowercase letters, digits, `_` and `-` (DECISIONS.md#d-173). */
+export const FlowTableName = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,39}$/);
 /** A way out of a check: a case's id, or "no" for "otherwise" (a yes/no check is the two-case default). */
 export const FlowBranchId = z.string().regex(/^[A-Za-z0-9_-]{1,40}$/);
 /** A name later steps read as `$vars.name`, or a SQL parameter's `:name`. */
@@ -126,8 +128,27 @@ export const FlowNode = z.discriminatedUnion("kind", [
       continueOnError: z.boolean(),
     })
     .strict(),
-  z.object({ ...Base, kind: z.literal("table_read"), keys: z.array(Key).min(1).max(16) }).strict(),
-  z.object({ ...Base, kind: z.literal("table_write"), key: Key, value: FlowBinding }).strict(),
+  z
+    .object({
+      ...Base,
+      kind: z.literal("table_read"),
+      /** A table of the project; absent, the Flow's own table (a definition drawn as a graph). */
+      table: FlowTableName.optional(),
+      /** Keys to read, each may hold placeholders; empty when it reads the `latest` rows. */
+      keys: z.array(Key).max(16),
+      latest: z.number().int().min(1).max(100).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      ...Base,
+      kind: z.literal("table_write"),
+      table: FlowTableName.optional(),
+      /** The row's key; may hold placeholders (`$trigger.email`), filled when the step runs. */
+      key: Key,
+      value: FlowBinding,
+    })
+    .strict(),
   z
     .object({
       ...Base,
