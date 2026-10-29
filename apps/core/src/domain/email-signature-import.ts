@@ -94,6 +94,15 @@ export function importedSignature(source: string): { text: string; html?: string
       if (value !== undefined && !kept.some((k) => k.startsWith(`${key}=`))) kept.push(`${key}="${value}"`);
     }
     if (tag === "img") {
+      // Gmail sizes images by style; its pixel width and height become the attributes APX keeps.
+      const style = /\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(attrs ?? "");
+      for (const side of ["width", "height"])
+        if (!kept.some((k) => k.startsWith(`${side}=`))) {
+          const px = new RegExp(`(?:^|;)\\s*${side}\\s*:\\s*(\\d{1,4})(?:\\.\\d+)?px`, "i").exec(
+            decode(style?.[1] ?? style?.[2] ?? ""),
+          )?.[1];
+          if (px && attrValue("img", side, px)) kept.push(`${side}="${px}"`);
+        }
       if (kept.some((k) => k.startsWith("src="))) out.push(`<img ${kept.join(" ")}>`);
       continue;
     }

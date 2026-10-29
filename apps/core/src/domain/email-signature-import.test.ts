@@ -13,6 +13,13 @@ test("Gmail's rich signature keeps its links, image and lines in APX's subset, w
   assert.doesNotMatch(got.html ?? "", /style|target|font|table|script|alert|color:red/);
 });
 
+test("an image sized by style keeps its pixel size", () => {
+  const got = importedSignature(
+    `<img src="https://example.com/me.jpg" style="width: 96px; height:96.5px;border-radius:50%">`,
+  );
+  assert.equal(got.html, '<img src="https://example.com/me.jpg" width="96" height="96">');
+});
+
 test("links APX cannot keep lose their address, not their words; a plain signature stays text only", () => {
   const got = importedSignature(`<a href="http://insecure.example.com">Site</a> <a href="javascript:alert(1)">x</a>`);
   assert.ok(got.html && safeSignatureHtml(got.html));
