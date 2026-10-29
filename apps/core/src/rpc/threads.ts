@@ -391,6 +391,14 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
       return { started: goOn(store, engine.admit, engine.release, thread, mode) };
     },
+    "threads.flow_editor": ({ thread, editor }) => {
+      if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
+      if (editor && !store.projects.get(editor.project)) throw notFound(`project ${editor.project}`);
+      const flow = editor?.flow ? store.flows.get(editor.flow) : undefined;
+      if (editor?.flow && flow?.projectId !== editor.project) throw notFound(`flow ${editor.flow}`);
+      store.threads.mergeContext(thread, { flow_editor: editor ?? undefined });
+      return { ok: true as const };
+    },
     "threads.voice": ({ thread, on }, ctx) => {
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
       if (ctx.agent && ctx.agent.thread_id !== thread) throw unauthorized("an agent changes only its own chat");

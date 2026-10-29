@@ -1,6 +1,6 @@
 import type { Part, Result } from "@apx/protocol";
 import { Badge, Button, Icons, Skeleton } from "@apx/ui";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { useFlowDraft } from "../data/flowDrafts.ts";
 import { useData } from "../data/state.ts";
@@ -8,6 +8,7 @@ import { usePack, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { stepDetail } from "./look.tsx";
+import { OpenFlow } from "./openFlow.ts";
 import type { FlowNode } from "./steps.tsx";
 import "@apx/ui/flow.css";
 import "./flow-card.css";
@@ -19,6 +20,18 @@ type Doc = Result<"flows.graph_get">;
  * editor. It reads the drawing again whenever it changes.
  */
 export function FlowCard({ part }: { part: Extract<Part, { type: "flow" }> }) {
+  const t = useT();
+  // In the chat of the editor that shows this Flow, the canvas behind it is the picture.
+  if (useContext(OpenFlow) === part.flow)
+    return (
+      <p className="flowcard-here">
+        <Icons.GitBranch size={14} /> {t("flow.card.here")}
+      </p>
+    );
+  return <FlowPicture part={part} />;
+}
+
+function FlowPicture({ part }: { part: Extract<Part, { type: "flow" }> }) {
   const ready = usePack("flow");
   const t = useT();
   const changed = useFlowDraft(part.flow);

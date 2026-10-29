@@ -7,7 +7,8 @@
 // folder" reads outside the project's folder (a folder card); "show a widget" makes one; "open a
 // report" writes one and opens it as a document; "show a table for task_…" answers with a wide table whose last
 // column holds that task's chip; "connect <app> for me" offers that app or channel to connect; "draw a flow in
-// <project id>" makes a Flow there with apx_settings (a draft the chat shows as a card). It also
+// <project id>" makes a Flow there with apx_settings (a draft the chat shows as a card); asked from a Flow's editor,
+// "add a cleanup step" adds one to that Flow's draft and "make this flow" makes the new one in its project. It also
 // embeds texts (Ollama's /api/embed) for the skills picked by meaning.
 import http from "node:http";
 import type { AddressInfo } from "node:net";
@@ -181,6 +182,51 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
                 label: "Save the lead",
                 table: "leads",
                 key: "$trigger.email",
+                value: { kind: "event", path: [] },
+              },
+            },
+          ],
+        },
+      }),
+    };
+  // Asked from a Flow's editor: the editor's first words name the Flow (or, for a new one, its project) by "(id …)".
+  const editing = /\(id ([A-Za-z0-9_-]+)\)/.exec(textOf(messages.findLast((m) => m.role === "user")))?.[1];
+  if (editing && /^add a cleanup step/i.test(said))
+    return {
+      name: "apx_settings",
+      arguments: JSON.stringify({
+        method: "flows.draft_save",
+        params: {
+          flow: editing,
+          edits: [
+            {
+              op: "add",
+              after: "save",
+              step: { kind: "js", id: "tidy", label: "Tidy the lead", code: "return input;" },
+            },
+          ],
+        },
+      }),
+    };
+  if (editing && /^make this flow/i.test(said))
+    return {
+      name: "apx_settings",
+      arguments: JSON.stringify({
+        method: "flows.create",
+        params: {
+          project: editing,
+          name: "Lead intake",
+          edits: [
+            { op: "add", step: { kind: "webhook", id: "hook", label: "New lead" } },
+            {
+              op: "add",
+              after: "hook",
+              step: {
+                kind: "table_write",
+                id: "save",
+                label: "Save the lead",
+                table: "leads",
+                key: "latest",
                 value: { kind: "event", path: [] },
               },
             },

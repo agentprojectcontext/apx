@@ -81,3 +81,12 @@
     height: 170px;
   }
 }
+/* The Flow the editor around the chat already shows: a line, not its picture again. */
+.flowcard-here {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}

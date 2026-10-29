@@ -85,6 +85,8 @@ export type Shown = {
   draft: FlowGraph | null;
   /** The revision new events run, when the flow runs a published drawing. */
   publishedRevision: number | null;
+  /** The agent that saved the draft, waiting for the owner's review; null when the owner saved it. */
+  draftBy: string | null;
 };
 
 /**
@@ -101,6 +103,7 @@ export async function shownGraph(flow: Flow, t: T): Promise<Shown> {
       draftVersion: doc.draftVersion,
       draft,
       publishedRevision: doc.publishedRevision,
+      draftBy: doc.draftBy,
     };
   const shape = draft ? shapeOfGraph(draft) : undefined;
   const runs = shape?.ok === true && sameShape(shape.shape, shapeOfDefinition(flow));
@@ -111,6 +114,7 @@ export async function shownGraph(flow: Flow, t: T): Promise<Shown> {
     draftVersion: doc.draftVersion,
     draft,
     publishedRevision: null,
+    draftBy: doc.draftBy,
   };
 }
 /** The legacy definition drawn as steps. */

@@ -1718,6 +1718,24 @@ export const appMethods = {
     result: z.object({ on: z.boolean() }),
     effect: true,
   },
+  /**
+   * Binds a chat to the Flow editor the owner has open: each of their turns there tells the agent which Flow it draws
+   * (or, while it isn't made, in which project), in the turn's input. `null` unbinds it.
+   */
+  "threads.flow_editor": {
+    params: z
+      .object({
+        thread: Id,
+        editor: z
+          .object({ project: Id, flow: z.string().min(1).max(100).optional() })
+          .strict()
+          .nullable(),
+      })
+      .strict(),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
   "threads.cancel": {
     params: z.object({ thread: Id }).strict(),
     result: z.object({ canceled: z.number().int() }),

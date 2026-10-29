@@ -213,7 +213,7 @@ export const NEWS: readonly NewsEntry[] = [
     since: "2.11.2",
     title: "Your super-agent draws Flows for you",
     applies: (f) => f.secretary,
-    text: "The super-agent can now make a Flow in a project or change one's steps when the owner asks in any chat: it draws the steps, connects and places them, checks what keeps the drawing from running and fixes it. The chat shows the Flow's drawing with a button to open it in the editor. What it saves is a draft: nothing runs until the owner reviews it in the editor and turns it on, and anything that sends as them, calls a service, runs a command or changes a database still asks them first.",
+    text: "The super-agent can now make a Flow in a project or change one's steps when the owner asks in any chat: it draws the steps, connects and places them, checks what keeps the drawing from running and fixes it. The chat shows the Flow's drawing with a button to open it in the editor. In the Flow editor itself, the Ask button opens a chat with the super-agent over the canvas: the owner says what to change and watches the steps appear as it draws them. What it saves is a draft: nothing runs until the owner reviews it in the editor and turns it on, and anything that sends as them, calls a service, runs a command or changes a database still asks them first.",
     actions: [
       {
         label: { en: "Draw a Flow with me", es: "Dibujar un Flow conmigo" },

@@ -207,6 +207,32 @@ test("a step the owner limited keeps its limits, who it runs as and its place; w
   assert.equal((await doc(id)).draftBy, "roby");
 });
 
+test("the owner's edits saved under an agent's draft they have not reviewed keep it waiting for review", async () => {
+  const id = madeId((await h.ask(leads())).answer);
+  const drawn = (await doc(id)).draft as FlowGraph;
+  const moved = { ...drawn, layout: drawn.layout.map((p) => ({ ...p, y: p.y + 40 })) };
+  const before = events.length;
+  const kept = await h.env.client.call("flows.draft_save", {
+    flow: id,
+    expectedVersion: 1,
+    graph: moved,
+    unreviewed: true,
+  });
+  assert.deepEqual([kept.draftVersion, kept.draftBy], [2, "roby"], "still the agent's to review");
+  assert.equal(events.at(-1)?.by, null, "the owner's own save, told by nobody");
+  assert.equal(events.length, before + 1);
+  // The editor's Save makes it the owner's; after that the flag names nobody.
+  const saved = await h.env.client.call("flows.draft_save", { flow: id, expectedVersion: 2, graph: moved });
+  assert.equal(saved.draftBy, null);
+  const again = await h.env.client.call("flows.draft_save", {
+    flow: id,
+    expectedVersion: 3,
+    graph: drawn,
+    unreviewed: true,
+  });
+  assert.equal(again.draftBy, null, "an owner's draft never becomes an agent's");
+});
+
 test("an agent reaches the Flows of its project only, and nothing reaches them without an agent behind it", async () => {
   const id = madeId((await h.ask(leads())).answer);
   const as = (agent: string) => ({

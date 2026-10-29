@@ -77,6 +77,7 @@ import {
 import { type Caller, type DelegateTo, resultCard } from "./delegation.ts";
 import { type Display, openDisplay } from "./display.ts";
 import { createExecutor, type Executor } from "./executor.ts";
+import { flowEditorBlock } from "./flow-editor.ts";
 import type { Hooks } from "./hooks.ts";
 import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
@@ -555,6 +556,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
             memory: memoryBlock,
             skills: picked?.block || undefined,
             task: taskBlock(store, thread),
+            flowEditor: ownerTurn ? flowEditorBlock(store, thread.id) : undefined,
             extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
             waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
             timeZone: ownerTimeZone(store),

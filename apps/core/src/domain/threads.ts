@@ -43,6 +43,8 @@ export type ThreadContext = {
   roster_agent?: string;
   /** Answers on a channel also go as voice notes (the agent's voice_replies tool). */
   voice_replies?: boolean;
+  /** Opened from the Flow editor: the Flow it shows, or only its project while the Flow isn't made (D-175). */
+  flow_editor?: { project: string; flow?: string | undefined };
   /** A title was given (or tried) once. */
   titled?: boolean;
   /** Memory notes shown per agent, and the model log seq of the turn that showed the standing ones. */

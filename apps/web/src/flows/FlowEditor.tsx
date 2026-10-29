@@ -1,8 +1,6 @@
-import type { Result } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
-import { flowCases } from "@apx/protocol/flow-cases";
 import { shapeOfGraph } from "@apx/protocol/flow-shape";
-import { Button, Dialog, FlowStepTile, IconButton, Icons, Input, Popover, Select, Textarea } from "@apx/ui";
+import { Button, Dialog, FlowStepTile, IconButton, Icons, Input, Select, Spinner } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Drawer } from "../common/Drawer.tsx";
 import { client } from "../data/client.ts";
@@ -11,7 +9,9 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
 import { describeIssue, issueText, shownGraph, useKnown } from "./data.ts";
+import { blank, slug, tidy } from "./drawing.ts";
 import { type Cover, FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
+import { FlowChat } from "./FlowChat.tsx";
 import { connectNodes, moveNode, newNode, removeCase, removeNode } from "./graph-edit.ts";
 import { Inspector, StepList } from "./Inspector.tsx";
 import { stepDetail } from "./look.tsx";
@@ -29,80 +29,20 @@ import {
   type StepKind,
   triggerOf,
 } from "./steps.tsx";
-import { ownTable, savedTableBefore } from "./values.ts";
+import { TryRun, type TryStep } from "./TryRun.tsx";
+import { useFlowChat } from "./useFlowChat.ts";
+import { savedTableBefore } from "./values.ts";
 import "./editor.css";
 
 const EMPTY: FlowGraph = { schemaVersion: 2, nodes: [], edges: [], layout: [] };
-const slug = (name: string) =>
-  `${
-    name
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60) || "flow"
-  }-${Math.random().toString(36).slice(2, 6)}`;
-
-/** The step that keeps a graph from being saved, if a required setting is still blank. */
-function blank(n: FlowNode): boolean {
-  switch (n.kind) {
-    case "condition": {
-      const cases = flowCases(n);
-      return (
-        cases.some((c) => c.match.kind === "expr" && !c.match.expr.trim()) ||
-        (cases.some((c) => c.match.kind === "equals") && n.input.kind === "event" && n.input.path.length === 0)
-      );
-    }
-    case "vars":
-      return n.vars.some((v) => !v.name || (v.value.kind === "expr" && !v.value.expr.trim()));
-    case "js":
-      return !n.code.trim();
-    case "sql":
-      return !n.database.trim() || !n.query.trim();
-    case "cmd":
-      return !n.command.trim();
-    case "table_read":
-      return (!n.table && !ownTable(n)) || (n.latest === undefined && !n.keys.some((k) => k.trim()));
-    case "table_write":
-      return (!n.table && !ownTable(n)) || !n.key.trim();
-    case "agent":
-      return (n.bot ? !n.bot.name.trim() || !n.bot.system.trim() : !n.agent) || !n.prompt.trim();
-    case "routine":
-      return !n.routine;
-    case "llm":
-      return !n.model || !n.prompt.trim();
-    case "schedule":
-      return !n.cron.trim();
-    case "notify":
-      return !n.channel || (n.to.kind === "contact" ? !n.to.person : !n.to.room) || !n.text.trim();
-    case "http":
-      return !/^https?:\/\/[^/\s]+/.test(n.url.trim());
-    default:
-      return false;
-  }
-}
-/** Labels the graph schema needs, and blank lines left in key lists. */
-const tidy = (g: FlowGraph, t: ReturnType<typeof useT>): FlowGraph => ({
-  ...g,
-  nodes: g.nodes.map((n) => {
-    const label = n.label.trim() || t(STEP[n.kind].label);
-    if (n.kind === "table_read") return { ...n, label, keys: n.keys.map((k) => k.trim()).filter(Boolean) };
-    if (n.kind === "table_write") return { ...n, label, key: n.key.trim() };
-    if (n.kind === "http") return { ...n, label, url: n.url.trim(), body: n.method === "GET" ? "" : n.body };
-    if (n.kind === "condition" && n.cases)
-      return { ...n, label, cases: n.cases.map((c) => ({ ...c, label: c.label.trim() })) };
-    if (n.kind === "sql") return { ...n, label, database: n.database.trim() };
-    if (n.kind === "cmd") return { ...n, label, command: n.command.trim() };
-    return { ...n, label };
-  }),
-});
-
-/** What the step card covers: its column at the right, or the bottom sheet on a phone (as in side-panel.css). */
+/** What a card covers (the step's or the chat): a column at the right, or the bottom sheet on a phone (side-panel.css). */
 const cover: Cover = (w, h) =>
   w <= 640 ? { right: 0, bottom: h * 0.6 } : { right: Math.min(400, w - 24) + 12, bottom: 0 };
 
-/** The full-screen editor: step types at the left, the canvas, and the chosen step's settings in a card over it. */
+/**
+ * The full-screen editor: step types at the left, the canvas, and over it one card at a time: the chosen step's settings
+ * or the chat with the super-agent, who draws while the owner watches (DECISIONS.md#d-175).
+ */
 export function FlowEditor({
   flow,
   starter,
@@ -143,6 +83,31 @@ export function FlowEditor({
   const [trial, setTrial] = useState<Map<string, TryStep> | null>(null);
   // What the last save said, shown in the top bar until the next change.
   const [said, setSaid] = useState<{ text: string; error?: boolean } | null>(null);
+  // A new flow's id once it is made here or by the agent, before the list brings the flow back.
+  const [made, setMade] = useState<string>();
+  const id = flow?.id ?? made;
+  // The agent whose saved draft waits for the owner's review (their Save makes it theirs).
+  const [draftBy, setDraftBy] = useState<string | null>(null);
+  const ask = useFlowChat(
+    { id, projectId, name, graph, saved, version, draftBy },
+    {
+      graph: setGraph,
+      saved: setSaved,
+      version: setVersion,
+      published: setPublished,
+      draftBy: setDraftBy,
+      name: setName,
+      made: setMade,
+      said: setSaid,
+      clearTrial: () => setTrial(null),
+      closeStep: () => {
+        setSelected(null);
+        setPalette(false);
+      },
+      onSaved,
+    },
+  );
+  const { boss, chat, open: chatOpen, setOpen: setChatOpen, notice, locked, fresh } = ask;
   // Load once: what the flow runs now, or its draft with your last changes.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the flow is loaded when the editor opens, not after each save
   useEffect(() => {
@@ -160,6 +125,7 @@ export function FlowEditor({
       setGraph(g);
       setVersion(s.draftVersion);
       setPublished(s.publishedRevision);
+      setDraftBy(s.draftBy);
       setSaved(JSON.stringify([g, flow.name]));
     });
     return () => {
@@ -182,11 +148,11 @@ export function FlowEditor({
   // The core checks the drawing as it changes (its agents, routines and models in this project), before the first
   // save too: a new flow is checked as one of the chosen project.
   useEffect(() => {
-    if (!graph || (!flow && !projectId)) return;
+    if (!graph || (!id && !projectId)) return;
     let live = true;
     const timer = setTimeout(() => {
       if (graph.nodes.some(blank) || !triggerOf(graph)) return setProblem(undefined);
-      const target = flow ? { flow: flow.id } : { project: projectId };
+      const target = id ? { flow: id } : { project: projectId };
       void client.call("flows.validate", { ...target, graph: tidy(graph, t) }).then(
         (r) => live && setProblem(r.issues[0] ? describeIssue(r.issues[0], graph, t) : null),
         () => live && setProblem(undefined),
@@ -196,7 +162,7 @@ export function FlowEditor({
       live = false;
       clearTimeout(timer);
     };
-  }, [flow, graph, projectId, t]);
+  }, [id, graph, projectId, t]);
   // The same measure before and after a new flow's first save, so it isn't unsaved while the saved flow comes back.
   const dirty = graph !== undefined && JSON.stringify([g, name]) !== saved;
   const change = (next: FlowGraph) => {
@@ -239,9 +205,12 @@ export function FlowEditor({
     (n: FlowNode): StepLook => {
       const base = {
         title: n.label || t(STEP[n.kind].label),
-        ...stepDetail(n, flow?.id, allAgents, allRoutines, t, known),
+        ...stepDetail(n, id, allAgents, allRoutines, t, known),
       };
       const s = trial?.get(n.id);
+      const marked = fresh.get(n.id);
+      if (!s && marked)
+        return { ...base, mark: true, badge: t(marked === "new" ? "flow.ed.freshNew" : "flow.ed.freshChanged") };
       if (!s) return base;
       switch (s.state) {
         case "ran":
@@ -260,7 +229,7 @@ export function FlowEditor({
           return { ...base, badge: t("flow.ed.tryUnknownBadge") };
       }
     },
-    [trial, flow?.id, allAgents, allRoutines, t, known],
+    [trial, fresh, id, allAgents, allRoutines, t, known],
   );
 
   const save = async () => {
@@ -286,9 +255,9 @@ export function FlowEditor({
     }
     const clean = tidy(g, t);
     const result = shapeOfGraph(clean);
-    const id = flow?.id ?? slug(name);
+    const target = id ?? slug(name);
     // A flow that runs its old definition keeps it while the drawing stands for one (or gets one when new).
-    const legacy = published === null && (result.ok || !flow);
+    const legacy = published === null && (result.ok || !id);
     setBusy(true);
     try {
       if (legacy) {
@@ -296,7 +265,7 @@ export function FlowEditor({
           ? result.shape
           : { predicates: [], readKeys: [], tableKey: "latest", action: { kind: "none" as const } };
         await client.call("flows.set", {
-          id,
+          id: target,
           projectId,
           name: name.trim(),
           enabled: flow?.enabled ?? false,
@@ -306,9 +275,9 @@ export function FlowEditor({
           ...(s.readKeys.length ? { readKeys: s.readKeys } : {}),
         });
       } else if (flow && name.trim() !== flow.name) await client.call("flows.set", { ...flow, name: name.trim() });
-      const doc = await client.call("flows.draft_save", { flow: id, expectedVersion: version, graph: clean });
+      const doc = await client.call("flows.draft_save", { flow: target, expectedVersion: version, graph: clean });
       let next = { version: doc.draftVersion, published: doc.publishedRevision };
-      const { issues } = await client.call("flows.validate", { flow: id, graph: clean });
+      const { issues } = await client.call("flows.validate", { flow: target, graph: clean });
       const first = issues[0];
       let text: string;
       if (first) text = t("flow.ed.savedCant", { reason: describeIssue(first, clean, t) });
@@ -316,11 +285,11 @@ export function FlowEditor({
       else if (flow?.enabled && doc.draft && doc.draftVersion !== null) {
         // On, a saved drawing runs: new events use it, events already received finish as they started. Where it
         // sends or what it calls, when new, is the owner's to allow first.
-        const outward = await approveOutward(id, clean, doc.published);
+        const outward = await approveOutward(target, clean, doc.published);
         if (!outward) text = t("flow.ed.savedNotAllowed");
         else {
           const out = await client.call("flows.publish", {
-            flow: id,
+            flow: target,
             expectedDraftVersion: doc.draftVersion,
             expectedPublishedRevision: doc.publishedRevision,
             outward,
@@ -331,12 +300,14 @@ export function FlowEditor({
       } else text = t(flow?.enabled ? "flow.ed.savedRuns" : "flow.ed.savedOn");
       setVersion(next.version);
       setPublished(next.published);
+      setDraftBy(null);
+      if (!id) setMade(target);
       setProblem(first ? describeIssue(first, clean, t) : null);
       setGraph(clean);
       setSaved(JSON.stringify([clean, name]));
       setSaid({ text, ...(first ? { error: true } : {}) });
       if (first?.node) setSelected(first.node);
-      onSaved(id);
+      onSaved(target);
     } catch (e) {
       setSaid({
         error: true,
@@ -350,6 +321,9 @@ export function FlowEditor({
   };
   const close = () => (dirty ? setLeaving(true) : onClose());
   const hasTrigger = Boolean(triggerOf(g));
+
+  const agentName = allAgents[draftBy ?? ""]?.name ?? boss?.name ?? "";
+  const stepCard = sel && !chatOpen && !locked ? sel : undefined;
   return (
     <div className="fe" role="dialog" aria-modal="true" aria-label={name || t("flow.ed.untitled")}>
       <header className={`fe-top window-bar${desktop}`}>
@@ -358,6 +332,7 @@ export function FlowEditor({
           className="fe-top__name"
           placeholder={t("flow.ed.untitled")}
           value={name}
+          disabled={locked}
           maxLength={120}
           onChange={(e) => {
             setName(e.target.value);
@@ -388,11 +363,31 @@ export function FlowEditor({
           </span>
         ) : (
           <span className={dirty ? "fe-top__status is-dirty" : "fe-top__status"} role="status">
-            {busy ? t("flow.ed.saving") : dirty || !flow ? t("flow.ed.unsaved") : t("flow.ed.saved")}
+            {busy
+              ? t("flow.ed.saving")
+              : dirty || !id
+                ? t("flow.ed.unsaved")
+                : draftBy
+                  ? t("flow.ed.agentDrew", { name: agentName })
+                  : t("flow.ed.saved")}
           </span>
         )}
+        {boss && (
+          <Button
+            variant="secondary"
+            className="fe-top__ask"
+            leadingIcon={<Icons.Sparkles size={14} />}
+            disabled={(!id && !projectId) || !graph}
+            title={!id && !projectId ? t("flow.ed.needProject") : undefined}
+            aria-label={t("flow.ed.ask", { name: boss.name })}
+            aria-pressed={chatOpen}
+            onClick={() => (chatOpen ? setChatOpen(false) : void ask.openChat())}
+          >
+            <span className="fe-top__ask-text">{t("flow.ed.ask", { name: boss.name })}</span>
+          </Button>
+        )}
         <TryRun graph={g} tidy={() => tidy(g, t)} onResult={setTrial} />
-        <Button disabled={busy || !graph} onClick={() => void save()}>
+        <Button disabled={busy || !graph || locked} onClick={() => void save()}>
           {t("flow.ed.save")}
         </Button>
         <Button
@@ -417,7 +412,7 @@ export function FlowEditor({
                     key={kind}
                     type="button"
                     className="fe-pal__item"
-                    disabled={taken}
+                    disabled={taken || locked}
                     title={taken ? t("flow.ed.oneTrigger") : undefined}
                     aria-label={t("flow.ed.add", { kind: t(meta.label) })}
                     onClick={() => !taken && add(kind as StepKind)}
@@ -436,9 +431,11 @@ export function FlowEditor({
             graph={g}
             problem={problem}
             select={(id) => {
-              setSelected(id);
               centre(id);
               setPalette(false);
+              if (locked) return;
+              setSelected(id);
+              setChatOpen(false);
             }}
           />
           <p className="fe-pal__hint">{t("flow.ed.paletteHint")}</p>
@@ -448,17 +445,34 @@ export function FlowEditor({
             <FlowCanvas
               graph={g}
               look={look}
-              selected={selected}
-              onSelect={setSelected}
-              edit={{
-                move: (id, x, y) => change(moveNode(g, id, x, y)),
-                connect: (source, target, when) => change(connectNodes(g, source, target, when)),
+              selected={stepCard ? selected : null}
+              onSelect={(step) => {
+                // One card at a time: a step chosen takes the chat's place (its chat stays for the next "Ask").
+                if (locked) return;
+                setSelected(step);
+                if (step) setChatOpen(false);
               }}
+              edit={
+                locked
+                  ? undefined
+                  : {
+                      move: (id, x, y) => change(moveNode(g, id, x, y)),
+                      connect: (source, target, when) => change(connectNodes(g, source, target, when)),
+                    }
+              }
               minimap={g.nodes.length > 0}
-              // A step added is centred like a clicked one (`centre`), so only another flow fits the view again.
-              fitKey={flow?.id ?? "new"}
-              focus={{ request: focus, cover, onClick: centre }}
+              // A step the owner adds is centred like a clicked one (`centre`); another flow, or steps an agent just drew,
+              // fit the view again.
+              fitKey={`${id ?? "new"}:${ask.drawn}`}
+              fitSteps={ask.fitSteps}
+              focus={{ request: focus, cover, card: Boolean(stepCard || (chatOpen && chat)), onClick: centre }}
             />
+          )}
+          {locked && (
+            <div className="fe-agent" role="status">
+              <Spinner size={14} />
+              {t("flow.ed.agentEditing", { name: boss?.name ?? "" })}
+            </div>
           )}
           {graph && !g.nodes.length && (
             <div className="fe-blank">
@@ -477,12 +491,23 @@ export function FlowEditor({
           >
             {t(palette ? "common.close" : "flow.ed.addStep")}
           </Button>
-          {sel && (
+          {chatOpen && chat && (
+            <FlowChat
+              key={chat}
+              threadId={chat}
+              flowId={id}
+              notice={notice}
+              onClose={() => setChatOpen(false)}
+              onRestart={() => void ask.openChat(true)}
+              prepare={ask.prepare}
+            />
+          )}
+          {stepCard && (
             <Drawer
               inset
               className="fe-card"
               label={t("flow.ed.stepSettings")}
-              title={sel.label || t(STEP[sel.kind].label)}
+              title={stepCard.label || t(STEP[stepCard.kind].label)}
               onClose={() => setSelected(null)}
               actions={
                 <IconButton
@@ -490,7 +515,7 @@ export function FlowEditor({
                   label={t("flow.ed.delete")}
                   icon={<Icons.Trash2 size={14} />}
                   onClick={() => {
-                    change(removeNode(g, sel.id));
+                    change(removeNode(g, stepCard.id));
                     setSelected(null);
                   }}
                 />
@@ -498,8 +523,8 @@ export function FlowEditor({
             >
               <Inspector
                 graph={g}
-                selected={sel}
-                flowId={flow?.id}
+                selected={stepCard}
+                flowId={id}
                 projectId={projectId}
                 agents={agents}
                 routines={routines}
@@ -537,89 +562,5 @@ export function FlowEditor({
         {t("flow.ed.discardBody")}
       </Dialog>
     </div>
-  );
-}
-
-type TryStep = Result<"flows.try_graph">["steps"][number];
-
-/** Sample data through the drawing, branches and all, as a run would check it; nothing is saved or sent. */
-function TryRun({
-  graph,
-  tidy: tidied,
-  onResult,
-}: {
-  graph: FlowGraph;
-  tidy: () => FlowGraph;
-  onResult: (r: Map<string, TryStep> | null) => void;
-}) {
-  const t = useT();
-  const timed = triggerOf(graph)?.kind === "schedule";
-  const [open, setOpen] = useState(false);
-  const [sample, setSample] = useState<string>();
-  const [answer, setAnswer] = useState("");
-  const text = sample ?? (timed ? "{}" : '{\n  "type": "lead"\n}');
-  const go = async () => {
-    if (!triggerOf(graph)) return setAnswer(t("flow.ed.needTrigger"));
-    if (graph.nodes.some(blank)) return setAnswer(t("flow.ed.tryNeedsShape"));
-    let data: unknown;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      return setAnswer(t("flow.ed.tryBadJson"));
-    }
-    try {
-      const drawn = tidied();
-      const { steps } = await client.call("flows.try_graph", { graph: drawn, data });
-      onResult(new Map(steps.map((s) => [s.node, s])));
-      const name = (id: string) => drawn.nodes.find((n) => n.id === id)?.label ?? id;
-      const missing = steps.find((s) => s.state === "missing");
-      const work = steps.filter((s) => s.state === "would_run").map((s) => name(s.node));
-      setAnswer(
-        missing
-          ? t("flow.ed.tryMissing", { step: name(missing.node) })
-          : work.length
-            ? t("flow.ed.tryWould", { steps: work.join(", ") })
-            : t("flow.ed.tryStop"),
-      );
-    } catch {
-      setAnswer(t("flow.ed.tryFailed"));
-    }
-  };
-  return (
-    <Popover
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (!o) setAnswer("");
-      }}
-      align="end"
-      width={340}
-      label={t("flow.ed.tryTitle")}
-      trigger={
-        <Button variant="secondary" leadingIcon={<Icons.Play size={14} />} disabled={!graph.nodes.length}>
-          {t("flow.ed.try")}
-        </Button>
-      }
-    >
-      <div className="fe-try">
-        <strong>{t("flow.ed.tryTitle")}</strong>
-        <p>{t(timed ? "flow.ed.tryHintTimed" : "flow.ed.tryHint")}</p>
-        <Textarea
-          aria-label={t("flow.ed.trySample")}
-          rows={6}
-          className="fe-mono"
-          value={text}
-          onChange={(e) => setSample(e.target.value)}
-        />
-        <Button size="sm" onClick={() => void go()}>
-          {t("flow.ed.tryGo")}
-        </Button>
-        {answer && (
-          <p className="fe-try__answer" role="status">
-            {answer}
-          </p>
-        )}
-      </div>
-    </Popover>
   );
 }

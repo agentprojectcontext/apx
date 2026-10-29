@@ -219,7 +219,7 @@ function apply(ev: CoreEvent): void {
       teamChanged();
       return;
     case "flow.draft":
-      flowDraftChanged(ev.flow);
+      flowDraftChanged({ flow: ev.flow, project: ev.project, version: ev.draft_version, by: ev.by });
       return;
     case "browser.tabs":
       // The core checks a node's tabs before pushing them.

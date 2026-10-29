@@ -480,6 +480,8 @@ export type TurnOpts = {
   skills?: string | undefined;
   /** In a task's conversation: the task as it is now. */
   task?: string | undefined;
+  /** In a chat opened from the Flow editor: which Flow the owner is watching (flowEditorBlock). */
+  flowEditor?: string | undefined;
   /** What an extension's plugin adds, already framed as outside data. */
   extension?: string | undefined;
   /** People on channels waiting for the owner's OK (codes and numbers only). */
@@ -567,6 +569,7 @@ export function turnBlocks(opts: TurnOpts): InputBlock[] {
     ["memory", opts.memory ? `[memory: notes saved earlier]\n${opts.memory}` : ""],
     ["skills", opts.skills ? `[skills for this message]\n${opts.skills}` : ""],
     ["task", opts.task ? `[task]\n${opts.task}` : ""],
+    ["flow editor", opts.flowEditor ? `[flow editor] ${opts.flowEditor}` : ""],
     ["extension", opts.extension ? `[extension context]\n${opts.extension}` : ""],
     ["waiting", opts.waiting ? `[waiting]\n${opts.waiting}` : ""],
     ["owner feedback", opts.feedback ? `[owner feedback]\n${opts.feedback}` : ""],
