@@ -192,8 +192,9 @@
 }
 /* A step the agent just added or changed. */
 .fc .apx-flowstep.fc-mark {
+  border-color: var(--apx-brand);
   box-shadow:
-    0 0 0 2px var(--apx-brand),
+    0 0 0 3px var(--apx-brand-soft),
     var(--apx-shadow-sm);
 }
 @media (prefers-reduced-motion: no-preference) {

@@ -16,6 +16,8 @@ const shots = process.env.FLOW_SHOTS;
 async function shot(page: Page, name: string) {
   if (!shots) return;
   fs.mkdirSync(shots, { recursive: true });
+  // After the mark's entrance, as it stays for a few seconds.
+  await page.waitForTimeout(800);
   await page.screenshot({ path: path.join(shots, `${name}.png`) });
 }
 
