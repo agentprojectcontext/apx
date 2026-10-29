@@ -35,6 +35,8 @@ import {
   whoOf,
 } from "./data.ts";
 import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
+import { HistoryList, type Looked, loadVersion, RestoreDialog, useFlowHistory } from "./FlowHistory.tsx";
+import { entryLabel, type HistoryEntry } from "./history.ts";
 import { stepDetail } from "./look.tsx";
 import {
   dueTime,
@@ -149,23 +151,39 @@ export function FlowDetail({
   // A drawn run carries its drawing, so a Flow never published still shows its tests (DECISIONS.md#d-178).
   const runsToo = Boolean(shown && (!shown.placeholder || runs?.some((e) => e.executor === "graph")));
   const onDraft = Boolean(draft) && (which === "draft" || !runsToo);
+  // The rail lists runs or saved versions; a version picked is drawn read-only (DECISIONS.md#d-179).
+  const [list, setList] = useState<"runs" | "history">("runs");
+  const [looked, setLooked] = useState<Looked>();
+  const [restoring, setRestoring] = useState<HistoryEntry>();
+  const entries = useFlowHistory(flow.id, list === "history");
   const pick = (id: string) => {
     setRunId(id);
     setWhich("runs");
+    setLooked(undefined);
+  };
+  const openVersion = async (e: HistoryEntry) => {
+    try {
+      setLooked(await loadVersion(flow.id, e.entry));
+      // On a phone the list sits under the canvas: back to the top, where the version and Restore show.
+      document.querySelector(".fd")?.scrollTo({ top: 0 });
+    } catch {
+      notify(t("flow.hist.loadFailed"));
+    }
   };
   // What the chosen run ran: its own revision, the old definition for a legacy run of a published flow, or now.
   const graph = useMemo(() => {
+    if (looked) return looked.graph;
     if (onDraft && draft) return draft;
     if (run?.executor === "graph") return detail?.event === run.event_id ? detail.graph : undefined;
     if (run && !run.current) return legacyGraph(flow, t);
     return shown?.graph;
-  }, [run, detail, flow, t, shown, onDraft, draft]);
+  }, [run, detail, flow, t, shown, onDraft, draft, looked]);
   const view = useMemo(() => {
     if (!graph) return undefined;
-    if (onDraft) return viewRun(graph, path, undefined, t, who);
+    if (onDraft || looked) return viewRun(graph, path, undefined, t, who);
     if (run?.executor === "graph") return detail ? viewGraphRun(detail, path, t, who) : undefined;
     return viewRun(graph, path, run, t, who);
-  }, [graph, detail, path, run, t, who, onDraft]);
+  }, [graph, detail, path, run, t, who, onDraft, looked]);
   const look = useCallback(
     (n: FlowNode): StepLook => {
       const v = view?.steps.get(n.id);
@@ -288,7 +306,7 @@ export function FlowDetail({
               : t("flow.skipped", { count: schedule.skipped, time: dueTime(schedule.skipped_at, timeZone) })}
           </p>
         ) : null}
-        {run && outcome && !onDraft && (
+        {run && outcome && !onDraft && !looked && (
           <div className="fd__runline">
             <strong>{t("flow.runAt", { when: runWhen(run.created_at) })}</strong>
             <Badge tone={OUTCOME[outcome].tone === "neutral" ? "neutral" : OUTCOME[outcome].tone}>
@@ -316,7 +334,18 @@ export function FlowDetail({
             )}
           </div>
         )}
-        {draft && (
+        {looked && (
+          <div className="fd__drafts">
+            <p className="fd__draft">{t("flow.hist.looking")}</p>
+            <Button size="sm" leadingIcon={<Icons.RotateCcw size={14} />} onClick={() => setRestoring(looked.entry)}>
+              {t("flow.hist.restore")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setLooked(undefined)}>
+              {t("flow.hist.closeVersion")}
+            </Button>
+          </div>
+        )}
+        {draft && !looked && (
           <div className="fd__drafts">
             {runsToo && (
               <SegmentedControl
@@ -344,9 +373,9 @@ export function FlowDetail({
                 setNodeId(id);
                 setTab("step");
               }}
-              fitKey={`${flow.id}:${onDraft ? `d${shown?.draftVersion ?? ""}` : run?.executor === "graph" ? `r${detail?.revision ?? ""}` : run?.current === false ? "old" : "now"}`}
+              fitKey={`${flow.id}:${looked ? `v${looked.entry.entry}` : ""}${onDraft ? `d${shown?.draftVersion ?? ""}` : run?.executor === "graph" ? `r${detail?.revision ?? ""}` : run?.current === false ? "old" : "now"}`}
             >
-              {run && !onDraft && (
+              {run && !onDraft && !looked && (
                 <div className="fd__legend" aria-hidden="true">
                   <span className="is-ran">{t("flow.legend.stepRan")}</span>
                   <span className="is-skipped">{t("flow.legend.stepSkipped")}</span>
@@ -355,24 +384,28 @@ export function FlowDetail({
               )}
               <span
                 className={
-                  onDraft
-                    ? "fd__version is-draft"
-                    : run?.test
-                      ? "fd__version is-test"
-                      : run && !run.current
-                        ? "fd__version is-old"
-                        : "fd__version"
+                  looked
+                    ? "fd__version is-old"
+                    : onDraft
+                      ? "fd__version is-draft"
+                      : run?.test
+                        ? "fd__version is-test"
+                        : run && !run.current
+                          ? "fd__version is-old"
+                          : "fd__version"
                 }
               >
-                {t(
-                  onDraft
-                    ? "flow.card.draft"
-                    : run?.test
-                      ? "flow.test.badge"
-                      : run && !run.current
-                        ? "flow.previous"
-                        : "flow.current",
-                )}
+                {looked
+                  ? entryLabel(looked.entry, t, runWhen(looked.entry.at))
+                  : t(
+                      onDraft
+                        ? "flow.card.draft"
+                        : run?.test
+                          ? "flow.test.badge"
+                          : run && !run.current
+                            ? "flow.previous"
+                            : "flow.current",
+                    )}
               </span>
             </FlowCanvas>
           ) : (
@@ -383,7 +416,7 @@ export function FlowDetail({
           flow={flow}
           nodes={graph?.nodes ?? []}
           node={node}
-          run={onDraft ? undefined : run}
+          run={onDraft || looked ? undefined : run}
           detail={detail}
           who={who}
           view={view}
@@ -409,8 +442,16 @@ export function FlowDetail({
           />
           <div className="fd__railhead">
             <div className="fd__railtitle">
-              <h2>{t("flow.runs")}</h2>
-              <span>{runs?.length ?? ""}</span>
+              <SegmentedControl
+                size="sm"
+                label={t("flow.hist.showing")}
+                value={list}
+                onValueChange={(v) => setList(v as "runs" | "history")}
+                options={[
+                  { value: "runs", label: `${t("flow.runs")}${runs?.length ? ` ${runs.length}` : ""}` },
+                  { value: "history", label: t("flow.hist.tab") },
+                ]}
+              />
               <span className="fd__spacer" />
               <IconButton
                 label={t("flow.hideRuns")}
@@ -418,16 +459,18 @@ export function FlowDetail({
                 onClick={() => setRail((r) => ({ ...r, open: false }))}
               />
             </div>
-            <span className="fd__railnext">
-              {!flow.enabled
-                ? t("flow.off")
-                : schedule
-                  ? schedule.next_at
-                    ? t("flow.nextAt", { when: nextWhen(schedule.next_at, timeZone, t) })
-                    : t("flow.next.none")
-                  : t("flow.nextWhen")}
-            </span>
-            {runs && runs.length > 0 && (
+            {list === "runs" && (
+              <span className="fd__railnext">
+                {!flow.enabled
+                  ? t("flow.off")
+                  : schedule
+                    ? schedule.next_at
+                      ? t("flow.nextAt", { when: nextWhen(schedule.next_at, timeZone, t) })
+                      : t("flow.next.none")
+                    : t("flow.nextWhen")}
+              </span>
+            )}
+            {list === "runs" && runs && runs.length > 0 && (
               <RunBars
                 size="lg"
                 label={t("flow.runsLast")}
@@ -447,43 +490,54 @@ export function FlowDetail({
               />
             )}
           </div>
-          <div className="fd__runs">
-            {runs?.length === 0 && <p className="fd__none">{t(flow.enabled ? "flow.noRunsOn" : "flow.noRunsOff")}</p>}
-            {runs?.map((e) => {
-              const o = outcomeOf(e, flow.predicates.length);
-              const f = runFacts(e, t);
-              return (
-                <button
-                  key={e.event_id}
-                  type="button"
-                  className={e.event_id === runId ? "fd__run is-on" : "fd__run"}
-                  aria-current={e.event_id === runId}
-                  onClick={() => pick(e.event_id)}
-                >
-                  <span className="fd__runwhen">
-                    <span className={`fd__runmark is-${OUTCOME[o].bar}`} />
-                    {runWhen(e.created_at)}
-                  </span>
-                  <span className="fd__runtags">
-                    <Badge tone={OUTCOME[o].tone === "neutral" ? "neutral" : OUTCOME[o].tone}>
-                      {t(OUTCOME[o].label)}
-                    </Badge>
-                    {e.test && <Badge tone="warning">{t("flow.test.badge")}</Badge>}
-                    {e.run_tokens ? (
-                      <Badge tone="violet">{t("flow.tokensShort", { count: tokens(e.run_tokens) })}</Badge>
-                    ) : null}
-                  </span>
-                  <span className="fd__runtook">{f.took ?? ""}</span>
-                  <Icons.ChevronRight size={14} aria-hidden="true" />
-                </button>
-              );
-            })}
-            {cursor && (
-              <Button variant="ghost" size="sm" onClick={() => void older()}>
-                {t("flow.olderRuns")}
-              </Button>
-            )}
-          </div>
+          {list === "history" ? (
+            <div className="fd__runs">
+              <HistoryList
+                entries={entries}
+                selected={looked?.entry.entry}
+                running={shown?.publishedRevision ?? null}
+                onPick={(e) => void openVersion(e)}
+              />
+            </div>
+          ) : (
+            <div className="fd__runs">
+              {runs?.length === 0 && <p className="fd__none">{t(flow.enabled ? "flow.noRunsOn" : "flow.noRunsOff")}</p>}
+              {runs?.map((e) => {
+                const o = outcomeOf(e, flow.predicates.length);
+                const f = runFacts(e, t);
+                return (
+                  <button
+                    key={e.event_id}
+                    type="button"
+                    className={e.event_id === runId ? "fd__run is-on" : "fd__run"}
+                    aria-current={e.event_id === runId}
+                    onClick={() => pick(e.event_id)}
+                  >
+                    <span className="fd__runwhen">
+                      <span className={`fd__runmark is-${OUTCOME[o].bar}`} />
+                      {runWhen(e.created_at)}
+                    </span>
+                    <span className="fd__runtags">
+                      <Badge tone={OUTCOME[o].tone === "neutral" ? "neutral" : OUTCOME[o].tone}>
+                        {t(OUTCOME[o].label)}
+                      </Badge>
+                      {e.test && <Badge tone="warning">{t("flow.test.badge")}</Badge>}
+                      {e.run_tokens ? (
+                        <Badge tone="violet">{t("flow.tokensShort", { count: tokens(e.run_tokens) })}</Badge>
+                      ) : null}
+                    </span>
+                    <span className="fd__runtook">{f.took ?? ""}</span>
+                    <Icons.ChevronRight size={14} aria-hidden="true" />
+                  </button>
+                );
+              })}
+              {cursor && (
+                <Button variant="ghost" size="sm" onClick={() => void older()}>
+                  {t("flow.olderRuns")}
+                </Button>
+              )}
+            </div>
+          )}
         </aside>
       ) : (
         <aside className="fd__railclosed" aria-label={t("flow.runs")}>
@@ -494,6 +548,17 @@ export function FlowDetail({
           />
         </aside>
       )}
+      <RestoreDialog
+        flow={flow.id}
+        entry={restoring}
+        version={async () => (await client.call("flows.graph_get", { flow: flow.id })).draftVersion}
+        onClose={() => setRestoring(undefined)}
+        onRestored={() => {
+          setLooked(undefined);
+          setWhich("draft");
+          onChanged();
+        }}
+      />
       <RunNowDialog
         body={asking}
         busy={busy}

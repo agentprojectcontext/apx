@@ -13,6 +13,7 @@ import { describeIssue, issueText, shownGraph, useKnown, whoOf } from "./data.ts
 import { slug, tidy } from "./drawing.ts";
 import { type Cover, FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { FlowChat } from "./FlowChat.tsx";
+import { EditorHistory } from "./FlowHistory.tsx";
 import { connectNodes, moveNode, newNode, removeCase, removeNode } from "./graph-edit.ts";
 import { Inspector, StepList } from "./Inspector.tsx";
 import { stepDetail } from "./look.tsx";
@@ -529,6 +530,26 @@ export function FlowEditor({
           onStart={() => void test.start()}
         />
         <TryRun graph={g} tidy={() => tidy(g, t)} onResult={setTrial} disabled={testing} />
+        <EditorHistory
+          flow={id}
+          running={published}
+          version={version}
+          unsaved={dirty}
+          disabled={busy || !graph || frozen}
+          onRestored={(doc) => {
+            // The version comes back as the draft and replaces the canvas; what runs stays until Save.
+            const back = doc.draft ?? doc.published ?? EMPTY;
+            setGraph(back);
+            setVersion(doc.draftVersion);
+            setPublished(doc.publishedRevision);
+            setDraftBy(doc.draftBy);
+            // The name keeps what was saved, so a name typed meanwhile still shows as unsaved.
+            setSaved(JSON.stringify([back, (JSON.parse(saved) as [unknown, string])[1]]));
+            setTrial(null);
+            setSelected(null);
+            setSaid({ text: t(flow?.enabled ? "flow.ed.draftSavedRuns" : "flow.ed.draftSaved") });
+          }}
+        />
         <Button
           variant="secondary"
           className="fe-top__draft"
