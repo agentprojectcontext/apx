@@ -15,8 +15,20 @@ export function newNode(kind: FlowNodeKind, id: string, label: string): FlowNode
     case "schedule":
       return { id, label, kind, cron: "30 8 * * 1-5" };
     case "condition":
-      // The two-case default: "yes" when its expression holds, else "no".
-      return { id, label, kind, input, cases: [{ id: "yes", label: "", match: { kind: "expr", expr: "" } }] };
+      // The two-case default: "yes" when its comparison holds, else "no".
+      return {
+        id,
+        label,
+        kind,
+        input,
+        cases: [
+          {
+            id: "yes",
+            label: "",
+            match: { kind: "all", rules: [{ left: "", op: "equals", right: "", type: "text" }] },
+          },
+        ],
+      };
     case "vars":
       return { id, label, kind, vars: [{ name: "value", value: { kind: "literal", value: "" } }] };
     case "js":

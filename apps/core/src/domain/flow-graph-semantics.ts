@@ -1,6 +1,8 @@
 import type { FlowBinding, FlowGraph, FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
+import { flowCaseHolds } from "./flow-compare.ts";
 import { evalFlowExpr, type FlowVarIndex, flowTruthy, parseFlowExpr } from "./flow-expr.ts";
 import { FLOW_OTHERWISE, flowCases, resolveFlowBinding, validateFlowGraph } from "./flow-graph-validate.ts";
+import type { FlowApx } from "./flow-template.ts";
 
 export { FLOW_OTHERWISE, flowBranches, flowCases, flowVarIndex } from "./flow-graph-validate.ts";
 
@@ -147,10 +149,11 @@ export function resolveFlowInput(
 }
 
 /** What an expression reads and how: a binding's value from the run, and where each variable is set. */
-export type FlowReads = { resolve: (b: FlowBinding) => unknown; vars: FlowVarIndex };
+export type FlowReads = { resolve: (b: FlowBinding) => unknown; vars: FlowVarIndex; apx?: FlowApx | undefined };
 
 /**
- * The first case that holds names the way out, else otherwise. An equals case compares the check's input. A yes/no
+ * The first case that holds names the way out, else otherwise. An equals case compares the check's input; a case of
+ * comparisons fills each side from the run (DECISIONS.md#d-180). A yes/no
  * check drawn before cases says `{matched}`, as its runs always have.
  */
 export function evaluateFlowCondition(
@@ -164,7 +167,9 @@ export function evaluateFlowCondition(
     const holds =
       c.match.kind === "equals"
         ? value === c.match.value
-        : flowTruthy(evalFlowExpr(parseFlowExpr(c.match.expr), reads.resolve, reads.vars));
+        : c.match.kind === "expr"
+          ? flowTruthy(evalFlowExpr(parseFlowExpr(c.match.expr), reads.resolve, reads.vars))
+          : flowCaseHolds(c.match, reads);
     if (holds) {
       taken = c.id;
       break;

@@ -1,7 +1,7 @@
 // A project's tables (DECISIONS.md#d-176): the owner's Tables on the Flows screen and the editor, and their agents'
 // own tool calls (apx_settings), each kept to the projects it reaches as for Flows (DECISIONS.md#d-174).
 import { FlowCapacityError } from "../domain/flow-events.ts";
-import { FlowTableConflict, FlowTableMissing } from "../domain/flow-tables.ts";
+import { FlowTableConflict, FlowTableMissing, FlowTableRequired } from "../domain/flow-tables.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, conflict, notFound } from "../errors.ts";
 import { flowReach } from "./flow-graphs.ts";
@@ -23,6 +23,7 @@ export function tableHandlers(store: Store) {
       if (error instanceof FlowTableMissing) throw notFound(error.message);
       if (error instanceof FlowTableConflict) throw conflict(error.message);
       if (error instanceof FlowCapacityError) throw badRequest(error.message);
+      if (error instanceof FlowTableRequired) throw badRequest(error.message, { columns: error.columns });
       throw badRequest(error instanceof Error ? error.message : "Invalid table change");
     }
   };
@@ -54,6 +55,9 @@ export function tableHandlers(store: Store) {
     }),
     "tables.column_rename": (p, ctx) => ({
       table: change(() => tables.renameColumn(project(ctx, p.project), p.table, p.column, p.name)),
+    }),
+    "tables.column_required": (p, ctx) => ({
+      table: change(() => tables.requireColumn(project(ctx, p.project), p.table, p.column, p.required)),
     }),
     "tables.column_remove": (p, ctx) => ({
       table: change(() => tables.removeColumn(project(ctx, p.project), p.table, p.column)),

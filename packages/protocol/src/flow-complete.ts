@@ -1,6 +1,6 @@
 // What a step still needs before its drawing can run: the editor, `flows.validate` and publishing ask the same thing
 // (DECISIONS.md#d-177). Type imports only besides plain helpers: the panel loads this without zod.
-import { flowCases } from "./flow-cases.ts";
+import { flowCases, flowComparisonGap } from "./flow-cases.ts";
 import type { FlowDraftGraph, FlowDraftNode } from "./flow-graph.ts";
 
 const empty = (text: string | undefined) => !text?.trim();
@@ -16,6 +16,11 @@ export function flowStepGap(n: FlowDraftNode): string | undefined {
     case "condition": {
       const cases = flowCases(n);
       if (cases.some((c) => c.match.kind === "expr" && empty(c.match.expr))) return "cases";
+      // A comparison with no field, nothing to compare with, or a value its type can't read (DECISIONS.md#d-180).
+      if (
+        cases.some((c) => (c.match.kind === "all" || c.match.kind === "any") && c.match.rules.some(flowComparisonGap))
+      )
+        return "cases";
       const equals = cases.some((c) => c.match.kind === "equals");
       return equals && n.input.kind === "event" && n.input.path.length === 0 ? "input" : undefined;
     }
