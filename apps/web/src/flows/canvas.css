@@ -157,3 +157,15 @@
 .fc .fc-out .fc-handle {
   right: 0;
 }
+/* A connection picked in the editor stands out, with its bin beside it. */
+.fc .fc-edge.is-picked .react-flow__edge-path {
+  stroke: var(--apx-brand);
+  stroke-width: 2.5;
+}
+.fc-edgebin {
+  position: absolute;
+  pointer-events: all;
+  border-radius: 50%;
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-sm);
+}

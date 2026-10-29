@@ -18,8 +18,10 @@ import {
   useStore,
   useViewport,
 } from "@xyflow/react";
-import { type ReactNode, useEffect, useMemo, useRef } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "../i18n/index.ts";
+import { FlowEdge, type FlowEdgeData } from "./FlowEdge.tsx";
+import { connectionError } from "./graph-edit.ts";
 import { branchesOf, type FlowGraph, type FlowNode, isTrigger, STEP } from "./steps.tsx";
 import "@xyflow/react/dist/style.css";
 import "./canvas.css";
@@ -93,6 +95,7 @@ function StepNode({ data, selected }: NodeProps<Node<StepData>>) {
   );
 }
 const nodeTypes = { step: StepNode };
+const edgeTypes = { step: FlowEdge };
 
 /**
  * Fits the view once the steps have sizes, and again when `fitKey` changes, leaving out what a card covers. On a
@@ -199,6 +202,7 @@ type Props = {
     move: (id: string, x: number, y: number) => void;
     /** `when`: which way out of a check the connection leaves by. */
     connect: (source: string, target: string, when?: string) => void;
+    disconnect: (source: string, target: string) => void;
   };
   minimap?: boolean;
   /** A picture of the whole drawing (a chat's card): it does not pan, zoom or select, and the page scrolls over it. */
@@ -257,19 +261,28 @@ export function FlowCanvas({
   );
   const [nodes, setNodes, onNodesChange] = useNodesState(initial);
   useEffect(() => setNodes(initial), [initial, setNodes]);
+  // A connection clicked in the editor: it stands out and shows a bin; Delete takes it away too.
+  const [picked, setPicked] = useState<string | null>(null);
+  const take = (e: { source: string; target: string }) => {
+    edit?.disconnect(e.source, e.target);
+    setPicked(null);
+  };
   const ran = (id: string) => {
     const s = look(graph.nodes.find((n) => n.id === id) as FlowNode).state;
     return s === "ran" || s === "failed" || s === "live";
   };
   const checks = new Map(graph.nodes.flatMap((n) => (n.kind === "condition" ? [[n.id, branchesOf(n, t)]] : [])));
-  const edges: Edge[] = graph.edges.map((e) => {
+  const edges: Edge<FlowEdgeData>[] = graph.edges.map((e) => {
     const ways = checks.get(e.source);
     const when = ways ? (e.when ?? "yes") : undefined;
+    const id = `${e.source}:${e.target}`;
     return {
-      id: `${e.source}:${e.target}`,
+      id,
       source: e.source,
       target: e.target,
-      type: "smoothstep",
+      type: "step",
+      selected: Boolean(edit) && picked === id,
+      ...(edit ? { data: { remove: { label: t("flow.ed.unlink"), run: () => take(e) } } } : {}),
       ...(when
         ? {
             sourceHandle: when,
@@ -281,6 +294,7 @@ export function FlowCanvas({
       className: [
         "fc-edge",
         ran(e.source) && ran(e.target) ? "is-ran" : "",
+        edit && picked === id ? "is-picked" : "",
         when === FLOW_OTHERWISE ? "is-no" : when ? "is-yes" : "",
       ]
         .filter(Boolean)
@@ -297,12 +311,28 @@ export function FlowCanvas({
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={changeNodes}
         onNodeClick={(_, n) => {
+          setPicked(null);
           onSelect(n.id);
           focus?.onClick(n.id);
         }}
-        onPaneClick={() => onSelect(null)}
+        onPaneClick={() => {
+          setPicked(null);
+          onSelect(null);
+        }}
+        onEdgeClick={(_, e) => {
+          if (!edit) return;
+          setPicked(e.id);
+          onSelect(null);
+        }}
+        onKeyDown={(ev) => {
+          const e = picked ? graph.edges.find((x) => `${x.source}:${x.target}` === picked) : undefined;
+          if (e && (ev.key === "Delete" || ev.key === "Backspace")) take(e);
+          else if (picked && ev.key === "Escape") setPicked(null);
+        }}
+        isValidConnection={(c) => !c.source || !c.target || !connectionError(graph, c.source, c.target)}
         onNodeDragStop={(_, n) => edit?.move(n.id, Math.round(n.position.x), Math.round(n.position.y))}
         onConnect={(c: Connection) =>
           c.source &&
@@ -321,7 +351,7 @@ export function FlowCanvas({
         maxZoom={1.6}
         multiSelectionKeyCode={null}
         deleteKeyCode={null}
-        edgesFocusable={false}
+        edgesFocusable={Boolean(edit)}
         nodesFocusable={!still}
         proOptions={{ hideAttribution: true }}
         ariaLabelConfig={{

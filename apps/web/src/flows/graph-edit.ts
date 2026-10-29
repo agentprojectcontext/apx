@@ -4,7 +4,7 @@ import type { FlowGraph, FlowNode } from "../../../../packages/protocol/src/flow
 type Condition = Extract<FlowNode, { kind: "condition" }>;
 
 // The edits an agent's tool makes too live in the protocol package, so both draw alike.
-export { connectionError, connectNodes, newNode, removeNode } from "@apx/protocol/flow-edit";
+export { connectionError, connectNodes, disconnectNodes, newNode, removeNode } from "@apx/protocol/flow-edit";
 export type NodeKind = FlowNode["kind"];
 
 /** A check in the form that has cases: one drawn before them keeps its value as its "yes" case. */

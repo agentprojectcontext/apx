@@ -14,7 +14,7 @@ import { slug, tidy } from "./drawing.ts";
 import { type Cover, FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { FlowChat } from "./FlowChat.tsx";
 import { EditorHistory } from "./FlowHistory.tsx";
-import { connectNodes, moveNode, newNode, removeCase, removeNode } from "./graph-edit.ts";
+import { connectNodes, disconnectNodes, moveNode, newNode, removeCase, removeNode } from "./graph-edit.ts";
 import { Inspector, StepList } from "./Inspector.tsx";
 import { stepDetail } from "./look.tsx";
 import { approveOutward } from "./outward.tsx";
@@ -643,6 +643,7 @@ export function FlowEditor({
                     : {
                         move: (id, x, y) => change(moveNode(g, id, x, y)),
                         connect: (source, target, when) => change(connectNodes(g, source, target, when)),
+                        disconnect: (source, target) => change(disconnectNodes(g, source, target)),
                       }
                 }
                 minimap={g.nodes.length > 0}
