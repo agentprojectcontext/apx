@@ -2,6 +2,7 @@ import { FlowDraftGraph, FlowGraph, FlowGraphDocument } from "../../../../packag
 import type { Db } from "../db/db.ts";
 import { redactedJson } from "../log.ts";
 import { checkFlowCapacity, FlowCapacityError } from "./flow-events.ts";
+import { type FlowHistoryKind, flowGraphHistory } from "./flow-graph-history.ts";
 import { retainFlowGraphRevisions } from "./flow-graph-retention.ts";
 import { storedFlowValue } from "./flow-graph-runs.ts";
 import { isFlowTrigger } from "./flow-graph-validate.ts";
@@ -20,6 +21,9 @@ const runnable = (data: unknown, trigger: FlowGraph["nodes"][number]["kind"] | u
 export type FlowEventSource = { source: "webhook" | "schedule" | "owner"; scheduledAt?: string | undefined };
 /** The event came by a way its Flow does not start from (a POST to a schedule Flow, a tick of a webhook one). */
 export class FlowTriggerMismatch extends Error {}
+
+/** What a save leaves in the Flow's history: who saved it (null for the owner) and what it was. */
+export type FlowSave = { by: string | null; kind?: Exclude<FlowHistoryKind, "published">; restoredFrom?: number };
 
 /** The trigger kind a published Flow starts from, or undefined when it runs no drawing. */
 export function publishedFlowTrigger(db: Db, flow: string): "webhook" | "schedule" | undefined {
@@ -41,6 +45,7 @@ export function hasPublishedFlowGraph(db: Db, flow: string): boolean {
 
 export function flowGraphsRepo(db: Db) {
   const tx = sql(db).tx;
+  const history = flowGraphHistory(db);
   const found = (flow: string) => {
     const row = db.prepare("SELECT enabled FROM flows WHERE id=?").get(flow);
     if (!row) throw new Error("Flow not found");
@@ -118,6 +123,7 @@ export function flowGraphsRepo(db: Db) {
     return { state, revision: pinned.revision };
   };
   const api = {
+    history,
     /** What the published drawing starts from; undefined when the Flow runs no drawing. */
     trigger: (flow: string) => publishedFlowTrigger(db, flow),
     get(flow: string) {
@@ -138,8 +144,17 @@ export function flowGraphsRepo(db: Db) {
         executionAvailable: true,
       });
     },
-    /** `by`: the agent whose tool saved it; none for the owner. */
-    saveDraft(flow: string, expectedVersion: number | null, graph: FlowDraftGraph, by?: string) {
+    /**
+     * `by`: the agent the draft is kept as drawn by (it waits for the owner's review); none for the owner. `save`: what
+     * the history keeps of it, by default a draft saved by `by`.
+     */
+    saveDraft(
+      flow: string,
+      expectedVersion: number | null,
+      graph: FlowDraftGraph,
+      by?: string,
+      save: FlowSave = { by: by ?? null },
+    ) {
       const text = encoded(graph, FlowDraftGraph);
       return tx(() => {
         const current = api.get(flow);
@@ -150,6 +165,11 @@ export function flowGraphsRepo(db: Db) {
         db.prepare(`INSERT INTO flow_graph_drafts(flow_id,version,graph,discarded,saved_by) VALUES (?,1,?,?,?)
           ON CONFLICT(flow_id) DO UPDATE SET version=version+1,graph=excluded.graph,discarded=excluded.discarded,
           saved_by=excluded.saved_by`).run(flow, published ? "{}" : text, Number(published), by ?? null);
+        history.record(flow, text, JSON.parse(text).nodes.length, {
+          kind: save.kind ?? "draft",
+          by: save.by,
+          ...(save.restoredFrom ? { restoredFrom: save.restoredFrom } : {}),
+        });
         return api.get(flow);
       });
     },
@@ -195,6 +215,7 @@ export function flowGraphsRepo(db: Db) {
         db.prepare(
           "UPDATE flow_graph_drafts SET version=version+1,graph='{}',discarded=1,published_revision=? WHERE flow_id=?",
         ).run(revision, flow);
+        history.record(flow, text, current.draft.nodes.length, { kind: "published", revision });
         return api.get(flow);
       });
     },

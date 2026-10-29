@@ -384,6 +384,26 @@
   white-space: nowrap;
   text-align: right;
 }
+/* A saved version in the history list. */
+.fd__ver {
+  grid-template-columns: minmax(36px, auto) minmax(0, 1fr) auto 14px;
+}
+.fd__vertext {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.fd__vertext strong {
+  font-weight: 500;
+  color: var(--apx-fg);
+}
+.fd__vertext span {
+  color: var(--apx-fg-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .fd__railclosed {
   flex: none;
   width: 44px;

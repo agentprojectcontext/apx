@@ -136,6 +136,13 @@ running as before until you save a drawing it can't stand for. **Simulate** foll
 and branches and marks the steps it would reach, without saving, reading a table, sending or calling an agent; a step
 that needs another step's answer says it depends on it. Saving never runs anything, and a new flow starts off.
 
+Every save that changes the drawing leaves a version: a draft you saved, one that became what runs, one an agent drew
+for you, or one you restored. On the flow's page, switch the list at the right from **Runs** to **History** to see
+them, newest first, with when, who and how many steps. Pick one to see its drawing (it doesn't run), and **Restore as
+draft** to keep working from it: it becomes the draft, and what runs doesn't change until you save it. In the editor,
+the history button in the top bar opens the same list; restoring there replaces the canvas, and asks first when you
+have unsaved changes. The last 50 versions are kept, and every one a run still used.
+
 Opening a flow shows its steps as they ran in the chosen run (numbered, green when they ran, dashed when they didn't,
 red when they failed), what each step got and gave, when it started and ended, a log, and the runs at the right with
 their duration and tokens. A run made with an earlier drawing shows that drawing and says **Previous version**. A run

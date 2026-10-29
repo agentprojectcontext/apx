@@ -66,6 +66,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "flows.cancel_run": "the owner stops a Flow run they are looking at",
   "flows.test_start": "a test sends, calls, runs and writes for real, with what the owner approved in the editor",
   "flows.test_stop": "the owner stops waiting for the test event they started",
+  "flows.history_restore": "the owner brings back an earlier drawing from the Flow's page, having looked at it",
   "flows.path_set": "a new address stops the old one, which the services that call it still use",
   "mcp.approveTool": POWER,
   "environments.enable": POWER,

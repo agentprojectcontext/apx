@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { ErrorCode } from "@apx/protocol";
-import type { FlowGraph, FlowGraphIssue } from "../../../../packages/protocol/src/flow-graph.ts";
+import { FlowDraftGraph, type FlowGraph, type FlowGraphIssue } from "../../../../packages/protocol/src/flow-graph.ts";
 import type { Bus } from "../bus.ts";
 import { FlowGraphConflict, FlowGraphUnavailable } from "../domain/flow-graphs.ts";
 import { FlowPathError } from "../domain/flows.ts";
@@ -125,6 +125,7 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
     reach(ctx, flow.projectId);
     return flow;
   };
+  const agentName = (id: string) => store.agents.get(id)?.name ?? null;
   /** The agent behind a call that is not the owner's own. */
   const byAgent = (ctx: CallContext) => (ctx.actor === "human" ? undefined : ctx.agent?.id);
   /** An agent's draft leaves the owner's fields as they are. */
@@ -242,6 +243,36 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
         }),
       );
       return told(ctx, definition.projectId, doc);
+    },
+    "flows.history": ({ flow }, ctx) => {
+      reached(ctx, flow);
+      return { entries: store.flowGraphs.history.list(flow, agentName) };
+    },
+    "flows.history_get": ({ flow, entry }, ctx) => {
+      reached(ctx, flow);
+      const found = store.flowGraphs.history.get(flow, entry, agentName);
+      if (!found) throw notFound("That version is no longer kept");
+      return { entry: found.entry, graph: FlowDraftGraph.parse(found.graph) };
+    },
+    // Owner-only: the drawing comes back as the draft and runs nothing until they save it (DECISIONS.md#d-179).
+    "flows.history_restore": ({ flow, entry, expectedVersion }, ctx) => {
+      const definition = found(flow);
+      const old = store.flowGraphs.history.get(flow, entry, agentName);
+      if (!old) throw notFound("That version is no longer kept");
+      // What an agent drew comes back as its own, so turning the Flow on still opens it for review (D-174).
+      const drew = old.entry.by && store.agents.get(old.entry.by) ? old.entry.by : undefined;
+      const graph = FlowDraftGraph.parse(old.graph);
+      return told(
+        ctx,
+        definition.projectId,
+        write(() =>
+          store.flowGraphs.saveDraft(flow, expectedVersion, graph, drew, {
+            by: drew ?? null,
+            kind: "restored",
+            restoredFrom: entry,
+          }),
+        ),
+      );
     },
     "flows.run_get": ({ flow, event }) => {
       found(flow);

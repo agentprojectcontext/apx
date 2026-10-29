@@ -58,6 +58,7 @@ const Edits = z.array(Edit).min(1).max(40);
 const ARGS = {
   graph_get: z.object({ flow: Id, which: z.enum(["draft", "published"]).optional() }).strict(),
   validate: z.object({ flow: Id }).strict(),
+  history: z.object({ flow: Id, entry: z.number().int().min(1).optional() }).strict(),
   create: z
     .object({
       project: Id,
@@ -281,6 +282,21 @@ export const FLOW_DRAFTS: Readonly<Record<string, Setting>> = {
           publishedRevision: doc.publishedRevision,
           ...compact(doc, which),
         });
+      },
+    },
+  },
+  "flows.history": {
+    does: `list a Flow's saved versions (flow), newest first: number, when, who, draft saved, published or restored, and steps; with entry, that version's drawing as JSON, to say what changed. Bringing one back is the owner's, from the Flow's page. ${SKILL}`,
+    own: {
+      reads: true,
+      // A version's drawing goes back to the model whole, as flows.graph_get's does.
+      confirm: "untrusted",
+      args: ARGS.history,
+      async run(p, _d, ctx) {
+        const { flow, entry } = ARGS.history.parse(p);
+        if (entry === undefined) return JSON.stringify(await ctx.call("flows.history", { flow }));
+        const got = await ctx.call("flows.history_get", { flow, entry });
+        return JSON.stringify({ ...got.entry, graph: { nodes: got.graph.nodes, edges: got.graph.edges } });
       },
     },
   },

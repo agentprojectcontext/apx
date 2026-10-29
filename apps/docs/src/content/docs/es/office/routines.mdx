@@ -144,6 +144,14 @@ guardar, leer la tabla, mandar ni pasarle nada a un agente; un paso que necesita
 de ella.
 Guardar nunca corre nada, y un flow nuevo arranca apagado.
 
+Cada vez que guardás un cambio en el dibujo queda una versión: un borrador que guardaste, uno que pasó a ser lo que
+corre, uno que te dibujó un agente o uno que restauraste. En la página del flow, cambiá la lista de la derecha de
+**Rondas** a **Historial** para verlas, de la más nueva a la más vieja, con cuándo, quién y cuántos pasos. Elegí una
+para ver su dibujo (no corre) y **Restaurar como borrador** para seguir desde ahí: pasa a ser el borrador, y lo que
+corre no cambia hasta que lo guardes. En el editor, el botón de historial de la barra de arriba abre la misma lista;
+restaurar ahí reemplaza el lienzo y, si tenés cambios sin guardar, pregunta antes. Se guardan las últimas 50
+versiones y todas las que usó alguna ronda.
+
 Al abrir un flow ves sus pasos como corrieron en la ronda elegida (numerados, en verde si corrieron, punteados si no,
 en rojo si fallaron), qué recibió y qué dio cada paso, cuándo empezó y terminó, un log y las rondas a la derecha con su
 duración y tokens. Una ronda hecha con un dibujo anterior muestra ese dibujo y dice **Versión anterior**. Una ronda que

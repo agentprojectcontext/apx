@@ -376,6 +376,30 @@ step's crew is an `AgentGrid` of the project's agents plus the super-agent, the 
 `TemplateField`; the secrets group offers **Save a secret** (Resources' `VariableDialog`). A check's cases and a
 variables step's values are a flat list (`.fe-item`), never cards inside the panel.
 
+## Version history
+
+See [D-179](DECISIONS.md#d-179). Every save that changes a Flow's drawing leaves an entry in `flow_graph_history`
+(`domain/flow-graph-history.ts`), written in the save's own transaction: a draft saved (the owner's **Save draft** or
+**Save**, `flows.create`, an agent's `flows.draft_save`), a drawing published, or one restored. A save that leaves the
+drawing as the newest entry has it adds nothing; publishing the drawing the owner just saved turns that entry into the
+published one (one **Save**, one entry), while publishing an agent's draft adds the owner's own entry. Test pins
+(`flow_graph_revisions.test`) never appear. Each entry keeps its number (per Flow, never reused), when, `kind`
+(`draft`, `published`, `restored`), who the drawing is kept as drawn by (`saved_by`: null for the owner, else the
+agent), the entry a restore brought back, the revision a published entry made run, its step count and the drawing.
+The newest 50 per Flow are kept, plus every published entry whose revision a run or what runs still points at; a
+Flow's entries go with it.
+
+- `flows.history {flow}` and `flows.history_get {flow, entry}`: the owner, and an agent's own tool for its project
+  (D-174's reach). The super-agent reads them through `apx_settings`' `flows.history {flow, entry?}`, asked like
+  `flows.graph_get` while outside content is in the turn.
+- `flows.history_restore {flow, entry, expectedVersion, confirm: true}` (owner-only, effect): the entry's drawing
+  becomes the draft with the draft version read (a stale one is a conflict) and never publishes. An entry an agent drew
+  comes back as that agent's draft, so turning the Flow on still opens it for review.
+- Panel: the Flow page's rail switches between **Runs** and **History**; a version picked is drawn read-only with
+  "Version #n · when · who", **Restore as draft** (asks first) and **Close this version**. The editor's top bar has a
+  history button (`EditorHistory`, `flows/FlowHistory.tsx`) whose list restores a version into the canvas after asking,
+  saying when unsaved edits will be replaced.
+
 ## AI model steps
 
 `kind: "agent"` is the panel's **AI model** block (DECISIONS.md#d-172). Its source is `agent` (an agent of the Flow's
