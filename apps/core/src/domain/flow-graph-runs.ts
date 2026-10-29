@@ -50,6 +50,8 @@ export type FlowGraphRun = {
   /** Absolute, fixed at admission: a restart or a pause never extends it. */
   deadline: number;
   state: FlowRunState;
+  /** An owner's test of a saved drawing: it runs whether the Flow is on or off (DECISIONS.md#d-178). */
+  test: boolean;
   steps: Map<string, FlowStepRow>;
 };
 
@@ -68,6 +70,17 @@ const preview = (text: string | null) =>
     : text.length > PREVIEW
       ? { text: `${text.slice(0, PREVIEW)}…`, cut: true }
       : { text, cut: false };
+/** What a POST brought, as stored: its kept headers and its data, cut for a screen. */
+function arrivedOf(headers: string | null, payload: string) {
+  const body = preview(payload);
+  let kept: Record<string, string> = {};
+  try {
+    const parsed: unknown = JSON.parse(headers ?? "{}");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed))
+      kept = Object.fromEntries(Object.entries(parsed).filter((e): e is [string, string] => typeof e[1] === "string"));
+  } catch {}
+  return { headers: kept, body: body.text ?? "", truncated: body.cut };
+}
 /** What a legacy-history row shows for a graph run once it ended. */
 const EVENT_STATE: Record<FlowRunState, string> = {
   pending: "pending",
@@ -97,18 +110,18 @@ export function flowGraphRunsRepo(db: Db) {
       .where("revision", "=", k.revision)
       .where("node_id", "=", k.node);
   const api = {
-    /** Runs still going, oldest admission first. */
-    active(): { flow: string; event: string; deadline: number }[] {
+    /** Runs still going, oldest admission first; `test` marks an owner's test. */
+    active(): { flow: string; event: string; deadline: number; test: boolean }[] {
       return all(
         qb
           .selectFrom("flow_graph_events as g")
           .innerJoin("flow_events as e", (j) =>
             j.onRef("e.flow_id", "=", "g.flow_id").onRef("e.event_id", "=", "g.event_id"),
           )
-          .select(["g.flow_id", "g.event_id", "g.deadline_at"])
+          .select(["g.flow_id", "g.event_id", "g.deadline_at", "e.test"])
           .where("g.state", "=", "pending")
           .orderBy(raw`e.rowid`),
-      ).map((r) => ({ flow: r.flow_id, event: r.event_id, deadline: Date.parse(r.deadline_at) }));
+      ).map((r) => ({ flow: r.flow_id, event: r.event_id, deadline: Date.parse(r.deadline_at), test: r.test === 1 }));
     },
     load(flow: string, event: string): FlowGraphRun | undefined {
       const head = one(
@@ -117,7 +130,7 @@ export function flowGraphRunsRepo(db: Db) {
           .innerJoin("flow_graph_revisions as r", (j) =>
             j.onRef("r.flow_id", "=", "g.flow_id").onRef("r.revision", "=", "g.revision"),
           )
-          .select(["g.revision", "g.payload", "g.deadline_at", "g.state", "r.graph"])
+          .select(["g.revision", "g.payload", "g.deadline_at", "g.state", "r.graph", "r.test"])
           .where("g.flow_id", "=", flow)
           .where("g.event_id", "=", event),
       );
@@ -138,6 +151,7 @@ export function flowGraphRunsRepo(db: Db) {
         payload: JSON.parse(head.payload),
         deadline: Date.parse(head.deadline_at),
         state: head.state as FlowRunState,
+        test: head.test === 1,
         steps: new Map(
           rows.map((r) => [
             r.node_id,
@@ -420,10 +434,13 @@ export function flowGraphRunsRepo(db: Db) {
             "g.state",
             "g.deadline_at",
             "g.ended_at",
+            "g.payload",
             "r.graph",
             "e.created_at",
             "e.source",
             "e.scheduled_at",
+            "e.test",
+            "e.headers",
             "d.published_revision",
           ])
           .where("g.flow_id", "=", flow)
@@ -473,6 +490,8 @@ export function flowGraphRunsRepo(db: Db) {
         deadline_at: head.deadline_at,
         source: head.source as FlowRunDetail["source"],
         scheduled_at: head.scheduled_at,
+        test: head.test === 1,
+        arrived: head.source === "webhook" ? arrivedOf(head.headers, head.payload) : null,
         steps,
       };
     },

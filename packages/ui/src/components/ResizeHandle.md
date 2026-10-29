@@ -11,7 +11,8 @@ The edge of a column you drag to change its width: the sidebar, the chat list, a
 - `onReset`: double click, back to the default.
 - `onDragChange(dragging)`: a drag starts or ends; cover anything that would swallow the pointer meanwhile (a native
   view laid over the page).
-- `edge`: the side of the column it sits on (`right` by default).
+- `edge`: the side of the column it sits on (`right` by default); `top` for a panel at the bottom that grows upwards
+  (a log under a canvas), where `width` is its height and Up and Down move it.
 
 Place it inside the column (positioned) or over the line between two columns.
 

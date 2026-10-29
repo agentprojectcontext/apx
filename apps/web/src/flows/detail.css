@@ -130,6 +130,20 @@
   border-color: var(--apx-warning);
   color: var(--apx-fg);
 }
+.fd__version.is-test {
+  border-color: var(--apx-warning);
+  color: var(--apx-warning-soft-fg);
+}
+.fd__runlog {
+  max-height: 360px;
+  display: flex;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  overflow: hidden;
+}
+.fd__runlog > .rlog {
+  flex: 1;
+}
 .fd__panel {
   display: flex;
   flex-direction: column;
@@ -380,10 +394,11 @@
 }
 
 @media (max-width: 760px) {
-  .fd__version:not(.is-old, .is-draft) {
+  .fd__version:not(.is-old, .is-draft, .is-test) {
     display: none;
   }
   .fd__version.is-old,
+  .fd__version.is-test,
   .fd__version.is-draft {
     top: auto;
     bottom: 12px;

@@ -105,13 +105,36 @@ export function createPublicCredentials(deps: { store: Store; secrets: Secrets; 
       deps.store.settings.set(KEY, JSON.stringify(saved.filter((s) => s.path !== pathname)));
       return { revoked: true };
     },
-    authorize(pathname: string, headers: Record<string, string>) {
-      if (!known(pathname)) return false;
+    /**
+     * Whether an address has a key, registered as a route now or not (a Flow turned off keeps its key). An entry whose
+     * secret can't be read now (a locked keyring) still counts: `verify` then refuses rather than letting anyone in.
+     */
+    has(pathname: string): boolean {
+      return read().some((s) => s.path === pathname);
+    },
+    /** These headers carry the address's own key; false when it has none. */
+    verify(pathname: string, headers: Record<string, string>): boolean {
       const supplied = headers.authorization;
       if (!supplied || !/^Bearer apxp_[a-f0-9]{64}$/.test(supplied)) return false;
       const ref = read().find((s) => s.path === pathname)?.secret_ref;
       const expected = deps.secrets.resolve(ref);
       return Boolean(expected && timingSafeEqual(digest(supplied.slice(7)), digest(expected)));
+    },
+    authorize(pathname: string, headers: Record<string, string>) {
+      return known(pathname) && api.verify(pathname, headers);
+    },
+    /**
+     * An address renamed: its key goes with it, so the caller only changes the URL; a key left at the new address by a
+     * Flow that had it before is revoked.
+     */
+    move(from: string, to: string) {
+      if (!Path.safeParse(from).success || !Path.safeParse(to).success)
+        throw badRequest("invalid public endpoint path");
+      if (from === to) return;
+      api.revoke(to);
+      const saved = read();
+      if (!saved.some((s) => s.path === from)) return;
+      deps.store.settings.set(KEY, JSON.stringify(saved.map((s) => (s.path === from ? { ...s, path: to } : s))));
     },
     protect(resolve: PublicRoutes): PublicRoutes {
       return (pathname) => {

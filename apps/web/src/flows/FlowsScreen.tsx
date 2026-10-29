@@ -332,7 +332,8 @@ function FlowRow(props: {
   useEffect(() => {
     let live = true;
     void loadRuns(flow.id).then(
-      (r) => live && setRuns(r.events),
+      // An owner's test shows on the Flow's page, not as how the Flow is doing.
+      (r) => live && setRuns(r.events.filter((e) => !e.test)),
       () => live && setRuns([]),
     );
     return () => {

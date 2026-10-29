@@ -8,15 +8,20 @@ import { type FlowGraph, triggerOf } from "./steps.tsx";
 
 export type TryStep = Result<"flows.try_graph">["steps"][number];
 
-/** Sample data through the drawing, branches and all, as a run would check it; nothing is saved or sent. */
+/**
+ * Sample data through the drawing, branches and all, as a run would check it; nothing is saved or sent. The editor's
+ * real test (TestMode.tsx) is the one that runs.
+ */
 export function TryRun({
   graph,
   tidy: tidied,
   onResult,
+  disabled,
 }: {
   graph: FlowGraph;
   tidy: () => FlowGraph;
   onResult: (r: Map<string, TryStep> | null) => void;
+  disabled?: boolean;
 }) {
   const t = useT();
   const timed = triggerOf(graph)?.kind === "schedule";
@@ -62,8 +67,14 @@ export function TryRun({
       width={340}
       label={t("flow.ed.tryTitle")}
       trigger={
-        <Button variant="secondary" leadingIcon={<Icons.Play size={14} />} disabled={!graph.nodes.length}>
-          {t("flow.ed.try")}
+        <Button
+          variant="secondary"
+          className="fe-top__try"
+          leadingIcon={<Icons.FlaskConical size={14} />}
+          disabled={!graph.nodes.length || disabled}
+          aria-label={t("flow.ed.try")}
+        >
+          <span className="fe-top__try-text">{t("flow.ed.try")}</span>
         </Button>
       }
     >

@@ -475,6 +475,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     },
     http: { policy: flowHttpPolicy(config.flowHttpAllow), secret: (ref, project) => secrets.resolveIn(ref, project) },
     home: config.home,
+    tell: (event) => bus.emit(event),
   });
   const stopFlowEvents = bus.on((event) => {
     if (event.type === "run.updated" && event.run.ended_at) flows.kick();
@@ -757,9 +758,11 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const nativeRoutes = nativePublicRoutes({ store, deliver: channels.webhook });
   const publishedRoutes = publishedPublicRoutes(store);
   const flowRoutes = publicCredentials.protect(flows.routes);
+  const flowTestRoutes = flows.tests.routes(publicCredentials);
   const hookListener = await listenHooks({
     port: config.hooksPort,
-    routes: (pathname) => nativeRoutes(pathname) ?? publishedRoutes(pathname) ?? flowRoutes(pathname),
+    routes: (pathname) =>
+      nativeRoutes(pathname) ?? publishedRoutes(pathname) ?? flowRoutes(pathname) ?? flowTestRoutes(pathname),
     log,
   });
   hooksPort = hookListener.port;

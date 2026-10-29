@@ -78,7 +78,7 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
 
   // A dry run checks the sample against the checks without saving or calling anything.
   const calls = await world.llmCalls();
-  await named.getByRole("button", { name: "Probar ronda" }).click();
+  await named.getByRole("button", { name: "Simular" }).click();
   await page.getByRole("textbox", { name: "Datos que llegan" }).fill('{"type":"delivery"}');
   await page.getByRole("button", { name: "Probar", exact: true }).click();
   await expect(page.getByText("Las condiciones la cortarían. No correría nada.")).toBeVisible();
@@ -109,13 +109,15 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   await page.getByRole("switch", { name: `Encender o apagar ${name}` }).click();
   await expect(page.getByText("Sin rondas todavía. Corre cuando llegue un POST.")).toBeVisible();
 
-  const credential = await rpc<Result<"public_routes.rotate">>("public_routes.rotate", { path: `/flows/${flow?.id}` });
+  const credential = await rpc<Result<"public_routes.rotate">>("public_routes.rotate", {
+    path: `/flows/${flow?.path}`,
+  });
   const { value: token } = await rpc<Result<"secrets.reveal">>("secrets.reveal", {
     name: credential.secret_ref.slice(9),
   });
   const { port } = await rpc<Result<"webhooks.get">>("webhooks.get", {});
   const post = (id: string, data: unknown) =>
-    fetch(`http://127.0.0.1:${port}/flows/${flow?.id}`, {
+    fetch(`http://127.0.0.1:${port}/flows/${flow?.path}`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({ id, data }),
@@ -143,8 +145,11 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   await expect(page.getByText("4 de 4 pasos corrieron")).toBeVisible();
   await expect(page.getByText(/^Respondió .+ en APX/)).toBeVisible();
   await page.getByRole("radio", { name: "Ronda completa" }).click();
-  await expect(page.getByRole("log")).toContainText("recibido POST");
-  await expect(page.getByRole("log")).toContainText("Modelo IA terminó");
+  // The whole run's log says what arrived, as text, then each step as it started and ended.
+  const log = page.getByRole("log");
+  await expect(log).toContainText(`Llegó un evento · POST /flows/${flow?.path}`);
+  await expect(log).toContainText('"text": "<script>outside</script>"');
+  await expect(log).toContainText("«Modelo IA» terminó");
   // A run cut at the check shows the steps after it as not run.
   await cut.click();
   await expect(page.getByText("2 de 4 pasos corrieron")).toBeVisible();

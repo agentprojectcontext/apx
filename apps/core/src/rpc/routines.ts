@@ -207,7 +207,8 @@ function runGraphStep(store: Store, scheduler: Scheduler, routine: string, step:
   if (
     node?.kind !== "routine" ||
     node.routine !== routine ||
-    !flow?.enabled ||
+    !flow ||
+    (!flow.enabled && !run?.test) ||
     binding?.project_id !== flow.projectId ||
     binding.schedule.kind !== "manual"
   )

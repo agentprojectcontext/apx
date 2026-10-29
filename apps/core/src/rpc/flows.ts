@@ -5,11 +5,13 @@ import { tryFlowGraph } from "../domain/flow-graph-try.ts";
 import { validateFlowGraph } from "../domain/flow-graph-validate.ts";
 import { FlowGraphUnavailable } from "../domain/flow-graphs.ts";
 import { nextFlowTick } from "../domain/flow-schedules.ts";
+import { FlowPathError } from "../domain/flows.ts";
 import { flowCronProblem } from "../domain/schedule.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
 import { type FlowModelCheck, type Flows, flowGraphIssues, flowTimeZone, validateFlowBinding } from "../flows.ts";
-import { flowGraphHandlers } from "./flow-graphs.ts";
+import { flowGraphHandlers, pathRefused } from "./flow-graphs.ts";
+import { flowTestHandlers } from "./flow-tests.ts";
 import type { Handlers } from "./router.ts";
 import { tableHandlers } from "./tables.ts";
 
@@ -30,6 +32,7 @@ export function flowHandlers(
   return {
     ...graphHandlers,
     ...tableHandlers(store),
+    ...flowTestHandlers(store, flows, credentials, model),
     "flows.publish": (params, ctx) => {
       const scheduleOf = () => store.flowGraphs.get(params.flow).published?.nodes.find((n) => n.kind === "schedule");
       const before = JSON.stringify(scheduleOf() ?? null);
@@ -42,10 +45,12 @@ export function flowHandlers(
       return doc;
     },
     "flows.create": (params, ctx) => {
-      const made = graphHandlers["flows.create"](params, ctx);
-      // A new identifier never inherits a route credential left by a Flow of a deleted project.
-      credentials.revoke(`/flows/${made.flow.id}`);
-      return made;
+      // A new address never inherits a route credential left by a Flow of a deleted project: one transaction.
+      return store.tx(() => {
+        const made = graphHandlers["flows.create"](params, ctx);
+        credentials.revoke(`/flows/${made.flow.path ?? made.flow.id}`);
+        return made;
+      });
     },
     "flows.list": ({ project }) => {
       const flows = store.flows.list(project);
@@ -89,15 +94,23 @@ export function flowHandlers(
         if (flow.enabled && flowGraphIssues(store, flow, published, model, flows.outside).length)
           throw badRequest("The drawing can't run as it is: open it in the editor to fix it");
       } else validateFlowBinding(store, flow);
+      // An address changes only through flows.path_set, which says the old one stops.
+      if (previous && flow.path !== undefined && flow.path !== previous.path)
+        throw badRequest("Change a flow's address with flows.path_set");
       try {
-        if (!previous) credentials.revoke(`/flows/${flow.id}`);
-        const saved = store.flows.save(flow);
+        // One transaction: a new Flow is never saved while a credential left at its address still works.
+        const saved = store.tx(() => {
+          const made = store.flows.save(flow);
+          if (!previous) credentials.revoke(`/flows/${made.path ?? made.id}`);
+          return made;
+        });
         // Turned on, a schedule counts from now: its next time is the first owed, even within the scheduler's beat.
         if (saved.enabled && !previous?.enabled && store.flowGraphs.trigger(flow.id) === "schedule")
           store.flowSchedules.reset(flow.id, flowsNow());
         flows.kick();
         return saved;
       } catch (error) {
+        if (error instanceof FlowPathError) throw pathRefused(error);
         if (error instanceof FlowGraphUnavailable)
           throw badRequest("This flow runs its drawing: change it in the editor");
         throw badRequest("Invalid Flow definition or capacity exceeded");
@@ -120,6 +133,7 @@ export function flowHandlers(
       return store.flows.eventsPage(flow, limit, cursor);
     },
     "flows.retire": ({ flow }) => {
+      const before = store.flows.get(flow);
       let result: { retired: boolean };
       try {
         result = store.flows.retire(flow);
@@ -129,7 +143,7 @@ export function flowHandlers(
         );
       }
       try {
-        credentials.revoke(`/flows/${flow}`);
+        credentials.revoke(`/flows/${before?.path ?? flow}`);
       } catch {
         throw badRequest("Flow data is absent, but credential cleanup failed; retry retirement to finish cleanup");
       }

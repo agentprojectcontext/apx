@@ -204,14 +204,16 @@ for (const lang of ["en", "es"] as const) {
     await page.getByRole("switch", { name: l.toggle(name) }).click();
     await expect(page.getByRole("switch", { name: l.toggle(name) })).toBeChecked();
 
-    const flow = (await rpc<Result<"flows.list">>("flows.list", { project })).flows[0]?.id ?? "";
-    const credential = await rpc<Result<"public_routes.rotate">>("public_routes.rotate", { path: `/flows/${flow}` });
+    const listed = (await rpc<Result<"flows.list">>("flows.list", { project })).flows[0];
+    const flow = listed?.id ?? "";
+    const route = listed?.path ?? "";
+    const credential = await rpc<Result<"public_routes.rotate">>("public_routes.rotate", { path: `/flows/${route}` });
     const { value: token } = await rpc<Result<"secrets.reveal">>("secrets.reveal", {
       name: credential.secret_ref.slice(9),
     });
     const { port } = await rpc<Result<"webhooks.get">>("webhooks.get", {});
     const lead = { email: `sam-${lang}@northwind.example`, name: "Sam" };
-    const sent = await fetch(`http://127.0.0.1:${port}/flows/${flow}`, {
+    const sent = await fetch(`http://127.0.0.1:${port}/flows/${route}`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({ id: `lead-${lang}`, data: lead }),

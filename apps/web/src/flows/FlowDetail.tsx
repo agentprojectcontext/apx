@@ -16,11 +16,11 @@ import {
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
 import { useFlowDraft } from "../data/flowDrafts.ts";
+import { useFlowRunMoved } from "../data/flowTests.ts";
 import { notify } from "../data/notices.ts";
 import { useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { go } from "../shell/nav.ts";
 import {
   issueText,
   legacyGraph,
@@ -38,7 +38,6 @@ import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { stepDetail } from "./look.tsx";
 import {
   dueTime,
-  logClock,
   nextWhen,
   OUTCOME,
   outcomeOf,
@@ -49,8 +48,8 @@ import {
   viewGraphRun,
   viewRun,
 } from "./run-view.ts";
-import { type Flow, type FlowNode, type FlowRun, hookPath, isTrigger, STEP, scheduleName } from "./steps.tsx";
-import { useTables } from "./tables-data.ts";
+import { StepPanel } from "./StepPanel.tsx";
+import { type Flow, type FlowNode, type FlowRun, hookPath, isTrigger, pathOf, STEP, scheduleName } from "./steps.tsx";
 import "./detail.css";
 
 type Cursor = Result<"flows.events">["nextCursor"];
@@ -88,6 +87,9 @@ export function FlowDetail({
   const [revision, setRevision] = useState(0);
   // An agent's draft, or one saved in another window, is drawn as soon as it is saved.
   const drawn = useFlowDraft(flow.id);
+  // A run moving (a test from the editor too) is read again at once.
+  const moved = useFlowRunMoved(flow.id);
+  const path = pathOf(flow);
   // biome-ignore lint/correctness/useExhaustiveDependencies: a changed drawing is read again
   useEffect(() => {
     let live = true;
@@ -111,7 +113,7 @@ export function FlowDetail({
     return () => {
       live = false;
     };
-  }, [flow.id, revision]);
+  }, [flow.id, revision, moved?.seq]);
   // A run still going is read again until it ends.
   const going = runs?.some((e) => e.state === "pending" || (e.state === "admitted" && !e.run_ended_at));
   const run = runs?.find((e) => e.event_id === runId);
@@ -144,7 +146,8 @@ export function FlowDetail({
   // While a saved draft waits the page shows it; what runs (a run's own revision) when chosen (DECISIONS.md#d-177).
   const [which, setWhich] = useState<"draft" | "runs">("draft");
   const draft = shown?.draftPending ? shown.draft : null;
-  const runsToo = Boolean(shown && !shown.placeholder);
+  // A drawn run carries its drawing, so a Flow never published still shows its tests (DECISIONS.md#d-178).
+  const runsToo = Boolean(shown && (!shown.placeholder || runs?.some((e) => e.executor === "graph")));
   const onDraft = Boolean(draft) && (which === "draft" || !runsToo);
   const pick = (id: string) => {
     setRunId(id);
@@ -159,22 +162,22 @@ export function FlowDetail({
   }, [run, detail, flow, t, shown, onDraft, draft]);
   const view = useMemo(() => {
     if (!graph) return undefined;
-    if (onDraft) return viewRun(graph, flow.id, undefined, t, who);
-    if (run?.executor === "graph") return detail ? viewGraphRun(detail, flow.id, t, who) : undefined;
-    return viewRun(graph, flow.id, run, t, who);
-  }, [graph, detail, flow.id, run, t, who, onDraft]);
+    if (onDraft) return viewRun(graph, path, undefined, t, who);
+    if (run?.executor === "graph") return detail ? viewGraphRun(detail, path, t, who) : undefined;
+    return viewRun(graph, path, run, t, who);
+  }, [graph, detail, path, run, t, who, onDraft]);
   const look = useCallback(
     (n: FlowNode): StepLook => {
       const v = view?.steps.get(n.id);
       return {
         title: n.label,
-        ...stepDetail(n, flow.id, agents, routines, t, known),
+        ...stepDetail(n, path, agents, routines, t, known),
         ...(v?.state ? { state: v.state } : {}),
         ...(v?.order ? { order: v.order } : {}),
         ...(v?.badge ? { badge: v.badge } : {}),
       };
     },
-    [view, flow.id, agents, routines, t, known],
+    [view, path, agents, routines, t, known],
   );
   const toggle = async (on: boolean) => {
     setBusy(true);
@@ -250,9 +253,8 @@ export function FlowDetail({
           <div className="fd__name">
             <h1>{flow.name}</h1>
             <span>
-              {project} ·{" "}
-              {schedule ? scheduleName(schedule.cron, t) : t("flow.triggerHook", { path: hookPath(flow.id) })} ·{" "}
-              {t("flow.steps", { count: graph?.nodes.length ?? "…" })}
+              {project} · {schedule ? scheduleName(schedule.cron, t) : t("flow.triggerHook", { path: hookPath(path) })}{" "}
+              · {t("flow.steps", { count: graph?.nodes.length ?? "…" })}
             </span>
           </div>
           <div className="fd__tools">
@@ -295,7 +297,8 @@ export function FlowDetail({
             {facts?.took && <span>{facts.took}</span>}
             {facts?.tokens && <span>{facts.tokens}</span>}
             {view && graph && <span>{t("flow.stepsRan", { ran: view.ran, total: graph.nodes.length })}</span>}
-            {run.source === "owner" && <Badge tone="neutral">{t("flow.byYou")}</Badge>}
+            {run.test && <Badge tone="warning">{t("flow.test.badge")}</Badge>}
+            {run.source === "owner" && !run.test && <Badge tone="neutral">{t("flow.byYou")}</Badge>}
             {run.scheduled_at && ranLate(run) && (
               <span className="fd__late">{t("flow.late", { time: dueTime(run.scheduled_at, timeZone) })}</span>
             )}
@@ -352,10 +355,24 @@ export function FlowDetail({
               )}
               <span
                 className={
-                  onDraft ? "fd__version is-draft" : run && !run.current ? "fd__version is-old" : "fd__version"
+                  onDraft
+                    ? "fd__version is-draft"
+                    : run?.test
+                      ? "fd__version is-test"
+                      : run && !run.current
+                        ? "fd__version is-old"
+                        : "fd__version"
                 }
               >
-                {t(onDraft ? "flow.card.draft" : run && !run.current ? "flow.previous" : "flow.current")}
+                {t(
+                  onDraft
+                    ? "flow.card.draft"
+                    : run?.test
+                      ? "flow.test.badge"
+                      : run && !run.current
+                        ? "flow.previous"
+                        : "flow.current",
+                )}
               </span>
             </FlowCanvas>
           ) : (
@@ -367,6 +384,8 @@ export function FlowDetail({
           nodes={graph?.nodes ?? []}
           node={node}
           run={onDraft ? undefined : run}
+          detail={detail}
+          who={who}
           view={view}
           tab={tab}
           setTab={setTab}
@@ -422,7 +441,7 @@ export function FlowDetail({
                     return {
                       id: e.event_id,
                       state: OUTCOME[o].bar,
-                      label: `${runWhen(e.created_at)} · ${t(OUTCOME[o].label)}`,
+                      label: `${runWhen(e.created_at)} · ${t(OUTCOME[o].label)}${e.test ? ` · ${t("flow.test.badge")}` : ""}`,
                     };
                   })}
               />
@@ -449,6 +468,7 @@ export function FlowDetail({
                     <Badge tone={OUTCOME[o].tone === "neutral" ? "neutral" : OUTCOME[o].tone}>
                       {t(OUTCOME[o].label)}
                     </Badge>
+                    {e.test && <Badge tone="warning">{t("flow.test.badge")}</Badge>}
                     {e.run_tokens ? (
                       <Badge tone="violet">{t("flow.tokensShort", { count: tokens(e.run_tokens) })}</Badge>
                     ) : null}
@@ -574,181 +594,5 @@ function RunNowDialog(props: {
         )}
       </div>
     </Dialog>
-  );
-}
-
-function StepPanel({
-  flow,
-  nodes,
-  node,
-  run,
-  view,
-  tab,
-  setTab,
-  reload,
-}: {
-  flow: Flow;
-  nodes: FlowNode[];
-  node: FlowNode | undefined;
-  run: FlowRun | undefined;
-  view: ReturnType<typeof viewRun> | undefined;
-  tab: "step" | "run";
-  setTab: (tab: "step" | "run") => void;
-  reload: () => void;
-}) {
-  const t = useT();
-  const [open, setOpen] = useState(true);
-  const step = node ? view?.steps.get(node.id) : undefined;
-  const lines = (tab === "step" && node ? view?.log.filter((l) => l.node === node.id) : view?.log) ?? [];
-  const openChat = async (id: string) => {
-    try {
-      const info = await client.call("runs.get", { run: id });
-      go.thread(info.thread_id);
-    } catch {
-      notify(t("flow.ed.saveFailed"));
-    }
-  };
-  const retry = async () => {
-    if (!run) return;
-    try {
-      const r = await client.call("flows.retry", { flow: flow.id, event: run.event_id });
-      notify(t(r.queued ? "flow.retried" : "flow.notRetried"), "info");
-      reload();
-    } catch {
-      notify(t("flow.notRetried"));
-    }
-  };
-  return (
-    <section className="fd__panel" aria-label={t("flow.panel")}>
-      <div className="fd__panelhead">
-        <SegmentedControl
-          size="sm"
-          label={t("flow.panel")}
-          value={tab}
-          onValueChange={(v) => setTab(v as "step" | "run")}
-          options={[
-            { value: "step", label: t("flow.tab.step") },
-            { value: "run", label: t("flow.tab.run") },
-          ]}
-        />
-        {tab === "step" && node && (
-          <span className="fd__panelstep">
-            <FlowStepTile icon={STEP[node.kind].icon} tone={STEP[node.kind].tone} />
-            <strong>{node.label}</strong>
-            <span>{t(STEP[node.kind].label)}</span>
-          </span>
-        )}
-        <span className="fd__spacer" />
-        <IconButton
-          label={t(open ? "flow.collapse" : "flow.expand")}
-          icon={open ? <Icons.Minus size={14} /> : <Icons.Plus size={14} />}
-          onClick={() => setOpen(!open)}
-        />
-      </div>
-      {open && (
-        <>
-          {!run && <p className="fd__none">{t("flow.pickRun")}</p>}
-          {tab === "step" && node && (
-            <div className="fd__io">
-              <div>
-                <span className="fd__label">{t("flow.input")}</span>
-                <span className="fd__value">{step?.input}</span>
-              </div>
-              {run && (
-                <div>
-                  <span className="fd__label">{t("flow.output")}</span>
-                  <span
-                    className={
-                      step?.state === "failed"
-                        ? "fd__value is-failed"
-                        : step?.state === "skipped"
-                          ? "fd__value is-muted"
-                          : "fd__value"
-                    }
-                  >
-                    {step?.output}
-                  </span>
-                  {step?.answered && <span className="fd__answered">{step.answered}</span>}
-                  <span className="fd__actions">
-                    {step?.run && (
-                      <Button size="sm" variant="secondary" onClick={() => void openChat(step.run as string)}>
-                        {t("flow.openChat")}
-                      </Button>
-                    )}
-                    {step?.retry && (
-                      <Button size="sm" variant="secondary" onClick={() => void retry()}>
-                        {t("common.retry")}
-                      </Button>
-                    )}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-          {tab === "step" && node?.kind === "table_write" && (
-            <Rows flow={flow.id} project={flow.projectId} table={node.table} />
-          )}
-          {run && (
-            <div className="fd__logwrap">
-              <span className="fd__label">{t("flow.log")}</span>
-              <div className="fd__log" role="log">
-                {lines.length === 0 && step && <div className="fd__logline is-muted">— {step.output}</div>}
-                {lines.map((l, i) => (
-                  // Lines are a fixed sequence for the chosen run.
-                  // biome-ignore lint/suspicious/noArrayIndexKey: positional
-                  <div key={i} className={`fd__logline${l.tone ? ` is-${l.tone}` : ""}`}>
-                    <span>{logClock(l.at)}</span>
-                    {tab === "run" && <span>{nodes.find((n) => n.id === l.node)?.label}</span>}
-                    <span>{l.text}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      )}
-    </section>
-  );
-}
-
-/** What the save step keeps now: its project table's latest rows, or the flow's own table. */
-function Rows({ flow, project, table }: { flow: string; project: string; table: string | undefined }) {
-  const t = useT();
-  const [rows, setRows] = useState<{ key: string; value: unknown }[]>();
-  // A draft may name a table the project doesn't have yet: it has no rows to read.
-  const tables = useTables(table ? project : undefined);
-  const made = !table || tables?.some((x) => x.name === table);
-  useEffect(() => {
-    let live = true;
-    if (!made) {
-      setRows(tables ? [] : undefined);
-      return;
-    }
-    void (
-      table ? client.call("tables.get", { project, table, limit: 20 }) : client.call("flows.rows", { flow, limit: 20 })
-    ).then(
-      (r) => live && setRows(r.rows),
-      () => live && setRows([]),
-    );
-    return () => {
-      live = false;
-    };
-  }, [flow, project, table, made, tables]);
-  return (
-    <div className="fd__rows">
-      <span className="fd__label">{t("flow.rows")}</span>
-      {table && (
-        <Button size="sm" variant="link" onClick={() => go.tables(project, table)}>
-          {t("flow.tables.open", { name: table })}
-        </Button>
-      )}
-      {rows?.length === 0 && <span className="fd__value is-muted">{t("flow.noRows")}</span>}
-      {rows?.map((r) => (
-        <div key={r.key} className="fd__row">
-          <code>{r.key}</code>
-          <pre>{JSON.stringify(r.value, null, 2)}</pre>
-        </div>
-      ))}
-    </div>
   );
 }

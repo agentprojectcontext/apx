@@ -98,7 +98,12 @@ export const scheduleName = (cron: string, t: (key: MessageKey) => string) => {
 };
 export const presetOf = (cron: string) => SCHEDULE_PRESETS.find((p) => p.cron === cron.trim().replace(/\s+/g, " "));
 
-export const hookPath = (flow: string) => `/flows/${flow}`;
+/** A Flow's address, from its path (DECISIONS.md#d-178); a Flow from before paths has its identifier as its path. */
+export const hookPath = (path: string) => `/flows/${path}`;
+/** Where a test event goes while the owner listens for one. */
+export const testPath = (path: string) => `/flows/test/${path}`;
+/** The path of a saved Flow. */
+export const pathOf = (flow: Flow) => flow.path ?? flow.id;
 
 export const literal = (v: string | number | boolean | null) => (typeof v === "string" ? `"${v}"` : String(v));
 

@@ -156,6 +156,23 @@
 .apx-resize--left {
   left: -5px;
 }
+.apx-resize--top {
+  top: -5px;
+  bottom: auto;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 9px;
+  cursor: row-resize;
+}
+.apx-resize--top::after {
+  top: 4px;
+  bottom: auto;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 1px;
+}
 .apx-resize::after {
   position: absolute;
   top: 0;
@@ -172,6 +189,14 @@
   width: 2px;
   left: 3.5px;
   background: var(--apx-brand);
+}
+.apx-resize--top:hover::after,
+.apx-resize--top:focus-visible::after,
+.apx-resize--top:active::after {
+  width: auto;
+  left: 0;
+  height: 2px;
+  top: 3.5px;
 }
 .apx-resize.apx-mdetail__resize {
   right: auto;

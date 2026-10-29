@@ -194,17 +194,22 @@ test("additive migration leaves legacy pending payload, action, rows and dedupli
       db
         .prepare("SELECT * FROM flow_events")
         .all()
-        .map(({ executor, stopped_at, source, scheduled_at, ...row }) => {
+        .map(({ executor, stopped_at, source, scheduled_at, test, headers, ...row }) => {
           assert.equal(executor, "legacy");
           assert.equal(stopped_at, null);
-          // Every event before schedules came by POST.
+          // Every event before schedules came by POST, and before tests none was one.
           assert.equal(source, "webhook");
           assert.equal(scheduled_at, null);
+          assert.equal(test, 0);
+          assert.equal(headers, null);
           return row;
         }),
       before,
     );
     const legacy = flowsRepo(db);
+    // Its address stays where it was: a Flow from before paths keeps its identifier as its path.
+    assert.equal(legacy.get("f")?.path, "f");
+    assert.equal(legacy.byPath("f")?.id, "f");
     assert.equal(legacy.pending()[0]?.action.kind, "agent");
     assert.deepEqual(legacy.pending()[0]?.payload, { text: "original" });
     assert.equal(legacy.receive("f", "old", { text: "new" }), "duplicate");

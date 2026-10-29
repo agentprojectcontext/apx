@@ -24,7 +24,8 @@ Forwarded headers do not grant access and are not trusted as client identity. No
 | Resource | Methods | Authentication |
 | --- | --- | --- |
 | `/hooks/<configured-channel-id>` | POST | Only LINE and Teams; the adapter verifies the native signature/JWT before delivering any event |
-| `/flows/<registered-flow-id>` | POST | A separate APX bearer token for that exact endpoint; the registered destination owns payload validation and execution |
+| `/flows/<flow-path>` | POST | A separate APX bearer token for that exact endpoint; the registered destination owns payload validation and execution |
+| `/flows/test/<flow-path>` | POST | Only while the owner listens for one test event on that Flow (five minutes, one event); the address's bearer token when it has one |
 | `/a/<published-share-link>` | GET, HEAD | Explicit publication; a read-only page, never artifact state, stores, secrets or actions |
 | `/_apx/kit@1[.minor[.patch]].js` | GET, HEAD | Static public widget kit only |
 
@@ -57,11 +58,11 @@ ni garantiza ejecución exactamente una vez.
 Human-only protocol operations run through the private router:
 
 1. `public_routes.list {}` lists registered destinations and whether they have a live credential.
-2. `public_routes.rotate {"path":"/flows/<id>"}` enables or rotates one registered endpoint. The result contains a
+2. `public_routes.rotate {"path":"/flows/<path>"}` enables or rotates one registered endpoint. The result contains a
    `secret_ref`, never the bearer value. Reveal that reference through the existing owner-only `secrets.reveal` operation,
    or use Enable token / Rotate token in Settings › Devices. Copy the token into the caller's secure secret store.
 3. Send `Authorization: Bearer <token>` on every webhook POST. Use a different token for every integration/route.
-4. `public_routes.revoke {"path":"/flows/<id>"}` removes that credential immediately. A revoked or old rotated token
+4. `public_routes.revoke {"path":"/flows/<path>"}` removes that credential immediately. A revoked or old rotated token
    cannot deliver an event; another endpoint's token never works here. A deleted destination is no longer a public route.
 
 Tokens have 256 random bits and live in APX's Secrets backend (OS keyring when available; protected file otherwise).
@@ -73,6 +74,27 @@ An interrupted or failed activation leaves the prior credential active and the a
 If 1,000 references remain pending, restore the secret backend before rotating again; there is no periodic cleanup job.
 Management operations are owner-only, require normal protocol authentication and an idempotency key for mutations, and cannot be
 called through the public listener. An agent or external API client does not gain owner access by knowing a route token.
+
+A Flow's path is its own (`flows.path`, [D-178](DECISIONS.md#d-178)): unique, from its name when made, renamed by the
+owner with `flows.path_set`. A rename stops the old address at once and moves its credential to the new one, so the
+caller keeps its token and changes only the URL. A Flow from before paths has its identifier as its path.
+
+## Test events
+
+`/flows/test/<path>` exists for the owner's test from the Flow editor ([D-178](DECISIONS.md#d-178)). It runs nothing
+unless the owner started listening on that Flow (`flows.test_start`, owner-only, with the same `outward` approval
+publishing needs). Not listening, `/flows/test/…` is no route at all: the listener's bare 404, with no body read,
+whether or not a Flow has that path. Listening lasts five minutes and takes one event: the same envelope, size, content
+type, deadline and rate limits as `/flows/<path>`, and the address's bearer token once it has one (an address whose
+token can't be read now refuses, as production does). The first valid event ends the listening before it is admitted,
+so a concurrent second POST gets 404; so does one whose Flow was renamed while its body arrived. The event runs the drawing
+pinned when listening started, as a durable run marked as a test, whether the Flow is on or off. Listening is kept in
+memory: a restart ends it. Until an address has a token, a test event is accepted from whoever knows the test address
+during that window; give the address a token first when that matters.
+
+**Español:** `/flows/test/<path>` solo corre algo mientras el dueño escucha un evento de prueba en ese Flow: cinco
+minutos, un evento, con los mismos límites que la dirección real y su token cuando lo tiene. Sin escuchar, cualquier
+`/flows/test/…` responde el mismo 404 y no corre nada.
 
 ## Limits and failures
 

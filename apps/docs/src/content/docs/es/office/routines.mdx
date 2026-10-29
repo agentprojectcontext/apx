@@ -58,7 +58,7 @@ teléfono los tipos de paso se abren desde **Sumar un paso** y la tarjeta es una
 
 | Paso | Qué hace |
 |---|---|
-| Webhook entrante | Arranca el flow cuando un servicio manda un POST. Su URL aparece al guardar. |
+| Webhook entrante | Arranca el flow cuando un servicio manda un POST. Su tarjeta muestra su dirección desde el principio, y al lado una dirección de prueba (ver [Probar un flow](#probar-un-flow-con-un-evento-real)). |
 | Horario | Arranca el flow a horas fijas: **Cada 5 min**, **Cada hora**, **Hábiles 08:30**, **Diario 03:00** o una expresión cron (minuto, hora, día, mes, día de la semana), en tu zona horaria. El panel lateral muestra las próximas rondas. |
 | Condición | Prueba sus casos en orden y sigue por el primero que se cumple; si no, por su última salida. Un caso es un campo de lo que llegó que *es* un valor (`form.tier` es `A`) o una **fórmula** (`$trigger.amount > 100 && $vars.vip`). Con un caso se lee **Sí** y **No**; con más, cada caso tiene su punto, con su nombre, y además **Si no**. Sin modelo. |
 | Variables | Nombra valores una vez para los pasos que siguen: texto, un número, sí o no, o una fórmula sobre `$trigger`, `$steps` y las variables de arriba. Los pasos siguientes los leen como `$vars.nombre`. Un valor puede guardar una clave elegida de tu lista (`secret://nombre`): se usa solo en los headers de un webhook saliente y en las variables de un comando, y un flow que la pone en un mensaje, un cuerpo o una instrucción no se puede guardar para que corra. Sin modelo. |
@@ -74,8 +74,31 @@ teléfono los tipos de paso se abren desde **Sumar un paso** y la tarjeta es una
 | Avisar | Manda un mensaje como vos por una de tus apps de chat (Telegram, WhatsApp, Discord…) a alguien que conocés ahí, a vos o a una sala que listaste. Con **Solo si hay algo para contar**, no manda nada cuando todos los valores del mensaje salen vacíos. |
 
 La barra de arriba del editor tiene el nombre del flow a la izquierda y **Salir** a la derecha, junto al estado de
-guardado, **Probar ronda**, **Guardar borrador** y **Guardar** (en el teléfono, **Borrador** y un ícono para salir). Si
+guardado, **Escuchar un evento de prueba**, **Simular**, **Guardar borrador** y **Guardar** (en el teléfono, **Borrador** y un ícono para salir). Si
 hay cambios sin guardar, pregunta antes de salir y ofrece **Guardar borrador** para conservarlos.
+
+### Probar un flow con un evento real
+
+La dirección de un flow es `https://<tu dirección pública>/flows/<nombre>`, donde el final sale del nombre del flow
+(`leads-del-formulario`). La tarjeta del paso webhook la muestra desde el primer momento, antes de guardar, con un botón
+para copiarla. Tocá el final de la dirección para cambiarlo; antes de guardar por primera vez, queda cuando guardás.
+Cambiarlo después hace que la dirección anterior deje de funcionar enseguida (pregunta antes): los servicios que llaman
+al flow necesitan la nueva. Su clave, si tiene, sigue siendo la misma. La dirección solo funciona desde afuera cuando
+configurás una dirección pública en **Dispositivos**.
+
+Al lado está la **dirección de prueba**, `…/flows/test/<nombre>`. Solo responde mientras probás. **Escuchar un evento de
+prueba**, arriba, guarda lo que dibujaste (si falta completar un paso, dice cuál), pregunta **¿Dejás que este flow actúe
+por vos?** cuando el flow mandaría, llamaría, correría o cambiaría algo nuevo, y espera cinco minutos un evento en la
+dirección de prueba. Mandalo desde el servicio, o a mano, como un POST con JSON como `{"id": "1", "data": {"name":
+"Ada"}}` (con la clave de la dirección, cuando tiene una). No hace falta que el flow esté prendido. Cuando llega el
+evento el flow corre como lo dibujaste, de verdad: sus mensajes, llamadas y comandos pasan. Los pasos se encienden a
+medida que corren, y el registro de abajo muestra qué llegó (sus encabezados y datos) y después cada paso cuando empieza
+y termina, con lo que recibió y devolvió. Mientras probás podés abrir un paso para ver qué recibió y devolvió, pero no
+cambiarlo; **Volver a editar** cierra el registro. **Escuchar otra vez** espera otro evento. Un flow con horario tiene
+**Probar ahora**, que lo corre una vez ya.
+
+Una ronda de prueba aparece entre las rondas del flow, marcada **Prueba**, con el mismo registro. No cuenta como la
+última ronda del flow en la lista, y por ella un horario no saltea su hora.
 
 ### Quién responde en un paso Modelo IA
 
@@ -116,7 +139,7 @@ terminar incluidos, y nunca cambia lo que corre, aunque el flow esté prendido: 
 que corre no cambia.** Igual necesita un nombre y un proyecto. **Guardar**, y prender el flow, te piden terminar cada
 paso antes y dicen cuál. Un flow con la forma vieja de un solo camino (webhook, condiciones, leer,
 guardar y un agente o rutina) sigue corriendo como antes hasta que guardes un dibujo que esa forma no puede representar.
-**Probar ronda** sigue datos de ejemplo por las condiciones y los caminos y marca los pasos a los que llegaría, sin
+**Simular** sigue datos de ejemplo por las condiciones y los caminos y marca los pasos a los que llegaría, sin
 guardar, leer la tabla, mandar ni pasarle nada a un agente; un paso que necesita la respuesta de otro dice que depende
 de ella.
 Guardar nunca corre nada, y un flow nuevo arranca apagado.

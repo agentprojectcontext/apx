@@ -109,17 +109,19 @@ for (const lang of ["en", "es"] as const) {
     await expect(ask).toContainText(l.call);
     await ask.getByRole("button", { name: l.allow }).click();
     await expect(page.getByRole("switch", { name: l.toggle(name) })).toBeChecked();
-    const flow = (await rpc<Result<"flows.list">>("flows.list", { project })).flows[0]?.id ?? "";
+    const listed = (await rpc<Result<"flows.list">>("flows.list", { project })).flows[0];
+    const flow = listed?.id ?? "";
+    const route = listed?.path ?? "";
     const graph = await rpc<Result<"flows.graph_get">>("flows.graph_get", { flow });
     expect(graph.published?.nodes.map((n) => n.kind)).toEqual(["webhook", "http", "notify"]);
 
     // An event comes in through the flow's address.
-    const credential = await rpc<Result<"public_routes.rotate">>("public_routes.rotate", { path: `/flows/${flow}` });
+    const credential = await rpc<Result<"public_routes.rotate">>("public_routes.rotate", { path: `/flows/${route}` });
     const { value: token } = await rpc<Result<"secrets.reveal">>("secrets.reveal", {
       name: credential.secret_ref.slice(9),
     });
     const { port } = await rpc<Result<"webhooks.get">>("webhooks.get", {});
-    const posted = await fetch(`http://127.0.0.1:${port}/flows/${flow}`, {
+    const posted = await fetch(`http://127.0.0.1:${port}/flows/${route}`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({ id: `lead-${lang}`, data: { email, seats: 3, to: "someone-else" } }),

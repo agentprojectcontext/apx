@@ -237,6 +237,20 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "flow-test-events",
+    since: "2.11.2",
+    title: "Test a Flow with a real event before turning it on",
+    applies: (f) => f.secretary,
+    text: "A webhook Flow's address now shows in its editor from the start, with an end the owner names (from the Flow's name, changeable with a click), and a test address beside it. Listen for a test event in the editor's top bar waits five minutes for one event at the test address and runs the drawing as it is, for real, even with the Flow off: its steps light up as they run, and a log at the bottom shows what arrived and what each step got and gave. A schedule Flow has Test now. It asks first when the Flow would send, call, run or change something new. Test runs are listed with the Flow's runs, marked as tests.",
+    actions: [
+      {
+        label: { en: "Test a Flow", es: "Probar un Flow" },
+        prompt:
+          "Tell me which of my Flows I could test with a real event now, and how to send one to its test address from the service that will call it.",
+      },
+    ],
+  },
+  {
     id: "restricted-public-ingress",
     since: "2.11.2",
     title: "A public address without exposing the private app",

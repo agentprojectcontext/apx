@@ -1,8 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { ErrorCode } from "@apx/protocol";
-import type { FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowGraph, FlowGraphIssue } from "../../../../packages/protocol/src/flow-graph.ts";
 import type { Bus } from "../bus.ts";
 import { FlowGraphConflict, FlowGraphUnavailable } from "../domain/flow-graphs.ts";
+import { FlowPathError } from "../domain/flows.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, conflict, notFound, unauthorized } from "../errors.ts";
 import { type FlowOutside, flowOutward } from "../flow-outward.ts";
@@ -71,6 +72,47 @@ export function flowReach(store: Store, missing: string) {
   };
 }
 
+/** What a drawing does outside, for the project it belongs to: where its commands run is part of it. */
+export function outwardOf(store: Store, outside: FlowOutside | undefined, projectId: string, graph: FlowGraph) {
+  const project = store.projects.get(projectId);
+  const local = graph.nodes.some((n) => n.kind === "cmd" || n.kind === "sql");
+  const place = local ? (flowFolder(store, outside?.home, projectId) ?? "") : "";
+  return flowOutward(store, graph, project?.path ? tildeHome(project.path) : (project?.name ?? ""), place);
+}
+
+/**
+ * Sending as the owner, calling other services, running commands and changing databases are approved by passing back
+ * what the owner was shown, for publishing and for a test alike (DECISIONS.md#d-169, #d-178).
+ */
+export function checkOutward(
+  store: Store,
+  outside: FlowOutside | undefined,
+  projectId: string,
+  graph: FlowGraph,
+  outward: readonly string[] | undefined,
+) {
+  const { keys } = outwardOf(store, outside, projectId, graph);
+  if (keys.length && JSON.stringify([...new Set(outward ?? [])].sort()) !== JSON.stringify(keys))
+    throw conflict("Confirm what it sends, calls, runs and changes before it runs", {
+      reason: "outward_unconfirmed",
+      keys,
+    });
+}
+
+/** Why an address can't be taken, for the caller to say. */
+export const pathRefused = (error: FlowPathError) =>
+  conflict(error.problem === "taken" ? "Another flow uses this address" : "That address can't be used", {
+    reason: `path_${error.problem}`,
+  });
+
+/** Why a drawing can't run, with every issue for the editor to point at. */
+export const cantRun = (issues: FlowGraphIssue[]) =>
+  new CallError({
+    code: ErrorCode.BadRequest,
+    message: issues[0]?.message ?? "The drawing cannot run",
+    detail: { issues },
+  });
+
 export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?: FlowOutside, bus?: Bus) {
   const found = (id: string) => {
     const flow = store.flows.get(id);
@@ -113,18 +155,12 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
       return operation();
     } catch (error) {
       if (error instanceof CallError) throw error;
+      if (error instanceof FlowPathError) throw pathRefused(error);
       if (error instanceof FlowGraphUnavailable)
         throw conflict(error.message, { reason: "graph_execution_unavailable" });
       if (error instanceof FlowGraphConflict) throw conflict(error.message);
       throw badRequest("Invalid Flow graph, binding or capacity exceeded");
     }
-  };
-  /** What a drawing does outside, for the project it belongs to: where its commands run is part of it. */
-  const outwardOf = (projectId: string, graph: Parameters<typeof flowOutward>[1]) => {
-    const project = store.projects.get(projectId);
-    const local = graph.nodes.some((n) => n.kind === "cmd" || n.kind === "sql");
-    const place = local ? (flowFolder(store, outside?.home, projectId) ?? "") : "";
-    return flowOutward(store, graph, project?.path ? tildeHome(project.path) : (project?.name ?? ""), place);
   };
   return {
     "flows.graph_get": ({ flow }, ctx) => {
@@ -150,7 +186,7 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
         write(() => store.flowGraphs.discardDraft(flow, expectedVersion)),
       );
     },
-    "flows.create": ({ project, name, graph }, ctx) => {
+    "flows.create": ({ project, name, graph, path }, ctx) => {
       if (!store.projects.get(project)) throw notFound("Project not found");
       reach(ctx, project);
       agentKeeps(ctx, undefined, graph);
@@ -167,6 +203,7 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
             predicates: [],
             tableKey: "latest",
             action: { kind: "none" },
+            ...(path ? { path } : {}),
           });
           return { flow, document: store.flowGraphs.saveDraft(id, null, graph, byAgent(ctx)) };
         }),
@@ -194,26 +231,14 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
       const issues = flowDraftIssues(store, definition, graph, model, outside);
       return { valid: issues.length === 0, issues };
     },
-    "flows.outward": ({ flow, graph }) => outwardOf(found(flow).projectId, graph),
+    "flows.outward": ({ flow, graph }) => outwardOf(store, outside, found(flow).projectId, graph),
     "flows.publish": ({ flow, expectedDraftVersion, expectedPublishedRevision, outward }, ctx) => {
       const definition = found(flow);
       const doc = write(() =>
         store.flowGraphs.publish(flow, expectedDraftVersion, expectedPublishedRevision, (graph) => {
           const issues = flowDraftIssues(store, definition, graph, model, outside);
-          if (issues.length)
-            throw new CallError({
-              code: ErrorCode.BadRequest,
-              message: issues[0]?.message ?? "The drawing cannot run",
-              detail: { issues },
-            });
-          // Sending as the owner, calling other services, running commands and changing databases are approved by
-          // publishing what the owner was shown.
-          const { keys } = outwardOf(definition.projectId, graph);
-          if (keys.length && JSON.stringify([...new Set(outward ?? [])].sort()) !== JSON.stringify(keys))
-            throw conflict("Confirm what it sends, calls, runs and changes before it runs", {
-              reason: "outward_unconfirmed",
-              keys,
-            });
+          if (issues.length) throw cantRun(issues);
+          checkOutward(store, outside, definition.projectId, graph, outward);
         }),
       );
       return told(ctx, definition.projectId, doc);

@@ -110,6 +110,8 @@ export interface FlowEventsTable {
   stopped_at: number | null;
   source: Generated<string>;
   scheduled_at: string | null;
+  test: Generated<number>;
+  headers: string | null;
 }
 
 export interface FlowGraphDraftsTable {
@@ -153,6 +155,7 @@ export interface FlowGraphRevisionsTable {
   revision: Generated<number>;
   graph: string;
   created_at: string;
+  test: Generated<number>;
 }
 
 export interface FlowRowsTable {
@@ -199,6 +202,7 @@ export interface FlowsTable {
   name: Generated<string>;
   action: Generated<string>;
   read_keys: Generated<string>;
+  path: Generated<string>;
 }
 
 export interface HarnessSessionsTable {

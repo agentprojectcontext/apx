@@ -2124,6 +2124,9 @@ core, which remembers the last address ngrok gave and tells the owner only when 
 keeps one across starts; a reserved domain can be given); or the owner's own https URL (a proxy they run). Each adapter reads its address through `io.hookUrl()`, and a
 channel that needs one and has none says so in its status until one exists.
 
+Later: Flow addresses answer at `/flows/<path>`, the Flow's own path, and `/flows/test/<path>` takes one test event
+while the owner listens for it ([D-178](#d-178)).
+
 <a id="d-140"></a>
 ## D-140 — 2026-10-23 — The owner's settings change on their card, at their word alone
 With D-138 the super-agent can change nearly everything the owner sets up. The owner asked that each such change
@@ -3184,3 +3187,62 @@ Old data needs no migration: every saved draft and revision passed the strict sc
 Rejected: a `draft` flag on steps (two meanings for one field), loosening `FlowGraph` and checking completeness only at
 publish (the executor and `flows.try_graph` would have to trust every reader), and a menu for Save draft on a phone
 (two taps for the safe action; the bar fits with a shorter label).
+
+<a id="d-178"></a>
+## D-178 — 2026-10-29 — A Flow has an address of its own, and the owner tests it with one real event
+The owner compared the editor with n8n: the webhook's address should be visible while the Flow is still being drawn,
+with a name they choose, and a play button should wait for one real event and run the drawing as it is, steps lighting
+up and a log filling, without turning the Flow on. The address was the Flow's identifier (`/flows/<id>`, a slug with a
+random tail) and showed only once saved; the only way to see a real event go through was to publish and turn it on.
+
+- **A path of its own.** `flows.path` (unique, case aside; lowercase letters, digits and inner hyphens, at most 64,
+  never `test`) is the public address, `/flows/<path>`; the identifier stays the key everything else uses. A new Flow
+  takes its name's slug (`flowPathOf`, `packages/protocol/src/flow-path.ts`, shared with the panel), `-2`, `-3`… when
+  taken; the owner can choose it before the first save (`flows.create` and `flows.set` take `path`) or rename it later
+  (`flows.path_set`), and `flows.path_check` says whether one is free as they type. A rename stops the old address at
+  once and moves its key with it (`public-credentials.move`), so the caller only changes the URL. The migration sets
+  `path = id` for every Flow, so each address that answered still does (rule 14: a migration, no alias). Route keys stay
+  keyed by address.
+- **A test is one event, while the owner listens.** `flows.test_start {flow, expectedDraftVersion, outward}`
+  (owner-only, effect) checks the saved drawing (the draft, or what runs when there is none) like publishing does
+  (`step_incomplete` first, then bindings and models) and asks the same `outward` keys publishing asks: a test sends,
+  calls, runs and writes for real, so it never starts without the owner's OK for that drawing. The drawing is pinned
+  as a revision marked `test` (`flow_graph_revisions.test`; the same drawing tested again reuses it; never what new
+  events run). A webhook Flow then waits five minutes for one POST to `/flows/test/<path>`; a schedule Flow runs once
+  now, `source: "owner"`. `flows.test_stop` stops waiting. Waiting lives in memory (`flow-tests.ts`): a restart ends it,
+  and the one timer exists only while someone waits, so an idle core holds nothing for it.
+- **The test address is a door only while it is open.** Not waiting, `/flows/test/<anything>` is no route: the
+  listener's bare 404, no body read, whether or not a Flow has that path. Waiting, it takes the production envelope
+  (`{id, data}`, JSON, 64 KiB, the listener's 1 MiB/15 s/rate and concurrency caps), asks for the address's key when
+  it has an entry (one that can't be read now refuses), takes the first valid event and stops waiting before
+  admission, so a second POST finds nothing; a Flow renamed while the body came is not waiting there any more. The
+  event runs only if the pinned revision still holds the drawing approved, text for text. The run is a normal durable run (`flow_events.test`, `test:<uuid>`, the same 10-minute deadline,
+  steps and terminal states) that advances whether the Flow is on or off; it is listed with the Flow's runs marked
+  **Test**, left out of the list's run summary, and never makes a schedule skip its time. Headers worth showing are
+  kept with what arrived, for the log: a test's `content-type`, `content-length`, `user-agent` and `idempotency-key`;
+  production's `content-type` and `idempotency-key`, the only ones its credential gate passes on; never `authorization`.
+- **Live, ids only.** Each checkpoint that moves a step or ends a run emits `flow.run {flow, event, state, test,
+  steps: [{node, state}]}`; the test's own news is `flow.test {flow, state: listening|stopped|expired|received|refused,
+  until, event}`. The panel reads what each step was given and gave back with `flows.run_get` (4,000-character previews,
+  now with `test` and `arrived`), so large values never ride the socket.
+- **The editor.** **Listen for a test event** (**Test now** on a schedule) saves unsaved edits as a draft first, names a
+  step still to finish, asks **Let this flow act for you?** when the drawing does something new, then shows the test
+  address with a countdown and **Stop** under the top bar. While testing the canvas is read-only: no moving, joining,
+  adding or saving, and a step's card shows its input and output. The log at the bottom (`RunLog`, foldable, its height
+  dragged with the shared `ResizeHandle`'s new `top` edge, a sheet on a phone) says what arrived, then each step as it
+  starts and ends. **Back to editing** closes it. The webhook step's card shows both addresses on the public host at
+  all times, the end of the address a button to rename it. The Flow's page shows the same log for any drawn run.
+- **Only `flows.path_set` renames.** `flows.set` refuses a different `path` for a saved Flow, so the super-agent's
+  settings changes never move an address. Saving a new Flow and revoking any key left at its address happen in one
+  transaction.
+- **Try a run** became **Simulate**: it still walks sample data through the drawing without effects, and its name no
+  longer competes with the real test.
+
+Rejected: a random token in the test address (the owner asked for `/flows/test/<path>`; the window, one event, the
+key when the address has one and the owner watching bound it instead), keeping the identifier as the address with an
+alias for a chosen name (two addresses per Flow, and an alias is the shim rule 14 forbids), streaming step values over
+the event bus (a 32 KiB value per step to every socket), letting a test run without the outward OK "because it is only
+a test" (it sends for real), and pinning the draft by reference instead of a revision (an edit during the test would
+change what runs mid-run). Known limit: a Flow whose address has no key yet accepts a test event from whoever knows the
+test address during those five minutes; production never takes one without its key.
+
