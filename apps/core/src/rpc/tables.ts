@@ -1,5 +1,5 @@
 // A project's tables (DECISIONS.md#d-176): the owner's Tables on the Flows screen and the editor, and their agents'
-// own tool calls (apx_settings), each kept to the projects it reaches as for Flows (DECISIONS.md#d-174).
+// own tool calls (apx_flow), each kept to the projects it reaches as for Flows (DECISIONS.md#d-174).
 import { FlowCapacityError } from "../domain/flow-events.ts";
 import { FlowTableConflict, FlowTableMissing, FlowTableRequired } from "../domain/flow-tables.ts";
 import type { Store } from "../domain/store.ts";

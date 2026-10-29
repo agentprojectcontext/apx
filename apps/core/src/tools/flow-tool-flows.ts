@@ -1,5 +1,5 @@
 import { flowMethods } from "../../../../packages/protocol/src/flow-methods.ts";
-import { FLOW_DRAFTS, flowLines } from "./settings-flow-drafts.ts";
+import { FLOW_DRAFTS, flowLines } from "./flow-tool-drafts.ts";
 import { merged, type Setting, str } from "./settings-kit.ts";
 
 export const FLOWS: Readonly<Record<string, Setting>> = {

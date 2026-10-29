@@ -10,7 +10,7 @@ export function flowEditorBlock(store: Store, thread: string): string | undefine
   const where = `the project "${inlineName(project.name)}" (id ${project.id})`;
   const flow = at.flow ? store.flows.get(at.flow) : undefined;
   if (!flow)
-    return `The owner is starting a new flow in ${where} in the Flow editor; it isn't made yet. Make it there (apx_settings, flows.create): the editor opens it as soon as it exists.`;
+    return `The owner is starting a new flow in ${where} in the Flow editor; it isn't made yet. Make it there (apx_flow, flows.create): the editor opens it as soon as it exists.`;
   const version = store.flowGraphs.get(flow.id).draftVersion;
-  return `The owner has the flow "${inlineName(flow.name)}" (id ${flow.id}) of ${where} open in the Flow editor${version === null ? "" : `, its draft at version ${version}`}, watching. Change its draft there (apx_settings, flows area): each save shows on their screen, and nothing runs until they save it in the editor.`;
+  return `The owner has the flow "${inlineName(flow.name)}" (id ${flow.id}) of ${where} open in the Flow editor${version === null ? "" : `, its draft at version ${version}`}, watching. Change its draft there (apx_flow): each save shows on their screen, and nothing runs until they save it in the editor.`;
 }

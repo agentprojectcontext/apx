@@ -1,4 +1,4 @@
-// What a setting of apx_settings is made of, and the lookups its cards share: every record named as the owner names
+// What a method of apx_settings and apx_flow is made of, and the lookups its cards share: every record named as the owner names
 // it in the panel, never by a bare id. The areas are settings-people.ts, settings-team.ts and settings-work.ts.
 
 import type { z } from "zod";

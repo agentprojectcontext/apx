@@ -1,6 +1,7 @@
 // An action card's title in the owner's language. Tools write theirs in English; these are the Spanish ones.
 import type { Store } from "../domain/store.ts";
 import { stepsText } from "../tools/computer.ts";
+import { FLOW_SETTINGS } from "../tools/flow-tool.ts";
 import { settingAct } from "../tools/settings.ts";
 import type { Tool } from "../tools/types.ts";
 
@@ -34,7 +35,6 @@ const SETTING_AREA: Record<string, string> = {
   notices: "los avisos",
   agents: "los agentes",
   routines: "una rutina",
-  flows: "un Flow",
   profiles: "un perfil de agente",
   tasks: "una tarea",
   threads: "un chat",
@@ -76,6 +76,11 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
     const { act, area } = settingAct(a);
     const what = SETTING_AREA[area] ?? "la configuración";
     return act === "look" ? "Revisó la configuración" : `${act === "remove" ? "Quitó" : "Cambió"} ${what}`;
+  },
+  apx_flow: (a) => {
+    const { act, area } = settingAct(a, FLOW_SETTINGS);
+    const what = area === "tables" ? "una tabla" : "un Flow";
+    return act === "look" ? "Revisó los Flows" : `${act === "remove" ? "Quitó" : "Cambió"} ${what}`;
   },
   list_agents: () => "Buscó agentes",
   agent_set: (a) =>

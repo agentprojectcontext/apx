@@ -5,6 +5,7 @@ import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { agentSetTools, SUPER_AGENT_TOOLS } from "./agent-set.ts";
 import { browserTools } from "./browser.ts";
 import { directoryTools } from "./directory.ts";
+import { flowTools } from "./flow-tool.ts";
 import { limitTools } from "./limits.ts";
 import { requestTools } from "./requests.ts";
 import { routineTools } from "./routines.ts";
@@ -74,7 +75,7 @@ test("another agent asking the super-agent changes nothing, and nobody is asked"
 
 test("every tool only the super-agent has marks its changes as the owner's settings", () => {
   const store = env.core.store;
-  const tools = [...agentSetTools(store), ...directoryTools(store), ...settingsTools(store)];
+  const tools = [...agentSetTools(store), ...directoryTools(store), ...settingsTools(store), ...flowTools(store)];
   for (const name of SUPER_AGENT_TOOLS) {
     const tool = tools.find((t) => t.name === name);
     assert.ok(tool?.ownerSetting, `${name} needs ownerSetting (DECISIONS.md#d-140)`);

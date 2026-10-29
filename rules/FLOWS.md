@@ -127,8 +127,9 @@ no prueba que exista un respaldo externo válido. Los cursores se devuelven en `
 No hay snapshot entre solicitudes, importación ni replay: no se exportan los chats ni los payloads privados de acciones
 pendientes, que se descartan al retirar el Flow. El límite de eventos retenidos sigue vigente.
 
-The super-agent discovers the same operations through the existing `apx_settings` tool's `flows` area, and draws
-drafts there too ([Agents drawing Flows](#agents-drawing-flows)). No new always-loaded tool, custom script language, polling model, public RPC proxy or duplicate scheduler is introduced.
+The super-agent reaches the same operations through its `apx_flow` tool (areas `flows` and `tables`), and draws
+drafts there too ([Agents drawing Flows](#agents-drawing-flows), [D-181](DECISIONS.md#d-181)). No custom script
+language, polling model, public RPC proxy or duplicate scheduler is introduced.
 
 ## Drawn graphs (graph executor)
 
@@ -309,7 +310,7 @@ starting and waiting steps become `cancelled` (`owner_cancelled`), a model step 
 executor then aborts its model call in flight and asks runs its steps started to stop (as at a deadline). An ended run
 returns `{cancelled: false}`. A notify or non-GET HTTP step already `dispatched` is left `uncertain` the same way. The
 CLI calls both (`apx flows run|stop`, refused inside an agent's command); they stay out of the super-agent's
-`apx_settings` reach, since a run can now send as the owner.
+`apx_flow` reach, since a run can now send as the owner.
 
 **Simulate** (formerly *Try a run*). `flows.try_graph {graph, data}` walks the run's own planner over sample data (≤ 32 KiB): triggers and
 checks are evaluated, a branch not taken is skipped, a step that does work is `would_run`, a step whose binding needs an
@@ -393,7 +394,7 @@ The newest 50 per Flow are kept, plus every published entry whose revision a run
 Flow's entries go with it.
 
 - `flows.history {flow}` and `flows.history_get {flow, entry}`: the owner, and an agent's own tool for its project
-  (D-174's reach). The super-agent reads them through `apx_settings`' `flows.history {flow, entry?}`, asked like
+  (D-174's reach). The super-agent reads them through `apx_flow`'s `flows.history {flow, entry?}`, asked like
   `flows.graph_get` while outside content is in the turn.
 - `flows.history_restore {flow, entry, expectedVersion, confirm: true}` (owner-only, effect): the entry's drawing
   becomes the draft with the draft version read (a stale one is a conflict) and never publishes. An entry an agent drew
@@ -542,7 +543,7 @@ and add columns ("New column") on the spot (`TableFields.tsx`, `tables-data.ts`)
 its whole value is one `{}` field (`bindingOfTemplate`, `values.ts`); the `{}` picker offers a read's chosen columns. The Flows screen's **Tables** (`TablesView.tsx`, lazy) shows a project's tables,
 their columns and rows; rows, tables and columns are added, edited, renamed and removed there, and a column's menu
 marks it required. The super-agent reaches
-them through `apx_settings`' `tables` area (D-176); `tables.column_required` waits for the owner's OK.
+them through `apx_flow`'s `tables` area (D-176, D-181); `tables.column_required` waits for the owner's OK.
 
 `domain/flow-secret-vars.ts`: `flowSecretVars` finds variables whose literal is exactly `secret://name`;
 `secretTemplate` parses a header or command variable and swaps each `$vars.name` part of one for a text part holding
@@ -558,8 +559,8 @@ comando; en un mensaje, un cuerpo o una instrucción se rechaza.
 
 ## Agents drawing Flows
 
-See [D-174](DECISIONS.md#d-174). The super-agent draws through `apx_settings`' `flows` area
-(`tools/settings-flow-drafts.ts`); the step fields it needs are in the `apx-flows` skill (`skills/apx/apx-flows`), read
+See [D-174](DECISIONS.md#d-174) and [D-181](DECISIONS.md#d-181). The super-agent draws through `apx_flow`'s `flows`
+area (`tools/flow-tool-drafts.ts`); the step fields it needs are in the `apx-flows` skill (`skills/apx/apx-flows`), read
 with `load_skill`, never in the prompt.
 
 - `flows.list {project?}` (read): one line per Flow, on or off, its published revision and whether a draft waits.
@@ -588,7 +589,7 @@ project's is `not_found`); a call with no agent behind it (`actor: agent` over H
 An agent's draft may not set or change an AI step's `autonomy`, `write` or `delegate`, nor change the `agent`, `bot` or
 `model` of, or remove, a step the owner limited (`ownersFieldChange`). Drafts keep `saved_by` (`draftBy`: the agent,
 null for the owner); the panel's on switch (`publishSaved`) never publishes an agent's draft and opens its editor
-instead. In `apx_settings` these are `own` settings: a change and `flows.graph_get` are `confirm: "untrusted"` (they
+instead. In `apx_flow` these are `own` methods: a change and `flows.graph_get` are `confirm: "untrusted"` (they
 ask the owner only while outside content is in the turn), `flows.validate` asks nobody, and all run with `ctx.call`,
 never `callAsOwner`. `flows.create` revokes a route credential left under its new id.
 
@@ -615,7 +616,7 @@ given to `takeAgentDraft` (`flows/agentDraft.ts`): `same`, `keep` (unsaved local
 ones). A new Flow the editor waits for adopts the next one the super-agent makes in its project. The owner's Save still
 makes the draft theirs (`draftBy` null).
 
-**Español:** El super-agente dibuja y cambia borradores de Flows desde cualquier chat con `apx_settings` (área
+**Español:** El super-agente dibuja y cambia borradores de Flows desde cualquier chat con `apx_flow` (área
 `flows`): crear, leer, editar por pasos, revisar. Un borrador no corre: publicarlo (guardar con el flow prendido, o
 prenderlo) es del dueño en el editor, y lo que sale (mensajes, llamadas, comandos, escrituras) sigue pidiendo permiso.
 Con contenido de afuera en el turno, guardar un borrador pregunta. Un agente de proyecto solo llega a los flows de su
@@ -628,6 +629,29 @@ marcados un momento; tu **Guardar** sigue haciéndolos tuyos.
 publica, aunque el flow esté prendido: lo que corre no cambia. **Guardar** y prender el flow piden terminar cada paso y
 dicen cuál (`step_incomplete`). La lista y la página del flow muestran el borrador marcado **Borrador**, y la página
 cambia a **Lo que corre** cuando hay un dibujo que corre.
+
+### Agents reach it
+
+A Flow change is not done until the super-agent can use it. `apx_flow` (`apps/core/src/tools/flow-tool.ts`, built on
+`apx_settings`' `areaTool`) is the agents' one way into Flows and tables; the panel and the agent read the same
+protocol. Every change to Flows checks, in the same commit:
+
+- **A new `flows.*` or `tables.*` method**: add it to `tools/flow-tool-flows.ts`, `flow-tool-drafts.ts` or
+  `flow-tool-tables.ts` (with a `does` line, and `own` if it runs as the agent's call), or place it in
+  `tools/settings-reach.ts`: `OWNER_ONLY` (it changes something the owner keeps) or `FLOW_ELSEWHERE` (a read only the
+  editor needs), with the reason. `flow-tool.test.ts` and `settings.test.ts` fail on one left out.
+- **A new step kind** (`packages/protocol/src/flow-graph.ts`): a row in the step table of
+  `skills/apx/apx-flows/SKILL.md` with its fields; `flow-tool.test.ts` fails without it.
+- **A new or changed field, case, binding or template placeholder**: the skill's table and examples say it as the
+  editor does, and `flow-tool-drafts.ts`' `add`/`update` keep it (a draft keeps empty ones, D-177).
+- **What the owner keeps** (publishing, tests, an address, an AI step's autonomy): refused in the handler for an
+  agent, listed in `OWNER_ONLY`, and the skill says to leave it to the owner.
+- **The agent-facing words**: `engine/flow-editor.ts`' `[flow editor]` line and the skill's calls name `apx_flow`.
+
+**Español:** un cambio en Flows no está terminado hasta que el super-agente lo puede usar. Cada método `flows.*` o
+`tables.*` nuevo va en `tools/flow-tool-*.ts` o se ubica en `settings-reach.ts` con su motivo; cada tipo de paso nuevo
+lleva su fila en la skill `apx-flows`; cada campo nuevo se explica ahí como lo muestra el editor. `flow-tool.test.ts`
+falla si falta un método o un tipo de paso.
 
 ## Verification and rollout
 

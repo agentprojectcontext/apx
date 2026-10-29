@@ -87,6 +87,7 @@ import { connectionTools } from "./tools/connections.ts";
 import { contactTools } from "./tools/contact.ts";
 import { directoryTools } from "./tools/directory.ts";
 import { fileTools } from "./tools/files.ts";
+import { flowTools } from "./tools/flow-tool.ts";
 import { limitTools } from "./tools/limits.ts";
 import { mediaTools } from "./tools/media.ts";
 import { memoryTools } from "./tools/memory.ts";
@@ -182,6 +183,7 @@ export function builtinTools(
     ...contactTools(store),
     ...requestTools(store),
     ...settingsTools(store, roots),
+    ...flowTools(store),
     ...extra,
   ];
   // The owner may let an agent use one of them without asking again, as with an MCP tool (DECISIONS.md#d-062).

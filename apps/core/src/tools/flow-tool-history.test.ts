@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import type { FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
 import { createLog } from "../log.ts";
+import { flowTools } from "./flow-tool.ts";
 import { settingsCore } from "./settings.test-support.ts";
-import { settingsTools } from "./settings.ts";
 
 let h: Awaited<ReturnType<typeof settingsCore>>;
 let acme = "";
 before(async () => {
-  h = await settingsCore();
+  h = await settingsCore({ tool: "apx_flow" });
   acme = (await h.env.client.call("projects.create", { name: "Acme" })).project.id;
   await h.env.client.call("tables.create", { project: acme, name: "leads" });
 });
@@ -130,6 +130,6 @@ test("the super-agent reads versions and what one drew, and can't bring one back
   assert.ok(!refused.ok && /reserved to the owner/.test(refused.error.message));
   assert.equal((await c.call("flows.graph_get", { flow })).draft?.nodes[0]?.label, "Second");
   // A version's drawing goes back to the model whole: asked with outside content around, as graph_get is.
-  const [tool] = settingsTools(h.env.core.store);
+  const [tool] = flowTools(h.env.core.store);
   assert.equal(tool?.confirm({ method: "flows.history", params: { flow } }), "untrusted");
 });

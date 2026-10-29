@@ -180,6 +180,11 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     the designer against it. A form or JSON field is not a stand-in for a requested visual experience
     ([UI changes](rules/WORKFLOW.md#ui-changes)). `[review]`
 
+33. **A Flow change reaches the agent in the same change.** A new Flow or table method, step kind or field is usable
+    by the super-agent through `apx_flow` and explained in the `apx-flows` skill, or placed as the owner's with a reason
+    ([Agents reach it](rules/FLOWS.md#agents-reach-it), [D-181](rules/DECISIONS.md#d-181)). `[gate]`
+    `flow-tool.test.ts` for methods and step kinds; fields `[review]`.
+
 ### Code comments
 
 1–2 lines, only the non-obvious *why*. No history, incidents, dates or rejected alternatives in code: those go to

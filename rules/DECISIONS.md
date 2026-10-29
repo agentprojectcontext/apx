@@ -3000,7 +3000,7 @@ text that leaves (rule 11: it would put the key in a message or a prompt).
 <a id="d-174"></a>
 ## D-174 — 2026-10-29 — Agents draw Flow drafts; what runs stays the owner's to publish
 The owner wants to ask for a Flow from any chat and have their super-agent make it, or change one, instead of drawing
-every step themselves. The super-agent does it through `apx_settings`' existing `flows` area, not a new tool
+every step themselves. The super-agent does it through `apx_settings`' existing `flows` area (moved to `apx_flow` by [D-181](#d-181)), not a new tool
 (rule 15): `flows.list`, `flows.graph_get` (its steps and connections as compact JSON, no places), `flows.validate`,
 `flows.create {project, name, graph | edits}` and `flows.draft_save {flow, edits}` or `{flow, expectedVersion,
 graph}`. Edits are `add` (a step with only the fields it sets; ids from the kind), `update`, `remove`, `connect`,
@@ -3322,3 +3322,30 @@ kind tabs at the case level (a case like "verified is yes and email contains @" 
 comparison has its own), loose comparison (`"9" < "10"` as text), refusing admission for a required column (it would
 stop every run, also those that fill it), storing columns as objects in the catalog (a migration of every table for
 one flag), and case-insensitive text by default (exact is what the formula did; `lower()` in a formula remains).
+
+<a id="d-181"></a>
+## D-181 — 2026-10-29 — Flows and their tables have a tool of their own, apx_flow
+The owner pointed out that `apx_settings` is for how APX is set up, and Flows are not: they are the owner's work, like
+routines (`routine_list`, `routine_set`) and tasks (`task_*`), which have tools of their own. The chat said
+"Changed the settings" while the super-agent was drawing a Flow. And the approval rules did not fit: every
+`apx_settings` change waits for the owner's card (D-138, D-140), while a Flow draft saves freely and only publishing is
+the owner's (D-174).
+
+So the `flows` and `tables` areas move from `apx_settings` to `apx_flow`, offered only to the super-agent
+(`SUPER_AGENT_TOOLS`) and, like it, kept in channel handoffs and out of a Flow's AI step. This replaces D-174's
+"through `apx_settings`' existing `flows` area, not a new tool". Nothing else about reach changes: the methods, their
+`own` calls, the cards (`ownerSetting` for `flows.set` and table renames or removals) and the router's checks are the
+same. Both tools are one `areaTool` (`tools/settings.ts`) over a table of methods, so the index, fields, card and
+checks behave alike; the area files are `tools/flow-tool-flows.ts`, `flow-tool-drafts.ts` and `flow-tool-tables.ts`.
+The step fields stay in the `apx-flows` skill. Cost: one tool definition of 521 chars in a default turn
+(`rules/PROMPT_SIZE.md`).
+
+**Keeping it current.** Flows grow every day, and an agent that cannot draw a new step is a feature half shipped.
+`tools/flow-tool.test.ts` fails when a `flows.*` or `tables.*` method is in neither `apx_flow`, `OWNER_ONLY` nor
+`FLOW_ELSEWHERE` (reads only the editor needs, with a reason), when `apx_settings` holds one again, and when a step kind
+of `FlowNode` has no row in the skill. The checklist is [Agents reach it](FLOWS.md#agents-reach-it), and AGENTS.md
+rule 33 points at it.
+
+Rejected: keeping the area inside `apx_settings` with a nicer title (the confirmation semantics would still be the
+exception), one tool per method like `routine_set` (each would add a definition to every turn), and tables in a third
+tool (they are the data Flows read and save, and the skill explains them together).

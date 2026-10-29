@@ -11,7 +11,7 @@ Measured on a fresh install: the secretary, a new chat, default settings, no ski
 | Part | Budget | Now (2026-10-25) |
 |---|---|---|
 | System prompt | 10,000 chars (about 2,300 tokens) | 5,425 chars (the permission mode's text said here once instead of in every turn; the delegate and web rules short, their details in their tools) |
-| Tool definitions (39, without the browser) | 30,000 chars (about 7,100 tokens) | 22,349 chars, about 5,300 tokens (the channel and contact tools and make_image only once a channel or an image service is on; repeats of system rules out of descriptions) |
+| Tool definitions (40, without the browser) | 30,000 chars (about 7,100 tokens) | 23,874 chars on 2026-10-29, about 5,700 tokens (apx_flow, 521 chars, [D-181](DECISIONS.md#d-181); the channel and contact tools and make_image only once a channel or an image service is on; repeats of system rules out of descriptions) |
 | A turn's input before the message | — | 264 chars: one `[context]` line (time, channel, mode) and the roster when it changed |
 | Browser tools (8, lent by the desktop app) | — | 811 tokens |
 

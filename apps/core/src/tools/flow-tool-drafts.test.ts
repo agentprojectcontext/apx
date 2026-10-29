@@ -4,15 +4,15 @@ import type { CoreEvent } from "@apx/protocol";
 import { ApxClient } from "@apx/protocol/client";
 import type { FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
 import { createLog } from "../log.ts";
+import { flowTools } from "./flow-tool.ts";
 import { settingsCore } from "./settings.test-support.ts";
-import { settingsTools } from "./settings.ts";
 
 let h: Awaited<ReturnType<typeof settingsCore>>;
 let acme = "";
 let northwind = "";
 const events: Extract<CoreEvent, { type: "flow.draft" }>[] = [];
 before(async () => {
-  h = await settingsCore();
+  h = await settingsCore({ tool: "apx_flow" });
   acme = (await h.env.client.call("projects.create", { name: "Acme" })).project.id;
   northwind = (await h.env.client.call("projects.create", { name: "Northwind" })).project.id;
   // The table the drawings here save to: a step names a table that exists (DECISIONS.md#d-176).
@@ -320,7 +320,7 @@ test("an agent reaches the Flows of its project only, and nothing reaches them w
 });
 
 test("drafts and whole drawings ask only with outside content in the turn, checks never, and turning a Flow on always", () => {
-  const [tool] = settingsTools(h.env.core.store);
+  const [tool] = flowTools(h.env.core.store);
   const confirm = (method: string, params?: object) => tool?.confirm({ method, ...(params ? { params } : {}) });
   assert.equal(confirm("flows.draft_save", { flow: "x", edits: [{ op: "tidy" }] }), "untrusted");
   assert.equal(confirm("flows.create", { project: acme, name: "x", edits: [{ op: "tidy" }] }), "untrusted");

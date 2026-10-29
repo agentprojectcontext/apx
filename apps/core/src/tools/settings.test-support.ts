@@ -1,12 +1,15 @@
-// A core whose scripted model calls apx_settings with what the owner wrote, as JSON: each test says the call, the
+// A core whose scripted model calls apx_settings (or `tool`, like apx_flow) with what the owner wrote, as JSON: each test says the call, the
 // owner approves or declines it, and reads the card and the answer.
 import assert from "node:assert/strict";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
-export async function settingsCore(opts: Omit<Parameters<typeof startCore>[0] & object, "llm"> = {}) {
+export async function settingsCore({
+  tool = "apx_settings",
+  ...opts
+}: Omit<Parameters<typeof startCore>[0] & object, "llm"> & { tool?: string } = {}) {
   const llm = scriptedLlm((req, { said, afterTool }) => {
     if (afterTool) return say(String(req.messages.at(-1)?.content));
-    return said.startsWith("{") ? callTool("c1", "apx_settings", JSON.parse(said)) : say("ok");
+    return said.startsWith("{") ? callTool("c1", tool, JSON.parse(said)) : say("ok");
   });
   const env = await startCore({ ...opts, llm });
 
@@ -24,7 +27,7 @@ export async function settingsCore(opts: Omit<Parameters<typeof startCore>[0] & 
         pending = (await env.client.call("runs.pending", { thread: thread.id })).inputs;
         if (!pending.length) await new Promise((r) => setTimeout(r, 20));
       }
-      assert.equal(pending[0]?.tool, "apx_settings");
+      assert.equal(pending[0]?.tool, tool);
       detail = pending[0]?.detail;
       await env.client.call("runs.respond", { input: pending[0]?.id ?? "", decision });
     }

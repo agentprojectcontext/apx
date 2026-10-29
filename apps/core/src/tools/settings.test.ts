@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { methodAccess, methods } from "@apx/protocol";
 import { SPANISH_TITLES } from "../engine/tool-titles.ts";
+import { FLOW_SETTINGS } from "./flow-tool.ts";
 import { settingsCore } from "./settings.test-support.ts";
 import { SETTINGS } from "./settings.ts";
 import { BY_TOOL, NOT_YET, OWNER_ONLY } from "./settings-reach.ts";
@@ -92,7 +93,7 @@ test("a change the method would refuse, or a method out of reach, never reaches 
   assert.match((await h.ask(friend)).answer, /contacts\.set: relation: /);
   assert.match(
     (await h.ask({ method: "secrets.set", params: { name: "x", value: "y" } })).answer,
-    /no setting "secrets\.set"/,
+    /no method "secrets\.set"/,
   );
 });
 
@@ -104,17 +105,29 @@ test("the card's title names the area, not the method", () => {
 });
 
 test("every owner method that changes something is placed: apx_settings, a tool of its own, the owner's, or not yet", () => {
-  const placed = [Object.keys(SETTINGS), Object.keys(BY_TOOL), Object.keys(OWNER_ONLY), [...NOT_YET]];
+  const placed = [
+    Object.keys(SETTINGS),
+    Object.keys(FLOW_SETTINGS),
+    Object.keys(BY_TOOL),
+    Object.keys(OWNER_ONLY),
+    [...NOT_YET],
+  ];
   const owner = Object.keys(methods).filter(
     (m) => methodAccess(m as keyof typeof methods) === "human" && methods[m as keyof typeof methods].effect,
   );
   const missing = owner.filter((m) => !placed.some((list) => list.includes(m)));
-  assert.deepEqual(missing, [], "place each new owner method in tools/settings-*.ts or tools/settings-reach.ts");
+  assert.deepEqual(
+    missing,
+    [],
+    "place each new owner method in tools/settings-*.ts, tools/flow-tool-*.ts or tools/settings-reach.ts",
+  );
   const twice = owner.filter((m) => placed.filter((list) => list.includes(m)).length > 1);
   assert.deepEqual(twice, []);
   const stale = placed.flat().filter((m) => !(m in methods));
   assert.deepEqual(stale, []);
   assert.deepEqual(NOT_YET, [], "every owner setting is decided");
-  const reads = Object.entries(SETTINGS).filter(([m, s]) => s.read && methods[m as keyof typeof methods].effect);
+  const reads = Object.entries({ ...SETTINGS, ...FLOW_SETTINGS }).filter(
+    ([m, s]) => s.read && methods[m as keyof typeof methods].effect,
+  );
   assert.deepEqual(reads, [], "a read answers from the store, so it is never a method that changes something");
 });

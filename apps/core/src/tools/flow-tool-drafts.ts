@@ -1,4 +1,4 @@
-// apx_settings' Flow drawings: the super-agent reads a Flow's graph, makes a new Flow, edits its draft step by step and
+// apx_flow's Flow drawings: the super-agent reads a Flow's graph, makes a new Flow, edits its draft step by step and
 // checks it, as its own call through the router. A draft runs nothing until the owner publishes it in the editor, so
 // these ask the owner only when outside content is in the turn (DECISIONS.md#d-174). The graph's shape is in the
 // apx-flows skill, read on demand, never in the prompt.
@@ -260,7 +260,7 @@ async function saved(
   return `${head}\n${issuesText(graph, issues)}`;
 }
 
-/** The settings for a Flow's drawing, merged into apx_settings' flows area. */
+/** The methods for a Flow's drawing, merged into apx_flow's flows area. */
 export const FLOW_DRAFTS: Readonly<Record<string, Setting>> = {
   "flows.graph_get": {
     does: `read a Flow's drawing (flow; which: draft or published, default the draft if there is one) as JSON steps and connections, with draftVersion for flows.draft_save. ${SKILL}`,

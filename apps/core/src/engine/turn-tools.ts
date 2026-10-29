@@ -37,6 +37,7 @@ const HANDOFF_TOOLS = new Set([
   "contact_list",
   STICKER_TOOL,
   "apx_settings",
+  "apx_flow",
   "read_chat",
 ]);
 

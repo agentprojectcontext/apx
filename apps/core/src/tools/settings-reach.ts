@@ -141,5 +141,18 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.control": AS_OWNER,
 };
 
+/**
+ * Flow and table methods apx_flow leaves out that change nothing, by reason. With FLOW_SETTINGS and OWNER_ONLY they place
+ * every `flows.*` and `tables.*` method; flow-tool.test.ts fails on one left out (rules/FLOWS.md#agents-reach-it).
+ */
+export const FLOW_ELSEWHERE: Readonly<Record<string, string>> = {
+  "flows.history_get": "an agent reads a version with flows.history {flow, entry}",
+  "flows.next_runs": "the editor's preview of a schedule's next times while the owner types it",
+  "flows.outward": "the editor's list of what a drawing sends out, shown before the owner publishes it",
+  "flows.path_check": "the editor checks a new address is free before the owner sets it",
+  "flows.try": "the owner tries a Flow's rules on a sample event in the editor",
+  "flows.try_graph": "the owner tries one step on sample input in the editor",
+};
+
 /** Not decided yet: what the owner changes in the panel and the super-agent cannot, the next ones to place. */
 export const NOT_YET: readonly string[] = [];

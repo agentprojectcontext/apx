@@ -128,6 +128,7 @@ test("a bot of the Flow answers with its own system prompt, no memory and no tea
       "recall",
       "agent_set",
       "apx_settings",
+      "apx_flow",
       "read_chat",
       "search_chats",
       "search_owner_notes",

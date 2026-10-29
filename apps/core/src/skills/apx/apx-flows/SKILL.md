@@ -1,6 +1,6 @@
 ---
 name: apx-flows
-description: Draw or change an APX Flow for the owner (a webhook or schedule that runs checks, tables, code, an AI model, a message or a request), through apx_settings' flows area. Use it whenever the owner asks for a Flow, an automation, "when X arrives do Y", to change the steps of one, or to read or fill a project's table.
+description: Draw or change an APX Flow for the owner (a webhook or schedule that runs checks, tables, code, an AI model, a message or a request), through apx_flow. Use it whenever the owner asks for a Flow, an automation, "when X arrives do Y", to change the steps of one, or to read or fill a project's table.
 ---
 
 # Flows in APX
@@ -10,7 +10,7 @@ publishes it from the editor (Save with the Flow on, or turning it on). Nothing 
 that sends as the owner, calls a URL, runs a command or changes a database asks them first. Never claim a Flow is on
 or running: say it is ready for them to review and turn on.
 
-## Calls (apx_settings, method + params)
+## Calls (apx_flow, method + params)
 
 - `flows.list {project?}`: each Flow with its id, project, on/off and whether a draft waits.
 - `flows.graph_get {flow, which?}`: its steps and connections as JSON, and `draftVersion`.

@@ -1,4 +1,4 @@
-// apx_settings' project tables (DECISIONS.md#d-176): the super-agent lists and reads them, makes tables and columns and
+// apx_flow's project tables (DECISIONS.md#d-176): the super-agent lists and reads them, makes tables and columns and
 // writes or deletes rows as its own call through the router, asked only while outside content is in the turn, like a
 // Flow draft (D-174): rows are data in the owner's project. Renaming or removing a table or a column changes what the
 // owner's Flows read, so those wait for the owner's OK. Field shapes are in the apx-flows skill, never the prompt.
