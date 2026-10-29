@@ -7,9 +7,9 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { type Fresh, sameGraph, takeAgentDraft } from "./agentDraft.ts";
 import { issueText } from "./data.ts";
-import { blank, tidy } from "./drawing.ts";
+import { tidy } from "./drawing.ts";
 import { bindFlowChat, flowChatOf, newFlowChat, rememberFlowChat } from "./flowChat.ts";
-import { type FlowGraph, STEP } from "./steps.tsx";
+import type { FlowGraph } from "./steps.tsx";
 
 /** What the editor holds that its chat reads: the flow, its drawing and what was last saved (`[graph, name]` JSON). */
 export type EditorNow = {
@@ -72,12 +72,13 @@ export function useFlowChat(at: EditorNow, set: EditorSet) {
     setOpen(true);
   };
 
-  /** Saves the owner's edits for the agent to start from; the name they were saved with, or null when they can't be. */
+  /**
+   * Saves the owner's edits for the agent to start from, steps not finished yet included (a draft keeps them,
+   * DECISIONS.md#d-177); the name they were saved with, or null when they can't be.
+   */
   const saveFirst = async (drawing: FlowGraph, savedName: string) => {
-    const incomplete = drawing.nodes.find(blank);
-    if (incomplete || !drawing.nodes.length) {
-      const step = incomplete ? incomplete.label || t(STEP[incomplete.kind].label) : "";
-      setNotice(incomplete ? t("flow.chat.finish", { step, name: boss?.name ?? "" }) : t("flow.chat.empty"));
+    if (!drawing.nodes.length) {
+      setNotice(t("flow.chat.empty"));
       return null;
     }
     const clean = tidy(drawing, t);

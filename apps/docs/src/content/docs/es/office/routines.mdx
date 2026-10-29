@@ -74,7 +74,8 @@ teléfono los tipos de paso se abren desde **Sumar un paso** y la tarjeta es una
 | Avisar | Manda un mensaje como vos por una de tus apps de chat (Telegram, WhatsApp, Discord…) a alguien que conocés ahí, a vos o a una sala que listaste. Con **Solo si hay algo para contar**, no manda nada cuando todos los valores del mensaje salen vacíos. |
 
 La barra de arriba del editor tiene el nombre del flow a la izquierda y **Salir** a la derecha, junto al estado de
-guardado, **Probar ronda** y **Guardar**; si hay cambios sin guardar, pregunta antes de salir.
+guardado, **Probar ronda**, **Guardar borrador** y **Guardar** (en el teléfono, **Borrador** y un ícono para salir). Si
+hay cambios sin guardar, pregunta antes de salir y ofrece **Guardar borrador** para conservarlos.
 
 ### Quién responde en un paso Modelo IA
 
@@ -110,7 +111,10 @@ minutos), también en un flow nuevo antes de guardarlo por primera vez.
 
 **Guardar** conserva tu dibujo. Si el flow está prendido, guardar también lo convierte en lo que corre: los eventos
 nuevos lo usan y los que ya llegaron terminan con la versión con la que empezaron. Si está apagado, prenderlo convierte
-tu último dibujo guardado en lo que corre. Un flow con la forma vieja de un solo camino (webhook, condiciones, leer,
+tu último dibujo guardado en lo que corre. **Guardar borrador** conserva el dibujo tal como está, con pasos sin
+terminar incluidos, y nunca cambia lo que corre, aunque el flow esté prendido: el estado dice **Borrador guardado. Lo
+que corre no cambia.** Igual necesita un nombre y un proyecto. **Guardar**, y prender el flow, te piden terminar cada
+paso antes y dicen cuál. Un flow con la forma vieja de un solo camino (webhook, condiciones, leer,
 guardar y un agente o rutina) sigue corriendo como antes hasta que guardes un dibujo que esa forma no puede representar.
 **Probar ronda** sigue datos de ejemplo por las condiciones y los caminos y marca los pasos a los que llegaría, sin
 guardar, leer la tabla, mandar ni pasarle nada a un agente; un paso que necesita la respuesta de otro dice que depende
@@ -122,6 +126,11 @@ en rojo si fallaron), qué recibió y qué dio cada paso, cuándo empezó y term
 duración y tokens. Una ronda hecha con un dibujo anterior muestra ese dibujo y dice **Versión anterior**. Una ronda que
 cortó una condición marca esa condición con **no** y los pasos siguientes como no corridos. Un paso que le pasó trabajo
 a un agente abre su chat.
+
+Mientras espera un borrador guardado, la lista muestra sus pasos marcados **Borrador**, y la página del flow lo dibuja
+con **Borrador** en la esquina; **Lo que corre** cambia a la versión que corre, y elegir una ronda muestra la versión
+que usó esa ronda. Un flow del que todavía no corre ningún dibujo (uno que tu super-agente acaba de crear) muestra solo
+su borrador.
 
 Cada ronda tiene 10 minutos desde que llega su evento; un paso de modelo tiene su propio límite (hasta 2 minutos). Los
 pasos que llaman a un modelo se mandan una vez y nunca más: si APX se detiene o la respuesta no llega a tiempo después
@@ -201,7 +210,7 @@ con él sobre el lienzo, en el lugar de los ajustes de un paso; en el teléfono 
 mirá: mientras trabaja el lienzo avisa que está editando, tus pasos quedan quietos, y cada paso que suma o cambia
 aparece marcado **Nuevo** o **Cambiado** un momento; su respuesta dice **Dibujo actualizado** en vez de mostrar el flow de nuevo. El chat queda guardado para ese flow, así que **Pedírselo a** lo
 continúa; ↻ empieza uno nuevo. Tus cambios sin guardar se guardan como borrador cuando mandás un mensaje, para que
-arranque de lo que ves; si a un paso le falta un ajuste, el chat te pide completarlo antes. En un flow nuevo, elegí
+arranque de lo que ves, con los pasos sin terminar incluidos. En un flow nuevo, elegí
 primero el proyecto: tu super-agente crea el flow ahí y el editor lo abre. La barra dice **Lo dibujó** con su nombre
 hasta que tocás **Guardar**. Un editor abierto sin ese chat conserva lo que tiene en pantalla si un agente cambia el
 flow desde otro chat: salí y volvé a abrirlo para verlo.

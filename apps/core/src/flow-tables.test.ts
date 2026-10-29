@@ -167,7 +167,8 @@ test("a read says what it reads: one key or the latest rows of a named table", a
   const env = await core();
   try {
     await publish(env, "reads", await project(env, "Acme"), chain(hook, save("keep")));
-    assert.ok((await issuesOf(env, "reads", chain(hook, read("r")))).includes("read_what"));
+    // A read that names nothing to read is a step still to finish (DECISIONS.md#d-177).
+    assert.ok((await issuesOf(env, "reads", chain(hook, read("r")))).includes("step_incomplete"));
     assert.ok((await issuesOf(env, "reads", chain(hook, read("r", { keys: ["a"], latest: 3 })))).includes("read_what"));
     const own: FlowNode = { id: "r", kind: "table_read", label: "r", keys: [], latest: 3 };
     assert.ok((await issuesOf(env, "reads", chain(hook, own))).includes("read_table"));

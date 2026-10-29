@@ -1,4 +1,4 @@
-import { FlowGraph, FlowGraphDocument } from "../../../../packages/protocol/src/flow-graph.ts";
+import { FlowDraftGraph, FlowGraph, FlowGraphDocument } from "../../../../packages/protocol/src/flow-graph.ts";
 import type { Db } from "../db/db.ts";
 import { redactedJson } from "../log.ts";
 import { checkFlowCapacity, FlowCapacityError } from "./flow-events.ts";
@@ -46,8 +46,9 @@ export function flowGraphsRepo(db: Db) {
     if (!row) throw new Error("Flow not found");
     return row;
   };
-  const encoded = (value: FlowGraph) => {
-    const graph = FlowGraph.parse(value);
+  /** A draft may keep empty settings; what is published parses as a drawing that runs (DECISIONS.md#d-177). */
+  const encoded = (value: FlowDraftGraph, schema: typeof FlowGraph | typeof FlowDraftGraph = FlowGraph) => {
+    const graph = schema.parse(value);
     const text = JSON.stringify(graph);
     if (Buffer.byteLength(text) > 131072) throw new Error("Graph exceeds 128 KiB");
     if (redactedJson(graph) !== text) throw new Error("Flow configuration cannot contain credentials");
@@ -75,8 +76,8 @@ export function flowGraphsRepo(db: Db) {
       });
     },
     /** `by`: the agent whose tool saved it; none for the owner. */
-    saveDraft(flow: string, expectedVersion: number | null, graph: FlowGraph, by?: string) {
-      const text = encoded(graph);
+    saveDraft(flow: string, expectedVersion: number | null, graph: FlowDraftGraph, by?: string) {
+      const text = encoded(graph, FlowDraftGraph);
       return tx(() => {
         const current = api.get(flow);
         if (current.draftVersion !== expectedVersion)
@@ -108,7 +109,7 @@ export function flowGraphsRepo(db: Db) {
       flow: string,
       expectedDraftVersion: number,
       expectedPublishedRevision: number | null,
-      check: (graph: FlowGraph) => void,
+      check: (graph: FlowDraftGraph) => void,
     ) {
       return tx(() => {
         found(flow);

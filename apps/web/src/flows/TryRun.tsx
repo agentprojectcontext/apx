@@ -3,7 +3,7 @@ import { Button, Icons, Popover, Textarea } from "@apx/ui";
 import { useState } from "react";
 import { client } from "../data/client.ts";
 import { useT } from "../i18n/index.ts";
-import { blank } from "./drawing.ts";
+import { blank } from "./complete.ts";
 import { type FlowGraph, triggerOf } from "./steps.tsx";
 
 export type TryStep = Result<"flows.try_graph">["steps"][number];

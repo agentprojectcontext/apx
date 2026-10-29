@@ -71,8 +71,9 @@ types open from **Add a step** and the card is a sheet at the bottom:
 | Cmd | A shell command in the project's folder, like a routine's. Values of the run reach it only as variables (`EMAIL=$trigger.email`, read as `$EMAIL`) and as its input, never inside its text; a key goes in a variable as `secret://name`. Later steps read `$steps.<step>.stdout` and `.exit`; an error stops the flow unless **Go on if it fails** is on. It has a time limit (up to 2 minutes). |
 | Notify | Sends a message as you on one of your chat apps (Telegram, WhatsApp, Discord…) to someone you know there, to yourself, or to a room you listed. With **Only if there's something to tell**, it doesn't send when every value in the message came out empty. |
 
-The editor's top bar has the flow's name at the left and **Exit** at the right, beside the save status, **Try a run**
-and **Save**; leaving with unsaved changes asks first.
+The editor's top bar has the flow's name at the left and **Exit** at the right, beside the save status, **Try a run**,
+**Save draft** and **Save** (on a phone, **Draft** and an exit icon). Leaving with unsaved changes asks first, and
+offers **Save draft** to keep them.
 
 ### Who answers an AI model step
 
@@ -106,7 +107,10 @@ order between them, a schedule more often than every 5 minutes), also for a new 
 
 **Save** keeps your drawing. When the flow is on, saving also makes it what runs: new events use it, and events already
 received finish with the version they started with. When the flow is off, turning it on makes your last saved drawing
-what runs. A flow whose drawing has the old one-path shape (webhook, checks, read, save, then one agent or routine) keeps
+what runs. **Save draft** keeps the drawing exactly as it is, steps you haven't finished included, and never changes
+what runs, even when the flow is on: the status says **Draft saved. What runs doesn't change.** It still needs a name
+and a project. **Save**, and turning the flow on, ask you to finish every step first and say which one. A flow whose
+drawing has the old one-path shape (webhook, checks, read, save, then one agent or routine) keeps
 running as before until you save a drawing it can't stand for. **Try a run** follows sample data through the checks
 and branches and marks the steps it would reach, without saving, reading a table, sending or calling an agent; a step
 that needs another step's answer says it depends on it. Saving never runs anything, and a new flow starts off.
@@ -116,6 +120,10 @@ red when they failed), what each step got and gave, when it started and ended, a
 their duration and tokens. A run made with an earlier drawing shows that drawing and says **Previous version**. A run
 a check stopped marks that check **no** and the steps after it as not run. A step that handed work to an agent opens
 its chat.
+
+While a saved draft waits, the list shows its steps marked **Draft**, and the flow's page draws it with **Draft** in
+the corner; **What runs** switches to the version that runs, and picking a run shows the version that run used. A flow
+nothing drawn runs for yet (one your super-agent just made) shows only its draft.
 
 Each run has 10 minutes from the moment its event arrives; a model step has its own limit (up to 2 minutes). Steps that
 call a model are sent once and never again: if APX stops or the answer doesn't come in time after the request went
@@ -192,8 +200,8 @@ flow's page show the agent's changes as soon as they are saved.
 canvas, in the place of a step's settings; on a phone it is a sheet at the bottom. Say what to change and watch: while
 it works the canvas says it is editing, your steps stay still, and each step it adds or changes appears and is marked
 **New** or **Changed** for a moment; its answer says **Updated the drawing** instead of showing the flow again. The chat is kept for that flow, so **Ask** continues it; ↻ starts a new one. Your
-own changes not saved yet are saved as a draft when you send a message, so it starts from what you see; if a step still
-misses a setting, the chat asks you to finish it first. In a new flow, choose the project first: your super-agent makes
+own changes not saved yet are saved as a draft when you send a message, so it starts from what you see, steps you
+haven't finished included. In a new flow, choose the project first: your super-agent makes
 the flow there and the editor opens it. The top bar says **Drawn by** its name until you **Save**. An editor you have
 open without that chat keeps what is on screen if an agent changes the flow from another chat: exit and open it again
 to see it.

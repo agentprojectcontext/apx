@@ -58,6 +58,9 @@
 .fe-top__spacer {
   flex: 1;
 }
+.fe-top__draft-short {
+  display: none;
+}
 .fe-body {
   flex: 1;
   min-height: 0;
@@ -426,8 +429,31 @@
   }
   .fe-top__spacer,
   .fe-top__status,
-  .fe-top__ask-text {
+  .fe-top__ask-text,
+  .fe-top__draft-text {
     display: none;
+  }
+  .fe-top__draft-short {
+    display: inline;
+  }
+  /* The name, Ask and Exit share the first line; trying, saving a draft and saving the second. */
+  .fe-top .fe-top__name,
+  .fe-top__select {
+    order: -2;
+  }
+  .fe-top__ask,
+  .fe-top__exit {
+    order: -1;
+  }
+  .fe-top__exit-text {
+    display: none;
+  }
+  /* What a save just said stays readable: a line of its own under the buttons. */
+  .fe-top__status.is-said {
+    display: block;
+    order: 10;
+    flex-basis: 100%;
+    white-space: normal;
   }
   .fe-canvas:has(> .fe-card) .fe-agent {
     left: 50%;

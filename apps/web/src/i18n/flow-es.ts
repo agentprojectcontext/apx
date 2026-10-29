@@ -227,7 +227,7 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.run.timeout": "Se quedó sin tiempo",
   "flow.previous": "Versión anterior",
   "flow.draftBlocked":
-    "Tus últimos cambios todavía no pueden correr. Abrí el editor para ver por qué; esto es lo que corre ahora.",
+    "Tus últimos cambios son un borrador: lo que corre no cambia hasta que los guardes en el editor.",
   "flow.draftOff": "Tus últimos cambios están guardados. Corren cuando prendas el flujo.",
   "flow.crewSteps": "Con IA · {count}",
   "flow.out.thisNo": "No coincidió.",
@@ -657,6 +657,14 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.chat.new": "Chat nuevo",
   "flow.chat.hint":
     "Contale a {name} qué tiene que hacer este flow o qué cambiar. Los pasos aparecen acá mientras {name} los dibuja, y nada corre hasta que guardes.",
-  "flow.chat.finish": "Completá «{step}» o borralo primero: {name} trabaja sobre lo guardado.",
   "flow.chat.empty": "Agregá al menos un paso primero.",
+  "flow.ed.saveDraft": "Guardar borrador",
+  "flow.ed.draftSaved": "Borrador guardado.",
+  "flow.ed.draftSavedRuns": "Borrador guardado. Lo que corre no cambia.",
+  "flow.ed.more": "Más",
+  "flow.ed.leaveDraftBody": "Guardalos como borrador para volver a ellos, o salí y se pierden.",
+  "flow.issue.step_incomplete": "«{step}» no está completo: completá lo que le falta.",
+  "flow.finishFirst": "«{step}» no está completo: terminalo en el editor y después prendé el flow.",
+  "flow.whatRuns": "Lo que corre",
+  "flow.drawingShown": "Dibujo que se muestra",
 };

@@ -7,7 +7,7 @@ import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, conflict, notFound, unauthorized } from "../errors.ts";
 import { type FlowOutside, flowOutward } from "../flow-outward.ts";
 import { flowFolder } from "../flow-work-steps.ts";
-import { type FlowModelCheck, flowGraphIssues } from "../flows.ts";
+import { type FlowModelCheck, flowDraftIssues } from "../flows.ts";
 import { tildeHome } from "../paths.ts";
 import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
@@ -191,7 +191,7 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
               action: { kind: "none" as const },
             };
       if (flow === undefined && !store.projects.get(definition.projectId)) throw notFound("Project not found");
-      const issues = flowGraphIssues(store, definition, graph, model, outside);
+      const issues = flowDraftIssues(store, definition, graph, model, outside);
       return { valid: issues.length === 0, issues };
     },
     "flows.outward": ({ flow, graph }) => outwardOf(found(flow).projectId, graph),
@@ -199,7 +199,7 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
       const definition = found(flow);
       const doc = write(() =>
         store.flowGraphs.publish(flow, expectedDraftVersion, expectedPublishedRevision, (graph) => {
-          const issues = flowGraphIssues(store, definition, graph, model, outside);
+          const issues = flowDraftIssues(store, definition, graph, model, outside);
           if (issues.length)
             throw new CallError({
               code: ErrorCode.BadRequest,

@@ -20,8 +20,6 @@ const FlowModelRef = z
   .string()
   .regex(/^(acp:)?[a-z0-9][a-z0-9._-]*(\/[^#]+)?(#[a-z0-9-]+)?$/i)
   .max(200);
-const Base = { id: FlowNodeId, label: z.string().min(1).max(120) };
-const Key = z.string().min(1).max(128);
 /** A table of the Flow's project, by name: lowercase letters, digits, `_` and `-` (DECISIONS.md#d-173). */
 export const FlowTableName = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,39}$/);
 /**
@@ -41,234 +39,269 @@ export const FlowVarName = z
   .string()
   .regex(/^[A-Za-z_][A-Za-z0-9_]{0,63}$/)
   .refine((value) => !["__proto__", "constructor", "prototype"].includes(value));
-/** A small expression over `$trigger`, `$steps.<step>` and `$vars.<name>` (domain/flow-expr.ts): never code. */
-const FlowExpr = z.string().min(1).max(1000);
-const FlowCase = z
-  .object({
-    id: FlowBranchId,
-    label: z.string().max(60),
-    /** `equals`: the check's input is this value; `expr`: the expression comes out true. */
-    match: z.discriminatedUnion("kind", [
-      z.object({ kind: z.literal("equals"), value: JsonLiteral }).strict(),
-      z.object({ kind: z.literal("expr"), expr: FlowExpr }).strict(),
-    ]),
-  })
-  .strict();
-export const FlowNode = z.discriminatedUnion("kind", [
-  z.object({ ...Base, kind: z.literal("webhook") }).strict(),
-  /** Five-field cron in the owner's time zone; presets are crons too. */
-  z.object({ ...Base, kind: z.literal("schedule"), cron: z.string().min(9).max(120) }).strict(),
-  /**
-   * A switch: the first case that holds picks the way out, else "no" (otherwise). Without `cases` it is the yes/no
-   * check drawings had before: one case "yes", `input` equals `equals`.
-   */
-  z
+/**
+ * What a step's settings may hold. A drawing that runs needs every setting filled (`STRICT`); a draft keeps what the
+ * person or agent has so far, empty settings included (`DRAFT`), and the same shape otherwise (DECISIONS.md#d-177).
+ */
+type Fill = {
+  /** Text a step needs to run, at least `min` characters (one by default). */
+  text: (max: number, min?: number) => z.ZodType<string>;
+  /** A name or identifier a step needs to run, in its own format. */
+  name: (schema: z.ZodType<string>) => z.ZodType<string>;
+};
+const STRICT: Fill = { text: (max, min = 1) => z.string().min(min).max(max), name: (schema) => schema };
+const DRAFT: Fill = { text: (max) => z.string().max(max), name: (schema) => z.union([schema, z.literal("")]) };
+
+function stepSchema(fill: Fill) {
+  const Base = { id: FlowNodeId, label: z.string().min(1).max(120) };
+  /** A small expression over `$trigger`, `$steps.<step>` and `$vars.<name>` (domain/flow-expr.ts): never code. */
+  const FlowExpr = fill.text(1000);
+  const FlowCase = z
     .object({
-      ...Base,
-      kind: z.literal("condition"),
-      input: FlowBinding,
-      equals: JsonLiteral.optional(),
-      cases: z.array(FlowCase).min(1).max(15).optional(),
+      id: FlowBranchId,
+      label: z.string().max(60),
+      /** `equals`: the check's input is this value; `expr`: the expression comes out true. */
+      match: z.discriminatedUnion("kind", [
+        z.object({ kind: z.literal("equals"), value: JsonLiteral }).strict(),
+        z.object({ kind: z.literal("expr"), expr: FlowExpr }).strict(),
+      ]),
     })
-    .strict(),
-  /** Named values set once per run, constants or expressions; later steps read them as `$vars.name`. */
+    .strict();
+  return z.discriminatedUnion("kind", [
+    z.object({ ...Base, kind: z.literal("webhook") }).strict(),
+    /** Five-field cron in the owner's time zone; presets are crons too. */
+    z.object({ ...Base, kind: z.literal("schedule"), cron: fill.text(120, 9) }).strict(),
+    /**
+     * A switch: the first case that holds picks the way out, else "no" (otherwise). Without `cases` it is the yes/no
+     * check drawings had before: one case "yes", `input` equals `equals`.
+     */
+    z
+      .object({
+        ...Base,
+        kind: z.literal("condition"),
+        input: FlowBinding,
+        equals: JsonLiteral.optional(),
+        cases: z.array(FlowCase).min(1).max(15).optional(),
+      })
+      .strict(),
+    /** Named values set once per run, constants or expressions; later steps read them as `$vars.name`. */
+    z
+      .object({
+        ...Base,
+        kind: z.literal("vars"),
+        vars: z
+          .array(
+            z
+              .object({
+                name: fill.name(FlowVarName),
+                value: z.discriminatedUnion("kind", [
+                  z.object({ kind: z.literal("literal"), value: JsonLiteral }).strict(),
+                  z.object({ kind: z.literal("expr"), expr: FlowExpr }).strict(),
+                ]),
+              })
+              .strict(),
+          )
+          .min(1)
+          .max(16),
+      })
+      .strict(),
+    /** A JavaScript function body of `input` and `vars` that returns JSON, run apart with no files or network. */
+    z
+      .object({
+        ...Base,
+        kind: z.literal("js"),
+        code: fill.text(8000),
+        input: FlowBinding,
+        timeoutMs: z.number().int().min(100).max(10000),
+      })
+      .strict(),
+    /**
+     * One statement on a SQLite file inside the Flow's project. Values reach it only as bound `:name` parameters
+     * (templates); a read caps its rows, a write is a side effect the owner allowed by publishing.
+     */
+    z
+      .object({
+        ...Base,
+        kind: z.literal("sql"),
+        database: fill.text(500),
+        mode: z.enum(["read", "write"]),
+        query: fill.text(8000),
+        params: z.array(z.object({ name: fill.name(FlowVarName), value: z.string().max(2000) }).strict()).max(32),
+        maxRows: z.number().int().min(1).max(500),
+        timeoutMs: z.number().int().min(1000).max(30000),
+      })
+      .strict(),
+    /**
+     * A shell command in the Flow's project folder, fixed in the revision. Values reach it only through environment
+     * variables and its standard input (templates), never inside the command text.
+     */
+    z
+      .object({
+        ...Base,
+        kind: z.literal("cmd"),
+        command: fill.text(4000),
+        env: z
+          .array(
+            z
+              .object({
+                name: fill.name(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,63}$/)),
+                value: z.string().max(4000),
+              })
+              .strict(),
+          )
+          .max(16),
+        stdin: z.string().max(16000),
+        timeoutMs: z.number().int().min(1000).max(120000),
+        /** On, a command that exits with an error still succeeds, so a check can read its exit code. */
+        continueOnError: z.boolean(),
+      })
+      .strict(),
+    z
+      .object({
+        ...Base,
+        kind: z.literal("table_read"),
+        /** A table of the project; absent, the Flow's own table (a definition drawn as a graph). */
+        table: FlowTableName.optional(),
+        /** Keys to read, each may hold placeholders; empty when it reads the `latest` rows. */
+        keys: z.array(fill.text(128)).max(16),
+        latest: z.number().int().min(1).max(100).optional(),
+      })
+      .strict(),
+    z
+      .object({
+        ...Base,
+        kind: z.literal("table_write"),
+        table: FlowTableName.optional(),
+        /** The row's key; may hold placeholders (`$trigger.email`), filled when the step runs. */
+        key: fill.text(128),
+        /** What it saves as a whole; a save with `columns` has none. */
+        value: FlowBinding.optional(),
+        /**
+         * A value for each column, a template each: one placeholder alone saves that value as it is, anything else as
+         * text. Saving again under the key changes only these columns (DECISIONS.md#d-176).
+         */
+        columns: z
+          .array(z.object({ name: fill.name(FlowColumnName), value: z.string().max(8000) }).strict())
+          .max(FLOW_TABLE_COLUMNS)
+          .optional(),
+      })
+      .strict(),
+    z
+      .object({
+        ...Base,
+        kind: z.literal("llm"),
+        model: fill.text(200),
+        prompt: fill.text(8000),
+        input: FlowBinding,
+        maxOutputTokens: z.number().int().min(1).max(2048),
+        timeoutMs: z.number().int().min(1000).max(120000),
+      })
+      .strict(),
+    /**
+     * An AI model step: one of the owner's agents (its instructions, memory and tools), or a bot of this Flow alone
+     * (`bot`: a name and a system prompt, no memory or history). `model` picks the harness, model and effort in one ref;
+     * absent, the agent's own choice. `autonomy` (APX's harness) or `write` (a CLI's) is how freely it acts; `delegate`
+     * lets it hand work to or message other agents, off unless set (DECISIONS.md#d-172).
+     */
+    z
+      .object({
+        ...Base,
+        kind: z.literal("agent"),
+        agent: fill.name(FlowId).optional(),
+        bot: z
+          .object({ name: fill.text(60), system: fill.text(8000) })
+          .strict()
+          .optional(),
+        model: FlowModelRef.optional(),
+        autonomy: z.enum(["manual", "auto", "total"]).optional(),
+        write: z.enum(["ask", "auto", "read-only"]).optional(),
+        delegate: z.boolean().optional(),
+        prompt: fill.text(8000),
+        input: FlowBinding,
+      })
+      .strict(),
+    z.object({ ...Base, kind: z.literal("routine"), routine: fill.name(FlowId), input: FlowBinding }).strict(),
+    /**
+     * Sends `text` (a template) as the owner to a contact or room the owner picked; the destination is fixed in the
+     * revision, never taken from the payload. `onlyIfContent` skips the send when every placeholder came out empty.
+     */
+    z
+      .object({
+        ...Base,
+        kind: z.literal("notify"),
+        channel: fill.name(FlowId),
+        to: z.discriminatedUnion("kind", [
+          z.object({ kind: z.literal("contact"), person: fill.name(FlowId) }).strict(),
+          z.object({ kind: z.literal("room"), room: fill.text(200) }).strict(),
+        ]),
+        text: fill.text(4000),
+        onlyIfContent: z.boolean(),
+      })
+      .strict(),
+    /** Calls a URL fixed in the revision; header values and body are templates, secrets only as `secret://name`. */
+    z
+      .object({
+        ...Base,
+        kind: z.literal("http"),
+        method: z.enum(["GET", "POST", "PUT"]),
+        url: fill.text(2000, 8),
+        headers: z
+          .array(
+            z
+              .object({
+                name: fill.name(z.string().regex(/^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,100}$/)),
+                value: z.string().max(4000),
+              })
+              .strict(),
+          )
+          .max(16),
+        body: z.string().max(16000),
+        timeoutMs: z.number().int().min(1000).max(30000),
+      })
+      .strict(),
+  ]);
+}
+export const FlowNode = stepSchema(STRICT);
+/** A step as a draft keeps it: settings it needs to run may still be empty (`flowStepGap` names the first). */
+export const FlowDraftNode = stepSchema(DRAFT);
+export type FlowNode = z.infer<typeof FlowNode>;
+const graphSchema = (node: typeof FlowNode | typeof FlowDraftNode) =>
   z
     .object({
-      ...Base,
-      kind: z.literal("vars"),
-      vars: z
+      schemaVersion: z.literal(2),
+      nodes: z.array(node).min(1).max(32),
+      /** `when` picks a check's way out: a case's id ("yes", the default, is the first) or "no" for otherwise. */
+      edges: z
+        .array(z.object({ source: FlowNodeId, target: FlowNodeId, when: FlowBranchId.optional() }).strict())
+        .max(64),
+      layout: z
         .array(
           z
             .object({
-              name: FlowVarName,
-              value: z.discriminatedUnion("kind", [
-                z.object({ kind: z.literal("literal"), value: JsonLiteral }).strict(),
-                z.object({ kind: z.literal("expr"), expr: FlowExpr }).strict(),
-              ]),
+              node: FlowNodeId,
+              x: z.number().finite().min(-100000).max(100000),
+              y: z.number().finite().min(-100000).max(100000),
             })
             .strict(),
         )
-        .min(1)
-        .max(16),
+        .max(32),
     })
-    .strict(),
-  /** A JavaScript function body of `input` and `vars` that returns JSON, run apart with no files or network. */
-  z
-    .object({
-      ...Base,
-      kind: z.literal("js"),
-      code: z.string().min(1).max(8000),
-      input: FlowBinding,
-      timeoutMs: z.number().int().min(100).max(10000),
-    })
-    .strict(),
-  /**
-   * One statement on a SQLite file inside the Flow's project. Values reach it only as bound `:name` parameters
-   * (templates); a read caps its rows, a write is a side effect the owner allowed by publishing.
-   */
-  z
-    .object({
-      ...Base,
-      kind: z.literal("sql"),
-      database: z.string().min(1).max(500),
-      mode: z.enum(["read", "write"]),
-      query: z.string().min(1).max(8000),
-      params: z.array(z.object({ name: FlowVarName, value: z.string().max(2000) }).strict()).max(32),
-      maxRows: z.number().int().min(1).max(500),
-      timeoutMs: z.number().int().min(1000).max(30000),
-    })
-    .strict(),
-  /**
-   * A shell command in the Flow's project folder, fixed in the revision. Values reach it only through environment
-   * variables and its standard input (templates), never inside the command text.
-   */
-  z
-    .object({
-      ...Base,
-      kind: z.literal("cmd"),
-      command: z.string().min(1).max(4000),
-      env: z
-        .array(
-          z.object({ name: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,63}$/), value: z.string().max(4000) }).strict(),
-        )
-        .max(16),
-      stdin: z.string().max(16000),
-      timeoutMs: z.number().int().min(1000).max(120000),
-      /** On, a command that exits with an error still succeeds, so a check can read its exit code. */
-      continueOnError: z.boolean(),
-    })
-    .strict(),
-  z
-    .object({
-      ...Base,
-      kind: z.literal("table_read"),
-      /** A table of the project; absent, the Flow's own table (a definition drawn as a graph). */
-      table: FlowTableName.optional(),
-      /** Keys to read, each may hold placeholders; empty when it reads the `latest` rows. */
-      keys: z.array(Key).max(16),
-      latest: z.number().int().min(1).max(100).optional(),
-    })
-    .strict(),
-  z
-    .object({
-      ...Base,
-      kind: z.literal("table_write"),
-      table: FlowTableName.optional(),
-      /** The row's key; may hold placeholders (`$trigger.email`), filled when the step runs. */
-      key: Key,
-      /** What it saves as a whole; a save with `columns` has none. */
-      value: FlowBinding.optional(),
-      /**
-       * A value for each column, a template each: one placeholder alone saves that value as it is, anything else as
-       * text. Saving again under the key changes only these columns (DECISIONS.md#d-176).
-       */
-      columns: z
-        .array(z.object({ name: FlowColumnName, value: z.string().max(8000) }).strict())
-        .max(FLOW_TABLE_COLUMNS)
-        .optional(),
-    })
-    .strict(),
-  z
-    .object({
-      ...Base,
-      kind: z.literal("llm"),
-      model: z.string().min(1).max(200),
-      prompt: z.string().min(1).max(8000),
-      input: FlowBinding,
-      maxOutputTokens: z.number().int().min(1).max(2048),
-      timeoutMs: z.number().int().min(1000).max(120000),
-    })
-    .strict(),
-  /**
-   * An AI model step: one of the owner's agents (its instructions, memory and tools), or a bot of this Flow alone
-   * (`bot`: a name and a system prompt, no memory or history). `model` picks the harness, model and effort in one ref;
-   * absent, the agent's own choice. `autonomy` (APX's harness) or `write` (a CLI's) is how freely it acts; `delegate`
-   * lets it hand work to or message other agents, off unless set (DECISIONS.md#d-172).
-   */
-  z
-    .object({
-      ...Base,
-      kind: z.literal("agent"),
-      agent: FlowId.optional(),
-      bot: z
-        .object({ name: z.string().min(1).max(60), system: z.string().min(1).max(8000) })
-        .strict()
-        .optional(),
-      model: FlowModelRef.optional(),
-      autonomy: z.enum(["manual", "auto", "total"]).optional(),
-      write: z.enum(["ask", "auto", "read-only"]).optional(),
-      delegate: z.boolean().optional(),
-      prompt: z.string().min(1).max(8000),
-      input: FlowBinding,
-    })
-    .strict(),
-  z.object({ ...Base, kind: z.literal("routine"), routine: FlowId, input: FlowBinding }).strict(),
-  /**
-   * Sends `text` (a template) as the owner to a contact or room the owner picked; the destination is fixed in the
-   * revision, never taken from the payload. `onlyIfContent` skips the send when every placeholder came out empty.
-   */
-  z
-    .object({
-      ...Base,
-      kind: z.literal("notify"),
-      channel: FlowId,
-      to: z.discriminatedUnion("kind", [
-        z.object({ kind: z.literal("contact"), person: FlowId }).strict(),
-        z.object({ kind: z.literal("room"), room: z.string().min(1).max(200) }).strict(),
-      ]),
-      text: z.string().min(1).max(4000),
-      onlyIfContent: z.boolean(),
-    })
-    .strict(),
-  /** Calls a URL fixed in the revision; header values and body are templates, secrets only as `secret://name`. */
-  z
-    .object({
-      ...Base,
-      kind: z.literal("http"),
-      method: z.enum(["GET", "POST", "PUT"]),
-      url: z.string().min(8).max(2000),
-      headers: z
-        .array(
-          z
-            .object({ name: z.string().regex(/^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,100}$/), value: z.string().max(4000) })
-            .strict(),
-        )
-        .max(16),
-      body: z.string().max(16000),
-      timeoutMs: z.number().int().min(1000).max(30000),
-    })
-    .strict(),
-]);
-export type FlowNode = z.infer<typeof FlowNode>;
-export const FlowGraph = z
-  .object({
-    schemaVersion: z.literal(2),
-    nodes: z.array(FlowNode).min(1).max(32),
-    /** `when` picks a check's way out: a case's id ("yes", the default, is the first) or "no" for otherwise. */
-    edges: z
-      .array(z.object({ source: FlowNodeId, target: FlowNodeId, when: FlowBranchId.optional() }).strict())
-      .max(64),
-    layout: z
-      .array(
-        z
-          .object({
-            node: FlowNodeId,
-            x: z.number().finite().min(-100000).max(100000),
-            y: z.number().finite().min(-100000).max(100000),
-          })
-          .strict(),
-      )
-      .max(32),
-  })
-  .strict();
+    .strict();
+/** A drawing that runs: what publishing, a run, a try and the executor read. */
+export const FlowGraph = graphSchema(FlowNode);
+/** A drawing as a draft keeps it: the same steps and connections, settings possibly still empty. */
+export const FlowDraftGraph = graphSchema(FlowDraftNode);
 export type FlowGraph = z.infer<typeof FlowGraph>;
+export type FlowDraftGraph = z.infer<typeof FlowDraftGraph>;
+export type FlowDraftNode = z.infer<typeof FlowDraftNode>;
 export const FlowGraphIssue = z.object({ code: z.string(), node: FlowNodeId.optional(), message: z.string() }).strict();
 export type FlowGraphIssue = z.infer<typeof FlowGraphIssue>;
 export const FlowGraphDocument = z
   .object({
     flow: FlowId,
     draftVersion: z.number().int().min(1).nullable(),
-    draft: FlowGraph.nullable(),
+    /** May hold steps with settings still empty; `published` never does. */
+    draft: FlowDraftGraph.nullable(),
     /** The agent whose tool saved the draft, null for the owner: turning the Flow on opens it for review first. */
     draftBy: z.string().nullable().default(null),
     publishedRevision: z.number().int().min(1).nullable(),
@@ -358,7 +391,8 @@ export const flowGraphMethods = {
       .object({
         flow: FlowId,
         expectedVersion: z.number().int().min(1).nullable(),
-        graph: FlowGraph,
+        /** As drawn so far: a step's settings may still be empty, publishing asks for them. */
+        graph: FlowDraftGraph,
         /**
          * The owner's edits saved over an agent's draft they have not saved from the editor yet (its chat saves them
          * before each message): the draft keeps that agent as who drew it, so it still waits for the owner's review.
@@ -378,7 +412,7 @@ export const flowGraphMethods = {
   /** A new Flow, not saved yet, is checked against the project it will belong to. */
   "flows.validate": {
     params: z
-      .object({ flow: FlowId.optional(), project: FlowId.optional(), graph: FlowGraph })
+      .object({ flow: FlowId.optional(), project: FlowId.optional(), graph: FlowDraftGraph })
       .strict()
       .refine((p) => (p.flow === undefined) !== (p.project === undefined), "Pass a flow or a project"),
     result: z.object({ valid: z.boolean(), issues: z.array(FlowGraphIssue) }).strict(),

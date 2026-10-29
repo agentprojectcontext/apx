@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FlowGraph, FlowGraphDocument, flowGraphMethods } from "./flow-graph.ts";
+import { FlowDraftGraph, FlowGraphDocument, flowGraphMethods } from "./flow-graph.ts";
 
 const Id = z.string().regex(/^[A-Za-z0-9_-]{1,100}$/);
 const Scalar = z.union([z.string().max(4096), z.number().finite(), z.boolean(), z.null()]);
@@ -72,6 +72,11 @@ export const flowMethods = {
     result: z.object({
       flows: z.array(FlowDefinition),
       published: z.record(z.string(), z.object({ revision: z.number().int(), kinds: z.array(z.string()) })).default({}),
+      /**
+       * For each Flow with a saved draft that is not what runs: its version and step kinds in the order they would
+       * run. The list shows these, marked as a draft, instead of what runs.
+       */
+      drafts: z.record(z.string(), z.object({ version: z.number().int(), kinds: z.array(z.string()) })).default({}),
       schedules: z
         .record(
           z.string(),
@@ -94,7 +99,7 @@ export const flowMethods = {
    * (DECISIONS.md#d-174). Its identifier comes from the name; turning it on and publishing stay the owner's.
    */
   "flows.create": {
-    params: z.object({ project: Id, name: z.string().trim().min(1).max(120), graph: FlowGraph }).strict(),
+    params: z.object({ project: Id, name: z.string().trim().min(1).max(120), graph: FlowDraftGraph }).strict(),
     result: z.object({ flow: FlowDefinition, document: FlowGraphDocument }).strict(),
     effect: true,
   },

@@ -50,6 +50,7 @@ import {
   viewRun,
 } from "./run-view.ts";
 import { type Flow, type FlowNode, type FlowRun, hookPath, isTrigger, STEP, scheduleName } from "./steps.tsx";
+import { useTables } from "./tables-data.ts";
 import "./detail.css";
 
 type Cursor = Result<"flows.events">["nextCursor"];
@@ -140,17 +141,28 @@ export function FlowDetail({
   }, [going, runs, flow.enabled]);
   const known = useKnown();
   const who = useCallback((n: FlowNode) => whoOf(n, agents, routines, t, known), [agents, routines, t, known]);
+  // While a saved draft waits the page shows it; what runs (a run's own revision) when chosen (DECISIONS.md#d-177).
+  const [which, setWhich] = useState<"draft" | "runs">("draft");
+  const draft = shown?.draftPending ? shown.draft : null;
+  const runsToo = Boolean(shown && !shown.placeholder);
+  const onDraft = Boolean(draft) && (which === "draft" || !runsToo);
+  const pick = (id: string) => {
+    setRunId(id);
+    setWhich("runs");
+  };
   // What the chosen run ran: its own revision, the old definition for a legacy run of a published flow, or now.
   const graph = useMemo(() => {
+    if (onDraft && draft) return draft;
     if (run?.executor === "graph") return detail?.event === run.event_id ? detail.graph : undefined;
     if (run && !run.current) return legacyGraph(flow, t);
     return shown?.graph;
-  }, [run, detail, flow, t, shown]);
+  }, [run, detail, flow, t, shown, onDraft, draft]);
   const view = useMemo(() => {
     if (!graph) return undefined;
+    if (onDraft) return viewRun(graph, flow.id, undefined, t, who);
     if (run?.executor === "graph") return detail ? viewGraphRun(detail, flow.id, t, who) : undefined;
     return viewRun(graph, flow.id, run, t, who);
-  }, [graph, detail, flow.id, run, t, who]);
+  }, [graph, detail, flow.id, run, t, who, onDraft]);
   const look = useCallback(
     (n: FlowNode): StepLook => {
       const v = view?.steps.get(n.id);
@@ -274,7 +286,7 @@ export function FlowDetail({
               : t("flow.skipped", { count: schedule.skipped, time: dueTime(schedule.skipped_at, timeZone) })}
           </p>
         ) : null}
-        {run && outcome && (
+        {run && outcome && !onDraft && (
           <div className="fd__runline">
             <strong>{t("flow.runAt", { when: runWhen(run.created_at) })}</strong>
             <Badge tone={OUTCOME[outcome].tone === "neutral" ? "neutral" : OUTCOME[outcome].tone}>
@@ -301,7 +313,23 @@ export function FlowDetail({
             )}
           </div>
         )}
-        {shown?.draftPending && <p className="fd__draft">{t(flow.enabled ? "flow.draftBlocked" : "flow.draftOff")}</p>}
+        {draft && (
+          <div className="fd__drafts">
+            {runsToo && (
+              <SegmentedControl
+                size="sm"
+                label={t("flow.drawingShown")}
+                value={onDraft ? "draft" : "runs"}
+                onValueChange={(v) => setWhich(v as "draft" | "runs")}
+                options={[
+                  { value: "draft", label: t("flow.card.draft") },
+                  { value: "runs", label: t("flow.whatRuns") },
+                ]}
+              />
+            )}
+            <p className="fd__draft">{t(flow.enabled ? "flow.draftBlocked" : "flow.draftOff")}</p>
+          </div>
+        )}
         <div className="fd__canvas">
           {graph ? (
             <FlowCanvas
@@ -313,17 +341,21 @@ export function FlowDetail({
                 setNodeId(id);
                 setTab("step");
               }}
-              fitKey={`${flow.id}:${run?.executor === "graph" ? `r${detail?.revision ?? ""}` : run?.current === false ? "old" : "now"}`}
+              fitKey={`${flow.id}:${onDraft ? `d${shown?.draftVersion ?? ""}` : run?.executor === "graph" ? `r${detail?.revision ?? ""}` : run?.current === false ? "old" : "now"}`}
             >
-              {run && (
+              {run && !onDraft && (
                 <div className="fd__legend" aria-hidden="true">
                   <span className="is-ran">{t("flow.legend.stepRan")}</span>
                   <span className="is-skipped">{t("flow.legend.stepSkipped")}</span>
                   <span className="is-failed">{t("flow.legend.stepFailed")}</span>
                 </div>
               )}
-              <span className={run && !run.current ? "fd__version is-old" : "fd__version"}>
-                {t(run && !run.current ? "flow.previous" : "flow.current")}
+              <span
+                className={
+                  onDraft ? "fd__version is-draft" : run && !run.current ? "fd__version is-old" : "fd__version"
+                }
+              >
+                {t(onDraft ? "flow.card.draft" : run && !run.current ? "flow.previous" : "flow.current")}
               </span>
             </FlowCanvas>
           ) : (
@@ -334,7 +366,7 @@ export function FlowDetail({
           flow={flow}
           nodes={graph?.nodes ?? []}
           node={node}
-          run={run}
+          run={onDraft ? undefined : run}
           view={view}
           tab={tab}
           setTab={setTab}
@@ -381,7 +413,7 @@ export function FlowDetail({
                 size="lg"
                 label={t("flow.runsLast")}
                 selected={runId}
-                onSelect={setRunId}
+                onSelect={pick}
                 runs={runs
                   .slice(0, 24)
                   .reverse()
@@ -407,7 +439,7 @@ export function FlowDetail({
                   type="button"
                   className={e.event_id === runId ? "fd__run is-on" : "fd__run"}
                   aria-current={e.event_id === runId}
-                  onClick={() => setRunId(e.event_id)}
+                  onClick={() => pick(e.event_id)}
                 >
                   <span className="fd__runwhen">
                     <span className={`fd__runmark is-${OUTCOME[o].bar}`} />
@@ -683,8 +715,15 @@ function StepPanel({
 function Rows({ flow, project, table }: { flow: string; project: string; table: string | undefined }) {
   const t = useT();
   const [rows, setRows] = useState<{ key: string; value: unknown }[]>();
+  // A draft may name a table the project doesn't have yet: it has no rows to read.
+  const tables = useTables(table ? project : undefined);
+  const made = !table || tables?.some((x) => x.name === table);
   useEffect(() => {
     let live = true;
+    if (!made) {
+      setRows(tables ? [] : undefined);
+      return;
+    }
     void (
       table ? client.call("tables.get", { project, table, limit: 20 }) : client.call("flows.rows", { flow, limit: 20 })
     ).then(
@@ -694,7 +733,7 @@ function Rows({ flow, project, table }: { flow: string; project: string; table: 
     return () => {
       live = false;
     };
-  }, [flow, project, table]);
+  }, [flow, project, table, made, tables]);
   return (
     <div className="fd__rows">
       <span className="fd__label">{t("flow.rows")}</span>

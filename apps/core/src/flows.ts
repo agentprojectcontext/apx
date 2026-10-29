@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { FlowGraph, FlowGraphIssue } from "../../../packages/protocol/src/flow-graph.ts";
+import { type FlowDraftGraph, FlowGraph, type FlowGraphIssue } from "../../../packages/protocol/src/flow-graph.ts";
 import type { FlowDefinition } from "../../../packages/protocol/src/flow-methods.ts";
 import { FlowCapacityError } from "./domain/flow-events.ts";
-import { validateFlowGraph } from "./domain/flow-graph-validate.ts";
+import { flowGapIssues, validateFlowGraph } from "./domain/flow-graph-validate.ts";
 import { FlowTriggerMismatch } from "./domain/flow-graphs.ts";
 import { dueFlowTick } from "./domain/flow-schedules.ts";
 import { ownerTimeZone } from "./domain/owner.ts";
@@ -96,6 +96,21 @@ export function flowGraphIssues(
       issues.push({ code: "model_unavailable", node: node.id, message: "The chosen model is not set up" });
   }
   return issues;
+}
+
+/**
+ * Why a draft can't run yet: its steps' empty settings first (`step_incomplete`, DECISIONS.md#d-177), then, once every
+ * step is complete, what `flowGraphIssues` says. What `flows.validate` and publishing check.
+ */
+export function flowDraftIssues(
+  store: Store,
+  definition: FlowDefinition,
+  draft: FlowDraftGraph,
+  model: FlowModelCheck,
+  outside?: FlowOutside,
+): FlowGraphIssue[] {
+  const gaps = flowGapIssues(draft);
+  return gaps.length ? gaps : flowGraphIssues(store, definition, FlowGraph.parse(draft), model, outside);
 }
 
 export function createFlows(deps: {

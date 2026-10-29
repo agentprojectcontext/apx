@@ -1,6 +1,7 @@
 import { shapeOfDefinition } from "@apx/protocol/flow-shape";
 import {
   AgentAvatar,
+  Badge,
   Button,
   EmptyState,
   FlowStepTile,
@@ -21,7 +22,16 @@ import { useData } from "../data/state.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { FlowDetail, FlowEditor, TablesView } from "../lazy.ts";
 import { go, useNav } from "../shell/nav.ts";
-import { agentOf, issueText, loadFlows, loadRuns, type Published, type Schedules, setEnabled } from "./data.ts";
+import {
+  agentOf,
+  type Drafts,
+  issueText,
+  loadFlows,
+  loadRuns,
+  type Published,
+  type Schedules,
+  setEnabled,
+} from "./data.ts";
 import { OutwardConfirm } from "./outward.tsx";
 import { nextWhen, OUTCOME, outcomeOf, runWhen } from "./run-view.ts";
 import { STARTERS, type Starter } from "./starters.ts";
@@ -89,6 +99,7 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
         <FlowList
           flows={flows}
           published={data?.published ?? {}}
+          drafts={data?.drafts ?? {}}
           schedules={data?.schedules ?? {}}
           timeZone={data?.timeZone ?? "UTC"}
           failed={failed}
@@ -132,6 +143,7 @@ export default function FlowsScreen({ projectId }: { projectId?: string | undefi
 function FlowList(props: {
   flows: Flow[] | undefined;
   published: Published;
+  drafts: Drafts;
   schedules: Schedules;
   timeZone: string;
   failed: boolean;
@@ -223,7 +235,9 @@ function FlowList(props: {
                 <FlowRow
                   key={f.id}
                   flow={f}
-                  kinds={props.published[f.id]?.kinds}
+                  // A draft not running yet is what the owner is building: it shows instead, marked.
+                  kinds={props.drafts[f.id]?.kinds ?? props.published[f.id]?.kinds}
+                  draft={Boolean(props.drafts[f.id])}
                   schedule={props.schedules[f.id]}
                   timeZone={props.timeZone}
                   revision={props.revision}
@@ -295,8 +309,10 @@ function Starters({ project, onNew }: { project: boolean; onNew: (s: Starter) =>
 
 function FlowRow(props: {
   flow: Flow;
-  /** A published drawing's step kinds, in the order they run; its old definition says nothing then. */
+  /** A drawing's step kinds, in the order they run; its old definition says nothing then. */
   kinds: string[] | undefined;
+  /** The kinds are a saved draft's, not what runs. */
+  draft: boolean;
   /** Its schedule and next time, when it starts on one. */
   schedule: Schedules[string] | undefined;
   timeZone: string;
@@ -369,6 +385,7 @@ function FlowRow(props: {
             // biome-ignore lint/suspicious/noArrayIndexKey: positional
             <FlowStepTile key={i} icon={STEP[k].icon} tone={STEP[k].tone} size="sm" label={t(STEP[k].label)} />
           ))}
+          {props.draft && <Badge tone="neutral">{t("flow.card.draft")}</Badge>}
         </span>
         <span className="flowrow__model">
           {who ? (
