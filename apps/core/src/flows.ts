@@ -10,6 +10,7 @@ import { TERMINAL } from "./domain/runs.ts";
 import type { Store } from "./domain/store.ts";
 import type { RunTimers } from "./engine/engine.ts";
 import { badRequest, conflict, errorMessage, notFound } from "./errors.ts";
+import { flowEngineOf } from "./flow-ai-step.ts";
 import { createFlowGraphExecutor } from "./flow-graph-executor.ts";
 import { type FlowOutside, flowOutwardIssues } from "./flow-outward.ts";
 import type { FlowHttpDeps, FlowNotifier } from "./flow-outward-steps.ts";
@@ -56,10 +57,10 @@ export function flowGraphIssues(
   issues.push(...flowOutwardIssues(store, definition.projectId, graph, outside));
   for (const node of graph.nodes) {
     try {
-      if (node.kind === "agent")
+      if (node.kind === "agent" && !node.bot)
         validateFlowBinding(store, {
           ...definition,
-          action: { kind: "agent", agent: node.agent, prompt: node.prompt },
+          action: { kind: "agent", agent: node.agent ?? "", prompt: node.prompt },
         });
       if (node.kind === "routine")
         validateFlowBinding(store, { ...definition, action: { kind: "routine", routine: node.routine } });
@@ -71,6 +72,19 @@ export function flowGraphIssues(
       });
     }
     if (node.kind === "llm" && !model(node.model))
+      issues.push({ code: "model_unavailable", node: node.id, message: "The chosen model is not set up" });
+    // A CLI works in the project's folder, as a code session does.
+    if (node.kind === "agent" && flowEngineOf(node)) {
+      const project = store.projects.get(definition.projectId);
+      if (!project?.path || !project.present)
+        issues.push({
+          code: "folder_unavailable",
+          node: node.id,
+          message: "The project's folder is not on this computer",
+        });
+    }
+    // APX's harness runs a model API the owner set up; a CLI's model is its own, checked when its session starts.
+    if (node.kind === "agent" && node.model && !flowEngineOf(node) && !model(node.model.replace(/#[^#]*$/, "")))
       issues.push({ code: "model_unavailable", node: node.id, message: "The chosen model is not set up" });
   }
   return issues;

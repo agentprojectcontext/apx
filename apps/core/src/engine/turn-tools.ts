@@ -40,6 +40,48 @@ const HANDOFF_TOOLS = new Set([
   "read_chat",
 ]);
 
+/**
+ * What a Flow's AI model step leaves out unless it may delegate: handing work to other agents, their sessions and tasks
+ * (a task or its comment wakes its assignee) (DECISIONS.md#d-172).
+ */
+const TEAM_TOOLS = new Set([
+  ...SESSION_TOOLS,
+  "list_agents",
+  "grant_tool",
+  "agent_set",
+  "task_create",
+  "task_update",
+  "task_comment",
+  "task_close",
+]);
+/**
+ * A bot of a Flow speaks through the super-agent, who can read all the owner's chats, mail and calendar: it keeps only
+ * tools that work on the task itself (the web, files and commands where it works, its own browser), never the owner's
+ * data, memory, team or accounts (DECISIONS.md#d-172).
+ */
+const BOT_KEEPS = new Set([
+  "web_search",
+  "web_read",
+  "video_transcript",
+  "file_read",
+  "file_write",
+  "file_edit",
+  "file_parallel",
+  "shell",
+  "shell_output",
+  "shell_kill",
+  "read_output",
+  "load_skill",
+  "make_image",
+  "browser_open",
+  "browser_snapshot",
+  "browser_text",
+  "browser_click",
+  "browser_type",
+  "task_get",
+  "task_list",
+]);
+
 /** The kind of channel a message came on ("telegram"), for how the answer should look; none for the app. */
 export function channelKindOf(store: Store, o: Origin, replyChannel?: string | null) {
   const channel = replyChannel === null ? undefined : (replyChannel ?? (o.kind === "channel" ? o.channel : undefined));
@@ -75,12 +117,13 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
   const computerOn = Boolean(deps.vm?.serves(turn.thread.id) && deps.vm.permitted(turn.agent.id, turn.thread.id));
   const sealed = turn.audience.kind === "contact";
   const callers = callersOf(deps.store, turn.thread.id);
+  const step = deps.store.threads.context(turn.thread.id).flow_step;
   // MCP tools are reached through mcp_search and mcp_call; their servers start only when one is first used.
   const servers = !sealed && !inVm && deps.mcpTools ? (deps.mcpServers?.(turn.thread) ?? []) : [];
   let loading: Promise<Tool[]> | undefined;
   // A contact's turn reaches no MCP tool, not even one it names without being offered it.
   const mcpLate = () => {
-    if (inVm || sealed) return Promise.resolve([]);
+    if (inVm || sealed || step?.bot) return Promise.resolve([]);
     loading ??= (deps.mcpTools?.(turn.thread) ?? Promise.resolve([]))
       .catch(() => [])
       .then((all) => all.filter((t) => policy.allows(t.name) && (!only || only.has(t.name) || only.has(MCP_CALL))));
@@ -128,8 +171,11 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
   const replyChannel = turn.input.reply_to === null ? null : turn.input.reply_to?.channel;
   const handoff = ownerOnChannel && HANDOFF_ONLY.has(channelKindOf(deps.store, o, replyChannel) ?? "");
   const only = handoff ? new Set([...HANDOFF_TOOLS].filter((n) => !named || named.has(n))) : named;
+  const out = step && !step.delegate ? TEAM_TOOLS : undefined;
   const tools = policy.tools.filter(
     (t) =>
+      (!step?.bot || BOT_KEEPS.has(t.name)) &&
+      !out?.has(t.name) &&
       ((callers.length < MAX_DEPTH && !turn.worker) || !SESSION_TOOLS.has(t.name)) &&
       (!only || only.has(t.name) || (t.name === MCP_SEARCH && only.has(MCP_CALL))),
   );

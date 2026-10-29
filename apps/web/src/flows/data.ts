@@ -113,7 +113,7 @@ export function agentOf(
   agents: Record<string, Agent>,
   routines: Routine[],
 ): Agent | undefined {
-  if (n.kind === "agent") return agents[n.agent];
+  if (n.kind === "agent") return n.agent ? agents[n.agent] : undefined;
   if (n.kind === "routine") {
     const r = routines.find((x) => x.id === n.routine);
     return r ? agents[r.agent_id] : undefined;
@@ -134,7 +134,7 @@ export function useKnown(): Known {
 }
 
 export function whoOf(n: FlowNode, agents: Record<string, Agent>, routines: Routine[], t?: T, known?: Known): string {
-  if (n.kind === "agent") return agents[n.agent]?.name ?? n.agent;
+  if (n.kind === "agent") return n.bot ? n.bot.name : (agents[n.agent ?? ""]?.name ?? n.agent ?? "");
   if (n.kind === "routine") return routines.find((r) => r.id === n.routine)?.name ?? n.routine;
   if (n.kind === "notify") {
     const d = known && destinationOf(n, known);

@@ -2,7 +2,7 @@ import type { Result } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
 import { flowCases } from "@apx/protocol/flow-cases";
 import { shapeOfGraph } from "@apx/protocol/flow-shape";
-import { Button, Dialog, FlowStepTile, IconButton, Icons, Input, Popover, Select, Textarea } from "@apx/ui";
+import { Button, Dialog, FlowStepTile, Icons, Input, Popover, Select, Textarea } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
 import { useRoutines } from "../data/routines.ts";
@@ -65,7 +65,7 @@ function blank(n: FlowNode): boolean {
     case "table_write":
       return !n.key.trim();
     case "agent":
-      return !n.agent || !n.prompt.trim();
+      return (n.bot ? !n.bot.name.trim() || !n.bot.system.trim() : !n.agent) || !n.prompt.trim();
     case "routine":
       return !n.routine;
     case "llm":
@@ -326,11 +326,9 @@ export function FlowEditor({
   };
   const close = () => (dirty ? setLeaving(true) : onClose());
   const hasTrigger = Boolean(triggerOf(g));
-  const project = projects.find((p) => p.id === projectId);
   return (
     <div className="fe" role="dialog" aria-modal="true" aria-label={name || t("flow.ed.untitled")}>
       <header className={`fe-top window-bar${desktop}`}>
-        <IconButton label={t("flow.ed.close")} icon={<Icons.X size={16} />} onClick={close} />
         <Input
           aria-label={t("flow.ed.name")}
           className="fe-top__name"
@@ -342,9 +340,7 @@ export function FlowEditor({
             setSaid(null);
           }}
         />
-        {flow ? (
-          <span className="fe-top__project">{project?.name ?? projectId}</span>
-        ) : (
+        {!flow && (
           <Select
             size="sm"
             label={t("flow.ed.project")}
@@ -358,6 +354,7 @@ export function FlowEditor({
             className="fe-top__select"
           />
         )}
+        <span className="fe-top__spacer" />
         {said && !busy ? (
           <span
             className={said.error ? "fe-top__status is-error" : "fe-top__status"}
@@ -370,10 +367,17 @@ export function FlowEditor({
             {busy ? t("flow.ed.saving") : dirty || !flow ? t("flow.ed.unsaved") : t("flow.ed.saved")}
           </span>
         )}
-        <span className="fe-top__spacer" />
         <TryRun graph={g} tidy={() => tidy(g, t)} onResult={setTrial} />
         <Button disabled={busy || !graph} onClick={() => void save()}>
           {t("flow.ed.save")}
+        </Button>
+        <Button
+          variant="ghost"
+          leadingIcon={<Icons.LogOut size={14} />}
+          aria-label={t("flow.ed.close")}
+          onClick={close}
+        >
+          {t("flow.ed.exit")}
         </Button>
       </header>
       <div className="fe-body">

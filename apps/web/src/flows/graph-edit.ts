@@ -111,3 +111,25 @@ export function moveNode(graph: FlowGraph, id: string, x: number, y: number): Fl
   const point = { node: id, x: Math.max(-100000, Math.min(100000, x)), y: Math.max(-100000, Math.min(100000, y)) };
   return { ...graph, layout: [...graph.layout.filter((p) => p.node !== id), point] };
 }
+
+/** A run starts at its one trigger: an incoming POST or a schedule. */
+export const isTrigger = (kind: string): kind is "webhook" | "schedule" => kind === "webhook" || kind === "schedule";
+
+/** A field path as people write it: form.tier. */
+export const dotted = (path: readonly string[]) => path.join(".");
+
+/** Steps in the order they run: along the path from the trigger, then any step not on it. */
+export function chainOrder(graph: FlowGraph): FlowNode[] {
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+  const seen = new Set<string>();
+  const out: FlowNode[] = [];
+  const visit = (n: FlowNode | undefined) => {
+    if (!n || seen.has(n.id)) return;
+    seen.add(n.id);
+    out.push(n);
+    for (const e of graph.edges) if (e.source === n.id) visit(byId.get(e.target));
+  };
+  for (const n of graph.nodes) if (isTrigger(n.kind)) visit(n);
+  for (const n of graph.nodes) visit(n);
+  return out;
+}

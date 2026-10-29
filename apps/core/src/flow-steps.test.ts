@@ -629,3 +629,34 @@ test("review: the same command or write in another folder is a new approval", as
     await env.cleanup();
   }
 });
+
+test("a command reads a secret only from its own environment text, never keeps it, and its approval names it", async () => {
+  const env = await core();
+  const SECRET = "sk-flow-cmd-0123456789abcdef";
+  try {
+    await env.client.call("secrets.set", { name: "acme_key", value: SECRET });
+    const step = cmd("call", 'printf "%s|%s|%s" "$KEY" "$ECHO" "$RUN"', {
+      env: [
+        { name: "KEY", value: "Bearer secret://acme_key" },
+        { name: "ECHO", value: "$trigger.ref" },
+        { name: "RUN", value: "$apx.run" },
+      ],
+    });
+    const { flow } = await publish(env, "keyed", chain(hook, step));
+    const { commands } = await env.client.call("flows.outward", { flow, graph: chain(hook, step) });
+    assert.deepEqual(commands[0]?.secrets, ["acme_key"], "the allow dialog names the secret it gets");
+    // A reference the payload brings is only text: it is never read as a secret.
+    await post(env, flow, "e1", { ref: "secret://acme_key" });
+    assert.equal((await ended(env, flow, "e1")).state, "succeeded");
+    const s = steps(env, flow, "e1").call;
+    assert.equal(out(s).stdout, "Bearer [secret]|secret://acme_key|e1");
+    assert.ok(!JSON.stringify(env.core.store.flowGraphRuns.detail(flow, "e1")).includes(SECRET));
+    assert.ok(s?.input?.includes("Bearer secret://acme_key"), "the run shows the reference, not the value");
+    const missing = cmd("x", "true", { env: [{ name: "KEY", value: "secret://nobody" }] });
+    const { issues } = await env.client.call("flows.validate", { flow, graph: chain(hook, missing) });
+    assert.ok(issues.some((i) => i.code === "secret_missing"));
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});

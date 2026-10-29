@@ -1,24 +1,14 @@
 import type { Agent, Routine } from "@apx/protocol";
-import {
-  AgentAvatar,
-  Button,
-  Field,
-  FlowStepTile,
-  IconButton,
-  Icons,
-  Input,
-  SegmentedControl,
-  Select,
-  Textarea,
-} from "@apx/ui";
+import { Button, Field, FlowStepTile, IconButton, Icons, Input, SegmentedControl, Select, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
-import { blobOf } from "../data/identity.ts";
 import { forAgents, useModels } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
+import { listSecrets } from "../data/resources.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
-import { HttpFields, NotifyFields, type Token } from "./OutwardFields.tsx";
+import { AiFields, aiNote } from "./AiFields.tsx";
+import { HttpFields, NotifyFields } from "./OutwardFields.tsx";
 import { nextWhen } from "./run-view.ts";
 import {
   branchesOf,
@@ -32,51 +22,25 @@ import {
   SCHEDULE_PRESETS,
   STEP,
 } from "./steps.tsx";
+import type { Values } from "./Template.tsx";
+import { earlier, RESULT, valueGroups } from "./values.ts";
 import { CaseFields, CmdFields, JsFields, SqlFields, VarsFields } from "./WorkFields.tsx";
 
-/** What a step gives the next ones: the part of its result a later step receives. */
-const RESULT: Partial<Record<FlowNode["kind"], string[]>> = {
-  llm: ["text"],
-  agent: ["text"],
-  routine: ["text"],
-  table_read: ["rows"],
-  table_write: ["value"],
-  http: [],
-  vars: [],
-  js: [],
-  sql: ["rows"],
-  cmd: ["stdout"],
-};
-/** Steps whose result can reach `id`: every step on a path before it, except the trigger (that is the event). */
-function earlier(graph: FlowGraph, id: string): FlowNode[] {
-  const seen = new Set<string>();
-  const todo = [id];
-  while (todo.length) {
-    const at = todo.pop();
-    for (const e of graph.edges)
-      if (e.target === at && !seen.has(e.source)) {
-        seen.add(e.source);
-        todo.push(e.source);
-      }
-  }
-  return chainOrder(graph).filter((n) => seen.has(n.id) && RESULT[n.kind]);
-}
-
-/** Placeholders a template can use: a field of what arrived, each variable set before it, each step's result. */
-function tokensFor(graph: FlowGraph, n: FlowNode, t: ReturnType<typeof useT>): Token[] {
-  return [
-    { label: t("flow.f.fromEvent"), token: "$trigger." },
-    ...earlier(graph, n.id).flatMap((s) =>
-      s.kind === "vars"
-        ? s.vars.map((v) => ({ label: `$vars.${v.name}`, token: `$vars.${v.name}` }))
-        : [
-            {
-              label: s.label,
-              token: ["$steps", s.id, ...(s.kind === "http" ? ["json"] : (RESULT[s.kind] ?? []))].join("."),
-            },
-          ],
-    ),
-  ];
+/** What step `n`'s template fields can insert, by field; the owner's secrets are loaded once. */
+function useValues(graph: FlowGraph, n: FlowNode | undefined, projectId: string): Values {
+  const t = useT();
+  const [secrets, setSecrets] = useState<string[]>([]);
+  useEffect(() => {
+    let live = true;
+    void listSecrets().then((list) => {
+      if (live && list)
+        setSecrets([...new Set(list.filter((s) => !s.project_id || s.project_id === projectId).map((s) => s.name))]);
+    });
+    return () => {
+      live = false;
+    };
+  }, [projectId]);
+  return (field) => (n ? valueGroups(graph, n, field, secrets, t, (kind) => t(STEP[kind].label)) : []);
 }
 
 /** The panel at the right: the chosen step's settings, or every step in order with how the flow runs. */
@@ -100,6 +64,7 @@ export function Inspector(props: {
 }) {
   const t = useT();
   const { graph, selected: n } = props;
+  const values = useValues(graph, n, props.projectId);
   if (!n) {
     const { problem } = props;
     return (
@@ -148,7 +113,7 @@ export function Inspector(props: {
           />
         )}
       </Field>
-      <Fields {...props} n={n} />
+      <Fields {...props} n={n} values={values} />
       {outs.length > 0 && (
         <div className="fe-outs">
           <span className="fe-ins__label">{t("flow.ed.next")}</span>
@@ -179,7 +144,7 @@ export function Inspector(props: {
   );
 }
 
-function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode }) {
+function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode; values: Values }) {
   const t = useT();
   const { n, update } = props;
   switch (n.kind) {
@@ -206,9 +171,9 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode }) {
         </>
       );
     case "sql":
-      return <SqlFields n={n} update={update} tokens={tokensFor(props.graph, n, t)} />;
+      return <SqlFields n={n} update={update} values={props.values} />;
     case "cmd":
-      return <CmdFields n={n} update={update} tokens={tokensFor(props.graph, n, t)} projectId={props.projectId} />;
+      return <CmdFields n={n} update={update} values={props.values} projectId={props.projectId} />;
     case "table_read":
       return (
         <>
@@ -253,33 +218,7 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode }) {
     case "agent":
       return (
         <>
-          <Field label={t("flow.f.agent")}>
-            {() => (
-              <Select
-                label={t("flow.f.agent")}
-                value={n.agent || null}
-                placeholder={t("flow.f.choose")}
-                onValueChange={(v) => update({ ...n, agent: v ?? "" })}
-                options={props.agents.map((a) => ({
-                  value: a.id,
-                  label: a.name,
-                  ...(a.role ? { hint: a.role } : {}),
-                  icon: <AgentAvatar name={a.name} blob={blobOf(a)} size={16} animated={false} />,
-                }))}
-              />
-            )}
-          </Field>
-          <Field label={t("flow.f.task")}>
-            {(id) => (
-              <Textarea
-                id={id}
-                rows={7}
-                maxLength={8000}
-                value={n.prompt}
-                onChange={(e) => update({ ...n, prompt: e.target.value })}
-              />
-            )}
-          </Field>
+          <AiFields n={n} update={update} agents={props.agents} />
           <InputPicker
             label={t("flow.f.receives")}
             graph={props.graph}
@@ -287,7 +226,7 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode }) {
             value={n.input}
             onChange={(input) => update({ ...n, input })}
           />
-          <p className="fe-note">{t("flow.f.agentNote")}</p>
+          <p className="fe-note">{t(aiNote(n))}</p>
         </>
       );
     case "routine":
@@ -321,9 +260,9 @@ function Fields(props: Parameters<typeof Inspector>[0] & { n: FlowNode }) {
     case "llm":
       return <ModelFields {...props} n={n} />;
     case "notify":
-      return <NotifyFields n={n} update={update} tokens={tokensFor(props.graph, n, t)} />;
+      return <NotifyFields n={n} update={update} values={props.values} />;
     case "http":
-      return <HttpFields n={n} update={update} tokens={tokensFor(props.graph, n, t)} />;
+      return <HttpFields n={n} update={update} values={props.values} />;
   }
 }
 

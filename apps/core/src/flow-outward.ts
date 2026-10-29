@@ -12,6 +12,7 @@ import { redactedJson } from "./log.ts";
 
 type Notify = Extract<FlowNode, { kind: "notify" }>;
 type Http = Extract<FlowNode, { kind: "http" }>;
+type Cmd = Extract<FlowNode, { kind: "cmd" }>;
 
 /** What checks a drawing's outward steps beyond its shape. */
 export type FlowOutside = {
@@ -63,10 +64,13 @@ const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(va
 export function flowOutward(store: Store, graph: FlowGraph, folder = "", place = "") {
   const sends: { node: string; channel: string; type: string; to: string; owner: boolean }[] = [];
   const calls: { node: string; method: string; host: string; secrets: string[] }[] = [];
-  const commands: { node: string; command: string; folder: string }[] = [];
+  const commands: { node: string; command: string; folder: string; secrets: string[] }[] = [];
   const writes: { node: string; database: string }[] = [];
-  const secretsOf = (n: Http) => [
-    ...new Set(n.headers.flatMap((h) => (h.value.match(SECRET_REF) ?? []).map((r) => r.slice(9)))),
+  // Secrets are read in an HTTP step's headers and a command's environment, nowhere else.
+  const secretsOf = (n: Http | Cmd) => [
+    ...new Set(
+      (n.kind === "http" ? n.headers : n.env).flatMap((h) => (h.value.match(SECRET_REF) ?? []).map((r) => r.slice(9))),
+    ),
   ];
   for (const node of graph.nodes) {
     if (node.kind === "notify") {
@@ -81,7 +85,7 @@ export function flowOutward(store: Store, graph: FlowGraph, folder = "", place =
     }
     if (node.kind === "http")
       calls.push({ node: node.id, method: node.method, host: httpHost(node), secrets: secretsOf(node) });
-    if (node.kind === "cmd") commands.push({ node: node.id, command: node.command, folder });
+    if (node.kind === "cmd") commands.push({ node: node.id, command: node.command, folder, secrets: secretsOf(node) });
     if (node.kind === "sql" && node.mode === "write") writes.push({ node: node.id, database: node.database });
   }
   const keys = [
@@ -124,6 +128,14 @@ export function flowOutwardIssues(
       );
     if (node.kind === "notify" && !notifyDestination(store, node))
       add("destination_unavailable", node.id, "Pick a channel and someone on it, or one of its rooms");
+    if (node.kind === "cmd")
+      for (const e of node.env) {
+        const literal = e.value.replace(SECRET_REF, "");
+        if (redactedJson({ v: literal }) !== JSON.stringify({ v: literal }))
+          add("credential_literal", node.id, "Keep keys in Secrets and use secret://name in a variable");
+        for (const ref of e.value.match(SECRET_REF) ?? [])
+          if (!outside?.secret(ref, project)) add("secret_missing", node.id, "A secret it uses is not in Secrets");
+      }
     if (node.kind !== "http") continue;
     if (flowHttpUrlProblem(node.url) === "private" && !allowedPrivateUrl(node.url, outside))
       add("url_private", node.id, "The address is on this computer or a private network");

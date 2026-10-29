@@ -90,7 +90,11 @@ export function flowGraphHandlers(store: Store, model: FlowModelCheck, outside?:
       found(flow);
       const run = store.flowGraphRuns.detail(flow, event);
       if (!run) throw notFound("Flow run");
-      return run;
+      const answered = (id: string | null) => {
+        const r = id ? store.runs.get(id) : undefined;
+        return r?.harness ? { answered: { harness: r.harness, model: r.model ?? null } } : {};
+      };
+      return { ...run, steps: run.steps.map((s) => ({ ...s, ...answered(s.run_id) })) };
     },
   } satisfies Partial<Handlers>;
 }

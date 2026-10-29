@@ -4,7 +4,7 @@
 import type { FlowBinding, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
 import type { FlowGraphRun, FlowStepKey } from "./domain/flow-graph-runs.ts";
 import { boundedFlowValue, type FlowNodeSnapshot, resolveFlowInput } from "./domain/flow-graph-semantics.ts";
-import { parseFlowTemplate, renderFlowTemplate } from "./domain/flow-template.ts";
+import { type FlowApx, parseFlowTemplate, renderFlowTemplate } from "./domain/flow-template.ts";
 import type { Store } from "./domain/store.ts";
 import type { RunTimers } from "./engine/engine.ts";
 import { type FlowHttpAnswer, FlowHttpError, type FlowHttpPolicy, flowHttpRequest } from "./flow-http.ts";
@@ -65,19 +65,33 @@ class StepRefused extends Error {
   }
 }
 
+/** What `$apx.…` reads in a run's templates: its project's name, the moment and the run's id. */
+export function flowApx(store: Store, run: Pick<FlowGraphRun, "flow" | "event">, at: Date): FlowApx {
+  const project = store.flows.get(run.flow)?.projectId;
+  return {
+    project: (project && store.projects.get(project)?.name) || "",
+    now: at.toISOString(),
+    run: run.event,
+  };
+}
+
 /** A request body: JSON stays JSON, a placeholder alone in a string takes the bound value's type. */
-function renderBody(template: string, resolve: (b: FlowBinding) => unknown): { text: string; json: boolean } {
+function renderBody(
+  template: string,
+  resolve: (b: FlowBinding) => unknown,
+  apx: FlowApx,
+): { text: string; json: boolean } {
   let parsed: unknown;
   try {
     parsed = JSON.parse(template);
   } catch {}
   if (parsed === null || typeof parsed !== "object")
-    return { text: renderFlowTemplate(parseFlowTemplate(template), resolve).text, json: false };
+    return { text: renderFlowTemplate(parseFlowTemplate(template), resolve, { apx }).text, json: false };
   const fill = (v: unknown): unknown => {
     if (typeof v === "string") {
       const parts = parseFlowTemplate(v);
       const only = parts.length === 1 ? parts[0] : undefined;
-      return only && "binding" in only ? resolve(only.binding) : renderFlowTemplate(parts, resolve).text;
+      return only && "binding" in only ? resolve(only.binding) : renderFlowTemplate(parts, resolve, { apx }).text;
     }
     if (Array.isArray(v)) return v.map(fill);
     // Keys are the owner's; fromEntries keeps a "__proto__" key as data.
@@ -89,13 +103,17 @@ function renderBody(template: string, resolve: (b: FlowBinding) => unknown): { t
 
 const TEXTUAL = /^(text\/|application\/(json|xml|javascript|x-www-form-urlencoded|problem\+json)|[^;]*\+(json|xml))/i;
 
-/** What a step keeps of an answer: status, a bounded text or JSON body, binary only said, the secrets it used cut. */
-export function answerOutput(a: FlowHttpAnswer, secrets: readonly string[]) {
-  // A secret may come back as it was sent, URL-encoded, or JSON-escaped (cut again in the parsed value).
+/** Cuts secrets a step used from text it keeps: as sent, URL-encoded or JSON-escaped. */
+export function secretScrubber(secrets: readonly string[]): (text: string) => string {
   const forms = secrets
     .filter((s) => s.length >= 4)
     .flatMap((s) => [s, encodeURIComponent(s), JSON.stringify(s).slice(1, -1), s.replaceAll("/", "\\/")]);
-  const scrub = (t: string) => forms.reduce((x, s) => x.split(s).join("[secret]"), t);
+  return (t) => forms.reduce((x, s) => x.split(s).join("[secret]"), t);
+}
+
+/** What a step keeps of an answer: status, a bounded text or JSON body, binary only said, the secrets it used cut. */
+export function answerOutput(a: FlowHttpAnswer, secrets: readonly string[]) {
+  const scrub = secretScrubber(secrets);
   const deep = (v: unknown): unknown =>
     typeof v === "string"
       ? scrub(v)
@@ -165,6 +183,7 @@ export function createOutwardSteps(deps: {
       const out = renderFlowTemplate(parseFlowTemplate(node.text), resolve, {
         missing: node.onlyIfContent ? "empty" : "throw",
         bound: plainBound,
+        apx: flowApx(store, run, now()),
       });
       if (node.onlyIfContent && (out.empty || !out.text.trim())) {
         runs.settle(k, ["pending"], "skipped", now(), W.nothing);
@@ -231,6 +250,7 @@ export function createOutwardSteps(deps: {
     const project = store.flows.get(run.flow)?.projectId ?? "";
     const resolve = (b: FlowBinding) => resolveFlowInput(b, run.payload, snapshots);
     const used: string[] = [];
+    const apx = flowApx(store, run, now());
     const headers: Record<string, string> = {};
     const shown: { name: string; value: string }[] = [];
     let body: { text: string; json: boolean } | undefined;
@@ -241,6 +261,7 @@ export function createOutwardSteps(deps: {
         const parts = parseFlowTemplate(h.value);
         // Secret references are read only in the owner's own text, never in a value the payload brought.
         const real = renderFlowTemplate(parts, resolve, {
+          apx,
           literal: (t) =>
             t.replace(SECRET_REF, (ref) => {
               const value = http.secret(ref, project);
@@ -251,10 +272,10 @@ export function createOutwardSteps(deps: {
         }).text;
         if (/[\r\n\0]/.test(real)) throw new StepRefused(W.invalid);
         headers[h.name.toLowerCase()] = real;
-        shown.push({ name: h.name, value: renderFlowTemplate(parts, resolve).text });
+        shown.push({ name: h.name, value: renderFlowTemplate(parts, resolve, { apx }).text });
       }
       if (node.method !== "GET" && node.body.trim()) {
-        body = renderBody(node.body, resolve);
+        body = renderBody(node.body, resolve, apx);
         if (Buffer.byteLength(body.text) > BODY_LIMIT) throw new StepRefused(W.value);
         headers["content-type"] ??= body.json ? "application/json" : "text/plain; charset=utf-8";
       }

@@ -1,37 +1,18 @@
 // Settings of the steps that act outside APX: a message sent as the owner, a call to another service. Who gets the
 // message is picked from the owner's own channels and contacts, never typed (DECISIONS.md#d-169).
-import { Button, ChannelIcon, Field, Input, SegmentedControl, Select, Switch, Textarea } from "@apx/ui";
+import { Button, ChannelIcon, Field, Input, SegmentedControl, Select, Switch } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { destinationOf, hostOf } from "./data.ts";
 import type { FlowNode } from "./steps.tsx";
+import { Template, type Values } from "./Template.tsx";
 
 type Notify = Extract<FlowNode, { kind: "notify" }>;
 type Http = Extract<FlowNode, { kind: "http" }>;
 
-/** A value a template can use: what arrived, or the result of a step before this one. */
-export type Token = { label: string; token: string };
-
-/** Buttons that add a placeholder at the end of a template, named by the step it reads. */
-export function Insert({ tokens, onInsert }: { tokens: Token[]; onInsert: (token: string) => void }) {
-  const t = useT();
-  if (!tokens.length) return null;
-  return (
-    <fieldset className="fe-tokens">
-      <legend className="fe-ins__label">{t("flow.f.insert")}</legend>
-      {tokens.map((x) => (
-        <Button key={x.token} size="sm" variant="outline" onClick={() => onInsert(x.token)}>
-          {x.label}
-        </Button>
-      ))}
-    </fieldset>
-  );
-}
-const appended = (text: string, token: string) => (text && !/\s$/.test(text) ? `${text} ${token}` : `${text}${token}`);
-
-export function NotifyFields({ n, update, tokens }: { n: Notify; update: (n: FlowNode) => void; tokens: Token[] }) {
+export function NotifyFields({ n, update, values }: { n: Notify; update: (n: FlowNode) => void; values: Values }) {
   const t = useT();
   const ready = useChannels((s) => s.ready);
   const channels = useChannels((s) => s.channels).filter((c) => c.enabled);
@@ -121,16 +102,17 @@ export function NotifyFields({ n, update, tokens }: { n: Notify; update: (n: Flo
       </Field>
       <Field label={t("flow.f.message")} hint={t("flow.f.messageHint")}>
         {(id) => (
-          <Textarea
+          <Template
             id={id}
+            field="message"
+            values={values}
             rows={4}
             maxLength={4000}
             value={n.text}
-            onChange={(e) => update({ ...n, text: e.target.value })}
+            onValueChange={(text) => update({ ...n, text })}
           />
         )}
       </Field>
-      <Insert tokens={tokens} onInsert={(token) => update({ ...n, text: appended(n.text, token) })} />
       <Switch
         size="sm"
         checked={n.onlyIfContent}
@@ -163,7 +145,7 @@ const parseHeaders = (text: string) => {
 };
 const headerText = (headers: Http["headers"]) => headers.map((h) => `${h.name}: ${h.value}`).join("\n");
 
-export function HttpFields({ n, update, tokens }: { n: Http; update: (n: FlowNode) => void; tokens: Token[] }) {
+export function HttpFields({ n, update, values }: { n: Http; update: (n: FlowNode) => void; values: Values }) {
   const t = useT();
   const [text, setText] = useState(() => headerText(n.headers));
   // Another step chosen: its own headers.
@@ -197,16 +179,18 @@ export function HttpFields({ n, update, tokens }: { n: Http; update: (n: FlowNod
       </Field>
       <Field label={t("flow.f.headers")} hint={bad ? t("flow.f.headersBad") : t("flow.f.headersHint")}>
         {(id) => (
-          <Textarea
+          <Template
             id={id}
+            field="header"
+            values={values}
             rows={3}
             className="fe-mono"
             spellCheck={false}
             value={text}
             placeholder="Authorization: Bearer secret://name"
-            onChange={(e) => {
-              setText(e.target.value);
-              update({ ...n, headers: parseHeaders(e.target.value).headers });
+            onValueChange={(next) => {
+              setText(next);
+              update({ ...n, headers: parseHeaders(next).headers });
             }}
           />
         )}
@@ -214,21 +198,20 @@ export function HttpFields({ n, update, tokens }: { n: Http; update: (n: FlowNod
       {n.method !== "GET" && (
         <Field label={t("flow.f.body")} hint={t("flow.f.bodyHint")}>
           {(id) => (
-            <Textarea
+            <Template
               id={id}
+              field="body"
+              values={values}
               rows={4}
               className="fe-mono"
               spellCheck={false}
               maxLength={16000}
               placeholder="{ }"
               value={n.body}
-              onChange={(e) => update({ ...n, body: e.target.value })}
+              onValueChange={(body) => update({ ...n, body })}
             />
           )}
         </Field>
-      )}
-      {n.method !== "GET" && (
-        <Insert tokens={tokens} onInsert={(token) => update({ ...n, body: appended(n.body, `"${token}"`) })} />
       )}
       <p className="fe-note">
         {t("flow.f.callsNote", { host: /^https?:\/\/[^/\s]+/.test(n.url) ? hostOf(n.url) : "…", step: n.id })}

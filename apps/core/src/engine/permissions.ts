@@ -16,7 +16,7 @@ import {
 } from "../tools/folders.ts";
 import { actingAs, reachOf, withProjectAutonomy } from "../tools/policy.ts";
 import { judgeCommand } from "../tools/shell.ts";
-import { callersOf } from "./ancestry.ts";
+import { ancestors } from "./ancestry.ts";
 
 type ThreadOf = Parameters<typeof workDir>[2] & { id: string; parent_id?: string | undefined };
 
@@ -38,11 +38,19 @@ export function createPermissions(o: { store: Store; home: string }) {
   const key = (runId: string, callId: string) => `${runId}\n${callId}`;
 
   /** The agent as it acts in a thread: its own mode, else its project's; a helper in its callers' (DECISIONS.md#d-106). */
-  const agentIn = (agent: AgentRecord, threadId: string): AgentRecord =>
-    actingAs(
-      withProjectAutonomy(store, agent),
-      callersOf(store, threadId).map((a) => withProjectAutonomy(store, a)),
-    );
+  const agentIn = (agent: AgentRecord, threadId: string): AgentRecord => {
+    // A Flow step's mode is the one the owner picked on it, over the agent's own, and its helpers work in it too
+    // (DECISIONS.md#d-172).
+    const asIn = (a: AgentRecord, thread: string) => {
+      const mode = store.threads.context(thread).flow_step?.autonomy;
+      return mode ? { ...a, autonomy: mode } : withProjectAutonomy(store, a);
+    };
+    const callers = ancestors(store, threadId).flatMap((t) => {
+      const a = store.agents.get(t.agent_ids[0] ?? "");
+      return a ? [asIn(a, t.id)] : [];
+    });
+    return actingAs(asIn(agent, threadId), callers);
+  };
 
   /** The thread as the folder rule sees it for an agent as it acts (agentIn): its reach and the folders granted for good. */
   function scope<T extends ThreadOf>(agent: AgentRecord, thread: T): T & FolderThread {

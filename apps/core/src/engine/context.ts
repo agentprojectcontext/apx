@@ -77,6 +77,41 @@ export function workerPrompt(
     .join("\n");
 }
 
+/**
+ * A Flow's bot: the system prompt the owner wrote for it, the project and the same safety rules. No personality, owner
+ * block, roster or memory; each run's input comes as the message and its answer goes on to the Flow (DECISIONS.md#d-172).
+ */
+export function flowBotPrompt(
+  bot: { name: string; instructions: string },
+  ownerLanguage: string,
+  project?:
+    | { name: string; path?: string | undefined; context?: string | undefined; memory?: string | undefined }
+    | undefined,
+  skills = "",
+  scratch = "",
+  sections: Sections = {},
+): string {
+  const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
+  return [
+    `You are ${bot.name}, a bot the owner set up in one of their Flows in APX. Your instructions are below; each message is one run's input, and your answer goes on to the Flow's next step.`,
+    "",
+    "## Your instructions",
+    bot.instructions,
+    project ? projectBlock(project) : "",
+    skills ? `\n${skills}` : "",
+    "",
+    "## How you work",
+    "- Do what the instructions say with your tools; report what they returned, never invent a result.",
+    `- Answer in ${lang} unless the instructions say otherwise.`,
+    ...SAFETY,
+    ...BROWSING,
+    ...(scratch ? [scratchGuidance(scratch)] : []),
+    ...sectionLines(sections, scratch),
+  ]
+    .filter((l, i, all) => l !== "" || all[i - 1] !== "")
+    .join("\n");
+}
+
 /** A project's AGENTS.md as the prompt carries it: whole, past only the read's safety limit (DECISIONS.md#d-158). */
 export const agentsMdOf = (p: { context?: string | undefined }) => p.context ?? "";
 

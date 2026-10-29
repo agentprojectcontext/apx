@@ -17,10 +17,12 @@ import {
 } from "./domain/flow-graph-semantics.ts";
 import { FLOW_ENV_REFUSED, flowDatabaseProblem } from "./domain/flow-graph-validate.ts";
 import { flowSqlShape, SQL_READS, SQL_WRITES } from "./domain/flow-sql.ts";
-import { parseFlowTemplate, renderFlowTemplate } from "./domain/flow-template.ts";
+import { type FlowApx, parseFlowTemplate, renderFlowTemplate } from "./domain/flow-template.ts";
 import type { Store } from "./domain/store.ts";
 import type { RunTimers } from "./engine/engine.ts";
 import { runStep } from "./engine/pipeline.ts";
+import { SECRET_REF } from "./flow-outward.ts";
+import { flowApx, secretScrubber } from "./flow-outward-steps.ts";
 import { commandEnv } from "./harness/env.ts";
 import { nodeChildEnv } from "./node-runtime.ts";
 import { isInside, real, realpath, tildeHome } from "./paths.ts";
@@ -60,6 +62,7 @@ export const WORK_WHY = {
   commandTimeout: "command_timeout",
   commandUnknown: "command_uncertain",
   start: "not_started",
+  secret: "secret_missing",
 } as const;
 
 class StepRefused extends Error {
@@ -71,13 +74,18 @@ class StepRefused extends Error {
 }
 
 /** A template as one value: a placeholder alone keeps its value's type, anything else is text. */
-function templateValue(template: string, resolve: (b: FlowBinding) => unknown, graph: FlowGraph): unknown {
+function templateValue(
+  template: string,
+  resolve: (b: FlowBinding) => unknown,
+  graph: FlowGraph,
+  apx: FlowApx,
+): unknown {
   const parts = parseFlowTemplate(template, flowVarIndex(graph));
   const only = parts.length === 1 ? parts[0] : undefined;
-  return only && "binding" in only ? resolve(only.binding) : renderFlowTemplate(parts, resolve).text;
+  return only && "binding" in only ? resolve(only.binding) : renderFlowTemplate(parts, resolve, { apx }).text;
 }
-const templateText = (template: string, resolve: (b: FlowBinding) => unknown, graph: FlowGraph) =>
-  renderFlowTemplate(parseFlowTemplate(template, flowVarIndex(graph)), resolve).text;
+const templateText = (template: string, resolve: (b: FlowBinding) => unknown, graph: FlowGraph, apx: FlowApx) =>
+  renderFlowTemplate(parseFlowTemplate(template, flowVarIndex(graph)), resolve, { apx }).text;
 
 /** Steps on every path before `id`. */
 function ancestors(graph: FlowGraph, id: string): Set<string> {
@@ -254,6 +262,8 @@ export function createWorkSteps(deps: {
   home: string | undefined;
   /** Registers a process in flight so a stop or the deadline ends it. */
   track(ac: AbortController, run: FlowGraphRun): () => void;
+  /** A `secret://name` in a command's environment, read for the Flow's project. */
+  secret?: ((ref: string, project: string) => string | undefined) | undefined;
 }) {
   const { store } = deps;
   const runs = store.flowGraphRuns;
@@ -352,7 +362,12 @@ export function createWorkSteps(deps: {
     let params: Record<string, unknown>;
     try {
       params = boundedFlowValue(
-        Object.fromEntries(node.params.map((p) => [p.name, templateValue(p.value, resolve, run.graph) ?? null])),
+        Object.fromEntries(
+          node.params.map((p) => [
+            p.name,
+            templateValue(p.value, resolve, run.graph, flowApx(store, run, now())) ?? null,
+          ]),
+        ),
       ) as Record<string, unknown>;
     } catch {
       fail(k, "pending", W.missing);
@@ -399,13 +414,29 @@ export function createWorkSteps(deps: {
       return;
     }
     const env: Record<string, string> = {};
+    const shownEnv: Record<string, string> = {};
+    const used: string[] = [];
+    const apx = flowApx(store, run, now());
+    const project = store.flows.get(run.flow)?.projectId ?? "";
     let stdin: string;
     try {
       for (const e of node.env) {
         if (FLOW_ENV_REFUSED.test(e.name)) throw new StepRefused(W.start);
-        env[e.name] = templateText(e.value, resolve, run.graph);
+        const parts = parseFlowTemplate(e.value, flowVarIndex(run.graph));
+        // A secret is read only in the owner's own text, never in a value the payload brought (DECISIONS.md#d-172).
+        env[e.name] = renderFlowTemplate(parts, resolve, {
+          apx,
+          literal: (t) =>
+            t.replace(SECRET_REF, (ref) => {
+              const value = deps.secret?.(ref, project);
+              if (value === undefined) throw new StepRefused(W.secret);
+              used.push(value);
+              return value;
+            }),
+        }).text;
+        shownEnv[e.name] = renderFlowTemplate(parts, resolve, { apx }).text;
       }
-      stdin = templateText(node.stdin, resolve, run.graph);
+      stdin = templateText(node.stdin, resolve, run.graph, apx);
       if (Buffer.byteLength(stdin) > INPUT_LIMIT || Buffer.byteLength(JSON.stringify(env)) > INPUT_LIMIT)
         throw new StepRefused(W.value);
     } catch (err) {
@@ -415,7 +446,7 @@ export function createWorkSteps(deps: {
     const shown = {
       command: node.command,
       folder: tildeHome(folder),
-      ...(node.env.length ? { env } : {}),
+      ...(node.env.length ? { env: shownEnv } : {}),
       ...(stdin ? { stdin } : {}),
     };
     try {
@@ -439,11 +470,14 @@ export function createWorkSteps(deps: {
     }).finally(untrack);
     // Stopped by the owner (already left to look at) or closing (a restart marks it uncertain).
     if (ac.signal.aborted) return;
-    const output = { exit: r.exit, ok: r.exit === 0, stdout: r.stdout, stderr: r.stderr };
+    // What it printed never keeps a secret it was given, as an HTTP step's answer does not.
+    const cut = secretScrubber(used);
+    const scrub = <T extends string | undefined>(text: T): T => (text === undefined ? text : (cut(text) as T));
+    const output = { exit: r.exit, ok: r.exit === 0, stdout: scrub(r.stdout), stderr: scrub(r.stderr) };
     if (r.timedOut) fail(k, "running", W.commandTimeout, { to: "uncertain", output });
     // Ended by a signal (it crashed, or something outside stopped it): it ran, so what it did is not known.
     else if (r.signal) fail(k, "running", W.commandUnknown, { to: "uncertain", output });
-    else if (r.exit === null) fail(k, "running", W.start, { output: { error: r.output.slice(0, 500) } });
+    else if (r.exit === null) fail(k, "running", W.start, { output: { error: scrub(r.output).slice(0, 500) } });
     else if (r.exit !== 0 && !node.continueOnError) fail(k, "running", W.commandFailed, { output });
     else keep(k, run, output);
   }

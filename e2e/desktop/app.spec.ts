@@ -159,7 +159,7 @@ test("a full-screen layer's bar clears the window controls and keeps its control
   } else {
     expect(windowed.right).toBe(140);
   }
-  await main.getByRole("button", { name: /^(Salir del editor|Close the editor)$/ }).click();
+  await main.getByRole("button", { name: /^(Salir del editor|Exit the editor)$/ }).click();
   await expect(bar).toHaveCount(0);
 });
 

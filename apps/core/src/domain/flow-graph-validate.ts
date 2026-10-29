@@ -14,6 +14,7 @@ import { FlowExprError, type FlowVarIndex, flowExprBindings, parseFlowExpr } fro
 import { flowHttpUrlProblem } from "./flow-http-url.ts";
 import { flowSqlShape, SQL_READS, SQL_WRITES } from "./flow-sql.ts";
 import { flowTemplateBindings, parseFlowTemplate } from "./flow-template.ts";
+import { isCliRef } from "./refs.ts";
 import { flowCronProblem } from "./schedule.ts";
 
 export { FLOW_OTHERWISE, type FlowCase, flowBranches, flowCases };
@@ -42,7 +43,7 @@ const PROCESS_LIMIT = 8;
 export const FLOW_ENV_REFUSED =
   /^(PATH|HOME|SHELL|IFS|ENV|BASH_ENV|BASH_FUNC_.*|CDPATH|PS[0-9]|PROMPT_COMMAND|SHELLOPTS|BASHOPTS|GLOBIGNORE|HISTFILE|ZDOTDIR|TMPDIR|TMP|TEMP|USER|LOGNAME|LANG|LANGUAGE|LC_[A-Z_]*|TERM|EDITOR|VISUAL|PAGER|COMSPEC|PATHEXT|SYSTEMROOT|WINDIR|(GIT|SSH|LD|DYLD|NODE|NPM|PNPM|YARN|PYTHON|PERL|RUBY|GEM|BUNDLE|CURL|PIP|APX|DOCKER|KUBE|AWS|GOOGLE|AZURE)[A-Z0-9_]*|USERPROFILE|HOMEDRIVE|HOMEPATH|APPDATA|LOCALAPPDATA|PROGRAMDATA|PROGRAMFILES.*|PSMODULEPATH|[A-Z0-9_]*PROXY|[A-Z0-9_]*PATH|[A-Z0-9_]*_HOME|[A-Z0-9_]*OPTIONS?|[A-Z0-9_]*OPTS|[A-Z0-9_]*RC)$/i;
 /** A placeholder written into a command's text: it would never be filled (values go in its environment or input). */
-const IN_COMMAND = /\$(trigger|steps|vars)\b/;
+const IN_COMMAND = /\$(trigger|steps|vars|apx)\b/;
 
 /** The templates of a step, where its placeholders are. */
 export function flowNodeTemplates(node: FlowNode): string[] {
@@ -101,6 +102,15 @@ export const flowDatabaseProblem = (file: string): string | undefined =>
     : file.split("/").some((s) => s === ".." || s === "")
       ? "The database is a file inside the project, like data/app.db"
       : undefined;
+
+/** An AI model step answers as an agent or as a bot, never both; its mode is the one its harness has. */
+function aiIssues(node: Extract<FlowNode, { kind: "agent" }>, add: Add) {
+  if (Boolean(node.agent) === Boolean(node.bot)) add("ai_source", "Choose an agent or write a bot", node.id);
+  const cli = Boolean(node.model && isCliRef(node.model));
+  if (cli ? node.autonomy || node.delegate : node.write)
+    add("ai_mode", "That permission mode belongs to another harness", node.id);
+  if (node.bot && node.delegate) add("ai_mode", "A bot of the flow hands work to no one", node.id);
+}
 
 /** Checks, variables, code, SQL and commands: what the drawing alone can tell. */
 function workIssues(node: FlowNode, add: Add, vars: FlowVarIndex) {
@@ -238,6 +248,7 @@ export function validateFlowGraph(value: FlowGraph): FlowGraphIssue[] {
   for (const node of graph.nodes) {
     outwardIssues(node, add, vars);
     workIssues(node, add, vars);
+    if (node.kind === "agent") aiIssues(node, add);
   }
   const parents = new Map<string, Set<string>>([...nodes.keys()].map((id) => [id, new Set()]));
   const edges = new Set<string>();

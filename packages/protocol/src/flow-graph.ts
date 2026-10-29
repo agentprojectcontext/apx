@@ -15,6 +15,11 @@ export const FlowBinding = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("node"), node: FlowNodeId, path: FlowPath }).strict(),
 ]);
 export type FlowBinding = z.infer<typeof FlowBinding>;
+/** A model as `engine/model#effort` (domain.ts ModelRef): the engine is the harness that runs it. */
+const FlowModelRef = z
+  .string()
+  .regex(/^(acp:)?[a-z0-9][a-z0-9._-]*(\/[^#]+)?(#[a-z0-9-]+)?$/i)
+  .max(200);
 const Base = { id: FlowNodeId, label: z.string().min(1).max(120) };
 const Key = z.string().min(1).max(128);
 /** A way out of a check: a case's id, or "no" for "otherwise" (a yes/no check is the two-case default). */
@@ -134,11 +139,25 @@ export const FlowNode = z.discriminatedUnion("kind", [
       timeoutMs: z.number().int().min(1000).max(120000),
     })
     .strict(),
+  /**
+   * An AI model step: one of the owner's agents (its instructions, memory and tools), or a bot of this Flow alone
+   * (`bot`: a name and a system prompt, no memory or history). `model` picks the harness, model and effort in one ref;
+   * absent, the agent's own choice. `autonomy` (APX's harness) or `write` (a CLI's) is how freely it acts; `delegate`
+   * lets it hand work to or message other agents, off unless set (DECISIONS.md#d-172).
+   */
   z
     .object({
       ...Base,
       kind: z.literal("agent"),
-      agent: FlowId,
+      agent: FlowId.optional(),
+      bot: z
+        .object({ name: z.string().min(1).max(60), system: z.string().min(1).max(8000) })
+        .strict()
+        .optional(),
+      model: FlowModelRef.optional(),
+      autonomy: z.enum(["manual", "auto", "total"]).optional(),
+      write: z.enum(["ask", "auto", "read-only"]).optional(),
+      delegate: z.boolean().optional(),
       prompt: z.string().min(1).max(8000),
       input: FlowBinding,
     })
@@ -253,6 +272,8 @@ export const FlowStepRecord = z
     error: z.string().nullable(),
     run_id: z.string().nullable(),
     thread_id: z.string().nullable(),
+    /** The harness and model that answered the run the step handed work to, once it started. */
+    answered: z.object({ harness: z.string(), model: z.string().nullable() }).strict().optional(),
   })
   .strict();
 export type FlowStepRecord = z.infer<typeof FlowStepRecord>;
@@ -389,8 +410,12 @@ export const flowGraphMethods = {
         calls: z.array(
           z.object({ node: FlowNodeId, method: z.string(), host: z.string(), secrets: z.array(z.string()) }).strict(),
         ),
-        /** Commands it runs on this computer, in the project's folder. */
-        commands: z.array(z.object({ node: FlowNodeId, command: z.string(), folder: z.string() }).strict()),
+        /** Commands it runs on this computer, in the project's folder; `secrets`: those in its environment. */
+        commands: z.array(
+          z
+            .object({ node: FlowNodeId, command: z.string(), folder: z.string(), secrets: z.array(z.string()) })
+            .strict(),
+        ),
         /** Database files it changes. */
         writes: z.array(z.object({ node: FlowNodeId, database: z.string() }).strict()),
       })

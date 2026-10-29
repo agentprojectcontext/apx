@@ -61,3 +61,19 @@ test("Try a run says a notify step would send, or would skip when there is nothi
   assert.equal(tryFlowGraph(graph, { items: [] }).find((s) => s.node === "say")?.state, "skipped");
   assert.equal(tryFlowGraph(graph, { items: ["lamp"] }).find((s) => s.node === "say")?.state, "would_run");
 });
+
+test("$apx values are APX's own facts of the run, never a binding the payload could reach", () => {
+  const parts = parseFlowTemplate("Run $apx.run of $apx.project at $apx.now: $trigger.id");
+  assert.deepEqual(
+    parts.filter((p) => "apx" in p).map((p) => ("apx" in p ? p.apx : "")),
+    ["run", "project", "now"],
+  );
+  const apx = { project: "Northwind", now: "2026-10-28T10:00:00.000Z", run: "e1" };
+  assert.equal(
+    renderFlowTemplate(parts, () => "7", { apx }).text,
+    "Run e1 of Northwind at 2026-10-28T10:00:00.000Z: 7",
+  );
+  assert.equal(renderFlowTemplate(parts, () => "7").text, "Run  of  at : 7", "absent, they come out empty");
+  assert.throws(() => parseFlowTemplate("$apx.secret"), /APX value/);
+  assert.throws(() => parseFlowTemplate("$apx.run.id"), /APX value/);
+});

@@ -7,8 +7,8 @@ import { useEffect, useState } from "react";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { nextCaseId, withCases } from "./graph-edit.ts";
-import { Insert, type Token } from "./OutwardFields.tsx";
 import { branchesOf, dotted, type FlowNode } from "./steps.tsx";
+import { Template, type Values } from "./Template.tsx";
 
 type Condition = Extract<FlowNode, { kind: "condition" }>;
 type Vars = Extract<FlowNode, { kind: "vars" }>;
@@ -18,7 +18,6 @@ type Cmd = Extract<FlowNode, { kind: "cmd" }>;
 type Literal = string | number | boolean | null;
 type Update = (n: FlowNode) => void;
 
-const appended = (text: string, token: string) => (text && !/\s$/.test(text) ? `${text} ${token}` : `${text}${token}`);
 const typeOf = (v: Literal) => (typeof v === "number" ? "number" : typeof v === "boolean" ? "bool" : "text");
 
 /** A value typed as text, a number or yes/no, for a case to compare with or a variable to hold. */
@@ -348,7 +347,7 @@ function useLines<T extends { name: string; value: string }>(
   return { box, setBox, parse, bad: parse(box).bad };
 }
 
-export function SqlFields({ n, update, tokens }: { n: Sql; update: Update; tokens: Token[] }) {
+export function SqlFields({ n, update, values }: { n: Sql; update: Update; values: Values }) {
   const t = useT();
   const lines = useLines(n.id, n.params, ":", /^[A-Za-z_][A-Za-z0-9_]{0,63}$/, 32);
   return (
@@ -389,28 +388,22 @@ export function SqlFields({ n, update, tokens }: { n: Sql; update: Update; token
       </Field>
       <Field label={t("flow.f.values")} hint={lines.bad ? t("flow.f.valuesBad") : t("flow.f.valuesHint")}>
         {(id) => (
-          <Textarea
+          <Template
             id={id}
+            field="sqlValue"
+            values={values}
             rows={3}
             className="fe-mono"
             spellCheck={false}
             value={lines.box}
             placeholder="email: $trigger.email"
-            onChange={(e) => {
-              lines.setBox(e.target.value);
-              update({ ...n, params: lines.parse(e.target.value).list });
+            onValueChange={(next) => {
+              lines.setBox(next);
+              update({ ...n, params: lines.parse(next).list });
             }}
           />
         )}
       </Field>
-      <Insert
-        tokens={tokens}
-        onInsert={(token) => {
-          const next = appended(lines.box, token);
-          lines.setBox(next);
-          update({ ...n, params: lines.parse(next).list });
-        }}
-      />
       <p className="fe-note">{t(n.mode === "read" ? "flow.f.sqlNoteRead" : "flow.f.sqlNoteWrite", { step: n.id })}</p>
     </>
   );
@@ -419,12 +412,12 @@ export function SqlFields({ n, update, tokens }: { n: Sql; update: Update; token
 export function CmdFields({
   n,
   update,
-  tokens,
+  values,
   projectId,
 }: {
   n: Cmd;
   update: Update;
-  tokens: Token[];
+  values: Values;
   projectId: string;
 }) {
   const t = useT();
@@ -452,34 +445,37 @@ export function CmdFields({
       </div>
       <Field label={t("flow.f.env")} hint={lines.bad ? t("flow.f.envBad") : t("flow.f.envHint")}>
         {(id) => (
-          <Textarea
+          <Template
             id={id}
+            field="env"
+            values={values}
             rows={3}
             className="fe-mono"
             spellCheck={false}
             value={lines.box}
             placeholder="EMAIL=$trigger.email"
-            onChange={(e) => {
-              lines.setBox(e.target.value);
-              update({ ...n, env: lines.parse(e.target.value).list });
+            onValueChange={(next) => {
+              lines.setBox(next);
+              update({ ...n, env: lines.parse(next).list });
             }}
           />
         )}
       </Field>
       <Field label={t("flow.f.stdin")} hint={t("flow.f.stdinHint")}>
         {(id) => (
-          <Textarea
+          <Template
             id={id}
+            field="stdin"
+            values={values}
             rows={3}
             className="fe-mono"
             spellCheck={false}
             maxLength={16000}
             value={n.stdin}
-            onChange={(e) => update({ ...n, stdin: e.target.value })}
+            onValueChange={(stdin) => update({ ...n, stdin })}
           />
         )}
       </Field>
-      <Insert tokens={tokens} onInsert={(token) => update({ ...n, stdin: appended(n.stdin, token) })} />
       <TimeLimit value={n.timeoutMs} options={LIMITS_CMD} onChange={(timeoutMs) => update({ ...n, timeoutMs })} />
       <Switch
         size="sm"

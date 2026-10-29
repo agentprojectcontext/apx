@@ -2915,3 +2915,49 @@ Rejected: keeping Important mail as a hidden routine (a routine the owner cannot
 line per mail with no agent (D-135's judgment of what needs the owner is the point of it), and a separate thread for
 the mail turns (its answers would not reach the owner's chat app without a reply route of their own).
 
+<a id="d-172"></a>
+## D-172 — 2026-10-28 — A Flow's AI model step works with full power but alone, as an agent or a bot of the Flow
+The agent step handed the payload to an agent through `threads.send`: a full turn with the agent's instructions,
+memory, tools and the right to delegate, like a task. The owner asked for one "AI model" block whose source is an
+agent or a bot written for the Flow, on the harness, model, effort and permission mode they pick, and said a Flow
+step should be simpler than a task without being capped. The step keeps everything an agent is and drops only what
+makes one run fan out into many:
+
+- **Full tools and memory, no team by default.** The step's chat carries `flow_step` in its context. Unless the step's
+  **Can ask other agents** is on, its turns leave out delegating (`delegate`, sessions), the roster, `list_agents`,
+  `grant_tool`, `agent_set` and the task tools that wake another agent (`task_create`, `task_update`, `task_comment`,
+  `task_close`); reading tasks stays. Everything else (files, shell, browser, memory, MCP) follows the agent's own list
+  and rules. With it on, the step works as the agent does in a chat. A Flow is unattended and has a 10-minute deadline;
+  agents asking agents inside one is the open-ended part, so it is the part the owner turns on.
+- **A bot is a name and a system prompt, nothing else.** It runs as a worker of the super-agent (its instructions in the
+  thread's `worker`, a prompt of its own), never with the super-agent's persona, memory, reach or team: it keeps only
+  the tools that work on the task (the web, files and commands where it works, its own browser, reading tasks), never
+  the owner's chats, mail, calendar, contacts, accounts, MCP servers or settings. Each run gets a new chat, so it has
+  no history; it never delegates.
+- **One ref picks harness, model and effort.** `model` is an `engine/model#effort` ref, set as the chat's own model.
+  A model API runs on APX's loop. A CLI (Claude Code, Codex, an ACP agent) runs the step as its own session in the
+  project's folder (D-043: CLIs never run as an agent's persona); who answers travels as the brief of its first
+  message, and APX's memory does not reach it. Its permission is the session's write policy (ask, auto, read-only);
+  on APX's loop it is the mode (manual, auto, total) over the agent's own, its own rules still applying. Plan and
+  accept-edits are left out: nobody is there to review a plan.
+- **What answered is shown.** `flows.run_get` adds the harness and model of the run each AI step started; the run
+  detail names them beside the bot's or agent's name and opens the chat.
+
+Template fields gained the values a person reaches for: `$apx.project`, `$apx.now` and `$apx.run`, filled by the
+step, never bindings the payload could reach. A command's environment reads `secret://name` like an HTTP header does
+(D-169): in the owner's own text only, resolved in the step, cut from what it printed, shown as the reference, named in
+the allow dialog. The panel's picker offers secrets only in those two fields; a message, a body, SQL values or an AI
+instruction would carry a secret as text.
+
+The independent security review added: the step's limits also apply to the APX tools a CLI session reaches through
+APX's MCP bridge (it found a CLI bot with the super-agent's whole tool set); the bot's tools became a short list to
+keep instead of a list to drop (the super-agent can read every chat, so a payload could have read them through a
+bot); a helper an agent step delegates to works in the step's mode, not the agent's own; a CLI step in a project
+without a folder is refused at validation instead of failing every run. Known limits: a CLI step's brief reaches the
+session framed as outside data, the owner's instructions with it; a CLI's write mode defaults to asking, which waits
+until the run's deadline; a command's output is tail-cut before secrets are scrubbed, so a secret split by the cut, or
+echoed transformed (base64, hex), can survive in the run.
+
+Rejected: capping an agent step's tools to a fixed safe list (the owner asked for full power; the agent's own rules already
+say what it may use), a second "direct model" block beside it (one block; old drawings keep theirs), letting a bot
+delegate (a bot has no team to speak for), and letting a CLI session read APX memory through framing (D-043).

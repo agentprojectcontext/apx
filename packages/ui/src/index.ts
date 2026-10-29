@@ -96,6 +96,12 @@ export { SystemNote, type SystemNoteProps } from "./components/SystemNote";
 export { type TabItem, Tabs, type TabsProps } from "./components/Tabs";
 export { Tag, type TagProps } from "./components/Tag";
 export { TagInput, type TagInputProps } from "./components/TagInput";
+export {
+  TemplateField,
+  type TemplateFieldProps,
+  type TemplateGroup,
+  type TemplateValue,
+} from "./components/TemplateField";
 export { Textarea, type TextareaProps } from "./components/Textarea";
 export { Tooltip, type TooltipProps } from "./components/Tooltip";
 export { VoiceNote, type VoiceNoteProps } from "./components/VoiceNote";

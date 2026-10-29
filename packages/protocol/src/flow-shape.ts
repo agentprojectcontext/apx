@@ -113,7 +113,10 @@ export function shapeOfGraph(graph: FlowGraph): FlowShapeResult {
         break;
       case "agent":
         if (!wholeEvent(node.input)) return fail("input", node);
-        if (!idPattern.test(node.agent)) return fail("input", node);
+        // A bot, a model, a mode or delegation of its own: only the graph executor runs it.
+        if (node.bot || node.model || node.autonomy || node.write || node.delegate !== undefined)
+          return fail("kind", node);
+        if (!node.agent || !idPattern.test(node.agent)) return fail("input", node);
         shape.action = { kind: "agent", agent: node.agent, prompt: node.prompt };
         break;
       case "routine":

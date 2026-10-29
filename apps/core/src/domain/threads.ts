@@ -58,6 +58,8 @@ export type ThreadContext = {
   model_choice?: ModelChoice;
   /** A worker's session: the caller's own agent, run under instructions the caller wrote for one task. */
   worker?: Worker;
+  /** A Flow's AI model step: what it may do beyond answering (DECISIONS.md#d-172). */
+  flow_step?: FlowStepContext;
   /** A consult an @mention in a task opened: the task, and the card in its conversation that shows the answer. */
   /** `asker`: the agent that asked on the task and the chat it asked from, where it hears the answer. */
   consult?: { task: string; card: string; review?: boolean; asker?: { agent: string; thread: string } };
@@ -111,6 +113,11 @@ export type ReleaseContext = { version: string; previous?: string; branch?: stri
 export type HeldTask = { task: string; agent: string; run: string; depth: number };
 
 /** A throwaway helper an agent starts for one task: a name, its instructions and (optionally) fewer tools. */
+/**
+ * A Flow step's chat: whether it may hand work to or message other agents, whether it is a bot of the Flow (no memory,
+ * history or team) and the mode it acts in on APX's harness, over the agent's own.
+ */
+export type FlowStepContext = { delegate: boolean; bot?: boolean; autonomy?: "manual" | "auto" | "total" };
 export type Worker = { name: string; instructions: string; tools?: string[] | undefined };
 
 /** What a thread list shows of the last thing said. */

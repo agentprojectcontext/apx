@@ -20,6 +20,7 @@ import { TERMINAL } from "./domain/runs.ts";
 import type { Store } from "./domain/store.ts";
 import type { RunTimers } from "./engine/engine.ts";
 import { answerOf } from "./engine/run-outcome.ts";
+import { planFlowAiStep } from "./flow-ai-step.ts";
 import { createOutwardSteps, type FlowHttpDeps, type FlowNotifier } from "./flow-outward-steps.ts";
 import { createWorkSteps } from "./flow-work-steps.ts";
 import type { Log } from "./log.ts";
@@ -117,6 +118,7 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
     store,
     timers,
     home: deps.home,
+    secret: deps.http?.secret,
     track(ac, run) {
       calls.set(ac, runKey(run.flow, run.event));
       return () => calls.delete(ac);
@@ -251,13 +253,9 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
   ) {
     const dispatch = deps.dispatch();
     const flow = store.flows.get(run.flow);
-    const agent = node.kind === "agent" ? store.agents.get(node.agent) : undefined;
     // The agent may have moved since admission: a Flow's step only hands work to one of its project or a global one.
-    if (
-      !dispatch ||
-      !flow ||
-      (node.kind === "agent" && (!agent || (agent.project_id && agent.project_id !== flow.projectId)))
-    ) {
+    const plan = node.kind === "agent" && flow ? planFlowAiStep(store, flow.projectId, node, input) : undefined;
+    if (!dispatch || !flow || (node.kind === "agent" && !plan)) {
       runs.settle(k, ["running"], "failed", now(), WHY.start);
       return;
     }
@@ -281,23 +279,27 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
         if (!started.ok) throw new Error("Routine admission failed");
         return;
       }
+      if (!plan) return;
       let thread = run.steps.get(node.id)?.thread_id ?? undefined;
       if (!thread) {
         const made = await dispatch(
           "threads.create",
-          { kind: "loose", agent_id: node.agent, project_id: flow.projectId, title: `${flow.name} · ${node.label}` },
+          {
+            kind: plan.engine ? "code" : "loose",
+            agent_id: plan.agent.id,
+            project_id: flow.projectId,
+            title: `${flow.name} · ${node.label}`,
+            ...(plan.engine ? { engine: plan.engine, ...(plan.write ? { write: plan.write } : {}) } : {}),
+          },
           ctx,
           idem("thread", k),
         );
         if (!made.ok) throw new Error("Flow thread creation failed");
         thread = (made.result as { id: string }).id;
       }
-      const sent = await dispatch(
-        "threads.send",
-        { thread, text: `${node.prompt}\n\nUntrusted input JSON:\n${JSON.stringify(input)}`, mode: "queue" },
-        ctx,
-        idem("run", k),
-      );
+      // Before its first turn: who answers, on which model, and what it may do beyond answering.
+      store.threads.mergeContext(thread, plan.context);
+      const sent = await dispatch("threads.send", { thread, text: plan.text, mode: "queue" }, ctx, idem("run", k));
       if (!sent.ok) throw new Error("Agent admission failed");
     } catch {
       // Error bodies from providers or payloads never become Flow records.
