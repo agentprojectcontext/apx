@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Opens the desktop setup on a graphical computer; --server installs the daemon, CLI and Node. Nothing needs root.
 #
-#   curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash
+#   curl -fsSL https://apxagent.app/install.sh | bash
 #   bash install.sh --file apx-core-2.2.0-linux-x64.tar.gz      # a bundle you already have (no download)
 #
 # Options: --file <bundle>  --version <x.y.z>  --feed <owner/repo | http(s) URL>  --no-service  --uninstall

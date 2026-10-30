@@ -25,13 +25,15 @@ to the public repo ([D-087](DECISIONS.md#d-087)).
 v2 is `main` of the public repo (`agentprojectcontext/apx`) since 2.11.0, and its releases are GitHub's "Latest"
 (`APX_V2_LATEST=true`). How it got there: v2 grew on its own branch, `release/v2`, beside v1's `main`; at the
 launch `release/v2` took v1's `main` in with `git merge -s ours --allow-unrelated-histories`, `main` fast-forwarded
-to it and `release/v2` was deleted. v1's last `main` stays as branch `v1`, with v1's docs (built into `/apx/v1/` by
+to it and `release/v2` was deleted. v1's last `main` stays as branch `v1`, with v1's docs (built into `/v1/` by
 `pages.yml`) and its own semantic-release, which publishes v1 to npm from that branch. `verify` leaves the commits
 `origin/v1` holds out of its commit check.
 
 Day-to-day work goes to `staging` (verify runs on every push there); `main` is the last release. Cutting a version
 fast-forwards `main` to a `staging` commit whose verify passed, waits for verify on `main`, then tags it (below).
-`pages.yml` publishes the site from `main`, so the docs change with a release, not with each push.
+`pages.yml` publishes the site from `main`, so the docs change with a release, not with each push. The site lives at
+`https://apxagent.app/`, the repository's Pages custom domain (DNS in Cloudflare, DNS only, pointing at GitHub Pages);
+GitHub sends every `agentprojectcontext.github.io/apx/…` address on to the same path there.
 
 ## What a release carries
 
@@ -119,8 +121,8 @@ already answered is skipped. To preview it locally: `TAG=v2.x.y node scripts/iss
 | Docker | `scripts/docker/Dockerfile` from a bundle | `APX_TOKEN` required; updates by image |
 
 The install scripts have a URL of their own, served by the Pages site (`apps/docs` copies them in when it builds):
-`https://agentprojectcontext.github.io/apx/install.sh` and `…/install.ps1` (the older `/apx/v2/install.sh` and
-`…/install.ps1` stay served: installed apps and older docs give them). The script finds the newest v2 release itself.
+`https://apxagent.app/install.sh` and `…/install.ps1` (the older `/v2/install.sh` and `…/install.ps1`
+stay served, and the github.io addresses redirect there: installed apps and older docs give them). The script finds the newest v2 release itself.
 
 ## Testing
 
