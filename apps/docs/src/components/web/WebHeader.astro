@@ -1,7 +1,9 @@
 ---
 import logo from "../../assets/logo.png";
+import { comparisons, featuredComparison } from "../../data/comparisons";
 import { sitePath } from "../../doc-routes.mjs";
 import { HOME, type Lang } from "../../i18n/home";
+import Blob from "../Blob.astro";
 import UiIcon from "../UiIcon.astro";
 import SocialIcon from "./SocialIcon.astro";
 import "./web.css";
@@ -14,13 +16,11 @@ const { lang, route = "/" } = Astro.props;
 const t = HOME[lang];
 const pre = lang === "es" ? "/es" : "";
 const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
-const links = [
-  ["/#new", t.nav.product],
-  ["/#start", t.nav.start],
-  ["/compare/", t.nav.compare],
-  ["/start/introduction/", t.nav.docs],
-] as const;
-const current = (path: string) => (path === "/compare/" && route.startsWith("/compare/") ? "page" : undefined);
+const comparing = route.startsWith("/compare/");
+// The Compare menu: the newest comparison as a card, a few more beside it, and the way to all of them.
+const featured = comparisons.find((c) => c.slug === featuredComparison) ?? comparisons[0];
+const listed = comparisons.filter((c) => c !== featured).slice(0, 4);
+const tones = ["warm", "dusk", "sea"] as const;
 ---
 <script is:inline>
   (() => {
@@ -35,7 +35,43 @@ const current = (path: string) => (path === "/compare/" && route.startsWith("/co
   <div class="wrap nav__in">
     <a class="brand" href={href(`${pre}/`)}><img src={logo.src} alt="" width="26" height="26" /><span>APX</span><span class="brand__v" aria-hidden="true">v2</span></a>
     <div class="nav__links" id="navLinks">
-      {links.map(([path, label]) => <a href={href(`${pre}${path}`)} aria-current={current(path)}>{label}</a>)}
+      <a href={href(`${pre}/#new`)}>{t.nav.product}</a>
+      <a href={href(`${pre}/#start`)}>{t.nav.start}</a>
+      <div class="nav__cmp">
+        <a class="nav__cmp-link" href={href(`${pre}/compare/`)} aria-current={comparing ? "page" : undefined}>
+          {t.nav.compare}<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" /></svg>
+        </a>
+        {
+          featured && (
+            <div class="nav__menu">
+              <div class="nav__menu-card">
+                <div class="nav__menu-grid">
+                  <a class="nav__feat" href={href(`${pre}/compare/${featured.slug}/`)}>
+                    <span class="nav__feat-new">{t.nav.fresh}</span>
+                    <span class="nav__feat-blob" aria-hidden="true"><Blob name="menta" size={64} /></span>
+                    <span class="nav__feat-name">APX vs {featured.name}</span>
+                    <span class="nav__feat-tag">{featured.tagline[lang]}</span>
+                  </a>
+                  <ul class="nav__menu-list">
+                    {listed.map((c, i) => (
+                      <li>
+                        <a href={href(`${pre}/compare/${c.slug}/`)}>
+                          <span class:list={["nav__menu-mark", `tone-${tones[i % tones.length]}`]} aria-hidden="true">
+                            <span><img src={href(`/brands/${c.logo}`)} class:list={["nav__menu-logo", { "mono-mark": c.mono }]} alt="" width="18" height="18" loading="lazy" /></span>
+                          </span>
+                          <span class="nav__menu-text"><b>APX vs {c.name}</b><span>{c.tagline[lang]}</span></span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <p class="nav__menu-foot"><span>{t.nav.compareNote}</span><a href={href(`${pre}/compare/#comparisons`)}>{t.nav.compareAll} →</a></p>
+              </div>
+            </div>
+          )
+        }
+      </div>
+      <a href={href(`${pre}/start/introduction/`)}>{t.nav.docs}</a>
       <a class="nav__sheet-get" href={href(`${pre}/#download`)}>{t.getApp}</a>
     </div>
     <div class="nav__cta">
@@ -70,6 +106,10 @@ const current = (path: string) => (path === "/compare/" && route.startsWith("/co
       toggle?.focus();
     }
   });
+  // At the very top the header is a fade over the page; once the page moves it becomes a bar.
+  const onScroll = () => nav?.toggleAttribute("data-scrolled", scrollY > 24);
+  addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
   document.getElementById("theme")?.addEventListener("click", () => {
     const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
     document.documentElement.dataset.theme = next;

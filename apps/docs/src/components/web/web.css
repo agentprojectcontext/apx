@@ -265,11 +265,43 @@ body.h {
   position: fixed;
   inset: 0 0 auto;
   z-index: 50;
-  background: color-mix(in srgb, var(--apx-bg) 82%, transparent);
+}
+/* Two backdrops: a fade at the top of the page, a blurred bar once it scrolls (or the menu opens). */
+.web-header::before,
+.web-header::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: opacity 0.35s;
+}
+.web-header::before {
+  bottom: -28px;
+  background: linear-gradient(
+    to bottom,
+    var(--apx-bg) 0%,
+    color-mix(in srgb, var(--apx-bg) 70%, transparent) 55%,
+    transparent 100%
+  );
+}
+.web-header::after {
+  border-bottom: 1px solid var(--apx-border);
+  background: color-mix(in srgb, var(--apx-bg) 80%, transparent);
   -webkit-backdrop-filter: blur(18px) saturate(1.4);
   backdrop-filter: blur(18px) saturate(1.4);
+  opacity: 0;
+}
+.web-header[data-scrolled]::before,
+.web-header[data-open]::before {
+  opacity: 0;
+}
+.web-header[data-scrolled]::after,
+.web-header[data-open]::after {
+  opacity: 1;
 }
 .nav__in {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 28px;
@@ -297,14 +329,242 @@ body.h {
   color: var(--apx-fg-muted);
 }
 .nav__links {
+  position: relative;
   display: flex;
-  gap: 24px;
-  font-size: 15px;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--apx-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--apx-surface) 70%, transparent);
+  font-size: 14.5px;
   color: var(--apx-fg-muted);
 }
-.nav__links a:hover,
-.nav__links a[aria-current] {
+.nav__links > a,
+.nav__cmp-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+.nav__cmp-link {
+  padding-right: 12px;
+}
+.nav__links > a:hover,
+.nav__cmp-link:hover,
+.nav__cmp-link[aria-current],
+.nav__cmp:hover .nav__cmp-link,
+.nav__cmp:focus-within .nav__cmp-link {
+  background: var(--apx-fill-strong);
   color: var(--apx-fg);
+}
+.nav__cmp-link svg {
+  transition: transform 0.25s;
+}
+.nav__cmp {
+  position: relative;
+}
+/* Opens on hover or focus; closing waits 140 ms so the pointer can cross the gap to the menu. */
+.nav__menu {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 600px;
+  padding-top: 14px;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateX(-50%) translateY(-6px);
+  transition:
+    opacity 0.22s 0.14s,
+    transform 0.3s var(--apx-ease) 0.14s,
+    visibility 0s 0.36s;
+}
+.nav__cmp:hover .nav__menu,
+.nav__cmp:focus-within .nav__menu {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%);
+  transition:
+    opacity 0.22s,
+    transform 0.3s var(--apx-ease),
+    visibility 0s;
+}
+.nav__cmp:hover .nav__cmp-link svg,
+.nav__cmp:focus-within .nav__cmp-link svg {
+  transform: rotate(180deg);
+}
+.nav__menu-card {
+  overflow: hidden;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--apx-bg) 90%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  backdrop-filter: blur(20px) saturate(1.3);
+  box-shadow: 0 24px 60px -20px rgb(0 0 0 / 0.55);
+}
+.nav__menu-grid {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px;
+}
+.nav__feat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 230px;
+  overflow: hidden;
+  padding: 16px;
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, var(--apx-info) 0%, transparent 55%),
+    radial-gradient(120% 140% at 100% 100%, var(--apx-brand) 0%, transparent 60%), var(--apx-violet);
+  color: #fff;
+  transition: filter 0.2s;
+}
+.nav__feat::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.6), transparent 60%);
+}
+.nav__feat:hover {
+  filter: brightness(1.08);
+}
+.nav__feat-new {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.35);
+  font: 600 10px / 1 var(--apx-font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.nav__feat-blob {
+  position: absolute;
+  top: 14px;
+  right: -12px;
+}
+.nav__feat-name,
+.nav__feat-tag {
+  position: relative;
+  z-index: 1;
+  text-wrap: pretty;
+}
+.nav__feat-name {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.nav__feat-tag {
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: rgb(255 255 255 / 0.85);
+}
+.nav__menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.nav__menu-list a {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 14px;
+  color: var(--apx-fg);
+  transition: background 0.2s;
+}
+.nav__menu-list a:hover,
+.nav__menu-list a:focus-visible {
+  background: var(--apx-fill);
+}
+.nav__menu-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+.nav__menu-mark > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--apx-bg);
+}
+.nav__menu-logo {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+.tone-warm {
+  background:
+    radial-gradient(120% 140% at 0% 0%, var(--apx-warning) 0%, transparent 55%),
+    radial-gradient(120% 140% at 100% 100%, var(--apx-violet) 0%, transparent 60%), var(--apx-danger);
+}
+.tone-dusk {
+  background:
+    radial-gradient(120% 140% at 0% 100%, var(--apx-danger) 0%, transparent 55%),
+    radial-gradient(120% 140% at 100% 0%, var(--apx-warning) 0%, transparent 60%), var(--apx-violet);
+}
+.tone-sea {
+  background:
+    radial-gradient(120% 140% at 0% 0%, var(--apx-info) 0%, transparent 55%),
+    radial-gradient(120% 140% at 100% 100%, var(--apx-brand) 0%, transparent 60%), var(--apx-violet);
+}
+.nav__menu-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.nav__menu-text b {
+  font-size: 14px;
+  font-weight: 600;
+}
+.nav__menu-text span {
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--apx-fg-muted);
+  text-wrap: pretty;
+}
+.nav__menu-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 14px 20px;
+  border-top: 1px solid var(--apx-border);
+  font-size: 13px;
+  color: var(--apx-fg-muted);
+}
+.nav__menu-foot a {
+  font-weight: 500;
+  color: var(--apx-fg);
+  white-space: nowrap;
+}
+.nav__menu-foot a:hover {
+  color: var(--apx-brand);
 }
 .nav__cta {
   display: flex;
@@ -383,18 +643,15 @@ body.h {
 .nav__toggle[aria-expanded="true"] span:last-child {
   transform: translateY(-2.75px) rotate(-45deg);
 }
-.nav__sheet-get {
+.nav__links > .nav__sheet-get {
   display: none;
 }
-@media (max-width: 1040px) {
+@media (max-width: 1180px) {
   .nav__in {
-    gap: 20px;
-  }
-  .nav__links {
-    gap: 18px;
+    gap: 16px;
   }
 }
-@media (max-width: 900px) {
+@media (max-width: 999px) {
   .nav__in {
     gap: 12px;
   }
@@ -416,21 +673,38 @@ body.h {
     display: none;
     flex-direction: column;
     gap: 4px;
+    align-items: stretch;
     padding: 12px var(--apx-gutter) 20px;
+    border: 0;
     border-bottom: 1px solid var(--apx-border);
+    border-radius: 0;
     background: var(--apx-bg);
     font-size: 18px;
     font-weight: 500;
     color: var(--apx-fg);
   }
-  .nav__links a {
+  .nav__links > a,
+  .nav__cmp-link {
+    height: auto;
     padding: 12px 4px;
     border-bottom: 1px solid var(--apx-border);
+    border-radius: 0;
+  }
+  .nav__links > a:hover,
+  .nav__cmp-link:hover,
+  .nav__cmp-link[aria-current],
+  .nav__cmp:hover .nav__cmp-link,
+  .nav__cmp:focus-within .nav__cmp-link {
+    background: none;
+  }
+  .nav__cmp-link svg,
+  .nav__menu {
+    display: none;
   }
   .web-header[data-open] .nav__links {
     display: flex;
   }
-  .nav__links .nav__sheet-get {
+  .nav__links > .nav__sheet-get {
     display: flex;
     align-items: center;
     justify-content: center;

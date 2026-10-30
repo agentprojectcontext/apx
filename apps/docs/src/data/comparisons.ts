@@ -115,6 +115,8 @@ export const comparisons: Product[] = [
   instinct,
 ];
 export type Comparison = Product;
+/** The comparison the header's menu shows first, marked new: the latest one added. */
+export const featuredComparison = "claude-cowork";
 export const labels = {
   en: {
     comparisons: "Comparisons",

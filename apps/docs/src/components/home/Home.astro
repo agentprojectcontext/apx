@@ -1,7 +1,6 @@
 ---
-// The site's front page: a hero with the glyph field and a rotating word, the real app, what it does, the way in,
+// The site's front page: a hero lit by the horizon effect, with a rotating word, the real app, what it does, the way in,
 // questions, comparisons and downloads.
-import type { ImageMetadata } from "astro";
 import logo from "../../assets/logo.png";
 import blobs from "../../data/blobs.json";
 import { comparisons } from "../../data/comparisons";
@@ -18,7 +17,6 @@ import SocialIcon from "../web/SocialIcon.astro";
 import WebFooter from "../web/WebFooter.astro";
 import WebHeader from "../web/WebHeader.astro";
 import DownloadButton from "./DownloadButton.astro";
-import { GLYPH_AGENTS } from "./glyph-agents";
 import "./home.css";
 
 interface Props {
@@ -37,12 +35,6 @@ const releases = "https://github.com/agentprojectcontext/apx/releases?q=v2&expan
 const discord = "https://discord.gg/vxdZuT5WuE";
 type BlobName = keyof typeof blobs;
 
-const bodies = import.meta.glob<ImageMetadata>("../../assets/blobs/*.webp", { eager: true, import: "default" });
-const glyphAgents = GLYPH_AGENTS[lang].map((a) => ({
-  src: bodies[`../../assets/blobs/${a.blob}.webp`]?.src ?? "",
-  eyes: blobs[a.blob].eyes.map(({ x, y, w, h }) => ({ x, y, w, h })),
-  text: a.text,
-}));
 const wordBlobs: BlobName[] = ["menta", "noche", "cobalto", "amatista", "brasa"];
 const statusBlobs: BlobName[] = ["menta", "coral", "cobalto", "amatista"];
 const osList = [
@@ -161,7 +153,7 @@ const cliRows = [
     <main id="main">
       <section class="hero">
         <div class="hero__aura" aria-hidden="true"></div>
-        <canvas class="hero__glyphs" id="glyphs" aria-hidden="true" data-agents={JSON.stringify(glyphAgents)}></canvas>
+        <canvas class="hero__horizon" id="horizon" aria-hidden="true"></canvas>
         <div class="wrap hero__in">
           <a class="hero__pill" href="#download">
             <span class="hero__new">{t.pill.strong}</span>
@@ -194,6 +186,7 @@ const cliRows = [
               <UiIcon name="terminal" />{t.get.terminal}
             </button>
           </div>
+          <div class="hero__dock">
           <div class="hero__install" id="heroInstall" hidden>
             <div class="hero__tabs" role="group" aria-label={t.term.label}>
               {
@@ -224,6 +217,7 @@ const cliRows = [
             <span class="status__text"><b id="statusWho">{t.status[0]?.[0]}</b><span id="statusWhat">{t.status[0]?.[1]}</span></span>
             <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
           </div>
+          </div>
         </div>
       </section>
 
@@ -231,7 +225,7 @@ const cliRows = [
         <div class="wrap stage__in">
           <div class="stage__bubble stage__bubble--l" aria-hidden="true"><Blob name="coral" size={32} /><span class="stage__say">{t.bubbles[0]}</span></div>
           <div class="stage__bubble stage__bubble--r" aria-hidden="true"><span class="stage__say">{t.bubbles[1]}</span><Blob name="cobalto" size={32} /></div>
-          <div class="stage__shot" data-reveal>
+          <div class="stage__shot" data-reveal data-stage-card>
             <Shot name="home-hero" alt={t.shotAlt} frame="none" eager />
           </div>
           <p class="stage__note">{t.stageNote}</p>
@@ -549,12 +543,25 @@ const cliRows = [
     <script>
       import { fillLatest } from "../latest-release";
       import { startReveal } from "../web/reveal";
-      import { type GlyphAgent, startGlyphs } from "./glyphs";
+      import { startHorizon } from "./horizon";
 
       const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
       startReveal();
-      const canvas = document.getElementById("glyphs") as HTMLCanvasElement | null;
-      if (canvas) startGlyphs(canvas, JSON.parse(canvas.dataset.agents ?? "[]") as GlyphAgent[]);
+      // The horizon follows the stage card: its edges and top, as fractions of the canvas, and its corner radius.
+      const canvas = document.getElementById("horizon") as HTMLCanvasElement | null;
+      const stage = document.querySelector<HTMLElement>("[data-stage-card]");
+      if (
+        canvas &&
+        stage &&
+        startHorizon(canvas, () => {
+          const c = canvas.getBoundingClientRect();
+          const s = stage.getBoundingClientRect();
+          if (!c.width || !c.height) return null;
+          const radius = Number.parseFloat(getComputedStyle(stage).borderTopLeftRadius) || 16;
+          return [(s.left - c.left) / c.width, (s.right - c.left) / c.width, (s.top - c.top) / c.height, radius / c.height];
+        })
+      )
+        document.querySelector(".hero")?.classList.add("has-horizon");
       fillLatest(document.querySelectorAll<HTMLAnchorElement>(".dlc a[data-file]"));
 
       for (const b of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
@@ -579,6 +586,7 @@ const cliRows = [
         if (!install) return;
         install.hidden = !install.hidden;
         term.setAttribute("aria-expanded", String(!install.hidden));
+        document.getElementById("status")?.classList.toggle("is-away", !install.hidden);
       });
       const pickTerm = (id: string) => {
         for (const b of install?.querySelectorAll<HTMLElement>("[data-term]") ?? []) b.setAttribute("aria-pressed", String(b.dataset.term === id));
