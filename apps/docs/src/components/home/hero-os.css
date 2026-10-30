@@ -1,0 +1,38 @@
+/* The hero's top line: which systems APX runs on, each one a mark and a name. */
+.pill--os {
+  gap: 10px;
+  padding: 5px 14px 5px 5px;
+  font-size: 13px;
+}
+.pill--os .pill__new {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--btn-light-bg);
+  color: var(--btn-light-fg);
+  font: 600 11px / 1 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.pill__os {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg);
+}
+.pill__os + .pill__os::before {
+  content: "·";
+  margin-right: 4px;
+  color: var(--dim);
+}
+@media (max-width: 560px) {
+  .pill__on,
+  .pill__os > span {
+    display: none;
+  }
+  .pill--os {
+    gap: 12px;
+  }
+  .pill__os + .pill__os::before {
+    content: none;
+  }
+}
