@@ -1430,7 +1430,7 @@ a.dlc__alt:hover {
 }
 .dl-server .dl-server__cta {
   align-self: flex-start;
-  height: 44px;
+  height: 46px;
   margin-top: 4px;
   font-size: 14px;
 }
@@ -1808,6 +1808,6 @@ a.dlc__alt:hover {
     height: 44px;
   }
   .cli__tabs button {
-    min-height: 44px;
+    min-height: 46px;
   }
 }

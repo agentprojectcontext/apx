@@ -194,6 +194,11 @@ for (const lang of ["en", "es"] as const) {
       await expect(page.locator(".web-header .nav__menu-sections a")).toHaveCount(8);
       await expect(page.locator(".web-header .nav__menu-list--docs a")).toHaveCount(6);
       await expect(page.locator(".web-header .nav__cmp .nav__menu-list a").first()).toBeVisible();
+      // Every group fits the screen's width.
+      for (const card of await page.locator(".web-header .nav__menu-card").all()) {
+        const box = await card.boundingBox();
+        expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0);
+      }
       const sheet = page.locator("#navLinks");
       const box = await sheet.boundingBox();
       expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(page.viewportSize()?.height ?? 0);

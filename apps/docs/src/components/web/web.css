@@ -848,7 +848,7 @@ body.h {
   }
   .nav__feat {
     min-height: 0;
-    padding: 14px 16px;
+    padding: 14px 72px 14px 16px;
   }
   .nav__feat-new {
     position: relative;
@@ -871,6 +871,10 @@ body.h {
   }
   .nav__menu-foot > span {
     display: none;
+  }
+  .nav__menu.nav__menu--start,
+  .nav__menu.nav__menu--wide {
+    width: auto;
   }
   .nav__menu-sections,
   .nav__menu-list.nav__menu-list--docs {
@@ -1336,6 +1340,14 @@ body.h {
   }
   .web-footer__groups ul {
     gap: 0;
+  }
+  .web-footer__fold summary {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .web-footer__fold summary h2 {
+    margin: 0;
   }
   .web-footer__groups a,
   .web-footer__legal a,
