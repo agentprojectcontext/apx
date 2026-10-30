@@ -2,16 +2,11 @@ import "../styles/corner.css";
 import { Button, ChannelIcon, IconButton, Icons, ProjectTile } from "@apx/ui";
 import type { CSSProperties, ReactNode } from "react";
 import { closeCard, useClosedCards } from "../data/cornerCards.ts";
+import { LINKS } from "../data/links.ts";
 import { PRIVACY_URL, setUsage, useTelemetry } from "../data/telemetry.ts";
 import { newerOf, openUpdate, restartApp, useUpdates } from "../data/updates.ts";
 import { useV1Running } from "../data/v1Running.ts";
 import { useT } from "../i18n/index.ts";
-
-const LINKS = {
-  discord: "https://discord.gg/vxdZuT5WuE",
-  // The public repo: where the releases and the docs live.
-  repo: "https://github.com/agentprojectcontext/apx",
-} as const;
 
 /**
  * A small deck: a newer APX, the Discord, a star on GitHub. Only the first that still applies shows; the next peeks

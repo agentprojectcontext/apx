@@ -14,14 +14,24 @@ export interface MenuProps {
   align?: "start" | "center" | "end";
   /** Start open (for docs/previews). */
   defaultOpen?: boolean;
+  /** Told when it opens or closes (to read fresh items as it opens). */
+  onOpenChange?: (open: boolean) => void;
   className?: string;
 }
 
 /** Dropdown/overflow menu: row actions (⋯), "New" menus, account menu. */
-export function Menu({ trigger, items, side = "bottom", align = "start", defaultOpen, className }: MenuProps) {
+export function Menu({
+  trigger,
+  items,
+  side = "bottom",
+  align = "start",
+  defaultOpen,
+  onOpenChange,
+  className,
+}: MenuProps) {
   const { portalRef } = useApx();
   return (
-    <BaseMenu.Root defaultOpen={defaultOpen} modal={false}>
+    <BaseMenu.Root defaultOpen={defaultOpen} modal={false} onOpenChange={(open) => onOpenChange?.(open)}>
       <BaseMenu.Trigger render={trigger} />
       <BaseMenu.Portal container={portalRef}>
         <BaseMenu.Positioner side={side} align={align} sideOffset={6}>
