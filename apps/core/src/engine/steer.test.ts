@@ -39,6 +39,9 @@ test("steer puts the owner's text into the running turn at its next step", async
     messages.map((m) => `${m.author.kind}: ${said(m)}`),
     ["user: work a bit", "agent: [shell]", "user: use metric units", "agent: Steered: use metric units"],
   );
+  // The step keeps how long it took, for the folded "1 step · 0 s".
+  const step = messages.flatMap((m) => m.parts).find((p) => p.type === "tool");
+  assert.ok(step?.type === "tool" && typeof step.ms === "number" && step.ms >= 300);
   // Both parts belong to the one run, which points at the answer it ended with.
   const answers = messages.filter((m) => m.author.kind === "agent");
   assert.ok(answers.every((m) => m.run_id === first.run.id));

@@ -253,6 +253,7 @@ export function createExecutor(o: {
     const bridged = called !== MCP_CALL || (name.startsWith("mcp_") && name !== MCP_CALL && name !== MCP_SEARCH);
     const tool = bridged ? byName.get(name) : undefined;
     const title = tool ? toolTitle(store, tool, raw) : name;
+    const began = Date.now();
     const card = (status: "running" | "ok" | "error", detail?: string) =>
       display.upsert((p) => p.type === "tool" && p.call_id === callId, {
         type: "tool",
@@ -261,6 +262,7 @@ export function createExecutor(o: {
         title,
         status,
         ...(detail ? { detail } : {}),
+        ...(status === "running" ? {} : { ms: Date.now() - began }),
       });
     card("running");
     signal.throwIfAborted();
@@ -606,13 +608,14 @@ export function createExecutor(o: {
     return answer.state === "approved" && allow();
   };
 
-  const seen = new Set<string>();
+  /** When each of an external agent's tool calls began. */
+  const seen = new Map<string, number>();
   const observe: TurnIO["observe"] = (ev) => {
     const run = o.run();
     // What an external agent fetched from the web is now in its context.
     if (ev.kind === "fetch") untrusted = true;
     if (!seen.has(ev.callId)) {
-      seen.add(ev.callId);
+      seen.set(ev.callId, Date.now());
       const looks = LOOKING.has(ev.kind);
       if (!looks) toolsRan++;
       store.runs.beginStep(run.id, {
@@ -632,6 +635,7 @@ export function createExecutor(o: {
       title: ev.title,
       status: ev.status,
       ...(ev.detail ? { detail: ev.detail } : {}),
+      ...(ev.status === "running" ? {} : { ms: Date.now() - (seen.get(ev.callId) ?? Date.now()) }),
     });
   };
 
