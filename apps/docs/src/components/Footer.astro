@@ -1,8 +1,10 @@
 ---
 // Starlight's footer, plus the script that makes every blobo on the page blink and look at the pointer.
 import Default from "@astrojs/starlight/components/Footer.astro";
+import AnalyticsConsent from "./AnalyticsConsent.astro";
 import BlobEyes from "./BlobEyes.astro";
 ---
 
 <Default><slot /></Default>
 <BlobEyes />
+<AnalyticsConsent />

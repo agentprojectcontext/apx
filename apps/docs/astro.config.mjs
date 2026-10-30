@@ -1,8 +1,10 @@
 // @ts-check
 import { copyFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import sitemap from "@astrojs/sitemap";
 import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
+import { sitePath } from "./src/doc-routes.mjs";
 
 // Where the site is published. Pages write absolute links ("/concepts/agents/"); withBase() below puts this prefix in
 // front of them, so moving the site (e.g. under /apx/docs/) only changes these two values.
@@ -15,7 +17,7 @@ const ogImageAlt = "APX: meet your crew. AI agents that live on your computer.";
 /** A remark plugin: absolute links in Markdown and `href`s on components (LinkCard…) get the site's base. */
 function withBase() {
   /** @param {string} url */
-  const fix = (url) => (base !== "/" && /^\/(?!\/)/.test(url) && !url.startsWith(base) ? base + url.slice(1) : url);
+  const fix = (url) => sitePath(url, base);
   /** @param {any} node */
   const walk = (node) => {
     if (node.type === "link" || node.type === "definition") node.url = fix(node.url);
@@ -54,9 +56,14 @@ export default defineConfig({
   trailingSlash: "always",
   devToolbar: { enabled: false },
   markdown: { remarkPlugins: [withBase] },
-  // <base>docs/ is the address to give for "the docs": it lands on the first page. Destinations are not given the base.
-  redirects: { "/docs": `${base}start/introduction/`, "/es/docs": `${base}es/start/introduction/` },
   integrations: [
+    sitemap({
+      i18n: { defaultLocale: "en", locales: { en: "en", es: "es" } },
+      filter: (page) => {
+        const path = new URL(page).pathname.slice(base.length - 1);
+        return sitePath(path) === path && !["/docs/", "/es/docs/"].includes(path);
+      },
+    }),
     installScripts(),
     starlight({
       title: "APX",
@@ -97,19 +104,19 @@ export default defineConfig({
         {
           label: "Your office",
           translations: { es: "Tu oficina" },
-          items: ["office/chat", "office/tasks", "office/routines", "office/secretary", "office/code", "office/email"],
+          items: ["docs/office/chat", "docs/office/tasks", "docs/office/routines", "docs/office/secretary", "docs/office/code", "docs/office/email"],
         },
         {
           label: "Apps and artifacts",
           translations: { es: "Apps y artefactos" },
           collapsed: false,
-          items: ["apps/overview", "office/artifacts", "apps/live-apps", "office/board"],
+          items: ["docs/apps/overview", "docs/office/artifacts", "docs/apps/live-apps", "docs/office/board"],
         },
         {
           label: "Computers and browser",
           translations: { es: "Computadoras y navegador" },
           collapsed: false,
-          items: ["computers/overview", "office/computers", "office/browser"],
+          items: ["docs/computers/overview", "docs/office/computers", "docs/office/browser"],
         },
         section("Channels", "Canales", "channels"),
         section("Extend", "Extender", "extend"),
