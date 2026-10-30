@@ -1,5 +1,5 @@
 import type { SharedFile } from "@apx/protocol";
-import { Button, EmptyState, IconButton, Icons, MediaLoader, mediaKindOf, ProjectTile } from "@apx/ui";
+import { Dialog, EmptyState, IconButton, Icons, MediaLoader, mediaKindOf, ProjectTile } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { formatBytes } from "../common/format.ts";
 import { DEFAULT_PID, projectInitial, projectName, projectTone } from "../data/identity.ts";
@@ -71,7 +71,7 @@ function Body({ file }: { file: SharedFile }) {
   );
 }
 
-/** One file, shown live over the list, with its actions; back (or Esc) returns to the list where it was. */
+/** One file over the list, on a dark backdrop with its details and actions beside it; closing leaves the list as it was. */
 export function SharedPreview({
   file,
   onBack,
@@ -85,53 +85,78 @@ export function SharedPreview({
   const t = useT();
   const projects = useData((s) => s.projects);
   const project = projectName(projects, file.project_id);
+  const name = file.name || t(ONE[file.kind]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLElement && e.target.closest("input, textarea, video, audio")) return;
-      if (e.key === "Escape") onBack();
-      else if (e.key === "ArrowLeft") onStep?.(-1);
+      if (e.key === "ArrowLeft") onStep?.(-1);
       else if (e.key === "ArrowRight") onStep?.(1);
     };
-    window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
-  }, [onBack, onStep]);
+    // Capture: the dialog handles its own keys before they would bubble up here.
+    window.addEventListener("keydown", key, true);
+    return () => window.removeEventListener("keydown", key, true);
+  }, [onStep]);
   return (
-    <section className="sharedf__preview" aria-label={file.name || t(ONE[file.kind])}>
-      <header className="sharedf__previewhead">
-        <Button variant="ghost" size="sm" leadingIcon={<Icons.ArrowLeft size={14} />} onClick={onBack}>
-          {t("shared.back")}
-        </Button>
-        <span className="resv__spacer" />
+    <Dialog
+      bare
+      open
+      onOpenChange={(o) => !o && onBack()}
+      title={name}
+      closeLabel={t("shared.close")}
+      className="sharedlb"
+    >
+      <div className="sharedf__lbstage">
         {onStep && (
-          <span className="sharedf__steps">
-            <IconButton label={t("shared.prev")} icon={<Icons.ChevronLeft size={16} />} onClick={() => onStep(-1)} />
-            <IconButton label={t("shared.next")} icon={<Icons.ChevronRight size={16} />} onClick={() => onStep(1)} />
-          </span>
+          <IconButton
+            className="sharedf__lbstep is-prev"
+            label={t("shared.prev")}
+            icon={<Icons.ChevronLeft size={20} />}
+            onClick={() => onStep(-1)}
+          />
         )}
-      </header>
-      <div className="sharedf__previewinfo">
-        <div className="sharedf__previewtitle">
-          <h2>{file.name || t(ONE[file.kind])}</h2>
-          <span className="sharedf__meta">
-            <span className="sharedf__project">
-              <ProjectTile
-                tone={projectTone(file.project_id ?? DEFAULT_PID)}
-                initial={projectInitial(project)}
-                size={14}
-              />
-              {project}
-            </span>
-            <span className="sharedf__chat">{file.thread_title}</span>
-          </span>
-          <span className="sharedf__meta">
-            <Sender author={file.author} />
-            <span>{when(file.created_at)}</span>
-            {file.bytes > 0 && <span>{formatBytes(file.bytes)}</span>}
-          </span>
-        </div>
-        <SharedActions file={file} all />
+        <Body key={file.media_id} file={file} />
+        {onStep && (
+          <IconButton
+            className="sharedf__lbstep is-next"
+            label={t("shared.next")}
+            icon={<Icons.ChevronRight size={20} />}
+            onClick={() => onStep(1)}
+          />
+        )}
       </div>
-      <Body key={file.media_id} file={file} />
-    </section>
+      <aside className="sharedf__lbside">
+        <span className="sharedf__lbkind">
+          {kindIcon(file.kind, 14)}
+          {t(ONE[file.kind])}
+        </span>
+        <h2 className="sharedf__lbname">{name}</h2>
+        <dl className="sharedf__facts">
+          <dt>{t("shared.fact.project")}</dt>
+          <dd className="sharedf__project">
+            <ProjectTile
+              tone={projectTone(file.project_id ?? DEFAULT_PID)}
+              initial={projectInitial(project)}
+              size={16}
+            />
+            {project}
+          </dd>
+          <dt>{t("shared.fact.chat")}</dt>
+          <dd>{file.thread_title}</dd>
+          <dt>{t("shared.fact.from")}</dt>
+          <dd>
+            <Sender author={file.author} size={20} />
+          </dd>
+          <dt>{t("shared.fact.when")}</dt>
+          <dd>{when(file.created_at)}</dd>
+          {file.bytes > 0 && (
+            <>
+              <dt>{t("shared.fact.size")}</dt>
+              <dd>{formatBytes(file.bytes)}</dd>
+            </>
+          )}
+        </dl>
+        <SharedActions file={file} all labeled />
+      </aside>
+    </Dialog>
   );
 }

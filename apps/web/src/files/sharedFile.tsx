@@ -1,6 +1,6 @@
 // What a shared file's card and preview both show: its kind's icon, who sent it, when, and what can be done with it.
 import type { Author, SharedFile, SharedKind } from "@apx/protocol";
-import { AgentAvatar, Avatar, IconButton, Icons, Tooltip } from "@apx/ui";
+import { AgentAvatar, Avatar, Button, IconButton, Icons, Tooltip } from "@apx/ui";
 import type { ReactNode } from "react";
 import { client } from "../data/client.ts";
 import { mediaUrl } from "../data/media.ts";
@@ -56,7 +56,15 @@ export function Sender({ author, size = 18 }: { author: Author; size?: number })
   );
 }
 
-function Action({ label, icon, onClick }: { label: string; icon: ReactNode; onClick: () => void }) {
+type ActionProps = { label: string; icon: ReactNode; onClick: () => void; labeled: boolean };
+
+function Action({ label, icon, onClick, labeled }: ActionProps) {
+  if (labeled)
+    return (
+      <Button variant="secondary" size="sm" leadingIcon={icon} onClick={onClick}>
+        {label}
+      </Button>
+    );
   return (
     <Tooltip content={label}>
       <IconButton
@@ -71,8 +79,16 @@ function Action({ label, icon, onClick }: { label: string; icon: ReactNode; onCl
   );
 }
 
-/** Go to the chat and download; `all` adds show in its folder and copy its path. */
-export function SharedActions({ file, all = false }: { file: SharedFile; all?: boolean }) {
+/** Go to the chat and download; `all` adds show in its folder and copy its path; `labeled` names each button. */
+export function SharedActions({
+  file,
+  all = false,
+  labeled = false,
+}: {
+  file: SharedFile;
+  all?: boolean;
+  labeled?: boolean;
+}) {
   const t = useT();
   const engine = useData((s) => s.threads[file.thread_id]?.engine);
   const failed = (e: unknown) => notify(e instanceof Error ? e.message : String(e));
@@ -87,21 +103,29 @@ export function SharedActions({ file, all = false }: { file: SharedFile; all?: b
     }
   };
   return (
-    <span className="sharedf__actions">
+    <span className={labeled ? "sharedf__actions is-labeled" : "sharedf__actions"}>
       <Action
+        labeled={labeled}
         label={t("shared.goTo")}
         icon={<Icons.MessageSquare size={16} />}
         onClick={() => go.message(file.thread_id, file.message_id, engine)}
       />
-      <Action label={t("shared.download")} icon={<Icons.Download size={16} />} onClick={() => void download()} />
+      <Action
+        labeled={labeled}
+        label={t("shared.download")}
+        icon={<Icons.Download size={16} />}
+        onClick={() => void download()}
+      />
       {all && (
         <>
           <Action
+            labeled={labeled}
             label={t("shared.reveal")}
             icon={<Icons.FolderOpen size={16} />}
             onClick={() => void client.call("media.reveal", { media_id: file.media_id }).catch(failed)}
           />
           <Action
+            labeled={labeled}
             label={t("shared.copyPath")}
             icon={<Icons.Copy size={16} />}
             onClick={() =>

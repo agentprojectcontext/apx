@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useMediaUrl } from "../chat/parts/useMediaUrl.ts";
 import { client } from "../data/client.ts";
 import { DEFAULT_PID, projectEntries, projectInitial, projectName, projectTone } from "../data/identity.ts";
+import { posterUrl } from "../data/media.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { SharedPreview } from "./SharedPreview.tsx";
@@ -28,18 +29,38 @@ const ORDERS: { id: SharedOrder; label: MessageKey }[] = [
 const PAGE = 60;
 const SEARCH_WAIT_MS = 200;
 
-/** A picture's thumbnail, fetched only once its card comes near the screen; other kinds show their icon. */
+/** The poster frame of a video, once asked for; undefined until then or when there is none. */
+function usePoster(id: string | undefined): string | undefined {
+  const [url, setUrl] = useState<string>();
+  useEffect(() => {
+    if (!id) return;
+    let live = true;
+    posterUrl(id).then(
+      (u) => live && setUrl(u),
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, [id]);
+  return url;
+}
+
+/** A picture's thumbnail or a video's first frame, fetched once its card comes near the screen; others show their icon. */
 function Thumb({ file }: { file: SharedFile }) {
   const box = useRef<HTMLSpanElement>(null);
   const [near, setNear] = useState(false);
+  const visual = file.kind === "image" || file.kind === "video";
   useEffect(() => {
     const el = box.current;
-    if (!el || file.kind !== "image") return;
+    if (!el || !visual) return;
     const seen = new IntersectionObserver(([e]) => e?.isIntersecting && setNear(true), { rootMargin: "300px" });
     seen.observe(el);
     return () => seen.disconnect();
-  }, [file.kind]);
-  const src = useMediaUrl(near ? file.media_id : undefined);
+  }, [visual]);
+  const picture = useMediaUrl(near && file.kind === "image" ? file.media_id : undefined);
+  const poster = usePoster(near && file.kind === "video" ? file.media_id : undefined);
+  const src = picture ?? poster;
   return (
     <span ref={box} className={`sharedf__thumb is-${file.kind}`}>
       {src ? <img src={src} alt="" /> : kindIcon(file.kind, 28)}
@@ -151,7 +172,7 @@ export function FilesScreen() {
   return (
     <section className="resv sharedf" aria-label={t("nav.files")}>
       {shown && <SharedPreview file={shown} onBack={back} onStep={items.length > 1 ? step : undefined} />}
-      <div className="sharedf__list" hidden={shown !== undefined}>
+      <div className="sharedf__list">
         <header className="resv__head">
           <div className="resv__titles">
             <h1 className="resv__title">{t("nav.files")}</h1>
