@@ -72,6 +72,8 @@ const RETRY_BASE_MS = 800;
 const RETRY_MAX_MS = 8000;
 /** A Retry-After this short is waited for on the same model; a longer one moves on. */
 const RETRY_AFTER_MAX_MS = 30_000;
+/** A model whose limit did not say when it lifts is passed over this long before it is asked again. */
+const UNSAID_HOLD_MS = 10 * 60_000;
 
 /** How long to wait before trying the same model again, or undefined when its limit lifts too late to wait for. */
 export function retryWait(err: ProviderError, attempt: number, baseMs: number, now = Date.now()): number | undefined {
@@ -110,8 +112,15 @@ export function createLlm(opts: {
   media?: (id: string) => { mime: string; data: string } | undefined;
   /** Sign-ins by key reference ("oauth:chatgpt"). */
   signIns?: Record<string, SignIn>;
+  now?: () => number;
 }): Llm {
   const { secrets } = opts;
+  const now = opts.now ?? Date.now;
+  /**
+   * Models whose usage limit has not lifted, by ref: later calls go to the next model at once instead of asking it
+   * again on every turn, and a chain of held models only stops with the reset (engine/provider-limit.ts).
+   */
+  const held = new Map<string, { until: number; error: ProviderError }>();
 
   function targets(refs: string[]): Target[] {
     return refs.flatMap((ref) => {
@@ -159,6 +168,13 @@ export function createLlm(opts: {
       for (const t of list) {
         if (skipped.has(t.provider.id)) continue;
         const ref = `${t.provider.id}/${t.model}`;
+        const hold = held.get(ref);
+        if (hold && hold.until > now()) {
+          failed.push({ model: ref, why: "its usage limit has not lifted yet" });
+          limited.push(hold.error);
+          continue;
+        }
+        held.delete(ref);
         const window = contextWindow(ref);
         if (window && need > window) {
           failed.push({
@@ -242,7 +258,11 @@ export function createLlm(opts: {
           }
         }
         if (last) failed.push({ model: ref, why: last.message.slice(ref.length + 2, ref.length + 302) });
-        if (last?.limit) limited.push(last);
+        if (last?.limit) {
+          limited.push(last);
+          const until = last.resetsAt ? Date.parse(last.resetsAt) : now() + UNSAID_HOLD_MS;
+          held.set(ref, { until, error: new ProviderError(last.kind, last.message, last.resetsAt) });
+        }
         if (last && (last.kind === "auth" || last.kind === "model_gone" || last.kind === "bad_request"))
           broken ??= last;
         if (streamed) {
