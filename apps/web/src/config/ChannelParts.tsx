@@ -54,15 +54,6 @@ export function Behavior({
   return (
     <>
       <SubHead>{t("tg.behavior")}</SubHead>
-      <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: channel.label })}>
-        <AgentSelect
-          size="sm"
-          className="tgagent"
-          channel
-          value={channel.agent_id}
-          onChange={(id) => id && id !== channel.agent_id && void save({ agent_id: id })}
-        />
-      </SettingRow>
       <SettingRow title={t("tg.ownerThread")} description={t("tg.ownerThreadHint", { channel: channel.label })}>
         <SegmentedControl
           size="sm"
@@ -73,6 +64,26 @@ export function Behavior({
             { value: "home", label: t("tg.ownerThread.home") },
             { value: "own", label: t("tg.ownerThread.own") },
           ]}
+        />
+      </SettingRow>
+      {channel.owner_thread === "own" && (
+        <SettingRow title={t("tg.ownerAgent")} description={t("tg.ownerAgentHint", { channel: channel.label })}>
+          <AgentSelect
+            size="sm"
+            className="tgagent"
+            channel
+            value={channel.agent_id}
+            onChange={(id) => id && id !== channel.agent_id && void save({ agent_id: id })}
+          />
+        </SettingRow>
+      )}
+      <SettingRow title={t("tg.contactsAgent")} description={t("tg.contactsAgentHint", { channel: channel.label })}>
+        <AgentSelect
+          size="sm"
+          className="tgagent"
+          channel
+          value={channel.contacts_agent_id ?? channel.agent_id}
+          onChange={(id) => id && void save({ contacts_agent_id: id === channel.agent_id ? undefined : id })}
         />
       </SettingRow>
       <SettingRow title={t("tg.concurrency")} description={t(`ch.concurrencyHint.${channel.concurrency}`)}>
