@@ -93,9 +93,12 @@ for (const lang of ["en", "es"]) {
           };
         });
         // The brand, its legal lines and the platforms come first; the links below; the big mark right after.
-        expect(layout.origin.bottom).toBeLessThanOrEqual(layout.brand.bottom);
         expect(layout.groups.y).toBeGreaterThanOrEqual(layout.brand.bottom);
-        expect(layout.availability.bottom).toBeLessThanOrEqual(layout.brand.bottom);
+        // Where APX runs and where it is made share one line under the brand and the website's links.
+        expect(layout.availability.y).toBeGreaterThanOrEqual(layout.brand.bottom);
+        expect(layout.availability.bottom).toBeLessThanOrEqual(layout.groups.y);
+        expect(layout.origin.bottom).toBeLessThanOrEqual(layout.groups.y);
+        if (!isMobile) expect(Math.abs(layout.origin.y - layout.availability.y)).toBeLessThan(12);
         expect(layout.mark.y).toBeGreaterThanOrEqual(layout.groups.bottom);
         expect(layout.mark.y - layout.groups.bottom).toBeLessThan(48);
         // The website's links (Product, Community, Compare) come before the docs' sections.

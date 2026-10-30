@@ -118,11 +118,6 @@ const back = ["orbita", "perla", "caracol", "kiwi"] as const;
         <div class="web-footer__legal">
           <p>© 2026 APX <span class="web-footer__sep" aria-hidden="true">·</span> <a href={`${github}/blob/main/LICENSE`}>{t.license}</a></p>
           <p class="web-footer__fine">{t.trademarks}</p>
-          <p class="web-footer__origin">{t.madeWith} <span class="web-footer__heart" role="img" aria-label={t.love}>♥</span> {t.inArgentina}</p>
-        </div>
-        <div class="web-footer__availability">
-          <p class="web-footer__available">{t.availableFor}</p>
-          <ul class="web-footer__platforms" aria-label={t.platforms}>{platforms.map(({ name, label }) => <li><OsIcon name={name} size={13} />{label}</li>)}</ul>
         </div>
       </div>
       <div class="web-footer__row web-footer__row--site">
@@ -137,6 +132,13 @@ const back = ["orbita", "perla", "caracol", "kiwi"] as const;
             </details>
           </nav>
         </div>
+      </div>
+      <div class="web-footer__bar">
+        <div class="web-footer__availability">
+          <p class="web-footer__available">{t.availableFor}</p>
+          <ul class="web-footer__platforms" aria-label={t.platforms}>{platforms.map(({ name, label }) => <li><OsIcon name={name} size={13} />{label}</li>)}</ul>
+        </div>
+        <p class="web-footer__origin">{t.madeWith} <span class="web-footer__heart" role="img" aria-label={t.love}>♥</span> {t.inArgentina}</p>
       </div>
     </div>
     <div class="web-footer__groups">

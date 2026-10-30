@@ -1391,3 +1391,16 @@ body.h {
     min-height: 44px;
   }
 }
+
+/* One line across the footer, over the divider: where APX runs on the left, where it is made on the right. */
+.web-footer__bar {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 32px;
+}
+.web-footer__bar .web-footer__origin {
+  margin: 0;
+}
