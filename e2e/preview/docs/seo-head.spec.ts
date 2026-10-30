@@ -38,3 +38,11 @@ test("robots.txt points at the sitemap", async ({ request }) => {
   const body = await (await request.get("/robots.txt")).text();
   expect(body).toMatch(/^Sitemap: https:\/\/.+\/sitemap-index\.xml$/m);
 });
+
+test("llms.txt lists the guide and the comparisons with full addresses", async ({ request }) => {
+  const body = await (await request.get("/llms.txt")).text();
+  expect(body).toMatch(/^# APX\n\n> /);
+  expect(body).toMatch(/^- \[Install\]\(https:\/\/.+\/docs\/start\/install\/\): /m);
+  expect(body).toMatch(/^- \[APX vs OpenClaw\]\(https:\/\/.+\/compare\/openclaw\/\): /m);
+  expect(body).not.toContain("/es/docs/");
+});
