@@ -80,7 +80,7 @@ function StartAnswering() {
         />
       </SettingRow>
       <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: "iMessage" })}>
-        <AgentSelect size="sm" className="tgagent" value={agent} onChange={(id) => id && setAgent(id)} />
+        <AgentSelect size="sm" className="tgagent" channel value={agent} onChange={(id) => id && setAgent(id)} />
       </SettingRow>
     </>
   );
