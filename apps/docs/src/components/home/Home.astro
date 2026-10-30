@@ -144,30 +144,28 @@ const discord = "https://discord.gg/vxdZuT5WuE";
         <p class="hero__sub"><b>{t.sub.strong}</b> {t.sub.rest}</p>
         <div class="hero__actions">
           <DownloadButton t={t.get} releases={releases} />
-          <a class="btn btn-ghost" href={href(`${pre}/start/introduction/`)}>{t.getStarted} →</a>
-        </div>
-        <details class="hero__term">
-          <summary>
+          <button class="btn btn-ghost hero__term" type="button" aria-expanded="false" aria-controls="heroInstall">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l6 6-6 6M12 19h8" /></svg>{t.get.terminal}
-          </summary>
-          <div class="hero__actions hero__install" id="heroInstall" data-unix={install} data-win={installWin}>
-            <button class="install" type="button" data-copy={install} data-done={t.copied}>
-              <span class="dollar">$</span><span class="cmd">{install}</span><span class="copy">{t.copy}</span>
+          </button>
+        </div>
+        <div class="hero__actions hero__install" id="heroInstall" hidden data-unix={install} data-win={installWin}>
+          <button class="install" type="button" data-copy={install} data-done={t.copied}>
+            <span class="dollar">$</span><span class="cmd">{install}</span><span class="copy">{t.copy}</span>
+          </button>
+          <div class="os" role="group" aria-label={t.os.label}>
+            <button type="button" data-os="unix" aria-pressed="true" title={t.os.unix}>
+              <OsIcon name="mac" /><OsIcon name="linux" />
             </button>
-            <div class="os" role="group" aria-label={t.os.label}>
-              <button type="button" data-os="unix" aria-pressed="true" title={t.os.unix}>
-                <OsIcon name="mac" /><OsIcon name="linux" />
-              </button>
-              <button type="button" data-os="win" aria-pressed="false" title={t.os.win}>
-                <OsIcon name="windows" />
-              </button>
-              <span class="os__for" data-unix={t.os.unix} data-win={t.os.win}>{t.os.unix}</span>
-            </div>
-            <p class="hero__where">
-              {t.os.where} <a href={href(`${pre}/devices/server/`)}>{t.os.whereLink} →</a>
-            </p>
+            <button type="button" data-os="win" aria-pressed="false" title={t.os.win}>
+              <OsIcon name="windows" />
+            </button>
+            <span class="os__for" data-unix={t.os.unix} data-win={t.os.win}>{t.os.unix}</span>
           </div>
-        </details>
+          <p class="hero__where">
+            {t.os.where} <a href={href(`${pre}/devices/server/`)}>{t.os.whereLink} →</a>
+          </p>
+        </div>
+        <a class="hero__start" href={href(`${pre}/start/introduction/`)}>{t.getStarted} →</a>
         <div class="status" id="status" data-lines={JSON.stringify(t.status)}>
           <Blob name="menta" size={26} />
           <b id="statusWho">{t.status[0]?.[0]}</b><span id="statusWhat">{t.status[0]?.[1]}</span><span class="dots"><i></i><i></i><i></i></span>
@@ -422,6 +420,15 @@ You have three open things in Acme Store:
           }, 1400);
         });
       }
+
+      // The terminal button unfolds the one-line install under the hero's actions.
+      const term = document.querySelector<HTMLButtonElement>(".hero__term");
+      term?.addEventListener("click", () => {
+        const install = document.getElementById("heroInstall");
+        if (!install) return;
+        install.hidden = !install.hidden;
+        term.setAttribute("aria-expanded", String(!install.hidden));
+      });
 
       // The hero's install line follows the reader's system; the icons switch it.
       const hero = document.getElementById("heroInstall");
