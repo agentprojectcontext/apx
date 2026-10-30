@@ -11,9 +11,11 @@ for (const lang of ["en", "es"] as const) {
       .locator(".web-footer__groups a")
       .evaluateAll((links) => links.map((a) => a.getAttribute("href") ?? ""));
     expect(hrefs.length).toBeGreaterThanOrEqual(60);
+    expect(hrefs).toContain("mailto:manu@incubit.com.ar");
     // Every comparison is listed, not just the first few.
     for (const item of comparisons) expect(hrefs).toContain(`${pre}/compare/${item.slug}/`);
     for (const href of new Set(hrefs)) {
+      if (href.startsWith("mailto:")) continue;
       if (/^https?:/.test(href)) {
         expect(href).toMatch(/^https:\/\/(github\.com|discord\.gg|www\.youtube\.com)\//);
         continue;
@@ -28,15 +30,25 @@ for (const lang of ["en", "es"] as const) {
   });
 }
 
-test("on a phone the footer's columns stack in two, with full-size links", async ({ page, isMobile }) => {
+test("on a phone the footer's columns stack in two, Compare folds, and links are full size", async ({
+  page,
+  isMobile,
+}) => {
   test.skip(!isMobile, "Phone layout");
+  await page.addInitScript(() => localStorage.setItem("apx-website-analytics-v1", "declined"));
   await page.goto("/es/");
   const groups = page.locator(".web-footer__groups");
   await groups.scrollIntoViewIfNeeded();
   const columns = await groups
-    .locator("nav")
-    .evaluateAll((navs) => [...new Set(navs.map((n) => Math.round(n.getBoundingClientRect().left)))]);
+    .locator(".web-footer__col:not(.web-footer__col--compare)")
+    .evaluateAll((cols) => [...new Set(cols.map((n) => Math.round(n.getBoundingClientRect().left)))]);
   expect(columns).toHaveLength(2);
+  // The long list of comparisons starts folded, and opens.
+  const fold = groups.locator(".web-footer__fold");
+  await expect(fold).not.toHaveAttribute("open");
+  await fold.locator("summary").tap();
+  await expect(fold).toHaveAttribute("open", "");
+  await expect(fold.locator("a").first()).toBeVisible();
   for (const link of await groups.locator("a").all()) {
     const box = await link.boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);

@@ -80,22 +80,24 @@ for (const lang of ["en", "es"]) {
             return { x: rect?.x ?? 0, y: rect?.y ?? 0, bottom: rect?.bottom ?? 0 };
           };
           return {
-            main: bounds(".web-footer__main"),
-            availability: bounds(".web-footer__availability"),
-            origin: bounds(".web-footer__origin"),
             brand: bounds(".web-footer__intro"),
-            columns: [...element.querySelectorAll(".web-footer__groups nav")].map(
-              (nav) => nav.getBoundingClientRect().y,
-            ),
+            origin: bounds(".web-footer__origin"),
+            availability: bounds(".web-footer__availability"),
+            groups: bounds(".web-footer__groups"),
+            mark: bounds(".web-footer__mark"),
+            columns: [...element.querySelectorAll(".web-footer__col")].map((col) => col.getBoundingClientRect().x),
           };
         });
-        expect(layout.availability.y).toBeGreaterThanOrEqual(layout.main.bottom);
-        expect(layout.origin.y).toBeGreaterThanOrEqual(layout.main.bottom);
+        // The brand, its legal lines and the platforms come first; the links below; the big mark right after.
+        expect(layout.origin.bottom).toBeLessThanOrEqual(layout.brand.bottom);
+        expect(layout.groups.y).toBeGreaterThanOrEqual(layout.brand.bottom);
+        expect(layout.availability.bottom).toBeLessThanOrEqual(layout.groups.y);
+        expect(layout.mark.y).toBeGreaterThanOrEqual(layout.groups.bottom);
+        expect(layout.mark.y - layout.groups.bottom).toBeLessThan(48);
         if (!isMobile) {
-          // The ten link columns sit in two rows beside the brand, each row aligned.
-          expect(new Set(layout.columns).size).toBe(2);
-          expect(layout.columns[0]).toBeLessThan(layout.brand.bottom);
-          expect(Math.abs(layout.origin.y - layout.availability.y)).toBeLessThan(1);
+          // Six columns in one row at desktop width: five of stacked groups and Compare.
+          expect(new Set(layout.columns).size).toBe(6);
+          expect(layout.availability.y).toBeLessThan(layout.brand.bottom);
         }
         for (const [name, url] of [
           ["GitHub", "https://github.com/agentprojectcontext/apx"],

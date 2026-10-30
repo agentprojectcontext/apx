@@ -28,59 +28,65 @@ const section = (key: keyof typeof t.sections, pages: string[]) => ({
   title: t.sections[key],
   links: pages.map((page) => doc(`${key}/${page}`)),
 });
-const groups = [
-  {
-    title: t.product,
-    links: [
-      [t.newIn, href(`${pre}/#new`)],
-      [t.what, href(`${pre}/#what`)],
-      [t.steps, href(`${pre}/#start`)],
-      [t.map, href(`${pre}/#map`)],
-      [t.terminal, href(`${pre}/#terminal`)],
-      [t.download, href(`${pre}/#download`)],
-      [t.questions, href(`${pre}/#questions`)],
-      [t.phone, href(`${pre}/devices/phone/`)],
-      [t.server, href(`${pre}/devices/server/`)],
-    ],
-  },
-  section("start", ["introduction", "how-it-works", "install", "first-steps", "from-v1"]),
-  section("concepts", ["agents", "projects", "conversations", "models", "autonomy", "memory"]),
-  section("office", [
-    "chat",
-    "secretary",
-    "tasks",
-    "routines",
-    "board",
-    "artifacts",
-    "browser",
-    "computers",
-    "email",
-    "code",
-  ]),
-  section("channels", ["overview", "telegram", "whatsapp", "discord-slack", "imessage", "supervised"]),
-  section("devices", ["desktop", "phone", "server"]),
-  section("extend", ["skills", "mcp", "extensions", "integrations", "outside-clients"]),
-  section("reference", ["cli", "configuration", "troubleshooting", "privacy"]),
-  {
-    title: t.compare,
-    links: [
-      [t.allComparisons, href(`${pre}/compare/`)],
-      ...comparisons.map((item) => [`APX vs ${item.name}`, href(`${pre}/compare/${item.slug}/`)]),
-    ],
-  },
-  {
-    title: t.community,
-    links: [
-      [t.releases, `${github}/releases`],
-      [t.issue, `${github}/issues`],
-      [t.github, github],
-      [t.discord, "https://discord.gg/vxdZuT5WuE"],
-      [t.youtube, "https://www.youtube.com/@apx-agents"],
-      ["APC", "https://github.com/agentprojectcontext/agentprojectcontext"],
-      doc("reference/website-privacy"),
-    ],
-  },
+const contact = "mailto:manu@incubit.com.ar";
+type Group = { title: string; links: (readonly [string, string])[] };
+const product: Group = {
+  title: t.product,
+  links: [
+    [t.newIn, href(`${pre}/#new`)],
+    [t.download, href(`${pre}/#download`)],
+    [t.questions, href(`${pre}/#questions`)],
+    [t.phone, href(`${pre}/devices/phone/`)],
+    [t.server, href(`${pre}/devices/server/`)],
+  ],
+};
+const community: Group = {
+  title: t.community,
+  links: [
+    [t.releases, `${github}/releases`],
+    [t.issue, `${github}/issues`],
+    [t.github, github],
+    [t.discord, "https://discord.gg/vxdZuT5WuE"],
+    [t.youtube, "https://www.youtube.com/@apx-agents"],
+    [t.contact, contact],
+    ["APC", "https://github.com/agentprojectcontext/agentprojectcontext"],
+    doc("reference/website-privacy"),
+  ],
+};
+// Short groups stack in pairs, so the block stays a few balanced columns; Compare is a column of its own.
+const columns: Group[][] = [
+  [product, section("start", ["introduction", "how-it-works", "install", "first-steps", "from-v1"])],
+  [
+    section("concepts", ["agents", "projects", "conversations", "models", "autonomy", "memory"]),
+    section("devices", ["desktop", "phone", "server"]),
+  ],
+  [
+    section("office", [
+      "chat",
+      "secretary",
+      "tasks",
+      "routines",
+      "board",
+      "artifacts",
+      "browser",
+      "computers",
+      "email",
+      "code",
+    ]),
+  ],
+  [
+    section("channels", ["overview", "telegram", "whatsapp", "discord-slack", "imessage", "supervised"]),
+    section("reference", ["cli", "configuration", "troubleshooting", "privacy"]),
+  ],
+  [section("extend", ["skills", "mcp", "extensions", "integrations", "outside-clients"]), community],
 ];
+const compare: Group = {
+  title: t.compare,
+  links: [
+    [t.allComparisons, href(`${pre}/compare/`)],
+    ...comparisons.map((item) => [`APX vs ${item.name}`, href(`${pre}/compare/${item.slug}/`)] as const),
+  ],
+};
 const socials = [
   { name: "GitHub", url: github },
   { name: "Discord", url: "https://discord.gg/vxdZuT5WuE" },
@@ -97,17 +103,42 @@ const back = ["orbita", "perla", "caracol", "kiwi"] as const;
 ---
 <footer class="web-footer">
   <div class="wrap">
-    <div class="web-footer__main">
+    <div class="web-footer__top">
       <div class="web-footer__intro">
         <a class="brand" href={href(`${pre}/`)}><img src={logo.src} alt="" width="26" height="26" />APX</a>
         <p class="web-footer__description">{t.description}</p>
         <p class="web-footer__home"><Blob name="menta" size={20} /><b>Home</b>{t.home}</p>
-        <p class="web-footer__fine">{t.trademarks}</p>
-        <nav class="web-footer__socials" aria-label={t.social}>
-          {socials.map(({ name, url }) => <a href={url} aria-label={name} title={name}><SocialIcon name={name} size={20} /></a>)}
+        <div class="web-footer__reach">
+          <nav class="web-footer__socials" aria-label={t.social}>
+            {socials.map(({ name, url }) => <a href={url} aria-label={name} title={name}><SocialIcon name={name} size={20} /></a>)}
+          </nav>
+          <a class="web-footer__contact" href={contact}>{t.contact}</a>
+        </div>
+        <div class="web-footer__legal">
+          <p>© 2026 APX <span class="web-footer__sep" aria-hidden="true">·</span> <a href={`${github}/blob/main/LICENSE`}>{t.license}</a></p>
+          <p class="web-footer__fine">{t.trademarks}</p>
+          <p class="web-footer__origin">{t.madeWith} <span class="web-footer__heart" role="img" aria-label={t.love}>♥</span> {t.inArgentina}</p>
+        </div>
+      </div>
+      <div class="web-footer__availability">
+        <p class="web-footer__available">{t.availableFor}</p>
+        <ul class="web-footer__platforms" aria-label={t.platforms}>{platforms.map(({ name, label }) => <li><OsIcon name={name} size={13} />{label}</li>)}</ul>
+      </div>
+    </div>
+    <div class="web-footer__groups">
+      {columns.map((column) => (
+        <div class="web-footer__col">
+          {column.map((group) => <nav aria-label={group.title}><h2>{group.title}</h2><ul>{group.links.map(([label, url]) => <li><a href={url}>{label}</a></li>)}</ul></nav>)}
+        </div>
+      ))}
+      <div class="web-footer__col web-footer__col--compare">
+        <nav aria-label={compare.title}>
+          <details class="web-footer__fold" open>
+            <summary><h2>{compare.title}</h2></summary>
+            <ul>{compare.links.map(([label, url]) => <li><a href={url}>{label}</a></li>)}</ul>
+          </details>
         </nav>
       </div>
-      <div class="web-footer__groups">{groups.map((group) => <nav aria-label={group.title}><h2>{group.title}</h2><ul>{group.links.map(([label, url]) => <li><a href={url}>{label}</a></li>)}</ul></nav>)}</div>
     </div>
   </div>
   <div class="wrap web-footer__mark" aria-hidden="true">
@@ -115,16 +146,9 @@ const back = ["orbita", "perla", "caracol", "kiwi"] as const;
     <div class="web-footer__back">{back.map((name) => <Blob name={name} size="clamp(20px, 2.6vw, 26px)" />)}</div>
     <div class="web-footer__front">{front.map((name) => <Blob name={name} size="clamp(34px, 5vw, 52px)" />)}</div>
   </div>
-  <div class="wrap">
-    <div class="web-footer__bottom">
-      <div class="web-footer__legal">
-        <p>© 2026 APX</p><span class="web-footer__sep" aria-hidden="true">·</span><a href={`${github}/blob/main/LICENSE`}>{t.license}</a>
-      </div>
-      <div class="web-footer__availability">
-        <p class="web-footer__available">{t.availableFor}</p>
-        <ul class="web-footer__platforms" aria-label={t.platforms}>{platforms.map(({ name, label }) => <li><OsIcon name={name} size={13} />{label}</li>)}</ul>
-      </div>
-      <p class="web-footer__origin">{t.madeWith} <span class="web-footer__heart" role="img" aria-label={t.love}>♥</span> {t.inArgentina}</p>
-    </div>
-  </div>
 </footer>
+<script>
+  // On phones the long list of comparisons starts folded; without scripts it stays open.
+  if (matchMedia("(max-width: 760px)").matches)
+    for (const fold of document.querySelectorAll(".web-footer__fold")) fold.removeAttribute("open");
+</script>
