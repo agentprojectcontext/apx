@@ -21,18 +21,18 @@ Nothing here needs root, and the server doesn't need Node installed: the bundle 
 Run it on the server itself (it installs where it runs), over SSH:
 
 ```bash
-curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash -s -- --server
+curl -fsSL https://apxagent.app/install.sh | bash -s -- --server
 ```
 
 Or from your own computer in one line, PowerShell on Windows included:
 
 ```bash
-ssh user@server 'curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash -s -- --server'
+ssh user@server 'curl -fsSL https://apxagent.app/install.sh | bash -s -- --server'
 ```
 
 Options: `--file <bundle>` (a bundle you already have, no download), `--version <x.y.z>`, `--feed <owner/repo>`,
 `--no-service`, `--uninstall`. Through the pipe they go after `bash -s --`, for example
-`curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash -s -- --no-service`.
+`curl -fsSL https://apxagent.app/install.sh | bash -s -- --no-service`.
 
 ```bash
 bash install.sh --file apx-core-<version>-linux-x64.tar.gz
@@ -44,7 +44,7 @@ bash install.sh --file apx-core-<version>-linux-x64.tar.gz
 In PowerShell:
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://agentprojectcontext.github.io/apx/install.ps1'))) -Server
+& ([scriptblock]::Create((irm 'https://apxagent.app/install.ps1'))) -Server
 ```
 
 Parameters: `-File <bundle>`, `-Version <x.y.z>`, `-Feed <owner/repo>`, `-NoService`, `-Uninstall`.
@@ -227,7 +227,7 @@ Running the install script again also installs the newest version. `APX_UPDATES=
 ## Uninstall
 
 ```bash
-curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash -s -- --uninstall
+curl -fsSL https://apxagent.app/install.sh | bash -s -- --uninstall
 ```
 
 It stops the service and removes `~/.apx/v2/app` and the `apx` command; your data in `~/.apx/v2` stays. On Windows,

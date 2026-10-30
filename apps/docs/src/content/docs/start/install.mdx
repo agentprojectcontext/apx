@@ -96,7 +96,7 @@ needs root and you don't need Node installed.
 <InstallCommand />
 
 It installs on the machine where you run it. For a server, run it there over SSH, or from your computer with
-`ssh user@server 'curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash -s -- --server'`; the desktop app can also install it for you
+`ssh user@server 'curl -fsSL https://apxagent.app/install.sh | bash -s -- --server'`; the desktop app can also install it for you
 ([APX on a server](/devices/server/)).
 
 The script accepts a few options:
@@ -111,7 +111,7 @@ The script accepts a few options:
 | `--no-service` | Installs without starting the core as a service. |
 | `--uninstall` | Removes the service and the program; your data stays (see [Uninstall](#uninstall)). |
 
-To pass options through the pipe: `curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash -s -- --server --version 2.3.0`.
+To pass options through the pipe: `curl -fsSL https://apxagent.app/install.sh | bash -s -- --server --version 2.3.0`.
 On Windows the parameters are `-Server`, `-Desktop`, `-File`, `-Version`, `-Feed`, `-NoService` and `-Uninstall`.
 
 It lands in `~/.apx/v2/app` (one folder per version and a `current` link) and starts the core as a service. Then
@@ -260,13 +260,13 @@ with `apx service uninstall` or the server steps in the next tab.
 Run the installer again with the uninstall flag:
 
 ```bash
-curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash -s -- --uninstall
+curl -fsSL https://apxagent.app/install.sh | bash -s -- --uninstall
 ```
 
 On Windows, in PowerShell, save the script and run it with `-Uninstall`:
 
 ```powershell
-irm https://agentprojectcontext.github.io/apx/install.ps1 -OutFile install.ps1
+irm https://apxagent.app/install.ps1 -OutFile install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
 ```
 
