@@ -4,6 +4,18 @@ import { type ClientOptions, ApxClient as ProtocolClient } from "../../../packag
 import type { Params } from "../../../packages/protocol/src/index.ts";
 
 export { ApxError, type ApxSocket, QUIET_HOURS, UPLOAD_LIMITS } from "../../../packages/protocol/src/client.ts";
+export {
+  composeUrl,
+  draftKey,
+  EMAIL_LANG,
+  type EmailBlock,
+  emailText,
+  isDraft,
+  MAIL_APPS,
+  type MailApp,
+  parseEmailBlock,
+  receivedMail,
+} from "../../../packages/protocol/src/email-block.ts";
 export type {
   CoreEvent,
   Message,
@@ -14,6 +26,7 @@ export type {
   TaskEvent,
   Thread,
 } from "../../../packages/protocol/src/index.ts";
+export type { MailRoute, SentDraft } from "../../../packages/protocol/src/mail-methods.ts";
 export { noticeChannelChoice, noticeText } from "../../../packages/protocol/src/notices.ts";
 
 /** The owner's answer to a pending input: a decision (with how long it lasts) or a text. */

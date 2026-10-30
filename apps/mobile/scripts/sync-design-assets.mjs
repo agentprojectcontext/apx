@@ -83,6 +83,7 @@ const names = [
   "Monitor",
   "Sparkles",
   "ExternalLink",
+  "Mail",
 ];
 const icons = {};
 for (const name of names) {

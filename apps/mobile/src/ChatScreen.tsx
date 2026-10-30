@@ -99,6 +99,10 @@ export function ChatScreen({
     return () => later.cancel();
   }, []);
   const rows = useMemo(() => withDays(live.messages).reverse(), [live.messages]);
+  const mailChannels = useMemo(
+    () => new Set(data.channels.filter((c) => c.type === "email").map((c) => c.id)),
+    [data.channels],
+  );
   const working = isWorking(live.state);
   const engine = thread.engine === "claude" || thread.engine === "codex" ? thread.engine : undefined;
   // A new chat keeps the model picked in it until it is made.
@@ -247,6 +251,7 @@ export function ChatScreen({
                   continueSession={(session) => continueSession(live.client, session)}
                   sessionState={(session) => sessionState(live.client, session)}
                   {...(onOpenThread ? { openThread: onOpenThread } : {})}
+                  mailChannels={mailChannels}
                 />
               )
             }

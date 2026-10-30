@@ -2,6 +2,8 @@ import { createContext, useContext, useMemo, useState } from "react";
 import { Linking, Pressable, Text, View } from "react-native";
 import { type Block, type Inline, parseMarkdown, plainText } from "../chat/markdown";
 import { t } from "../i18n";
+import { EMAIL_LANG, parseEmailBlock } from "../protocol";
+import { EmailCard } from "./chat/EmailCard";
 import { copyText } from "./copy";
 import { Icon } from "./Icon";
 import { makeStyles, useTheme } from "./theme";
@@ -72,7 +74,9 @@ function Blocks({ blocks, color }: { blocks: Block[]; color: string }) {
             ))}
           </View>
         );
-      case "code":
+      case "code": {
+        const mail = block.lang === EMAIL_LANG ? parseEmailBlock(block.text) : undefined;
+        if (mail) return <EmailCard key={key} mail={mail} />;
         return (
           <View key={key}>
             <Text selectable={selectable} style={s.code}>
@@ -81,6 +85,7 @@ function Blocks({ blocks, color }: { blocks: Block[]; color: string }) {
             <CopyButton text={block.text} style={s.codeCopy} />
           </View>
         );
+      }
       case "quote":
         return (
           <View key={key} style={s.quote}>

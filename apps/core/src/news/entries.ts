@@ -703,6 +703,23 @@ export const NEWS: readonly NewsEntry[] = [
       },
     ],
   },
+  {
+    id: "email-cards",
+    since: "2.11.3",
+    title: "Emails as cards in the chat",
+    applies: () => true,
+    text:
+      "An email an agent writes for the owner now shows as a card in the chat, on the computer and on the phone. " +
+      "With Gmail or an Email channel connected the owner sends it from the card, with a few seconds to undo; " +
+      "otherwise it opens in their mail app, Gmail or Outlook on the web, or is copied. Mail that reaches an Email " +
+      "channel shows the same way.",
+    actions: [
+      {
+        label: { en: "Write one to try it", es: "Escribí uno para probarlo" },
+        prompt: "Draft a short test email to me so I can see the new email card and how I send it from there.",
+      },
+    ],
+  },
 ];
 
 /** The catalog integrations among the owner's global MCP servers. */

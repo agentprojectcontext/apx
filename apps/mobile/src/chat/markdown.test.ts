@@ -30,6 +30,11 @@ test("blocks: paragraphs split by blank lines, headings, lists and fenced code",
   assert.deepEqual(code, { kind: "code", text: "npm test" });
 });
 
+test("a fenced block keeps its language, so an email draft can show as a card", () => {
+  const [mail] = parseMarkdown("```Email\nTo: user@example.com\n\nHi\n```");
+  assert.deepEqual(mail, { kind: "code", text: "To: user@example.com\n\nHi", lang: "email" });
+});
+
 test("quoted lines become one quote holding their own blocks, with blank quoted lines kept inside", () => {
   const blocks = parseMarkdown("Antes\n> Resumen:\n> • #54: uno\n> • #55: dos\n>\n> Siguen abiertos.\nDespués");
   assert.deepEqual(
