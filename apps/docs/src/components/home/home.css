@@ -1383,6 +1383,27 @@ a.dlc__alt:hover {
   background: var(--apx-fg);
   color: var(--apx-bg);
 }
+/* On a phone the three systems share one line instead of wrapping into a tall pill. */
+@media (max-width: 560px) {
+  .cli__tabs {
+    align-self: stretch;
+    flex-wrap: nowrap;
+    border-radius: 18px;
+  }
+  .cli__tabs button {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+    padding: 4px 8px;
+    font-size: 13px;
+    line-height: 1.2;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .cli__tabs button :is(svg, img) {
+    display: none;
+  }
+}
 .cli__row[hidden] {
   display: none;
 }
@@ -1393,13 +1414,28 @@ a.dlc__alt:hover {
   color: var(--apx-fg-muted);
 }
 
-/* The server guide and the unsigned-apps steps, side by side under the terminal box. */
-.dl-more {
+/* The terminal install and the server guide side by side; the unsigned-apps steps below, one column per system. */
+.dl-pair {
   display: grid;
-  align-items: start;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 12px;
   margin-top: 12px;
+}
+.dl-pair > .cli {
+  margin-top: 0;
+}
+@media (max-width: 900px) {
+  .dl-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.dl-unsigned {
+  margin-top: 12px;
+}
+.dl-unsigned__cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 16px 28px;
 }
 .dl-server,
 .dl-unsigned {

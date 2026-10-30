@@ -118,6 +118,16 @@ const cliRows = [
   { id: "unix", icon: "mac", label: t.download.term.here, cmd: install },
   { id: "win", icon: "windows", label: t.download.term.windows, cmd: installWin },
 ] as const;
+// One column per system: a step whose label is not a system (macOS's "if it says it is damaged") stays with the one above.
+const systems = new Set(["macOS", "Windows", "Linux"]);
+const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.unsigned.items)[number][][]>(
+  (cols, item) => {
+    if (systems.has(item[0]) || cols.length === 0) cols.push([item]);
+    else cols[cols.length - 1].push(item);
+    return cols;
+  },
+  [],
+);
 ---
 
 <!doctype html>
@@ -528,7 +538,8 @@ const cliRows = [
               ))
             }
           </div>
-          <div class="cli" data-reveal>
+          <div class="dl-pair" data-reveal>
+          <div class="cli">
             <div class="cli__head">
               <span class="cli__icon"><UiIcon name="terminal" size={18} /></span>
               <div><h3>{t.download.term.title}</h3><p>{t.download.term.lead}</p></div>
@@ -546,7 +557,6 @@ const cliRows = [
               ))
             }
           </div>
-          <div class="dl-more" data-reveal>
             <article class="dl-server">
               <p class="dl-server__title"><Blob name="aqua" size={36} /><span>{t.download.term.docs.title}</span></p>
               <p class="dl-server__body">{t.download.term.docs.body}</p>
@@ -556,21 +566,25 @@ const cliRows = [
                 <a href={releases}>{t.download.releases} ↗</a>
               </p>
             </article>
-            <article class="dl-unsigned">
-              <h3>{t.download.unsigned.title}</h3>
-              <p>{t.download.unsigned.body}</p>
-              <dl>
-                {
-                  t.download.unsigned.items.map(([os, how, cmd]) => (
-                    <div>
-                      <dt>{os}</dt>
-                      <dd>{how}{cmd && <code>{cmd}</code>}</dd>
-                    </div>
-                  ))
-                }
-              </dl>
-            </article>
           </div>
+          <article class="dl-unsigned" data-reveal>
+            <h3>{t.download.unsigned.title}</h3>
+            <p>{t.download.unsigned.body}</p>
+            <div class="dl-unsigned__cols">
+              {
+                unsignedBySystem.map((steps) => (
+                  <dl>
+                    {steps.map(([os, how, cmd]) => (
+                      <div>
+                        <dt>{os}</dt>
+                        <dd>{how}{cmd && <code>{cmd}</code>}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ))
+              }
+            </div>
+          </article>
         </div>
       </section>
 
