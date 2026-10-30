@@ -1,4 +1,4 @@
-import type { Task, Thread } from "@apx/protocol";
+import type { Task } from "@apx/protocol";
 import { AgentAvatar, Dialog, Icons, Kbd, ProjectTile } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { CONFIG_SECTION_LABELS } from "../config/sectionLabels.ts";
@@ -16,13 +16,6 @@ const SEARCH_MIN = 2;
 const SEARCH_WAIT_MS = 180;
 
 type Hit = { thread_id: string; message_id: string; snippet: string };
-
-/** Opens a chat where it lives (an engine's session beside its engine), pointing at one message. */
-function openAt(thread: Thread | undefined, threadId: string, messageId: string): void {
-  if (thread?.engine) go.engine(thread.engine, threadId);
-  else go.thread(threadId);
-  go.focus(`msg:${messageId}`);
-}
 
 /** Lowercase, without accents: "Acción" matches "accion". */
 const fold = (s: string) =>
@@ -100,6 +93,12 @@ export function CommandPalette() {
         icon: <Icons.Layers size={15} />,
         run: close(() => go.view("resources")),
       },
+      {
+        key: "p:files",
+        title: t("nav.files"),
+        icon: <Icons.Paperclip size={15} />,
+        run: close(() => go.view("files")),
+      },
       ...(Object.entries(CONFIG_SECTION_LABELS) as Array<[ConfigSection, MessageKey]>).map(([id, label]) => ({
         key: `c:${id}`,
         title: t(label),
@@ -159,7 +158,7 @@ export function CommandPalette() {
         title: h.snippet,
         detail: th?.title || t("palette.untitled"),
         icon: <Icons.MessageCircle size={15} />,
-        run: close(() => openAt(th, h.thread_id, h.message_id)),
+        run: close(() => go.message(h.thread_id, h.message_id, th?.engine)),
       };
     });
     const groups = [chats, projectItems, agentItems, taskItems, places];

@@ -13,6 +13,7 @@ import {
   ConfigModal,
   CornerCards,
   EngineSessions,
+  FilesScreen,
   FlowsScreen,
   InstallArtifactDialog,
   LiveLayer,
@@ -84,6 +85,8 @@ export function Shell() {
                 <FlowsScreen key={flowProject ?? "all"} projectId={flowProject} />
               ) : view === "resources" ? (
                 <ResourcesScreen />
+              ) : view === "files" ? (
+                <FilesScreen />
               ) : view === "computers" ? (
                 <ComputersScreen />
               ) : view === "channel" ? (

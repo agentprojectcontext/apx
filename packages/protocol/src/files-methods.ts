@@ -1,6 +1,6 @@
 // A folder as the owner browses it (a project's, or a chat's): one level at a time, and a file's text.
 import { z } from "zod";
-import { Id } from "./domain.ts";
+import { Author, Id } from "./domain.ts";
 
 export const FileEntry = z.object({
   name: z.string(),
@@ -27,6 +27,27 @@ export const ChangedFile = z.object({
   removed: z.number().int().optional(),
 });
 export type ChangedFile = z.infer<typeof ChangedFile>;
+
+/** What a file shared in a chat is, by its MIME type: Documents is everything that is not a picture, video or sound. */
+export const SharedKind = z.enum(["image", "video", "audio", "document"]);
+export type SharedKind = z.infer<typeof SharedKind>;
+
+/** A file a message shows (sent by the owner, a contact or an agent), with where it was said. */
+export const SharedFile = z.object({
+  media_id: Id,
+  kind: SharedKind,
+  mime: z.string(),
+  /** The file's own name, or how it was asked for when APX made it; empty when it has neither. */
+  name: z.string(),
+  bytes: z.number().int(),
+  thread_id: Id,
+  thread_title: z.string(),
+  project_id: Id.optional(),
+  message_id: Id,
+  author: Author,
+  created_at: z.string(),
+});
+export type SharedFile = z.infer<typeof SharedFile>;
 
 /**
  * Whose folder: a project's, the base project's (`base`: APX's work folder, where its chats work), or the one a chat
@@ -182,6 +203,28 @@ export const filesMethods = {
     params: z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
     result: z.object({ ok: z.literal(true) }),
     effect: true,
+    access: "human",
+  },
+  /**
+   * Files shared in chats, newest first: of one kind, one project's chats (`project`) or chats outside any project
+   * (`base`). `counts` are per kind under the same project filter.
+   */
+  "media.shared": {
+    params: z
+      .object({
+        kind: SharedKind.optional(),
+        project: Id.optional(),
+        base: z.literal(true).optional(),
+        offset: z.number().int().min(0).default(0),
+        limit: z.number().int().min(1).max(200).default(60),
+      })
+      .strict(),
+    result: z.object({
+      items: z.array(SharedFile),
+      more: z.boolean(),
+      counts: z.record(SharedKind, z.number().int()),
+    }),
+    effect: false,
     access: "human",
   },
 } as const;

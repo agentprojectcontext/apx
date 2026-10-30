@@ -64,6 +64,7 @@ export const WidgetChatHost = lazy(() =>
 );
 export const PhoneDialog = lazy(() => import("./shell/PhoneDialog.tsx").then((m) => ({ default: m.PhoneDialog })));
 export const TasksScreen = lazy(() => import("./tasks/TasksScreen.tsx").then((m) => ({ default: m.TasksScreen })));
+export const FilesScreen = lazy(() => import("./files/FilesScreen.tsx").then((m) => ({ default: m.FilesScreen })));
 export const ComputersScreen = lazy(() =>
   import("./computers/ComputersScreen.tsx").then((m) => ({ default: m.ComputersScreen })),
 );
