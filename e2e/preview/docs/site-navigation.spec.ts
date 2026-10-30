@@ -73,7 +73,7 @@ for (const lang of ["en", "es"]) {
           name: lang === "es" ? "Plataformas disponibles" : "Available platforms",
         });
         await expect(platforms.getByRole("listitem")).toHaveText(["macOS", "Windows", "Linux", "Android"]);
-        await expect(footer.locator(".web-footer__groups nav")).toHaveCount(4);
+        await expect(footer.locator(".web-footer__groups nav")).toHaveCount(10);
         const layout = await footer.evaluate((element) => {
           const bounds = (selector: string) => {
             const rect = element.querySelector(selector)?.getBoundingClientRect();
@@ -92,7 +92,8 @@ for (const lang of ["en", "es"]) {
         expect(layout.availability.y).toBeGreaterThanOrEqual(layout.main.bottom);
         expect(layout.origin.y).toBeGreaterThanOrEqual(layout.main.bottom);
         if (!isMobile) {
-          expect(new Set(layout.columns).size).toBe(1);
+          // The ten link columns sit in two rows beside the brand, each row aligned.
+          expect(new Set(layout.columns).size).toBe(2);
           expect(layout.columns[0]).toBeLessThan(layout.brand.bottom);
           expect(Math.abs(layout.origin.y - layout.availability.y)).toBeLessThan(1);
         }

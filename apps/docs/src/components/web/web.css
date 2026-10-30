@@ -908,8 +908,9 @@ body.h {
 .web-footer__groups {
   display: grid;
   flex: 2 1 480px;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 28px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  align-items: start;
+  gap: 40px 24px;
 }
 .web-footer__groups h2 {
   margin: 0 0 12px;
@@ -921,10 +922,28 @@ body.h {
 .web-footer__groups ul {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+/* On touch screens every footer link is a full-size target. */
+@media (max-width: 760px) {
+  .web-footer__groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px 20px;
+  }
+  .web-footer__groups ul {
+    gap: 0;
+  }
+  .web-footer__groups a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    overflow-wrap: anywhere;
+  }
 }
 .web-footer__groups a:hover {
   color: var(--apx-fg);

@@ -1,4 +1,5 @@
 ---
+import { getCollection } from "astro:content";
 import logo from "../../assets/logo.png";
 import { comparisons } from "../../data/comparisons";
 import { sitePath } from "../../doc-routes.mjs";
@@ -16,31 +17,55 @@ const t = HOME[lang].footer;
 const pre = lang === "es" ? "/es" : "";
 const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
 const github = "https://github.com/agentprojectcontext/apx";
+// Doc links are labelled with each page's own title, in this language; a page that is missing fails the build.
+const docs = await getCollection("docs");
+const doc = (path: string): [string, string] => {
+  const entry = docs.find((d) => d.id === `${lang === "es" ? "es/" : ""}docs/${path}`);
+  if (!entry) throw new Error(`Footer link to a missing doc page: ${path}`);
+  return [entry.data.title, href(`${pre}/${path}/`)];
+};
+const section = (key: keyof typeof t.sections, pages: string[]) => ({
+  title: t.sections[key],
+  links: pages.map((page) => doc(`${key}/${page}`)),
+});
 const groups = [
   {
     title: t.product,
     links: [
       [t.newIn, href(`${pre}/#new`)],
+      [t.what, href(`${pre}/#what`)],
+      [t.steps, href(`${pre}/#start`)],
+      [t.map, href(`${pre}/#map`)],
+      [t.terminal, href(`${pre}/#terminal`)],
       [t.download, href(`${pre}/#download`)],
       [t.questions, href(`${pre}/#questions`)],
       [t.phone, href(`${pre}/devices/phone/`)],
       [t.server, href(`${pre}/devices/server/`)],
     ],
   },
-  {
-    title: t.start,
-    links: [
-      [t.introduction, href(`${pre}/start/introduction/`)],
-      [t.install, href(`${pre}/start/install/`)],
-      [t.firstSteps, href(`${pre}/start/first-steps/`)],
-      [t.fromV1, href(`${pre}/start/from-v1/`)],
-    ],
-  },
+  section("start", ["introduction", "how-it-works", "install", "first-steps", "from-v1"]),
+  section("concepts", ["agents", "projects", "conversations", "models", "autonomy", "memory"]),
+  section("office", [
+    "chat",
+    "secretary",
+    "tasks",
+    "routines",
+    "board",
+    "artifacts",
+    "browser",
+    "computers",
+    "email",
+    "code",
+  ]),
+  section("channels", ["overview", "telegram", "whatsapp", "discord-slack", "imessage", "supervised"]),
+  section("devices", ["desktop", "phone", "server"]),
+  section("extend", ["skills", "mcp", "extensions", "integrations", "outside-clients"]),
+  section("reference", ["cli", "configuration", "troubleshooting", "privacy"]),
   {
     title: t.compare,
     links: [
       [t.allComparisons, href(`${pre}/compare/`)],
-      ...comparisons.slice(0, 3).map((item) => [`APX vs ${item.name}`, href(`${pre}/compare/${item.slug}/`)]),
+      ...comparisons.map((item) => [`APX vs ${item.name}`, href(`${pre}/compare/${item.slug}/`)]),
     ],
   },
   {
@@ -48,8 +73,11 @@ const groups = [
     links: [
       [t.releases, `${github}/releases`],
       [t.issue, `${github}/issues`],
+      [t.github, github],
+      [t.discord, "https://discord.gg/vxdZuT5WuE"],
+      [t.youtube, "https://www.youtube.com/@apx-agents"],
       ["APC", "https://github.com/agentprojectcontext/agentprojectcontext"],
-      [t.privacy, href(`${pre}/reference/website-privacy/`)],
+      doc("reference/website-privacy"),
     ],
   },
 ];
