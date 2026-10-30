@@ -7,8 +7,10 @@ import OsIcon from "../OsIcon.astro";
 interface Props {
   t: HomeText["get"];
   releases: string;
+  /** On a doc page, where the home's button styles are not loaded. */
+  docs?: boolean;
 }
-const { t, releases } = Astro.props;
+const { t, releases, docs = false } = Astro.props;
 const desktop = [
   { id: "mac-arm64", icon: "mac", name: t.macArm, short: "macOS", file: "-mac-arm64.dmg" },
   { id: "mac-x64", icon: "mac", name: t.macIntel, short: "macOS", file: "-mac-x64.dmg" },
@@ -19,7 +21,7 @@ const desktop = [
 const phone = [{ id: "android", icon: "android", name: "Android", short: "Android", file: "-android.apk" }] as const;
 ---
 
-<div class="getapx" id="getApx" data-for={t.for} data-app={t.app}>
+<div class:list={["getapx", { "getapx--docs not-content": docs }]} data-for={t.for} data-app={t.app}>
   <a class="btn btn-light getapx__main" href={releases} data-pick="mac-arm64">
     <OsIcon name="mac" /><span class="getapx__label">{t.for} macOS</span>
   </a>
@@ -117,6 +119,39 @@ const phone = [{ id: "android", icon: "android", name: "Android", short: "Androi
     text-transform: uppercase;
     color: var(--dim);
   }
+  .getapx--docs .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    height: 46px;
+    padding: 0 22px;
+    border: 0;
+    background: var(--sl-color-white);
+    color: var(--sl-color-black);
+    font: 500 15px / 1 var(--sl-font);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .getapx--docs .btn svg {
+    width: 18px;
+    height: 18px;
+  }
+  .getapx--docs .getapx__more {
+    border-left-color: color-mix(in srgb, var(--sl-color-black) 15%, transparent);
+  }
+  .getapx--docs .getapx__menu {
+    background: var(--sl-color-bg);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+    border-color: var(--sl-color-gray-5);
+  }
+  .getapx--docs .getapx__menu a {
+    color: var(--sl-color-white);
+  }
+  .getapx--docs .getapx__menu a:hover,
+  .getapx--docs .getapx__menu a:focus-visible,
+  .getapx--docs .getapx__menu a[aria-current="true"] {
+    background: var(--sl-color-gray-6);
+  }
   .getapx__menu .getapx__all {
     margin-top: 6px;
     border-top: 1px solid var(--line);
@@ -127,33 +162,38 @@ const phone = [{ id: "android", icon: "android", name: "Android", short: "Androi
 </style>
 
 <script>
+  import { fillLatest } from "../latest-release";
+
   type Ua = Navigator & { userAgentData?: { platform?: string } };
-  const root = document.getElementById("getApx");
-  if (root) {
+  // The reader's system picks the main button; an iPhone or an unknown one keeps the full list of downloads.
+  const ua = navigator.userAgent;
+  const platform = (navigator as Ua).userAgentData?.platform ?? navigator.platform;
+  const pick = /android/i.test(ua)
+    ? "android"
+    : /iphone|ipad|ipod/i.test(ua)
+      ? ""
+      : /win/i.test(platform)
+        ? "win"
+        : /linux/i.test(platform)
+          ? /arm|aarch/i.test(platform)
+            ? "linux-arm64"
+            : "linux"
+          : /mac/i.test(platform)
+            ? "mac-arm64"
+            : "";
+
+  for (const root of document.querySelectorAll<HTMLElement>(".getapx")) {
     const main = root.querySelector<HTMLAnchorElement>(".getapx__main")!;
     const more = root.querySelector<HTMLButtonElement>(".getapx__more")!;
     const menu = root.querySelector<HTMLElement>(".getapx__menu")!;
     const items = [...menu.querySelectorAll<HTMLAnchorElement>("a[data-id]")];
 
-    // The reader's system picks the main button; an iPhone or an unknown one keeps the full list of downloads.
-    const ua = navigator.userAgent;
-    const platform = (navigator as Ua).userAgentData?.platform ?? navigator.platform;
-    const pick = /android/i.test(ua)
-      ? "android"
-      : /iphone|ipad|ipod/i.test(ua)
-        ? ""
-        : /win/i.test(platform)
-          ? "win"
-          : /linux/i.test(platform)
-            ? /arm|aarch/i.test(platform) ? "linux-arm64" : "linux"
-            : /mac/i.test(platform)
-              ? "mac-arm64"
-              : "";
     const choose = (id: string) => {
       const item = items.find((i) => i.dataset.id === id);
       if (!item) {
         main.dataset.pick = "";
         main.href = "#download";
+        if (root.classList.contains("getapx--docs")) main.href = menu.querySelector<HTMLAnchorElement>(".getapx__all")!.href;
         main.querySelector("svg")?.remove();
         main.querySelector(".getapx__label")!.textContent = root.dataset.app ?? "";
         return;
@@ -188,16 +228,6 @@ const phone = [{ id: "android", icon: "android", name: "Android", short: "Androi
       }
     });
 
-    // Direct links from the latest release; without them every entry still opens the releases page.
-    fetch("https://api.github.com/repos/agentprojectcontext/apx/releases/latest")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((release: { assets?: { name: string; browser_download_url: string }[] } | null) => {
-        for (const item of items) {
-          const asset = release?.assets?.find((a) => a.name.endsWith(item.dataset.file ?? "\0"));
-          if (asset) item.href = asset.browser_download_url;
-        }
-        choose(main.dataset.pick ?? "");
-      })
-      .catch(() => {});
+    fillLatest(items).then(() => choose(main.dataset.pick ?? ""));
   }
 </script>

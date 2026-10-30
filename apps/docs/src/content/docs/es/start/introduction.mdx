@@ -9,6 +9,7 @@ import { Aside, Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
 import Shot from "../../../../components/Shot.astro";
 import Blob from "../../../../components/Blob.astro";
 import InstallCommand from "../../../../components/InstallCommand.astro";
+import AppDownload from "../../../../components/AppDownload.astro";
 
 <Blob name="menta" size={56} />
 
@@ -23,8 +24,13 @@ estado vive en una sola base de datos local y los modelos son los tuyos: tu susc
 
 ## Probalo
 
-La app de escritorio es la forma más fácil de empezar: bajala desde [Instalar](/es/start/install/) y seguí el
-asistente. Desde una terminal, una línea instala el core y el comando `apx`, y después `apx desktop` abre la app:
+La app de escritorio es la forma más fácil de empezar: bajala para tu sistema y seguí el asistente. Trae su propio
+core.
+
+<AppDownload lang="es" />
+
+En un servidor, o si preferís la terminal, una línea instala el core y el comando `apx`, y después `apx desktop` abre
+la app. En [Instalar](/es/start/install/) están todas las opciones.
 
 <InstallCommand labels={["macOS y Linux", "Windows"]} />
 

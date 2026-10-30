@@ -1,0 +1,137 @@
+/* The download cards: dark like the rest of the page, each lit by its blobo's color in one corner. */
+.dlc {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 44px;
+}
+.dlc__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
+  padding: 26px;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(120% 70% at 100% 100%, color-mix(in srgb, var(--tint) 16%, transparent), transparent 70%),
+    var(--card);
+  transition:
+    border-color 0.25s,
+    transform 0.25s;
+}
+.dlc__card:hover {
+  border-color: color-mix(in srgb, var(--tint) 45%, var(--line));
+  transform: translateY(-3px);
+}
+.dlc__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.dlc__tag {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent-2);
+  font: 600 10.5px / 1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.dlc__card .dlc__blob {
+  position: absolute;
+  right: -12px;
+  bottom: -16px;
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.dlc__card:hover .dlc__blob {
+  transform: translate(-6px, -8px) rotate(-8deg);
+}
+.dlc__card h3 {
+  margin: auto 0 6px;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.dlc__card p {
+  min-height: 2.9em;
+  max-width: calc(100% - 44px);
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.dlc__links {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  height: 46px;
+}
+.dlc__links a {
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--fg);
+}
+.dlc__links a:hover {
+  color: var(--accent-2);
+}
+.dlc__links .dlc__alt {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--muted);
+}
+.dlc__all {
+  margin: 18px 0 0;
+  font-size: 14.5px;
+  font-weight: 500;
+}
+.dlc__all a {
+  color: var(--accent-2);
+}
+.dl--rest {
+  margin-top: 28px;
+}
+
+/* The top bar's download: a stroke arrow, and it stays on phones where the other links hide. */
+.nav__get svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (max-width: 900px) {
+  .nav__cta .btn.nav__get {
+    display: inline-flex;
+    padding: 0 11px;
+  }
+  .nav__get .lbl {
+    display: none;
+  }
+}
+
+@media (max-width: 1000px) {
+  .dlc {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .dlc {
+    grid-template-columns: 1fr;
+  }
+  .dlc__card {
+    min-height: 230px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dlc__card,
+  .dlc__card .dlc__blob {
+    transition: none;
+  }
+  .dlc__card:hover,
+  .dlc__card:hover .dlc__blob {
+    transform: none;
+  }
+}
