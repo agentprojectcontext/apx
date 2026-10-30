@@ -1,8 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test.beforeEach(({ isMobile }) => {
-  test.skip(!isMobile, "Phone checks");
-});
+// Runs only in the phone project (e2e/docs-comparisons.config.ts).
 
 for (const path of [
   "/",

@@ -71,7 +71,7 @@ for (const pre of ["", "/es"]) {
       ["server", "curl -fsSL https://apxagent.app/install.sh | bash -s -- --server"],
       ["unix", "curl -fsSL https://apxagent.app/install.sh | bash"],
       ["win", "irm https://apxagent.app/install.ps1 | iex"],
-    ]) {
+    ] as const) {
       await box.locator(`[data-cli='${id}']`).click();
       await expect(box.locator(`[data-cli='${id}']`)).toHaveAttribute("aria-pressed", "true");
       await expect(panes).toHaveCount(1);

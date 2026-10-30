@@ -55,8 +55,7 @@ for (const lang of ["en", "es"] as const) {
   });
 }
 
-test("on a phone the roundup's table scrolls sideways with the app column in view", async ({ page, isMobile }) => {
-  test.skip(!isMobile, "Phone layout");
+test("on a phone the roundup's table scrolls sideways with the app column in view @phone", async ({ page }) => {
   await page.goto("/compare/best-ai-agent-apps/");
   const region = page.locator(".roundup-table-wrap");
   await region.scrollIntoViewIfNeeded();

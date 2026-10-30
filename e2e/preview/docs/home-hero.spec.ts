@@ -5,11 +5,10 @@ import { decodePng } from "../png.ts";
 for (const lang of ["en", "es"] as const) {
   const pre = lang === "es" ? "/es" : "";
 
-  test(`${lang}: the header's Compare menu opens on hover and focus and leads to comparisons`, async ({
+  // Below 1000 px the links live in the menu sheet, without the dropdown.
+  test(`${lang}: the header's Compare menu opens on hover and focus and leads to comparisons @desktop`, async ({
     page,
-    isMobile,
   }, testInfo) => {
-    test.skip(isMobile, "Below 1000 px the links live in the menu sheet, without the dropdown");
     await page.goto(`${pre}/`);
     const menu = page.locator(".web-header .nav__cmp .nav__menu");
     await expect(menu).toBeHidden();
@@ -99,12 +98,13 @@ test("the hero keeps its glow when WebGL is unavailable", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test("the hero lights the stage card when WebGL is available", async ({ page }) => {
+test("the hero lights the stage card with WebGL and shows the aura without it", async ({ page }) => {
   await page.goto("/");
   const webgl = await page.evaluate(() => Boolean(document.createElement("canvas").getContext("webgl")));
-  test.skip(!webgl, "This browser has no WebGL");
-  await expect(page.locator(".hero")).toHaveClass(/has-horizon/);
-  await expect(page.locator(".hero__aura")).toBeHidden();
+  if (webgl) {
+    await expect(page.locator(".hero")).toHaveClass(/has-horizon/);
+    await expect(page.locator(".hero__aura")).toBeHidden();
+  } else await expect(page.locator(".hero__aura")).toBeVisible();
 });
 
 for (const theme of ["dark", "light"] as const) {
@@ -112,7 +112,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.addInitScript((value) => localStorage.setItem("starlight-theme", value), theme);
     await page.goto("/");
     const webgl = await page.evaluate(() => Boolean(document.createElement("canvas").getContext("webgl")));
-    test.skip(!webgl, "This browser has no WebGL");
+    expect(webgl, "the horizon needs WebGL").toBe(true);
     await expect(page.locator(".hero")).toHaveClass(/has-horizon/);
     await page.locator("[data-analytics-consent] [data-cookie-reject]").click();
     const card = page.locator("[data-stage-card]");
@@ -226,12 +226,11 @@ for (const lang of ["en", "es"] as const) {
 for (const lang of ["en", "es"] as const) {
   const pre = lang === "es" ? "/es" : "";
 
-  test(`${lang}: Product and Docs menus lead to the home's sections and the guide`, async ({
+  // Dropdowns open on hover from 1000 px.
+  test(`${lang}: Product and Docs menus lead to the home's sections and the guide @desktop`, async ({
     page,
     request,
-    isMobile,
   }) => {
-    test.skip(isMobile, "Dropdowns open on hover from 1000 px");
     await page.goto(`${pre}/compare/`);
     const product = page.locator(".web-header .nav__product .nav__menu");
     await page.locator(".nav__product .nav__drop-link").hover();

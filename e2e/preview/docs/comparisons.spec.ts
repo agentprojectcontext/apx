@@ -2,7 +2,8 @@ import { expect, test } from "@playwright/test";
 import { comparisons } from "../../../apps/docs/src/data/comparisons.ts";
 import { readingNav } from "../web-nav.ts";
 
-const tagline = (slug: string, lang: "en" | "es") => comparisons.find((item) => item.slug === slug)?.tagline[lang];
+const tagline = (slug: string, lang: "en" | "es") =>
+  comparisons.find((item) => item.slug === slug)?.tagline[lang] ?? "";
 
 for (const lang of ["en", "es"] as const) {
   const prefix = lang === "es" ? "/es" : "";
@@ -19,7 +20,7 @@ for (const lang of ["en", "es"] as const) {
     ["grok-bot", "Grok Bot"],
     ["muse", "Muse"],
     ["instinct", "Instinct"],
-  ]) {
+  ] as const) {
     test(`${lang}: ${name} sources, language, reading progress and responsive layout`, async ({ page }, testInfo) => {
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));

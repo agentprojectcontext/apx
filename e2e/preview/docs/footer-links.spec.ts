@@ -30,11 +30,9 @@ for (const lang of ["en", "es"] as const) {
   });
 }
 
-test("on a phone the footer's columns stack in two, Compare folds, and links are full size", async ({
+test("on a phone the footer's columns stack in two, Compare folds, and links are full size @phone", async ({
   page,
-  isMobile,
 }) => {
-  test.skip(!isMobile, "Phone layout");
   await page.addInitScript(() => localStorage.setItem("apx-website-analytics-v1", "declined"));
   await page.goto("/es/");
   const groups = page.locator(".web-footer");
