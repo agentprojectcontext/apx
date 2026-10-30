@@ -17,7 +17,7 @@ device where you open the panel. What that computer needs:
 | Linux (x86-64 or ARM64) | QEMU (`sudo apt install qemu-system-x86 qemu-utils`, or `qemu-system-arm qemu-efi-aarch64` on ARM) and access to `/dev/kvm` (`sudo usermod -aG kvm $USER`, then sign in again) | QEMU with KVM |
 | Windows 10 (build 19041 or later) or 11 | WSL 2 (`wsl --install --no-distribution` in an administrator PowerShell, then restart) and Git for Windows, for its `ssh` (`winget install --id Git.Git -e`) | WSL 2, on a Debian image APX prepares the first time |
 
-If something is missing, the first start stops and the panel says what to install. On Windows:
+If something is missing, the panel shows it as a step: what to do, the command for your system to copy (on Linux, for your distribution's package manager: apt, dnf, pacman or zypper) and **Done, try again**. Installing needs your administrator password, so it is a step you take once. On Windows:
 
 - The first start builds the Debian image once (a few minutes) and keeps it for later starts.
 - WSL's mirrored networking (`networkingMode=mirrored` in `.wslconfig`) shares Windows' own localhost with the VM,

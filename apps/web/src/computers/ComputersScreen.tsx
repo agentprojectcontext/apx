@@ -330,6 +330,8 @@ function ComputersScreenBody() {
     <section className="page computers" aria-label={t("nav.computers")}>
       <ComputerError
         error={error || status?.error || ""}
+        needs={ready ? undefined : status?.needs}
+        onRetry={() => void power(true)}
         refusal={refusal}
         busy={busy}
         onLower={(gib) => void power(true, gib)}
@@ -389,9 +391,12 @@ function ComputersScreenBody() {
           icon={<Icons.Monitor />}
           title={t(starting ? "computer.preparing" : "computers.off")}
           action={
-            <Button loading={busy || starting} onClick={() => void power(true)}>
-              {t("computer.start")}
-            </Button>
+            // With a step left on this machine, its own retry starts it.
+            status?.needs ? undefined : (
+              <Button loading={busy || starting} onClick={() => void power(true)}>
+                {t("computer.start")}
+              </Button>
+            )
           }
         >
           {t("computers.offHint")}

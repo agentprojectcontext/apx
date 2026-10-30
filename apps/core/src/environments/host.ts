@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { findProgram } from "../programs.ts";
+import { mirroredNetworking } from "./wsl-seed.ts";
 
 export type VmType = "vz" | "qemu" | "wsl2";
 export type GuestArch = "aarch64" | "x86_64";
@@ -111,29 +112,107 @@ export function computerHost(
   };
 }
 
+/** A step the owner takes once on this host before the computer can start: what is missing and the command for it. */
+export type ComputerNeed = { reason: ComputerNeedReason; command?: string; message: string };
+export type ComputerNeedReason = "qemu" | "kvm_group" | "kvm_missing" | "wsl" | "git" | "wsl_mirrored";
+
+type Installer = "apt" | "dnf" | "pacman" | "zypper";
+
+/** The package manager of this Linux distribution, from os-release's ID and ID_LIKE. */
+export function linuxInstaller(osRelease: string): Installer | undefined {
+  const field = (key: string) => new RegExp(`^${key}="?([^"\\n]*)"?$`, "m").exec(osRelease)?.[1] ?? "";
+  const ids = `${field("ID")} ${field("ID_LIKE")}`.split(/\s+/);
+  if (ids.some((id) => id === "debian" || id === "ubuntu")) return "apt";
+  if (ids.some((id) => ["fedora", "rhel", "centos"].includes(id))) return "dnf";
+  if (ids.some((id) => id === "arch")) return "pacman";
+  if (ids.some((id) => id.startsWith("suse") || id.startsWith("opensuse"))) return "zypper";
+  return undefined;
+}
+
+/** The command that installs QEMU (with qemu-img and the guest's firmware) for this installer and guest arch. */
+export function qemuCommand(installer: Installer | undefined, arch: GuestArch): string | undefined {
+  const arm = arch === "aarch64";
+  switch (installer) {
+    case "apt":
+      return `sudo apt install ${arm ? "qemu-system-arm qemu-efi-aarch64" : "qemu-system-x86"} qemu-utils`;
+    case "dnf":
+      return `sudo dnf install ${arm ? "qemu-system-aarch64 edk2-aarch64" : "qemu-system-x86"} qemu-img`;
+    case "pacman":
+      return arm ? "sudo pacman -S qemu-system-aarch64 qemu-img edk2-aarch64" : "sudo pacman -S qemu-base";
+    case "zypper":
+      return `sudo zypper install ${arm ? "qemu-arm qemu-uefi-aarch64" : "qemu-x86"} qemu-tools`;
+    default:
+      return undefined;
+  }
+}
+
+const readOsRelease = () => {
+  try {
+    return fs.readFileSync("/etc/os-release", "utf8");
+  } catch {
+    return "";
+  }
+};
+
 /**
- * What this host still lacks before Lima can start a VM, said so the owner can fix it, or undefined. macOS needs
- * nothing; Linux needs QEMU and KVM; Windows needs WSL 2 and Git for Windows (for its ssh).
+ * What this host still lacks before Lima can start a VM, or undefined. macOS needs nothing; Linux needs QEMU and
+ * KVM; Windows needs WSL 2 (without mirrored networking) and Git for Windows (for its ssh). `message` is for agents
+ * and logs; the panel words it from `reason` in the owner's language.
  */
-export function missingPrerequisite(host: ComputerHost, envPath = process.env.PATH ?? ""): string | undefined {
+export function missingPrerequisite(
+  host: ComputerHost,
+  envPath = process.env.PATH ?? "",
+  osRelease: () => string = readOsRelease,
+): ComputerNeed | undefined {
   if (host.os === "linux") {
     const qemu = host.arch === "aarch64" ? "qemu-system-aarch64" : "qemu-system-x86_64";
-    const pkg = host.arch === "aarch64" ? "qemu-system-arm qemu-efi-aarch64" : "qemu-system-x86";
-    if (!findProgram(qemu, envPath) || !findProgram("qemu-img", envPath))
-      return `Computer needs QEMU on this Linux host: install it (for example "sudo apt install ${pkg} qemu-utils") and try again`;
+    if (!findProgram(qemu, envPath) || !findProgram("qemu-img", envPath)) {
+      const command = qemuCommand(linuxInstaller(osRelease()), host.arch);
+      return {
+        reason: "qemu",
+        ...(command ? { command } : {}),
+        message: `Computer needs QEMU on this Linux host: install it${command ? ` ("${command}")` : " with the distribution's package manager"} and try again`,
+      };
+    }
     try {
       fs.accessSync("/dev/kvm", fs.constants.R_OK | fs.constants.W_OK);
     } catch {
       return fs.existsSync("/dev/kvm")
-        ? 'Computer needs access to /dev/kvm: add this user to the kvm group ("sudo usermod -aG kvm $USER"), sign in again and try again'
-        : "Computer needs hardware virtualization (KVM) on this Linux host: turn it on in the firmware settings, or use a server that offers it";
+        ? {
+            reason: "kvm_group",
+            command: "sudo usermod -aG kvm $USER",
+            message:
+              'Computer needs access to /dev/kvm: add this user to the kvm group ("sudo usermod -aG kvm $USER"), sign in again and try again',
+          }
+        : {
+            reason: "kvm_missing",
+            message:
+              "Computer needs hardware virtualization (KVM) on this Linux host: turn it on in the firmware settings, or use a server that offers it",
+          };
     }
   }
   if (host.os === "win32") {
     if (!fs.existsSync(path.join(systemRoot(), "System32", "wsl.exe")))
-      return 'Computer needs WSL 2: run "wsl --install --no-distribution" in an administrator PowerShell, restart Windows and try again';
+      return {
+        reason: "wsl",
+        command: "wsl --install --no-distribution",
+        message:
+          'Computer needs WSL 2: run "wsl --install --no-distribution" in an administrator PowerShell, restart Windows and try again',
+      };
     if (!host.ssh || !fs.existsSync(host.ssh))
-      return 'Computer needs Git for Windows, for the ssh it brings: install it (for example "winget install --id Git.Git -e"), then try again';
+      return {
+        reason: "git",
+        command: "winget install --id Git.Git -e",
+        message:
+          'Computer needs Git for Windows, for the ssh it brings: install it ("winget install --id Git.Git -e"), then try again',
+      };
+    if (mirroredNetworking())
+      return {
+        reason: "wsl_mirrored",
+        command: "wsl --shutdown",
+        message:
+          "Computer cannot run with WSL's mirrored networking, which shares this computer's localhost with it: remove networkingMode=mirrored from .wslconfig, run \"wsl --shutdown\" and try again",
+      };
   }
   return undefined;
 }
