@@ -10,6 +10,7 @@ import Terminal from "../Terminal.astro";
 import DownloadButton from "./DownloadButton.astro";
 import "./home.css";
 import "./hero-term.css";
+import "./hero-os.css";
 
 interface Props {
   lang: Lang;
@@ -119,7 +120,17 @@ const discord = "https://discord.gg/vxdZuT5WuE";
 
     <header class="hero">
       <div class="wrap">
-        <a class="pill" href={href(`${pre}/start/introduction/`)}><b>{t.pill.strong}</b> {t.pill.rest} <span class="arr">↗</span></a>
+        <a class="pill pill--os" href="#download">
+          <b class="pill__new">{t.pill.strong}</b><span class="pill__on">{t.pill.rest}</span>
+          {
+            (["mac", "windows", "linux", "android"] as const).map((os) => (
+              <span class="pill__os">
+                <OsIcon name={os} size={14} />
+                <span>{{ mac: "macOS", windows: "Windows", linux: "Linux", android: "Android" }[os]}</span>
+              </span>
+            ))
+          }
+        </a>
         <h1 class="hero__title">
           <span class="row">
             <span class="split">{t.meet}</span>
