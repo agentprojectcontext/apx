@@ -129,6 +129,8 @@ function ComputerPanelBody() {
       {/* A viewer's error speaks of a desktop that is up; once it is off, the reason it is off matters instead. */}
       <ComputerError
         error={(ready && error) || controlError || status?.error || ""}
+        needs={ready ? undefined : status?.needs}
+        onRetry={() => void operate(allow ? "allow" : "enable")}
         refusal={refusal}
         busy={busy}
         onLower={(gib) => void lower(gib)}
@@ -181,7 +183,7 @@ function ComputerPanelBody() {
               {status?.downloaded != null && ` · ${Math.round(status.downloaded / 1048576)} MB`}
             </p>
           )}
-          {!preparing && phase !== "unsupported" && (
+          {!preparing && phase !== "unsupported" && !status?.needs && (
             <button
               type="button"
               className="computer__button is-primary"

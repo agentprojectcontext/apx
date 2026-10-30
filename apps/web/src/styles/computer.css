@@ -99,6 +99,38 @@
   color: #dc2626;
   font-size: 12px;
 }
+.computer__needs {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 10px 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  font-size: var(--apx-text-sm);
+}
+.computer__needs p {
+  margin: 0;
+  color: var(--apx-fg-muted);
+}
+.computer__command {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-bg);
+}
+.computer__command code {
+  min-width: 0;
+  font-family: var(--apx-font-mono);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
 .computer__error > .computer__button {
   display: block;
   margin-top: 8px;

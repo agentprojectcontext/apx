@@ -21,7 +21,7 @@ import {
   thisHost,
 } from "./resources.ts";
 import { computerUsage, diskImageBytes } from "./usage.ts";
-import { mirroredNetworking, wslSeed, wslTemplate } from "./wsl-seed.ts";
+import { wslSeed, wslTemplate } from "./wsl-seed.ts";
 
 const GIB = 1024 ** 3;
 /** Each Lima call the resource monitor makes: below its 3 s wait for the VM's numbers. */
@@ -142,11 +142,7 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
     async prepare(_mode, signal, progress) {
       if (!host) throw new Error("Computer is not available on this system");
       const missing = missingPrerequisite(host, env.PATH);
-      if (missing) throw new Error(missing);
-      if (host.vmType === "wsl2" && mirroredNetworking())
-        throw new Error(
-          "Computer cannot run with WSL's mirrored networking, which shares this computer's localhost with it: remove networkingMode=mirrored from .wslconfig, run \"wsl --shutdown\" and try again",
-        );
+      if (missing) throw new Error(missing.message);
       if (limaHome.length > 70) throw new Error("APX home is too long for Lima's SSH sockets; use a shorter APX_HOME");
       fs.mkdirSync(root, { recursive: true, mode: 0o700 });
       fs.mkdirSync(limaHome, { recursive: true, mode: 0o700 });
@@ -204,6 +200,7 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
     env,
     lifecycle,
     screens: screenDriver(run, instance, host?.vmType === "wsl2"),
+    needs: () => (host ? missingPrerequisite(host, env.PATH) : undefined),
     applied,
     usage: () =>
       computerUsage({
