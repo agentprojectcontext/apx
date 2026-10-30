@@ -1092,8 +1092,13 @@ export const ChannelInfo = z.object({
   type: ChannelType,
   label: z.string(),
   enabled: z.boolean(),
-  /** The agent that answers on it. */
+  /**
+   * The agent that answers on it: the one the owner talks to in a chat of this channel's own, and the one that answers
+   * contacts and rooms unless `contacts_agent_id` names another.
+   */
   agent_id: Id,
+  /** The agent that answers the contacts and rooms of this channel, when it is not `agent_id`. */
+  contacts_agent_id: Id.optional(),
   /**
    * What a stranger's first message gets: a pairing code the owner approves (on the owner's own number: only listed),
    * a notice asking the owner first, an answer right away as a new contact, or nothing.

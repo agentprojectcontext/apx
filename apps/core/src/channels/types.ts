@@ -16,6 +16,10 @@ export type InboundFile = NonNullable<Inbound["files"]>[number];
 
 export type ChannelConfig = Omit<ChannelInfo, "token_set" | "token_hint" | "status" | "error" | "account">;
 
+/** Who answers a channel's contacts and rooms: its own agent when it has one, else the channel's. */
+export const contactAgentOf = (cfg: Pick<ChannelConfig, "agent_id" | "contacts_agent_id">): string =>
+  cfg.contacts_agent_id ?? cfg.agent_id;
+
 export type AdapterCaps = {
   /** Shows "typing…" while the agent works. */
   typing: boolean;
