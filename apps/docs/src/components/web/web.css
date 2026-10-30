@@ -78,11 +78,12 @@ body.h {
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
 }
-.h a {
+/* Zero-specificity resets, so components (and their :where()-scoped styles) win. */
+:where(.h) a {
   color: inherit;
   text-decoration: none;
 }
-.h button {
+:where(.h) button {
   font: inherit;
   color: inherit;
   cursor: pointer;
