@@ -377,6 +377,18 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
     interrupted(): RunRecord[] {
       return all(qb.selectFrom("runs").selectAll().where("state", "in", ["working", "input-required"])).map(toRun);
     },
+    /** Runs a provider's usage limit stopped that ended since `since`, oldest first. */
+    limitStopped(since: string): RunRecord[] {
+      return all(
+        qb
+          .selectFrom("runs")
+          .selectAll()
+          .where("state", "=", "failed")
+          .where("end_reason", "=", "provider_limit")
+          .where("ended_at", ">=", since)
+          .orderBy("ended_at"),
+      ).map(toRun);
+    },
     children(runId: string): RunRecord[] {
       return all(qb.selectFrom("runs").selectAll().where("parent_run_id", "=", runId)).map(toRun);
     },

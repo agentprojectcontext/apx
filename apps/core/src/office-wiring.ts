@@ -4,8 +4,8 @@
 // The same clock picks up, hourly, assigned tasks whose work never started, and revives tasks whose work stopped with
 // nobody on it (engine/task-stall.ts), and hands the owner's task comments that named no one to an agent
 // (engine/task-inbox.ts), and answers the contacts who wrote outside a channel's attention hours once they begin
-// (channels/held.ts). A provider limit that stops the agents is told once per stall. Background checks (an integration's
-// reminders, engine/background.ts) run on the same clock.
+// (channels/held.ts). A provider limit that stops the agents is told once per stall, and its turns go on once it lifts.
+// Background checks (an integration's reminders, engine/background.ts) run on the same clock.
 import { channelTexts } from "./channels/texts.ts";
 import type { Presentation } from "./domain/channels.ts";
 import { ownerTimeZone } from "./domain/owner.ts";
@@ -15,7 +15,7 @@ import type { Attention } from "./engine/attention.ts";
 import { type BackgroundCheck, createBackground } from "./engine/background.ts";
 import type { AdmitFn } from "./engine/engine.ts";
 import { createNudges } from "./engine/nudges.ts";
-import { createStallNotices, resetLabel } from "./engine/provider-limit.ts";
+import { createStallNotices, LIMIT_RESUME_EVERY_MS, resetLabel, resumeLimited } from "./engine/provider-limit.ts";
 import { createScheduler } from "./engine/routines.ts";
 import { handOwnerComments } from "./engine/task-inbox.ts";
 import { reviveStalled } from "./engine/task-stall.ts";
@@ -65,6 +65,14 @@ export function officeScheduler(deps: {
       run: (at) => {
         const { revived, told } = reviveStalled(store, deps.admit, at);
         if (revived || told) deps.log.info({ revived, told }, "stalled tasks");
+      },
+    },
+    {
+      id: "limit-resume",
+      everyMs: LIMIT_RESUME_EVERY_MS,
+      run: (at) => {
+        const resumed = resumeLimited(store, deps.admit, at);
+        if (resumed) deps.log.info({ resumed }, "turns resumed after a provider limit lifted");
       },
     },
     ...(deps.checks?.(remind) ?? []),
