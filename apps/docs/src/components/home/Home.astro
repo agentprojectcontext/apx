@@ -8,9 +8,11 @@ import OsIcon from "../OsIcon.astro";
 import Shot from "../Shot.astro";
 import Terminal from "../Terminal.astro";
 import DownloadButton from "./DownloadButton.astro";
+import DownloadCards from "./DownloadCards.astro";
 import "./home.css";
 import "./hero-term.css";
 import "./hero-os.css";
+import "./hero-beam.css";
 
 interface Props {
   lang: Lang;
@@ -113,10 +115,11 @@ const discord = "https://discord.gg/vxdZuT5WuE";
             <svg viewBox="0 0 24 24" aria-hidden="true" class="fill"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z" /></svg>
           </a>
           <a class="btn btn-discord btn-sm" href={discord}><svg viewBox="0 0 24 24" aria-hidden="true" class="fill"><path d="M20.32 4.37A19.8 19.8 0 0 0 15.4 2.84a.07.07 0 0 0-.08.04c-.21.38-.45.87-.61 1.25a18.3 18.3 0 0 0-5.49 0 12.6 12.6 0 0 0-.62-1.25.08.08 0 0 0-.08-.04 19.7 19.7 0 0 0-4.92 1.53.07.07 0 0 0-.03.03C.53 9.05-.32 13.58.1 18.06a.08.08 0 0 0 .03.06 19.9 19.9 0 0 0 5.99 3.03.08.08 0 0 0 .08-.03c.46-.63.87-1.3 1.22-2a.08.08 0 0 0-.04-.1 13.1 13.1 0 0 1-1.87-.9.08.08 0 0 1 0-.13l.37-.29a.07.07 0 0 1 .08-.01c3.93 1.79 8.18 1.79 12.07 0a.07.07 0 0 1 .08.01l.37.29a.08.08 0 0 1 0 .13c-.6.35-1.22.65-1.87.9a.08.08 0 0 0-.04.1c.36.7.77 1.37 1.22 2a.08.08 0 0 0 .08.03 19.8 19.8 0 0 0 6-3.03.08.08 0 0 0 .03-.06c.5-5.18-.84-9.67-3.55-13.66a.06.06 0 0 0-.03-.03zM8.02 15.33c-1.18 0-2.16-1.08-2.16-2.42s.96-2.42 2.16-2.42c1.21 0 2.18 1.1 2.16 2.42 0 1.34-.96 2.42-2.16 2.42zm7.97 0c-1.18 0-2.15-1.08-2.15-2.42s.95-2.42 2.15-2.42c1.21 0 2.18 1.1 2.16 2.42 0 1.34-.95 2.42-2.16 2.42z" /></svg><span class="lbl">Discord</span></a>
-          <a class="btn btn-light btn-sm" href={href(`${pre}/start/introduction/`)}>{t.getStarted}</a>
+          <a class="btn btn-light btn-sm nav__get" href="#download" aria-label={t.download.eyebrow}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" /></svg><span class="lbl">{t.download.eyebrow}</span></a>
         </div>
       </div>
     </nav>
+    <div class="beam" id="beam" aria-hidden="true"><i></i></div>
 
     <header class="hero">
       <div class="wrap">
@@ -240,27 +243,8 @@ const discord = "https://discord.gg/vxdZuT5WuE";
         <p class="eyebrow">{t.download.eyebrow}</p>
         <h2 class="h2">{t.download.title}</h2>
         <p class="lead">{t.download.lead}</p>
-        <div class="dl">
-          <div class="dl__apps card">
-            <h3>{t.download.desktop}</h3>
-            <ul class="dl__os">
-              {
-                t.download.os.map((o) => (
-                  <li>
-                    <a href={releases}>
-                      <b>
-                        <OsIcon name={o.icon} />
-                        {o.name}
-                      </b>
-                      <code>{o.file}</code>
-                      <span>{o.note}</span>
-                    </a>
-                  </li>
-                ))
-              }
-            </ul>
-            <a class="btn btn-light" href={releases}>{t.download.releases} ↗</a>
-          </div>
+        <DownloadCards t={t.download} releases={releases} />
+        <div class="dl dl--rest">
           <div class="dl__cli card">
             <h3>{t.download.server}</h3>
             <button class="install install--block" type="button" data-copy={install} data-done={t.copied}>
@@ -448,6 +432,23 @@ You have three open things in Acme Store:
       for (const b of hero?.querySelectorAll<HTMLElement>("[data-os]") ?? [])
         b.addEventListener("click", () => setOs(b.dataset.os === "win" ? "win" : "unix"));
       if (/win/i.test((navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ?? navigator.platform)) setOs("win");
+
+      // The beam runs from the top bar's download to the top of the app on stage.
+      const beam = document.getElementById("beam");
+      const placeBeam = () => {
+        const from = document.querySelector(".nav__get")?.getBoundingClientRect();
+        const to = document.querySelector(".stage .apx-shot")?.getBoundingClientRect();
+        if (!beam || !from || !to || !from.width) return;
+        // The bar is fixed, so where the button sits on screen is where it sits at the top of the page.
+        const top = from.bottom;
+        beam.style.left = `${from.left + from.width / 2 - 1}px`;
+        beam.style.top = `${top}px`;
+        beam.style.height = `${Math.max(0, to.top + scrollY - top)}px`;
+        beam.classList.add("on");
+      };
+      addEventListener("resize", placeBeam);
+      addEventListener("load", placeBeam);
+      document.fonts?.ready.then(placeBeam);
 
       // The hero's last word and its blobo change together.
       const still = matchMedia("(prefers-reduced-motion: reduce)").matches;

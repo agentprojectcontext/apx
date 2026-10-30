@@ -1,0 +1,59 @@
+---
+// One card per system, each a direct link to that file in the latest release (the releases page until it answers).
+import type { HomeText } from "../../i18n/home";
+import Blob from "../Blob.astro";
+import OsIcon from "../OsIcon.astro";
+import "./downloads.css";
+
+interface Props {
+  t: HomeText["download"];
+  releases: string;
+}
+const { t, releases } = Astro.props;
+const cards = [
+  { id: "mac", name: "macOS", blob: "amatista", tint: "#a371f7", file: "-mac-arm64.dmg", alt: "-mac-x64.dmg" },
+  { id: "windows", name: "Windows", blob: "cobalto", tint: "#4c8dff", file: "-win-x64.exe" },
+  {
+    id: "linux",
+    name: "Linux",
+    blob: "brasa",
+    tint: "#f0883e",
+    file: "-linux-x86_64.AppImage",
+    alt: "-linux-arm64.AppImage",
+  },
+  { id: "android", name: "Android", blob: "menta", tint: "#3fb950", file: "-android.apk" },
+] as const;
+---
+
+<div class="dlc">
+  {
+    cards.map((c) => (
+      <article class="dlc__card" style={`--tint: ${c.tint}`}>
+        <div class="dlc__top">
+          <OsIcon name={c.id} size={44} />
+          <span class="dlc__tag">{t.available}</span>
+        </div>
+        <Blob name={c.blob} size={64} class="dlc__blob" />
+        <h3>{c.name}</h3>
+        <p>{t.cards[c.id]}</p>
+        <div class="dlc__links">
+          <a href={releases} data-file={c.file}>
+            {t.getFor} {c.name} <span aria-hidden="true">↓</span>
+          </a>
+          {"alt" in c && (
+            <a class="dlc__alt" href={releases} data-file={c.alt}>
+              {t.alt[c.id as "mac" | "linux"]}
+            </a>
+          )}
+        </div>
+      </article>
+    ))
+  }
+</div>
+<p class="dlc__all"><a href={releases}>{t.releases} ↗</a></p>
+
+<script>
+  import { fillLatest } from "../latest-release";
+
+  fillLatest(document.querySelectorAll<HTMLAnchorElement>(".dlc a[data-file]"));
+</script>
