@@ -13,6 +13,7 @@ import "./home.css";
 import "./hero-term.css";
 import "./hero-os.css";
 import "./hero-beam.css";
+import "./news.css";
 
 interface Props {
   lang: Lang;
@@ -196,31 +197,31 @@ const discord = "https://discord.gg/vxdZuT5WuE";
         <div class="news">
           {
             t.newIn.items.map((n, i) => (
-              <a class:list={["news__item card", { wide: i === 0 }]} href={href(n.href)}>
+              <a class:list={["news__item card", `news__item--${i}`]} href={href(n.href)}>
+                <div class="news__visual" aria-hidden="true">
+                  {n.shot ? (
+                    <Shot name={n.shot} alt="" frame={n.shot.startsWith("phone") ? "phone" : "none"} />
+                  ) : (
+                    n.mock && (
+                      <div class="browser-mock">
+                        <div class="browser-mock__tabs">
+                          {n.mock.tabs.map((tab, j) => <span class:list={{ on: j === 0 }}>{tab}</span>)}
+                        </div>
+                        <div class="browser-mock__url">{n.mock.url}</div>
+                        <div class="browser-mock__page">
+                          <i /><i /><i class="short" />
+                          <p class="browser-mock__who"><Blob name="cobalto" size={22} /><b>{n.mock.who}</b> {n.mock.what}</p>
+                          <p class="browser-mock__hand">{n.mock.hand}</p>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
                 <div class="news__text">
-                  <Blob name={n.blob as "menta"} size={44} />
                   <h3>{n.title}</h3>
                   <p>{n.body}</p>
+                  <span class="news__more">{t.newIn.more} →</span>
                 </div>
-                {n.shot ? (
-                  <div class="news__shot">
-                    <Shot name={n.shot} alt="" frame={n.shot.startsWith("phone") ? "phone" : "none"} />
-                  </div>
-                ) : (
-                  n.mock && (
-                    <div class="news__shot browser-mock" aria-hidden="true">
-                      <div class="browser-mock__tabs">
-                        {n.mock.tabs.map((tab, j) => <span class:list={{ on: j === 0 }}>{tab}</span>)}
-                      </div>
-                      <div class="browser-mock__url">{n.mock.url}</div>
-                      <div class="browser-mock__page">
-                        <i /><i /><i class="short" />
-                        <p class="browser-mock__who"><Blob name="cobalto" size={22} /><b>{n.mock.who}</b> {n.mock.what}</p>
-                        <p class="browser-mock__hand">{n.mock.hand}</p>
-                      </div>
-                    </div>
-                  )
-                )}
               </a>
             ))
           }
@@ -244,8 +245,7 @@ const discord = "https://discord.gg/vxdZuT5WuE";
         <p class="eyebrow">{t.download.eyebrow}</p>
         <h2 class="h2">{t.download.title}</h2>
         <p class="lead">{t.download.lead}</p>
-        <DownloadCards t={t.download} releases={releases} />
-        <div class="dl dl--rest">
+        <DownloadCards t={t.download} releases={releases}>
           <div class="dl__cli card">
             <div class="dl__cmds">
               <h3>{t.download.term.title}</h3>
@@ -275,6 +275,8 @@ const discord = "https://discord.gg/vxdZuT5WuE";
               </p>
             </div>
           </div>
+        </DownloadCards>
+        <div class="dl dl--rest">
           <div class="dl__note card">
             <h3>{t.download.unsigned.title}</h3>
             <p>{t.download.unsigned.body}</p>

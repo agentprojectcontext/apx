@@ -5,17 +5,16 @@ const en = {
   newIn: {
     eyebrow: "New in v2",
     title: "More than a chat window.",
+    more: "Learn more",
     lead: "A crew that works together, a browser they can drive, little apps they build for you, and the chats and phone you already carry.",
     items: [
       {
-        blob: "orbita",
         shot: "team",
         title: "A crew of agents",
         body: "Home, your secretary, plus an agent per role in each project. They hand work to each other and you watch it as a card in your chat.",
         href: "/concepts/agents/",
       },
       {
-        blob: "cobalto",
         shot: "",
         title: "A browser they drive",
         mock: {
@@ -29,21 +28,18 @@ const en = {
         href: "/office/browser/",
       },
       {
-        blob: "amatista",
         shot: "app-widget",
         title: "Widgets and apps",
         body: "Ask for a chart, a checklist or a small tool: an agent builds it, and you pin it to the project's board or open it full screen.",
         href: "/office/board/",
       },
       {
-        blob: "brasa",
         shot: "channel",
         title: "Your channels",
         body: "Telegram, WhatsApp, Discord, Slack and iMessage. Each contact and each room is one conversation, with the same memory as the app.",
         href: "/channels/overview/",
       },
       {
-        blob: "aqua",
         shot: "phone-app",
         title: "On your phone",
         body: "Pair your phone with a code and talk to Home from anywhere. The Android app is in the releases; it installs beside v1's.",
@@ -304,17 +300,16 @@ const es: HomeText = {
   newIn: {
     eyebrow: "Lo nuevo en v2",
     title: "Más que una ventana de chat.",
+    more: "Ver más",
     lead: "Un crew que trabaja en equipo, un navegador que pueden manejar, apps chiquitas que te arman, y los chats y el celular que ya usás.",
     items: [
       {
-        blob: "orbita",
         shot: "team",
         title: "Un crew de agentes",
         body: "Home, tu secretaria, y un agente por rol en cada proyecto. Se pasan el trabajo entre ellos y lo ves como una tarjeta en tu chat.",
         href: "/es/concepts/agents/",
       },
       {
-        blob: "cobalto",
         shot: "",
         title: "Un navegador que manejan",
         mock: {
@@ -328,21 +323,18 @@ const es: HomeText = {
         href: "/es/office/browser/",
       },
       {
-        blob: "amatista",
         shot: "app-widget",
         title: "Widgets y apps",
         body: "Pedí un gráfico, una checklist o una herramienta chica: un agente la arma, y la fijás en el tablero del proyecto o la abrís en pantalla completa.",
         href: "/es/office/board/",
       },
       {
-        blob: "brasa",
         shot: "channel",
         title: "Tus canales",
         body: "Telegram, WhatsApp, Discord, Slack e iMessage. Cada contacto y cada sala es una conversación, con la misma memoria que la app.",
         href: "/es/channels/overview/",
       },
       {
-        blob: "aqua",
         shot: "phone-app",
         title: "En tu celular",
         body: "Vinculá el celular con un código y hablale a Home desde donde estés. La app de Android está en los releases; se instala al lado de la de v1.",

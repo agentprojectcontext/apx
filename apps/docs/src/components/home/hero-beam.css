@@ -1,4 +1,8 @@
 /* A line of light from the top bar's download to the app on stage. Home.astro places it once the page is laid out. */
+/* Its glow spreads past the right edge; the page never scrolls sideways for it. */
+:root:has(body.h) {
+  overflow-x: clip;
+}
 .beam {
   position: absolute;
   z-index: 2;

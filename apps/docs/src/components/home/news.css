@@ -1,0 +1,149 @@
+/* What's new: a bento of cards, each a picture of the app on top and what it does below. The phone card carries the
+   brand's green; the rest stay dark. */
+.news {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: auto;
+  gap: 16px;
+  margin-top: 44px;
+}
+.news__item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  transition:
+    border-color 0.25s,
+    transform 0.25s;
+}
+.news__item:hover {
+  border-color: var(--line-2);
+  transform: translateY(-3px);
+}
+.news__item--0 {
+  grid-column: span 2;
+}
+.news__item--4 {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  background:
+    radial-gradient(120% 60% at 50% 0%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 75%),
+    var(--card);
+}
+.news__item--3 {
+  grid-column: 1 / -1;
+  flex-direction: row-reverse;
+  align-items: stretch;
+}
+
+/* The picture: inset from the card's edges, cut at a fixed height and faded out at the bottom. */
+.news__visual {
+  position: relative;
+  height: 280px;
+  margin: 22px 22px 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent);
+  mask-image: linear-gradient(180deg, #000 70%, transparent);
+}
+.news__item--0 .news__visual {
+  height: 340px;
+}
+.news__item--3 .news__visual {
+  flex: 1.4;
+  height: 300px;
+  margin: 22px 22px 0 0;
+}
+.news__item--4 .news__visual {
+  flex: 1;
+  height: auto;
+  min-height: 420px;
+  display: flex;
+  justify-content: center;
+  padding-top: 18px;
+}
+.news__visual .apx-shot {
+  margin: 0;
+}
+.news__visual .apx-shot--none {
+  border-radius: 14px;
+  overflow: hidden;
+}
+.news__visual .apx-shot--phone {
+  width: 240px;
+  max-width: 100%;
+  margin: 0;
+}
+
+.news__text {
+  padding: 18px 26px 26px;
+}
+.news__item--3 .news__text {
+  flex: 1;
+  align-self: flex-end;
+  padding: 26px;
+}
+.news__text h3 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+}
+.news__text p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.news__more {
+  display: inline-block;
+  margin-top: 14px;
+  color: var(--accent-2);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@media (max-width: 1000px) {
+  .news {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .news__item--4 {
+    grid-column: auto;
+    grid-row: span 2;
+  }
+}
+@media (max-width: 720px) {
+  .news {
+    grid-template-columns: 1fr;
+  }
+  .news__item--0,
+  .news__item--3,
+  .news__item--4 {
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .news__item--3 {
+    flex-direction: column;
+  }
+  .news__item--3 .news__visual {
+    flex: none;
+    margin: 22px 22px 0;
+  }
+  .news__visual,
+  .news__item--0 .news__visual,
+  .news__item--3 .news__visual {
+    height: 220px;
+  }
+  .news__item--4 .news__visual {
+    min-height: 0;
+    height: 320px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .news__item,
+  .news__item:hover {
+    transition: none;
+    transform: none;
+  }
+}
