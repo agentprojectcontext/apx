@@ -9,6 +9,7 @@ const text = spanish
       reject: "Rechazar",
       settings: "Preferencias de cookies",
       privacy: "Privacidad del sitio",
+      unsaved: "La medición está detenida, pero tu navegador no nos dejó guardar el rechazo. Si antes habías aceptado, al cerrar o recargar podría volver a activarse. Permití guardar datos para conservar tu elección.",
     }
   : {
       title: "Help us improve this site?",
@@ -17,6 +18,7 @@ const text = spanish
       reject: "Decline",
       settings: "Cookie preferences",
       privacy: "Website privacy",
+      unsaved: "Measurement has stopped, but your browser would not save your decline. If you previously accepted, it could resume after you close or reload this page. Allow data storage to keep your choice.",
     };
 ---
 <div data-analytics-consent data-analytics-path={Astro.url.pathname}>
@@ -24,6 +26,7 @@ const text = spanish
   <section class="cookie-panel" aria-label={text.settings} data-cookie-panel hidden>
     <h2>{text.title}</h2>
     <p>{text.body} <a href={`${base}/${spanish ? "es/" : ""}reference/website-privacy/`}>{text.privacy}</a></p>
+    <p role="status" data-cookie-error hidden>{text.unsaved}</p>
     <div class="cookie-actions">
       <button type="button" data-cookie-reject>{text.reject}</button>
       <button type="button" data-cookie-accept>{text.accept}</button>

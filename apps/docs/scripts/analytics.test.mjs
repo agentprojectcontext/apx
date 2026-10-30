@@ -8,9 +8,9 @@ import {
   pageLocation,
 } from "../src/components/analytics.mjs";
 
-function fixture(choice, unavailable = false) {
+function fixture(choice, unavailable = false, broadcasts = new Set()) {
   const elements = Object.fromEntries(
-    ["panel", "settings", "accept", "reject"].map((name) => [
+    ["panel", "settings", "accept", "reject", "error"].map((name) => [
       name,
       {
         hidden: true,
@@ -37,6 +37,12 @@ function fixture(choice, unavailable = false) {
   const listeners = {};
   const failures = { write: unavailable, cookies: false };
   const win = {
+    BroadcastChannel: class {
+      constructor() { broadcasts.add(this); }
+      postMessage(data) {
+        for (const peer of broadcasts) if (peer !== this) peer.onmessage?.({ data });
+      }
+    },
     addEventListener(name, callback) {
       listeners[name] = callback;
     },
@@ -72,6 +78,7 @@ function fixture(choice, unavailable = false) {
     ["unrelated", "keep"],
   ]);
   const doc = {
+    addEventListener(name, callback) { listeners[name] = callback; },
     body: { append() {} },
     querySelector() {
       return root;
@@ -203,6 +210,32 @@ test("cookie access errors do not break preferences or re-enable an unwritable a
   assert.doesNotThrow(() => initializeConsent(f.win, f.doc));
   assert.equal(f.scripts.length, 1);
   assert.equal(f.win[`ga-disable-${measurementId}`], true);
+});
+
+test("a failed decline stops all active tabs and retries after storage recovers", () => {
+  const broadcasts = new Set();
+  const tabs = [fixture("accepted", false, broadcasts), fixture("accepted", false, broadcasts)];
+  for (const tab of tabs) {
+    tab.failures.write = true;
+    tab.failures.cookies = true;
+  }
+  tabs[0].elements.reject.click();
+  for (const tab of tabs) {
+    assert.equal(tab.win[`ga-disable-${measurementId}`], true);
+    assert.equal(tab.elements.error.hidden, false);
+    assert.equal(tab.elements.panel.hidden, false);
+    assert.equal(tab.reloads(), 0, "do not reload into a stale acceptance");
+    assert.equal(tab.values.get(consentKey), "accepted");
+    tab.failures.write = false;
+    tab.failures.cookies = false;
+    tab.listeners.visibilitychange();
+    assert.equal(tab.values.get(consentKey), "declined");
+    assert.equal(tab.elements.error.hidden, true);
+    assert.equal(tab.reloads(), 1);
+    tab.root.dataset.ready = "";
+    initializeConsent(tab.win, tab.doc);
+    assert.equal(tab.scripts.length, 1, "recovery cannot resurrect the old acceptance");
+  }
 });
 
 test("storage failure defaults to no analytics and still allows an explicit choice", () => {

@@ -16,7 +16,13 @@ export function initializeConsent(win, doc) {
   const settings = root.querySelector("[data-cookie-settings]");
   const accept = root.querySelector("[data-cookie-accept]");
   const reject = root.querySelector("[data-cookie-reject]");
+  const error = root.querySelector("[data-cookie-error]");
   let loaded = false;
+  let pendingDecline = false;
+  let channel;
+  try {
+    channel = new win.BroadcastChannel(consentKey);
+  } catch {}
   function readCookies() {
     try {
       return doc.cookie;
@@ -88,7 +94,7 @@ export function initializeConsent(win, doc) {
     }
   }
 
-  function choose(value) {
+  function persist(value) {
     const maxAge = value === "declined" ? 31536000 : 0;
     writeCookie(
       `${denialCookie}=1; Max-Age=${maxAge}; path=/; SameSite=Lax${win.location.protocol === "https:" ? "; Secure" : ""}`,
@@ -100,25 +106,49 @@ export function initializeConsent(win, doc) {
         win.localStorage.removeItem(consentKey);
       } catch {}
     }
+    return readChoice() === value;
+  }
+
+  function stop() {
+    win[`ga-disable-${measurementId}`] = true;
+    clearCookies();
+  }
+
+  function decline() {
+    stop();
+    pendingDecline = !persist("declined");
+    error.hidden = !pendingDecline;
+    panel.hidden = !pendingDecline;
+    settings.hidden = pendingDecline;
+    // Only reload when a fresh page can read the denial.
+    if (loaded && !pendingDecline) win.location.reload();
+  }
+
+  function choose(value) {
+    if (value === "declined") {
+      decline();
+      try { channel?.postMessage("declined"); } catch {}
+      if (!pendingDecline) settings.focus();
+      return;
+    }
+    pendingDecline = false;
+    persist(value);
+    error.hidden = true;
     panel.hidden = true;
     settings.hidden = false;
     settings.focus();
-    if (value === "accepted") start();
-    else {
-      win[`ga-disable-${measurementId}`] = true;
-      clearCookies();
-      // Unload Google's timers as well as disabling event delivery.
-      if (loaded) win.location.reload();
-    }
+    if (loaded) win.location.reload();
+    else start();
   }
 
   function synchronize() {
-    if (loaded && readChoice() !== "accepted") {
-      win[`ga-disable-${measurementId}`] = true;
-      clearCookies();
-      win.location.reload();
-    }
+    if (pendingDecline) decline();
+    else if (loaded && readChoice() !== "accepted") decline();
   }
+  if (channel) channel.onmessage = (event) => {
+    if (event.data === "declined") decline();
+  };
+  doc.addEventListener("visibilitychange", synchronize);
   win.addEventListener("storage", (event) => {
     if (event.key === consentKey || event.key === null) synchronize();
   });
