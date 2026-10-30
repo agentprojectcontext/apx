@@ -37,11 +37,11 @@ for (const scope of ["tab", "turn"] as const) {
       throw new Error(`Unexpected ${method}`);
     });
     try {
-      await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
-      const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+      await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
+      const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
       const ordinary = nativeApproval("browser_evaluate");
-      env.core.store.approvals.grant(ordinary, "always", thread, "roby");
-      env.core.store.approvals.grant(strictApproval(ordinary), "always", thread, "roby");
+      env.core.store.approvals.grant(ordinary, "always", thread, "superagent");
+      env.core.store.approvals.grant(strictApproval(ordinary), "always", thread, "superagent");
       await env.client.call("threads.send", { thread, text: "Evaluate three expressions" });
       const card = await waitFor(async () => (await env.client.call("runs.pending", { thread })).inputs[0]);
       assert.deepEqual(card.approval_scopes, ["once", "tab", "turn"]);
@@ -63,7 +63,7 @@ for (const scope of ["tab", "turn"] as const) {
       if (scope === "tab") {
         const grant = temporary[0];
         assert.ok(grant);
-        await env.client.call("tools.revoke", { key: grant.key, thread, agent: "roby" });
+        await env.client.call("tools.revoke", { key: grant.key, thread, agent: "superagent" });
         assert.equal(
           (await env.client.call("tools.approvals", { thread })).approvals.filter((row) => row.browser !== undefined)
             .length,

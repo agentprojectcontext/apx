@@ -56,7 +56,7 @@ test("two agents hold two screens at once; a third is refused while the VM holds
   });
   try {
     const chats: Record<string, string> = {};
-    for (const agent of ["roby", "scout", "vera"]) {
+    for (const agent of ["superagent", "scout", "vera"]) {
       await env.client.call("environments.permit", { agent, on: true });
       const chat = await env.client.call("threads.create", { kind: "loose", agent_id: agent });
       await env.client.call("environments.bind", { thread: chat.id });
@@ -64,15 +64,15 @@ test("two agents hold two screens at once; a third is refused while the VM holds
     }
     const send = (agent: string) =>
       env.client.call("threads.send", { thread: chats[agent] ?? "", text: `chat ${agent}` });
-    await send("roby");
+    await send("superagent");
     await send("scout");
-    await waitFor(() => turns.started("roby") && turns.started("scout"), "both turns started");
+    await waitFor(() => turns.started("superagent") && turns.started("scout"), "both turns started");
     const status = await env.client.call("environments.status", {});
     assert.equal(status.max_screens, 2);
     assert.deepEqual(
       status.screens?.map((s) => [s.screen, s.agent ?? "", s.thread ?? "", s.control]),
       [
-        [1, "roby", chats.roby, "agent"],
+        [1, "superagent", chats.superagent, "agent"],
         [2, "scout", chats.scout, "agent"],
       ],
     );
@@ -86,15 +86,15 @@ test("two agents hold two screens at once; a third is refused while the VM holds
     assert.equal(turns.started("vera"), false, "no model call without a screen");
 
     // The same agent in a second chat waits for its own screen.
-    const second = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const second = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("environments.bind", { thread: second.id });
     await env.client.call("threads.send", { thread: second.id, text: "chat other" });
     const busy = await env.settle(second.id);
     assert.match(busy.runs[0]?.error ?? "", /Roby.s screen is in use in another chat/);
 
     // Roby's turn ends: its screen is let go but stays up, and makes room for Vera.
-    turns.end("roby");
-    await env.settle(chats.roby ?? "");
+    turns.end("superagent");
+    await env.settle(chats.superagent ?? "");
     assert.deepEqual(
       env.core.store.settings.read("computer_claims").map((c) => c.agent),
       ["scout"],
@@ -123,7 +123,7 @@ test("claims of runs that are over are swept, as after a restart", async () => {
   });
   try {
     env.core.store.settings.write("computer_claims", [
-      { screen: 1, agent: "roby", thread: "home", run: "run_gone", at: new Date().toISOString() },
+      { screen: 1, agent: "superagent", thread: "home", run: "run_gone", at: new Date().toISOString() },
     ]);
     assert.deepEqual((await env.client.call("environments.status", {})).screens, []);
     assert.deepEqual(env.core.store.settings.read("computer_claims"), []);
@@ -151,11 +151,11 @@ test("a screen still starting counts as use, so the idle watchdog never stops th
   });
   try {
     const chat = await computerChat(env);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.bind", { thread: chat });
     const vm = env.core.computer;
     const before = vm.lastActivity();
-    const claiming = vm.claim("roby", chat, "run_starting");
+    const claiming = vm.claim("superagent", chat, "run_starting");
     await waitFor(() => vm.inUse(), "a claim in progress to count as use");
     assert.ok(vm.lastActivity() >= before, "touched before the screen starts");
     started();
@@ -187,7 +187,10 @@ test("a screen that never starts fails its claim at the deadline, and the next c
     const late = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error("still waiting after 3 s")), 3000).unref();
     });
-    await assert.rejects(Promise.race([ledger.claim("roby", "home", "run_stuck"), late]), /did not start in time/);
+    await assert.rejects(
+      Promise.race([ledger.claim("superagent", "home", "run_stuck"), late]),
+      /did not start in time/,
+    );
     const next = await waitFor(
       () =>
         ledger.claim("scout", "home", "run_next").then(

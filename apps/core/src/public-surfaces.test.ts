@@ -9,7 +9,7 @@ test("only explicitly published widgets are readable through public ingress, nev
       name: "acme",
       title: "Acme page",
       html: '<script src="/_apx/kit@1.js"></script><h1>Public content</h1>',
-      created_by: "roby",
+      created_by: "superagent",
       connect: ["https://example.com"],
     });
     env.core.store.surfaces.setState(surface.id, { privateMarker: "private-state-must-not-leak" });

@@ -137,8 +137,8 @@ after(async () => {
 });
 
 test("an agent hands on only its chat's kept files and paths in its own folders", async () => {
-  const mine = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
-  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const mine = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
+  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   const up = (thread: string) =>
     env.client.call("media.upload", { name: "slide.png", mime: "image/png", data: PNG.toString("base64"), thread });
   const here = (await up(mine.id)).media;

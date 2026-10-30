@@ -19,7 +19,7 @@ before(async () => {
   env = await startCore({ llm });
   work = path.join(env.home, "work");
   fs.mkdirSync(work, { recursive: true });
-  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
 });
 after(async () => {
   await env.core.close();
@@ -27,10 +27,10 @@ after(async () => {
 });
 
 async function record(file: string, cwd = work, author: "agent" | "user" = "agent") {
-  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   const message = env.core.store.messages.add({
     thread_id: thread.id,
-    author: author === "agent" ? { kind: "agent", id: "roby" } : { kind: "user" },
+    author: author === "agent" ? { kind: "agent", id: "superagent" } : { kind: "user" },
     parts: [{ type: "changes", cwd, edits: true, files: [{ path: file, status: "M" }] }],
   });
   return { thread: thread.id, message: message.id, path: file, part: 0 };
@@ -49,7 +49,7 @@ test("legacy records read labeled current text, bounded, only for their chat's r
   const long = await env.client.call("files.diff", params);
   assert.equal(long.diff.length, FILE_READ_LIMIT);
   assert.equal(long.truncated, true);
-  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await assert.rejects(env.client.call("files.diff", { ...params, thread: other.id }), /not found/);
   await assert.rejects(env.client.call("files.diff", { ...params, path: "Unrecorded.txt" }), /not found/);
   await assert.rejects(env.client.call("files.diff", { ...params, part: 1 }), /not found/);
@@ -94,7 +94,7 @@ test("repeated edits persist the net patch, survive deletion and restart, and ne
   const project = (await env.client.call("projects.register", { path: repo })).project.id;
   const thread = await env.client.call("threads.create", {
     kind: "code",
-    agent_id: "roby",
+    agent_id: "superagent",
     project_id: project,
     write: "auto",
   });

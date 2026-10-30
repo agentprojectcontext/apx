@@ -60,7 +60,7 @@ test("with the client APX ships, Calendar, Drive and Gmail's sending connect wit
   assert.equal(env.core.secrets.has("secret://google-client_secret"), false, "nothing of the owner's is stored");
   assert.ok(!JSON.stringify(await env.client.call("integrations.list", {})).includes(FAKE_GOOGLE_SECRET));
 
-  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   await env.client.call("threads.send", { thread, text: "hello" });
   await env.settle(thread);
   for (const name of ["drive_search", "drive_read", "drive_write_doc", "drive_share", "calendar_cancel_event"])
@@ -81,7 +81,7 @@ test("with the client APX ships, Calendar, Drive and Gmail's sending connect wit
 });
 
 test("an event only on the owner's calendar goes in without asking; inviting someone waits for the owner's OK", async () => {
-  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   await env.client.call("threads.send", { thread, text: "block my morning" });
   await env.settle(thread);
   assert.equal(google.created.length, 1);

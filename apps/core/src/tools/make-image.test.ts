@@ -53,7 +53,7 @@ after(async () => {
 });
 
 async function draw(references: string[]) {
-  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Carousel" });
+  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Carousel" });
   await env.client.call("threads.send", { thread: thread.id, text: JSON.stringify(references) });
   const result = await env.settle(thread.id);
   return { thread, reply: String(result.messages.at(-1)?.parts.find((p) => p.type === "text")?.text ?? "") };

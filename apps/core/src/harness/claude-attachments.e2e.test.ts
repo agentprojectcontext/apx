@@ -48,7 +48,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     const project = (await env.client.call("projects.register", { path: dir, init: true })).project;
     const client = env.client;
     const create = () =>
-      client.call("threads.create", { kind: "code", agent_id: "roby", project_id: project.id, engine: "claude" });
+      client.call("threads.create", { kind: "code", agent_id: "superagent", project_id: project.id, engine: "claude" });
     for (const existing of [false, true]) {
       let thread: import("@apx/protocol").Thread | undefined = existing ? await create() : undefined;
       if (thread) {

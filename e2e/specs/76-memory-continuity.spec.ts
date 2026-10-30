@@ -5,7 +5,7 @@ import { expect, open, rpc, test } from "./kit.ts";
 const job = (state: string) => ({
   id: "capture:run_memory",
   kind: "capture",
-  agent_id: "roby",
+  agent_id: "superagent",
   thread_id: "th_memory",
   state,
   attempts: 1,

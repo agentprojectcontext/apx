@@ -10,7 +10,7 @@ test("the daily cap is set in Interruptions, and a notice too soon after another
   await rpc("notices.set", { ...prefs, budget_per_day: 50 });
   const r = await rpc<{ id: string }>("routines.set", {
     name: "nudge-probe",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "manual" },
     action: "message",
     prompt: "Probe from the budget",

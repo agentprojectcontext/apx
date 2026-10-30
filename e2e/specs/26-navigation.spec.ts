@@ -63,7 +63,7 @@ test("Cmd, Windows y Ctrl resaltan atajos; soltar o perder foco limpia resaltado
 test("Atrás y Adelante restauran pantalla y chat; navegar después descarta futuro", async ({ page }) => {
   const chat = await rpc<{ id: string }>("threads.create", {
     kind: "loose",
-    agent_id: "roby",
+    agent_id: "superagent",
     title: "Una conversación con nombre largo para comprobar ubicación",
   });
   await open(page, `#thread=${chat.id}&panel=usage`);
@@ -96,12 +96,12 @@ test("Atrás y Adelante restauran pantalla y chat; navegar después descarta fut
 test("El navegador se cierra al pasar a otro chat; Atrás lo trae con su chat", async ({ page }) => {
   const first = await rpc<{ id: string }>("threads.create", {
     kind: "loose",
-    agent_id: "roby",
+    agent_id: "superagent",
     title: "Chat con navegador",
   });
   const second = await rpc<{ id: string }>("threads.create", {
     kind: "loose",
-    agent_id: "roby",
+    agent_id: "superagent",
     title: "Chat sin navegador",
   });
   await open(page, `#thread=${first.id}&panel=browser`);
@@ -122,7 +122,7 @@ for (const platform of ["web", "mac", "win", "linux"])
   test(`${platform}: buscador centrado, controles accesibles, breadcrumb largo sin solapar`, async ({ page }) => {
     const chat = await rpc<{ id: string }>("threads.create", {
       kind: "loose",
-      agent_id: "roby",
+      agent_id: "superagent",
       title: "Una conversación con título tan largo que supera espacio disponible barra superior",
     });
     await page.route("**/rpc/system.updates", async (route) => {
@@ -235,8 +235,16 @@ test("Canales: tres visibles, orden persistente y sin leer visibles también en 
         }),
       );
   });
-  const slack = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Avisos Slack" });
-  const email = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Avisos Email" });
+  const slack = await rpc<{ id: string }>("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "Avisos Slack",
+  });
+  const email = await rpc<{ id: string }>("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "Avisos Email",
+  });
   let unread = true;
   await page.route("**/rpc/channels.list", async (route) => {
     await route.fulfill({
@@ -248,7 +256,7 @@ test("Canales: tres visibles, orden persistente y sin leer visibles también en 
             type: id,
             label: id === "email" ? "Email" : id[0]?.toUpperCase() + id.slice(1),
             enabled: true,
-            agent_id: "roby",
+            agent_id: "superagent",
             strangers: "pair",
             concurrency: "queue",
             owner_thread: "own",

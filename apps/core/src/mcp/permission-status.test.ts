@@ -21,7 +21,7 @@ test("permission status reports only current owner-wide grants without starting 
       { ...tool, tool: tool.name, server: JSON.stringify(["global", "", target.server]) },
       "always",
       "",
-      "roby",
+      "superagent",
     );
     assert.equal((await status())?.tool_permission_mode, "ask", "one agent's grant is not owner-wide");
     await env.client.call("mcp.approveTool", { ...target, tool: "echo" });

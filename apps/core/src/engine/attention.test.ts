@@ -35,7 +35,7 @@ after(async () => {
 });
 
 test("an agent waiting for the owner's OK is in the tray until answered", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "launch the probe" });
   await waitFor(async () => (await tray()).notifications.some((n) => n.kind === "input"), "input noticed");
   const n = (await tray()).notifications.find((x) => x.kind === "input");
@@ -69,7 +69,7 @@ test("a task waiting for the owner, and a routine's news, until seen", async () 
 
   const r = await env.client.call("routines.set", {
     name: "Build report",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "manual" },
     prompt: "daily news",
   });
@@ -89,8 +89,13 @@ test("a task waiting for the owner, and a routine's news, until seen", async () 
 test("agents paused at the owner's limit are told once per conversation, in the app, in the owner's words", async () => {
   const { store } = env.core;
   await env.client.call("notifications.read", {});
-  const root = store.threads.create({ kind: "loose", title: "Launch plan", agent_ids: ["roby"] });
-  const sub = store.threads.create({ kind: "a2a", title: "sub", agent_ids: ["scout", "roby"], parent_id: root.id });
+  const root = store.threads.create({ kind: "loose", title: "Launch plan", agent_ids: ["superagent"] });
+  const sub = store.threads.create({
+    kind: "a2a",
+    title: "sub",
+    agent_ids: ["scout", "superagent"],
+    parent_id: root.id,
+  });
   const pause = (thread: string, who: string) =>
     store.messages.add({
       thread_id: thread,

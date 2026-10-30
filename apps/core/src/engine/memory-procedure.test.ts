@@ -72,14 +72,14 @@ const reelTools = (): Tool[] => [
 ];
 
 const procedures = async (env: Env) =>
-  (await env.client.call("memory.list", { agent: "roby" })).memories.filter((m) => m.kind === "procedure");
+  (await env.client.call("memory.list", { agent: "superagent" })).memories.filter((m) => m.kind === "procedure");
 
 test("a confirmed reel download keeps the site, the command and what failed first, and the index names the method", async () => {
   let out = "";
   const llm = reelScript(() => out);
   const env = await startCore({ llm, aux: true, memoryMaintenance: true, extraTools: reelTools() });
   try {
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     out = path.join(scratchDir(env.core.store, env.home, chat), "reel.mp4");
     await env.client.call("threads.send", { thread: chat.id, text: request });
     await env.settle(chat.id);

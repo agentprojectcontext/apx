@@ -52,7 +52,7 @@ test("unknown options and commands fail with useful errors and no stack trace", 
 });
 
 test("with --plain an error is one line with the message, for scripts and agents", () => {
-  const r = cli("agents", "model", "roby", "--plain");
+  const r = cli("agents", "model", "superagent", "--plain");
   assert.equal(r.status, 1);
   assert.equal(
     r.stderr.trim(),

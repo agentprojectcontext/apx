@@ -33,7 +33,7 @@ test("self-assignment transfers execution, preserves findings and reports back w
       const create = callTool("transfer", "task_create", {
         title: "Single execution goal",
         description: "Use the existing findings and finish.",
-        assignee: "roby",
+        assignee: "superagent",
       });
       const duplicate = callTool("duplicate", "task_list", {});
       return {
@@ -51,7 +51,7 @@ test("self-assignment transfers execution, preserves findings and reports back w
   try {
     const chat = await env.client.call("threads.create", {
       kind: "loose",
-      agent_id: "roby",
+      agent_id: "superagent",
       title: "Single execution",
     });
     source = chat.id;
@@ -74,7 +74,7 @@ test("self-assignment transfers execution, preserves findings and reports back w
     assert.match(incoming, /task_list/);
     const resumed = env.core.store.runs.create({
       thread_id: source,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "user",
       input: { origin: { kind: "user" }, text: "Resume after restart.", resume_of: sent.run.id },
       deadline_at: "9999-01-01T00:00:00Z",
@@ -112,13 +112,13 @@ test("creating a self-task after delegation is refused without starting duplicat
       return callTool("duplicate-task", "task_create", {
         title: "Duplicated subscription research",
         description: "Research subscription limits again.",
-        assignee: "roby",
+        assignee: "superagent",
       });
     return say(String(tools.at(-1)?.content));
   });
   const env = await startCore({ llm });
   try {
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const sent = await env.client.call("threads.send", { thread: chat.id, text: "Research then create a self task." });
     await waitFor(() => Boolean(env.core.store.runs.get(sent.run.id)?.ended_at), "source run completion");
     const result = env.core.store.runs.steps(sent.run.id).find((s) => s.call_id === "duplicate-task");
@@ -135,10 +135,10 @@ test("creating a self-task after delegation is refused without starting duplicat
 test("a failed handoff rolls back creation and reassignment with their session and source marker", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   try {
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const source = env.core.store.runs.create({
       thread_id: chat.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "user",
       input: { origin: { kind: "user" }, text: "Transfer once." },
       deadline_at: "9999-01-01T00:00:00Z",
@@ -150,7 +150,7 @@ test("a failed handoff rolls back creation and reassignment with their session a
       transport: "internal",
       session: undefined,
       log: createLog("test", true),
-      agent: { id: "roby", thread_id: chat.id, run_id: source.id },
+      agent: { id: "superagent", thread_id: chat.id, run_id: source.id },
     };
     const handlers = taskHandlers(
       env.core.store,
@@ -165,14 +165,17 @@ test("a failed handoff rolls back creation and reassignment with their session a
     const before = env.core.store.threads.list({ include_subthreads: true }).length;
     assert.throws(
       () =>
-        handlers["tasks.create"]({ title: "No partial handoff", description: "Finish once.", assignee: "roby" }, ctx),
+        handlers["tasks.create"](
+          { title: "No partial handoff", description: "Finish once.", assignee: "superagent" },
+          ctx,
+        ),
       /queue unavailable/,
     );
     assert.equal((await env.client.call("tasks.list", {})).tasks.length, 0);
     assert.equal(env.core.store.threads.list({ include_subthreads: true }).length, before);
     assert.equal(env.core.store.threads.context(chat.id).task_handoff, undefined);
     const draft = await env.client.call("tasks.create", { title: "Keep draft", description: "Finish once." });
-    assert.throws(() => handlers["tasks.update"]({ task: draft.id, assignee: "roby" }, ctx), /queue unavailable/);
+    assert.throws(() => handlers["tasks.update"]({ task: draft.id, assignee: "superagent" }, ctx), /queue unavailable/);
     assert.equal(env.core.store.tasks.get(draft.id)?.assignee, undefined);
     assert.equal(env.core.store.threads.byTask(draft.id).length, 0);
     assert.equal(env.core.store.threads.context(chat.id).task_handoff, undefined);
@@ -192,12 +195,12 @@ for (const busy of ["helper", "job", "queued turn", "tool"] as const) {
         const child = env.core.store.threads.create({
           kind: "a2a",
           title: "Existing helper",
-          agent_ids: ["roby"],
+          agent_ids: ["superagent"],
           parent_id: source,
         });
         env.core.store.runs.create({
           thread_id: child.id,
-          agent_id: "roby",
+          agent_id: "superagent",
           trigger: "a2a",
           input: { origin: { kind: "user" }, text: "Existing helper work." },
           deadline_at: "9999-01-01T00:00:00Z",
@@ -209,7 +212,7 @@ for (const busy of ["helper", "job", "queued turn", "tool"] as const) {
       } else if (busy === "job") {
         env.core.store.jobs.create({
           thread_id: source,
-          agent_id: "roby",
+          agent_id: "superagent",
           title: "Existing job",
           cwd: env.home,
           background: true,
@@ -217,7 +220,7 @@ for (const busy of ["helper", "job", "queued turn", "tool"] as const) {
       } else {
         env.core.store.runs.create({
           thread_id: source,
-          agent_id: "roby",
+          agent_id: "superagent",
           trigger: "user",
           state: "queued",
           input: { origin: { kind: "user" }, text: "Queued work." },
@@ -227,12 +230,12 @@ for (const busy of ["helper", "job", "queued turn", "tool"] as const) {
       return callTool("transfer", "task_create", {
         title: "No second executor",
         description: "Keep the existing work.",
-        assignee: "roby",
+        assignee: "superagent",
       });
     });
     env = await startCore({ llm });
     try {
-      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       source = chat.id;
       const sent = await env.client.call("threads.send", {
         thread: source,
@@ -257,7 +260,7 @@ for (const mode of ["draft", "proposal", "scheduled", "other agent"] as const) {
         return callTool("create", "task_create", {
           title: `Independent ${mode}`,
           description: mode === "draft" ? undefined : "Separate work.",
-          assignee: mode === "other agent" ? "vera" : "roby",
+          assignee: mode === "other agent" ? "vera" : "superagent",
           ...(mode === "proposal" ? { propose: true } : {}),
           ...(mode === "scheduled" ? { start_at: "9999-01-01T00:00:00Z" } : {}),
         });
@@ -266,7 +269,7 @@ for (const mode of ["draft", "proposal", "scheduled", "other agent"] as const) {
     });
     const env = await startCore({ llm });
     try {
-      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       const sent = await env.client.call("threads.send", { thread: chat.id, text: `Create ${mode}.` });
       await waitFor(() => Boolean(env.core.store.runs.get(sent.run.id)?.ended_at), "source completion");
       assert.deepEqual(
@@ -290,14 +293,14 @@ test("assigning an existing draft to self also transfers execution", async () =>
     if (tools.length === 1)
       return callTool("assign", "task_update", {
         task: /created (task_\w+)/.exec(String(tools[0]?.content))?.[1],
-        assignee: "roby",
+        assignee: "superagent",
       });
     assert.equal(req.tools.length, 0);
     return say("Transferred the draft.");
   });
   const env = await startCore({ llm });
   try {
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const sent = await env.client.call("threads.send", { thread: chat.id, text: "Create a draft and assign it." });
     await waitFor(() => Boolean(env.core.store.runs.get(sent.run.id)?.ended_at), "draft transfer");
     assert.ok(env.core.store.threads.context(chat.id).task_handoff);
@@ -321,7 +324,7 @@ test("external harness handoff refuses further APX and native tools and preserve
       const result = await io.execute("transfer", "task_create", {
         title: "External transfer",
         description: "Finish once.",
-        assignee: "roby",
+        assignee: "superagent",
       });
       assert.equal(result.ok, true);
       assert.equal(result.endTurn, true);
@@ -341,7 +344,7 @@ test("external harness handoff refuses further APX and native tools and preserve
     const project = await ws.call("projects.register", { path: folder.path, init: true });
     const chat = await ws.call("threads.create", {
       kind: "code",
-      agent_id: "roby",
+      agent_id: "superagent",
       project_id: project.project.id,
       cwd: folder.path,
       write: "read-only",

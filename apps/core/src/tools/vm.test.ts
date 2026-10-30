@@ -80,7 +80,7 @@ test("Home never goes on the computer: an allowed super-agent there keeps its to
   });
   const env = await startCore({ home, llm, computer: fakeComputer(home).config });
   try {
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await assert.rejects(env.client.call("environments.bind", { thread: "home" }), /Home stays on this machine/);
     await assert.rejects(
       env.client.call("environments.enable", { thread: "home", appearance: "light" }),
@@ -119,7 +119,7 @@ test("once set up, only an allowed agent is offered the computer: it starts it, 
   try {
     // The owner set the computer up once, for the secretary in a chat of its own, and shut it down.
     const owner = await computerChat(env);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.enable", { thread: owner, appearance: "light" });
     await waitFor(async () => (await env.client.call("environments.status", {})).phase === "running", "owner start");
     await env.client.call("environments.stop", {});
@@ -167,7 +167,7 @@ test("starting refuses when free memory cannot hold the VM and its reserve, and 
   const env = await startCore({ home, llm, computer: vm.config });
   try {
     const chat = await computerChat(env);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await assert.rejects(
       env.client.call("environments.enable", { thread: chat, appearance: "light" }),
       /5 GiB free, the VM needs 4 GiB plus 2 GiB/,
@@ -200,14 +200,16 @@ test("only the owner or the allowed agent's own run starts and stops it; taking 
     const agent = new ApxClient({ url: env.core.url, actor: "agent" });
     await assert.rejects(agent.call("environments.start", { thread: chat }), { code: "unauthorized" });
     await assert.rejects(agent.call("environments.release", { thread: chat }), { code: "unauthorized" });
-    await assert.rejects(agent.call("environments.permit", { agent: "roby", on: true }), { code: "unauthorized" });
+    await assert.rejects(agent.call("environments.permit", { agent: "superagent", on: true }), {
+      code: "unauthorized",
+    });
     // Starting past the host's reserve is the owner's alone.
     await assert.rejects(agent.call("environments.enable", { appearance: "light", past_reserve: true }), {
       code: "unauthorized",
     });
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.bind", { thread: chat });
-    await env.client.call("environments.permit", { agent: "roby", on: false });
+    await env.client.call("environments.permit", { agent: "superagent", on: false });
     await env.client.call("threads.send", { thread: chat, text: "Use the computer" });
     const result = await env.settle(chat);
     assert.equal(llm.calls.length, 0);
@@ -250,7 +252,7 @@ test("a screen that does not start in time leaves the agent a clear 'still start
   const env = await startCore({ home, llm, computer: config });
   try {
     const chat = await computerChat(env);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     // Up already, with no chat on it: the agent's own start is what asks for its screen.
     await env.client.call("environments.enable", { appearance: "light" });
     await waitFor(async () => (await env.client.call("environments.status", {})).phase === "running", "running");
@@ -274,7 +276,7 @@ test("a computer that takes minutes to come up ends the turn, and its chat gets 
   const env = await startCore({ home, llm, computer: vm.config });
   try {
     const chat = await computerChat(env);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("threads.send", { thread: chat, text: "Probá la tienda en la computadora" });
     await env.settle(chat, 15_000);
     assert.match(
@@ -307,7 +309,7 @@ test("the computer's status says what it runs with now and, apart, what the owne
   const env = await startCore({ home, llm, computer: config });
   try {
     const chat = await computerChat(env);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.configure", { memory_gib: 4, cpus: 2 });
     await env.client.call("environments.enable", { thread: chat, appearance: "light" });
     await waitFor(async () => (await env.client.call("environments.status", {})).phase === "running", "running");
@@ -333,14 +335,14 @@ test("on the computer, the owner's own agents' results run in its chat; a contac
   const env = await startCore({ home, llm, computer: fakeComputer(home).config });
   try {
     const chat = await computerChat(env);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.enable", { thread: chat, appearance: "light" });
     await waitFor(async () => (await env.client.call("environments.status", {})).phase === "running", "running");
     const { engine, store } = env.core;
     // A task Roby gave Scout is closed: its report comes back to Roby's chat, which works on the computer.
     engine.admit({
       thread_id: chat,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "a2a_result",
       origin: {
         kind: "task_result",
@@ -359,7 +361,7 @@ test("on the computer, the owner's own agents' results run in its chat; a contac
     const before = (await runs()).length;
     engine.admit({
       thread_id: chat,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "channel",
       origin: {
         kind: "hours_began",
@@ -397,7 +399,7 @@ test("the owner starts the computer, the agent only looks: once it is up the age
   const llm = scriptedLlm(async (req, { said }) => {
     if (said.includes("is ready")) {
       screenInReadyTurn = (await env.client.call("environments.status", { thread: chat })).screens?.find(
-        (s) => s.agent === "roby" && s.run,
+        (s) => s.agent === "superagent" && s.run,
       )?.screen;
       return say("Ya estoy en mi pantalla, sigo con la tienda.");
     }
@@ -406,7 +408,7 @@ test("the owner starts the computer, the agent only looks: once it is up the age
   const env = await startCore({ home, llm, computer: vm.config });
   try {
     chat = await computerChat(env);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     // The owner turns it on for this chat from its panel; it takes a while to come up.
     await env.client.call("environments.enable", { thread: chat, appearance: "light" });
     await env.client.call("threads.send", { thread: chat, text: "Usá la computadora para probar la tienda" });
@@ -438,7 +440,7 @@ test("the computer already coming up for no chat: the agent's start waits on it 
   const env = await startCore({ home, llm, computer: vm.config });
   try {
     const chat = await computerChat(env);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     // Started from the Computers view, for no chat in particular.
     await env.client.call("environments.enable", { appearance: "light" });
     await env.client.call("threads.send", { thread: chat, text: "Probá la tienda en la computadora" });
@@ -470,7 +472,7 @@ test("the owner stops the computer while the agent waits for it: the agent is no
   const env = await startCore({ home, llm, computer: vm.config });
   try {
     const chat = await computerChat(env);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.enable", { thread: chat, appearance: "light" });
     await env.client.call("threads.send", { thread: chat, text: "Usá la computadora" });
     await env.settle(chat, 15_000);
@@ -496,7 +498,7 @@ test("control the owner took ends with the computer: stopped and started again, 
   const lastRun = async () => (await env.client.call("threads.get", { thread: chat })).runs[0];
   try {
     chat = await computerChat(env);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.enable", { thread: chat, appearance: "light" });
     await waitFor(running, "running");
     await env.client.call("threads.send", { thread: chat, text: "Hola" });
@@ -535,7 +537,7 @@ test("an agent allowed the computer reads its state each turn in its input; one 
   const env = await startCore({ home, llm, computer: fakeComputer(home).config });
   try {
     const chat = await computerChat(env);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.enable", { thread: chat, appearance: "light" });
     await waitFor(async () => (await env.client.call("environments.status", {})).phase === "running", "running");
     await env.client.call("threads.send", { thread: chat, text: "Hola" });
@@ -562,15 +564,16 @@ test("the owner turns an allowed agent's screen on with no run, never past the c
   const screens = async () =>
     (await env.client.call("environments.status", {})).screens?.map((s) => [s.screen, s.agent, Boolean(s.run)]);
   try {
-    for (const agent of ["roby", "scout", "vera"]) await env.client.call("environments.permit", { agent, on: true });
-    await assert.rejects(env.client.call("environments.screen", { agent: "roby", on: true }), /turn it on first/);
+    for (const agent of ["superagent", "scout", "vera"])
+      await env.client.call("environments.permit", { agent, on: true });
+    await assert.rejects(env.client.call("environments.screen", { agent: "superagent", on: true }), /turn it on first/);
     await env.client.call("environments.enable", { appearance: "light" });
     await waitFor(async () => (await env.client.call("environments.status", {})).phase === "running", "running");
 
-    await env.client.call("environments.screen", { agent: "roby", on: true });
+    await env.client.call("environments.screen", { agent: "superagent", on: true });
     await env.client.call("environments.screen", { agent: "scout", on: true });
     assert.deepEqual(await screens(), [
-      [1, "roby", false],
+      [1, "superagent", false],
       [2, "scout", false],
     ]);
     // Two screens is what a 4 GiB computer holds: a third is refused, saying which are up, and none is taken.
@@ -578,7 +581,7 @@ test("the owner turns an allowed agent's screen on with no run, never past the c
       assert.deepEqual(e.detail, { reason: "screens_full", max: 2, up: ["Roby", "Scout"] });
       return true;
     });
-    await env.client.call("environments.screen", { agent: "roby", on: false });
+    await env.client.call("environments.screen", { agent: "superagent", on: false });
     assert.deepEqual(await screens(), [[2, "scout", false]]);
     await env.client.call("environments.screen", { agent: "vera", on: true });
     assert.deepEqual(await screens(), [
@@ -586,9 +589,9 @@ test("the owner turns an allowed agent's screen on with no run, never past the c
       [3, "vera", false],
     ]);
     // Only an agent the owner allowed.
-    await env.client.call("environments.permit", { agent: "roby", on: false });
+    await env.client.call("environments.permit", { agent: "superagent", on: false });
     await assert.rejects(
-      env.client.call("environments.screen", { agent: "roby", on: true }),
+      env.client.call("environments.screen", { agent: "superagent", on: true }),
       /may not use the computer/,
     );
   } finally {

@@ -91,7 +91,7 @@ after(async () => {
 
 /** A chat with a drawing kept in it, as make_image leaves one. */
 async function chatWithImage() {
-  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   const { media } = await env.client.call("media.upload", {
     name: "slide-1.png",
     mime: "image/png",
@@ -119,7 +119,7 @@ test("an agent sends a kept image to a remote MCP server's base64 field, and the
 });
 
 test("a drawing of several MB goes whole: the bytes join after every check, the step stays small", async () => {
-  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   const big = Buffer.concat([PNG, Buffer.alloc(3 * 1024 * 1024, 7)]);
   const { media } = await env.client.call("media.upload", {
     name: "slide-2.png",
@@ -168,7 +168,7 @@ test("a tool that only reads still waits for the owner, while outside content is
   });
   try {
     const t = env.core.store.threads.get(thread.id);
-    const agent = env.core.store.agents.get("roby");
+    const agent = env.core.store.agents.get("superagent");
     assert.ok(t && agent);
     const tool = (await mcp.toolsFor(t)).find((x) => x.name === "mcp_posts_describe_image");
     assert.ok(tool);

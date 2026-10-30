@@ -26,7 +26,7 @@ before(async () => {
     id: "email",
     channel: {
       type: "email",
-      agent_id: "roby",
+      agent_id: "superagent",
       enabled: false,
       email: {
         address: smtp.sender,
@@ -129,7 +129,7 @@ test("sealed contacts cannot read signature settings or request their modificati
   const thread = h.env.core.store.threads.create({
     kind: "channel",
     title: person.name,
-    agent_ids: ["roby"],
+    agent_ids: ["superagent"],
     channel: { id: "test", conversation: person.id, person_id: person.id },
   });
   const before = await all();
@@ -178,12 +178,12 @@ test("signature count limit rejects creation without losing existing entries", a
 
 test("even Total requires owner approval, and an edit during approval fails closed", async () => {
   const client = h.env.client;
-  await client.call("agents.update", { agent: "roby", autonomy: "total" });
+  await client.call("agents.update", { agent: "superagent", autonomy: "total" });
   const concurrent = { ...gmail, text: "Concurrent owner edit" };
   try {
     const thread = await client.call("threads.create", {
       kind: "loose",
-      agent_id: "roby",
+      agent_id: "superagent",
       title: "Signature approval",
     });
     await client.call("threads.send", {
@@ -208,7 +208,7 @@ test("even Total requires owner approval, and an edit during approval fails clos
     assert.deepEqual(await all(), [smtp, concurrent]);
     await client.call("email.signature_upsert", { signature: gmail, expected: concurrent });
   } finally {
-    await client.call("agents.update", { agent: "roby", autonomy: null });
+    await client.call("agents.update", { agent: "superagent", autonomy: null });
   }
 });
 

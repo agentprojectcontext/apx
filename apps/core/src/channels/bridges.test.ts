@@ -66,7 +66,7 @@ for (const c of CASES)
       env = await startCore({ llm, extraTools: [probe], channelAdapters: { [c.type]: c.adapter } });
       await env.client.call("channels.set", {
         id: c.type,
-        channel: { type: c.type, agent_id: "roby" },
+        channel: { type: c.type, agent_id: "superagent" },
         token: fake.secret,
       });
       await waitFor(

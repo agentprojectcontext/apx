@@ -6,11 +6,11 @@ import { say, scriptedLlm, startCore } from "./testkit.ts";
 test("transferred findings are bounded untrusted data, with binary content and pasted credentials removed", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("Ready.")) });
   try {
-    const source = env.core.store.threads.create({ kind: "loose", title: "Source", agent_ids: ["roby"] });
-    const target = env.core.store.threads.create({ kind: "loose", title: "Target", agent_ids: ["roby"] });
+    const source = env.core.store.threads.create({ kind: "loose", title: "Source", agent_ids: ["superagent"] });
+    const target = env.core.store.threads.create({ kind: "loose", title: "Target", agent_ids: ["superagent"] });
     const run = env.core.store.runs.create({
       thread_id: source.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "user",
       input: {
         origin: { kind: "user" },

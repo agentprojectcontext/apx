@@ -8,8 +8,8 @@ test.afterEach(async ({ page }) => {
 });
 
 test("Marcar todo como leído: desde la Bandeja y desde el menú del proyecto", async ({ page }) => {
-  const a = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Sin leer A" });
-  const b = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Sin leer B" });
+  const a = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "superagent", title: "Sin leer A" });
+  const b = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "superagent", title: "Sin leer B" });
   const unread = new Map([
     [a.id, 2],
     [b.id, 3],

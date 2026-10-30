@@ -65,7 +65,11 @@ before(async () => {
         teamsAdapter(c, s, { dir: `${env.home}/channels/${c.id}`, openid: `${tm.base}/openid`, login: tm.base }),
     },
   });
-  await env.client.call("channels.set", { id: "tm", channel: { type: TYPE, agent_id: "roby" }, token: tm.secret });
+  await env.client.call("channels.set", {
+    id: "tm",
+    channel: { type: TYPE, agent_id: "superagent" },
+    token: tm.secret,
+  });
   await waitFor(async () => (await channel())?.status !== "starting", "started");
 });
 after(async () => {
@@ -180,7 +184,7 @@ test("a team channel is offered when the bot is added, read once listed, and ans
     id: "tm",
     channel: {
       type: TYPE,
-      agent_id: "roby",
+      agent_id: "superagent",
       rooms: {
         rooms: [{ id: TEAM, name: "Acme › General", mode: "mention" }],
         names: [],

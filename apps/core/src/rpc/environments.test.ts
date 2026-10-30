@@ -85,7 +85,7 @@ test("chats go on the computer only for allowed agents; outside clients run noth
     const chat = await computerChat(env);
     await assert.rejects(env.client.call("environments.bind", { thread: "unknown" }), /owner/i);
     await assert.rejects(env.client.call("environments.bind", { thread: chat }), /may not use the computer/i);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.bind", { thread: chat });
     // The computer is shared: another allowed agent's chat goes on it too.
     const other = await env.client.call("threads.create", { kind: "loose", agent_id: "scout" });
@@ -94,7 +94,7 @@ test("chats go on the computer only for allowed agents; outside clients run noth
     const status = await env.client.call("environments.status", { thread: other.id });
     assert.deepEqual(status.chat, { thread: other.id, on: true, agent: "scout", agent_name: "Scout", permitted: true });
     // Each agent's card reads whether it may use the computer from here.
-    assert.deepEqual([...(status.allowed ?? [])].sort(), ["roby", "scout"]);
+    assert.deepEqual([...(status.allowed ?? [])].sort(), ["scout", "superagent"]);
     assert.equal(status.allowed_agents, 2);
     await assert.rejects(env.client.call("terminal.open", { thread: chat, cols: 80, rows: 24 }), /VM terminal/i);
     const agent = new ApxClient({ url: env.core.url, actor: "agent" });
@@ -128,8 +128,8 @@ test("native VM turns expose guest shell and browser tools and never fall back t
   const env = await startCore({ home, llm, computer: { limaHome: path.join(home, "no-vms"), instance: "missing" } });
   try {
     const chat = await computerChat(env);
-    await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.bind", { thread: chat });
     await env.client.call("threads.send", { thread: chat, text: "Create a file in the VM" });
     const result = await env.settle(chat);
@@ -154,7 +154,7 @@ test("display tickets are single-use, bounded and revoked at shutdown without sp
   try {
     // Only an agent screen that is up can be watched.
     assert.throws(() => vm.display(1), /not running/i);
-    await vm.ledger.claim("roby", "home", "run_test");
+    await vm.ledger.claim("superagent", "home", "run_test");
     const first = vm.display(1);
     assert.equal(typeof vm.connectDisplay(first.ticket).open, "function");
     assert.throws(() => vm.connectDisplay(first.ticket), /expired/i);
@@ -185,8 +185,8 @@ test("a failed guest browser never reaches a connected host browser node", async
   });
   try {
     const chat = await computerChat(env);
-    await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.bind", { thread: chat });
     await env.client.call("threads.send", { thread: chat, text: "Open a page inside the VM" });
     const result = await env.settle(chat);
@@ -226,8 +226,8 @@ test("a chat on the computer keeps make_image, which takes only earlier drawings
         needs_key: false,
       },
     });
-    await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.bind", { thread: chat });
     await env.client.call("threads.send", { thread: chat, text: "Draw a tower with drones" });
     const result = await env.settle(chat);
@@ -251,7 +251,7 @@ test("a VM-bound chat restarted on a core whose computer is not set up offers on
     computer: { limaHome: path.join(home, "no-vms"), instance: "missing" },
   });
   const chat = await computerChat(first);
-  await first.client.call("environments.permit", { agent: "roby", on: true });
+  await first.client.call("environments.permit", { agent: "superagent", on: true });
   await first.client.call("environments.bind", { thread: chat });
   await first.core.close();
   const offered: string[] = [];
@@ -303,7 +303,7 @@ test("only the owner shuts the shared computer down; it cancels the turns holdin
   const socket = await env.client.connect();
   try {
     const chat = await computerChat(env);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.bind", { thread: chat });
     await assert.rejects(agent.call("environments.enable", { thread: chat, appearance: "light" }), {
       code: "unauthorized",
@@ -317,7 +317,7 @@ test("only the owner shuts the shared computer down; it cancels the turns holdin
       assert.ok(Date.now() < deadline, "native turn did not start");
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
-    const held = (await env.client.call("environments.status", {})).screens?.find((s) => s.agent === "roby");
+    const held = (await env.client.call("environments.status", {})).screens?.find((s) => s.agent === "superagent");
     assert.equal(held?.thread, chat);
     const ticket = await env.client.call("environments.display", { screen: 1 });
     await socket.call("environments.stop", {});
@@ -405,7 +405,7 @@ if (RUNS_SCRIPTS)
       const chat = await computerChat(env);
       await env.client.call("environments.status", {});
       // The owner takes an agent's screen that is up, and types there.
-      await env.core.computer.ledger.claim("roby", chat, "run_test");
+      await env.core.computer.ledger.claim("superagent", chat, "run_test");
       await env.client.call("environments.control", { screen: 1, mode: "human" });
       const command = env.client.call("environments.command", { thread: chat, command: "long guest work", screen: 1 });
       const rejected = assert.rejects(command, /VM command failed/);
@@ -443,7 +443,7 @@ test("taking an agent's screen cancels the run holding it, persists an interrupt
   const env = await startCore({ llm, computer: { limaHome: "/unused", instance: "missing" } });
   try {
     const chat = await computerChat(env);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.bind", { thread: chat });
     await assert.rejects(
       env.client.call("environments.command", { thread: chat, command: "pwd", screen: 1 }),
@@ -484,8 +484,8 @@ test("task conversations cannot redirect a VM-bound request into an unbound work
     computer: { limaHome: "/unused", instance: "missing" },
   });
   try {
-    await env.client.call("environments.permit", { agent: "roby", on: true });
-    const task = await env.client.call("tasks.create", { title: "Acme work", assignee: "roby" });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
+    const task = await env.client.call("tasks.create", { title: "Acme work", assignee: "superagent" });
     await assert.rejects(env.client.call("environments.bind", { thread: task.thread_id }), /owner.*native chat/);
     const status = await env.client.call("environments.status", { thread: task.thread_id });
     assert.equal(status.chat, undefined, "a chat the computer does not serve has no place on it");
@@ -510,8 +510,8 @@ test("a chat on the computer is deleted only while none of its runs holds a scre
   });
   const env = await startCore({ llm, computer: { limaHome: "/unused", instance: "missing" } });
   try {
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.bind", { thread: chat.id });
     await env.client.call("threads.send", { thread: chat.id, text: "Work" });
     await active;
@@ -572,7 +572,7 @@ if (RUNS_SCRIPTS)
     let socket: Awaited<ReturnType<ApxClient["connect"]>> | undefined;
     try {
       await owner.call("environments.status", {});
-      await core.computer.ledger.claim("roby", "home", "run_test");
+      await core.computer.ledger.claim("superagent", "home", "run_test");
       const { code } = await owner.call("devices.pair_start", {});
       const paired = await new ApxClient({ url: core.url }).call("devices.pair", { code, name: "Test display" });
       const client = new ApxClient({ url: core.url, token: paired.token });
@@ -625,7 +625,7 @@ if (RUNS_SCRIPTS)
     });
     const children: ChildProcess[] = [];
     try {
-      await vm.ledger.claim("roby", "home", "run_test");
+      await vm.ledger.claim("superagent", "home", "run_test");
       for (let i = 0; i < DISPLAY_CAP * 3; i++) {
         const { ticket } = vm.display(1);
         children.push(vm.connectDisplay(ticket).open());

@@ -9,7 +9,7 @@ test("run admission rolls back when its event linkage cannot commit, for both ag
   const llm = scriptedLlm(() => say("Must not run"));
   const env = await startCore({ llm });
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const ctx = {
       transport: "internal" as const,
       role: "operator" as const,
@@ -32,7 +32,7 @@ test("run admission rolls back when its event linkage cannot commit, for both ag
     const routine = await env.client.call("routines.set", {
       name: "Atomic",
       project: project.project.id,
-      agent: "roby",
+      agent: "superagent",
       schedule: { kind: "manual" },
       prompt: "Work",
     });
@@ -93,7 +93,7 @@ test("a canceled public request cannot persist an event; unexpected top-level fi
       body: Buffer.from(JSON.stringify({ id: "cancel", data: { text: "Work" } })),
     };
     assert.equal((await route.handle(request, aborted.signal)).status, 503);
-    const hostile = { ...request, body: Buffer.from(JSON.stringify({ id: "bad", data: {}, agent: "roby" })) };
+    const hostile = { ...request, body: Buffer.from(JSON.stringify({ id: "bad", data: {}, agent: "superagent" })) };
     assert.equal((await route.handle(hostile, new AbortController().signal)).status, 400);
     assert.equal(
       (await route.handle({ ...request, body: Buffer.alloc(65537) }, new AbortController().signal)).status,

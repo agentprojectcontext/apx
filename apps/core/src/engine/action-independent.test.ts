@@ -34,7 +34,7 @@ for (const taskFirst of [true, false]) {
     });
     const env = await startCore({ llm });
     try {
-      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       const sent = await env.client.call("threads.send", { thread: chat.id, text: "Two different goals." });
       await waitFor(() => Boolean(env.core.store.runs.get(sent.run.id)?.ended_at), "independent dispatch");
       const tasks = env.core.store.tasks.list({ from_thread: chat.id, limit: 10 });

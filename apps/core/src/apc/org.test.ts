@@ -76,7 +76,7 @@ test("a project's areas and roles live in .apc/organization.json, v1's format re
   await env.client.call("projects.update", { project, kind: "company" });
   const t = await env.client.call("threads.create", {
     kind: "loose",
-    agent_id: "roby",
+    agent_id: "superagent",
     project_id: project,
     title: "org",
   });

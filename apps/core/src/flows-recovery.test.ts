@@ -18,7 +18,7 @@ test("pending work recovers after restart and never readmits a linked run", asyn
       enabled: true,
       predicates: [],
       tableKey: "latest",
-      action: { kind: "agent" as const, agent: "roby", prompt: "Summarize event" },
+      action: { kind: "agent" as const, agent: "superagent", prompt: "Summarize event" },
     };
     await env.client.call("flows.set", flow);
     // Disabled events stay pending without being polled or turning into model calls.
@@ -71,7 +71,7 @@ test("a failed admission retries only after owner action and cannot retry an adm
     assert.equal(llm.calls.length, 0);
     assert.match(env.core.store.flows.events(flow.id, 10)[0]?.error ?? "", /could not be admitted/);
     // Saved events retain their original fixed binding even if the Flow is edited.
-    await env.client.call("flows.set", { ...flow, action: { ...flow.action, agent: "roby" } });
+    await env.client.call("flows.set", { ...flow, action: { ...flow.action, agent: "superagent" } });
     assert.equal((await env.client.call("flows.retry", { flow: flow.id, event: "one" })).queued, true);
     await waitFor(() => env.core.store.flows.events(flow.id, 10)[0]?.state === "failed", "unchanged event binding");
     assert.equal(llm.calls.length, 0);

@@ -42,14 +42,14 @@ const lastSeen = () => String(llm.calls.at(-1)?.messages.at(-1)?.content);
 test("a code thread works in a folder inside its project; outside is refused", async () => {
   const t = await env.client.call("threads.create", {
     kind: "code",
-    agent_id: "roby",
+    agent_id: "superagent",
     project_id: project,
     cwd: "src",
   });
   assert.equal(t.cwd, path.join(repo, "src"));
   assert.equal(t.write, "ask");
   await assert.rejects(
-    env.client.call("threads.create", { kind: "code", agent_id: "roby", project_id: project, cwd: ".." }),
+    env.client.call("threads.create", { kind: "code", agent_id: "superagent", project_id: project, cwd: ".." }),
     (e: unknown) => e instanceof ApxError && /outside the project/.test(e.message),
   );
 });
@@ -57,7 +57,7 @@ test("a code thread works in a folder inside its project; outside is refused", a
 test("a read-only code thread refuses commands that change things", async () => {
   const t = await env.client.call("threads.create", {
     kind: "code",
-    agent_id: "roby",
+    agent_id: "superagent",
     project_id: project,
     write: "read-only",
   });
@@ -75,7 +75,7 @@ test("a read-only code thread refuses commands that change things", async () => 
 test("a code thread's folder and write policy are in its turn's input and in threads.get; what the policy means, in the system prompt", async () => {
   const t = await env.client.call("threads.create", {
     kind: "code",
-    agent_id: "roby",
+    agent_id: "superagent",
     project_id: project,
     cwd: "src",
     write: "read-only",
@@ -97,7 +97,7 @@ test("a code thread's folder and write policy are in its turn's input and in thr
 test("after a change, the turn ends with what it changed, not what was already uncommitted", async () => {
   // The owner's own edit from before the turn is theirs, not the turn's.
   fs.writeFileSync(path.join(repo, "owner-notes.md"), "mine\n");
-  const t = await env.client.call("threads.create", { kind: "code", agent_id: "roby", project_id: project });
+  const t = await env.client.call("threads.create", { kind: "code", agent_id: "superagent", project_id: project });
   await env.client.call("threads.send", { thread: t.id, text: "make a file" });
   const { messages } = await env.settle(t.id);
   // Auto makes it where it works with no card (DECISIONS.md#d-106).

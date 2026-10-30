@@ -81,7 +81,7 @@ const said = async (thread: string, text: string) => {
 };
 
 test("a widget reaches only the origins it declares for live data, in the chat and once published", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "widgets" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "widgets" });
   assert.match(await said(t.id, "live widget"), /connecting to https:\/\/api\.binance\.com, wss:\/\/stream/);
   const { surfaces } = await env.client.call("surfaces.list", {});
   const id = surfaces.find((s) => s.name === "btc-live")?.id ?? "";
@@ -110,7 +110,7 @@ test("a widget reaches only the origins it declares for live data, in the chat a
 });
 
 test("an agent reads a widget and changes a piece of it; where the owner put it stays", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "edits" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "edits" });
   await said(t.id, "as an app");
   const id = (await env.client.call("surfaces.list", {})).surfaces.find((s) => s.name === "btc-live")?.id ?? "";
   // An update that says app=false or pin=false does not take the widget off the sidebar or the board.
@@ -134,12 +134,12 @@ test("an agent reads a widget and changes a piece of it; where the owner put it 
 });
 
 test("a project's chat lists and reads only that project's widgets, and a chat outside one only the global ones", async () => {
-  const loose = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "global" });
+  const loose = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "global" });
   assert.match(await said(loose.id, "live widget"), /shown, in no project/);
   const { project } = await env.client.call("projects.create", { name: "Acme" });
   const t = await env.client.call("threads.create", {
     kind: "loose",
-    agent_id: "roby",
+    agent_id: "superagent",
     title: "acme",
     project_id: project.id,
   });
@@ -160,7 +160,7 @@ test("a project's chat lists and reads only that project's widgets, and a chat o
 });
 
 test("a widget whose inline script does not parse is refused with its line; other blocks are not checked", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "syntax" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "syntax" });
   assert.match(
     await said(t.id, "broken script"),
     /refused: the script at line 5 \(column 3\) of the widget does not parse: Unexpected identifier 'y'/,
@@ -183,7 +183,7 @@ test("a widget whose inline script does not parse is refused with its line; othe
 });
 
 test("a widget is not saved when the turn stopped while its scripts were checked", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "stopped" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "stopped" });
   await said(t.id, "live widget");
   const before = (await env.client.call("surfaces.list", {})).surfaces.find((s) => s.name === "btc-live");
   const saved: string[] = [];
@@ -216,7 +216,7 @@ test("a widget is not saved when the turn stopped while its scripts were checked
 });
 
 test("an agent converts a published app to a widget without reading or replacing its large HTML", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "conversion" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "conversion" });
   const original = await env.client.call("surfaces.show", {
     name: "conversion",
     title: "Original",
@@ -250,13 +250,17 @@ test("an agent converts a published app to a widget without reading or replacing
   assert.equal(kept.version, before.version);
 
   const { project } = await env.client.call("projects.create", { name: "Northwind conversions" });
-  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project.id });
+  const other = await env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    project_id: project.id,
+  });
   assert.match(await said(other.id, "make a widget"), /no widget named conversion/);
   assert.equal((await env.client.call("surfaces.get", { surface: original.id })).app, true);
 });
 
 test("a page written with the APX Kit is an app by its meta tag and gets the kit inline wherever it is served", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "kit" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "kit" });
   assert.match(await said(t.id, "kit app"), /widget "habits" v1 shown.*listed as an app/);
   const id = (await env.client.call("surfaces.list", {})).surfaces.find((s) => s.name === "habits")?.id ?? "";
   const doc = await env.client.call("surfaces.get", { surface: id });
@@ -283,7 +287,7 @@ test("a page written with the APX Kit is an app by its meta tag and gets the kit
 });
 
 test("a widget remembers between openings and versions; its agent reads it as data and changes it", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "memory" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "memory" });
   await said(t.id, "kit app");
   const id = (await env.client.call("surfaces.list", {})).surfaces.find((s) => s.name === "habits")?.id ?? "";
   const events: unknown[] = [];
@@ -320,7 +324,11 @@ test("a widget remembers between openings and versions; its agent reads it as da
 });
 
 test("read_widget names what an artifact keeps in its store and database, never the cached values", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "artifact memory" });
+  const t = await env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "artifact memory",
+  });
   await said(t.id, "kit app");
   const id = (await env.client.call("surfaces.list", {})).surfaces.find((s) => s.name === "habits")?.id ?? "";
   assert.match(await said(t.id, "read habits"), /\nmemory: store: empty; db: no tables/);
@@ -348,7 +356,7 @@ test("a page pushed from the terminal lands in the project it names, never one i
     project: project.id,
   });
   assert.deepEqual([again.id, again.version], [pushed.id, pushed.version + 1]);
-  const loose = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "elsewhere" });
+  const loose = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "elsewhere" });
   await assert.rejects(
     env.client.call("surfaces.show", {
       name: "expenses",

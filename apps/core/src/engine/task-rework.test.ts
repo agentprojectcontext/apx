@@ -71,7 +71,7 @@ async function closedTask(title = "Delivery") {
 }
 
 test("a coordinator explicitly requests corrections from the same assignee and gets the second delivery", async () => {
-  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Coordinator" });
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Coordinator" });
   await env.client.call("threads.send", { thread: chat.id, text: "Create delivery" });
   await settled(chat.id, 2);
   const task = (await env.client.call("tasks.list", { state: "done" })).tasks.find(
@@ -178,14 +178,14 @@ test("rework keeps project scope, hand-off permissions and paused limits", async
   const { task } = await closedTask();
   const { store, engine } = env.core;
   const handlers = taskHandlers(store, engine, env.home);
-  const caller = store.threads.create({ kind: "loose", title: "Caller", agent_ids: ["roby"] });
+  const caller = store.threads.create({ kind: "loose", title: "Caller", agent_ids: ["superagent"] });
   const context = {
     transport: "internal" as const,
     role: "operator" as const,
     actor: "agent" as const,
     session: undefined,
     log: createLog("test", true),
-    agent: { id: "roby", thread_id: caller.id, run_id: "test" },
+    agent: { id: "superagent", thread_id: caller.id, run_id: "test" },
   };
   store.projects.upsert({ id: "project_other", name: "Northwind" });
   const elsewhere = await env.client.call("tasks.create", { title: "Another project", project: "project_other" });
@@ -201,7 +201,7 @@ test("rework keeps project scope, hand-off permissions and paused limits", async
       ),
     /own project's tasks/,
   );
-  const consult = store.threads.create({ kind: "a2a", title: "Consult", agent_ids: ["roby", "vera"] });
+  const consult = store.threads.create({ kind: "a2a", title: "Consult", agent_ids: ["superagent", "vera"] });
   assert.throws(
     () =>
       handlers["tasks.close"](
@@ -223,7 +223,7 @@ test("rework keeps project scope, hand-off permissions and paused limits", async
     agent_id: "vera",
     trigger: "a2a",
     text: "ok",
-    origin: { kind: "agent", id: "roby", name: "Roby", thread_id: caller.id, run_id: "test" },
+    origin: { kind: "agent", id: "superagent", name: "Roby", thread_id: caller.id, run_id: "test" },
     depth: 1,
   });
   await settled(work.id, 2);

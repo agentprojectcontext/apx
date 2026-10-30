@@ -8,7 +8,8 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.startsWith("read:")) return callTool("q2", "read_chat", { chat: said.slice(5) });
   if (said === "find participant") return callTool("p1", "search_chats", { query: "Roby dentist appointment" });
   if (said === "read participant") return callTool("p2", "read_chat", { chat: "Roby" });
-  if (said === "ask colleague" && !afterTool) return callTool("p3", "delegate", { agent: "roby", task: "find it" });
+  if (said === "ask colleague" && !afterTool)
+    return callTool("p3", "delegate", { agent: "superagent", task: "find it" });
   if (said.includes("find it")) return callTool("s1", "search_chats", { query: "dentist appointment" });
   if (said === "read it") return callTool("r1", "read_chat", { chat: "Errands" });
   if (said === "read nothing") return callTool("r2", "read_chat", { chat: "no such chat" });
@@ -18,7 +19,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
 let env: Awaited<ReturnType<typeof startCore>>;
 before(async () => {
   env = await startCore({ llm });
-  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Errands" });
+  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Errands" });
   await env.client.call("threads.send", { thread: other.id, text: "my dentist appointment is on Friday at five" });
   await env.settle(other.id);
 });
@@ -112,13 +113,13 @@ test("a project specialist can ask the global agent to retrieve context through 
       .join(" ") ?? "",
     /dentist appointment/,
   );
-  assert.equal(env.core.store.threads.sessions(chat.id)[0]?.agent_ids[0], "roby");
+  assert.equal(env.core.store.threads.sessions(chat.id)[0]?.agent_ids[0], "superagent");
 });
 
 test("search scopes before ranking limits and excludes external clients, rooms and other projects", async () => {
   const store = env.core.store;
   const review = store.threads.create({ kind: "loose", title: "Search review", agent_ids: ["editor"] });
-  const visible = store.threads.create({ kind: "loose", title: "Older owner chat", agent_ids: ["roby"] });
+  const visible = store.threads.create({ kind: "loose", title: "Older owner chat", agent_ids: ["superagent"] });
   store.threads.arrange(visible.id, { archived: true });
   store.messages.add({
     thread_id: visible.id,
@@ -140,7 +141,7 @@ test("search scopes before ranking limits and excludes external clients, rooms a
   }
   const client = store.threads.create({ kind: "loose", title: "External client", agent_ids: ["editor"] });
   store.threads.mergeContext(client.id, { client: "external" });
-  const room = store.threads.create({ kind: "loose", title: "Room", agent_ids: ["roby"] });
+  const room = store.threads.create({ kind: "loose", title: "Room", agent_ids: ["superagent"] });
   store.threads.mergeContext(room.id, { room: { name: "Room" } });
   for (const t of [client, room]) {
     store.messages.add({
@@ -161,11 +162,11 @@ test("search scopes before ranking limits and excludes external clients, rooms a
 
 test("participants retrieve their delegation by session name and by both participant names", async () => {
   const store = env.core.store;
-  const parent = store.threads.create({ kind: "loose", title: "Review task", agent_ids: ["roby"] });
+  const parent = store.threads.create({ kind: "loose", title: "Review task", agent_ids: ["superagent"] });
   const session = store.threads.create({
     kind: "a2a",
     title: "Delegated report",
-    agent_ids: ["editor", "roby"],
+    agent_ids: ["editor", "superagent"],
     parent_id: parent.id,
     session: "release-report",
   });
@@ -174,10 +175,10 @@ test("participants retrieve their delegation by session name and by both partici
     author: { kind: "agent", id: "editor" },
     parts: [{ type: "text", text: "releaseproof final report" }],
   });
-  const unrelated = store.threads.create({ kind: "loose", title: "Unrelated report", agent_ids: ["roby"] });
+  const unrelated = store.threads.create({ kind: "loose", title: "Unrelated report", agent_ids: ["superagent"] });
   store.messages.add({
     thread_id: unrelated.id,
-    author: { kind: "agent", id: "roby" },
+    author: { kind: "agent", id: "superagent" },
     parts: [{ type: "text", text: "releaseproof unrelated" }],
   });
   const review = store.threads.create({ kind: "loose", title: "Review findings", agent_ids: ["editor"] });
@@ -193,13 +194,13 @@ test("participants retrieve their delegation by session name and by both partici
 test("duplicate session names resolve within the caller's chat and refuse ambiguous global reads", async () => {
   const store = env.core.store;
   const parents = ["First caller", "Second caller"].map((title) =>
-    store.threads.create({ kind: "loose", title, agent_ids: ["roby"] }),
+    store.threads.create({ kind: "loose", title, agent_ids: ["superagent"] }),
   );
   for (const parent of parents) {
     const child = store.threads.create({
       kind: "a2a",
       title: `${parent.title} task`,
-      agent_ids: ["editor", "roby"],
+      agent_ids: ["editor", "superagent"],
       parent_id: parent.id,
       session: "shared-name",
     });
@@ -227,14 +228,14 @@ test("a longer participant name does not also require an unrelated agent with it
     kind: "loose",
     title: "Team handoff",
     project_id: "team",
-    agent_ids: ["roby"],
+    agent_ids: ["superagent"],
   });
   const session = store.threads.create({
     kind: "a2a",
     title: "Team delegated findings",
     project_id: "team",
     parent_id: parent.id,
-    agent_ids: ["team-editor", "roby"],
+    agent_ids: ["team-editor", "superagent"],
   });
   store.messages.add({
     thread_id: session.id,
@@ -274,8 +275,8 @@ test("search finds what an agent did in its own runs, by tool and arguments, and
     });
     store.runs.endStep(run.id, "c1", "ok", "Comment added");
   };
-  const routine = store.threads.create({ kind: "loose", title: "Board check", agent_ids: ["roby"] });
-  step(routine.id, "roby", "post-4f1a");
+  const routine = store.threads.create({ kind: "loose", title: "Board check", agent_ids: ["superagent"] });
+  step(routine.id, "superagent", "post-4f1a");
   const hidden = store.threads.create({
     kind: "loose",
     title: "Team board check",
@@ -307,7 +308,7 @@ test("read_chat expands an old message beyond the latest page and honors forgott
   try {
     const source = await isolated.client.call("threads.create", {
       kind: "loose",
-      agent_id: "roby",
+      agent_id: "superagent",
       title: "Old archive",
     });
     chat = source.id;
@@ -328,7 +329,7 @@ test("read_chat expands an old message beyond the latest page and honors forgott
       false,
     );
     const ask = async () => {
-      const current = await isolated.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      const current = await isolated.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       await isolated.client.call("threads.send", { thread: current.id, text: "Read the old archive anchor." });
       await isolated.settle(current.id);
       return texts((await isolated.client.call("threads.get", { thread: current.id })).messages).join("\n");
@@ -336,7 +337,7 @@ test("read_chat expands an old message beyond the latest page and honors forgott
     assert.match(await ask(), /violet labels/);
     const note = isolated.core.store.memories.add({
       scope: "agent",
-      agent_id: "roby",
+      agent_id: "superagent",
       source: "agent",
       text: fact,
       evidence: [{ message_id: anchor, quote: fact }],
@@ -361,7 +362,7 @@ test("search reaches this chat's own earlier steps outside the model's view, wit
     // A run of this same chat whose model history is gone from the projection (older than the window).
     const old = store.runs.create({
       thread_id: "home",
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "user",
       input: { origin: { kind: "user" }, text: "download this reel" },
       deadline_at: new Date(Date.now() + 60_000).toISOString(),

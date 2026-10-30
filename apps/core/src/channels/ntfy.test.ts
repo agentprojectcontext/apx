@@ -68,7 +68,7 @@ for (const selfOwner of [true, false])
       });
       await env.client.call("channels.set", {
         id: "ntfy",
-        channel: { type: TYPE, agent_id: "roby", ...(selfOwner ? { self_owner: true } : {}) },
+        channel: { type: TYPE, agent_id: "superagent", ...(selfOwner ? { self_owner: true } : {}) },
         token: fake.secret,
       });
       await waitFor(
@@ -127,7 +127,9 @@ describe("the adapter alone", () => {
     await removeDir(dir);
   });
 
-  const config = { id: "ntfy", type: "signal", label: "ntfy", agent_id: "roby" } as Parameters<typeof ntfyAdapter>[0];
+  const config = { id: "ntfy", type: "signal", label: "ntfy", agent_id: "superagent" } as Parameters<
+    typeof ntfyAdapter
+  >[0];
   const io = (got: Array<{ text: string; files?: unknown[] }>, ac: AbortController): AdapterIO => ({
     receive: (m) => got.push({ text: m.text, ...(m.files ? { files: m.files } : {}) }),
     action: () => {},

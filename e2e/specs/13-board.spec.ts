@@ -4,7 +4,11 @@ import { expect, open, rpc, test } from "./kit.ts";
 test("a pinned widget lives on its project's board and is updated by its name", async ({ page }) => {
   const projects = (await rpc<{ projects: Array<{ id: string; name: string }> }>("projects.list")).projects;
   const northwind = projects.find((p) => p.name === "Northwind")?.id ?? "";
-  const chat = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "roby", project_id: northwind });
+  const chat = await rpc<{ id: string }>("threads.create", {
+    kind: "agent",
+    agent_id: "superagent",
+    project_id: northwind,
+  });
   const show = (sales: string) =>
     rpc<{ id: string }>("surfaces.show", {
       name: "monthly-sales",
@@ -44,7 +48,11 @@ test("a widget never pinned is added from the board's +, once, and opens beside 
 }) => {
   const projects = (await rpc<{ projects: Array<{ id: string; name: string }> }>("projects.list")).projects;
   const northwind = projects.find((p) => p.name === "Northwind")?.id ?? "";
-  const chat = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "roby", project_id: northwind });
+  const chat = await rpc<{ id: string }>("threads.create", {
+    kind: "agent",
+    agent_id: "superagent",
+    project_id: northwind,
+  });
   await rpc("surfaces.show", {
     name: "yearly-sales",
     title: "Ventas del año",
@@ -94,7 +102,11 @@ test("the base project's files are APX's work folder, where its chats work", asy
 test("the board is ordered from the grip, takes the full width, and both stay after a reload", async ({ page }) => {
   const projects = (await rpc<{ projects: Array<{ id: string; name: string }> }>("projects.list")).projects;
   const northwind = projects.find((p) => p.name === "Northwind")?.id ?? "";
-  const chat = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "roby", project_id: northwind });
+  const chat = await rpc<{ id: string }>("threads.create", {
+    kind: "agent",
+    agent_id: "superagent",
+    project_id: northwind,
+  });
   const ids: string[] = [];
   for (const [name, title] of [
     ["board-a", "Primero"],

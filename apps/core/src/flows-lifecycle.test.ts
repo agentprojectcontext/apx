@@ -10,7 +10,7 @@ const flow = (projectId: string, id: string) => ({
   enabled: true,
   predicates: [],
   tableKey: "latest",
-  action: { kind: "agent" as const, agent: "roby", prompt: "Summarize" },
+  action: { kind: "agent" as const, agent: "superagent", prompt: "Summarize" },
 });
 
 test("a page of busy routine events does not starve a later agent Flow", async () => {
@@ -21,7 +21,7 @@ test("a page of busy routine events does not starve a later agent Flow", async (
     const project = (await env.client.call("projects.register", { path: folder.path, init: true })).project.id;
     const routine = await env.client.call("routines.set", {
       name: "Busy",
-      agent: "roby",
+      agent: "superagent",
       project,
       schedule: { kind: "manual" },
       prompt: "Work",
@@ -29,12 +29,12 @@ test("a page of busy routine events does not starve a later agent Flow", async (
     const thread = env.core.store.threads.create({
       kind: "routine",
       title: "Held routine",
-      agent_ids: ["roby"],
+      agent_ids: ["superagent"],
       project_id: project,
     });
     const held = env.core.store.runs.create({
       thread_id: thread.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "routine",
       deadline_at: "2099-01-01T00:00:00.000Z",
       input: { origin: { kind: "routine", id: routine.id, name: routine.name }, text: "Held" },

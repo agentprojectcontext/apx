@@ -34,7 +34,7 @@ test("capture retries unknown source IDs before checkpointing and discards inval
   });
   try {
     await env.client.call("memory.set_settings", { mode: "notes", auto_compact: false, auto_dream: false });
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const sent = await env.client.call("threads.send", { thread: thread.id, text: preference });
     await env.settle(thread.id);
     await waitFor(() =>
@@ -49,11 +49,11 @@ test("capture retries unknown source IDs before checkpointing and discards inval
     assert.equal(job.attempts, 1);
     assert.deepEqual(JSON.parse(job.result ?? "{}"), {});
     assert.equal(reviews, 0);
-    assert.equal(env.core.store.memories.list({ agent_id: "roby", limit: 10 }).length, 0);
+    assert.equal(env.core.store.memories.list({ agent_id: "superagent", limit: 10 }).length, 0);
     env.core.store.memoryWork.defer(job.id, "retry", new Date(0).toISOString());
     await env.client.call("memory.maintenance", {});
     await waitFor(() => env.core.store.memoryWork.get(job.id)?.state === "completed");
-    const notes = env.core.store.memories.list({ agent_id: "roby", limit: 10 });
+    const notes = env.core.store.memories.list({ agent_id: "superagent", limit: 10 });
     assert.equal(notes.length, 1);
     assert.equal(notes[0]?.text, preference);
     assert.equal(notes[0]?.evidence?.[0]?.message_id, sent.message.id);
@@ -65,7 +65,7 @@ test("capture retries unknown source IDs before checkpointing and discards inval
     env.core.store.memoryWork.enqueue({
       id: legacyId,
       kind: "capture",
-      agent_id: "roby",
+      agent_id: "superagent",
       thread_id: thread.id,
       run_id: sent.run.id,
     });
@@ -79,7 +79,7 @@ test("capture retries unknown source IDs before checkpointing and discards inval
     assert.equal(extracts, 3);
     assert.equal(reviews, 1);
     assert.equal(env.core.store.memoryWork.get(legacyId)?.reservation, 1);
-    assert.deepEqual(env.core.store.memories.list({ agent_id: "roby", limit: 10 }), notes);
+    assert.deepEqual(env.core.store.memories.list({ agent_id: "superagent", limit: 10 }), notes);
   } finally {
     await env.core.close();
     await env.cleanup();

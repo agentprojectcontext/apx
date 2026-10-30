@@ -44,7 +44,7 @@ after(async () => {
   await env.cleanup();
 });
 
-async function ask(text: string, agent = "roby", decision?: "approve" | "deny"): Promise<string> {
+async function ask(text: string, agent = "superagent", decision?: "approve" | "deny"): Promise<string> {
   const thread = await env.client.call("threads.create", {
     kind: "loose",
     agent_id: agent,
@@ -70,7 +70,7 @@ test("only the super-agent is offered agent_set", async () => {
     await ask("hello", agent);
     return llm.calls.at(-1)?.tools.map((t) => t.function.name) ?? [];
   };
-  assert.ok((await offered("roby")).includes("agent_set"));
+  assert.ok((await offered("superagent")).includes("agent_set"));
   assert.ok(!(await offered("acme-writer")).includes("agent_set"));
 });
 
@@ -82,22 +82,25 @@ test("reading an agent's definition and prompt needs no OK", async () => {
 });
 
 test("an agent is created, changed and archived only once the owner says yes", async () => {
-  assert.match(await ask("hire a sentry", "roby", "deny"), /not run: the owner declined/);
+  assert.match(await ask("hire a sentry", "superagent", "deny"), /not run: the owner declined/);
   assert.equal(await agent("sentry"), undefined);
 
   assert.match(
-    await ask("hire a researcher", "roby", "approve"),
+    await ask("hire a researcher", "superagent", "approve"),
     /created: Researcher \(id: researcher\) as a global agent \(no project\)/,
   );
   assert.equal((await agent("researcher"))?.role, "Finds sources");
 
-  assert.match(await ask("rename the writer", "roby", "approve"), /saved: Northwind Writer \(id: acme-writer/);
+  assert.match(await ask("rename the writer", "superagent", "approve"), /saved: Northwind Writer \(id: acme-writer/);
   const writer = await env.client.call("agents.get", { agent: "acme-writer" });
   assert.equal(writer.agent.name, "Northwind Writer");
   assert.equal(writer.agent.role, "Writes copy", "what was not given stays");
   assert.equal(writer.prompt, "Write short.");
 
-  assert.match(await ask("let the writer go", "roby", "approve"), /removed Northwind Writer: .*apx:settings\/agents/);
+  assert.match(
+    await ask("let the writer go", "superagent", "approve"),
+    /removed Northwind Writer: .*apx:settings\/agents/,
+  );
   assert.equal(await agent("acme-writer"), undefined);
 });
 
@@ -106,13 +109,13 @@ test("a new agent goes to the project it names, from any chat, and the answer sa
     name: "Northwind",
   });
   assert.match(
-    await ask("hire a tester for northwind", "roby", "approve"),
+    await ask("hire a tester for northwind", "superagent", "approve"),
     /created: Tester \(id: .+\) in the project Northwind$/,
   );
   const tester = (await env.client.call("agents.list", {})).agents.find((a) => a.name === "Tester");
   assert.equal(tester?.project_id, project.id);
 
-  assert.match(await ask("hire one for nowhere", "roby", "approve"), /unknown project "Nowhere"/);
+  assert.match(await ask("hire one for nowhere", "superagent", "approve"), /unknown project "Nowhere"/);
   assert.equal(
     (await env.client.call("agents.list", {})).agents.find((a) => a.name === "Lost"),
     undefined,
@@ -121,13 +124,13 @@ test("a new agent goes to the project it names, from any chat, and the answer sa
 
 test("the team sheet lists kind, areas and roles; an area exists only in a company and joins its list", async () => {
   assert.match(await ask("show the team"), /^project kind: not set \(areas only exist in company projects/);
-  assert.match(await ask("hire a designer", "roby", "approve"), /not run: areas only exist in company projects/);
+  assert.match(await ask("hire a designer", "superagent", "approve"), /not run: areas only exist in company projects/);
   assert.equal(await agent("designer"), undefined);
 
   await env.client.call("projects.update_base", { kind: "company" });
-  assert.match(await ask("hire a designer", "roby", "approve"), /created: Designer/);
+  assert.match(await ask("hire a designer", "superagent", "approve"), /created: Designer/);
   assert.equal((await agent("designer"))?.area, "design");
-  assert.match(await ask("hire a lead", "roby", "approve"), /created: Lead/);
+  assert.match(await ask("hire a lead", "superagent", "approve"), /created: Lead/);
   const lead = await agent("lead");
   assert.equal(lead?.area, "design", "the area is found by its slug, not added twice");
   assert.equal(lead?.orchestrator, true);
@@ -148,7 +151,7 @@ test("the team sheet lists kind, areas and roles; an area exists only in a compa
 
 test("a new agent with no name given gets a person's name from APX's generator, none the crew uses", async () => {
   const taken = (await env.client.call("agents.list", {})).agents.map((a) => a.name);
-  assert.match(await ask("hire a triager", "roby", "approve"), /created: \S+ \(id: issue-triage\)/);
+  assert.match(await ask("hire a triager", "superagent", "approve"), /created: \S+ \(id: issue-triage\)/);
   const made = await agent("issue-triage");
   assert.ok(made && (AGENT_NAMES as readonly string[]).includes(made.name), made?.name);
   assert.ok(!taken.includes(made.name), `${made.name} was already in use`);

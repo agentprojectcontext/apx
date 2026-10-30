@@ -53,7 +53,7 @@ async function setup(t: TestContext, llm: Llm, extraTools: Tool[] = [probe]) {
   // Where answers go when turns wait in line (not the default, where a message joins the running turn).
   await f.env.client.call("channels.set", {
     id: "tg",
-    channel: { type: "telegram", agent_id: "roby", concurrency: "queue" },
+    channel: { type: "telegram", agent_id: "superagent", concurrency: "queue" },
     token: TOKEN,
   });
   const owner = f.env.core.store.persons.owner();
@@ -80,7 +80,7 @@ test("a free-form Telegram reply resumes the exact delivered question from anoth
     return say("Answer received");
   });
   const f = await setup(t, llm);
-  const project = await f.env.client.call("threads.create", { kind: "agent", agent_id: "roby" });
+  const project = await f.env.client.call("threads.create", { kind: "agent", agent_id: "superagent" });
   await f.env.client.call("threads.send", { thread: project.id, text: "ask from project" });
   await started;
   const run = f.env.core.store.runs.list(project.id)[0];
@@ -118,7 +118,7 @@ test("a free-form Telegram reply resumes the exact delivered question from anoth
 
 test("a question something else was sent after is not answered by the owner's next words there", async (t) => {
   const f = await setup(t, questionLlm());
-  const project = await f.env.client.call("threads.create", { kind: "agent", agent_id: "roby" });
+  const project = await f.env.client.call("threads.create", { kind: "agent", agent_id: "superagent" });
   await f.env.client.call("threads.send", { thread: project.id, text: "ask from project" });
   await waitFor(() => f.env.core.store.inputs.pending(project.id).length > 0, "project question", { ms: 6000 });
   const question = f.env.core.store.inputs.pending(project.id)[0];
@@ -159,7 +159,7 @@ test("a question something else was sent after is not answered by the owner's ne
 
 test("a message does not answer a question that was not delivered to that chat", async (t) => {
   const f = await setup(t, questionLlm());
-  const project = await f.env.client.call("threads.create", { kind: "agent", agent_id: "roby" });
+  const project = await f.env.client.call("threads.create", { kind: "agent", agent_id: "superagent" });
   await f.env.client.call("threads.send", { thread: project.id, text: "ask from project" });
   await waitFor(() => f.env.core.store.inputs.pending(project.id).length > 0, "project question", { ms: 6000 });
 

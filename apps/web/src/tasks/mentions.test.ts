@@ -13,7 +13,7 @@ const agent = (id: string, fields: Partial<Agent> = {}): Agent => ({
   browser_profile: "isolated",
   ...fields,
 });
-const secretary = agent("roby", { name: "Roby", kind: "secretary" });
+const secretary = agent("superagent", { name: "Roby", kind: "secretary" });
 const specialist = agent("andy", { name: "Andy" });
 const team = agent("northwind-builder", { slug: "builder", project_id: "northwind" });
 const other = agent("globex-builder", { slug: "builder", project_id: "globex" });

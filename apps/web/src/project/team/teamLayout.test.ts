@@ -77,7 +77,7 @@ test("many direct reports without teams go in bands by area, at most 4 columns w
 
 test("global agents have no slug: their parent is named by id", () => {
   const g = (id: string, parent?: string) => ({ id, parent, name: id });
-  const l = layoutTeam([g("roby"), g("lead"), g("analyst", "lead")], "roby");
+  const l = layoutTeam([g("superagent"), g("lead"), g("analyst", "lead")], "superagent");
   const at = Object.fromEntries(l.nodes.map((n) => [n.id, n]));
   assert.equal(at.lead?.depth, 1);
   assert.equal(at.analyst?.depth, 2, "under its parent, not under the lead");

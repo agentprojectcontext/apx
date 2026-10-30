@@ -45,7 +45,7 @@ after(async () => {
 const newThread = (agent: string) => env.client.call("threads.create", { kind: "agent", agent_id: agent });
 
 test("an unanswered question stays open after the turn ends, and the late answer wakes the agent", async () => {
-  const t = await newThread("roby");
+  const t = await newThread("superagent");
   await env.client.call("threads.send", { thread: t.id, text: "ask me later" });
   const first = await env.settle(t.id);
   assert.equal(first.runs.at(-1)?.state, "completed");
@@ -64,7 +64,7 @@ test("an unanswered question stays open after the turn ends, and the late answer
 });
 
 test("stopping a chat that only waits on an open question closes it, so it stops waiting", async () => {
-  const t = await newThread("roby");
+  const t = await newThread("superagent");
   await env.client.call("threads.send", { thread: t.id, text: "ask me later" });
   await env.settle(t.id);
   const [input] = (await env.client.call("runs.pending", { thread: t.id })).inputs;
@@ -77,7 +77,7 @@ test("stopping a chat that only waits on an open question closes it, so it stops
 });
 
 test("a question the agent can go on without closes when the turn stops waiting", async () => {
-  const t = await newThread("roby");
+  const t = await newThread("superagent");
   await env.client.call("threads.send", { thread: t.id, text: "ask me if you like" });
   await env.settle(t.id);
   assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /did not answer in time\. Continue without it/);

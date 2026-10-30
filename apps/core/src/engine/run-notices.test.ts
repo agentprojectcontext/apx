@@ -48,7 +48,7 @@ after(async () => {
 });
 
 async function turn(text: string) {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text });
   await env.settle(t.id);
   return t.id;
@@ -77,7 +77,7 @@ test("a turn that ends while nobody looks at its chat reaches the tray, once per
 });
 
 test("a turn the owner was watching raises nothing", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "write the report" });
   await env.settle(t.id);
   await env.client.call("threads.read", { thread: t.id });
@@ -97,9 +97,15 @@ test("a failed turn is an error notice with the reason, and leaves its chat unre
 
 test("a turn with work still coming back to its chat waits for the last one to tell the owner", async () => {
   const { store } = env.core;
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   // A background command the agent started: its end wakes the agent in this chat.
-  const job = store.jobs.create({ thread_id: t.id, agent_id: "roby", title: "pnpm test", cwd: ".", background: true });
+  const job = store.jobs.create({
+    thread_id: t.id,
+    agent_id: "superagent",
+    title: "pnpm test",
+    cwd: ".",
+    background: true,
+  });
   await env.client.call("threads.send", { thread: t.id, text: "write the report" });
   await env.settle(t.id);
   await wait(UNSEEN_MS * 2);

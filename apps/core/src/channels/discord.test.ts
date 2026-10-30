@@ -46,7 +46,11 @@ before(async () => {
     extraTools: [probe],
     channelAdapters: { discord: (c, t) => discordAdapter(c, t, dc.urls) },
   });
-  await env.client.call("channels.set", { id: "dc", channel: { type: "discord", agent_id: "roby" }, token: TOKEN });
+  await env.client.call("channels.set", {
+    id: "dc",
+    channel: { type: "discord", agent_id: "superagent" },
+    token: TOKEN,
+  });
   await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
 });
 after(async () => {
@@ -152,7 +156,7 @@ test("a notice to someone by their user id opens their direct channel once, also
       type: "discord",
       label: "Discord",
       enabled: true,
-      agent_id: "roby",
+      agent_id: "superagent",
       strangers: "pair",
       concurrency: "steer",
       owner_thread: "home",
@@ -170,7 +174,7 @@ test("a routine's news reaches the owner in their direct messages", async () => 
   await env.client.call("notices.set", { channel: "dc" });
   const r = await env.client.call("routines.set", {
     name: "dc-brief",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "manual" },
     action: "message",
     prompt: "Brief on Discord",

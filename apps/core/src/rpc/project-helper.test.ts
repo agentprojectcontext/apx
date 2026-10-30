@@ -25,7 +25,11 @@ test("create: optional preparation, dismissal and off never block execution or r
     await env.client.call("projects.helper_set", { project: project.id, enabled: false });
     assert.equal((await env.client.call("projects.helper_review", { project: project.id })).offer, false);
     assert.ok((await env.client.call("projects.helper_review", { project: project.id, manual: true })).brief);
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project.id });
+    const thread = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      project_id: project.id,
+    });
     await env.client.call("threads.send", { thread: thread.id, text: "Start now without preparing a brief." });
     await env.settle(thread.id);
     assert.equal((await env.client.call("threads.get", { thread: thread.id })).messages.length, 2);

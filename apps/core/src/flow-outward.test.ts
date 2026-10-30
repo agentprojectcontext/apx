@@ -67,7 +67,7 @@ async function setup(env: Env) {
     id: "chat",
     channel: {
       type: "discord",
-      agent_id: "roby",
+      agent_id: "superagent",
       rooms: { rooms: [{ id: "900", name: "sales", mode: "read" }] },
     },
     token: "acme-bot-token",
@@ -573,7 +573,7 @@ test("a message to a channel that isn't running is taken back at once, never sen
   try {
     await env.client.call("channels.set", {
       id: "chat",
-      channel: { type: "discord", agent_id: "roby" },
+      channel: { type: "discord", agent_id: "superagent" },
       token: "acme-bot-token",
     });
     await waitFor(() => starts > 0, "the channel tried to start");

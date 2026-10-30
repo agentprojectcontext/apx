@@ -13,7 +13,7 @@ const flow = {
   predicates: [],
   tableKey: "latest",
   readKeys: ["config"],
-  action: { kind: "agent" as const, agent: "roby", prompt: "Handle event" },
+  action: { kind: "agent" as const, agent: "superagent", prompt: "Handle event" },
 };
 
 test("deterministic reads are snapshotted before the write and bindings survive later edits", async () => {

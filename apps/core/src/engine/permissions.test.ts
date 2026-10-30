@@ -37,7 +37,7 @@ before(async () => {
   env = await startCore({ llm, channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) } });
   await env.client.call("channels.set", {
     id: "tg",
-    channel: { type: "telegram", agent_id: "roby" },
+    channel: { type: "telegram", agent_id: "superagent" },
     token: "123456:TEST-perms",
   });
   elsewhere = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-reels-")));
@@ -164,7 +164,7 @@ test("delegating with a project's id finds the project and never reads the id as
   try {
     const r = await run(
       "total",
-      { name: "delegate", args: { agent: "roby", project, task: "say hi", wait_s: 0 } },
+      { name: "delegate", args: { agent: "superagent", project, task: "say hi", wait_s: 0 } },
       { inProject: false },
     );
     assert.doesNotMatch(r.said, /no folder|refused/);

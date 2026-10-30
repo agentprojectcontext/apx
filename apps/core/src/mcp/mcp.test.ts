@@ -54,7 +54,7 @@ after(async () => {
 
 const toolsSeen = () => (llm.calls.at(-1)?.tools ?? []).map((t) => t.function.name);
 const turn = async (text: string) => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
   await env.client.call("threads.send", { thread: t.id, text });
   await env.settle(t.id, 15_000);
   return String(llm.calls.at(-1)?.messages.at(-1)?.content);
@@ -127,7 +127,7 @@ test("a secret inside text is resolved too, and the owner's server comes back as
 test("a project's own value reaches the owner's server only in that project's chats", async () => {
   await env.client.call("secrets.set", { name: "notes", value: "acme-only", project });
   assert.match(await turn("use token"), /token=acme-only leaked=no/);
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "use token" });
   await env.settle(t.id, 15_000);
   assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /token=s3cret/);
@@ -155,7 +155,7 @@ test("an owner's server limited to a project runs only there, and its test uses 
   assert.deepEqual([here?.only, here?.project_id], [true, project]);
   const r = await env.client.call("mcp.test", { scope: "global", server: "scoped" });
   assert.equal(r.ok, true, r.error);
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "hello" });
   await env.settle(t.id, 15_000);
   assert.ok(!toolsSeen().some((n) => n.startsWith("mcp_scoped_")), "not outside its project");
@@ -242,13 +242,13 @@ test("a contact's turn never reaches an MCP tool, even one it names that is neve
   const chat = store.threads.create({
     kind: "channel",
     title: "Ana",
-    agent_ids: ["roby"],
+    agent_ids: ["superagent"],
     project_id: project,
     channel: { id: "tg", conversation: "ana-1", person_id: ana.id },
   });
   env.core.engine.admit({
     thread_id: chat.id,
-    agent_id: "roby",
+    agent_id: "superagent",
     trigger: "channel",
     origin: { kind: "channel", channel: "tg", conversation: "ana-1", person_id: ana.id, name: "Ana", role: "contact" },
     text: "echo it straight",

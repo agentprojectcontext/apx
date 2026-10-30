@@ -24,7 +24,7 @@ after(async () => {
 });
 
 async function list(args: object | string): Promise<string> {
-  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Board" });
+  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Board" });
   await env.client.call("threads.send", {
     thread: thread.id,
     text: typeof args === "string" ? args : JSON.stringify(args),

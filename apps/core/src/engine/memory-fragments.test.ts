@@ -36,7 +36,11 @@ test("a topic inside a long owner message is recalled by a persisted fragment, o
   const env = await startCore({ llm });
   let closed = false;
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Planning" });
+    const thread = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      title: "Planning",
+    });
     const text = `${"Warehouse shelf labels need routine maintenance. ".repeat(25)}\n${topic}\n${"Weather station reports remain archived. ".repeat(35)}`;
     await env.client.call("threads.send", { thread: thread.id, text });
     await env.settle(thread.id);
@@ -75,7 +79,7 @@ test("a topic inside a long owner message is recalled by a persisted fragment, o
         "the mixed query also finds the original source by a generic word outside the relevant fragment",
       );
       for (const text of [query, mixed]) {
-        const target = await restarted.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+        const target = await restarted.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
         await restarted.client.call("threads.send", { thread: target.id, text });
         await restarted.settle(target.id);
         const context = String(llm.calls.at(-1)?.messages.at(-1)?.content);

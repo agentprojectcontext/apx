@@ -111,7 +111,11 @@ test("speech routes bind agent output to its own chat and turn service failures 
     return { media: { id: "med_1", mime: "audio/ogg" }, service: { label: "Acme voice" }, skipped: ["Offline voice"] };
   });
   const dispatch = testRouter(mediaHandlers(services, env.core.store));
-  const actor = { ...ctx, actor: "agent" as const, agent: { id: "roby", run_id: "run_1", thread_id: "own-thread" } };
+  const actor = {
+    ...ctx,
+    actor: "agent" as const,
+    agent: { id: "superagent", run_id: "run_1", thread_id: "own-thread" },
+  };
   const result = await dispatch("media.speak", { text: "Hello", thread: "other-thread" }, actor, "speak");
   assert.ok(result.ok);
   assert.deepEqual(result.result, {

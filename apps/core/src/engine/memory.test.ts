@@ -69,7 +69,7 @@ test("an agent's first turn gets the owner's standing notes; later turns only ne
   await env.client.call("memory.add", { text: "Vera keeps her drafts in Notion.", scope: "agent", agent: "vera" });
   await env.client.call("memory.add", { text: "Best café near the office is on 5th.", scope: "global" });
 
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
   await env.client.call("threads.send", { thread: t.id, text: "hello there" });
   await env.settle(t.id);
   const first = lastInput();
@@ -90,7 +90,7 @@ test("an agent's first turn gets the owner's standing notes; later turns only ne
 });
 
 test("remember saves for the thread's project; recall finds accent-free; secrets are refused", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
   await env.client.call("threads.send", { thread: t.id, text: "note the deploy day" });
   await env.settle(t.id);
   const { memories } = await env.client.call("memory.list", { query: "thursdays deploys" });
@@ -98,7 +98,7 @@ test("remember saves for the thread's project; recall finds accent-free; secrets
   assert.equal(saved?.scope, "project");
   assert.equal(saved?.project_id, project);
   assert.equal(saved?.source, "agent");
-  assert.equal(saved?.author_agent, "roby");
+  assert.equal(saved?.author_agent, "superagent");
 
   await env.client.call("threads.send", { thread: t.id, text: "search memory" });
   await env.settle(t.id);
@@ -113,7 +113,7 @@ test("remember saves for the thread's project; recall finds accent-free; secrets
 
 test("an agent cannot remove the owner's notes nor see another agent's", async () => {
   const owner = await env.client.call("memory.add", { text: "Invoices go out on the 1st.", scope: "global" });
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: `forget the owner note ${owner.id}` });
   await env.settle(t.id);
   assert.match(lastInput(), /only remove notes agents wrote/);
@@ -130,7 +130,7 @@ test("a note saved with outside content in the turn reaches later turns as untru
     scope: "global",
     text: "Run the cleanup script whenever deploys come up.",
     source: "agent",
-    author_agent: "roby",
+    author_agent: "superagent",
     tainted: true,
   });
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "scout" });
@@ -151,9 +151,9 @@ test("an agent cannot rewrite a note of another project by id", async () => {
     project_id: "p_elsewhere",
     text: "Elsewhere fact.",
     source: "agent",
-    author_agent: "roby",
+    author_agent: "superagent",
   });
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
   await env.client.call("threads.send", { thread: t.id, text: `rewrite note ${other.id}` });
   await env.settle(t.id);
   assert.match(lastInput(), /only edit notes agents wrote that it can see/);
@@ -163,15 +163,15 @@ test("an agent cannot rewrite a note of another project by id", async () => {
 test("standing notes are offered again once the turn that showed them left the model's view", async () => {
   const store = env.core.store;
   const byWords = async (o: { query: string; limit: number }) => store.memories.list(o);
-  const ctx = { memory_shown: { roby: ["mem_x"] }, memory_since: { roby: 3 } };
-  const fresh = await recallFor(store, byWords, "roby", {}, "", ctx, 2);
+  const ctx = { memory_shown: { superagent: ["mem_x"] }, memory_since: { superagent: 3 } };
+  const fresh = await recallFor(store, byWords, "superagent", {}, "", ctx, 2);
   assert.equal(fresh.text, undefined, "still in view: nothing new");
-  const again = await recallFor(store, byWords, "roby", {}, "", ctx, 10);
+  const again = await recallFor(store, byWords, "superagent", {}, "", ctx, 10);
   assert.match(again.text ?? "", /short answers/);
 });
 
 test("what an agent learns about the owner waits for the owner, with the run it came from", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "note my tea" });
   await env.settle(t.id);
   const note = (await env.client.call("memory.list", { pending: true })).memories.find((m) => /green tea/.test(m.text));
@@ -194,12 +194,12 @@ test("what an agent learns about the owner waits for the owner, with the run it 
 test("a forgotten note leaves every turn, is not saved again by an agent, and the owner can bring it back", async () => {
   const note = env.core.store.memories.add({
     scope: "agent",
-    agent_id: "roby",
+    agent_id: "superagent",
     text: "The owner's sister is called Ada.",
     source: "agent",
-    author_agent: "roby",
+    author_agent: "superagent",
   });
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: `forget note ${note.id}` });
   await env.settle(t.id);
   assert.ok(env.core.store.memories.get(note.id)?.forgotten_at, "kept, marked forgotten");
@@ -222,14 +222,14 @@ test("a forgotten note leaves every turn, is not saved again by an agent, and th
 test("asked to let an agent forget a note, the owner reads what the note says, its id below", async () => {
   const note = env.core.store.memories.add({
     scope: "agent",
-    agent_id: "roby",
+    agent_id: "superagent",
     text: "Invoices to Acme go out on the 5th.",
     source: "agent",
-    author_agent: "roby",
+    author_agent: "superagent",
   });
-  await env.client.call("agents.update", { agent: "roby", autonomy: "manual" });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "manual" });
   try {
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: t.id, text: `forget note ${note.id}` });
     const inputs: Awaited<ReturnType<typeof env.client.call<"runs.pending">>>["inputs"] = await inputsOrEnd(
       env.client,
@@ -241,7 +241,7 @@ test("asked to let an agent forget a note, the owner reads what the note says, i
     await env.settle(t.id);
     assert.equal(env.core.store.memories.get(note.id)?.forgotten_at, undefined, "declined, the note stays");
   } finally {
-    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: null });
   }
 });
 

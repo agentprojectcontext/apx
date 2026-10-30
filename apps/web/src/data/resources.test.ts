@@ -81,10 +81,10 @@ test("resource reads and writes preserve global and project scope and return res
   assert.deepEqual(await resources.getInheritance("prj_1"), { skills: true, mcp: false });
   assert.deepEqual(await resources.setInheritance("prj_1", "mcp", true), { ok: true });
   assert.deepEqual(await resources.listApprovals(), []);
-  assert.deepEqual(await resources.revokeApproval("tools:key", "thr_1", "roby"), {});
+  assert.deepEqual(await resources.revokeApproval("tools:key", "thr_1", "superagent"), {});
   assert.deepEqual(calls[0], ["skills.list", {}]);
   assert.deepEqual(calls[1], ["skills.list", { project: "prj_1" }]);
-  assert.deepEqual(calls.at(-1), ["tools.revoke", { key: "tools:key", thread: "thr_1", agent: "roby" }]);
+  assert.deepEqual(calls.at(-1), ["tools.revoke", { key: "tools:key", thread: "thr_1", agent: "superagent" }]);
 });
 
 test("temporary browser grants retain origin and scope and revoke only the selected chat and agent grant", async (t) => {

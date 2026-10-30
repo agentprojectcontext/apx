@@ -47,7 +47,7 @@ before(async () => {
   });
   await env.client.call("channels.set", {
     id: "whatsapp",
-    channel: { type: "whatsapp", agent_id: "roby", self_owner: true },
+    channel: { type: "whatsapp", agent_id: "superagent", self_owner: true },
   });
   await waitFor(async () => Boolean((await env.client.call("channels.list", {})).channels[0]?.qr), "a QR");
   wa.scan();

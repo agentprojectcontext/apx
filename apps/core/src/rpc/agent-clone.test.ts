@@ -58,7 +58,7 @@ test("cloning a team copies each definition and keeps reports under their cloned
 
 test("rename gives each copy a name nobody uses; the super-agent and same-project copies without it are refused", async () => {
   const ids = (await team(from)).map((a) => a.id);
-  const r = await env.client.call("agents.clone", { agents: [...ids, "roby"], project_id: to, rename: true });
+  const r = await env.client.call("agents.clone", { agents: [...ids, "superagent"], project_id: to, rename: true });
   assert.equal(r.cloned.length, 2);
   const used = (await env.client.call("agents.list", {})).agents.map((a) => a.name);
   for (const a of r.cloned) {

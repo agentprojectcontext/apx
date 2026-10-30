@@ -28,8 +28,8 @@ before(async () => {
   git("add", ".");
   git("commit", "-qm", "start");
   const project = (await env.client.call("projects.register", { path: repo })).project.id;
-  thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project })).id;
-  bare = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project })).id;
+  bare = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
 });
 after(async () => {
   await env.core.close();
@@ -87,7 +87,7 @@ test("a command an agent suggested runs in its own terminal, and its end wakes t
   const suggestion = messages.findLast((m) => m.author.kind === "agent");
   assert.ok(suggestion);
   const project_id = (await env.client.call("threads.get", { thread })).thread.project_id;
-  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id });
+  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id });
   await assert.rejects(
     env.client.call("terminal.open", { thread: other.id, cols: 80, rows: 24, command: "true", message: suggestion.id }),
     /not in this chat/,
@@ -136,7 +136,7 @@ test("any project chat can work in its folder with a write policy, like a code s
   await assert.rejects(env.client.call("threads.update", { thread: bare, write: "ask" }), /folder is on disk/);
   const code = await env.client.call("threads.create", {
     kind: "code",
-    agent_id: "roby",
+    agent_id: "superagent",
     project_id: (await env.client.call("threads.get", { thread })).thread.project_id,
   });
   await assert.rejects(env.client.call("threads.update", { thread: code.id, write: null }), /always works/);

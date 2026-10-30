@@ -4,7 +4,7 @@ import { expect, open, rpc, test, until, world } from "./kit.ts";
 
 test("scrolled up, a button goes back to the latest message and hides there", async ({ page }) => {
   await rpc("setup.finish", {});
-  const t = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Long read" });
+  const t = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "superagent", title: "Long read" });
   const lines = Array.from({ length: 60 }, (_, i) => `Line ${i + 1} of the Northwind notes`).join("\n");
   await rpc("threads.send", { thread: t.id, text: lines });
   await page.setViewportSize({ width: 1024, height: 640 });

@@ -33,7 +33,7 @@ test("a watch calls its agent only with signals it has not told yet, as data; wi
   await env.client.call("tasks.create", { title: "Water the plants" });
   const r = await env.client.call("routines.set", {
     name: "Watch",
-    agent: "roby",
+    agent: "superagent",
     action: "watch",
     schedule: { kind: "cron", cron: "0 */2 * * *" },
     prompt: "Tell me only what matters now.",
@@ -72,7 +72,7 @@ test("in the owner's quiet hours a watch waits without the model; the next run a
   await env.client.call("tasks.create", { title: "Renew the Acme domain", due_at: "2026-01-06" });
   const r = await env.client.call("routines.set", {
     name: "Night watch",
-    agent: "roby",
+    agent: "superagent",
     action: "watch",
     schedule: { kind: "cron", cron: "0 */2 * * *" },
     prompt: "Only what matters.",

@@ -97,7 +97,7 @@ test("when the engine is down, search goes on by words", async () => {
 
 test("with memory off, the turn gets no notes and no memory tools", async () => {
   await env.client.call("memory.set_settings", { mode: "off", auto_compact: false });
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "hello" });
   await env.settle(t.id);
   const call = llm.calls.at(-1);

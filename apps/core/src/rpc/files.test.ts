@@ -138,9 +138,13 @@ test("Finder, rename and trash stay inside the folder; the trash never takes the
 });
 
 test("a chat browses the folder its agent works in: its project's, or else APX's work folder", async () => {
-  const inProject = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  const inProject = await env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    project_id: project,
+  });
   assert.equal((await env.client.call("files.tree", { thread: inProject.id })).root, repo);
-  const bare = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const bare = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   const work = await env.client.call("files.tree", { thread: bare.id });
   assert.equal(work.root, realpath(path.join(env.home, "work")));
   fs.writeFileSync(path.join(work.root, "notes.md"), "Draft.\n");
@@ -150,7 +154,7 @@ test("a chat browses the folder its agent works in: its project's, or else APX's
 });
 
 test("the base project browses APX's work folder, the one its chats work in", async () => {
-  const bare = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const bare = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   const fromChat = await env.client.call("files.tree", { thread: bare.id });
   const fromBase = await env.client.call("files.tree", { base: true });
   assert.equal(fromBase.root, fromChat.root);
@@ -160,7 +164,7 @@ test("the base project browses APX's work folder, the one its chats work in", as
 });
 
 test("a chat's temp folder is browsed apart, and what the owner keeps is copied into the chat's folder", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
   const temp = await env.client.call("files.tree", { thread: t.id, scratch: true });
   assert.equal(temp.root, realpath(path.join(scratchRoot(env.home), t.id)));
   fs.mkdirSync(path.join(temp.root, "out"));

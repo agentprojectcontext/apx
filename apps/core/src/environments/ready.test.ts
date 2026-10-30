@@ -35,12 +35,17 @@ test("a start that fails, or never ends, is told to the agent with why", async (
   assert.deepEqual(heard, [{ thread: "thr_1", agent: "scout", ready: false, error: "Lima did not start" }]);
 
   state = { phase: "preparing" };
-  w.add("thr_2", "roby");
+  w.add("thr_2", "superagent");
   for (let waited = 0; waited <= READY_WAIT_MS; waited += READY_POLL_MS) {
     timers.tick(READY_POLL_MS);
     await flush();
   }
-  assert.deepEqual(heard.at(-1), { thread: "thr_2", agent: "roby", ready: false, error: "it did not start in time" });
+  assert.deepEqual(heard.at(-1), {
+    thread: "thr_2",
+    agent: "superagent",
+    ready: false,
+    error: "it did not start in time",
+  });
   w.close();
 });
 
@@ -80,7 +85,7 @@ test("a wait the owner ends (the computer stopped, the run canceled) wakes nobod
     timers,
   });
   w.add("thr_1", "scout");
-  w.add("thr_2", "roby");
+  w.add("thr_2", "superagent");
   w.cancel("thr_1");
   assert.equal(w.waiting(), 1);
   w.cancel();

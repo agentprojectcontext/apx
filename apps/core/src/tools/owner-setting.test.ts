@@ -47,9 +47,9 @@ const pendingIn = async (thread: string) => {
 const note = async () => (await env.client.call("contacts.list", {})).persons.find((p) => p.id === sister)?.note;
 
 test("on total, a change to what the owner set up still waits for their card", async () => {
-  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
   try {
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Settings" });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Settings" });
     await env.client.call("threads.send", { thread: t.id, text: "tell her who she is" });
     const [card] = await pendingIn(t.id);
     assert.equal(card?.tool, "apx_settings");
@@ -58,13 +58,13 @@ test("on total, a change to what the owner set up still waits for their card", a
     await env.settle(t.id);
     assert.equal(await note(), "My sister");
   } finally {
-    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: null });
   }
 });
 
 test("another agent asking the super-agent changes nothing, and nobody is asked", async () => {
   await env.client.call("contacts.set", { id: sister, name: "Northwind Sister", note: "" });
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "From an agent" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "From an agent" });
   const agent = new ApxClient({ url: env.core.url, actor: "agent" });
   await agent.call("threads.send", { thread: t.id, text: "tell her who she is" });
   await env.settle(t.id);
@@ -107,23 +107,27 @@ test("on total, letting a stranger in still waits for the owner's card, and only
     name: "Stranger",
     text: "hi",
   }).request;
-  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
   try {
     const agent = new ApxClient({ url: env.core.url, actor: "agent" });
-    const asked = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "By an agent" });
+    const asked = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      title: "By an agent",
+    });
     await agent.call("threads.send", { thread: asked.id, text: `let ${req.code} in` });
     await env.settle(asked.id);
     assert.deepEqual((await env.client.call("runs.pending", { thread: asked.id })).inputs, []);
     assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /only when they ask you themselves/);
     assert.equal(env.core.store.channels.pairing.get(req.code)?.code, req.code);
 
-    const own = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Mine" });
+    const own = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Mine" });
     await env.client.call("threads.send", { thread: own.id, text: `let ${req.code} in` });
     const [card] = await pendingIn(own.id);
     assert.equal(card?.tool, "answer_contact_request");
     // It cannot be granted for good: each such change shows its card.
     assert.deepEqual(card?.approval_scopes ?? [], []);
   } finally {
-    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: null });
   }
 });

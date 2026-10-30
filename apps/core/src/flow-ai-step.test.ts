@@ -61,7 +61,7 @@ test("an agent in a Flow keeps its tools but delegates to no one unless the step
   const llm = scriptedLlm(() => say("Sorted: refund"));
   const env = await startCore({ llm });
   try {
-    const off = await runOnce(env, "solo", ai({ agent: "roby" }));
+    const off = await runOnce(env, "solo", ai({ agent: "superagent" }));
     assert.equal(off.step.state, "succeeded");
     assert.deepEqual(off.context.flow_step, { delegate: false });
     const offCall = llm.calls.at(-1);
@@ -74,7 +74,7 @@ test("an agent in a Flow keeps its tools but delegates to no one unless the step
     const on = await runOnce(
       env,
       "team",
-      ai({ agent: "roby", delegate: true, model: "fake/fake-1", autonomy: "total" }),
+      ai({ agent: "superagent", delegate: true, model: "fake/fake-1", autonomy: "total" }),
     );
     assert.equal(on.step.state, "succeeded");
     assert.deepEqual(on.context.flow_step, { delegate: true, autonomy: "total" });
@@ -87,16 +87,16 @@ test("an agent in a Flow keeps its tools but delegates to no one unless the step
     const shown = detail.steps.find((s) => s.node === "ask");
     assert.deepEqual(shown?.answered, { harness: "native", model: "fake/fake-1" });
     assert.equal(shown?.thread_id, on.thread);
-    const roby = env.core.store.agents.get("roby");
+    const roby = env.core.store.agents.get("superagent");
     assert.ok(roby);
     const permissions = createPermissions({ store: env.core.store, home: "" });
     assert.equal(permissions.agentIn(roby, on.thread).autonomy, "total");
     // A helper it hands work to works in the step's mode, not the agent's own.
-    const solo = await runOnce(env, "careful", ai({ agent: "roby", delegate: true, autonomy: "manual" }));
+    const solo = await runOnce(env, "careful", ai({ agent: "superagent", delegate: true, autonomy: "manual" }));
     const helper = env.core.store.threads.create({
       kind: "a2a",
       title: "Helper",
-      agent_ids: ["roby"],
+      agent_ids: ["superagent"],
       parent_id: solo.thread,
     });
     assert.equal(permissions.agentIn(roby, helper.id).autonomy, "manual");
@@ -146,12 +146,12 @@ test("a bot of the Flow answers with its own system prompt, no memory and no tea
 test("an AI step names an agent or a bot, with the permission mode of its harness", () => {
   const codes = (node: Ai) => validateFlowGraph(graphOf(node)).map((i) => i.code);
   assert.ok(codes(ai({})).includes("ai_source"));
-  assert.ok(codes(ai({ agent: "roby", bot: { name: "B", system: "S" } })).includes("ai_source"));
-  assert.ok(!codes(ai({ agent: "roby", autonomy: "auto", delegate: true })).includes("ai_mode"));
-  assert.ok(codes(ai({ agent: "roby", write: "auto" })).includes("ai_mode"), "APX's harness has no write mode");
-  assert.ok(codes(ai({ agent: "roby", model: "claude", autonomy: "total" })).includes("ai_mode"));
-  assert.ok(codes(ai({ agent: "roby", model: "codex", delegate: true })).includes("ai_mode"));
-  assert.ok(!codes(ai({ agent: "roby", model: "claude/opus", write: "read-only" })).includes("ai_mode"));
+  assert.ok(codes(ai({ agent: "superagent", bot: { name: "B", system: "S" } })).includes("ai_source"));
+  assert.ok(!codes(ai({ agent: "superagent", autonomy: "auto", delegate: true })).includes("ai_mode"));
+  assert.ok(codes(ai({ agent: "superagent", write: "auto" })).includes("ai_mode"), "APX's harness has no write mode");
+  assert.ok(codes(ai({ agent: "superagent", model: "claude", autonomy: "total" })).includes("ai_mode"));
+  assert.ok(codes(ai({ agent: "superagent", model: "codex", delegate: true })).includes("ai_mode"));
+  assert.ok(!codes(ai({ agent: "superagent", model: "claude/opus", write: "read-only" })).includes("ai_mode"));
   assert.ok(codes(ai({ bot: { name: "B", system: "S" }, delegate: true })).includes("ai_mode"));
 });
 
@@ -173,7 +173,7 @@ test("a CLI harness runs the agent's or the bot's brief in its own session, with
     assert.ok(plan.text.endsWith('Untrusted input JSON:\n{"file":"a.ts"}'));
     // The APX tools a CLI reaches follow the step's limits too.
     assert.deepEqual(plan.context.flow_step, { delegate: false, bot: true });
-    const agent = planFlowAiStep(env.core.store, project, ai({ agent: "roby", model: "codex" }), null);
+    const agent = planFlowAiStep(env.core.store, project, ai({ agent: "superagent", model: "codex" }), null);
     assert.deepEqual(agent?.context.flow_step, { delegate: false });
     assert.equal(agent?.engine, "codex");
     assert.ok(agent?.text.includes("You work as"));
@@ -193,7 +193,7 @@ test("a CLI step needs the project's folder: a project without one is told befor
     env.core.store.projects.upsert({ ...record, present: false });
     const { issues } = await env.client.call("flows.validate", {
       project,
-      graph: graphOf(ai({ agent: "roby", model: "claude" })),
+      graph: graphOf(ai({ agent: "superagent", model: "claude" })),
     });
     assert.ok(issues.some((i) => i.code === "folder_unavailable" && i.node === "ask"));
   } finally {

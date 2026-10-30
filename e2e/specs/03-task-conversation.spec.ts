@@ -28,7 +28,7 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
   });
   try {
     await env.client.call("setup.finish", {});
-    await env.client.call("agents.update", { agent: "roby", name: "Roby" });
+    await env.client.call("agents.update", { agent: "superagent", name: "Roby" });
     await env.client.call("owner.set", { name: "Alex" });
     await env.client.call("agents.create", { slug: "andy", name: "Andy" });
     const folder = path.join(env.home, "northwind");
@@ -109,7 +109,7 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await expect(drawer).toBeVisible();
     await comment.fill("@");
     const mentions = drawer.getByRole("listbox", { name: "Mencionar agente" });
-    await expect(mentions.getByRole("option")).toHaveText(["Roby@roby", "Builder@builder"]);
+    await expect(mentions.getByRole("option")).toHaveText(["Roby@superagent", "Builder@builder"]);
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
     await expect(comment).toHaveValue("@builder ");

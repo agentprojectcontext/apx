@@ -4,7 +4,7 @@ import { expect, open, rpc, test } from "./kit.ts";
 
 test("the owner edits a message and asks again for an answer; what came after goes, asked first", async ({ page }) => {
   await rpc("setup.finish", {});
-  const t = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Rewind" });
+  const t = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "superagent", title: "Rewind" });
   await open(page, `#view=inbox&thread=${t.id}`);
   const main = page.getByRole("main");
   const box = page.getByRole("textbox", { name: /^Escribile a/ });

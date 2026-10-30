@@ -10,7 +10,7 @@ const config: ChannelConfig = {
   type: "telegram",
   label: "Telegram",
   enabled: true,
-  agent_id: "roby",
+  agent_id: "superagent",
   strangers: "pair",
   concurrency: "queue",
   owner_thread: "home",
@@ -73,7 +73,11 @@ test("a Telegram reply that never connected is delivered by the outbox on its ne
     await tg.close();
     await env.cleanup();
   });
-  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent" },
+    token: TOKEN,
+  });
   const owner = env.core.store.persons.owner();
   env.core.store.persons.link(owner.id, { channel: "tg", external_id: "1001" });
   tg.message({ id: 1001, name: "Owner" }, "hello");

@@ -44,7 +44,7 @@ async function pendingOf(env: typeof live, thread: string) {
 }
 
 test("an action card shows the action with no tool, and accepting it tells the agent to do it", async () => {
-  const t = await live.client.call("threads.create", { kind: "agent", agent_id: "roby" });
+  const t = await live.client.call("threads.create", { kind: "agent", agent_id: "superagent" });
   await live.client.call("threads.send", { thread: t.id, text: "propose it" });
   const input = await pendingOf(live, t.id);
   assert.equal(input.kind, "confirm");
@@ -61,7 +61,7 @@ test("an action card shows the action with no tool, and accepting it tells the a
 });
 
 test("declining an action card tells the agent not to do it, with the owner's note", async () => {
-  const t = await live.client.call("threads.create", { kind: "agent", agent_id: "roby" });
+  const t = await live.client.call("threads.create", { kind: "agent", agent_id: "superagent" });
   await live.client.call("threads.send", { thread: t.id, text: "propose it" });
   const input = await pendingOf(live, t.id);
   await live.client.call("runs.respond", { input: input.id, decision: "deny", text: "Keep Saturday as it is" });
@@ -70,7 +70,7 @@ test("declining an action card tells the agent not to do it, with the owner's no
 });
 
 test("an action takes no question or options: refused before the owner sees anything", async () => {
-  const t = await live.client.call("threads.create", { kind: "agent", agent_id: "roby" });
+  const t = await live.client.call("threads.create", { kind: "agent", agent_id: "superagent" });
   await live.client.call("threads.send", { thread: t.id, text: "propose with options" });
   const { messages } = await live.settle(t.id);
   assert.match(lastToolResult(), /invalid arguments for ask_owner: action: an action takes no question or options/);
@@ -78,7 +78,7 @@ test("an action takes no question or options: refused before the owner sees anyt
 });
 
 test("an action card accepted after the turn ended wakes the agent to do it", async () => {
-  const t = await late.client.call("threads.create", { kind: "agent", agent_id: "roby" });
+  const t = await late.client.call("threads.create", { kind: "agent", agent_id: "superagent" });
   await late.client.call("threads.send", { thread: t.id, text: "propose it" });
   await late.settle(t.id);
   assert.match(lastToolResult(), /The card stays open in the chat .*do not do the action/s);
@@ -97,7 +97,7 @@ test("an action card accepted after the turn ended wakes the agent to do it", as
 });
 
 test("an agent takes back its own open action card", async () => {
-  const t = await late.client.call("threads.create", { kind: "agent", agent_id: "roby" });
+  const t = await late.client.call("threads.create", { kind: "agent", agent_id: "superagent" });
   await late.client.call("threads.send", { thread: t.id, text: "propose it" });
   await late.settle(t.id);
   const [input] = (await late.client.call("runs.pending", { thread: t.id })).inputs;

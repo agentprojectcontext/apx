@@ -37,7 +37,7 @@ async function shot(page: Page, name: string) {
 test("a Flow the super-agent draws shows in the chat and opens in the editor", async ({ page }) => {
   await rpc("setup.finish", {});
   const project = (await rpc<{ project: { id: string } }>("projects.create", { name: "Acme leads" })).project.id;
-  const chat = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Flows" });
+  const chat = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "superagent", title: "Flows" });
   await open(page, `#thread=${chat.id}`);
   await page.getByRole("textbox", { name: /Escribile/ }).fill(`draw a flow in ${project}`);
   await page.keyboard.press("Enter");
@@ -91,7 +91,7 @@ test("a Flow the super-agent draws shows in the chat and opens in the editor", a
 test("turning on a Flow an agent drew opens it for review instead of running it", async ({ page }) => {
   await rpc("setup.finish", {});
   const project = (await rpc<{ project: { id: string } }>("projects.create", { name: "Acme review" })).project.id;
-  const chat = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Review" });
+  const chat = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "superagent", title: "Review" });
   await open(page, `#thread=${chat.id}`);
   await page.getByRole("textbox", { name: /Escribile/ }).fill(`draw a flow in ${project}`);
   await page.keyboard.press("Enter");

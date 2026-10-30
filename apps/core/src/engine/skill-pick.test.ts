@@ -72,7 +72,7 @@ after(async () => {
 });
 
 test("a message that matches a skill gets it named for the agent to load, and the chat shows what was weighed", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "creame una imagen de un gato" });
   const { messages } = await env.settle(t.id);
   const input = String(llm.calls.at(-1)?.messages.at(-1)?.content);
@@ -91,7 +91,7 @@ test("a message that matches a skill gets it named for the agent to load, and th
 });
 
 test("a short message, or the picker turned off, adds nothing", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "imagen" });
   assert.equal(skillsPart((await env.settle(t.id)).messages), undefined);
 
@@ -108,7 +108,7 @@ test("a short message, or the picker turned off, adds nothing", async () => {
 
 test("a skill named with /name goes in whole, picker or not; an unknown name is just text", async () => {
   // The picker is off since the test above: "/" needs no engine.
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "/golf-tee mañana a las 9" });
   const { messages } = await env.settle(t.id);
   const input = turnInput();

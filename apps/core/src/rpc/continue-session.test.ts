@@ -7,10 +7,10 @@ import { createLog } from "../log.ts";
 async function fixture() {
   const env = await startCore({ llm: scriptedLlm((_req, { said }) => say(`Finished: ${said}`)) });
   const { store } = env.core;
-  const root = store.threads.create({ kind: "loose", title: "Review", agent_ids: ["roby"] });
+  const root = store.threads.create({ kind: "loose", title: "Review", agent_ids: ["superagent"] });
   const parent = store.runs.create({
     thread_id: root.id,
-    agent_id: "roby",
+    agent_id: "superagent",
     trigger: "user",
     input: { origin: { kind: "user" }, text: "Review" },
     deadline_at: new Date().toISOString(),
@@ -19,7 +19,7 @@ async function fixture() {
   const sub = store.threads.create({
     kind: "a2a",
     title: "Check sources",
-    agent_ids: ["roby"],
+    agent_ids: ["superagent"],
     parent_id: root.id,
     session: "research",
     write: "read-only",
@@ -27,12 +27,12 @@ async function fixture() {
   });
   const stopped = store.runs.create({
     thread_id: sub.id,
-    agent_id: "roby",
+    agent_id: "superagent",
     trigger: "a2a",
     parent_run_id: parent.id,
     depth: 1,
     input: {
-      origin: { kind: "agent", id: "roby", name: "Roby", thread_id: root.id, run_id: parent.id },
+      origin: { kind: "agent", id: "superagent", name: "Roby", thread_id: root.id, run_id: parent.id },
       text: "Check sources",
     },
     deadline_at: new Date().toISOString(),
@@ -105,10 +105,15 @@ for (const budget of ["none", "chain", "agent"] as const)
     try {
       const { store } = env.core;
       const busy = Array.from({ length: 3 }, (_, i) => {
-        const t = store.threads.create({ kind: "a2a", title: `Part ${i}`, agent_ids: ["roby"], parent_id: root.id });
+        const t = store.threads.create({
+          kind: "a2a",
+          title: `Part ${i}`,
+          agent_ids: ["superagent"],
+          parent_id: root.id,
+        });
         const r = store.runs.create({
           thread_id: t.id,
-          agent_id: "roby",
+          agent_id: "superagent",
           trigger: "a2a",
           parent_run_id: parent.id,
           input: { origin: { kind: "user" }, text: "Working" },
@@ -118,18 +123,23 @@ for (const budget of ["none", "chain", "agent"] as const)
         return { t, r };
       });
       if (budget === "chain") await env.client.call("agents.set_limits", { runs: 1, tokens: 0 });
-      if (budget === "agent") await env.client.call("agents.set_agent_limits", { agent: "roby", limits: { runs: 1 } });
+      if (budget === "agent")
+        await env.client.call("agents.set_agent_limits", { agent: "superagent", limits: { runs: 1 } });
       const held =
         budget !== "none"
           ? store.runs.create({
-              thread_id: store.threads.create({ kind: "a2a", title: "Held", agent_ids: ["roby"], parent_id: root.id })
-                .id,
-              agent_id: "roby",
+              thread_id: store.threads.create({
+                kind: "a2a",
+                title: "Held",
+                agent_ids: ["superagent"],
+                parent_id: root.id,
+              }).id,
+              agent_id: "superagent",
               trigger: "a2a",
               parent_run_id: parent.id,
               state: "queued",
               input: {
-                origin: { kind: "agent", id: "roby", name: "Roby", thread_id: root.id, run_id: parent.id },
+                origin: { kind: "agent", id: "superagent", name: "Roby", thread_id: root.id, run_id: parent.id },
                 text: "Wait",
               },
               deadline_at: new Date(Date.now() + 60_000).toISOString(),

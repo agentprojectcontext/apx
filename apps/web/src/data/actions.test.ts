@@ -20,7 +20,7 @@ beforeEach(() => {
 });
 const at = "2026-01-01T00:00:00Z";
 const thread = (id = "thr_1", state = "idle") =>
-  Thread.parse({ id, title: id, kind: "loose", state, agent_ids: ["roby"], created_at: at, updated_at: at });
+  Thread.parse({ id, title: id, kind: "loose", state, agent_ids: ["superagent"], created_at: at, updated_at: at });
 const message = (id: string, seq: number): Message => ({
   id,
   seq,
@@ -194,33 +194,33 @@ test("new chats preserve code policy, cache their transcript and reject malforme
   const created = thread("new-thread");
   const calls = rpc(t, { "threads.create": created });
   assert.deepEqual(
-    await actions.createThread({ agentId: "roby", projectId: "prj_1", code: { write: "read-only" } }),
+    await actions.createThread({ agentId: "superagent", projectId: "prj_1", code: { write: "read-only" } }),
     created,
   );
   assert.deepEqual(calls[0], [
     "threads.create",
-    { kind: "code", agent_id: "roby", project_id: "prj_1", write: "read-only" },
+    { kind: "code", agent_id: "superagent", project_id: "prj_1", write: "read-only" },
   ]);
   assert.deepEqual(data.get().messages[created.id], []);
   assert.equal(data.get().threadLoad[created.id], "ready");
-  await actions.makeChat(newChatId({ agent: "roby" }));
+  await actions.makeChat(newChatId({ agent: "superagent" }));
   assert.equal(calls.length, 2);
-  assert.deepEqual(calls[1], ["threads.create", { kind: "loose", agent_id: "roby" }]);
+  assert.deepEqual(calls[1], ["threads.create", { kind: "loose", agent_id: "superagent" }]);
   await assert.rejects(actions.makeChat("bad-id"), /not a new chat/);
   assert.equal(calls.length, 2);
 });
 
 test("new chat titles remain automatic while explicit names and code session settings are preserved", async (t) => {
   const calls = rpc(t, { "threads.create": thread("created") });
-  await actions.makeChat(newChatId({ agent: "roby", project: "prj_1" }));
-  await actions.makeChat(newChatId({ agent: "roby", project: "prj_1", code: true }));
-  await actions.makeChat(newChatId({ agent: "roby", engine: "codex" }));
-  await actions.createThread({ agentId: "roby", title: "Budget" });
+  await actions.makeChat(newChatId({ agent: "superagent", project: "prj_1" }));
+  await actions.makeChat(newChatId({ agent: "superagent", project: "prj_1", code: true }));
+  await actions.makeChat(newChatId({ agent: "superagent", engine: "codex" }));
+  await actions.createThread({ agentId: "superagent", title: "Budget" });
   assert.deepEqual(calls, [
-    ["threads.create", { kind: "loose", agent_id: "roby", project_id: "prj_1" }],
-    ["threads.create", { kind: "code", agent_id: "roby", project_id: "prj_1", write: "ask" }],
-    ["threads.create", { kind: "code", agent_id: "roby", engine: "codex", title: "engine.newTitle" }],
-    ["threads.create", { kind: "loose", agent_id: "roby", title: "Budget" }],
+    ["threads.create", { kind: "loose", agent_id: "superagent", project_id: "prj_1" }],
+    ["threads.create", { kind: "code", agent_id: "superagent", project_id: "prj_1", write: "ask" }],
+    ["threads.create", { kind: "code", agent_id: "superagent", engine: "codex", title: "engine.newTitle" }],
+    ["threads.create", { kind: "loose", agent_id: "superagent", title: "Budget" }],
   ]);
 });
 

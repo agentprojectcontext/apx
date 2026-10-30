@@ -92,7 +92,7 @@ test("the tools are offered only once the owner turns iMessage on; reading is ou
   const env = await startCore({ llm, imessage: fake });
   try {
     assert.deepEqual(await env.client.call("imessage.get", {}), { available: true, on: false });
-    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
     await env.client.call("threads.send", { thread, text: "hello" });
     await env.settle(thread);
     assert.doesNotMatch(JSON.stringify(llm.calls.at(-1)?.tools.map((t) => t.function.name)), /imessage/);

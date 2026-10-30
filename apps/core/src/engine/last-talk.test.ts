@@ -38,7 +38,7 @@ const ownerSaid = (store: Store, text: string, ago: number, thread = "home") =>
 const agentSaid = (store: Store, ago: number, run_id?: string) =>
   store.messages.add({
     thread_id: "home",
-    author: { kind: "agent", id: "roby" },
+    author: { kind: "agent", id: "superagent" },
     parts: [{ type: "text", text: "Listo." }],
     at: earlier(ago),
     ...(run_id ? { run_id } : {}),
@@ -88,7 +88,7 @@ test("another run's empty or tool-only message does not count as talking", () =>
     ]) {
       store.messages.add({
         thread_id: "home",
-        author: { kind: "agent", id: "roby" },
+        author: { kind: "agent", id: "superagent" },
         parts,
         at: earlier(60_000),
         run_id: "run_other",
@@ -118,7 +118,7 @@ test("a new day after a few hours greets; the same day does not", () =>
 test("a routine's chat gets Home recency without words; another agent's chat gets nothing", () =>
   withStore((store) => {
     ownerSaid(store, "Avisame cuando llegue lo de Northwind", 30 * 60_000);
-    const routine = store.threads.create({ kind: "routine", agent_ids: ["roby"], title: "Watch" });
+    const routine = store.threads.create({ kind: "routine", agent_ids: ["superagent"], title: "Watch" });
     // Its prompt is stored as the owner's words, but it is not the owner talking.
     store.messages.add({ thread_id: routine.id, author: { kind: "user" }, parts: [{ type: "text", text: "check" }] });
     const text = lastTalk(store, routine, at) ?? "";
@@ -162,7 +162,7 @@ after(async () => {
 });
 
 /** Runs a routine now and returns the input its model call got. */
-async function routineInput(prompt: string, agent = "roby", project?: string): Promise<string> {
+async function routineInput(prompt: string, agent = "superagent", project?: string): Promise<string> {
   const r = await env.client.call("routines.set", {
     name: prompt,
     agent,

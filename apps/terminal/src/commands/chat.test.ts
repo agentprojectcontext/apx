@@ -135,7 +135,7 @@ test("chat streams useful parts once, ignores other runs and prints the complete
     seq: 1,
     thread_id: "home",
     run_id: "run-1",
-    author: { kind: "agent", id: "roby" },
+    author: { kind: "agent", id: "superagent" },
     created_at: at,
     model: "fake/fast",
     parts: [
@@ -166,7 +166,7 @@ test("chat streams useful parts once, ignores other runs and prints the complete
     run: Run.parse({
       id: "run-1",
       thread_id: "home",
-      agent_id: "roby",
+      agent_id: "superagent",
       state: "completed",
       end_reason: "step_limit",
       started_at: at,
@@ -201,7 +201,7 @@ test("code chat selects the closest registered project and preserves working dir
         { id: "project", path: project },
       ],
     },
-    "agents.list": { agents: [{ id: "roby", kind: "secretary", name: "Roby" }] },
+    "agents.list": { agents: [{ id: "superagent", kind: "secretary", name: "Roby" }] },
     "threads.create": { id: "code-chat", cwd: "src", write: "read-only" },
     "threads.send": { run: { id: "run-1" } },
   });
@@ -209,7 +209,7 @@ test("code chat selects the closest registered project and preserves working dir
   assert.match(text, /code thread code-chat · src · write: read-only/);
   assert.deepEqual(f.calls[2], [
     "threads.create",
-    { kind: "code", agent_id: "roby", project_id: "project", cwd: "src", write: "read-only" },
+    { kind: "code", agent_id: "superagent", project_id: "project", cwd: "src", write: "read-only" },
   ]);
   assert.deepEqual(f.calls[3], ["threads.send", { thread: "code-chat", text: "Inspect", mode: "queue" }]);
   assert.equal(f.closes, 1);

@@ -71,11 +71,11 @@ before(async () => {
   });
   parallelFiles = fileTools(env.core.store, env.home);
   // Writing is the owner's to allow; this agent may act without asking.
-  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
 });
 
 test("parallel writes preserve final disk order and share the recorded patch budget", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await said(t.id, "parallel");
   const messages = (await env.client.call("threads.get", { thread: t.id })).messages;
   const part = messages.at(-1)?.parts.find((p) => p.type === "changes");
@@ -104,7 +104,7 @@ const said = async (thread: string, text: string) => {
 };
 
 test("an agent writes and edits a file in the folder it works in, never outside it", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "files" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "files" });
   const file = path.join(env.home, "work", "pages", "btc.html");
   assert.match(await said(t.id, "write it"), /created .*pages[\\/]btc\.html \(\d+ bytes\)/);
   assert.equal(fs.readFileSync(file, "utf8"), "<h1>BTC $1</h1>\n<p>$1</p>\n<p>$1</p>\n");
@@ -118,7 +118,7 @@ test("an agent writes and edits a file in the folder it works in, never outside 
   assert.match(await said(t.id, "edit all"), /replaced 2 occurrences/);
   assert.equal(fs.readFileSync(file, "utf8"), "<h1>BTC $&2</h1>\n<p>$3</p>\n<p>$3</p>\n");
   // Fenced in by its own rule it is refused outside its folders; on total it writes anywhere but APX's home (DECISIONS.md#d-102).
-  await env.client.call("agents.update", { agent: "roby", autonomy: "auto", rules: { outside: "off" } });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "auto", rules: { outside: "off" } });
   try {
     for (const [ask, why] of [
       ["escape", /APX's own folder/],
@@ -127,14 +127,14 @@ test("an agent writes and edits a file in the folder it works in, never outside 
     ] as const)
       assert.match(await said(t.id, ask), why);
   } finally {
-    await env.client.call("agents.update", { agent: "roby", autonomy: "total", rules: null });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: "total", rules: null });
   }
   assert.equal(fs.existsSync(path.join(env.home, "outside.txt")), false);
   assert.equal(fs.existsSync("/apx-absolute.txt"), false);
 });
 
 test("file tools take shell's cwd: a relative path in a worktree lands in it, never in the root checkout", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "worktree" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "worktree" });
   const root = path.join(env.home, "work");
   const tree = path.join(root, ".worktrees", "issue-1");
   fs.mkdirSync(path.join(root, "docs"), { recursive: true });
@@ -177,10 +177,11 @@ test("APC files named through cwd still wait for the owner; the temp folder thro
 });
 
 test("a file write waiting for the owner shows the patch it would make, and nothing for a call that would fail", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "preview" });
-  const ctx = { thread: env.core.store.threads.get(t.id), agent: env.core.store.agents.get("roby") } as Parameters<
-    NonNullable<Tool["preview"]>
-  >[1];
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "preview" });
+  const ctx = {
+    thread: env.core.store.threads.get(t.id),
+    agent: env.core.store.agents.get("superagent"),
+  } as Parameters<NonNullable<Tool["preview"]>>[1];
   const tool = (name: string) => parallelFiles.find((x) => x.name === name);
   fs.writeFileSync(path.join(env.home, "work", "preview.md"), "one\ntwo\nthree\n");
   const edit = await tool("file_edit")?.preview?.({ path: "preview.md", old: "two", new: "TWO" }, ctx);
@@ -196,7 +197,7 @@ test("a file write waiting for the owner shows the patch it would make, and noth
 });
 
 test("the files an agent writes in a turn show in its answer, with the lines added and removed", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "card" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "card" });
   await env.client.call("threads.send", { thread: t.id, text: "write new" });
   let { messages } = await env.settle(t.id);
   const card = () => messages.at(-1)?.parts.find((p) => p.type === "changes");
@@ -231,7 +232,7 @@ test("the files an agent writes in a turn show in its answer, with the lines add
 });
 
 test("an agent reads a text file by lines, as data; a binary one or one outside the folder is not read", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "read" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "read" });
   fs.writeFileSync(path.join(env.home, "work", "pages", "btc.html"), "one\ntwo\nthree\n");
   fs.writeFileSync(path.join(env.home, "work", "pages", "blob.bin"), Buffer.from([0, 1, 2, 3]));
   const page = await said(t.id, "read page");
@@ -242,7 +243,7 @@ test("an agent reads a text file by lines, as data; a binary one or one outside 
 });
 
 test("an agent that reads an image file sees it", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "picture" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "picture" });
   const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
   fs.writeFileSync(path.join(env.home, "work", "pages", "dot.png"), Buffer.from(png, "base64"));
   assert.match(await said(t.id, "read picture"), /the picture shows \(from file_read\)/);
@@ -273,7 +274,7 @@ test("an agent that reads an audio file gets its transcript, as data; only the o
         needs_key: false,
       },
     });
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "memo" });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "memo" });
     fs.writeFileSync(path.join(env.home, "work", "pages", "memo.mp3"), Buffer.from("ID3-not-really-mp3"));
     assert.match(
       await said(t.id, "read memo"),

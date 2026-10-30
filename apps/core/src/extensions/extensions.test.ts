@@ -69,7 +69,7 @@ test("on, its skills join the catalog and its server gets only its own secret", 
   const on = await env.client.call("extensions.enable", { id: "northwind", enabled: true });
   assert.equal(on.secrets[0]?.set, true);
   assert.ok((await skillNames()).includes("crm-notes"));
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "use the crm token" });
   await env.settle(t.id, 15_000);
   assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /token=crm-s3cret leaked=no/);

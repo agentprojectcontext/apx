@@ -130,7 +130,7 @@ const codeThread = async () =>
       "threads.create",
       {
         kind: "code",
-        agent_id: "roby",
+        agent_id: "superagent",
         project_id: project,
         engine: "claude",
       },
@@ -151,7 +151,7 @@ test("an outside engine that goes quiet is stopped, and the owner reads why", as
   assert.equal(elapsed, IDLE_MS);
 });
 
-const chat = async () => (await call("threads.create", { kind: "loose", agent_id: "roby" }, owner)).id;
+const chat = async () => (await call("threads.create", { kind: "loose", agent_id: "superagent" }, owner)).id;
 
 test("a turn on our own loop that keeps making progress works past its idle window", async () => {
   const { run, elapsed } = await ended(await chat(), "keep going");

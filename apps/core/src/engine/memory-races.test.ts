@@ -33,7 +33,7 @@ test("automatic semantic recall finds an owner episode without shared words and 
     const fact = "Presenting sketches requires plum-colored outlines.";
     const privateFact = "The unrelated supplier account is confidential.";
     for (const [agent, text] of [
-      ["roby", fact],
+      ["superagent", fact],
       ["scout", privateFact],
     ] as const) {
       const thread = await env.client.call("threads.create", { kind: "loose", agent_id: agent });
@@ -56,7 +56,7 @@ test("automatic semantic recall finds an owner episode without shared words and 
     await env.client.call("memory.reindex", {});
     assert.ok(embedded.includes(fact));
     assert.ok(embedded.includes(privateFact));
-    const target = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const target = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: target.id, text: "What hue fits our diagrams?" });
     await env.settle(target.id);
     const supplied = String(llm.calls.findLast((call) => call.tools.length > 0)?.messages.at(-1)?.content);
@@ -64,7 +64,9 @@ test("automatic semantic recall finds an owner episode without shared words and 
     assert.doesNotMatch(supplied, /supplier account/);
     const original = env.core.store.threads
       .list({ include_archived: false, limit: null })
-      .find((t) => t.id !== target.id && t.agent_ids.includes("roby") && env.core.store.runs.list(t.id, 1).length);
+      .find(
+        (t) => t.id !== target.id && t.agent_ids.includes("superagent") && env.core.store.runs.list(t.id, 1).length,
+      );
     assert.ok(original);
     const originalRun = env.core.store.runs.list(original.id, 1)[0];
     assert.ok(originalRun);
@@ -177,12 +179,12 @@ test("a prepared own-chat snapshot rechecks forgotten sources and recall setting
     searchEpisodes: async () => [],
   };
   try {
-    const a = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const a = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const fact = "Acme archives use violet labels.";
     await env.client.call("threads.send", { thread: a.id, text: fact });
     await env.settle(a.id);
-    const b = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
-    const snapshot = await recallChats(env.core.store, index, "roby", b, "Acme archives labels");
+    const b = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
+    const snapshot = await recallChats(env.core.store, index, "superagent", b, "Acme archives labels");
     assert.match(snapshot?.render() ?? "", /violet/);
     const settings = env.core.store.settings.read("memory");
     env.core.store.settings.write("memory", { ...settings, auto_recall: false });
@@ -194,7 +196,7 @@ test("a prepared own-chat snapshot rechecks forgotten sources and recall setting
     assert.ok(source);
     const note = env.core.store.memories.add({
       scope: "agent",
-      agent_id: "roby",
+      agent_id: "superagent",
       source: "agent",
       text: fact,
       run_id: run.id,

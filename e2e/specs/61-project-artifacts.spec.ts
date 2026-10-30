@@ -11,7 +11,7 @@ test("a project's widget opens beside the Artifacts list, painted, with its acti
   const globex = (await rpc<{ project: { id: string } }>("projects.create", { name: "Globex artifacts" })).project;
   const chat = await rpc<{ id: string }>("threads.create", {
     kind: "agent",
-    agent_id: "roby",
+    agent_id: "superagent",
     project_id: globex.id,
   });
   await rpc("surfaces.show", {

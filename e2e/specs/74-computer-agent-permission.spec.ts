@@ -70,11 +70,11 @@ test("an agent asks for the computer, starts and stops it, and the owner takes t
     // Home stays on this machine (DECISIONS.md#d-154): Roby works on the computer in a chat of its own.
     const robyChat = await env.client.call("threads.create", {
       kind: "loose",
-      agent_id: "roby",
+      agent_id: "superagent",
       title: "Probar en Linux",
     });
     // The owner set the computer up once for the secretary, and shut it down.
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.enable", { thread: robyChat.id, appearance: "light" });
     await expect.poll(async () => (await env.client.call("environments.status", {})).phase).toBe("running");
     await env.client.call("environments.stop", {});

@@ -63,9 +63,9 @@ test("a viewer that drops reconnects by itself and shows the agent's screen, nev
   const viewers = () => Number(fs.existsSync(count) ? fs.readFileSync(count, "utf8") : "0");
   try {
     await env.client.call("setup.finish", {});
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     // Home stays on this Mac (DECISIONS.md#d-154): the work goes in a chat of its own.
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("environments.bind", { thread: chat.id });
     await env.client.call("threads.send", { thread: chat.id, text: "Trabajá en tu pantalla" });
     await env.settle(chat.id);

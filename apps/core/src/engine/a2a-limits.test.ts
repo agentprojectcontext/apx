@@ -126,7 +126,7 @@ const until = <T>(get: () => T | undefined | false, what: string) => waitFor(get
 
 /** The owner's chat with the caller, after it delegated: the chat and the session it opened. */
 async function delegated(text: string) {
-  const t = await operator.call("threads.create", { kind: "loose", agent_id: "roby", title: text });
+  const t = await operator.call("threads.create", { kind: "loose", agent_id: "superagent", title: text });
   await operator.call("threads.send", { thread: t.id, text });
   const sub = await until(() => env.core.store.threads.sessions(t.id)[0], "the session");
   return { thread: t.id, sub: sub.id };
@@ -164,7 +164,7 @@ test("a delegated run that keeps making progress works past its idle window", as
 });
 
 test("a caller waiting on a delegate at work is held too, past its own idle window", async () => {
-  const t = await operator.call("threads.create", { kind: "loose", agent_id: "roby", title: "inline steady" });
+  const t = await operator.call("threads.create", { kind: "loose", agent_id: "superagent", title: "inline steady" });
   await operator.call("threads.send", { thread: t.id, text: "delegate steady inline" });
   const runs = await ended(t.id, 1);
   assert.equal(runs[0]?.state, "completed", runs[0]?.error);
@@ -286,7 +286,7 @@ test("a part that made no progress stops: the caller tells the owner, who gets C
 });
 
 test("a caller still waiting gets the progress report itself, and APX neither goes on nor adds a notice", async () => {
-  const t = await operator.call("threads.create", { kind: "loose", agent_id: "roby", title: "inline" });
+  const t = await operator.call("threads.create", { kind: "loose", agent_id: "superagent", title: "inline" });
   await operator.call("threads.send", { thread: t.id, text: "delegate quiet inline" });
   await ended(t.id, 1);
   const sub = env.core.store.threads.sessions(t.id)[0]?.id ?? "";
@@ -345,9 +345,13 @@ test("the owner hears of the limit on the channel their chat lives on, in their 
     await tg.close();
     await own.cleanup();
   });
-  await own.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+  await own.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent" },
+    token: TOKEN,
+  });
   own.core.store.persons.link(own.core.store.persons.owner().id, { channel: "tg", external_id: String(OWNER) });
-  const chat = await own.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "on telegram" });
+  const chat = await own.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "on telegram" });
   own.core.store.threads.mergeContext(chat.id, { reply_to: { channel: "tg", conversation: String(OWNER) } });
   await own.client.call("threads.send", { thread: chat.id, text: "delegate quiet" });
   const sent = await until(

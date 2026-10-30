@@ -27,7 +27,7 @@ for (const [label, corrupt] of [
         id: smtp.account,
         channel: {
           type: "email",
-          agent_id: "roby",
+          agent_id: "superagent",
           enabled: false,
           email: {
             address: smtp.sender,

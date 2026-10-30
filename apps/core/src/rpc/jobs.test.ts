@@ -5,15 +5,19 @@ import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 test("terminal jobs keep their agent and chat visible after the turn ends", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Asset export" });
+    const thread = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      title: "Asset export",
+    });
     const job = env.core.store.jobs.create({
       thread_id: thread.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       title: "render",
       cwd: ".",
       background: true,
     });
-    const agent = env.core.store.agents.get("roby");
+    const agent = env.core.store.agents.get("superagent");
     for (const params of [{ finished: 5 }, { thread: thread.id, finished: 5 }]) {
       const list = await env.client.call("jobs.list", params);
       assert.equal(list.running.find((j) => j.id === job.id)?.thread_title, "Asset export");
@@ -40,7 +44,7 @@ test("terminal provenance follows the executor and its project, never the caller
       name: "Builder",
       role: "Developer",
     });
-    const caller = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Caller" });
+    const caller = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Caller" });
     const executor = await env.client.call("threads.create", {
       kind: "loose",
       agent_id: agent.id,
@@ -175,12 +179,13 @@ test("execution snapshots the current project after queueing, including the agen
 test("jobs.list names what each queued turn carries, never its text", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   try {
-    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Audit" })).id;
+    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Audit" }))
+      .id;
     const deadline_at = new Date(Date.now() + 60_000).toISOString();
     // `queued` runs are never picked up by the engine: they stay in the list as they are.
     const result = env.core.store.runs.create({
       thread_id: thread,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "a2a_result",
       state: "queued",
       deadline_at,
@@ -198,7 +203,7 @@ test("jobs.list names what each queued turn carries, never its text", async () =
     });
     const owner = env.core.store.runs.create({
       thread_id: thread,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "user",
       state: "queued",
       deadline_at,
@@ -220,7 +225,8 @@ test("usage.summary of a chat totals every run it kept, not the newest page an a
     llm: scriptedLlm(() => ({ ...say("ok"), usage: { input: 1000, output: 50, cached: 600 } })),
   });
   try {
-    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Audit" })).id;
+    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Audit" }))
+      .id;
     for (const text of ["first", "second"]) {
       await env.client.call("threads.send", { thread, text });
       await env.settle(thread);
@@ -230,7 +236,7 @@ test("usage.summary of a chat totals every run it kept, not the newest page an a
     for (let i = 0; i < 25; i++) {
       const r = env.core.store.runs.create({
         thread_id: thread,
-        agent_id: "roby",
+        agent_id: "superagent",
         trigger: "user",
         deadline_at,
         input: { text: `turn ${i}`, origin: { kind: "user" } },

@@ -43,14 +43,14 @@ for (const action of ["quota", "forget"] as const)
     });
     const env = await startCore({ llm, aux: true, memoryMaintenance: true });
     try {
-      const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Contract" });
+      const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Contract" });
       await env.client.call("threads.send", { thread: t.id, text: preference });
       await env.settle(t.id);
       await entered.wait;
       if (action === "quota")
         await env.client.call("memory.set_settings", { mode: "notes", auto_compact: false, daily_memory_calls: 1 });
       else {
-        const note = await env.client.call("memory.add", { scope: "agent", agent: "roby", text: preference });
+        const note = await env.client.call("memory.add", { scope: "agent", agent: "superagent", text: preference });
         await env.client.call("memory.remove", { id: note.id });
       }
       response.release();
@@ -117,7 +117,7 @@ test("the canonical memory handlers reject uncertified synthesis and retirement"
     extraTools: tools,
   });
   try {
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: t.id, text: preference });
     await env.settle(t.id);
     source = env.core.store.memorySources.forRun(env.core.store.runs.list(t.id)[0]?.id ?? "")[0] ?? "";
@@ -130,9 +130,9 @@ test("the canonical memory handlers reject uncertified synthesis and retirement"
     const add = (text: string) =>
       env.core.store.memories.add({
         scope: "agent",
-        agent_id: "roby",
+        agent_id: "superagent",
         source: "agent",
-        author_agent: "roby",
+        author_agent: "superagent",
         text,
         tainted: false,
       });
@@ -151,7 +151,7 @@ test("the canonical memory handlers reject uncertified synthesis and retirement"
 test("a source window excludes a later run even when every timestamp is identical", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("Understood")) });
   try {
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const ids: string[] = [];
     for (let i = 0; i < 5; i++) {
       const sent = await env.client.call("threads.send", {
@@ -203,7 +203,7 @@ test("invalid extraction is retried instead of poisoning a durable checkpoint", 
   const env = await startCore({ llm, aux: true, memoryMaintenance: true });
   try {
     await env.client.call("memory.set_settings", { mode: "notes", auto_compact: false, auto_dream: false });
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Checkpoint" });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Checkpoint" });
     await env.client.call("threads.send", { thread: t.id, text: preference });
     await env.settle(t.id);
     await waitFor(() => env.core.store.memoryWork.recent().some((j) => !!j.error));
@@ -212,9 +212,9 @@ test("invalid extraction is retried instead of poisoning a durable checkpoint", 
     assert.deepEqual(JSON.parse(job.result ?? "{}"), {});
     env.core.store.memoryWork.defer(job.id, "retry", new Date(0).toISOString());
     await env.client.call("memory.maintenance", {});
-    await waitFor(() => env.core.store.memories.list({ agent_id: "roby", limit: 100 }).length > 0);
+    await waitFor(() => env.core.store.memories.list({ agent_id: "superagent", limit: 100 }).length > 0);
     assert.equal(extracts, 2);
-    assert.equal(env.core.store.memories.list({ agent_id: "roby", limit: 100 })[0]?.text, preference);
+    assert.equal(env.core.store.memories.list({ agent_id: "superagent", limit: 100 })[0]?.text, preference);
   } finally {
     await env.core.close();
     await env.cleanup();
@@ -229,7 +229,11 @@ test("transient work consumes no capture calls while its original chat remains s
   });
   const env = await startCore({ llm, aux: true, memoryMaintenance: true });
   try {
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Temporary work" });
+    const t = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      title: "Temporary work",
+    });
     const sent = await env.client.call("threads.send", {
       thread: t.id,
       text: `Download the Acme resource and check the resulting artifact. ${"Transient control row. ".repeat(500)}`,
@@ -288,7 +292,7 @@ test("a quoted output fallback cannot become a standing preference even if the h
   });
   const env = await startCore({ llm, aux: true, memoryMaintenance: true });
   try {
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     for (const text of [preference, `Prepará informe ejecutivo nuevo. ${fallback}`]) {
       await env.client.call("threads.send", { thread: t.id, text });
       await env.settle(t.id);

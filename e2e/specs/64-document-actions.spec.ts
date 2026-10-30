@@ -4,7 +4,7 @@ import { expect, open, rpc, test } from "./kit.ts";
 
 test("a document names its file and offers its folder, open apart and download wherever it shows", async ({ page }) => {
   await rpc("setup.finish", {});
-  const chat = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "roby" });
+  const chat = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "superagent" });
   await rpc("threads.send", { thread: chat.id, text: "open a report" });
   await expect
     .poll(async () => {

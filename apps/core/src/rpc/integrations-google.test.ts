@@ -48,7 +48,7 @@ test("Calendar and Gmail connect by signing in with Google; their tools exist on
   assert.match((await cal())?.oauth?.redirect_uri ?? "", /^http:\/\/127\.0\.0\.1:\d+\/oauth\/google$/);
   await assert.rejects(env.client.call("integrations.connect", { id: "gmail", values: {} }), /signing in/);
 
-  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   await env.client.call("threads.send", { thread, text: "hello" });
   await env.settle(thread);
   assert.ok(!offered().some((n) => n.startsWith("calendar_") || n.startsWith("gmail_")), "nothing before signing in");
@@ -85,7 +85,7 @@ test("Calendar and Gmail connect by signing in with Google; their tools exist on
 });
 
 test("events and mail come back as outside data; a draft waits for the owner's OK and replies in the thread", async () => {
-  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   await env.client.call("threads.send", { thread, text: "what is on my agenda" });
   await env.settle(thread);
   assert.match(lastTool(), /<calendar [^>]*untrusted/);
@@ -117,8 +117,9 @@ test("an integration off in a project or disconnected takes its tools away", asy
   await env.client.call("mcp.toggle", { project, server: "gmail", on: false });
   const gmail = (await env.client.call("integrations.list", {})).integrations.find((i) => i.id === "gmail");
   assert.deepEqual(gmail?.off_in, [project]);
-  const inProject = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project }))
-    .id;
+  const inProject = (
+    await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project })
+  ).id;
   await env.client.call("threads.send", { thread: inProject, text: "hello" });
   await env.settle(inProject);
   assert.ok(offered().includes("calendar_events"));
@@ -128,7 +129,7 @@ test("an integration off in a project or disconnected takes its tools away", asy
   await env.client.call("integrations.disconnect", { id: "gmail" });
   assert.equal(env.core.secrets.has("secret://gmail-refresh_token"), false);
   assert.equal(env.core.secrets.has("secret://google-client_secret"), true, "Calendar still uses the client");
-  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   await env.client.call("threads.send", { thread, text: "hello" });
   await env.settle(thread);
   assert.ok(offered().includes("calendar_events"));

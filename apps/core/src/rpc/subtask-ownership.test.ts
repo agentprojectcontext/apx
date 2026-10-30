@@ -11,7 +11,7 @@ const context = (thread: string): CallContext => ({
   transport: "internal",
   session: undefined,
   log: createLog("test", true),
-  agent: { id: "roby", thread_id: thread, run_id: "run_test" },
+  agent: { id: "superagent", thread_id: thread, run_id: "run_test" },
 });
 
 async function fixture() {
@@ -23,7 +23,7 @@ async function fixture() {
   const work = env.core.store.threads.create({
     kind: "loose",
     title: parent.title,
-    agent_ids: ["roby"],
+    agent_ids: ["superagent"],
     task_id: parent.id,
   });
   return { env, parent, work };
@@ -110,7 +110,7 @@ test("owner drafts and agent top-level drafts remain possible; explicit parent c
   try {
     const draft = await env.client.call("tasks.create", { title: "Owner draft", parent: parent.id });
     assert.equal(draft.assignee, undefined);
-    const chat = env.core.store.threads.create({ kind: "loose", title: "Planning", agent_ids: ["roby"] });
+    const chat = env.core.store.threads.create({ kind: "loose", title: "Planning", agent_ids: ["superagent"] });
     const created = await env.core.dispatch("tasks.create", { title: "Unassigned plan" }, context(chat.id), "plan");
     assert.ok(created.ok);
     const refused = await env.core.dispatch(

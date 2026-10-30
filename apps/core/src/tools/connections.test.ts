@@ -28,7 +28,7 @@ before(async () => {
   env = await startCore({ llm, channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) } });
   await env.client.call("channels.set", {
     id: "tg",
-    channel: { type: "telegram", label: "Acme bot", agent_id: "roby", strangers: "ask", research: "off" },
+    channel: { type: "telegram", label: "Acme bot", agent_id: "superagent", strangers: "ask", research: "off" },
     token: TOKEN,
   });
 });
@@ -39,7 +39,7 @@ after(async () => {
 });
 
 async function ask(text: string) {
-  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Connect" });
+  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Connect" });
   await env.client.call("threads.send", { thread: thread.id, text });
   const { messages } = await env.settle(thread.id);
   const parts = messages.at(-1)?.parts ?? [];

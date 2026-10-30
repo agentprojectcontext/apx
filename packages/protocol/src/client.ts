@@ -22,6 +22,7 @@ export {
   pairingLink,
   QUIET_HOURS,
   randomAgentName,
+  SUPER_AGENT_ID,
   SURFACE_STATE_MAX,
   TURN_STEPS,
   UPLOAD_LIMITS,

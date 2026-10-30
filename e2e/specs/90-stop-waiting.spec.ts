@@ -5,7 +5,7 @@ test("a chat waiting for the owner can be stopped from the agents popover", asyn
   await rpc("setup.finish");
   // Its own title: another spec may leave a chat called the same waiting on this shared core.
   const title = `Review days ${Date.now().toString(36)}`;
-  const thread = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title });
+  const thread = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "superagent", title });
   await rpc("threads.send", { thread: thread.id, text: "ask me which days work" });
   await until(async () => (await rpc<{ inputs: unknown[] }>("runs.pending", { thread: thread.id })).inputs.length > 0);
 

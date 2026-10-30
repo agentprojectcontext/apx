@@ -23,6 +23,6 @@ test("a marked sub-team lead stays under the project's head on the chart", () =>
 });
 
 test("the super-agent heads its team before anyone marked", () => {
-  const roby = a("roby", { kind: "secretary", project_id: undefined });
-  assert.equal(teamLead([a("x", { orchestrator: true }), roby])?.id, "acme-roby");
+  const roby = a("superagent", { kind: "secretary", project_id: undefined });
+  assert.equal(teamLead([a("x", { orchestrator: true }), roby])?.id, "acme-superagent");
 });

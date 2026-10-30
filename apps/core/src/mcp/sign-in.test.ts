@@ -54,7 +54,7 @@ async function addServer(name: string, extra: Record<string, string> = {}) {
 }
 
 const turn = async (text: string) => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text });
   await env.settle(t.id, 15_000);
   return String(llm.calls.at(-1)?.messages.at(-1)?.content);

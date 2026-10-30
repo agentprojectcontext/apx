@@ -22,13 +22,13 @@ const lastText = async (thread: string) =>
   JSON.stringify((await env.client.call("threads.get", { thread })).messages.at(-1)?.parts ?? []);
 
 test("an agent tells the owner through the budget; it lands in the tray and the log under its own kind", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "when it ends, tell the owner" });
   await env.settle(t.id);
   // No channel in this core: the tray has it, and the agent is told so.
   assert.match(await lastText(t.id), /in the owner's tray/);
   const [n] = (await env.client.call("notices.log", { limit: 1 })).items;
-  assert.equal(n?.kind, "agent:roby");
+  assert.equal(n?.kind, "agent:superagent");
   assert.match(n?.text ?? "", /The deploy is done/);
   const tray = await env.client.call("notifications.list", {});
   assert.ok(tray.notifications.some((i) => i.kind === "agent" && i.thread_id === t.id));
@@ -37,7 +37,7 @@ test("an agent tells the owner through the budget; it lands in the tray and the 
 test("not from a routine (its answer already reaches the owner), and only an agent at work may call it", async () => {
   const r = await env.client.call("routines.set", {
     name: "notify-probe",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "manual" },
     prompt: "tell the owner it ran",
     enabled: true,

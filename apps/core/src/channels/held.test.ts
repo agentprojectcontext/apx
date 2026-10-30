@@ -63,7 +63,7 @@ before(async () => {
   env.core.store.settings.write("owner_profile", { about: "", timezone: ZONE });
   await env.client.call("channels.set", {
     id: "tg",
-    channel: { type: "telegram", agent_id: "roby", hours: HOURS },
+    channel: { type: "telegram", agent_id: "superagent", hours: HOURS },
     token: TOKEN,
   });
   await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");

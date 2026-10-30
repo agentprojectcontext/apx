@@ -84,7 +84,11 @@ before(async () => {
       }),
     ],
   });
-  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent" },
+    token: TOKEN,
+  });
   await pair(OWNER, "owner");
   await pair(CONTACT, "contact");
 });
@@ -141,7 +145,7 @@ test("the owner's own chat on a channel counts for memory; a contact's or a room
     env.core.store.threads.create({
       kind: "channel",
       title: "Telegram",
-      agent_ids: ["roby"],
+      agent_ids: ["superagent"],
       channel: { id: "tg-own", conversation: `c-${++n}`, person_id },
     });
   assert.equal(memoryEligibleChat(env.core.store, chat("owner")), true);

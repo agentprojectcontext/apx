@@ -1,4 +1,5 @@
 import type { ChannelEmail, ChannelInfo, MailServer } from "@apx/protocol";
+import { SUPER_AGENT_ID } from "@apx/protocol/client";
 import { Badge, Button, Icons, Input, Select, SettingRow, Switch, TagInput } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
@@ -96,6 +97,7 @@ function useMailForm(initial?: ChannelEmail) {
 
 function MailForm({ form }: { form: ReturnType<typeof useMailForm> }) {
   const t = useT();
+  const agentName = useData((s) => Object.values(s.agents).find((a) => a.kind === "secretary")?.name);
   const providers: Provider[] = [...(Object.keys(PROVIDERS) as Provider[]), "other"];
   return (
     <>
@@ -147,7 +149,7 @@ function MailForm({ form }: { form: ReturnType<typeof useMailForm> }) {
         <Input
           aria-label={t("em.name")}
           autoComplete="off"
-          placeholder="Roby"
+          placeholder={agentName}
           value={form.name}
           onChange={(e) => form.setName(e.currentTarget.value)}
         />
@@ -264,7 +266,7 @@ function Setup({ onConnected }: { onConnected(id: string): void }) {
   const secretary = Object.values(agents).find((a) => a.kind === "secretary");
   const form = useMailForm();
   const [password, setPassword] = useState("");
-  const [agent, setAgent] = useState(secretary?.id ?? "roby");
+  const [agent, setAgent] = useState(secretary?.id ?? SUPER_AGENT_ID);
   const [busy, setBusy] = useState(false);
   const connect = async () => {
     setBusy(true);

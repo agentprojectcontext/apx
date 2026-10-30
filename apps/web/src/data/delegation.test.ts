@@ -22,13 +22,13 @@ const thread = (state = "idle") =>
     kind: "a2a",
     title: "Review",
     parent_id: "root",
-    agent_ids: ["roby"],
+    agent_ids: ["superagent"],
     state,
     created_at: at,
     updated_at: at,
   });
 const run = (id = "old", state = "completed", end_reason = "step_limit", started_at = at) =>
-  Run.parse({ id, thread_id: "sub", agent_id: "roby", state, end_reason, started_at });
+  Run.parse({ id, thread_id: "sub", agent_id: "superagent", state, end_reason, started_at });
 function rpc(t: TestContext, answer: () => Promise<unknown>) {
   t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
     const method = url.split("/").at(-1) ?? "";

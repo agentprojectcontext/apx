@@ -32,7 +32,7 @@ test("dream reads the correction's evidence and retries unknown identifiers befo
   });
   try {
     await env.client.call("memory.set_settings", { mode: "notes", auto_dream: false, auto_compact: false });
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: thread.id, text: "Review the notebook." });
     await env.settle(thread.id);
     // A correction supersedes only notes written before it, so each note lands on a later millisecond.
@@ -46,7 +46,7 @@ test("dream reads the correction's evidence and retries unknown identifiers befo
       });
       return env.core.store.memories.add({
         scope: "agent",
-        agent_id: "roby",
+        agent_id: "superagent",
         source: "agent",
         thread_id: thread.id,
         text,
@@ -67,7 +67,7 @@ test("dream reads the correction's evidence and retries unknown identifiers befo
       .map((n) => `${n.id}:${n.revision}`)
       .sort()
       .join(",");
-    env.core.store.settings.set("memory_dream_snapshot:roby:", legacyFingerprint);
+    env.core.store.settings.set("memory_dream_snapshot:superagent:", legacyFingerprint);
     await env.client.call("memory.set_settings", { mode: "notes", auto_dream: true, auto_compact: false });
     await env.client.call("memory.maintenance", { dream: true });
     await waitFor(() => env.core.store.memoryWork.recent().some((j) => j.kind === "dream" && !!j.error));

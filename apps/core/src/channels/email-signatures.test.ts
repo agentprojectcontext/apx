@@ -41,7 +41,7 @@ test("the production SMTP factory resolves signatures by channel and sender; omi
       token: pass,
       channel: {
         type: "email",
-        agent_id: "roby",
+        agent_id: "superagent",
         email: {
           address,
           imap: { host: "127.0.0.1", port: imap.port, tls: "none" },
@@ -117,7 +117,7 @@ test("SMTP signatures retain attachments and do not duplicate a pre-signed messa
     {
       id: "email",
       type: "email",
-      agent_id: "roby",
+      agent_id: "superagent",
       label: "Email",
       enabled: true,
       strangers: "pair",

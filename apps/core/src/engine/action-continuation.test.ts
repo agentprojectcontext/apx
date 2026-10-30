@@ -58,7 +58,7 @@ for (const independent of [true, false]) {
     });
     env = await startCore({ llm });
     try {
-      chat = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+      chat = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
       const sent = await env.client.call("threads.send", { thread: chat, text: "Start two analyses." });
       await waitFor(() => Boolean(env.core.store.runs.get(sent.run.id)?.ended_at), "source completion", { ms: 20000 });
       const tasks = env.core.store.tasks.list({ from_thread: chat, limit: 10 });

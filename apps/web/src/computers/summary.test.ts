@@ -10,10 +10,10 @@ const status = {
   workspace: "~/work",
   supported: true,
   allowed_agents: 2,
-  allowed: ["scout", "roby"],
+  allowed: ["scout", "superagent"],
   screens: [
     { screen: 1, agent: "scout", display: ":101", control: "agent" as const, changing: false, run: "run-1" },
-    { screen: 2, agent: "roby", display: ":102", control: "agent" as const, changing: false },
+    { screen: 2, agent: "superagent", display: ":102", control: "agent" as const, changing: false },
   ],
 };
 
@@ -26,7 +26,7 @@ test("a screen kept up after its run ended counts as in use, as the picker lists
 test("each agent's card tells whether it may use the computer and the screen it is up on", () => {
   const c = computersOf(status);
   assert.deepEqual(agentComputer(c, "scout"), { state: "running", screen: 1, held: true });
-  assert.deepEqual(agentComputer(c, "roby"), { state: "running", screen: 2, held: false });
+  assert.deepEqual(agentComputer(c, "superagent"), { state: "running", screen: 2, held: false });
   assert.deepEqual(agentComputer(computersOf({ ...status, screens: [] }), "scout"), { state: "allowed" });
   assert.deepEqual(agentComputer(c, "writer"), { state: "off" });
   assert.equal(c.supported, true);
@@ -34,7 +34,7 @@ test("each agent's card tells whether it may use the computer and the screen it 
 });
 
 test("a screen's chat is the run's that holds it, else its agent's chat on the computer", () => {
-  const threads = { home: { agent_ids: ["roby"] }, t2: { agent_ids: ["scout"] } };
+  const threads = { home: { agent_ids: ["superagent"] }, t2: { agent_ids: ["scout"] } };
   const kept = { ...status, chats: ["t2", "home"] };
   const held = {
     screen: 1,
@@ -47,7 +47,7 @@ test("a screen's chat is the run's that holds it, else its agent's chat on the c
   };
   assert.equal(screenChat({ ...kept, screens: [held] }, threads, "scout"), "t9");
   // Roby's screen stays up after its run: its chat is the one on the computer.
-  assert.equal(screenChat(kept, threads, "roby"), "home");
+  assert.equal(screenChat(kept, threads, "superagent"), "home");
   assert.equal(screenChat(kept, threads, "writer"), undefined);
-  assert.equal(screenChat(undefined, threads, "roby"), undefined);
+  assert.equal(screenChat(undefined, threads, "superagent"), undefined);
 });

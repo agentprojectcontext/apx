@@ -75,14 +75,14 @@ test("a commitment names the person and who owes it, and is reminded once on its
 });
 
 test("an agent records what a contact owes the owner", async () => {
-  const th = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const th = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: th.id, text: "Ana owes me the contract by the 8th" });
   await env.settle(th.id);
   const { tasks } = await env.client.call("tasks.list", { commitments: true });
   const c = tasks.find((x) => x.title === "Signed contract");
   assert.equal(c?.person_name, "Ana");
   assert.equal(c?.owed_by, "person");
-  assert.equal(c?.created_by, "roby");
+  assert.equal(c?.created_by, "superagent");
 });
 
 test("unknown people, the owner and bad dates are refused", async () => {
@@ -193,7 +193,7 @@ test("a commitment ends kept, missed or dropped; renegotiated it stays open with
 test("the agent records what the owner says of a commitment", async () => {
   const t = await env.client.call("tasks.create", { title: "Call back Ula", person: "Ula", due_at: "2026-10-02" });
   settling = t.id;
-  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: thread.id, text: "I sent it, it was kept" });
   await env.settle(thread.id);
   const after = (await env.client.call("tasks.get", { task: t.id })).task;

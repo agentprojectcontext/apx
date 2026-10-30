@@ -356,7 +356,7 @@ test("importing the identity brings who the owner is, the super-agent's personal
     language: "es",
     timezone: "America/Argentina/Buenos_Aires",
   });
-  const roby = await env.client.call("agents.get", { agent: "roby" });
+  const roby = await env.client.call("agents.get", { agent: "superagent" });
   assert.equal(roby.prompt, "Never book meetings before 10.");
   assert.deepEqual([roby.agent.name, roby.agent.blob, roby.agent.personality], ["Roby", "noche", "warm and direct"]);
   assert.equal(roby.agent.autonomy, "total", "v1's permission_mode: it acts without asking, as it did there");

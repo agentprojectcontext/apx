@@ -12,8 +12,8 @@ test("background details keep another project's executor across chats and expose
     name: "Catalog builder",
     role: "Developer",
   });
-  const root = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Home export" });
-  const other = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Other caller" });
+  const root = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "superagent", title: "Home export" });
+  const other = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "superagent", title: "Other caller" });
   const command = `pnpm run build --filter ${"catalog-".repeat(15)}`;
   const cwd = `~/work/${"catalog/".repeat(300)}catalog-end`;
   const title = `Export every item in ${"the Northwind catalog ".repeat(8)}`;
@@ -112,16 +112,16 @@ test("background details keep another project's executor across chats and expose
 
 test("idle chats show their active commands and each process names its origin", async ({ page }) => {
   await rpc("setup.finish");
-  const { agent } = await rpc<{ agent: { name: string } }>("agents.get", { agent: "roby" });
-  const root = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Asset export" });
-  const other = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Other export" });
+  const { agent } = await rpc<{ agent: { name: string } }>("agents.get", { agent: "superagent" });
+  const root = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "superagent", title: "Asset export" });
+  const other = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "superagent", title: "Other export" });
   const commands = [root, root, other].map((thread, i) =>
     Job.parse({
       id: `job_export_${i}`,
       kind: "terminal",
       thread_id: thread.id,
       thread_title: thread.title,
-      agent_id: "roby",
+      agent_id: "superagent",
       agent_name: agent.name,
       title: `render ${i}`,
       state: "working",

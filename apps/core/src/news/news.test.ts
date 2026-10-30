@@ -53,7 +53,7 @@ function setup(o: { entries?: readonly NewsEntry[]; models?: string[]; fail?: bo
 const ownerWrote = (store: Store) =>
   store.messages.add({ thread_id: "home", author: { kind: "user" }, parts: [{ type: "text", text: "hola" }] });
 const aWidget = (store: Store, name = "weather") =>
-  store.surfaces.upsert({ name, title: "Weather", html: "<p>sunny</p>", created_by: "roby" });
+  store.surfaces.upsert({ name, title: "Weather", html: "<p>sunny</p>", created_by: "superagent" });
 
 const entry = (id: string, since = "2.7.3"): NewsEntry => ({
   id,
@@ -88,7 +88,7 @@ test("public ingress news applies to widget or channel owners and is told once w
       type: "telegram",
       label: "Telegram",
       enabled: true,
-      agent_id: "roby",
+      agent_id: "superagent",
       strangers: "pair",
       concurrency: "steer",
       owner_thread: "home",
@@ -354,7 +354,13 @@ test("more integrations reach an owner who connected one; new channels an owner 
     assert.equal(applies("more-channels"), false, "no channel yet");
     store.settings.set("mcp_servers", JSON.stringify({ mcpServers: { notion: { command: "npx" }, acme: {} } }));
     assert.equal(applies("more-apps"), true, "a catalog one counts; the owner's own servers do not");
-    const telegram = { id: "telegram", type: "telegram", label: "Telegram", enabled: true, agent_id: "roby" } as const;
+    const telegram = {
+      id: "telegram",
+      type: "telegram",
+      label: "Telegram",
+      enabled: true,
+      agent_id: "superagent",
+    } as const;
     store.settings.write("channels", [{ ...telegram, strangers: "pair", concurrency: "steer", owner_thread: "home" }]);
     assert.equal(applies("more-channels"), true);
   } finally {

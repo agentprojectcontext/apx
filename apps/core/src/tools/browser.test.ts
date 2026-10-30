@@ -130,10 +130,10 @@ after(async () => {
 });
 
 test("JavaScript reaches the node only after approval, even in Total; agents cannot bypass the tool", async () => {
-  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
   try {
     for (const decision of ["deny", "approve"] as const) {
-      const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+      const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
       await env.client.call("threads.send", { thread, text: "evaluate code" });
       const card = await waitFor(async () => (await env.client.call("runs.pending", { thread })).inputs[0]);
       assert.equal(card.tool, "browser_evaluate");
@@ -173,11 +173,11 @@ test("JavaScript reaches the node only after approval, even in Total; agents can
         origin: "https://example.com",
         document: "doc1",
         epoch: "epoch1",
-        by: "roby",
+        by: "superagent",
       },
     ]);
   } finally {
-    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: null });
   }
 });
 
@@ -189,8 +189,9 @@ test("a local script changed while approval waits executes only the source displ
     fs.writeFileSync(file, script);
     requestedFile = { path: "probe.js", sha256: createHash("sha256").update(script).digest("hex") };
     const project = (await env.client.call("projects.register", { path: dir.path, init: true })).project.id;
-    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project }))
-      .id;
+    const thread = (
+      await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project })
+    ).id;
     const before = evaluations.length;
     await env.client.call("threads.send", { thread, text: "evaluate file" });
     const card = await waitFor(async () => (await env.client.call("runs.pending", { thread })).inputs[0]);
@@ -206,7 +207,7 @@ test("a local script changed while approval waits executes only the source displ
       document: "doc1",
       script,
       epoch: "epoch1",
-      by: "roby",
+      by: "superagent",
     });
     assert.equal(evaluations.length, before + 1);
   } finally {
@@ -216,7 +217,7 @@ test("a local script changed while approval waits executes only the source displ
 });
 
 test("browser_snapshot waits the seconds asked before reading the page", async () => {
-  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   const sent = Date.now();
   await env.client.call("threads.send", { thread, text: "wait and look" });
   await env.settle(thread);
@@ -226,7 +227,7 @@ test("browser_snapshot waits the seconds asked before reading the page", async (
 });
 
 test("browser_snapshot shows the model a picture of the tab, not the chat", async () => {
-  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   await env.client.call("threads.send", { thread, text: "look" });
   await env.settle(thread);
   const shown = llm.calls.at(-1)?.messages.at(-1) as { role: string; images?: Array<{ mime: string }> };
@@ -240,7 +241,7 @@ test("a model not known to read images gets the snapshot's text alone", async ()
   for (const m of ["fake/fake-1", "fake/deepseek-chat"]) {
     model = m;
     try {
-      const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+      const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
       await env.client.call("threads.send", { thread, text: "look" });
       await env.settle(thread);
       const call = llm.calls.at(-1);
@@ -259,7 +260,7 @@ test("a chat keeps only its newest few tab pictures on disk", async () => {
       ? fs.readdirSync(uploads, { recursive: true }).filter((f) => String(f).endsWith(".jpg"))
       : [];
   const before = files().length;
-  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   await env.client.call("threads.send", { thread, text: "look six times" });
   await env.settle(thread);
   const shown = (llm.calls.at(-1)?.messages ?? []).flatMap((m) => (m.role === "user" ? (m.images ?? []) : []));
@@ -272,7 +273,7 @@ test("a chat keeps only its newest few tab pictures on disk", async () => {
 test("a picture that cannot be kept leaves browser_snapshot with the page's tree", async () => {
   shot = Buffer.from("not a jpeg at all");
   try {
-    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
     await env.client.call("threads.send", { thread, text: "look" });
     await env.settle(thread);
     const call = llm.calls.at(-1);
@@ -285,7 +286,7 @@ test("a picture that cannot be kept leaves browser_snapshot with the page's tree
 
 test("the turn holds the tab it used while it runs and lets it go when it ends", async () => {
   holds.length = 0;
-  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   await env.client.call("threads.send", { thread, text: "look" });
   await env.settle(thread);
   await waitFor(() => holds.length >= 2, "two holds");
@@ -313,7 +314,7 @@ test("the agent is told a send the owner asked for stays its own, not a hand-off
 test("browser_open loads in the tab the chat already uses, and new_tab opens another", async () => {
   opened.length = 0;
   navigated.length = 0;
-  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   await env.client.call("threads.send", { thread, text: "browse twice" });
   await env.settle(thread);
   assert.deepEqual(opened, ["https://example.com/a", "https://example.com/c"]);
@@ -327,7 +328,7 @@ test("browser_open loads in the tab the chat already uses, and new_tab opens ano
 
 test("browser_open with a tab loads the URL there; there is no second tool for it", async () => {
   navigated.length = 0;
-  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   await env.client.call("threads.send", { thread, text: "go to t1" });
   await env.settle(thread);
   assert.deepEqual(navigated, [{ tab: "t1", url: "https://example.com/t1" }]);
@@ -338,7 +339,7 @@ test("browser_open with a tab loads the URL there; there is no second tool for i
 });
 
 test("a URL that carries data after a page was read waits, and the card says why", async () => {
-  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   await env.client.call("threads.send", { thread, text: "read then send" });
   let prompt = "";
   for (let i = 0; i < 200 && !prompt; i++) {

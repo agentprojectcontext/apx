@@ -52,7 +52,7 @@ test("only the super-agent is offered apx_flow, and its index lists Flows and ta
     await h.ask("hello", undefined, agent);
     return h.llm.calls.at(-1)?.tools.map((t) => t.function.name) ?? [];
   };
-  assert.ok((await offered("roby")).includes("apx_flow"));
+  assert.ok((await offered("superagent")).includes("apx_flow"));
   assert.ok(!(await offered("acme-writer")).includes("apx_flow"));
   const index = (await h.ask({})).answer;
   assert.match(index, /^- flows: list, /m);

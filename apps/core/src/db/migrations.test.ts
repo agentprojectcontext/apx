@@ -31,7 +31,7 @@ test("legacy forks retain their source family and earliest inherited run boundar
     thread.run("th_nested", "{}", "2026-10-05", "2026-10-05");
     thread.run("th_other", "{}", "2026-10-06", "2026-10-06");
     const run = db.prepare(
-      "INSERT INTO runs (id, thread_id, agent_id, state, started_at, created_at) VALUES (?, ?, 'roby', 'completed', ?, ?)",
+      "INSERT INTO runs (id, thread_id, agent_id, state, started_at, created_at) VALUES (?, ?, 'superagent', 'completed', ?, ?)",
     );
     run.run("run_old", "th_root", "2026-10-02", "2026-10-02");
     run.run("run_later", "th_fork", "2026-10-04", "2026-10-04");
@@ -129,7 +129,7 @@ test("answers sent before outbox items named their message get linked and show s
     const msg = db.prepare(
       "INSERT INTO messages (id, thread_id, seq, author, parts, created_at) VALUES (?, 'th_c', ?, ?, ?, ?)",
     );
-    const agent = JSON.stringify({ kind: "agent", id: "roby" });
+    const agent = JSON.stringify({ kind: "agent", id: "superagent" });
     msg.run(
       "m_hi",
       1,
@@ -196,7 +196,7 @@ test("Home's past messages learn the channel they came on or went out on; what w
       "INSERT INTO messages (id, thread_id, seq, author, parts, created_at) VALUES (?, 'home', ?, ?, '[]', '2026-10-01')",
     );
     const user = JSON.stringify({ kind: "user" });
-    const agent = JSON.stringify({ kind: "agent", id: "roby" });
+    const agent = JSON.stringify({ kind: "agent", id: "superagent" });
     msg.run("m_wa", 1, user);
     msg.run("m_wa_answer", 2, agent);
     msg.run("m_tg", 3, user);
@@ -204,7 +204,7 @@ test("Home's past messages learn the channel they came on or went out on; what w
     msg.run("m_app_answer", 5, agent);
     msg.run("m_claimed", 6, JSON.stringify({ kind: "person", id: "p", name: "Owner?", channel: "sms" }));
     const run = db.prepare(
-      "INSERT INTO runs (id, thread_id, agent_id, state, started_at, created_at, input) VALUES (?, 'home', 'roby', 'completed', '2026-10-01', '2026-10-01', ?)",
+      "INSERT INTO runs (id, thread_id, agent_id, state, started_at, created_at, input) VALUES (?, 'home', 'superagent', 'completed', '2026-10-01', '2026-10-01', ?)",
     );
     const origin = (o: object) => JSON.stringify({ text: "", origin: o });
     run.run("r_wa", origin({ kind: "channel", channel: "whatsapp", role: "owner", message_id: "m_wa" }));
@@ -239,7 +239,7 @@ test("Codex runs stored with their session's running total get each turn's share
       "INSERT INTO threads (id, kind, title, agent_ids, created_at, updated_at) VALUES (?, 'code', 'Chat', '[]', ?, ?)",
     );
     const run = db.prepare(
-      "INSERT INTO runs (id, thread_id, agent_id, state, started_at, created_at, harness, usage) VALUES (?, ?, 'roby', 'completed', ?, ?, ?, ?)",
+      "INSERT INTO runs (id, thread_id, agent_id, state, started_at, created_at, harness, usage) VALUES (?, ?, 'superagent', 'completed', ?, ?, ?, ?)",
     );
     const at = (n: number) => `2026-10-0${n}T10:00:00Z`;
     thread.run("th_a", at(1), at(1));
@@ -384,7 +384,7 @@ test("a Home left on the computer comes back to the Mac; other chats on it stay"
 test("a calendar routine goes with its runs; the other routines stay", () => {
   const { db, cleanup } = upgradeFrom("DELETE FROM routines WHERE action = 'calendar'", (db) => {
     const routine = db.prepare(
-      "INSERT INTO routines (id, name, agent_id, schedule, prompt, action, created_at, updated_at) VALUES (?, ?, 'roby', '{}', 'p', ?, '2026-10-28', '2026-10-28')",
+      "INSERT INTO routines (id, name, agent_id, schedule, prompt, action, created_at, updated_at) VALUES (?, ?, 'superagent', '{}', 'p', ?, '2026-10-28', '2026-10-28')",
     );
     routine.run("rtn_events", "Upcoming events", "calendar");
     routine.run("rtn_brief", "Morning brief", "agent");
@@ -405,7 +405,7 @@ test("a calendar routine goes with its runs; the other routines stay", () => {
 test("the mail routine becomes Gmail's mail check, keeping its switch, its minutes and its point in the inbox", () => {
   const { db, cleanup } = upgradeFrom("setting:mail_check", (db) => {
     const routine = db.prepare(
-      "INSERT INTO routines (id, name, agent_id, schedule, prompt, action, enabled, created_at, updated_at) VALUES (?, ?, 'roby', '{}', 'p', ?, ?, '2026-10-28', '2026-10-28')",
+      "INSERT INTO routines (id, name, agent_id, schedule, prompt, action, enabled, created_at, updated_at) VALUES (?, ?, 'superagent', '{}', 'p', ?, ?, '2026-10-28', '2026-10-28')",
     );
     routine.run("rtn_mail", "Important mail", "mail", 1);
     routine.run("rtn_brief", "Morning brief", "agent", 1);

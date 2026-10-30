@@ -121,7 +121,7 @@ test("an image of a few megabytes uploads over HTTP; over 5 MB it is refused wit
 });
 
 test("only this chat's uploads attach: not another chat's, not media APX made, not a mislabeled image", async () => {
-  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   const { media } = await env.client.call("media.upload", {
     name: "a.txt",
     mime: "text/plain",

@@ -23,7 +23,7 @@ const POST = `printf '%s|%s|%s|%s' "$APX_STATUS" "$APX_SKIPPED" "$APX_PRE_OUTPUT
 async function runRoutine(o: { pre: string; call_model: "always" | "output" | "fails" | "never" }) {
   const r = await env.client.call("routines.set", {
     name: `Invoices ${o.call_model}`,
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "cron", cron: "30 8 * * 1-5" },
     prompt: "New invoices:\n{{pre_output}}\nSummarize them.",
     pre_command: o.pre,
@@ -79,7 +79,12 @@ test("nothing printed and 'if output': the model is not called, the run still en
 
 test("only the owner sets commands; credentials stay out of their environment", async () => {
   const agent = new ApxClient({ url: env.core.url, actor: "agent" });
-  const routine = { name: "x", agent: "roby", schedule: { kind: "cron", cron: "30 8 * * 1-5" }, prompt: "x" } as const;
+  const routine = {
+    name: "x",
+    agent: "superagent",
+    schedule: { kind: "cron", cron: "30 8 * * 1-5" },
+    prompt: "x",
+  } as const;
   await assert.rejects(
     agent.call("routines.set", { ...routine, pre_command: "id" }),
     (e: unknown) => e instanceof ApxError && /reserved to the owner/.test(e.message),
@@ -147,7 +152,12 @@ test("the output fills the first {{pre_output}} only", () => {
 });
 
 test('turning a routine off and on (without its commands in the call) keeps them; "" removes one', async () => {
-  const base = { name: "Keep", agent: "roby", schedule: { kind: "cron", cron: "30 8 * * 1-5" }, prompt: "x" } as const;
+  const base = {
+    name: "Keep",
+    agent: "superagent",
+    schedule: { kind: "cron", cron: "30 8 * * 1-5" },
+    prompt: "x",
+  } as const;
   const r = await env.client.call("routines.set", { ...base, pre_command: "echo hi", call_model: "fails" });
   const off = await env.client.call("routines.set", { ...base, id: r.id, enabled: false });
   assert.equal(off.pre_command, "echo hi");
@@ -160,7 +170,7 @@ test('turning a routine off and on (without its commands in the call) keeps them
 async function runOnce(set: Omit<Params<"routines.set">, "name" | "agent" | "schedule">) {
   const r = await env.client.call("routines.set", {
     name: `Action ${set.action ?? "agent"}`,
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "manual" },
     ...set,
   });
@@ -211,7 +221,7 @@ test("a shell routine only runs its command", async () => {
   await assert.rejects(
     env.client.call("routines.set", {
       name: "No command",
-      agent: "roby",
+      agent: "superagent",
       schedule: { kind: "manual" },
       action: "shell",
       prompt: "x",

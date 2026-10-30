@@ -90,7 +90,7 @@ describe("through the channels", () => {
     db = path.join(env.home, "chat.db");
     add = messagesDb(db);
     add(ANA, "an old message, never answered");
-    await env.client.call("channels.set", { id: "imessage", channel: { type: TYPE, agent_id: "roby" } });
+    await env.client.call("channels.set", { id: "imessage", channel: { type: TYPE, agent_id: "superagent" } });
     await waitFor(
       async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running",
       "running",
@@ -142,7 +142,7 @@ describe("the adapter alone", () => {
   });
   after(() => removeDir(dir));
 
-  const config = { id: "imessage", type: "signal", label: "iMessage", agent_id: "roby" } as Parameters<
+  const config = { id: "imessage", type: "signal", label: "iMessage", agent_id: "superagent" } as Parameters<
     typeof imessageAdapter
   >[0];
   const io = (got: Array<{ text: string; files?: unknown[] }>): AdapterIO => ({

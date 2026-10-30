@@ -22,7 +22,7 @@ const graph: FlowGraph = {
       id: "ask",
       kind: "agent",
       label: "Ask",
-      agent: "roby",
+      agent: "superagent",
       prompt: "Sort it",
       input: { kind: "event", path: ["email"] },
     },

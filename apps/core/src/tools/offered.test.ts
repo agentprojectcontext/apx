@@ -32,7 +32,7 @@ after(async () => {
 });
 
 async function turn() {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "hola" });
   await env.settle(t.id);
   const call = llm.calls.at(-1);
@@ -47,13 +47,17 @@ test("with no channel on, the channel and contact tools and their rule stay out;
 });
 
 test("a channel on brings them, and one turned off takes them away again", async () => {
-  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent" },
+    token: TOKEN,
+  });
   const on = await turn();
   for (const name of CHANNEL_TOOLS) assert.ok(on.tools.includes(name), name);
   assert.match(on.system, /Channels are the apps APX talks through/);
   await env.client.call("channels.set", {
     id: "tg",
-    channel: { type: "telegram", agent_id: "roby", enabled: false },
+    channel: { type: "telegram", agent_id: "superagent", enabled: false },
   });
   const off = await turn();
   for (const name of CHANNEL_TOOLS) assert.ok(!off.tools.includes(name), name);

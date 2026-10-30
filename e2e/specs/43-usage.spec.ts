@@ -3,7 +3,7 @@ import { expect, open, rpc, test, until } from "./kit.ts";
 
 test("the usage panel shows the auxiliary model's tokens for the chat's title", async ({ page }) => {
   await rpc("setup.finish");
-  const thread = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby" });
+  const thread = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "superagent" });
   await rpc("threads.send", { thread: thread.id, text: "Plan the Northwind launch" });
   // The title comes from the auxiliary model once the turn is done.
   await until(async () => {

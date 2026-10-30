@@ -188,7 +188,7 @@ test("the initial task instruction shows a formatted description without adding 
   const task = await rpc<Task>("tasks.create", {
     title: "Readable task description",
     description,
-    assignee: "roby",
+    assignee: "superagent",
   });
   let session = "";
   await expect
@@ -209,7 +209,7 @@ test("the initial task instruction shows a formatted description without adding 
     .toBe("idle");
   await rpc("threads.read", { thread: session });
   const before = await rpc("threads.get", { thread: session });
-  const runs = await rpc("runs.list", { agent: "roby" });
+  const runs = await rpc("runs.list", { agent: "superagent" });
   await open(page, `#thread=${session}`);
   const block = page.getByRole("region", { name: "Descripción", exact: true });
   await expect(block).toHaveCount(1);
@@ -221,12 +221,12 @@ test("the initial task instruction shows a formatted description without adding 
   await page.reload();
   await expect(block).toHaveCount(1);
   expect(await rpc("threads.get", { thread: session })).toEqual(before);
-  expect(await rpc("runs.list", { agent: "roby" })).toEqual(runs);
+  expect(await rpc("runs.list", { agent: "superagent" })).toEqual(runs);
   await page.locator(".chat__header").getByRole("button", { name: "Ver la tarea" }).click();
   await expect(page.getByRole("textbox", { name: "Descripción", exact: true })).toHaveValue(description);
   await rpc("tasks.update", { task: task.id, description: "" });
   await expect(block).toHaveCount(0);
-  expect(await rpc("runs.list", { agent: "roby" })).toEqual(runs);
+  expect(await rpc("runs.list", { agent: "superagent" })).toEqual(runs);
 });
 
 test("an agent-created task shows its real generic kickoff with the formatted description", async ({ page }) => {
@@ -243,13 +243,13 @@ test("an agent-created task shows its real generic kickoff with the formatted de
       return callTool("create", "task_create", {
         title: "Real task kickoff",
         description,
-        assignee: "roby",
+        assignee: "superagent",
       });
     }),
   });
   try {
     await env.client.call("setup.finish", {});
-    const source = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const source = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: source.id, text: "Create and work on the task." });
     let taskId = "";
     await expect
@@ -269,7 +269,7 @@ test("an agent-created task shows its real generic kickoff with the formatted de
       .toBe("idle");
     const initial = await env.client.call("threads.get", { thread: session });
     expect(initial.messages[0]?.parts).toEqual([{ type: "text", text: "Work on this task." }]);
-    const runs = await env.client.call("runs.list", { agent: "roby" });
+    const runs = await env.client.call("runs.list", { agent: "superagent" });
     await page.goto(`${env.core.url}/#thread=${session}`);
     const block = page.getByRole("region", { name: "Descripción", exact: true });
     await expect(block).toHaveCount(1);
@@ -278,7 +278,7 @@ test("an agent-created task shows its real generic kickoff with the formatted de
     await page.reload();
     await expect(block).toHaveCount(1);
     expect((await env.client.call("threads.get", { thread: session })).messages).toEqual(initial.messages);
-    expect(await env.client.call("runs.list", { agent: "roby" })).toEqual(runs);
+    expect(await env.client.call("runs.list", { agent: "superagent" })).toEqual(runs);
   } finally {
     await page.goto("about:blank");
     await env.core.close();

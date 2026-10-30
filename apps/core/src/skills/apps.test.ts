@@ -82,7 +82,7 @@ test("a project's own app folders count as its skills, and agents load another a
     undefined,
   );
 
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "apps" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "apps" });
   await env.client.call("threads.send", { thread: t.id, text: "use codex's" });
   await env.settle(t.id);
   assert.match(String(llm.calls.at(-2)?.messages[0]?.content), /- release-notes: Writes release notes\./);

@@ -46,7 +46,7 @@ after(async () => {
 const lastToolResult = () => String(llm.calls.at(-1)?.messages.at(-1)?.content);
 
 test("a delegation opens a named session; delegating to the name continues it with the same agent and context", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "sessions" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "sessions" });
   await env.client.call("threads.send", { thread: t.id, text: "start research" });
   await env.settle(t.id);
   assert.match(lastToolResult(), /earlier turns in this session: 0/);
@@ -63,7 +63,7 @@ test("a delegation opens a named session; delegating to the name continues it wi
 });
 
 test("continuing a session that does not exist is refused with how to start one", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "ghost" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "ghost" });
   await env.client.call("threads.send", { thread: t.id, text: "ghost session" });
   await env.settle(t.id);
   assert.match(lastToolResult(), /no session "ghost" in this thread; give an agent to start one/);
@@ -95,12 +95,12 @@ test("a delegated run gets only the tools every caller may use, and the strictes
 
 test("by default nothing pauses an unattended chain: agents finish what they were asked", async () => {
   const { store } = env.core;
-  const root = store.threads.create({ kind: "loose", title: "free chain", agent_ids: ["roby"] });
+  const root = store.threads.create({ kind: "loose", title: "free chain", agent_ids: ["superagent"] });
   const deadline = new Date(Date.now() + 60_000).toISOString();
   for (const trigger of ["user", ...Array<"a2a">(SUGGESTED_LIMITS.runs + 5).fill("a2a")] as const) {
     const r = store.runs.create({
       thread_id: root.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger,
       input: { origin: { kind: "user" }, text: "x" },
       deadline_at: deadline,
@@ -113,15 +113,20 @@ test("by default nothing pauses an unattended chain: agents finish what they wer
 
 test("the breaker stops unattended chains and an owner's message resets it", async () => {
   const { store } = env.core;
-  const root = store.threads.create({ kind: "loose", title: "chain", agent_ids: ["roby"] });
-  const sub = store.threads.create({ kind: "a2a", title: "sub", agent_ids: ["scout", "roby"], parent_id: root.id });
+  const root = store.threads.create({ kind: "loose", title: "chain", agent_ids: ["superagent"] });
+  const sub = store.threads.create({
+    kind: "a2a",
+    title: "sub",
+    agent_ids: ["scout", "superagent"],
+    parent_id: root.id,
+  });
   const deadline = new Date(Date.now() + 60_000).toISOString();
   const add = async (thread: string, trigger: "a2a" | "a2a_result" | "user") => {
     // Runs are ordered by creation time: keep each one in its own millisecond.
     await new Promise((r) => setTimeout(r, 2));
     const r = store.runs.create({
       thread_id: thread,
-      agent_id: thread === sub.id ? "scout" : "roby",
+      agent_id: thread === sub.id ? "scout" : "superagent",
       trigger,
       input: { origin: { kind: "user" }, text: "x" },
       deadline_at: deadline,
@@ -143,12 +148,12 @@ test("the breaker stops unattended chains and an owner's message resets it", asy
 
 test("the owner writing on a channel renews the unattended window; a contact writing there does not", async () => {
   const { store } = env.core;
-  const root = store.threads.create({ kind: "loose", title: "channel chain", agent_ids: ["roby"] });
+  const root = store.threads.create({ kind: "loose", title: "channel chain", agent_ids: ["superagent"] });
   const add = async (trigger: "a2a" | "channel", role?: "owner" | "contact") => {
     await new Promise((r) => setTimeout(r, 2));
     const r = store.runs.create({
       thread_id: root.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger,
       input: {
         origin: role
@@ -177,13 +182,13 @@ test("the owner writing on a channel renews the unattended window; a contact wri
 
 test("a delegation the breaker refuses shows the owner a notice with the ways to go on, and going on wakes the caller", async () => {
   const { store, engine } = env.core;
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "paused" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "paused" });
   await env.client.call("agents.set_limits", { runs: 1, tokens: 0 });
   try {
     // A turn an agent started (a result waking its caller) is itself unattended: one is the limit.
     const wake = {
       thread_id: t.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "a2a_result" as const,
       origin: { kind: "user" as const },
     };
@@ -221,12 +226,12 @@ test("a delegation the breaker refuses shows the owner a notice with the ways to
 
 test("going on: a fresh budget counts from now; a release lifts the limit until the owner writes again", async () => {
   const { store } = env.core;
-  const root = store.threads.create({ kind: "loose", title: "go on", agent_ids: ["roby"] });
+  const root = store.threads.create({ kind: "loose", title: "go on", agent_ids: ["superagent"] });
   const add = async (trigger: "a2a" | "user") => {
     await new Promise((r) => setTimeout(r, 2));
     const r = store.runs.create({
       thread_id: root.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger,
       input: { origin: { kind: "user" }, text: "x" },
       deadline_at: new Date(Date.now() + 60_000).toISOString(),
@@ -259,13 +264,13 @@ test("going on: a fresh budget counts from now; a release lifts the limit until 
 
 test("the owner sets the breaker's limits, and 0 turns a limit off", async () => {
   const { store } = env.core;
-  const root = store.threads.create({ kind: "loose", title: "limits", agent_ids: ["roby"] });
+  const root = store.threads.create({ kind: "loose", title: "limits", agent_ids: ["superagent"] });
   const deadline = new Date(Date.now() + 60_000).toISOString();
   const add = async (trigger: "a2a" | "user") => {
     await new Promise((r) => setTimeout(r, 2));
     const r = store.runs.create({
       thread_id: root.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger,
       input: { origin: { kind: "user" }, text: "x" },
       deadline_at: deadline,
@@ -287,12 +292,12 @@ test("the owner sets the breaker's limits, and 0 turns a limit off", async () =>
 
 test("the token limit counts fresh tokens: input read from the provider's cache is not spent again", async () => {
   const { store } = env.core;
-  const root = store.threads.create({ kind: "loose", title: "cached chain", agent_ids: ["roby"] });
+  const root = store.threads.create({ kind: "loose", title: "cached chain", agent_ids: ["superagent"] });
   const add = async (trigger: "a2a" | "user", usage?: { input: number; output: number; cached?: number }) => {
     await new Promise((r) => setTimeout(r, 2));
     const r = store.runs.create({
       thread_id: root.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger,
       input: { origin: { kind: "user" }, text: "x" },
       deadline_at: new Date(Date.now() + 60_000).toISOString(),
@@ -322,18 +327,18 @@ test("limits set back to the defaults are not saved, so a later default reaches 
 test("policy follows the thread: every turn in a sub-thread works under the agents above it", async () => {
   const { callersOf } = await import("./ancestry.ts");
   const { store } = env.core;
-  const root = store.threads.create({ kind: "loose", title: "root", agent_ids: ["roby"] });
-  const sub = store.threads.create({ kind: "a2a", title: "s", agent_ids: ["scout", "roby"], parent_id: root.id });
+  const root = store.threads.create({ kind: "loose", title: "root", agent_ids: ["superagent"] });
+  const sub = store.threads.create({ kind: "a2a", title: "s", agent_ids: ["scout", "superagent"], parent_id: root.id });
   const subsub = store.threads.create({ kind: "a2a", title: "ss", agent_ids: ["vera", "scout"], parent_id: sub.id });
   assert.deepEqual(
     callersOf(store, subsub.id).map((a) => a.id),
-    ["scout", "roby"],
+    ["scout", "superagent"],
   );
   assert.deepEqual(callersOf(store, root.id), []);
 });
 
 test("a session named with spaces and capitals is found again by the same name", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "names" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "names" });
   await env.client.call("threads.send", { thread: t.id, text: "start named" });
   await env.settle(t.id);
   await env.client.call("threads.send", { thread: t.id, text: "continue named" });
@@ -345,7 +350,7 @@ test("a session named with spaces and capitals is found again by the same name",
 test("a delegation names its project: the session works in that project's folder, found by a path inside it too", async () => {
   env.core.store.projects.upsert({ id: "p_acme", name: "Acme", path: "/srv/acme" });
   env.core.store.projects.upsert({ id: "p_acme_web", name: "Acme web", path: "/srv/acme/apps" });
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "repo" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "repo" });
   await env.client.call("threads.send", { thread: t.id, text: "research the repo" });
   await env.settle(t.id);
   // The deepest project holding the path.

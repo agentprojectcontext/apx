@@ -20,7 +20,11 @@ let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 before(async () => {
   tg = await fakeTelegram(TOKEN);
   env = await startCore({ llm, channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) } });
-  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent" },
+    token: TOKEN,
+  });
   await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
   tg.message(OWNER, "hola");
   await waitFor(() => tg.messagesTo(OWNER.id).length === 1, "pairing message");
@@ -34,7 +38,7 @@ after(async () => {
 });
 
 test("news reach the owner's channel with buttons; a press asks the super-agent as the owner", async () => {
-  env.core.store.surfaces.upsert({ name: "weather", title: "Weather", html: "<p>sunny</p>", created_by: "roby" });
+  env.core.store.surfaces.upsert({ name: "weather", title: "Weather", html: "<p>sunny</p>", created_by: "superagent" });
   // Calendar connected and the news every owner or a channel's owner gets already heard: this is about the widgets'.
   env.core.store.settings.set("google_account:google-calendar", "owner@example.com");
   env.core.store.settings.set(

@@ -25,7 +25,11 @@ const lastInput = () => String(llm.calls.at(-1)?.messages.findLast((m) => m.role
 
 test("a chat bound to the Flow editor tells which Flow in the turn, and the owner's message keeps only their words", async () => {
   const project = (await env.client.call("projects.create", { name: "Acme" })).project.id;
-  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  const thread = await env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    project_id: project,
+  });
   await env.client.call("threads.flow_editor", { thread: thread.id, editor: { project } });
   await env.client.call("threads.send", { thread: thread.id, text: "make this flow" });
   await env.settle(thread.id);
@@ -57,7 +61,7 @@ test("only the owner binds a chat, to a Flow of the project it names", async () 
   const acme = (await env.client.call("projects.create", { name: "Acme two" })).project.id;
   const northwind = (await env.client.call("projects.create", { name: "Northwind" })).project.id;
   const theirs = await env.client.call("flows.create", { project: northwind, name: "Theirs", graph });
-  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: acme });
+  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: acme });
   await assert.rejects(
     env.client.call("threads.flow_editor", { thread: thread.id, editor: { project: acme, flow: theirs.flow.id } }),
     /not found/i,

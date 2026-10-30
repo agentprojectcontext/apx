@@ -75,7 +75,7 @@ const toolsSeen = async (thread: string) => {
 };
 
 test("the phone's tools are offered only while a phone lends them; then an agent asks where the owner is", async () => {
-  const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   assert.doesNotMatch(await toolsSeen(thread), /phone_location/);
 
   const { code } = await owner.call("devices.pair_start", {});
@@ -105,7 +105,7 @@ test("the phone's tools are offered only while a phone lends them; then an agent
 });
 
 test("a picture the owner takes on the phone is kept as media and shown in the chat", async () => {
-  const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   await owner.call("threads.send", { thread, text: "show me the fridge" });
   await settle(thread);
   const parts = (await owner.call("threads.get", { thread })).messages.flatMap((m) => m.parts);
@@ -137,7 +137,7 @@ test("a device sets its own push; notices then reach the phone instead of a chan
   await owner.call("notices.set", { ...prefs, channel: `device:${device.id}` });
   const r = await owner.call("routines.set", {
     name: "push-probe",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "manual" },
     action: "message",
     prompt: "Hola desde la rutina",

@@ -36,7 +36,7 @@ test("ordinary owner messages become grounded private memories and reach another
   });
   const env = await startCore({ llm, aux: true, memoryMaintenance: true });
   try {
-    const a = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const a = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: a.id, text: fact });
     await env.settle(a.id);
     await env.client.call("memory.maintenance", {});
@@ -45,14 +45,14 @@ test("ordinary owner messages become grounded private memories and reach another
     const saved = notes.find((m) => m.text === note);
     assert.ok(saved, "saved without an explicit remember call");
     assert.equal(saved.scope, "agent");
-    assert.equal(saved.agent_id, "roby");
+    assert.equal(saved.agent_id, "superagent");
     assert.equal(saved.pending, false);
     assert.equal(saved.tainted, false);
     assert.equal(saved.evidence?.[0]?.quote, fact);
     assert.ok(saved.evidence?.[0]?.message_id);
     assert.equal(notes.length, 1);
 
-    const b = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const b = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: b.id, text: "Which prefix do Northwind invoices use?" });
     await env.settle(b.id);
     const turn = llm.calls.findLast((c) => c.tools.length > 0);
@@ -91,11 +91,11 @@ test("automatic recall reads historical own chats without an auxiliary model, bu
   const llm = scriptedLlm(() => say("ok"));
   const env = await startCore({ llm });
   try {
-    const a = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const a = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: a.id, text: fact });
     await env.settle(a.id);
     const ask = async (text: string) => {
-      const b = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      const b = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       await env.client.call("threads.send", { thread: b.id, text });
       await env.settle(b.id);
       return String(llm.calls.at(-1)?.messages.at(-1)?.content);
@@ -129,23 +129,23 @@ test("autoDream consolidates equivalent notes, keeps provenance and supports und
   try {
     const a = env.core.store.memories.add({
       scope: "agent",
-      agent_id: "roby",
+      agent_id: "superagent",
       source: "agent",
       text: fact,
       tainted: true,
     });
     const b = env.core.store.memories.add({
       scope: "agent",
-      agent_id: "roby",
+      agent_id: "superagent",
       source: "agent",
       text: fact.replace(".", "!"),
     });
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: thread.id, text: "Review invoice conventions." });
     await env.settle(thread.id);
     await env.client.call("memory.maintenance", { dream: true });
     await settleMemory(env);
-    const live = (await env.client.call("memory.list", { agent: "roby" })).memories;
+    const live = (await env.client.call("memory.list", { agent: "superagent" })).memories;
     assert.equal(live.length, 1);
     assert.equal(live[0]?.tainted, true, "merging never launders an outside source");
     const keep = live[0];
@@ -155,14 +155,14 @@ test("autoDream consolidates equivalent notes, keeps provenance and supports und
       true,
     );
     await env.client.call("memory.undo", { id: keep.id, revision: 1 });
-    assert.equal((await env.client.call("memory.list", { agent: "roby" })).memories.length, 2);
+    assert.equal((await env.client.call("memory.list", { agent: "superagent" })).memories.length, 2);
     assert.equal(
       env.core.store.memories.consolidate(
         [
           { id: a.id, revision: 1 },
           { id: b.id, revision: 1 },
         ],
-        { agent_id: "roby" },
+        { agent_id: "superagent" },
       ),
       false,
     );
@@ -178,7 +178,7 @@ test("memory snapshots are invalidated by edits without changing the stored owne
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   try {
     const note = await env.client.call("memory.add", { scope: "global", text: fact });
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: thread.id, text: "Invoice prefix?" });
     await env.settle(thread.id);
     const before = env.core.store.modelLog.list(thread.id);
@@ -188,7 +188,7 @@ test("memory snapshots are invalidated by edits without changing the stored owne
       scope: "global",
       text: "Northwind invoices use the amber prefix.",
     });
-    const after = memoryHistory(env.core.store, before, "roby");
+    const after = memoryHistory(env.core.store, before, "superagent");
     assert.doesNotMatch(JSON.stringify(after.map((e) => e.item)), /lavender/);
     assert.match(JSON.stringify(env.core.store.modelLog.list(thread.id)), /lavender/);
   } finally {
@@ -202,7 +202,7 @@ test("invalidating legacy memory removes multiline context and preserves the ori
   try {
     const multiline = `${fact}\n\n[task]\nThe retained account detail is violet.`;
     const note = await env.client.call("memory.add", { scope: "global", text: multiline });
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: thread.id, text: "Invoice prefix?" });
     await env.settle(thread.id);
     const runId = env.core.store.modelLog.list(thread.id).find((entry) => entry.run_id)?.run_id;
@@ -213,7 +213,7 @@ test("invalidating legacy memory removes multiline context and preserves the ori
       { seq: 2, run_id: runId, item: { role: "assistant", content: fact } },
     ];
     await env.client.call("memory.add", { id: note.id, scope: "global", text: "Invoices use amber." });
-    const projected = memoryHistory(env.core.store, legacy, "roby");
+    const projected = memoryHistory(env.core.store, legacy, "superagent");
     assert.equal(projected.length, 1);
     const kept = JSON.stringify(projected[0]?.item);
     assert.doesNotMatch(kept, /lavender/);
@@ -268,7 +268,7 @@ test("capture and backfill keep only durable owner statements when the model quo
   });
   const env = await startCore({ llm, aux: true, memoryMaintenance: true });
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     for (const text of [...passing, ...lasting]) {
       await env.client.call("threads.send", { thread: thread.id, text });
       await env.settle(thread.id);

@@ -51,10 +51,10 @@ test("a grant narrowed to a condition covers only matching calls, and one past i
 
 test("temporary browser consents never survive a real store restart", async () => {
   const first = await startCore({ llm: scriptedLlm(() => say("ok")) });
-  const thread = (await first.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await first.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   const run = first.core.store.runs.create({
     thread_id: thread,
-    agent_id: "roby",
+    agent_id: "superagent",
     trigger: "user",
     input: { origin: { kind: "user" }, text: "Review browser consent" },
     deadline_at: "2099-01-01T00:00:00.000Z",
@@ -66,15 +66,15 @@ test("temporary browser consents never survive a real store restart", async () =
   };
   // This persistence fixture has no browser host; lifecycle authorization is exercised in the tool tests.
   first.core.store.approvals.setBrowserConsentGuard(() => true);
-  const version = first.core.store.approvals.browserVersion(target, thread, "roby");
-  first.core.store.approvals.grant(target, "tab", thread, "roby", version);
-  first.core.store.approvals.grant(target, "turn", thread, "roby", version);
+  const version = first.core.store.approvals.browserVersion(target, thread, "superagent");
+  first.core.store.approvals.grant(target, "tab", thread, "superagent", version);
+  first.core.store.approvals.grant(target, "turn", thread, "superagent", version);
   assert.equal(first.core.store.approvals.list(thread).filter((grant) => grant.browser).length, 2);
   first.core.store.runs.setState(run, "completed");
   await first.core.close();
   const again = await startCore({ llm: scriptedLlm(() => say("ok")), home: first.home });
   try {
-    assert.equal(again.core.store.approvals.allows(target, thread, "roby"), false);
+    assert.equal(again.core.store.approvals.allows(target, thread, "superagent"), false);
     assert.equal(again.core.store.approvals.list(thread).filter((grant) => grant.browser).length, 0);
   } finally {
     await again.core.close();
@@ -85,15 +85,15 @@ test("temporary browser consents never survive a real store restart", async () =
 test("a grant for this chat outlives a core restart, and ends when the chat is archived", async () => {
   const first = await startCore({ llm: scriptedLlm(() => say("ok")) });
   const target = nativeApproval("shell");
-  const thread = (await first.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
-  first.core.store.approvals.grant(target, "session", thread, "roby");
+  const thread = (await first.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
+  first.core.store.approvals.grant(target, "session", thread, "superagent");
   await first.core.close();
   const again = await startCore({ llm: scriptedLlm(() => say("ok")), home: first.home });
   try {
-    assert.ok(again.core.store.approvals.allows(target, thread, "roby"), "the chat's grant came back");
-    assert.ok(!again.core.store.approvals.allows(target, "th_other", "roby"), "and only for that chat");
+    assert.ok(again.core.store.approvals.allows(target, thread, "superagent"), "the chat's grant came back");
+    assert.ok(!again.core.store.approvals.allows(target, "th_other", "superagent"), "and only for that chat");
     await again.client.call("threads.update", { thread, archived: true });
-    assert.ok(!again.core.store.approvals.allows(target, thread, "roby"));
+    assert.ok(!again.core.store.approvals.allows(target, thread, "superagent"));
   } finally {
     await again.core.close();
     await first.cleanup();

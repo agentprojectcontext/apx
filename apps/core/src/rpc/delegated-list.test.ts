@@ -25,17 +25,17 @@ after(async () => {
 
 test("a chat's delegated chats come with it, a few per chat, with how many there are", async () => {
   const repo = env.core.store.threads;
-  const root = repo.create({ kind: "agent", title: "Root", agent_ids: ["roby"], at: "2020-01-01T00:00:00Z" });
+  const root = repo.create({ kind: "agent", title: "Root", agent_ids: ["superagent"], at: "2020-01-01T00:00:00Z" });
   const subs = [0, 1, 2, 3].map((i) =>
     repo.create({
       kind: "a2a",
       title: `Sub ${i}`,
-      agent_ids: ["roby"],
+      agent_ids: ["superagent"],
       parent_id: root.id,
       at: `2020-01-0${i + 2}T00:00:00Z`,
     }),
   );
-  const gone = repo.create({ kind: "a2a", title: "Gone", agent_ids: ["roby"], parent_id: root.id });
+  const gone = repo.create({ kind: "a2a", title: "Gone", agent_ids: ["superagent"], parent_id: root.id });
   repo.arrange(gone.id, { archived: true });
 
   const plain = await env.client.call("threads.list", {});
@@ -54,7 +54,7 @@ test("a chat's delegated chats come with it, a few per chat, with how many there
 });
 
 test("a chat delegated into a project from a chat outside it is listed in that project, still under its caller", async () => {
-  const home = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Home" });
+  const home = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Home" });
   await env.client.call("threads.send", { thread: home.id, text: "ask a worker in the project" });
   await env.settle(home.id);
 

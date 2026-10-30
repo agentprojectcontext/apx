@@ -4,7 +4,7 @@ import { expect, open, rpc, test } from "./kit.ts";
 
 test("a widget shows in the side panel, the chat keeps a card of it, and it comes back", async ({ page }) => {
   await rpc("setup.finish", {});
-  const chat = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "roby" });
+  const chat = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "superagent" });
   await rpc("threads.send", { thread: chat.id, text: "show a widget" });
   await expect
     .poll(async () => {
@@ -65,9 +65,9 @@ test("a widget another chat made still shows in this chat's side panel", async (
       })
       .toBe(true);
   };
-  const first = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "roby" });
+  const first = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "superagent" });
   await showIn(first.id);
-  const chat = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "roby" });
+  const chat = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "superagent" });
   await showIn(chat.id);
 
   await open(page, `#thread=${chat.id}`);

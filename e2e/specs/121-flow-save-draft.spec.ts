@@ -146,7 +146,7 @@ test("a Flow an agent made shows its draft steps in the list and on its page, ne
 }) => {
   await rpc("setup.finish", {});
   const project = (await rpc<{ project: { id: string } }>("projects.create", { name: "Acme agent" })).project.id;
-  const chat = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Flows" });
+  const chat = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "superagent", title: "Flows" });
   await open(page, `#thread=${chat.id}`);
   await page.getByRole("textbox", { name: /Escribile/ }).fill(`draw a flow in ${project}`);
   await page.keyboard.press("Enter");
@@ -168,7 +168,7 @@ test("a Flow an agent made shows its draft steps in the list and on its page, ne
           id: "think",
           kind: "agent",
           label: "Sum it up",
-          agent: "roby",
+          agent: "superagent",
           prompt: "",
           input: { kind: "event", path: [] },
         },

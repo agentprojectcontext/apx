@@ -19,11 +19,11 @@ test("recovery preserves delegation dependencies when SQL returns interrupted ch
   const { store } = env.core;
   const interrupted = store.runs.interrupted;
   try {
-    const thread = store.threads.create({ kind: "loose", title: "Parent", agent_ids: ["roby"] });
+    const thread = store.threads.create({ kind: "loose", title: "Parent", agent_ids: ["superagent"] });
     const parent = store.runs.setState(
       store.runs.create({
         thread_id: thread.id,
-        agent_id: "roby",
+        agent_id: "superagent",
         trigger: "user",
         input: { origin: { kind: "user" }, text: "Ask Scout" },
         deadline_at: "2099-01-01T00:00:00Z",
@@ -33,7 +33,7 @@ test("recovery preserves delegation dependencies when SQL returns interrupted ch
     const sub = store.threads.create({
       kind: "a2a",
       title: "Child",
-      agent_ids: ["roby", "scout"],
+      agent_ids: ["superagent", "scout"],
       parent_id: thread.id,
     });
     const child = store.runs.setState(
@@ -43,7 +43,7 @@ test("recovery preserves delegation dependencies when SQL returns interrupted ch
         trigger: "a2a",
         parent_run_id: parent.id,
         input: {
-          origin: { kind: "agent", id: "roby", name: "Roby", thread_id: thread.id, run_id: parent.id },
+          origin: { kind: "agent", id: "superagent", name: "Roby", thread_id: thread.id, run_id: parent.id },
           text: "Look this up",
         },
         deadline_at: "2099-01-01T00:00:00Z",
@@ -74,15 +74,15 @@ test("a restart closes a cut turn (effect unknown for a started tool), resumes i
   // ── before the "crash": state written directly, as a killed process would leave it ──
   const first = await startCore({ llm });
   const { store } = first.core;
-  const roby = store.agents.get("roby");
+  const roby = store.agents.get("superagent");
   assert.ok(roby);
   const deadline = new Date(Date.now() + 60_000).toISOString();
 
   // 1. A turn that died while a browser click was in flight.
-  const cut = store.threads.create({ kind: "loose", title: "cut", agent_ids: ["roby"] });
+  const cut = store.threads.create({ kind: "loose", title: "cut", agent_ids: ["superagent"] });
   let run = store.runs.create({
     thread_id: cut.id,
-    agent_id: "roby",
+    agent_id: "superagent",
     trigger: "user",
     input: { origin: { kind: "user" }, text: "click it" },
     deadline_at: deadline,
@@ -90,7 +90,7 @@ test("a restart closes a cut turn (effect unknown for a started tool), resumes i
   run = store.runs.setState(run, "working");
   const msg = store.messages.add({
     thread_id: cut.id,
-    author: { kind: "agent", id: "roby" },
+    author: { kind: "agent", id: "superagent" },
     run_id: run.id,
     parts: [{ type: "tool", call_id: "k1", tool: "browser_click", title: "Clicked e3", status: "running" }],
   });
@@ -109,7 +109,7 @@ test("a restart closes a cut turn (effect unknown for a started tool), resumes i
   store.runs.beginStep(run.id, { call_id: "k1", tool: "browser_click", args: {}, effect: "external" });
 
   // 2. A message admitted but never started.
-  const queued = store.threads.create({ kind: "loose", title: "queued", agent_ids: ["roby"] });
+  const queued = store.threads.create({ kind: "loose", title: "queued", agent_ids: ["superagent"] });
   store.messages.add({
     thread_id: queued.id,
     author: { kind: "user" },
@@ -117,17 +117,17 @@ test("a restart closes a cut turn (effect unknown for a started tool), resumes i
   });
   store.runs.create({
     thread_id: queued.id,
-    agent_id: "roby",
+    agent_id: "superagent",
     trigger: "user",
     input: { origin: { kind: "user" }, text: "are you there?" },
     deadline_at: deadline,
   });
 
   // 3. A delegation whose caller already moved on: the child never started.
-  const parentThread = store.threads.create({ kind: "loose", title: "parent", agent_ids: ["roby"] });
+  const parentThread = store.threads.create({ kind: "loose", title: "parent", agent_ids: ["superagent"] });
   let parent = store.runs.create({
     thread_id: parentThread.id,
-    agent_id: "roby",
+    agent_id: "superagent",
     trigger: "user",
     input: { origin: { kind: "user" }, text: "ask scout" },
     deadline_at: deadline,
@@ -136,7 +136,7 @@ test("a restart closes a cut turn (effect unknown for a started tool), resumes i
   const sub = store.threads.create({
     kind: "a2a",
     title: "Roby → Scout",
-    agent_ids: ["scout", "roby"],
+    agent_ids: ["scout", "superagent"],
     parent_id: parentThread.id,
   });
   store.runs.create({
@@ -144,7 +144,7 @@ test("a restart closes a cut turn (effect unknown for a started tool), resumes i
     agent_id: "scout",
     trigger: "a2a",
     input: {
-      origin: { kind: "agent", id: "roby", name: "Roby", thread_id: parentThread.id, run_id: parent.id },
+      origin: { kind: "agent", id: "superagent", name: "Roby", thread_id: parentThread.id, run_id: parent.id },
       text: "look this up",
     },
     parent_run_id: parent.id,
@@ -233,7 +233,7 @@ for (const kind of ["question", "confirm"] as const) {
     const first = await startCore({ llm: model, extraTools: [publish] });
     let second: Awaited<ReturnType<typeof startCore>> | undefined;
     try {
-      const parent = await first.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      const parent = await first.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       await first.client.call("threads.send", { thread: parent.id, text: "Prepare report" });
       let pending: Awaited<ReturnType<typeof first.client.call<"runs.pending">>>["inputs"] = [];
       for (let i = 0; i < 200 && !pending.length; i++) {
@@ -280,10 +280,10 @@ for (const kind of ["question", "confirm"] as const) {
 test("a turn that was already resumed is not resumed again after another restart", async () => {
   const first = await startCore({ llm });
   const { store } = first.core;
-  const t = store.threads.create({ kind: "loose", title: "twice", agent_ids: ["roby"] });
+  const t = store.threads.create({ kind: "loose", title: "twice", agent_ids: ["superagent"] });
   let run = store.runs.create({
     thread_id: t.id,
-    agent_id: "roby",
+    agent_id: "superagent",
     trigger: "user",
     input: { origin: { kind: "user" }, text: "do it", resume_of: "run_earlier" },
     deadline_at: new Date(Date.now() + 60_000).toISOString(),
@@ -325,7 +325,7 @@ test("shutting APX down mid-delegation resumes both turns on boot, and the calle
   const first = await startCore({ llm: model });
   let second: Awaited<ReturnType<typeof startCore>> | undefined;
   try {
-    const parent = await first.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const parent = await first.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await first.client.call("threads.send", { thread: parent.id, text: "Ask Scout" });
     await scoutWorking;
     const sub = first.core.store.threads.list({ include_subthreads: true }).find((t) => t.parent_id === parent.id);

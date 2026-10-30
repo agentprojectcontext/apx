@@ -10,7 +10,7 @@ test("after the setup the super-agent greets once, in the owner's language, and 
     assert.deepEqual(first, { thread: "home", sent: true });
     const { messages } = await env.client.call("threads.get", { thread: "home" });
     const greeting = messages.at(-1);
-    assert.deepEqual(greeting?.author, { kind: "agent", id: "roby" });
+    assert.deepEqual(greeting?.author, { kind: "agent", id: "superagent" });
     assert.match(JSON.stringify(greeting?.parts[0]), /contame un poco de vos/);
     const choices = greeting?.parts.find((p) => p.type === "choices");
     assert.equal(choices?.type === "choices" && choices.options.length, 3);

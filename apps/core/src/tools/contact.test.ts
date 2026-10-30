@@ -36,7 +36,7 @@ async function contact() {
   const thread = env.core.store.threads.create({
     kind: "channel",
     title: person.name,
-    agent_ids: ["roby"],
+    agent_ids: ["superagent"],
     channel: { id: "test", conversation: person.id, person_id: person.id },
   });
   return {
@@ -144,7 +144,7 @@ test("another contact, another chat, owner-created tasks and closed requests can
   const secondChat = env.core.store.threads.create({
     kind: "channel",
     title: "Other chat",
-    agent_ids: ["roby"],
+    agent_ids: ["superagent"],
     channel: { id: "other", conversation: c.person.id, person_id: c.person.id },
   });
   const otherChat = await c.submit(

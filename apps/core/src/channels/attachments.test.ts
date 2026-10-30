@@ -22,7 +22,11 @@ async function setup(t: TestContext) {
     await tg.close();
     await env.cleanup();
   });
-  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent" },
+    token: TOKEN,
+  });
   env.core.store.persons.link(env.core.store.persons.owner().id, { channel: "tg", external_id: String(OWNER.id) });
   return { ...env, tg, llm };
 }

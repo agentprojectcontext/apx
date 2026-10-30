@@ -53,7 +53,7 @@ test("no profile by default; APX's own are listed; the secretary seeds open, clo
   assert.equal(by("team-news")?.action, "relay", "the other agents' news, told by the super-agent");
   assert.equal(by("team-news")?.anchor, false);
   for (const r of routines) {
-    assert.equal(r.agent_id, "roby");
+    assert.equal(r.agent_id, "superagent");
     assert.equal(r.enabled, true);
     assert.ok(r.next_run_at);
   }
@@ -89,7 +89,7 @@ test("a new schedule moves its routine; a prompt the owner edited stays, and Res
 
 test("the super-agent's prompt says its role while the profile is on", async () => {
   const system = async () => {
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: t.id, text: "hola" });
     await env.settle(t.id);
     return String(llm.calls.at(-1)?.messages[0]?.content);
@@ -130,7 +130,7 @@ test("an imported v1 routine of the same job is adopted, not doubled", async () 
   try {
     const v1 = await fresh.client.call("routines.set", {
       name: "secretary-day-close",
-      agent: "roby",
+      agent: "superagent",
       schedule: { kind: "manual" },
       prompt: "v1's close",
       enabled: false,

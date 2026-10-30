@@ -61,11 +61,11 @@ test("temporary task uploads are consumed or discarded without deleting unrelate
       /live owner chat/,
     );
     await assert.rejects(external.call("media.get", { id: asset.media_id }), /live owner chat/);
-    const sealed = env.core.store.threads.create({ kind: "loose", title: "Client", agent_ids: ["roby"] });
+    const sealed = env.core.store.threads.create({ kind: "loose", title: "Client", agent_ids: ["superagent"] });
     env.core.store.threads.mergeContext(sealed.id, { client: "external" });
     const run = env.core.store.runs.create({
       thread_id: sealed.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "user",
       input: { origin: { kind: "user" }, text: "Read" },
       deadline_at: new Date(Date.now() + 60_000).toISOString(),
@@ -77,7 +77,7 @@ test("temporary task uploads are consumed or discarded without deleting unrelate
       actor: "agent" as const,
       session: undefined,
       log: createLog("test", true),
-      agent: { id: "roby", thread_id: sealed.id, run_id: run.id },
+      agent: { id: "superagent", thread_id: sealed.id, run_id: run.id },
     };
     const detail = await env.core.dispatch("tasks.get", { task: task.id }, ctx);
     assert.ok(detail.ok);
@@ -149,7 +149,7 @@ test("a failed detach unlink remains tracked until a later cleanup retries it", 
     assert.equal(fs.existsSync(stored.path), true);
     const run = env.core.store.runs.create({
       thread_id: task.thread_id,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "user",
       input: { origin: { kind: "user" }, text: "Read detached evidence" },
       deadline_at: new Date(Date.now() + 60_000).toISOString(),
@@ -161,7 +161,7 @@ test("a failed detach unlink remains tracked until a later cleanup retries it", 
       actor: "agent" as const,
       session: undefined,
       log: createLog("test", true),
-      agent: { id: "roby", thread_id: task.thread_id, run_id: run.id },
+      agent: { id: "superagent", thread_id: task.thread_id, run_id: run.id },
     };
     try {
       assert.equal((await env.core.dispatch("media.get", { id: asset.media_id }, ctx)).ok, false);

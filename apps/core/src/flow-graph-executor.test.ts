@@ -221,7 +221,14 @@ test("payload data never picks the agent or a tool, credentials are not stored, 
       schemaVersion: 2,
       nodes: [
         hook,
-        { id: "file", kind: "agent", label: "File", agent: "roby", prompt: "File this request.", input: event([]) },
+        {
+          id: "file",
+          kind: "agent",
+          label: "File",
+          agent: "superagent",
+          prompt: "File this request.",
+          input: event([]),
+        },
         {
           id: "save",
           kind: "table_write",
@@ -248,7 +255,7 @@ test("payload data never picks the agent or a tool, credentials are not stored, 
     const s = steps(env, flow, "e1");
     assert.ok(s.file?.thread_id && s.file.run_id);
     const thread = await env.client.call("threads.get", { thread: s.file.thread_id });
-    assert.deepEqual(thread.thread.agent_ids, ["roby"]);
+    assert.deepEqual(thread.thread.agent_ids, ["superagent"]);
     const sent = env.core.store.runs.get(s.file.run_id);
     assert.equal(sent?.input?.origin.kind, "agent");
     assert.equal(env.core.store.flows.readRows(flow, ["filed"]).filed, "Filed under Northwind");
@@ -405,7 +412,7 @@ test("at the deadline a waiting run is stopped, nothing after it starts and a la
       schemaVersion: 2,
       nodes: [
         hook,
-        { id: "work", kind: "agent", label: "Work", agent: "roby", prompt: "Work on it.", input: event([]) },
+        { id: "work", kind: "agent", label: "Work", agent: "superagent", prompt: "Work on it.", input: event([]) },
         {
           id: "save",
           kind: "table_write",

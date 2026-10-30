@@ -39,8 +39,13 @@ const toolResult = (id: string) =>
 /** A chat where Scout already worked once on its own, in a sub-thread under Roby's. */
 async function chainWithScoutTurn(title: string) {
   const { store } = env.core;
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title });
-  const sub = store.threads.create({ kind: "a2a", title: "earlier", agent_ids: ["scout", "roby"], parent_id: t.id });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title });
+  const sub = store.threads.create({
+    kind: "a2a",
+    title: "earlier",
+    agent_ids: ["scout", "superagent"],
+    parent_id: t.id,
+  });
   const r = store.runs.create({
     thread_id: sub.id,
     agent_id: "scout",
@@ -56,7 +61,7 @@ async function chainWithScoutTurn(title: string) {
 async function robyOnItsOwn(thread: string, text: string) {
   env.core.engine.admit({
     thread_id: thread,
-    agent_id: "roby",
+    agent_id: "superagent",
     trigger: "a2a_result",
     origin: { kind: "user" },
     text,

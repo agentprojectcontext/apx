@@ -71,10 +71,14 @@ before(async () => {
   // ntfy's topic is the owner: anyone who knows the topic writes as them.
   await env.client.call("channels.set", {
     id: "ntfy",
-    channel: { type: "ntfy", agent_id: "roby", self_owner: true },
+    channel: { type: "ntfy", agent_id: "superagent", self_owner: true },
     token: ntfy.secret,
   });
-  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent" },
+    token: TOKEN,
+  });
   tg.message(OWNER, "hola");
   await waitFor(() => tgTexts().length === 1, "pairing code");
   const code = /(\d{6})/.exec(tgTexts()[0] ?? "")?.[1] ?? "";

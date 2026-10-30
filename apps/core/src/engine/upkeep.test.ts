@@ -71,7 +71,7 @@ test("compaction waits until the thread is long, keeps the newest turns and mark
 });
 
 test("a new chat gets a title from the auxiliary model; one the owner gave stays", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "Help me plan the Northwind launch for March" });
   await env.settle(t.id);
   await waitFor(async () => (await env.client.call("threads.get", { thread: t.id })).thread.title !== "Roby");
@@ -82,7 +82,7 @@ test("a new chat gets a title from the auxiliary model; one the owner gave stays
   const all = await env.client.call("usage.summary", {});
   assert.ok(all.aux.some((a) => a.purpose === "title" && a.calls >= 1));
 
-  const mine = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Budget" });
+  const mine = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Budget" });
   await env.client.call("threads.send", { thread: mine.id, text: "hello" });
   await env.settle(mine.id);
   await new Promise((r) => setTimeout(r, 100));
@@ -90,7 +90,7 @@ test("a new chat gets a title from the auxiliary model; one the owner gave stays
 });
 
 test("threads.compact folds older turns into a summary the next turn starts from", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   for (const n of [1, 2, 3, 4, 5, 6]) {
     await env.client.call("threads.send", { thread: t.id, text: `step ${n}` });
     await env.settle(t.id);

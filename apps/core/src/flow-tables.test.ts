@@ -325,7 +325,7 @@ test("no step receives a secret variable as its input, and code never sees one a
       input,
       timeoutMs: 2000,
     });
-    const agent: FlowNode = { id: "ask", kind: "agent", label: "Ask", agent: "roby", prompt: "Go", input: set };
+    const agent: FlowNode = { id: "ask", kind: "agent", label: "Ask", agent: "superagent", prompt: "Go", input: set };
     const routine: FlowNode = { id: "run", kind: "routine", label: "Run", routine: "digest", input: set };
     await publish(env, "inputs", p, chain(hook, twoVars(), js({ ...set, path: ["plain"] })));
     for (const leak of [

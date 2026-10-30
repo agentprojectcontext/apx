@@ -69,16 +69,16 @@ test("two agents hold two screens at once, a third waits for room, and the owner
   try {
     await env.client.call("setup.finish", {});
     const chats: Record<string, string> = {};
-    for (const agent of ["roby", "scout", "vera"]) {
+    for (const agent of ["superagent", "scout", "vera"]) {
       await env.client.call("environments.permit", { agent, on: true });
       const chat = await env.client.call("threads.create", { kind: "loose", agent_id: agent });
       await env.client.call("environments.bind", { thread: chat.id });
       chats[agent] = chat.id;
     }
     await env.client.call("environments.status", {});
-    for (const agent of ["roby", "scout"])
+    for (const agent of ["superagent", "scout"])
       await env.client.call("threads.send", { thread: chats[agent] ?? "", text: `chat ${agent}` });
-    await expect.poll(() => started.has("roby") && started.has("scout")).toBe(true);
+    await expect.poll(() => started.has("superagent") && started.has("scout")).toBe(true);
     expect(screens).toEqual([1, 2]);
 
     // Two screens is all a 4 GiB computer holds: Vera's turn is refused and says who holds them.
@@ -89,7 +89,7 @@ test("two agents hold two screens at once, a third waits for room, and the owner
 
     await mockVmDisplay(page);
     await page.setViewportSize({ width: 1600, height: 1000 });
-    await page.goto(`${env.core.url}/#thread=${chats.roby}&panel=computer`);
+    await page.goto(`${env.core.url}/#thread=${chats.superagent}&panel=computer`);
     const computer = page.locator(".computer");
     const picker = computer.getByRole("combobox", { name: "Pantalla" });
     await expect(picker).toHaveText(/Roby · :101 · trabajando/);
@@ -106,10 +106,10 @@ test("two agents hold two screens at once, a third waits for room, and the owner
     await computer.getByRole("button", { name: "Tomar control", exact: true }).click();
     await expect(computer.getByRole("button", { name: "Devolver control al agente", exact: true })).toBeVisible();
     await expect(computer.locator(".computer__locked")).toHaveCount(0);
-    expect((await env.settle(chats.roby ?? "")).runs[0]?.state).toBe("canceled");
+    expect((await env.settle(chats.superagent ?? "")).runs[0]?.state).toBe("canceled");
     const status = await env.client.call("environments.status", {});
     expect(status.screens?.map((s) => [s.screen, s.agent ?? "", Boolean(s.run), s.control])).toEqual([
-      [1, "roby", false, "human"],
+      [1, "superagent", false, "human"],
       [2, "scout", true, "agent"],
     ]);
     await computer.getByRole("button", { name: "Devolver control al agente", exact: true }).click();

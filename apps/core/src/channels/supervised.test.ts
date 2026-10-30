@@ -64,7 +64,11 @@ before(async () => {
     suggestBurstMs: 80,
     channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) },
   });
-  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent" },
+    token: TOKEN,
+  });
   await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
   await env.client.call("contacts.address", { channel: "tg", address: String(OWNER.id) });
   const p = await env.client.call("contacts.set", {

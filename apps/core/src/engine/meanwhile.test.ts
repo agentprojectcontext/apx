@@ -42,7 +42,7 @@ test("the owner's next turn in Home knows what APX sent them meanwhile, once", a
 });
 
 test("another chat does not get the owner's channel news", async () => {
-  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Side" });
+  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Side" });
   env.core.store.nudges.add({ kind: "routine:Watch", text: "More news.", state: "sent", exempt: false });
   assert.doesNotMatch(await turn(thread.id, "hola"), MEANWHILE);
 });

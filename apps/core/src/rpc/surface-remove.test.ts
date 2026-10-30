@@ -16,7 +16,12 @@ after(async () => {
 
 test("a deleted widget is gone, with its memory, and a second delete says it is not there", async () => {
   const store = env.core.store;
-  const s = store.surfaces.upsert({ name: "sales-board", title: "Sales board", html: "<p>hi</p>", created_by: "roby" });
+  const s = store.surfaces.upsert({
+    name: "sales-board",
+    title: "Sales board",
+    html: "<p>hi</p>",
+    created_by: "superagent",
+  });
   await env.client.call("surfaces.store_set", { surface: s.id, patch: { count: 3 } });
   const dir = artifactDir(env.home, { name: s.name, project_id: s.project_id });
   assert.ok(fs.existsSync(dir), "it remembered something");

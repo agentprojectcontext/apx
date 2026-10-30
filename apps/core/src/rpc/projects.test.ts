@@ -13,7 +13,11 @@ test("unregister keeps files and history, stops queued watchers, and registering
   try {
     fs.writeFileSync(path.join(root, "AGENTS.md"), "# Acme\n");
     const { project } = await env.client.call("projects.register", { path: root });
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project.id });
+    const thread = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      project_id: project.id,
+    });
     await env.client.call("threads.send", { thread: thread.id, text: "Keep this history" });
     await env.settle(thread.id);
     const before = fs.readFileSync(path.join(root, "AGENTS.md"), "utf8");

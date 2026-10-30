@@ -93,7 +93,7 @@ async function answer(thread: string, decision: "approve" | "deny") {
 const last = async (thread: string) => JSON.stringify((await owner.call("threads.get", { thread })).messages.at(-1));
 
 test("computer use exists only while the desktop lends it; in Auto a look at the screen asks nothing", async () => {
-  const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   await owner.call("threads.send", { thread, text: "list" });
   await settle(thread);
   assert.doesNotMatch(await last(thread), /screen_snapshot/);
@@ -138,21 +138,21 @@ test("computer use exists only while the desktop lends it; in Auto a look at the
 });
 
 test("in Manual a look at the screen waits for the owner", async () => {
-  await owner.call("agents.update", { agent: "roby", autonomy: "manual" });
+  await owner.call("agents.update", { agent: "superagent", autonomy: "manual" });
   try {
-    const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+    const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
     const before = calls.length;
     await owner.call("threads.send", { thread, text: "look at my screen" });
     await answer(thread, "deny");
     await settle(thread);
     assert.equal(calls.slice(before).includes("computer.snapshot"), false);
   } finally {
-    await owner.call("agents.update", { agent: "roby", autonomy: "auto" });
+    await owner.call("agents.update", { agent: "superagent", autonomy: "auto" });
   }
 });
 
 test("a click always waits for the owner; denied, it never reaches the desktop", async () => {
-  const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   const before = calls.length;
   await owner.call("threads.send", { thread, text: "turn on wifi" });
   await answer(thread, "deny");
@@ -167,7 +167,7 @@ test("a click always waits for the owner; denied, it never reaches the desktop",
 });
 
 test("a sequence runs in one approval and stops at the first step that fails, saying which", async () => {
-  const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   const before = calls.length;
   await owner.call("threads.send", { thread, text: "search wifi" });
   await answer(thread, "approve");
@@ -179,9 +179,9 @@ test("a sequence runs in one approval and stops at the first step that fails, sa
 });
 
 test("after 60 actions in one turn the owner is asked whether to go on, and the session goes on when they say so", async () => {
-  await owner.call("agents.update", { agent: "roby", autonomy: "total" });
+  await owner.call("agents.update", { agent: "superagent", autonomy: "total" });
   try {
-    const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+    const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
     const before = calls.filter((c) => c === "computer.snapshot").length;
     await owner.call("threads.send", { thread, text: "keep looking" });
     const input: { id: string; prompt?: string; options?: string[] } | undefined = await inputOrEnd(owner, thread);
@@ -191,14 +191,14 @@ test("after 60 actions in one turn the owner is asked whether to go on, and the 
     await settle(thread);
     assert.ok(calls.filter((c) => c === "computer.snapshot").length - before > 60, "and goes on once allowed");
   } finally {
-    await owner.call("agents.update", { agent: "roby", autonomy: "auto" });
+    await owner.call("agents.update", { agent: "superagent", autonomy: "auto" });
   }
 });
 
 test("the emergency stop ends the turn using the computer, that time only", async () => {
-  await owner.call("agents.update", { agent: "roby", autonomy: "total" });
+  await owner.call("agents.update", { agent: "superagent", autonomy: "total" });
   try {
-    const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+    const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
     const before = calls.length;
     await owner.call("threads.send", { thread, text: "keep looking" });
     await waitFor(() => calls.length - before >= 3, "three more calls");
@@ -208,12 +208,12 @@ test("the emergency stop ends the turn using the computer, that time only", asyn
     assert.ok(used < 60, `stopped early (${used} actions)`);
 
     // A new request uses the computer again: the stop was for that turn.
-    const next = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+    const next = (await owner.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
     const again = calls.length;
     await owner.call("threads.send", { thread: next, text: "look at my screen" });
     await settle(next);
     assert.equal(calls.length - again, 1);
   } finally {
-    await owner.call("agents.update", { agent: "roby", autonomy: "auto" });
+    await owner.call("agents.update", { agent: "superagent", autonomy: "auto" });
   }
 });

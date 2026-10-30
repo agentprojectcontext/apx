@@ -6,7 +6,7 @@ import { tempDir, waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { pendingInput, say, scriptedLlm, startCore } from "./testkit.ts";
 
-const goal = { title: "One executor", description: "Finish the current work once.", assignee: "roby" };
+const goal = { title: "One executor", description: "Finish the current work once.", assignee: "superagent" };
 
 test("an asynchronous APX tool must drain before a concurrent handoff can start a task", async () => {
   const folder = tempDir("apx-handoff-concurrent-");
@@ -58,7 +58,7 @@ test("an asynchronous APX tool must drain before a concurrent handoff can start 
   try {
     const chat = await env.client.call("threads.create", {
       kind: "code",
-      agent_id: "roby",
+      agent_id: "superagent",
       project_id: (await env.client.call("projects.register", { path: folder.path, init: true })).project.id,
       cwd: folder.path,
       write: "auto",
@@ -110,7 +110,7 @@ for (const observed of [false, true]) {
     try {
       const chat = await env.client.call("threads.create", {
         kind: "code",
-        agent_id: "roby",
+        agent_id: "superagent",
         project_id: (await env.client.call("projects.register", { path: folder.path, init: true })).project.id,
         cwd: folder.path,
         write: "auto",
@@ -159,7 +159,7 @@ test("a native permission waiting on approval is refused if handoff wins the rac
   try {
     const chat = await env.client.call("threads.create", {
       kind: "code",
-      agent_id: "roby",
+      agent_id: "superagent",
       project_id: (await env.client.call("projects.register", { path: folder.path, init: true })).project.id,
       cwd: folder.path,
       write: "auto",
@@ -197,7 +197,7 @@ test("a harness without a native permission intercept keeps its executor in the 
     const project = await env.client.call("projects.register", { path: folder.path, init: true });
     const chat = await env.client.call("threads.create", {
       kind: "code",
-      agent_id: "roby",
+      agent_id: "superagent",
       project_id: project.project.id,
       cwd: folder.path,
       write: "auto",

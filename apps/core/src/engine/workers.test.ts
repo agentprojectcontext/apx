@@ -57,9 +57,10 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
     return callTool("w2", "delegate", { worker, task: "look slowly", wait_s: 0 });
   if (said.includes("continue it") && !afterTool)
     return callTool("w3", "delegate", { session: "researcher", task: "and one more" });
-  if (said.includes("delegate to me") && !afterTool) return callTool("w4", "delegate", { agent: "roby", task: "x" });
+  if (said.includes("delegate to me") && !afterTool)
+    return callTool("w4", "delegate", { agent: "superagent", task: "x" });
   if (said.includes("ambiguous delegation") && !afterTool)
-    return callTool("w5", "delegate", { agent: "roby", worker, task: "x" });
+    return callTool("w5", "delegate", { agent: "superagent", worker, task: "x" });
   return say(afterTool ? `Done: ${String(req.messages.at(-1)?.content).slice(0, 60)}` : "ok");
 });
 
@@ -76,13 +77,13 @@ after(async () => {
 });
 
 test("a worker runs as the caller under the instructions it wrote, with only the tools it named and no delegate", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "w" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "w" });
   await env.client.call("threads.send", { thread: t.id, text: "use a worker" });
   const { messages } = await env.settle(t.id);
   const c = card(messages.at(-1)?.parts);
   assert.ok(c);
   assert.equal(c.worker, "Researcher");
-  assert.equal(c.agent_id, "roby");
+  assert.equal(c.agent_id, "superagent");
   assert.equal(c.state, "completed");
   assert.match(c.summary ?? "", /## Report[\s\S]*One is stale/, "the whole report, not a clipped line");
   assert.equal(typeof c.ms, "number");
@@ -106,7 +107,7 @@ test("a worker runs as the caller under the instructions it wrote, with only the
 });
 
 test("a worker's session goes on with the same instructions", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "w2" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "w2" });
   await env.client.call("threads.send", { thread: t.id, text: "use a worker" });
   await env.settle(t.id);
   const from = llm.calls.length;
@@ -120,7 +121,7 @@ test("a worker's session goes on with the same instructions", async () => {
 });
 
 test("a late worker result shows its report above the caller's new answer", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "w3" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "w3" });
   await env.client.call("threads.send", { thread: t.id, text: "worker slowly" });
   const until = Date.now() + 5000;
   let got = await env.client.call("threads.get", { thread: t.id });
@@ -166,7 +167,7 @@ const lastToolResult = () =>
 
 test("a path inside the project is the folder a delegation works in: relative reads land there, its result returns", async () => {
   await withProject(async (root, project) => {
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
     await env.client.call("threads.send", { thread: t.id, text: "delegate to a project subpath" });
     await env.settle(t.id);
     const sub = env.core.store.threads.sessions(t.id)[0];
@@ -186,7 +187,7 @@ test("a path inside the project is the folder a delegation works in: relative re
 
 test("continuing a session in another folder of the project goes on in it, now working there", async () => {
   await withProject(async (root, project) => {
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
     await env.client.call("threads.send", { thread: t.id, text: "delegate to a project subpath" });
     await env.settle(t.id);
     await env.client.call("threads.send", { thread: t.id, text: "continue it at the root" });
@@ -205,7 +206,7 @@ test("continuing a session in another folder of the project goes on in it, now w
 
 test("going on with a session opened read-only, without saying how far it writes, lets it do the work", async () => {
   await withProject(async (root, project) => {
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
     await env.client.call("threads.send", { thread: t.id, text: "consult it read-only" });
     await env.settle(t.id);
     assert.equal(env.core.store.threads.sessions(t.id)[0]?.write, "read-only");
@@ -218,7 +219,7 @@ test("going on with a session opened read-only, without saying how far it writes
 
 test("a delegation's folder never leaves the project, through a link or otherwise", async () => {
   await withProject(async (_root, project) => {
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
     await env.client.call("threads.send", { thread: t.id, text: "delegate through a link" });
     await env.settle(t.id);
     assert.match(lastToolResult(), /refused: .*link is outside the project's folder/);
@@ -230,7 +231,7 @@ test("a delegation's write policy is never looser than its caller's", async () =
   await withProject(async (root, project) => {
     const code = await env.client.call("threads.create", {
       kind: "code",
-      agent_id: "roby",
+      agent_id: "superagent",
       project_id: project,
       write: "read-only",
     });
@@ -241,9 +242,9 @@ test("a delegation's write policy is never looser than its caller's", async () =
 
     // Outside a folder, an agent that asks before every change hands on no more than that; others as far as they may.
     const store = env.core.store;
-    const roby = store.agents.get("roby");
+    const roby = store.agents.get("superagent");
     const chat = store.threads.get(
-      (await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project })).id,
+      (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project })).id,
     );
     assert.ok(roby && chat);
     const asked = { folder: "sub", write: "auto" } as const;
@@ -285,7 +286,7 @@ test("a delegation's write policy is never looser than its caller's", async () =
 });
 
 test("an agent still cannot delegate to itself", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "w4" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "w4" });
   await env.client.call("threads.send", { thread: t.id, text: "delegate to me" });
   const { messages } = await env.settle(t.id);
   assert.match(texts(messages).at(-1) ?? "", /cannot delegate to yourself/);
@@ -296,7 +297,7 @@ test("an agent still cannot delegate to itself", async () => {
 });
 
 test("an ambiguous delegation is an invalid call, not a successful tool card", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "ambiguous delegation" });
   const { messages } = await env.settle(t.id);
   const tool = messages.at(-1)?.parts.find((p) => p.type === "tool");

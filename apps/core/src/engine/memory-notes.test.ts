@@ -112,7 +112,7 @@ test("automatic capture saves the agent's synthesis with the owner's quote as ev
   });
   const env = await startCore({ llm, aux: true, memoryMaintenance: true });
   try {
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: chat.id, text: correction });
     await env.settle(chat.id);
     await env.client.call("memory.maintenance", {});
@@ -182,14 +182,14 @@ function downloadingLlm(retry: boolean, url = "https://reelsaver.example.com/en/
 }
 
 const procedures = async (env: Env) =>
-  (await env.client.call("memory.list", { agent: "roby" })).memories.filter((m) => m.kind === "procedure");
+  (await env.client.call("memory.list", { agent: "superagent" })).memories.filter((m) => m.kind === "procedure");
 
 test("a download that worked after a failed try leaves a procedure note, and 'like you did today' finds it", async () => {
   const log: string[] = [];
   const llm = downloadingLlm(true);
   const env = await startCore({ llm, aux: true, memoryMaintenance: true, extraTools: downloader(log) });
   try {
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: chat.id, text: request });
     await env.settle(chat.id);
     assert.deepEqual(log, ["fetch_reel", "download_file"]);
@@ -217,11 +217,11 @@ test("a download that worked after a failed try leaves a procedure note, and 'li
     for (let i = 0; i < 10; i++)
       env.core.store.memories.add({
         scope: "agent",
-        agent_id: "roby",
+        agent_id: "superagent",
         source: "agent",
         text: `Acme ledger rule ${i}.`,
       });
-    const later = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const later = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: later.id, text: "bajalo como hiciste hoy" });
     await env.settle(later.id);
     const input = lastInput(llm);
@@ -263,7 +263,7 @@ test("the owner confirming it worked keeps the previous turn's procedure; a 'gre
   const llm = downloadingLlm(false, "https://Reelsaver.example.com");
   const env = await startCore({ llm, aux: true, memoryMaintenance: true, extraTools: downloader(log) });
   try {
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: chat.id, text: request });
     await env.settle(chat.id);
     await env.client.call("threads.send", { thread: chat.id, text: "genial pero no bajó el audio" });
@@ -292,7 +292,7 @@ test("the index lists the agent's own notes once per thread, within its cap, and
   const env = await startCore({ llm });
   try {
     const add = (text: string) =>
-      env.core.store.memories.add({ scope: "agent", agent_id: "roby", source: "agent", text, kind: "project" });
+      env.core.store.memories.add({ scope: "agent", agent_id: "superagent", source: "agent", text, kind: "project" });
     for (let i = 0; i < 60; i++)
       add(`Northwind ledger rule ${i}: entries in batch ${i} close with a ${"long ".repeat(8)}review.`);
     // Notes saved with outside content in the turn come wrapped as untrusted, inside the same cap. The newest eight
@@ -302,14 +302,14 @@ test("the index lists the agent's own notes once per thread, within its cap, and
     for (let i = 0; i < 3; i++)
       env.core.store.memories.add({
         scope: "agent",
-        agent_id: "roby",
+        agent_id: "superagent",
         source: "agent",
         text: `Northwind supplier page ${i} lists its ${"terms ".repeat(10)}.`,
         tainted: true,
       });
     await tick();
     for (let i = 0; i < 8; i++) add(`Acme standing rule ${i}.`);
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: chat.id, text: "hola, cómo va?" });
     await env.settle(chat.id);
     const first = lastInput(llm);
@@ -356,12 +356,12 @@ test("a notebook of notes saved with outside content keeps the index within its 
     for (let i = 0; i < 60; i++)
       env.core.store.memories.add({
         scope: "agent",
-        agent_id: "roby",
+        agent_id: "superagent",
         source: "agent",
         text: `Northwind page ${i} said its terms changed.`,
         tainted: true,
       });
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: chat.id, text: "hola" });
     await env.settle(chat.id);
     const input = lastInput(llm);
@@ -395,20 +395,20 @@ test("a dream retires a note a newer correction supersedes and writes relative d
   try {
     const add = async (text: string) => {
       await tick();
-      return env.core.store.memories.add({ scope: "agent", agent_id: "roby", source: "agent", text });
+      return env.core.store.memories.add({ scope: "agent", agent_id: "superagent", source: "agent", text });
     };
     const old = await add("Northwind reports go out on Mondays.");
     const dated = await add("Acme's deploy was moved to tomorrow.");
     for (const n of [1, 2, 3]) await add(`Acme ledger note ${n}.`);
     const fix = await add("Northwind reports now go out on Fridays, not Mondays.");
     plan = JSON.stringify({ groups: [], retire: [{ id: old.id, by: fix.id }] });
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: chat.id, text: "Review the reports." });
     await env.settle(chat.id);
     await env.client.call("memory.maintenance", { dream: true });
     await settleJobs(env);
 
-    const live = (await env.client.call("memory.list", { agent: "roby" })).memories;
+    const live = (await env.client.call("memory.list", { agent: "superagent" })).memories;
     assert.equal(
       live.some((m) => m.id === old.id),
       false,
@@ -440,17 +440,22 @@ test("a dream that would forget too much of the notebook at once is refused whol
     for (const n of [1, 2, 3, 4, 5]) {
       await new Promise((resolve) => setTimeout(resolve, 5));
       notes.push(
-        env.core.store.memories.add({ scope: "agent", agent_id: "roby", source: "agent", text: `Acme rule ${n}.` }),
+        env.core.store.memories.add({
+          scope: "agent",
+          agent_id: "superagent",
+          source: "agent",
+          text: `Acme rule ${n}.`,
+        }),
       );
     }
     const newest = notes.at(-1)?.id;
     plan = JSON.stringify({ groups: [], retire: notes.slice(0, 3).map((m) => ({ id: m.id, by: newest })) });
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: chat.id, text: "Review the rules." });
     await env.settle(chat.id);
     await env.client.call("memory.maintenance", { dream: true });
     await settleJobs(env);
-    assert.equal((await env.client.call("memory.list", { agent: "roby" })).memories.length, 5);
+    assert.equal((await env.client.call("memory.list", { agent: "superagent" })).memories.length, 5);
     const dreams = (await env.client.call("memory.status", {})).jobs.filter((j) => j.kind === "dream");
     assert.ok(
       dreams.some((j) => /would forget 3 of 5 notes/.test(String(j.result))),
@@ -460,13 +465,18 @@ test("a dream that would forget too much of the notebook at once is refused whol
     // One at a time is allowed, but the share holds for the day: a second pass cannot add to it.
     const dream = async (id: string | undefined) => {
       plan = JSON.stringify({ groups: [], retire: [{ id, by: newest }] });
-      env.core.store.memories.add({ scope: "agent", agent_id: "roby", source: "agent", text: `Acme aside ${id}.` });
+      env.core.store.memories.add({
+        scope: "agent",
+        agent_id: "superagent",
+        source: "agent",
+        text: `Acme aside ${id}.`,
+      });
       await env.client.call("memory.maintenance", { dream: true });
       await settleJobs(env);
     };
     await dream(notes[0]?.id);
     await dream(notes[1]?.id);
-    const live = (await env.client.call("memory.list", { agent: "roby" })).memories.map((m) => m.id);
+    const live = (await env.client.call("memory.list", { agent: "superagent" })).memories.map((m) => m.id);
     assert.equal(live.includes(notes[0]?.id ?? ""), false);
     assert.equal(live.includes(notes[1]?.id ?? ""), true, "the second forgetting waits for another day");
     const after = (await env.client.call("memory.status", {})).jobs.filter((j) => j.kind === "dream");

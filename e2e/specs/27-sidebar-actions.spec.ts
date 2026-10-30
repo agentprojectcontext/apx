@@ -23,7 +23,7 @@ async function mockChannels(page: Page) {
             type: id,
             label: id === "telegram" ? "Telegram con nombre largo de canal" : id[0]?.toUpperCase() + id.slice(1),
             enabled: true,
-            agent_id: "roby",
+            agent_id: "superagent",
             strangers: "pair",
             concurrency: "queue",
             owner_thread: "own",
@@ -44,7 +44,11 @@ const orderedIds = (page: Page, kind: string) =>
 test("Canales recientes, tres visibles, acciones integradas y menú idéntico con clic derecho", async ({ page }) => {
   await page.setViewportSize({ width: 1480, height: 900 });
   await mockChannels(page);
-  const base = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Channel activity" });
+  const base = await rpc<Thread>("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "Channel activity",
+  });
   const at = new Map(
     channelIds.map((id, index) => [id, new Date(Date.UTC(2001, 0, 1) - (index + 1) * 1000).toISOString()]),
   );

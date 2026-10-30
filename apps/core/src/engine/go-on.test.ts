@@ -15,9 +15,14 @@ after(async () => {
 for (const mode of ["reset", "release"] as const) {
   test(`${mode} persists resolved notices throughout only the resumed tree`, async () => {
     const { store } = env.core;
-    const root = store.threads.create({ kind: "loose", title: "Paused work", agent_ids: ["roby"] });
-    const child = store.threads.create({ kind: "loose", title: "Child work", agent_ids: ["roby"], parent_id: root.id });
-    const other = store.threads.create({ kind: "loose", title: "Other work", agent_ids: ["roby"] });
+    const root = store.threads.create({ kind: "loose", title: "Paused work", agent_ids: ["superagent"] });
+    const child = store.threads.create({
+      kind: "loose",
+      title: "Child work",
+      agent_ids: ["superagent"],
+      parent_id: root.id,
+    });
+    const other = store.threads.create({ kind: "loose", title: "Other work", agent_ids: ["superagent"] });
     const notice = (thread: string, code: string): Part => ({
       type: "notice",
       level: "warn",
