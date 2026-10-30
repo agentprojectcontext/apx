@@ -20,6 +20,7 @@ import Blob from "../Blob.astro";
 import BlobEyes from "../BlobEyes.astro";
 import BrandMark from "../BrandMark.astro";
 import UiIcon from "../UiIcon.astro";
+import PageMeta from "../web/PageMeta.astro";
 import WebFooter from "../web/WebFooter.astro";
 import WebHeader from "../web/WebHeader.astro";
 import "./compare.css";
@@ -36,7 +37,22 @@ const href = (p: string) => sitePath(p, import.meta.env.BASE_URL);
 const route = "/compare/best-ai-agent-apps/";
 const title = roundupTitle[lang];
 const description = roundupIntro[lang];
-const canonical = new URL(href(`${pre}${route}`), Astro.site).href;
+const crumbs = (items: [string, string][]) => ({
+  "@type": "BreadcrumbList",
+  itemListElement: items.map(([name, path], i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    name,
+    item: new URL(href(`${pre}${path}`), Astro.site).href,
+  })),
+});
+const schema = [
+  crumbs([
+    ["APX", "/"],
+    [lang === "es" ? "Comparar" : "Compare", "/compare/"],
+    [title, route],
+  ]),
+];
 const sections = ["answer", "overview", "numbers", "apps", "questions", "sources"].map((id, i) => ({
   id,
   label: u.rail[i] ?? id,
@@ -53,16 +69,7 @@ const benchmarkDate = dateFormat.format(new Date(roundupBenchmark.date));
 <html lang={lang} data-theme="dark">
   <head>
     <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title} — APX</title><meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
-    <link rel="alternate" hreflang="en" href={new URL(href(route), Astro.site).href} />
-    <link rel="alternate" hreflang="es" href={new URL(href(`/es${route}`), Astro.site).href} />
-    <link rel="alternate" hreflang="x-default" href={new URL(href(route), Astro.site).href} />
-    <link rel="icon" href={href("/favicon.svg")} type="image/svg+xml" />
-    <meta property="og:title" content={title} /><meta property="og:description" content={description} />
-    <meta property="og:type" content="article" /><meta property="og:url" content={canonical} />
-    <meta property="og:image" content={new URL(href(lang === "es" ? "/og-es.jpg" : "/og.jpg"), Astro.site).href} />
-    <meta name="twitter:card" content="summary_large_image" />
+    <PageMeta lang={lang} title={title} description={description} path={route} type="article" imageAlt={title} schema={schema} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />

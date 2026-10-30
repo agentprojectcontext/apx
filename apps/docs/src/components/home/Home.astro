@@ -14,6 +14,7 @@ import BrandMark from "../BrandMark.astro";
 import OsIcon from "../OsIcon.astro";
 import Shot from "../Shot.astro";
 import UiIcon from "../UiIcon.astro";
+import PageMeta from "../web/PageMeta.astro";
 import SocialIcon from "../web/SocialIcon.astro";
 import WebFooter from "../web/WebFooter.astro";
 import WebHeader from "../web/WebHeader.astro";
@@ -26,7 +27,20 @@ interface Props {
 const { lang } = Astro.props;
 const t = HOME[lang];
 const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
-const ogImage = new URL(href(lang === "es" ? "/og-es.jpg" : "/og.jpg"), Astro.site).href;
+const schema = [
+  {
+    "@type": "SoftwareApplication",
+    name: "APX",
+    description: t.description,
+    url: new URL(href(lang === "es" ? "/es/" : "/"), Astro.site).href,
+    image: new URL(href(lang === "es" ? "/og-es.jpg" : "/og.jpg"), Astro.site).href,
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "macOS, Windows, Linux, Android",
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    ...(builtRelease ? { softwareVersion: builtRelease.replace(/^v/, "") } : {}),
+  },
+  { "@type": "WebSite", name: "APX", url: new URL(href("/"), Astro.site).href, inLanguage: ["en", "es"] },
+];
 const pre = lang === "es" ? "/es" : "";
 // v2's releases are not GitHub's "Latest" while v1 shares the repo, so the scripts are served by this site.
 const site = "https://apxagent.app";
@@ -136,23 +150,7 @@ const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.uns
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{t.title}</title>
-    <meta name="description" content={t.description} />
-    <link rel="icon" href={href("/favicon.svg")} type="image/svg+xml" />
-    <link rel="canonical" href={new URL(href(lang === "es" ? "/es/" : "/"), Astro.site).href} />
-    <link rel="alternate" hreflang="en" href={new URL(href("/"), Astro.site).href} />
-    <link rel="alternate" hreflang="es" href={new URL(href("/es/"), Astro.site).href} />
-    <link rel="alternate" hreflang="x-default" href={new URL(href("/"), Astro.site).href} />
-    <meta property="og:title" content={t.title} />
-    <meta property="og:description" content={t.description} />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content={new URL(href(lang === "es" ? "/es/" : "/"), Astro.site).href} />
-    <meta property="og:image" content={ogImage} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content={t.sub.strong} />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content={ogImage} />
+    <PageMeta lang={lang} title={t.title} description={t.description} path="/" imageAlt={t.sub.strong} schema={schema} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -185,7 +183,7 @@ const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.uns
             </span>
           </a>
           <h1 class="hero__title">
-            <span class="hero__line">{t.meet}</span>
+            <span class="hero__line">{t.meet}</span>{" "}
             <span class="hero__line hero__line--word">
               <span class="hero__blob" id="heroBlob" aria-hidden="true">
                 {wordBlobs.map((b, i) => <Blob name={b} size="100%" class={i === 0 ? "on" : ""} />)}

@@ -21,6 +21,7 @@ import Blob from "../Blob.astro";
 import BlobEyes from "../BlobEyes.astro";
 import BrandMark from "../BrandMark.astro";
 import UiIcon from "../UiIcon.astro";
+import PageMeta from "../web/PageMeta.astro";
 import WebFooter from "../web/WebFooter.astro";
 import WebHeader from "../web/WebHeader.astro";
 import "./compare.css";
@@ -35,6 +36,9 @@ const pre = lang === "es" ? "/es" : "";
 const href = (p: string) => sitePath(p, import.meta.env.BASE_URL);
 const route = `/compare/${item ? `${item.slug}/` : ""}`;
 const title = item ? `APX vs ${item.name}` : t.title;
+const pageTitle = item
+  ? `${title}: ${lang === "es" ? "agentes de IA comparados, con fuentes" : "AI agents compared, with sources"}`
+  : `${title} — APX`;
 const description = item ? item.intro[lang] : t.intro;
 const sections = [
   { id: "answer", label: t.short },
@@ -44,7 +48,22 @@ const sections = [
   { id: "try", label: t.trial },
   { id: "sources", label: t.sources },
 ];
-const canonical = new URL(href(`${pre}${route}`), Astro.site).href;
+const crumbs = (items: [string, string][]) => ({
+  "@type": "BreadcrumbList",
+  itemListElement: items.map(([name, path], i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    name,
+    item: new URL(href(`${pre}${path}`), Astro.site).href,
+  })),
+});
+const schema = [
+  crumbs([
+    ["APX", "/"],
+    [lang === "es" ? "Comparar" : "Compare", "/compare/"],
+    ...(item ? ([[title, route]] as [string, string][]) : []),
+  ]),
+];
 const mark = (logoFile: string) => href(`/brands/${logoFile}`);
 const picks = [apxChoice, apxRows[3], apxRows[1], apxRows[7]].filter((p) => p !== undefined);
 const pickBlobs = ["menta", "cobalto", "coral", "amatista"] as const;
@@ -55,16 +74,7 @@ const chatRows = item ? [item] : comparisons.slice(0, 3);
 <html lang={lang} data-theme="dark">
   <head>
     <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title} — APX</title><meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
-    <link rel="alternate" hreflang="en" href={new URL(href(route), Astro.site).href} />
-    <link rel="alternate" hreflang="es" href={new URL(href(`/es${route}`), Astro.site).href} />
-    <link rel="alternate" hreflang="x-default" href={new URL(href(route), Astro.site).href} />
-    <link rel="icon" href={href("/favicon.svg")} type="image/svg+xml" />
-    <meta property="og:title" content={title} /><meta property="og:description" content={description} />
-    <meta property="og:type" content="website" /><meta property="og:url" content={canonical} />
-    <meta property="og:image" content={new URL(href(lang === "es" ? "/og-es.jpg" : "/og.jpg"), Astro.site).href} />
-    <meta name="twitter:card" content="summary_large_image" />
+    <PageMeta lang={lang} title={pageTitle} description={description} path={route} type="website" imageAlt={title} schema={schema} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />

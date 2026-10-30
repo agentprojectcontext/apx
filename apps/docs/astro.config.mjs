@@ -72,6 +72,7 @@ export default defineConfig({
       favicon: "/favicon.svg",
       customCss: ["./src/styles/theme.css"],
       head: [
+        { tag: "link", attrs: { rel: "apple-touch-icon", href: `${base}apple-touch-icon.png` } },
         { tag: "meta", attrs: { property: "og:image", content: ogImage } },
         { tag: "meta", attrs: { property: "og:image:width", content: "1200" } },
         { tag: "meta", attrs: { property: "og:image:height", content: "630" } },

@@ -17,6 +17,20 @@ for (const [path, image] of [
     expect(og?.endsWith(image)).toBe(true);
     expect((await page.request.get(new URL(image, baseURL).href)).ok()).toBe(true);
     expect((await page.title()).length).toBeGreaterThanOrEqual(30);
+    const description = (await head.locator('meta[name="description"]').getAttribute("content")) ?? "";
+    expect(description.length).toBeGreaterThan(50);
+    expect(description.length).toBeLessThanOrEqual(160);
+    await expect(head.locator('meta[name="twitter:title"]')).toHaveCount(1);
+    await expect(head.locator('meta[property="og:locale"]')).toHaveCount(1);
+    const schema = await head.locator('script[type="application/ld+json"]').allTextContents();
+    expect(schema.length).toBeGreaterThan(0);
+    for (const item of schema) expect(JSON.parse(item)["@context"]).toBe("https://schema.org");
+    // Every heading on the page is one a reader can see, and the title reads as words.
+    const hidden = await page
+      .locator("h1, h2, h3, h4, h5, h6")
+      .evaluateAll((hs) => hs.filter((h) => !h.closest("[hidden]") && !h.checkVisibility()).map((h) => h.textContent));
+    expect(hidden).toEqual([]);
+    expect(await page.locator("h1").first().textContent()).not.toMatch(/\p{Ll}\p{Lu}|[a-z]{2}(crew|team|equipo)\./u);
   });
 }
 

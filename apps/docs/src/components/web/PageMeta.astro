@@ -1,0 +1,62 @@
+---
+// What search engines and link previews read on the website's own pages (home, compare, roundup): the title, a
+// description short enough to show whole, the page's address in both languages, the preview image and structured data.
+import { sitePath } from "../../doc-routes.mjs";
+
+interface Props {
+  lang: "en" | "es";
+  title: string;
+  description: string;
+  /** The page's path in English ("/", "/compare/openclaw/"); the Spanish one is the same under /es. */
+  path: string;
+  type?: "website" | "article";
+  imageAlt: string;
+  /** schema.org objects, one JSON-LD script each. */
+  schema?: Record<string, unknown>[];
+}
+const { lang, title, description, path, type = "website", imageAlt, schema = [] } = Astro.props;
+const abs = (p: string) => new URL(sitePath(p, import.meta.env.BASE_URL), Astro.site).href;
+const en = abs(path);
+const es = abs(`/es${path}`);
+const canonical = lang === "es" ? es : en;
+const image = abs(lang === "es" ? "/og-es.jpg" : "/og.jpg");
+const locale = { en: "en_US", es: "es_AR" };
+
+/** Whole sentences up to what Google shows (~160 characters); a first sentence longer than that is cut at a word. */
+function snippet(text: string, max = 160) {
+  let out = "";
+  for (const sentence of text.match(/[^.!?]+[.!?]+(\s|$)/g) ?? [text]) {
+    if ((out + sentence).trim().length > max) break;
+    out += sentence;
+  }
+  if (out.trim()) return out.trim();
+  const cut = text.slice(0, max - 1);
+  return `${cut.slice(0, cut.lastIndexOf(" "))}…`;
+}
+const summary = snippet(description);
+---
+
+<title>{title}</title>
+<meta name="description" content={summary} />
+<link rel="canonical" href={canonical} />
+<link rel="alternate" hreflang="en" href={en} />
+<link rel="alternate" hreflang="es" href={es} />
+<link rel="alternate" hreflang="x-default" href={en} />
+<link rel="icon" href={sitePath("/favicon.svg", import.meta.env.BASE_URL)} type="image/svg+xml" />
+<link rel="apple-touch-icon" href={sitePath("/apple-touch-icon.png", import.meta.env.BASE_URL)} />
+<meta property="og:site_name" content="APX" />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={summary} />
+<meta property="og:type" content={type} />
+<meta property="og:url" content={canonical} />
+<meta property="og:locale" content={locale[lang]} />
+<meta property="og:locale:alternate" content={locale[lang === "es" ? "en" : "es"]} />
+<meta property="og:image" content={image} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content={imageAlt} />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={summary} />
+<meta name="twitter:image" content={image} />
+{schema.map((item) => <script type="application/ld+json" set:html={JSON.stringify({ "@context": "https://schema.org", ...item })} />)}

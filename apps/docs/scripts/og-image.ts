@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Draws the link preview (og:image) from the hero's words, the blobos and the top of the panel screenshot, in English
-// and Spanish, as public/og.jpg and public/og-es.jpg. Rerun it when the hero copy or the home screenshot changes.
+// and Spanish, as public/og.jpg and public/og-es.jpg, plus the home-screen icon (public/apple-touch-icon.png). Rerun it when the hero copy or the home screenshot changes.
 //   node --no-warnings scripts/og-image.ts
 import fs from "node:fs";
 import path from "node:path";
@@ -95,3 +95,9 @@ for (const lang of ["en", "es"] as const) {
   console.log(`${path.relative(docs, file)} ${(fs.statSync(file).size / 1024).toFixed(0)} KB`);
 }
 await browser.close();
+
+const mark = await sharp(path.join(docs, "src/assets/logo.png")).resize(124, 124).toBuffer();
+await sharp({ create: { width: 180, height: 180, channels: 4, background: "#0b0d11" } })
+  .composite([{ input: mark, gravity: "center" }])
+  .png()
+  .toFile(path.join(docs, "public/apple-touch-icon.png"));
