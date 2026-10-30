@@ -9,7 +9,12 @@ export type LimaRun = (
 export function limaProcess(binary: () => string, env: NodeJS.ProcessEnv): LimaRun {
   return (args, options = {}) =>
     new Promise((resolve, reject) => {
-      const child = spawn(binary(), args, { env, signal: options.signal, stdio: ["pipe", "pipe", "pipe"] });
+      const child = spawn(binary(), args, {
+        env,
+        signal: options.signal,
+        stdio: ["pipe", "pipe", "pipe"],
+        windowsHide: true,
+      });
       let output = "";
       let error = "";
       const deadline = setTimeout(() => child.kill("SIGKILL"), options.timeout ?? 15_000);

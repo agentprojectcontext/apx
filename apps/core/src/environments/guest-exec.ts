@@ -26,11 +26,16 @@ export function guestExecutor(binary: () => string, env: NodeJS.ProcessEnv) {
   return {
     exec: (args: string[], timeout = 10_000): Promise<string> =>
       new Promise((resolve, reject) => {
-        const child = execFile(binary(), args, { env, timeout, maxBuffer: 512 * 1024 }, (error, stdout) => {
-          children.delete(child);
-          if (error) reject(unavailable("VM command failed; no command was run on the host"));
-          else resolve(stdout);
-        });
+        const child = execFile(
+          binary(),
+          args,
+          { env, timeout, maxBuffer: 512 * 1024, windowsHide: true },
+          (error, stdout) => {
+            children.delete(child);
+            if (error) reject(unavailable("VM command failed; no command was run on the host"));
+            else resolve(stdout);
+          },
+        );
         children.add(child);
       }),
     async close() {

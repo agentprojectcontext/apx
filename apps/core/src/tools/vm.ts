@@ -62,7 +62,7 @@ function describe(s: Status, run: string): string {
     ? s.phase === "preparing"
       ? " This chat works on it: you get a turn here the moment it is ready, on your own screen. Tell the owner once that you will go on then, and end your turn; do not check on it meanwhile."
       : ""
-    : " This chat works on this Mac; starting the computer moves it there.";
+    : " This chat works on this machine; starting the computer moves it there.";
   return `Computer (shared by the agents): ${phase}${size}.${owner}${chat}`;
 }
 
@@ -83,7 +83,7 @@ export function vmTools(vm: Computer | undefined): Tool[] {
     defineTool({
       name: COMPUTER_TOOL,
       description:
-        "The Linux computer the agents share (a VM apart from the owner's Mac; you get your own user, files and screen with a desktop and browser): status, start (moves this chat there; your shell and browser then run on your screen) or stop (this chat back on the Mac, your screen freed). Only for work the owner wants on it: if they did not say where, ask them first (the computer or this Mac). The web (look-ups, sites, their logins) goes through web_search, web_read and their browser on this Mac unless they ask for the computer. Starting needs free memory.",
+        "The Linux computer the agents share (a VM apart from the owner's machine; you get your own user, files and screen with a desktop and browser): status, start (moves this chat there; your shell and browser then run on your screen) or stop (this chat back on this machine, your screen freed). Only for work the owner wants on it: if they did not say where, ask them first (the computer or this machine). The web (look-ups, sites, their logins) goes through web_search, web_read and their browser on this machine unless they ask for the computer. Starting needs free memory.",
       args: z.object({ action: z.enum(["status", "start", "stop"]) }),
       effect: "local",
       reads: (a) => a.action === "status",
@@ -99,11 +99,11 @@ export function vmTools(vm: Computer | undefined): Tool[] {
         const thread = ctx.thread.id;
         // Taken away during this turn: the owner decided, so it is not asked again.
         if (!vm.permitted(ctx.agent.id, thread))
-          return "Not allowed: the owner no longer lets you use the computer. Carry on with this Mac's tools.";
+          return "Not allowed: the owner no longer lets you use the computer. Carry on with this machine's tools.";
         if (a.action === "status") return describe(await vm.status(thread), ctx.run.id);
         if (a.action === "stop") {
           await ctx.call("environments.release", { thread });
-          return "Left the computer: this chat works on this Mac again from your next turn, and your screen is free. The computer shuts down by itself once no agent uses it.";
+          return "Left the computer: this chat works on this machine again from your next turn, and your screen is free. The computer shuts down by itself once no agent uses it.";
         }
         const later = (s: Status) =>
           `${describe(s, ctx.run.id)} It is still starting: check again with status in a minute.`;

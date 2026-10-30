@@ -22,9 +22,9 @@ export const enComputer = {
   "computer.retry": "Retry setup",
   "computer.preparing": "Preparing computer…",
   "computer.stopping": "Shutting down VM…",
-  "computer.unsupported": "Computer currently requires macOS Apple Silicon",
+  "computer.unsupported": "The computer is not available on this system",
   "computer.setupHint":
-    "Optional Linux desktop with browser and terminal, apart from this Mac. Downloads Lima only if missing, plus Linux and desktop packages. No Docker. {memory} GiB of memory while it runs; keep about {disk} GiB of disk free. Appearance follows APX.",
+    "Optional Linux desktop with browser and terminal, apart from this machine. Downloads Lima only if missing, plus Linux and desktop packages. No Docker. {memory} GiB of memory while it runs; keep about {disk} GiB of disk free. Appearance follows APX.",
   "computer.closeHint": "Closing this panel keeps the computer running. It shuts down by itself once no agent uses it.",
   "computer.stepRuntime": "Preparing VM components…",
   "computer.stepGuest": "Downloading or starting Linux…",
@@ -45,15 +45,15 @@ export const enComputer = {
   "computer.restartHint": "The new resources apply the next time it starts.",
   "computer.lastStop.owner": "You turned it off. Its files are kept, and it starts again as it was.",
   "computer.lastStop.idle": "It turned off after a while without use, to give its memory back. Its files are kept.",
-  "computer.lastStop.memory": "It turned off because this Mac ran short of memory. Its files are kept.",
+  "computer.lastStop.memory": "It turned off because this machine ran short of memory. Its files are kept.",
   "computer.lastStop.agent": "An agent turned it off. Its files are kept.",
   "computer.agentScreen": "{agent} · {display}",
   "computer.agentScreenHeld": "{agent} · {display} · working",
   "computer.pickScreen": "Screen",
   "computer.screensHeld": "{held} of {max} agent screens in use",
-  "computer.chatOnMac": "{agent} works on this Mac in this chat.",
+  "computer.chatOnMac": "{agent} works on this machine in this chat.",
   "computer.chatOnMacElsewhere":
-    "This chat runs on this Mac. {agent}'s screen on the computer belongs to its other chat.",
+    "This chat runs on this machine. {agent}'s screen on the computer belongs to its other chat.",
   "computer.openOtherChat": "Open that chat",
   "computer.useHere": "Use the computer here",
   "computer.allowAndUse": "Allow {agent} and use it here",
@@ -89,7 +89,7 @@ export const enComputer = {
   "computer.progress.loading": "Loading virtual machine",
   "computer.progress.ready": "Ready",
   "computer.noMemory":
-    "Not enough free memory on this Mac: {free} GiB free, and the computer needs {vm} GiB plus {reserve} GiB kept for the Mac. Close apps or lower its memory, then try again.",
+    "Not enough free memory on this machine: {free} GiB free, and the computer needs {vm} GiB plus {reserve} GiB kept for this machine. Close apps or lower its memory, then try again.",
   "computer.lowerMemory": "Lower it to {gib} GiB and turn on",
   "computer.startAnyway": "Start anyway",
   "notice.computer.interrupted": "Interrupted: you took control of Computer.",
@@ -105,7 +105,7 @@ export const enComputer = {
   "computer.handBack.done": "Control returned",
   "agent.computer": "Computer",
   "agent.computer.hint":
-    "A Linux computer apart from this Mac, shared by the agents you allow: each one works on its own screen with its own shell and browser.",
+    "A Linux computer apart from this machine, shared by the agents you allow: each one works on its own screen with its own shell and browser.",
   "agent.computer.off": "Off for this agent",
   "agent.computer.allowed": "Allowed (stopped)",
   "agent.computer.running": "On screen {screen}",
@@ -113,7 +113,7 @@ export const enComputer = {
   "agent.computer.turnOn": "Turn on",
   "agent.computer.open": "Open computers",
   "agentedit.computerHint":
-    "Lets this agent start, use and stop its own Linux computer, apart from this Mac: its shell and browser run there in the chat you give the computer. Off for every agent until you turn it on.",
+    "Lets this agent start, use and stop its own Linux computer, apart from this machine: its shell and browser run there in the chat you give the computer. Off for every agent until you turn it on.",
 } as const;
 
 export type ComputerKey = keyof typeof enComputer;

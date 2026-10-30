@@ -3382,3 +3382,24 @@ Devices, while the only way to get the key callers need was a separate Devices s
 No news entry: these are fields of the editor, not something the super-agent offers to do. Rejected: a structured
 schedule object (a migration for every schedule Flow and a second reader in every place a cron is read), a key in the
 query string (it ends up in logs and proxies), and a GET without a key (an address anyone can trigger).
+
+## D-183 — 2026-10-29 — The isolated computer runs on Linux and Windows too, each with Lima's own driver
+The computer ([D-151](#d-151), [D-152](#d-152)) only ran on macOS with Apple Silicon. `environments/host.ts` now picks
+Lima's driver and pinned build per host: `vz` on macOS 13+ (Apple Silicon or Intel), `qemu` on Linux (x86-64, ARM64)
+and `wsl2` on Windows, the guest template listing Debian's image for both architectures. What a host lacks (QEMU,
+`/dev/kvm`, WSL 2, Git for Windows) stops the first start with the command that fixes it, never a hidden screen.
+
+Windows differs in what it can promise, and the guest is checked for each point, not trusted:
+- WSL imports a root filesystem, not a disk image: APX builds one once from Debian's pinned WSL image, with sshd,
+  systemd, interop off and no Windows PATH (`wsl-seed.ts`), named after its recipe so a change rebuilds it. Plain
+  mode skips Lima's WSL user setup, so the template's first provisioning step creates Lima's user and key.
+- Lima pipes guest scripts through ssh's stdin, which Windows' own OpenSSH never delivers: Git's ssh is used.
+- WSL's distributions share one kernel and network, and that kernel has no nftables socket matching. On WSL the
+  agents' loopback rules mark each connection with the agent that opens it and drop replies unless listener and caller
+  are the same agent or the listener is the egress proxy: agents reach neither each other's nor the owner's other
+  distributions' localhost services. Mirrored networking, which shares Windows' localhost (the core), is refused.
+- Interop is refused through the distribution's root-owned `/etc/wsl.conf` (the `WSLInterop` binfmt entry is
+  global to the WSL kernel), and `/mnt`, where Windows drives mount, stays closed to every user but root at each boot.
+- WSL sizes memory and CPUs for all distributions in `.wslconfig`; the computer's settings do not change them.
+- A host agent that died with the core leaves a pid Lima on Windows cannot inspect past: a dead `ha.pid` is dropped,
+  a folder from a cut-short setup is cleared, and stopping terminates the distribution when Lima cannot.

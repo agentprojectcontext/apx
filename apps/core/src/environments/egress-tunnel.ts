@@ -33,7 +33,7 @@ export const tunnelArgs = (limaHome: string, instance: string, port: number) => 
 ];
 
 /** Reverse forwarding exposes the public-only proxy on guest loopback, never a host/LAN port. */
-export function vmEgress(limaHome: string, instance: string, run: LimaRun) {
+export function vmEgress(limaHome: string, instance: string, run: LimaRun, ssh = "/usr/bin/ssh") {
   let proxy: Awaited<ReturnType<typeof createEgressProxy>> | undefined;
   let tunnel: ChildProcess | undefined;
   let pending: Promise<void> | undefined;
@@ -71,8 +71,9 @@ export function vmEgress(limaHome: string, instance: string, run: LimaRun) {
       }
       // A tunnel that dropped leaves its socket behind, and sshd will not bind over it.
       await run(["shell", instance, "--", "rm", "-f", EGRESS_SOCKET], { timeout: 5000 });
-      const child = spawn("/usr/bin/ssh", tunnelArgs(limaHome, instance, proxy.port), {
+      const child = spawn(ssh, tunnelArgs(limaHome, instance, proxy.port), {
         stdio: ["ignore", "ignore", "pipe"],
+        windowsHide: true,
       });
       tunnel = child;
       child.on("error", () => {});

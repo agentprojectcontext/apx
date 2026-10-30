@@ -6,8 +6,9 @@ import { findProgram, withUsualDirs } from "../programs.ts";
 import type { ComputerConfig } from "./computer.ts";
 import { vmEgress } from "./egress-tunnel.ts";
 import { ensureSecured, verifyGuest } from "./guest-security.ts";
-import { createVmLifecycle } from "./lifecycle.ts";
-import { installLima, LIMA_VERSION } from "./lima-install.ts";
+import { computerHost, LIMA_VERSION, missingPrerequisite } from "./host.ts";
+import { type ComputerProgress, createVmLifecycle } from "./lifecycle.ts";
+import { installLima } from "./lima-install.ts";
 import { limaProcess } from "./lima-process.ts";
 import { GUEST_ASSETS, provisionDesktop, screenDriver } from "./provision.ts";
 import {
@@ -20,6 +21,7 @@ import {
   thisHost,
 } from "./resources.ts";
 import { computerUsage, diskImageBytes } from "./usage.ts";
+import { mirroredNetworking, wslSeed, wslTemplate } from "./wsl-seed.ts";
 
 const GIB = 1024 ** 3;
 /** Each Lima call the resource monitor makes: below its 3 s wait for the VM's numbers. */
@@ -35,14 +37,24 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
   const limaHome = external?.limaHome ?? path.join(root, "lima");
   const instance = external?.instance ?? "computer";
   const prepared = path.join(root, "desktop-ready-v3");
-  const env = { PATH: withUsualDirs(process.env.PATH ?? ""), HOME: os.homedir(), LIMA_HOME: limaHome };
-  const privateBinary = path.join(root, `lima-${LIMA_VERSION}/bin/limactl`);
+  const host = computerHost();
+  const env = {
+    // Windows programs (wsl.exe, ssh.exe) need its own variables (SystemRoot, USERPROFILE, TEMP…).
+    ...(process.platform === "win32" ? process.env : {}),
+    // Lima runs the first ssh on PATH: on Windows, Git's (see host.ts gitSsh).
+    PATH: [host?.os === "win32" && host.ssh ? path.dirname(host.ssh) : "", withUsualDirs(process.env.PATH ?? "")]
+      .filter(Boolean)
+      .join(path.delimiter),
+    HOME: os.homedir(),
+    LIMA_HOME: limaHome,
+  };
+  const privateBinary = path.join(root, `lima-${LIMA_VERSION}`, host?.limactl ?? "bin/limactl");
   let executable =
     external?.executable?.() ??
     (fs.existsSync(privateBinary) ? privateBinary : (findProgram("limactl", env.PATH) ?? privateBinary));
   const binary = () => executable;
   const run = limaProcess(binary, env);
-  const egress = vmEgress(limaHome, instance, run);
+  const egress = vmEgress(limaHome, instance, run, host?.ssh);
   const installed = () => fs.existsSync(path.join(limaHome, instance, "lima.yaml"));
   const applied = (): Partial<ComputerResources> => {
     try {
@@ -52,14 +64,40 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
     }
   };
   const imageBytes = () => diskImageBytes(path.join(limaHome, instance));
+  /**
+   * A host agent that died with the core (or Windows) leaves its ha.pid; Lima on Windows then fails every inspection
+   * of the instance (OpenProcess) instead of seeing it stopped. A pid with no process behind it is dropped.
+   */
+  const clearStaleAgent = () => {
+    const file = path.join(limaHome, instance, "ha.pid");
+    let pid: number;
+    try {
+      pid = Number(fs.readFileSync(file, "utf8").trim());
+    } catch {
+      return;
+    }
+    try {
+      if (pid > 0) process.kill(pid, 0);
+      if (pid > 0) return;
+    } catch (failure) {
+      if ((failure as NodeJS.ErrnoException).code === "EPERM") return;
+    }
+    fs.rmSync(file, { force: true });
+  };
   const running = async (timeout?: number) => {
     if (!installed() || !fs.existsSync(binary())) return false;
+    clearStaleAgent();
     const result = await run(["list", "--json", instance], timeout ? { timeout } : {});
     return result
       .split("\n")
       .filter(Boolean)
       .some((line) => (JSON.parse(line) as { status: string }).status === "Running");
   };
+  // UTF-8 for APX's own wsl.exe calls only: Lima reads wsl.exe's UTF-16 output.
+  const wsl = limaProcess(() => path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "wsl.exe"), {
+    ...env,
+    WSL_UTF8: "1",
+  });
   const stop = async () => {
     await egress.close();
     if (!(await running())) return;
@@ -68,9 +106,26 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
     } catch {
       await run(["stop", "--force", "--tty=false", instance], { timeout: 20_000 });
     }
+    // A distribution whose host agent died with an earlier core has no one Lima can tell to stop it.
+    if (host?.vmType === "wsl2" && (await running()))
+      await wsl(["--terminate", `lima-${instance}`], { timeout: 30_000 });
+  };
+  /** The guest template with this host's VM type; on Windows over the WSL seed it builds first. */
+  const instanceTemplate = async (signal: AbortSignal, progress: (value: ComputerProgress) => void) => {
+    if (!host) throw new Error("Computer is not available on this system");
+    const template = fs.readFileSync(path.join(GUEST_ASSETS, "lima.yaml"), "utf8");
+    const file = path.join(root, "instance.yaml");
+    fs.writeFileSync(
+      file,
+      host.vmType === "wsl2"
+        ? wslTemplate(template, await wslSeed(host, root, wsl, signal, progress))
+        : `vmType: ${host.vmType}\n${template}`,
+      { mode: 0o600 },
+    );
+    return file;
   };
   const lifecycle = createVmLifecycle({
-    supported: process.platform === "darwin" && process.arch === "arm64" && Number(os.release().split(".")[0]) >= 22,
+    supported: Boolean(host),
     installed,
     prepared: () => fs.existsSync(prepared),
     running,
@@ -85,6 +140,13 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
     // Each agent screen follows the appearance when it starts and when it changes (Computer.appearance).
     appearance: async () => {},
     async prepare(_mode, signal, progress) {
+      if (!host) throw new Error("Computer is not available on this system");
+      const missing = missingPrerequisite(host, env.PATH);
+      if (missing) throw new Error(missing);
+      if (host.vmType === "wsl2" && mirroredNetworking())
+        throw new Error(
+          "Computer cannot run with WSL's mirrored networking, which shares this computer's localhost with it: remove networkingMode=mirrored from .wslconfig, run \"wsl --shutdown\" and try again",
+        );
       if (limaHome.length > 70) throw new Error("APX home is too long for Lima's SSH sockets; use a shorter APX_HOME");
       fs.mkdirSync(root, { recursive: true, mode: 0o700 });
       fs.mkdirSync(limaHome, { recursive: true, mode: 0o700 });
@@ -97,13 +159,22 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
           `Computer needs a host with at least ${wanted.memory_gib + 4} GiB RAM for a ${wanted.memory_gib} GiB VM`,
         );
       progress({ step: "runtime" });
-      if (!fs.existsSync(binary())) executable = await installLima(root, signal, progress);
+      if (!fs.existsSync(binary())) executable = await installLima(host, root, signal, progress);
       const version = await run(["--version"], { signal }).catch(() => "");
-      if (!/\b2\./.test(version)) executable = await installLima(root, signal, progress);
+      if (!/\b2\./.test(version)) executable = await installLima(host, root, signal, progress);
       progress({ step: "guest" });
+      // A setup cut short can leave the instance's folder without its lima.yaml; Lima will neither create over it nor
+      // delete it. No other operation runs now (one lifecycle operation at a time), so it is cleared here.
+      const leftover = path.join(limaHome, instance);
+      if (!installed() && fs.existsSync(leftover)) {
+        if (host.vmType === "wsl2")
+          await wsl(["--unregister", `lima-${instance}`], { signal, timeout: 120_000 }).catch(() => {});
+        fs.rmSync(leftover, { recursive: true, force: true });
+      }
       const edit = installed() ? limaEditArgs(applied(), wanted) : [];
       if (edit.length && !(await running()))
         await run(["edit", "--tty=false", ...edit, instance], { signal, timeout: 60_000 });
+      clearStaleAgent();
       await run(
         [
           "start",
@@ -111,7 +182,7 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
           "--timeout=15m",
           ...(installed()
             ? [instance]
-            : [`--name=${instance}`, ...limaCreateArgs(wanted), path.join(GUEST_ASSETS, "lima.yaml")]),
+            : [`--name=${instance}`, ...limaCreateArgs(wanted), await instanceTemplate(signal, progress)]),
         ],
         { signal, timeout: 16 * 60_000 },
       );
@@ -132,7 +203,7 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
     executable: binary,
     env,
     lifecycle,
-    screens: screenDriver(run, instance),
+    screens: screenDriver(run, instance, host?.vmType === "wsl2"),
     applied,
     usage: () =>
       computerUsage({

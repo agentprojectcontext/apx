@@ -67,7 +67,7 @@ test("an agent asks for the computer, starts and stops it, and the owner takes t
   });
   try {
     await env.client.call("setup.finish", {});
-    // Home stays on this Mac (DECISIONS.md#d-154): Roby works on the computer in a chat of its own.
+    // Home stays on this machine (DECISIONS.md#d-154): Roby works on the computer in a chat of its own.
     const robyChat = await env.client.call("threads.create", {
       kind: "loose",
       agent_id: "roby",
@@ -100,7 +100,7 @@ test("an agent asks for the computer, starts and stops it, and the owner takes t
     const computer = page.locator(".computer");
     await expect(page.locator(".computer__badge")).toHaveText("Linux · 2 vCPU · 4 GiB");
     await expect(computer.getByRole("combobox", { name: "Pantalla" })).toHaveText(/Scout · :101/);
-    await expect(computer.getByText("Scout trabaja en esta Mac en este chat.")).toBeVisible();
+    await expect(computer.getByText("Scout trabaja en este equipo en este chat.")).toBeVisible();
     await expect(computer.getByRole("button", { name: "Usar la computadora acá", exact: true })).toBeVisible();
     await env.client.call("environments.stop", {});
     await expect(computer.getByRole("button", { name: "Encender VM", exact: true })).toBeVisible();
@@ -114,11 +114,11 @@ test("an agent asks for the computer, starts and stops it, and the owner takes t
     await page.getByRole("button", { name: "Encender VM", exact: true }).click();
     const refused = page.locator(".computer").getByRole("alert");
     await expect(refused).toContainText(
-      "No hay memoria libre suficiente en esta Mac: 5,5 GiB libres, y la computadora necesita 4 GiB más 2 GiB",
+      "No hay memoria libre suficiente en este equipo: 5,5 GiB libres, y la computadora necesita 4 GiB más 2 GiB",
     );
     await expect(refused).not.toContainText("not enough");
     await expect(refused).toBeInViewport();
-    // Only the Mac's reserve is missing: the owner may start it anyway.
+    // Only the host reserve is missing: the owner may start it anyway.
     await expect(refused.getByRole("button", { name: "Encender igual", exact: true })).toBeVisible();
     // A smaller VM fits: one click lowers its memory and turns it on.
     await refused.getByRole("button", { name: "Bajarla a 3 GiB y encender", exact: true }).click();

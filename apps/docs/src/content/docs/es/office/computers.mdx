@@ -5,12 +5,29 @@ sidebar:
   order: 8
 ---
 
-## Una computadora aparte de tu Mac
+## Una computadora aparte de tu equipo
 
-En **macOS con Apple Silicon**, APX puede preparar una máquina virtual Linux opcional con navegador, escritorio y
-terminal. Descarga Lima si hace falta, Linux y los paquetes del escritorio; no requiere Docker. Corre en la
-**computadora del core**, no automáticamente en el dispositivo donde abrís el panel. Los cores en Mac Intel,
-Windows y Linux no admiten por ahora esta computadora administrada.
+APX puede preparar una máquina virtual Linux opcional con navegador, escritorio y terminal. Descarga Lima si hace
+falta, Linux y los paquetes del escritorio; no requiere Docker. Corre en la **computadora del core**, no
+automáticamente en el dispositivo donde abrís el panel. Qué necesita esa computadora:
+
+| El core corre en | Necesita | Corre la VM con |
+|---|---|---|
+| macOS 13 o posterior (Apple Silicon o Intel) | Nada más | El framework de virtualización de Apple |
+| Linux (x86-64 o ARM64) | QEMU (`sudo apt install qemu-system-x86 qemu-utils`, o `qemu-system-arm qemu-efi-aarch64` en ARM) y acceso a `/dev/kvm` (`sudo usermod -aG kvm $USER` y volver a iniciar sesión) | QEMU con KVM |
+| Windows 10 (build 19041 o posterior) u 11 | WSL 2 (`wsl --install --no-distribution` en un PowerShell de administrador y reiniciar) y Git para Windows, por su `ssh` (`winget install --id Git.Git -e`) | WSL 2, sobre una imagen Debian que APX prepara la primera vez |
+
+Si falta algo, el primer encendido se detiene y el panel dice qué instalar. En Windows:
+
+- El primer encendido arma la imagen Debian una sola vez (unos minutos) y la guarda para los siguientes.
+- La red "mirrored" de WSL (`networkingMode=mirrored` en `.wslconfig`) comparte el localhost del propio Windows con
+  la VM, así que la computadora no enciende con ella. Usá la red por defecto de WSL.
+- WSL fija la memoria y los CPU de todas sus distribuciones juntas, en `.wslconfig`; los ajustes de memoria y CPU de
+  la computadora no los cambian.
+- Las distribuciones de WSL comparten una red. Cada agente solo llega a sus propios servicios locales y al proxy de
+  salida de APX, así que los servicios que tus otras distribuciones escuchan en localhost quedan fuera de su alcance.
+- La VM no puede ejecutar programas de Windows, y los discos de Windows montados en `/mnt` están cerrados para los
+  agentes.
 
 No es lo mismo que [dejar que los agentes usen tu escritorio](/es/devices/desktop/#uso-de-la-computadora) ni que abrir
 pestañas en el [navegador integrado](/es/office/browser/) de APX.
@@ -19,7 +36,7 @@ pestañas en el [navegador integrado](/es/office/browser/) de APX.
 
 La computadora está desactivada para todos los agentes hasta que les das permiso. Abrí los ajustes del agente y
 **Computadora aislada**, o pedile a tu superagente que te ayude a habilitarla. El permiso deja que el agente inicie
-su pantalla cuando la necesite; no le da permiso para usar la pantalla de tu Mac.
+su pantalla cuando la necesite; no le da permiso para usar tu propia pantalla.
 
 Abrí el chat de un agente de proyecto y su panel **Computadora**, y elegí **Usar la computadora acá** (o permitile
 el acceso y usala acá). Pedile que trabaje ahí. APX muestra la creación, la carga y cuándo está lista en el chat;
@@ -28,9 +45,9 @@ mensaje de un contacto, widget o app externa no obtiene acceso a la computadora.
 
 Los agentes autorizados comparten una VM Linux, pero cada uno tiene su usuario Linux, navegador y pantalla. Una
 pantalla pertenece a un chat a la vez; otro chat te lleva a ese chat en vez de tomar su pantalla sin avisarte. En un
-chat en la computadora, los comandos, archivos, navegador y acciones de pantalla corren ahí: no pasan a tu Mac si
+chat en la computadora, los comandos, archivos, navegador y acciones de pantalla corren ahí: no pasan al anfitrión si
 algo falla. Las tareas, delegaciones, memoria y lecturas web siguen disponibles. No supongas que los archivos de
-proyecto de tu Mac se copian ahí automáticamente.
+proyecto del anfitrión se copian ahí automáticamente.
 
 ## Mirá o tomá el control
 
@@ -55,9 +72,9 @@ predeterminado de inactividad es de 30 minutos. Apagar conserva el disco y los a
 pero no achicarse.
 
 El límite de pantallas depende de la memoria asignada a la VM encendida. Si está lleno, apagá otra pantalla o
-asigná más memoria y reiniciá la VM. Iniciar también requiere memoria libre para la VM más una reserva para tu Mac.
+asigná más memoria y reiniciá la VM. Iniciar también requiere memoria libre para la VM más una reserva para el anfitrión.
 Cuando puede, APX ofrece una asignación menor. **Iniciar igual** aparece solo cuando alcanza para la VM pero no
-para la reserva del anfitrión; no permite ignorar cualquier falta de memoria. La VM puede apagarse si la Mac se
+para la reserva del anfitrión; no permite ignorar cualquier falta de memoria. La VM puede apagarse si el anfitrión se
 queda corta de memoria, conservando su disco.
 
 ## Límites

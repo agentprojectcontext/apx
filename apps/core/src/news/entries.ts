@@ -1,6 +1,7 @@
 // Release news worth acting on: what a release lets the super-agent do for this owner. Each entry is told once, and
 // only to an owner it applies to. See rules/DECISIONS.md#d-117
 import type { Store } from "../domain/store.ts";
+import { computerHost } from "../environments/host.ts";
 import { CATALOG } from "../integrations/catalog.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 
@@ -20,7 +21,7 @@ export type NewsFacts = {
   email: boolean;
   /** Catalog integrations the owner connected (GitHub, Notion…). */
   integrations: number;
-  /** This core can run the isolated Linux computer (a Mac with Apple Silicon) and the owner has a project to try there. */
+  /** This core can run the isolated Linux computer (macOS, Linux or Windows) and the owner has a project to try there. */
   computer: boolean;
   /** This core runs on a Mac and the owner has work there (a project). */
   mac: boolean;
@@ -308,6 +309,32 @@ export const NEWS: readonly NewsEntry[] = [
         label: { en: "Choose where you hear from me", es: "Elegir por dónde te aviso" },
         prompt:
           "Explain where you will tell me things now (the app, my phone, a chat app) and ask whether I want a chat app too or only the app. Do not change anything until I answer.",
+      },
+    ],
+  },
+  {
+    id: "computer-linux-windows",
+    since: "2.11.2",
+    title: "Your agents' computer, on Linux and Windows",
+    applies: (f) => f.computer && !f.mac,
+    text:
+      "Agents can now work on a Linux computer they share on this Linux or Windows machine too, not only on a Mac: a VM " +
+      "apart from it with no way into it or the local network, where each allowed agent gets its own user, files and " +
+      "screen with a desktop and browser. On Linux it needs QEMU and KVM; on Windows it runs on WSL 2 and needs Git for Windows. The first start " +
+      "downloads and sets it up, and says what is missing if something is. It is off for every agent until the owner " +
+      "allows one, in the agent's card or settings or by asking the super-agent; the Computers view then shows their screens.",
+    actions: [
+      {
+        label: { en: "What could you do there?", es: "¿Qué harías ahí?" },
+        prompt:
+          "Tell me in a few lines what you could do for me on an isolated Linux computer that you cannot do here, " +
+          "and how much memory it would take from this machine. Do not start it unless I say so.",
+      },
+      {
+        label: { en: "Turn it on for an agent", es: "Activarla para un agente" },
+        prompt:
+          "Tell me which of my agents may use the isolated Linux computer now, and offer to turn it on for the one " +
+          "I pick, with my OK on the card.",
       },
     ],
   },
@@ -636,7 +663,7 @@ export const NEWS: readonly NewsEntry[] = [
     id: "linux-computer",
     since: "2.11.0",
     title: "A Linux computer your agents share",
-    applies: (f) => f.computer,
+    applies: (f) => f.computer && f.mac,
     text:
       "Agents can now work on a Linux computer they share, a VM apart from the owner's Mac with no way into the Mac " +
       "or the local network. Each agent gets its own user, files and screen with a desktop and browser. It is off " +
@@ -707,7 +734,7 @@ export const newsFacts = (store: Store): NewsFacts => ({
   channels: store.settings.read("channels").length,
   email: store.settings.read("channels").some((c) => c.type === "email" && c.email !== undefined),
   integrations: connectedIntegrations(store),
-  computer: process.platform === "darwin" && process.arch === "arm64" && store.projects.list().length > 0,
+  computer: computerHost() !== undefined && store.projects.list().length > 0,
   mac: process.platform === "darwin" && store.projects.list().length > 0,
 });
 

@@ -22,9 +22,9 @@ export const esComputer: Record<ComputerKey, string> = {
   "computer.retry": "Reintentar preparación",
   "computer.preparing": "Preparando computadora…",
   "computer.stopping": "Apagando VM…",
-  "computer.unsupported": "Computadora requiere macOS Apple Silicon por ahora",
+  "computer.unsupported": "La computadora no está disponible en este sistema",
   "computer.setupHint":
-    "Escritorio Linux opcional con navegador y terminal, aparte de esta Mac. Descarga Lima solo si falta, Linux y paquetes del escritorio. Sin Docker. {memory} GiB de memoria mientras está encendida; dejá unos {disk} GiB libres de disco. Apariencia según APX.",
+    "Escritorio Linux opcional con navegador y terminal, aparte de este equipo. Descarga Lima solo si falta, Linux y paquetes del escritorio. Sin Docker. {memory} GiB de memoria mientras está encendida; dejá unos {disk} GiB libres de disco. Apariencia según APX.",
   "computer.closeHint": "Cerrar este panel la deja encendida. Se apaga sola cuando ningún agente la usa.",
   "computer.stepRuntime": "Preparando componentes de VM…",
   "computer.stepGuest": "Descargando o iniciando Linux…",
@@ -45,15 +45,15 @@ export const esComputer: Record<ComputerKey, string> = {
   "computer.restartHint": "Los recursos nuevos se aplican la próxima vez que se encienda.",
   "computer.lastStop.owner": "La apagaste. Sus archivos quedan guardados y vuelve a arrancar como estaba.",
   "computer.lastStop.idle": "Se apagó tras un rato sin uso, para devolver su memoria. Sus archivos quedan guardados.",
-  "computer.lastStop.memory": "Se apagó porque a esta Mac le faltaba memoria. Sus archivos quedan guardados.",
+  "computer.lastStop.memory": "Se apagó porque a este equipo le faltaba memoria. Sus archivos quedan guardados.",
   "computer.lastStop.agent": "Un agente la apagó. Sus archivos quedan guardados.",
   "computer.agentScreen": "{agent} · {display}",
   "computer.agentScreenHeld": "{agent} · {display} · trabajando",
   "computer.pickScreen": "Pantalla",
   "computer.screensHeld": "{held} de {max} pantallas de agentes en uso",
-  "computer.chatOnMac": "{agent} trabaja en esta Mac en este chat.",
+  "computer.chatOnMac": "{agent} trabaja en este equipo en este chat.",
   "computer.chatOnMacElsewhere":
-    "Este chat corre en esta Mac. La pantalla de {agent} en la computadora es de su otro chat.",
+    "Este chat corre en este equipo. La pantalla de {agent} en la computadora es de su otro chat.",
   "computer.openOtherChat": "Abrir ese chat",
   "computer.useHere": "Usar la computadora acá",
   "computer.allowAndUse": "Permitir a {agent} y usarla acá",
@@ -91,7 +91,7 @@ export const esComputer: Record<ComputerKey, string> = {
   "computer.progress.loading": "Cargando máquina virtual",
   "computer.progress.ready": "Lista",
   "computer.noMemory":
-    "No hay memoria libre suficiente en esta Mac: {free} GiB libres, y la computadora necesita {vm} GiB más {reserve} GiB que se dejan para la Mac. Cerrá apps o bajale la memoria, y probá de nuevo.",
+    "No hay memoria libre suficiente en este equipo: {free} GiB libres, y la computadora necesita {vm} GiB más {reserve} GiB que se dejan para este equipo. Cerrá apps o bajale la memoria, y probá de nuevo.",
   "computer.lowerMemory": "Bajarla a {gib} GiB y encender",
   "computer.startAnyway": "Encender igual",
   "notice.computer.interrupted": "Interrumpido: tomaste control de la computadora.",
@@ -108,7 +108,7 @@ export const esComputer: Record<ComputerKey, string> = {
   "computer.handBack.done": "Control devuelto",
   "agent.computer": "Computadora",
   "agent.computer.hint":
-    "Una computadora Linux aparte de esta Mac, compartida por los agentes que permitas: cada uno trabaja en su propia pantalla, con su shell y su navegador.",
+    "Una computadora Linux aparte de este equipo, compartida por los agentes que permitas: cada uno trabaja en su propia pantalla, con su shell y su navegador.",
   "agent.computer.off": "Apagada para este agente",
   "agent.computer.allowed": "Permitida (detenida)",
   "agent.computer.running": "En la pantalla {screen}",
@@ -116,5 +116,5 @@ export const esComputer: Record<ComputerKey, string> = {
   "agent.computer.turnOn": "Activar",
   "agent.computer.open": "Ver computadoras",
   "agentedit.computerHint":
-    "Deja que este agente encienda, use y apague su propia computadora Linux, aparte de esta Mac: su shell y su navegador corren ahí en el chat al que le des la computadora. Apagado para todos los agentes hasta que lo actives.",
+    "Deja que este agente encienda, use y apague su propia computadora Linux, aparte de este equipo: su shell y su navegador corren ahí en el chat al que le des la computadora. Apagado para todos los agentes hasta que lo actives.",
 };

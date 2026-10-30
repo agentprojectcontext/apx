@@ -112,7 +112,7 @@ test("unsupported platforms never call the VM driver", async () => {
   driver.supported = false;
   const vm = createVmLifecycle(driver);
   assert.equal((await vm.status()).phase, "unsupported");
-  assert.throws(() => vm.start("light"), /macOS Apple Silicon/);
+  assert.throws(() => vm.start("light"), /not available on this system/);
   assert.deepEqual(calls, []);
   await vm.close();
 });
