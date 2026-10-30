@@ -57,10 +57,11 @@ const benchmarkDate = dateFormat.format(new Date(roundupBenchmark.date));
     <link rel="canonical" href={canonical} />
     <link rel="alternate" hreflang="en" href={new URL(href(route), Astro.site).href} />
     <link rel="alternate" hreflang="es" href={new URL(href(`/es${route}`), Astro.site).href} />
+    <link rel="alternate" hreflang="x-default" href={new URL(href(route), Astro.site).href} />
     <link rel="icon" href={href("/favicon.svg")} type="image/svg+xml" />
     <meta property="og:title" content={title} /><meta property="og:description" content={description} />
     <meta property="og:type" content="article" /><meta property="og:url" content={canonical} />
-    <meta property="og:image" content={new URL(href("/og.jpg"), Astro.site).href} />
+    <meta property="og:image" content={new URL(href(lang === "es" ? "/og-es.jpg" : "/og.jpg"), Astro.site).href} />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

@@ -10,9 +10,9 @@ import { sitePath } from "./src/doc-routes.mjs";
 // front of them, so moving the site (e.g. under /apx/docs/) only changes these two values.
 const site = process.env.DOCS_SITE ?? "https://apxagent.app";
 const base = (process.env.DOCS_BASE ?? "/").replace(/\/?$/, "/");
-/** What a link to any page shows when it is shared (public/og.jpg, 1280×640). */
+/** What a link to any page shows when it is shared (public/og.jpg, 1200×630, drawn by scripts/og-image.ts). */
 const ogImage = new URL(`${base}og.jpg`, site).href;
-const ogImageAlt = "APX: meet your crew. AI agents that live on your computer.";
+const ogImageAlt = "Your own team of AI agents, on your machine.";
 
 /** A remark plugin: absolute links in Markdown and `href`s on components (LinkCard…) get the site's base. */
 function withBase() {
@@ -73,8 +73,8 @@ export default defineConfig({
       customCss: ["./src/styles/theme.css"],
       head: [
         { tag: "meta", attrs: { property: "og:image", content: ogImage } },
-        { tag: "meta", attrs: { property: "og:image:width", content: "1280" } },
-        { tag: "meta", attrs: { property: "og:image:height", content: "640" } },
+        { tag: "meta", attrs: { property: "og:image:width", content: "1200" } },
+        { tag: "meta", attrs: { property: "og:image:height", content: "630" } },
         { tag: "meta", attrs: { property: "og:image:alt", content: ogImageAlt } },
         { tag: "meta", attrs: { name: "twitter:image", content: ogImage } },
         { tag: "link", attrs: { rel: "preconnect", href: "https://fonts.googleapis.com" } },
