@@ -1,3 +1,4 @@
+// Reads the built site (dist/), so it runs in `pnpm check` after `pnpm build`, not with the unit tests.
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { sep } from "node:path";
