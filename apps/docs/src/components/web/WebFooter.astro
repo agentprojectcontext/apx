@@ -1,0 +1,69 @@
+---
+import logo from "../../assets/logo.png";
+import OsIcon from "../OsIcon.astro";
+import SocialIcon from "./SocialIcon.astro";
+import { HOME, type Lang } from "../../i18n/home";
+import { comparisons } from "../../data/comparisons";
+import { sitePath } from "../../doc-routes.mjs";
+import "./web.css";
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const es = lang === "es";
+const pre = es ? "/es" : "";
+const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
+const groups = [
+  { title: es ? "Empezá con APX" : "Start with APX", links: [
+    [es ? "Introducción" : "Introduction", href(`${pre}/start/introduction/`)],
+    [es ? "Instalación" : "Installation", href(`${pre}/start/install/`)],
+    [es ? "Tu equipo" : "Your crew", href(`${pre}/concepts/agents/`)],
+    [es ? "Tu oficina" : "Your office", href(`${pre}/office/chat/`)],
+    [es ? "Canales" : "Channels", href(`${pre}/channels/overview/`)],
+  ] },
+  { title: es ? "Explorá" : "Explore", links: [
+    [es ? "Habilidades" : "Skills", href(`${pre}/extend/skills/`)],
+    ["MCP", href(`${pre}/extend/mcp/`)],
+    [es ? "En tu servidor" : "On your server", href(`${pre}/devices/server/`)],
+    ["CLI", href(`${pre}/reference/cli/`)],
+  ] },
+  { title: es ? "Compará APX" : "Compare APX", links: [
+    [es ? "Todas las comparativas" : "All comparisons", href(`${pre}/compare/`)],
+    ...comparisons.map((item) => [`APX vs ${item.name}`, href(`${pre}/compare/${item.slug}/`)]),
+  ] },
+  { title: es ? "Comunidad" : "Community", links: [
+    [es ? "Versiones" : "Releases", "https://github.com/agentprojectcontext/apx/releases"],
+    [es ? "Reportar un problema" : "Report an issue", "https://github.com/agentprojectcontext/apx/issues"],
+    ["APC", "https://github.com/agentprojectcontext/agentprojectcontext"],
+  ] },
+];
+const socials = [
+  { name: "GitHub", url: "https://github.com/agentprojectcontext/apx" },
+  { name: "Discord", url: "https://discord.gg/vxdZuT5WuE" },
+  { name: "YouTube", url: "https://www.youtube.com/@apx-agents" },
+] as const;
+const platforms = [
+  { name: "mac", label: "macOS" }, { name: "windows", label: "Windows" },
+  { name: "linux", label: "Linux" }, { name: "android", label: "Android" },
+] as const;
+---
+<footer class="web-footer">
+  <div class="wrap">
+    <div class="web-footer__main">
+      <div class="web-footer__intro">
+        <a class="brand" href={href(`${pre}/`)}><img src={logo.src} alt="" width="40" height="40" />APX</a>
+        <p class="web-footer__description">{es ? "Un equipo de agentes de IA para tus proyectos, en tu computadora." : "A team of AI agents for your projects, on your computer."}</p>
+        <nav class="web-footer__socials" aria-label={es ? "APX en redes" : "APX on social media"}>
+          {socials.map(({ name, url }) => <a href={url} aria-label={name} title={name}><SocialIcon name={name} /></a>)}
+        </nav>
+      </div>
+      <div class="web-footer__groups">{groups.map((group) => <nav aria-label={group.title}><h2>{group.title}</h2><ul>{group.links.map(([label, url]) => <li><a href={url}>{label}</a></li>)}</ul></nav>)}</div>
+    </div>
+    <div class="web-footer__bottom">
+      <div class="web-footer__legal"><p>© 2026 · {HOME[lang].footer}</p><a href="https://github.com/agentprojectcontext/apx/blob/main/LICENSE">MIT</a><p>{es ? "Las marcas pertenecen a sus respectivos titulares." : "Trademarks belong to their respective owners."}</p></div>
+      <div class="web-footer__availability">
+        <p class="web-footer__available">{es ? "Disponible para" : "Available for"}</p>
+        <ul class="web-footer__platforms" aria-label={es ? "Plataformas disponibles" : "Available platforms"}>{platforms.map(({ name, label }) => <li><OsIcon name={name} size={16} />{label}</li>)}</ul>
+      </div>
+      <p class="web-footer__origin">{es ? "Hecho con" : "Made with"} <span class="web-footer__heart" role="img" aria-label={es ? "amor" : "love"}>♥</span> {es ? "en Argentina" : "in Argentina"}</p>
+    </div>
+  </div>
+</footer>

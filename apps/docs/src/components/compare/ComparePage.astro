@@ -1,0 +1,103 @@
+---
+import logo from "../../assets/logo.png";
+import WebHeader from "../web/WebHeader.astro";
+import WebFooter from "../web/WebFooter.astro";
+import { sitePath } from "../../doc-routes.mjs";
+import { comparisons, labels, apxChoice, apxRows, apxRowSources, apxSource, topics, checked, type Lang, type Comparison } from "../../data/comparisons";
+import Blob from "../Blob.astro";
+import "../home/home.css";
+import "./compare.css";
+interface Props { lang: Lang; comparison?: Comparison }
+const { lang, comparison: item } = Astro.props;
+const t = labels[lang];
+const pre = lang === "es" ? "/es" : "";
+const href = (p: string) => sitePath(p, import.meta.env.BASE_URL);
+const route = `/compare/${item ? `${item.slug}/` : ""}`;
+const title = item ? `APX vs ${item.name}` : t.title;
+const description = item ? item.intro[lang] : t.intro;
+const sections = [{ id: "answer", label: t.short }, { id: "overview", label: t.glance }, { id: "difference", label: t.details }, { id: "try", label: t.trial }, { id: "sources", label: t.sources }];
+const blobs = ["menta", "orbita", "cobalto", "brasa", "amatista"] as const;
+const canonical = new URL(href(`${pre}${route}`), Astro.site).href;
+---
+<!doctype html>
+<html lang={lang} data-theme="dark">
+  <head>
+    <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} — APX</title><meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="en" href={new URL(href(route), Astro.site).href} />
+    <link rel="alternate" hreflang="es" href={new URL(href(`/es${route}`), Astro.site).href} />
+    <link rel="icon" href={href("/favicon.svg")} type="image/svg+xml" />
+    <meta property="og:title" content={title} /><meta property="og:description" content={description} />
+    <meta property="og:type" content="website" /><meta property="og:url" content={canonical} />
+    <meta property="og:image" content={new URL(href("/og.jpg"), Astro.site).href} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..800&display=swap" rel="stylesheet" />
+  </head>
+  <body class="h compare">
+    <a class="skip-link" href="#main">{t.skip}</a>
+    <WebHeader lang={lang} route={route} />
+    <main id="main" class="compare-main">
+      <header class="compare-hero">
+        <a class="eyebrow" href={href(`${pre}/compare/`)}>{t.comparisons} <span aria-hidden="true">/</span> {item ? item.name : "APX"}</a>
+        {item ? <div class="product-pair"><div class="product-mark"><img src={logo.src} alt="APX" width="80" height="80" /></div><span class="versus">vs</span><div class="product-mark"><img src={href(`/brands/${item.logo}`)} alt={item.name} width="80" height="80" /></div></div> : <div class="index-crew"><Blob name="menta" size={100} /><Blob name="orbita" size={100} /><Blob name="amatista" size={100} /></div>}
+        <h1>{title}</h1>
+        <p class="compare-tagline">{item ? item.tagline[lang] : t.kicker}</p>
+        <p class="compare-intro">{description}</p>
+        <a class="checked" href={item ? "#sources" : "#comparisons"}>{t.checked} <span aria-hidden="true">↗</span></a>
+      </header>
+      {item && <nav class="reading-rail" aria-label={t.read}><span class="rail-title">{t.read}</span><div class="rail-track">{sections.map((s, i) => <a href={`#${s.id}`} aria-label={s.label} data-section={s.id}><Blob name={blobs[i]} size={32} /><span class="rail-label">{s.label}</span></a>)}</div></nav>}
+      {item ? <>
+        <section id="answer" class="compare-section" aria-labelledby="answer-title"><p class="section-number">01 /</p><h2 id="answer-title">{t.short}</h2><div class="choice-grid"><article class="choice apx-choice"><Blob name="menta" size={42} /><h3>{t.choose} APX {t.if}</h3><p>{apxChoice[lang]}</p><a href={href(`${pre}/concepts/agents/`)}>{t.start} <span aria-hidden="true">↗</span></a></article><article class="choice"><img src={href(`/brands/${item.logo}`)} alt="" width="42" height="42" /><h3>{t.choose} {item.name} {t.if}</h3><p>{item.choice[lang]}</p><a href={item.source}>{item.name} <span aria-hidden="true">↗</span></a></article></div></section>
+        <section id="overview" class="compare-section" aria-labelledby="overview-title"><p class="section-number">02 /</p><h2 id="overview-title">{t.glance}</h2><p class="table-hint">{lang === "es" ? "Desplazá la tabla para comparar ambos productos." : "Scroll the table to compare both products."}</p><div class="compare-table-wrap" role="region" aria-label={`${title} — ${t.glance}`} tabindex="0"><table class="compare-table"><caption>{title} — {t.glance}</caption><thead><tr><th scope="col">{t.topic}</th><th scope="col">APX <a href="#source-apx" aria-label={`${t.source}: APX`}>[1]</a></th><th scope="col">{item.name} <a href="#source-other" aria-label={`${t.source}: ${item.name}`}>[2]</a></th></tr></thead><tbody>{topics.map((topic, i) => <tr><th scope="row">{topic[lang]}</th><td>{apxRows[i][lang]}<span class="row-sources">{apxRowSources[i].map((url, n) => <a href={url} aria-label={`${t.source}: APX — ${topic[lang]} (${n + 1})`}>{t.source} {apxRowSources[i].length > 1 ? n + 1 : ""} ↗</a>)}</span></td><td>{item.rows[i][lang]}<span class="row-sources">{item.rowSources[i].map((url, n) => <a href={url} aria-label={`${t.source}: ${item.name} — ${topic[lang]} (${n + 1})`}>{t.source} {item.rowSources[i].length > 1 ? n + 1 : ""} ↗</a>)}</span></td></tr>)}</tbody></table></div></section>
+        <section id="difference" class="compare-section prose" aria-labelledby="difference-title"><p class="section-number">03 /</p><h2 id="difference-title">{t.details}</h2><p>{item.detail[lang]}</p><div class="inline-sources"><a href={apxSource}>APX ↗</a><a href={item.detailSource}>{item.name} ↗</a></div></section>
+        <section id="try" class="compare-section" aria-labelledby="try-title"><div class="trial-card"><Blob name="orbita" size={70} /><div><p class="section-number">04 /</p><h2 id="try-title">{t.trial}</h2><p>{item.tryIt[lang]}</p></div></div></section>
+        <section id="sources" class="compare-section prose" aria-labelledby="sources-title"><p class="section-number">05 /</p><h2 id="sources-title">{t.sources}</h2><p>{t.note}</p><p><time datetime={checked}>{t.checked}</time></p><ol class="source-list"><li id="source-apx"><a href={apxSource}>APX — {t.official} ↗</a> · <a href="https://github.com/agentprojectcontext/apx/blob/main/LICENSE">{t.terms}</a></li><li id="source-other"><a href={item.source}>{item.name} — {t.official} ↗</a> · <a href={item.license}>{t.terms}</a></li></ol></section>
+      </> : null}
+      <section id="comparisons" class="compare-section" aria-labelledby="more-title"><p class="eyebrow">APX / {t.comparisons}</p><h2 id="more-title">{item ? t.more : t.kicker}</h2><div class="comparison-cards">{comparisons.filter((c) => c.slug !== item?.slug).map((c) => <a class="comparison-card" href={href(`${pre}/compare/${c.slug}/`)}><img src={href(`/brands/${c.logo}`)} alt="" width="44" height="44" /><h3>APX vs {c.name} <span aria-hidden="true">↗</span></h3><p>{c.tagline[lang]}</p></a>)}</div></section>
+      <div class="compare-cta"><Blob name="menta" size={70} /><h2>{t.start}</h2><a class="btn btn-light" href={href(`${pre}/start/install/`)}>{t.docs} <span aria-hidden="true">↗</span></a></div>
+    </main>
+    <WebFooter lang={lang} />
+    <script>
+      // The eyes must wait for the lazy body, including cached images and failed requests.
+      for (const image of document.querySelectorAll<HTMLImageElement>(".compare .apx-blob img")) {
+        const revealEyes = async () => {
+          try {
+            await image.decode();
+            if (image.naturalWidth > 0) image.parentElement?.setAttribute("data-body-ready", "");
+          } catch {
+            image.parentElement?.removeAttribute("data-body-ready");
+          }
+        };
+        image.addEventListener("load", revealEyes);
+        image.addEventListener("error", () => image.parentElement?.removeAttribute("data-body-ready"));
+        if (image.complete) void revealEyes();
+      }
+      const rail = document.querySelector<HTMLElement>(".reading-rail");
+      const links = [...document.querySelectorAll<HTMLAnchorElement>("[data-section]")];
+      const sections = links.map((link) => document.getElementById(link.dataset.section ?? "")).filter((el): el is HTMLElement => Boolean(el));
+      let pending = false;
+      function updateProgress() {
+        const threshold = Math.min(240, window.innerHeight * 0.35);
+        let current = sections[0];
+        for (const section of sections) if (section.getBoundingClientRect().top <= threshold) current = section;
+        for (const link of links) {
+          if (link.dataset.section === current?.id) link.setAttribute("aria-current", "location");
+          else link.removeAttribute("aria-current");
+        }
+        const footer = document.querySelector(".web-footer");
+        rail?.setAttribute("data-ended", String((footer?.getBoundingClientRect().top ?? Infinity) < window.innerHeight));
+        const total = document.documentElement.scrollHeight - window.innerHeight;
+        rail?.style.setProperty("--progress", String(total > 0 ? Math.min(1, Math.max(0, window.scrollY / total)) : 0));
+        pending = false;
+      }
+      function schedule() { if (!pending) { pending = true; requestAnimationFrame(updateProgress); } }
+      window.addEventListener("scroll", schedule, { passive: true });
+      window.addEventListener("resize", schedule);
+      window.addEventListener("load", schedule);
+      updateProgress();
+    </script>
+  </body>
+</html>

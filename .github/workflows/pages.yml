@@ -5,6 +5,7 @@
 #            docs give that address), and every other /v2/… page lands on the same page at /…
 # GitHub sends agentprojectcontext.github.io/apx/… on to apxagent.app/… itself. Old addresses (v1's /docs/…, v2's
 # /v2/…) are sent on by the site's 404 page, the only redirect GitHub Pages serves for a missing path.
+# Existing current /docs/ files take precedence over historical aliases; all v1 content remains under /v1/.
 name: pages
 
 on:
@@ -14,6 +15,8 @@ on:
       - "apps/docs/**"
       - "scripts/install/**"
       - ".github/workflows/pages.yml"
+      - "e2e/assembled-docs.config.ts"
+      - "e2e/preview/assembled-docs/**"
   workflow_dispatch:
 
 permissions:
@@ -75,31 +78,19 @@ jobs:
 
       - name: Assemble the site
         run: |
-          mkdir -p _site
-          touch _site/.nojekyll
-          cp -R v2/apps/docs/dist/. _site/
-          test ! -e _site/v1 && test ! -e _site/v2
-          mkdir -p _site/v1 _site/v2
-          cp -R v1/docs/dist/. _site/v1/
-          cp _site/install.sh _site/install.ps1 _site/v2/
-          cat > _site/v2/index.html <<'HTML'
-          <!doctype html>
-          <meta charset="utf-8">
-          <title>APX</title>
-          <meta http-equiv="refresh" content="0; url=/">
-          <link rel="canonical" href="https://apxagent.app/">
-          <a href="/">APX</a>
-          HTML
-          # The 404 page sends old addresses on first: /apx/… (links in v1's pages) to /…, v1's /docs/… to /v1/…, v2's
-          # /v2/… to /….
-          node -e '
-            const fs = require("node:fs");
-            const page = fs.readFileSync("_site/404.html", "utf8");
-            const hop = `<script>{const p=location.pathname,r=location.search+location.hash;if(p.startsWith("/apx/"))location.replace(p.slice(4)+r);else if(p.startsWith("/docs/"))location.replace("/v1/"+p.slice(6)+r);else if(p.startsWith("/v2/"))location.replace("/"+p.slice(4)+r)}</script>`;
-            fs.writeFileSync("_site/404.html", page.replace("<head>", "<head>" + hop));
-          '
+          node v2/apps/docs/scripts/assemble-site-cli.mjs v1/docs/dist v2/apps/docs/dist _site
           grep -q '"/v1/"' _site/404.html
           test -f _site/v2/install.sh && test -f _site/v2/install.ps1
+
+      - name: Verify the assembled site in Chromium
+        working-directory: v2
+        env:
+          DOCS_V1_DIST: ../v1/docs/dist
+        run: |
+          PNPM="$(node -p "require('./package.json').packageManager")"
+          npx --yes "$PNPM" install --frozen-lockfile --ignore-scripts
+          npx --yes "$PNPM" exec playwright install --with-deps chromium
+          npx --yes "$PNPM" exec playwright test --config e2e/assembled-docs.config.ts
 
       - uses: actions/configure-pages@v6
         with:

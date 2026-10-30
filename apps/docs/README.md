@@ -19,7 +19,9 @@ pnpm shots        # retake every screenshot against a demo core (see below)
 It is published at `https://apxagent.app/` (the repository's Pages custom domain, built by the Pages workflow on
 `main`; `agentprojectcontext.github.io/apx/…` redirects there). The build also copies `scripts/install/install.sh` and `install.ps1` to the site's root,
 so `<site>/install.sh` is the stable install URL; the older `/v2/install.sh` stays served beside it. `<base>docs/`
-redirects to the first page.
+redirects to `/docs/start/introduction/`; Spanish documentation lives at `/es/docs/…`.
+All former documentation addresses remain static HTML redirects. See [Site routing](SITE_ROUTING.md)
+([Español](SITE_ROUTING.es.md)) for hosting, SEO, search and compatibility constraints.
 
 ## Writing a page
 
@@ -27,8 +29,8 @@ redirects to the first page.
   `src/content/docs/es/<section>/<slug>.mdx`. Sections: `start`, `concepts`, `office`, `channels`, `extend`,
   `devices`, `reference`.
 - Frontmatter: `title`, `description` (one sentence), `sidebar.order`.
-- Links are absolute and end in `/`: `/concepts/agents/` in English, `/es/concepts/agents/` in Spanish. The site's
-  base is added at build time.
+- Links are absolute and end in `/`: `/docs/concepts/agents/` in English, `/es/docs/concepts/agents/` in Spanish.
+  Existing section-only links are migrated and the publication base is added at build time.
 - English: short, concrete, second person. Spanish: rioplatense ("vos", "tenés"), same sections as the English page.
   Commands, flags, paths and code stay as they are. UI labels are written as the app shows them in that language.
 - Sentence case for titles and headings ("Run a routine now", not "Run A Routine Now").
@@ -42,7 +44,7 @@ is needed ([workflow](../../rules/WORKFLOW.md#documentation-impact-contract)). C
 source and release tag, not just news metadata. Update or create English and Spanish pages in the same change.
 
 `pnpm check` runs after the build locally and in the Pages workflow. It checks page pairs and heading levels, then
-literal internal links and fragment ids in built HTML under `DOCS_BASE` (default `/apx`). It does not check external
+literal internal links and fragment ids in built HTML under `DOCS_BASE` (default `/`). It does not check external
 URLs, asset/download existence, screenshots, translation meaning or product behavior. For another base, use that
 same `DOCS_BASE` for both commands. A passing check is not a guarantee that all documentation is correct.
 

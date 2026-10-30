@@ -1,0 +1,49 @@
+---
+import { DISCOVERY } from "../../i18n/home-discovery";
+import type { Lang } from "../../i18n/home";
+import { comparisons } from "../../data/comparisons";
+import { sitePath } from "../../doc-routes.mjs";
+import Blob from "../Blob.astro";
+import "./discovery.css";
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const t = DISCOVERY[lang];
+const pre = lang === "es" ? "/es" : "";
+const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
+const blobs = ["menta", "cobalto", "brasa"] as const;
+---
+<section class="sec home-questions" id="questions" aria-labelledby="questions-title">
+  <div class="wrap home-questions__layout">
+    <div class="home-questions__heading">
+      <p class="eyebrow">{t.eyebrow}</p>
+      <h2 class="h2" id="questions-title">{t.title}</h2>
+      <p class="lead">{t.lead}</p>
+      <div class="home-questions__blob" aria-hidden="true"><Blob name="orbita" size={100} /></div>
+    </div>
+    <div class="home-questions__items">
+      {t.items.map(({ question, answer, path }) => <details>
+        <summary>{question}<span aria-hidden="true">+</span></summary>
+        <div class="home-questions__answer"><p>{answer}</p><a href={href(`${pre}${path}`)}>{t.read} <span aria-hidden="true">↗</span></a></div>
+      </details>)}
+    </div>
+  </div>
+</section>
+<section class="sec home-comparisons" aria-labelledby="home-comparisons-title">
+  <div class="wrap">
+    <div class="home-comparisons__heading"><div>
+      <p class="eyebrow">{t.compareEyebrow}</p>
+      <h2 class="h2" id="home-comparisons-title">{t.compareTitle}</h2>
+      <p class="lead">{t.compareLead}</p>
+    </div><a class="home-comparisons__all" href={href(`${pre}/compare/`)}>{t.all} <span aria-hidden="true">↗</span></a></div>
+    <div class="home-comparisons__grid">
+      {comparisons.map((product, index) => <a class:list={["home-comparisons__card", `home-comparisons__card--${index}`]} href={href(`${pre}/compare/${product.slug}/`)}>
+        <div class="home-comparisons__visual" aria-hidden="true">
+          <span class="home-comparisons__apx"><Blob name={blobs[index]} size={90} /><b>APX</b></span>
+          <span class="home-comparisons__versus">vs</span>
+          <span class="home-comparisons__logo"><img src={href(`/brands/${product.logo}`)} alt="" width="72" height="72" loading="lazy" /></span>
+        </div>
+        <div class="home-comparisons__body"><h3>APX vs {product.name}</h3><p>{t.summaries[index]}</p><span class="home-comparisons__action">{t.compareAction} <span aria-hidden="true">↗</span></span></div>
+      </a>)}
+    </div>
+  </div>
+</section>

@@ -1,0 +1,57 @@
+---
+import logo from "../../assets/logo.png";
+import { HOME, type Lang } from "../../i18n/home";
+import { sitePath } from "../../doc-routes.mjs";
+import SocialIcon from "./SocialIcon.astro";
+import "./web.css";
+interface Props { lang: Lang; route?: string }
+const { lang, route = "/" } = Astro.props;
+const t = HOME[lang];
+const pre = lang === "es" ? "/es" : "";
+const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
+const links = [
+  ["/start/introduction/", t.nav.start], ["/concepts/agents/", t.nav.ideas],
+  ["/office/chat/", t.nav.office], ["/channels/overview/", t.nav.channels],
+  ["/reference/cli/", t.nav.cli], ["/compare/", lang === "es" ? "Comparar" : "Compare"],
+  ["/#questions", lang === "es" ? "Preguntas" : "Questions"],
+];
+---
+<script is:inline>
+  (() => {
+    let theme = "";
+    try { theme = localStorage.getItem("starlight-theme") || ""; } catch {}
+    document.documentElement.dataset.theme = theme === "light" || theme === "dark" ? theme : matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  })();
+</script>
+<nav class="nav web-header" id="nav" aria-label={lang === "es" ? "Navegación principal" : "Main navigation"}>
+  <div class="wrap nav__in">
+    <a class="brand" href={href(`${pre}/`)}><img src={logo.src} alt="" width="28" height="28" />APX</a>
+    <div class="nav__links">{links.map(([path, label]) => <a href={href(`${pre}${path}`)} aria-current={path === route ? "page" : undefined}>{label}</a>)}</div>
+    <div class="nav__cta">
+      <div class="lang" role="group" aria-label={t.langLabel}>
+        <a href={href(route)} class:list={{ on: lang === "en" }} hreflang="en" lang="en">EN</a>
+        <a href={href(`/es${route}`)} class:list={{ on: lang === "es" }} hreflang="es" lang="es">ES</a>
+      </div>
+      <button class="icon-btn" id="theme" type="button" aria-label={t.themeLabel} title={t.themeLabel}>
+        <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" /></svg>
+        <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></svg>
+      </button>
+      <a class="icon-btn web-repo" href="https://github.com/agentprojectcontext/apx" aria-label="GitHub" title="GitHub"><SocialIcon name="GitHub" /></a>
+      <a class="btn btn-discord btn-sm" href="https://discord.gg/vxdZuT5WuE" aria-label="Discord" title="Discord"><SocialIcon name="Discord" /><span class="lbl">Discord</span></a>
+      <a class="btn btn-light btn-sm nav__get" href={href(`${pre}/#download`)} aria-label={t.download.eyebrow} title={t.download.eyebrow}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" /></svg><span class="lbl">{t.download.eyebrow}</span>
+      </a>
+    </div>
+  </div>
+</nav>
+<script>
+  const nav = document.getElementById("nav");
+  const onScroll = () => nav?.classList.toggle("scrolled", scrollY > 8);
+  addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+  document.getElementById("theme")?.addEventListener("click", () => {
+    const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem("starlight-theme", next); } catch {}
+  });
+</script>

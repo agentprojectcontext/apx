@@ -8,12 +8,13 @@
   "scripts": {
     "dev": "astro dev --host 127.0.0.1 --port 4400",
     "build": "astro build",
-    "check": "node --test scripts/check.test.mjs && node scripts/check.mjs",
+    "check": "node --test scripts/*.test.mjs && node scripts/check.mjs",
     "preview": "astro preview --host 127.0.0.1 --port 4400",
     "shots": "node --no-warnings scripts/shots.ts"
   },
   "dependencies": {
     "@astrojs/markdown-remark": "^7.3.2",
+    "@astrojs/sitemap": "^3.7.4",
     "@astrojs/starlight": "^0.42.5",
     "astro": "^7.3.0",
     "sharp": "^0.34.5"
