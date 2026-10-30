@@ -646,12 +646,30 @@ body.h {
 .nav__links > .nav__sheet-get {
   display: none;
 }
-@media (max-width: 1180px) {
-  .nav__in {
-    gap: 16px;
+/* Seven entries: the bar is wider than the page, and its buttons drop their labels before the menu sheet takes over. */
+.web-header .nav__in {
+  max-width: 1320px;
+  gap: 20px;
+}
+@media (max-width: 1279px) {
+  .web-header .btn-discord .lbl {
+    display: none;
+  }
+  .web-header .btn-discord {
+    width: 36px;
+    padding: 0;
   }
 }
-@media (max-width: 999px) {
+@media (max-width: 1179px) {
+  .web-header .nav__get .lbl {
+    display: none;
+  }
+  .web-header .nav__get {
+    width: 36px;
+    padding: 0;
+  }
+}
+@media (max-width: 1099px) {
   .nav__in {
     gap: 12px;
   }
@@ -697,12 +715,64 @@ body.h {
   .nav__cmp:focus-within .nav__cmp-link {
     background: none;
   }
-  .nav__cmp-link svg,
-  .nav__menu {
+  .nav__cmp-link svg {
+    display: none;
+  }
+  /* In the sheet, Compare's list sits open under it. */
+  .nav__menu,
+  .nav__cmp:hover .nav__menu,
+  .nav__cmp:focus-within .nav__menu {
+    position: static;
+    width: auto;
+    padding: 4px 0 8px;
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .nav__menu-card {
+    border: 0;
+    border-radius: 0;
+    background: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+  }
+  .nav__menu-grid {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0;
+  }
+  .nav__feat {
+    min-height: 0;
+    padding: 14px 16px;
+  }
+  .nav__feat-new {
+    position: relative;
+    top: auto;
+    left: auto;
+    z-index: 1;
+    align-self: flex-start;
+  }
+  .nav__feat-blob {
+    top: 8px;
+    right: -8px;
+  }
+  .nav__menu-list a {
+    padding: 10px 4px;
+    border-bottom: 0;
+  }
+  .nav__menu-foot {
+    padding: 10px 4px;
+    border-top: 0;
+  }
+  .nav__menu-foot > span {
     display: none;
   }
   .web-header[data-open] .nav__links {
     display: flex;
+    max-height: calc(100dvh - 64px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .nav__links > .nav__sheet-get {
     display: flex;

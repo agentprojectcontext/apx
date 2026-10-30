@@ -156,3 +156,60 @@ for (const theme of ["dark", "light"] as const) {
       }
   });
 }
+
+for (const lang of ["en", "es"] as const) {
+  const pre = lang === "es" ? "/es" : "";
+  const entries =
+    lang === "es"
+      ? ["Empezar", "Ideas clave", "Oficina", "Canales", "CLI", "Comparar", "Preguntas"]
+      : ["Start", "Core ideas", "Office", "Channels", "CLI", "Compare", "Questions"];
+  const paths = [
+    "/docs/start/introduction/",
+    "/docs/concepts/agents/",
+    "/docs/office/chat/",
+    "/docs/channels/overview/",
+    "/docs/reference/cli/",
+    "/compare/",
+    "/#questions",
+  ];
+
+  test(`${lang}: the header lists the guide's sections, Compare and Questions, and never overflows`, async ({
+    page,
+    isMobile,
+  }) => {
+    await page.goto(`${pre}/compare/openbot/`);
+    const toggle = page.locator(".web-header .nav__toggle");
+    if (isMobile) {
+      await toggle.click();
+      await expect(page.locator(".web-header")).toHaveAttribute("data-open", "");
+    }
+    const links = page.locator(".web-header .nav__links > a:not(.nav__sheet-get), .web-header .nav__cmp-link");
+    await expect(links).toHaveText(entries);
+    for (const [i, path] of paths.entries()) await expect(links.nth(i)).toHaveAttribute("href", `${pre}${path}`);
+    await expect(links.nth(5)).toHaveAttribute("aria-current", "page");
+    if (isMobile) {
+      // In the sheet, Compare's list is open under it, and the sheet scrolls inside the screen.
+      await expect(page.locator(".web-header .nav__menu-list a").first()).toBeVisible();
+      const sheet = page.locator("#navLinks");
+      const box = await sheet.boundingBox();
+      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(page.viewportSize()?.height ?? 0);
+      expect(await sheet.evaluate((el) => getComputedStyle(el).overflowY)).toBe("auto");
+      await toggle.click();
+      await expect(page.locator(".web-header")).not.toHaveAttribute("data-open");
+      return;
+    }
+    for (const width of [1440, 1280, 1100, 1000]) {
+      await page.setViewportSize({ width, height: 800 });
+      const fits = await page.evaluate(() => {
+        const bar = document.querySelector(".web-header .nav__in")?.getBoundingClientRect();
+        const items = [...document.querySelectorAll(".web-header .nav__in > *")].map((el) =>
+          el.getBoundingClientRect(),
+        );
+        return Boolean(bar) && items.every((r) => r.right <= innerWidth && r.height <= 64 && r.top >= (bar?.top ?? 0));
+      });
+      expect(fits, `header at ${width}px`).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await expect(toggle).toBeVisible({ visible: width < 1100 });
+    }
+  });
+}
