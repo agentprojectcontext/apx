@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { byRelease, latest, type NewsItem } from "./newsModel.ts";
+import { byRelease, hasFresh, latest, type NewsItem } from "./newsModel.ts";
 
 const item = (id: string, since: string, applies = true): NewsItem => ({
   id,
@@ -39,4 +39,13 @@ test("the menu shows the newest that apply, else the newest of all", () => {
     latest([item("x", "2.9.0", false), item("y", "2.10.0", false)], 1).map((e) => e.id),
     ["y"],
   );
+});
+
+test("the dot shows for news that apply and were not there when the menu last opened", () => {
+  const entries = [item("old", "2.9.0"), item("new", "2.11.2"), item("other", "2.11.2", false)];
+  assert.equal(hasFresh(entries, ["old", "new", "other"]), false, "all known");
+  assert.equal(hasFresh(entries, ["old", "other"]), true, "one that applies is new");
+  assert.equal(hasFresh(entries, ["old", "new"]), false, "a new one that does not apply has no dot");
+  assert.equal(hasFresh(entries, null), true, "never opened here: the newest release counts");
+  assert.equal(hasFresh([item("old", "2.9.0"), item("x", "2.11.2", false)], null), false);
 });

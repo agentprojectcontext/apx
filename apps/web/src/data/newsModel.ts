@@ -31,3 +31,14 @@ export function latest(entries: readonly NewsItem[], n = 3): NewsItem[] {
 }
 
 export const words = (w: { en: string; es: string }, lang: string): string => (lang === "es" ? w.es : w.en);
+
+/**
+ * Whether the Help button shows its dot: an entry that applies to the owner and was not there the last time they opened
+ * the menu. Never opened on this device: the newest release's entries count as new, older ones as known.
+ */
+export function hasFresh(entries: readonly NewsItem[], looked: readonly string[] | null): boolean {
+  const mine = entries.filter((e) => e.applies);
+  if (looked) return mine.some((e) => !looked.includes(e.id));
+  const newest = byRelease(entries)[0]?.version;
+  return mine.some((e) => e.since === newest);
+}

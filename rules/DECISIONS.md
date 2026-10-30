@@ -3415,3 +3415,5 @@ every release in a dialog, each entry with what it lets the owner do and a butto
 in English and Spanish, written for the owner: the panel shows its own language, and `text` stays what the model is
 told. The super-agent's message is one or two sentences with the thing that matters most in bold, pointing to Help ›
 What's new for the rest; without a model it is one line with the first entry's title in bold and the rest counted.
+The Help button carries a dot while an entry that applies was not there the last time the menu opened on that device
+(kept per device, like the corner cards); a device that never opened it counts the newest release's entries as new.

@@ -199,6 +199,7 @@ export const en = {
   "update.pill": "Update · {n}",
   "update.pillVersion": "APX {v} · Update",
   "help.label": "Help",
+  "help.labelNew": "Help · there is news",
   "help.whatsNew": "What's new",
   "help.changelog": "All the news",
   "help.guides": "Guides",
