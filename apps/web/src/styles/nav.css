@@ -409,6 +409,7 @@
   order: 1;
 }
 .help__btn {
+  position: relative;
   display: grid;
   place-items: center;
   width: 38px;
@@ -428,6 +429,20 @@
 }
 .help__menu {
   width: 300px;
+}
+/* The news lines have no icon of their own: no empty column before them. */
+.help__menu .apx-menu__icon:empty {
+  display: none;
+}
+.help__dot {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--apx-brand);
+  box-shadow: 0 0 0 2px var(--apx-sidebar);
 }
 
 /* ── Phone dialog ──────────────────────────────────────────────────────────── */

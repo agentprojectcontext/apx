@@ -1,8 +1,8 @@
 import { Icons, Menu, type MenuEntry } from "@apx/ui";
 import { Suspense, useEffect } from "react";
 import { guidesUrl, LINKS, openLink } from "../data/links.ts";
-import { loadNews, openNews, useNews } from "../data/news.ts";
-import { latest, words } from "../data/newsModel.ts";
+import { loadNews, lookAtNews, openNews, useNews } from "../data/news.ts";
+import { hasFresh, latest, words } from "../data/newsModel.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { WhatsNewDialog } from "../lazy.ts";
 
@@ -12,6 +12,8 @@ export function HelpMenu({ rail }: { rail: boolean }) {
   const lang = useLanguage();
   const entries = useNews((s) => s.entries);
   const open = useNews((s) => s.open);
+  const looked = useNews((s) => s.looked);
+  const fresh = entries ? hasFresh(entries, looked) : false;
   useEffect(() => void loadNews(), []);
 
   const recent = entries ? latest(entries) : [];
@@ -39,10 +41,16 @@ export function HelpMenu({ rail }: { rail: boolean }) {
         align={rail ? "end" : "start"}
         className="help__menu"
         items={items}
-        onOpenChange={(o) => o && void loadNews()}
+        onOpenChange={(o) => o && void lookAtNews()}
         trigger={
-          <button type="button" className="help__btn" aria-label={t("help.label")} title={t("help.label")}>
+          <button
+            type="button"
+            className="help__btn"
+            aria-label={fresh ? t("help.labelNew") : t("help.label")}
+            title={fresh ? t("help.labelNew") : t("help.label")}
+          >
             <Icons.CircleHelp size={16} />
+            {fresh && <span className="help__dot" aria-hidden="true" />}
           </button>
         }
       />

@@ -5,13 +5,26 @@ import { createStore, useSlice } from "./createStore.ts";
 
 import type { NewsItem } from "./newsModel.ts";
 
+/** The entries there were the last time the menu opened on this device: what is newer gets the button's dot. */
+const LOOKED_KEY = "apx.newsLooked";
+
+function readLooked(): string[] | null {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(LOOKED_KEY) ?? "null");
+    return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : null;
+  } catch {
+    return null;
+  }
+}
+
 type State = {
   entries: NewsItem[] | undefined;
+  looked: string[] | null;
   /** The dialog: closed (null), every release ("all") or opened on one entry (its id). */
   open: string | null;
 };
 
-const store = createStore<State>({ entries: undefined, open: null });
+const store = createStore<State>({ entries: undefined, looked: readLooked(), open: null });
 
 export const useNews = <T>(select: (s: State) => T): T => useSlice(store, select);
 
@@ -22,6 +35,18 @@ export async function loadNews(): Promise<void> {
     store.set({ entries });
   } catch {
     // An older core without the field, or offline: the menu keeps its links.
+  }
+}
+
+/** The menu was opened: what it lists now is known, and the dot goes away. */
+export async function lookAtNews(): Promise<void> {
+  await loadNews();
+  const looked = (store.get().entries ?? []).map((e) => e.id);
+  store.set({ looked });
+  try {
+    localStorage.setItem(LOOKED_KEY, JSON.stringify(looked));
+  } catch {
+    // Storage blocked: known for this session only.
   }
 }
 
