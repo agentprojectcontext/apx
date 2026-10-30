@@ -26,7 +26,7 @@ import type { ProfileRoot } from "./profiles.ts";
 import { recoverInterrupted } from "./recovery.ts";
 import { droppedResult, outcomeNote } from "./run-outcome.ts";
 import type { SkillPicker } from "./skill-pick.ts";
-import { runTurn, type ToolCall } from "./turn.ts";
+import { OWNER_ADDS, runTurn, type ToolCall } from "./turn.ts";
 
 /**
  * A turn on our own loop ends after this long without progress (a token, a tool's result): a long browser or
@@ -406,7 +406,7 @@ export function createEngine(deps: {
       const takeSteered = () => {
         const taken = steered.get(run.id) ?? [];
         steered.set(run.id, []);
-        return taken.map((s) => (s.apx ? s.text : `[The owner adds, while you work]\n${s.text}`));
+        return taken.map((s) => (s.apx ? s.text : `${OWNER_ADDS}\n${s.text}`));
       };
       // Waiting on a delegate at work is the turn at work too.
       const delegate: typeof delegations.delegate = (...a) => delegations.delegate(...a).finally(clock.busy());

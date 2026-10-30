@@ -96,6 +96,9 @@ import { closeTurnLog, RESUME_NOTE } from "./recovery.ts";
 import { askedPick, type SkillPicker } from "./skill-pick.ts";
 import { channelKindOf, turnTools } from "./turn-tools.ts";
 
+/** How the owner's words written while a turn works reach its model. */
+export const OWNER_ADDS = "[The owner adds, while you work]";
+
 export type TurnDeps = {
   vm?: import("../environments/computer.ts").Computer | undefined;
   store: Store;
@@ -346,7 +349,12 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     approve: exec.approve,
     observe: exec.observe,
     showImage: (file) => showImage(deps, { thread, run, display, owner: audience.kind === "owner" }, file),
-    takeSteered: deps.takeSteered,
+    takeSteered: () => {
+      const taken = deps.takeSteered();
+      // The owner's words sit in the chat below what the agent said so far: its next words go below them.
+      if (taken.some((t) => t.startsWith(OWNER_ADDS))) run = store.runs.patch(run, { message_id: display.below().id });
+      return taken;
+    },
     alive: deps.alive ?? (() => {}),
     log: (items) => store.modelLog.append(thread.id, run.id, items),
   });

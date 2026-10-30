@@ -456,6 +456,8 @@ const KnownPart = z.discriminatedUnion("type", [
     title: z.string(),
     status: z.enum(["running", "ok", "error"]),
     detail: z.string().optional(),
+    /** How long it took, once it ended. */
+    ms: z.number().int().nonnegative().optional(),
   }),
   z.object({ type: z.literal("surface"), surface_id: Id, version: z.number().int(), title: z.string() }),
   z.object({
