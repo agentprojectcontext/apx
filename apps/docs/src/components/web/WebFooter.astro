@@ -53,13 +53,13 @@ const community: Group = {
     doc("reference/website-privacy"),
   ],
 };
-// Short groups stack in pairs, so the block stays a few balanced columns; Compare is a column of its own.
-const columns: Group[][] = [
-  [product, section("start", ["introduction", "how-it-works", "install", "first-steps", "from-v1"])],
+// The docs' sections below the website's links; short groups stack in pairs so the row stays balanced.
+const docColumns: Group[][] = [
   [
-    section("concepts", ["agents", "projects", "conversations", "models", "autonomy", "memory"]),
+    section("start", ["introduction", "how-it-works", "install", "first-steps", "from-v1"]),
     section("devices", ["desktop", "phone", "server"]),
   ],
+  [section("concepts", ["agents", "projects", "conversations", "models", "autonomy", "memory"])],
   [
     section("office", [
       "chat",
@@ -78,7 +78,7 @@ const columns: Group[][] = [
     section("channels", ["overview", "telegram", "whatsapp", "discord-slack", "imessage", "supervised"]),
     section("reference", ["cli", "configuration", "troubleshooting", "privacy"]),
   ],
-  [section("extend", ["skills", "mcp", "extensions", "integrations", "outside-clients"]), community],
+  [section("extend", ["skills", "mcp", "extensions", "integrations", "outside-clients"])],
 ];
 const compare: Group = {
   title: t.compare,
@@ -120,25 +120,32 @@ const back = ["orbita", "perla", "caracol", "kiwi"] as const;
           <p class="web-footer__fine">{t.trademarks}</p>
           <p class="web-footer__origin">{t.madeWith} <span class="web-footer__heart" role="img" aria-label={t.love}>♥</span> {t.inArgentina}</p>
         </div>
+        <div class="web-footer__availability">
+          <p class="web-footer__available">{t.availableFor}</p>
+          <ul class="web-footer__platforms" aria-label={t.platforms}>{platforms.map(({ name, label }) => <li><OsIcon name={name} size={13} />{label}</li>)}</ul>
+        </div>
       </div>
-      <div class="web-footer__availability">
-        <p class="web-footer__available">{t.availableFor}</p>
-        <ul class="web-footer__platforms" aria-label={t.platforms}>{platforms.map(({ name, label }) => <li><OsIcon name={name} size={13} />{label}</li>)}</ul>
+      <div class="web-footer__row web-footer__row--site">
+        {[product, community].map((group) => (
+          <div class="web-footer__col"><nav aria-label={group.title}><h2>{group.title}</h2><ul>{group.links.map(([label, url]) => <li><a href={url}>{label}</a></li>)}</ul></nav></div>
+        ))}
+        <div class="web-footer__col web-footer__col--compare">
+          <nav aria-label={compare.title}>
+            <details class="web-footer__fold" open>
+              <summary><h2>{compare.title}</h2></summary>
+              <ul style={`--rows: ${Math.ceil(compare.links.length / 2)}`}>{compare.links.map(([label, url]) => <li><a href={url}>{label}</a></li>)}</ul>
+            </details>
+          </nav>
+        </div>
       </div>
     </div>
     <div class="web-footer__groups">
-      {columns.map((column) => (
-        <div class="web-footer__col">
-          {column.map((group) => <nav aria-label={group.title}><h2>{group.title}</h2><ul>{group.links.map(([label, url]) => <li><a href={url}>{label}</a></li>)}</ul></nav>)}
-        </div>
-      ))}
-      <div class="web-footer__col web-footer__col--compare">
-        <nav aria-label={compare.title}>
-          <details class="web-footer__fold" open>
-            <summary><h2>{compare.title}</h2></summary>
-            <ul>{compare.links.map(([label, url]) => <li><a href={url}>{label}</a></li>)}</ul>
-          </details>
-        </nav>
+      <div class="web-footer__row web-footer__row--docs">
+        {docColumns.map((column) => (
+          <div class="web-footer__col">
+            {column.map((group) => <nav aria-label={group.title}><h2>{group.title}</h2><ul>{group.links.map(([label, url]) => <li><a href={url}>{label}</a></li>)}</ul></nav>)}
+          </div>
+        ))}
       </div>
     </div>
   </div>

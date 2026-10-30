@@ -8,7 +8,7 @@ for (const lang of ["en", "es"] as const) {
     await page.goto(`${pre}/compare/`);
     const footer = page.locator(".web-footer");
     const hrefs = await footer
-      .locator(".web-footer__groups a")
+      .locator(".web-footer__row a")
       .evaluateAll((links) => links.map((a) => a.getAttribute("href") ?? ""));
     expect(hrefs.length).toBeGreaterThanOrEqual(60);
     expect(hrefs).toContain("mailto:manu@incubit.com.ar");
@@ -37,10 +37,10 @@ test("on a phone the footer's columns stack in two, Compare folds, and links are
   test.skip(!isMobile, "Phone layout");
   await page.addInitScript(() => localStorage.setItem("apx-website-analytics-v1", "declined"));
   await page.goto("/es/");
-  const groups = page.locator(".web-footer__groups");
-  await groups.scrollIntoViewIfNeeded();
+  const groups = page.locator(".web-footer");
+  await groups.locator(".web-footer__row").first().scrollIntoViewIfNeeded();
   const columns = await groups
-    .locator(".web-footer__col:not(.web-footer__col--compare)")
+    .locator(".web-footer__row .web-footer__col:not(.web-footer__col--compare)")
     .evaluateAll((cols) => [...new Set(cols.map((n) => Math.round(n.getBoundingClientRect().left)))]);
   expect(columns).toHaveLength(2);
   // The long list of comparisons starts folded, and opens.
@@ -49,7 +49,7 @@ test("on a phone the footer's columns stack in two, Compare folds, and links are
   await fold.locator("summary").tap();
   await expect(fold).toHaveAttribute("open", "");
   await expect(fold.locator("a").first()).toBeVisible();
-  for (const link of await groups.locator("a").all()) {
+  for (const link of await groups.locator(".web-footer__row a").all()) {
     const box = await link.boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
     expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0);

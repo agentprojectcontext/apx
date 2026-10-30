@@ -946,18 +946,17 @@ body.h {
   font-size: 14px;
 }
 /* Top row: the brand, how to reach us and the legal lines; the platforms on the right. */
+/* The brand block on the left, the website's links beside it, like a paragraph around a picture. */
 .web-footer__top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px 40px;
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  align-items: start;
+  gap: 32px 56px;
   padding-bottom: 36px;
   border-bottom: 1px solid var(--apx-border);
 }
 .web-footer__intro {
   display: flex;
-  flex: 0 1 560px;
   flex-direction: column;
   gap: 14px;
 }
@@ -1036,13 +1035,45 @@ body.h {
   outline: 2px solid var(--apx-brand);
   outline-offset: 2px;
 }
-/* The links: a few columns of stacked groups, Compare a tall column of its own. */
+/* The links in two rows: the website's (Product, Community, Compare over two columns), then the docs' sections. */
 .web-footer__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  padding-top: 36px;
+}
+.web-footer__row {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: start;
   gap: 32px 24px;
-  padding-top: 36px;
+}
+.web-footer__row--site {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.web-footer__row--site .web-footer__col--compare {
+  grid-column: span 2;
+}
+.web-footer__row--site .web-footer__col--compare ul {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(var(--rows), auto);
+  gap: 10px 24px;
+}
+@media (max-width: 1100px) {
+  .web-footer__top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 1000px) {
+  .web-footer__row,
+  .web-footer__row--site {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .web-footer__row--site .web-footer__col--compare {
+    grid-column: 1 / -1;
+  }
 }
 .web-footer__col {
   display: flex;
@@ -1056,14 +1087,14 @@ body.h {
 .web-footer__fold summary::-webkit-details-marker {
   display: none;
 }
-.web-footer__groups h2 {
+.web-footer__row h2 {
   margin: 0 0 12px;
   font: 500 11px / 1 var(--apx-font-mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--apx-fg-subtle);
 }
-.web-footer__groups ul {
+.web-footer__row ul {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1075,21 +1106,25 @@ body.h {
 }
 /* On touch screens every footer link is a full-size target. */
 @media (max-width: 760px) {
-  .web-footer__groups {
+  .web-footer__row,
+  .web-footer__row--site {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 28px 20px;
   }
-  .web-footer__groups ul {
+  .web-footer__row--site .web-footer__col--compare ul {
+    display: flex;
+  }
+  .web-footer__row ul {
     gap: 0;
   }
-  .web-footer__groups a {
+  .web-footer__row a {
     display: flex;
     align-items: center;
     min-height: 44px;
     overflow-wrap: anywhere;
   }
 }
-.web-footer__groups a:hover {
+.web-footer__row a:hover {
   color: var(--apx-fg);
 }
 .web-footer__mark {
@@ -1175,7 +1210,6 @@ body.h {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 10px;
-  margin-left: auto;
 }
 .web-footer__available {
   display: flex;
@@ -1338,7 +1372,7 @@ body.h {
   .web-footer .brand {
     min-height: 44px;
   }
-  .web-footer__groups ul {
+  .web-footer__row ul {
     gap: 0;
   }
   .web-footer__fold summary {
@@ -1349,7 +1383,7 @@ body.h {
   .web-footer__fold summary h2 {
     margin: 0;
   }
-  .web-footer__groups a,
+  .web-footer__row a,
   .web-footer__legal a,
   .web-footer__contact {
     display: flex;

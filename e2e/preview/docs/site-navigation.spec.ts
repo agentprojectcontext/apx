@@ -73,7 +73,7 @@ for (const lang of ["en", "es"]) {
           name: lang === "es" ? "Plataformas disponibles" : "Available platforms",
         });
         await expect(platforms.getByRole("listitem")).toHaveText(["macOS", "Windows", "Linux", "Android"]);
-        await expect(footer.locator(".web-footer__groups nav")).toHaveCount(10);
+        await expect(footer.locator(".web-footer__row nav")).toHaveCount(10);
         const layout = await footer.evaluate((element) => {
           const bounds = (selector: string) => {
             const rect = element.querySelector(selector)?.getBoundingClientRect();
@@ -84,20 +84,28 @@ for (const lang of ["en", "es"]) {
             origin: bounds(".web-footer__origin"),
             availability: bounds(".web-footer__availability"),
             groups: bounds(".web-footer__groups"),
+            site: bounds(".web-footer__row--site"),
+            docs: bounds(".web-footer__row--docs"),
+            docColumns: [...element.querySelectorAll(".web-footer__row--docs .web-footer__col")].map(
+              (col) => col.getBoundingClientRect().x,
+            ),
             mark: bounds(".web-footer__mark"),
-            columns: [...element.querySelectorAll(".web-footer__col")].map((col) => col.getBoundingClientRect().x),
           };
         });
         // The brand, its legal lines and the platforms come first; the links below; the big mark right after.
         expect(layout.origin.bottom).toBeLessThanOrEqual(layout.brand.bottom);
         expect(layout.groups.y).toBeGreaterThanOrEqual(layout.brand.bottom);
-        expect(layout.availability.bottom).toBeLessThanOrEqual(layout.groups.y);
+        expect(layout.availability.bottom).toBeLessThanOrEqual(layout.brand.bottom);
         expect(layout.mark.y).toBeGreaterThanOrEqual(layout.groups.bottom);
         expect(layout.mark.y - layout.groups.bottom).toBeLessThan(48);
+        // The website's links (Product, Community, Compare) come before the docs' sections.
+        expect(layout.docs.y).toBeGreaterThanOrEqual(layout.site.bottom);
         if (!isMobile) {
-          // Six columns in one row at desktop width: five of stacked groups and Compare.
-          expect(new Set(layout.columns).size).toBe(6);
-          expect(layout.availability.y).toBeLessThan(layout.brand.bottom);
+          // At desktop width they sit beside the brand block, filling the space next to it.
+          expect(layout.site.y).toBeLessThan(layout.brand.bottom);
+          expect(layout.site.x).toBeGreaterThan(layout.brand.x + 200);
+          // At desktop width the docs' sections are five columns in one row.
+          expect(new Set(layout.docColumns).size).toBe(5);
         }
         for (const [name, url] of [
           ["GitHub", "https://github.com/agentprojectcontext/apx"],
