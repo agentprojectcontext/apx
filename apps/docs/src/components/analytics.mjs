@@ -127,7 +127,9 @@ export function initializeConsent(win, doc) {
   function choose(value) {
     if (value === "declined") {
       decline();
-      try { channel?.postMessage("declined"); } catch {}
+      try {
+        channel?.postMessage("declined");
+      } catch {}
       if (!pendingDecline) settings.focus();
       return;
     }
@@ -145,9 +147,10 @@ export function initializeConsent(win, doc) {
     if (pendingDecline) decline();
     else if (loaded && readChoice() !== "accepted") decline();
   }
-  if (channel) channel.onmessage = (event) => {
-    if (event.data === "declined") decline();
-  };
+  if (channel)
+    channel.onmessage = (event) => {
+      if (event.data === "declined") decline();
+    };
   doc.addEventListener("visibilitychange", synchronize);
   win.addEventListener("storage", (event) => {
     if (event.key === consentKey || event.key === null) synchronize();

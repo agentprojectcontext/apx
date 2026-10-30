@@ -38,7 +38,9 @@ function fixture(choice, unavailable = false, broadcasts = new Set()) {
   const failures = { write: unavailable, cookies: false };
   const win = {
     BroadcastChannel: class {
-      constructor() { broadcasts.add(this); }
+      constructor() {
+        broadcasts.add(this);
+      }
       postMessage(data) {
         for (const peer of broadcasts) if (peer !== this) peer.onmessage?.({ data });
       }
@@ -78,7 +80,9 @@ function fixture(choice, unavailable = false, broadcasts = new Set()) {
     ["unrelated", "keep"],
   ]);
   const doc = {
-    addEventListener(name, callback) { listeners[name] = callback; },
+    addEventListener(name, callback) {
+      listeners[name] = callback;
+    },
     body: { append() {} },
     querySelector() {
       return root;
