@@ -6,6 +6,7 @@ import { badRequest, conflict, unavailable } from "../errors.ts";
 import { availableMemory } from "../usage.ts";
 import { type ComputerControl, computerControl } from "./control.ts";
 import { guestOperations } from "./guest-operations.ts";
+import type { ComputerNeed } from "./host.ts";
 import type { Appearance, VmLifecycle } from "./lifecycle.ts";
 import { type ReadyEvent, type ReadyStage, readyWaiters } from "./ready.ts";
 import {
@@ -44,6 +45,8 @@ export type ComputerConfig = {
   /** Free host memory in bytes; tests pass their own. */
   freeMemory?: () => Promise<number>;
   host?: Host;
+  /** A step the owner must take on this host before the computer can start (managed.ts, host.ts). */
+  needs?: () => ComputerNeed | undefined;
 };
 
 /** The grant that lets one agent use the computer: for good, or for one chat (DECISIONS.md#d-151). */
@@ -67,6 +70,12 @@ const MONITOR_TTL_MS = 5_000;
 export function createComputer(store: Store, config: ComputerConfig) {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,40}$/.test(config.instance)) throw badRequest("invalid VM name");
   const host = config.host ?? thisHost();
+  /** What the owner still has to do on this host, while the computer is not up (or failed): never while it runs. */
+  const needOf = (phase?: string) => {
+    if (phase === "running" || phase === "preparing" || phase === "stopping" || phase === "unsupported") return {};
+    const need = config.needs?.();
+    return need ? { needs: { reason: need.reason, ...(need.command ? { command: need.command } : {}) } } : {};
+  };
   const freeMemory = config.freeMemory ?? (() => availableMemory());
   const chats = () => store.settings.read("computer_chats");
   const appearance = (): Appearance => (store.settings.get("vm_appearance") === "dark" ? "dark" : "light");
@@ -284,6 +293,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
         idle_minutes: store.settings.read("computer").idle_minutes,
         ...(stopped ? { last_stop: JSON.parse(stopped) as { reason: StopReason; at: string } } : {}),
         ...phaseOf,
+        ...needOf(phaseOf.phase),
       };
     },
     /**
