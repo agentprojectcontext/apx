@@ -232,12 +232,15 @@ export const personalApps = [
       { title: "Paperclip home page", url: "https://paperclip.ing/" },
       { title: "Paperclip llms.txt overview", url: "https://paperclip.ing/llms.txt" },
       { title: "Paperclip README", url: "https://github.com/paperclipai/paperclip" },
-      { title: "Paperclip license", url: "https://github.com/paperclipai/paperclip/blob/master/LICENSE" },
+      {
+        title: "Paperclip license",
+        url: "https://github.com/paperclipai/paperclip/blob/76fde891ccc29283b3f5c8dcdce089c5b3d937d1/LICENSE",
+      },
       { title: "Paperclip docs", url: "https://docs.paperclip.ing/" },
       { title: "Paperclip connectors", url: "https://docs.paperclip.ing/connectors/" },
       {
         title: "Paperclip deployment modes",
-        url: "https://github.com/paperclipai/paperclip/blob/master/docs/deploy/deployment-modes.md",
+        url: "https://github.com/paperclipai/paperclip/blob/76fde891ccc29283b3f5c8dcdce089c5b3d937d1/docs/deploy/deployment-modes.md",
       },
       { title: "Paperclip multi-user login", url: "https://docs.paperclip.ing/how-to/enable-multi-user-login/" },
       { title: "Paperclip Claude Code adapter", url: "https://docs.paperclip.ing/adapters/claude-local" },

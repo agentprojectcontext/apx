@@ -4,7 +4,14 @@ test.beforeEach(({ isMobile }) => {
   test.skip(!isMobile, "Phone checks");
 });
 
-for (const path of ["/", "/es/", "/compare/", "/es/compare/openbot/", "/compare/best-ai-agent-apps/", "/es/compare/best-ai-agent-apps/"]) {
+for (const path of [
+  "/",
+  "/es/",
+  "/compare/",
+  "/es/compare/openbot/",
+  "/compare/best-ai-agent-apps/",
+  "/es/compare/best-ai-agent-apps/",
+]) {
   test(`${path}: every control is at least 44 px tall to tap and the page keeps the screen's width`, async ({
     page,
   }) => {

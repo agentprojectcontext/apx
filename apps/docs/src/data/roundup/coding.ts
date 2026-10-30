@@ -34,7 +34,10 @@ export const codingApps = [
       { title: "Claude Code channels", url: "https://code.claude.com/docs/en/channels" },
       { title: "Claude Code deployment options", url: "https://code.claude.com/docs/en/third-party-integrations" },
       { title: "Claude pricing", url: "https://claude.com/pricing" },
-      { title: "Claude Code license", url: "https://github.com/anthropics/claude-code/blob/main/LICENSE.md" },
+      {
+        title: "Claude Code license",
+        url: "https://github.com/anthropics/claude-code/blob/d4dfed4e1c578cfea8bd6e64873e4f5e5b7e36f0/LICENSE.md",
+      },
       {
         title: "APX models",
         url: "https://github.com/agentprojectcontext/apx/blob/61e82f790c1e4802a8f4e1764ae5ccc86487d3fe/apps/docs/src/content/docs/concepts/models.mdx",
@@ -84,7 +87,10 @@ export const codingApps = [
       { title: "Codex skills and plugins", url: "https://learn.chatgpt.com/docs/skills-and-plugins" },
       { title: "Codex and MCP", url: "https://learn.chatgpt.com/docs/extend/mcp" },
       { title: "Codex open source", url: "https://learn.chatgpt.com/docs/open-source" },
-      { title: "Codex license (GitHub)", url: "https://github.com/openai/codex/blob/main/LICENSE" },
+      {
+        title: "Codex license (GitHub)",
+        url: "https://github.com/openai/codex/blob/8801b9a8a6c606508736d4e01dedabe52833d637/LICENSE",
+      },
       {
         title: "APX models",
         url: "https://github.com/agentprojectcontext/apx/blob/61e82f790c1e4802a8f4e1764ae5ccc86487d3fe/apps/docs/src/content/docs/concepts/models.mdx",

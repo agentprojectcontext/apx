@@ -17,7 +17,7 @@ export const viktor: Product = {
     { title: "Viktor general terms", url: "https://viktor.com/legal/general-terms" },
   ],
   rowSources: [
-    ["https://viktor.com/"],
+    ["https://viktor.com/", "https://viktor.com/docs/what-viktor-can-do"],
     ["https://viktor.com/", "https://viktor.com/changelog"],
     ["https://viktor.com/security"],
     ["https://viktor.com/", "https://viktor.com/docs/what-viktor-can-do", "https://viktor.com/docs/approvals"],

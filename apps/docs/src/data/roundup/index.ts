@@ -156,7 +156,7 @@ export const roundupFaq = [
       "https://github.com/agentprojectcontext/apx/blob/61e82f790c1e4802a8f4e1764ae5ccc86487d3fe/LICENSE",
       "https://github.com/openclaw/openclaw/blob/b277db00687aabbf245c0d9287139a30bb2a22df/LICENSE",
       "https://github.com/NousResearch/hermes-agent/blob/5057eaa3a4d0cbef0e30078418a5115faa62889e/LICENSE",
-      "https://github.com/paperclipai/paperclip/blob/master/LICENSE",
+      "https://github.com/paperclipai/paperclip/blob/76fde891ccc29283b3f5c8dcdce089c5b3d937d1/LICENSE",
       "https://github.com/nightly-labs/openbot/blob/98e89b61782a2ae7d0aac380d82d824b65179afd/LICENSE",
       "https://learn.chatgpt.com/docs/pricing",
       "https://cursor.com/docs/models-and-pricing",

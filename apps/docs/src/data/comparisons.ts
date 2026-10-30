@@ -18,6 +18,7 @@ export const sourceSnapshots = {
   "agentprojectcontext/apx": "61e82f790c1e4802a8f4e1764ae5ccc86487d3fe",
   "NousResearch/hermes-agent": "5057eaa3a4d0cbef0e30078418a5115faa62889e",
   "openclaw/openclaw": "b277db00687aabbf245c0d9287139a30bb2a22df",
+  "paperclipai/paperclip": "76fde891ccc29283b3f5c8dcdce089c5b3d937d1",
   "nightly-labs/openbot": "98e89b61782a2ae7d0aac380d82d824b65179afd",
 } as const;
 export const apxSource = "https://github.com/agentprojectcontext/apx";
