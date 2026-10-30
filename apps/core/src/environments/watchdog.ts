@@ -7,7 +7,7 @@ const GIB = 1024 ** 3;
 
 const SAID = {
   memory: (free: number) =>
-    `Computer was shut down: this Mac had only ${gib(free)} GiB of memory free. Its disk is kept; start it again when there is room.`,
+    `Computer was shut down: this machine had only ${gib(free)} GiB of memory free. Its disk is kept; start it again when there is room.`,
   idle: (minutes: number) =>
     `Computer was shut down after ${minutes} minutes without use, to free its memory. Its disk is kept; it starts again when needed.`,
 };

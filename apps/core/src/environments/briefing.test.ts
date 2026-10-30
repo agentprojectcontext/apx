@@ -44,6 +44,6 @@ test("off or starting, the briefing says so and what the agent does about it", (
   const starting = { ...base, phase: "preparing" as const, setup: true, chat: { thread: "t2", on: false } };
   assert.match(
     computerBriefing(starting as never, "roby", "t2"),
-    /^Computer: being set up for the first time; this chat works on this Mac\. You get a turn/,
+    /^Computer: being set up for the first time; this chat works on this machine\. You get a turn/,
   );
 });

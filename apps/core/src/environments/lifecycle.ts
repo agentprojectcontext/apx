@@ -82,7 +82,7 @@ export function createVmLifecycle(driver: VmDriver) {
   };
   const allowed = () => {
     if (closed) throw unavailable("computer controller is closed");
-    if (!driver.supported) throw unavailable("Computer currently requires macOS Apple Silicon");
+    if (!driver.supported) throw unavailable("The computer is not available on this system");
   };
   return {
     status,
@@ -99,7 +99,7 @@ export function createVmLifecycle(driver: VmDriver) {
         ...(error ? { error } : {}),
       };
     },
-    /** This host can run the computer (macOS on Apple Silicon). */
+    /** This host can run the computer (Lima has a driver for it: macOS, Linux with KVM, Windows with WSL 2). */
     supported: driver.supported,
     /** The phase last seen, without probing the guest; undefined before the first status. */
     seen: () => phase,

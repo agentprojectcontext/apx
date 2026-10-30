@@ -17,7 +17,7 @@ const mayUseComputer = (store: Parameters<typeof agentName>[0], agent: string) =
 
 export const TEAM: Readonly<Record<string, Setting>> = {
   "environments.status": {
-    does: "which agents may use the isolated Linux computer (apart from this Mac, one screen each) and their screens",
+    does: "which agents may use the isolated Linux computer (apart from this machine, one screen each) and their screens",
     read: (_p, { store }) => {
       const screens = store.settings.read("computer_screens");
       const allowed = store.agents.list().filter((a) => mayUseComputer(store, a.id));

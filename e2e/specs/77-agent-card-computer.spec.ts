@@ -36,7 +36,7 @@ test("an agent's card shows the computer off, turns it on in its settings, then 
     const nav = page.getByRole("button", { name: "Computadoras", exact: true });
     await expect(nav).toHaveCount(0);
     await detail.getByRole("button", { name: /^Una computadora Linux/ }).hover();
-    await expect(page.locator(".apx-tooltip")).toContainText("Una computadora Linux aparte de esta Mac");
+    await expect(page.locator(".apx-tooltip")).toContainText("Una computadora Linux aparte de este equipo");
 
     await row.getByRole("button", { name: "Activar", exact: true }).click();
     const editor = page.getByRole("dialog", { name: /^Editar a/ });

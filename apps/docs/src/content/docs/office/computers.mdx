@@ -5,12 +5,28 @@ sidebar:
   order: 8
 ---
 
-## A computer apart from your Mac
+## A computer apart from your machine
 
-On **macOS with Apple Silicon**, APX can prepare an optional Linux virtual machine with a browser, desktop and
-terminal. It downloads Lima if needed, Linux and desktop packages; Docker is not required. This runs on the
-**core's computer**, not automatically on the device where you open the panel. Intel Macs, Windows and Linux
-cores do not currently support this managed computer.
+APX can prepare an optional Linux virtual machine with a browser, desktop and terminal. It downloads Lima if needed,
+Linux and desktop packages; Docker is not required. This runs on the **core's computer**, not automatically on the
+device where you open the panel. What that computer needs:
+
+| Core runs on | Needs | Runs the VM with |
+|---|---|---|
+| macOS 13 or later (Apple Silicon or Intel) | Nothing extra | Apple's Virtualization framework |
+| Linux (x86-64 or ARM64) | QEMU (`sudo apt install qemu-system-x86 qemu-utils`, or `qemu-system-arm qemu-efi-aarch64` on ARM) and access to `/dev/kvm` (`sudo usermod -aG kvm $USER`, then sign in again) | QEMU with KVM |
+| Windows 10 (build 19041 or later) or 11 | WSL 2 (`wsl --install --no-distribution` in an administrator PowerShell, then restart) and Git for Windows, for its `ssh` (`winget install --id Git.Git -e`) | WSL 2, on a Debian image APX prepares the first time |
+
+If something is missing, the first start stops and the panel says what to install. On Windows:
+
+- The first start builds the Debian image once (a few minutes) and keeps it for later starts.
+- WSL's mirrored networking (`networkingMode=mirrored` in `.wslconfig`) shares Windows' own localhost with the VM,
+  so the computer refuses to start with it. Use WSL's default networking.
+- WSL sets memory and CPUs for all its distributions at once, in `.wslconfig`; the computer's memory and CPU
+  settings do not change them.
+- WSL distributions share one network. Each agent can reach only its own loopback services and APX's egress
+  proxy, so services your other distributions listen on at localhost stay out of its reach.
+- The VM cannot run Windows programs, and Windows drives mounted under `/mnt` are closed to agents.
 
 This is different from [letting agents use your own desktop](/devices/desktop/#computer-use) or opening tabs in
 APX's [embedded browser](/office/browser/).
@@ -19,7 +35,7 @@ APX's [embedded browser](/office/browser/).
 
 The computer is off for every agent until you allow it. Open the agent's settings and **Isolated computer**, or
 ask your super-agent to help enable it. Allowing an agent lets it start its own screen when it needs one; it is not
-permission to use your Mac's screen.
+permission to use your own screen.
 
 Open a project agent's chat and its **Computer** panel, then choose **Use the computer here** (or allow the agent
 and use it here). Ask it to work there. APX shows creation, loading and readiness in the chat; an allowed agent can
@@ -28,8 +44,8 @@ app's message does not gain access to the computer.
 
 One Linux VM is shared by allowed agents, but each has its own Linux user, browser and screen. A screen belongs to
 one chat at a time; another chat points you to that chat rather than silently taking its screen. In a chat on the
-computer, shell, files, browser and screen actions run there, not as a fallback on your Mac. Tasks, delegation,
-memory and web reads remain available. Do not assume project files on your Mac are automatically copied there.
+computer, shell, files, browser and screen actions run there, not as a fallback on the host. Tasks, delegation,
+memory and web reads remain available. Do not assume project files on the host are automatically copied there.
 
 ## Watch or take control
 
@@ -53,9 +69,9 @@ start; the running computer may still have the previous allocation. The default 
 Shutting down keeps the guest disk and files. Disk allocation can grow, but cannot shrink.
 
 The screen limit depends on the memory allocated to the running VM. If it is full, turn off another screen or
-increase memory and restart the VM. Starting also needs free memory for the VM plus a reserve for your Mac.
+increase memory and restart the VM. Starting also needs free memory for the VM plus a reserve for the host.
 When available, APX offers a smaller allocation. **Start anyway** appears only when the VM fits but the host's
-reserve does not; it is not a general bypass for insufficient memory. The VM can shut down if the Mac runs short
+reserve does not; it is not a general bypass for insufficient memory. The VM can shut down if the host runs short
 of memory, keeping its disk.
 
 ## Boundaries

@@ -155,12 +155,12 @@ test("a screen kept up after its run shows on the wall as idle, opens large with
     await wall.getByRole("button", { name: "Abrir chat", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`thread=${chat.id}`));
 
-    // In another chat of Roby's, on this Mac: its screen is that chat's, one click away.
+    // In another chat of Roby's, on this machine: its screen is that chat's, one click away.
     const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Otro chat" });
     await page.goto(`${env.core.url}/#thread=${other.id}&panel=computer`);
     const computer = page.locator(".computer");
     await expect(
-      computer.getByText("Este chat corre en esta Mac. La pantalla de Roby en la computadora es de su otro chat."),
+      computer.getByText("Este chat corre en este equipo. La pantalla de Roby en la computadora es de su otro chat."),
     ).toBeVisible();
     await expect(computer.getByRole("button", { name: "Usar la computadora acá", exact: true })).toBeVisible();
     await computer.getByRole("button", { name: "Abrir ese chat", exact: true }).click();

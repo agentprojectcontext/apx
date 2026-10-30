@@ -81,10 +81,10 @@ test("Home never goes on the computer: an allowed super-agent there keeps its to
   const env = await startCore({ home, llm, computer: fakeComputer(home).config });
   try {
     await env.client.call("environments.permit", { agent: "roby", on: true });
-    await assert.rejects(env.client.call("environments.bind", { thread: "home" }), /Home stays on this Mac/);
+    await assert.rejects(env.client.call("environments.bind", { thread: "home" }), /Home stays on this machine/);
     await assert.rejects(
       env.client.call("environments.enable", { thread: "home", appearance: "light" }),
-      /Home stays on this Mac/,
+      /Home stays on this machine/,
     );
     assert.equal((await env.client.call("environments.status", { thread: "home" })).chat, undefined);
     await env.client.call("threads.send", { thread: "home", text: "Publish APX on three sites" });

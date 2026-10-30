@@ -1,29 +1,28 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { type ComputerHost, LIMA_VERSION } from "./host.ts";
 import type { ComputerProgress } from "./lifecycle.ts";
 import { limaProcess } from "./lima-process.ts";
 
-export const LIMA_VERSION = "2.2.1";
-const ARCHIVE = `https://github.com/lima-vm/lima/releases/download/v${LIMA_VERSION}/lima-${LIMA_VERSION}-Darwin-arm64.tar.gz`;
-const DIGEST = "9e9eacce88f37e185c346bad73aa6136f738d8cdf8c3bb23cd42b071824bc66e";
-
 /** A pinned vendor archive, checked before extracting only the native driver and matching guest agent. */
 export async function installLima(
+  host: ComputerHost,
   root: string,
   signal: AbortSignal,
   progress: (value: ComputerProgress) => void,
   download: typeof fetch = fetch,
 ) {
   const destination = path.join(root, `lima-${LIMA_VERSION}`);
-  const binary = path.join(destination, "bin/limactl");
+  const binary = path.join(destination, host.limactl);
   if (fs.existsSync(binary)) return binary;
   fs.mkdirSync(root, { recursive: true, mode: 0o700 });
   const staging = fs.mkdtempSync(path.join(root, ".lima-install-"));
   try {
-    const response = await download(ARCHIVE, { signal: AbortSignal.any([signal, AbortSignal.timeout(120_000)]) });
+    const url = `https://github.com/lima-vm/lima/releases/download/v${LIMA_VERSION}/${host.archive.name}`;
+    const response = await download(url, { signal: AbortSignal.any([signal, AbortSignal.timeout(120_000)]) });
     if (!response.ok || !response.body) throw new Error(`Lima download failed: HTTP ${response.status}`);
-    const archive = path.join(staging, "runtime.tar.gz");
+    const archive = path.join(staging, host.os === "win32" ? "runtime.zip" : "runtime.tar.gz");
     const file = await fs.promises.open(archive, "wx", 0o600);
     const hash = createHash("sha256");
     let downloaded = 0;
@@ -39,23 +38,15 @@ export async function installLima(
     } finally {
       await file.close();
     }
-    if (hash.digest("hex") !== DIGEST) throw new Error("Lima checksum does not match the pinned release");
+    if (hash.digest("hex") !== host.archive.sha256) throw new Error("Lima checksum does not match the pinned release");
     signal.throwIfAborted();
     const unpacked = path.join(staging, "unpacked");
     fs.mkdirSync(unpacked);
-    await limaProcess(() => "/usr/bin/tar", { PATH: "/usr/bin:/bin" })(
-      [
-        "-xzf",
-        archive,
-        "-C",
-        unpacked,
-        "./bin/limactl",
-        "./share/lima/lima-guestagent.Linux-aarch64.gz",
-        "./share/doc/lima/LICENSE",
-        "./share/doc/lima/VERSION",
-      ],
-      { signal },
-    );
+    await limaProcess(() => host.tar, {
+      ...process.env,
+      // GNU tar runs gzip from PATH.
+      PATH: [path.dirname(host.tar), "/usr/bin", "/bin"].join(path.delimiter),
+    })(["-xf", archive, "-C", unpacked, ...host.members], { signal });
     fs.renameSync(unpacked, destination);
     return binary;
   } finally {

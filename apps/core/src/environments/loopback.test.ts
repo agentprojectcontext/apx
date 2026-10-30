@@ -64,3 +64,22 @@ test("each screen's browser logs in its own user's home, never in a folder other
   assert.equal(two.at(-1), "/home/apx-a2/.cache/apx/browser.log");
   assert.ok(![...one, ...two].some((arg) => arg.startsWith("/tmp/")));
 });
+
+test("on WSL, without socket matching, replies cross only between an agent and itself or the egress proxy", () => {
+  const rules = agentLoopbackRules([1], true);
+  assert.equal(
+    rules,
+    [
+      "table inet apx_loopback {",
+      "  chain output {",
+      "    type filter hook output priority -160; policy accept;",
+      '    oifname "lo" ct state new meta skuid 2001 ct mark set 0x000007d1',
+      '    oifname "lo" ct direction reply meta skuid 2001 ct mark != 0x000007d1 drop',
+      '    oifname "lo" ct direction reply ct mark 0x000007d1 meta skuid != 2001 th sport != 3128 drop',
+      "  }",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  assert.doesNotMatch(rules, /socket cgroupv2/);
+});

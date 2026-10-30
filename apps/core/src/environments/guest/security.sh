@@ -15,7 +15,9 @@ if ! id "$worker" >/dev/null 2>&1; then useradd --uid 1001 --create-home --shell
 [ "$(id -G "$worker")" = "$(id -g "$worker")" ]
 passwd --lock "$worker" >/dev/null
 chmod 700 /home/apx-worker
-chmod 700 /home/apx /var/lib/cloud /mnt
+chmod 700 /home/apx /mnt
+# No cloud-init on WSL, so no /var/lib/cloud there.
+[ ! -d /var/lib/cloud ] || chmod 700 /var/lib/cloud
 install -d -m 755 /etc/apx-computer
 sudo -n -u "$worker" -H mkdir -p /home/apx-worker/work
 if [ -d /home/apx/work ] && [ ! -f /etc/apx-computer/work-imported ]; then
@@ -38,6 +40,8 @@ load() {
   fi
 }
 load apx_computer /etc/apx-computer/egress.nft
+# WSL mounts Windows drives under /mnt at each boot; only root goes past it.
+chmod 700 /mnt
 # Agents' loopback: a rule names an agent's slice, which must exist before the rule loads.
 if [ -f /etc/apx-computer/agents.nft ]; then
   for slice in $(grep -o 'user-[0-9]*\.slice' /etc/apx-computer/agents.nft | sort -u); do systemctl start "$slice"; done

@@ -35,7 +35,7 @@ const STOPPED = {
 /** A few lines: the computer's state and sizes, this agent's screen, whose hands it is in, what waits on the owner. */
 export function computerBriefing(s: Status, agent: string, thread: string, told = false): string {
   const mine = s.screens?.find((x) => x.agent === agent);
-  const here = s.chat?.on ? "this chat works on it" : "this chat works on this Mac";
+  const here = s.chat?.on ? "this chat works on it" : "this chat works on this machine";
   if (s.phase === "preparing")
     return `Computer: ${s.setup ? "being set up for the first time" : "starting"}; ${here}. You get a turn in a chat on it the moment it is ready.`;
   if (s.phase !== "running") {

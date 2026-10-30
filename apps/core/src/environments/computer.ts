@@ -350,7 +350,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
     },
     /** The owner starts the computer, putting a chat on it when named (its agent must be allowed first). */
     async enable(id: string | undefined, look: Appearance, pastReserve = false) {
-      // The chat goes on the computer only once it can run: a start refused for memory leaves it on this Mac.
+      // The chat goes on the computer only once it can run: a start refused for memory leaves it on this machine.
       if (id) vm.admit(id);
       store.settings.set("vm_appearance", look);
       await vm.boot(pastReserve);
@@ -377,7 +377,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
       const lifecycle = config.lifecycle;
       if (!lifecycle) throw unavailable("this VM has no lifecycle controller");
       const now = await lifecycle.status();
-      if (!now.supported) throw unavailable("Computer currently requires macOS Apple Silicon");
+      if (!now.supported) throw unavailable("The computer is not available on this system");
       if (now.phase === "running" || now.phase === "preparing") return;
       if (now.phase === "stopping") throw conflict("Computer is shutting down; start it again once it is off");
       const refusal = startRefusal(resources(), await freeMemory(), resourceLimits(host).memory_gib.min, pastReserve);
@@ -388,7 +388,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
       lifecycle.start(appearance());
       store.settings.set("computer_enabled", "true");
     },
-    /** The chat goes back to this Mac; a screen it holds is let go (its desktop stays up until room is needed). */
+    /** The chat goes back to this machine; a screen it holds is let go (its desktop stays up until room is needed). */
     leave(id: string, run?: string) {
       const claim = ledger.forThread(id);
       if (claim && (!run || claim.run === run)) ledger.release(claim.run);
@@ -432,7 +432,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
       if (!t)
         throw badRequest(
           store.threads.get(id)?.kind === "home"
-            ? "Home stays on this Mac; use the computer from another chat or a task"
+            ? "Home stays on this machine; use the computer from another chat or a task"
             : "use an owner's native chat",
         );
       const agent = t.agent_ids[0];

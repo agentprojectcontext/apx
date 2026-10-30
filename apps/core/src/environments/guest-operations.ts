@@ -17,6 +17,13 @@ export const DISPLAY_CAP = 12;
 
 /** A viewer's whole process group (limactl and the ssh under it), so none is left holding its pipes. */
 export function endViewer(child: ChildProcess, signal: NodeJS.Signals = "SIGTERM") {
+  // Windows has no process groups: taskkill ends the tree.
+  if (process.platform === "win32" && child.pid) {
+    spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true }).on("error", () =>
+      child.kill(signal),
+    );
+    return;
+  }
   try {
     if (child.pid) process.kill(-child.pid, signal);
   } catch {
@@ -59,6 +66,7 @@ export function guestOperations(
           const child = spawn(binary(), ["shell", config.instance, "--", ...browserArgs(screen)], {
             env,
             stdio: ["pipe", "pipe", "ignore"],
+            windowsHide: true,
           });
           return { child, input: child.stdout, output: child.stdin };
         },
@@ -164,7 +172,7 @@ export function guestOperations(
               ...screenArgs(entry.screen, "nc", "-U", `/run/user/${u.uid}/apx-vnc.sock`),
             ],
             // Its own process group: ending it ends the ssh under it too (endViewer).
-            { env, stdio: ["pipe", "pipe", "ignore"], detached: true },
+            { env, stdio: ["pipe", "pipe", "ignore"], detached: true, windowsHide: true },
           );
           streams.set(child, { device: entry.device, screen: entry.screen, at: Date.now() });
           // Gone once it exits: a child still holding its pipes must not keep a viewer counted.
