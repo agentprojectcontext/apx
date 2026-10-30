@@ -255,6 +255,13 @@ const chatRows = item ? [item] : comparisons.slice(0, 3);
 
         <section id="comparisons" class="compare-more" aria-labelledby="more-title">
           <h2 id="more-title">{item ? t.more : t.kicker}</h2>
+          {!item && (
+            <a class="roundup-card" href={href(`${pre}/compare/best-ai-agent-apps/`)}>
+              <span class="roundup-card__blobs" aria-hidden="true"><Blob name="menta" size={36} /><Blob name="cobalto" size={36} /><Blob name="amatista" size={36} /><Blob name="brasa" size={36} /></span>
+              <span class="roundup-card__text"><b>{t.roundup}</b><span>{t.roundupLead}</span></span>
+              <span class="roundup-card__go" aria-hidden="true">→</span>
+            </a>
+          )}
           <ul class="comparison-list">
             {
               comparisons.map((c) => (

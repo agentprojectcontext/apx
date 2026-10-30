@@ -164,6 +164,9 @@ export const labels = {
     getApp: "Download APX v2",
     tableHint: "Scroll the table to compare both products.",
     progress: "Reading progress",
+    roundup: "Best AI agent apps",
+    roundupLead:
+      "17 apps compared: crews, hosted assistants and coding agents, with where they run, which models they use and what they cost.",
   },
   es: {
     comparisons: "Comparativas",
@@ -209,6 +212,9 @@ export const labels = {
     getApp: "Bajar APX v2",
     tableHint: "Desplazá la tabla para comparar ambos productos.",
     progress: "Progreso de lectura",
+    roundup: "Las mejores apps de agentes",
+    roundupLead:
+      "17 apps comparadas: equipos, asistentes alojados y agentes de código, con dónde corren, qué modelos usan y cuánto cuestan.",
   },
 };
 

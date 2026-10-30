@@ -515,6 +515,48 @@
   color: var(--apx-fg-subtle);
 }
 
+/* The roundup, first on the index. */
+.roundup-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 22px;
+  margin-bottom: 22px;
+  padding: 22px 24px;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: 22px;
+  background:
+    radial-gradient(90% 140% at 100% 0%, color-mix(in srgb, var(--apx-brand) 16%, transparent), transparent 60%),
+    var(--apx-surface);
+  transition: border-color 0.2s;
+}
+.roundup-card:hover {
+  border-color: var(--apx-fg-subtle);
+}
+.roundup-card__blobs {
+  display: flex;
+  gap: 4px;
+}
+.roundup-card__text {
+  display: flex;
+  flex: 1 1 280px;
+  flex-direction: column;
+  gap: 4px;
+}
+.roundup-card__text b {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.roundup-card__text span {
+  font-size: 14.5px;
+  color: var(--apx-fg-muted);
+}
+.roundup-card__go {
+  font-size: 18px;
+  color: var(--apx-fg-muted);
+}
+
 /* Keep comparing */
 .compare-more {
   padding: clamp(80px, 10vw, 120px) 0 clamp(70px, 9vw, 100px);

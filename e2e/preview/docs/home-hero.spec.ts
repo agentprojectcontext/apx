@@ -34,7 +34,11 @@ for (const lang of ["en", "es"] as const) {
       await expect(item).toHaveAttribute("href", `${pre}/compare/${rest[i]?.slug}/`);
       expect(await item.locator("img").evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
     }
-    await expect(menu.locator(".nav__menu-foot a")).toHaveAttribute("href", `${pre}/compare/#comparisons`);
+    await expect(menu.locator(".nav__menu-foot a").last()).toHaveAttribute("href", `${pre}/compare/#comparisons`);
+    await expect(menu.locator(".nav__menu-foot a").first()).toHaveAttribute(
+      "href",
+      `${pre}/compare/best-ai-agent-apps/`,
+    );
     await page.screenshot({ path: testInfo.outputPath("compare-menu.png") });
     // The pointer leaving closes it, after a short grace.
     await page.mouse.move(700, 700);

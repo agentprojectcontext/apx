@@ -1,7 +1,7 @@
 ---
 import { getCollection } from "astro:content";
 import logo from "../../assets/logo.png";
-import { comparisons } from "../../data/comparisons";
+import { comparisons, labels } from "../../data/comparisons";
 import { sitePath } from "../../doc-routes.mjs";
 import { HOME, type Lang } from "../../i18n/home";
 import Blob from "../Blob.astro";
@@ -84,6 +84,7 @@ const compare: Group = {
   title: t.compare,
   links: [
     [t.allComparisons, href(`${pre}/compare/`)],
+    [labels[lang].roundup, href(`${pre}/compare/best-ai-agent-apps/`)],
     ...comparisons.map((item) => [`APX vs ${item.name}`, href(`${pre}/compare/${item.slug}/`)] as const),
   ],
 };

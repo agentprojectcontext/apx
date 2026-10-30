@@ -16,6 +16,8 @@ Retrieved October 30, 2026 from each product's own site:
 - `grok-bot.png`: https://x.ai/icon.png?icon.2jebtfdg6783w.png?dpl=164eb0c95701ec5c03b4f10eed243d2946fdb93d (linked by https://x.ai/bot).
 - `muse.svg`: https://muse.ai/images/favicon/app-squiggle.svg (linked by https://muse.ai/).
 - `instinct.png`: https://instinct.com/apple-touch-icon.png (linked by https://instinct.com/).
+- `cursor.png`: https://cursor.com/marketing-static/apple-touch-icon-light.png (linked by https://cursor.com/).
+- `antigravity.png`: https://antigravity.google/apple-touch-icon.png (linked by https://antigravity.google/).
 
 Use only for identifying the respective products in the comparison pages. Product names and marks belong to their respective owners. Recording their provenance does not establish permission to reproduce the marks; trademark permissions have not been verified.
 
