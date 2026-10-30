@@ -1157,3 +1157,37 @@ body.h {
     transition-duration: 0s;
   }
 }
+
+/* Touch screens: every control is at least 44 px tall to tap. The header's icons keep their size and get an
+ * invisible hit area instead, since the bar has no room to grow. */
+@media (pointer: coarse), (max-width: 1024px) {
+  .web-header .brand,
+  .web-header .icon-btn,
+  .web-header .btn,
+  .lang a {
+    position: relative;
+  }
+  .web-header .icon-btn::after,
+  .web-header .btn::after,
+  .lang a::after {
+    content: "";
+    position: absolute;
+    inset: -6px -2px;
+  }
+  .lang a::after {
+    inset: -9px 0;
+  }
+  .web-header .brand,
+  .web-footer .brand {
+    min-height: 44px;
+  }
+  .web-footer__groups ul {
+    gap: 0;
+  }
+  .web-footer__groups a,
+  .web-footer__legal a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

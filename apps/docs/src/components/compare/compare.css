@@ -784,6 +784,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 44px;
   padding: 10px var(--apx-gutter);
   cursor: pointer;
   list-style: none;
@@ -849,5 +850,24 @@
   }
   .reading-chip summary > .apx-blob {
     display: none;
+  }
+}
+
+@media (pointer: coarse), (max-width: 1024px) {
+  .compare-back,
+  .compare-checked a,
+  .inline-sources a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .source-list a {
+    align-items: center;
+    min-height: 46px;
+  }
+  .th-mark a {
+    display: inline-block;
+    margin: -16px -10px;
+    padding: 16px 10px;
   }
 }

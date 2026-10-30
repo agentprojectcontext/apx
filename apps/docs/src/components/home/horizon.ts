@@ -72,6 +72,9 @@ type Card = () => [number, number, number, number, number] | null;
 
 /** Starts the effect on `canvas`; returns false when WebGL is unavailable. */
 export function startHorizon(canvas: HTMLCanvasElement, card: Card): boolean {
+  // Readers saving data keep the CSS glow; phones get a lighter frame (1x pixels, about 30 fps).
+  if ((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData) return false;
+  const light = matchMedia("(max-width: 760px), (pointer: coarse)").matches;
   const g = canvas.getContext("webgl", { premultipliedAlpha: true, alpha: true, antialias: false });
   if (!g) return false;
   const shader = (type: number, source: string) => {
@@ -139,14 +142,20 @@ export function startHorizon(canvas: HTMLCanvasElement, card: Card): boolean {
 
   let raf = 0;
   let visible = true;
+  let lastFrame = 0;
   const draw = (now: number) => {
     raf = 0;
+    if (light && now - lastFrame < 30 && lastFrame) {
+      wake();
+      return;
+    }
+    lastFrame = now;
     const mode = document.documentElement.dataset.theme ?? "";
     if (mode !== theme) {
       theme = mode;
       colors = ["var(--apx-brand)", "var(--apx-info)", "var(--apx-violet)"].map(probe);
     }
-    const dpr = Math.min(1.5, devicePixelRatio || 1);
+    const dpr = light ? 1 : Math.min(1.5, devicePixelRatio || 1);
     const w = Math.round(canvas.clientWidth * dpr);
     const h = Math.round(canvas.clientHeight * dpr);
     if (canvas.width !== w || canvas.height !== h) {

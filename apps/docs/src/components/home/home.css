@@ -1689,3 +1689,31 @@ a.dlc__alt:hover {
   font-size: 13px;
   color: var(--apx-fg-muted);
 }
+
+@media (pointer: coarse), (max-width: 1024px) {
+  .feat__body a,
+  .home-comparisons__all,
+  .term-demo__all,
+  .step a,
+  .home-questions__answer a,
+  .cli__links a,
+  a.dlc__alt {
+    display: inline-flex;
+    align-items: center;
+    min-height: 46px;
+  }
+  .guide-card a {
+    min-height: 46px;
+  }
+  .cli__unsigned summary {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .hero__pill {
+    min-height: 44px;
+  }
+  .cli__copy {
+    height: 44px;
+  }
+}
