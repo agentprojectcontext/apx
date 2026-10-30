@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { comparisons } from "../../../apps/docs/src/data/comparisons.ts";
+import { featured } from "../../../apps/docs/src/data/comparisons.ts";
 
 for (const lang of ["en", "es"] as const) {
   const pre = lang === "es" ? "/es" : "";
@@ -24,10 +24,18 @@ for (const lang of ["en", "es"] as const) {
     }
     await questions.locator("summary").first().click();
     const cards = page.locator(".home-comparisons__card");
-    await expect(cards).toHaveCount(3);
-    const destinations = ["hermes-agent", "openclaw", "openbot"];
-    for (const [index, slug] of destinations.entries()) {
-      const product = comparisons.find((item) => item.slug === slug);
+    // The six most relevant comparisons, in the data's order.
+    await expect(cards).toHaveCount(6);
+    expect(featured.map((item) => item.slug)).toEqual([
+      "claude-cowork",
+      "chatgpt-dots",
+      "openclaw",
+      "manus",
+      "hermes-agent",
+      "openbot",
+    ]);
+    for (const [index, product] of featured.entries()) {
+      const slug = product.slug;
       await expect(cards.nth(index)).toContainText(`APX vs ${product?.name}`);
       await expect(cards.nth(index)).toContainText(product?.tagline[lang] ?? "\0");
       await expect(cards.nth(index)).toHaveAttribute("href", `${pre}/compare/${slug}/`);
@@ -54,7 +62,7 @@ for (const lang of ["en", "es"] as const) {
       expect(await page.evaluate(() => innerWidth)).toBe(page.viewportSize()?.width);
     }
     await cards.first().click();
-    await expect(page).toHaveURL(`${pre}/compare/hermes-agent/`);
+    await expect(page).toHaveURL(`${pre}/compare/${featured[0]?.slug}/`);
     await page
       .locator(".web-footer")
       .getByRole("link", { name: lang === "es" ? "Preguntas" : "Questions", exact: true })
@@ -65,8 +73,10 @@ for (const lang of ["en", "es"] as const) {
   test(`${lang}: final crew invitation follows downloads immediately before the footer`, async ({ page }, testInfo) => {
     await page.goto(`${pre}/`);
     const final = page.locator(".final");
-    // Questions, comparisons, the terminal and downloads come before it; it closes the page, right above the footer.
-    await expect(page.locator("#questions + #compare + #terminal + #download + .final:last-child")).toHaveCount(1);
+    // The map, the terminal, questions, comparisons and downloads come before it; it closes the page, right above the footer.
+    await expect(page.locator("#map + #terminal + #questions + #compare + #download + .final:last-child")).toHaveCount(
+      1,
+    );
     await expect(page.locator("main:has(> .final:last-child) + .web-footer")).toHaveCount(1);
     await expect(final.getByRole("heading", { level: 2 })).toHaveText(
       lang === "es" ? "Tu crew te está esperando." : "Your crew is waiting.",
@@ -92,7 +102,7 @@ for (const lang of ["en", "es"] as const) {
     const first = page.locator("#questions details").first();
     await first.locator("summary").click();
     await expect(first.locator(".home-questions__answer")).toBeVisible();
-    await expect(page.locator(".home-comparisons__card")).toHaveCount(3);
+    await expect(page.locator(".home-comparisons__card")).toHaveCount(6);
     await context.close();
   });
 }

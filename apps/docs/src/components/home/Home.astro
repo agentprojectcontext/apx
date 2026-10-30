@@ -3,7 +3,7 @@
 // questions, comparisons and downloads.
 import logo from "../../assets/logo.png";
 import blobs from "../../data/blobs.json";
-import { comparisons } from "../../data/comparisons";
+import { featured } from "../../data/comparisons";
 import { builtRelease, downloadHref, releasesPage } from "../../data/latest-release";
 import { sitePath } from "../../doc-routes.mjs";
 import { HOME, type Lang } from "../../i18n/home";
@@ -62,7 +62,7 @@ const localIcons = ["folder", "messageCircle", "brain", "lock"] as const;
 const taskAgents: BlobName[] = ["cobalto", "amatista", "coral", "orbita"];
 const pitchBlobs: BlobName[] = ["menta", "coral", "noche", "cobalto", "amatista"];
 const stepBlobs: BlobName[] = ["menta", "noche", "cobalto"];
-const travelBlobs: BlobName[] = ["menta", "cobalto", "amatista"];
+const travelBlobs: BlobName[] = ["menta", "cobalto", "amatista", "coral", "brasa", "aqua"];
 const parade: BlobName[] = [
   "menta",
   "parche",
@@ -114,9 +114,9 @@ const cards = [
   { id: "android", name: "Android", blob: "menta", tone: "brand", file: "-android.apk" },
 ] as const;
 const cliRows = [
-  { icon: "mac", label: t.download.term.here, cmd: install },
-  { icon: "windows", label: t.download.term.windows, cmd: installWin },
-  { icon: "server", label: t.download.term.server, cmd: installServer },
+  { id: "server", icon: "server", label: t.download.term.server, cmd: installServer },
+  { id: "unix", icon: "mac", label: t.download.term.here, cmd: install },
+  { id: "win", icon: "windows", label: t.download.term.windows, cmd: installWin },
 ] as const;
 ---
 
@@ -354,8 +354,16 @@ const cliRows = [
             <div class="feats__shot">
               {
                 t.newIn.items.map((f, i) => (
-                  <div class:list={["feats__img", { on: i === 0, feats__phone: f.shot.startsWith("phone") }]} data-shot={i}>
-                    <Shot name={f.shot} alt={f.title} frame="none" />
+                  <div class:list={["feats__img", { on: i === 0, feats__fan: "fan" in f }]} data-shot={i}>
+                    {"fan" in f && f.fan ? (
+                      f.fan.map(([shot, alt], j) => (
+                        <div class:list={["fan__phone", `fan__phone--${j}`]}>
+                          <Shot name={shot} alt={alt} frame="none" />
+                        </div>
+                      ))
+                    ) : (
+                      <Shot name={f.shot} alt={f.title} frame="none" />
+                    )}
                   </div>
                 ))
               }
@@ -421,18 +429,25 @@ const cliRows = [
         </div>
       </section>
 
-      <section class="sec" aria-labelledby="why-title">
-        <div class="wrap">
+      <section class="sec" id="terminal" aria-labelledby="terminal-title">
+        <div class="wrap term-demo">
           <div class="sec-head" data-reveal>
-            <p class="sec-label"><Blob name="amatista" size={22} /><span class="sec-label__n">05</span><span class="sec-label__dash"></span><span>{t.one.label}</span></p>
-            <h2 class="h2" id="why-title">{t.one.title}</h2>
-            <p class="lead">{t.one.lead}</p>
+            <p class="sec-label"><Blob name="noche" size={22} /><span class="sec-label__n">05</span><span class="sec-label__dash"></span><span>{t.cli.eyebrow}</span></p>
+            <h2 class="h2" id="terminal-title">{t.cli.title}</h2>
+            <p class="lead">{t.cli.lead}</p>
+            <a class="term-demo__all" href={href(`${pre}/reference/cli/`)}>{t.cli.all} →</a>
           </div>
-          <div class="stats" data-reveal>
-            {t.one.stats.map(([n, what, was]) => <div class="stat"><p class="stat__n">{n}</p><p class="stat__what">{what}</p><p class="stat__was">{was}</p></div>)}
+          <div class="term-demo__box" data-reveal>
+            <p class="term-demo__bar"><span class="term-demo__icon"><UiIcon name="terminal" size={14} /></span>apx</p>
+            <p class="visually-hidden">{t.cli.transcript}: {t.cli.demo.map((d) => `$ ${d.command} — ${d.output.map(([, line]) => line).join(" ")}`).join(" · ")}</p>
+            <pre class="term-demo__screen" aria-hidden="true" data-demo={JSON.stringify(t.cli.demo)}><code>{(() => {
+              const first = t.cli.demo[0];
+              return first ? <><span class="term-demo__prompt">$</span> {first.command}{"\n"}{first.output.map(([kind, line]) => kind === "#" ? <><span class="term-demo__muted"># {line}</span>{"\n"}</> : kind === "✓" ? <><span class="term-demo__ok">✓ {line}</span>{"\n"}</> : <>{kind ? `${kind} ` : ""}{line}{"\n"}</>)}</> : null;
+            })()}</code></pre>
           </div>
         </div>
       </section>
+
 
       <section class="sec home-questions" id="questions" aria-labelledby="questions-title">
         <div class="wrap home-questions__layout" data-reveal>
@@ -471,7 +486,7 @@ const cliRows = [
           </div>
           <div class="home-comparisons__grid" data-reveal>
             {
-              comparisons.slice(0, 3).map((product, i) => (
+              featured.map((product, i) => (
                 <a class="home-comparisons__card" href={href(`${pre}/compare/${product.slug}/`)}>
                   <span class="home-comparisons__visual" aria-hidden="true">
                     <span class="pair-mark"><img src={logo.src} alt="" width="28" height="28" /></span>
@@ -492,28 +507,10 @@ const cliRows = [
         </div>
       </section>
 
-      <section class="sec" id="terminal" aria-labelledby="terminal-title">
-        <div class="wrap term-demo">
-          <div class="sec-head" data-reveal>
-            <p class="sec-label"><Blob name="noche" size={22} /><span class="sec-label__n">06</span><span class="sec-label__dash"></span><span>{t.cli.eyebrow}</span></p>
-            <h2 class="h2" id="terminal-title">{t.cli.title}</h2>
-            <p class="lead">{t.cli.lead}</p>
-            <a class="term-demo__all" href={href(`${pre}/reference/cli/`)}>{t.cli.all} →</a>
-          </div>
-          <div class="term-demo__box" data-reveal>
-            <p class="term-demo__bar"><span class="term-demo__icon"><UiIcon name="terminal" size={14} /></span>apx</p>
-            <pre class="term-demo__screen"><code><span class="term-demo__prompt">$</span> {t.cli.command}
-<span class="term-demo__muted"># {t.cli.title2}</span>
-{t.cli.intro}
-{t.cli.lines.map((line) => <>{"• "}{line}{"\n"}</>)}<span class="term-demo__ok">✓ {t.cli.done}</span></code></pre>
-          </div>
-        </div>
-      </section>
-
       <section class="sec" id="download" aria-labelledby="download-title">
         <div class="wrap">
           <div class="sec-head" data-reveal>
-            <p class="sec-label"><Blob name="aqua" size={22} /><span class="sec-label__n">07</span><span class="sec-label__dash"></span><span>{t.download.label}</span></p>
+            <p class="sec-label"><Blob name="aqua" size={22} /><span class="sec-label__n">06</span><span class="sec-label__dash"></span><span>{t.download.label}</span></p>
             <h2 class="h2" id="download-title">{t.download.title}</h2>
             <p class="lead">{t.download.lead}</p>
           </div>
@@ -536,23 +533,31 @@ const cliRows = [
               <span class="cli__icon"><UiIcon name="terminal" size={18} /></span>
               <div><h3>{t.download.term.title}</h3><p>{t.download.term.lead}</p></div>
             </div>
-            <div class="cli__rows">
-              {
-                cliRows.map((row) => (
-                  <div class="cli__row">
-                    <span class="cli__label">{row.icon === "server" ? <UiIcon name="server" size={15} /> : <OsIcon name={row.icon} size={15} />}{row.label}</span>
-                    <code class="cli__cmd"><span aria-hidden="true">{row.icon === "windows" ? "> " : "$ "}</span>{row.cmd}</code>
-                    <button class="cli__copy" type="button" data-copy={row.cmd} data-done={t.copied}><UiIcon name="copy" size={12} /><span class="cmd__copy">{t.copy}</span></button>
-                  </div>
-                ))
-              }
+            <div class="cli__tabs" role="group" aria-label={t.download.term.label}>
+              {cliRows.map((row) => <button type="button" data-cli={row.id} aria-pressed={String(row.id === "server")}>{row.icon === "server" ? <UiIcon name="server" size={14} /> : <OsIcon name={row.icon} size={14} />}{t.download.term.tabs[row.id]}</button>)}
             </div>
-            <p class="cli__links">
-              <a href={href(`${pre}/devices/server/`)}>{t.download.term.guide} →</a>
-              <a href={releases}>{t.download.releases} ↗</a>
-            </p>
-            <details class="cli__unsigned">
-              <summary>{t.download.unsigned.title}</summary>
+            {
+              cliRows.map((row) => (
+                <div class="cli__row" data-cli-pane={row.id} hidden={row.id !== "server"}>
+                  <code class="cli__cmd"><span aria-hidden="true">{row.icon === "windows" ? "> " : "$ "}</span>{row.cmd}</code>
+                  <button class="cli__copy" type="button" data-copy={row.cmd} data-done={t.copied}><UiIcon name="copy" size={12} /><span class="cmd__copy">{t.copy}</span></button>
+                  <p class="cli__note">{row.label}</p>
+                </div>
+              ))
+            }
+          </div>
+          <div class="dl-more" data-reveal>
+            <article class="dl-server">
+              <p class="dl-server__title"><Blob name="aqua" size={36} /><span>{t.download.term.docs.title}</span></p>
+              <p class="dl-server__body">{t.download.term.docs.body}</p>
+              <a class="btn btn-light dl-server__cta" href={href(`${pre}/devices/server/`)}>{t.download.term.docs.cta} →</a>
+              <p class="dl-server__links">
+                {t.download.term.guides.map(([label, to]) => <a href={href(to ?? "/")}>{label} →</a>)}
+                <a href={releases}>{t.download.releases} ↗</a>
+              </p>
+            </article>
+            <article class="dl-unsigned">
+              <h3>{t.download.unsigned.title}</h3>
               <p>{t.download.unsigned.body}</p>
               <dl>
                 {
@@ -564,7 +569,7 @@ const cliRows = [
                   ))
                 }
               </dl>
-            </details>
+            </article>
           </div>
         </div>
       </section>
@@ -591,6 +596,7 @@ const cliRows = [
       import { fillLatest } from "../latest-release";
       import { startReveal } from "../web/reveal";
       import { startHorizon } from "./horizon";
+      import { startTermDemo } from "./term-demo";
 
       const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
       startReveal();
@@ -631,6 +637,21 @@ const cliRows = [
           }, 1500);
         });
       }
+
+      const demo = document.querySelector<HTMLElement>(".term-demo__screen");
+      if (demo) startTermDemo(demo);
+
+      // The download section's install lines: one system at a time, the reader's own first (a server when unknown).
+      const cliTabs = [...document.querySelectorAll<HTMLElement>("[data-cli]")];
+      const pickCli = (id: string) => {
+        for (const b of cliTabs) b.setAttribute("aria-pressed", String(b.dataset.cli === id));
+        for (const p of document.querySelectorAll<HTMLElement>("[data-cli-pane]")) p.hidden = p.dataset.cliPane !== id;
+      };
+      for (const b of cliTabs) b.addEventListener("click", () => pickCli(b.dataset.cli ?? "server"));
+      const platform = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ?? navigator.platform;
+      if (/android|iphone|ipad/i.test(navigator.userAgent)) pickCli("server");
+      else if (/win/i.test(platform)) pickCli("win");
+      else if (/mac|linux/i.test(platform)) pickCli("unix");
 
       // The terminal button unfolds the install lines under the hero's actions, one tab per place.
       const term = document.querySelector<HTMLButtonElement>(".hero__term");

@@ -3,7 +3,7 @@
   padding-top: clamp(110px, 14vw, 190px);
 }
 /* Paragraphs in the mini interfaces and stats are spaced by their own classes. */
-:where(.mini, .stat) p {
+:where(.mini) p {
   margin: 0;
 }
 .sec-head {
@@ -858,13 +858,6 @@
   object-fit: cover;
   object-position: top left;
 }
-.feats__phone {
-  padding: 20px 0;
-}
-.feats__phone img {
-  object-fit: contain;
-  object-position: center;
-}
 .feats__img .apx-shot,
 .feats__img .apx-shot__frame,
 .feats__img .apx-shot__img {
@@ -970,34 +963,6 @@
   .steps::before {
     display: none;
   }
-}
-
-/* ── 04 Why v2 ──────────────────────────────────────────────────────────── */
-.stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  margin-top: 48px;
-  border-top: 1px solid var(--apx-border);
-}
-.stat {
-  padding: 28px 24px 28px 0;
-  border-bottom: 1px solid var(--apx-border);
-}
-.stat__n {
-  font-size: clamp(44px, 5vw, 60px);
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: -0.05em;
-}
-.stat__what {
-  margin-top: 12px;
-  font-size: 16px;
-  font-weight: 500;
-}
-.stat__was {
-  margin-top: 4px;
-  font: 13px / 1.4 var(--apx-font-mono);
-  color: var(--apx-fg-muted);
 }
 
 /* ── Questions ──────────────────────────────────────────────────────────── */
@@ -1173,12 +1138,14 @@
   color: var(--apx-fg-muted);
   transform: translate(-50%, -50%);
 }
+/* The blob's body sits on the dashed line: its box is centred on the line, lifted for the antenna above it. */
 .pair-line__blob {
   position: absolute;
-  top: 0;
+  top: 50%;
   left: 0;
   width: 20px;
   height: 20px;
+  margin-top: -12px;
   animation: apx-travel 3.2s ease-in-out infinite alternate;
 }
 .home-comparisons__body {
@@ -1364,14 +1331,6 @@ a.dlc__alt:hover {
   border-radius: 14px;
   background: var(--apx-bg);
 }
-.cli__label {
-  display: flex;
-  flex: 0 0 240px;
-  align-items: center;
-  gap: 8px;
-  font-size: 13.5px;
-  color: var(--apx-fg-muted);
-}
 .cli__cmd {
   flex: 1 1 300px;
   min-width: 0;
@@ -1397,44 +1356,115 @@ a.dlc__alt:hover {
 .cli__copy:hover {
   background: var(--apx-fill);
 }
-.cli__links {
+.cli__tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 24px;
+  gap: 4px;
+  padding: 4px;
+  align-self: flex-start;
+  border: 1px solid var(--apx-border);
+  border-radius: 999px;
+  background: var(--apx-bg);
+}
+.cli__tabs button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--apx-fg-muted);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.cli__tabs button[aria-pressed="true"] {
+  background: var(--apx-fg);
+  color: var(--apx-bg);
+}
+.cli__row[hidden] {
+  display: none;
+}
+.cli__note {
+  flex-basis: 100%;
   margin: 0;
+  font-size: 13px;
+  color: var(--apx-fg-muted);
+}
+
+/* The server guide and the unsigned-apps steps, side by side under the terminal box. */
+.dl-more {
+  display: grid;
+  align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.dl-server,
+.dl-unsigned {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: 22px;
+  background: var(--apx-surface);
+}
+.dl-server p,
+.dl-unsigned p {
+  margin: 0;
+}
+.dl-server__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.dl-server__body,
+.dl-unsigned > p {
+  font-size: 14.5px;
+  color: var(--apx-fg-muted);
+  text-wrap: pretty;
+}
+.dl-server .dl-server__cta {
+  align-self: flex-start;
+  height: 44px;
+  margin-top: 4px;
+  font-size: 14px;
+}
+.dl-server .dl-server__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin-top: auto;
   font-size: 14px;
   font-weight: 500;
 }
-.cli__links a:hover {
+.dl-server__links a:hover {
   color: var(--apx-brand);
 }
-.cli__unsigned {
-  border-top: 1px solid var(--apx-border);
-  padding-top: 14px;
+.dl-unsigned h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.dl-unsigned dl {
+  display: grid;
+  gap: 12px;
+  margin: 0;
   font-size: 14px;
   color: var(--apx-fg-muted);
 }
-.cli__unsigned summary {
-  font-weight: 500;
-  color: var(--apx-fg);
-  cursor: pointer;
-}
-.cli__unsigned > p {
-  margin: 10px 0 0;
-}
-.cli__unsigned dl {
-  display: grid;
-  gap: 10px;
-  margin: 12px 0 0;
-}
-.cli__unsigned dt {
+.dl-unsigned dt {
   font-weight: 600;
   color: var(--apx-fg);
 }
-.cli__unsigned dd {
+.dl-unsigned dd {
   margin: 2px 0 0;
 }
-.cli__unsigned code {
+.dl-unsigned code {
   display: block;
   margin-top: 6px;
   padding: 8px 12px;
@@ -1443,6 +1473,75 @@ a.dlc__alt:hover {
   font: 500 12.5px / 1.5 var(--apx-font-mono);
   color: var(--apx-fg);
   overflow-wrap: anywhere;
+}
+
+/* "On your phone": a fan of the Android app's screens, the front one fully readable. */
+.feats__fan {
+  overflow: hidden;
+}
+.fan__phone {
+  position: absolute;
+  top: 6%;
+  height: 88%;
+  aspect-ratio: 780 / 1595;
+  overflow: hidden;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: 18px;
+  background: var(--apx-bg);
+  box-shadow: 0 18px 40px -16px rgb(0 0 0 / 0.55);
+  transform-origin: 50% 100%;
+}
+.fan__phone .apx-shot,
+.fan__phone .apx-shot__frame,
+.fan__phone .apx-shot__img {
+  height: auto;
+}
+.feats__img .fan__phone img {
+  height: auto;
+  object-fit: contain;
+}
+.fan__phone--0 {
+  left: 36.5%;
+  z-index: 4;
+}
+.fan__phone--1 {
+  left: 57%;
+  z-index: 3;
+  transform: translateY(5%) rotate(7deg);
+}
+.fan__phone--2 {
+  left: 13%;
+  z-index: 2;
+  transform: translateY(5%) rotate(-7deg);
+}
+.fan__phone--3 {
+  left: 76%;
+  z-index: 1;
+  transform: translateY(12%) rotate(13deg);
+  opacity: 0.9;
+}
+@media (max-width: 640px) {
+  .fan__phone--0 {
+    left: 26%;
+  }
+  .fan__phone--1 {
+    left: 48%;
+  }
+  .fan__phone--2,
+  .fan__phone--3 {
+    display: none;
+  }
+}
+
+/* The terminal demo's cursor. */
+.term-demo__caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: var(--apx-brand);
+  animation: apx-dot 1s steps(1) infinite;
 }
 
 /* ── Final ──────────────────────────────────────────────────────────────── */
@@ -1499,9 +1598,6 @@ a.dlc__alt:hover {
 @media (max-width: 759px) {
   .final {
     --parade-size: 28px;
-  }
-  .cli__label {
-    flex-basis: 100%;
   }
 }
 
@@ -1696,7 +1792,7 @@ a.dlc__alt:hover {
   .term-demo__all,
   .step a,
   .home-questions__answer a,
-  .cli__links a,
+  .dl-server__links a,
   a.dlc__alt {
     display: inline-flex;
     align-items: center;
@@ -1705,15 +1801,13 @@ a.dlc__alt:hover {
   .guide-card a {
     min-height: 46px;
   }
-  .cli__unsigned summary {
-    display: flex;
-    align-items: center;
-    min-height: 44px;
-  }
   .hero__pill {
     min-height: 44px;
   }
   .cli__copy {
     height: 44px;
+  }
+  .cli__tabs button {
+    min-height: 44px;
   }
 }

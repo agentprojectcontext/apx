@@ -175,6 +175,12 @@ const en = {
         title: "On your phone",
         body: "Pair your phone with a code and talk to Home from anywhere. The Android app is in the releases; it installs beside v1's.",
         href: "/devices/phone/",
+        fan: [
+          ["android-home", "The Android app: Home's chat"],
+          ["android-tasks", "The Android app: the task board"],
+          ["android-chats", "The Android app: the crew's chats"],
+          ["android-inbox", "The Android app: the inbox"],
+        ],
       },
     ],
   },
@@ -304,18 +310,51 @@ const en = {
     ],
     done: "Nothing is due today.",
     all: "Every command",
-  },
-  one: {
-    label: "Why v2",
-    title: "One way to do each thing.",
-    lead: "v2 is a ground-up rewrite with a single rule. Fewer paths means fewer surprises, and a smaller bill.",
-    stats: [
-      ["1", "way to run a turn", "was ~23 in v1"],
-      ["1", "way to talk to an agent", "threads.send, everywhere"],
-      ["~230", "typed methods in one registry", "was ~378 ad-hoc endpoints"],
-      ["8.2k", "tokens per model call", "the least of the apps we measured"],
+    transcript: "A terminal session with four apx commands",
+    demo: [
+      {
+        command: 'apx chat "What\'s on my plate today?"',
+        output: [
+          ["#", "Home, in Acme Store"],
+          ["", "You have three open things in Acme Store:"],
+          ["•", "Lucía drafted the launch plan and is waiting for your OK."],
+          ["•", "Tomás has the checkout fix in review."],
+          ["•", "Vera scheduled the newsletter for Friday at 9."],
+          ["✓", "Nothing is due today."],
+        ],
+      },
+      {
+        command: "apx tasks --project acme-store",
+        output: [
+          ["#", "Acme Store · open tasks"],
+          ["", "To do     Friday newsletter        Vera   Fri"],
+          ["", "To do     Research competitors     Scout  today"],
+          ["", "Doing     Q4 launch plan           Lucía  11/15"],
+          ["", "Review    Fix checkout on Safari   Tomás"],
+        ],
+      },
+      {
+        command: "apx routines run late-orders",
+        output: [
+          ["#", "Check late orders · Home"],
+          ["•", "3 orders late since Tuesday"],
+          ["•", "Told you on Telegram"],
+          ["✓", "Next run: tomorrow 9:00"],
+        ],
+      },
+      {
+        command: "apx status",
+        output: [
+          ["#", "APX core · running"],
+          ["", "Crew      Home and 5 agents in 2 projects"],
+          ["", "Chats     Telegram, WhatsApp"],
+          ["", "Devices   this computer, 1 phone"],
+          ["✓", "All systems working"],
+        ],
+      },
     ],
   },
+
   faq: {
     title: "Questions before you start?",
     lead: "Get to know your crew, then make it your own.",
@@ -384,7 +423,17 @@ const en = {
       here: "On this computer, macOS or Linux",
       windows: "On Windows, in PowerShell",
       server: "On a server or a VPS",
-      guide: "Setting up a server? Read the server guide",
+      tabs: { server: "VPS / server", unix: "macOS / Linux", win: "Windows" },
+      label: "Your system",
+      docs: {
+        title: "Setting up a server?",
+        body: "The server guide shows how to keep it running, reach it over Tailscale or your network, and pair the app and your phone with it.",
+        cta: "Read the server guide",
+      },
+      guides: [
+        ["Install guide", "/start/install/"],
+        ["Upgrade from v1", "/start/from-v1/#upgrade-from-v1"],
+      ],
     },
     unsigned: {
       title: "The apps are not signed yet",
@@ -629,6 +678,12 @@ const es: HomeText = {
         title: "En tu celular",
         body: "Vinculá el celular con un código y hablale a Home desde donde estés. La app de Android está en los releases; se instala al lado de la de v1.",
         href: "/es/devices/phone/",
+        fan: [
+          ["android-home", "La app de Android: el chat de Home"],
+          ["android-tasks", "La app de Android: el tablero de tareas"],
+          ["android-chats", "La app de Android: los chats del equipo"],
+          ["android-inbox", "La app de Android: la bandeja"],
+        ],
       },
     ],
   },
@@ -758,18 +813,51 @@ const es: HomeText = {
     ],
     done: "Nada vence hoy.",
     all: "Todos los comandos",
-  },
-  one: {
-    label: "Por qué v2",
-    title: "Una sola forma de hacer cada cosa.",
-    lead: "v2 es una reescritura desde cero con una sola regla. Menos caminos es menos sorpresas, y una cuenta más chica.",
-    stats: [
-      ["1", "forma de correr un turno", "eran ~23 en v1"],
-      ["1", "forma de hablarle a un agente", "threads.send, en todos lados"],
-      ["~230", "métodos tipados en un registro", "eran ~378 endpoints sueltos"],
-      ["8,2k", "tokens por llamada al modelo", "lo menos de las apps que medimos"],
+    transcript: "Una sesión de terminal con cuatro comandos de apx",
+    demo: [
+      {
+        command: 'apx chat "¿Qué tengo para hoy?"',
+        output: [
+          ["#", "Home, en Acme Store"],
+          ["", "Tenés tres cosas abiertas en Acme Store:"],
+          ["•", "Lucía armó el plan del lanzamiento y espera tu ok."],
+          ["•", "Tomás tiene el arreglo del checkout en revisión."],
+          ["•", "Vera programó el newsletter para el viernes a las 9."],
+          ["✓", "Nada vence hoy."],
+        ],
+      },
+      {
+        command: "apx tasks --project acme-store",
+        output: [
+          ["#", "Acme Store · tareas abiertas"],
+          ["", "Por hacer   Newsletter del viernes        Vera   vie"],
+          ["", "Por hacer   Investigar competencia        Scout  hoy"],
+          ["", "En curso    Plan de lanzamiento Q4        Lucía  15/11"],
+          ["", "Revisión    Arreglar checkout en Safari   Tomás"],
+        ],
+      },
+      {
+        command: "apx routines run late-orders",
+        output: [
+          ["#", "Revisar pedidos atrasados · Home"],
+          ["•", "3 pedidos atrasados desde el martes"],
+          ["•", "Te avisé por Telegram"],
+          ["✓", "Próxima vez: mañana 9:00"],
+        ],
+      },
+      {
+        command: "apx status",
+        output: [
+          ["#", "Core de APX · funcionando"],
+          ["", "Equipo        Home y 5 agentes en 2 proyectos"],
+          ["", "Chats         Telegram, WhatsApp"],
+          ["", "Dispositivos  esta compu, 1 celular"],
+          ["✓", "Todo funcionando"],
+        ],
+      },
     ],
   },
+
   faq: {
     title: "¿Preguntas antes de empezar?",
     lead: "Conocé a tu crew y hacela tuya.",
@@ -838,7 +926,17 @@ const es: HomeText = {
       here: "En esta compu, macOS o Linux",
       windows: "En Windows, en PowerShell",
       server: "En un servidor o VPS",
-      guide: "¿Vas a armar un servidor? Ver la guía de servidor",
+      tabs: { server: "VPS / servidor", unix: "macOS / Linux", win: "Windows" },
+      label: "Tu sistema",
+      docs: {
+        title: "¿Vas a armar un servidor?",
+        body: "La guía de servidor muestra cómo dejarlo corriendo, llegar a él por Tailscale o tu red, y vincular la app y tu celular.",
+        cta: "Ver la guía de servidor",
+      },
+      guides: [
+        ["Guía de instalación", "/es/start/install/"],
+        ["Actualizar desde v1", "/es/start/from-v1/#actualizar-desde-v1"],
+      ],
     },
     unsigned: {
       title: "Las apps todavía no están firmadas",
