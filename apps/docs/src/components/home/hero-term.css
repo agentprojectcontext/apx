@@ -1,4 +1,4 @@
-/* The hero's terminal install, unfolded by its button beside the download, and the small way into the docs. */
+/* The hero's terminal install, unfolded by its button beside the download. */
 .hero__term svg {
   fill: none;
   stroke: currentColor;
@@ -15,23 +15,7 @@
 .hero__install {
   margin-top: 22px;
 }
-.hero__start {
-  display: flex;
-  align-items: center;
-  width: max-content;
-  height: 34px;
-  margin: 18px auto 0;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  color: var(--muted);
-  font: 500 13px / 1 var(--sans);
-  text-decoration: none;
-  transition:
-    color 0.15s,
-    border-color 0.15s;
-}
-.hero__start:hover {
-  color: var(--fg);
-  border-color: var(--line-2);
+/* The agents' status line keeps its distance from the hero's actions. */
+.hero .status {
+  margin-top: 70px;
 }
