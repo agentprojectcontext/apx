@@ -89,7 +89,7 @@ import { taskBlock } from "./office.ts";
 import type { Permissions } from "./permissions.ts";
 import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands, stepsFor } from "./pipeline.ts";
 import { type ProfileRoot, profileBlock } from "./profiles.ts";
-import { resetLabel } from "./provider-limit.ts";
+import { LIMIT_RESUME_NOTE, resetLabel } from "./provider-limit.ts";
 import { recallFor } from "./recall.ts";
 import { keepContext } from "./received.ts";
 import { closeTurnLog, RESUME_NOTE } from "./recovery.ts";
@@ -531,8 +531,12 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
   const images = (turn.input.attachments ?? []).filter((a) => a.kind === "image");
   const message = (text: string): InputBlock[] => [{ name: "message", text }];
   // A resumed turn already has its message in the history: it only learns why it stopped.
+  const resumeNote =
+    turn.input.resume_of && store.runs.get(turn.input.resume_of)?.end_reason === "provider_limit"
+      ? LIMIT_RESUME_NOTE
+      : RESUME_NOTE;
   const blocks: InputBlock[] = turn.input.resume_of
-    ? message(String(systemNote(RESUME_NOTE).content))
+    ? message(String(systemNote(resumeNote).content))
     : room
       ? message(
           roomInput(store, {
@@ -584,7 +588,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
                 : undefined,
           });
   const input: ChatItem & { role: "user" } = turn.input.resume_of
-    ? (systemNote(RESUME_NOTE) as ChatItem & { role: "user" })
+    ? (systemNote(resumeNote) as ChatItem & { role: "user" })
     : {
         role: "user",
         ...(images.length ? { images: images.map((a) => ({ media_id: a.media_id, mime: a.mime })) } : {}),
