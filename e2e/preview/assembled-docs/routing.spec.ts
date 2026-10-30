@@ -1,6 +1,6 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, sep } from "node:path";
-import { expect, test } from "./site.fixture";
+import { expect, test } from "./site.fixture.ts";
 
 const suffix = "?from=historical#_top";
 const routes = [

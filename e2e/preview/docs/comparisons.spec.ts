@@ -78,7 +78,9 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
   test(`blob bodies and eyes appear together (${reducedMotion})`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion });
     let releaseBodies = () => {};
-    const bodiesHeld = new Promise<void>((resolve) => { releaseBodies = resolve; });
+    const bodiesHeld = new Promise<void>((resolve) => {
+      releaseBodies = resolve;
+    });
     await page.route("**/*.webp", async (route) => {
       await bodiesHeld;
       await route.continue();

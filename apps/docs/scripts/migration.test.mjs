@@ -23,13 +23,15 @@ test("every built documentation page has a legacy redirect and a canonical new a
       count++;
     }
   }
-  assert.equal(count, 78, "all existing documentation pages are preserved");
+  assert.equal(count, 80, "all existing documentation pages and both website privacy pages are preserved");
 });
 
 test("sitemap lists only canonical pages, including bilingual documentation and comparisons", async () => {
   const xml = await readFile(new URL("sitemap-0.xml", dist), "utf8");
   const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
-  assert.equal(urls.length, 88);
+  assert.equal(urls.length, 90);
+  assert.ok(urls.includes(`${site}${base}/docs/reference/website-privacy/`));
+  assert.ok(urls.includes(`${site}${base}/es/docs/reference/website-privacy/`));
   assert.ok(urls.includes(`${site}${base}/docs/start/introduction/`));
   assert.ok(urls.includes(`${site}${base}/es/docs/start/introduction/`));
   assert.ok(urls.includes(`${site}${base}/compare/openbot/`));

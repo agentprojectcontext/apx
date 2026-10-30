@@ -1,11 +1,14 @@
 ---
-import { DISCOVERY } from "../../i18n/home-discovery";
-import type { Lang } from "../../i18n/home";
 import { comparisons } from "../../data/comparisons";
 import { sitePath } from "../../doc-routes.mjs";
+import type { Lang } from "../../i18n/home";
+import { DISCOVERY } from "../../i18n/home-discovery";
 import Blob from "../Blob.astro";
 import "./discovery.css";
-interface Props { lang: Lang }
+
+interface Props {
+  lang: Lang;
+}
 const { lang } = Astro.props;
 const t = DISCOVERY[lang];
 const pre = lang === "es" ? "/es" : "";

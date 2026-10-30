@@ -71,7 +71,7 @@ jobs:
           DOCS_SITE: https://apxagent.app
         run: |
           PNPM="$(node -p "require('./package.json').packageManager")"
-          npx --yes "$PNPM" install --frozen-lockfile
+          npx --yes "$PNPM" install --frozen-lockfile --ignore-scripts
           npx --yes "$PNPM" build
           npx --yes "$PNPM" check
           test -f dist/install.sh && test -f dist/install.ps1

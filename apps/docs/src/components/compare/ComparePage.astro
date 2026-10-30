@@ -1,13 +1,29 @@
 ---
 import logo from "../../assets/logo.png";
-import WebHeader from "../web/WebHeader.astro";
-import WebFooter from "../web/WebFooter.astro";
+import {
+  apxChoice,
+  apxRowSources,
+  apxRows,
+  apxSource,
+  type Comparison,
+  checked,
+  comparisons,
+  type Lang,
+  labels,
+  topics,
+} from "../../data/comparisons";
 import { sitePath } from "../../doc-routes.mjs";
-import { comparisons, labels, apxChoice, apxRows, apxRowSources, apxSource, topics, checked, type Lang, type Comparison } from "../../data/comparisons";
+import AnalyticsConsent from "../AnalyticsConsent.astro";
 import Blob from "../Blob.astro";
+import WebFooter from "../web/WebFooter.astro";
+import WebHeader from "../web/WebHeader.astro";
 import "../home/home.css";
 import "./compare.css";
-interface Props { lang: Lang; comparison?: Comparison }
+
+interface Props {
+  lang: Lang;
+  comparison?: Comparison;
+}
 const { lang, comparison: item } = Astro.props;
 const t = labels[lang];
 const pre = lang === "es" ? "/es" : "";
@@ -15,7 +31,13 @@ const href = (p: string) => sitePath(p, import.meta.env.BASE_URL);
 const route = `/compare/${item ? `${item.slug}/` : ""}`;
 const title = item ? `APX vs ${item.name}` : t.title;
 const description = item ? item.intro[lang] : t.intro;
-const sections = [{ id: "answer", label: t.short }, { id: "overview", label: t.glance }, { id: "difference", label: t.details }, { id: "try", label: t.trial }, { id: "sources", label: t.sources }];
+const sections = [
+  { id: "answer", label: t.short },
+  { id: "overview", label: t.glance },
+  { id: "difference", label: t.details },
+  { id: "try", label: t.trial },
+  { id: "sources", label: t.sources },
+];
 const blobs = ["menta", "orbita", "cobalto", "brasa", "amatista"] as const;
 const canonical = new URL(href(`${pre}${route}`), Astro.site).href;
 ---
@@ -60,6 +82,7 @@ const canonical = new URL(href(`${pre}${route}`), Astro.site).href;
       <div class="compare-cta"><Blob name="menta" size={70} /><h2>{t.start}</h2><a class="btn btn-light" href={href(`${pre}/start/install/`)}>{t.docs} <span aria-hidden="true">↗</span></a></div>
     </main>
     <WebFooter lang={lang} />
+    <AnalyticsConsent />
     <script>
       // The eyes must wait for the lazy body, including cached images and failed requests.
       for (const image of document.querySelectorAll<HTMLImageElement>(".compare .apx-blob img")) {

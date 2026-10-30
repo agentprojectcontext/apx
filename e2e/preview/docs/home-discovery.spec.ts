@@ -61,7 +61,9 @@ for (const lang of ["en", "es"] as const) {
     await expect(page.locator("#questions")).toBeInViewport();
   });
 
-  test(`${lang}: final crew invitation follows comparisons immediately before the footer`, async ({ page }, testInfo) => {
+  test(`${lang}: final crew invitation follows comparisons immediately before the footer`, async ({
+    page,
+  }, testInfo) => {
     await page.goto(`${pre}/`);
     const final = page.locator(".final");
     await expect(page.locator(".home-comparisons + .final + .web-footer")).toHaveCount(1);
@@ -70,7 +72,10 @@ for (const lang of ["en", "es"] as const) {
     );
     await expect(final.locator(".hero__actions a")).toHaveCount(3);
     await expect(final.locator(".btn-light")).toHaveAttribute("href", `${pre}/docs/start/introduction/`);
-    await expect(final.getByRole("link", { name: "GitHub", exact: true })).toHaveAttribute("href", "https://github.com/agentprojectcontext/apx");
+    await expect(final.getByRole("link", { name: "GitHub", exact: true })).toHaveAttribute(
+      "href",
+      "https://github.com/agentprojectcontext/apx",
+    );
     await expect(final.locator(".btn-discord")).toHaveAttribute("href", "https://discord.gg/vxdZuT5WuE");
     await final.scrollIntoViewIfNeeded();
     await expect(final.locator(".final__title")).toBeVisible();

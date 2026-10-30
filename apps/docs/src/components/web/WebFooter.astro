@@ -1,39 +1,54 @@
 ---
 import logo from "../../assets/logo.png";
-import OsIcon from "../OsIcon.astro";
-import SocialIcon from "./SocialIcon.astro";
-import { HOME, type Lang } from "../../i18n/home";
 import { comparisons } from "../../data/comparisons";
 import { sitePath } from "../../doc-routes.mjs";
+import { HOME, type Lang } from "../../i18n/home";
+import OsIcon from "../OsIcon.astro";
+import SocialIcon from "./SocialIcon.astro";
 import "./web.css";
-interface Props { lang: Lang }
+
+interface Props {
+  lang: Lang;
+}
 const { lang } = Astro.props;
 const es = lang === "es";
 const pre = es ? "/es" : "";
 const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
 const groups = [
-  { title: es ? "Empezá con APX" : "Start with APX", links: [
-    [es ? "Introducción" : "Introduction", href(`${pre}/start/introduction/`)],
-    [es ? "Instalación" : "Installation", href(`${pre}/start/install/`)],
-    [es ? "Tu equipo" : "Your crew", href(`${pre}/concepts/agents/`)],
-    [es ? "Tu oficina" : "Your office", href(`${pre}/office/chat/`)],
-    [es ? "Canales" : "Channels", href(`${pre}/channels/overview/`)],
-  ] },
-  { title: es ? "Explorá" : "Explore", links: [
-    [es ? "Habilidades" : "Skills", href(`${pre}/extend/skills/`)],
-    ["MCP", href(`${pre}/extend/mcp/`)],
-    [es ? "En tu servidor" : "On your server", href(`${pre}/devices/server/`)],
-    ["CLI", href(`${pre}/reference/cli/`)],
-  ] },
-  { title: es ? "Compará APX" : "Compare APX", links: [
-    [es ? "Todas las comparativas" : "All comparisons", href(`${pre}/compare/`)],
-    ...comparisons.map((item) => [`APX vs ${item.name}`, href(`${pre}/compare/${item.slug}/`)]),
-  ] },
-  { title: es ? "Comunidad" : "Community", links: [
-    [es ? "Versiones" : "Releases", "https://github.com/agentprojectcontext/apx/releases"],
-    [es ? "Reportar un problema" : "Report an issue", "https://github.com/agentprojectcontext/apx/issues"],
-    ["APC", "https://github.com/agentprojectcontext/agentprojectcontext"],
-  ] },
+  {
+    title: es ? "Empezá con APX" : "Start with APX",
+    links: [
+      [es ? "Introducción" : "Introduction", href(`${pre}/start/introduction/`)],
+      [es ? "Instalación" : "Installation", href(`${pre}/start/install/`)],
+      [es ? "Tu equipo" : "Your crew", href(`${pre}/concepts/agents/`)],
+      [es ? "Tu oficina" : "Your office", href(`${pre}/office/chat/`)],
+      [es ? "Canales" : "Channels", href(`${pre}/channels/overview/`)],
+    ],
+  },
+  {
+    title: es ? "Explorá" : "Explore",
+    links: [
+      [es ? "Habilidades" : "Skills", href(`${pre}/extend/skills/`)],
+      ["MCP", href(`${pre}/extend/mcp/`)],
+      [es ? "En tu servidor" : "On your server", href(`${pre}/devices/server/`)],
+      ["CLI", href(`${pre}/reference/cli/`)],
+    ],
+  },
+  {
+    title: es ? "Compará APX" : "Compare APX",
+    links: [
+      [es ? "Todas las comparativas" : "All comparisons", href(`${pre}/compare/`)],
+      ...comparisons.map((item) => [`APX vs ${item.name}`, href(`${pre}/compare/${item.slug}/`)]),
+    ],
+  },
+  {
+    title: es ? "Comunidad" : "Community",
+    links: [
+      [es ? "Versiones" : "Releases", "https://github.com/agentprojectcontext/apx/releases"],
+      [es ? "Reportar un problema" : "Report an issue", "https://github.com/agentprojectcontext/apx/issues"],
+      ["APC", "https://github.com/agentprojectcontext/agentprojectcontext"],
+    ],
+  },
 ];
 const socials = [
   { name: "GitHub", url: "https://github.com/agentprojectcontext/apx" },
@@ -41,8 +56,10 @@ const socials = [
   { name: "YouTube", url: "https://www.youtube.com/@apx-agents" },
 ] as const;
 const platforms = [
-  { name: "mac", label: "macOS" }, { name: "windows", label: "Windows" },
-  { name: "linux", label: "Linux" }, { name: "android", label: "Android" },
+  { name: "mac", label: "macOS" },
+  { name: "windows", label: "Windows" },
+  { name: "linux", label: "Linux" },
+  { name: "android", label: "Android" },
 ] as const;
 ---
 <footer class="web-footer">

@@ -1,0 +1,22 @@
+---
+title: Website privacy
+description: Optional analytics on apxagent.app and how to change your choice.
+---
+
+This page covers **apxagent.app**, not the APX application. For the application's separate, optional telemetry, see [Privacy](/reference/privacy/).
+
+## Your choice
+
+We use Google Analytics 4 only after you choose **Accept** in the cookie preferences. Declining does not affect downloads or documentation. Before acceptance, the site does not load Google's analytics script or send analytics events, including consent pings.
+
+Use **Cookie preferences** at the bottom of any current website page to accept or decline later. Your choice is stored in this browser's local storage under `apx-website-analytics-v1`. A necessary first-party preference cookie, `apx_analytics_denied`, also remembers a refusal for up to one year, so an older saved acceptance does not override it if local storage stops working. This cookie is not sent to Google. If browser storage is unavailable, you may be asked again on the next page.
+
+Declining after acceptance disables measurement, removes the site's `_ga` analytics cookies and, once the refusal is saved, reloads the page to stop the loaded analytics script. Active tabs that support browser messaging also receive the refusal. If neither local storage nor cookies can save it, the page stays open with a warning and retries when you return to it. Until a refusal is successfully saved, a previous acceptance could resume after closing or reloading, even if storage later becomes available again. A tab that cannot receive browser messages and cannot read a saved refusal may also continue measuring. Allow site data storage and decline again in each open tab to keep the refusal. Declining does not delete data already received by Google. Clearing your browser's site data also resets your choice.
+
+## What is measured
+
+After acceptance, Google receives page views, the page address without query parameters or fragments, and technical information such as browser and device information. Google also receives the connection's IP address to process the request. We do not send names, email addresses, account identifiers, search text, form contents, or the referring page address. Page titles sent by this integration use the fixed label “APX website”. Advertising personalization and Google signals are disabled in the tag.
+
+Google Analytics uses first-party cookies to distinguish visits. This integration configures a one-year cookie lifetime without extending it on each visit. Analytics is separate from the application's telemetry and its Firebase project.
+
+Google processes this data under its [privacy policy](https://policies.google.com/privacy). You can also use Google's [Analytics opt-out browser add-on](https://tools.google.com/dlpage/gaoptout). This choice controls analytics only; hosting still receives the network requests necessary to serve the site, and existing font resources have their own network requests.

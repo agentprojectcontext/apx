@@ -1,18 +1,25 @@
 ---
 import logo from "../../assets/logo.png";
-import { HOME, type Lang } from "../../i18n/home";
 import { sitePath } from "../../doc-routes.mjs";
+import { HOME, type Lang } from "../../i18n/home";
 import SocialIcon from "./SocialIcon.astro";
 import "./web.css";
-interface Props { lang: Lang; route?: string }
+
+interface Props {
+  lang: Lang;
+  route?: string;
+}
 const { lang, route = "/" } = Astro.props;
 const t = HOME[lang];
 const pre = lang === "es" ? "/es" : "";
 const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
 const links = [
-  ["/start/introduction/", t.nav.start], ["/concepts/agents/", t.nav.ideas],
-  ["/office/chat/", t.nav.office], ["/channels/overview/", t.nav.channels],
-  ["/reference/cli/", t.nav.cli], ["/compare/", lang === "es" ? "Comparar" : "Compare"],
+  ["/start/introduction/", t.nav.start],
+  ["/concepts/agents/", t.nav.ideas],
+  ["/office/chat/", t.nav.office],
+  ["/channels/overview/", t.nav.channels],
+  ["/reference/cli/", t.nav.cli],
+  ["/compare/", lang === "es" ? "Comparar" : "Compare"],
   ["/#questions", lang === "es" ? "Preguntas" : "Questions"],
 ];
 ---

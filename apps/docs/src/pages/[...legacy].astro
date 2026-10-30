@@ -7,7 +7,13 @@ export async function getStaticPaths() {
     const legacy = entry.id.replace(/^(es\/)?docs\//, "$1");
     return { params: { legacy }, props: { target: `/${entry.id}/`, spanish: legacy.startsWith("es/") } };
   });
-  return [...paths, ...["docs", "es/docs"].map((legacy) => ({ params: { legacy }, props: { target: `/${legacy}/start/introduction/`, spanish: legacy.startsWith("es/") } }))];
+  return [
+    ...paths,
+    ...["docs", "es/docs"].map((legacy) => ({
+      params: { legacy },
+      props: { target: `/${legacy}/start/introduction/`, spanish: legacy.startsWith("es/") },
+    })),
+  ];
 }
 const { target, spanish } = Astro.props;
 const destination = `${import.meta.env.BASE_URL.replace(/\/$/, "")}${target}`;

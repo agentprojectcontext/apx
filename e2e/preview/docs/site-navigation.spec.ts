@@ -99,7 +99,7 @@ for (const lang of ["en", "es"]) {
           ["GitHub", "https://github.com/agentprojectcontext/apx"],
           ["Discord", "https://discord.gg/vxdZuT5WuE"],
           ["YouTube", "https://www.youtube.com/@apx-agents"],
-        ]) {
+        ] as const) {
           const link = footer.getByRole("link", { name, exact: true });
           await expect(link).toHaveAttribute("href", url);
           await expect(link.locator("svg")).toHaveAttribute("aria-hidden", "true");
