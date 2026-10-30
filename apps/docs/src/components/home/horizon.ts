@@ -1,9 +1,10 @@
 // The hero's "horizon": green light that hugs the top of the stage screenshot and fades down its sides, with a
-// spectrum of bars on its edge, a beam on one side and sparks near the pointer. WebGL; without it the page keeps its
-// CSS glow. Still (one frame on each change) when motion is reduced.
+// spectrum of bars on its edge, a beam on one side and sparks near the pointer. Light outside the card falls off with
+// the true distance to its rounded box (no seam where the top edge meets the sides) and is gone by the card's bottom.
+// WebGL; without it the page keeps its CSS glow. Still (one frame on each change) when motion is reduced.
 const FRAG = [
   "precision highp float;",
-  "uniform vec2 R; uniform float T; uniform vec2 M; uniform float E; uniform float HZ; uniform float BX; uniform vec4 CB; uniform vec3 C1; uniform vec3 C2; uniform vec3 C3;",
+  "uniform vec2 R; uniform float T; uniform vec2 M; uniform float E; uniform float HZ; uniform float BX; uniform vec4 CB; uniform float CH; uniform vec3 C1; uniform vec3 C2; uniform vec3 C3;",
   "float h1(float n){return fract(sin(n)*43758.5453);}",
   "float h2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}",
   "float n1(float x){float i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(h1(i),h1(i+1.),f);}",
@@ -16,10 +17,10 @@ const FRAG = [
   " float rip=sin(abs(x-mx)*60.-T*9.)*exp(-abs(x-mx)*5.)*hov*.006;",
   " float dy=y-HZ+rip; float up=max(0.,-dy);",
   " float cl=(CB.x-.5)*asp, cr=(CB.y-.5)*asp, ccx=(cl+cr)*.5, chw=(cr-cl)*.5, rad=CB.w;",
-  " vec2 bp=vec2(x-ccx,y-(HZ+1.)+rip); float sd=sdRB(bp,vec2(chw,1.),rad);",
-  " float depth=max(0.,y-HZ); float sidefade=exp(-depth*2.6);",
-  " float osoft=smoothstep(-.004,.03,sd)*exp(-depth*depth*40.);",
-  " float su=sqrt(up*up+.0009)-.03;",
+  " vec2 bp=vec2(x-ccx,y-(HZ+CH*.5)+rip); float sd=sdRB(bp,vec2(chw,CH*.5),rad);",
+  " float depth=max(0.,y-HZ); float sidefade=1.-smoothstep(0.,CH,depth); sidefade*=sidefade;",
+  " float osoft=smoothstep(-.004,.03,sd)*sidefade;",
+  " float od=max(sd,0.); float su=sqrt(od*od+.0009)-.03;",
   " float onTop=step(abs(x-ccx),chw-rad*.5);",
   " float wenv=exp(-pow(max(0.,abs(x-ccx)-chw),2.)*30.)*smoothstep(-.02,0.,-max(0.,abs(x-ccx)-chw)*0.)+0.;",
   " float ix=x-bx0;",
@@ -34,7 +35,7 @@ const FRAG = [
   " float bnear=exp(-pow((mx-bx0)*5.,2.))*en;",
   " float pull=(mx-bx0)*.25*bnear*exp(-pow(y-my,2.)*14.);",
   " float bx=bx0+sin(y*6.+T*.7)*.006+sin(y*17.-T*1.3)*.003+pull;",
-  " float vfall=smoothstep(0.,HZ,y)*step(y,HZ+.004);",
+  " float vfall=smoothstep(0.,HZ,y)*exp(-depth*R.y*.03)*sidefade;",
   " float flick=.82+.18*n1(T*7.+y*40.);",
   " float vb=exp(-abs(x-bx)*R.x*.01)*vfall*(.55+.45*smoothstep(0.,HZ,y))*(1.+bnear*.8);",
   " float vcore=exp(-abs(x-bx)*R.x*.11)*vfall*smoothstep(-.05,HZ,y)*(1.+bnear);",
@@ -47,7 +48,7 @@ const FRAG = [
   " float spike=inCol*(1.-smoothstep(0.,spikeH,abs(dy)));",
   " vec2 g=vec2(x*16.,y*16.+T*1.1); vec2 gi=floor(g); vec2 gf=fract(g);",
   " vec2 pp=vec2(h2(gi+3.1),h2(gi+7.7)); float rnd=h2(gi);",
-  " float ember=smoothstep(.07,0.,length(gf-pp))*step(.95-.07*(en+bnear),rnd)*exp(-up*2.5)*osoft*(exp(-ix*ix*6.)*(.6+bnear*2.)+exp(-pow(x-mx,2.)*12.)*hov*1.5);",
+  " float ember=smoothstep(.07,0.,length(gf-pp))*step(.95-.07*(en+bnear),rnd)*exp(-od*2.5)*osoft*(exp(-ix*ix*6.)*(.6+bnear*2.)+exp(-pow(x-mx,2.)*12.)*hov*1.5);",
   " vec3 col=vec3(0.);",
   " col+=C1*fan*.42*(.6+en*.8);",
   " col+=mix(C1,vec3(1.),.35)*halo*.5;",
@@ -66,7 +67,8 @@ const FRAG = [
   "}",
 ].join("\n");
 
-type Card = () => [number, number, number, number] | null;
+/** The card as fractions of the canvas: left, right, top, corner radius and height. */
+type Card = () => [number, number, number, number, number] | null;
 
 /** Starts the effect on `canvas`; returns false when WebGL is unavailable. */
 export function startHorizon(canvas: HTMLCanvasElement, card: Card): boolean {
@@ -102,6 +104,7 @@ export function startHorizon(canvas: HTMLCanvasElement, card: Card): boolean {
     HZ: u("HZ"),
     BX: u("BX"),
     CB: u("CB"),
+    CH: u("CH"),
     C1: u("C1"),
     C2: u("C2"),
     C3: u("C3"),
@@ -153,7 +156,7 @@ export function startHorizon(canvas: HTMLCanvasElement, card: Card): boolean {
     g.viewport(0, 0, w, h);
     g.clearColor(0, 0, 0, 0);
     g.clear(g.COLOR_BUFFER_BIT);
-    const box = card() ?? [0.08, 0.92, 0.62, 0.025];
+    const box = card() ?? [0.08, 0.92, 0.62, 0.025, 0.3];
     const cw = canvas.clientWidth;
     const beam = cw < 760 ? 0.92 : cw < 1200 ? 0.9 : 0.82;
     const target = mouse.in
@@ -167,6 +170,7 @@ export function startHorizon(canvas: HTMLCanvasElement, card: Card): boolean {
     g.uniform1f(U.HZ, box[2]);
     g.uniform1f(U.BX, beam);
     g.uniform4f(U.CB, box[0], box[1], box[2], box[3]);
+    g.uniform1f(U.CH, box[4]);
     g.uniform3fv(U.C1, colors[0] ?? [0, 0, 0]);
     g.uniform3fv(U.C2, colors[1] ?? [0, 0, 0]);
     g.uniform3fv(U.C3, colors[2] ?? [0, 0, 0]);
@@ -182,6 +186,8 @@ export function startHorizon(canvas: HTMLCanvasElement, card: Card): boolean {
   }).observe(canvas);
   document.addEventListener("visibilitychange", wake);
   addEventListener("resize", wake);
+  // The card's size changes when its screenshot loads or the layout reflows.
+  new ResizeObserver(wake).observe(document.body);
   // With reduced motion the frame is redrawn only when the layout or theme may have changed.
   if (reduce) {
     addEventListener("scroll", wake, { passive: true });

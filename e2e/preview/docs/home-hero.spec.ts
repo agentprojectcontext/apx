@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { comparisons, featuredComparison } from "../../../apps/docs/src/data/comparisons.ts";
+import { decodePng } from "../png.ts";
 
 for (const lang of ["en", "es"] as const) {
   const pre = lang === "es" ? "/es" : "";
@@ -93,3 +94,65 @@ test("the hero lights the stage card when WebGL is available", async ({ page }) 
   await expect(page.locator(".hero")).toHaveClass(/has-horizon/);
   await expect(page.locator(".hero__aura")).toBeHidden();
 });
+
+for (const theme of ["dark", "light"] as const) {
+  test(`the horizon hugs only the stage card, with no seam (${theme})`, async ({ page }, testInfo) => {
+    await page.addInitScript((value) => localStorage.setItem("starlight-theme", value), theme);
+    await page.goto("/");
+    const webgl = await page.evaluate(() => Boolean(document.createElement("canvas").getContext("webgl")));
+    test.skip(!webgl, "This browser has no WebGL");
+    await expect(page.locator(".hero")).toHaveClass(/has-horizon/);
+    await page.locator("[data-analytics-consent] [data-cookie-reject]").click();
+    const card = page.locator("[data-stage-card]");
+    const shoot = async (cardTop: number) => {
+      await page.evaluate((top) => {
+        const box = document.querySelector("[data-stage-card]")?.getBoundingClientRect();
+        if (box) scrollTo(0, scrollY + box.top - top);
+      }, cardTop);
+      await page.waitForTimeout(600);
+      const box = await card.boundingBox();
+      if (!box) throw new Error("No stage card");
+      return { box, pixels: decodePng(await page.screenshot()) };
+    };
+    const luma = ([r, g, b]: [number, number, number]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    const width = page.viewportSize()?.width ?? 0;
+    // Around the top corners the glow changes smoothly: no step between neighbouring pixels. The first 10 px hug
+    // the card with its own bright rim, so sampling starts past them.
+    const top = await shoot(260);
+    await testInfo.attach("corners.png", { body: await page.screenshot(), contentType: "image/png" });
+    const steps: number[] = [];
+    for (const edge of [top.box.x + top.box.width + 10, top.box.x - 11]) {
+      if (edge < 1 || edge > width - 2) continue;
+      for (let y = top.box.y - 40; y < top.box.y + 80; y++)
+        steps.push(Math.abs(luma(top.pixels.at(edge, y + 1)) - luma(top.pixels.at(edge, y))));
+    }
+    for (const y of [top.box.y + 4, top.box.y + 24]) {
+      for (let x = top.box.x + top.box.width + 10; x < width - 2; x++)
+        steps.push(Math.abs(luma(top.pixels.at(x + 1, y)) - luma(top.pixels.at(x, y))));
+      for (let x = 1; x < top.box.x - 11; x++)
+        steps.push(Math.abs(luma(top.pixels.at(x + 1, y)) - luma(top.pixels.at(x, y))));
+    }
+    expect(Math.max(0, ...steps)).toBeLessThanOrEqual(8);
+    // Past the card's bottom (its caption, the next section) no light is added to the page: no channel is brighter
+    // than the background (the card's drop shadow may only darken it).
+    const bottom = await shoot(-((await card.boundingBox())?.height ?? 0) + 200);
+    const background = await page.evaluate(() =>
+      (getComputedStyle(document.body).backgroundColor.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number),
+    );
+    await testInfo.attach("below-card.png", { body: await page.screenshot(), contentType: "image/png" });
+    const gutters = [
+      2,
+      Math.max(2, bottom.box.x - 4),
+      Math.min(width - 3, bottom.box.x + bottom.box.width + 4),
+      width - 3,
+    ];
+    for (let y = bottom.box.y + bottom.box.height + 16; y < bottom.box.y + bottom.box.height + 400; y += 8)
+      for (const x of gutters) {
+        const [r, g, b] = bottom.pixels.at(x, y);
+        expect(
+          Math.max(r - (background[0] ?? 0), g - (background[1] ?? 0), b - (background[2] ?? 0)),
+          `light at ${x},${Math.round(y)}`,
+        ).toBeLessThanOrEqual(2);
+      }
+  });
+}

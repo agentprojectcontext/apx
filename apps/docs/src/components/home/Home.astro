@@ -558,7 +558,13 @@ const cliRows = [
           const s = stage.getBoundingClientRect();
           if (!c.width || !c.height) return null;
           const radius = Number.parseFloat(getComputedStyle(stage).borderTopLeftRadius) || 16;
-          return [(s.left - c.left) / c.width, (s.right - c.left) / c.width, (s.top - c.top) / c.height, radius / c.height];
+          return [
+            (s.left - c.left) / c.width,
+            (s.right - c.left) / c.width,
+            (s.top - c.top) / c.height,
+            radius / c.height,
+            s.height / c.height,
+          ];
         })
       )
         document.querySelector(".hero")?.classList.add("has-horizon");
