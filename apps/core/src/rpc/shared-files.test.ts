@@ -116,6 +116,10 @@ test("files shared in chats are listed newest first, by kind and project, with t
   assert.deepEqual(revealed, [kept]);
   await assert.rejects(env.client.call("media.reveal", { media_id: photo.id }), /not found|media/);
 
+  // Only a video has a poster; a picture asks for none.
+  assert.deepEqual(await env.client.call("media.poster", { media_id: photo.id }), {});
+  await assert.rejects(env.client.call("media.poster", { media_id: "med_missing" }), /media/);
+
   // A message rewritten without its file, or cut from the chat, no longer lists it.
   store.messages.update({ ...first, parts: [{ type: "text", text: "The storefront" }] });
   store.messages.cutFrom(loose.id, last.seq);

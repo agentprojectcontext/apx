@@ -234,6 +234,13 @@ export const filesMethods = {
     effect: false,
     access: "human",
   },
+  /** A small JPEG of a video's first frame, base64; none when the core cannot make one (no ffmpeg). */
+  "media.poster": {
+    params: z.object({ media_id: Id }).strict(),
+    result: z.object({ data: z.string().optional() }),
+    effect: false,
+    access: "human",
+  },
   /** Shows a file shared in a chat in Finder (Explorer, the file manager) on the core's computer. */
   "media.reveal": {
     params: z.object({ media_id: Id }).strict(),

@@ -157,45 +157,94 @@
   padding-top: 20px;
 }
 
-/* One file open. */
-.sharedf__preview {
+/* One file open: a lightbox over the list, the file on a dark backdrop and its details beside it. */
+.apx-dialog.sharedlb {
+  inset: 0;
   display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-}
-.sharedf__previewhead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 20px 0;
-}
-.sharedf__steps {
-  display: inline-flex;
-  gap: 2px;
-}
-.sharedf__previewinfo {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 8px 28px 16px;
-  border-bottom: 1px solid var(--apx-border);
-}
-.sharedf__previewtitle {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-.sharedf__previewtitle h2 {
-  margin: 0;
+  width: 100vw;
+  max-width: none;
+  height: 100vh;
+  max-height: none;
+  padding: 0;
   overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: rgb(0 0 0 / 96%);
+  box-shadow: none;
+  transform: none;
+}
+.sharedf__lbstage {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 32px 64px;
+}
+.sharedf__lbstep {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  transform: translateY(-50%);
+  background: rgb(255 255 255 / 12%);
+  color: #fff;
+}
+.sharedf__lbstep:hover {
+  background: rgb(255 255 255 / 22%);
+}
+.sharedf__lbstep.is-prev {
+  left: 16px;
+}
+.sharedf__lbstep.is-next {
+  right: 16px;
+}
+.sharedf__lbside {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 16px;
+  width: 320px;
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+  border-left: 1px solid var(--apx-border);
+  background: var(--apx-surface);
+  color: var(--apx-fg);
+}
+.sharedf__lbkind {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  gap: 6px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.sharedf__lbname {
+  margin: 0;
   font-size: var(--apx-text-lg);
   font-weight: var(--apx-weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+}
+.sharedf__facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 14px;
+  margin: 0;
+  font-size: var(--apx-text-sm);
+}
+.sharedf__facts dt {
+  color: var(--apx-fg-muted);
+}
+.sharedf__facts dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.sharedf__actions.is-labeled {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
 }
 .sharedf__stage,
 .sharedf__loading {
@@ -203,19 +252,23 @@
   flex: 1;
   align-items: center;
   justify-content: center;
+  align-self: stretch;
+  min-width: 0;
   min-height: 0;
-  padding: 20px 28px 28px;
-  overflow: auto;
 }
 .sharedf__loading {
   position: relative;
 }
+/* The picture or video as large as the space allows, never cropped. */
 .sharedf__stage img,
 .sharedf__stage video {
-  max-width: 100%;
-  max-height: 100%;
-  border-radius: var(--apx-radius-sm);
+  width: 100%;
+  height: 100%;
   object-fit: contain;
+}
+.sharedlb .apx-dialog__close--float {
+  background: var(--apx-surface-raised);
+  color: var(--apx-fg);
 }
 .sharedf__audio {
   display: flex;
@@ -223,32 +276,35 @@
   align-items: center;
   gap: 16px;
   width: min(480px, 100%);
-  color: var(--apx-fg-muted);
+  color: rgb(255 255 255 / 70%);
 }
 .sharedf__audio audio {
   width: 100%;
 }
-.sharedf__stage.is-pdf {
+.sharedf__stage.is-pdf,
+.sharedf__stage.is-document {
   align-items: stretch;
 }
 .sharedf__stage iframe {
   flex: 1;
-  border: 1px solid var(--apx-border);
+  border: 0;
   border-radius: var(--apx-radius-sm);
   background: #fff;
 }
 .sharedf__stage pre {
-  align-self: stretch;
   width: 100%;
   margin: 0;
-  padding: 16px;
+  padding: 20px;
   overflow: auto;
-  border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-sm);
   background: var(--apx-surface);
+  color: var(--apx-fg);
   font-size: var(--apx-text-xs);
   white-space: pre-wrap;
   word-break: break-word;
+}
+.sharedf__lbstage .apx-empty {
+  color: rgb(255 255 255 / 80%);
 }
 @media (max-width: 767px) {
   .sharedf__body {
@@ -262,14 +318,23 @@
     flex: 1;
     width: auto;
   }
-  .sharedf__previewhead {
-    padding: 8px 8px 0;
+  /* The file on top, its details below. */
+  .apx-dialog.sharedlb {
+    flex-direction: column;
   }
-  .sharedf__previewinfo {
-    padding: 4px 16px 12px;
+  .sharedf__lbstage {
+    padding: 12px 8px;
   }
-  .sharedf__stage,
-  .sharedf__loading {
-    padding: 12px;
+  .sharedf__lbstep.is-prev {
+    left: 8px;
+  }
+  .sharedf__lbstep.is-next {
+    right: 8px;
+  }
+  .sharedf__lbside {
+    width: auto;
+    max-height: 45%;
+    border-top: 1px solid var(--apx-border);
+    border-left: 0;
   }
 }
