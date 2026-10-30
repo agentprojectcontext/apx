@@ -342,7 +342,7 @@ body.h {
   color: var(--apx-fg-muted);
 }
 .nav__links > a,
-.nav__cmp-link {
+.nav__drop-link {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -354,21 +354,21 @@ body.h {
     background 0.2s,
     color 0.2s;
 }
-.nav__cmp-link {
+.nav__drop-link {
   padding-right: 12px;
 }
 .nav__links > a:hover,
-.nav__cmp-link:hover,
-.nav__cmp-link[aria-current],
-.nav__cmp:hover .nav__cmp-link,
-.nav__cmp:focus-within .nav__cmp-link {
+.nav__drop-link:hover,
+.nav__drop-link[aria-current],
+.nav__drop:hover .nav__drop-link,
+.nav__drop:focus-within .nav__drop-link {
   background: var(--apx-fill-strong);
   color: var(--apx-fg);
 }
-.nav__cmp-link svg {
+.nav__drop-link svg {
   transition: transform 0.25s;
 }
-.nav__cmp {
+.nav__drop {
   position: relative;
 }
 /* Opens on hover or focus; closing waits 140 ms so the pointer can cross the gap to the menu. */
@@ -376,7 +376,7 @@ body.h {
   position: absolute;
   top: 100%;
   left: 50%;
-  width: 600px;
+  width: 580px;
   padding-top: 14px;
   visibility: hidden;
   opacity: 0;
@@ -386,8 +386,8 @@ body.h {
     transform 0.3s var(--apx-ease) 0.14s,
     visibility 0s 0.36s;
 }
-.nav__cmp:hover .nav__menu,
-.nav__cmp:focus-within .nav__menu {
+.nav__drop:hover .nav__menu,
+.nav__drop:focus-within .nav__menu {
   visibility: visible;
   opacity: 1;
   transform: translateX(-50%);
@@ -396,9 +396,63 @@ body.h {
     transform 0.3s var(--apx-ease),
     visibility 0s;
 }
-.nav__cmp:hover .nav__cmp-link svg,
-.nav__cmp:focus-within .nav__cmp-link svg {
+.nav__drop:hover .nav__drop-link svg,
+.nav__drop:focus-within .nav__drop-link svg {
   transform: rotate(180deg);
+}
+/* Product and Docs open from their own left edge, so they never leave the page. */
+.nav__menu--start {
+  left: -4px;
+  width: 440px;
+  transform: translateY(-6px);
+}
+.nav__drop:hover .nav__menu--start,
+.nav__drop:focus-within .nav__menu--start {
+  transform: none;
+}
+.nav__menu--wide {
+  width: 640px;
+}
+.nav__drop.is-dismissed .nav__menu {
+  visibility: hidden;
+  opacity: 0;
+}
+.nav__menu-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+}
+.nav__menu-sections a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: 14px;
+  color: var(--apx-fg);
+  transition: background 0.2s;
+}
+.nav__menu-sections a:hover,
+.nav__menu-sections a:focus-visible,
+.nav__menu-sections a[aria-current] {
+  background: var(--apx-fill);
+}
+.nav__menu-list.nav__menu-list--docs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.nav__menu-list--docs a {
+  gap: 10px;
+  padding: 10px;
+}
+.nav__feat--docs {
+  background:
+    radial-gradient(120% 140% at 100% 0%, var(--apx-brand) 0%, transparent 55%),
+    radial-gradient(120% 140% at 0% 100%, var(--apx-info) 0%, transparent 60%), var(--apx-violet);
 }
 .nav__menu-card {
   overflow: hidden;
@@ -411,7 +465,7 @@ body.h {
 }
 .nav__menu-grid {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 210px minmax(0, 1fr);
   gap: 8px;
   padding: 8px;
 }
@@ -421,7 +475,7 @@ body.h {
   flex-direction: column;
   justify-content: flex-end;
   gap: 8px;
-  min-height: 230px;
+  min-height: 225px;
   overflow: hidden;
   padding: 16px;
   border-radius: 16px;
@@ -451,13 +505,16 @@ body.h {
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
+/* The blob sits inside the card's rounded corner, never past its edge. */
 .nav__feat-blob {
   position: absolute;
-  top: 14px;
-  right: -12px;
+  top: 12px;
+  right: 12px;
+  line-height: 0;
 }
 .nav__feat-name,
-.nav__feat-tag {
+.nav__feat-tag,
+.nav__feat-date {
   position: relative;
   z-index: 1;
   text-wrap: pretty;
@@ -473,6 +530,10 @@ body.h {
   line-height: 1.35;
   color: rgb(255 255 255 / 0.85);
 }
+.nav__feat-date {
+  font: 500 10.5px / 1.3 var(--apx-font-mono);
+  color: rgb(255 255 255 / 0.7);
+}
 .nav__menu-list {
   display: flex;
   flex-direction: column;
@@ -485,6 +546,7 @@ body.h {
   display: flex;
   align-items: center;
   gap: 14px;
+  min-width: 0;
   padding: 12px;
   border-radius: 14px;
   color: var(--apx-fg);
@@ -542,10 +604,12 @@ body.h {
   font-weight: 600;
 }
 .nav__menu-text span {
+  overflow: hidden;
   font-size: 12.5px;
   line-height: 1.35;
   color: var(--apx-fg-muted);
-  text-wrap: pretty;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .nav__menu-foot {
   display: flex;
@@ -646,12 +710,7 @@ body.h {
 .nav__links > .nav__sheet-get {
   display: none;
 }
-/* Seven entries: the bar is wider than the page, and its buttons drop their labels before the menu sheet takes over. */
-.web-header .nav__in {
-  max-width: 1320px;
-  gap: 20px;
-}
-@media (max-width: 1279px) {
+@media (max-width: 1099px) {
   .web-header .btn-discord .lbl {
     display: none;
   }
@@ -660,16 +719,7 @@ body.h {
     padding: 0;
   }
 }
-@media (max-width: 1179px) {
-  .web-header .nav__get .lbl {
-    display: none;
-  }
-  .web-header .nav__get {
-    width: 36px;
-    padding: 0;
-  }
-}
-@media (max-width: 1099px) {
+@media (max-width: 999px) {
   .nav__in {
     gap: 12px;
   }
@@ -702,26 +752,26 @@ body.h {
     color: var(--apx-fg);
   }
   .nav__links > a,
-  .nav__cmp-link {
+  .nav__drop-link {
     height: auto;
     padding: 12px 4px;
     border-bottom: 1px solid var(--apx-border);
     border-radius: 0;
   }
   .nav__links > a:hover,
-  .nav__cmp-link:hover,
-  .nav__cmp-link[aria-current],
-  .nav__cmp:hover .nav__cmp-link,
-  .nav__cmp:focus-within .nav__cmp-link {
+  .nav__drop-link:hover,
+  .nav__drop-link[aria-current],
+  .nav__drop:hover .nav__drop-link,
+  .nav__drop:focus-within .nav__drop-link {
     background: none;
   }
-  .nav__cmp-link svg {
+  .nav__drop-link svg {
     display: none;
   }
   /* In the sheet, Compare's list sits open under it. */
   .nav__menu,
-  .nav__cmp:hover .nav__menu,
-  .nav__cmp:focus-within .nav__menu {
+  .nav__drop:hover .nav__menu,
+  .nav__drop:focus-within .nav__menu {
     position: static;
     width: auto;
     padding: 4px 0 8px;
@@ -729,6 +779,60 @@ body.h {
     opacity: 1;
     transform: none;
     transition: none;
+  }
+  /* Product and Docs open from their own left edge, so they never leave the page. */
+  .nav__menu--start {
+    left: -4px;
+    width: 440px;
+    transform: translateY(-6px);
+  }
+  .nav__drop:hover .nav__menu--start,
+  .nav__drop:focus-within .nav__menu--start {
+    transform: none;
+  }
+  .nav__menu--wide {
+    width: 640px;
+  }
+  .nav__drop.is-dismissed .nav__menu {
+    visibility: hidden;
+    opacity: 0;
+  }
+  .nav__menu-sections {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px;
+    margin: 0;
+    padding: 8px;
+    list-style: none;
+  }
+  .nav__menu-sections a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    font-size: 14px;
+    color: var(--apx-fg);
+    transition: background 0.2s;
+  }
+  .nav__menu-sections a:hover,
+  .nav__menu-sections a:focus-visible,
+  .nav__menu-sections a[aria-current] {
+    background: var(--apx-fill);
+  }
+  .nav__menu-list--docs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .nav__menu-list--docs a {
+    gap: 10px;
+    padding: 10px;
+  }
+  .nav__feat--docs {
+    background:
+      radial-gradient(120% 140% at 100% 0%, var(--apx-brand) 0%, transparent 55%),
+      radial-gradient(120% 140% at 0% 100%, var(--apx-info) 0%, transparent 60%), var(--apx-violet);
   }
   .nav__menu-card {
     border: 0;
@@ -767,6 +871,11 @@ body.h {
   }
   .nav__menu-foot > span {
     display: none;
+  }
+  .nav__menu-sections,
+  .nav__menu-list.nav__menu-list--docs {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0;
   }
   .web-header[data-open] .nav__links {
     display: flex;

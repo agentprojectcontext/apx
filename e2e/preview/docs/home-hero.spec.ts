@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { comparisons, featuredComparison } from "../../../apps/docs/src/data/comparisons.ts";
+import { featured } from "../../../apps/docs/src/data/comparisons.ts";
 import { decodePng } from "../png.ts";
 
 for (const lang of ["en", "es"] as const) {
@@ -11,19 +11,27 @@ for (const lang of ["en", "es"] as const) {
   }, testInfo) => {
     test.skip(isMobile, "Below 1000 px the links live in the menu sheet, without the dropdown");
     await page.goto(`${pre}/`);
-    const menu = page.locator(".web-header .nav__menu");
+    const menu = page.locator(".web-header .nav__cmp .nav__menu");
     await expect(menu).toBeHidden();
     await page.locator(".nav__cmp-link").hover();
     await expect(menu).toBeVisible();
-    const featured = comparisons.find((item) => item.slug === featuredComparison);
+    // The most relevant comparison as the card, the next three beside it, in the data's order.
+    const [lead, ...rest] = featured;
     const card = menu.locator(".nav__feat");
-    await expect(card).toHaveAttribute("href", `${pre}/compare/${featuredComparison}/`);
-    await expect(card).toContainText(`APX vs ${featured?.name}`);
+    await expect(card).toHaveAttribute("href", `${pre}/compare/${lead?.slug}/`);
+    await expect(card).toContainText(`APX vs ${lead?.name}`);
+    await expect(card.locator(".nav__feat-date")).toBeVisible();
+    // The blob sits inside the card, never past its edge.
+    const cardBox = await card.boundingBox();
+    const blobBox = await card.locator(".nav__feat-blob").boundingBox();
+    expect(blobBox?.x ?? 0).toBeGreaterThanOrEqual(cardBox?.x ?? 0);
+    expect((blobBox?.x ?? 0) + (blobBox?.width ?? 0)).toBeLessThanOrEqual((cardBox?.x ?? 0) + (cardBox?.width ?? 0));
+    expect(blobBox?.y ?? 0).toBeGreaterThanOrEqual(cardBox?.y ?? 0);
     await expect(card.locator(".nav__feat-new")).toHaveText(lang === "es" ? "Nuevo" : "New");
     const items = menu.locator(".nav__menu-list a");
-    await expect(items).toHaveCount(4);
-    for (const item of await items.all()) {
-      await expect(item).toHaveAttribute("href", new RegExp(`^${pre}/compare/[a-z-]+/$`));
+    await expect(items).toHaveCount(3);
+    for (const [i, item] of (await items.all()).entries()) {
+      await expect(item).toHaveAttribute("href", `${pre}/compare/${rest[i]?.slug}/`);
       expect(await item.locator("img").evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
     }
     await expect(menu.locator(".nav__menu-foot a")).toHaveAttribute("href", `${pre}/compare/#comparisons`);
@@ -37,7 +45,7 @@ for (const lang of ["en", "es"] as const) {
     await page.keyboard.press("Tab");
     await expect(card).toBeFocused();
     await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(`${pre}/compare/${featuredComparison}/`);
+    await expect(page).toHaveURL(`${pre}/compare/${lead?.slug}/`);
   });
 
   test(`${lang}: the header becomes a bar once the page scrolls`, async ({ page }) => {
@@ -160,20 +168,10 @@ for (const theme of ["dark", "light"] as const) {
 for (const lang of ["en", "es"] as const) {
   const pre = lang === "es" ? "/es" : "";
   const entries =
-    lang === "es"
-      ? ["Empezar", "Ideas clave", "Oficina", "Canales", "CLI", "Comparar", "Preguntas"]
-      : ["Start", "Core ideas", "Office", "Channels", "CLI", "Compare", "Questions"];
-  const paths = [
-    "/docs/start/introduction/",
-    "/docs/concepts/agents/",
-    "/docs/office/chat/",
-    "/docs/channels/overview/",
-    "/docs/reference/cli/",
-    "/compare/",
-    "/#questions",
-  ];
+    lang === "es" ? ["Producto", "Guías", "Comparar", "Preguntas"] : ["Product", "Docs", "Compare", "Questions"];
+  const paths = ["/#what", "/docs/start/introduction/", "/compare/", "/#questions"];
 
-  test(`${lang}: the header lists the guide's sections, Compare and Questions, and never overflows`, async ({
+  test(`${lang}: the header's pill is Product, Docs, Compare and Questions, and never overflows`, async ({
     page,
     isMobile,
   }) => {
@@ -183,13 +181,15 @@ for (const lang of ["en", "es"] as const) {
       await toggle.click();
       await expect(page.locator(".web-header")).toHaveAttribute("data-open", "");
     }
-    const links = page.locator(".web-header .nav__links > a:not(.nav__sheet-get), .web-header .nav__cmp-link");
+    const links = page.locator(".web-header .nav__links > a:not(.nav__sheet-get), .web-header .nav__drop-link");
     await expect(links).toHaveText(entries);
     for (const [i, path] of paths.entries()) await expect(links.nth(i)).toHaveAttribute("href", `${pre}${path}`);
-    await expect(links.nth(5)).toHaveAttribute("aria-current", "page");
+    await expect(links.nth(2)).toHaveAttribute("aria-current", "page");
     if (isMobile) {
-      // In the sheet, Compare's list is open under it, and the sheet scrolls inside the screen.
-      await expect(page.locator(".web-header .nav__menu-list a").first()).toBeVisible();
+      // In the sheet each menu is a group, open under its entry, and the sheet scrolls inside the screen.
+      await expect(page.locator(".web-header .nav__menu-sections a")).toHaveCount(8);
+      await expect(page.locator(".web-header .nav__menu-list--docs a")).toHaveCount(6);
+      await expect(page.locator(".web-header .nav__cmp .nav__menu-list a").first()).toBeVisible();
       const sheet = page.locator("#navLinks");
       const box = await sheet.boundingBox();
       expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(page.viewportSize()?.height ?? 0);
@@ -209,7 +209,58 @@ for (const lang of ["en", "es"] as const) {
       });
       expect(fits, `header at ${width}px`).toBe(true);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      await expect(toggle).toBeVisible({ visible: width < 1100 });
+      await expect(toggle).toBeVisible({ visible: width < 1000 });
+    }
+  });
+}
+
+for (const lang of ["en", "es"] as const) {
+  const pre = lang === "es" ? "/es" : "";
+
+  test(`${lang}: Product and Docs menus lead to the home's sections and the guide`, async ({
+    page,
+    request,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "Dropdowns open on hover from 1000 px");
+    await page.goto(`${pre}/compare/`);
+    const product = page.locator(".web-header .nav__product .nav__menu");
+    await page.locator(".nav__product .nav__drop-link").hover();
+    await expect(product).toBeVisible();
+    const sections = product.locator("a[data-section]");
+    await expect(sections).toHaveCount(8);
+    for (const link of await sections.all()) {
+      const id = await link.getAttribute("data-section");
+      await expect(link).toHaveAttribute("href", `${pre}/#${id}`);
+      expect(await (await request.get(`${pre}/`)).text()).toContain(`id="${id}"`);
+    }
+    // Choosing one goes there and closes the menu.
+    await sections.filter({ hasText: lang === "es" ? "Mapa de la guía" : "Docs map" }).click();
+    await expect(page).toHaveURL(`${pre}/#map`);
+    await expect(product).toBeHidden();
+    await expect(page.locator('.nav__product a[data-section="map"]')).toHaveAttribute("aria-current", "location");
+    // Docs: the start page as a card and one row per guide section, each a page in this language.
+    const docs = page.locator(".web-header .nav__docs .nav__menu");
+    await page.locator(".nav__docs .nav__drop-link").hover();
+    await expect(docs).toBeVisible();
+    await expect(docs.locator(".nav__feat")).toHaveAttribute("href", `${pre}/docs/start/introduction/`);
+    const rows = docs.locator(".nav__menu-list a");
+    await expect(rows).toHaveCount(6);
+    for (const row of await rows.all()) {
+      const href = (await row.getAttribute("href")) ?? "";
+      expect(href).toMatch(new RegExp(`^${pre}/docs/[a-z-]+/[a-z-]+/$`));
+      expect((await request.get(href)).status(), href).toBe(200);
+      expect((await row.locator(".nav__menu-text span").textContent())?.trim().length).toBeGreaterThan(10);
+    }
+    // Menus stay inside the page at every width they show.
+    for (const width of [1440, 1100, 1000]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const name of ["product", "docs", "cmp"]) {
+        await page.locator(`.nav__${name} .nav__drop-link`).hover();
+        const box = await page.locator(`.nav__${name} .nav__menu-card`).boundingBox();
+        expect(box?.x ?? -1, `${name} at ${width}`).toBeGreaterThanOrEqual(0);
+        expect((box?.x ?? 0) + (box?.width ?? 0), `${name} at ${width}`).toBeLessThanOrEqual(width);
+      }
     }
   });
 }

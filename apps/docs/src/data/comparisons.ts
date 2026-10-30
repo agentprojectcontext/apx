@@ -115,8 +115,10 @@ export const comparisons: Product[] = [
   instinct,
 ];
 export type Comparison = Product;
-/** The comparison the header's menu shows first, marked new: the latest one added. */
-export const featuredComparison = "claude-cowork";
+/** The comparisons shown first (the home's cards, the header's menu), most relevant first. */
+export const featured = ["claude-cowork", "chatgpt-dots", "openclaw", "manus", "hermes-agent", "openbot"]
+  .map((slug) => comparisons.find((c) => c.slug === slug))
+  .filter((c): c is Product => c !== undefined);
 export const labels = {
   en: {
     comparisons: "Comparisons",

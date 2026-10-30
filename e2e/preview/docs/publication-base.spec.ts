@@ -10,7 +10,7 @@ test("published base keeps navigation, documentation redirects, search and insta
 }, testInfo) => {
   for (const pre of ["", "/es"]) {
     await page.goto(`${origin}${base}${pre}/compare/openbot/`);
-    await (await headerLink(page, "a[href$='/docs/start/introduction/']")).click();
+    await (await headerLink(page, ".nav__docs-link")).click();
     await expect(page).toHaveURL(`${origin}${base}${pre}/docs/start/introduction/`);
     await expect(page.locator("main h1")).toBeVisible();
     await page.goto(`${origin}${base}${pre}/start/introduction/?old=1#_top`);

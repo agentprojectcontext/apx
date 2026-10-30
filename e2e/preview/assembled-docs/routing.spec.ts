@@ -121,7 +121,7 @@ test("assembled current web navigation and comparison sources work", async ({ pa
   await page.screenshot({ path: testInfo.outputPath("assembled-comparison.png") });
   await page.getByRole("link", { name: "EN", exact: true }).click();
   await expect(page).toHaveURL(`${assembledOrigin}/compare/openclaw/`);
-  await (await headerLink(page, 'a[href$="/docs/start/introduction/"]')).click();
+  await (await headerLink(page, ".nav__docs-link")).click();
   await expect(page).toHaveURL(`${assembledOrigin}/docs/start/introduction/`);
 });
 
