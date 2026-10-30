@@ -31,6 +31,7 @@ export function translationErrors(pages) {
 
 /** Validate literal local links against built routes and fragment ids, including the published base. */
 export function linkErrors(pages, base = "/apx") {
+  base = base.replace(/\/+$/, "");
   const errors = [];
   const origin = "https://docs.invalid";
   for (const [route, html] of pages) {
