@@ -14,6 +14,8 @@ import {
   type NoticePrefs,
   type RoutineRun,
   type Schedule,
+  type SharedFile,
+  type SharedKind,
   type TaskEvent,
 } from "../protocol";
 import { taskComments } from "../tasks/comments";
@@ -653,6 +655,18 @@ export function useWorkspace(creds: Creds) {
     [client],
   );
 
+  /** Files shared in chats, a page at a time (see media.shared). */
+  const sharedFiles = useCallback(
+    async (params: { kind?: SharedKind; query?: string; offset: number; limit: number }) =>
+      rpc<{ items: SharedFile[]; more: boolean; counts: Record<SharedKind, number> }>(client, "media.shared", params),
+    [client],
+  );
+  /** A video's first frame as base64 JPEG, when the core can make one. */
+  const videoPoster = useCallback(
+    async (media_id: string) => (await rpc<{ data?: string }>(client, "media.poster", { media_id })).data,
+    [client],
+  );
+
   /** What `apx status` tells about the core, plus how many devices are paired. */
   const serverInfo = useCallback(async () => {
     const [health, devices] = await Promise.all([
@@ -764,6 +778,8 @@ export function useWorkspace(creds: Creds) {
     fileTree,
     readFile,
     fileMedia,
+    sharedFiles,
+    videoPoster,
     createChat,
     newSession,
     makeChat,

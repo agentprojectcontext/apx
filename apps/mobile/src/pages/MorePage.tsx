@@ -20,6 +20,7 @@ export type MoreId =
   | "memory"
   | "apps"
   | "files"
+  | "shared"
   | "settings"
   | "about";
 
@@ -31,6 +32,7 @@ const ROWS: Array<{ id: MoreId; label: Key; icon: IconName; tone: Tone }> = [
   { id: "memory", label: "memory", icon: "Brain", tone: "violet" },
   { id: "apps", label: "apps", icon: "LayoutGrid", tone: "brand" },
   { id: "files", label: "files", icon: "FileText", tone: "neutral" },
+  { id: "shared", label: "sharedFiles", icon: "Paperclip", tone: "info" },
   { id: "settings", label: "settings", icon: "Settings", tone: "neutral" },
   { id: "about", label: "about", icon: "Info", tone: "neutral" },
 ];
