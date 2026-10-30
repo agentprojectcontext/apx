@@ -32,7 +32,7 @@ test("each agent's loopback listeners refuse new connections from any other agen
   assert.throws(() => agentLoopbackRules([0]), /invalid screen/);
 });
 
-test("an agent's processes run as its user inside its own slice; the probe user keeps plain sudo", () => {
+test("an agent's processes run as its user, with its own groups only, inside its own slice; the probe user keeps plain sudo", () => {
   assert.equal(screenSlice(3), "user-2003.slice");
   assert.deepEqual(screenArgs(3, "/usr/local/bin/apx-command", "--cancel", "op"), [
     "sudo",
@@ -40,9 +40,12 @@ test("an agent's processes run as its user inside its own slice; the probe user 
     "systemd-run",
     "--quiet",
     "--scope",
-    "--uid=apx-a3",
-    "--gid=apx-a3",
     "--slice=user-2003.slice",
+    "--",
+    "setpriv",
+    "--reuid=apx-a3",
+    "--regid=apx-a3",
+    "--init-groups",
     "--",
     "env",
     "HOME=/home/apx-a3",
