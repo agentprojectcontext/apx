@@ -33,6 +33,12 @@ export function clock(iso?: string, language: Lang = lang): string {
   return at ? format(language, { hour: "2-digit", minute: "2-digit" }).format(at) : "";
 }
 
+/** The day and the time, always both: "29 oct 2026, 22:52". */
+export function fullWhen(iso?: string, language: Lang = lang): string {
+  const at = parse(iso);
+  return at ? format(language, { dateStyle: "medium", timeStyle: "short" }).format(at) : "";
+}
+
 /** A chat row's time: the hour today, "Yesterday", or the date ("11 sept"). */
 export function listWhen(iso?: string, now = new Date(), language: Lang = lang): string {
   const at = parse(iso);
