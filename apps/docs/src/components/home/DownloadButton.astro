@@ -20,10 +20,10 @@ const phone = [{ id: "android", icon: "android", name: "Android", short: "Androi
 ---
 
 <div class="getapx" id="getApx" data-for={t.for} data-app={t.app}>
-  <a class="btn btn-accent getapx__main" href={releases} data-pick="mac-arm64">
+  <a class="btn btn-light getapx__main" href={releases} data-pick="mac-arm64">
     <OsIcon name="mac" /><span class="getapx__label">{t.for} macOS</span>
   </a>
-  <button class="btn btn-accent getapx__more" type="button" aria-haspopup="menu" aria-expanded="false" aria-label={t.more}>
+  <button class="btn btn-light getapx__more" type="button" aria-haspopup="menu" aria-expanded="false" aria-label={t.more}>
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
   </button>
   <div class="getapx__menu" role="menu" hidden>
@@ -60,7 +60,7 @@ const phone = [{ id: "android", icon: "android", name: "Android", short: "Androi
   .getapx .getapx__more {
     border-radius: 0 999px 999px 0;
     padding: 0 16px 0 14px;
-    border-left: 1px solid rgba(4, 34, 12, 0.22);
+    border-left: 1px solid rgba(10, 11, 12, 0.14);
   }
   .getapx__more svg {
     fill: none;
