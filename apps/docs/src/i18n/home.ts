@@ -5,17 +5,22 @@ const en = {
   newIn: {
     eyebrow: "New in v2",
     title: "More than a chat window.",
+    more: "Learn more",
+    pitch: {
+      title: "They do the work. You keep the last word.",
+      body: "Agents that run on your computer, with your files and your keys. Before they speak for you, they ask.",
+      cta: "Start in two minutes",
+      href: "/start/introduction/",
+    },
     lead: "A crew that works together, a browser they can drive, little apps they build for you, and the chats and phone you already carry.",
     items: [
       {
-        blob: "orbita",
         shot: "team",
         title: "A crew of agents",
         body: "Home, your secretary, plus an agent per role in each project. They hand work to each other and you watch it as a card in your chat.",
         href: "/concepts/agents/",
       },
       {
-        blob: "cobalto",
         shot: "",
         title: "A browser they drive",
         mock: {
@@ -29,21 +34,18 @@ const en = {
         href: "/office/browser/",
       },
       {
-        blob: "amatista",
         shot: "app-widget",
         title: "Widgets and apps",
         body: "Ask for a chart, a checklist or a small tool: an agent builds it, and you pin it to the project's board or open it full screen.",
         href: "/office/board/",
       },
       {
-        blob: "brasa",
         shot: "channel",
         title: "Your channels",
         body: "Telegram, WhatsApp, Discord, Slack and iMessage. Each contact and each room is one conversation, with the same memory as the app.",
         href: "/channels/overview/",
       },
       {
-        blob: "aqua",
         shot: "phone-app",
         title: "On your phone",
         body: "Pair your phone with a code and talk to Home from anywhere. The Android app is in the releases; it installs beside v1's.",
@@ -55,16 +57,28 @@ const en = {
     eyebrow: "Download",
     title: "Get APX v2.",
     lead: "The desktop app brings its own core. On a server or a VM, one line installs the core alone.",
-    desktop: "Desktop and phone apps",
-    os: [
-      { name: "macOS", icon: "mac" as const, file: ".dmg", note: "Apple silicon and Intel" },
-      { name: "Windows", icon: "windows" as const, file: ".exe", note: "x64" },
-      { name: "Linux", icon: "linux" as const, file: ".AppImage", note: "x64 and arm64" },
-      { name: "Android", icon: "android" as const, file: ".apk", note: "The phone app" },
-    ],
+    available: "Available",
+    getFor: "Download for",
+    cards: {
+      mac: "Apple silicon · .dmg",
+      windows: "x64 · .exe",
+      linux: "x64 · AppImage",
+      android: "Phone app · pairs with your computer",
+    },
+    alt: { mac: "Intel", linux: "ARM" },
     releases: "Every v2 download",
-    server: "Linux and macOS servers",
-    windows: "Windows, in PowerShell",
+    term: {
+      title: "From a terminal",
+      lead: "No desktop needed. Copy the line for where you are; it installs the core and the apx command.",
+      server: "On a server or a VPS (keeps running as a service)",
+      here: "On this computer, macOS or Linux",
+      windows: "On Windows, in PowerShell",
+      docs: {
+        title: "Setting up a server?",
+        body: "The server guide shows how to keep it running, reach it over Tailscale or your network, and pair the app and your phone with it.",
+        cta: "Read the server guide",
+      },
+    },
     unsigned: {
       title: "The apps are not signed yet",
       body: "Your system warns you the first time. That is expected; here is how to go on.",
@@ -292,17 +306,22 @@ const es: HomeText = {
   newIn: {
     eyebrow: "Lo nuevo en v2",
     title: "Más que una ventana de chat.",
+    more: "Ver más",
+    pitch: {
+      title: "Ellos hacen el trabajo. La última palabra es tuya.",
+      body: "Agentes que corren en tu compu, con tus archivos y tus claves. Antes de hablar por vos, te preguntan.",
+      cta: "Empezá en dos minutos",
+      href: "/es/start/introduction/",
+    },
     lead: "Un crew que trabaja en equipo, un navegador que pueden manejar, apps chiquitas que te arman, y los chats y el celular que ya usás.",
     items: [
       {
-        blob: "orbita",
         shot: "team",
         title: "Un crew de agentes",
         body: "Home, tu secretaria, y un agente por rol en cada proyecto. Se pasan el trabajo entre ellos y lo ves como una tarjeta en tu chat.",
         href: "/es/concepts/agents/",
       },
       {
-        blob: "cobalto",
         shot: "",
         title: "Un navegador que manejan",
         mock: {
@@ -316,21 +335,18 @@ const es: HomeText = {
         href: "/es/office/browser/",
       },
       {
-        blob: "amatista",
         shot: "app-widget",
         title: "Widgets y apps",
         body: "Pedí un gráfico, una checklist o una herramienta chica: un agente la arma, y la fijás en el tablero del proyecto o la abrís en pantalla completa.",
         href: "/es/office/board/",
       },
       {
-        blob: "brasa",
         shot: "channel",
         title: "Tus canales",
         body: "Telegram, WhatsApp, Discord, Slack e iMessage. Cada contacto y cada sala es una conversación, con la misma memoria que la app.",
         href: "/es/channels/overview/",
       },
       {
-        blob: "aqua",
         shot: "phone-app",
         title: "En tu celular",
         body: "Vinculá el celular con un código y hablale a Home desde donde estés. La app de Android está en los releases; se instala al lado de la de v1.",
@@ -342,16 +358,28 @@ const es: HomeText = {
     eyebrow: "Descargá",
     title: "Instalá APX v2.",
     lead: "La app de escritorio trae su propio core. En un servidor o una VM, una línea instala solo el core.",
-    desktop: "Apps de escritorio y teléfono",
-    os: [
-      { name: "macOS", icon: "mac" as const, file: ".dmg", note: "Apple silicon e Intel" },
-      { name: "Windows", icon: "windows" as const, file: ".exe", note: "x64" },
-      { name: "Linux", icon: "linux" as const, file: ".AppImage", note: "x64 y arm64" },
-      { name: "Android", icon: "android" as const, file: ".apk", note: "La app del celular" },
-    ],
+    available: "Disponible",
+    getFor: "Bajar para",
+    cards: {
+      mac: "Apple silicon · .dmg",
+      windows: "x64 · .exe",
+      linux: "x64 · AppImage",
+      android: "App del celular · se vincula con tu compu",
+    },
+    alt: { mac: "Intel", linux: "ARM" },
     releases: "Todas las descargas de v2",
-    server: "Servidores Linux y macOS",
-    windows: "Windows, en PowerShell",
+    term: {
+      title: "Desde una terminal",
+      lead: "Sin escritorio. Copiá la línea de donde estés: instala el core y el comando apx.",
+      server: "En un servidor o un VPS (queda corriendo como servicio)",
+      here: "En esta compu, macOS o Linux",
+      windows: "En Windows, en PowerShell",
+      docs: {
+        title: "¿Vas a armar un servidor?",
+        body: "La guía de servidor muestra cómo dejarlo corriendo, llegar a él por Tailscale o tu red, y vincular la app y tu celular.",
+        cta: "Ver la guía de servidor",
+      },
+    },
     unsigned: {
       title: "Las apps todavía no están firmadas",
       body: "Tu sistema te avisa la primera vez. Es lo esperado; así seguís.",

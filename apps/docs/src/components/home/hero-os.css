@@ -36,8 +36,3 @@
     content: none;
   }
 }
-.dl__os b {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}

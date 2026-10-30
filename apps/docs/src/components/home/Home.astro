@@ -8,9 +8,11 @@ import OsIcon from "../OsIcon.astro";
 import Shot from "../Shot.astro";
 import Terminal from "../Terminal.astro";
 import DownloadButton from "./DownloadButton.astro";
+import DownloadCards from "./DownloadCards.astro";
 import "./home.css";
 import "./hero-term.css";
 import "./hero-os.css";
+import "./news.css";
 
 interface Props {
   lang: Lang;
@@ -24,6 +26,7 @@ const pre = lang === "es" ? "/es" : "";
 const site = "https://apxagent.app";
 const install = `curl -fsSL ${site}/install.sh | bash`;
 const installWin = `irm ${site}/install.ps1 | iex`;
+const installServer = `curl -fsSL ${site}/install.sh | bash -s -- --server`;
 const releases = "https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true";
 const heroBlobs = ["menta", "orbita", "cobalto", "brasa", "amatista"] as const;
 const parade = [
@@ -113,7 +116,7 @@ const discord = "https://discord.gg/vxdZuT5WuE";
             <svg viewBox="0 0 24 24" aria-hidden="true" class="fill"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z" /></svg>
           </a>
           <a class="btn btn-discord btn-sm" href={discord}><svg viewBox="0 0 24 24" aria-hidden="true" class="fill"><path d="M20.32 4.37A19.8 19.8 0 0 0 15.4 2.84a.07.07 0 0 0-.08.04c-.21.38-.45.87-.61 1.25a18.3 18.3 0 0 0-5.49 0 12.6 12.6 0 0 0-.62-1.25.08.08 0 0 0-.08-.04 19.7 19.7 0 0 0-4.92 1.53.07.07 0 0 0-.03.03C.53 9.05-.32 13.58.1 18.06a.08.08 0 0 0 .03.06 19.9 19.9 0 0 0 5.99 3.03.08.08 0 0 0 .08-.03c.46-.63.87-1.3 1.22-2a.08.08 0 0 0-.04-.1 13.1 13.1 0 0 1-1.87-.9.08.08 0 0 1 0-.13l.37-.29a.07.07 0 0 1 .08-.01c3.93 1.79 8.18 1.79 12.07 0a.07.07 0 0 1 .08.01l.37.29a.08.08 0 0 1 0 .13c-.6.35-1.22.65-1.87.9a.08.08 0 0 0-.04.1c.36.7.77 1.37 1.22 2a.08.08 0 0 0 .08.03 19.8 19.8 0 0 0 6-3.03.08.08 0 0 0 .03-.06c.5-5.18-.84-9.67-3.55-13.66a.06.06 0 0 0-.03-.03zM8.02 15.33c-1.18 0-2.16-1.08-2.16-2.42s.96-2.42 2.16-2.42c1.21 0 2.18 1.1 2.16 2.42 0 1.34-.96 2.42-2.16 2.42zm7.97 0c-1.18 0-2.15-1.08-2.15-2.42s.95-2.42 2.15-2.42c1.21 0 2.18 1.1 2.16 2.42 0 1.34-.95 2.42-2.16 2.42z" /></svg><span class="lbl">Discord</span></a>
-          <a class="btn btn-light btn-sm" href={href(`${pre}/start/introduction/`)}>{t.getStarted}</a>
+          <a class="btn btn-light btn-sm nav__get" href="#download" aria-label={t.download.eyebrow}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" /></svg><span class="lbl">{t.download.eyebrow}</span></a>
         </div>
       </div>
     </nav>
@@ -192,32 +195,47 @@ const discord = "https://discord.gg/vxdZuT5WuE";
         <div class="news">
           {
             t.newIn.items.map((n, i) => (
-              <a class:list={["news__item card", { wide: i === 0 }]} href={href(n.href)}>
+              <>
+              {i === 1 && (
+                <a class="news__pitch" href={href(t.newIn.pitch.href)}>
+                  <p class="news__pitch-title">{t.newIn.pitch.title}</p>
+                  <p class="news__pitch-body">{t.newIn.pitch.body}</p>
+                  <span class="news__pitch-cta">{t.newIn.pitch.cta} →</span>
+                  <span class="news__pitch-crew" aria-hidden="true">
+                    <Blob name="cobalto" size={64} />
+                    <Blob name="brasa" size={76} />
+                    <Blob name="amatista" size={58} />
+                    <Blob name="perla" size={70} />
+                  </span>
+                </a>
+              )}
+              <a class:list={["news__item card", `news__item--${i}`]} href={href(n.href)}>
+                <div class="news__visual" aria-hidden="true">
+                  {n.shot ? (
+                    <Shot name={n.shot} alt="" frame={n.shot.startsWith("phone") ? "phone" : "none"} />
+                  ) : (
+                    n.mock && (
+                      <div class="browser-mock">
+                        <div class="browser-mock__tabs">
+                          {n.mock.tabs.map((tab, j) => <span class:list={{ on: j === 0 }}>{tab}</span>)}
+                        </div>
+                        <div class="browser-mock__url">{n.mock.url}</div>
+                        <div class="browser-mock__page">
+                          <i /><i /><i class="short" />
+                          <p class="browser-mock__who"><Blob name="cobalto" size={22} /><b>{n.mock.who}</b> {n.mock.what}</p>
+                          <p class="browser-mock__hand">{n.mock.hand}</p>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
                 <div class="news__text">
-                  <Blob name={n.blob as "menta"} size={44} />
                   <h3>{n.title}</h3>
                   <p>{n.body}</p>
+                  <span class="news__more">{t.newIn.more} →</span>
                 </div>
-                {n.shot ? (
-                  <div class="news__shot">
-                    <Shot name={n.shot} alt="" frame={n.shot.startsWith("phone") ? "phone" : "none"} />
-                  </div>
-                ) : (
-                  n.mock && (
-                    <div class="news__shot browser-mock" aria-hidden="true">
-                      <div class="browser-mock__tabs">
-                        {n.mock.tabs.map((tab, j) => <span class:list={{ on: j === 0 }}>{tab}</span>)}
-                      </div>
-                      <div class="browser-mock__url">{n.mock.url}</div>
-                      <div class="browser-mock__page">
-                        <i /><i /><i class="short" />
-                        <p class="browser-mock__who"><Blob name="cobalto" size={22} /><b>{n.mock.who}</b> {n.mock.what}</p>
-                        <p class="browser-mock__hand">{n.mock.hand}</p>
-                      </div>
-                    </div>
-                  )
-                )}
               </a>
+              </>
             ))
           }
         </div>
@@ -240,40 +258,38 @@ const discord = "https://discord.gg/vxdZuT5WuE";
         <p class="eyebrow">{t.download.eyebrow}</p>
         <h2 class="h2">{t.download.title}</h2>
         <p class="lead">{t.download.lead}</p>
-        <div class="dl">
-          <div class="dl__apps card">
-            <h3>{t.download.desktop}</h3>
-            <ul class="dl__os">
+        <DownloadCards t={t.download} releases={releases}>
+          <div class="dl__cli card">
+            <div class="dl__cmds">
+              <h3>{t.download.term.title}</h3>
+              <p class="dl__lead">{t.download.term.lead}</p>
               {
-                t.download.os.map((o) => (
-                  <li>
-                    <a href={releases}>
-                      <b>
-                        <OsIcon name={o.icon} />
-                        {o.name}
-                      </b>
-                      <code>{o.file}</code>
-                      <span>{o.note}</span>
-                    </a>
-                  </li>
+                [
+                  [t.download.term.server, installServer, "$"],
+                  [t.download.term.here, install, "$"],
+                  [t.download.term.windows, installWin, ">"],
+                ].map(([label, cmd, prompt]) => (
+                  <>
+                    <p class="dl__label">{label}</p>
+                    <button class="install install--block" type="button" data-copy={cmd} data-done={t.copied}>
+                      <span class="dollar">{prompt}</span><span class="cmd">{cmd}</span><span class="copy">{t.copy}</span>
+                    </button>
+                  </>
                 ))
               }
-            </ul>
-            <a class="btn btn-light" href={releases}>{t.download.releases} ↗</a>
+            </div>
+            <div class="dl__docs">
+              <Blob name="aqua" size={52} />
+              <h3>{t.download.term.docs.title}</h3>
+              <p>{t.download.term.docs.body}</p>
+              <a class="btn btn-light" href={href(`${pre}/devices/server/`)}>{t.download.term.docs.cta} →</a>
+              <p class="dl__guides">
+                {t.download.guides.map(([label, to]) => <a href={href(to ?? "/")}>{label} →</a>)}
+              </p>
+            </div>
           </div>
-          <div class="dl__cli card">
-            <h3>{t.download.server}</h3>
-            <button class="install install--block" type="button" data-copy={install} data-done={t.copied}>
-              <span class="dollar">$</span><span class="cmd">{install}</span><span class="copy">{t.copy}</span>
-            </button>
-            <h3>{t.download.windows}</h3>
-            <button class="install install--block" type="button" data-copy={installWin} data-done={t.copied}>
-              <span class="dollar">&gt;</span><span class="cmd">{installWin}</span><span class="copy">{t.copy}</span>
-            </button>
-            <p class="dl__guides">
-              {t.download.guides.map(([label, to]) => <a href={href(to ?? "/")}>{label} →</a>)}
-            </p>
-          </div>
+        </DownloadCards>
+        <div class="dl dl--rest">
           <div class="dl__note card">
             <h3>{t.download.unsigned.title}</h3>
             <p>{t.download.unsigned.body}</p>
