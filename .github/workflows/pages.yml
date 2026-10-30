@@ -17,6 +17,9 @@ on:
       - ".github/workflows/pages.yml"
       - "e2e/assembled-docs.config.ts"
       - "e2e/preview/assembled-docs/**"
+  # A new v2 release rebuilds the site, so its download links point at the new files.
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -30,7 +33,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.repository == 'agentprojectcontext/apx'
+    if: github.repository == 'agentprojectcontext/apx' && (github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v2.'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
@@ -69,6 +72,8 @@ jobs:
         env:
           DOCS_BASE: /
           DOCS_SITE: https://apxagent.app
+          # Download links are resolved at build time; the token avoids GitHub's anonymous rate limit.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PNPM="$(node -p "require('./package.json').packageManager")"
           npx --yes "$PNPM" install --frozen-lockfile --ignore-scripts

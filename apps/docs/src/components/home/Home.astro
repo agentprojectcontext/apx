@@ -4,6 +4,7 @@
 import logo from "../../assets/logo.png";
 import blobs from "../../data/blobs.json";
 import { comparisons } from "../../data/comparisons";
+import { builtRelease, downloadHref, releasesPage } from "../../data/latest-release";
 import { sitePath } from "../../doc-routes.mjs";
 import { HOME, type Lang } from "../../i18n/home";
 import AnalyticsConsent from "../AnalyticsConsent.astro";
@@ -31,7 +32,7 @@ const site = "https://apxagent.app";
 const install = `curl -fsSL ${site}/install.sh | bash`;
 const installWin = `irm ${site}/install.ps1 | iex`;
 const installServer = `curl -fsSL ${site}/install.sh | bash -s -- --server`;
-const releases = "https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true";
+const releases = releasesPage;
 const discord = "https://discord.gg/vxdZuT5WuE";
 type BlobName = keyof typeof blobs;
 
@@ -477,8 +478,8 @@ const cliRows = [
                   <p class="dlc__top"><OsIcon name={c.id} size={30} /><span class="dlc__tag">{t.download.available}</span></p>
                   <h3>{c.name}</h3>
                   <p class="dlc__meta">{t.download.cards[c.id]}</p>
-                  <a class="dlc__main" href={releases} data-file={c.file}>{t.download.getFor} {c.name} <span aria-hidden="true">↓</span></a>
-                  {"alt" in c ? <a class="dlc__alt" href={releases} data-file={c.alt}>{t.download.alt[c.id as "mac" | "linux"]}</a> : <span class="dlc__alt" />}
+                  <a class="dlc__main" href={downloadHref(c.file)} data-file={c.file} data-release={builtRelease}>{t.download.getFor} {c.name} <span aria-hidden="true">↓</span></a>
+                  {"alt" in c ? <a class="dlc__alt" href={downloadHref(c.alt)} data-file={c.alt} data-release={builtRelease}>{t.download.alt[c.id as "mac" | "linux"]}</a> : <span class="dlc__alt" />}
                   <span class="dlc__blob" aria-hidden="true"><Blob name={c.blob} size={64} /></span>
                 </article>
               ))
