@@ -191,6 +191,101 @@ const en = {
       },
     ],
   },
+  map: {
+    eyebrow: "Find your way",
+    title: "Everything your crew can do.",
+    lead: "Seven sections. Start at the top or jump straight in.",
+  },
+  sections: [
+    {
+      blob: "menta",
+      title: "Start here",
+      body: "What APX is, how to install it and your first ten minutes.",
+      links: [
+        ["Introduction", "/start/introduction/"],
+        ["Install", "/start/install/"],
+        ["First steps", "/start/first-steps/"],
+        ["Coming from v1", "/start/from-v1/"],
+      ],
+    },
+    {
+      blob: "orbita",
+      title: "Core ideas",
+      body: "Agents, projects, conversations, models, autonomy and memory.",
+      links: [
+        ["Agents", "/concepts/agents/"],
+        ["Conversations", "/concepts/conversations/"],
+        ["Models", "/concepts/models/"],
+        ["Autonomy", "/concepts/autonomy/"],
+      ],
+    },
+    {
+      blob: "cobalto",
+      title: "Your office",
+      body: "Chat, tasks, routines, the secretary, the board and the browser.",
+      links: [
+        ["Chat", "/office/chat/"],
+        ["Tasks", "/office/tasks/"],
+        ["Routines", "/office/routines/"],
+        ["Browser", "/office/browser/"],
+      ],
+    },
+    {
+      blob: "brasa",
+      title: "Channels",
+      body: "Talk to your crew from Telegram, WhatsApp, Discord, Slack and iMessage.",
+      links: [
+        ["Overview", "/channels/overview/"],
+        ["Telegram", "/channels/telegram/"],
+        ["WhatsApp", "/channels/whatsapp/"],
+      ],
+    },
+    {
+      blob: "amatista",
+      title: "Extend",
+      body: "Skills, MCP servers, extensions, integrations and outside clients.",
+      links: [
+        ["Skills", "/extend/skills/"],
+        ["MCP servers", "/extend/mcp/"],
+        ["Extensions", "/extend/extensions/"],
+      ],
+    },
+    {
+      blob: "aqua",
+      title: "Everywhere",
+      body: "The desktop app, your phone, and a core on a server you reach from anywhere.",
+      links: [
+        ["Desktop app", "/devices/desktop/"],
+        ["Phone", "/devices/phone/"],
+        ["Server and remote", "/devices/server/"],
+      ],
+    },
+    {
+      blob: "noche",
+      title: "Reference",
+      body: "Every apx command, every setting, and what to do when something breaks.",
+      links: [
+        ["CLI", "/reference/cli/"],
+        ["Configuration", "/reference/configuration/"],
+        ["Troubleshooting", "/reference/troubleshooting/"],
+      ],
+    },
+  ],
+  cli: {
+    eyebrow: "Prefer the terminal?",
+    title: "Everything has a command.",
+    lead: "Ask Home without leaving your shell.",
+    command: 'apx chat "What\'s on my plate today?"',
+    title2: "Home, in Acme Store",
+    intro: "You have three open things in Acme Store:",
+    lines: [
+      "Lucía drafted the launch plan and is waiting for your OK.",
+      "Tomás has the checkout fix in review.",
+      "Vera scheduled the newsletter for Friday at 9.",
+    ],
+    done: "Nothing is due today.",
+    all: "Every command",
+  },
   one: {
     label: "Why v2",
     title: "One way to do each thing.",
@@ -520,6 +615,101 @@ const es: HomeText = {
         cta: "Proyectos",
       },
     ],
+  },
+  map: {
+    eyebrow: "Encontrá tu camino",
+    title: "Todo lo que tu crew puede hacer.",
+    lead: "Siete secciones. Empezá arriba o saltá directo.",
+  },
+  sections: [
+    {
+      blob: "menta",
+      title: "Empezar",
+      body: "Qué es APX, cómo instalarlo y tus primeros diez minutos.",
+      links: [
+        ["Introducción", "/es/start/introduction/"],
+        ["Instalación", "/es/start/install/"],
+        ["Primeros pasos", "/es/start/first-steps/"],
+        ["Si venís de v1", "/es/start/from-v1/"],
+      ],
+    },
+    {
+      blob: "orbita",
+      title: "Ideas clave",
+      body: "Agentes, proyectos, conversaciones, modelos, autonomía y memoria.",
+      links: [
+        ["Agentes", "/es/concepts/agents/"],
+        ["Conversaciones", "/es/concepts/conversations/"],
+        ["Modelos", "/es/concepts/models/"],
+        ["Autonomía", "/es/concepts/autonomy/"],
+      ],
+    },
+    {
+      blob: "cobalto",
+      title: "Tu oficina",
+      body: "Chat, tareas, rutinas, la secretaria, el tablero y el navegador.",
+      links: [
+        ["Chat", "/es/office/chat/"],
+        ["Tareas", "/es/office/tasks/"],
+        ["Rutinas", "/es/office/routines/"],
+        ["Navegador", "/es/office/browser/"],
+      ],
+    },
+    {
+      blob: "brasa",
+      title: "Canales",
+      body: "Hablale a tu crew por Telegram, WhatsApp, Discord, Slack e iMessage.",
+      links: [
+        ["Resumen", "/es/channels/overview/"],
+        ["Telegram", "/es/channels/telegram/"],
+        ["WhatsApp", "/es/channels/whatsapp/"],
+      ],
+    },
+    {
+      blob: "amatista",
+      title: "Extender",
+      body: "Skills, servidores MCP, extensiones, integraciones y clientes de afuera.",
+      links: [
+        ["Skills", "/es/extend/skills/"],
+        ["Servidores MCP", "/es/extend/mcp/"],
+        ["Extensiones", "/es/extend/extensions/"],
+      ],
+    },
+    {
+      blob: "aqua",
+      title: "En todos lados",
+      body: "La app de escritorio, tu celular y un core en un servidor al que llegás desde donde estés.",
+      links: [
+        ["App de escritorio", "/es/devices/desktop/"],
+        ["Celular", "/es/devices/phone/"],
+        ["Servidor y remoto", "/es/devices/server/"],
+      ],
+    },
+    {
+      blob: "noche",
+      title: "Referencia",
+      body: "Cada comando de apx, cada ajuste y qué hacer cuando algo falla.",
+      links: [
+        ["CLI", "/es/reference/cli/"],
+        ["Configuración", "/es/reference/configuration/"],
+        ["Problemas comunes", "/es/reference/troubleshooting/"],
+      ],
+    },
+  ],
+  cli: {
+    eyebrow: "¿Preferís la terminal?",
+    title: "Todo tiene su comando.",
+    lead: "Preguntale a Home sin salir de tu shell.",
+    command: 'apx chat "¿Qué tengo para hoy?"',
+    title2: "Home, en Acme Store",
+    intro: "Tenés tres cosas abiertas en Acme Store:",
+    lines: [
+      "Lucía armó el plan del lanzamiento y espera tu ok.",
+      "Tomás tiene el arreglo del checkout en revisión.",
+      "Vera programó el newsletter para el viernes a las 9.",
+    ],
+    done: "Nada vence hoy.",
+    all: "Todos los comandos",
   },
   one: {
     label: "Por qué v2",

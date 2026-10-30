@@ -65,8 +65,8 @@ for (const lang of ["en", "es"] as const) {
   test(`${lang}: final crew invitation follows downloads immediately before the footer`, async ({ page }, testInfo) => {
     await page.goto(`${pre}/`);
     const final = page.locator(".final");
-    // Questions, comparisons and downloads come before it; it closes the page, right above the footer.
-    await expect(page.locator("#questions + #compare + #download + .final:last-child")).toHaveCount(1);
+    // Questions, comparisons, the terminal and downloads come before it; it closes the page, right above the footer.
+    await expect(page.locator("#questions + #compare + #terminal + #download + .final:last-child")).toHaveCount(1);
     await expect(page.locator("main:has(> .final:last-child) + .web-footer")).toHaveCount(1);
     await expect(final.getByRole("heading", { level: 2 })).toHaveText(
       lang === "es" ? "Tu crew te está esperando." : "Your crew is waiting.",

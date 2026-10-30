@@ -1505,6 +1505,125 @@ a.dlc__alt:hover {
   }
 }
 
+/* ── 04 Docs map ────────────────────────────────────────────────────────── */
+.guide-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 12px;
+  margin-top: 44px;
+}
+.guide-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: 22px;
+  background: var(--apx-surface);
+}
+.guide-card h3 {
+  margin: 6px 0 0;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.guide-card p {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--apx-fg-muted);
+  text-wrap: pretty;
+}
+.guide-card ul {
+  display: flex;
+  flex-direction: column;
+  margin: auto 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--apx-border);
+  list-style: none;
+}
+.guide-card a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.guide-card a span {
+  color: var(--apx-fg-subtle);
+  transition: transform 0.2s;
+}
+.guide-card a:hover {
+  color: var(--apx-brand);
+}
+.guide-card a:hover span {
+  transform: translateX(3px);
+}
+
+/* ── 06 The terminal ────────────────────────────────────────────────────── */
+.term-demo {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: 40px clamp(32px, 5vw, 64px);
+}
+.term-demo__all {
+  display: inline-block;
+  margin-top: 24px;
+  font-size: 15px;
+  font-weight: 500;
+}
+.term-demo__all:hover {
+  color: var(--apx-brand);
+}
+.term-demo__box {
+  overflow: hidden;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: 22px;
+  background: var(--apx-surface);
+  box-shadow: 0 24px 60px -20px rgb(0 0 0 / 0.5);
+}
+.term-demo__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--apx-border);
+  font: 500 12px / 1 var(--apx-font-mono);
+  color: var(--apx-fg-muted);
+}
+.term-demo__icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: 8px;
+}
+.term-demo__screen {
+  margin: 8px;
+  padding: 18px 20px;
+  overflow-x: auto;
+  border-radius: 14px;
+  background: var(--apx-bg);
+  font: 500 13.5px / 1.75 var(--apx-font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.term-demo__prompt,
+.term-demo__muted {
+  color: var(--apx-fg-subtle);
+}
+.term-demo__ok {
+  color: var(--apx-brand);
+}
+@media (max-width: 860px) {
+  .term-demo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* The hero's split download button (DownloadButton with `hero`). */
 .getapx--hero {
   height: 52px;

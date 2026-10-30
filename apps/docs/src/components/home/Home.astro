@@ -393,10 +393,38 @@ const cliRows = [
         </div>
       </section>
 
+      <section class="sec" id="map" aria-labelledby="map-title">
+        <div class="wrap">
+          <div class="sec-head" data-reveal>
+            <p class="sec-label"><Blob name="orbita" size={22} /><span class="sec-label__n">04</span><span class="sec-label__dash"></span><span>{t.map.eyebrow}</span></p>
+            <h2 class="h2" id="map-title">{t.map.title}</h2>
+            <p class="lead">{t.map.lead}</p>
+          </div>
+          <div class="guide-map" data-reveal>
+            {
+              t.sections.map((s) => (
+                <article class="guide-card">
+                  <Blob name={s.blob as BlobName} size={40} />
+                  <h3>{s.title}</h3>
+                  <p>{s.body}</p>
+                  <ul>
+                    {s.links.map(([label, to]) => (
+                      <li>
+                        <a href={href(to ?? "/")}>{label} <span aria-hidden="true">→</span></a>
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))
+            }
+          </div>
+        </div>
+      </section>
+
       <section class="sec" aria-labelledby="why-title">
         <div class="wrap">
           <div class="sec-head" data-reveal>
-            <p class="sec-label"><Blob name="amatista" size={22} /><span class="sec-label__n">04</span><span class="sec-label__dash"></span><span>{t.one.label}</span></p>
+            <p class="sec-label"><Blob name="amatista" size={22} /><span class="sec-label__n">05</span><span class="sec-label__dash"></span><span>{t.one.label}</span></p>
             <h2 class="h2" id="why-title">{t.one.title}</h2>
             <p class="lead">{t.one.lead}</p>
           </div>
@@ -464,10 +492,28 @@ const cliRows = [
         </div>
       </section>
 
+      <section class="sec" id="terminal" aria-labelledby="terminal-title">
+        <div class="wrap term-demo">
+          <div class="sec-head" data-reveal>
+            <p class="sec-label"><Blob name="noche" size={22} /><span class="sec-label__n">06</span><span class="sec-label__dash"></span><span>{t.cli.eyebrow}</span></p>
+            <h2 class="h2" id="terminal-title">{t.cli.title}</h2>
+            <p class="lead">{t.cli.lead}</p>
+            <a class="term-demo__all" href={href(`${pre}/reference/cli/`)}>{t.cli.all} →</a>
+          </div>
+          <div class="term-demo__box" data-reveal>
+            <p class="term-demo__bar"><span class="term-demo__icon"><UiIcon name="terminal" size={14} /></span>apx</p>
+            <pre class="term-demo__screen"><code><span class="term-demo__prompt">$</span> {t.cli.command}
+<span class="term-demo__muted"># {t.cli.title2}</span>
+{t.cli.intro}
+{t.cli.lines.map((line) => <>{"• "}{line}{"\n"}</>)}<span class="term-demo__ok">✓ {t.cli.done}</span></code></pre>
+          </div>
+        </div>
+      </section>
+
       <section class="sec" id="download" aria-labelledby="download-title">
         <div class="wrap">
           <div class="sec-head" data-reveal>
-            <p class="sec-label"><Blob name="aqua" size={22} /><span class="sec-label__n">06</span><span class="sec-label__dash"></span><span>{t.download.label}</span></p>
+            <p class="sec-label"><Blob name="aqua" size={22} /><span class="sec-label__n">07</span><span class="sec-label__dash"></span><span>{t.download.label}</span></p>
             <h2 class="h2" id="download-title">{t.download.title}</h2>
             <p class="lead">{t.download.lead}</p>
           </div>
