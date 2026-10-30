@@ -3405,3 +3405,13 @@ Windows differs in what it can promise, and the guest is checked for each point,
 - WSL sizes memory and CPUs for all distributions in `.wslconfig`; the computer's settings do not change them.
 - A host agent that died with the core leaves a pid Lima on Windows cannot inspect past: a dead `ha.pid` is dropped,
   a folder from a cut-short setup is cleared, and stopping terminates the distribution when Lima cannot.
+
+<a id="d-182"></a>
+## D-182 — 2026-10-30 — Release news live in a Help menu; the super-agent names one thing
+Told all at once (D-117), a release with many entries made the super-agent's message a list owners skimmed past, and
+once read nothing let them go back to it. Now the sidebar foot has a Help menu: the newest entries that apply, then
+every release in a dialog, each entry with what it lets the owner do and a button that asks the super-agent for it
+(the action's prompt, sent to Home), plus the guides, the Discord and feedback. Each entry carries `title` and `about`
+in English and Spanish, written for the owner: the panel shows its own language, and `text` stays what the model is
+told. The super-agent's message is one or two sentences with the thing that matters most in bold, pointing to Help ›
+What's new for the rest; without a model it is one line with the first entry's title in bold and the rest counted.

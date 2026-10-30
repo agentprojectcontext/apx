@@ -24,7 +24,7 @@ export async function news(
   }
   for (const e of entries)
     console.log(
-      `${e.seen ? " " : "•"} ${e.id} (${e.since}) · ${e.title}${e.applies ? "" : " · does not apply"}${e.actions.length ? `\n    ${e.actions.join(" · ")}` : ""}`,
+      `${e.seen ? " " : "•"} ${e.id} (${e.since}) · ${e.title.en}${e.applies ? "" : " · does not apply"}${e.actions.length ? `\n    ${e.actions.map((a) => a.label.en).join(" · ")}` : ""}`,
     );
   console.log(entries.length ? "\n• not told yet" : "(no news)");
 }

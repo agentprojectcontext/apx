@@ -11,6 +11,7 @@ import { AppsDock, CornerCards, DesktopInstallNotice } from "../lazy.ts";
 import { AccountRow } from "./AccountRow.tsx";
 import { ChannelsNav } from "./ChannelsNav.tsx";
 import { ExternalSessionsNav } from "./ExternalSessionsNav.tsx";
+import { HelpMenu } from "./HelpMenu.tsx";
 import { LAYOUT } from "./layout.ts";
 import { go, useNav } from "./nav.ts";
 import { ProjectsNav } from "./ProjectsNav.tsx";
@@ -129,6 +130,7 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
         </Suspense>
       )}
       <div className="sidebar__foot">
+        <HelpMenu rail={rail} />
         <AccountRow rail={rail} />
       </div>
     </aside>

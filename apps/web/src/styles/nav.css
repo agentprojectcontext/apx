@@ -392,6 +392,44 @@
   padding: 0 0 0 9px;
 }
 
+/* ── Help ──────────────────────────────────────────────────────────────────── */
+/* Beside the account in the open sidebar; above it, like the other icons, in the rail. */
+.sidebar:not(.is-rail) .sidebar__foot {
+  flex-direction: row;
+  align-items: center;
+}
+.sidebar:not(.is-rail) .account {
+  flex: 1;
+  min-width: 0;
+}
+.help {
+  flex: none;
+}
+.sidebar:not(.is-rail) .help {
+  order: 1;
+}
+.help__btn {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: var(--apx-row-radius);
+  background: transparent;
+  color: var(--apx-fg-muted);
+}
+.help.is-rail .help__btn {
+  width: 44px;
+}
+.help__btn:hover,
+.help__btn[data-popup-open] {
+  background: var(--apx-fill-hover);
+  color: var(--apx-fg);
+}
+.help__menu {
+  width: 300px;
+}
+
 /* ── Phone dialog ──────────────────────────────────────────────────────────── */
 .phone {
   display: flex;

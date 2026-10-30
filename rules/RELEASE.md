@@ -97,7 +97,8 @@ Release news are the other half: what a release lets an owner's super-agent do f
 with a button or two to start ([D-117](DECISIONS.md#d-117)). They are written by hand in
 `apps/core/src/news/entries.ts`, one entry per thing worth acting on, by whoever ships that thing (AGENTS.md rule 25):
 `since` is the first release that has it, `applies` reads the install's facts (`newsFacts`: widgets, Google parts,
-the running profile…) so only owners it helps hear it. An owner who updates past several releases hears every entry
+the running profile…) so only owners it helps hear it. `title` and `about` are what the owner reads in Help › What's
+new, in English and Spanish and in their words; `text` is what the super-agent is told ([D-182](DECISIONS.md#d-182)). An owner who updates past several releases hears every entry
 they have not heard that applies; a fresh install hears none. Before tagging, check that each owner-facing `feat`
 since the last tag either has an entry or is not worth offering.
 
