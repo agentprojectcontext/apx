@@ -131,6 +131,17 @@ test("every English text has its Spanish translation", () => {
   assert.deepEqual(missing, []);
 });
 
+// Loanwords are common elsewhere ("Chat", "Skills"); the model picker has none besides these names.
+test("the model picker's Spanish texts are translated, not copied from English", () => {
+  const tr = es as Record<string, string | undefined>;
+  const words = (s: string) => s.replace(/\{\w+\}|Router|Ultra|[^A-Za-z]/g, "");
+  const copied = Object.entries(en).filter(([k, v]) => k.startsWith("models.") && tr[k] === v && words(v));
+  assert.deepEqual(
+    copied.map(([k]) => k),
+    [],
+  );
+});
+
 test("a translation keeps the placeholders of its English text", () => {
   const tr = es as Record<string, string | undefined>;
   const vars = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();

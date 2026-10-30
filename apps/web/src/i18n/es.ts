@@ -1184,7 +1184,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "models.routerOnly": "Dejar solo el router",
   "models.inUse": "En uso",
   "models.withRouter": "{model} · Respaldo: Router",
-  "models.effort": "Effort",
+  "models.effort": "Esfuerzo",
   "models.effortDefault": "El de siempre",
   "models.effortDefaultIs": "Por defecto ({effort})",
   "models.engineDefault": "{engine} por defecto",
