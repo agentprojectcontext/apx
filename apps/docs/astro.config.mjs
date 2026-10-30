@@ -10,7 +10,7 @@ const site = process.env.DOCS_SITE ?? "https://apxagent.app";
 const base = (process.env.DOCS_BASE ?? "/").replace(/\/?$/, "/");
 /** What a link to any page shows when it is shared (public/og.jpg, 1280×640). */
 const ogImage = new URL(`${base}og.jpg`, site).href;
-const ogImageAlt = "APX v2: meet your crew. AI agents that live on your computer.";
+const ogImageAlt = "APX: meet your crew. AI agents that live on your computer.";
 
 /** A remark plugin: absolute links in Markdown and `href`s on components (LinkCard…) get the site's base. */
 function withBase() {
@@ -60,7 +60,7 @@ export default defineConfig({
     installScripts(),
     starlight({
       title: "APX",
-      description: "APX: a crew of AI agents that lives on your machine. Documentation for APX v2.",
+      description: "APX: your own team of AI agents, on your machine.",
       logo: { src: "./src/assets/logo.png", alt: "APX" },
       favicon: "/favicon.svg",
       customCss: ["./src/styles/theme.css"],

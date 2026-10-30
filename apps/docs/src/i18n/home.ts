@@ -88,9 +88,9 @@ const en = {
       ["Upgrade from v1", "/start/from-v1/#upgrade-from-v1"],
     ],
   },
-  title: "APX v2: meet your crew",
+  title: "APX: meet your crew",
   description:
-    "Documentation for APX v2: a crew of AI agents that lives on your machine. Install it, meet Home, add a project and put your agents to work.",
+    "Your own team of AI agents, on your machine. A super-agent that answers you anywhere, and a crew per project that works with your tools.",
   nav: { start: "Start", ideas: "Core ideas", office: "Office", channels: "Channels", cli: "CLI" },
   pill: { strong: "APX v2 is out", rest: "· see what is new" },
   meet: "Meet",
@@ -364,9 +364,9 @@ const es: HomeText = {
       ["Actualizar desde v1", "/es/start/from-v1/#actualizar-desde-v1"],
     ],
   },
-  title: "APX v2: conocé a tu crew",
+  title: "APX: conocé a tu crew",
   description:
-    "Documentación de APX v2: un crew de agentes de IA que vive en tu máquina. Instalalo, conocé a Home, sumá un proyecto y poné a trabajar a tus agentes.",
+    "Tu propio equipo de agentes de IA, en tu máquina. Un super-agente que te responde en cualquier lado y una crew por proyecto que trabaja con tus herramientas.",
   nav: { start: "Empezar", ideas: "Ideas clave", office: "Oficina", channels: "Canales", cli: "CLI" },
   pill: { strong: "Salió APX v2", rest: "· mirá lo nuevo" },
   meet: "Conocé",
