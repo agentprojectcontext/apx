@@ -6,6 +6,15 @@ for (const lang of ["en", "es"] as const) {
     ["hermes-agent", "Hermes Agent"],
     ["openclaw", "OpenClaw"],
     ["openbot", "OpenBot"],
+    ["claude-cowork", "Claude Cowork"],
+    ["chatgpt-dots", "ChatGPT dots"],
+    ["manus", "Manus"],
+    ["devin", "Devin"],
+    ["paperclip", "Paperclip"],
+    ["viktor", "Viktor"],
+    ["grok-bot", "Grok Bot"],
+    ["muse", "Muse"],
+    ["instinct", "Instinct"],
   ]) {
     test(`${lang}: ${name} sources, language, reading progress and responsive layout`, async ({ page }, testInfo) => {
       const errors: string[] = [];
@@ -56,7 +65,15 @@ for (const lang of ["en", "es"] as const) {
         .locator("#sources")
         .evaluate((section) => section.scrollIntoView({ block: "start", behavior: "instant" }));
       await expect(rail.locator('[aria-current="location"]')).toHaveAttribute("href", "#sources");
-      await expect(page.locator("#source-other a").first()).toHaveAttribute("href", /^https:/);
+      // Every page a row cites is listed with its title under Sources.
+      const listed = await page
+        .locator("#source-other a")
+        .evaluateAll((links) => links.map((a) => a.getAttribute("href")));
+      expect(listed.length).toBeGreaterThan(1);
+      for (const href of await page
+        .locator(".compare-table td:last-child .row-sources a")
+        .evaluateAll((links) => links.map((a) => a.getAttribute("href"))))
+        expect(listed).toContain(href);
       await page.screenshot({ path: testInfo.outputPath("sources.png") });
       await page.getByRole("link", { name: lang === "es" ? "EN" : "ES", exact: true }).click();
       await expect(page).toHaveURL(`${lang === "es" ? "" : "/es"}/compare/${slug}/`);
@@ -66,7 +83,7 @@ for (const lang of ["en", "es"] as const) {
   }
   test(`${lang}: comparison index leads to each product`, async ({ page }) => {
     await page.goto(`${prefix}/compare/`);
-    await expect(page.locator(".comparison-card")).toHaveCount(3);
+    await expect(page.locator(".comparison-card")).toHaveCount(12);
     await page.locator('.comparison-card[href$="/openbot/"]').click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("APX vs OpenBot");
     await page.locator('.comparison-card[href$="/hermes-agent/"]').click();

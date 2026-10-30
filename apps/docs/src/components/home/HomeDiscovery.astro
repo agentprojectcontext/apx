@@ -39,7 +39,7 @@ const blobs = ["menta", "cobalto", "brasa"] as const;
       <p class="lead">{t.compareLead}</p>
     </div><a class="home-comparisons__all" href={href(`${pre}/compare/`)}>{t.all} <span aria-hidden="true">↗</span></a></div>
     <div class="home-comparisons__grid">
-      {comparisons.map((product, index) => <a class:list={["home-comparisons__card", `home-comparisons__card--${index}`]} href={href(`${pre}/compare/${product.slug}/`)}>
+      {comparisons.slice(0, 3).map((product, index) => <a class:list={["home-comparisons__card", `home-comparisons__card--${index}`]} href={href(`${pre}/compare/${product.slug}/`)}>
         <div class="home-comparisons__visual" aria-hidden="true">
           <span class="home-comparisons__apx"><Blob name={blobs[index]} size={90} /><b>APX</b></span>
           <span class="home-comparisons__versus">vs</span>

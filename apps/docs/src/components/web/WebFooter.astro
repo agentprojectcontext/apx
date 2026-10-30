@@ -38,7 +38,7 @@ const groups = [
     title: es ? "Compará APX" : "Compare APX",
     links: [
       [es ? "Todas las comparativas" : "All comparisons", href(`${pre}/compare/`)],
-      ...comparisons.map((item) => [`APX vs ${item.name}`, href(`${pre}/compare/${item.slug}/`)]),
+      ...comparisons.slice(0, 3).map((item) => [`APX vs ${item.name}`, href(`${pre}/compare/${item.slug}/`)]),
     ],
   },
   {
