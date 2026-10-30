@@ -347,6 +347,7 @@ export const en = {
   "nav.apps": "Apps",
   "nav.computers": "Computers",
   "nav.resources": "Resources",
+  "nav.files": "Files",
   "account.you": "You",
   "account.menuOf": "Account: {name}",
   "account.lead": "Who you are, for the panel and for your agents. It stays on your machine.",

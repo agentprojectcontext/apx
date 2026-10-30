@@ -32,6 +32,7 @@ function useCrumbs(): string[] {
   if (view === "tasks") return [t("nav.tasks")];
   if (view === "flows") return [t("nav.flows")];
   if (view === "resources") return [t("nav.resources")];
+  if (view === "files") return [t("nav.files")];
   if (view === "computers") return [t("nav.computers")];
   if (view === "channel") return [t("nav.channels"), channelLabel ?? t("nav.channels")];
   if (view === "engine") {

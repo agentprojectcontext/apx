@@ -347,6 +347,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nav.apps": "Apps",
   "nav.computers": "Computadoras",
   "nav.resources": "Recursos",
+  "nav.files": "Archivos",
   "account.you": "Vos",
   "account.menuOf": "Cuenta: {name}",
   "account.lead": "Quién sos, para el panel y para tus agentes. Se guarda en tu máquina.",
