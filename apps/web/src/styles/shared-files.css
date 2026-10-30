@@ -1,51 +1,53 @@
-/* Files: everything sent in chats, one row each, leading back to its message. The header is Resources' (.resv). */
-.sharedf__projects {
-  width: 220px;
+/* Files: everything sent in chats as square cards, and one file shown live over them. The header is Resources' (.resv). */
+.sharedf__list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.sharedf__list[hidden] {
+  display: none;
+}
+.sharedf__select {
+  width: 200px;
   max-width: 100%;
 }
 .sharedf__body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 8px 16px 24px;
+  padding: 20px 28px 28px;
 }
-.sharedf__list {
+.sharedf__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 16px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.sharedf__row {
+.sharedf__card {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  border-bottom: 1px solid var(--apx-border);
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
 }
 .sharedf__open {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  padding: 10px 12px;
+  display: block;
+  padding: 0;
   border: 0;
-  border-radius: var(--apx-radius-sm);
   background: none;
-  color: var(--apx-fg);
-  font: inherit;
-  text-align: left;
   cursor: pointer;
 }
-.sharedf__open:hover {
-  background: var(--apx-fill-hover);
-}
 .sharedf__thumb {
+  position: relative;
   display: grid;
-  flex: none;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  aspect-ratio: 1;
   overflow: hidden;
-  border-radius: var(--apx-radius-sm);
   background: var(--apx-fill);
   color: var(--apx-fg-muted);
 }
@@ -54,12 +56,32 @@
   height: 100%;
   object-fit: cover;
 }
-.sharedf__info {
+.sharedf__open:hover .sharedf__thumb {
+  opacity: 0.88;
+}
+.sharedf__open:focus-visible {
+  outline: 2px solid var(--apx-focus, var(--apx-fg));
+  outline-offset: -2px;
+}
+.sharedf__play {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-surface);
+  color: var(--apx-fg);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 20%);
+}
+.sharedf__cardbody {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
+  padding: 10px 10px 8px 12px;
 }
 .sharedf__name {
   overflow: hidden;
@@ -78,12 +100,13 @@
   font-size: var(--apx-text-xs);
   white-space: nowrap;
 }
-.sharedf__meta > span + span::before {
+.sharedf__meta > * + *::before {
   margin-right: 6px;
   color: var(--apx-fg-subtle);
   content: "·";
 }
-.sharedf__project {
+.sharedf__project,
+.sharedf__sender {
   display: inline-flex;
   flex: none;
   align-items: center;
@@ -93,46 +116,160 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.sharedf__when {
+.sharedf__foot {
   display: flex;
-  flex: none;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin-top: 2px;
+}
+.sharedf__when {
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-xs);
   font-variant-numeric: tabular-nums;
 }
-.sharedf__go {
+.sharedf__who {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  white-space: nowrap;
+}
+.sharedf__who .sharedf__sender {
+  flex: 1;
+  min-width: 0;
+}
+.sharedf__who .sharedf__sender > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sharedf__actions {
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 4px;
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-xs);
-  opacity: 0;
-}
-.sharedf__open:hover .sharedf__go,
-.sharedf__open:focus-visible .sharedf__go {
-  opacity: 1;
+  gap: 2px;
 }
 .sharedf__more {
   display: flex;
   justify-content: center;
-  padding-top: 16px;
+  padding-top: 20px;
+}
+
+/* One file open. */
+.sharedf__preview {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.sharedf__previewhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px 0;
+}
+.sharedf__steps {
+  display: inline-flex;
+  gap: 2px;
+}
+.sharedf__previewinfo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 28px 16px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.sharedf__previewtitle {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.sharedf__previewtitle h2 {
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--apx-text-lg);
+  font-weight: var(--apx-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sharedf__stage,
+.sharedf__loading {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 20px 28px 28px;
+  overflow: auto;
+}
+.sharedf__loading {
+  position: relative;
+}
+.sharedf__stage img,
+.sharedf__stage video {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--apx-radius-sm);
+  object-fit: contain;
+}
+.sharedf__audio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: min(480px, 100%);
+  color: var(--apx-fg-muted);
+}
+.sharedf__audio audio {
+  width: 100%;
+}
+.sharedf__stage.is-pdf {
+  align-items: stretch;
+}
+.sharedf__stage iframe {
+  flex: 1;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-sm);
+  background: #fff;
+}
+.sharedf__stage pre {
+  align-self: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 16px;
+  overflow: auto;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-surface);
+  font-size: var(--apx-text-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 @media (max-width: 767px) {
   .sharedf__body {
-    padding: 4px 4px 16px;
+    padding: 12px 12px 20px;
   }
-  .sharedf__projects {
-    width: 100%;
-  }
-  .sharedf__open {
+  .sharedf__grid {
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
     gap: 10px;
-    padding: 10px 8px;
   }
-  .sharedf__go {
-    display: none;
+  .sharedf__select {
+    flex: 1;
+    width: auto;
+  }
+  .sharedf__previewhead {
+    padding: 8px 8px 0;
+  }
+  .sharedf__previewinfo {
+    padding: 4px 16px 12px;
+  }
+  .sharedf__stage,
+  .sharedf__loading {
+    padding: 12px;
   }
 }

@@ -1,10 +1,18 @@
-// Files shared in chats: every file a message shows, with its chat and project, newest first. message_media (kept by
-// triggers on messages) says which message shows which file.
-import type { Author, SharedFile, SharedKind } from "@apx/protocol";
+// Files shared in chats: every file a message shows, with its chat and project. message_media (kept by triggers on
+// messages) says which message shows which file.
+import type { Author, SharedFile, SharedKind, SharedOrder } from "@apx/protocol";
 import { sql as raw } from "kysely";
 import { qb, type Sql } from "./sql.ts";
 
-export type SharedQuery = { kind?: SharedKind; project?: string; base?: boolean; offset: number; limit: number };
+export type SharedQuery = {
+  kind?: SharedKind;
+  project?: string;
+  base?: boolean;
+  query?: string;
+  order: SharedOrder;
+  offset: number;
+  limit: number;
+};
 
 const KINDS: readonly SharedKind[] = ["image", "video", "audio", "document"];
 
@@ -14,7 +22,13 @@ const kindOf = raw<SharedKind>`case
   when md.mime like 'audio/%' then 'audio'
   else 'document' end`;
 
-function base({ project, base }: Pick<SharedQuery, "project" | "base">) {
+/** The name a file shows: its own, else how APX was asked for it. */
+const nameOf = raw<string>`coalesce(mm.name, md.prompt, '')`;
+
+/** A LIKE pattern for words typed by the owner: their % and _ are literal. */
+const contains = (words: string) => `%${words.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+
+function base({ project, base, query }: Pick<SharedQuery, "project" | "base" | "query">) {
   let q = qb
     .selectFrom("message_media as mm")
     .innerJoin("messages as m", "m.id", "mm.message_id")
@@ -22,6 +36,7 @@ function base({ project, base }: Pick<SharedQuery, "project" | "base">) {
     .innerJoin("threads as t", "t.id", "m.thread_id");
   if (project) q = q.where("t.project_id", "=", project);
   else if (base) q = q.where("t.project_id", "is", null);
+  if (query) q = q.where(raw<boolean>`${nameOf} like ${contains(query)} escape '\\'`);
   return q;
 }
 
@@ -30,6 +45,11 @@ export function sharedFilesRepo({ all }: Sql) {
     list(query: SharedQuery): { items: SharedFile[]; more: boolean; counts: Record<SharedKind, number> } {
       let q = base(query);
       if (query.kind) q = q.where(kindOf, "=", query.kind);
+      const byName = query.order === "az" || query.order === "za";
+      const dir = query.order === "old" || query.order === "az" ? "asc" : "desc";
+      q = byName
+        ? q.orderBy(raw`${nameOf} collate nocase`, dir).orderBy("m.created_at", "desc")
+        : q.orderBy("m.created_at", dir).orderBy("m.id", dir);
       const rows = all(
         q
           .select([
@@ -37,6 +57,7 @@ export function sharedFilesRepo({ all }: Sql) {
             "mm.name",
             "md.mime",
             "md.bytes",
+            "md.path",
             "md.prompt",
             "m.id as message_id",
             "m.thread_id",
@@ -47,8 +68,6 @@ export function sharedFilesRepo({ all }: Sql) {
             "t.project_id",
           ])
           .select(kindOf.as("kind"))
-          .orderBy("m.created_at", "desc")
-          .orderBy("m.id", "desc")
           .orderBy("mm.media_id")
           .limit(query.limit + 1)
           .offset(query.offset),
@@ -68,6 +87,7 @@ export function sharedFilesRepo({ all }: Sql) {
           mime: r.mime,
           name: r.name || r.prompt || "",
           bytes: r.bytes,
+          path: r.path,
           thread_id: r.thread_id,
           thread_title: r.custom_title || r.title,
           ...(r.project_id ? { project_id: r.project_id } : {}),

@@ -31,6 +31,9 @@ export type ChangedFile = z.infer<typeof ChangedFile>;
 /** What a file shared in a chat is, by its MIME type: Documents is everything that is not a picture, video or sound. */
 export const SharedKind = z.enum(["image", "video", "audio", "document"]);
 export type SharedKind = z.infer<typeof SharedKind>;
+/** Newest or oldest first, or by name. */
+export const SharedOrder = z.enum(["new", "old", "az", "za"]);
+export type SharedOrder = z.infer<typeof SharedOrder>;
 
 /** A file a message shows (sent by the owner, a contact or an agent), with where it was said. */
 export const SharedFile = z.object({
@@ -40,6 +43,8 @@ export const SharedFile = z.object({
   /** The file's own name, or how it was asked for when APX made it; empty when it has neither. */
   name: z.string(),
   bytes: z.number().int(),
+  /** Where it is kept on the core's computer. */
+  path: z.string(),
   thread_id: Id,
   thread_title: z.string(),
   project_id: Id.optional(),
@@ -206,8 +211,8 @@ export const filesMethods = {
     access: "human",
   },
   /**
-   * Files shared in chats, newest first: of one kind, one project's chats (`project`) or chats outside any project
-   * (`base`). `counts` are per kind under the same project filter.
+   * Files shared in chats: of one kind, one project's chats (`project`) or chats outside any project (`base`), whose
+   * name has `query`, in `order` (newest first by default). `counts` are per kind under the same project and query.
    */
   "media.shared": {
     params: z
@@ -215,6 +220,8 @@ export const filesMethods = {
         kind: SharedKind.optional(),
         project: Id.optional(),
         base: z.literal(true).optional(),
+        query: z.string().trim().max(200).optional(),
+        order: SharedOrder.default("new"),
         offset: z.number().int().min(0).default(0),
         limit: z.number().int().min(1).max(200).default(60),
       })
@@ -225,6 +232,13 @@ export const filesMethods = {
       counts: z.record(SharedKind, z.number().int()),
     }),
     effect: false,
+    access: "human",
+  },
+  /** Shows a file shared in a chat in Finder (Explorer, the file manager) on the core's computer. */
+  "media.reveal": {
+    params: z.object({ media_id: Id }).strict(),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
     access: "human",
   },
 } as const;

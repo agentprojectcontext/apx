@@ -55,28 +55,43 @@ test("Archivos lists what was shared, by kind and project, and leads back to the
 
     await page.goto(env.core.url);
     await page.getByRole("button", { name: "Archivos", exact: true }).click();
-    const rows = page.locator(".sharedf__row");
-    await expect(rows).toHaveCount(2);
-    await expect(rows.nth(0)).toContainText("invoice.pdf");
-    await expect(rows.nth(0)).toContainText("Errands");
-    await expect(rows.nth(1)).toContainText("storefront.png");
-    await expect(rows.nth(1)).toContainText("Acme");
-    await expect(rows.nth(1)).toContainText("Storefront launch");
-    await expect(rows.nth(1).locator(".sharedf__thumb img")).toBeVisible();
+    const cards = page.locator(".sharedf__card");
+    await expect(cards).toHaveCount(2);
+    await expect(cards.nth(0)).toContainText("invoice.pdf");
+    await expect(cards.nth(0)).toContainText("Errands");
+    await expect(cards.nth(1)).toContainText("storefront.png");
+    await expect(cards.nth(1)).toContainText("Acme");
+    await expect(cards.nth(1)).toContainText("Storefront launch");
+    await expect(cards.nth(1)).toContainText("2026");
+    await expect(cards.nth(1).locator(".sharedf__thumb img")).toBeVisible();
 
     await page.getByRole("radio", { name: /Documentos/ }).click();
-    await expect(rows).toHaveCount(1);
-    await expect(rows.first()).toContainText("invoice.pdf");
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText("invoice.pdf");
     await page.getByRole("radio", { name: /Todos/ }).click();
+    await page.getByRole("searchbox", { name: "Buscar por nombre…" }).fill("STORE");
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText("storefront.png");
+    await page.getByRole("searchbox", { name: "Buscar por nombre…" }).fill("");
+    await page.getByRole("combobox", { name: "Orden" }).click();
+    await page.getByRole("option", { name: "Nombre, de la A a la Z" }).click();
+    await expect(cards.first()).toContainText("invoice.pdf");
+    await expect(cards.nth(1)).toContainText("storefront.png");
     await page.getByRole("combobox", { name: "Proyecto" }).click();
     await page.getByRole("option", { name: "Acme" }).click();
-    await expect(rows).toHaveCount(1);
-    await expect(rows.first()).toContainText("storefront.png");
+    await expect(cards).toHaveCount(1);
 
-    await rows
-      .first()
-      .getByRole("button", { name: /storefront\.png/ })
-      .click();
+    // A card opens the file live; back returns to the list, and the chat is one button away.
+    await cards.first().getByRole("button", { name: "storefront.png" }).click();
+    const preview = page.getByRole("region", { name: "storefront.png" });
+    await expect(preview.locator(".sharedf__stage img")).toBeVisible();
+    await expect(cards.first()).toBeHidden();
+    await preview.getByRole("button", { name: "Archivos" }).click();
+    await expect(cards.first()).toBeVisible();
+    await cards.first().getByRole("button", { name: "storefront.png" }).click();
+    await preview.getByRole("button", { name: "Copiar ruta" }).hover();
+    await expect(page.locator(".apx-tooltip[data-open]")).toHaveText("Copiar ruta");
+    await preview.getByRole("button", { name: "Ir al chat" }).click();
     const row = page.locator(`.transcript__row[data-msg="${shared.id}"]`);
     await expect(row).toBeInViewport();
     await expect(page.locator(".transcript").getByText("Launch note 40", { exact: true })).not.toBeInViewport();
