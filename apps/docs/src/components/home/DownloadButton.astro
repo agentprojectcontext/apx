@@ -9,19 +9,30 @@ interface Props {
   releases: string;
   /** On a doc page, where the home's button styles are not loaded. */
   docs?: boolean;
+  /** In the home's hero, styled by home.css. */
+  hero?: boolean;
 }
-const { t, releases, docs = false } = Astro.props;
+const { t, releases, docs = false, hero = false } = Astro.props;
 const desktop = [
-  { id: "mac-arm64", icon: "mac", name: t.macArm, short: "macOS", file: "-mac-arm64.dmg" },
-  { id: "mac-x64", icon: "mac", name: t.macIntel, short: "macOS", file: "-mac-x64.dmg" },
-  { id: "win", icon: "windows", name: "Windows", short: "Windows", file: "-win-x64.exe" },
-  { id: "linux", icon: "linux", name: "Linux", short: "Linux", file: "-linux-x86_64.AppImage" },
-  { id: "linux-arm64", icon: "linux", name: t.linuxArm, short: "Linux", file: "-linux-arm64.AppImage" },
+  { id: "mac-arm64", icon: "mac", name: t.macArm, short: "macOS", file: "-mac-arm64.dmg", meta: ".dmg" },
+  { id: "mac-x64", icon: "mac", name: t.macIntel, short: "macOS", file: "-mac-x64.dmg", meta: ".dmg" },
+  { id: "win", icon: "windows", name: "Windows", short: "Windows", file: "-win-x64.exe", meta: ".exe" },
+  { id: "linux", icon: "linux", name: "Linux", short: "Linux", file: "-linux-x86_64.AppImage", meta: "AppImage" },
+  {
+    id: "linux-arm64",
+    icon: "linux",
+    name: t.linuxArm,
+    short: "Linux",
+    file: "-linux-arm64.AppImage",
+    meta: "AppImage",
+  },
 ] as const;
-const phone = [{ id: "android", icon: "android", name: "Android", short: "Android", file: "-android.apk" }] as const;
+const phone = [
+  { id: "android", icon: "android", name: "Android", short: "Android", file: "-android.apk", meta: ".apk" },
+] as const;
 ---
 
-<div class:list={["getapx", { "getapx--docs not-content": docs }]} data-for={t.for} data-app={t.app}>
+<div class:list={["getapx", { "getapx--docs not-content": docs, "getapx--hero": hero }]} data-for={t.for} data-app={t.app}>
   <a class="btn btn-light getapx__main" href={releases} data-pick="mac-arm64">
     <OsIcon name="mac" /><span class="getapx__label">{t.for} macOS</span>
   </a>
@@ -34,6 +45,7 @@ const phone = [{ id: "android", icon: "android", name: "Android", short: "Androi
         <a role="menuitem" href={releases} data-id={o.id} data-file={o.file} data-short={o.short}>
           <OsIcon name={o.icon} />
           <span>{o.name}</span>
+          <span class="getapx__meta">{o.meta}</span>
         </a>
       ))
     }
@@ -43,6 +55,7 @@ const phone = [{ id: "android", icon: "android", name: "Android", short: "Androi
         <a role="menuitem" href={releases} data-id={o.id} data-file={o.file} data-short={o.short}>
           <OsIcon name={o.icon} />
           <span>{o.name}</span>
+          <span class="getapx__meta">{o.meta}</span>
         </a>
       ))
     }
@@ -109,6 +122,12 @@ const phone = [{ id: "android", icon: "android", name: "Android", short: "Androi
   }
   .getapx__menu a[aria-current="true"] {
     background: var(--ghost-2);
+  }
+  .getapx__meta {
+    margin-left: auto;
+    padding-left: 16px;
+    font: 12px / 1 var(--sl-font-mono, var(--apx-font-mono, monospace));
+    opacity: 0.6;
   }
   .getapx__group {
     margin: 6px 0 0;

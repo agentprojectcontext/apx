@@ -1,5 +1,6 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, sep } from "node:path";
+import { headerLink, readingNav } from "../web-nav.ts";
 import { expect, test } from "./site.fixture.ts";
 
 const suffix = "?from=historical#_top";
@@ -111,15 +112,16 @@ test("all historical pages follow the approved current-docs precedence and retai
 
 test("assembled current web navigation and comparison sources work", async ({ page, assembledOrigin }, testInfo) => {
   await page.goto(`${assembledOrigin}/es/compare/openclaw/`);
-  await page.locator('.reading-rail a[href="#overview"]').click();
-  await expect(page.locator('.reading-rail [aria-current="location"]')).toHaveAttribute("href", "#overview");
+  const reading = await readingNav(page, "es");
+  await reading.locator('a[href="#overview"]').click();
+  await expect(reading.locator('[aria-current="location"]')).toHaveAttribute("href", "#overview");
   await expect(
     page.locator('.compare-table a[href="https://docs.openclaw.ai/concepts/multi-agent"]').first(),
   ).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("assembled-comparison.png") });
   await page.getByRole("link", { name: "EN", exact: true }).click();
   await expect(page).toHaveURL(`${assembledOrigin}/compare/openclaw/`);
-  await page.locator('.web-header a[href$="/docs/start/introduction/"]').click();
+  await (await headerLink(page, 'a[href$="/docs/start/introduction/"]')).click();
   await expect(page).toHaveURL(`${assembledOrigin}/docs/start/introduction/`);
 });
 
@@ -153,8 +155,8 @@ test.describe("without JavaScript", () => {
     expect(response?.status()).toBe(404);
     await expect(page).toHaveURL(`${assembledOrigin}/docs/start/installation/`);
     await page.goto(`${assembledOrigin}/compare/hermes-agent/`);
-    await expect(page.locator(".reading-rail [aria-current]")).toHaveCount(0);
-    await page.locator('.reading-rail a[href="#sources"]').click();
+    await expect(page.locator("a[data-section][aria-current]")).toHaveCount(0);
+    await (await readingNav(page)).locator('a[href="#sources"]').click();
     await expect(page.getByRole("heading", { name: "Sources and scope", exact: true })).toBeInViewport();
   });
 });

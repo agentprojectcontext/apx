@@ -1,4 +1,4 @@
-import { type Product, text } from "./shared";
+import { type Product, text } from "./shared.ts";
 
 export const devin: Product = {
   slug: "devin",
@@ -52,6 +52,7 @@ export const devin: Product = {
     ],
     ["https://cognition.com/legal/platform-terms-of-service", "https://devin.ai/pricing"],
   ],
+  short: text("AI software engineer", "ingeniero de software con IA"),
   tagline: text(
     "A project crew or an AI software engineer?",
     "¿Un equipo por proyecto o un ingeniero de software con IA?",

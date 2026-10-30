@@ -18,3 +18,23 @@ Retrieved October 30, 2026 from each product's own site:
 - `instinct.png`: https://instinct.com/apple-touch-icon.png (linked by https://instinct.com/).
 
 Use only for identifying the respective products in the comparison pages. Product names and marks belong to their respective owners. Recording their provenance does not establish permission to reproduce the marks; trademark permissions have not been verified.
+
+## Marks drawn inline
+
+These are drawn as SVG paths in the page (one colour, in the text colour, unless noted), not served from this folder.
+Retrieved October 30, 2026:
+
+- Apple, Android and Linux (`src/components/OsIcon.astro`): Simple Icons 15.0.0 (CC0),
+  https://cdn.jsdelivr.net/npm/simple-icons@15.0.0/icons/apple.svg, `…/android.svg` and `…/linux.svg`.
+- Windows (`src/components/OsIcon.astro`): Simple Icons 11.0.0 (CC0), the last release that carries Microsoft's mark,
+  https://cdn.jsdelivr.net/npm/simple-icons@11.0.0/icons/windows.svg.
+- GitHub and YouTube (`src/components/web/SocialIcon.astro`): Simple Icons 15.0.0 (CC0),
+  https://cdn.jsdelivr.net/npm/simple-icons@15.0.0/icons/github.svg and `…/youtube.svg`.
+- Discord (`src/components/web/SocialIcon.astro`): the panel's own mark, `packages/ui/src/channel-marks.ts` (Simple
+  Icons, CC0); the Discord buttons use Discord's brand colour, #5865F2.
+- OpenAI (ChatGPT), Claude (Claude and Claude Code), Gemini, Codex and Ollama (`src/components/BrandMark.astro`): the
+  panel's own marks, `packages/ui/src/engine-marks.ts` (path data from @lobehub/icons-static-svg, MIT), drawn as the
+  panel draws them.
+
+The interface icons (folder, clock, check…) are Lucide's (ISC), the set `packages/ui` uses, in
+`src/data/ui-icons.ts`.

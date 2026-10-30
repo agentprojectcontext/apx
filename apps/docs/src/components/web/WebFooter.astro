@@ -3,6 +3,7 @@ import logo from "../../assets/logo.png";
 import { comparisons } from "../../data/comparisons";
 import { sitePath } from "../../doc-routes.mjs";
 import { HOME, type Lang } from "../../i18n/home";
+import Blob from "../Blob.astro";
 import OsIcon from "../OsIcon.astro";
 import SocialIcon from "./SocialIcon.astro";
 import "./web.css";
@@ -11,47 +12,49 @@ interface Props {
   lang: Lang;
 }
 const { lang } = Astro.props;
-const es = lang === "es";
-const pre = es ? "/es" : "";
+const t = HOME[lang].footer;
+const pre = lang === "es" ? "/es" : "";
 const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
+const github = "https://github.com/agentprojectcontext/apx";
 const groups = [
   {
-    title: es ? "Empezá con APX" : "Start with APX",
+    title: t.product,
     links: [
-      [es ? "Introducción" : "Introduction", href(`${pre}/start/introduction/`)],
-      [es ? "Instalación" : "Installation", href(`${pre}/start/install/`)],
-      [es ? "Tu equipo" : "Your crew", href(`${pre}/concepts/agents/`)],
-      [es ? "Tu oficina" : "Your office", href(`${pre}/office/chat/`)],
-      [es ? "Canales" : "Channels", href(`${pre}/channels/overview/`)],
+      [t.newIn, href(`${pre}/#new`)],
+      [t.download, href(`${pre}/#download`)],
+      [t.questions, href(`${pre}/#questions`)],
+      [t.phone, href(`${pre}/devices/phone/`)],
+      [t.server, href(`${pre}/devices/server/`)],
     ],
   },
   {
-    title: es ? "Explorá" : "Explore",
+    title: t.start,
     links: [
-      [es ? "Habilidades" : "Skills", href(`${pre}/extend/skills/`)],
-      ["MCP", href(`${pre}/extend/mcp/`)],
-      [es ? "En tu servidor" : "On your server", href(`${pre}/devices/server/`)],
-      ["CLI", href(`${pre}/reference/cli/`)],
+      [t.introduction, href(`${pre}/start/introduction/`)],
+      [t.install, href(`${pre}/start/install/`)],
+      [t.firstSteps, href(`${pre}/start/first-steps/`)],
+      [t.fromV1, href(`${pre}/start/from-v1/`)],
     ],
   },
   {
-    title: es ? "Compará APX" : "Compare APX",
+    title: t.compare,
     links: [
-      [es ? "Todas las comparativas" : "All comparisons", href(`${pre}/compare/`)],
+      [t.allComparisons, href(`${pre}/compare/`)],
       ...comparisons.slice(0, 3).map((item) => [`APX vs ${item.name}`, href(`${pre}/compare/${item.slug}/`)]),
     ],
   },
   {
-    title: es ? "Comunidad" : "Community",
+    title: t.community,
     links: [
-      [es ? "Versiones" : "Releases", "https://github.com/agentprojectcontext/apx/releases"],
-      [es ? "Reportar un problema" : "Report an issue", "https://github.com/agentprojectcontext/apx/issues"],
+      [t.releases, `${github}/releases`],
+      [t.issue, `${github}/issues`],
       ["APC", "https://github.com/agentprojectcontext/agentprojectcontext"],
+      [t.privacy, href(`${pre}/reference/website-privacy/`)],
     ],
   },
 ];
 const socials = [
-  { name: "GitHub", url: "https://github.com/agentprojectcontext/apx" },
+  { name: "GitHub", url: github },
   { name: "Discord", url: "https://discord.gg/vxdZuT5WuE" },
   { name: "YouTube", url: "https://www.youtube.com/@apx-agents" },
 ] as const;
@@ -61,26 +64,39 @@ const platforms = [
   { name: "linux", label: "Linux" },
   { name: "android", label: "Android" },
 ] as const;
+const front = ["coral", "cobalto", "menta", "amatista", "brasa"] as const;
+const back = ["orbita", "perla", "caracol", "kiwi"] as const;
 ---
 <footer class="web-footer">
   <div class="wrap">
     <div class="web-footer__main">
       <div class="web-footer__intro">
-        <a class="brand" href={href(`${pre}/`)}><img src={logo.src} alt="" width="40" height="40" />APX</a>
-        <p class="web-footer__description">{es ? "Un equipo de agentes de IA para tus proyectos, en tu computadora." : "A team of AI agents for your projects, on your computer."}</p>
-        <nav class="web-footer__socials" aria-label={es ? "APX en redes" : "APX on social media"}>
-          {socials.map(({ name, url }) => <a href={url} aria-label={name} title={name}><SocialIcon name={name} /></a>)}
+        <a class="brand" href={href(`${pre}/`)}><img src={logo.src} alt="" width="26" height="26" />APX</a>
+        <p class="web-footer__description">{t.description}</p>
+        <p class="web-footer__home"><Blob name="menta" size={20} /><b>Home</b>{t.home}</p>
+        <p class="web-footer__fine">{t.trademarks}</p>
+        <nav class="web-footer__socials" aria-label={t.social}>
+          {socials.map(({ name, url }) => <a href={url} aria-label={name} title={name}><SocialIcon name={name} size={20} /></a>)}
         </nav>
       </div>
       <div class="web-footer__groups">{groups.map((group) => <nav aria-label={group.title}><h2>{group.title}</h2><ul>{group.links.map(([label, url]) => <li><a href={url}>{label}</a></li>)}</ul></nav>)}</div>
     </div>
+  </div>
+  <div class="wrap web-footer__mark" aria-hidden="true">
+    <div class="web-footer__wordmark"><img class="web-footer__logo" src={logo.src} alt="" width="220" height="220" loading="lazy" /><span>APX</span></div>
+    <div class="web-footer__back">{back.map((name) => <Blob name={name} size="clamp(20px, 2.6vw, 26px)" />)}</div>
+    <div class="web-footer__front">{front.map((name) => <Blob name={name} size="clamp(34px, 5vw, 52px)" />)}</div>
+  </div>
+  <div class="wrap">
     <div class="web-footer__bottom">
-      <div class="web-footer__legal"><p>© 2026 · {HOME[lang].footer}</p><a href="https://github.com/agentprojectcontext/apx/blob/main/LICENSE">MIT</a><p>{es ? "Las marcas pertenecen a sus respectivos titulares." : "Trademarks belong to their respective owners."}</p></div>
-      <div class="web-footer__availability">
-        <p class="web-footer__available">{es ? "Disponible para" : "Available for"}</p>
-        <ul class="web-footer__platforms" aria-label={es ? "Plataformas disponibles" : "Available platforms"}>{platforms.map(({ name, label }) => <li><OsIcon name={name} size={16} />{label}</li>)}</ul>
+      <div class="web-footer__legal">
+        <p>© 2026 APX</p><span class="web-footer__sep" aria-hidden="true">·</span><a href={`${github}/blob/main/LICENSE`}>{t.license}</a>
       </div>
-      <p class="web-footer__origin">{es ? "Hecho con" : "Made with"} <span class="web-footer__heart" role="img" aria-label={es ? "amor" : "love"}>♥</span> {es ? "en Argentina" : "in Argentina"}</p>
+      <div class="web-footer__availability">
+        <p class="web-footer__available">{t.availableFor}</p>
+        <ul class="web-footer__platforms" aria-label={t.platforms}>{platforms.map(({ name, label }) => <li><OsIcon name={name} size={13} />{label}</li>)}</ul>
+      </div>
+      <p class="web-footer__origin">{t.madeWith} <span class="web-footer__heart" role="img" aria-label={t.love}>♥</span> {t.inArgentina}</p>
     </div>
   </div>
 </footer>

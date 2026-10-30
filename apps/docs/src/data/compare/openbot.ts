@@ -1,4 +1,4 @@
-import { type Product, text } from "./shared";
+import { type Product, text } from "./shared.ts";
 
 const openbotComparison = "https://openbot.run/compare/hermes-agent";
 
@@ -30,6 +30,7 @@ export const openbot: Product = {
       openbotComparison,
     ],
   ],
+  short: text("local teammates", "compañeros locales"),
   tagline: text(
     "Two local crews. Different ways to own the work.",
     "Dos equipos locales. Distintas formas de hacer tuyo el trabajo.",

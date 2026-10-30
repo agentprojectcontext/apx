@@ -1,4 +1,4 @@
-import { type Product, text } from "./shared";
+import { type Product, text } from "./shared.ts";
 
 export const claudeCowork: Product = {
   slug: "claude-cowork",
@@ -89,6 +89,7 @@ export const claudeCowork: Product = {
       "https://support.claude.com/en/articles/13345190-get-started-with-claude-cowork",
     ],
   ],
+  short: text("Claude on your files", "Claude con tus archivos"),
   tagline: text(
     "A crew for your projects or Claude on your files?",
     "¿Un equipo para tus proyectos o Claude con tus archivos?",

@@ -1,0 +1,27 @@
+---
+// An interface icon from the panel's set (lucide), drawn in the text colour.
+import { UI_ICONS, type UiIconName } from "../data/ui-icons";
+
+interface Props {
+  name: UiIconName;
+  size?: number;
+  class?: string;
+}
+const { name, size = 16, class: cls } = Astro.props;
+---
+
+<svg
+  class:list={["ui-icon", cls]}
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+  focusable="false"
+>
+  {UI_ICONS[name].map(([Tag, attrs]) => <Tag {...attrs} />)}
+</svg>

@@ -1,4 +1,4 @@
-import { type Product, text } from "./shared";
+import { type Product, text } from "./shared.ts";
 
 export const viktor: Product = {
   slug: "viktor",
@@ -26,6 +26,7 @@ export const viktor: Product = {
     ["https://viktor.com/security", "https://viktor.com/changelog", "https://viktor.com/"],
     ["https://viktor.com/legal/general-terms", "https://viktor.com/pricing"],
   ],
+  short: text("AI teammate in Slack", "compañero de IA en Slack"),
   tagline: text("Your own crew or an AI teammate in Slack?", "¿Tu propio equipo o un compañero de IA en Slack?"),
   intro: text(
     "Both take on real work, keep context and run scheduled tasks. APX runs on hardware you control with a crew per project; Viktor is a hosted AI employee that your team uses from Slack, Microsoft Teams, Discord or its web app.",

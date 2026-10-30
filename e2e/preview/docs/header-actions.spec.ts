@@ -6,7 +6,7 @@ for (const lang of ["en", "es"]) {
     for (const path of ["/", "/compare/", "/compare/hermes-agent/"]) {
       await page.goto(`${pre}${path}`);
       const header = page.locator(".web-header");
-      for (const name of ["EN", "ES", "GitHub", "Discord", lang === "es" ? "Descargá" : "Download"]) {
+      for (const name of ["EN", "ES", "GitHub", "Discord", lang === "es" ? "Bajar la app" : "Download the app"]) {
         const action = header.getByRole("link", { name, exact: true });
         await expect(action).toBeVisible();
         await action.focus();

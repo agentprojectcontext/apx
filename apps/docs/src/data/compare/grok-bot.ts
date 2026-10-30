@@ -1,4 +1,4 @@
-import { type Product, text } from "./shared";
+import { type Product, text } from "./shared.ts";
 
 export const grokBot: Product = {
   slug: "grok-bot",
@@ -49,6 +49,7 @@ export const grokBot: Product = {
     ["https://docs.x.ai/grok-bot/faq", "https://docs.x.ai/grok-bot/computer-and-apps"],
     ["https://x.ai/bot", "https://cursor.com/help/grok-bot/plans", "https://docs.x.ai/grok-bot/faq"],
   ],
+  short: text("shared cloud computer", "computadora en la nube"),
   tagline: text("Your own hardware or a shared cloud computer?", "¿Tus propios equipos o una computadora en la nube?"),
   intro: text(
     "Both give you several named agents that keep context, hand work to each other and run routines. APX runs them on hardware you control; Grok Bot runs every Bot on one hosted cloud computer for your account.",

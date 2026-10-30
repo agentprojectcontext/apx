@@ -1,22 +1,25 @@
 ---
+// The site's front page: a hero with the glyph field and a rotating word, the real app, what it does, the way in,
+// questions, comparisons and downloads.
+import type { ImageMetadata } from "astro";
+import logo from "../../assets/logo.png";
+import blobs from "../../data/blobs.json";
+import { comparisons } from "../../data/comparisons";
 import { sitePath } from "../../doc-routes.mjs";
 import { HOME, type Lang } from "../../i18n/home";
 import AnalyticsConsent from "../AnalyticsConsent.astro";
 import Blob from "../Blob.astro";
 import BlobEyes from "../BlobEyes.astro";
+import BrandMark from "../BrandMark.astro";
 import OsIcon from "../OsIcon.astro";
 import Shot from "../Shot.astro";
-import Terminal from "../Terminal.astro";
+import UiIcon from "../UiIcon.astro";
+import SocialIcon from "../web/SocialIcon.astro";
 import WebFooter from "../web/WebFooter.astro";
 import WebHeader from "../web/WebHeader.astro";
 import DownloadButton from "./DownloadButton.astro";
-import DownloadCards from "./DownloadCards.astro";
-// The docs' front page, in the site's look: a hero with a blobo, the real panel, the way in, and the crew.
-import HomeDiscovery from "./HomeDiscovery.astro";
+import { GLYPH_AGENTS } from "./glyph-agents";
 import "./home.css";
-import "./hero-term.css";
-import "./hero-os.css";
-import "./news.css";
 
 interface Props {
   lang: Lang;
@@ -31,27 +34,97 @@ const install = `curl -fsSL ${site}/install.sh | bash`;
 const installWin = `irm ${site}/install.ps1 | iex`;
 const installServer = `curl -fsSL ${site}/install.sh | bash -s -- --server`;
 const releases = "https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true";
-const heroBlobs = ["menta", "orbita", "cobalto", "brasa", "amatista"] as const;
-const parade = [
+const discord = "https://discord.gg/vxdZuT5WuE";
+type BlobName = keyof typeof blobs;
+
+const bodies = import.meta.glob<ImageMetadata>("../../assets/blobs/*.webp", { eager: true, import: "default" });
+const glyphAgents = GLYPH_AGENTS[lang].map((a) => ({
+  src: bodies[`../../assets/blobs/${a.blob}.webp`]?.src ?? "",
+  eyes: blobs[a.blob].eyes.map(({ x, y, w, h }) => ({ x, y, w, h })),
+  text: a.text,
+}));
+const wordBlobs: BlobName[] = ["menta", "noche", "cobalto", "amatista", "brasa"];
+const statusBlobs: BlobName[] = ["menta", "coral", "cobalto", "amatista"];
+const osList = [
+  { id: "mac", name: "macOS" },
+  { id: "windows", name: "Windows" },
+  { id: "linux", name: "Linux" },
+  { id: "android", name: "Android" },
+] as const;
+const terms = [
+  { id: "unix", cmd: install, tab: t.term.tabs.unix },
+  { id: "win", cmd: installWin, tab: t.term.tabs.win },
+  { id: "server", cmd: installServer, tab: t.term.tabs.server },
+];
+const marquee = [
+  { name: "ChatGPT", brand: "openai" },
+  { name: "Claude", brand: "claude" },
+  { name: "Gemini", brand: "gemini" },
+  { name: "Claude Code", brand: "claude" },
+  { name: "Codex", brand: "codex" },
+  { name: "Ollama", brand: "ollama" },
+] as const;
+const moreIcons = ["link", "monitor", "bot", "plug"] as const;
+const localIcons = ["folder", "messageCircle", "brain", "lock"] as const;
+const taskAgents: BlobName[] = ["cobalto", "amatista", "coral", "orbita"];
+const pitchBlobs: BlobName[] = ["menta", "coral", "noche", "cobalto", "amatista"];
+const stepBlobs: BlobName[] = ["menta", "noche", "cobalto"];
+const travelBlobs: BlobName[] = ["menta", "cobalto", "amatista"];
+const parade: BlobName[] = [
   "menta",
-  "brasa",
+  "parche",
   "trino",
-  "amatista",
-  "cobalto",
-  "volcan",
+  "cubi",
+  "nimbo",
+  "papa",
   "noche",
   "kiwi",
   "gajo",
-  "zafiro",
+  "campana",
+  "cobalto",
   "rubi",
   "trebol",
+  "saturno",
   "onyx",
   "perla",
   "faro",
+  "brasa",
   "aqua",
+  "coral",
+  "zafiro",
+  "pino",
+  "eclipse",
+  "peon",
+  "ovni",
+  "amatista",
+  "volcan",
+  "quad",
+  "cometa",
+  "lila",
   "orbita",
+  "caracol",
+  "iris",
+  "laguna",
+  "carbon",
+];
+const cards = [
+  { id: "mac", name: "macOS", blob: "amatista", tone: "violet", file: "-mac-arm64.dmg", alt: "-mac-x64.dmg" },
+  { id: "windows", name: "Windows", blob: "cobalto", tone: "info", file: "-win-x64.exe" },
+  {
+    id: "linux",
+    name: "Linux",
+    blob: "brasa",
+    tone: "warning",
+    file: "-linux-x86_64.AppImage",
+    alt: "-linux-arm64.AppImage",
+  },
+  { id: "android", name: "Android", blob: "menta", tone: "brand", file: "-android.apk" },
 ] as const;
-const discord = "https://discord.gg/vxdZuT5WuE";
+const cliRows = [
+  { icon: "mac", label: t.download.term.here, cmd: install },
+  { icon: "windows", label: t.download.term.windows, cmd: installWin },
+  { icon: "server", label: t.download.term.server, cmd: installServer },
+] as const;
 ---
 
 <!doctype html>
@@ -80,390 +153,510 @@ const discord = "https://discord.gg/vxdZuT5WuE";
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300..800&family=Geist+Mono:wght@400;500;600&display=swap"
     />
-    <script is:inline>
-      // Same choice as the doc pages (Starlight's key): stored, else the system's.
-      (() => {
-        let t = "";
-        try {
-          t = localStorage.getItem("starlight-theme") || "";
-        } catch {}
-        if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-        document.documentElement.dataset.theme = t;
-      })();
-    </script>
   </head>
-  <body class="h">
-    <div class="grain" aria-hidden="true"></div>
-
+  <body class="h home">
+    <a class="skip-link" href="#main">{lang === "es" ? "Ir al contenido" : "Skip to content"}</a>
     <WebHeader lang={lang} />
 
-    <header class="hero">
-      <div class="wrap">
-        <a class="pill pill--os" href="#download">
-          <b class="pill__new">{t.pill.strong}</b><span class="pill__on">{t.pill.rest}</span>
-          {
-            (["mac", "windows", "linux", "android"] as const).map((os) => (
-              <span class="pill__os">
-                <OsIcon name={os} size={14} />
-                <span>{{ mac: "macOS", windows: "Windows", linux: "Linux", android: "Android" }[os]}</span>
-              </span>
-            ))
-          }
-        </a>
-        <h1 class="hero__title">
-          <span class="row">
-            <span class="split">{t.meet}</span>
-            <span class="hero__blob" id="heroBlob">
-              {heroBlobs.map((b, i) => <Blob name={b} size="100%" class={i === 0 ? "on" : ""} />)}
-            </span>
-            <span class="split">{t.your}</span>
-          </span>
-          <span class="row"><span class="word" id="word" data-words={JSON.stringify(t.words)}>{t.words[0]}</span></span>
-        </h1>
-        <p class="hero__sub"><b>{t.sub.strong}</b> {t.sub.rest}</p>
-        <div class="hero__actions">
-          <DownloadButton t={t.get} releases={releases} />
-          <button class="btn btn-ghost hero__term" type="button" aria-expanded="false" aria-controls="heroInstall">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l6 6-6 6M12 19h8" /></svg>{t.get.terminal}
-          </button>
-        </div>
-        <div class="hero__actions hero__install" id="heroInstall" hidden data-unix={install} data-win={installWin}>
-          <button class="install" type="button" data-copy={install} data-done={t.copied}>
-            <span class="dollar">$</span><span class="cmd">{install}</span><span class="copy">{t.copy}</span>
-          </button>
-          <div class="os" role="group" aria-label={t.os.label}>
-            <button type="button" data-os="unix" aria-pressed="true" title={t.os.unix}>
-              <OsIcon name="mac" /><OsIcon name="linux" />
-            </button>
-            <button type="button" data-os="win" aria-pressed="false" title={t.os.win}>
-              <OsIcon name="windows" />
-            </button>
-            <span class="os__for" data-unix={t.os.unix} data-win={t.os.win}>{t.os.unix}</span>
-          </div>
-          <p class="hero__where">
-            {t.os.where} <a href={href(`${pre}/devices/server/`)}>{t.os.whereLink} →</a>
-          </p>
-        </div>
-        <div class="status" id="status" data-lines={JSON.stringify(t.status)}>
-          <Blob name="menta" size={26} />
-          <b id="statusWho">{t.status[0]?.[0]}</b><span id="statusWhat">{t.status[0]?.[1]}</span><span class="dots"><i></i><i></i><i></i></span>
-        </div>
-      </div>
-    </header>
-
-    <section class="stage">
-      <div class="wrap stage__in">
-        <div class="float f1"><Blob name="orbita" size={60} bob /><span class="bubble">{t.bubbles[0]}</span></div>
-        <div class="float f2"><span class="bubble">{t.bubbles[1]}</span><Blob name="cobalto" size={60} bob /></div>
-        <div class="tilt">
-          <Shot name="home-hero" alt={t.shotAlt} title="APX · Home" eager />
-        </div>
-        <p class="stage__note">{t.real.body}</p>
-      </div>
-    </section>
-
-
-    <section class="sec" id="new">
-      <div class="wrap">
-        <p class="eyebrow">{t.newIn.eyebrow}</p>
-        <h2 class="h2">{t.newIn.title}</h2>
-        <p class="lead">{t.newIn.lead}</p>
-        <div class="news">
-          {
-            t.newIn.items.map((n, i) => (
-              <>
-              {i === 1 && (
-                <a class="news__pitch" href={href(t.newIn.pitch.href)}>
-                  <p class="news__pitch-title">{t.newIn.pitch.title}</p>
-                  <p class="news__pitch-body">{t.newIn.pitch.body}</p>
-                  <span class="news__pitch-cta">{t.newIn.pitch.cta} →</span>
-                  <span class="news__pitch-crew" aria-hidden="true">
-                    <Blob name="cobalto" size={64} />
-                    <Blob name="brasa" size={76} />
-                    <Blob name="amatista" size={58} />
-                    <Blob name="perla" size={70} />
-                  </span>
-                </a>
-              )}
-              <a class:list={["news__item card", `news__item--${i}`]} href={href(n.href)}>
-                <div class="news__visual" aria-hidden="true">
-                  {n.shot ? (
-                    <Shot name={n.shot} alt="" frame={n.shot.startsWith("phone") ? "phone" : "none"} />
-                  ) : (
-                    n.mock && (
-                      <div class="browser-mock">
-                        <div class="browser-mock__tabs">
-                          {n.mock.tabs.map((tab, j) => <span class:list={{ on: j === 0 }}>{tab}</span>)}
-                        </div>
-                        <div class="browser-mock__url">{n.mock.url}</div>
-                        <div class="browser-mock__page">
-                          <i /><i /><i class="short" />
-                          <p class="browser-mock__who"><Blob name="cobalto" size={22} /><b>{n.mock.who}</b> {n.mock.what}</p>
-                          <p class="browser-mock__hand">{n.mock.hand}</p>
-                        </div>
-                      </div>
-                    )
-                  )}
-                </div>
-                <div class="news__text">
-                  <h3>{n.title}</h3>
-                  <p>{n.body}</p>
-                  <span class="news__more">{t.newIn.more} →</span>
-                </div>
-              </a>
-              </>
-            ))
-          }
-        </div>
-      </div>
-    </section>
-
-    <section class="sec" id="crew">
-      <div class="wrap">
-        <p class="eyebrow">{t.crew.eyebrow}</p>
-        <h2 class="h2">{t.crew.title}</h2>
-        <p class="lead">{t.crew.lead}</p>
-        <div class="crew-shot">
-          <Shot name="crew-demo" alt={t.crew.alt} title="APX · Northwind launch plan" />
-        </div>
-      </div>
-    </section>
-
-    <section class="sec" id="download">
-      <div class="wrap">
-        <p class="eyebrow">{t.download.eyebrow}</p>
-        <h2 class="h2">{t.download.title}</h2>
-        <p class="lead">{t.download.lead}</p>
-        <DownloadCards t={t.download} releases={releases}>
-          <div class="dl__cli card">
-            <div class="dl__cmds">
-              <h3>{t.download.term.title}</h3>
-              <p class="dl__lead">{t.download.term.lead}</p>
+    <main id="main">
+      <section class="hero">
+        <div class="hero__aura" aria-hidden="true"></div>
+        <canvas class="hero__glyphs" id="glyphs" aria-hidden="true" data-agents={JSON.stringify(glyphAgents)}></canvas>
+        <div class="wrap hero__in">
+          <a class="hero__pill" href="#download">
+            <span class="hero__new">{t.pill.strong}</span>
+            <span class="hero__on">{t.pill.rest}</span>
+            <span class="hero__os">
               {
-                [
-                  [t.download.term.server, installServer, "$"],
-                  [t.download.term.here, install, "$"],
-                  [t.download.term.windows, installWin, ">"],
-                ].map(([label, cmd, prompt]) => (
-                  <>
-                    <p class="dl__label">{label}</p>
-                    <button class="install install--block" type="button" data-copy={cmd} data-done={t.copied}>
-                      <span class="dollar">{prompt}</span><span class="cmd">{cmd}</span><span class="copy">{t.copy}</span>
-                    </button>
-                  </>
+                osList.map((o, i) => (
+                  <span class="hero__os-item">
+                    {i > 0 && <span class="hero__os-sep" aria-hidden="true">·</span>}
+                    <OsIcon name={o.id} size={13} />
+                    {o.name}
+                  </span>
+                ))
+              }
+            </span>
+          </a>
+          <h1 class="hero__title">
+            <span class="hero__line">{t.meet}</span>
+            <span class="hero__line hero__line--word">
+              <span class="hero__blob" id="heroBlob" aria-hidden="true">
+                {wordBlobs.map((b, i) => <Blob name={b} size="100%" class={i === 0 ? "on" : ""} />)}
+              </span>
+              <span class="hero__word" id="word" data-words={JSON.stringify(t.words)}>{t.words[0]}</span>
+            </span>
+          </h1>
+          <p class="hero__sub"><b>{t.sub.strong}</b> {t.sub.rest}</p>
+          <div class="hero__actions">
+            <DownloadButton t={t.get} releases={releases} hero />
+            <button class="hero__term" type="button" aria-expanded="false" aria-controls="heroInstall">
+              <UiIcon name="terminal" />{t.get.terminal}
+            </button>
+          </div>
+          <div class="hero__install" id="heroInstall" hidden>
+            <div class="hero__tabs" role="group" aria-label={t.term.label}>
+              {
+                terms.map((term, i) => (
+                  <button type="button" data-term={term.id} aria-pressed={String(i === 0)}>
+                    {term.tab[0]}
+                  </button>
                 ))
               }
             </div>
-            <div class="dl__docs">
-              <Blob name="aqua" size={52} />
-              <h3>{t.download.term.docs.title}</h3>
-              <p>{t.download.term.docs.body}</p>
-              <a class="btn btn-light" href={href(`${pre}/devices/server/`)}>{t.download.term.docs.cta} →</a>
-              <p class="dl__guides">
-                {t.download.guides.map(([label, to]) => <a href={href(to ?? "/")}>{label} →</a>)}
-              </p>
-            </div>
+            {
+              terms.map((term, i) => (
+                <div class="hero__pane" data-pane={term.id} hidden={i !== 0}>
+                  <button class="cmd" type="button" data-copy={term.cmd} data-done={t.copied}>
+                    <span class="cmd__prompt" aria-hidden="true">{term.id === "win" ? ">" : "$"}</span>
+                    <code class="cmd__text">{term.cmd}</code>
+                    <span class="cmd__copy">{t.copy}</span>
+                  </button>
+                  <p class="hero__note">{term.tab[1]}</p>
+                </div>
+              ))
+            }
           </div>
-        </DownloadCards>
-        <div class="dl dl--rest">
-          <div class="dl__note card">
-            <h3>{t.download.unsigned.title}</h3>
-            <p>{t.download.unsigned.body}</p>
-            <dl>
+          <div class="status" id="status" data-lines={JSON.stringify(t.status)}>
+            <span class="status__blob" aria-hidden="true">
+              {statusBlobs.map((b, i) => <Blob name={b} size={24} class={i === 0 ? "on" : ""} />)}
+            </span>
+            <span class="status__text"><b id="statusWho">{t.status[0]?.[0]}</b><span id="statusWhat">{t.status[0]?.[1]}</span></span>
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="stage">
+        <div class="wrap stage__in">
+          <div class="stage__bubble stage__bubble--l" aria-hidden="true"><Blob name="coral" size={32} /><span class="stage__say">{t.bubbles[0]}</span></div>
+          <div class="stage__bubble stage__bubble--r" aria-hidden="true"><span class="stage__say">{t.bubbles[1]}</span><Blob name="cobalto" size={32} /></div>
+          <div class="stage__shot" data-reveal>
+            <Shot name="home-hero" alt={t.shotAlt} frame="none" eager />
+          </div>
+          <p class="stage__note">{t.stageNote}</p>
+        </div>
+      </section>
+
+      <section class="sec" id="what" aria-labelledby="what-title">
+        <div class="wrap">
+          <div class="sec-head" data-reveal>
+            <p class="sec-label"><Blob name="menta" size={22} /><span class="sec-label__n">01</span><span class="sec-label__dash"></span><span>{t.what.label}</span></p>
+            <h2 class="h2" id="what-title">{t.what.title}</h2>
+          </div>
+          <div class="bento" data-reveal>
+            <article class="tile">
+              <div class="tile__ui" aria-hidden="true">
+                <div class="mini mini--chat">
+                  <p class="mini__head"><UiIcon name="folder" size={12} />{t.what.crew.room}</p>
+                  <div class="mini__msg"><Blob name="coral" size={24} /><div><b>Lucía</b> <time>9:12</time><p>{t.what.crew.lucia}</p></div></div>
+                  <p class="mini__handoff"><Blob name="coral" size={14} />→<Blob name="cobalto" size={14} />{t.what.crew.handoff}</p>
+                  <div class="mini__msg"><Blob name="cobalto" size={24} /><div><b>Tomás</b> <time>9:26</time><p>{t.what.crew.tomas}</p></div></div>
+                  <div class="mini__msg"><Blob name="amatista" size={24} /><div><b>Vera</b> <time>9:31</time><p>{t.what.crew.vera}</p></div></div>
+                </div>
+              </div>
+              <div class="tile__text"><h3>{t.what.crew.title}</h3><p>{t.what.crew.body}</p></div>
+            </article>
+            <article class="tile">
+              <div class="tile__ui" aria-hidden="true">
+                <div class="mini mini--models">
+                  <div class="marquee">
+                    {[0, 1].map(() => marquee.map((m) => <span class="chip"><BrandMark brand={m.brand} size={16} />{m.name}</span>))}
+                  </div>
+                  <div class="marquee marquee--back">
+                    {[0, 1].map(() => t.what.models.more.map((m, i) => <span class="chip"><UiIcon name={moreIcons[i] ?? "link"} size={14} />{m}</span>))}
+                  </div>
+                  <p class="mini__live"><span class="live-dot"></span>{t.what.models.note}</p>
+                </div>
+              </div>
+              <div class="tile__text"><h3>{t.what.models.title}</h3><p>{t.what.models.body}</p></div>
+            </article>
+            <article class="tile">
+              <div class="tile__ui" aria-hidden="true">
+                <div class="mini mini--routine">
+                  <div class="routine">
+                    <p class="routine__top"><span class="mini__mono"><UiIcon name="refreshCw" size={12} />{t.what.routine.kind}</span><span class="badge-live">{t.what.routine.active}</span></p>
+                    <p class="routine__name">{t.what.routine.name}</p>
+                    <p class="routine__when"><UiIcon name="clock" size={12} />{t.what.routine.when}<span class="routine__who"><Blob name="menta" size={16} />Home</span></p>
+                  </div>
+                  <ul class="routine__log">
+                    {t.what.routine.log.map(([when, what], i) => <li class:list={{ hit: i === t.what.routine.log.length - 1 }}><span>{when}</span>{i === t.what.routine.log.length - 1 && <span class="live-dot"></span>}{what}</li>)}
+                  </ul>
+                </div>
+              </div>
+              <div class="tile__text"><h3>{t.what.routine.title}</h3><p>{t.what.routine.body}</p></div>
+            </article>
+            <article class="tile">
+              <div class="tile__ui" aria-hidden="true">
+                <div class="mini mini--tasks">
+                  <p class="mini__head"><UiIcon name="listChecks" size={12} />{t.what.tasks.head}</p>
+                  {
+                    t.what.tasks.items.map(([task, due], i) => (
+                      <p class:list={["task", { done: i === 0 }]}>
+                        <span class="task__box">{i === 0 && <UiIcon name="check" size={12} />}</span>
+                        <span class="task__name">{task}</span>
+                        <Blob name={taskAgents[i] ?? "menta"} size={16} />
+                        <span class="task__due">{due}</span>
+                      </p>
+                    ))
+                  }
+                </div>
+              </div>
+              <div class="tile__text"><h3>{t.what.tasks.title}</h3><p>{t.what.tasks.body}</p></div>
+            </article>
+            <article class="tile">
+              <div class="tile__ui" aria-hidden="true">
+                <div class="mini mini--browser">
+                  <div class="browser__tabs">{t.what.browser.tabs.map((tab, i) => <span class:list={{ on: i === 0 }}>{tab}</span>)}</div>
+                  <p class="browser__url"><UiIcon name="lock" size={12} />{t.what.browser.url}</p>
+                  <div class="browser__page">
+                    <i></i><i class="w70"></i><i class="w85"></i>
+                    <p class="browser__who"><Blob name="cobalto" size={20} /><span><b>Tomás</b> {t.what.browser.what}</span></p>
+                    <p class="browser__hand"><UiIcon name="triangleAlert" size={12} />{t.what.browser.hand}</p>
+                  </div>
+                </div>
+              </div>
+              <div class="tile__text"><h3>{t.what.browser.title}</h3><p>{t.what.browser.body}</p></div>
+            </article>
+            <article class="tile">
+              <div class="tile__ui" aria-hidden="true">
+                <div class="mini mini--local">
+                  <p class="mini__head"><UiIcon name="monitor" size={12} />{t.what.local.head}</p>
+                  {t.what.local.items.map((item, i) => <p class="local"><UiIcon name={localIcons[i] ?? "folder"} size={14} /><span>{item}</span><UiIcon name="check" size={14} class="local__ok" /></p>)}
+                </div>
+              </div>
+              <div class="tile__text"><h3>{t.what.local.title}</h3><p>{t.what.local.body}</p></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="sec" id="new" aria-labelledby="new-title">
+        <div class="wrap">
+          <div class="sec-head" data-reveal>
+            <p class="sec-label"><Blob name="cobalto" size={22} /><span class="sec-label__n">02</span><span class="sec-label__dash"></span><span>{t.newIn.label}</span></p>
+            <h2 class="h2" id="new-title">{t.newIn.title}</h2>
+            <p class="lead">{t.newIn.lead}</p>
+          </div>
+          <div class="feats" data-reveal>
+            <div class="feats__list">
               {
-                t.download.unsigned.items.map(([os, how, cmd]) => (
-                  <div>
-                    <dt>{os}</dt>
-                    <dd>
-                      {how}
-                      {cmd && <code class="dl__cmd">{cmd}</code>}
-                    </dd>
+                t.newIn.items.map((f, i) => (
+                  <div class:list={["feat", { on: i === 0 }]} data-feat={i}>
+                    <button class="feat__pick" type="button" aria-expanded={String(i === 0)} aria-controls={`feat-${i}`}>
+                      <Blob name={f.blob as BlobName} size={20} />
+                      <span class="feat__title">{f.title}</span>
+                    </button>
+                    <div class="feat__body" id={`feat-${i}`} hidden={i !== 0}>
+                      <p>{f.body}</p>
+                      <a href={href(f.href)}>{t.newIn.more} →</a>
+                    </div>
+                    <span class="feat__bar" aria-hidden="true"></span>
                   </div>
                 ))
               }
-            </dl>
+            </div>
+            <div class="feats__shot">
+              {
+                t.newIn.items.map((f, i) => (
+                  <div class:list={["feats__img", { on: i === 0, feats__phone: f.shot.startsWith("phone") }]} data-shot={i}>
+                    <Shot name={f.shot} alt={f.title} frame="none" />
+                  </div>
+                ))
+              }
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="sec">
-      <div class="wrap">
-        <p class="eyebrow">{t.steps.eyebrow}</p>
-        <h2 class="h2">{t.steps.title}</h2>
-        <div class="steps">
-          {
-            t.steps.items.map((s) => (
-              <a class="step card" href={href(s.href)}>
-                <span class="step__n">{s.n}</span>
-                <h3>{s.title}</h3>
-                <p>{s.body}</p>
-                <span class="more">{s.cta} →</span>
-              </a>
-            ))
-          }
+      <section class="sec pitch">
+        <div class="wrap" data-reveal>
+          <div class="pitch__crew" aria-hidden="true">{pitchBlobs.map((b) => <Blob name={b} size={28} />)}</div>
+          <h2 class="pitch__title">{t.pitch.title} <span>{t.pitch.rest}</span></h2>
+          <p class="pitch__body">{t.pitch.body}</p>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="sec" id="map">
-      <div class="wrap">
-        <p class="eyebrow">{t.map.eyebrow}</p>
-        <h2 class="h2">{t.map.title}</h2>
-        <p class="lead">{t.map.lead}</p>
-        <div class="bento">
-          {
-            t.sections.map((s, i) => (
-              <article class:list={["tile card", { wide: i === 0 || i === 5, full: i === t.sections.length - 1 }]}>
-                <Blob name={s.blob as "menta"} size={56} />
-                <h3>{s.title}</h3>
-                <p>{s.body}</p>
-                <ul>
-                  {s.links.map(([label, to]) => (
-                    <li>
-                      <a href={href(to ?? "/")}>{label}</a>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            ))
-          }
+      <section class="sec" id="start" aria-labelledby="start-title">
+        <div class="wrap">
+          <div class="sec-head" data-reveal>
+            <p class="sec-label"><Blob name="coral" size={22} /><span class="sec-label__n">03</span><span class="sec-label__dash"></span><span>{t.steps.label}</span></p>
+            <h2 class="h2" id="start-title">{t.steps.title}</h2>
+          </div>
+          <ol class="steps" data-reveal>
+            {
+              t.steps.items.map((s, i) => (
+                <li class="step">
+                  <p class="step__n"><span class="step__blob"><Blob name={stepBlobs[i] ?? "menta"} size={16} /></span><span>{s.n}</span></p>
+                  <h3>{s.title}</h3>
+                  <p>{s.body}</p>
+                  <a href={href(s.href)}>{s.cta} →</a>
+                </li>
+              ))
+            }
+          </ol>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="sec center">
-      <div class="wrap narrow">
-        <p class="eyebrow">{t.cli.eyebrow}</p>
-        <h2 class="h2">{t.cli.title}</h2>
-        <p class="lead">{t.cli.lead}</p>
-        <div class="term">
-          <Terminal command={lang === "es" ? 'apx chat "¿Qué tengo para hoy?"' : 'apx chat "What\'s on my plate today?"'}>
-            {lang === "es"
-              ? `# Home, en Acme Store
-Tenés tres cosas abiertas en Acme Store:
-• Lucía armó el plan del lanzamiento y espera tu ok.
-• Tomás tiene el arreglo del checkout en revisión.
-• Vera programó el newsletter para el viernes a las 9.
-✓ Nada vence hoy.`
-              : `# Home, in Acme Store
-You have three open things in Acme Store:
-• Lucía drafted the launch plan and is waiting for your OK.
-• Tomás has the checkout fix in review.
-• Vera scheduled the newsletter for Friday at 9.
-✓ Nothing is due today.`}
-          </Terminal>
+      <section class="sec" aria-labelledby="why-title">
+        <div class="wrap">
+          <div class="sec-head" data-reveal>
+            <p class="sec-label"><Blob name="amatista" size={22} /><span class="sec-label__n">04</span><span class="sec-label__dash"></span><span>{t.one.label}</span></p>
+            <h2 class="h2" id="why-title">{t.one.title}</h2>
+            <p class="lead">{t.one.lead}</p>
+          </div>
+          <div class="stats" data-reveal>
+            {t.one.stats.map(([n, what, was]) => <div class="stat"><p class="stat__n">{n}</p><p class="stat__what">{what}</p><p class="stat__was">{was}</p></div>)}
+          </div>
         </div>
-        <a class="btn btn-ghost" href={href(`${pre}/reference/cli/`)}>{lang === "es" ? "Todos los comandos" : "Every command"} →</a>
-      </div>
-    </section>
+      </section>
 
-    <HomeDiscovery lang={lang} />
-
-    <section class="final">
-      <div class="wrap center">
-        <div class="parade">{parade.map((b) => <Blob name={b} size={58} />)}</div>
-        <p class="parade__cap">{t.final.parade}</p>
-        <h2 class="final__title">{t.final.title}</h2>
-        <p class="final__tag">{t.final.tag}</p>
-        <p class="lead">{t.final.body}</p>
-        <div class="hero__actions">
-          <a class="btn btn-light" href={href(`${pre}/start/introduction/`)}>{t.getStarted} →</a>
-          <a class="btn btn-ghost" href="https://github.com/agentprojectcontext/apx">GitHub</a>
-          <a class="btn btn-discord" href={discord}><svg viewBox="0 0 24 24" aria-hidden="true" class="fill"><path d="M20.32 4.37A19.8 19.8 0 0 0 15.4 2.84a.07.07 0 0 0-.08.04c-.21.38-.45.87-.61 1.25a18.3 18.3 0 0 0-5.49 0 12.6 12.6 0 0 0-.62-1.25.08.08 0 0 0-.08-.04 19.7 19.7 0 0 0-4.92 1.53.07.07 0 0 0-.03.03C.53 9.05-.32 13.58.1 18.06a.08.08 0 0 0 .03.06 19.9 19.9 0 0 0 5.99 3.03.08.08 0 0 0 .08-.03c.46-.63.87-1.3 1.22-2a.08.08 0 0 0-.04-.1 13.1 13.1 0 0 1-1.87-.9.08.08 0 0 1 0-.13l.37-.29a.07.07 0 0 1 .08-.01c3.93 1.79 8.18 1.79 12.07 0a.07.07 0 0 1 .08.01l.37.29a.08.08 0 0 1 0 .13c-.6.35-1.22.65-1.87.9a.08.08 0 0 0-.04.1c.36.7.77 1.37 1.22 2a.08.08 0 0 0 .08.03 19.8 19.8 0 0 0 6-3.03.08.08 0 0 0 .03-.06c.5-5.18-.84-9.67-3.55-13.66a.06.06 0 0 0-.03-.03zM8.02 15.33c-1.18 0-2.16-1.08-2.16-2.42s.96-2.42 2.16-2.42c1.21 0 2.18 1.1 2.16 2.42 0 1.34-.96 2.42-2.16 2.42zm7.97 0c-1.18 0-2.15-1.08-2.15-2.42s.95-2.42 2.15-2.42c1.21 0 2.18 1.1 2.16 2.42 0 1.34-.95 2.42-2.16 2.42z" /></svg> {t.discord}</a>
+      <section class="sec home-questions" id="questions" aria-labelledby="questions-title">
+        <div class="wrap home-questions__layout" data-reveal>
+          <div class="home-questions__heading">
+            <h2 class="h2" id="questions-title">{t.faq.title}</h2>
+            <p class="lead">{t.faq.lead}</p>
+            <div class="home-questions__blob" aria-hidden="true"><Blob name="ovni" size={64} /></div>
+          </div>
+          <div class="home-questions__items">
+            {
+              t.faq.items.map(({ question, answer, path }) => (
+                <details>
+                  <summary>
+                    <span class="faq__q">{question}</span>
+                    <span class="faq__plus" aria-hidden="true"><UiIcon name="plus" size={14} /></span>
+                  </summary>
+                  <div class="home-questions__answer">
+                    <p>{answer}</p>
+                    <a href={href(`${pre}${path}`)}>{t.faq.read} ↗</a>
+                  </div>
+                </details>
+              ))
+            }
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      <section class="sec home-comparisons" id="compare" aria-labelledby="home-comparisons-title">
+        <div class="wrap">
+          <div class="home-comparisons__heading" data-reveal>
+            <div>
+              <h2 class="h2" id="home-comparisons-title">{t.compare.title}</h2>
+              <p class="lead">{t.compare.lead}</p>
+            </div>
+            <a class="home-comparisons__all" href={href(`${pre}/compare/`)}>{t.compare.all} ↗</a>
+          </div>
+          <div class="home-comparisons__grid" data-reveal>
+            {
+              comparisons.slice(0, 3).map((product, i) => (
+                <a class="home-comparisons__card" href={href(`${pre}/compare/${product.slug}/`)}>
+                  <span class="home-comparisons__visual" aria-hidden="true">
+                    <span class="pair-mark"><img src={logo.src} alt="" width="28" height="28" /></span>
+                    <span class="pair-line">
+                      <span class="pair-line__vs">vs</span>
+                      <span class="pair-line__blob" style={`animation-delay:${-i * 1.1}s`}><Blob name={travelBlobs[i] ?? "menta"} size={20} /></span>
+                    </span>
+                    <span class="pair-mark home-comparisons__logo"><img src={href(`/brands/${product.logo}`)} class:list={{ "mono-mark": product.mono }} alt="" width="28" height="28" loading="lazy" /></span>
+                  </span>
+                  <span class="home-comparisons__body">
+                    <span class="home-comparisons__name"><span class="home-comparisons__title">APX vs {product.name}</span><span class="home-comparisons__arrow" aria-hidden="true">↗</span></span>
+                    <span class="home-comparisons__tag">{product.tagline[lang]}</span>
+                  </span>
+                </a>
+              ))
+            }
+          </div>
+        </div>
+      </section>
+
+      <section class="sec" id="download" aria-labelledby="download-title">
+        <div class="wrap">
+          <div class="sec-head" data-reveal>
+            <p class="sec-label"><Blob name="aqua" size={22} /><span class="sec-label__n">06</span><span class="sec-label__dash"></span><span>{t.download.label}</span></p>
+            <h2 class="h2" id="download-title">{t.download.title}</h2>
+            <p class="lead">{t.download.lead}</p>
+          </div>
+          <div class="dlc" data-reveal>
+            {
+              cards.map((c) => (
+                <article class="dlc__card" style={`--tone: var(--apx-${c.tone})`}>
+                  <p class="dlc__top"><OsIcon name={c.id} size={30} /><span class="dlc__tag">{t.download.available}</span></p>
+                  <h3>{c.name}</h3>
+                  <p class="dlc__meta">{t.download.cards[c.id]}</p>
+                  <a class="dlc__main" href={releases} data-file={c.file}>{t.download.getFor} {c.name} <span aria-hidden="true">↓</span></a>
+                  {"alt" in c ? <a class="dlc__alt" href={releases} data-file={c.alt}>{t.download.alt[c.id as "mac" | "linux"]}</a> : <span class="dlc__alt" />}
+                  <span class="dlc__blob" aria-hidden="true"><Blob name={c.blob} size={64} /></span>
+                </article>
+              ))
+            }
+          </div>
+          <div class="cli" data-reveal>
+            <div class="cli__head">
+              <span class="cli__icon"><UiIcon name="terminal" size={18} /></span>
+              <div><h3>{t.download.term.title}</h3><p>{t.download.term.lead}</p></div>
+            </div>
+            <div class="cli__rows">
+              {
+                cliRows.map((row) => (
+                  <div class="cli__row">
+                    <span class="cli__label">{row.icon === "server" ? <UiIcon name="server" size={15} /> : <OsIcon name={row.icon} size={15} />}{row.label}</span>
+                    <code class="cli__cmd"><span aria-hidden="true">{row.icon === "windows" ? "> " : "$ "}</span>{row.cmd}</code>
+                    <button class="cli__copy" type="button" data-copy={row.cmd} data-done={t.copied}><UiIcon name="copy" size={12} /><span class="cmd__copy">{t.copy}</span></button>
+                  </div>
+                ))
+              }
+            </div>
+            <p class="cli__links">
+              <a href={href(`${pre}/devices/server/`)}>{t.download.term.guide} →</a>
+              <a href={releases}>{t.download.releases} ↗</a>
+            </p>
+            <details class="cli__unsigned">
+              <summary>{t.download.unsigned.title}</summary>
+              <p>{t.download.unsigned.body}</p>
+              <dl>
+                {
+                  t.download.unsigned.items.map(([os, how, cmd]) => (
+                    <div>
+                      <dt>{os}</dt>
+                      <dd>{how}{cmd && <code>{cmd}</code>}</dd>
+                    </div>
+                  ))
+                }
+              </dl>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="final">
+        <div class="wrap">
+          <div class="parade" aria-hidden="true">{parade.map((b) => <Blob name={b} size="var(--parade-size)" />)}</div>
+          <p class="parade__cap">{t.final.parade}</p>
+          <h2 class="final__title">{t.final.title}</h2>
+          <p class="final__tag">{t.final.tag}</p>
+          <p class="final__body">{t.final.body}</p>
+          <div class="final__actions">
+            <a class="btn btn-light" href="#download">{t.getApp}</a>
+            <a class="btn btn-discord" href={discord}><SocialIcon name="Discord" size={20} />{t.final.discord}</a>
+          </div>
+        </div>
+      </section>
+    </main>
 
     <WebFooter lang={lang} />
 
     <BlobEyes />
     <script>
+      import { fillLatest } from "../latest-release";
+      import { startReveal } from "../web/reveal";
+      import { type GlyphAgent, startGlyphs } from "./glyphs";
+
+      const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      startReveal();
+      const canvas = document.getElementById("glyphs") as HTMLCanvasElement | null;
+      if (canvas) startGlyphs(canvas, JSON.parse(canvas.dataset.agents ?? "[]") as GlyphAgent[]);
+      fillLatest(document.querySelectorAll<HTMLAnchorElement>(".dlc a[data-file]"));
+
       for (const b of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
         b.addEventListener("click", async () => {
-          await navigator.clipboard?.writeText(b.dataset.copy ?? "");
-          const label = b.querySelector(".copy");
+          try {
+            await navigator.clipboard?.writeText(b.dataset.copy ?? "");
+          } catch {}
+          const label = b.querySelector(".cmd__copy");
           if (!label) return;
           const was = label.textContent;
           label.textContent = b.dataset.done ?? "✓";
           setTimeout(() => {
             label.textContent = was;
-          }, 1400);
+          }, 1500);
         });
       }
 
-      // The terminal button unfolds the one-line install under the hero's actions.
+      // The terminal button unfolds the install lines under the hero's actions, one tab per place.
       const term = document.querySelector<HTMLButtonElement>(".hero__term");
+      const install = document.getElementById("heroInstall");
       term?.addEventListener("click", () => {
-        const install = document.getElementById("heroInstall");
         if (!install) return;
         install.hidden = !install.hidden;
         term.setAttribute("aria-expanded", String(!install.hidden));
       });
-
-      // The hero's install line follows the reader's system; the icons switch it.
-      const hero = document.getElementById("heroInstall");
-      const setOs = (os: "unix" | "win") => {
-        if (!hero) return;
-        const cmd = hero.dataset[os] ?? "";
-        const btn = hero.querySelector<HTMLButtonElement>("[data-copy]");
-        if (btn) btn.dataset.copy = cmd;
-        hero.querySelector(".cmd")!.textContent = cmd;
-        hero.querySelector(".dollar")!.textContent = os === "win" ? ">" : "$";
-        for (const b of hero.querySelectorAll<HTMLElement>("[data-os]")) b.setAttribute("aria-pressed", String(b.dataset.os === os));
-        const label = hero.querySelector<HTMLElement>(".os__for");
-        if (label) label.textContent = label.dataset[os] ?? "";
+      const pickTerm = (id: string) => {
+        for (const b of install?.querySelectorAll<HTMLElement>("[data-term]") ?? []) b.setAttribute("aria-pressed", String(b.dataset.term === id));
+        for (const p of install?.querySelectorAll<HTMLElement>("[data-pane]") ?? []) p.hidden = p.dataset.pane !== id;
       };
-      for (const b of hero?.querySelectorAll<HTMLElement>("[data-os]") ?? [])
-        b.addEventListener("click", () => setOs(b.dataset.os === "win" ? "win" : "unix"));
-      if (/win/i.test((navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ?? navigator.platform)) setOs("win");
+      for (const b of install?.querySelectorAll<HTMLElement>("[data-term]") ?? []) b.addEventListener("click", () => pickTerm(b.dataset.term ?? "unix"));
+      if (/win/i.test((navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ?? navigator.platform)) pickTerm("win");
 
-      // The hero's last word and its blobo change together.
-      const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      // The hero's last word and its blobo change together; the status line says who is doing what.
       const word = document.getElementById("word");
-      const blobs = [...document.querySelectorAll<HTMLElement>("#heroBlob .apx-blob")];
+      const wordBlobs = [...document.querySelectorAll<HTMLElement>("#heroBlob .apx-blob")];
       const words = JSON.parse(word?.dataset.words ?? "[]") as string[];
-      let i = 0;
+      let wi = 0;
       if (!still && word && words.length > 1)
         setInterval(() => {
-          i = (i + 1) % words.length;
+          wi = (wi + 1) % words.length;
           word.classList.remove("in");
           void word.offsetWidth;
-          word.textContent = words[i] ?? "";
+          word.textContent = words[wi] ?? "";
           word.classList.add("in");
-          blobs.forEach((b, j) => {
-            b.classList.toggle("on", j === i % blobs.length);
+          wordBlobs.forEach((b, j) => {
+            b.classList.toggle("on", j === wi % wordBlobs.length);
           });
         }, 2600);
-
-      // The status line under the hero: who is doing what.
       const status = document.getElementById("status");
       const lines = JSON.parse(status?.dataset.lines ?? "[]") as [string, string][];
       const who = document.getElementById("statusWho");
       const what = document.getElementById("statusWhat");
-      let s = 0;
-      if (!still && who && what && lines.length > 1)
+      const statusBlobs = [...document.querySelectorAll<HTMLElement>(".status__blob .apx-blob")];
+      let si = 0;
+      if (!still && status && who && what && lines.length > 1)
         setInterval(() => {
-          s = (s + 1) % lines.length;
-          status?.classList.remove("in");
-          void status?.offsetWidth;
-          who.textContent = lines[s]?.[0] ?? "";
-          what.textContent = lines[s]?.[1] ?? "";
-          status?.classList.add("in");
-        }, 3200);
+          si = (si + 1) % lines.length;
+          status.classList.remove("in");
+          void status.offsetWidth;
+          who.textContent = lines[si]?.[0] ?? "";
+          what.textContent = lines[si]?.[1] ?? "";
+          status.classList.add("in");
+          statusBlobs.forEach((b, j) => {
+            b.classList.toggle("on", j === si);
+          });
+        }, 3400);
 
-      // Sections rise in as they enter the screen.
-      const io = new IntersectionObserver(
-        (entries) => {
-          for (const e of entries)
-            if (e.isIntersecting) {
-              e.target.classList.add("seen");
-              io.unobserve(e.target);
-            }
-        },
-        { rootMargin: "0px 0px -10% 0px" },
-      );
-      for (const el of document.querySelectorAll(".sec .wrap > *, .final .wrap > *")) io.observe(el);
+      // What's new: one item open at a time, moving on every 7 s until the reader picks one.
+      const feats = [...document.querySelectorAll<HTMLElement>(".feat")];
+      const shots = [...document.querySelectorAll<HTMLElement>(".feats__img")];
+      let fi = 0;
+      let timer = 0;
+      const showFeat = (i: number) => {
+        fi = i;
+        feats.forEach((f, j) => {
+          const on = j === i;
+          f.classList.toggle("on", on);
+          f.querySelector(".feat__pick")?.setAttribute("aria-expanded", String(on));
+          const body = f.querySelector<HTMLElement>(".feat__body");
+          if (body) body.hidden = !on;
+          const bar = f.querySelector<HTMLElement>(".feat__bar");
+          if (bar && on) {
+            bar.style.animation = "none";
+            void bar.offsetWidth;
+            bar.style.animation = "";
+          }
+        });
+        shots.forEach((s, j) => {
+          s.classList.toggle("on", j === i);
+        });
+      };
+      const restart = () => {
+        clearInterval(timer);
+        if (!still) timer = window.setInterval(() => showFeat((fi + 1) % feats.length), 7000);
+      };
+      feats.forEach((f, i) => {
+        f.querySelector(".feat__pick")?.addEventListener("click", () => {
+          showFeat(i);
+          restart();
+        });
+      });
+      restart();
     </script>
     <AnalyticsConsent />
   </body>

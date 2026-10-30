@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { headerLink } from "../web-nav.ts";
 
 for (const lang of ["en", "es"]) {
   const pre = lang === "es" ? "/es" : "";
@@ -6,7 +7,7 @@ for (const lang of ["en", "es"]) {
     await page.goto(`${pre}/`);
     const header = await page.locator(".web-header").innerText();
     const footer = await page.locator(".web-footer").innerText();
-    await page.locator('.web-header a[href$="/compare/"]').click();
+    await (await headerLink(page, 'a[href$="/compare/"]')).click();
     await expect(page).toHaveURL(`${pre}/compare/`);
     expect(await page.locator(".web-header").innerText()).toBe(header);
     expect(await page.locator(".web-footer").innerText()).toBe(footer);

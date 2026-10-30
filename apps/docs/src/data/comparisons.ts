@@ -1,18 +1,18 @@
-import { chatgptDots } from "./compare/chatgpt-dots";
-import { claudeCowork } from "./compare/claude-cowork";
-import { devin } from "./compare/devin";
-import { grokBot } from "./compare/grok-bot";
-import { hermesAgent } from "./compare/hermes-agent";
-import { instinct } from "./compare/instinct";
-import { manus } from "./compare/manus";
-import { muse } from "./compare/muse";
-import { openbot } from "./compare/openbot";
-import { openclaw } from "./compare/openclaw";
-import { paperclip } from "./compare/paperclip";
-import { type Product, text } from "./compare/shared";
-import { viktor } from "./compare/viktor";
+import { chatgptDots } from "./compare/chatgpt-dots.ts";
+import { claudeCowork } from "./compare/claude-cowork.ts";
+import { devin } from "./compare/devin.ts";
+import { grokBot } from "./compare/grok-bot.ts";
+import { hermesAgent } from "./compare/hermes-agent.ts";
+import { instinct } from "./compare/instinct.ts";
+import { manus } from "./compare/manus.ts";
+import { muse } from "./compare/muse.ts";
+import { openbot } from "./compare/openbot.ts";
+import { openclaw } from "./compare/openclaw.ts";
+import { paperclip } from "./compare/paperclip.ts";
+import { type Copy, type Product, text } from "./compare/shared.ts";
+import { viktor } from "./compare/viktor.ts";
 
-export type { Lang, Source } from "./compare/shared";
+export type { Lang, Source } from "./compare/shared.ts";
 export const checked = "2026-10-30";
 export const sourceSnapshots = {
   "agentprojectcontext/apx": "61e82f790c1e4802a8f4e1764ae5ccc86487d3fe",
@@ -34,27 +34,28 @@ export const apxRowSources = [
   [apxDoc("concepts/models"), apxDoc("extend/mcp"), apxDoc("extend/skills")],
   [apxLicense, apxDoc("concepts/models")],
 ];
-export const apxSources: { title: string; url: string }[] = [
-  { title: "APX on GitHub", url: apxSource },
-  { title: "APX license", url: apxLicense },
-  { title: "APX agents", url: apxDoc("concepts/agents") },
-  { title: "APX tasks", url: apxDoc("office/tasks") },
-  { title: "APX desktop app", url: apxDoc("devices/desktop") },
-  { title: "APX on your phone", url: apxDoc("devices/phone") },
-  { title: "APX terminal", url: apxDoc("reference/cli") },
-  { title: "APX on a server", url: apxDoc("devices/server") },
-  { title: "APX privacy", url: apxDoc("reference/privacy") },
-  { title: "APX memory", url: apxDoc("concepts/memory") },
-  { title: "APX skills", url: apxDoc("extend/skills") },
-  { title: "APX routines", url: apxDoc("office/routines") },
-  { title: "APX channels", url: apxDoc("channels/overview") },
-  { title: "APX models", url: apxDoc("concepts/models") },
-  { title: "APX and MCP", url: apxDoc("extend/mcp") },
+export const apxSources: { title: Copy; url: string }[] = [
+  { title: text("APX on GitHub", "APX en GitHub"), url: apxSource },
+  { title: text("APX license", "Licencia de APX"), url: apxLicense },
+  { title: text("APX agents", "Agentes de APX"), url: apxDoc("concepts/agents") },
+  { title: text("APX tasks", "Tareas de APX"), url: apxDoc("office/tasks") },
+  { title: text("APX desktop app", "App de escritorio de APX"), url: apxDoc("devices/desktop") },
+  { title: text("APX on your phone", "APX en tu celular"), url: apxDoc("devices/phone") },
+  { title: text("APX terminal", "Terminal de APX"), url: apxDoc("reference/cli") },
+  { title: text("APX on a server", "APX en un servidor"), url: apxDoc("devices/server") },
+  { title: text("APX privacy", "Privacidad de APX"), url: apxDoc("reference/privacy") },
+  { title: text("APX memory", "Memoria de APX"), url: apxDoc("concepts/memory") },
+  { title: text("APX skills", "Skills de APX"), url: apxDoc("extend/skills") },
+  { title: text("APX routines", "Rutinas de APX"), url: apxDoc("office/routines") },
+  { title: text("APX channels", "Canales de APX"), url: apxDoc("channels/overview") },
+  { title: text("APX models", "Modelos de APX"), url: apxDoc("concepts/models") },
+  { title: text("APX and MCP", "APX y MCP"), url: apxDoc("extend/mcp") },
 ];
 export const apxChoice = text(
   "You want an ongoing crew for your projects, with distinct roles, a shared task board and work you can follow in one place.",
   "Querés un equipo estable para tus proyectos, con roles distintos, un tablero de tareas y trabajo que podés seguir en un solo lugar.",
 );
+export const apxShort = text("project crew", "crew por proyecto");
 export const apxRows = [
   text(
     "A team organized around projects, roles and tracked tasks.",
@@ -140,6 +141,25 @@ export const labels = {
     source: "Source",
     trademarks: "Product names and logos belong to their respective owners. No affiliation or endorsement is implied.",
     home: "Home",
+    eyebrow: "Comparison",
+    back: "All comparisons",
+    sourcesLink: "Sources",
+    models: "With the models you already use",
+    modelsShort: "Models",
+    modelsLead:
+      "APX doesn't tie you to one model. Use your plan, an API or a local model, and give each agent the one that suits it.",
+    here: "You're here",
+    reviewed: "Oct 30, 2026",
+    window: "Inbox / Home",
+    ask: "Should I use APX or",
+    askIndex: "How does APX compare?",
+    reply: "It depends on how you work. Here's the short version:",
+    replyIndex: "It depends on how you work. Pick one to see the details:",
+    checking: "Scout is checking the sources",
+    crew: "Meet your crew",
+    getApp: "Download APX v2",
+    tableHint: "Scroll the table to compare both products.",
+    progress: "Reading progress",
   },
   es: {
     comparisons: "Comparativas",
@@ -166,5 +186,69 @@ export const labels = {
     source: "Fuente",
     trademarks: "Los nombres y logos pertenecen a sus respectivos dueños. No implican afiliación ni respaldo.",
     home: "Inicio",
+    eyebrow: "Comparativa",
+    back: "Todas las comparativas",
+    sourcesLink: "Fuentes",
+    models: "Con los modelos que ya usás",
+    modelsShort: "Modelos",
+    modelsLead:
+      "APX no te ata a un modelo. Usá tu plan, una API o un modelo local, y dale a cada agente el que mejor le sirve.",
+    here: "Estás acá",
+    reviewed: "30 oct 2026",
+    window: "Bandeja / Home",
+    ask: "¿Me conviene APX o",
+    askIndex: "¿Cómo se compara APX?",
+    reply: "Depende de cómo trabajás. Te lo resumo:",
+    replyIndex: "Depende de cómo trabajás. Elegí una para ver los detalles:",
+    checking: "Scout está revisando las fuentes",
+    crew: "Conocé a tu crew",
+    getApp: "Bajar APX v2",
+    tableHint: "Desplazá la tabla para comparar ambos productos.",
+    progress: "Progreso de lectura",
   },
 };
+
+/** The ways to bring a model into APX, as concepts/models.mdx lists them. `mark` is a brand's own mark. */
+export const modelTiles: {
+  name: Copy;
+  about: Copy;
+  mark?: "openai" | "claude" | "gemini" | "codex" | "ollama";
+  icon?: "bot" | "link";
+}[] = [
+  { name: text("ChatGPT", "ChatGPT"), about: text("Your ChatGPT plan.", "Tu plan de ChatGPT."), mark: "openai" },
+  {
+    name: text("Claude", "Claude"),
+    about: text("Anthropic's API, with your key.", "La API de Anthropic, con tu clave."),
+    mark: "claude",
+  },
+  {
+    name: text("Gemini", "Gemini"),
+    about: text("Google's Gemini API.", "La API de Gemini de Google."),
+    mark: "gemini",
+  },
+  {
+    name: text("Claude Code", "Claude Code"),
+    about: text("Its sessions sit beside your chats.", "Sus sesiones quedan al lado de tus chats."),
+    mark: "claude",
+  },
+  {
+    name: text("Codex", "Codex"),
+    about: text("Its sessions sit beside your chats.", "Sus sesiones quedan al lado de tus chats."),
+    mark: "codex",
+  },
+  {
+    name: text("ACP agents", "Agentes ACP"),
+    about: text("OpenCode, Qwen Code, goose and more.", "OpenCode, Qwen Code, goose y más."),
+    icon: "bot",
+  },
+  {
+    name: text("OpenAI-compatible APIs", "APIs compatibles con OpenAI"),
+    about: text("Anything that speaks that API.", "Todo lo que hable esa API."),
+    icon: "link",
+  },
+  {
+    name: text("Local models", "Modelos locales"),
+    about: text("Ollama or LM Studio, with no key.", "Ollama o LM Studio, sin clave."),
+    mark: "ollama",
+  },
+];

@@ -1,4 +1,4 @@
-import { type Product, text } from "./shared";
+import { type Product, text } from "./shared.ts";
 
 export const chatgptDots: Product = {
   slug: "chatgpt-dots",
@@ -56,6 +56,7 @@ export const chatgptDots: Product = {
       "https://openai.com/index/introducing-dots/",
     ],
   ],
+  short: text("always-on agent", "agente siempre activo"),
   tagline: text(
     "A project crew or one always-on agent in ChatGPT?",
     "¿Un equipo por proyecto o un agente activo en ChatGPT?",

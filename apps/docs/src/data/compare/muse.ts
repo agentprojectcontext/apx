@@ -1,4 +1,4 @@
-import { type Product, text } from "./shared";
+import { type Product, text } from "./shared.ts";
 
 export const muse: Product = {
   slug: "muse",
@@ -56,6 +56,7 @@ export const muse: Product = {
     ],
     ["https://muse.ai/terms", "https://www.meta.com/help/subscriptions/1021145227643680/"],
   ],
+  short: text("Meta's personal agent", "agente personal de Meta"),
   tagline: text("A project crew or Meta's personal agent?", "¿Un equipo por proyecto o el agente personal de Meta?"),
   intro: text(
     "Muse is Meta's personal AI agent: it turns goals into plans and handles tasks like emails, bookings and shopping from a cloud machine Meta runs for each person. APX organizes a team of agents around your projects, on a computer or server you control.",

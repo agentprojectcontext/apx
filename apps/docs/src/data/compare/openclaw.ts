@@ -1,4 +1,4 @@
-import { type Product, text } from "./shared";
+import { type Product, text } from "./shared.ts";
 
 const openclawReadme = "https://github.com/openclaw/openclaw/blob/b277db00687aabbf245c0d9287139a30bb2a22df/README.md";
 
@@ -29,6 +29,7 @@ export const openclaw: Product = {
     [openclawReadme],
     ["https://github.com/openclaw/openclaw/blob/b277db00687aabbf245c0d9287139a30bb2a22df/LICENSE", openclawReadme],
   ],
+  short: text("personal assistant", "asistente personal"),
   tagline: text("Your project crew or your personal assistant?", "¿Tu equipo de proyectos o tu asistente personal?"),
   intro: text(
     "Both run on hardware you control and connect AI to everyday work. APX organizes that work into projects and a crew. OpenClaw presents a personal assistant across your devices and chats, with multi-agent routing available too.",

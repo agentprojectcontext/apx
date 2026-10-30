@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
+import { comparisons } from "../../../apps/docs/src/data/comparisons.ts";
 
 for (const lang of ["en", "es"] as const) {
   const pre = lang === "es" ? "/es" : "";
   test(`${lang}: home questions and comparison cards work in both themes`, async ({ page }, testInfo) => {
     await page.goto(`${pre}/`);
     await page
-      .locator(".web-header .nav__links")
+      .locator(".web-footer")
       .getByRole("link", { name: lang === "es" ? "Preguntas" : "Questions", exact: true })
       .click();
     await expect(page).toHaveURL(new RegExp(`${pre}/#questions$`));
@@ -24,13 +25,11 @@ for (const lang of ["en", "es"] as const) {
     await questions.locator("summary").first().click();
     const cards = page.locator(".home-comparisons__card");
     await expect(cards).toHaveCount(3);
-    await expect(cards.nth(2)).toContainText(
-      lang === "es"
-        ? "Compará dos formas de organizar equipos de agentes, espacios de trabajo y licencias."
-        : "Compare two approaches to agent teamwork, workspaces and licensing.",
-    );
     const destinations = ["hermes-agent", "openclaw", "openbot"];
     for (const [index, slug] of destinations.entries()) {
+      const product = comparisons.find((item) => item.slug === slug);
+      await expect(cards.nth(index)).toContainText(`APX vs ${product?.name}`);
+      await expect(cards.nth(index)).toContainText(product?.tagline[lang] ?? "\0");
       await expect(cards.nth(index)).toHaveAttribute("href", `${pre}/compare/${slug}/`);
       await cards.nth(index).scrollIntoViewIfNeeded();
       await expect
@@ -51,38 +50,39 @@ for (const lang of ["en", "es"] as const) {
         .locator(".home-comparisons")
         .screenshot({ path: testInfo.outputPath(`cards-${theme}.png`), style: ".web-header { visibility: hidden; }" });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      // Nothing wider than the screen may stretch the page either (a phone would zoom out to fit it).
+      expect(await page.evaluate(() => innerWidth)).toBe(page.viewportSize()?.width);
     }
     await cards.first().click();
     await expect(page).toHaveURL(`${pre}/compare/hermes-agent/`);
     await page
-      .locator(".web-header .nav__links")
+      .locator(".web-footer")
       .getByRole("link", { name: lang === "es" ? "Preguntas" : "Questions", exact: true })
       .click();
     await expect(page.locator("#questions")).toBeInViewport();
   });
 
-  test(`${lang}: final crew invitation follows comparisons immediately before the footer`, async ({
-    page,
-  }, testInfo) => {
+  test(`${lang}: final crew invitation follows downloads immediately before the footer`, async ({ page }, testInfo) => {
     await page.goto(`${pre}/`);
     const final = page.locator(".final");
-    await expect(page.locator(".home-comparisons + .final + .web-footer")).toHaveCount(1);
+    // Questions, comparisons and downloads come before it; it closes the page, right above the footer.
+    await expect(page.locator("#questions + #compare + #download + .final:last-child")).toHaveCount(1);
+    await expect(page.locator("main:has(> .final:last-child) + .web-footer")).toHaveCount(1);
     await expect(final.getByRole("heading", { level: 2 })).toHaveText(
       lang === "es" ? "Tu crew te está esperando." : "Your crew is waiting.",
     );
-    await expect(final.locator(".hero__actions a")).toHaveCount(3);
-    await expect(final.locator(".btn-light")).toHaveAttribute("href", `${pre}/docs/start/introduction/`);
-    await expect(final.getByRole("link", { name: "GitHub", exact: true })).toHaveAttribute(
-      "href",
-      "https://github.com/agentprojectcontext/apx",
-    );
+    await expect(final.locator(".parade .apx-blob")).toHaveCount(35);
+    await expect(final.locator(".final__actions a")).toHaveCount(2);
+    await expect(final.locator(".btn-light")).toHaveAttribute("href", "#download");
+    await expect(final.locator(".btn-light")).toHaveText(lang === "es" ? "Bajar la app" : "Download the app");
     await expect(final.locator(".btn-discord")).toHaveAttribute("href", "https://discord.gg/vxdZuT5WuE");
+    await expect(final.locator(".btn-discord svg")).toBeVisible();
     await final.scrollIntoViewIfNeeded();
     await expect(final.locator(".final__title")).toBeVisible();
     await final.screenshot({ path: testInfo.outputPath("final-crew.png") });
     await final.locator(".btn-light").click();
-    await expect(page).toHaveURL(`${pre}/docs/start/introduction/`);
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page).toHaveURL(`${pre}/#download`);
+    await expect(page.locator("#download h2")).toBeInViewport();
   });
 
   test(`${lang}: questions work without JavaScript`, async ({ browser }) => {

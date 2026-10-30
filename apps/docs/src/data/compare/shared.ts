@@ -15,6 +15,8 @@ export type Product = {
   license: string;
   sources: Source[];
   rowSources: string[][];
+  /** A few words for the product's way of working, beside its name. */
+  short: Copy;
   tagline: Copy;
   intro: Copy;
   choice: Copy;

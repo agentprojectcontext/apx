@@ -1,4 +1,4 @@
-import { type Product, text } from "./shared";
+import { type Product, text } from "./shared.ts";
 
 export const paperclip: Product = {
   slug: "paperclip",
@@ -39,6 +39,7 @@ export const paperclip: Product = {
     ],
     ["https://github.com/paperclipai/paperclip/blob/master/LICENSE", "https://github.com/paperclipai/paperclip"],
   ],
+  short: text("agent company", "empresa de agentes"),
   tagline: text("A project crew or an agent company?", "¿Un equipo por proyecto o una empresa de agentes?"),
   intro: text(
     "Both are open source, self-hosted and can run Claude Code, Codex and other agents on tracked tasks. APX organizes a crew around your projects; Paperclip models an AI company with an org chart, goals, budgets and approvals.",

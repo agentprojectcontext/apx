@@ -1,4 +1,4 @@
-import { type Product, text } from "./shared";
+import { type Product, text } from "./shared.ts";
 
 export const manus: Product = {
   slug: "manus",
@@ -54,6 +54,7 @@ export const manus: Product = {
       "https://manus.im/team",
     ],
   ],
+  short: text("general agent in the cloud", "agente general en la nube"),
   tagline: text(
     "A project crew or a general agent in the cloud?",
     "¿Un equipo por proyecto o un agente general en la nube?",

@@ -1,4 +1,4 @@
-import { type Product, text } from "./shared";
+import { type Product, text } from "./shared.ts";
 
 export const instinct: Product = {
   slug: "instinct",
@@ -27,6 +27,7 @@ export const instinct: Product = {
     ["https://instinct.com/terms", "https://instinct.com/privacy-policy"],
     ["https://instinct.com/terms"],
   ],
+  short: text("assistant you text", "asistente por mensaje"),
   tagline: text(
     "A project crew or an assistant you text?",
     "¿Un equipo por proyecto o un asistente al que le escribís?",

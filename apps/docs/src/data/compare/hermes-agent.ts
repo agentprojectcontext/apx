@@ -1,4 +1,4 @@
-import { type Product, text } from "./shared";
+import { type Product, text } from "./shared.ts";
 
 const hermesReadme =
   "https://github.com/NousResearch/hermes-agent/blob/5057eaa3a4d0cbef0e30078418a5115faa62889e/README.md";
@@ -31,6 +31,7 @@ export const hermesAgent: Product = {
       hermesReadme,
     ],
   ],
+  short: text("self-improving assistant", "asistente que aprende"),
   tagline: text("A project crew or a self-improving assistant?", "¿Un equipo por proyecto o un asistente que aprende?"),
   intro: text(
     "Both support memory, skills, delegation and scheduled work. The useful distinction is how you want to organize your day: a visible project crew in APX, or Hermes’ assistant and skill-learning workflow.",
