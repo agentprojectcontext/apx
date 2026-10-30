@@ -256,3 +256,31 @@ test("a late delegation result returns on its caller's channel after the owner w
   });
   assert.ok(!f.tg.messagesTo(OWNER.id).some((m) => m.body.text === "App answer" || m.body.text === "Report ready"));
 });
+
+test("the owner's own chat of a channel answers on that channel; written in the app, it stays in the app", async (t) => {
+  const llm = scriptedLlm(() => say("Own chat answer"));
+  const f = await setup(t, llm);
+  await f.env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "roby", concurrency: "queue", owner_thread: "own" },
+    token: TOKEN,
+  });
+
+  f.tg.message(OWNER, "hello from my phone");
+  await waitFor(
+    () => f.tg.messagesTo(OWNER.id).some((m) => String(m.body.text).includes("Own chat answer")),
+    "answer on the channel",
+    { ms: 6000 },
+  );
+  const own = f.env.core.store.threads.byConversation("tg", String(OWNER.id));
+  assert.equal(own?.kind, "channel");
+  assert.equal(f.env.core.store.threads.get("home")?.kind, "home");
+  assert.equal(f.env.core.store.runs.list("home").length, 0, "the owner's words did not go to Home");
+
+  const delivered = f.tg.messagesTo(OWNER.id).length;
+  await f.env.client.call("threads.send", { thread: own?.id ?? "", text: "from the app" });
+  await waitFor(() => f.env.core.store.runs.list(own?.id ?? "").length > 1, "app turn", { ms: 6000 });
+  await f.env.settle(own?.id ?? "");
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(f.tg.messagesTo(OWNER.id).length, delivered, "written in the app, the answer stays in the app");
+});

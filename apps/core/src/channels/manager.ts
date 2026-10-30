@@ -333,12 +333,15 @@ export function createChannels(deps: {
   };
 
   /**
-   * Whose answers go out on a channel: a contact's chat, and among the owner's chats only Home, the super-agent's. Other
-   * chats reach the owner's phone only with what needs them (a question, an OK), never their whole conversation.
+   * Whose answers go out on a channel: a contact's chat, and among the owner's chats Home, the super-agent's, and the
+   * owner's own chat of that channel (`owner_thread: "own"`, DECISIONS.md#d-158). Other chats reach the owner's phone
+   * only with what needs them (a question, an OK), never their whole conversation.
    */
   function speaksOnChannel(threadId: string): boolean {
     const thread = store.threads.get(threadId);
-    return Boolean(thread && (audienceOf(store, thread).kind !== "owner" || thread.kind === "home"));
+    if (!thread) return false;
+    const ownChannelChat = thread.kind === "channel" && Boolean(thread.channel?.person_id);
+    return audienceOf(store, thread).kind !== "owner" || thread.kind === "home" || ownChannelChat;
   }
 
   /**

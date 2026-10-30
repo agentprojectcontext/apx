@@ -2515,3 +2515,13 @@ acting on anything those parts may cover. What D-110 fixed still holds: nothing 
 it did not get and how to read it. A project that wants a rule in every call puts it near the top. The 200,000 safety
 limit, its marker and the owner's notice are unchanged; `.apc/memory.md` still reaches the agents whole. The owner
 sees what a call carried in the chat (runs.context).
+
+<a id="d-158"></a>
+## D-158 — 2026-10-30 — The owner's own chat of a channel answers on that channel
+Refines [D-129](#d-129). With `owner_thread: "own"` the owner's messages on a channel go to a chat of that channel's own
+(`ownerThread`, D-113), but `speaksOnChannel` let only Home and contacts' chats answer there, so the agent worked and
+its answer stayed in the app: the owner wrote on their phone and heard nothing back. That chat exists because the owner
+chose to talk there, so it is not one of the "other chats" D-129 keeps off the phone: a thread of kind `channel` with a
+person behind it (the owner's) now speaks on its channel. Rooms, contacts' chats and every project or agent chat
+behave as before, and a message written in the app still gets its answer in the app (its run carries no channel route).
+Rejected: a per-channel switch for this; the chat is already the choice.
