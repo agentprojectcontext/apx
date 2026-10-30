@@ -1,40 +1,37 @@
-/* The hero's terminal install, folded under the download button until the reader asks for it. */
-.hero__term {
-  margin-top: 18px;
-}
-.hero__term summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  color: var(--muted);
-  font: 500 13px / 1 var(--sans);
-  cursor: pointer;
-  list-style: none;
-  transition:
-    color 0.15s,
-    border-color 0.15s;
-}
-.hero__term summary::-webkit-details-marker {
-  display: none;
-}
-.hero__term summary:hover,
-.hero__term[open] summary {
-  color: var(--fg);
-  border-color: var(--line-2);
-}
-.hero__term summary svg {
-  width: 15px;
-  height: 15px;
+/* The hero's terminal install, unfolded by its button beside the download, and the small way into the docs. */
+.hero__term svg {
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.hero__term .hero__install {
-  margin-top: 18px;
+.hero__term[aria-expanded="true"] {
+  background: var(--ghost-2);
+}
+.hero__install[hidden] {
+  display: none;
+}
+.hero__install {
+  margin-top: 22px;
+}
+.hero__start {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  height: 34px;
+  margin: 18px auto 0;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font: 500 13px / 1 var(--sans);
+  text-decoration: none;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+.hero__start:hover {
+  color: var(--fg);
+  border-color: var(--line-2);
 }
