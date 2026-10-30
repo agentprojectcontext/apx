@@ -40,7 +40,8 @@ const text = spanish
   .cookie-panel { position: fixed; z-index: 1000; bottom: 1rem; left: 1rem; width: min(32rem, calc(100vw - 2rem)); padding: 1.25rem; border-radius: 1rem; box-sizing: border-box; }
   h2 { font-size: 1.125rem; line-height: 1.4; margin: 0 0 .5rem; color: inherit; }
   p { margin: 0; font-size: .9375rem; line-height: 1.6; }
-  a { color: #b4f1d4; text-decoration: underline; }
+  .cookie-panel a { color: #b4f1d4; text-decoration: underline; text-underline-offset: .15em; }
+  .cookie-panel a:hover, .cookie-panel a:focus-visible { color: #fff; text-decoration: underline; }
   .cookie-actions { display: flex; gap: .75rem; margin-top: 1rem; }
   button { cursor: pointer; font: inherit; font-size: .875rem; }
   .cookie-actions button { flex: 1; border: 1px solid #96b1a2; background: #263b31; color: #fff; border-radius: .5rem; min-height: 44px; padding: .5rem 1rem; }
