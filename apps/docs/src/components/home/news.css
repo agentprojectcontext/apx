@@ -151,6 +151,12 @@
   font-weight: 500;
 }
 
+/* On narrow three-column widths the color card is too slim for four bloboes. */
+@media (max-width: 1180px) and (min-width: 1001px) {
+  .news__pitch-crew .apx-blob:last-child {
+    display: none;
+  }
+}
 @media (max-width: 1000px) {
   .news {
     grid-template-columns: repeat(2, 1fr);
