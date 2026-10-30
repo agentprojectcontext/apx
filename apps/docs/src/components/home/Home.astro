@@ -26,6 +26,7 @@ const pre = lang === "es" ? "/es" : "";
 const site = "https://apxagent.app";
 const install = `curl -fsSL ${site}/install.sh | bash`;
 const installWin = `irm ${site}/install.ps1 | iex`;
+const installServer = `curl -fsSL ${site}/install.sh | bash -s -- --server`;
 const releases = "https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true";
 const heroBlobs = ["menta", "orbita", "cobalto", "brasa", "amatista"] as const;
 const parade = [
@@ -246,17 +247,33 @@ const discord = "https://discord.gg/vxdZuT5WuE";
         <DownloadCards t={t.download} releases={releases} />
         <div class="dl dl--rest">
           <div class="dl__cli card">
-            <h3>{t.download.server}</h3>
-            <button class="install install--block" type="button" data-copy={install} data-done={t.copied}>
-              <span class="dollar">$</span><span class="cmd">{install}</span><span class="copy">{t.copy}</span>
-            </button>
-            <h3>{t.download.windows}</h3>
-            <button class="install install--block" type="button" data-copy={installWin} data-done={t.copied}>
-              <span class="dollar">&gt;</span><span class="cmd">{installWin}</span><span class="copy">{t.copy}</span>
-            </button>
-            <p class="dl__guides">
-              {t.download.guides.map(([label, to]) => <a href={href(to ?? "/")}>{label} →</a>)}
-            </p>
+            <div class="dl__cmds">
+              <h3>{t.download.term.title}</h3>
+              <p class="dl__lead">{t.download.term.lead}</p>
+              {
+                [
+                  [t.download.term.server, installServer, "$"],
+                  [t.download.term.here, install, "$"],
+                  [t.download.term.windows, installWin, ">"],
+                ].map(([label, cmd, prompt]) => (
+                  <>
+                    <p class="dl__label">{label}</p>
+                    <button class="install install--block" type="button" data-copy={cmd} data-done={t.copied}>
+                      <span class="dollar">{prompt}</span><span class="cmd">{cmd}</span><span class="copy">{t.copy}</span>
+                    </button>
+                  </>
+                ))
+              }
+            </div>
+            <div class="dl__docs">
+              <Blob name="aqua" size={52} />
+              <h3>{t.download.term.docs.title}</h3>
+              <p>{t.download.term.docs.body}</p>
+              <a class="btn btn-light" href={href(`${pre}/devices/server/`)}>{t.download.term.docs.cta} →</a>
+              <p class="dl__guides">
+                {t.download.guides.map(([label, to]) => <a href={href(to ?? "/")}>{label} →</a>)}
+              </p>
+            </div>
           </div>
           <div class="dl__note card">
             <h3>{t.download.unsigned.title}</h3>

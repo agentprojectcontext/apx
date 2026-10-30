@@ -65,8 +65,18 @@ const en = {
     },
     alt: { mac: "Intel", linux: "ARM" },
     releases: "Every v2 download",
-    server: "Linux and macOS servers",
-    windows: "Windows, in PowerShell",
+    term: {
+      title: "From a terminal",
+      lead: "No desktop needed. Copy the line for where you are; it installs the core and the apx command.",
+      server: "On a server or a VPS (keeps running as a service)",
+      here: "On this computer, macOS or Linux",
+      windows: "On Windows, in PowerShell",
+      docs: {
+        title: "Setting up a server?",
+        body: "The server guide shows how to keep it running, reach it over Tailscale or your network, and pair the app and your phone with it.",
+        cta: "Read the server guide",
+      },
+    },
     unsigned: {
       title: "The apps are not signed yet",
       body: "Your system warns you the first time. That is expected; here is how to go on.",
@@ -354,8 +364,18 @@ const es: HomeText = {
     },
     alt: { mac: "Intel", linux: "ARM" },
     releases: "Todas las descargas de v2",
-    server: "Servidores Linux y macOS",
-    windows: "Windows, en PowerShell",
+    term: {
+      title: "Desde una terminal",
+      lead: "Sin escritorio. Copiá la línea de donde estés: instala el core y el comando apx.",
+      server: "En un servidor o un VPS (queda corriendo como servicio)",
+      here: "En esta compu, macOS o Linux",
+      windows: "En Windows, en PowerShell",
+      docs: {
+        title: "¿Vas a armar un servidor?",
+        body: "La guía de servidor muestra cómo dejarlo corriendo, llegar a él por Tailscale o tu red, y vincular la app y tu celular.",
+        cta: "Ver la guía de servidor",
+      },
+    },
     unsigned: {
       title: "Las apps todavía no están firmadas",
       body: "Tu sistema te avisa la primera vez. Es lo esperado; así seguís.",

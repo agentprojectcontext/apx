@@ -93,6 +93,49 @@
 .dl--rest {
   margin-top: 28px;
 }
+/* The terminal card: the lines to copy on the left, the way to the server guide on the right. */
+.dl .dl__cli {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 36px;
+}
+.dl__cmds,
+.dl__docs {
+  min-width: 0;
+}
+.dl__lead {
+  margin: -6px 0 18px;
+  color: var(--muted);
+  font-size: 15px;
+}
+.dl__label {
+  margin: 16px 0 8px;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.dl__docs {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 26px;
+  border-radius: 18px;
+  background: var(--ghost);
+  border: 1px solid var(--line);
+}
+.dl__docs h3 {
+  margin-top: 14px;
+}
+.dl__docs > p {
+  margin: -4px 0 22px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.dl__docs .dl__guides {
+  margin-top: auto;
+  padding-top: 22px;
+}
 
 /* The top bar's download: a stroke arrow, and it stays on phones where the other links hide. */
 .nav__get svg {
@@ -115,6 +158,9 @@
 @media (max-width: 1000px) {
   .dlc {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .dl .dl__cli {
+    grid-template-columns: 1fr;
   }
 }
 @media (max-width: 560px) {
