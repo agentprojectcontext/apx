@@ -1,4 +1,4 @@
-/* The hero's top line: which systems APX runs on, each one a mark and a name. */
+/* Which systems APX runs on, each one a mark and a name: the hero's top line and the download cards. */
 .pill--os {
   gap: 10px;
   padding: 5px 14px 5px 5px;
@@ -35,4 +35,9 @@
   .pill__os + .pill__os::before {
     content: none;
   }
+}
+.dl__os b {
+  display: flex;
+  align-items: center;
+  gap: 9px;
 }

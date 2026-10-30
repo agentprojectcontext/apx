@@ -248,7 +248,10 @@ const discord = "https://discord.gg/vxdZuT5WuE";
                 t.download.os.map((o) => (
                   <li>
                     <a href={releases}>
-                      <b>{o.name}</b>
+                      <b>
+                        <OsIcon name={o.icon} />
+                        {o.name}
+                      </b>
                       <code>{o.file}</code>
                       <span>{o.note}</span>
                     </a>
