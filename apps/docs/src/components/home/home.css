@@ -932,13 +932,6 @@ a.card:hover,
   letter-spacing: -0.02em;
   font-weight: 600;
 }
-.dl__cli h3 + .install,
-.dl__cli .install + h3 {
-  margin-top: 0;
-}
-.dl__cli .install + h3 {
-  margin-top: 22px;
-}
 .install--block {
   display: flex;
   width: 100%;
