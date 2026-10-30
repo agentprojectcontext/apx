@@ -2,6 +2,7 @@
 // The docs' front page, in the site's look: a hero with a blobo, the real panel, the way in, and the crew.
 import logo from "../../assets/logo.png";
 import { HOME, type Lang } from "../../i18n/home";
+import AnalyticsConsent from "../AnalyticsConsent.astro";
 import Blob from "../Blob.astro";
 import BlobEyes from "../BlobEyes.astro";
 import OsIcon from "../OsIcon.astro";
@@ -512,5 +513,6 @@ You have three open things in Acme Store:
       );
       for (const el of document.querySelectorAll(".sec .wrap > *, .final .wrap > *")) io.observe(el);
     </script>
+    <AnalyticsConsent />
   </body>
 </html>

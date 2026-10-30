@@ -21,6 +21,16 @@ It is published at `https://apxagent.app/` (the repository's Pages custom domain
 so `<site>/install.sh` is the stable install URL; the older `/v2/install.sh` stays served beside it. `<base>docs/`
 redirects to the first page.
 
+## Website analytics
+
+`AnalyticsConsent.astro` is shared by Home and the Starlight footer. Other full-document layouts must include it once. Its script loads GA4 only after explicit acceptance; no consent-mode pings are sent before that. It stores the choice locally, strips queries/fragments and referrers from page views, and disables advertising signals. Declining after acceptance clears analytics cookies and reloads to unload Google. Storage failures default to asking again.
+
+Before deployment, disable **Enhanced measurement** for the website's GA4 stream in Analytics administration: automatic form, search and link measurement is not part of this integration. Keep the website property separate from application telemetry/Firebase. Never add administration credentials to the site. Website privacy is documented in `reference/website-privacy.mdx` and its Spanish counterpart.
+
+`pnpm check` includes consent behavior tests. Runtime checks must cover Home and docs in both languages, no Google requests before acceptance or after decline, one tag after acceptance, persistence, revocation, keyboard access and mobile layout. A successful analytics network request does not prove ingestion; confirm reception separately in Analytics.
+
+With the repository's root development dependencies installed and the built site preview running, run `node apps/docs/scripts/analytics.browser.mjs` from the repository root. `DOCS_TEST_URL` overrides the default preview address (`http://127.0.0.1:4321`), and `DOCS_TEST_OUTPUT` saves desktop/phone screenshots. This harness intercepts Google requests: it proves browser consent behavior, not Google ingestion or remote tag behavior.
+
 ## Writing a page
 
 - Every page exists twice, with the **same path**: `src/content/docs/<section>/<slug>.mdx` and
