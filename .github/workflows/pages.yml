@@ -1,10 +1,10 @@
-# The GitHub Pages site, once main holds v2 (RELEASE.md#where-v2-lives):
-#   /apx/      → v2's home and docs (apps/docs on main), with install.sh and install.ps1 beside them
-#   /apx/v1/   → v1's docs (docs/ on the v1 branch), marked as no longer maintained
-#   /apx/v2/   → where v2 lived before it was the release: install.sh and install.ps1 stay (installed apps and older
-#                docs give that address), and every other /apx/v2/… page lands on the same page at /apx/…
-# Old addresses (v1's /apx/docs/…, v2's /apx/v2/…) are sent on by the site's 404 page, the only redirect GitHub Pages
-# serves for a missing path.
+# The GitHub Pages site at apxagent.app, the repository's custom domain (RELEASE.md#where-v2-lives):
+#   /      → v2's home and docs (apps/docs on main), with install.sh and install.ps1 beside them
+#   /v1/   → v1's docs (docs/ on the v1 branch), marked as no longer maintained
+#   /v2/   → where v2 lived before it was the release: install.sh and install.ps1 stay (installed apps and older
+#            docs give that address), and every other /v2/… page lands on the same page at /…
+# GitHub sends agentprojectcontext.github.io/apx/… on to apxagent.app/… itself. Old addresses (v1's /docs/…, v2's
+# /v2/…) are sent on by the site's 404 page, the only redirect GitHub Pages serves for a missing path.
 name: pages
 
 on:
@@ -53,7 +53,7 @@ jobs:
       - name: Build v1 docs
         working-directory: v1/docs
         env:
-          DOCS_BASE: /apx/v1
+          DOCS_BASE: /v1
         run: |
           pnpm install --frozen-lockfile --ignore-workspace
           pnpm build
@@ -64,7 +64,8 @@ jobs:
       - name: Build v2 site
         working-directory: v2/apps/docs
         env:
-          DOCS_BASE: /apx
+          DOCS_BASE: /
+          DOCS_SITE: https://apxagent.app
         run: |
           PNPM="$(node -p "require('./package.json').packageManager")"
           npx --yes "$PNPM" install --frozen-lockfile
@@ -85,18 +86,19 @@ jobs:
           <!doctype html>
           <meta charset="utf-8">
           <title>APX</title>
-          <meta http-equiv="refresh" content="0; url=/apx/">
-          <link rel="canonical" href="https://agentprojectcontext.github.io/apx/">
-          <a href="/apx/">APX</a>
+          <meta http-equiv="refresh" content="0; url=/">
+          <link rel="canonical" href="https://apxagent.app/">
+          <a href="/">APX</a>
           HTML
-          # The 404 page sends old addresses on first: v1's /apx/docs/… to /apx/v1/…, v2's /apx/v2/… to /apx/….
+          # The 404 page sends old addresses on first: /apx/… (links in v1's pages) to /…, v1's /docs/… to /v1/…, v2's
+          # /v2/… to /….
           node -e '
             const fs = require("node:fs");
             const page = fs.readFileSync("_site/404.html", "utf8");
-            const hop = `<script>{const p=location.pathname,r=location.search+location.hash;if(p.startsWith("/apx/docs/"))location.replace("/apx/v1/"+p.slice(10)+r);else if(p.startsWith("/apx/v2/"))location.replace("/apx/"+p.slice(8)+r)}</script>`;
+            const hop = `<script>{const p=location.pathname,r=location.search+location.hash;if(p.startsWith("/apx/"))location.replace(p.slice(4)+r);else if(p.startsWith("/docs/"))location.replace("/v1/"+p.slice(6)+r);else if(p.startsWith("/v2/"))location.replace("/"+p.slice(4)+r)}</script>`;
             fs.writeFileSync("_site/404.html", page.replace("<head>", "<head>" + hop));
           '
-          grep -q '/apx/v1/' _site/404.html
+          grep -q '"/v1/"' _site/404.html
           test -f _site/v2/install.sh && test -f _site/v2/install.ps1
 
       - uses: actions/configure-pages@v6
