@@ -7,7 +7,9 @@ import BlobEyes from "../BlobEyes.astro";
 import OsIcon from "../OsIcon.astro";
 import Shot from "../Shot.astro";
 import Terminal from "../Terminal.astro";
+import DownloadButton from "./DownloadButton.astro";
 import "./home.css";
+import "./hero-term.css";
 
 interface Props {
   lang: Lang;
@@ -129,27 +131,32 @@ const discord = "https://discord.gg/vxdZuT5WuE";
           <span class="row"><span class="word" id="word" data-words={JSON.stringify(t.words)}>{t.words[0]}</span></span>
         </h1>
         <p class="hero__sub"><b>{t.sub.strong}</b> {t.sub.rest}</p>
-        <div class="hero__actions hero__install" id="heroInstall" data-unix={install} data-win={installWin}>
-          <button class="install" type="button" data-copy={install} data-done={t.copied}>
-            <span class="dollar">$</span><span class="cmd">{install}</span><span class="copy">{t.copy}</span>
-          </button>
-          <div class="os" role="group" aria-label={t.os.label}>
-            <button type="button" data-os="unix" aria-pressed="true" title={t.os.unix}>
-              <OsIcon name="mac" /><OsIcon name="linux" />
-            </button>
-            <button type="button" data-os="win" aria-pressed="false" title={t.os.win}>
-              <OsIcon name="windows" />
-            </button>
-            <span class="os__for" data-unix={t.os.unix} data-win={t.os.win}>{t.os.unix}</span>
-          </div>
-          <p class="hero__where">
-            {t.os.where} <a href={href(`${pre}/devices/server/`)}>{t.os.whereLink} →</a>
-          </p>
-        </div>
         <div class="hero__actions">
-          <a class="btn btn-accent" href="#download">{t.os.download}</a>
+          <DownloadButton t={t.get} releases={releases} />
           <a class="btn btn-ghost" href={href(`${pre}/start/introduction/`)}>{t.getStarted} →</a>
         </div>
+        <details class="hero__term">
+          <summary>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l6 6-6 6M12 19h8" /></svg>{t.get.terminal}
+          </summary>
+          <div class="hero__actions hero__install" id="heroInstall" data-unix={install} data-win={installWin}>
+            <button class="install" type="button" data-copy={install} data-done={t.copied}>
+              <span class="dollar">$</span><span class="cmd">{install}</span><span class="copy">{t.copy}</span>
+            </button>
+            <div class="os" role="group" aria-label={t.os.label}>
+              <button type="button" data-os="unix" aria-pressed="true" title={t.os.unix}>
+                <OsIcon name="mac" /><OsIcon name="linux" />
+              </button>
+              <button type="button" data-os="win" aria-pressed="false" title={t.os.win}>
+                <OsIcon name="windows" />
+              </button>
+              <span class="os__for" data-unix={t.os.unix} data-win={t.os.win}>{t.os.unix}</span>
+            </div>
+            <p class="hero__where">
+              {t.os.where} <a href={href(`${pre}/devices/server/`)}>{t.os.whereLink} →</a>
+            </p>
+          </div>
+        </details>
         <div class="status" id="status" data-lines={JSON.stringify(t.status)}>
           <Blob name="menta" size={26} />
           <b id="statusWho">{t.status[0]?.[0]}</b><span id="statusWhat">{t.status[0]?.[1]}</span><span class="dots"><i></i><i></i><i></i></span>

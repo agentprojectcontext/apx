@@ -111,6 +111,17 @@ const en = {
     where: "It installs on this computer. For a server, run it there over SSH, or let the desktop app install it.",
     whereLink: "APX on a server",
   },
+  get: {
+    for: "Download for",
+    app: "Download the app",
+    more: "Other systems",
+    macArm: "macOS · Apple silicon",
+    macIntel: "macOS · Intel",
+    linuxArm: "Linux · ARM",
+    phone: "Phone app",
+    all: "Every download",
+    terminal: "Terminal or server",
+  },
   browse: "Browse the docs",
   status: [
     ["Home", "is sorting your inbox"],
@@ -387,6 +398,17 @@ const es: HomeText = {
     where:
       "Se instala en esta computadora. Para un servidor, corrélo ahí por SSH o dejá que lo instale la app de escritorio.",
     whereLink: "APX en un servidor",
+  },
+  get: {
+    for: "Bajar para",
+    app: "Bajar la app",
+    more: "Otros sistemas",
+    macArm: "macOS · Apple silicon",
+    macIntel: "macOS · Intel",
+    linuxArm: "Linux · ARM",
+    phone: "App del teléfono",
+    all: "Todas las descargas",
+    terminal: "Terminal o servidor",
   },
   browse: "Ver la doc",
   status: [
