@@ -2419,8 +2419,10 @@ and carry data out in queries. Names are the proxy's to resolve. The egress rule
 
 **Loopback between agents.** A service an agent runs on 127.0.0.1 or ::1 is reachable only by that agent. Every
 process of an agent runs in its own cgroup, `user.slice/user-<uid>.slice`: its desktop and terminal through its user
-manager, and its commands, browser and the core's helpers through `systemd-run --scope --uid --slice` (plain `sudo -u`
-from the admin's SSH session would leave them in that session's cgroup). A table of its own, `apx_loopback`, marks
+manager, and its commands, browser and the core's helpers through `systemd-run --scope --slice` and then
+`setpriv --reuid --regid --init-groups` (plain `sudo -u` from the admin's SSH session would leave them in that session's
+cgroup; the scope's own `--uid` keeps root's supplementary group 0, which can read root-group files in the guest). A
+screen does not start unless a process run this way has the agent's uid and its one group. A table of its own, `apx_loopback`, marks
 each loopback packet with its sender's agent uid on the way out (`meta skuid`), and on the way in looks up the listening
 socket (`socket cgroupv2 level 2`) and refuses a new connection to an agent's listener whose mark is not that agent's.
 The egress proxy, the guest's own services and the owner's paths into a screen (private Unix sockets, CDP pipes) are

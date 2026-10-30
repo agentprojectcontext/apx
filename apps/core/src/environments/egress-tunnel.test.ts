@@ -24,3 +24,21 @@ test("a stopped screen's session never comes back by itself when the computer bo
   assert.ok(at("systemctl stop user@2002.service") >= 0);
   assert.ok(at("loginctl disable-linger apx-a2") > at("systemctl stop user@2002.service"));
 });
+
+function screenGuest(identity: string) {
+  const calls: string[][] = [];
+  const run: LimaRun = async (args) => {
+    calls.push(args);
+    return args.at(-1) === "id -u; id -G" ? identity : "";
+  };
+  return { run, started: () => calls.some((c) => c.join(" ").includes("apx-desktop@102")) };
+}
+
+test("a screen whose processes would keep root's group never starts its desktop", async () => {
+  const leaked = screenGuest("2002\n2002 0\n");
+  await assert.rejects(screenDriver(leaked.run, "apx-test").start(2, "dark", [2]), /wrong identity/);
+  assert.equal(leaked.started(), false);
+  const own = screenGuest("2002\n2002\n");
+  await screenDriver(own.run, "apx-test").start(2, "dark", [2]);
+  assert.equal(own.started(), true);
+});

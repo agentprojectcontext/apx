@@ -110,7 +110,7 @@ print('isolated')`,
       ...workerArgs(
         "python3",
         "-c",
-        "import os,socket;assert os.getuid()==1001;assert not os.access('/home/apx/password',os.R_OK);s=socket.socket();s.settimeout(1);code=s.connect_ex(('192.168.5.2',9));assert code in (1,13,113),code",
+        "import os,socket;assert os.getuid()==1001;assert os.getgid()!=0 and set(os.getgroups())<={os.getgid()};assert not os.access('/home/apx/password',os.R_OK);s=socket.socket();s.settimeout(1);code=s.connect_ex(('192.168.5.2',9));assert code in (1,13,113),code",
       ),
     ],
     { signal, timeout: 5000 },

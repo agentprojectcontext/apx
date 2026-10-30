@@ -54,6 +54,18 @@ export async function provisionDesktop(run: LimaRun, instance: string, signal?: 
   }
 }
 
+/** What an agent's processes run as: its own uid and its own group alone, never one it could read root's files with. */
+async function checkScreenIdentity(
+  admin: (args: string[], signal?: AbortSignal) => Promise<string>,
+  screen: number,
+  signal?: AbortSignal,
+) {
+  const [uid, groups = ""] = (await admin(screenArgs(screen, "sh", "-c", "id -u; id -G"), signal)).trim().split("\n");
+  const ids = groups.trim().split(/\s+/);
+  if (uid !== String(screenUser(screen).uid) || ids.length !== 1 || ids[0] === "0")
+    throw new Error(`Screen ${screen} runs with the wrong identity (${uid}: ${groups})`);
+}
+
 /**
  * An agent's screen: its locked user (created once), its own desktop on its display, APX's appearance. Stopping it
  * ends that user's session, so its desktop and browser give their memory back; its home is kept.
@@ -73,6 +85,7 @@ export function screenDriver(run: LimaRun, instance: string, ownLoopbackOnly = f
       });
       await admin(["sudo", "-n", "chmod", "600", LOOPBACK_RULES], signal);
       await admin(["sudo", "-n", "/usr/local/libexec/apx-computer-firewall"], signal, 30_000);
+      await checkScreenIdentity(admin, screen, signal);
       await admin(screenArgs(screen, "systemctl", "--user", "start", `apx-desktop@${display}.service`), signal);
       await admin(screenArgs(screen, "/usr/local/bin/apx-appearance", mode), signal, 30_000);
       await admin(screenArgs(screen, "systemctl", "--user", "start", `apx-agent-terminal@${display}.service`), signal);
