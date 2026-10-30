@@ -1,9 +1,12 @@
-/* What's new: a bento of cards, each a picture of the app on top and what it does below. The phone card carries the
-   brand's green; the rest stay dark. */
+/* What's new: a bento of cards, each a picture of the app on top and what it does below. One card is full brand
+   color and the phone card carries a touch of it; the rest stay dark. */
 .news {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  grid-auto-rows: auto;
+  grid-template-areas:
+    "crew crew pitch"
+    "phone browser widgets"
+    "phone channels channels";
   gap: 16px;
   margin-top: 44px;
 }
@@ -17,25 +20,82 @@
     border-color 0.25s,
     transform 0.25s;
 }
-.news__item:hover {
-  border-color: var(--line-2);
+.news__item:hover,
+.news__pitch:hover {
   transform: translateY(-3px);
 }
+.news__item:hover {
+  border-color: var(--line-2);
+}
 .news__item--0 {
-  grid-column: span 2;
+  grid-area: crew;
+}
+.news__item--1 {
+  grid-area: browser;
+}
+.news__item--2 {
+  grid-area: widgets;
+}
+.news__item--3 {
+  grid-area: channels;
 }
 .news__item--4 {
-  grid-column: 3;
-  grid-row: 1 / span 2;
+  grid-area: phone;
   border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
   background:
     radial-gradient(120% 60% at 50% 0%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 75%),
     var(--card);
 }
-.news__item--3 {
-  grid-column: 1 / -1;
-  flex-direction: row-reverse;
-  align-items: stretch;
+
+/* The one card in full brand color: what APX promises, with a few bloboes above its link. */
+.news__pitch {
+  grid-area: pitch;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 300px;
+  padding: 34px 34px 30px;
+  overflow: hidden;
+  border-radius: 24px;
+  color: #06140a;
+  background:
+    radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, #fff 28%, transparent), transparent 60%),
+    linear-gradient(140deg, var(--accent-2), var(--accent) 70%);
+  transition: transform 0.25s;
+}
+.news__pitch-title {
+  max-width: 15em;
+  margin: 0;
+  font-size: clamp(26px, 2.6vw, 34px);
+  font-weight: 650;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+.news__pitch-body {
+  max-width: 30em;
+  margin: 16px 0 0;
+  font-size: 16px;
+  line-height: 1.5;
+  opacity: 0.8;
+}
+.news__pitch-cta {
+  order: 2;
+  padding-top: 14px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.news__pitch-crew {
+  order: 1;
+  margin-top: auto;
+  padding-top: 22px;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.news__pitch:hover .news__pitch-crew {
+  transform: translateY(-8px);
 }
 
 /* The picture: inset from the card's edges, cut at a fixed height and faded out at the bottom. */
@@ -46,14 +106,6 @@
   overflow: hidden;
   -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent);
   mask-image: linear-gradient(180deg, #000 70%, transparent);
-}
-.news__item--0 .news__visual {
-  height: 340px;
-}
-.news__item--3 .news__visual {
-  flex: 1.4;
-  height: 300px;
-  margin: 22px 22px 0 0;
 }
 .news__item--4 .news__visual {
   flex: 1;
@@ -71,18 +123,13 @@
   overflow: hidden;
 }
 .news__visual .apx-shot--phone {
-  width: 240px;
+  width: 300px;
   max-width: 100%;
   margin: 0;
 }
 
 .news__text {
   padding: 18px 26px 26px;
-}
-.news__item--3 .news__text {
-  flex: 1;
-  align-self: flex-end;
-  padding: 26px;
 }
 .news__text h3 {
   margin: 0;
@@ -107,42 +154,36 @@
 @media (max-width: 1000px) {
   .news {
     grid-template-columns: repeat(2, 1fr);
-  }
-  .news__item--4 {
-    grid-column: auto;
-    grid-row: span 2;
+    grid-template-areas:
+      "pitch pitch"
+      "crew phone"
+      "browser phone"
+      "widgets channels";
   }
 }
 @media (max-width: 720px) {
   .news {
     grid-template-columns: 1fr;
+    grid-template-areas: "pitch" "crew" "phone" "browser" "widgets" "channels";
   }
-  .news__item--0,
-  .news__item--3,
-  .news__item--4 {
-    grid-column: auto;
-    grid-row: auto;
-  }
-  .news__item--3 {
-    flex-direction: column;
-  }
-  .news__item--3 .news__visual {
-    flex: none;
-    margin: 22px 22px 0;
-  }
-  .news__visual,
-  .news__item--0 .news__visual,
-  .news__item--3 .news__visual {
+  .news__visual {
     height: 220px;
   }
   .news__item--4 .news__visual {
     min-height: 0;
     height: 320px;
   }
+  .news__pitch {
+    min-height: 0;
+    padding: 28px 24px;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .news__item,
-  .news__item:hover {
+  .news__item:hover,
+  .news__pitch,
+  .news__pitch:hover,
+  .news__pitch-crew {
     transition: none;
     transform: none;
   }

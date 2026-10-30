@@ -12,7 +12,6 @@ import DownloadCards from "./DownloadCards.astro";
 import "./home.css";
 import "./hero-term.css";
 import "./hero-os.css";
-import "./hero-beam.css";
 import "./news.css";
 
 interface Props {
@@ -121,7 +120,6 @@ const discord = "https://discord.gg/vxdZuT5WuE";
         </div>
       </div>
     </nav>
-    <div class="beam" id="beam" aria-hidden="true"><i></i></div>
 
     <header class="hero">
       <div class="wrap">
@@ -197,6 +195,20 @@ const discord = "https://discord.gg/vxdZuT5WuE";
         <div class="news">
           {
             t.newIn.items.map((n, i) => (
+              <>
+              {i === 1 && (
+                <a class="news__pitch" href={href(t.newIn.pitch.href)}>
+                  <p class="news__pitch-title">{t.newIn.pitch.title}</p>
+                  <p class="news__pitch-body">{t.newIn.pitch.body}</p>
+                  <span class="news__pitch-cta">{t.newIn.pitch.cta} →</span>
+                  <span class="news__pitch-crew" aria-hidden="true">
+                    <Blob name="cobalto" size={64} />
+                    <Blob name="brasa" size={76} />
+                    <Blob name="amatista" size={58} />
+                    <Blob name="perla" size={70} />
+                  </span>
+                </a>
+              )}
               <a class:list={["news__item card", `news__item--${i}`]} href={href(n.href)}>
                 <div class="news__visual" aria-hidden="true">
                   {n.shot ? (
@@ -223,6 +235,7 @@ const discord = "https://discord.gg/vxdZuT5WuE";
                   <span class="news__more">{t.newIn.more} →</span>
                 </div>
               </a>
+              </>
             ))
           }
         </div>
@@ -451,23 +464,6 @@ You have three open things in Acme Store:
       for (const b of hero?.querySelectorAll<HTMLElement>("[data-os]") ?? [])
         b.addEventListener("click", () => setOs(b.dataset.os === "win" ? "win" : "unix"));
       if (/win/i.test((navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ?? navigator.platform)) setOs("win");
-
-      // The beam runs from the top bar's download to the top of the app on stage.
-      const beam = document.getElementById("beam");
-      const placeBeam = () => {
-        const from = document.querySelector(".nav__get")?.getBoundingClientRect();
-        const to = document.querySelector(".stage .apx-shot")?.getBoundingClientRect();
-        if (!beam || !from || !to || !from.width) return;
-        // The bar is fixed, so where the button sits on screen is where it sits at the top of the page.
-        const top = from.bottom;
-        beam.style.left = `${from.left + from.width / 2 - 1}px`;
-        beam.style.top = `${top}px`;
-        beam.style.height = `${Math.max(0, to.top + scrollY - top)}px`;
-        beam.classList.add("on");
-      };
-      addEventListener("resize", placeBeam);
-      addEventListener("load", placeBeam);
-      document.fonts?.ready.then(placeBeam);
 
       // The hero's last word and its blobo change together.
       const still = matchMedia("(prefers-reduced-motion: reduce)").matches;

@@ -6,6 +6,12 @@ const en = {
     eyebrow: "New in v2",
     title: "More than a chat window.",
     more: "Learn more",
+    pitch: {
+      title: "They do the work. You keep the last word.",
+      body: "Agents that run on your computer, with your files and your keys. Before they speak for you, they ask.",
+      cta: "Start in two minutes",
+      href: "/start/introduction/",
+    },
     lead: "A crew that works together, a browser they can drive, little apps they build for you, and the chats and phone you already carry.",
     items: [
       {
@@ -301,6 +307,12 @@ const es: HomeText = {
     eyebrow: "Lo nuevo en v2",
     title: "Más que una ventana de chat.",
     more: "Ver más",
+    pitch: {
+      title: "Ellos hacen el trabajo. La última palabra es tuya.",
+      body: "Agentes que corren en tu compu, con tus archivos y tus claves. Antes de hablar por vos, te preguntan.",
+      cta: "Empezá en dos minutos",
+      href: "/es/start/introduction/",
+    },
     lead: "Un crew que trabaja en equipo, un navegador que pueden manejar, apps chiquitas que te arman, y los chats y el celular que ya usás.",
     items: [
       {
