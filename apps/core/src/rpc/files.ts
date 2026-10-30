@@ -235,6 +235,12 @@ export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
       await desktop.open(abs);
       return { ok: true as const };
     },
+    "media.reveal": async ({ media_id }) => {
+      const m = store.media.get(media_id);
+      if (!m || !fs.existsSync(m.path)) throw notFound(`media ${media_id}`);
+      await desktop.reveal(m.path);
+      return { ok: true as const };
+    },
     "documents.open": async ({ media_id }) => {
       const m = store.media.get(media_id);
       if (!m || m.kind !== "file" || !DOCUMENT_MIMES.has(m.mime)) throw notFound(`document ${media_id}`);

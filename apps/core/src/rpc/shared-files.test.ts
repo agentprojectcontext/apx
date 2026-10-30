@@ -1,11 +1,19 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import type { Part } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
+const revealed: string[] = [];
+const desktop = {
+  reveal: async (abs: string) => void revealed.push(abs),
+  open: async () => {},
+  trash: async () => {},
+};
 before(async () => {
-  env = await startCore({ llm: scriptedLlm(() => say("Ready")) });
+  env = await startCore({ llm: scriptedLlm(() => say("Ready")), desktop });
 });
 after(async () => {
   await env?.core.close();
@@ -76,6 +84,21 @@ test("files shared in chats are listed newest first, by kind and project, with t
     [loose.id, loose.id],
   );
 
+  assert.equal(all.items[3]?.path, photo.path);
+  const found = await env.client.call("media.shared", { query: "INVOICE" });
+  assert.deepEqual(
+    found.items.map((f) => f.name),
+    ["invoice.pdf"],
+  );
+  assert.deepEqual(found.counts, { image: 0, video: 0, audio: 0, document: 1 });
+  // A % typed by the owner is a character to find, not a wildcard.
+  assert.equal((await env.client.call("media.shared", { query: "%" })).items.length, 0);
+  const named = (order: "az" | "za" | "old") =>
+    env.client.call("media.shared", { order }).then((r) => r.items.map((f) => f.name));
+  assert.deepEqual(await named("az"), ["", "invoice.pdf", "storefront.jpg", "teaser.mp4"]);
+  assert.deepEqual(await named("za"), ["teaser.mp4", "storefront.jpg", "invoice.pdf", ""]);
+  assert.deepEqual(await named("old"), ["storefront.jpg", "teaser.mp4", "", "invoice.pdf"]);
+
   const page = await env.client.call("media.shared", { limit: 3 });
   assert.equal(page.more, true);
   const rest = await env.client.call("media.shared", { limit: 3, offset: 3 });
@@ -84,6 +107,14 @@ test("files shared in chats are listed newest first, by kind and project, with t
     [first.id],
   );
   assert.equal(rest.more, false);
+
+  // Open folder shows the kept file itself; a file gone from disk says so.
+  const kept = path.join(env.home, "storefront.jpg");
+  fs.writeFileSync(kept, "jpg");
+  const onDisk = store.media.add({ kind: "image", mime: "image/jpeg", bytes: 3, path: kept });
+  await env.client.call("media.reveal", { media_id: onDisk.id });
+  assert.deepEqual(revealed, [kept]);
+  await assert.rejects(env.client.call("media.reveal", { media_id: photo.id }), /not found|media/);
 
   // A message rewritten without its file, or cut from the chat, no longer lists it.
   store.messages.update({ ...first, parts: [{ type: "text", text: "The storefront" }] });

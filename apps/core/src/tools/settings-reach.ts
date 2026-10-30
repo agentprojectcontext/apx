@@ -118,6 +118,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "threads.rewind": PANEL,
   "media.upload": PANEL,
   "media.discard": PANEL,
+  "media.reveal": PANEL,
   "tasks.detach": PANEL,
   "documents.open": PANEL,
   "channels.open": PANEL,
