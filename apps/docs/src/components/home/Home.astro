@@ -18,7 +18,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const href = (path: string) => (/^https?:/.test(path) ? path : `${base}${path}`);
 const pre = lang === "es" ? "/es" : "";
 // v2's releases are not GitHub's "Latest" while v1 shares the repo, so the scripts are served by this site.
-const site = "https://agentprojectcontext.github.io/apx";
+const site = "https://apxagent.app";
 const install = `curl -fsSL ${site}/install.sh | bash`;
 const installWin = `irm ${site}/install.ps1 | iex`;
 const releases = "https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true";

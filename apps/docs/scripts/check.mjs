@@ -77,7 +77,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         fs.readFileSync(path.join(dist, route, "index.html"), "utf8"),
       ]),
   );
-  const errors = [...translationErrors(pages), ...linkErrors(built, process.env.DOCS_BASE ?? "/apx")];
+  const errors = [...translationErrors(pages), ...linkErrors(built, process.env.DOCS_BASE ?? "/")];
   for (const error of errors) console.error(error);
   console.log(`${pages.size} source pages, ${built.size} built routes; ${errors.length} errors`);
   process.exitCode = errors.length ? 1 : 0;

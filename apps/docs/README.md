@@ -10,15 +10,15 @@ It installs on its own, outside the pnpm workspace, so Astro stays out of everyo
 cd apps/docs
 pnpm install
 pnpm dev          # http://127.0.0.1:4400
-DOCS_BASE=/apx pnpm build  # static site in dist/ using the published base (DOCS_SITE sets its origin)
+pnpm build        # static site in dist/ at the published base, / (DOCS_BASE and DOCS_SITE change it)
 pnpm check        # fixture tests, EN/ES page/heading parity, built internal routes and fragments
-DOCS_BASE=/apx pnpm preview  # preview the same built base at http://127.0.0.1:4400/apx/
+pnpm preview      # preview the built site at http://127.0.0.1:4400/
 pnpm shots        # retake every screenshot against a demo core (see below)
 ```
 
-It is published at `https://agentprojectcontext.github.io/apx/` (`DOCS_BASE=/apx`, built by the Pages
-workflow on `main`). The build also copies `scripts/install/install.sh` and `install.ps1` to the site's root,
-so `<site>/install.sh` is the stable install URL; the older `/apx/v2/install.sh` stays served beside it. `<base>docs/`
+It is published at `https://apxagent.app/` (the repository's Pages custom domain, built by the Pages workflow on
+`main`; `agentprojectcontext.github.io/apx/…` redirects there). The build also copies `scripts/install/install.sh` and `install.ps1` to the site's root,
+so `<site>/install.sh` is the stable install URL; the older `/v2/install.sh` stays served beside it. `<base>docs/`
 redirects to the first page.
 
 ## Writing a page

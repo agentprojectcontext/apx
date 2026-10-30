@@ -6,7 +6,7 @@ import { defineConfig } from "astro/config";
 
 // Where the site is published. Pages write absolute links ("/concepts/agents/"); withBase() below puts this prefix in
 // front of them, so moving the site (e.g. under /apx/docs/) only changes these two values.
-const site = process.env.DOCS_SITE ?? "https://agentprojectcontext.github.io";
+const site = process.env.DOCS_SITE ?? "https://apxagent.app";
 const base = (process.env.DOCS_BASE ?? "/").replace(/\/?$/, "/");
 
 /** A remark plugin: absolute links in Markdown and `href`s on components (LinkCard…) get the site's base. */
