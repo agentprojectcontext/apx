@@ -11,8 +11,9 @@ import { artifactMemory, type SqlParam } from "../domain/artifact-memory.ts";
 import { ownerIdentity } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
 import { summary } from "../domain/surfaces.ts";
-import { badRequest, notFound, unauthorized } from "../errors.ts";
+import { badRequest, notFound, unauthorized, unavailable } from "../errors.ts";
 import type { PageCall, PageCheck } from "../nodes/page-check.ts";
+import { editDocument, type WidgetPages } from "../nodes/widget-pages.ts";
 import { type Secrets, splitSecretName } from "../secrets.ts";
 import { withKit } from "../surface-kit.ts";
 import type { Handlers } from "./router.ts";
@@ -29,6 +30,8 @@ export function artifactHandlers(deps: {
   fetcher?: typeof fetch;
   /** The headless browser's page check, when one can run here. */
   checkPage?: ((html: string, onCall: PageCall) => Promise<PageCheck>) | undefined;
+  /** Widgets in edit mode, run by the headless browser, when one can run here. */
+  widgetPages?: WidgetPages | undefined;
 }) {
   /** Who made it, for its file: an installed one keeps its first maker; one made here names this APX's owner. */
   const madeBy = (s: Surface): Pick<ArtifactManifest, "author" | "agent" | "project"> => {
@@ -48,6 +51,10 @@ export function artifactHandlers(deps: {
     const s = store.surfaces.get(id);
     if (!s) throw notFound(`surface ${id}`);
     return s;
+  };
+  const editPages = (): WidgetPages => {
+    if (!deps.widgetPages) throw unavailable("editing a widget needs Chrome, Chromium or Edge on this computer");
+    return deps.widgetPages;
   };
   const infoOf = (s: Surface) => ({
     state_chars: s.state ? JSON.stringify(s.state).length : 0,
@@ -87,6 +94,29 @@ export function artifactHandlers(deps: {
       } finally {
         fs.rmSync(dir, { recursive: true, force: true });
       }
+    },
+    "surfaces.edit_open": async ({ surface, width, theme, mode }) => {
+      const pages = deps.widgetPages;
+      if (!pages) throw unavailable("editing a widget needs Chrome, Chromium or Edge on this computer");
+      const s = surfaceOf(surface);
+      const html = editDocument(withKit(s.html), { theme, mode, layout: s.app ? "app" : "widget" });
+      // Its reads see what it remembers; a write never lands: this page is only for pointing at its parts.
+      const onCall: PageCall = async (method, p) => {
+        if (method === "store_get") return { values: memory.storeGet(s, p.keys as string[] | undefined) };
+        if (method === "db_query") return memory.query(s, String(p.sql), (p.params as SqlParam[] | undefined) ?? []);
+        return undefined;
+      };
+      return { page: await pages.open(html, width, onCall) };
+    },
+    "surfaces.edit_inspect": async ({ page, x, y }) => ({ element: await editPages().inspect(page, x, y) }),
+    "surfaces.edit_preview": ({ page, edits }) => editPages().preview(page, edits),
+    "surfaces.edit_shot": async ({ page }) => {
+      const data = await editPages().shot(page);
+      return { mime: "image/jpeg" as const, data, bytes: Buffer.byteLength(data, "base64") };
+    },
+    "surfaces.edit_close": async ({ page }) => {
+      await deps.widgetPages?.close(page);
+      return { ok: true as const };
     },
     "surfaces.store_get": ({ surface, keys }) => ({ values: memory.storeGet(surfaceOf(surface), keys) }),
     "surfaces.store_set": ({ surface, patch }) => {

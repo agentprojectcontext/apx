@@ -55,6 +55,8 @@ test("a rich reply: table copies, HTML and Mermaid previews, a file chip that op
     await expect(reply.locator(".apx-msg__bubble", { hasText: "The launch plan is ready." })).toBeVisible();
     await expect(reply.locator(".turn__card .apx-codeframe")).toHaveCount(2);
     await expect(reply.locator(".apx-msg__bubble .apx-codeframe")).toHaveCount(0);
+    // The card styles sit beside the agent's face button, which keeps no box of its own around the avatar.
+    await expect(page.locator(".chat__agentbtn").first()).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
 
     // The table: both copies under it, the CSV with its commas and quotes kept.
     const table = reply.locator(".apx-md__tablebox");

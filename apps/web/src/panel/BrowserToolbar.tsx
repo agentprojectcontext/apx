@@ -49,7 +49,7 @@ export function BrowserToolbar({ tab, onOpened }: { tab: TabInfo | undefined; on
   };
 
   const c = tab?.control;
-  const inEdit = useSlice(browserEdit, (s) => s.tab) === tab?.tab && tab != null;
+  const inEdit = useSlice(browserEdit, (s) => s.target) === tab?.tab && tab != null;
   const editButton = tab && draft == null && (c?.kind === "idle" || c?.kind === "user") && (
     <Button
       size="sm"

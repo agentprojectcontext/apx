@@ -1,6 +1,6 @@
 // The browser panel's edit mode: loaded with it (usePack in BrowserEdit.tsx), never with the first screen.
 export const enBrowserEdit = {
-  "bedit.pickHint": "Click a part of the page to change it · Esc to leave",
+  "bedit.pickHint": "Click the part you want to change · Esc to leave",
   "bedit.page": "Page in edit mode",
   "bedit.emptyTitle": "Pick something to change",
   "bedit.emptyBody":
@@ -28,6 +28,9 @@ export const enBrowserEdit = {
   "bedit.failed": "Couldn't show that in the page ({error})",
   "bedit.element": "{tag} element",
   "bedit.request.page": "Changes to the page {page} ({url}):",
+  "bedit.request.widget": "Changes to the widget «{title}» ({name}):",
+  "bedit.widgetUnavailable": "Editing a widget needs Chrome, Chromium or Edge on this computer.",
+  "bedit.widgetFailed": "Couldn't open this widget for editing",
   "bedit.request.text": "text → «{text}»",
   "bedit.request.color": "text color → {value}",
   "bedit.request.background": "background → {value}",

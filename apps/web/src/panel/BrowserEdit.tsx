@@ -1,7 +1,7 @@
 import "../styles/browser-edit.css";
 import type { PickedElement, TabInfo } from "@apx/protocol";
 import { Button, EmptyState, Field, IconButton, Icons, Input, Skeleton, Textarea } from "@apx/ui";
-import { type MouseEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { screenshot } from "../data/actions.ts";
 import { client } from "../data/client.ts";
 import { useSlice } from "../data/createStore.ts";
@@ -15,11 +15,13 @@ import {
   changeItem,
   type EditItem,
   type EditStyle,
+  type EditTarget,
   editRequest,
   editsOf,
   elementLabel,
   hexOf,
   isChanged,
+  pageHeader,
   pick,
   removeItem,
   stopEditing,
@@ -31,30 +33,48 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 type Point = { x: number; y: number };
 
-/** Leaves edit mode; the page goes back to what its own code shows. */
+/** Leaves edit mode on a tab; the page goes back to what its own code shows. */
 export async function leaveEditing(tab: string): Promise<void> {
   stopEditing();
   await client.call("browser.preview_edits", { tab, edits: [] }).catch(() => {});
+}
+
+/** Edit mode on a browser tab: its page through the browser node. */
+export function BrowserEdit({ tab }: { tab: TabInfo }) {
+  const id = tab.tab;
+  const url = tab.url;
+  const target = useMemo<EditTarget>(
+    () => ({
+      key: id,
+      inspect: async (x, y) => (await client.call("browser.inspect", { tab: id, x, y })).element,
+      show: (edits) => client.call("browser.preview_edits", { tab: id, edits }),
+      shot: () => screenshot(id),
+      header: (t) => pageHeader(url, t),
+      leave: () => leaveEditing(id),
+    }),
+    [id, url],
+  );
+  return <PageEdit target={target} />;
 }
 
 /**
  * Edit mode: the page as a picture the owner points at (an element lights up under the pointer, a click picks it),
  * and beside it the panel where they change its text and look, seen live, then ask the chat's agent for it.
  */
-export function BrowserEdit({ tab }: { tab: TabInfo }) {
+export function PageEdit({ target }: { target: EditTarget }) {
   const ready = usePack("browserEdit");
   const items = useSlice(browserEdit, (s) => s.items);
   const selected = useSlice(browserEdit, (s) => s.selected);
-  const [shot, refresh] = useShot(tab.tab);
+  const [shot, refresh] = useShot(target);
   const [hover, setHover] = useState<PickedElement | null>(null);
-  const inspect = useInspector(tab.tab);
+  const inspect = useInspector(target);
   const item = items.find((i) => i.element.node === selected);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && void leaveEditing(tab.tab);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && void target.leave();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [tab.tab]);
+  }, [target]);
 
   // Every change shows in the page a moment after the owner stops typing; the picture follows.
   const edits = JSON.stringify(editsOf(items));
@@ -62,8 +82,8 @@ export function BrowserEdit({ tab }: { tab: TabInfo }) {
   useEffect(() => {
     if (edits === shown.current) return;
     const timer = setTimeout(() => {
-      client
-        .call("browser.preview_edits", { tab: tab.tab, edits: JSON.parse(edits) })
+      target
+        .show(JSON.parse(edits))
         .then(() => {
           shown.current = edits;
           refresh();
@@ -71,7 +91,7 @@ export function BrowserEdit({ tab }: { tab: TabInfo }) {
         .catch((e) => notify(tr("bedit.failed", { error: errText(e) })));
     }, SHOW_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [edits, tab.tab, refresh]);
+  }, [edits, target, refresh]);
 
   if (!ready) return <Skeleton shape="block" height="100%" />;
   const at = (e: MouseEvent<HTMLDivElement>): Point => {
@@ -116,13 +136,13 @@ export function BrowserEdit({ tab }: { tab: TabInfo }) {
             <Skeleton shape="block" height="100%" />
           )}
         </div>
-        <EditPanel tab={tab} items={items} item={item} />
+        <EditPanel target={target} items={items} item={item} />
       </div>
     </div>
   );
 }
 
-function EditPanel({ tab, items, item }: { tab: TabInfo; items: EditItem[]; item: EditItem | undefined }) {
+function EditPanel({ target, items, item }: { target: EditTarget; items: EditItem[]; item: EditItem | undefined }) {
   const t = useT();
   const threadId = useNav((s) => s.threadId);
   const agentName = useData((s) => {
@@ -138,10 +158,10 @@ function EditPanel({ tab, items, item }: { tab: TabInfo; items: EditItem[]; item
   }, [picked]);
   const ask = () => {
     if (!threadId || !changed.length) return;
-    const request = editRequest(tab.url, changed, tr);
+    const request = editRequest(target.header(tr), changed, tr);
     const draft = draftOf(threadId).trim();
     keepDraft(threadId, draft ? `${request}\n\n${draft}` : `${request}\n\n`);
-    void leaveEditing(tab.tab);
+    void target.leave();
     // On a phone the panel covers the chat: go back to it, where the request waits to be sent.
     if (window.matchMedia("(max-width: 767px)").matches) nav.set({ panel: null });
     notify(tr("bedit.asked"), "info");
@@ -190,7 +210,7 @@ function EditPanel({ tab, items, item }: { tab: TabInfo; items: EditItem[]; item
               : t("bedit.ask", { name: agentName })
             : t("bedit.askAgent")}
         </Button>
-        <Button variant="secondary" onClick={() => void leaveEditing(tab.tab)}>
+        <Button variant="secondary" onClick={() => void target.leave()}>
           {t("bedit.discard")}
         </Button>
       </footer>
@@ -338,7 +358,7 @@ function PxField(props: {
 }
 
 /** A picture of the tab, taken again every few seconds and right after `refresh()`. */
-function useShot(tab: string): [string | undefined, () => void] {
+function useShot(target: EditTarget): [string | undefined, () => void] {
   const [src, setSrc] = useState<string>();
   const now = useRef<() => void>(() => {});
   useEffect(() => {
@@ -346,7 +366,7 @@ function useShot(tab: string): [string | undefined, () => void] {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const take = async () => {
       clearTimeout(timer);
-      const next = await screenshot(tab).catch(() => undefined);
+      const next = await target.shot().catch(() => undefined);
       if (!alive) return;
       if (next) setSrc(next);
       clearTimeout(timer);
@@ -358,7 +378,7 @@ function useShot(tab: string): [string | undefined, () => void] {
       alive = false;
       clearTimeout(timer);
     };
-  }, [tab]);
+  }, [target]);
   return [src, useCallback(() => now.current(), [])];
 }
 
@@ -366,7 +386,7 @@ function useShot(tab: string): [string | undefined, () => void] {
  * Asks the page what lies under a point. Hover asks one at a time and only for the latest point; a click always asks.
  * Nothing under the point, or a failed ask, answers null.
  */
-function useInspector(tab: string) {
+function useInspector(target: EditTarget) {
   const busy = useRef(false);
   const last = useRef<PickedElement | null>(null);
   return useCallback(
@@ -374,7 +394,7 @@ function useInspector(tab: string) {
       if (busy.current && !force) return last.current;
       busy.current = true;
       try {
-        const { element } = await client.call("browser.inspect", { tab, x: p.x, y: p.y });
+        const element = await target.inspect(p.x, p.y);
         last.current = element;
         return element;
       } catch {
@@ -383,7 +403,7 @@ function useInspector(tab: string) {
         busy.current = false;
       }
     },
-    [tab],
+    [target],
   );
 }
 
