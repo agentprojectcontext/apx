@@ -58,6 +58,7 @@ export function Behavior({
         <AgentSelect
           size="sm"
           className="tgagent"
+          channel
           value={channel.agent_id}
           onChange={(id) => id && id !== channel.agent_id && void save({ agent_id: id })}
         />

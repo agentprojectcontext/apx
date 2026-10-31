@@ -307,7 +307,7 @@ function Setup({ onConnected }: { onConnected(id: string): void }) {
         <span className="pform__hint">{t("em.passwordStored")}</span>
       </div>
       <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: "Email" })}>
-        <AgentSelect size="sm" className="tgagent" value={agent} onChange={(id) => id && setAgent(id)} />
+        <AgentSelect size="sm" className="tgagent" channel value={agent} onChange={(id) => id && setAgent(id)} />
       </SettingRow>
       <div>
         <Button disabled={!form.ok || password.length < 8} loading={busy} onClick={() => void connect()}>
