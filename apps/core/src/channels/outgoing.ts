@@ -140,6 +140,8 @@ export function createOutgoing(deps: {
     const silent = owner && quietNow(store);
     const outbox = post(thread, pick.cfg.id, pick.conversation, text, {
       ...o,
+      // A Flow's message reaches them from the channel's agent, so the chat shows it as that agent's.
+      by: o.by ?? (o.flow ? pick.cfg.agent_id : undefined),
       logged: !owner && !o.flow,
       silent,
     });

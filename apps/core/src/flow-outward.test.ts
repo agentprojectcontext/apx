@@ -237,6 +237,9 @@ test("the payload fills the words only: the send goes to the drawn contact whate
     const log = env.core.store.modelLog.list(chatThread.id).map((e) => e.item as { role: string; content: string });
     assert.equal(log.filter((m) => m.role === "assistant").length, 0);
     assert.match(log.at(-1)?.content ?? "", /^\[Your owner's flow "leads" sent this in this chat:\]\nLead: Northwind/);
+    // Alex got it from the channel's agent: the chat shows it as that agent's, not as the owner writing.
+    const shown = env.core.store.messages.list(chatThread.id).at(-1);
+    assert.deepEqual(shown?.author, { kind: "agent", id: "superagent" });
     // What the payload brings can't become a link or a mention in the owner's name; the owner's own text can.
     await post(env, flow, "e2", { company: "[Pay here](https://evil.example) @mallory lu@northwind.example", size: 1 });
     assert.equal((await ended(env, flow, "e2")).state, "succeeded");
@@ -244,6 +247,33 @@ test("the payload fills the words only: the send goes to the drawn contact whate
       chat.sent[1]?.text,
       "Lead: [Pay here] (https://evil.example) @\u200bmallory lu@northwind.example ($ 1)",
     );
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("a Flow's message to the owner shows in Home as the channel's agent's, the way it reached them", async () => {
+  const chat = recorder();
+  const env = await startCore({
+    llm: scriptedLlm(() => say("unused")),
+    channelAdapters: { discord: () => chat.adapter },
+  });
+  try {
+    await setup(env);
+    const owner = env.core.store.persons.owner();
+    env.core.store.persons.link(owner.id, { channel: "chat", external_id: "owner-1" });
+    const flow = await publish(
+      env,
+      "digest",
+      chain(hook, notify("say", { kind: "contact", person: owner.id }, "Done")),
+    );
+    await post(env, flow, "e1", { n: 1 });
+    assert.equal((await ended(env, flow, "e1")).state, "succeeded");
+    assert.deepEqual(chat.sent, [{ conversation: "owner-1", text: "Done" }]);
+    const shown = env.core.store.messages.list("home").at(-1);
+    assert.equal(shown?.parts[0]?.type === "text" && shown.parts[0].text, "Done");
+    assert.deepEqual(shown?.author, { kind: "agent", id: "superagent" });
   } finally {
     await env.core.close();
     await env.cleanup();

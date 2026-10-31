@@ -165,19 +165,22 @@ test("model choices keep effort visible and stay open while editing", async ({ p
   const trigger = page.getByRole("button", { name: "Modelo de este chat", exact: true });
   await trigger.click();
   const picker = page.locator(".mchoice");
-  const effort = picker.getByRole("combobox", { name: "Effort", exact: true });
+  // No model with efforts yet: the row stays, its list disabled.
+  const effort = picker.getByRole("combobox", { name: "Esfuerzo", exact: true });
   await expect(effort).toBeVisible();
   await expect(effort).toBeDisabled();
   await picker.getByRole("option", { name: /custom\/fake-2/ }).click();
   await expect(picker).toBeVisible();
-  await expect(effort).toBeEnabled();
-  await effort.click();
-  await page.getByRole("option", { name: "Alto", exact: true }).click();
+  // A few levels: one row of buttons, the model's default marked until another is picked.
+  const levels = picker.getByRole("radiogroup", { name: "Esfuerzo", exact: true });
+  const high = levels.getByRole("radio", { name: "Alto", exact: true });
+  await expect(levels.getByRole("radio", { name: "Bajo", exact: true })).toBeChecked();
+  await high.click();
   await expect(trigger).toContainText("custom/fake-2 · Alto");
   await expect(picker).toBeVisible();
-  await expect(effort).toHaveText("Alto");
+  await expect(high).toBeChecked();
   const listBox = await picker.getByRole("listbox").boundingBox();
-  const effortBox = await effort.boundingBox();
+  const effortBox = await levels.boundingBox();
   if (!listBox || !effortBox) throw new Error("Missing model or effort bounds");
   expect(effortBox.y).toBeGreaterThanOrEqual(listBox.y + listBox.height);
   await expect(picker.locator(".mlist__effort")).toHaveCSS("border-top-width", "1px");
@@ -197,7 +200,12 @@ test("model choices keep effort visible and stay open while editing", async ({ p
   await page.reload();
   await expect(trigger).toContainText("custom/fake-2 · Alto");
   await trigger.click();
-  await expect(effort).toHaveText("Alto");
+  await expect(high).toBeChecked();
+  // Back to the model's default: the chat follows it again instead of naming a level.
+  await levels.getByRole("radio", { name: "Bajo", exact: true }).click();
+  await expect(trigger).not.toContainText("Alto");
+  await high.click();
+  await expect(trigger).toContainText("custom/fake-2 · Alto");
   await picker.getByRole("option", { name: /custom\/fake-1/ }).click();
   await expect(picker).toBeVisible();
   await expect(effort).toBeDisabled();

@@ -1,7 +1,7 @@
 // The one way an agent asks another: a sub-thread with a durable child run. The caller may wait for it inside its
 // turn; past that (or when the caller's turn ends for any reason) the result comes back to the caller's thread as
 // a new input. See DECISIONS.md#d-009
-import { DEFAULT_AUTONOMY, type Part, type Thread, type WritePolicy } from "@apx/protocol";
+import { DEFAULT_AUTONOMY, type Message, type Part, type Thread, type WritePolicy } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { type Origin, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -165,14 +165,17 @@ const slug = (s: string) =>
 export const sessionOf = (store: Store, parentId: string, ref: string): Thread | undefined =>
   store.threads.session(parentId, slug(ref)) ?? store.threads.session(parentId, ref);
 
+/** The caller's message holding a card: its answer spans messages when the owner wrote while it worked. */
+const holding = (store: Store, run: RunRecord, match: (p: Part) => boolean): Message | undefined =>
+  store.messages.ofRun(run.thread_id, run.id).find((m) => m.parts.some(match));
+
 /** The caller's card for a delegated run (settled by now), to show again when its result arrives in a new turn. */
 export function resultCard(store: Store, childRunId: string): Extract<Part, { type: "subthread" }> | undefined {
   const child = store.runs.get(childRunId);
   const parent = child?.parent_run_id ? store.runs.get(child.parent_run_id) : undefined;
-  const msg = parent?.message_id ? store.messages.get(parent.message_id) : undefined;
-  return msg?.parts.find(
-    (p): p is Extract<Part, { type: "subthread" }> => p.type === "subthread" && p.thread_id === child?.thread_id,
-  );
+  const card = (p: Part): p is Extract<Part, { type: "subthread" }> =>
+    p.type === "subthread" && p.thread_id === child?.thread_id;
+  return parent ? holding(store, parent, card)?.parts.find(card) : undefined;
 }
 
 export function createDelegations(deps: {
@@ -209,12 +212,12 @@ export function createDelegations(deps: {
     const match = (p: Part) => p.type === "subthread" && p.thread_id === child.thread_id;
     const card = (p: Part): Part => (p.type === "subthread" ? next(p) : p);
     const display = deps.live.get(parent.id);
-    const shown = display?.message.parts.find(match);
+    const shown = display?.find(match);
     if (display && shown) {
       display.upsert(match, card(shown));
       return;
     }
-    const msg = parent.message_id ? store.messages.get(parent.message_id) : undefined;
+    const msg = holding(store, parent, match);
     const index = msg?.parts.findIndex(match) ?? -1;
     const part = msg?.parts[index];
     if (!msg || !part) return;

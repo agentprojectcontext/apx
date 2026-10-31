@@ -21,7 +21,7 @@ import {
 } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { copyableQuote } from "./CopyableQuote.tsx";
-import { runnableCode } from "./codeRunner.tsx";
+import { replyBlock, runnableCode } from "./codeRunner.tsx";
 import { linkMenu } from "./LinkMenu.tsx";
 import { MessageActions } from "./MessageActions.tsx";
 import { ChangesPart } from "./parts/ChangesPart.tsx";
@@ -33,6 +33,7 @@ import { type MediaBlock, mediaBlocks } from "./parts/mediaGroups.ts";
 import { NoticePart } from "./parts/NoticePart.tsx";
 import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
+import { type ReplySegment, replySegments } from "./replySegments.ts";
 import { taskCodeSpan } from "./TaskChip.tsx";
 
 type ToolPart = Extract<Part, { type: "tool" }>;
@@ -41,7 +42,8 @@ type SkillsPick = Extract<Part, { type: "skills" }>;
 /**
  * One agent message: the skills picked for it and its tool calls folded into one group on top, then everything else
  * in the order it happened (what it said, sub-agent cards, widgets, approvals, its answer). The meta line closes it.
- * Each bubble has its own controls (copy, fork, read aloud), shown on hover.
+ * Each bubble has its own controls (copy, fork, read aloud), shown on hover. Each block it wrote (code, a page, a
+ * diagram, an email) is a card of its own between the bubbles of its words; their controls are on the last bubble.
  */
 export function AgentTurn({
   thread,
@@ -84,6 +86,26 @@ export function AgentTurn({
       ? { key: b.part.type === "text" ? `x:${b.index}` : cardKey(b.part, b.index), part: b.part }
       : { key: b.key, part: b.parts[0] as Part, media: b },
   );
+  const live = runState === "working" || runState === "submitted" || runState === "queued";
+  // A text part's words, cut where a block draws something of its own; `whole` is the part's text, for its controls.
+  const items: {
+    key: string;
+    part: Part;
+    media?: Exclude<MediaBlock, { kind: "part" }>;
+    segment?: ReplySegment;
+    whole?: string;
+  }[] = blocks.flatMap((b) => {
+    if (b.part.type !== "text" || b.media) return [b];
+    const text = b.part.text;
+    const segments = replySegments(text);
+    const lastWords = segments.findLastIndex((n) => n.kind === "text");
+    return segments.map((segment, j) => ({
+      key: j === 0 ? b.key : `${b.key}:${j}`,
+      part: b.part,
+      segment,
+      ...(j === lastWords ? { whole: text } : {}),
+    }));
+  });
   const avatar = !showAvatar ? undefined : engine ? (
     <EngineIcon engine={engine.id} size={24} />
   ) : agent ? (
@@ -116,14 +138,16 @@ export function AgentTurn({
     <div className="turn">
       {skills && <SkillsPart part={skills} projectId={projectId} />}
       {tools.length > 0 && <ToolGroup parts={tools} waiting={waiting} />}
-      {blocks.map(({ key, part, media }, i) => {
+      {items.map(({ key, part, media, segment, whole }, i) => {
         if (isGeneratingImage(part, runState)) return <ImageGenerationPreview key={key} />;
-        const last = i === blocks.length - 1;
+        const last = i === items.length - 1;
+        const card = segment?.kind === "block";
+        const words = part.type === "text" && !card;
         return (
           <Message
             key={key}
             from="agent"
-            variant={part.type === "text" ? "bubble" : "bare"}
+            variant={words ? "bubble" : "bare"}
             avatar={i === 0 ? avatar : undefined}
             grouped={i > 0}
             meta={last ? meta : undefined}
@@ -133,8 +157,13 @@ export function AgentTurn({
               ) : undefined
             }
             actions={
-              part.type === "text" ? (
-                <MessageActions thread={thread} message={message} text={part.text} speechKey={`${message.id}:${key}`}>
+              words && (whole !== undefined || !segment) ? (
+                <MessageActions
+                  thread={thread}
+                  message={message}
+                  text={whole ?? (part.type === "text" ? part.text : "")}
+                  speechKey={`${message.id}:${key}`}
+                >
                   {last && lookIn}
                   {last && actions}
                 </MessageActions>
@@ -150,10 +179,14 @@ export function AgentTurn({
               <Suspense fallback={null}>
                 <MediaGroup block={media} />
               </Suspense>
+            ) : segment?.kind === "block" ? (
+              <div className="apx-md apx-md--md turn__card">
+                {replyBlock(thread, message.id, segment, segment.open && live)}
+              </div>
             ) : part.type === "text" ? (
               <MarkdownView
                 labels={mdLabels}
-                source={part.text}
+                source={segment?.kind === "text" ? segment.text : part.text}
                 renderLink={linkMenu}
                 renderCode={runnableCode(thread, message.id)}
                 renderQuote={copyableQuote}
