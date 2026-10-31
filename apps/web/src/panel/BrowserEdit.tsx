@@ -29,6 +29,8 @@ import {
 } from "./browserEdit.ts";
 
 const POLL_MS = 1500;
+/** A page drawn narrower than this is a phone's: it shows framed, as in its screen's phone view. */
+const PHONE_MAX = 600;
 const SHOW_DELAY_MS = 250;
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -111,7 +113,9 @@ export function PageEdit({ target }: { target: EditTarget }) {
   };
   const whole = target.whole;
   return (
-    <div className={whole ? "bedit-host bedit-host--page" : "bedit-host"}>
+    <div
+      className={whole ? `bedit-host bedit-host--page${whole < PHONE_MAX ? " bedit-host--phone" : ""}` : "bedit-host"}
+    >
       <div className="bedit">
         <div ref={pageBox} className="bedit__page">
           <div className="bedit__hint" role="status">

@@ -162,8 +162,11 @@ export function createWidgetPages(
           mobile: phone,
         });
       await metrics(whole ? (phone ? PAGE_VIEW.phone : PAGE_VIEW.wide) : 800);
-      // The picture is the page at its full width: no scrollbar takes part of it.
-      if (whole) await send("Emulation.setScrollbarsHidden", { hidden: true });
+      // The picture is the page at its full width (no scrollbar takes part of it), light as the panel shows it.
+      if (whole) {
+        await send("Emulation.setScrollbarsHidden", { hidden: true });
+        await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "light" }] });
+      }
       const { frameTree } = await send<{ frameTree: { frame: { id: string } } }>("Page.getFrameTree");
       await send("Page.setDocumentContent", { frameId: frameTree.frame.id, html });
       await sleep(SETTLE_MS);

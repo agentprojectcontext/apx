@@ -1,8 +1,8 @@
 import { Check, Copy, Maximize2 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { cx } from "../cx";
-import { Button } from "./Button";
 import { Dialog } from "./Dialog";
+import { IconButton } from "./IconButton";
 import { SegmentedControl } from "./SegmentedControl";
 
 /** Names of a code block's controls; English by default, the app passes its translations. */
@@ -48,8 +48,8 @@ export interface CodeFrameProps {
 }
 
 /**
- * A fenced code block in a frame: its language in the header, Copy and Expand (a larger view in a dialog), and for
- * code that draws something, a switch between what it draws and its code.
+ * A fenced code block in a frame: its language in the header, Copy and Expand as icons named by their tooltips (a
+ * larger view in a dialog), and for code that draws something, a switch between what it draws and its code.
  */
 export function CodeFrame({
   language,
@@ -99,22 +99,18 @@ export function CodeFrame({
               ]}
             />
           ) : null}
-          <Button
-            variant="ghost"
+          <IconButton
             size="sm"
-            leadingIcon={copied ? <Check size={13} /> : <Copy size={13} />}
+            label={copied ? l.copied : l.copy}
+            icon={copied ? <Check size={14} /> : <Copy size={14} />}
             onClick={copy}
-          >
-            {copied ? l.copied : l.copy}
-          </Button>
-          <Button
-            variant="ghost"
+          />
+          <IconButton
             size="sm"
-            leadingIcon={<Maximize2 size={13} />}
+            label={l.expand}
+            icon={<Maximize2 size={14} />}
             onClick={() => (onExpand ? onExpand() : setOpen(true))}
-          >
-            {l.expand}
-          </Button>
+          />
           {actions}
         </span>
       </div>

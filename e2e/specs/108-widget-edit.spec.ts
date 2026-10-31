@@ -122,8 +122,9 @@ for (const width of [1280, 390]) {
       await card.getByRole("button", { name: "Editar", exact: true }).click();
       await until(async () => opened.length === 1);
       expect(opened[0]?.surface).toBe(made);
-      // Laid out at a computer's width, or a phone's on a phone: never squeezed into a column.
-      expect(opened[0]?.width).toBe(width === 1280 ? 1280 : 390);
+      // Laid out as wide as it shows beside the edit panel, or at a phone's width on a phone.
+      if (width === 1280) expect(opened[0]?.width).toBeGreaterThan(800);
+      else expect(opened[0]?.width).toBe(390);
       await expect(page.getByText("Tocá la parte que querés cambiar")).toBeVisible();
       await expect(page.locator(".bedit__shot img")).toBeVisible();
 

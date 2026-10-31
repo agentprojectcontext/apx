@@ -58,7 +58,8 @@ export function PageFrame({
           sandbox="allow-scripts allow-forms"
           referrerPolicy="no-referrer"
           srcDoc={srcDoc}
-          style={style}
+          // Light, as edit mode draws it, whatever APX's own mode: the page's dark styles do not half-apply.
+          style={{ ...style, colorScheme: "light" }}
         />
       ) : (
         <Skeleton shape="block" height={fit === "fill" ? "100%" : 160} />
