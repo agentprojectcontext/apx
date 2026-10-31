@@ -1,0 +1,325 @@
+---
+import logo from "../../assets/logo.png";
+import {
+  apxChoice,
+  apxRowSources,
+  apxRows,
+  apxShort,
+  apxSource,
+  apxSources,
+  type Comparison,
+  checked,
+  comparisons,
+  type Lang,
+  labels,
+  modelTiles,
+  topics,
+} from "../../data/comparisons";
+import { sitePath } from "../../doc-routes.mjs";
+import AnalyticsConsent from "../AnalyticsConsent.astro";
+import Blob from "../Blob.astro";
+import BlobEyes from "../BlobEyes.astro";
+import BrandMark from "../BrandMark.astro";
+import UiIcon from "../UiIcon.astro";
+import PageMeta from "../web/PageMeta.astro";
+import WebFooter from "../web/WebFooter.astro";
+import WebHeader from "../web/WebHeader.astro";
+import "./compare.css";
+
+interface Props {
+  lang: Lang;
+  comparison?: Comparison;
+}
+const { lang, comparison: item } = Astro.props;
+const t = labels[lang];
+const pre = lang === "es" ? "/es" : "";
+const href = (p: string) => sitePath(p, import.meta.env.BASE_URL);
+const route = `/compare/${item ? `${item.slug}/` : ""}`;
+const title = item ? `APX vs ${item.name}` : t.title;
+const pageTitle = item
+  ? `${title}: ${lang === "es" ? "agentes de IA comparados, con fuentes" : "AI agents compared, with sources"}`
+  : `${title} — APX`;
+const description = item ? item.intro[lang] : t.intro;
+const sections = [
+  { id: "answer", label: t.short },
+  { id: "overview", label: t.glance },
+  { id: "models", label: t.modelsShort },
+  { id: "difference", label: t.details },
+  { id: "try", label: t.trial },
+  { id: "sources", label: t.sources },
+];
+const crumbs = (items: [string, string][]) => ({
+  "@type": "BreadcrumbList",
+  itemListElement: items.map(([name, path], i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    name,
+    item: new URL(href(`${pre}${path}`), Astro.site).href,
+  })),
+});
+const schema = [
+  crumbs([
+    ["APX", "/"],
+    [lang === "es" ? "Comparar" : "Compare", "/compare/"],
+    ...(item ? ([[title, route]] as [string, string][]) : []),
+  ]),
+];
+const mark = (logoFile: string) => href(`/brands/${logoFile}`);
+const picks = [apxChoice, apxRows[3], apxRows[1], apxRows[7]].filter((p) => p !== undefined);
+const pickBlobs = ["menta", "cobalto", "coral", "amatista"] as const;
+const two = (n: number) => String(n + 1).padStart(2, "0");
+const chatRows = item ? [item] : comparisons.slice(0, 3);
+---
+<!doctype html>
+<html lang={lang} data-theme="dark">
+  <head>
+    <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+    <PageMeta lang={lang} title={pageTitle} description={description} path={route} type="website" imageAlt={title} schema={schema} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body class="h compare">
+    <a class="skip-link" href="#main">{t.skip}</a>
+    <WebHeader lang={lang} route={route} />
+    {
+      item && (
+        <nav class="reading-chip" aria-label={t.read}>
+          <div class="reading-chip__line" aria-hidden="true">
+            <span class="reading-chip__fill"></span>
+            <span class="reading-chip__rider"><Blob name="menta" size={16} /></span>
+          </div>
+          <details>
+            <summary>
+              <Blob name="menta" size={16} />
+              <span class="reading-chip__n" data-chip-n>{t.read}</span>
+              <span class="reading-chip__label" data-chip-label></span>
+              <UiIcon name="chevronDown" size={14} class="reading-chip__caret" />
+            </summary>
+            <ol>
+              {sections.map((s, i) => <li><a href={`#${s.id}`} data-section={s.id}><span>{two(i)}</span>{s.label}</a></li>)}
+            </ol>
+          </details>
+        </nav>
+      )
+    }
+    {
+      item && (
+        <nav class="reading-rail" aria-label={t.read}>
+          <span class="reading-rail__panel" aria-hidden="true"></span>
+          <ol class="reading-rail__track">
+            {
+              sections.map((s) => (
+                <li>
+                  <a href={`#${s.id}`} data-section={s.id}>
+                    <span class="reading-rail__label">{s.label}</span>
+                    <span class="reading-rail__seg" aria-hidden="true"><span></span></span>
+                  </a>
+                </li>
+              ))
+            }
+          </ol>
+          <span class="reading-rail__tip" aria-hidden="true"><Blob name="menta" size={18} /></span>
+        </nav>
+      )
+    }
+    <main id="main" class="compare-main">
+      <div class="compare-wrap">
+        <header class="compare-hero">
+          <div class="compare-hero__text">
+            {item ? <a class="compare-back" href={href(`${pre}/compare/`)}><UiIcon name="arrowLeft" size={14} />{t.back}</a> : <a class="compare-back" href={href(`${pre}/`)}><UiIcon name="arrowLeft" size={14} />APX</a>}
+            <p class="compare-eyebrow">{item ? t.eyebrow : t.comparisons}</p>
+            <h1>{item ? <>APX vs {item.name}<span class="compare-h1__tag">: {item.tagline[lang]}</span></> : t.title}</h1>
+            <p class="compare-intro">{description}</p>
+            <p class="compare-checked"><time datetime={checked}>{t.checked}</time><span aria-hidden="true">·</span><a href={item ? "#sources" : "#comparisons"}>{item ? t.sourcesLink : t.comparisons}</a></p>
+          </div>
+          <div class="compare-hero__chat" aria-hidden="true">
+            <div class="chat-window">
+              <p class="chat-window__bar"><span class="chat-window__dots"><i></i><i></i><i></i></span>{t.window}</p>
+              <div class="chat-window__body">
+                <p class="chat-window__ask">{item ? `${t.ask} ${item.name}?` : t.askIndex}</p>
+                <div class="chat-window__reply">
+                  <Blob name="menta" size={28} />
+                  <div>
+                    <p class="chat-window__lead">{item ? t.reply : t.replyIndex}</p>
+                    <div class="chat-window__card">
+                      {item && <p class="chat-window__row"><img src={logo.src} alt="" width="20" height="20" /><b>APX</b><span>{apxShort[lang]}</span></p>}
+                      {chatRows.map((c) => <p class="chat-window__row"><img src={mark(c.logo)} class:list={{ "mono-mark": c.mono }} alt="" width="20" height="20" /><b>{c.name}</b><span>{c.short[lang]}</span></p>)}
+                    </div>
+                    <p class="chat-window__status"><span class="dots"><i></i><i></i><i></i></span>{t.checking}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {
+          item && (
+            <div class="compare-body">
+              <section id="answer" data-sec="0" class="compare-section" aria-labelledby="answer-title">
+                <h2 id="answer-title">{t.short}</h2>
+                <div class="ledger">
+                  <div class="ledger__col apx-choice">
+                    <h3><img class="ledger__mark" src={logo.src} alt="" width="22" height="22" />{t.choose} APX {t.if}</h3>
+                    <ul>{picks.map((p, i) => <li><Blob name={pickBlobs[i] ?? "menta"} size={20} /><span>{p[lang]}</span></li>)}</ul>
+                  </div>
+                  <div class="ledger__col ledger__col--other">
+                    <h3><img src={mark(item.logo)} class:list={["ledger__mark", { "mono-mark": item.mono }]} alt="" width="22" height="22" />{t.choose} {item.name} {t.if}</h3>
+                    <ul>{[item.choice, item.rows[0]].map((p) => p && <li><span class="ledger__ring" aria-hidden="true"></span><span>{p[lang]}</span></li>)}</ul>
+                  </div>
+                </div>
+              </section>
+
+              <section id="overview" data-sec="1" class="compare-section" aria-labelledby="overview-title">
+                <h2 id="overview-title">{t.glance}</h2>
+                <p class="table-hint">{t.tableHint}</p>
+                <div class="compare-table-wrap" role="region" aria-label={`${title} — ${t.glance}`} tabindex="0">
+                  <table class="compare-table">
+                    <caption>{title} — {t.glance}</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">{t.topic}</th>
+                        <th scope="col" class="is-apx"><span class="th-mark"><img src={logo.src} alt="" width="16" height="16" />APX <a href="#source-apx" aria-label={`${t.source}: APX`}>[1]</a></span></th>
+                        <th scope="col"><span class="th-mark"><img src={mark(item.logo)} class:list={{ "mono-mark": item.mono }} alt="" width="16" height="16" />{item.name} <a href="#source-other" aria-label={`${t.source}: ${item.name}`}>[2]</a></span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {
+                        topics.map((topic, i) => (
+                          <tr>
+                            <th scope="row">{topic[lang]}</th>
+                            <td class="is-apx">
+                              {apxRows[i]?.[lang]}
+                              <span class="row-sources">
+                                {apxRowSources[i]?.map((url, n, all) => (
+                                  <a href={url} aria-label={`${t.source}: APX — ${topic[lang]} (${n + 1})`}>{t.source} {all.length > 1 ? n + 1 : ""} ↗</a>
+                                ))}
+                              </span>
+                            </td>
+                            <td>
+                              {item.rows[i]?.[lang]}
+                              <span class="row-sources">
+                                {item.rowSources[i]?.map((url, n, all) => (
+                                  <a href={url} aria-label={`${t.source}: ${item.name} — ${topic[lang]} (${n + 1})`}>{t.source} {all.length > 1 ? n + 1 : ""} ↗</a>
+                                ))}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section id="models" data-sec="2" class="compare-section" aria-labelledby="models-title">
+                <h2 id="models-title">{t.models}</h2>
+                <p class="compare-lead">{t.modelsLead}</p>
+                <ul class="model-tiles">
+                  {
+                    modelTiles.map((m) => (
+                      <li class="model-tile">
+                        <span class="model-tile__icon">{m.mark ? <BrandMark brand={m.mark} size={18} /> : <UiIcon name={m.icon ?? "bot"} size={18} />}</span>
+                        <span class="model-tile__text"><b>{m.name[lang]}</b><span>{m.about[lang]}</span></span>
+                      </li>
+                    ))
+                  }
+                </ul>
+              </section>
+
+              <section id="difference" data-sec="3" class="compare-section" aria-labelledby="difference-title">
+                <h2 id="difference-title">{t.details}</h2>
+                <p class="compare-prose">{item.detail[lang]}</p>
+                <p class="inline-sources"><a href={apxSource}>APX ↗</a><a href={item.detailSource}>{item.name} ↗</a></p>
+              </section>
+
+              <section id="try" data-sec="4" class="compare-section" aria-labelledby="try-title">
+                <div class="trial-card">
+                  <Blob name="cobalto" size={48} />
+                  <div>
+                    <h2 id="try-title">{t.trial}</h2>
+                    <p>{item.tryIt[lang]}</p>
+                  </div>
+                </div>
+              </section>
+
+              <section id="sources" data-sec="5" class="compare-section" aria-labelledby="sources-title">
+                <h2 id="sources-title">{t.sources}</h2>
+                <p class="compare-note">{t.note}</p>
+                <p class="compare-note"><time datetime={checked}>{t.checked}</time></p>
+                <div class="source-columns">
+                  <div id="source-apx">
+                    <h3><img class="source-mark" src={logo.src} alt="" width="16" height="16" />APX</h3>
+                    <ol class="source-list">{apxSources.map((s, i) => <li><a href={s.url}><span class="source-list__n">{two(i)}</span><span>{s.title[lang]}</span><span aria-hidden="true">↗</span></a></li>)}</ol>
+                  </div>
+                  <div id="source-other">
+                    <h3><img src={mark(item.logo)} class:list={["source-mark", { "mono-mark": item.mono }]} alt="" width="16" height="16" />{item.name}</h3>
+                    <ol class="source-list">{item.sources.map((s, i) => <li><a href={s.url}><span class="source-list__n">{two(i)}</span><span>{s.title}</span><span aria-hidden="true">↗</span></a></li>)}</ol>
+                  </div>
+                </div>
+                <p class="compare-trademarks">{t.trademarks}</p>
+              </section>
+            </div>
+          )
+        }
+
+        <section id="comparisons" class="compare-more" aria-labelledby="more-title">
+          <h2 id="more-title">{item ? t.more : t.kicker}</h2>
+          {!item && (
+            <a class="roundup-card" href={href(`${pre}/compare/best-ai-agent-apps/`)}>
+              <span class="roundup-card__blobs" aria-hidden="true"><Blob name="menta" size={36} /><Blob name="cobalto" size={36} /><Blob name="amatista" size={36} /><Blob name="brasa" size={36} /></span>
+              <span class="roundup-card__text"><b>{t.roundup}</b><span>{t.roundupLead}</span></span>
+              <span class="roundup-card__go" aria-hidden="true">→</span>
+            </a>
+          )}
+          <ul class="comparison-list">
+            {
+              comparisons.map((c) => (
+                <li>
+                  <a class="comparison-card" href={href(`${pre}/compare/${c.slug}/`)} aria-current={c.slug === item?.slug ? "page" : undefined}>
+                    <span class="comparison-card__marks" aria-hidden="true">
+                      <span class="pair-mark pair-mark--sm"><img src={logo.src} alt="" width="20" height="20" /></span>
+                      <span class="comparison-card__dash"></span>
+                      <span class="pair-mark pair-mark--sm"><img src={mark(c.logo)} class:list={{ "mono-mark": c.mono }} alt="" width="20" height="20" loading="lazy" /></span>
+                    </span>
+                    <span class="comparison-card__text"><span class="comparison-card__name">APX vs {c.name}</span><span class="comparison-card__tag">{c.tagline[lang]}</span></span>
+                    <span class="comparison-card__meta">{c.slug === item?.slug ? t.here : t.reviewed}</span>
+                    <span class="comparison-card__go" aria-hidden="true">→</span>
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+          <a class="crew-card" href={href(`${pre}/#download`)}>
+            <span class="crew-card__blobs" aria-hidden="true"><Blob name="menta" size={32} /><Blob name="noche" size={32} /><Blob name="amatista" size={32} /></span>
+            <span class="crew-card__title">{t.crew}</span>
+            <span class="crew-card__cta">{t.getApp}</span>
+          </a>
+        </section>
+      </div>
+    </main>
+    <WebFooter lang={lang} />
+    <BlobEyes />
+    <AnalyticsConsent />
+    <script>
+      import { startReading } from "./reading";
+
+      // The eyes must wait for the lazy body, including cached images and failed requests.
+      for (const image of document.querySelectorAll<HTMLImageElement>(".compare .apx-blob img")) {
+        const revealEyes = async () => {
+          try {
+            await image.decode();
+            if (image.naturalWidth > 0) image.parentElement?.setAttribute("data-body-ready", "");
+          } catch {
+            image.parentElement?.removeAttribute("data-body-ready");
+          }
+        };
+        image.addEventListener("load", revealEyes);
+        image.addEventListener("error", () => image.parentElement?.removeAttribute("data-body-ready"));
+        if (image.complete) void revealEyes();
+      }
+      startReading();
+    </script>
+  </body>
+</html>

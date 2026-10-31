@@ -1,0 +1,39 @@
+---
+import { getCollection } from "astro:content";
+
+export async function getStaticPaths() {
+  const entries = await getCollection("docs");
+  const paths = entries.map((entry) => {
+    const legacy = entry.id.replace(/^(es\/)?docs\//, "$1");
+    return { params: { legacy }, props: { target: `/${entry.id}/`, spanish: legacy.startsWith("es/") } };
+  });
+  return [
+    ...paths,
+    ...["docs", "es/docs"].map((legacy) => ({
+      params: { legacy },
+      props: { target: `/${legacy}/start/introduction/`, spanish: legacy.startsWith("es/") },
+    })),
+  ];
+}
+const { target, spanish } = Astro.props;
+const destination = `${import.meta.env.BASE_URL.replace(/\/$/, "")}${target}`;
+const canonical = new URL(destination, Astro.site).href;
+---
+<!doctype html>
+<html lang={spanish ? "es" : "en"}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{spanish ? "Documentación de APX" : "APX documentation"}</title>
+    <link rel="canonical" href={canonical} />
+    <meta http-equiv="refresh" content={`0;url=${destination}`} />
+    <meta name="robots" content="noindex,follow" />
+  </head>
+  <body>
+    <p><a id="destination" href={destination}>{spanish ? "Ir a la documentación de APX" : "Continue to APX documentation"}</a></p>
+    <script is:inline>
+      const destination = document.getElementById("destination").getAttribute("href");
+      location.replace(destination + location.search + location.hash);
+    </script>
+  </body>
+</html>

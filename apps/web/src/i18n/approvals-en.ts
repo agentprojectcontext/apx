@@ -13,6 +13,7 @@ export const enApprovals = {
   "input.expired": "Expired",
   "input.withdrawn": "Withdrawn",
   "input.asked": "Asked to use {tool}",
+  "input.askedOk": "Asked your OK: {what}",
   "input.askedQuestion": "Asked you a question",
   "input.anAction": "an action",
   "input.answerPlaceholder": "Type your answer and press Enter",

@@ -60,10 +60,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "tools.grant_set": POWER,
   "tools.revoke": POWER,
   "mcp.trust": POWER,
-  // A drawing is made what runs by the owner in the panel's Flows editor (rules/FLOWS.md); agents save drafts only.
+  // A drawing is published and run by hand through apx_flow's card or in the panel's Flows editor (DECISIONS.md#d-184).
   "flows.draft_discard": "the owner deletes a Flow draft on purpose",
-  "flows.publish": "the owner makes a drawing what runs by saving it on, or turning the Flow on, in the editor",
-  "flows.run_now": "the owner starts a Flow by hand from its page, with the body they reviewed",
   "flows.cancel_run": "the owner stops a Flow run they are looking at",
   "flows.test_start": "a test sends, calls, runs and writes for real, with what the owner approved in the editor",
   "flows.test_stop": "the owner stops waiting for the test event they started",

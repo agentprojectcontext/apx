@@ -284,7 +284,9 @@ function runUnitSuites(root: string, raw: string, nativeOutput: string, snapshot
     (file) =>
       file.includes(".test.") &&
       !file.startsWith(path.join(root, "e2e")) &&
-      !file.startsWith(path.join(root, "apps/mobile/test")),
+      !file.startsWith(path.join(root, "apps/mobile/test")) &&
+      // The docs site installs on its own and its tests read the built site: Pages builds it, then runs them (check).
+      !file.startsWith(path.join(root, "apps/docs")),
   );
   const groups = new Map<string, string[]>();
   for (const file of allTests) {

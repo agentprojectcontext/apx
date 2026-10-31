@@ -1,0 +1,61 @@
+---
+// A model or coding agent's official mark, drawn as the panel draws it bare (packages/ui EngineIcon): Claude and
+// Gemini in their colours, Codex on its tile, OpenAI and Ollama in the text colour.
+import { ENGINE_MARKS } from "../../../../packages/ui/src/engine-marks";
+
+interface Props {
+  brand: "claude" | "codex" | "gemini" | "openai" | "ollama";
+  size?: number;
+}
+const { brand, size = 18 } = Astro.props;
+// Gradient ids must be unique per page; a build-time counter keeps them stable between builds.
+const g = globalThis as { __apxMarkId?: number };
+g.__apxMarkId = (g.__apxMarkId ?? 0) + 1;
+const gid = `apx-mark-${g.__apxMarkId}`;
+const codex = ENGINE_MARKS.codex;
+const gemini = ENGINE_MARKS.gemini;
+---
+
+<svg class="brand-mark" viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" focusable="false">
+  {brand === "claude" && <path d={ENGINE_MARKS.claude.d} fill={ENGINE_MARKS.claude.color} />}
+  {
+    brand === "codex" && (
+      <>
+        <defs>
+          <linearGradient id={gid} gradientUnits="userSpaceOnUse" x1="12" x2="12" y1="3" y2="21">
+            <stop stop-color={codex.from} />
+            <stop offset=".5" stop-color={codex.via} />
+            <stop offset="1" stop-color={codex.to} />
+          </linearGradient>
+        </defs>
+        <path d={codex.tile} fill="#fff" />
+        <path d={codex.d} fill={`url(#${gid})`} />
+      </>
+    )
+  }
+  {
+    brand === "gemini" && (
+      <>
+        <defs>
+          <linearGradient id={`${gid}g`} gradientUnits="userSpaceOnUse" x1="7" x2="11" y1="15.5" y2="12">
+            <stop stop-color="#08B962" />
+            <stop offset="1" stop-color="#08B962" stop-opacity="0" />
+          </linearGradient>
+          <linearGradient id={`${gid}r`} gradientUnits="userSpaceOnUse" x1="8" x2="11.5" y1="5.5" y2="11">
+            <stop stop-color="#F94543" />
+            <stop offset="1" stop-color="#F94543" stop-opacity="0" />
+          </linearGradient>
+          <linearGradient id={`${gid}y`} gradientUnits="userSpaceOnUse" x1="3.5" x2="17.5" y1="13.5" y2="12">
+            <stop stop-color="#FABC12" />
+            <stop offset=".46" stop-color="#FABC12" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={gemini.d} fill={gemini.color} />
+        <path d={gemini.d} fill={`url(#${gid}g)`} />
+        <path d={gemini.d} fill={`url(#${gid}r)`} />
+        <path d={gemini.d} fill={`url(#${gid}y)`} />
+      </>
+    )
+  }
+  {(brand === "openai" || brand === "ollama") && <path d={ENGINE_MARKS[brand].d} fill="currentColor" fill-rule="evenodd" />}
+</svg>

@@ -31,7 +31,8 @@
       // Offsets are in the body's 256-unit canvas, so the look is the same at every size.
       const k = still ? 0 : Math.min(1, d / 300);
       const ox = (dx / d) * 9 * k;
-      const oy = (dy / d) * 7 * k;
+      // Looking down is damped and the eyes sit a little high, so a blobo above the text does not stare at the floor.
+      const oy = (dy / d) * (dy > 0 ? 3 : 7) * k - 1.5;
       if (t > s.next) {
         s.blink = t;
         s.next = t + 2200 + Math.random() * 4200;

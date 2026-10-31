@@ -16,7 +16,7 @@ export function MoreDetailPage({
   openProject,
   newProject,
 }: {
-  id: Exclude<MoreId, "routines" | "settings" | "apps" | "memory" | "files" | "about">;
+  id: Exclude<MoreId, "routines" | "settings" | "apps" | "memory" | "files" | "shared" | "about">;
   data: Workspace;
   back: () => void;
   chatWith: (agent: Agent) => void;

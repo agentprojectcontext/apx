@@ -28,6 +28,12 @@ const en: typeof es = {
 export const confirmPrompt = (store: Store, why: ConfirmWhy, agent: string, tool: string) =>
   (store.settings.get("owner_language") === "en" ? en : es)[why](agent, tool);
 
+/** The question of a card that already says the change in the owner's words (a setting, a Flow): no tool name. */
+export const ownerCardPrompt = (store: Store, agent: string) =>
+  store.settings.get("owner_language") === "en"
+    ? `${agent} needs your OK for this:`
+    : `${agent} necesita tu OK para esto:`;
+
 /** The question of a folder card: an agent wants to read folders outside its own, or (`write`) change files there. */
 export const folderPrompt = (store: Store, agent: string, folders: string[], write = false) => {
   const where = folders.join(", ");

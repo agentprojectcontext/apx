@@ -2,7 +2,7 @@ import type { NewsEntry } from "./entries.ts";
 
 export const BROWSER_JAVASCRIPT_NEWS: NewsEntry = {
   id: "approved-browser-javascript",
-  since: "2.11.2",
+  since: "2.12.0",
   title: { en: "Approved scripts in your APX browser", es: "Scripts aprobados en tu navegador de APX" },
   about: {
     en:

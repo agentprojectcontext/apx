@@ -22,7 +22,7 @@ import { prepareBrowserConsent } from "./browser-consent.ts";
 import type { Display } from "./display.ts";
 import { folderBinding, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
-import { confirmPrompt, folderPrompt } from "./owner-words.ts";
+import { confirmPrompt, folderPrompt, ownerCardPrompt } from "./owner-words.ts";
 import { guarded, inGitFolder, namesApc, pathsOf } from "./paths.ts";
 import type { Permissions } from "./permissions.ts";
 import { handedOff } from "./task-handoff.ts";
@@ -365,7 +365,10 @@ export function createExecutor(o: {
         display,
         callId,
         kind: "confirm",
-        prompt: confirmPrompt(store, gate.why, agent.name, name),
+        prompt:
+          tool.ownerSetting?.(args) && tool.explain
+            ? ownerCardPrompt(store, agent.name)
+            : confirmPrompt(store, gate.why, agent.name, name),
         tool: name,
         approval: target,
         args: raw,

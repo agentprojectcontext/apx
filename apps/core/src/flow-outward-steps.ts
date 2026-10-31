@@ -2,6 +2,7 @@
 // send or a non-GET request commits `dispatched` right before it can reach the other side, and anything after that
 // without a clear answer is left uncertain for the owner, never repeated. Destinations are the revision's own fields.
 import type { FlowBinding, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
+import type { FlowVarIndex } from "./domain/flow-expr.ts";
 import type { FlowGraphRun, FlowStepKey } from "./domain/flow-graph-runs.ts";
 import {
   boundedFlowValue,
@@ -86,16 +87,17 @@ function renderBody(
   template: string,
   resolve: (b: FlowBinding) => unknown,
   apx: FlowApx,
+  vars: FlowVarIndex,
 ): { text: string; json: boolean } {
   let parsed: unknown;
   try {
     parsed = JSON.parse(template);
   } catch {}
   if (parsed === null || typeof parsed !== "object")
-    return { text: renderFlowTemplate(parseFlowTemplate(template), resolve, { apx }).text, json: false };
+    return { text: renderFlowTemplate(parseFlowTemplate(template, vars), resolve, { apx }).text, json: false };
   const fill = (v: unknown): unknown => {
     if (typeof v === "string") {
-      const parts = parseFlowTemplate(v);
+      const parts = parseFlowTemplate(v, vars);
       const only = parts.length === 1 ? parts[0] : undefined;
       return only && "binding" in only ? resolve(only.binding) : renderFlowTemplate(parts, resolve, { apx }).text;
     }
@@ -186,7 +188,7 @@ export function createOutwardSteps(deps: {
     const resolve = (b: FlowBinding) => resolveFlowInput(b, run.payload, snapshots);
     let text: string;
     try {
-      const out = renderFlowTemplate(parseFlowTemplate(node.text), resolve, {
+      const out = renderFlowTemplate(parseFlowTemplate(node.text, flowVarIndex(run.graph)), resolve, {
         missing: node.onlyIfContent ? "empty" : "throw",
         bound: plainBound,
         apx: flowApx(store, run, now()),
@@ -283,7 +285,7 @@ export function createOutwardSteps(deps: {
         shown.push({ name: h.name, value: renderFlowTemplate(parts, resolve, { apx }).text });
       }
       if (node.method !== "GET" && node.body.trim()) {
-        body = renderBody(node.body, resolve, apx);
+        body = renderBody(node.body, resolve, apx, flowVarIndex(run.graph));
         if (Buffer.byteLength(body.text) > BODY_LIMIT) throw new StepRefused(W.value);
         headers["content-type"] ??= body.json ? "application/json" : "text/plain; charset=utf-8";
       }

@@ -593,11 +593,13 @@ test("review: a command ended by a signal is left to look at; connection strings
       chain(hook, cmd("env", 'printf "%s|%s" "${DATABASE_URL:-none}" "${ACME_DSN:-none}"'), cmd("die", "kill -9 $$")),
     );
     await post(env, flow, "e", { go: 1 });
-    assert.equal((await ended(env, flow, "e")).state, "uncertain");
+    // portable: Windows has no signals: a killed command ends with an exit code there, which reads as a failure.
+    const killed = process.platform === "win32" ? "failed" : "uncertain";
+    assert.equal((await ended(env, flow, "e")).state, killed);
     const s = steps(env, flow, "e");
     assert.equal(out(s.env).stdout, "none|none");
-    assert.equal(s.die?.state, "uncertain");
-    assert.equal(s.die?.error, "command_uncertain");
+    assert.equal(s.die?.state, killed);
+    if (killed === "uncertain") assert.equal(s.die?.error, "command_uncertain");
     for (const name of ["PYTHONPATH", "JAVA_HOME", "appdata", "MAVEN_OPTS", "npmrc"]) {
       const { issues } = await env.client.call("flows.validate", {
         flow,
