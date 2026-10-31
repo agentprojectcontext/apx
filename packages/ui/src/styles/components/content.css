@@ -449,6 +449,15 @@
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-muted);
 }
+.apx-codeframe__status {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
 .apx-codeframe__actions {
   display: flex;
   flex: none;

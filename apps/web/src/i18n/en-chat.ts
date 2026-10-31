@@ -106,6 +106,7 @@ export const enChat = {
   "md.expand": "Expand",
   "md.plainText": "Text",
   "md.htmlFrame": "HTML preview",
+  "md.writing": "Writing…",
   "md.diagram": "Diagram",
   "md.diagramFailed": "This diagram could not be drawn, so its code is shown.",
   "file.download": "Download",

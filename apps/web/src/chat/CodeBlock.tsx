@@ -1,6 +1,6 @@
 import "./CodeBlock.css";
 import { secureRequestKey } from "@apx/protocol/client";
-import { CodeFrame, type CodeFrameLabels, Skeleton } from "@apx/ui";
+import { CodeFrame, type CodeFrameLabels, Skeleton, Spinner } from "@apx/ui";
 import { type ReactElement, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "../i18n/index.ts";
 import { CodeView, MermaidDiagram } from "../lazy.ts";
@@ -54,9 +54,20 @@ function useCodeLabels(): Partial<CodeFrameLabels> {
 
 /**
  * A fenced block an agent wrote, in a frame with its language, Copy and Expand; its code highlighted with line
- * numbers. An HTML page and a Mermaid diagram start on what they draw, with a switch to their code.
+ * numbers. An HTML page and a Mermaid diagram start on what they draw, with a switch to their code. While the agent is
+ * still `writing` it, its code comes in line by line and what it draws shows once it is whole.
  */
-export function CodeBlock({ code, lang, pre }: { code: string; lang: string | undefined; pre: ReactElement }) {
+export function CodeBlock({
+  code,
+  lang,
+  pre,
+  writing = false,
+}: {
+  code: string;
+  lang: string | undefined;
+  pre: ReactElement;
+  writing?: boolean;
+}) {
   const t = useT();
   const labels = useCodeLabels();
   const language = lang ? (NAMES[lang] ?? lang.charAt(0).toUpperCase() + lang.slice(1)) : t("md.plainText");
@@ -65,7 +76,7 @@ export function CodeBlock({ code, lang, pre }: { code: string; lang: string | un
       <CodeView path={`block.${lang ? (EXTENSIONS[lang] ?? lang) : "txt"}`} text={code} editable={false} snippet />
     </Suspense>
   );
-  const kind = NAMES[lang ?? ""];
+  const kind = writing ? undefined : NAMES[lang ?? ""];
   const preview =
     kind === "HTML" ? (
       <HtmlPreview html={code} title={t("md.htmlFrame")} />
@@ -75,7 +86,21 @@ export function CodeBlock({ code, lang, pre }: { code: string; lang: string | un
       </Suspense>
     ) : undefined;
   return (
-    <CodeFrame language={language} code={code} preview={preview} labels={labels} className="codeblock">
+    <CodeFrame
+      language={language}
+      code={code}
+      preview={preview}
+      status={
+        writing ? (
+          <>
+            <Spinner size={12} />
+            {t("md.writing")}
+          </>
+        ) : undefined
+      }
+      labels={labels}
+      className="codeblock"
+    >
       {source}
     </CodeFrame>
   );

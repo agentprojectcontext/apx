@@ -35,6 +35,8 @@ export interface CodeFrameProps {
   preview?: ReactNode;
   /** The code as shown (highlighted, with line numbers). */
   children: ReactNode;
+  /** A word beside the language while the block is not finished ("Writing…"). */
+  status?: ReactNode;
   labels?: Partial<CodeFrameLabels> | undefined;
   className?: string;
 }
@@ -43,7 +45,7 @@ export interface CodeFrameProps {
  * A fenced code block in a frame: its language in the header, Copy and Expand (a larger view in a dialog), and for
  * code that draws something, a switch between what it draws and its code.
  */
-export function CodeFrame({ language, code, preview, children, labels, className }: CodeFrameProps) {
+export function CodeFrame({ language, code, preview, children, status, labels, className }: CodeFrameProps) {
   const l = { ...CODE_FRAME_LABELS, ...labels };
   const [view, setView] = useState<"preview" | "source">(preview ? "preview" : "source");
   const [open, setOpen] = useState(false);
@@ -65,6 +67,7 @@ export function CodeFrame({ language, code, preview, children, labels, className
     <div className={cx("apx-codeframe", className)}>
       <div className="apx-codeframe__bar">
         <span className="apx-codeframe__lang">{language}</span>
+        {status != null && <span className="apx-codeframe__status">{status}</span>}
         <span className="apx-codeframe__actions">
           {preview ? (
             <SegmentedControl
