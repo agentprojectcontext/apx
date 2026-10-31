@@ -822,6 +822,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "browser.agentUsing": "{name} está usando esta pestaña",
   "browser.takeControl": "Tomar control",
   "browser.giveBack": "Devolver",
+  "browser.edit": "Editar",
+  "browser.editHint": "Elegí partes de la página y pedí cambios",
   "browser.handoffDone": "Cuando termines, tocá Listo y la retoma.",
   "browser.handedYou": "te pasó la pestaña",
   "browser.liveView": "Vista en vivo de la pestaña",
