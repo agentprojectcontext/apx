@@ -80,6 +80,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.configure": MACHINE,
   "environments.stop": MACHINE,
   "browser.control": MACHINE,
+  "browser.preview_edits": "the owner's own preview of a page's edits; agents change the page's code instead",
   "system.update": MACHINE,
   "system.update_prepare": MACHINE,
   "system.import_v1": MACHINE,

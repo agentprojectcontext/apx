@@ -44,6 +44,10 @@ const PACKS = {
     en: () => import("./en-email-signatures.ts").then((m) => m.enEmailSignatures),
     es: () => import("./es-email-signatures.ts").then((m) => m.esEmailSignatures),
   },
+  browserEdit: {
+    en: () => import("./browser-edit-en.ts").then((m) => m.enBrowserEdit),
+    es: () => import("./browser-edit-es.ts").then((m) => m.esBrowserEdit),
+  },
   computer: {
     en: () => import("./computer-en.ts").then((m) => m.enComputer),
     es: () => import("./computer-es.ts").then((m) => m.esComputer),

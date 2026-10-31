@@ -37,6 +37,31 @@ sea la autonomía. Eso siempre te lo pasa a vos. Además, a los agentes se les i
 por chat.
 </Aside>
 
+## Editar una página que hizo un agente
+
+Cuando un agente arma un sitio o una landing y la abre en el navegador (una dirección local como `localhost:5173`),
+podés señalar lo que querés cambiar en vez de describirlo. Apretá **Editar** en la barra del navegador:
+
+1. Pasá el mouse por la página: se resalta la parte que tenés debajo. Hacé clic en un título, un botón o una imagen
+   para elegirlo.
+2. El panel de edición muestra sus campos: **Texto**, **Color del texto**, **Fondo**, **Tamaño de letra**,
+   **Espaciado** y **¿Algo más?** para lo que prefieras decir con palabras. Lo que cambiás se ve en la página al
+   instante, solo en tu vista: el código de la página no se toca y al recargar vuelve como estaba.
+3. Elegí todas las partes que quieras. **Tus cambios** las lista, numeradas como en la página.
+4. **Pedirle a Vera** pone los cambios en el cuadro de mensaje del chat, con la página y cada parte nombrada para que
+   el agente la encuentre en el código. Sumá lo que quieras y envialo: nada se manda solo. **Descartar**, o Esc, deja
+   la página como estaba.
+
+Editar aparece cuando la pestaña está libre o es tuya. Si un agente la está usando, primero tomá el control. Un campo
+de contraseña, código o tarjeta se puede elegir pero nunca se lee ni se cambia.
+
+> **Vos:** > Cambios en la página localhost:5173 (http://localhost:5173/):
+> > 1. «Reservar demo» (`a.cta`): texto → «Pedí tu demo»; tamaño de letra → 19 px
+>
+> Dejá el naranja.
+>
+> **Vera:** Listo: el botón dice "Pedí tu demo", un poco más grande y sigue naranja. Te la recargué.
+
 ## Ejecución de JavaScript aprobada
 
 En builds de staging todavía no publicados, el agente puede usar `browser_evaluate` en su pestaña actual de APX.

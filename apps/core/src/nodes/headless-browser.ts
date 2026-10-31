@@ -563,6 +563,18 @@ export function createHeadlessBrowser(deps: {
           const data = await get(p.tab).page.screenshot();
           return { mime: "image/jpeg", data, bytes: Buffer.byteLength(data, "base64") };
         }
+        case "browser.inspect": {
+          const p = browserMethods["browser.inspect"].params.parse(raw);
+          return { element: await get(p.tab).page.inspect(p.x, p.y) };
+        }
+        case "browser.preview_edits": {
+          const p = browserMethods["browser.preview_edits"].params.parse(raw);
+          const t = get(p.tab);
+          // Changing the page under an agent would hand it a page its own code never made.
+          if (t.control.kind === "agent")
+            throw new ApxError({ code: "paused_by_user", message: `tab ${p.tab} is in use by ${t.control.by}` });
+          return t.page.previewEdits(p.edits);
+        }
         case "browser.text": {
           const p = browserMethods["browser.text"].params.parse(raw);
           const t = get(p.tab);
