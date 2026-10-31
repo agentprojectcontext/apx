@@ -295,7 +295,7 @@ export async function loadSurfaceDoc(id: string): Promise<void> {
   }
 }
 
-export async function setSurfaceFlags(id: string, flags: { pinned?: boolean; app?: boolean }): Promise<void> {
+export async function setSurfaceFlags(id: string, flags: { pinned?: boolean; in_apps?: boolean }): Promise<void> {
   try {
     const summary = await client.call("surfaces.update", { surface: id, ...flags });
     data.set((s) => ({ surfaces: { ...s.surfaces, [id]: summary } }));

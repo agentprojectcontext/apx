@@ -24,6 +24,7 @@ const toSurface = (r: Selectable<SurfacesTable>): Surface => ({
   pinned: Boolean(r.pinned),
   app: Boolean(r.app),
   ...(r.page ? { page: true } : {}),
+  ...(r.in_apps ? { in_apps: true } : {}),
   ...opt("project_id", r.project_id),
   ...opt("thread_id", r.thread_id),
   created_by: r.created_by,
@@ -73,6 +74,18 @@ const named = (projectId: string | undefined, name: string) => (eb: ExpressionBu
 
 export const summary = ({ html: _html, state: _state, ...rest }: Surface): SurfaceSummary => rest;
 
+/**
+ * Where it is listed, from what it is: an app made (or turned into one) goes into Apps unless told otherwise, and a web
+ * page is a document, never on a board.
+ */
+function placed(next: Surface, was: Surface | undefined, asked: { in_apps?: boolean | undefined }): Surface {
+  const inApps = asked.in_apps ?? (next.app && !was?.app ? true : (was?.in_apps ?? false));
+  const out: Surface = { ...next, pinned: next.page ? false : next.pinned };
+  if (inApps) out.in_apps = true;
+  else delete out.in_apps;
+  return out;
+}
+
 export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
   const emit = (s: Surface) => bus.emit({ type: "surface.updated", surface: summary(s) });
   const repo = {
@@ -111,6 +124,7 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
       pinned?: boolean | undefined;
       app?: boolean | undefined;
       page?: boolean | undefined;
+      in_apps?: boolean | undefined;
       /** Absent keeps the current origins; [] removes them. */
       connect?: string[] | undefined;
     }): Surface {
@@ -118,7 +132,7 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
       const ts = now();
       if (existing) {
         const cur = toSurface(existing);
-        const next: Surface = {
+        let next: Surface = {
           ...cur,
           title: s.title,
           html: s.html,
@@ -132,6 +146,7 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
         const connect = s.connect ?? cur.connect ?? [];
         if (connect.length) next.connect = connect;
         else delete next.connect;
+        next = placed(next, cur, s);
         run(
           qb
             .updateTable("surfaces")
@@ -142,6 +157,7 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
               pinned: Number(next.pinned),
               app: Number(next.app),
               page: Number(Boolean(next.page)),
+              in_apps: Number(Boolean(next.in_apps)),
               connect: next.connect ? JSON.stringify(next.connect) : null,
               updated_at: ts,
             })
@@ -150,21 +166,25 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
         emit(next);
         return next;
       }
-      const created: Surface = {
-        id: newId("srf"),
-        name: s.name,
-        title: s.title,
-        html: s.html,
-        version: 1,
-        pinned: s.pinned ?? false,
-        app: s.app ?? false,
-        ...(s.page ? { page: true } : {}),
-        ...(s.project_id ? { project_id: s.project_id } : {}),
-        ...(s.thread_id ? { thread_id: s.thread_id } : {}),
-        created_by: s.created_by,
-        updated_at: ts,
-        ...(s.connect?.length ? { connect: s.connect } : {}),
-      };
+      const created: Surface = placed(
+        {
+          id: newId("srf"),
+          name: s.name,
+          title: s.title,
+          html: s.html,
+          version: 1,
+          pinned: s.pinned ?? false,
+          app: s.app ?? false,
+          ...(s.page ? { page: true } : {}),
+          ...(s.project_id ? { project_id: s.project_id } : {}),
+          ...(s.thread_id ? { thread_id: s.thread_id } : {}),
+          created_by: s.created_by,
+          updated_at: ts,
+          ...(s.connect?.length ? { connect: s.connect } : {}),
+        },
+        undefined,
+        s,
+      );
       run(
         qb.insertInto("surfaces").values({
           id: created.id,
@@ -175,6 +195,7 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
           pinned: Number(created.pinned),
           app: Number(created.app),
           page: Number(Boolean(created.page)),
+          in_apps: Number(Boolean(created.in_apps)),
           project_id: created.project_id ?? null,
           thread_id: created.thread_id ?? null,
           created_by: created.created_by,
@@ -187,13 +208,19 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
     },
     patch(
       id: string,
-      p: { pinned?: boolean | undefined; app?: boolean | undefined; page?: boolean | undefined },
+      p: {
+        pinned?: boolean | undefined;
+        app?: boolean | undefined;
+        page?: boolean | undefined;
+        in_apps?: boolean | undefined;
+      },
     ): SurfaceSummary | undefined {
       const cur = repo.get(id);
       if (!cur) return undefined;
-      const next: Surface = { ...cur, pinned: p.pinned ?? cur.pinned, app: p.app ?? cur.app, updated_at: now() };
+      let next: Surface = { ...cur, pinned: p.pinned ?? cur.pinned, app: p.app ?? cur.app, updated_at: now() };
       if (p.page ?? cur.page) next.page = true;
       else delete next.page;
+      next = placed(next, cur, p);
       run(
         qb
           .updateTable("surfaces")
@@ -201,6 +228,7 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
             pinned: Number(next.pinned),
             app: Number(next.app),
             page: Number(Boolean(next.page)),
+            in_apps: Number(Boolean(next.in_apps)),
             updated_at: next.updated_at,
           })
           .where("id", "=", cur.id),

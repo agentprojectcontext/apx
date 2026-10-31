@@ -1138,4 +1138,23 @@ export const MIGRATIONS: readonly string[] = [
   `,
   // A web page an agent made to look at and edit, shown in a page's frame instead of a widget's card.
   `ALTER TABLE surfaces ADD COLUMN page INTEGER NOT NULL DEFAULT 0;`,
+  // Being listed in Apps is apart from being an app. Whatever was in Apps stays there; it is an app only when its page
+  // says so (apx-surface app) or its agent last made it one, so a widget the owner put in Apps is a widget again.
+  // A web page is a document, never a board tile. See HISTORY.md#apps-listing.
+  `
+  ALTER TABLE surfaces ADD COLUMN in_apps INTEGER NOT NULL DEFAULT 0;
+  UPDATE surfaces SET in_apps = app;
+  UPDATE surfaces SET app = 0
+  WHERE app = 1
+    AND NOT (html LIKE '%apx-surface%' AND (html LIKE '%content="app"%' OR html LIKE '%content=''app''%'
+      OR html LIKE '%content=app%'))
+    AND html NOT LIKE '%data-ax-surface="app"%'
+    AND COALESCE((
+      SELECT json_extract(st.args, '$.app') FROM steps st
+      WHERE st.tool IN ('show_widget', 'edit_widget') AND json_valid(st.args)
+        AND json_extract(st.args, '$.name') = surfaces.name AND json_extract(st.args, '$.app') IS NOT NULL
+      ORDER BY st.started_at DESC LIMIT 1
+    ), 0) = 0;
+  UPDATE surfaces SET pinned = 0 WHERE page = 1;
+  `,
 ];

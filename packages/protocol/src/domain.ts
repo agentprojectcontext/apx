@@ -1453,9 +1453,12 @@ export const Surface = z.object({
   html: z.string(),
   version: z.number().int(),
   pinned: z.boolean(),
+  /** What it is: an app (fullscreen, its own navigation), decided when it is made; otherwise a widget or a page. */
   app: z.boolean(),
   /** A web page: shown as a browser shows it (its own styles, no kit or memory), with its code and an editor. */
   page: z.boolean().optional(),
+  /** Where it is listed: in Apps in the sidebar. An app made is; a widget is when the owner puts it there. */
+  in_apps: z.boolean().optional(),
   project_id: Id.optional(),
   thread_id: Id.optional(),
   created_by: Id,

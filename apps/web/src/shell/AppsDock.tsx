@@ -36,7 +36,7 @@ export function AppsDock({ rail }: { rail: boolean }) {
   const pinned = useMemo(
     () =>
       Object.values(surfaces)
-        .filter((s) => s.app)
+        .filter((s) => s.in_apps)
         .sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
     [surfaces],
   );
@@ -46,7 +46,7 @@ export function AppsDock({ rail }: { rail: boolean }) {
     if (view === "app" && appId && !ids.includes(appId)) ids.push(appId);
     return ids.flatMap((id) => {
       const s = surfaces[id];
-      return s && !s.app && !s.page ? [s] : [];
+      return s && !s.in_apps && !s.page ? [s] : [];
     });
   }, [runningIds, surfaces, view, appId]);
 
@@ -111,7 +111,7 @@ export function AppsDock({ rail }: { rail: boolean }) {
                   size="sm"
                   label={t("widget.installApp")}
                   icon={<Icons.Pin size={14} />}
-                  onClick={() => void setSurfaceFlags(a.id, { app: true })}
+                  onClick={() => void setSurfaceFlags(a.id, { in_apps: true })}
                 />
                 <IconButton
                   size="sm"
@@ -198,7 +198,7 @@ function AppLauncher({ running }: { running: ReadonlySet<string> }) {
               role="option"
               aria-selected={false}
               className="appsdock__row"
-              data-pinned={s.app || undefined}
+              data-pinned={s.in_apps || undefined}
               onClick={() => launch(s)}
             >
               <KindTile kind={kindOf(s)} size={18} />
@@ -206,7 +206,7 @@ function AppLauncher({ running }: { running: ReadonlySet<string> }) {
                 {s.title}
                 <small>
                   {projectName(projects, s.project_id)} · {kindLabel(kindOf(s), t)}
-                  {s.app ? ` · ${t("artifact.pinned")}` : ""}
+                  {s.in_apps ? ` · ${t("artifact.pinned")}` : ""}
                 </small>
               </span>
               {running.has(s.id) && <span className="navitem__running" title={t("artifact.running")} />}

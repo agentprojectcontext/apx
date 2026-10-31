@@ -18,6 +18,9 @@ version. Three kinds:
   before you change it.
 - **app**: fullscreen and listed in Apps (`app: true`, or `<meta name="apx-surface" content="app">` in the page).
 
+What it is and where it is listed are apart: the owner may put any widget in Apps (it stays a widget, "in Apps" in
+read_widget) or take an app out of it (it stays an app). A web page is never pinned to a board.
+
 Never write an artifact as a file for the owner to open: the owner sees an artifact only once APX shows it, either
 through `show_widget` or by saving its page in the artifact folder below.
 

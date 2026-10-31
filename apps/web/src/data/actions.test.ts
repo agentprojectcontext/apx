@@ -257,7 +257,7 @@ test("surface operations retain fetched documents, update metadata, copy, publis
     "surfaces.prompt": { run: "run_1" },
   });
   await actions.loadSurfaceDoc(surface.id);
-  await actions.setSurfaceFlags(surface.id, { pinned: true, app: false });
+  await actions.setSurfaceFlags(surface.id, { pinned: true, in_apps: false });
   await actions.copySurface(surface.id, undefined, true);
   assert.equal(await actions.shareSurface(surface.id, true), "/s/test-share");
   assert.equal(data.get().surfaces.srf_1?.pinned, true);

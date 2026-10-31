@@ -1878,9 +1878,13 @@ export const appMethods = {
     params: z
       .object({
         surface: Id,
+        /** On its project's board; never a web page's. */
         pinned: z.boolean().optional(),
+        /** What it is (an app); making one an app also lists it in Apps. */
         app: z.boolean().optional(),
         page: z.boolean().optional(),
+        /** Listed in Apps, whatever it is. */
+        in_apps: z.boolean().optional(),
       })
       .strict(),
     result: SurfaceSummary,

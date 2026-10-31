@@ -645,6 +645,7 @@ export interface SurfacesTable {
   state: string | null;
   origin: string | null;
   page: Generated<number>;
+  in_apps: Generated<number>;
 }
 
 export interface TaskAttachmentsTable {

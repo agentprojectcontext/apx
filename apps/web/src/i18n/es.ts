@@ -573,7 +573,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "widget.askWaiting": "El widget aparece acá apenas el agente lo haga.",
   "widget.chatNoAgent": "No hay un agente para seguir este widget.",
   "widget.chatDraft": "Seguí editando el widget «{title}» (nombre: {name}): ",
-  "widget.openApp": "Abrir como app",
+  "widget.openApp": "Abrir a pantalla completa",
   "widget.installApp": "Fijar en Apps",
   "widget.unavailable": "Widget no disponible",
   "widget.toPanel": "Mostrar en el panel lateral",
@@ -646,7 +646,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "artifact.installProject": "Proyecto",
   "artifact.installClash": "Ya hay un artefacto llamado {name} ahí: este se instala al lado con otro nombre.",
   "artifact.installPin": "Fijar en Apps",
-  "artifact.installPinHint": "Fijado es una app: queda en la barra lateral y corre hasta que la cerrás.",
+  "artifact.installPinHint": "Queda en Apps, en la barra lateral, y corre hasta que lo cerrás.",
   "artifact.installMemory": "Con sus datos",
   "artifact.installMemoryHint":
     "Lo que recuerda en el archivo: tu configuración, la última lectura guardada, sus registros.",

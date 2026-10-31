@@ -465,3 +465,40 @@ test("a project's tables are kept with their rows, columns from the rows' fields
     cleanup();
   }
 });
+
+test("being in Apps is kept apart from being an app: what the owner put there stays a widget, and pages leave boards", () => {
+  const { db, cleanup } = upgradeFrom("ADD COLUMN in_apps", (db) => {
+    const surface = db.prepare(
+      "INSERT INTO surfaces (id, name, title, html, version, pinned, app, page, created_by, updated_at) VALUES (?, ?, ?, ?, 1, ?, ?, ?, 'superagent', '2026-10-30')",
+    );
+    surface.run("srf_meta", "stats", "Stats", '<meta name="apx-surface" content="app"><main>Stats</main>', 0, 1, 0);
+    surface.run("srf_asked", "aquarium", "Aquarium", "<main>Fish</main>", 0, 1, 0);
+    surface.run("srf_owner", "btc", "BTC", "<main>Price</main>", 1, 1, 0);
+    surface.run("srf_board", "sales", "Sales", "<main>Sales</main>", 1, 0, 0);
+    surface.run("srf_page", "landing", "Landing", "<h1>Hi</h1>", 1, 0, 1);
+    db.prepare(
+      "INSERT INTO threads (id, kind, title, agent_ids, created_at, updated_at) VALUES ('th_1', 'loose', 'Chat', '[]', '2026-10-30', '2026-10-30')",
+    ).run();
+    db.prepare(
+      "INSERT INTO runs (id, thread_id, agent_id, state, started_at, created_at) VALUES ('run_1', 'th_1', 'superagent', 'completed', '2026-10-30', '2026-10-30')",
+    ).run();
+    const step = db.prepare(
+      "INSERT INTO steps (id, run_id, seq, call_id, tool, args, effect, state, started_at) VALUES (?, 'run_1', ?, ?, ?, ?, 'local', 'completed', ?)",
+    );
+    // Its agent made the aquarium an app; the BTC panel was a widget the owner put in Apps.
+    step.run("st_1", 1, "c1", "show_widget", '{"name":"aquarium","app":true}', "2026-10-30T01");
+    step.run("st_2", 2, "c2", "show_widget", '{"name":"btc","app":false}', "2026-10-30T02");
+    step.run("st_3", 3, "c3", "edit_widget", "not json", "2026-10-30T03");
+  });
+  try {
+    const row = (id: string) => db.prepare("SELECT app, in_apps, pinned FROM surfaces WHERE id = ?").get(id);
+    assert.deepEqual({ ...row("srf_meta") }, { app: 1, in_apps: 1, pinned: 0 });
+    assert.deepEqual({ ...row("srf_asked") }, { app: 1, in_apps: 1, pinned: 0 });
+    assert.deepEqual({ ...row("srf_owner") }, { app: 0, in_apps: 1, pinned: 1 });
+    assert.deepEqual({ ...row("srf_board") }, { app: 0, in_apps: 0, pinned: 1 });
+    assert.deepEqual({ ...row("srf_page") }, { app: 0, in_apps: 0, pinned: 0 });
+  } finally {
+    db.close();
+    cleanup();
+  }
+});

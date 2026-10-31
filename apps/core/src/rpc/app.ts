@@ -264,8 +264,10 @@ export function appHandlers(deps: {
         }),
       );
     },
-    "surfaces.update": ({ surface, pinned, app, page }) => {
-      const s = store.surfaces.patch(surface, { pinned, app, page });
+    "surfaces.update": ({ surface, pinned, app, page, in_apps }) => {
+      if (pinned && (page ?? store.surfaces.get(surface)?.page))
+        throw badRequest("a web page is a document, not a board tile: it cannot be pinned to a board");
+      const s = store.surfaces.patch(surface, { pinned, app, page, in_apps });
       if (!s) throw notFound(`surface ${surface}`);
       return s;
     },

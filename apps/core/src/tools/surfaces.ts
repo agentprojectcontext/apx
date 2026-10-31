@@ -91,7 +91,9 @@ export function surfaceTools(store: Store, home: string): Tool[] {
         const where = [
           surface.project_id ? "" : "in no project (a chat outside a project makes a global widget)",
           surface.pinned ? "pinned to the project's board" : "",
-          surface.app ? "listed as an app" : "",
+          a.pin && surface.page ? "not pinned: a web page is never on a board" : "",
+          surface.app ? "an app" : "",
+          surface.in_apps ? "listed in Apps" : "",
           surface.page ? "shown as a web page" : "",
           surface.connect ? `connecting to ${surface.connect.join(", ")}` : "",
         ].filter(Boolean);
@@ -113,7 +115,10 @@ export function surfaceTools(store: Store, home: string): Tool[] {
             return `no widgets ${ctx.thread.project_id ? "in this project" : "outside a project"} yet: make one with show_widget.`;
           return list
             .slice(0, 40)
-            .map((s) => `- ${s.name}: ${s.title} (v${s.version}${s.pinned ? ", pinned" : ""}${s.app ? ", app" : ""})`)
+            .map(
+              (s) =>
+                `- ${s.name}: ${s.title} (v${s.version}${s.app ? ", app" : s.page ? ", web page" : ""}${s.pinned ? ", pinned" : ""}${s.in_apps ? ", in Apps" : ""})`,
+            )
             .join("\n");
         }
         const s = find(ctx, a.name);
@@ -151,6 +156,7 @@ export function surfaceTools(store: Store, home: string): Tool[] {
       async run(a, ctx) {
         const s = find(ctx, a.name);
         if (!s) return `no widget named ${a.name}: make it with show_widget, or list them with read_widget.`;
+        if (a.pin && (a.page ?? s.page)) return "a web page is a document, not a board tile: it cannot be pinned.";
         const flags = {
           ...(a.app === undefined ? {} : { app: a.app }),
           ...(a.pin === undefined ? {} : { pinned: a.pin }),
@@ -164,7 +170,7 @@ export function surfaceTools(store: Store, home: string): Tool[] {
           if (a.state) await ctx.call("surfaces.set_state", { surface: s.id, patch: a.state });
           const surface = hasFlags ? await ctx.call("surfaces.update", { surface: s.id, ...flags }) : s;
           if (hasFlags) card(ctx, surface);
-          return `widget "${surface.name}" v${surface.version}: ${surface.app ? "app" : surface.page ? "web page" : "widget"}, ${surface.pinned ? "pinned" : "not pinned"}; HTML unchanged${remembered}.`;
+          return `widget "${surface.name}" v${surface.version}: ${surface.app ? "app" : surface.page ? "web page" : "widget"}, ${surface.pinned ? "pinned" : "not pinned"}${surface.in_apps ? ", in Apps" : ""}; HTML unchanged${remembered}.`;
         }
         const files = builtFromFiles(home, s.project_id, s.name);
         if (files) return files;

@@ -81,7 +81,9 @@ export async function installArtifact(
 ): Promise<string | undefined> {
   try {
     let summary = await client.call("surfaces.import", { bundle, ...(projectId ? { project: projectId } : {}) });
-    if (summary.app !== pin) summary = await client.call("surfaces.update", { surface: summary.id, app: pin });
+    // Listed in Apps or not, as asked: an app stays an app either way.
+    if (Boolean(summary.in_apps) !== pin)
+      summary = await client.call("surfaces.update", { surface: summary.id, in_apps: pin });
     data.set((s) => ({ surfaces: { ...s.surfaces, [summary.id]: summary } }));
     notify(t("artifact.imported", { title: summary.title }), "info");
     return summary.id;

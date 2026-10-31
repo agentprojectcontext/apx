@@ -117,7 +117,7 @@ test("an opened artifact keeps running as it was left while the owner goes elsew
   await expect(p.locator(".navitem__running")).toHaveCount(3);
 
   // Unpinned from Apps, a running app keeps running under the line; its close there ends it.
-  await rpc("surfaces.update", { surface: two.id, app: false });
+  await rpc("surfaces.update", { surface: two.id, in_apps: false });
   await expect(p.locator(".appsdock__loose")).toHaveCount(1);
   await expect.poll(() => frames(p).length).toBe(3);
   await p.locator(".appsdock__loose").hover();
@@ -157,9 +157,13 @@ test("an .apxart file is shown for what it is before it installs, pinned and wit
   await dialog.getByRole("button", { name: "Instalar", exact: true }).click();
   await expect(dialog).toBeHidden();
 
-  const { surfaces } = await rpc<{ surfaces: { id: string; name: string; app: boolean }[] }>("surfaces.list");
+  const { surfaces } = await rpc<{ surfaces: { id: string; name: string; app: boolean; in_apps?: boolean }[] }>(
+    "surfaces.list",
+  );
   const installed = surfaces.find((s) => s.name === "install-me-2");
-  expect(installed?.app).toBe(true);
+  // Pinned to Apps as it installed, and still the widget it is.
+  expect(installed?.in_apps).toBe(true);
+  expect(installed?.app).toBe(false);
   const memory = await rpc<{ store: { keys: string[] } }>("surfaces.memory", { surface: installed?.id ?? "" });
   expect(memory.store.keys).toEqual(["reading"]);
 

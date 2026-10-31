@@ -57,6 +57,8 @@ const calls: Record<string, object | [string, object]> = {
   "kit app again": { name: "habits", title: "Habits", html: KIT_APP.replace("Habits", "Daily habits") },
   "read habits": ["read_widget", { name: "habits" }],
   "remember for it": ["edit_widget", { name: "habits", state: { streak: 4, draft: null } }],
+  "a pinned page": { name: "landing", title: "Landing", html: "<h1>Hi</h1>", page: true, pin: true },
+  "pin the page": ["edit_widget", { name: "landing", pin: true }],
 };
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content)}`);
@@ -118,7 +120,7 @@ test("an agent reads a widget and changes a piece of it; where the owner put it 
   const placed = await env.client.call("surfaces.get", { surface: id });
   assert.deepEqual([placed.app, placed.pinned], [true, true]);
 
-  assert.match(await said(t.id, "list widgets"), /- btc-live: BTC live \(v\d+, pinned, app\)/);
+  assert.match(await said(t.id, "list widgets"), /- btc-live: BTC live \(v\d+, app, pinned, in Apps\)/);
   assert.match(await said(t.id, "read it"), /<html_source>\n<div id=p><\/div><script>/);
   const before = placed.version;
   assert.match(await said(t.id, "edit it"), new RegExp(`is now v${before + 1} \\(1 edit\\)`));
@@ -228,7 +230,7 @@ test("an agent converts a published app to a widget without reading or replacing
   });
   await env.client.call("surfaces.share", { surface: original.id, shared: true });
   const before = await env.client.call("surfaces.get", { surface: original.id });
-  assert.match(await said(t.id, "make a widget"), /widget, pinned; HTML unchanged/);
+  assert.match(await said(t.id, "make a widget"), /widget, pinned, in Apps; HTML unchanged/);
   const converted = await env.client.call("surfaces.get", { surface: original.id });
   assert.equal(converted.app, false);
   assert.equal(converted.pinned, true);
@@ -239,8 +241,8 @@ test("an agent converts a published app to a widget without reading or replacing
   const part = messages.at(-1)?.parts.find((p) => p.type === "surface");
   assert.equal(part?.type === "surface" && part.version, before.version);
 
-  assert.match(await said(t.id, "unpin converted"), /widget, not pinned; HTML unchanged/);
-  assert.match(await said(t.id, "make an app"), /app, not pinned; HTML unchanged/);
+  assert.match(await said(t.id, "unpin converted"), /widget, not pinned, in Apps; HTML unchanged/);
+  assert.match(await said(t.id, "make an app"), /app, not pinned, in Apps; HTML unchanged/);
   assert.match(await said(t.id, "bad conversion edit"), /nothing changed/);
   assert.equal((await env.client.call("surfaces.get", { surface: original.id })).app, true);
   assert.match(await said(t.id, "published conversion edit"), /published/);
@@ -261,7 +263,7 @@ test("an agent converts a published app to a widget without reading or replacing
 
 test("a page written with the APX Kit is an app by its meta tag and gets the kit inline wherever it is served", async () => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "kit" });
-  assert.match(await said(t.id, "kit app"), /widget "habits" v1 shown.*listed as an app/);
+  assert.match(await said(t.id, "kit app"), /widget "habits" v1 shown.*an app, listed in Apps/);
   const id = (await env.client.call("surfaces.list", {})).surfaces.find((s) => s.name === "habits")?.id ?? "";
   const doc = await env.client.call("surfaces.get", { surface: id });
   assert.equal(doc.app, true);
@@ -371,4 +373,30 @@ test("a page pushed from the terminal lands in the project it names, never one i
     env.client.call("surfaces.show", { name: "expenses", title: "E", html: "<p></p>", project: "p_missing" }),
     /project p_missing/,
   );
+});
+
+test("being in Apps is where the owner lists it, apart from what it is; an app made is listed there", async () => {
+  const made = await env.client.call("surfaces.show", { name: "tally", title: "Tally", html: "<p>1</p>", app: true });
+  assert.deepEqual([made.app, made.in_apps], [true, true]);
+  // The owner takes it out of Apps: still an app. A widget the owner puts there stays a widget.
+  const out = await env.client.call("surfaces.update", { surface: made.id, in_apps: false });
+  assert.deepEqual([out.app, out.in_apps], [true, undefined]);
+  const widget = await env.client.call("surfaces.show", { name: "clock", title: "Clock", html: "<p>12</p>" });
+  const listed = await env.client.call("surfaces.update", { surface: widget.id, in_apps: true });
+  assert.deepEqual([listed.app, listed.in_apps], [false, true]);
+  // Its agent making it an app lists it too; an update that says nothing keeps where it is.
+  const asApp = await env.client.call("surfaces.update", { surface: out.id, app: true });
+  assert.equal(asApp.in_apps, undefined);
+  const again = await env.client.call("surfaces.show", { name: "clock", title: "Clock", html: "<p>1</p>" });
+  assert.deepEqual([again.app, again.in_apps], [false, true]);
+});
+
+test("a web page is never a board tile: pinning it is refused or left out, and the agent is told", async () => {
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "page" })).id;
+  assert.match(await said(thread, "a pinned page"), /not pinned: a web page is never on a board/);
+  const page = env.core.store.surfaces.list().find((s) => s.name === "landing");
+  assert.ok(page?.page);
+  assert.equal(page.pinned, false);
+  assert.match(await said(thread, "pin the page"), /cannot be pinned/);
+  await assert.rejects(env.client.call("surfaces.update", { surface: page.id, pinned: true }), /not a board tile/);
 });

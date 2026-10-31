@@ -571,7 +571,7 @@ export const en = {
   "widget.askWaiting": "The widget shows here as soon as the agent makes it.",
   "widget.chatNoAgent": "There is no agent to keep this widget.",
   "widget.chatDraft": 'Keep editing the widget "{title}" (name: {name}): ',
-  "widget.openApp": "Open as app",
+  "widget.openApp": "Open full screen",
   "widget.installApp": "Pin to Apps",
   "widget.unavailable": "Widget not available",
   "widget.toPanel": "Show in the side panel",
@@ -645,7 +645,7 @@ export const en = {
   "artifact.installClash":
     "There is already an artifact named {name} there: this one installs beside it with another name.",
   "artifact.installPin": "Pin to Apps",
-  "artifact.installPinHint": "Pinned, it is an app: in the sidebar and running until you close it.",
+  "artifact.installPinHint": "Listed in Apps in the sidebar, and running until you close it.",
   "artifact.installMemory": "With its data",
   "artifact.installMemoryHint": "What it remembers in the file: your settings, its last saved reading, its records.",
   "artifact.part.state": "your settings",
