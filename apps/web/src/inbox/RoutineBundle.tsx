@@ -66,7 +66,7 @@ export function RoutineBundle({
         <span className="tree__when">{shortWhen(latest.updated_at)}</span>
       </button>
       {open && (
-        <div className="tree__sessions">
+        <div className="tree__sessions apx-branches">
           {shown.map((thread) => (
             <ListedChat key={thread.id} thread={thread} selected={selected}>
               <SessionRow thread={thread} agent={agents[thread.agent_ids[0] ?? ""]} selected={thread.id === selected} />

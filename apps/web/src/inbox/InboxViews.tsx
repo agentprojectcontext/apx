@@ -145,7 +145,7 @@ export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: 
                     · {b.threads.length}
                   </span>
                 </button>
-                <div className="tree__sessions">
+                <div className="tree__sessions apx-branches">
                   {shown.map((th) => (
                     <ListedChat key={th.id} thread={th} selected={selected}>
                       <SessionRow thread={th} agent={agent} selected={th.id === selected} />

@@ -84,7 +84,7 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
         />
       </ContextMenu>
       {open && (
-        <div className="tree__sessions">
+        <div className="tree__sessions apx-branches">
           {threads.map((th) => (
             <ListedChat key={th.id} thread={th} selected={selected}>
               <SessionRow thread={th} agent={agents[th.agent_ids[0] ?? ""]} selected={th.id === selected} withAgent />

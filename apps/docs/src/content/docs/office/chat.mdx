@@ -39,7 +39,9 @@ Open a chat and write. The agent's face and name sit in the header; click them (
 side panel with its role, model and memory.
 
 While it works you see each step as it happens: tools it used, pages it opened, agents it asked. Once done they fold
-into one line, such as **4 steps · 12 s**, that opens on click. **Show tools** in the header toggles those steps if
+into one line, such as **4 steps · 12 s**, that opens on click into each step in words ("Read notes.md", "Searched
+prices 2026") with an icon for its kind of action (the web, a file read, a file written, memory). Only a step that
+failed is marked, in red, and the line says how many failed. **Show tools** in the header toggles those steps if
 you only want the answers. You can write while it works: your message reaches the turn at its next step, stays where
 you wrote it, and what the agent says after reading it comes below. When an agent needs your OK (to run a command, send a
 message, use your login on a site) the chat shows the question with **Approve once**, **Approve for this session** or
