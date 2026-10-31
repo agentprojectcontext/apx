@@ -95,6 +95,13 @@ Después ese paso va al modelo siguiente de la cadena. Vale para cualquier paso 
 corra una herramienta: cada paso sólo le pregunta al modelo qué hacer, así que nada corre dos veces. Cuando cambia, el
 chat muestra un aviso con qué modelo no respondió, por qué y cuál siguió.
 
+Un modelo que llega al límite de uso de su cuenta (la cuota de un plan, un límite de frecuencia largo) se saltea hasta
+la hora de reinicio que dio el proveedor, o 10 minutos si no dio ninguna: los turnos siguientes van directo al modelo
+siguiente en lugar de volver a preguntarle. Si ningún modelo de la cadena puede responder, el turno se detiene y dice
+cuándo se levanta el límite; cuando se levanta, APX retoma el turno en el mismo chat, con lo que ya había hecho, y el
+agente lo termina. Lo hace solo con el último turno del chat y hasta tres veces seguidas, nunca con una rutina (su
+próxima corrida llega a su hora) ni con los agentes en pausa. Un turno detenido hace más de un día queda como está.
+
 ## Por agente, por chat, por defecto
 
 Tres lugares eligen modelo, del más puntual al más general:

@@ -601,6 +601,17 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
         .limit(limit);
       return all(qb.selectFrom(newest.as("m")).selectAll().orderBy("seq")).map(toMessage);
     },
+    /** A run's messages in the thread, oldest first: more than one when the owner wrote while it worked. */
+    ofRun(threadId: string, runId: string): Message[] {
+      return all(
+        qb
+          .selectFrom("messages")
+          .selectAll()
+          .where("thread_id", "=", threadId)
+          .where("run_id", "=", runId)
+          .orderBy("seq"),
+      ).map(toMessage);
+    },
     /** Notice messages across the full history, independent of the display page size. */
     notices(threadId: string, code: string): Message[] {
       return all(
@@ -755,6 +766,13 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
       };
       bus.emit({ type: "message.updated", message: out });
       return out;
+    },
+    /** Takes out these messages of the thread. */
+    drop(threadId: string, ids: string[]): void {
+      if (!ids.length) return;
+      // Through the table, so the search index triggers run.
+      run(qb.deleteFrom("messages").where("thread_id", "=", threadId).where("id", "in", ids));
+      bus.emit({ type: "message.deleted", thread_id: threadId, message_ids: ids });
     },
     /** Takes out the thread's messages from `seq` on; returns the runs that wrote them. */
     cutFrom(threadId: string, seq: number): string[] {

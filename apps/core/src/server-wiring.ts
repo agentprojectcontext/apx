@@ -52,6 +52,7 @@ import { gitHandlers } from "./rpc/git.ts";
 import { integrationHandlers } from "./rpc/integrations.ts";
 import type { InternalCall } from "./rpc/internal.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
+import { mailHandlers } from "./rpc/mail.ts";
 import { mcpHandlers } from "./rpc/mcp.ts";
 import { mediaHandlers } from "./rpc/media.ts";
 import { memoryHandlers } from "./rpc/memory.ts";
@@ -290,6 +291,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
     ...channelHandlers(d.store, d.channels, d.nudges),
     ...emailSignatureHandlers(d.store, d.google),
+    ...mailHandlers(d.store, d.google, d.channels),
     ...mediaHandlers(d.services, d.store),
     ...transcriptionHandlers(d.services, d.localModels),
     ...embeddingHandlers(d.localEmbeds, () => d.memory.engine()),

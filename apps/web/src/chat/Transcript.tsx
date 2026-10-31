@@ -1,4 +1,4 @@
-import type { Message as Msg, Thread } from "@apx/protocol";
+import { type Message as Msg, receivedMail, type Thread } from "@apx/protocol";
 import {
   ActivityPill,
   AgentAvatar,
@@ -15,10 +15,11 @@ import { type ReactNode, Suspense, useEffect, useMemo, useRef } from "react";
 import { ReactionList } from "../channels/MessageMarks.tsx";
 import { dayLabel, sameDay } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
+import { useChannels } from "../data/channels.ts";
 import { blobOf, isWorking, routineName, threadAgent } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
-import { AgentEvent, MediaGroup, TaskDescription } from "../lazy.ts";
+import { AgentEvent, EmailCard, MediaGroup, TaskDescription } from "../lazy.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
 import { isAgentEvent, isIndividualChat } from "./agentEvent.ts";
@@ -46,6 +47,13 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
   const engine = thread.engine && engineLabel ? { id: thread.engine, label: engineLabel } : undefined;
   const showTools = useNav((s) => s.tools);
   const agent = threadAgent(thread, agents);
+  const mailIds = useChannels((s) =>
+    s.channels
+      .filter((c) => c.type === "email")
+      .map((c) => c.id)
+      .join(" "),
+  );
+  const mailChannels = useMemo(() => new Set(mailIds.split(" ")), [mailIds]);
   const scroll = useRef<StickyScrollHandle>(null);
   const multiAgent =
     !isIndividualChat(thread) &&
@@ -147,14 +155,20 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
               {(textOf(msg) || bubbleFiles(msg.parts).length > 0) && (
                 <Message
                   from="agent"
-                  variant="bubble"
+                  variant={mailChannels.has(msg.author.channel) && textOf(msg) ? "bare" : "bubble"}
                   avatar={<AgentAvatar name={msg.author.name} size={24} />}
                   meta={<span className="transcript__person">{msg.author.name}</span>}
                   reactions={reactionsOf(msg)}
                   actions={<MessageActions thread={thread} message={msg} text={textOf(msg)} speechKey={msg.id} />}
                 >
                   <UserFiles message={msg} />
-                  <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
+                  {mailChannels.has(msg.author.channel) && textOf(msg) ? (
+                    <ReceivedMail message={msg} from={msg.author.name}>
+                      <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
+                    </ReceivedMail>
+                  ) : (
+                    <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
+                  )}
                 </Message>
               )}
             </>
@@ -283,6 +297,16 @@ function textOf(m: Msg): string {
  * The owner's (or a contact's) words as written; a leading "> " quote shows as the quote they answer, and leads back
  * to the message it was taken from when that one is still in the chat.
  */
+/** A mail that reached an email channel, as an email card (its plain words while the card loads). */
+function ReceivedMail({ message, from, children }: { message: Msg; from: string; children: ReactNode }) {
+  const { subject, body } = receivedMail(textOf(message));
+  return (
+    <Suspense fallback={children}>
+      <EmailCard mail={{ to: [], cc: [], from, subject, date: "", body }} messageId={message.id} />
+    </Suspense>
+  );
+}
+
 function UserText({ text, sourceOf }: { text: string; sourceOf: (quote: string) => string | undefined }) {
   const t = useT();
   const { quote, rest } = splitQuote(text);

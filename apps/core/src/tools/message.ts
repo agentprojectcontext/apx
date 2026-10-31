@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { OWNER_ID } from "../domain/persons.ts";
+import { meansOwner, OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
 import { channelsOn } from "./directory.ts";
 import { folderAccess, readsOutside, workDir } from "./folders.ts";
@@ -99,7 +99,7 @@ export function messageTools(store: Store, home: string): Tool[] {
   };
   /** The owner's contact a name (or id) points at ("me": the owner); several or none: why, with the names there are. */
   const resolve = (to: string): { id: string; name: string } | { problem: string } => {
-    if (/^(me|owner|yo|a mi|a mí)$/i.test(to.trim())) {
+    if (meansOwner(to)) {
       const owner = store.persons.get(OWNER_ID);
       if (owner) return owner;
     }

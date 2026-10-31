@@ -1,4 +1,4 @@
-import type { ChannelInfo, Message, Person, Thread } from "@apx/protocol";
+import { type ChannelInfo, type Message, type Person, receivedMail, type Thread } from "@apx/protocol";
 import {
   Button,
   EmptyState,
@@ -19,7 +19,7 @@ import { loadThread, markRead, send } from "../data/actions.ts";
 import { openContactChat, type PresenceState, recoverFiles, sendDirect } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { MediaGroup } from "../lazy.ts";
+import { EmailCard, MediaGroup } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { addressText, ContactFace } from "./ContactRow.tsx";
 import { KindIcon } from "./KindIcon.tsx";
@@ -185,7 +185,7 @@ export function ChannelConversation(props: {
         ) : load !== "ready" && !messages ? (
           <Skeleton height={120} />
         ) : (
-          (messages ?? []).map((m) => <Bubble key={m.id} m={m} agentName={agentName} />)
+          (messages ?? []).map((m) => <Bubble key={m.id} m={m} agentName={agentName} mail={channel.type === "email"} />)
         )}
       </StickyScroll>
       <div className="chan__composer">
@@ -229,7 +229,7 @@ export function ChannelConversation(props: {
   );
 }
 
-function Bubble({ m, agentName }: { m: Message; agentName: string }) {
+function Bubble({ m, agentName, mail }: { m: Message; agentName: string; mail: boolean }) {
   const t = useT();
   const said = m.parts
     .flatMap((p) => (p.type === "text" ? [p.text] : []))
@@ -269,7 +269,16 @@ function Bubble({ m, agentName }: { m: Message; agentName: string }) {
           {files.map((p) =>
             p.type === "file" ? <FilePart key={p.media_id} part={p} /> : <AudioPart key={p.media_id} part={p} />,
           )}
-          {words && <p className="chan__text">{words}</p>}
+          {words && mail && m.author.kind === "person" ? (
+            <Suspense fallback={<p className="chan__text">{words}</p>}>
+              <EmailCard
+                mail={{ to: [], cc: [], from: m.author.name, date: "", ...receivedMail(words) }}
+                messageId={m.id}
+              />
+            </Suspense>
+          ) : (
+            words && <p className="chan__text">{words}</p>
+          )}
           {m.reactions?.length ? (
             <span className="chan__reactions">
               <ReactionList list={m.reactions} agentName={agentName} />

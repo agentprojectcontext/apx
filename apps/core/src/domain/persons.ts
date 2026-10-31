@@ -6,6 +6,8 @@ import type { AddressesTable, PersonsTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
 export const OWNER_ID = "owner";
+/** How an agent names the owner as whom to write to ("me" in message_contact). */
+export const meansOwner = (to: string): boolean => /^(me|owner|yo|a mi|a mí)$/i.test(to.trim());
 
 const toAddress = (r: Selectable<AddressesTable>): Address => ({
   id: r.id,

@@ -173,14 +173,16 @@ const base64Lines = (b: Buffer) => (b.toString("base64").match(/.{1,76}/g) ?? []
 
 export type OutMail = {
   from: { address: string; name?: string | undefined };
-  to: string;
+  to: string[];
+  /** Copied: the owner's own mail can have more than one reader. */
+  cc?: string[] | undefined;
   subject: string;
   text: string;
   html?: string | undefined;
   inReplyTo?: string | undefined;
   references?: string[] | undefined;
-  /** RFC 3834: answers written by a machine say so, so other robots do not answer them back. */
-  autoSubmitted: "auto-replied" | "auto-generated";
+  /** RFC 3834: answers written by a machine say so, so other robots do not answer them back; the owner's own: none. */
+  autoSubmitted?: "auto-replied" | "auto-generated" | undefined;
   files?: Array<{ name: string; mime: string; data: Buffer }> | undefined;
 };
 
@@ -189,15 +191,15 @@ export function composeMail(m: OutMail): { id: string; data: Buffer } {
   const id = `<${randomUUID()}@${domainOf(m.from.address)}>`;
   const head = [
     `From: ${mailbox(m.from.address, m.from.name)}`,
-    `To: <${m.to}>`,
+    `To: ${m.to.map((a) => `<${a}>`).join(", ")}`,
+    ...(m.cc?.length ? [`Cc: ${m.cc.map((a) => `<${a}>`).join(", ")}`] : []),
     `Subject: ${encodeWords(m.subject)}`,
     `Date: ${new Date().toUTCString().replace("GMT", "+0000")}`,
     `Message-ID: ${id}`,
     ...(m.inReplyTo ? [`In-Reply-To: ${m.inReplyTo}`] : []),
     ...(m.references?.length ? [`References: ${m.references.join("\r\n ")}`] : []),
-    `Auto-Submitted: ${m.autoSubmitted}`,
     // Exchange and Outlook: no out-of-office or read receipts back to this address.
-    "X-Auto-Response-Suppress: All",
+    ...(m.autoSubmitted ? [`Auto-Submitted: ${m.autoSubmitted}`, "X-Auto-Response-Suppress: All"] : []),
     "MIME-Version: 1.0",
   ];
   const textPart = emailMimeBody({ text: m.text, html: m.html });
