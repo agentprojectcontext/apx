@@ -105,7 +105,14 @@ export default defineConfig({
         {
           label: "Your office",
           translations: { es: "Tu oficina" },
-          items: ["docs/office/chat", "docs/office/tasks", "docs/office/routines", "docs/office/secretary", "docs/office/code", "docs/office/email"],
+          items: [
+            "docs/office/chat",
+            "docs/office/tasks",
+            "docs/office/routines",
+            "docs/office/secretary",
+            "docs/office/code",
+            "docs/office/email",
+          ],
         },
         {
           label: "Apps and artifacts",

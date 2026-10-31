@@ -1,4 +1,14 @@
-export const docSections = ["start", "concepts", "office", "apps", "computers", "channels", "extend", "devices", "reference"];
+export const docSections = [
+  "start",
+  "concepts",
+  "office",
+  "apps",
+  "computers",
+  "channels",
+  "extend",
+  "devices",
+  "reference",
+];
 
 /** @param {string} path Map an address without changing web pages or assets. */
 export function documentationPath(path) {
