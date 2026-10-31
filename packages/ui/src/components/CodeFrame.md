@@ -9,6 +9,7 @@ A fenced code block an agent wrote, in a frame: the language in the header, **Co
 - `code`: the text Copy puts on the clipboard.
 - `children`: the code as shown (the app passes it highlighted, with line numbers; a plain `<pre>` works too).
 - `preview`: what the code draws. The app is responsible for drawing untrusted code safely (a sandboxed frame for HTML).
+- `status`: a word beside the language while the block is not finished (the app shows "Writing…" while an agent writes it).
 - `labels`: `preview`, `source`, `showAs` (the switch's name), `copy`, `copied`, `expand`, `close`; English by default.
 - The body scrolls past 420px; the expanded view takes the window's height.
 

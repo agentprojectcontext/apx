@@ -108,6 +108,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "md.expand": "Expandir",
   "md.plainText": "Texto",
   "md.htmlFrame": "Vista previa del HTML",
+  "md.writing": "Generando…",
   "md.diagram": "Diagrama",
   "md.diagramFailed": "No se pudo dibujar este diagrama: se muestra su código.",
   "file.download": "Descargar",

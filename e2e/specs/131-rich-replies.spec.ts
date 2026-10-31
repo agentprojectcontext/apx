@@ -1,5 +1,6 @@
 // An agent's reply with a table, an HTML page, a Mermaid diagram and a file it made: the table copies as Markdown and
-// CSV, the page and the diagram show drawn with a switch to their code, and the file is a chip that opens and saves.
+// CSV, the page and the diagram are cards of their own between the bubbles, drawn with a switch to their code, and the
+// file is a chip that opens and saves.
 import fs from "node:fs";
 import net, { type AddressInfo } from "node:net";
 import path from "node:path";
@@ -48,8 +49,12 @@ test("a rich reply: table copies, HTML and Mermaid previews, a file chip that op
     const input = page.getByRole("textbox", { name: /^Escribile a/ });
     await input.fill("Prepare the launch");
     await page.getByRole("button", { name: "Enviar", exact: true }).click();
-    const reply = page.locator(".apx-msg--agent", { hasText: "The launch plan is ready." });
+    const reply = page.locator(".turn", { hasText: "The launch plan is ready." });
     await expect(reply).toBeVisible();
+    // The words are a bubble; each block is a card of its own beside it, never inside a bubble.
+    await expect(reply.locator(".apx-msg__bubble", { hasText: "The launch plan is ready." })).toBeVisible();
+    await expect(reply.locator(".turn__card .apx-codeframe")).toHaveCount(2);
+    await expect(reply.locator(".apx-msg__bubble .apx-codeframe")).toHaveCount(0);
 
     // The table: both copies under it, the CSV with its commas and quotes kept.
     const table = reply.locator(".apx-md__tablebox");

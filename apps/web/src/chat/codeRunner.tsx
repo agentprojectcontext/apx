@@ -1,7 +1,7 @@
 import type { Thread } from "@apx/protocol";
 import { EMAIL_LANG, parseEmailBlock } from "@apx/protocol/email-block";
 import type { CodeRenderer } from "@apx/ui";
-import { Suspense } from "react";
+import { Fragment, type ReactNode, Suspense } from "react";
 import { CodeBlock, EmailCard, RunnableCode } from "../lazy.ts";
 
 const SHELL_LANGS: ReadonlySet<string> = new Set(["bash", "sh", "zsh", "shell", "console", "fish"]);
@@ -30,4 +30,31 @@ export function runnableCode(thread: Thread, messageId: string): CodeRenderer {
       </Suspense>
     );
   };
+}
+
+/**
+ * A block that is a card of its own between the reply's bubbles (replySegments.ts): while the agent is still writing
+ * it, its code coming in; once whole, its frame, what it draws (a page, a diagram, an email card) or its run button.
+ */
+export function replyBlock(
+  thread: Thread,
+  messageId: string,
+  block: { lang: string; code: string },
+  writing: boolean,
+): ReactNode {
+  const pre = (
+    <pre>
+      <code>{block.code}</code>
+    </pre>
+  );
+  // A new key once it is whole, so the frame starts again on what it draws.
+  return writing ? (
+    <Suspense key="writing" fallback={pre}>
+      <CodeBlock code={block.code} lang={block.lang || undefined} pre={pre} writing />
+    </Suspense>
+  ) : (
+    <Fragment key="whole">
+      {runnableCode(thread, messageId)(block.code, block.lang || undefined, pre, block.lang)}
+    </Fragment>
+  );
 }
