@@ -309,6 +309,8 @@ export const en = {
   "nav.back": "Back",
   "nav.forward": "Forward",
   "nav.resize": "Fold or resize the sidebar",
+  "nav.resizeHint": "Click to fold the sidebar · drag to resize it",
+  "nav.unfoldHint": "Click to open the sidebar",
   "nav.rowsResize": "Show more or fewer {section}",
   "inbox.resize": "Resize the list",
   "nav.label": "Navigation",

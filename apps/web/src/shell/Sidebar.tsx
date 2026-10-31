@@ -69,6 +69,7 @@ export function Sidebar({
             )
           }
           label={t("nav.resize")}
+          hint={t(rail ? "nav.unfoldHint" : "nav.resizeHint")}
         />
       )}
       <div className="sidebar__top">

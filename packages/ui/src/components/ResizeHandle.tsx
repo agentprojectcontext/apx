@@ -1,5 +1,6 @@
-import { type KeyboardEvent, type PointerEvent, useRef } from "react";
+import { type KeyboardEvent, type PointerEvent, type ReactNode, useRef } from "react";
 import { cx } from "../cx";
+import { Tooltip } from "./Tooltip";
 
 /** A pointer that moves less than this between press and release clicked the handle. */
 const CLICK_SLOP = 3;
@@ -26,6 +27,8 @@ export interface ResizeHandleProps {
   collapsed?: boolean;
   collapsedWidth?: number;
   onCollapsedChange?: (collapsed: boolean) => void;
+  /** Shown on hover: what a click and a drag do here ("Click to fold"). */
+  hint?: ReactNode;
   className?: string;
 }
 
@@ -45,6 +48,7 @@ export function ResizeHandle({
   collapsed = false,
   collapsedWidth = 0,
   onCollapsedChange,
+  hint,
   className,
 }: ResizeHandleProps) {
   const start = useRef<{ x: number; w: number; moved: boolean; folded: boolean } | undefined>(undefined);
@@ -104,7 +108,7 @@ export function ResizeHandle({
     if (foldable && delta < 0 && width <= min) onCollapsedChange(true);
     else onResize(clamp(width + delta));
   };
-  return (
+  const handle = (
     // biome-ignore lint/a11y/useSemanticElements: a separator that moves is the WAI-ARIA window splitter pattern.
     <div
       role="separator"
@@ -123,5 +127,12 @@ export function ResizeHandle({
       onKeyDown={key}
       onDoubleClick={onReset}
     />
+  );
+  if (!hint) return handle;
+  const side = edge === "top" ? "top" : edge === "left" ? "left" : "right";
+  return (
+    <Tooltip content={hint} side={side}>
+      {handle}
+    </Tooltip>
   );
 }

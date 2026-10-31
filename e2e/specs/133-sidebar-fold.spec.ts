@@ -51,6 +51,13 @@ test("a click on the sidebar's edge folds and unfolds it, keeping the width the 
   await dragEdge(page, 64);
   const chosen = await sidebarWidth(page);
   expect(chosen).toBeGreaterThan(280);
+  // The list's scrollbar sits left of the edge, where a hand can grab it.
+  const [list, grip] = await Promise.all([page.locator(".sidebar__scroll").boundingBox(), edge(page).boundingBox()]);
+  expect(list && grip && list.x + list.width <= grip.x).toBe(true);
+  // Hovering the edge says what a click does.
+  await page.mouse.move(700, 400);
+  await edge(page).hover();
+  await expect(page.getByText("Clic para plegar la barra · arrastrá para cambiar el ancho")).toBeVisible();
   await edge(page).click();
   await expect(sidebar).toHaveClass(/is-rail/);
   expect(await sidebarWidth(page)).toBe(60);

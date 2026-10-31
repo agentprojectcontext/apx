@@ -234,7 +234,6 @@
   padding: 12px 4px 12px 8px;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-gutter: stable;
 }
 .sidebar__foot {
   flex: none;
@@ -721,6 +720,11 @@
    sidebar, which clips what overflows). */
 .apx-resize.sidebar__resize {
   right: 0;
+}
+/* The list ends where the edge begins, so its scrollbar is not under the edge and can be grabbed. */
+.sidebar:not(.is-rail) .sidebar__scroll {
+  margin-right: 9px;
+  padding-right: 0;
 }
 .apx-resize.sidebar__resize::after {
   left: 6px;

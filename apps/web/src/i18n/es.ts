@@ -308,6 +308,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nav.back": "Atrás",
   "nav.forward": "Adelante",
   "nav.resize": "Plegar o cambiar el ancho de la barra",
+  "nav.resizeHint": "Clic para plegar la barra · arrastrá para cambiar el ancho",
+  "nav.unfoldHint": "Clic para abrir la barra",
   "nav.rowsResize": "Mostrar más o menos {section}",
   "inbox.resize": "Cambiar el ancho de la lista",
   "nav.label": "Navegación",

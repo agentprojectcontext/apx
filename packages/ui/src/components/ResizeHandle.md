@@ -17,6 +17,7 @@ The edge of a column you drag to change its width: the sidebar, the chat list, a
   Enter toggles it; a drag that goes past halfway between `collapsedWidth` and `min` snaps it closed, and back open
   when dragged out again. Folding keeps `width`, so unfolding returns to it. From the keyboard, Left at `min` folds it
   and Right unfolds it.
+- `hint`: a tooltip on hover saying what a click and a drag do there ("Click to fold · drag to resize").
 
 Place it inside the column (positioned) or over the line between two columns.
 
