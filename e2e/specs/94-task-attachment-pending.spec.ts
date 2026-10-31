@@ -41,7 +41,7 @@ test("task creation waits for uploads and keeps selected assets after a failed s
     release();
   }
   const source = (await (await uploaded).json()).result.media.id as string;
-  await expect(dialog.getByRole("button", { name: /^pending\.txt / })).toBeVisible();
+  await expect(dialog.locator(".filechip", { hasText: "pending.txt" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Crear", exact: true })).toBeEnabled();
   await page.route("**/rpc/tasks.create", (route) =>
     route.fulfill({ json: { ok: false, error: { code: "unavailable", message: "Task save refused" } } }),
@@ -49,7 +49,7 @@ test("task creation waits for uploads and keeps selected assets after a failed s
   await dialog.getByRole("button", { name: "Crear", exact: true }).click();
   await expect(page.getByText(/Tasks:|Tareas:/).last()).toBeVisible();
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("button", { name: /^pending\.txt / })).toBeVisible();
+  await expect(dialog.locator(".filechip", { hasText: "pending.txt" })).toBeVisible();
   expect((await rpc<{ bytes: number }>("media.get", { id: source })).bytes).toBeGreaterThan(0);
   await page.unroute("**/rpc/tasks.create");
   await dialog.getByRole("button", { name: "Crear", exact: true }).click();
@@ -78,7 +78,7 @@ test("removing or cancelling draft assets discards only pending uploads", async 
     .getByLabel("Adjuntar archivos", { exact: true })
     .setInputFiles({ name: "cancel.txt", mimeType: "text/plain", buffer: Buffer.from("Cancel") });
   const cancelled = (await (await second).json()).result.media.id as string;
-  await expect(dialog.getByRole("button", { name: /^cancel\.txt / })).toBeVisible();
+  await expect(dialog.locator(".filechip", { hasText: "cancel.txt" })).toBeVisible();
   await page.route("**/rpc/tasks.create", (route) =>
     route.fulfill({ json: { ok: false, error: { code: "unavailable", message: "Task save refused" } } }),
   );
