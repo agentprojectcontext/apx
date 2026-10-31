@@ -58,7 +58,7 @@ export const NEWS: readonly NewsEntry[] = [
   BROWSER_JAVASCRIPT_NEWS,
   {
     id: "help-whats-new",
-    since: "2.11.3",
+    since: "2.12.0",
     title: { en: "What's new, in the Help menu", es: "Las novedades, en el menú de ayuda" },
     about: {
       en: "The ? at the foot of the sidebar keeps what each release brought: open one to read it and ask your super-agent to set it up. The guides and the Discord are there too.",
@@ -81,7 +81,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "event-reminders",
-    since: "2.11.2",
+    since: "2.12.0",
     title: { en: "Reminders before your events", es: "Recordatorios antes de tus eventos" },
     about: {
       en:
@@ -108,7 +108,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "mail-check",
-    since: "2.11.2",
+    since: "2.12.0",
     title: {
       en: "New mail is checked from Gmail's settings, as often as you choose",
       es: "La revisión del correo se configura en Gmail, con la frecuencia que elijas",
@@ -139,7 +139,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "temporary-browser-consent",
-    since: "2.11.2",
+    since: "2.12.0",
     title: {
       en: "Approve browser scripts for a tab or one turn",
       es: "Aprobá scripts del navegador para una pestaña o un turno",
@@ -164,7 +164,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "secretary-capabilities",
-    since: "2.11.2",
+    since: "2.12.0",
     title: { en: "Choose what your secretary watches for you", es: "Elegí qué vigila tu secretaria por vos" },
     about: {
       en:
@@ -185,7 +185,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "webhook-flows",
-    since: "2.11.2",
+    since: "2.12.0",
     title: { en: "Run work only when a webhook arrives", es: "Ejecutá trabajo solo cuando llegue un webhook" },
     about: {
       en:
@@ -208,7 +208,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "flow-graphs",
-    since: "2.11.2",
+    since: "2.12.0",
     title: {
       en: "Flows run as drawn, with branches and model steps",
       es: "Los Flows se ejecutan como los dibujás, con ramas y pasos de modelo",
@@ -234,7 +234,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "flow-schedules",
-    since: "2.11.2",
+    since: "2.12.0",
     title: {
       en: "Flows can run on a schedule, run now and be stopped",
       es: "Los Flows pueden ejecutarse con horario, ahora mismo y detenerse",
@@ -259,7 +259,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "flow-notify-http",
-    since: "2.11.2",
+    since: "2.12.0",
     title: {
       en: "Flows can message you or a contact, and call other services",
       es: "Los Flows pueden escribirte, escribir a un contacto y llamar a otros servicios",
@@ -285,7 +285,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "flow-steps",
-    since: "2.11.2",
+    since: "2.12.0",
     title: {
       en: "Flows branch into cases, and run code, SQL and commands",
       es: "Los Flows se ramifican en casos y ejecutan código, SQL y comandos",
@@ -311,7 +311,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "flow-tables",
-    since: "2.11.2",
+    since: "2.12.0",
     title: {
       en: "Project tables: see them, fill them, and let Flows read them",
       es: "Tablas de proyecto: verlas, rellenarlas y dejar que los Flows las lean",
@@ -341,7 +341,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "flow-agents",
-    since: "2.11.2",
+    since: "2.12.0",
     title: { en: "Your super-agent draws Flows for you", es: "Tu super-agente dibuja Flows por vos" },
     about: {
       en:
@@ -363,7 +363,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "flow-ai-step",
-    since: "2.11.2",
+    since: "2.12.0",
     title: {
       en: "A Flow's AI step: an agent or a bot of its own, on the model you pick",
       es: "El paso de IA de un Flow: un agente o un bot propio, con el modelo que elijas",
@@ -389,7 +389,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "flow-test-events",
-    since: "2.11.2",
+    since: "2.12.0",
     title: {
       en: "Test a Flow with a real event before turning it on",
       es: "Probá un Flow con un evento real antes de activarlo",
@@ -414,7 +414,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "restricted-public-ingress",
-    since: "2.11.2",
+    since: "2.12.0",
     title: {
       en: "A public address without exposing the private app",
       es: "Una dirección pública sin exponer la app privada",
@@ -445,7 +445,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "email-preferences",
-    since: "2.11.2",
+    since: "2.12.0",
     title: {
       en: "Keep connection settings separate from email preferences",
       es: "Separá los ajustes de conexión de las preferencias de correo",
@@ -470,7 +470,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "device-text-size",
-    since: "2.11.2",
+    since: "2.12.0",
     title: { en: "Choose a comfortable text size", es: "Elegí un tamaño de texto cómodo" },
     about: {
       en:
@@ -492,7 +492,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "agents-finish-unattended",
-    since: "2.11.2",
+    since: "2.12.0",
     title: { en: "Agents finish what you ask", es: "Los agentes terminan lo que les pides" },
     about: {
       en:
