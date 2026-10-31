@@ -624,7 +624,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "artifact.noMemory": "Sin memoria",
   "artifact.noMemoryHint": "No guarda nada: ni configuración, ni datos, ni registros.",
   "artifact.popupBlocked": "El navegador no dejó abrir la ventana. Permití las ventanas emergentes para APX.",
-  "artifact.pinned": "Fijada",
+  "artifact.pinned": "En Apps",
   "artifact.download": "Descargar (.apxart)",
   "artifact.downloadPlain": "Solo el artefacto",
   "artifact.downloadMemory": "Con lo que recuerda",

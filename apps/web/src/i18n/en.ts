@@ -622,7 +622,7 @@ export const en = {
   "artifact.noMemory": "No memory",
   "artifact.noMemoryHint": "It keeps nothing: no settings, data or records.",
   "artifact.popupBlocked": "The browser blocked the window. Allow pop-ups for APX.",
-  "artifact.pinned": "Pinned",
+  "artifact.pinned": "In Apps",
   "artifact.download": "Download (.apxart)",
   "artifact.downloadPlain": "The artifact alone",
   "artifact.downloadMemory": "With what it remembers",
