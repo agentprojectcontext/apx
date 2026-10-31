@@ -186,6 +186,7 @@
                       "**/FlowCard.tsx",
                       "**/FlowDetail.tsx",
                       "**/FlowEditor.tsx",
+                      "**/FlowViewer.tsx",
                       "**/TablesView.tsx",
                       "**/FlowsScreen.tsx",
                       "**/SearchSelect.tsx",

@@ -90,3 +90,37 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-sm);
 }
+/* The drawing opens larger: the whole picture is the button, a corner icon says so. */
+.flowcard__canvas {
+  position: relative;
+}
+.flowcard__zoom {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+.flowcard__zoom:focus-visible {
+  outline: 2px solid var(--apx-brand);
+  outline-offset: -2px;
+}
+.flowcard__zoomhint {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-sm);
+  color: var(--apx-fg-muted);
+}
+.flowcard__zoom:hover .flowcard__zoomhint {
+  color: var(--apx-fg);
+}
