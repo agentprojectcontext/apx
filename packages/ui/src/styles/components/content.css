@@ -408,7 +408,101 @@
     opacity: 0;
   }
 }
+/* Copy actions sit under the table, at its right edge. */
+.apx-md__tableactions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px;
+  margin-top: 4px;
+}
+.apx-md__tableactions .apx-btn {
+  color: var(--apx-fg-muted);
+}
 .apx-md__dialog {
+  width: calc(100vw - 32px);
+}
+
+/* ── CodeFrame ─────────────────────────────────────────────────────────────── */
+.apx-codeframe {
+  container-type: inline-size;
+  max-width: 100%;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+  overflow: hidden;
+}
+.apx-codeframe__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  padding: 4px 4px 4px 12px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.apx-codeframe__lang {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.apx-codeframe__status {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.apx-codeframe__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+.apx-codeframe__actions .apx-btn {
+  color: var(--apx-fg-muted);
+}
+/* In a narrow chat, Copy and Expand keep only their icons (the words stay for screen readers), so one row holds all. */
+@container (max-width: 440px) {
+  .apx-codeframe__actions .apx-btn__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .apx-codeframe__bar {
+    padding-left: 10px;
+  }
+  .apx-codeframe__actions .apx-segmented__item {
+    padding-inline: 8px;
+  }
+}
+.apx-codeframe__body {
+  max-height: 420px;
+  overflow: auto;
+}
+.apx-codeframe__body > pre {
+  margin: 0;
+  border-radius: 0;
+}
+/* What the code draws sits on the page's own surface, like the page or picture it is. */
+.apx-codeframe__body--preview {
+  background: var(--apx-surface);
+}
+.apx-codeframe__body--large {
+  max-height: calc(100vh - 160px);
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+}
+.apx-codeframe__dialog {
   width: calc(100vw - 32px);
 }
 

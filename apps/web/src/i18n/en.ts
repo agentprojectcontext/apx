@@ -1,5 +1,6 @@
 import { noticeEn } from "@apx/protocol/notices";
 import type { ApprovalKey } from "./approvals-en.ts";
+import type { BrowserEditKey } from "./browser-edit-en.ts";
 import type { ComputerKey } from "./computer-en.ts";
 import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
@@ -818,6 +819,8 @@ export const en = {
   "browser.agentUsing": "{name} is using this tab",
   "browser.takeControl": "Take control",
   "browser.giveBack": "Give back",
+  "browser.edit": "Edit",
+  "browser.editHint": "Pick parts of the page and ask for changes",
   "browser.handoffDone": "When you finish, press Done and it takes the tab back.",
   "browser.handedYou": "handed you the tab",
   "browser.liveView": "Live view of the tab",
@@ -1856,6 +1859,7 @@ export const en = {
 export type MessageKey =
   | keyof typeof en
   | ApprovalKey
+  | BrowserEditKey
   | ComputerKey
   | ReceivedKey
   | SysUsageKey

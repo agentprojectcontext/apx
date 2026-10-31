@@ -1,6 +1,8 @@
 // Driving one page over the Chrome DevTools Protocol, the same way wherever the page lives: the desktop app's tabs
 // (Electron's debugger) or the core's own headless Chrome. Refs are backendNodeIds from the accessibility tree
 // (stable while the document lives, DOM untouched).
+import type { ElementEdit, PickedElement } from "./browser.ts";
+import { PageEdits } from "./cdp-edit.ts";
 import { captureDocument, evaluatePage } from "./cdp-evaluate.ts";
 import { ApxError } from "./client.ts";
 
@@ -57,11 +59,13 @@ export class CdpPage {
   #refs = new Map<string, number>();
   #epoch = crypto.randomUUID();
   #review: { document: string; epoch: string } | undefined;
+  readonly #edits: PageEdits;
 
   /** `selectAllModifiers`: the modifier bits for "select all" on the machine the page runs on (Meta=4 on a Mac). */
   constructor(send: CdpSend, opts: { selectAllModifiers: number }) {
     this.#send = send;
     this.#selectAll = opts.selectAllModifiers;
+    this.#edits = new PageEdits(send);
   }
 
   get consentEpoch(): string {
@@ -71,6 +75,7 @@ export class CdpPage {
   /** A new document: the refs of the last snapshot point at nothing now. */
   forget(): void {
     this.#refs.clear();
+    this.#edits.forget();
     this.#review = undefined;
     this.#epoch = crypto.randomUUID();
   }
@@ -140,6 +145,16 @@ export class CdpPage {
         throw new ApxError({ code: "bad_request", message: "Page review changed; take a new snapshot" });
     }
     return withTimeout(evaluatePage(this.#send, script, origin, document), 7_000);
+  }
+
+  /** Edit mode: the element under a point of the visible page, as fractions of it. */
+  inspect(x: number, y: number): Promise<PickedElement | null> {
+    return withTimeout(this.#edits.inspect(x, y), 4_000);
+  }
+
+  /** Edit mode: these edits shown in the page until it reloads, the earlier ones undone. */
+  previewEdits(edits: readonly ElementEdit[]): Promise<{ shown: number }> {
+    return withTimeout(this.#edits.show(edits), 6_000);
   }
 
   async click(ref: string): Promise<void> {

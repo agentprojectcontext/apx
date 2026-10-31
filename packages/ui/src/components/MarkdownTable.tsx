@@ -1,8 +1,8 @@
 import { Check, Copy, Maximize2 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { IconButton } from "./IconButton";
-import { Menu } from "./Menu";
 
 export type TableAlign = "left" | "center" | "right";
 
@@ -17,20 +17,18 @@ export interface TableSource {
 export interface MarkdownLabels {
   table: string;
   maximize: string;
-  copy: string;
   copied: string;
   copyMarkdown: string;
-  copyTsv: string;
+  copyCsv: string;
   close: string;
 }
 
 export const MARKDOWN_LABELS: MarkdownLabels = {
   table: "Table",
   maximize: "Maximize table",
-  copy: "Copy table",
   copied: "Copied",
   copyMarkdown: "Copy as Markdown",
-  copyTsv: "Copy as TSV",
+  copyCsv: "Copy as CSV",
   close: "Close",
 };
 
@@ -42,16 +40,22 @@ export function tableMarkdown(t: TableSource): string {
   return [row(t.headers), `| ${t.align.map((a) => RULE[a]).join(" | ")} |`, ...t.rows.map(row)].join("\n");
 }
 
-/** What a rendered table reads, as tab-separated lines (pastes into a spreadsheet). */
-export function tableTsv(table: HTMLTableElement): string {
-  return [...table.rows]
-    .map((tr) => [...tr.cells].map((c) => c.innerText.replace(/\s+/g, " ").trim()).join("\t"))
-    .join("\n");
+/** One CSV field (RFC 4180): quoted when it holds a comma, quote or line break, inner quotes doubled. */
+const csvField = (cell: string) => (/[",\r\n]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell);
+
+/** Rows of cell text as CSV, one record per line. */
+export function cellsCsv(rows: readonly (readonly string[])[]): string {
+  return rows.map((row) => row.map(csvField).join(",")).join("\r\n");
+}
+
+/** What a rendered table reads (its words without the Markdown marks), as CSV. */
+export function tableCsv(table: HTMLTableElement): string {
+  return cellsCsv([...table.rows].map((tr) => [...tr.cells].map((c) => c.innerText.replace(/\s+/g, " ").trim())));
 }
 
 /**
- * A Markdown table in a frame of its own: wide tables scroll sideways inside it instead of squeezing their columns,
- * and a toolbar (on hover, always shown on touch screens) copies it or opens it maximized.
+ * A Markdown table in a frame of its own: wide tables scroll sideways inside it instead of squeezing their columns.
+ * Under it, buttons copy it as Markdown or CSV; a corner button (on hover, always shown on touch screens) maximizes it.
  */
 export function MarkdownTable({
   source,
@@ -68,43 +72,45 @@ export function MarkdownTable({
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"md" | "csv">();
   useEffect(() => {
     if (!copied) return;
-    const id = setTimeout(() => setCopied(false), 1500);
+    const id = setTimeout(() => setCopied(undefined), 1500);
     return () => clearTimeout(id);
   }, [copied]);
-  const copy = (text: () => string) => () => {
+  const copy = (kind: "md" | "csv", text: () => string) => () => {
     navigator.clipboard.writeText(text()).then(
-      () => setCopied(true),
-      () => setCopied(false),
+      () => setCopied(kind),
+      () => setCopied(undefined),
     );
   };
-  const tsv = () => {
+  const csv = () => {
     const table = scroller.current?.querySelector("table");
-    return table ? tableTsv(table) : "";
+    return table ? tableCsv(table) : "";
   };
+  const action = (kind: "md" | "csv", label: string, text: () => string) => (
+    <Button
+      variant="ghost"
+      size="sm"
+      leadingIcon={copied === kind ? <Check size={13} /> : <Copy size={13} />}
+      onClick={copy(kind, text)}
+    >
+      {copied === kind ? labels.copied : label}
+    </Button>
+  );
   return (
-    <div className="apx-md__table">
-      <div className="apx-md__tablebar">
-        <Menu
-          align="end"
-          trigger={
-            <IconButton
-              size="sm"
-              label={copied ? labels.copied : labels.copy}
-              icon={copied ? <Check size={13} /> : <Copy size={13} />}
-            />
-          }
-          items={[
-            { label: labels.copyMarkdown, onSelect: copy(() => tableMarkdown(source)) },
-            { label: labels.copyTsv, onSelect: copy(tsv) },
-          ]}
-        />
-        <IconButton size="sm" label={labels.maximize} icon={<Maximize2 size={13} />} onClick={() => setOpen(true)} />
+    <div className="apx-md__tablebox">
+      <div className="apx-md__table">
+        <div className="apx-md__tablebar">
+          <IconButton size="sm" label={labels.maximize} icon={<Maximize2 size={13} />} onClick={() => setOpen(true)} />
+        </div>
+        <div ref={scroller} className="apx-md__scroll">
+          {children}
+        </div>
       </div>
-      <div ref={scroller} className="apx-md__scroll">
-        {children}
+      <div className="apx-md__tableactions">
+        {action("md", labels.copyMarkdown, () => tableMarkdown(source))}
+        {action("csv", labels.copyCsv, csv)}
       </div>
       {open && (
         <Dialog

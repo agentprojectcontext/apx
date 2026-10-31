@@ -1,4 +1,5 @@
-import { type ChannelInfo, type Message, type Person, receivedMail, type Thread } from "@apx/protocol";
+import type { ChannelInfo, Message, Person, Thread } from "@apx/protocol";
+import { receivedMail } from "@apx/protocol/email-block";
 import {
   Button,
   EmptyState,

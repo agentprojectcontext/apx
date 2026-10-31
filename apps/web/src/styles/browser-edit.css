@@ -1,0 +1,197 @@
+/* Edit mode: the page picture and the edit panel side by side when the browser panel is wide, stacked when narrow. */
+.bedit-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  container-type: inline-size;
+}
+.bedit {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: fit-content(55%) minmax(0, 1fr);
+  gap: 10px;
+  margin: 0 10px 10px;
+}
+.bedit__page {
+  position: relative;
+  min-height: 0;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
+  overflow: auto;
+}
+.bedit__hint {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--apx-border);
+  background: var(--apx-surface);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.bedit__shot {
+  position: relative;
+  cursor: crosshair;
+}
+.bedit__shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+}
+.bedit__box {
+  position: absolute;
+  border: 1.5px solid var(--apx-accent);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.bedit__box.is-hover {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--apx-accent) 8%, transparent);
+}
+.bedit__box.is-selected {
+  border-width: 2px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--apx-accent) 25%, transparent);
+}
+.bedit__num {
+  position: absolute;
+  top: -9px;
+  left: -9px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--apx-accent);
+  color: var(--apx-accent-fg);
+  font-size: var(--apx-text-2xs);
+  font-weight: 600;
+}
+.bedit__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 14px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
+  overflow: auto;
+}
+@container (min-width: 640px) {
+  .bedit {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    grid-template-rows: minmax(0, 1fr);
+  }
+}
+.bedit__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.bedit__title {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.bedit__muted {
+  margin: 2px 0 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.bedit__pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.bedit__color {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+}
+.bedit__swatch {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: var(--apx-radius-sm);
+  background: none;
+  cursor: pointer;
+}
+.bedit__hex {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.bedit__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--apx-border);
+}
+.bedit__listtitle {
+  margin: 0 0 4px;
+  font-size: var(--apx-text-xs);
+  font-weight: 600;
+  color: var(--apx-fg-muted);
+}
+.bedit__row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.bedit__rowpick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: var(--apx-row-radius);
+  background: none;
+  color: var(--apx-fg);
+  font-size: var(--apx-text-xs);
+  text-align: left;
+  cursor: pointer;
+}
+.bedit__rowpick:hover,
+.bedit__rowpick.is-selected {
+  background: var(--apx-row-selected-bg);
+}
+.bedit__rownum {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--apx-accent);
+  color: var(--apx-accent-fg);
+  font-size: var(--apx-text-2xs);
+  font-weight: 600;
+}
+.bedit__rowname {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bedit__rowstate {
+  flex: none;
+  color: var(--apx-fg-muted);
+}
+.bedit__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+}
