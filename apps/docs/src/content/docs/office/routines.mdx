@@ -275,7 +275,9 @@ cleanup queue (1,000 references). Use the same idempotency key when retrying a m
 ## Silence is an answer: SKIP
 
 An agent routine's prompt is your own words. When there is nothing worth telling you this time, the agent answers
-only `SKIP` and nothing reaches you. Write prompts that leave room for that:
+only `SKIP` and nothing reaches you. When the routine's job is to write to you ("remind me on Telegram…"), you get
+that message once: what the agent says afterwards about having sent it stays in the routine's chat in APX. Write
+prompts that leave room for that:
 
 > Check yesterday's orders for anything unusual: refunds over 200, a product selling 3× its average, a failed
 > payment. If nothing stands out, answer SKIP.
