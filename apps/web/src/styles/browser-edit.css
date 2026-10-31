@@ -206,3 +206,48 @@
   display: flex;
   margin: 0 -10px;
 }
+/* A web page in edit mode fills its screen: the page scrolls at its own width, and the panel stays put beside it on a
+   wide screen or under it on a phone, its buttons always in view. */
+.bedit-host--page .bedit {
+  margin: 0;
+  gap: 0;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.bedit-host--page .bedit__page {
+  border: 0;
+  border-radius: 0;
+  background: var(--apx-bg);
+}
+.bedit-host--page .bedit__shot {
+  margin: 16px auto 24px;
+  box-shadow: var(--apx-shadow-md);
+  outline: 1px solid var(--apx-border);
+}
+.bedit-host--page .bedit__panel {
+  max-height: 46vh;
+  border: 0;
+  border-top: 1px solid var(--apx-border);
+  border-radius: 0;
+  padding-bottom: 0;
+}
+.bedit-host--page .bedit__actions {
+  position: sticky;
+  bottom: 0;
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  padding: 10px 0 14px;
+  background: var(--apx-surface);
+}
+@container (min-width: 768px) {
+  .bedit-host--page .bedit {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .bedit-host--page .bedit__panel {
+    max-height: none;
+    border-top: 0;
+    border-left: 1px solid var(--apx-border);
+  }
+}

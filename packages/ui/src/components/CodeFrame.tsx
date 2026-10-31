@@ -29,6 +29,8 @@ export const CODE_FRAME_LABELS: CodeFrameLabels = {
 export interface CodeFrameProps {
   /** What the block is written in, as shown in its header ("HTML", "Mermaid"). */
   language: string;
+  /** What the block is, beside the language (a page's title). */
+  title?: ReactNode;
   /** The block's text, for Copy. */
   code: string;
   /** What the code draws (a page, a diagram): with it, a Preview / Code switch that starts on the preview. */
@@ -38,6 +40,10 @@ export interface CodeFrameProps {
   /** A word beside the language while the block is not finished ("Writing…"). */
   status?: ReactNode;
   labels?: Partial<CodeFrameLabels> | undefined;
+  /** More controls after Expand (Edit, a ⋯ menu). */
+  actions?: ReactNode;
+  /** Expand opens this instead of the larger view in a dialog (a screen of its own). */
+  onExpand?: () => void;
   className?: string;
 }
 
@@ -45,7 +51,18 @@ export interface CodeFrameProps {
  * A fenced code block in a frame: its language in the header, Copy and Expand (a larger view in a dialog), and for
  * code that draws something, a switch between what it draws and its code.
  */
-export function CodeFrame({ language, code, preview, children, status, labels, className }: CodeFrameProps) {
+export function CodeFrame({
+  language,
+  title,
+  code,
+  preview,
+  children,
+  status,
+  labels,
+  actions,
+  onExpand,
+  className,
+}: CodeFrameProps) {
   const l = { ...CODE_FRAME_LABELS, ...labels };
   const [view, setView] = useState<"preview" | "source">(preview ? "preview" : "source");
   const [open, setOpen] = useState(false);
@@ -67,6 +84,7 @@ export function CodeFrame({ language, code, preview, children, status, labels, c
     <div className={cx("apx-codeframe", className)}>
       <div className="apx-codeframe__bar">
         <span className="apx-codeframe__lang">{language}</span>
+        {title != null && <span className="apx-codeframe__title">{title}</span>}
         {status != null && <span className="apx-codeframe__status">{status}</span>}
         <span className="apx-codeframe__actions">
           {preview ? (
@@ -89,9 +107,15 @@ export function CodeFrame({ language, code, preview, children, status, labels, c
           >
             {copied ? l.copied : l.copy}
           </Button>
-          <Button variant="ghost" size="sm" leadingIcon={<Maximize2 size={13} />} onClick={() => setOpen(true)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            leadingIcon={<Maximize2 size={13} />}
+            onClick={() => (onExpand ? onExpand() : setOpen(true))}
+          >
             {l.expand}
           </Button>
+          {actions}
         </span>
       </div>
       <div className={cx("apx-codeframe__body", previewing && "apx-codeframe__body--preview")}>{shown}</div>

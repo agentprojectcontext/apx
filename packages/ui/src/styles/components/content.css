@@ -449,6 +449,16 @@
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-muted);
 }
+.apx-codeframe__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+  color: var(--apx-fg);
+}
 .apx-codeframe__status {
   display: inline-flex;
   flex: 1;
@@ -479,7 +489,14 @@
     white-space: nowrap;
   }
   .apx-codeframe__bar {
+    flex-wrap: wrap;
     padding-left: 10px;
+  }
+  /* What does not fit beside the language and title goes to a second line, at the right. */
+  .apx-codeframe__actions {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
   }
   .apx-codeframe__actions .apx-segmented__item {
     padding-inline: 8px;

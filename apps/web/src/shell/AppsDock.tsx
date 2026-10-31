@@ -1,5 +1,5 @@
 import type { SurfaceSummary } from "@apx/protocol";
-import { ContextMenu, IconButton, Icons, NavItem, Popover, ProjectTile, SearchField } from "@apx/ui";
+import { ContextMenu, IconButton, Icons, NavItem, Popover, SearchField } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { setSurfaceFlags } from "../data/actions.ts";
 import { projectName } from "../data/identity.ts";
@@ -14,6 +14,7 @@ import { createArtifact } from "../surfaces/widgetChatActions.ts";
 import { go, useNav } from "./nav.ts";
 import { SidebarSection } from "./SidebarSection.tsx";
 import "../styles/artifacts.css";
+import { KindTile, kindLabel, kindOf } from "../surfaces/artifactKind.tsx";
 
 /** Folds accents and case, so "estadisticas" finds "Estadísticas". */
 const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -45,7 +46,7 @@ export function AppsDock({ rail }: { rail: boolean }) {
     if (view === "app" && appId && !ids.includes(appId)) ids.push(appId);
     return ids.flatMap((id) => {
       const s = surfaces[id];
-      return s && !s.app ? [s] : [];
+      return s && !s.app && !s.page ? [s] : [];
     });
   }, [runningIds, surfaces, view, appId]);
 
@@ -62,7 +63,7 @@ export function AppsDock({ rail }: { rail: boolean }) {
         collapsed={rail}
         icon={
           <span className="appsdock__icon">
-            <ProjectTile tone="violet" icon={<Icons.LayoutGrid />} />
+            <KindTile kind={kindOf(a)} />
             {/* The rail hides trailing content, so there the dot sits on the icon. */}
             {rail && running.has(a.id) && <span className="navitem__running appsdock__dot" />}
           </span>
@@ -200,11 +201,11 @@ function AppLauncher({ running }: { running: ReadonlySet<string> }) {
               data-pinned={s.app || undefined}
               onClick={() => launch(s)}
             >
-              <Icons.LayoutGrid size={14} />
+              <KindTile kind={kindOf(s)} size={18} />
               <span className="appsdock__name">
                 {s.title}
                 <small>
-                  {projectName(projects, s.project_id)} · {t(s.app ? "artifact.kindApp" : "artifact.kindWidget")}
+                  {projectName(projects, s.project_id)} · {kindLabel(kindOf(s), t)}
                   {s.app ? ` · ${t("artifact.pinned")}` : ""}
                 </small>
               </span>

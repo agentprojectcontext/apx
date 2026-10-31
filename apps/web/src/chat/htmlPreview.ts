@@ -3,8 +3,8 @@ import { injectSurfaceHead } from "../../../../packages/surfaces/src/widget-kit.
 // An ```html block an agent wrote, as the document its preview frame shows. The page is untrusted: the frame is
 // sandboxed with an opaque origin, and this CSP lets only the host's own sizing script run and nothing load from the web.
 
-const csp = (nonce: string) =>
-  `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; form-action 'none'; base-uri 'none'`;
+const csp = (nonce: string, scripts: boolean) =>
+  `default-src 'none'; script-src ${scripts ? "'unsafe-inline'" : `'nonce-${nonce}'`}; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; form-action 'none'; base-uri 'none'`;
 
 /** The message a preview frame posts with its page's height; `key` tells it from anything else posting. */
 export interface PreviewHeight {
@@ -20,13 +20,15 @@ export function isPreviewHeight(m: unknown, key: string): m is PreviewHeight {
 
 /**
  * The block's HTML with a head that locks it down and reports its height (the `nonce` both lets that script run and
- * marks its messages). A light page by default, as a browser would show it; the page's own styles win.
+ * marks its messages). A light page by default, as a browser would show it; the page's own styles win. A web page an
+ * agent made for the owner (`scripts`) also runs its own inline code, still with no way out of its frame.
  */
-export function htmlPreviewDoc(html: string, nonce: string): string {
+export function htmlPreviewDoc(html: string, nonce: string, opts: { scripts?: boolean } = {}): string {
   const key = JSON.stringify(nonce);
-  const head = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp(nonce)}">
+  const scripts = opts.scripts === true;
+  const head = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp(nonce, scripts)}">
 <style>html{color-scheme:light;background:#fff;color:#111;font-family:system-ui,sans-serif}</style>
-<script nonce="${nonce}">(function(){var last=0;function size(){var h=Math.ceil(document.documentElement.offsetHeight);if(h!==last){last=h;parent.postMessage({apxPreview:${key},height:h},"*");}}
+<script${scripts ? "" : ` nonce="${nonce}"`}>(function(){var last=0;function size(){var h=Math.ceil(document.documentElement.offsetHeight);if(h!==last){last=h;parent.postMessage({apxPreview:${key},height:h},"*");}}
 addEventListener("load",size);document.addEventListener("DOMContentLoaded",size);if(window.ResizeObserver)new ResizeObserver(size).observe(document.documentElement);})();</script>`;
   return injectSurfaceHead(html, head);
 }

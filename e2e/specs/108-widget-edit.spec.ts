@@ -61,7 +61,7 @@ async function show(widget: Page, edits: Edit[]) {
 }
 
 for (const width of [1280, 390]) {
-  test(`a web page an agent made, at ${width}px: shown as a page, edited one part at a time, saved without asking`, async ({
+  test(`a web page an agent made, at ${width}px: shown as a page, edited on its own screen one part at a time, saved without asking`, async ({
     page,
   }, info) => {
     await rpc("setup.finish", {});
@@ -113,16 +113,17 @@ for (const width of [1280, 390]) {
       });
       await page.setViewportSize({ width, height: 860 });
       await open(page, `#thread=${thread}`);
-      // A web page shows as one, in a page's frame with its title where the address goes, not as a widget's card.
-      const card = page.locator(".transcript .surfacecard--page");
-      await expect(card.locator(".pagecard__address")).toHaveText("Weekly sales");
+      // A web page shows as one, in the frame HTML blocks use, not as a widget's card.
+      const card = page.locator(".transcript .pagepart");
+      await expect(card.locator(".apx-codeframe__title")).toHaveText("Weekly sales");
       await expect(page.locator(".transcript").getByText(/^Widget ·/)).toHaveCount(0);
       await expect(card.frameLocator("iframe").getByText("Weekly sales")).toBeVisible();
       await page.screenshot({ path: info.outputPath(`page-card-${width}.png`) });
       await card.getByRole("button", { name: "Editar", exact: true }).click();
       await until(async () => opened.length === 1);
       expect(opened[0]?.surface).toBe(made);
-      expect(opened[0]?.width).toBeGreaterThan(200);
+      // Laid out at a computer's width, or a phone's on a phone: never squeezed into a column.
+      expect(opened[0]?.width).toBe(width === 1280 ? 1280 : 390);
       await expect(page.getByText("Tocá la parte que querés cambiar")).toBeVisible();
       await expect(page.locator(".bedit__shot img")).toBeVisible();
 

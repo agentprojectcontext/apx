@@ -55,6 +55,7 @@ test("a widget plays its project's MP4 behind it and shows the project's images"
     await expect.poll(() => img.evaluate((i) => (i as HTMLImageElement).naturalWidth)).toBe(320);
   }
 
-  await tile.getByRole("button", { name: /^Quitar del tablero/ }).click();
+  await tile.getByRole("button", { name: "Más" }).click();
+  await page.getByRole("menuitem", { name: /^Quitar del tablero/ }).click();
   fs.rmSync(reels, { recursive: true, force: true });
 });

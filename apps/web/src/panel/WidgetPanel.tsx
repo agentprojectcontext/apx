@@ -4,6 +4,7 @@ import { useSlice } from "../data/createStore.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
+import { openPage } from "../surfaces/pageActions.tsx";
 import { SurfaceActions } from "../surfaces/SurfaceActions.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
 import { WidgetEdit } from "../surfaces/WidgetEdit.tsx";
@@ -28,11 +29,12 @@ export function WidgetPanel() {
       .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
   }, [surfaces, messages, threadId]);
   const editing = useSlice(browserEdit, (s) => s.target);
-  const edited = editing?.startsWith("widget:") ? mine.find((s) => `widget:${s.id}` === editing) : undefined;
-  // Another chat, or the widget gone: its edit mode ends with it.
+  const edited = editing?.startsWith("widget:") ? mine.find((s) => !s.page && `widget:${s.id}` === editing) : undefined;
+  // Another chat, or the widget gone: its edit mode ends with it. A web page's is on its own screen.
+  const editsPage = editing?.startsWith("widget:") && surfaces[editing.slice("widget:".length)]?.page;
   useEffect(() => {
-    if (editing?.startsWith("widget:") && !edited) stopEditing();
-  }, [editing, edited]);
+    if (editing?.startsWith("widget:") && !edited && !editsPage) stopEditing();
+  }, [editing, edited, editsPage]);
   if (edited) {
     return (
       <div className="widgets widgets--edit">
@@ -66,8 +68,8 @@ export function WidgetPanel() {
         <section key={s.id} className="widgets__item" aria-label={s.title}>
           <header className="widgets__head">
             <span className="widgets__title">{s.title}</span>
-            <EditToggle id={s.id} on={false} />
-            <SurfaceActions surface={s} />
+            <EditToggle id={s.id} on={false} page={s.page} />
+            <SurfaceActions surface={s} inChat />
           </header>
           <SurfaceFrame surfaceId={s.id} />
         </section>
@@ -77,7 +79,7 @@ export function WidgetPanel() {
 }
 
 /** Edit mode for one widget: point at its parts and ask the agent for changes, as in a browser tab. */
-function EditToggle({ id, on }: { id: string; on: boolean }) {
+function EditToggle({ id, on, page = false }: { id: string; on: boolean; page?: boolean | undefined }) {
   const t = useT();
   return on ? (
     <Button
@@ -94,7 +96,8 @@ function EditToggle({ id, on }: { id: string; on: boolean }) {
       size="sm"
       label={t("browser.editHint")}
       icon={<Icons.Pencil size={14} />}
-      onClick={() => startEditing(`widget:${id}`)}
+      // A web page is edited on its own screen, at its real width.
+      onClick={() => (page ? openPage(id, true) : startEditing(`widget:${id}`))}
     />
   );
 }

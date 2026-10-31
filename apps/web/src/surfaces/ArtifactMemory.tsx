@@ -1,5 +1,5 @@
 import type { ArtifactMemory as Memory, SurfaceSummary } from "@apx/protocol";
-import { Button, Checkbox, Dialog, IconButton, Icons, SettingRow, Skeleton, Tag } from "@apx/ui";
+import { Button, Checkbox, Dialog, EmptyState, IconButton, Icons, SettingRow, Skeleton, Tag } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { formatBytes, formatNumber } from "../common/format.ts";
 import { artifactMemory, clearArtifactMemory, exportArtifact, type MemoryPart } from "../data/artifacts.ts";
@@ -77,6 +77,8 @@ export function ArtifactMemoryDialog({ surface, onClose }: { surface: SurfaceSum
       ]
     : [];
 
+  // Nothing kept anywhere: it says so, instead of four zeros.
+  const none = memory !== undefined && parts.every((p) => p.empty);
   const startClear = () => setClearing(new Set(parts.filter((p) => !p.empty).map((p) => p.part)));
   const toggle = (part: MemoryPart, on: boolean) =>
     setClearing((cur) => {
@@ -95,7 +97,7 @@ export function ArtifactMemoryDialog({ surface, onClose }: { surface: SurfaceSum
   };
   const doExport = async () => {
     setExporting(true);
-    await exportArtifact(surface.id, withMemory);
+    await exportArtifact(surface.id, withMemory && !none);
     setExporting(false);
   };
 
@@ -104,7 +106,7 @@ export function ArtifactMemoryDialog({ surface, onClose }: { surface: SurfaceSum
       open
       onOpenChange={(o) => !o && onClose()}
       title={t("artifact.memoryTitle", { title: surface.title })}
-      description={clearing ? t("artifact.clearHint") : t("artifact.memoryHint")}
+      description={clearing ? t("artifact.clearHint") : none ? undefined : t("artifact.memoryHint")}
       closeLabel={t("common.close")}
       footer={
         clearing ? (
@@ -118,16 +120,15 @@ export function ArtifactMemoryDialog({ surface, onClose }: { surface: SurfaceSum
           </>
         ) : (
           <>
-            <Checkbox label={t("artifact.includeMemory")} checked={withMemory} onCheckedChange={setWithMemory} />
+            {!none && (
+              <Checkbox label={t("artifact.includeMemory")} checked={withMemory} onCheckedChange={setWithMemory} />
+            )}
             <span className="artmem__spacer" />
-            <Button
-              variant="secondary"
-              leadingIcon={<Icons.Trash2 size={14} />}
-              disabled={!parts.some((p) => !p.empty)}
-              onClick={startClear}
-            >
-              {t("artifact.clear")}
-            </Button>
+            {!none && (
+              <Button variant="secondary" leadingIcon={<Icons.Trash2 size={14} />} onClick={startClear}>
+                {t("artifact.clear")}
+              </Button>
+            )}
             <Button leadingIcon={<Icons.Download size={14} />} loading={exporting} onClick={() => void doExport()}>
               {t("artifact.export")}
             </Button>
@@ -137,6 +138,10 @@ export function ArtifactMemoryDialog({ surface, onClose }: { surface: SurfaceSum
     >
       {!memory ? (
         <Skeleton shape="block" height={120} />
+      ) : none ? (
+        <EmptyState icon={<Icons.Database />} title={t("artifact.noMemory")}>
+          {t("artifact.noMemoryHint")}
+        </EmptyState>
       ) : clearing ? (
         <div className="artmem__choose">
           {parts.map((p) => (

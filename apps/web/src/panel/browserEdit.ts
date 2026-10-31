@@ -24,6 +24,12 @@ export type EditTarget = {
   header(t: T): string;
   /** Edit mode ends: the page goes back to what its own code shows. */
   leave(): Promise<void>;
+  /** The chat a request goes to, when it is not the one open (a web page's own chat). */
+  thread?: string;
+  /** A request was written in that chat's message box: show it there. */
+  asked?(thread: string): void;
+  /** The picture is of the whole page, at this many CSS pixels wide: it changes only when an edit shows. */
+  whole?: number;
 };
 
 export type BrowserEditState = { target: string | undefined; items: EditItem[]; selected: number | undefined };

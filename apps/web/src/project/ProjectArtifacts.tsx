@@ -8,6 +8,7 @@ import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+import { KindIcon, kindLabel, kindOf } from "../surfaces/artifactKind.tsx";
 import { SurfaceActions } from "../surfaces/SurfaceActions.tsx";
 import { DocumentDrawer, WidgetDrawer } from "./ArtifactPanel.tsx";
 
@@ -113,11 +114,11 @@ export function ProjectArtifacts({ project }: { project: ProjectEntry }) {
                   aria-expanded={i.widget.id === open}
                   onClick={() => toggle(i.widget.id)}
                 >
-                  <Icons.LayoutGrid size={16} />
+                  <KindIcon kind={kindOf(i.widget)} size={16} />
                   <span className="artifacts__title">{i.widget.title}</span>
                 </button>
                 <div className="memory__meta">
-                  <span>{t("artifacts.kind.widget")}</span>
+                  <span>{kindLabel(kindOf(i.widget), t)}</span>
                   <span>{t("artifacts.version", { n: i.widget.version })}</span>
                   <span>{shortWhen(i.widget.updated_at)}</span>
                   {i.widget.pinned && <Badge>{t("artifacts.onBoard")}</Badge>}

@@ -101,14 +101,14 @@ export function artifactHandlers(deps: {
       const pages = deps.widgetPages;
       if (!pages) throw unavailable("editing a widget needs Chrome, Chromium or Edge on this computer");
       const s = surfaceOf(surface);
-      const html = editDocument(withKit(s.html), { theme, mode, layout: s.app ? "app" : "widget" });
+      const html = editDocument(withKit(s.html), { theme, mode, layout: s.page ? "page" : s.app ? "app" : "widget" });
       // Its reads see what it remembers; a write never lands: this page is only for pointing at its parts.
       const onCall: PageCall = async (method, p) => {
         if (method === "store_get") return { values: memory.storeGet(s, p.keys as string[] | undefined) };
         if (method === "db_query") return memory.query(s, String(p.sql), (p.params as SqlParam[] | undefined) ?? []);
         return undefined;
       };
-      return { page: await pages.open(html, width, onCall, s.id) };
+      return { page: await pages.open(html, width, onCall, s.id, Boolean(s.page)) };
     },
     "surfaces.edit_inspect": async ({ page, x, y }) => ({ element: await editPages().inspect(page, x, y) }),
     "surfaces.edit_preview": ({ page, edits }) => editPages().preview(page, edits),

@@ -71,6 +71,15 @@ export function PageEdit({ target }: { target: EditTarget }) {
   const inspect = useInspector(target);
   const item = items.find((i) => i.element.node === selected);
   const changed = items.filter(isChanged);
+  const pageBox = useRef<HTMLDivElement>(null);
+  // The panel grows with the part's fields (under the page on a phone): the part stays in sight.
+  useEffect(() => {
+    if (selected === undefined) return;
+    const frame = requestAnimationFrame(() =>
+      pageBox.current?.querySelector(".bedit__box.is-selected")?.scrollIntoView({ block: "nearest" }),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [selected]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && void target.leave();
@@ -100,10 +109,11 @@ export function PageEdit({ target }: { target: EditTarget }) {
     const r = e.currentTarget.getBoundingClientRect();
     return { x: clamp((e.clientX - r.left) / r.width), y: clamp((e.clientY - r.top) / r.height) };
   };
+  const whole = target.whole;
   return (
-    <div className="bedit-host">
+    <div className={whole ? "bedit-host bedit-host--page" : "bedit-host"}>
       <div className="bedit">
-        <div className="bedit__page">
+        <div ref={pageBox} className="bedit__page">
           <div className="bedit__hint" role="status">
             {tr("bedit.pickHint")}
           </div>
@@ -112,6 +122,8 @@ export function PageEdit({ target }: { target: EditTarget }) {
             // biome-ignore lint/a11y/useKeyWithClickEvents: Escape leaves; the picked elements are listed in the panel
             <div
               className="bedit__shot"
+              // A page keeps its own width (a phone's stays narrow); a wider one is scaled to fit.
+              style={whole ? { width: `min(100%, ${whole}px)` } : undefined}
               onMouseMove={(e) => inspect(at(e)).then(setHover)}
               onMouseLeave={() => setHover(null)}
               onClick={(e) =>
@@ -149,7 +161,8 @@ export function PageEdit({ target }: { target: EditTarget }) {
 
 function EditPanel({ target, changed, item }: { target: EditTarget; changed: EditItem[]; item: EditItem | undefined }) {
   const t = useT();
-  const threadId = useNav((s) => s.threadId);
+  const openThread = useNav((s) => s.threadId);
+  const threadId = target.thread ?? openThread;
   const agentName = useData((s) => {
     const id = threadId ? s.threads[threadId]?.agent_ids[0] : undefined;
     return id ? s.agents[id]?.name : undefined;
@@ -192,8 +205,9 @@ function EditPanel({ target, changed, item }: { target: EditTarget; changed: Edi
       keepDraft(threadId, draft ? `${request}\n\n${draft}` : `${request}\n\n`);
     }
     void target.leave();
+    if (left.length && threadId && target.asked) target.asked(threadId);
     // On a phone the panel covers the chat: go back to it, where the request waits to be sent.
-    if (left.length && window.matchMedia("(max-width: 767px)").matches) nav.set({ panel: null });
+    else if (left.length && window.matchMedia("(max-width: 767px)").matches) nav.set({ panel: null });
     notify(tr(left.length ? (saved ? "bedit.savedAsked" : "bedit.asked") : "bedit.saved"), "info");
   };
   const name = agentName ?? "";
@@ -396,6 +410,8 @@ function PxField(props: {
 
 /** A picture of the tab, taken again every few seconds and right after `refresh()`. */
 function useShot(target: EditTarget): [string | undefined, () => void] {
+  // A whole page is a large picture: it is taken again only when an edit shows, not every few seconds.
+  const every = target.whole ? undefined : POLL_MS;
   const [src, setSrc] = useState<string>();
   const now = useRef<() => void>(() => {});
   useEffect(() => {
@@ -407,7 +423,7 @@ function useShot(target: EditTarget): [string | undefined, () => void] {
       if (!alive) return;
       if (next) setSrc(next);
       clearTimeout(timer);
-      timer = setTimeout(take, POLL_MS);
+      if (every) timer = setTimeout(take, every);
     };
     now.current = () => void take();
     void take();
@@ -415,7 +431,7 @@ function useShot(target: EditTarget): [string | undefined, () => void] {
       alive = false;
       clearTimeout(timer);
     };
-  }, [target]);
+  }, [target, every]);
   return [src, useCallback(() => now.current(), [])];
 }
 

@@ -49,7 +49,6 @@ async function copy(url: string): Promise<void> {
 export function shareEntries(surface: SurfaceSummary, t: typeof tr): MenuEntry[] {
   const url = linkOf(surface);
   return [
-    { type: "label", label: t("share.hint") },
     {
       label: url ? t("share.private") : `${t("share.private")} ✓`,
       icon: <Icons.Lock size={16} />,

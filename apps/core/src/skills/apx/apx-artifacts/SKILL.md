@@ -10,8 +10,11 @@ outside a project makes a global one); showing the same `name` again replaces it
 version. Three kinds:
 
 - **widget** (the default): in the chat, padded; `pin: true` also puts it on the project's board.
-- **web page** (`page: true`): asked for as a web page or a page to edit; shown in the chat in a page's frame. The
-  owner edits its text and look in place and those edits are saved into its HTML as a new version, so read it again
+- **web page** (`page: true`): asked for as a web page, a landing, a site or a page to edit. It shows as a browser
+  shows it, on a light page: write a whole document with its own `<style>` (no kit, no `ax-*` classes, no APX
+  colors), mobile-friendly (`<meta name="viewport">`, relative widths). It has no memory, no `window.apx` and no
+  network; inline scripts run. The owner sees its code, opens it on a screen of its own at a computer's or a phone's
+  width, and edits its text and look in place; those edits are saved into its HTML as a new version, so read it again
   before you change it.
 - **app**: fullscreen and listed in Apps (`app: true`, or `<meta name="apx-surface" content="app">` in the page).
 

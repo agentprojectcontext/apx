@@ -58,16 +58,6 @@
   padding: 0 14px 0 10px;
   border-bottom: 1px solid var(--apx-border);
 }
-.appscreen__tile {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--apx-violet-soft);
-  color: var(--apx-violet-soft-fg);
-}
 .appscreen__titles {
   flex: 1;
   min-width: 0;

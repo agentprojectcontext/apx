@@ -8,6 +8,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { linkOf } from "./ShareMenu.tsx";
 import "../styles/artifacts.css";
+import { kindLabel, kindOf } from "./artifactKind.tsx";
 
 /** The kit version a page asks for, as people read versions: kit@1.js → "v1". */
 const kitOf = (html: string) => {
@@ -74,9 +75,7 @@ export function ArtifactPropertiesDialog({ surface, onClose }: { surface: Surfac
       title={
         <span className="artprops__title">
           {surface.title}
-          <Badge tone={surface.app ? "brand" : "neutral"}>
-            {t(surface.app ? "artifact.kindApp" : "artifact.kindWidget")}
-          </Badge>
+          <Badge tone={surface.app ? "brand" : "neutral"}>{kindLabel(kindOf(surface), t)}</Badge>
         </span>
       }
       description={t("artifact.prop.hint")}

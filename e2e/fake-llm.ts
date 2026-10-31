@@ -13,6 +13,13 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 
+/** A landing longer than a window: a full-height hero, two tall bands and a footer at the end. */
+export const LONG_PAGE = `<!doctype html><html><head><meta name="viewport" content="width=device-width"><style>
+body{margin:0;font-family:system-ui}.hero{min-height:100vh;display:grid;place-content:center;background:#f4e7d3}
+.band{height:900px;background:#eee}footer{padding:40px}</style></head><body>
+<section class="hero"><h1>Coffee at your door</h1></section><section class="band"></section>
+<section class="band" style="background:#ddd"></section><footer><p id="end">Write to us</p></footer></body></html>`;
+
 type Message = { role: string; content?: unknown };
 
 /** The owner's words in the last user message, without the framing APX puts around them. */
@@ -167,6 +174,13 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
     return {
       name: "show_widget",
       arguments: JSON.stringify({ name: "e2e-coverage", title: "Coverage audit", html: "<h1>Coverage rows</h1>" }),
+    };
+  // A long web page, a whole landing: its end is far below a window's height.
+  const longPage = /^make a long web page (\S+)/i.exec(said);
+  if (longPage)
+    return {
+      name: "show_widget",
+      arguments: JSON.stringify({ name: longPage[1], title: "Coffee shop", html: LONG_PAGE, page: true }),
     };
   // A web page the owner asked for: shown as a page they can edit.
   const webPage = /^make a web page (\S+)/i.exec(said);

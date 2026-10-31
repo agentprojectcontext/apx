@@ -108,7 +108,8 @@ export const artifactMethods = {
   },
   /**
    * Edit mode for a widget: the core runs it in a page of its own browser, cut off from the network and from the
-   * owner's logins, sized to `width`, with the panel's theme (`theme`: CSS custom properties only). Owner only.
+   * owner's logins, sized to `width`, with the panel's theme (`theme`: CSS custom properties only). A web page is laid
+   * out as a browser shows it, and its points, boxes and picture are of the whole page, not one window of it. Owner only.
    */
   "surfaces.edit_open": {
     params: z
@@ -126,7 +127,7 @@ export const artifactMethods = {
     effect: true,
     access: "human",
   },
-  /** The widget's element under a point of its page (fractions 0–1), or null. */
+  /** The widget's element under a point of its picture (fractions 0–1), or null. */
   "surfaces.edit_inspect": {
     params: z.object({ page: EditPage, x: Fraction, y: Fraction }).strict(),
     result: z.object({ element: PickedElement.nullable() }),
