@@ -1,6 +1,7 @@
 // The desktop's tabs over webContents.debugger: no remote-debugging port, so nothing else on the machine can drive
 // the app. What a page can be asked (snapshot, click, type…) is shared with the core's headless Chrome (@apx/protocol/cdp).
 
+import type { ElementEdit } from "@apx/protocol";
 import { CdpPage, withTimeout } from "@apx/protocol/cdp";
 import { ApxError } from "@apx/protocol/client";
 import type { WebContents } from "electron";
@@ -62,6 +63,14 @@ export class CdpTab {
 
   evaluate(script: string, origin: string, document: string, epoch?: string) {
     return this.#page.evaluate(script, origin, document, epoch);
+  }
+
+  inspect(x: number, y: number) {
+    return this.#page.inspect(x, y);
+  }
+
+  previewEdits(edits: readonly ElementEdit[]) {
+    return this.#page.previewEdits(edits);
   }
 
   click(ref: string) {

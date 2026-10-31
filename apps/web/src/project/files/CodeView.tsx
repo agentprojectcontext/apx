@@ -141,12 +141,15 @@ export function CodeView({
   path,
   text,
   editable,
+  snippet = false,
   onChange,
   onSave,
 }: {
   path: string;
   text: string;
   editable: boolean;
+  /** A block in a chat: no folding or current line, and it shows `text` as it grows while the agent writes it. */
+  snippet?: boolean;
   onChange?(text: string): void;
   onSave?(): void;
 }) {
@@ -166,9 +169,7 @@ export function CodeView({
         doc: text,
         extensions: [
           lineNumbers(),
-          foldGutter(),
-          highlightActiveLineGutter(),
-          highlightActiveLine(),
+          ...(snippet ? [] : [foldGutter(), highlightActiveLineGutter(), highlightActiveLine()]),
           drawSelection(),
           bracketMatching(),
           indentOnInput(),
@@ -210,5 +211,13 @@ export function CodeView({
     if (editable) view.current?.focus();
   }, [editable]);
 
-  return <div ref={host} className={`codeview${editable ? " is-editing" : ""}`} />;
+  useEffect(() => {
+    const v = view.current;
+    if (!snippet || !v || v.state.doc.toString() === text) return;
+    v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: text } });
+  }, [snippet, text]);
+
+  return (
+    <div ref={host} className={`codeview${editable ? " is-editing" : ""}${snippet ? " codeview--snippet" : ""}`} />
+  );
 }

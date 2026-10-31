@@ -3,6 +3,7 @@
 import type { Store } from "../domain/store.ts";
 import { computerHost } from "../environments/host.ts";
 import { CATALOG } from "../integrations/catalog.ts";
+import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 
 /** What an entry may ask about this install before it is told. */
@@ -55,7 +56,29 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  BROWSER_EDIT_NEWS,
   BROWSER_JAVASCRIPT_NEWS,
+  {
+    id: "email-cards",
+    since: "2.13.0",
+    title: { en: "Emails as cards in the chat", es: "Los emails, como tarjetas en el chat" },
+    about: {
+      en: "An email your agent writes shows as a card you can send from Gmail or an Email channel, with a few seconds to undo, or open in your mail app.",
+      es: "Un email que escribe tu agente aparece como una tarjeta que podés mandar desde Gmail o un canal de Email, con unos segundos para deshacer, o abrir en tu app de correo.",
+    },
+    applies: () => true,
+    text:
+      "An email an agent writes for the owner now shows as a card in the chat, on the computer and on the phone. " +
+      "With Gmail or an Email channel connected the owner sends it from the card, with a few seconds to undo; " +
+      "otherwise it opens in their mail app, Gmail or Outlook on the web, or is copied. Mail that reaches an Email " +
+      "channel shows the same way.",
+    actions: [
+      {
+        label: { en: "Write one to try it", es: "Escribí uno para probarlo" },
+        prompt: "Draft a short test email to me so I can see the new email card and how I send it from there.",
+      },
+    ],
+  },
   {
     id: "help-whats-new",
     since: "2.12.0",

@@ -197,6 +197,66 @@
   flex: none;
   color: var(--apx-fg-subtle);
 }
+/* A file in the chat: its kind, name and size, then download and (when APX can show it) open. */
+.filechip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(320px, 100%);
+  padding: 6px 6px 6px 8px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
+  color: var(--apx-fg);
+}
+.filechip__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+}
+.filechip__info {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  margin-right: 4px;
+  font-size: var(--apx-text-xs);
+  line-height: 1.35;
+}
+.filechip__name {
+  overflow: hidden;
+  font-weight: var(--apx-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.filechip__size {
+  color: var(--apx-fg-subtle);
+}
+.fileviewer {
+  width: calc(100vw - 32px);
+}
+.fileviewer__text {
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+}
+.fileviewer__text .cm-editor {
+  height: auto;
+}
+.fileviewer__pdf {
+  display: block;
+  width: 100%;
+  height: calc(100vh - 180px);
+  border: 0;
+}
+.fileviewer__failed {
+  color: var(--apx-fg-muted);
+}
 
 @media (max-width: 640px) {
   .composer__model {

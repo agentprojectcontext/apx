@@ -3,9 +3,9 @@
 // delegates to a worker, which answers with a long report ("start two workers" delegates twice in one turn, "start a
 // worker in <project id>" into that project, "start four slow workers" four at once, each taking a few seconds, so one
 // waits for a slot; "start a worker and keep going" hands one off and takes a while to answer, so the worker's result
-// waits behind that turn); "make a note file" runs a command that needs the owner's OK; "look around the parent
-// folder" reads outside the project's folder (a folder card); "show a widget" makes one; "open a
-// report" writes one and opens it as a document; "show a table for task_…" answers with a wide table whose last
+// waits behind that turn); "write an email" answers with an email draft; "make a note file" runs a command that
+// needs the owner's OK; "look around the parent folder" reads outside the project's folder (a folder card); "show a
+// widget" makes one; "open a report" writes one and opens it as a document; "show a table for task_…" answers with a wide table whose last
 // column holds that task's chip; "connect <app> for me" offers that app or channel to connect; "draw a flow in
 // <project id>" makes a Flow there with apx_flow (a draft the chat shows as a card); asked from a Flow's editor,
 // "add a cleanup step" adds one to that Flow's draft and "make this flow" makes the new one in its project. It also
@@ -63,6 +63,20 @@ const REPORT = [
 
 /** An answer with a shell block the owner can run from the chat. */
 const SUGGESTION = "Run this in the project:\n\n```bash\necho e2e-suggested-$((6*7))\n```";
+
+/** An answer with an email draft the owner can send from the chat. */
+const EMAIL_DRAFT = [
+  "Here is the draft:",
+  "",
+  "```email",
+  "To: Dana <dana@example.com>",
+  "Subject: Friday launch",
+  "",
+  "Hi Dana,",
+  "",
+  "The banner and the post are ready for Friday at 10:00.",
+  "```",
+].join("\n");
 
 /** A review table like an agent's: short columns first, a task chip and long text in the last one. */
 function reviewTable(said: string): string | undefined {
@@ -240,6 +254,9 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
   // A write in a folder of the owner's own choosing, outside every folder of the chat.
   const outside = /^write a note at (\S+)/i.exec(said);
   if (outside) return { name: "shell", arguments: JSON.stringify({ command: `echo note > ${outside[1]}` }) };
+  // A step that takes a while, so the owner can write while it works (steer).
+  if (/^work for a moment/i.test(said) && messages.at(-1)?.role !== "tool")
+    return { name: "shell", arguments: JSON.stringify({ command: "sleep 3" }) };
   // A command that writes: the owner is asked first.
   if (/^make a note file/i.test(said))
     return { name: "shell", arguments: JSON.stringify({ command: "touch e2e-note.txt" }) };
@@ -307,10 +324,14 @@ export async function fakeLlm() {
               ? "Part checked."
               : /^suggest a command/i.test(said)
                 ? SUGGESTION
-                : // The owner's words in a contact's chat come before APX's note on them: the whole message is read.
-                  /react with a heart/i.test(JSON.stringify(body.messages?.findLast((m) => m.role === "user")?.content))
-                  ? "REACT ❤️"
-                  : (reviewTable(said) ?? `Got it: ${said || "(nothing)"}`);
+                : /^write an email/i.test(said)
+                  ? EMAIL_DRAFT
+                  : // The owner's words in a contact's chat come before APX's note on them: the whole message is read.
+                    /react with a heart/i.test(
+                        JSON.stringify(body.messages?.findLast((m) => m.role === "user")?.content),
+                      )
+                    ? "REACT ❤️"
+                    : (reviewTable(said) ?? `Got it: ${said || "(nothing)"}`);
       const usage = { prompt_tokens: 120, completion_tokens: 8, total_tokens: 128 };
       const call = relay && "check" in relay ? undefined : toolCall(body.messages ?? [], said);
       const wanted = fanOut(body.messages ?? [], said) ?? (call ? [call] : undefined);

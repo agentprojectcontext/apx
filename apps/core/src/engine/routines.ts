@@ -3,6 +3,7 @@
 // gets a conversation of its own. The owner hears back only when the agent has something to say; a quiet run's
 // conversation is archived.
 import type { Routine, RoutineRun } from "@apx/protocol";
+import { meansOwner } from "../domain/persons.ts";
 import { type FlowRoutineEvent, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import { MIN_GAP_MIN, nextRun } from "../domain/schedule.ts";
 import type { Store } from "../domain/store.ts";
@@ -22,6 +23,21 @@ export const isSkip = (text: string): boolean => text.replace(/[.\s*_`~"'!]/g, "
 
 export type RoutineDelivery = (r: { routine: Routine; run: RecordedRun; text: string; failed: boolean }) => void;
 type RecordedRun = Pick<RunRecord, "id" | "thread_id" | "state">;
+
+/**
+ * The run already wrote to the owner (message_contact to "me", notify_owner): its answer is a report of having done
+ * so, not news, and the owner is not told twice.
+ */
+export function toldOwner(store: Store, runId: string): boolean {
+  return store.runs
+    .steps(runId)
+    .some(
+      (s) =>
+        s.state === "ok" &&
+        (s.tool === "notify_owner" ||
+          (s.tool === "message_contact" && meansOwner(String(s.args.to ?? "")) && !/^not sent/i.test(s.result ?? ""))),
+    );
+}
 
 /** When a schedule runs next after `from`: after a run, never sooner than the minimum gap from it. */
 export function nextTime(r: Pick<Routine, "schedule">, from: Date, lastRun?: Date): string | undefined {
@@ -140,6 +156,7 @@ export function createScheduler(deps: {
         store.threads.arrange(run.thread_id, { archived: true });
         return;
       }
+      if (!failed && toldOwner(store, run.id)) return;
       deps.deliver({ routine, run, text: failed ? (run.error ?? "") : text, failed });
     },
   };

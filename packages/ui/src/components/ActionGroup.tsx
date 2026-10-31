@@ -16,7 +16,7 @@ export interface ActionItem {
 }
 
 export interface ActionGroupProps {
-  /** Header text: "Actions 1–10 of 16", "Worked 2 min". */
+  /** Header text: "16 steps · 2 min 10 s", "Working · step 3". */
   title: ReactNode;
   /** Number of failed actions — shown in danger after the title. */
   failed?: number;

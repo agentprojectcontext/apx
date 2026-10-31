@@ -71,7 +71,7 @@ teléfono los tipos de paso se abren desde **Sumar un paso** y la tarjeta es una
 | Modelo directo | Le pregunta una vez a un modelo configurado, sin herramientas, y pasa su respuesta. Gasta tokens. Queda en los flows que ya lo tienen; los pasos nuevos usan **Modelo IA**. |
 | Webhook saliente | Llama a una URL con GET, POST o PUT. Headers y body pueden llevar valores de la ronda; una clave va en un header como `secret://nombre`, de **Secretos**. Los pasos siguientes leen su respuesta como `$steps.<paso>.status`, `.ok` y `.json` (o `.body` si no es JSON). |
 | Cmd | Un comando de shell en la carpeta del proyecto, como el de una rutina. Los valores de la ronda le llegan solo como variables (`EMAIL=$trigger.email`, que lee como `$EMAIL`) y como su entrada, nunca dentro del texto; una clave va en una variable como `secret://nombre`. Los pasos siguientes leen `$steps.<paso>.stdout` y `.exit`; un error corta el flow salvo que **Seguir si falla** esté prendido. Tiene tiempo máximo (hasta 2 minutos). |
-| Avisar | Manda un mensaje como vos por una de tus apps de chat (Telegram, WhatsApp, Discord…) a alguien que conocés ahí, a vos o a una sala que listaste. Con **Solo si hay algo para contar**, no manda nada cuando todos los valores del mensaje salen vacíos. |
+| Avisar | Manda un mensaje por vos en una de tus apps de chat (Telegram, WhatsApp, Discord…) a alguien que conocés ahí, a vos o a una sala que listaste. En APX aparece en ese chat como escrito por el agente que atiende esa app, tal como llegó. Con **Solo si hay algo para contar**, no manda nada cuando todos los valores del mensaje salen vacíos. |
 
 La barra de arriba del editor tiene el nombre del flow a la izquierda y **Salir** a la derecha, junto al estado de
 guardado, **Escuchar un evento de prueba**, **Simular**, **Guardar borrador** y **Guardar** (en el teléfono, **Borrador** y un ícono para salir). Si
@@ -294,7 +294,9 @@ de administración cuya respuesta se perdió.
 ## El silencio también es una respuesta: SKIP
 
 El prompt de una rutina de agente son tus propias palabras. Cuando esta vez no hay nada que valga contarte, el agente
-responde solo `SKIP` y no te llega nada. Escribí prompts que dejen lugar para eso:
+responde solo `SKIP` y no te llega nada. Cuando la tarea de la rutina es escribirte («recordame por Telegram…»), ese
+mensaje te llega una vez: lo que el agente dice después sobre haberlo mandado queda en el chat de la rutina en APX.
+Escribí prompts que dejen lugar para eso:
 
 > Revisá los pedidos de ayer buscando algo raro: reembolsos de más de 200, un producto vendiendo 3 veces su promedio,
 > un pago rechazado. Si no hay nada, respondé SKIP.

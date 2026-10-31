@@ -80,6 +80,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.configure": MACHINE,
   "environments.stop": MACHINE,
   "browser.control": MACHINE,
+  "browser.preview_edits": "the owner's own preview of a page's edits; agents change the page's code instead",
   "system.update": MACHINE,
   "system.update_prepare": MACHINE,
   "system.import_v1": MACHINE,
@@ -131,6 +132,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "sessions.resume": PANEL,
   "runs.respond": AS_OWNER,
   "channels.send": AS_OWNER,
+  // Agents send mail with gmail_send or a contact message, behind their own card.
+  "mail.send": AS_OWNER,
   "email.signatures_set": "the owner's identity appended to outgoing mail is configured only by the owner",
   "contacts.suggestions.send": AS_OWNER,
   "contacts.suggestions.discard": AS_OWNER,

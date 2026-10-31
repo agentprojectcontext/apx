@@ -4,10 +4,13 @@ import { BrowserTabs, EmptyState, IconButton, Icons, Menu, type MenuEntry } from
 import { useEffect, useState } from "react";
 import { hostPath } from "../common/format.ts";
 import { browserClose, loadTabs } from "../data/actions.ts";
+import { useSlice } from "../data/createStore.ts";
 import { useT } from "../i18n/index.ts";
 import { nav } from "../shell/nav.ts";
+import { BrowserEdit, leaveEditing } from "./BrowserEdit.tsx";
 import { BrowserToolbar, HandoffBar } from "./BrowserToolbar.tsx";
 import { BrowserViewport } from "./BrowserViewport.tsx";
+import { browserEdit } from "./browserEdit.ts";
 import { canPopOut, IS_BROWSER_WINDOW, openOutside, popOutBrowser, useInstalledBrowsers } from "./browserWindow.ts";
 import { PanelHeader } from "./SidePanel.tsx";
 import { useActiveTab } from "./useActiveTab.ts";
@@ -20,10 +23,17 @@ export function BrowserPanel() {
   const t = useT();
   const { tabs, active } = useActiveTab();
   const [adding, setAdding] = useState(false);
+  const editing = useSlice(browserEdit, (s) => s.tab);
+  // Edit mode belongs to one tab the owner holds: another tab, or an agent taking it back, ends it.
+  const editable = active && active.control.kind !== "agent" && active.control.kind !== "handoff";
+  const inEdit = !adding && editable && editing === active.tab;
 
   useEffect(() => {
     void loadTabs();
   }, []);
+  useEffect(() => {
+    if (editing && !inEdit) void leaveEditing(editing);
+  }, [editing, inEdit]);
 
   return (
     <>
@@ -63,6 +73,8 @@ export function BrowserPanel() {
             <EmptyState icon={<Icons.Globe />} title={t("browser.newTab")}>
               {t("browser.newTabHint")}
             </EmptyState>
+          ) : inEdit ? (
+            <BrowserEdit tab={active} />
           ) : (
             <BrowserViewport tab={active.tab} />
           )}

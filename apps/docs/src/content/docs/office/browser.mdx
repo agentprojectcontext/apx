@@ -34,6 +34,29 @@ The embedded browser refuses to type into password, one-time code and card field
 always a hand-off to you. Agents are also told never to ask for passwords in chat.
 </Aside>
 
+## Editing a page an agent made
+
+When an agent builds a site or a landing and opens it in the browser (a local address such as `localhost:5173`), you
+can point at what you want changed instead of describing it. Press **Edit** in the browser bar:
+
+1. Move the pointer over the page: the part under it lights up. Click a title, a button or a picture to pick it.
+2. The edit panel shows its fields: **Text**, **Text color**, **Background**, **Font size**, **Spacing**, and
+   **Anything else?** for what you would rather say in words. What you change shows in the page right away, only in
+   your view: the page's own code is untouched, and a reload brings it back as it was.
+3. Pick as many parts as you like. **Your changes** lists them, numbered as on the page.
+4. **Ask Vera** puts the changes in the chat's message box, with the page and each part named so the agent can find it
+   in the code. Add anything and send it; nothing is sent for you. **Discard**, or Esc, leaves the page as it was.
+
+Edit shows when the tab is free or yours. While an agent drives it, take control first. A password, code or card field
+can be picked but never read or changed.
+
+> **You:** > Changes to the page localhost:5173 (http://localhost:5173/):
+> > 1. «Book a demo» (`a.cta`): text → «Get your demo»; font size → 19 px
+>
+> Keep the orange.
+>
+> **Vera:** Done: the button reads "Get your demo", a bit bigger, still orange. Reloaded it for you.
+
 ## Approved JavaScript execution
 
 On unreleased staging builds, an agent can use `browser_evaluate` in its existing APX tab. Supply either a JavaScript
