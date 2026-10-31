@@ -31,7 +31,7 @@ import type { createRooms } from "./rooms.ts";
 import type { Stickers } from "./stickers.ts";
 import type { Suggestions } from "./suggestions.ts";
 import { channelTexts } from "./texts.ts";
-import type { ChannelConfig } from "./types.ts";
+import { type ChannelConfig, contactAgentOf } from "./types.ts";
 
 /** A contact gets at most this many automatic answers per hour; then the owner is told once. */
 const CONTACT_PER_HOUR = 20;
@@ -381,7 +381,7 @@ export function createInbound(deps: {
     // On the owner's own number the request is only listed: the owner's friends must not get a code from it. Past
     // the hourly cap of codes (a wave of spam mail) the rest are only listed too: no reply goes to forged senders.
     if (deps.ownAccount(cfg.id) || codesOver(cfg.id)) return "ignored";
-    const agent = store.agents.get(cfg.agent_id)?.name ?? "APX";
+    const agent = store.agents.get(contactAgentOf(cfg))?.name ?? "APX";
     delivery.enqueue({
       channel: cfg.id,
       conversation: m.conversation,
@@ -416,7 +416,7 @@ export function createInbound(deps: {
       store.threads.create({
         kind: "channel",
         title: person.name,
-        agent_ids: [cfg.agent_id],
+        agent_ids: [contactAgentOf(cfg)],
         channel: { id: cfg.id, conversation, person_id: person.id },
       })
     );

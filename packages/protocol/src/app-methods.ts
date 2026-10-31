@@ -1066,6 +1066,7 @@ export const appMethods = {
             label: z.string().max(60).optional(),
             enabled: z.boolean().default(true),
             agent_id: Id,
+            contacts_agent_id: Id.optional(),
             strangers: ChannelStrangers.default("pair"),
             concurrency: z.enum(["queue", "interrupt", "steer"]).default("steer"),
             owner_thread: z.enum(["home", "own"]).default("home"),

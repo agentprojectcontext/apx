@@ -15,7 +15,7 @@ import { buttonId, shown } from "./notices.ts";
 import type { TellOwner } from "./owner-notices.ts";
 import type { createPoster } from "./post.ts";
 import { channelTexts } from "./texts.ts";
-import type { ChannelConfig } from "./types.ts";
+import { type ChannelConfig, contactAgentOf } from "./types.ts";
 
 /** How long a contact's quick messages may keep coming before one draft answers them all. */
 const BURST_MS = 15_000;
@@ -122,7 +122,7 @@ export function createSuggestions(deps: {
     if (!unanswered(threadId).length || overCap(person)) return;
     const thread = store.threads.get(threadId);
     if (!thread) return;
-    const agentId = thread.agent_ids[0] ?? cfg.agent_id;
+    const agentId = thread.agent_ids[0] ?? contactAgentOf(cfg);
     const t = channelTexts(store);
     let text = "";
     let error: string | undefined;
