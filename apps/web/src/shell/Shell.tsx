@@ -31,7 +31,7 @@ import { useAnyLive } from "../surfaces/liveAny.ts";
 import { useApxFiles } from "../surfaces/openedFiles.ts";
 import { widgetChatOpen } from "../surfaces/widgetChatOpen.ts";
 import { ChatWorkspace } from "./ChatWorkspace.tsx";
-import { computeLayout, layoutVars } from "./layout.ts";
+import { BREAKPOINTS, computeLayout, layoutVars } from "./layout.ts";
 import { go, nav, showsChat, useNav } from "./nav.ts";
 import { OfflineBanner } from "./OfflineBanner.tsx";
 import { Sidebar } from "./Sidebar.tsx";
@@ -71,7 +71,12 @@ export function Shell() {
       <Topbar />
       <OfflineBanner />
       <div className="shell__body">
-        <Sidebar rail={layout.rail} width={layout.sidebarW} />
+        <Sidebar
+          rail={layout.rail}
+          width={layout.sidebarW}
+          narrow={width < BREAKPOINTS.sidebarFull}
+          fixed={layout.compact}
+        />
         <main className="shell__main">
           <ShellLayout.Provider value={layout}>
             <Suspense fallback={null}>

@@ -6,6 +6,8 @@ export const LAYOUT = {
   headerH: 56,
   sidebarW: 236,
   sidebarRailW: 60,
+  /** The main pane is a card beside the sidebar: its right margin plus its two borders. */
+  mainInset: 10,
   /** What the owner may drag the sidebar and the chat list to. */
   sidebarMinW: 200,
   sidebarMaxW: 380,
@@ -33,7 +35,7 @@ export const LAYOUT = {
 } as const;
 
 export const BREAKPOINTS = {
-  /** Sidebar shows labels at or above this width, else it is an icon rail. */
+  /** Sidebar shows labels at or above this width, else it is an icon rail (unless the owner unfolds it). */
   sidebarFull: 1320,
   /** Inbox list uses the wide column at or above this width. */
   listWide: 1100,
@@ -65,10 +67,18 @@ export function computeLayout(
   panelOpen: boolean,
   chatShown: boolean,
   transcript: keyof typeof LAYOUT.transcriptW = "medium",
-  own: { sidebarW?: number; sidebarCollapsed?: boolean; listW?: number; panelW?: number; panelWide?: boolean } = {},
+  own: {
+    sidebarW?: number;
+    sidebarCollapsed?: boolean;
+    sidebarOpen?: boolean;
+    listW?: number;
+    panelW?: number;
+    panelWide?: boolean;
+  } = {},
 ): Layout {
-  const rail = Boolean(own.sidebarCollapsed) || width < BREAKPOINTS.sidebarFull;
   const compact = width < BREAKPOINTS.compact;
+  // A phone always keeps the rail: an open sidebar would leave the chat no room.
+  const rail = compact || Boolean(own.sidebarCollapsed) || (width < BREAKPOINTS.sidebarFull && !own.sidebarOpen);
   const narrow = width < BREAKPOINTS.panelWide;
   const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
   const sidebarW = rail
@@ -76,12 +86,14 @@ export function computeLayout(
     : own.sidebarW
       ? clamp(own.sidebarW, LAYOUT.sidebarMinW, LAYOUT.sidebarMaxW)
       : LAYOUT.sidebarW;
-  const panelMaxW = Math.max(LAYOUT.panelMinW, width - sidebarW - LAYOUT.chatMinW);
+  // What the columns beside the sidebar share.
+  const room = width - sidebarW - LAYOUT.mainInset;
+  const panelMaxW = Math.max(LAYOUT.panelMinW, room - LAYOUT.chatMinW);
   // Wide: half of what the list leaves (it hides), never under the usual width. A dragged width wins over both.
   const panelW = compact
-    ? width - sidebarW
+    ? room
     : own.panelWide
-      ? Math.max(LAYOUT.panelW, Math.min(Math.round((width - sidebarW) / 2), width - sidebarW - LAYOUT.chatMinW))
+      ? Math.max(LAYOUT.panelW, Math.min(Math.round(room / 2), room - LAYOUT.chatMinW))
       : own.panelW
         ? clamp(own.panelW, LAYOUT.panelMinW, panelMaxW)
         : narrow
@@ -90,10 +102,10 @@ export function computeLayout(
   const ownListW = own.listW ? clamp(own.listW, LAYOUT.listMinW, LAYOUT.listMaxW) : 0;
   const defaultListW = width >= BREAKPOINTS.listWide ? LAYOUT.listW : LAYOUT.listWNarrow;
   // A panel dragged wide enough to squeeze the chat under its minimum folds the list away, like the wide toggle.
-  const crowded = width - sidebarW - panelW - (ownListW || defaultListW) < LAYOUT.chatMinW;
+  const crowded = room - panelW - (ownListW || defaultListW) < LAYOUT.chatMinW;
   const hideList = (narrow || Boolean(own.panelWide) || (Boolean(own.panelW) && crowded)) && panelOpen && chatShown;
-  const listW = compact ? width - sidebarW : hideList ? 0 : ownListW || defaultListW;
-  const chatW = width - sidebarW - listW - (panelOpen ? panelW : 0);
+  const listW = compact ? room : hideList ? 0 : ownListW || defaultListW;
+  const chatW = room - listW - (panelOpen ? panelW : 0);
   return {
     rail,
     sidebarW,
@@ -112,6 +124,7 @@ export function layoutVars(l: Layout): Record<string, string> {
     "--shell-topbar-h": `${LAYOUT.topbarH}px`,
     "--shell-header-h": `${LAYOUT.headerH}px`,
     "--shell-sidebar-w": `${l.sidebarW}px`,
+    "--shell-main-inset": `${LAYOUT.mainInset}px`,
     "--shell-list-w": `${l.listW}px`,
     "--shell-panel-w": `${l.panelW}px`,
     "--shell-chat-min-w": l.compact ? "0px" : `${LAYOUT.chatMinW}px`,

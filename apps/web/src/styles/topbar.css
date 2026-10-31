@@ -29,7 +29,6 @@
   gap: 16px;
   height: var(--shell-topbar-h);
   background: var(--apx-sidebar);
-  border-bottom: 1px solid var(--apx-border);
 }
 .topbar__left,
 .topbar__right,
@@ -160,7 +159,6 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
 }
 .topbar.is-desktop {
   -webkit-app-region: drag;
-  border-bottom-color: color-mix(in srgb, var(--apx-border) 80%, transparent);
 }
 .topbar.is-desktop .topbar__left {
   padding-left: calc(14px + var(--window-controls-start, 0px));
@@ -241,8 +239,7 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
     gap: 6px;
   }
   .topbar__crumb:not(.is-last),
-  .topbar__sep,
-  .topbar__logo {
+  .topbar__sep {
     display: none;
   }
 }

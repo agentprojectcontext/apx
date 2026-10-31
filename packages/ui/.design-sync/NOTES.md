@@ -14,6 +14,9 @@
 - Preview content uses generic names only (Acme, Northwind, Globex, Roby, Ledger, Scout…). Never real client/project names.
 
 ## Pending re-sync
+- ResizeHandle can fold its column (`collapsed`, `collapsedWidth`, `onCollapsedChange`): a click or Enter toggles
+  it, a drag past halfway to the rail snaps it. The panel's sidebar uses it in place of a topbar button; not in the
+  Claude Design project yet.
 - FlowStep (a Flow step card on a canvas, with its run state) and RunBars (recent runs as bars) are new, for the
   Flows screens; neither is in the Claude Design project yet. Their CSS is `dist/flow.css`, outside `styles.css` (it
   stays off the panel's first load): a re-sync bundles it too.

@@ -27,6 +27,8 @@ function Fixture() {
   const [date, setDate] = useState<string>();
   const [width, setWidth] = useState(240);
   const [dragging, setDragging] = useState(false);
+  const [railWidth, setRailWidth] = useState(260);
+  const [folded, setFolded] = useState(false);
   const [tab, setTab] = useState("a");
   const [tabs, setTabs] = useState([
     { id: "a", title: "Acme" },
@@ -120,6 +122,21 @@ function Fixture() {
         }),
       ),
       h("output", { "data-testid": "dragging" }, String(dragging)),
+      h(
+        "div",
+        { style: { position: "relative", width: folded ? 60 : railWidth, height: 100 } },
+        h(ResizeHandle, {
+          label: "Fold or resize the rail",
+          width: railWidth,
+          min: 200,
+          max: 380,
+          onResize: setRailWidth,
+          collapsed: folded,
+          collapsedWidth: 60,
+          onCollapsedChange: setFolded,
+        }),
+      ),
+      h("output", { "data-testid": "rail" }, `${folded ? "folded" : "open"} ${railWidth}`),
       h(BrowserTabs, {
         tabs,
         value: tab,

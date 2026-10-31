@@ -306,11 +306,9 @@ export const en = {
   "phone.hint":
     "You need the APX app installed. If the phone is not paired yet, the scan pairs it; the code works once, for 10 minutes.",
   "phone.failed": "Could not create the code",
-  "nav.collapse": "Fold the sidebar",
-  "nav.expand": "Unfold the sidebar",
   "nav.back": "Back",
   "nav.forward": "Forward",
-  "nav.resize": "Resize the sidebar",
+  "nav.resize": "Fold or resize the sidebar",
   "nav.rowsResize": "Show more or fewer {section}",
   "inbox.resize": "Resize the list",
   "nav.label": "Navigation",

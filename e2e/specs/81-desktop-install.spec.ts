@@ -99,8 +99,9 @@ test("an installed app opens from above the account, while headless instances ha
   const launch = page.locator(".desktop-launch").getByRole("button", { name: "Abrir desktop", exact: true });
   await expect(launch).toBeVisible();
   await expect(page.locator(".desktop-launch + .sidebar__foot")).toHaveCount(1);
-  await expect(page.locator(".desktop-launch")).toHaveCSS("border-top-width", "1px");
-  await expect(page.locator(".sidebar__foot")).toHaveCSS("border-top-width", "1px");
+  // The sidebar draws no lines: the launch row sits with the account, as one foot.
+  await expect(page.locator(".desktop-launch")).toHaveCSS("border-top-width", "0px");
+  await expect(page.locator(".sidebar__foot")).toHaveCSS("border-top-width", "0px");
   await launch.click();
   await expect.poll(() => opens).toBe(1);
   await expect(page.locator(".desktop-install")).toHaveCount(0);

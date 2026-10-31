@@ -85,7 +85,9 @@ export function AppsDock({ rail }: { rail: boolean }) {
         rail={rail}
         title={t("nav.apps")}
         action={
+          // In the rail "+" leads the card, like every section's.
           <span className="appsdock__actions">
+            {rail && <AppLauncher running={running} />}
             <IconButton
               size="sm"
               className="sidebar__add"
@@ -93,37 +95,38 @@ export function AppsDock({ rail }: { rail: boolean }) {
               icon={<Icons.Upload size={14} />}
               onClick={() => openInstall()}
             />
-            <AppLauncher running={running} />
+            {!rail && <AppLauncher running={running} />}
           </span>
         }
-      />
-      {pinned.map(item)}
-      {loose.length > 0 && pinned.length > 0 && <hr className="appsdock__sep" />}
-      {loose.map((a) => (
-        <div key={a.id} className="appsdock__loose">
-          {item(a)}
-          {!rail && (
-            <span className="appsdock__looseactions">
-              <IconButton
-                size="sm"
-                label={t("widget.installApp")}
-                icon={<Icons.Pin size={14} />}
-                onClick={() => void setSurfaceFlags(a.id, { app: true })}
-              />
-              <IconButton
-                size="sm"
-                className="appsdock__close"
-                label={t("artifact.closeApp")}
-                icon={<Icons.X size={14} />}
-                onClick={() => {
-                  dropLive(a.id);
-                  if (view === "app" && appId === a.id) go.inbox();
-                }}
-              />
-            </span>
-          )}
-        </div>
-      ))}
+      >
+        {pinned.map(item)}
+        {loose.length > 0 && pinned.length > 0 && <hr className="appsdock__sep" />}
+        {loose.map((a) => (
+          <div key={a.id} className="appsdock__loose">
+            {item(a)}
+            {!rail && (
+              <span className="appsdock__looseactions">
+                <IconButton
+                  size="sm"
+                  label={t("widget.installApp")}
+                  icon={<Icons.Pin size={14} />}
+                  onClick={() => void setSurfaceFlags(a.id, { app: true })}
+                />
+                <IconButton
+                  size="sm"
+                  className="appsdock__close"
+                  label={t("artifact.closeApp")}
+                  icon={<Icons.X size={14} />}
+                  onClick={() => {
+                    dropLive(a.id);
+                    if (view === "app" && appId === a.id) go.inbox();
+                  }}
+                />
+              </span>
+            )}
+          </div>
+        ))}
+      </SidebarSection>
       {memory && <ArtifactMemoryDialog surface={memory} onClose={() => setMemoryOf(undefined)} />}
       {props && <ArtifactPropertiesDialog surface={props} onClose={() => setPropsOf(undefined)} />}
     </>

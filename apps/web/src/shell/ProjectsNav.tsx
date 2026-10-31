@@ -150,24 +150,25 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
           setMoreOpen(false);
           setPrefs({ projectsFolded: !folded });
         }}
-      />
-      {!hidden && shown.map((p) => item(p))}
-      {!hidden && rest.length > 0 && (
-        <SidebarOverflow
-          rail={rail}
-          title={t("nav.moreProjects", { n: rest.length })}
-          label={t("nav.moreProjects", { n: rest.length })}
-          count={rest.length}
-          active={view === "project" && rest.some((p) => p.id === projectId)}
-          open={moreOpen}
-          onOpenChange={setMoreOpen}
-        >
-          {rest.map((p) => item(p, () => setMoreOpen(false)))}
-        </SidebarOverflow>
-      )}
-      {!hidden && !rail && (
-        <SidebarRowsGrip section="projects" total={shown.length + rest.length} title={t("nav.projects")} />
-      )}
+      >
+        {!hidden && shown.map((p) => item(p))}
+        {!hidden && rest.length > 0 && (
+          <SidebarOverflow
+            rail={rail}
+            title={t("nav.moreProjects", { n: rest.length })}
+            label={t("nav.moreProjects", { n: rest.length })}
+            count={rest.length}
+            active={view === "project" && rest.some((p) => p.id === projectId)}
+            open={moreOpen}
+            onOpenChange={setMoreOpen}
+          >
+            {rest.map((p) => item(p, () => setMoreOpen(false)))}
+          </SidebarOverflow>
+        )}
+        {!hidden && !rail && (
+          <SidebarRowsGrip section="projects" total={shown.length + rest.length} title={t("nav.projects")} />
+        )}
+      </SidebarSection>
       <Suspense fallback={null}>
         {adding && <NewProjectDialog onClose={() => setAdding(false)} />}
         {settings && (

@@ -305,11 +305,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "phone.hint":
     "Necesitás la app de APX instalada. Si el teléfono no está vinculado, el escaneo lo vincula; el código sirve una vez, por 10 minutos.",
   "phone.failed": "No se pudo crear el código",
-  "nav.collapse": "Plegar la barra",
-  "nav.expand": "Desplegar la barra",
   "nav.back": "Atrás",
   "nav.forward": "Adelante",
-  "nav.resize": "Cambiar el ancho de la barra",
+  "nav.resize": "Plegar o cambiar el ancho de la barra",
   "nav.rowsResize": "Mostrar más o menos {section}",
   "inbox.resize": "Cambiar el ancho de la lista",
   "nav.label": "Navegación",
