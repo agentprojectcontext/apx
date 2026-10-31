@@ -215,25 +215,23 @@
   flex-direction: column;
   width: var(--shell-sidebar-w);
   background: var(--apx-sidebar);
-  border-right: 1px solid var(--apx-border);
   overflow: hidden;
 }
-/* Inbox, Tasks and Resources stay pinned on top, the account at the bottom; the middle scrolls between two fixed lines. */
+/* Inbox, Tasks and Resources stay pinned on top, the account at the bottom; only the sections between them scroll. */
 .sidebar__top {
   flex: none;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 10px 8px 8px;
-  border-bottom: 1px solid var(--apx-border);
+  padding: 4px 8px 0;
 }
 .sidebar__scroll {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 6px 4px 12px 8px;
+  gap: 8px;
+  padding: 12px 4px 12px 8px;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
@@ -243,67 +241,81 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px 8px 10px;
-  border-top: 1px solid var(--apx-border);
+  padding: 6px 8px 10px;
 }
+/* In the rail every icon sits on the same centre line, the section cards' too. */
 .sidebar .apx-nav--collapsed {
-  justify-content: flex-start;
-  padding: 0 10px;
+  justify-content: center;
+  padding: 0;
 }
 /* Lucide icons sit at 16px and tiles at 20px, so labels line up like the design (44 / 48px). */
 .sidebar .apx-nav__icon {
   width: auto;
   min-width: 16px;
 }
-.sidebar__divider {
+/* A section is a card: its title with the fold toggle and "+", then its rows, then the edge that sizes it. */
+.sidebar__group {
   flex: none;
-  width: calc(100% - 20px);
-  margin: 12px 10px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  margin: 0;
+  padding: 4px;
   border: 0;
-  border-top: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-fill);
 }
-/* A section's bottom edge is the divider under it: drag the line to show more or fewer rows. */
+.sidebar__group > .apx-section-label {
+  min-height: 28px;
+  padding: 0 2px 0 8px;
+}
+.sidebar__group .apx-nav {
+  height: 32px;
+  padding: 0 8px;
+}
+.sidebar__group .apx-nav--collapsed {
+  padding: 0;
+}
+.channelsnav__shown {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+/* Drag the card's bottom edge (or use the arrows) to show more or fewer rows. */
 .sidebar__grip {
   flex: none;
   position: relative;
-  height: 13px;
-  margin: 6px 10px 0;
+  height: 8px;
+  margin: 0 -4px -4px;
+  border-radius: 0 0 var(--apx-radius-lg) var(--apx-radius-lg);
   cursor: row-resize;
   touch-action: none;
 }
 .sidebar__grip::after {
   content: "";
   position: absolute;
-  inset: 6px 0 auto;
-  height: 1px;
-  background: var(--apx-border);
-  transition:
-    background 0.12s,
-    height 0.12s,
-    top 0.12s;
+  top: 2px;
+  left: calc(50% - 14px);
+  width: 28px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--apx-border-strong, var(--apx-border));
+  opacity: 0.6;
+  transition: opacity 0.12s;
 }
-.sidebar__grip + .sidebar__divider,
-.sidebar__scroll > .sidebar__divider:first-child {
-  display: none;
-}
-/* The last section has no divider under it: its edge shows only while used. */
-.sidebar__grip:last-child::after {
-  background: transparent;
+.sidebar__grip:hover,
+.sidebar__grip:focus-visible,
+.sidebar__grip:active {
+  background: var(--apx-fill-hover);
 }
 .sidebar__grip:hover::after,
 .sidebar__grip:focus-visible::after,
 .sidebar__grip:active::after {
-  top: 5px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--apx-border-strong, var(--apx-border));
+  opacity: 1;
 }
 .sidebar__grip:focus-visible {
   outline: none;
-}
-.sidebar__railaction {
-  display: flex;
-  padding: 0 0 6px 10px;
 }
 .sidebar__add {
   display: grid;
@@ -321,6 +333,28 @@
 }
 .sidebar__add:disabled {
   cursor: default;
+}
+/* In the rail a section's "+" is its card's first icon, a row like the others. */
+.sidebar__railaction {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+/* Apps has two: "+" (open any artifact) first, then upload. */
+.sidebar__railaction .appsdock__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.sidebar__group.is-rail .sidebar__add {
+  width: 100%;
+  height: 32px;
+  margin: 0;
+  border-radius: var(--apx-row-radius);
+  color: var(--apx-fg-muted);
+}
+.sidebar__group.is-rail .sidebar__add:hover:not(:disabled) {
+  color: var(--apx-fg);
 }
 .sidebar__running {
   width: 6px;
@@ -683,9 +717,18 @@
   text-align: left;
 }
 
-/* The sidebar's edge to drag (inside it: the sidebar clips what overflows). */
+/* The sidebar's edge, in the gap before the main pane: click to fold or unfold it, drag to size it (inside the
+   sidebar, which clips what overflows). */
 .apx-resize.sidebar__resize {
   right: 0;
+}
+.apx-resize.sidebar__resize::after {
+  left: 6px;
+}
+.apx-resize.sidebar__resize:hover::after,
+.apx-resize.sidebar__resize:focus-visible::after,
+.apx-resize.sidebar__resize:active::after {
+  left: 5.5px;
 }
 
 /* New project dialog: where it lives, then its name, kind and description; a folder path has the picker beside it. */

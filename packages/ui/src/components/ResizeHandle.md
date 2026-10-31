@@ -13,6 +13,10 @@ The edge of a column you drag to change its width: the sidebar, the chat list, a
   view laid over the page).
 - `edge`: the side of the column it sits on (`right` by default); `top` for a panel at the bottom that grows upwards
   (a log under a canvas), where `width` is its height and Up and Down move it.
+- `collapsed`, `collapsedWidth`, `onCollapsedChange`: a column that folds (the sidebar into its icon rail). A click or
+  Enter toggles it; a drag that goes past halfway between `collapsedWidth` and `min` snaps it closed, and back open
+  when dragged out again. Folding keeps `width`, so unfolding returns to it. From the keyboard, Left at `min` folds it
+  and Right unfolds it.
 
 Place it inside the column (positioned) or over the line between two columns.
 

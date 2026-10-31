@@ -1,7 +1,6 @@
 .desktop-launch {
   flex: none;
-  padding: 8px;
-  border-top: 1px solid var(--apx-border);
+  padding: 8px 8px 0;
 }
 .desktop-install {
   position: fixed;

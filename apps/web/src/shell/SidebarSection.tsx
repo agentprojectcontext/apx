@@ -4,6 +4,10 @@ import { SIDEBAR_MIN_ROWS, type SidebarRows, setSidebarRows, useSidebarRows } fr
 import { useT } from "../i18n/index.ts";
 import { SidebarTooltipButton } from "./SidebarNavRow.tsx";
 
+/**
+ * One section of the sidebar as a card: its title (with the fold toggle and its "+"), then its rows. In the rail the
+ * title hides and the "+" is the card's first icon.
+ */
 export function SidebarSection({
   rail,
   title,
@@ -12,6 +16,7 @@ export function SidebarSection({
   onToggle,
   unread = 0,
   unreadLabel,
+  children,
 }: {
   rail: boolean;
   title: string;
@@ -20,10 +25,10 @@ export function SidebarSection({
   onToggle?: () => void;
   unread?: number;
   unreadLabel?: string;
+  children?: ReactNode;
 }) {
   return (
-    <>
-      <hr className="sidebar__divider" />
+    <fieldset aria-label={title} className={rail ? "sidebar__group is-rail" : "sidebar__group"}>
       {rail ? (
         action && <div className="sidebar__railaction">{action}</div>
       ) : (
@@ -45,7 +50,8 @@ export function SidebarSection({
           )}
         </SectionLabel>
       )}
-    </>
+      {children}
+    </fieldset>
   );
 }
 
@@ -104,7 +110,7 @@ export function SidebarOverflow({
 const ROW_STEP = 36;
 
 /**
- * The bottom edge of a sidebar section: drag it (or use the arrows) to show more or fewer rows, the rest folding into
+ * The bottom edge of a sidebar section's card: drag it (or use the arrows) to show more or fewer rows, the rest folding into
  * "N more". Shown only when the section has more rows than its minimum.
  */
 export function SidebarRowsGrip({

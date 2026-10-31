@@ -59,12 +59,19 @@ body {
   flex: 1;
   min-height: 0;
   display: flex;
+  background: var(--apx-sidebar);
 }
+/* The main pane is a card on the sidebar's colour, open at the bottom (its frame is --shell-main-inset). */
 .shell__main {
   flex: 1;
   min-width: 0;
   display: flex;
+  margin-right: calc(var(--shell-main-inset) - 2px);
+  border: 1px solid var(--apx-border);
+  border-bottom: 0;
+  border-radius: var(--apx-radius-md) var(--apx-radius-md) 0 0;
   background: var(--apx-bg);
+  overflow: hidden;
 }
 
 /* ── Offline banner / toasts ───────────────────────────────────────────────── */
