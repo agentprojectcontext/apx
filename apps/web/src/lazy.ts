@@ -179,6 +179,8 @@ export const FlowEditor = lazy(() => import("./flows/FlowEditor.tsx").then((m) =
 export const TablesView = lazy(() => import("./flows/TablesView.tsx").then((m) => ({ default: m.TablesView })));
 // A Flow an agent made or changed: its card in the chat draws it with the canvas library.
 export const FlowCard = lazy(() => import("./flows/FlowCard.tsx").then((m) => ({ default: m.FlowCard })));
+// Its drawing opened large, to look at each step.
+export const FlowViewer = lazy(() => import("./flows/FlowViewer.tsx").then((m) => ({ default: m.FlowViewer })));
 
 // The searchable picker (base-ui's combobox) loads after the first paint: the inbox's new-chat button has one.
 export const SearchSelect = lazy(() =>
