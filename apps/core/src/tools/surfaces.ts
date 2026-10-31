@@ -53,7 +53,7 @@ export function surfaceTools(store: Store, home: string): Tool[] {
         html: z.string().describe("full HTML body"),
         pin: z.boolean().optional(),
         app: z.boolean().optional().describe("Fullscreen app listed in Apps."),
-        page: z.boolean().optional().describe("A web page the owner sees and edits."),
+        page: z.boolean().optional().describe("A web page in its own styles, no kit."),
         // Checked against SurfaceOrigin in check(): its pattern in the schema costs every turn.
         connect: z
           .array(z.string().max(300))

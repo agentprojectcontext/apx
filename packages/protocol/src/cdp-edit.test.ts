@@ -15,7 +15,7 @@ type Node = {
 };
 
 /** A page of a few nodes over fake CDP: answers what edit mode asks and keeps the DOM changes it makes. */
-function fakePage(nodes: Node[], at: number) {
+function fakePage(nodes: Node[], at: number, view: { scroll?: number; content?: number; scrolled?: number } = {}) {
   const byId = new Map<number, Node>();
   const index = (n: Node) => {
     byId.set(n.backendNodeId, n);
@@ -23,6 +23,8 @@ function fakePage(nodes: Node[], at: number) {
   };
   for (const n of nodes) index(n);
   const calls: string[] = [];
+  const points: Array<{ x: number; y: number }> = [];
+  let pageY = view.scroll ?? 0;
   const attr = (n: Node, name: string) => {
     const a = n.attributes ?? [];
     const i = a.findIndex((v, k) => k % 2 === 0 && v === name);
@@ -32,11 +34,26 @@ function fakePage(nodes: Node[], at: number) {
     calls.push(method);
     switch (method) {
       case "Page.getLayoutMetrics":
-        return { cssVisualViewport: { clientWidth: 1000, clientHeight: 500 } };
+        return {
+          cssVisualViewport: { clientWidth: 1000, clientHeight: 500, pageX: 0, pageY },
+          cssContentSize: { width: 1000, height: view.content ?? 500 },
+        };
       case "DOM.getDocument":
+        return {
+          root: {
+            nodeType: 9,
+            nodeName: "#document",
+            backendNodeId: 1,
+            children: [{ nodeType: 1, nodeName: "HTML", backendNodeId: 2 }],
+          },
+        };
       case "CSS.enable":
         return {};
+      case "DOM.scrollIntoViewIfNeeded":
+        pageY = view.scrolled ?? pageY;
+        return {};
       case "DOM.getNodeForLocation":
+        points.push({ x: params.x as number, y: params.y as number });
         return { backendNodeId: at };
       case "DOM.describeNode": {
         const n = byId.get(params.backendNodeId as number);
@@ -81,7 +98,7 @@ function fakePage(nodes: Node[], at: number) {
         throw new Error(`unexpected ${method}`);
     }
   }) as CdpSend;
-  return { send, byId, calls, attr };
+  return { send, byId, calls, attr, points };
 }
 
 const button = (): Node => ({
@@ -108,6 +125,24 @@ test("inspect names the element under a point, with its text, place and look", a
     style: { color: "rgb(255, 255, 255)", background: undefined, font_size: 15, padding: 13 },
   });
   // Edit mode runs no script in the page: only DOM, CSS and accessibility reads.
+  assert.ok(!page.calls.some((m) => m.startsWith("Runtime.")));
+});
+
+test("inspect picks under the point in a scrolled page, its box where the owner sees it", async () => {
+  const page = fakePage([button()], 7, { scroll: 300 });
+  const el = await new PageEdits(page.send).inspect(0.2, 0.15);
+  // The hit test takes document coordinates: the scroll is added to the visible point.
+  assert.deepEqual(page.points, [{ x: 200, y: 375 }]);
+  assert.deepEqual(el?.box, { x: 0.1, y: 0.1, width: 0.2, height: 0.1 });
+});
+
+test("inspect over a whole page brings the point into view and places the box on the whole page", async () => {
+  const page = fakePage([button()], 7, { content: 2000, scrolled: 1500 });
+  const el = await new PageEdits(page.send).inspect(0.2, 0.9, { height: 2000 });
+  assert.ok(page.calls.includes("DOM.scrollIntoViewIfNeeded"));
+  assert.deepEqual(page.points, [{ x: 200, y: 1800 }]);
+  // The quad is seen at 50–100 px in a view scrolled by 1500 px of a 2000 px page.
+  assert.deepEqual(el?.box, { x: 0.1, y: 0.775, width: 0.2, height: 0.025 });
   assert.ok(!page.calls.some((m) => m.startsWith("Runtime.")));
 });
 

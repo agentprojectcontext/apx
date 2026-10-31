@@ -15,15 +15,32 @@ const MAX_PAGES = 4;
 const SETTLE_MS = 900;
 const MIN_HEIGHT = 240;
 const MAX_HEIGHT = 2400;
+/** A web page is laid out in a window this tall (its full-height parts keep this size) and shown down to PAGE_MAX. */
+const PAGE_VIEW = { wide: 800, phone: 844 };
+const PAGE_MAX = 16_000;
+/** Below this width a web page is shown as on a phone: touch layout, and a sharper picture. */
+const PHONE_WIDTH = 600;
+const SHOT_TIMEOUT_MS = 10_000;
 
 const CSP =
   "default-src 'none'; form-action 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:";
 
-/** The widget's page as the panel draws it (theme, kit, layout), with the read-only bridge the page check uses. */
+/**
+ * The widget's page as the panel draws it (theme, kit, layout), with the read-only bridge the page check uses. A web
+ * page is drawn as a browser shows it: its own styles on a light page, nothing of APX's look.
+ */
 export function editDocument(
   html: string,
-  opts: { theme: string; mode: "light" | "dark"; layout: "widget" | "app" },
+  opts: { theme: string; mode: "light" | "dark"; layout: "widget" | "app" | "page" },
 ): string {
+  if (opts.layout === "page")
+    return withBridge(
+      injectSurfaceHead(
+        html,
+        `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${CSP}">
+<style>html{color-scheme:light;background:#fff;color:#111;font-family:system-ui,sans-serif}</style>`,
+      ),
+    );
   const head = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${CSP}">
 <style>${opts.theme.replace(/[<>]/g, "")}
 html{color-scheme:${opts.mode}}
@@ -40,6 +57,8 @@ type Page = {
   context: string;
   /** What it shows: the widget's id, for saving into it. */
   of: string;
+  /** A web page: picked and pictured whole, not only the part a window shows. */
+  whole: boolean;
   send: <T>(method: string, params?: object) => Promise<T>;
   page: CdpPage;
   stop: () => void;
@@ -72,8 +91,11 @@ export function createWidgetPages(
     await c.send("Target.disposeBrowserContext", { browserContextId: p.context }).catch(() => {});
   }
 
-  /** Runs the page at `width`, answering its reads with `onCall`; its height is what it shows, within bounds. */
-  async function open(html: string, width: number, onCall: PageCall, of = ""): Promise<string> {
+  /**
+   * Runs the page at `width`, answering its reads with `onCall`; its height is what it shows, within bounds. A `whole`
+   * page keeps a window's height and is pictured down to its end.
+   */
+  async function open(html: string, width: number, onCall: PageCall, of = "", whole = false): Promise<string> {
     for (const [id, p] of pages) if (now() - p.used > IDLE_MS) await close(id);
     while (pages.size >= MAX_PAGES) {
       const oldest = [...pages.entries()].sort((a, b) => a[1].used - b[1].used)[0];
@@ -117,6 +139,7 @@ export function createWidgetPages(
       target: targetId,
       context: browserContextId,
       of,
+      whole,
       send,
       page: new CdpPage(send, { selectAllModifiers: 0 }),
       stop,
@@ -130,12 +153,21 @@ export function createWidgetPages(
       await send("Network.enable");
       await send("Network.setBlockedURLs", { urls: ["*"] });
       await send("Runtime.addBinding", { name: "__apxCheck" });
+      const phone = whole && width < PHONE_WIDTH;
       const metrics = (height: number) =>
-        send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
-      await metrics(800);
+        send("Emulation.setDeviceMetricsOverride", {
+          width,
+          height,
+          deviceScaleFactor: phone ? 2 : 1,
+          mobile: phone,
+        });
+      await metrics(whole ? (phone ? PAGE_VIEW.phone : PAGE_VIEW.wide) : 800);
+      // The picture is the page at its full width: no scrollbar takes part of it.
+      if (whole) await send("Emulation.setScrollbarsHidden", { hidden: true });
       const { frameTree } = await send<{ frameTree: { frame: { id: string } } }>("Page.getFrameTree");
       await send("Page.setDocumentContent", { frameId: frameTree.frame.id, html });
       await sleep(SETTLE_MS);
+      if (whole) return id;
       const measured = await send<{ result?: { value?: unknown } }>("Runtime.evaluate", {
         expression: "Math.ceil(document.body ? document.body.scrollHeight : 0)",
         returnByValue: true,
@@ -184,15 +216,51 @@ export function createWidgetPages(
     }
   }
 
+  /** A JPEG (base64) of the whole page, down to PAGE_MAX CSS pixels, whatever part of it is scrolled into view. */
+  async function wholeShot(p: Page): Promise<string> {
+    type Metrics = { cssContentSize?: { width: number; height: number }; cssVisualViewport?: { clientWidth: number } };
+    const shoot = async () => {
+      const m = await p.send<Metrics>("Page.getLayoutMetrics");
+      const width = m.cssContentSize?.width ?? m.cssVisualViewport?.clientWidth ?? 0;
+      const height = Math.min(PAGE_MAX, m.cssContentSize?.height ?? 0);
+      if (!width || !height) throw new ApxError({ code: "unavailable", message: "the page has no size yet" });
+      const { data } = await p.send<{ data: string }>("Page.captureScreenshot", {
+        format: "jpeg",
+        quality: 70,
+        captureBeyondViewport: true,
+        clip: { x: 0, y: 0, width, height, scale: 1 },
+      });
+      return data;
+    };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const late = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new ApxError({ code: "timeout", message: "the page took too long to picture" })),
+        SHOT_TIMEOUT_MS,
+      );
+    });
+    try {
+      return await Promise.race([shoot(), late]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   return {
     open,
     close,
     save,
     /** The widget a page shows. */
     widgetOf: (id: string) => get(id).of,
-    inspect: async (id: string, x: number, y: number): Promise<PickedElement | null> => get(id).page.inspect(x, y),
+    inspect: async (id: string, x: number, y: number): Promise<PickedElement | null> => {
+      const p = get(id);
+      return p.page.inspect(x, y, p.whole ? { height: PAGE_MAX } : undefined);
+    },
     preview: async (id: string, edits: readonly ElementEdit[]) => get(id).page.previewEdits(edits),
-    shot: async (id: string) => get(id).page.screenshot(),
+    shot: async (id: string) => {
+      const p = get(id);
+      return p.whole ? wholeShot(p) : p.page.screenshot();
+    },
     /** Every page closed, as when the core stops. */
     async closeAll(): Promise<void> {
       for (const id of [...pages.keys()]) await close(id);

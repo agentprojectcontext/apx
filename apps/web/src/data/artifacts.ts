@@ -55,6 +55,23 @@ export async function exportArtifact(id: string, memory: boolean): Promise<boole
   }
 }
 
+/** Saves a web page as `<name>.html`, the page itself, to open in any browser. */
+export async function downloadPage(id: string): Promise<boolean> {
+  try {
+    const { html, name } = await client.call("surfaces.get", { surface: id });
+    const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name}.html`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return true;
+  } catch (e) {
+    notify(t("artifact.exportError", { error: errText(e) }));
+    return false;
+  }
+}
+
 /** Installs an `.apx-artifact.json` file as a new artifact of the project (none: global). */
 /** Installs an artifact file here: into `projectId` (none: global), pinned to Apps or not. */
 export async function installArtifact(

@@ -4,12 +4,14 @@ import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
 import { startEditing } from "../../panel/browserEdit.ts";
 import { go, useNav } from "../../shell/nav.ts";
+import { KindIcon, kindOf } from "../../surfaces/artifactKind.tsx";
 import { SurfaceActions } from "../../surfaces/SurfaceActions.tsx";
 import { SurfaceFrame } from "../../surfaces/SurfaceFrame.tsx";
+import { PagePart } from "./PagePart.tsx";
 
 /**
- * A widget the agent produced, rendered inline with pin / app actions; a card while it shows in the side panel. A web
- * page shows in a page's frame, with its title where an address goes and a way into edit mode.
+ * An artifact the agent produced: a widget inline with its actions, or a card while it shows in the side panel; a web
+ * page as a page (PagePart).
  */
 export function SurfacePart({ part }: { part: Extract<Part, { type: "surface" }> }) {
   const t = useT();
@@ -22,11 +24,12 @@ export function SurfacePart({ part }: { part: Extract<Part, { type: "surface" }>
       </div>
     );
   }
-  const Icon = surface.page ? Icons.Globe : Icons.LayoutGrid;
+  // A web page reads as one, in the frame HTML blocks use; it never moves to the side panel.
+  if (surface.page) return <PagePart surface={surface} />;
   if (aside)
     return (
       <div className="surfacecard surfacecard--aside">
-        <Icon size={16} />
+        <Icons.LayoutGrid size={16} />
         <span className="surfacecard__asidetext">
           <span className="surfacecard__asidetitle">{surface.title}</span>
           <span className="surfacecard__asidenote">{t("widget.inPanel")}</span>
@@ -36,45 +39,10 @@ export function SurfacePart({ part }: { part: Extract<Part, { type: "surface" }>
         </Button>
       </div>
     );
-  if (surface.page)
-    return (
-      <div className="surfacecard surfacecard--page">
-        <div className="pagecard__bar">
-          <span className="pagecard__dots" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
-          <span className="pagecard__address">
-            <Icons.Globe size={12} />
-            <span className="pagecard__title">{surface.title}</span>
-          </span>
-          <Button
-            size="sm"
-            variant="ghost"
-            leadingIcon={<Icons.Pencil size={13} />}
-            onClick={() => {
-              go.widget(surface.id);
-              startEditing(`widget:${surface.id}`);
-            }}
-          >
-            {t("browser.edit")}
-          </Button>
-          <SurfaceActions surface={surface} />
-          <IconButton
-            size="sm"
-            label={t("widget.toPanel")}
-            icon={<Icons.PanelRightOpen size={14} />}
-            onClick={() => go.widget(surface.id)}
-          />
-        </div>
-        <SurfaceFrame surfaceId={surface.id} />
-      </div>
-    );
   return (
     <div className="surfacecard">
       <div className="surfacecard__head">
-        <Icons.LayoutGrid size={12} />
+        <KindIcon kind={kindOf(surface)} size={12} />
         <span className="surfacecard__eyebrow">{t("widget.eyebrow", { title: surface.title })}</span>
         {surface.connect && (
           <span className="surfacecard__net" title={surface.connect.join("\n")}>
@@ -83,7 +51,16 @@ export function SurfacePart({ part }: { part: Extract<Part, { type: "surface" }>
           </span>
         )}
         <span className="surfacecard__spacer" />
-        <SurfaceActions surface={surface} />
+        <IconButton
+          size="sm"
+          label={t("browser.edit")}
+          icon={<Icons.Pencil size={14} />}
+          onClick={() => {
+            go.widget(surface.id);
+            startEditing(`widget:${surface.id}`);
+          }}
+        />
+        <SurfaceActions surface={surface} inChat />
         <IconButton
           size="sm"
           label={t("widget.toPanel")}

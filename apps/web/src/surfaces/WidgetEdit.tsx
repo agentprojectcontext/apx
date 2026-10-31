@@ -10,9 +10,18 @@ import { themeCss } from "./srcdoc.ts";
 
 /**
  * Edit mode on a widget: the core runs it in a page of its own browser, apart from the panel and from the network,
- * and the owner points at it like at a browser tab. Nothing the widget does reaches the panel.
+ * and the owner points at it like at a browser tab. Nothing the widget does reaches the panel. A web page is laid out
+ * at `width` (a computer's or a phone's) and shown whole, beside a panel that stays put.
  */
-export function WidgetEdit({ surface }: { surface: SurfaceSummary }) {
+export function WidgetEdit({
+  surface,
+  width: pageWidth,
+  asked,
+}: {
+  surface: SurfaceSummary;
+  width?: number;
+  asked?: (thread: string) => void;
+}) {
   const t = useT();
   usePack("browserEdit");
   const { mode } = useApx();
@@ -24,8 +33,8 @@ export function WidgetEdit({ surface }: { surface: SurfaceSummary }) {
     if (!el) return;
     let alive = true;
     let opened: string | undefined;
-    // The page is drawn as wide as the picture the owner sees, so it reads at its real size.
-    const width = Math.round(Math.min(2400, Math.max(240, el.clientWidth - 22)));
+    // A widget is drawn as wide as the picture the owner sees, so it reads at its real size.
+    const width = pageWidth ?? Math.round(Math.min(2400, Math.max(240, el.clientWidth - 22)));
     client
       .call("surfaces.edit_open", { surface: surface.id, width, theme: themeCss(el), mode })
       .then(({ page: id }) => {
@@ -40,7 +49,7 @@ export function WidgetEdit({ surface }: { surface: SurfaceSummary }) {
       alive = false;
       if (opened) void client.call("surfaces.edit_close", { page: opened }).catch(() => {});
     };
-  }, [surface.id, mode]);
+  }, [surface.id, mode, pageWidth]);
 
   const id = page && "id" in page ? page.id : undefined;
   const target = useMemo<EditTarget | undefined>(
@@ -59,15 +68,18 @@ export function WidgetEdit({ surface }: { surface: SurfaceSummary }) {
               tr(surface.page ? "bedit.request.webpage" : "bedit.request.widget", { title: surface.title }),
             // Closing the page (when this view goes) drops the edits it showed.
             leave: async () => stopEditing(),
+            ...(surface.thread_id ? { thread: surface.thread_id } : {}),
+            ...(asked ? { asked } : {}),
+            ...(surface.page && pageWidth ? { whole: pageWidth } : {}),
           }
         : undefined,
-    [id, surface.id, surface.title, surface.page],
+    [id, surface.id, surface.title, surface.page, surface.thread_id, pageWidth, asked],
   );
 
   return (
     <div ref={box} className="widget-edit">
       {target ? (
-        <PageEdit target={target} />
+        <PageEdit key={id} target={target} />
       ) : page && "error" in page ? (
         <EmptyState icon={<Icons.TriangleAlert />} title={t("bedit.widgetFailed")}>
           {page.error === "unavailable" ? t("bedit.widgetUnavailable") : null}

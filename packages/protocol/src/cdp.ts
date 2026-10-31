@@ -148,8 +148,8 @@ export class CdpPage {
   }
 
   /** Edit mode: the element under a point of the visible page, as fractions of it. */
-  inspect(x: number, y: number): Promise<PickedElement | null> {
-    return withTimeout(this.#edits.inspect(x, y), 4_000);
+  inspect(x: number, y: number, whole?: { height: number }): Promise<PickedElement | null> {
+    return withTimeout(this.#edits.inspect(x, y, whole), 4_000);
   }
 
   /** Edit mode: these edits shown in the page until it reloads, the earlier ones undone. */

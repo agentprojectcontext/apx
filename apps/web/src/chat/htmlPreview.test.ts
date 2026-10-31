@@ -25,6 +25,14 @@ test("a fragment becomes a whole page and a full page keeps its own head, the lo
   assert.ok(full.indexOf("Content-Security-Policy") < full.indexOf("<title>A</title>"));
 });
 
+test("a web page an agent made runs its own inline code, and still loads nothing from the web", () => {
+  const csp = cspOf(htmlPreviewDoc("<button onclick='menu()'>Menu</button>", "k2", { scripts: true }));
+  assert.match(csp, /default-src 'none'/);
+  assert.match(csp, /script-src 'unsafe-inline';/);
+  assert.doesNotMatch(csp, /unsafe-eval|https?:|\*/);
+  assert.match(csp, /form-action 'none'/);
+});
+
 test("only a height message with the frame's own key counts", () => {
   assert.equal(isPreviewHeight({ apxPreview: "k", height: 120 }, "k"), true);
   assert.equal(isPreviewHeight({ apxPreview: "other", height: 120 }, "k"), false);

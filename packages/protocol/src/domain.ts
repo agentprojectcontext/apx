@@ -1454,7 +1454,7 @@ export const Surface = z.object({
   version: z.number().int(),
   pinned: z.boolean(),
   app: z.boolean(),
-  /** A web page to look at and edit: shown in a page's frame instead of a widget's card. */
+  /** A web page: shown as a browser shows it (its own styles, no kit or memory), with its code and an editor. */
   page: z.boolean().optional(),
   project_id: Id.optional(),
   thread_id: Id.optional(),

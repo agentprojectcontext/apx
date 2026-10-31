@@ -93,3 +93,32 @@ test("a style edit replaces the element's own declaration for that property and 
   );
   assert.equal(mergeStyle(undefined, { background: "#000000" }), "background-color: #000000");
 });
+
+test("a web page is pictured whole at its own width, its full-height parts keep a window's height, and its end can be picked and saved", async () => {
+  const long = `<!doctype html><html><body style="margin:0">
+<section id="hero" style="height:100vh;background:#cde"><h1 style="margin:0">Fresh coffee</h1></section>
+<section style="height:1200px"></section>
+<footer style="height:300px;margin:0"><p id="end" style="margin:0;height:300px">Contact us</p></footer></body></html>`;
+  const page = await pages.open(
+    editDocument(long, { theme: "", mode: "dark", layout: "page" }),
+    1280,
+    async () => undefined,
+    "srf",
+    true,
+  );
+  const jpeg = Buffer.from(await pages.shot(page), "base64");
+  // A JPEG's size sits in its start-of-frame marker (height, then width).
+  const sof = jpeg.indexOf(Buffer.from([0xff, 0xc0]));
+  assert.deepEqual([jpeg.readUInt16BE(sof + 7), jpeg.readUInt16BE(sof + 5)], [1280, 800 + 1200 + 300]);
+  const hero = await pages.inspect(page, 0.5, 0.01);
+  assert.equal(hero?.tag, "h1");
+  const end = await pages.inspect(page, 0.05, 2150 / 2300);
+  assert.equal(end?.tag, "p");
+  assert.equal(end?.text, "Contact us");
+  assert.ok(end?.box && Math.abs(end.box.y - 2000 / 2300) < 0.01, `box at ${end?.box?.y}`);
+  // As a browser shows it: no APX colors, whatever the panel's mode.
+  assert.equal(end?.style.color, "rgb(17, 17, 17)");
+  const r = await pages.save(page, [{ node: end.node, text: "Write to us" }], long);
+  assert.match(r.html, /<p id="end" style="margin:0;height:300px">Write to us<\/p>/);
+  await pages.close(page);
+});

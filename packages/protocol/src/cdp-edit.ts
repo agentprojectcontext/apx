@@ -80,18 +80,41 @@ export class PageEdits {
     return this.#originals.size;
   }
 
-  /** The element under a point given as fractions of the visible page (0–1), or null over nothing editable. */
-  async inspect(fx: number, fy: number): Promise<PickedElement | null> {
-    const m = await this.#send<{ cssVisualViewport?: { clientWidth: number; clientHeight: number } }>(
-      "Page.getLayoutMetrics",
-    );
+  /**
+   * The element under a point given as fractions of the visible page (0–1), or null over nothing editable. With
+   * `whole`, the fractions (and the box) are of the whole page down to `whole.height` CSS pixels instead.
+   */
+  async inspect(fx: number, fy: number, whole?: { height: number }): Promise<PickedElement | null> {
+    type Metrics = {
+      cssVisualViewport?: { clientWidth: number; clientHeight: number; pageX?: number; pageY?: number };
+      cssContentSize?: { width: number; height: number };
+    };
+    let m = await this.#send<Metrics>("Page.getLayoutMetrics");
     const vw = m.cssVisualViewport?.clientWidth ?? 0;
     const vh = m.cssVisualViewport?.clientHeight ?? 0;
     if (!vw || !vh) throw new ApxError({ code: "unavailable", message: "the page has no size yet" });
-    await this.#send("DOM.getDocument", { depth: 0 });
+    // What the fractions are of, and where it starts in the document.
+    const fw = whole ? Math.max(vw, m.cssContentSize?.width ?? 0) : vw;
+    const fh = whole ? Math.max(vh, Math.min(whole.height, m.cssContentSize?.height ?? 0)) : vh;
+    const origin = whole ? { x: 0, y: 0 } : { x: m.cssVisualViewport?.pageX ?? 0, y: m.cssVisualViewport?.pageY ?? 0 };
+    const x = Math.round(origin.x + fx * fw);
+    const y = Math.round(origin.y + fy * fh);
+    const doc = await this.#send<{ root?: DescribedNode }>("DOM.getDocument", { depth: whole ? 1 : 0 });
+    if (whole) {
+      // Only what is on screen can be hit: a DOM command scrolls the point into view, not the page's own code.
+      const html = doc.root?.children?.find((n) => n.nodeType === 1);
+      if (html)
+        await this.#send("DOM.scrollIntoViewIfNeeded", {
+          backendNodeId: html.backendNodeId,
+          rect: { x, y, width: 1, height: 1 },
+        }).catch(() => {});
+      m = await this.#send<Metrics>("Page.getLayoutMetrics");
+    }
+    // Hit points are in document coordinates; box quads are in the visible page's.
+    const scroll = { x: m.cssVisualViewport?.pageX ?? 0, y: m.cssVisualViewport?.pageY ?? 0 };
     const hit = await this.#send<{ backendNodeId: number }>("DOM.getNodeForLocation", {
-      x: Math.round(fx * vw),
-      y: Math.round(fy * vh),
+      x,
+      y,
       ignorePointerEventsNone: true,
     }).catch(() => undefined);
     if (!hit) return null;
@@ -119,8 +142,8 @@ export class PageEdits {
       backendNodeId: node.backendNodeId,
     }).catch(() => undefined);
     const q = box?.model.border ?? [];
-    const xs = [q[0], q[2], q[4], q[6]].filter((v): v is number => v !== undefined);
-    const ys = [q[1], q[3], q[5], q[7]].filter((v): v is number => v !== undefined);
+    const xs = [q[0], q[2], q[4], q[6]].filter((v): v is number => v !== undefined).map((v) => v + scroll.x - origin.x);
+    const ys = [q[1], q[3], q[5], q[7]].filter((v): v is number => v !== undefined).map((v) => v + scroll.y - origin.y);
     const style = await this.#computed(node.backendNodeId);
     return {
       node: node.backendNodeId,
@@ -132,10 +155,10 @@ export class PageEdits {
       sensitive,
       box: xs.length
         ? {
-            x: Math.max(0, Math.min(...xs) / vw),
-            y: Math.max(0, Math.min(...ys) / vh),
-            width: (Math.max(...xs) - Math.min(...xs)) / vw,
-            height: (Math.max(...ys) - Math.min(...ys)) / vh,
+            x: Math.max(0, Math.min(...xs) / fw),
+            y: Math.max(0, Math.min(...ys) / fh),
+            width: (Math.max(...xs) - Math.min(...xs)) / fw,
+            height: (Math.max(...ys) - Math.min(...ys)) / fh,
           }
         : null,
       style,

@@ -10,9 +10,15 @@ import type { Store } from "./domain/store.ts";
 import { kitSource, withKit } from "./surface-kit.ts";
 
 export type PublicPages = {
-  artifact(
-    token: string,
-  ): { title: string; html: string; app?: boolean | undefined; connect?: string[] | undefined } | undefined;
+  artifact(token: string):
+    | {
+        title: string;
+        html: string;
+        app?: boolean | undefined;
+        page?: boolean | undefined;
+        connect?: string[] | undefined;
+      }
+    | undefined;
   kit?(): string;
 };
 
@@ -22,22 +28,35 @@ export function storedPublicPages(store: Store): PublicPages {
       const surface = store.surfaces.byShareToken(token);
       // Deliberately do not expose state, media, the artifact store, secrets, project data or provenance.
       return surface
-        ? { title: surface.title, html: withKit(surface.html), app: surface.app, connect: surface.connect }
+        ? {
+            title: surface.title,
+            html: withKit(surface.html),
+            app: surface.app,
+            page: surface.page,
+            connect: surface.connect,
+          }
         : undefined;
     },
     kit: kitSource,
   };
 }
 
-function artifactPage(title: string, html: string, app = false): string {
+function artifactPage(title: string, html: string, kind: { app?: boolean; page?: boolean } = {}): string {
   const esc = title.replace(/[<>&"]/g, (c) => `&#${c.charCodeAt(0)};`);
+  // A web page is published as a browser shows it: its own styles on a light page, nothing of APX's look.
+  if (kind.page)
+    return injectSurfaceHead(
+      html,
+      `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc}</title>
+<style>html{color-scheme:light}</style>`,
+    );
   return injectSurfaceHead(
     html,
     `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc}</title>
 <style>:root{${WIDGET_TOKENS.light};color-scheme:light}@media(prefers-color-scheme:dark){:root{${WIDGET_TOKENS.dark};color-scheme:dark}}
 body{margin:0;padding:var(--apx-page-padding);background:var(--apx-bg);color:var(--apx-fg);font:14px/1.5 var(--apx-font-sans);display:flow-root}*{box-sizing:border-box}
 ${WIDGET_KIT_CSS}
-${surfaceLayoutCss(app ? "app" : "widget")}</style>`,
+${surfaceLayoutCss(kind.app ? "app" : "widget")}</style>`,
   );
 }
 
@@ -51,7 +70,7 @@ export function surfacePage(pathname: string, pages: PublicPages, restricted = f
       : `sandbox allow-scripts allow-popups allow-forms; default-src 'self' data: blob: 'unsafe-inline'; form-action 'none'; connect-src ${page.connect?.length ? page.connect.join(" ") : "'none'"}; frame-ancestors *`;
     return {
       status: 200,
-      body: artifactPage(page.title, page.html, page.app),
+      body: artifactPage(page.title, page.html, { app: page.app === true, page: page.page === true }),
       headers: {
         "content-type": "text/html; charset=utf-8",
         "content-security-policy": csp,

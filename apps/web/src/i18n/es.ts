@@ -555,12 +555,12 @@ export const es: Partial<Record<MessageKey, string>> = {
   "subthread.actionsFailed": "Fallaron algunas acciones",
 
   // Widgets, apps, compartir
-  "widget.gone": "El widget “{title}” ya no existe.",
+  "widget.gone": "«{title}» ya no existe.",
   "widget.eyebrow": "Widget · {title}",
   "widget.connects": "Datos en vivo de {hosts}",
   "widget.chat": "Pedirle cambios a su agente",
-  "widget.delete": "Borrar widget",
-  "widget.delete.title": "¿Borrar este widget?",
+  "artifact.delete": "Borrar",
+  "artifact.delete.title": "¿Borrarlo para siempre?",
   "widget.delete.body":
     "Se borra para siempre, con lo que recuerda. Los chats que lo mostraban conservan sus mensajes.",
   "widget.delete.what": "Se va a borrar «{title}».",
@@ -590,10 +590,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "app.remove": "Desfijar de Apps",
   "share.copied": "Enlace copiado.",
   "share.copyFailed": "No se pudo copiar el enlace.",
-  "share.hint":
-    "Privado por defecto. Al publicar, cualquiera con el enlace puede leer el HTML. Las páginas públicas no acceden al estado de APX, archivos privados ni acciones.",
-  "share.tunnelHint":
-    "Copiar y abrir requieren una dirección pública (Configuración › Dispositivos). Activarla también expone el HTML ya compartido; revisá su contenido antes.",
+  "share.tunnelHint": "Copiar y abrir necesitan una dirección pública (Configuración › Dispositivos).",
   "share.linkUnavailable":
     "Enlace público no disponible. Revisá la dirección pública en Configuración › Dispositivos y permití abrir pestañas.",
   "share.private": "Privado",
@@ -614,10 +611,19 @@ export const es: Partial<Record<MessageKey, string>> = {
   "artifact.outsideHint": "Esta app se ve en una ventana aparte. Cerrá esa ventana o traela de vuelta acá.",
   "artifact.bringBack": "Traer de vuelta acá",
   "artifact.launcher": "Abrir un artefacto",
-  "artifact.launcherSearch": "Buscar apps y widgets",
+  "artifact.launcherSearch": "Buscar apps, widgets y páginas",
   "artifact.launcherEmpty": "Nada con ese nombre",
   "artifact.kindApp": "App",
   "artifact.kindWidget": "Widget",
+  "artifact.kindPage": "Página web",
+  "page.sub": "Página web de {project} · hecha por {author}",
+  "page.width": "Ancho",
+  "page.desktop": "Escritorio",
+  "page.phone": "Teléfono",
+  "page.download": "Descargar (.html)",
+  "artifact.noMemory": "Sin memoria",
+  "artifact.noMemoryHint": "No guarda nada: ni configuración, ni datos, ni registros.",
+  "artifact.popupBlocked": "El navegador no dejó abrir la ventana. Permití las ventanas emergentes para APX.",
   "artifact.pinned": "Fijada",
   "artifact.download": "Descargar (.apxart)",
   "artifact.downloadPlain": "Solo el artefacto",

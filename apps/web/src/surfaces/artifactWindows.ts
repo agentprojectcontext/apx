@@ -1,5 +1,7 @@
 import type { SurfaceSummary } from "@apx/protocol";
 import { useSyncExternalStore } from "react";
+import { notify } from "../data/notices.ts";
+import { t } from "../i18n/index.ts";
 import { dropLive } from "./livePool.ts";
 
 // Which artifacts show in a window of their own: one copy runs at a time, so the panel shows a note where it was.
@@ -43,7 +45,10 @@ export function popOut(s: SurfaceSummary): void {
     `apx-artifact-${s.id}`,
     "popup,width=1200,height=820",
   );
-  if (!w) return;
+  if (!w) {
+    notify(t("artifact.popupBlocked"));
+    return;
+  }
   popups.set(s.id, w);
   mark(s.id, true);
   const timer = setInterval(() => {
