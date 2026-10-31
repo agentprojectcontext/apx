@@ -7,23 +7,45 @@ import { flowOutward } from "../flow-outward.ts";
 import { inlineName } from "./result.ts";
 import { type Params, quoted, type Setting, type SettingsDeps, str } from "./settings-kit.ts";
 
-const flowName = (store: Store, id: unknown) => inlineName(store.flows.get(str(id))?.name ?? str(id));
+const english = (store: Store) => store.settings.get("owner_language") === "en";
+const flowName = (store: Store, id: unknown) => {
+  const name = store.flows.get(str(id))?.name ?? str(id);
+  return english(store) ? inlineName(name) : `«${name}»`;
+};
 
-/** What a drawing does as the owner, one line each, as the editor shows it before publishing. */
+/** What a drawing does as the owner, one line each in the owner's language, as the editor shows it before publishing. */
 function outwardLines(store: Store, flow: string): string[] {
   const draft = store.flowGraphs.get(flow).draft;
   if (!draft) return [];
   const { sends, calls, commands, writes } = flowOutward(store, draft);
-  const secrets = (names: string[]) => (names.length ? ` with ${names.join(", ")}` : "");
-  return [
-    ...sends.map((s) => `Sends a message to ${s.owner ? "you" : s.to} on ${s.channel}`),
-    ...calls.map((c) => `Calls ${c.method} ${c.host}${secrets(c.secrets)}`),
-    ...commands.map((c) => `Runs \`${c.command}\` on this computer${secrets(c.secrets)}`),
-    ...writes.map((w) => `Changes the database ${w.database}`),
-    ...draft.nodes
-      .filter((n) => n.kind === "agent")
-      .map((n) => `Its step ${quoted(n.label, 60)} has an agent act on it`),
-  ];
+  const en = english(store);
+  const keys = (names: string[]) =>
+    !names.length ? "" : en ? ` with ${names.join(", ")}` : ` con ${names.join(", ")}`;
+  const agents = draft.nodes.filter((n) => n.kind === "agent");
+  return en
+    ? [
+        ...sends.map((s) => `• Sends ${s.owner ? "you" : s.to} a message on ${s.channel}`),
+        ...calls.map((c) => `• Calls ${c.host} (${c.method})${keys(c.secrets)}`),
+        ...commands.map((c) => `• Runs \`${c.command}\` on this computer${keys(c.secrets)}`),
+        ...writes.map((w) => `• Changes the database ${w.database}`),
+        ...agents.map((n) => `• An agent acts in the step ${quoted(n.label, 60)}`),
+      ]
+    : [
+        ...sends.map((s) => `• ${s.owner ? "Te manda" : `Le manda a ${s.to}`} un mensaje por ${s.channel}`),
+        ...calls.map((c) => `• Llama a ${c.host} (${c.method})${keys(c.secrets)}`),
+        ...commands.map((c) => `• Corre \`${c.command}\` en esta computadora${keys(c.secrets)}`),
+        ...writes.map((w) => `• Cambia la base de datos ${w.database}`),
+        ...agents.map((n) => `• Un agente actúa en el paso «${n.label.slice(0, 60)}»`),
+      ];
+}
+
+/** Sample data as the owner reads it: one line per field, nested values as they came. */
+function dataLines(store: Store, v: unknown): string {
+  const head = english(store) ? "With this data:" : "Con estos datos:";
+  if (!v || typeof v !== "object" || Array.isArray(v) || !Object.keys(v).length)
+    return `${head} ${v === undefined || (typeof v === "object" && v && !Object.keys(v).length) ? (english(store) ? "none" : "ninguno") : JSON.stringify(v)}`;
+  const lines = Object.entries(v).map(([k, x]) => `  ${k}: ${typeof x === "string" ? x : JSON.stringify(x)}`);
+  return [head, ...lines].join("\n");
 }
 
 /** Why a draft can't be published as the agent named it, before anyone is asked. */
@@ -45,11 +67,15 @@ export const FLOW_PUBLISH: Readonly<Record<string, Setting>> = {
       expectedPublishedRevision: store.flowGraphs.get(str(p.flow)).publishedRevision,
     }),
     refuse: publishRefused,
-    says: (p, { store }) =>
-      [
-        `Publish ${flowName(store, p.flow)} and turn it on: each time it is triggered it runs as drawn.`,
-        ...outwardLines(store, str(p.flow)),
-      ].join("\n"),
+    says: (p, { store }) => {
+      const name = flowName(store, p.flow);
+      const lines = outwardLines(store, str(p.flow));
+      const head = english(store)
+        ? `Turn on ${name}. From now on it runs as drawn each time it is triggered.`
+        : `Prender ${name}. Desde ahora corre como está dibujado cada vez que se dispare.`;
+      if (!lines.length) return head;
+      return [head, english(store) ? "Each time, it:" : "Cada vez:", ...lines].join("\n");
+    },
     named: ["flow", "expectedDraftVersion", "expectedPublishedRevision"],
     owner: async (p, { store }, call) => {
       const flow = str(p.flow);
@@ -65,7 +91,7 @@ export const FLOW_PUBLISH: Readonly<Record<string, Setting>> = {
       });
       const def = store.flows.get(flow);
       if (def && !def.enabled) await call("flows.set", { ...def, enabled: true });
-      return `done: version ${out.publishedRevision} of ${flowName(store, flow)} runs and the Flow is on. To try it now: flows.run_now {flow, data}.`;
+      return `done: version ${out.publishedRevision} of ${inlineName(def?.name ?? flow)} runs and the Flow is on. To try it now: flows.run_now {flow, data}.`;
     },
   },
   "flows.run_now": {
@@ -75,9 +101,12 @@ export const FLOW_PUBLISH: Readonly<Record<string, Setting>> = {
       if (!def) return "no such Flow: flows.list names them";
       return def.enabled ? undefined : "it is off: publish it first (flows.publish turns it on)";
     },
-    says: (p, { store }) => `Run ${flowName(store, p.flow)} now: it sends, calls and runs what it does when triggered.`,
+    says: (p, { store }) =>
+      english(store)
+        ? `Try ${flowName(store, p.flow)} now. It runs for real: it sends, calls and changes what it does when triggered.`
+        : `Probar ${flowName(store, p.flow)} ahora. Corre de verdad: manda, llama y cambia lo mismo que cuando se dispara.`,
     named: ["flow"],
-    words: { data: (v) => `With this data: ${JSON.stringify(v ?? {})}` },
+    words: { data: (v, { store }) => dataLines(store, v) },
     whole: true,
     shows: (r) => {
       const { event, state } = r as Result<"flows.run_now">;

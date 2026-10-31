@@ -11,6 +11,23 @@ export const FLOWS: Readonly<Record<string, Setting>> = {
   "flows.set": {
     does: "turn a Flow on or off, or rename it (a drawn Flow takes only name and enabled); an old one without a drawing: id, projectId, name, enabled, predicates [{path: string[], equals: scalar}], tableKey, action {kind: none|agent|routine, agent/prompt or routine}. Routine must be manual-only in the same project. Public tokens stay owner-only in Settings, Devices",
     now: (p, { store }) => store.flows.get(str(p.id)),
+    says: (p, { store }) => {
+      const now = store.flows.get(str(p.id));
+      const en = store.settings.get("owner_language") === "en";
+      const name = now?.name ?? str(p.id);
+      const said = [
+        p.name !== undefined &&
+          p.name !== name &&
+          (en ? `Rename «${name}» to «${str(p.name)}»` : `Renombrar «${name}» a «${str(p.name)}»`),
+        p.enabled === true && !now?.enabled && (en ? `Turn on «${name}»` : `Prender «${name}»`),
+        p.enabled === false &&
+          now?.enabled &&
+          (en ? `Turn off «${name}»: it stops running` : `Apagar «${name}»: deja de correr`),
+      ].filter(Boolean);
+      return said.length ? said.join("\n") : en ? `Change «${name}»` : `Cambiar «${name}»`;
+    },
+    // The first line says these; empty words keep them counted as changes, so an equal record still asks nobody.
+    words: { enabled: () => "", name: () => "" },
     keep: (p, { store }) => merged(store.flows.get(str(p.id)), p),
     // Turned on, a Flow runs what is published: a drawing never published would run nothing.
     refuse: (p, { store }) => {

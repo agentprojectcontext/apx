@@ -8,6 +8,7 @@ import { respond } from "../../data/actions.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
 import { DiffView } from "../../panel/DiffView.tsx";
 import { BrowserHelp, BrowserReview } from "./BrowserReview.tsx";
+import { cardLine, SAYS_ITSELF } from "./input-words.ts";
 
 const DONE: Record<Exclude<Extract<Part, { type: "input" }>["state"], "pending">, MessageKey> = {
   approved: "input.approved",
@@ -57,9 +58,11 @@ function SettledInput({ part, state }: { part: InputPartData; state: Exclude<Inp
         ? t("input.askedFolder")
         : action
           ? t("input.askedAction")
-          : part.kind === "confirm"
-            ? t("input.asked", { tool: part.tool ?? t("input.anAction") })
-            : t("input.askedQuestion");
+          : part.kind === "confirm" && part.tool && SAYS_ITSELF.has(part.tool) && part.detail
+            ? t("input.askedOk", { what: cardLine(part.detail) })
+            : part.kind === "confirm"
+              ? t("input.asked", { tool: part.tool ?? t("input.anAction") })
+              : t("input.askedQuestion");
   return (
     <ActionGroup
       className={`turn__tools inputline is-${state}`}

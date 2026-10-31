@@ -15,6 +15,7 @@ export const esApprovals: Record<ApprovalKey, string> = {
   "input.expired": "Venció",
   "input.withdrawn": "Retirada",
   "input.asked": "Pidió permiso para usar {tool}",
+  "input.askedOk": "Pidió tu OK: {what}",
   "input.askedQuestion": "Te hizo una pregunta",
   "input.anAction": "una acción",
   "input.answerPlaceholder": "Escribí tu respuesta y apretá Enter",

@@ -70,10 +70,21 @@ test("a stale draft version is refused before the card", async () => {
   assert.match(answer, new RegExp(`the draft is at version ${version}`));
 });
 
-test("publishing waits for the owner's card, which says what it runs; declined, nothing runs", async () => {
-  const { detail } = await h.ask({ method: "flows.publish", params: { flow, expectedDraftVersion: version } }, "deny");
-  assert.match(detail, /^Publish New leads and turn it on/);
-  assert.match(detail, /Runs `printf ok` on this computer/);
+test("publishing waits for the owner's card, in their language, which says what it runs; declined, nothing runs", async () => {
+  const publish = { method: "flows.publish", params: { flow, expectedDraftVersion: version } };
+  const { detail } = await h.ask(publish, "deny");
+  assert.equal(
+    detail,
+    "Prender «New leads». Desde ahora corre como está dibujado cada vez que se dispare.\nCada vez:\n• Corre `printf ok` en esta computadora",
+  );
+  h.env.core.store.settings.set("owner_language", "en");
+  try {
+    const english = await h.ask(publish, "deny");
+    assert.match(english.detail, /^Turn on New leads\. From now on it runs as drawn/);
+    assert.match(english.detail, /• Runs `printf ok` on this computer/);
+  } finally {
+    h.env.core.store.settings.set("owner_language", "es");
+  }
   assert.equal((await h.env.client.call("flows.graph_get", { flow })).publishedRevision, null);
   assert.equal(def()?.enabled, false);
 });
@@ -88,8 +99,8 @@ test("approved, the draft runs and the Flow is on; a run by hand saves the row",
   assert.equal(def()?.enabled, true);
 
   const ran = await h.ask({ method: "flows.run_now", params: { flow, data: { email: "ana@example.com" } } }, "approve");
-  assert.match(ran.detail, /^Run New leads now/);
-  assert.match(ran.detail, /With this data: \{"email":"ana@example\.com"\}/);
+  assert.match(ran.detail, /^Probar «New leads» ahora\. Corre de verdad/);
+  assert.match(ran.detail, /Con estos datos:\n {2}email: ana@example\.com/);
   const event = /started, event (\S+):/.exec(ran.answer)?.[1];
   assert.ok(event, ran.answer);
   const run = await waitFor(async () => {
@@ -104,4 +115,12 @@ test("approved, the draft runs and the Flow is on; a run by hand saves the row",
       ["cmd", "succeeded"],
     ],
   );
+});
+
+test("turning a Flow off or on says so in words; one already so asks nobody", async () => {
+  const same = await h.ask({ method: "flows.set", params: { id: flow, enabled: true } });
+  assert.match(same.answer, /^nothing to change/);
+  const off = await h.ask({ method: "flows.set", params: { id: flow, enabled: false } }, "deny");
+  assert.equal(off.detail, "Apagar «New leads»: deja de correr");
+  assert.equal(def()?.enabled, true);
 });

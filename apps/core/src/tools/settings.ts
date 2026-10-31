@@ -213,7 +213,7 @@ export function areaTool(spec: AreaToolSpec, deps: SettingsDeps): Tool {
     explain: (a) => {
       if (!changes(a)) return undefined;
       const c = card(a);
-      return [c.says, ...c.lines].join("\n");
+      return [c.says, ...c.lines].filter(Boolean).join("\n");
     },
     async run(a, ctx) {
       if (!a.method)

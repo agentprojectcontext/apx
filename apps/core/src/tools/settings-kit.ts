@@ -26,7 +26,10 @@ export type Setting = {
   says?: (p: Params, d: SettingsDeps) => string;
   /** The params that first line already says (the record it names), left off the lines under it. */
   named?: readonly string[];
-  /** A field the owner reads in words, not as before → after, by its path ("channel.hours"); undefined: it is dropped. */
+  /**
+   * A field the owner reads in words, not as before → after, by its path ("channel.hours"); undefined: it is dropped;
+   * "": the first line already says it.
+   */
   words?: Readonly<Record<string, (v: unknown, d: SettingsDeps) => string>>;
   /** The record as it is now, so the card shows each field before and after, and an equal one asks nobody. */
   now?: (p: Params, d: SettingsDeps) => Params | undefined;
