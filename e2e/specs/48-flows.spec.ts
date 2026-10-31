@@ -63,18 +63,9 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   // The new check hangs off the webhook beside the save; join it into the chain: webhook → check → save.
   await named.locator(".fe-order__row", { hasText: "Webhook entrante" }).click();
   await named.getByRole("button", { name: "Quitar conexión" }).first().click();
-  // The step card is closed and the check dropped clear of the save, wherever the canvas fit put it on this screen.
+  // Close the step card so it covers no handle; joining from a handle never selects the step (moving one would).
   await named.locator(".react-flow__pane").click({ position: { x: 20, y: 20 } });
-  const pane = await named.locator(".react-flow__pane").boundingBox();
-  const save = await named.locator('.react-flow__node[data-id="table_write-1"]').boundingBox();
-  if (!pane || !save) throw new Error("the canvas and the save step are on screen");
-  const above = save.y - pane.y > 170;
-  await named.locator('.react-flow__node[data-id="condition-1"]').dragTo(named.locator(".react-flow__pane"), {
-    targetPosition: {
-      x: Math.max(60, save.x - pane.x),
-      y: above ? save.y - pane.y - 130 : save.y - pane.y + save.height + 90,
-    },
-  });
+  await expect(named.getByRole("complementary", { name: "Ajustes del paso" })).toHaveCount(0);
   // A check has two ways out: «Sí» goes on when it matches.
   const out = named.locator('.react-flow__node[data-id="condition-1"] .fc-handle--yes');
   await out.dragTo(named.locator('.react-flow__node[data-id="table_write-1"] .fc-handle--in'));
