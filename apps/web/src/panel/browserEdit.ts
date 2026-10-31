@@ -1,4 +1,4 @@
-// Edit mode of the browser panel: the elements the owner picked in a page, what they changed in each, and the
+// Edit mode, for a browser tab or a widget: the elements the owner picked in a page, what they changed in each, and the
 // request it becomes in the chat. The changes show in the page only in the owner's view (browser.preview_edits).
 import type { ElementEdit, PickedElement } from "@apx/protocol";
 import { hostPath } from "../common/format.ts";
@@ -10,16 +10,30 @@ export type EditStyle = NonNullable<ElementEdit["style"]>;
 /** One picked element and the owner's changes to it; absent fields are left as the page has them. */
 export type EditItem = { element: PickedElement; text?: string; style: EditStyle; note: string };
 
-export type BrowserEditState = { tab: string | undefined; items: EditItem[]; selected: number | undefined };
+/** What is in edit mode: a browser tab or a widget, and how to reach its page. */
+export type EditTarget = {
+  /** A tab id, or `widget:<id>`: one target is edited at a time. */
+  key: string;
+  inspect(x: number, y: number): Promise<PickedElement | null>;
+  show(edits: ElementEdit[]): Promise<unknown>;
+  /** A picture of the page as a data: URL. */
+  shot(): Promise<string>;
+  /** The request's first line: which page or widget the changes are for. */
+  header(t: T): string;
+  /** Edit mode ends: the page goes back to what its own code shows. */
+  leave(): Promise<void>;
+};
 
-export const browserEdit = createStore<BrowserEditState>({ tab: undefined, items: [], selected: undefined });
+export type BrowserEditState = { target: string | undefined; items: EditItem[]; selected: number | undefined };
 
-export function startEditing(tab: string): void {
-  browserEdit.set({ tab, items: [], selected: undefined });
+export const browserEdit = createStore<BrowserEditState>({ target: undefined, items: [], selected: undefined });
+
+export function startEditing(target: string): void {
+  browserEdit.set({ target, items: [], selected: undefined });
 }
 
 export function stopEditing(): void {
-  browserEdit.set({ tab: undefined, items: [], selected: undefined });
+  browserEdit.set({ target: undefined, items: [], selected: undefined });
 }
 
 /** Selects the element, adding it to the list the first time it is picked. */
@@ -75,8 +89,8 @@ export function elementLabel(element: PickedElement): string {
  * The request the changes become in the chat, as quote lines the agent reads with the owner's own words after them:
  * the page, then each element (its words, its selector to find it in the code) with what should change.
  */
-export function editRequest(url: string, items: readonly EditItem[], t: T): string {
-  const lines = [t("bedit.request.page", { page: hostPath(url), url })];
+export function editRequest(header: string, items: readonly EditItem[], t: T): string {
+  const lines = [header];
   items.filter(isChanged).forEach((item, n) => {
     const { element, style } = item;
     const label = elementLabel(element);
@@ -93,6 +107,11 @@ export function editRequest(url: string, items: readonly EditItem[], t: T): stri
     lines.push(`${n + 1}. ${name}: ${changes.join("; ")}`);
   });
   return lines.map((l) => `> ${l}`).join("\n");
+}
+
+/** The request's first line for a browser tab. */
+export function pageHeader(url: string, t: T): string {
+  return t("bedit.request.page", { page: hostPath(url), url });
 }
 
 /** Color for a color input: the page's computed `rgb(…)` as hex, else black. */

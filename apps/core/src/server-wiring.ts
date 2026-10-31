@@ -29,6 +29,7 @@ import type { Log } from "./log.ts";
 import { refProblem } from "./models/choice.ts";
 import type { NodeBroker } from "./nodes/broker.ts";
 import type { HeadlessBrowser } from "./nodes/headless-browser.ts";
+import type { WidgetPages } from "./nodes/widget-pages.ts";
 import { findProgram } from "./programs.ts";
 import { accessHandlers } from "./rpc/access.ts";
 import { agentHandlers } from "./rpc/agents.ts";
@@ -201,6 +202,7 @@ type HandlerDeps = {
   identity: Identity;
   broker: NodeBroker;
   headless: HeadlessBrowser | undefined;
+  widgetPages: WidgetPages | undefined;
   /** Turns ending let go of the browser tabs they held. */
   bus: Bus;
   llmLabel: () => string;
@@ -346,6 +348,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
       checkPage: d.headless?.available()
         ? (html, onCall) => d.headless?.checkPage(html, onCall) ?? Promise.resolve({ errors: [], text: "", views: [] })
         : undefined,
+      widgetPages: d.widgetPages,
     }),
     ...agents,
     "agents.create": (p: Parameters<(typeof agents)["agents.create"]>[0], ctx: CallContext) => {
