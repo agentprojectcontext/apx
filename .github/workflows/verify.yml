@@ -157,6 +157,8 @@ jobs:
             playwright-report/
             test-results/
           if-no-files-found: ignore
+          # A rerun's part replaces the failed one: the report merges every artifact of this name in the run.
+          overwrite: true
           retention-days: 14
 
   coverage-report:
