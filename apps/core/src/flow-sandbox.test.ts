@@ -107,10 +107,15 @@ const sql = (
   params: Record<string, unknown> = {},
   maxRows = 100,
 ) => runFlowSql({ file, mode, query, params, maxRows, timeoutMs: 5000 });
-const count = (file: string) =>
-  Number(
-    (new DatabaseSync(file, { readOnly: true }).prepare("SELECT count(*) c FROM people").get() as { c: number }).c,
-  );
+/** The rows left, read and closed: an open handle keeps Windows from removing the folder. */
+function count(file: string) {
+  const db = new DatabaseSync(file, { readOnly: true });
+  try {
+    return Number((db.prepare("SELECT count(*) c FROM people").get() as { c: number }).c);
+  } finally {
+    db.close();
+  }
+}
 
 test("a SQL value is always bound: what arrived can't change the statement", async () => {
   const { dir, file } = databases();
