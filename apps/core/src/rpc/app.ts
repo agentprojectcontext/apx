@@ -238,6 +238,7 @@ export function appHandlers(deps: {
           pinned: p.pinned,
           // A page written as an app (its apx-surface meta) is one unless the call says otherwise.
           app: p.app ?? (declaresApp(p.html) ? true : undefined),
+          page: p.page,
           connect: p.connect,
         }),
       );
@@ -258,12 +259,13 @@ export function appHandlers(deps: {
           project_id: target,
           created_by: "owner",
           pinned,
+          ...(from.page ? { page: true } : {}),
           ...(from.connect ? { connect: from.connect } : {}),
         }),
       );
     },
-    "surfaces.update": ({ surface, pinned, app }) => {
-      const s = store.surfaces.patch(surface, { pinned, app });
+    "surfaces.update": ({ surface, pinned, app, page }) => {
+      const s = store.surfaces.patch(surface, { pinned, app, page });
       if (!s) throw notFound(`surface ${surface}`);
       return s;
     },

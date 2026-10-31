@@ -2,11 +2,15 @@ import type { Part } from "@apx/protocol";
 import { Button, IconButton, Icons } from "@apx/ui";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
+import { startEditing } from "../../panel/browserEdit.ts";
 import { go, useNav } from "../../shell/nav.ts";
 import { SurfaceActions } from "../../surfaces/SurfaceActions.tsx";
 import { SurfaceFrame } from "../../surfaces/SurfaceFrame.tsx";
 
-/** A widget the agent produced, rendered inline with pin / app actions; a card while it shows in the side panel. */
+/**
+ * A widget the agent produced, rendered inline with pin / app actions; a card while it shows in the side panel. A web
+ * page shows in a page's frame, with its title where an address goes and a way into edit mode.
+ */
 export function SurfacePart({ part }: { part: Extract<Part, { type: "surface" }> }) {
   const t = useT();
   const surface = useData((s) => s.surfaces[part.surface_id]);
@@ -18,10 +22,11 @@ export function SurfacePart({ part }: { part: Extract<Part, { type: "surface" }>
       </div>
     );
   }
+  const Icon = surface.page ? Icons.Globe : Icons.LayoutGrid;
   if (aside)
     return (
       <div className="surfacecard surfacecard--aside">
-        <Icons.LayoutGrid size={16} />
+        <Icon size={16} />
         <span className="surfacecard__asidetext">
           <span className="surfacecard__asidetitle">{surface.title}</span>
           <span className="surfacecard__asidenote">{t("widget.inPanel")}</span>
@@ -29,6 +34,41 @@ export function SurfacePart({ part }: { part: Extract<Part, { type: "surface" }>
         <Button size="sm" variant="ghost" onClick={() => go.panel(null)}>
           {t("widget.showHere")}
         </Button>
+      </div>
+    );
+  if (surface.page)
+    return (
+      <div className="surfacecard surfacecard--page">
+        <div className="pagecard__bar">
+          <span className="pagecard__dots" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span className="pagecard__address">
+            <Icons.Globe size={12} />
+            <span className="pagecard__title">{surface.title}</span>
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            leadingIcon={<Icons.Pencil size={13} />}
+            onClick={() => {
+              go.widget(surface.id);
+              startEditing(`widget:${surface.id}`);
+            }}
+          >
+            {t("browser.edit")}
+          </Button>
+          <SurfaceActions surface={surface} />
+          <IconButton
+            size="sm"
+            label={t("widget.toPanel")}
+            icon={<Icons.PanelRightOpen size={14} />}
+            onClick={() => go.widget(surface.id)}
+          />
+        </div>
+        <SurfaceFrame surfaceId={surface.id} />
       </div>
     );
   return (

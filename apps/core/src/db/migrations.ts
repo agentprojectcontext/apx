@@ -1136,4 +1136,6 @@ export const MIGRATIONS: readonly string[] = [
     DELETE FROM message_media WHERE message_id = old.id;
   END;
   `,
+  // A web page an agent made to look at and edit, shown in a page's frame instead of a widget's card.
+  `ALTER TABLE surfaces ADD COLUMN page INTEGER NOT NULL DEFAULT 0;`,
 ];

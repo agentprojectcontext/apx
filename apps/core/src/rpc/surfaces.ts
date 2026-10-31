@@ -16,6 +16,8 @@ import type { PageCall, PageCheck } from "../nodes/page-check.ts";
 import { editDocument, type WidgetPages } from "../nodes/widget-pages.ts";
 import { type Secrets, splitSecretName } from "../secrets.ts";
 import { withKit } from "../surface-kit.ts";
+import { builtFromFiles } from "../tools/artifact-files.ts";
+import { MAX_HTML } from "../tools/surfaces.ts";
 import type { Handlers } from "./router.ts";
 
 /** The kit version a page loads (`/_apx/kit@1.2.js` → "1.2"). */
@@ -106,13 +108,30 @@ export function artifactHandlers(deps: {
         if (method === "db_query") return memory.query(s, String(p.sql), (p.params as SqlParam[] | undefined) ?? []);
         return undefined;
       };
-      return { page: await pages.open(html, width, onCall) };
+      return { page: await pages.open(html, width, onCall, s.id) };
     },
     "surfaces.edit_inspect": async ({ page, x, y }) => ({ element: await editPages().inspect(page, x, y) }),
     "surfaces.edit_preview": ({ page, edits }) => editPages().preview(page, edits),
     "surfaces.edit_shot": async ({ page }) => {
       const data = await editPages().shot(page);
       return { mime: "image/jpeg" as const, data, bytes: Buffer.byteLength(data, "base64") };
+    },
+    "surfaces.edit_save": async ({ page, edits }, ctx) => {
+      const pages = editPages();
+      const s = surfaceOf(pages.widgetOf(page));
+      // Built from files: the files are what it is, so its agent changes them.
+      if (builtFromFiles(deps.home, s.project_id, s.name)) return { saved: [], missed: edits.map((e) => e.node) };
+      const { html, saved, missed } = await pages.save(page, edits, s.html);
+      if (!saved.length) return { saved, missed };
+      if (html.length > MAX_HTML) throw badRequest(`the widget would pass ${MAX_HTML} characters`);
+      const surface = store.surfaces.upsert({
+        name: s.name,
+        title: s.title,
+        html,
+        project_id: s.project_id,
+        created_by: ctx.agent?.id ?? "owner",
+      });
+      return { saved, missed, surface: summary(surface) };
     },
     "surfaces.edit_close": async ({ page }) => {
       await deps.widgetPages?.close(page);

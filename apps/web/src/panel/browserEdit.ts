@@ -18,6 +18,8 @@ export type EditTarget = {
   show(edits: ElementEdit[]): Promise<unknown>;
   /** A picture of the page as a data: URL. */
   shot(): Promise<string>;
+  /** Saves the edits into the page itself (a widget's HTML); absent where only the agent can change it. */
+  save?(edits: ElementEdit[]): Promise<{ saved: number[]; missed: number[] }>;
   /** The request's first line: which page or widget the changes are for. */
   header(t: T): string;
   /** Edit mode ends: the page goes back to what its own code shows. */
@@ -36,13 +38,22 @@ export function stopEditing(): void {
   browserEdit.set({ target: undefined, items: [], selected: undefined });
 }
 
-/** Selects the element, adding it to the list the first time it is picked. */
+/** One element is edited at a time: picking another drops the one before when nothing in it changed. */
 export function pick(element: PickedElement): void {
-  browserEdit.set((s) =>
-    s.items.some((i) => i.element.node === element.node)
-      ? { selected: element.node }
-      : { items: [...s.items, { element, style: {}, note: "" }], selected: element.node },
-  );
+  browserEdit.set((s) => {
+    const kept = s.items.filter((i) => isChanged(i) || i.element.node === element.node);
+    return kept.some((i) => i.element.node === element.node)
+      ? { items: kept, selected: element.node }
+      : { items: [...kept, { element, style: {}, note: "" }], selected: element.node };
+  });
+}
+
+/** Goes back to an element already changed. */
+export function select(node: number): void {
+  browserEdit.set((s) => ({
+    items: s.items.filter((i) => isChanged(i) || i.element.node === node),
+    selected: node,
+  }));
 }
 
 export function changeItem(node: number, change: Partial<Omit<EditItem, "element">>): void {
@@ -86,14 +97,13 @@ export function elementLabel(element: PickedElement): string {
 }
 
 /**
- * The request the changes become in the chat, as quote lines the agent reads with the owner's own words after them:
- * the page, then each element (its words, its selector to find it in the code) with what should change.
+ * The request the changes become in the chat, in plain words: the page, then each part by the words it shows with
+ * what should change in it.
  */
 export function editRequest(header: string, items: readonly EditItem[], t: T): string {
   const lines = [header];
-  items.filter(isChanged).forEach((item, n) => {
+  for (const item of items.filter(isChanged)) {
     const { element, style } = item;
-    const label = elementLabel(element);
     const changes: string[] = [];
     if (item.text !== undefined && item.text !== element.text)
       changes.push(t("bedit.request.text", { text: item.text }));
@@ -102,16 +112,16 @@ export function editRequest(header: string, items: readonly EditItem[], t: T): s
     if (style.font_size !== undefined) changes.push(t("bedit.request.size", { value: style.font_size }));
     if (style.padding !== undefined) changes.push(t("bedit.request.padding", { value: style.padding }));
     const note = item.note.trim().replace(/\s+/g, " ");
-    if (note) changes.push(t("bedit.request.note", { note }));
-    const name = label ? `«${label}» (\`${element.selector}\`)` : `\`${element.selector}\``;
-    lines.push(`${n + 1}. ${name}: ${changes.join("; ")}`);
-  });
-  return lines.map((l) => `> ${l}`).join("\n");
+    if (note) changes.push(note);
+    const label = elementLabel(element);
+    lines.push(`- ${label ? `«${label}»` : t("bedit.request.unnamed")}: ${changes.join("; ")}`);
+  }
+  return lines.join("\n");
 }
 
 /** The request's first line for a browser tab. */
 export function pageHeader(url: string, t: T): string {
-  return t("bedit.request.page", { page: hostPath(url), url });
+  return t("bedit.request.page", { page: hostPath(url) });
 }
 
 /** Color for a color input: the page's computed `rgb(…)` as hex, else black. */

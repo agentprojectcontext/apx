@@ -269,6 +269,56 @@
 .surfacecard__spacer {
   flex: 1;
 }
+/* A web page: a browser window's frame, its title where the address goes. */
+.surfacecard--page {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.pagecard__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 6px 8px 6px 12px;
+  border-bottom: 1px solid var(--apx-border);
+  background: var(--apx-bg);
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.pagecard__dots {
+  display: inline-flex;
+  gap: 5px;
+}
+.pagecard__dots i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--apx-border-strong);
+}
+.pagecard__address {
+  flex: 1 1 180px;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-surface);
+  color: var(--apx-fg-muted);
+}
+.pagecard__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .pagecard__dots {
+    display: none;
+  }
+}
 /* Shown in the side panel: one line in the chat, as a delegation's card, never the widget twice. */
 .surfacecard--aside {
   flex-direction: row;

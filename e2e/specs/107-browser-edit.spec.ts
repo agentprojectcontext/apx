@@ -141,7 +141,6 @@ for (const width of [1280, 390]) {
       await page.mouse.click(button.x, button.y);
       const panel = page.getByRole("complementary", { name: "Editar" });
       await expect(panel.getByRole("heading", { name: "Book a demo" })).toBeVisible();
-      await expect(panel.getByText("a.cta.big")).toBeVisible();
       await panel.getByRole("textbox", { name: "Texto", exact: true }).fill("Get your demo");
       await panel.getByLabel("Tamaño de letra").fill("19");
       // The change shows in the page a moment later, only through the node.
@@ -154,7 +153,10 @@ for (const width of [1280, 390]) {
       await page.mouse.click(field.x, field.y);
       await expect(panel.getByText("no se puede cambiar acá")).toBeVisible();
       await expect(panel.getByRole("textbox", { name: "Texto", exact: true })).toHaveCount(0);
-      await panel.getByRole("button", { name: "Quitar" }).last().click();
+      // One part at a time: only the parts changed stay listed, each marked as changed.
+      const list = panel.getByRole("region", { name: "Tus cambios" });
+      await expect(list.locator(".bedit__row")).toHaveCount(1);
+      await expect(list.getByText("Cambiado")).toHaveCount(1);
 
       const title = await inPicture(page, landing, "h1");
       await page.mouse.click(title.x, title.y);
@@ -165,12 +167,15 @@ for (const width of [1280, 390]) {
 
       await panel.getByRole("button", { name: "Pedirle a Vera (2)" }).click();
       const composer = page.getByRole("textbox", { name: /Escribile/ });
-      await expect(composer).toHaveValue(/^> Cambios en la página localhost:5173 \(http:\/\/localhost:5173\/\):/);
+      // Plain words: the page, each part by what it says and what to change; no code names.
       await expect(composer).toHaveValue(
-        /> 1\. «Book a demo» \(`a\.cta\.big`\): texto → «Get your demo»; tamaño de letra → 19 px/,
-      );
-      await expect(composer).toHaveValue(
-        /> 2\. «Shipping without surprises for growing teams» \(`h1#hero`\): Más corto, en dos líneas/,
+        [
+          "Cambios en localhost:5173:",
+          "- «Book a demo»: que diga «Get your demo»; letra de 19 px",
+          "- «Shipping without surprises for growing teams»: Más corto, en dos líneas",
+          "",
+          "",
+        ].join("\n"),
       );
       // Leaving edit mode puts the page back as its own code draws it.
       await until(async () => shown.at(-1)?.length === 0);

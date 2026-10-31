@@ -168,6 +168,18 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
       name: "show_widget",
       arguments: JSON.stringify({ name: "e2e-coverage", title: "Coverage audit", html: "<h1>Coverage rows</h1>" }),
     };
+  // A web page the owner asked for: shown as a page they can edit.
+  const webPage = /^make a web page (\S+)/i.exec(said);
+  if (webPage)
+    return {
+      name: "show_widget",
+      arguments: JSON.stringify({
+        name: webPage[1],
+        title: "Weekly sales",
+        html: "<h2>Weekly sales</h2><p>Total: <b>$12,480</b></p>",
+        page: true,
+      }),
+    };
   // An app or channel the owner has not connected: a card offers it.
   const app = /^connect (\S+) for me/i.exec(said);
   if (app)

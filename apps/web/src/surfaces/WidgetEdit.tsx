@@ -54,12 +54,14 @@ export function WidgetEdit({ surface }: { surface: SurfaceSummary }) {
               const r = await client.call("surfaces.edit_shot", { page: id });
               return `data:${r.mime};base64,${r.data}`;
             },
-            header: (tr) => tr("bedit.request.widget", { title: surface.title, name: surface.name }),
+            save: (edits) => client.call("surfaces.edit_save", { page: id, edits }),
+            header: (tr) =>
+              tr(surface.page ? "bedit.request.webpage" : "bedit.request.widget", { title: surface.title }),
             // Closing the page (when this view goes) drops the edits it showed.
             leave: async () => stopEditing(),
           }
         : undefined,
-    [id, surface.id, surface.title, surface.name],
+    [id, surface.id, surface.title, surface.page],
   );
 
   return (

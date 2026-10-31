@@ -7,9 +7,12 @@ description: How to build and update APX artifacts with show_widget, edit_widget
 
 An artifact is one self-contained HTML page APX shows in a sandboxed frame. It is kept by `name`, per project (a chat
 outside a project makes a global one); showing the same `name` again replaces it everywhere it is open, as a new
-version. Two kinds:
+version. Three kinds:
 
 - **widget** (the default): in the chat, padded; `pin: true` also puts it on the project's board.
+- **web page** (`page: true`): asked for as a web page or a page to edit; shown in the chat in a page's frame. The
+  owner edits its text and look in place and those edits are saved into its HTML as a new version, so read it again
+  before you change it.
 - **app**: fullscreen and listed in Apps (`app: true`, or `<meta name="apx-surface" content="app">` in the page).
 
 Never write an artifact as a file for the owner to open: the owner sees an artifact only once APX shows it, either
