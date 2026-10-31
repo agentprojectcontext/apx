@@ -26,7 +26,7 @@ export function SurfacesScreen({ creds, onBack }: { creds: Creds; onBack: () => 
   useEffect(() => {
     client
       .call("surfaces.list", {})
-      .then((r) => setList(r.surfaces.filter((s) => s.pinned || s.app)))
+      .then((r) => setList(r.surfaces.filter((s) => s.pinned || s.in_apps || s.app)))
       .catch(() => setList([]));
   }, [client]);
 

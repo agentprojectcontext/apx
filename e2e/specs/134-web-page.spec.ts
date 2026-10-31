@@ -192,3 +192,34 @@ for (const width of [1280, 390]) {
     await page.screenshot({ path: info.outputPath(`widget-share-${width}.png`) });
   });
 }
+
+for (const width of [1280, 390]) {
+  test(`at ${width}px, a widget pinned to Apps stays a widget, and a web page is never on a board`, async ({
+    page,
+  }, info) => {
+    await rpc("setup.finish", {});
+    const { thread } = await chatWithPage(`apps${width}`);
+    await page.setViewportSize({ width, height: 860 });
+    await open(page, `#thread=${thread}`);
+    const card = page.locator(".transcript .surfacecard").filter({ hasText: "Coverage audit" }).last();
+    await card.getByRole("button", { name: "Más" }).click();
+    await page.getByRole("menuitem", { name: "Fijar en Apps" }).click();
+    // Listed in Apps, it keeps its kind: the widget's violet grid, not an app's green.
+    const dock = page.locator(".appsdock__icon .apx-tile").first();
+    await expect(dock).toHaveClass(/apx-tile--violet/);
+    await expect(card.getByText(/^Widget ·/)).toBeVisible();
+    await page.screenshot({ path: info.outputPath(`apps-widget-${width}.png`) });
+    await card.getByRole("button", { name: "Más" }).click();
+    await page.getByRole("menuitem", { name: "Desfijar de Apps" }).click();
+
+    // A web page offers no board, and the core refuses one.
+    const block = page.locator(".transcript .pagepart");
+    await block.getByRole("button", { name: "Más" }).click();
+    await expect(page.getByRole("menuitem", { name: /tablero/ })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    const { surfaces } = await rpc<{ surfaces: Array<{ id: string; name: string }> }>("surfaces.list", {});
+    const made = surfaces.find((s) => s.name === `coffee-apps${width}`);
+    if (!made) throw new Error("no page");
+    await expect(rpc("surfaces.update", { surface: made.id, pinned: true })).rejects.toThrow(/not a board tile/);
+  });
+}

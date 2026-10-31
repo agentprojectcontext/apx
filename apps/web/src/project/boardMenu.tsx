@@ -44,7 +44,7 @@ export function useBoardChoices(projectId: string, mine: SurfaceSummary[]): Boar
       .map((p) => ({
         project: p,
         widgets: Object.values(surfaces)
-          .filter((s) => (realProjectId(p.id) ? s.project_id === p.id : !s.project_id))
+          .filter((s) => !s.page && (realProjectId(p.id) ? s.project_id === p.id : !s.project_id))
           .sort((a, b) => a.title.localeCompare(b.title)),
       }))
       .filter((x) => x.widgets.length);

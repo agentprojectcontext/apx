@@ -34,13 +34,13 @@ test("a pinned widget lives on its project's board and is updated by its name", 
   await tile.getByRole("button", { name: "Más" }).click();
   await page.getByRole("menuitem", { name: "Fijar en Apps" }).click();
   await tile.getByRole("button", { name: "Más" }).click();
-  await expect(page.getByRole("menuitem", { name: "Abrir como app" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Abrir a pantalla completa" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: /^Quitar del tablero/ })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(
     page.getByRole("complementary", { name: "Navegación" }).getByRole("button", { name: "Ventas del mes" }),
   ).toBeVisible();
-  await rpc("surfaces.update", { surface: (await show("250")).id, app: false });
+  await rpc("surfaces.update", { surface: (await show("250")).id, in_apps: false });
 
   await tile.getByRole("button", { name: "Más" }).click();
   await page.getByRole("menuitem", { name: /^Quitar del tablero/ }).click();

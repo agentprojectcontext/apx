@@ -36,7 +36,7 @@ test("a project's widget opens beside the Artifacts list, painted, with its acti
   await drawer.getByRole("button", { name: "Más" }).click();
   await page.getByRole("menuitem", { name: "Fijar en Apps" }).click();
   await drawer.getByRole("button", { name: "Más" }).click();
-  await page.getByRole("menuitem", { name: "Abrir como app" }).click();
+  await page.getByRole("menuitem", { name: "Abrir a pantalla completa" }).click();
   await expect(page.locator(".appscreen__title")).toHaveText("Comparativa con Pilot");
   await expect(page.frameLocator(".livelayer__box[data-shown] iframe").getByText("Pintada")).toBeVisible();
   await rpc("threads.delete", { thread: chat.id });

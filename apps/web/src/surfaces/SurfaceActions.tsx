@@ -22,7 +22,7 @@ export function SurfaceActions({ surface, inChat = false }: { surface: SurfaceSu
   const more: MenuEntry[] = surface.page
     ? pageMenu(surface, t, { share: false })
     : [
-        ...(surface.app
+        ...(surface.in_apps
           ? ([
               { label: t("widget.openApp"), icon: <Icons.AppWindow size={16} />, onSelect: () => go.app(surface.id) },
             ] satisfies MenuEntry[])
