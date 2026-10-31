@@ -238,6 +238,7 @@ export function areaTool(spec: AreaToolSpec, deps: SettingsDeps): Tool {
       }
       if (unchanged(a)) return `nothing to change: ${card(a).says} — it already is so.`;
       if (!ctx.callAsOwner) return "not run: the owner did not approve it";
+      if (s.setting.owner) return s.setting.owner(filled(a), deps, ctx.callAsOwner);
       const result = await ctx.callAsOwner(s.name, filled(a) as never);
       return `done: ${s.setting.shows?.(result) ?? JSON.stringify(result).slice(0, 1500)}`;
     },

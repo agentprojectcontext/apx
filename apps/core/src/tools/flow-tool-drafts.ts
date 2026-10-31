@@ -151,7 +151,16 @@ function stepOf(graph: Graph, step: z.infer<typeof Step>): FlowNode {
   const base: Record<string, unknown> = { ...newNode(step.kind, id, label) };
   // An AI step names an agent or a bot, never both: a bot given leaves the agent out.
   if (step.kind === "agent" && "bot" in step) delete base.agent;
-  return { ...base, ...step, id, label } as FlowNode;
+  return saveOne({ ...base, ...step, id, label }, step);
+}
+
+/** A table save keeps a value per column or one value whole: the one the agent set replaces the other. */
+function saveOne(node: Record<string, unknown>, set: Record<string, unknown>): FlowNode {
+  if (node.kind !== "table_write") return node as FlowNode;
+  const { columns, value, ...rest } = node;
+  if ("columns" in set && !("value" in set)) return { ...rest, columns } as FlowNode;
+  if ("value" in set && !("columns" in set)) return { ...rest, value } as FlowNode;
+  return node as FlowNode;
 }
 
 const findStep = (graph: Graph, id: string) => {
@@ -186,7 +195,7 @@ export function applyEdits(start: Graph, edits: readonly Edit[]): Graph {
       const n = findStep(g, e.step);
       if ("id" in e.set || "kind" in e.set)
         throw new EditError(`a step's id and kind stay: remove "${e.step}" and add a new one instead`);
-      g = { ...g, nodes: g.nodes.map((x) => (x === n ? ({ ...x, ...e.set } as FlowNode) : x)) };
+      g = { ...g, nodes: g.nodes.map((x) => (x === n ? saveOne({ ...x, ...e.set }, e.set) : x)) };
     } else if (e.op === "remove") {
       findStep(g, e.step);
       g = removeNode(g, e.step);

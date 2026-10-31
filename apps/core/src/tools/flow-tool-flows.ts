@@ -12,6 +12,15 @@ export const FLOWS: Readonly<Record<string, Setting>> = {
     does: "turn a Flow on or off, or rename it (a drawn Flow takes only name and enabled); an old one without a drawing: id, projectId, name, enabled, predicates [{path: string[], equals: scalar}], tableKey, action {kind: none|agent|routine, agent/prompt or routine}. Routine must be manual-only in the same project. Public tokens stay owner-only in Settings, Devices",
     now: (p, { store }) => store.flows.get(str(p.id)),
     keep: (p, { store }) => merged(store.flows.get(str(p.id)), p),
+    // Turned on, a Flow runs what is published: a drawing never published would run nothing.
+    refuse: (p, { store }) => {
+      const id = str(p.id);
+      if (p.enabled !== true || store.flows.get(id)?.enabled || !store.flows.get(id)) return undefined;
+      const doc = store.flowGraphs.get(id);
+      return doc.draft && !doc.published
+        ? "turning it on does not publish its drawing: flows.publish does both"
+        : undefined;
+    },
     whole: true,
   },
   "flows.rows": {

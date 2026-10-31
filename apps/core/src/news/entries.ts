@@ -345,14 +345,14 @@ export const NEWS: readonly NewsEntry[] = [
     title: { en: "Your super-agent draws Flows for you", es: "Tu super-agente dibuja Flows por vos" },
     about: {
       en:
-        "Ask in any chat for a Flow and your assistant draws it for you. Open it in the editor to " +
-        "review it, and turn it on when you are happy with it.",
+        "Ask in any chat for a Flow and your assistant draws it for you. Review it in the editor, or " +
+        "ask it to turn it on and try it: it asks for your OK first.",
       es:
-        "Pedí un Flow en cualquier chat y tu asistente lo dibuja por vos. Abrilo en el editor " +
-        "para revisarlo y activalo cuando estés conforme.",
+        "Pedí un Flow en cualquier chat y tu asistente lo dibuja por vos. Revisalo en el editor, o " +
+        "pedile que lo prenda y lo pruebe: antes te pide el OK.",
     },
     applies: (f) => f.secretary,
-    text: "The super-agent can now make a Flow in a project or change one's steps when the owner asks in any chat: it draws the steps, connects and places them, checks what keeps the drawing from running and fixes it. The chat shows the Flow's drawing with a button to open it in the editor. In the Flow editor itself, the Ask button opens a chat with the super-agent over the canvas: the owner says what to change and watches the steps appear as it draws them. What it saves is a draft: nothing runs until the owner reviews it in the editor and turns it on, and anything that sends as them, calls a service, runs a command or changes a database still asks them first.",
+    text: "The super-agent can now make a Flow in a project or change one's steps when the owner asks in any chat: it draws the steps, connects and places them, checks what keeps the drawing from running and fixes it. The chat shows the Flow's drawing with a button to open it in the editor. In the Flow editor itself, the Ask button opens a chat with the super-agent over the canvas: the owner says what to change and watches the steps appear as it draws them. What it saves is a draft: nothing runs until the owner turns it on, in the editor or by asking the super-agent, which shows a card with what the Flow sends, calls, runs and changes and waits for their OK; it can then run it once with sample data, after another OK, and say how each step went.",
     actions: [
       {
         label: { en: "Draw a Flow with me", es: "Dibujar un Flow conmigo" },
