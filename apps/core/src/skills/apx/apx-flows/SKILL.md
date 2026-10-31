@@ -46,7 +46,9 @@ loops. `when` is only on a connection out of a check: a case's id, or `"no"` for
 Values a step reads are **bindings**: `{kind: "event", path: ["form", "email"]}` (what arrived),
 `{kind: "node", node: "<step id>", path: [...]}` (an earlier step's output) or `{kind: "literal", value}`. Text
 fields marked *template* take placeholders: `$trigger.form.email`, `$steps.<step>.field`, `$vars.name`, `$apx.now`,
-`$apx.project`, `$apx.run`, and `$$` for a `$`.
+`$apx.project`, `$apx.run`, and `$$` for a `$`. An AI step's `prompt` (`agent`, `llm`) is fixed text, not a template:
+placeholders in it reach the model as written. Give it what it works on through `input` (`{kind: "node", node:
+"<step id>", path: []}` for an earlier step's output, a table read's row included).
 
 | kind | fields |
 |---|---|
