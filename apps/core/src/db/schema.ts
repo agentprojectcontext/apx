@@ -353,6 +353,12 @@ export interface MemoryWorkTable {
   error: string | null;
 }
 
+export interface MessageMediaTable {
+  message_id: string;
+  media_id: string;
+  name: string | null;
+}
+
 export interface MessagesTable {
   id: string;
   thread_id: string;
@@ -751,6 +757,7 @@ export interface Database {
   memory_exclusions: MemoryExclusionsTable;
   memory_versions: MemoryVersionsTable;
   memory_work: MemoryWorkTable;
+  message_media: MessageMediaTable;
   messages: MessagesTable;
   messages_n: MessagesNTable;
   meta: MetaTable;

@@ -18,7 +18,7 @@ for (const workspace of ["read-only", "no folder"] as const) {
     let task = "";
     const llm = scriptedLlm((_req, { said, afterTool }) => {
       if (said.includes("Take this existing task.") && !afterTool)
-        return callTool("take-task", "task_update", { task, assignee: "roby" });
+        return callTool("take-task", "task_update", { task, assignee: "superagent" });
       return say("Ready.");
     });
     const env = await startCore({ llm });
@@ -35,14 +35,14 @@ for (const workspace of ["read-only", "no folder"] as const) {
         title: "Previous work",
         task_id: task,
         project_id: project.project.id,
-        agent_ids: ["roby"],
+        agent_ids: ["superagent"],
         cwd: previousFolder,
         write: "auto",
       });
       env.core.store.tasks.change(task, { assignee: "vera" }, "owner");
       const chat = await env.client.call("threads.create", {
         kind: workspace === "read-only" ? "code" : "loose",
-        agent_id: "roby",
+        agent_id: "superagent",
         project_id: project.project.id,
         ...(workspace === "read-only" ? { cwd: currentFolder, write: "read-only" as const } : {}),
       });
@@ -71,7 +71,7 @@ for (const workspace of ["read-only", "no folder"] as const) {
   });
 }
 
-for (const creator of ["roby", "vera", "owner"] as const) {
+for (const creator of ["superagent", "vera", "owner"] as const) {
   test(`an update handoff reports to its current source, independently of the ${creator} creation event`, async () => {
     let task = "";
     const llm = scriptedLlm((req, { said, afterTool }) => {
@@ -90,7 +90,11 @@ for (const creator of ["roby", "vera", "owner"] as const) {
         return say("Draft saved.");
       }
       if (!afterTool)
-        return callTool("take", "task_update", { task, assignee: "roby", description: "Finish once through update." });
+        return callTool("take", "task_update", {
+          task,
+          assignee: "superagent",
+          description: "Finish once through update.",
+        });
       return say("Transferred.");
     });
     const env = await startCore({ llm });
@@ -103,7 +107,7 @@ for (const creator of ["roby", "vera", "owner"] as const) {
         await waitFor(() => Boolean(env.core.store.runs.get(seed.run.id)?.ended_at), "draft creation");
       }
       assert.ok(task);
-      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       const sent = await env.client.call("threads.send", { thread: chat.id, text: "Take the draft now." });
       await waitFor(() => Boolean(env.core.store.runs.get(sent.run.id)?.ended_at), "update transfer source");
       await waitFor(() => env.core.store.tasks.get(task)?.state === "done", "task delivery");
@@ -121,7 +125,7 @@ for (const creator of ["roby", "vera", "owner"] as const) {
       if (creator === "vera") {
         await waitFor(() => reports(original).some((r) => r.state === "completed"), "historical creator notification");
         assert.equal(reports(original).length, 1);
-      } else if (creator === "roby") assert.equal(reports(original).length, 0);
+      } else if (creator === "superagent") assert.equal(reports(original).length, 0);
       assert.equal(reportClose(env.core.store, env.core.engine.admit, task), undefined);
       assert.equal(reports(chat.id).length, 1, "the same close is reported once");
     } finally {
@@ -144,18 +148,18 @@ for (const delegated of [false, true]) {
         const conversation = env.core.store.threads.create({
           kind: "task",
           title: "Future work",
-          agent_ids: ["roby"],
+          agent_ids: ["superagent"],
           project_id: io.thread.project_id,
         });
         task = env.core.store.tasks.create({
           title: "Future work",
           description: "Start only on the office clock.",
           status: "todo",
-          assignee: "roby",
+          assignee: "superagent",
           project_id: io.thread.project_id,
           start_at: "2000-01-01T10:00:00.000Z",
           thread_id: conversation.id,
-          by: "roby",
+          by: "superagent",
           from: { thread: io.thread.id, run: io.run.id },
         }).id;
         if (delegated)
@@ -179,7 +183,7 @@ for (const delegated of [false, true]) {
       const project = await env.client.call("projects.register", { path: folder.path, init: true });
       const chat = await env.client.call("threads.create", {
         kind: "code",
-        agent_id: "roby",
+        agent_id: "superagent",
         project_id: project.project.id,
         cwd: folder.path,
         write: "auto",

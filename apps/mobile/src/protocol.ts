@@ -22,6 +22,8 @@ export type {
   NoticePrefs,
   RoutineRun,
   Schedule,
+  SharedFile,
+  SharedKind,
   Surface,
   TaskEvent,
   Thread,

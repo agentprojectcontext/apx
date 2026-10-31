@@ -17,7 +17,17 @@ export type PanelKind =
   | "processes"
   | "document";
 
-export type View = "inbox" | "project" | "app" | "tasks" | "flows" | "resources" | "computers" | "channel" | "engine";
+export type View =
+  | "inbox"
+  | "project"
+  | "app"
+  | "tasks"
+  | "flows"
+  | "resources"
+  | "files"
+  | "computers"
+  | "channel"
+  | "engine";
 
 export const PROJECT_TABS = [
   { id: "overview", label: "project.tab.overview" },
@@ -140,7 +150,7 @@ const PANELS: readonly PanelKind[] = [
   "document",
 ];
 const TAB_IDS: readonly string[] = PROJECT_TABS.map((t) => t.id);
-const VIEWS: readonly string[] = ["tasks", "flows", "resources", "computers"];
+const VIEWS: readonly string[] = ["tasks", "flows", "resources", "files", "computers"];
 
 /** Deep links: #thread=<id>&panel=<kind>, #app=<id>, #project=<id>&tab=<tab>, #view=tasks&task=<id>. */
 function fromHash(): Partial<NavState> {
@@ -301,7 +311,13 @@ nav.subscribe(() => {
     h.set("tab", s.projectTab);
     if (s.projectTab === "chats" && s.threadId) h.set("thread", s.threadId);
     if (s.projectTab === "tasks" && s.taskId) h.set("task", s.taskId);
-  } else if (s.view === "tasks" || s.view === "flows" || s.view === "resources" || s.view === "computers") {
+  } else if (
+    s.view === "tasks" ||
+    s.view === "flows" ||
+    s.view === "resources" ||
+    s.view === "files" ||
+    s.view === "computers"
+  ) {
     h.set("view", s.view);
     if (s.view === "flows" && s.flowProject) h.set("scope", s.flowProject);
     if (s.view === "flows" && s.flowId) h.set("flow", s.flowId);
@@ -400,6 +416,12 @@ export const go = {
     applyingHistory = false;
     currentPlace = placeOf(nav.get());
   },
+  /** A chat opened where it lives (an engine's session beside its engine), pointing at one of its messages. */
+  message(threadId: string, messageId: string, engine?: string) {
+    if (engine) go.engine(engine, threadId);
+    else go.thread(threadId);
+    go.focus(`msg:${messageId}`);
+  },
   /** Always the Inbox, whatever is open (running pill, deep links). */
   inboxThread(threadId: string) {
     nav.set({ view: "inbox", threadId, listInFront: false });
@@ -448,7 +470,7 @@ export const go = {
   tables(flowProject?: string, flowTable?: string) {
     nav.set({ view: "flows", flowProject, flowId: undefined, flowEdit: false, flowTables: true, flowTable });
   },
-  view(view: "tasks" | "resources" | "computers") {
+  view(view: "tasks" | "resources" | "files" | "computers") {
     nav.set({ view });
   },
   /** A task: beside a tasks list when one is open, else over the current screen (a chat, a notice…). */

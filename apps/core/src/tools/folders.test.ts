@@ -71,7 +71,7 @@ test("an agent works in its project's folder; an outside agent in APX's side of 
   env.core.store.projects.setPresent(inRepo, false);
   assert.deepEqual(dirs({ project_id: inRepo }), [side, side]);
   const t = {
-    ...(await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: inRepo })),
+    ...(await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: inRepo })),
     reach: "card" as const,
   };
   await env.client.call("files.tree", { thread: t.id, dir: "" });
@@ -80,9 +80,9 @@ test("an agent works in its project's folder; an outside agent in APX's side of 
 
 test("a path is readable or refused the same way through file_read and shell, written relative or absolute", async () => {
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
-  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
   const t = {
-    ...(await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project })),
+    ...(await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project })),
     reach: "card" as const,
   };
   fs.mkdirSync(path.join(repo, "src"), { recursive: true });
@@ -201,9 +201,9 @@ test("ordinary commands name no folder they may not use; ones that leave it thro
 
 test("a project's read-only folders are read by file_read and shell, never changed, until the owner removes them", async () => {
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
-  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
   const t = {
-    ...(await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project })),
+    ...(await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project })),
     reach: "card" as const,
   };
   const ref = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));

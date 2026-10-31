@@ -40,7 +40,7 @@ test("agents see a one-line catalog and load the body on demand; files outside t
     skills.filter((s) => s.source !== "apx").map((s) => s.name),
     ["brief-writer"],
   );
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "skills" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "skills" });
   await env.client.call("threads.send", { thread: t.id, text: "use the skill" });
   await env.settle(t.id);
   const system = String(llm.calls.at(-1)?.messages[0]?.content);
@@ -68,7 +68,7 @@ test("APX's own skills: named in one sentence, loaded on demand, always on, read
     /comes with APX/,
   );
 
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "apx skills" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "apx skills" });
   await env.client.call("threads.send", { thread: t.id, text: "how do I add an MCP" });
   await env.settle(t.id);
   const system = String(llm.calls.at(-1)?.messages[0]?.content);
@@ -81,7 +81,7 @@ test("APX's own skills: named in one sentence, loaded on demand, always on, read
 });
 
 test("an empty file argument loads SKILL.md, and a folder lists its files instead of failing", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "skill args" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "skill args" });
   await env.client.call("threads.send", { thread: t.id, text: "empty file" });
   await env.settle(t.id);
   const loaded = String(llm.calls.at(-1)?.messages.at(-1)?.content);

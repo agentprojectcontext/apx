@@ -36,7 +36,7 @@ after(async () => {
 });
 
 test("saving an artifact's page with the file tools shows it, and editing it makes a new version", async () => {
-  const t = await env.client.call("threads.create", { kind: "agent", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "agent", agent_id: "superagent" });
   const file = path.join(artifactSources(env.home, undefined), "pantry", "index.html");
   const say = async (name: string, args: object) => {
     await env.client.call("threads.send", { thread: t.id, text: JSON.stringify({ name, args }) });
@@ -49,7 +49,7 @@ test("saving an artifact's page with the file tools shows it, and editing it mak
   const made = env.core.store.surfaces.byName(undefined, "pantry");
   assert.equal(made?.title, "Pantry");
   assert.equal(made?.app, true);
-  assert.equal(made?.created_by, "roby");
+  assert.equal(made?.created_by, "superagent");
 
   const edited = await say("file_edit", { path: file, old: "<h1>Pantry</h1>", new: "<h1>Pantry list</h1>" });
   assert.match(edited, /Artifact "pantry" v2 shown/);

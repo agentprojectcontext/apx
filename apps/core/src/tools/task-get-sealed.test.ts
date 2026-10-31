@@ -14,13 +14,13 @@ test("task_get never exposes sealed client conversations to the global secretary
     const session = store.threads.create({
       kind: "loose",
       title: "Sealed session",
-      agent_ids: ["roby"],
+      agent_ids: ["superagent"],
       task_id: task.id,
     });
     const consult = store.threads.create({
       kind: "a2a",
       title: "Sealed consult",
-      agent_ids: ["roby"],
+      agent_ids: ["superagent"],
       parent_id: task.thread_id,
     });
     store.threads.mergeContext(consult.id, { consult: { task: task.id, card: "msg_card" } });
@@ -50,7 +50,7 @@ test("task_get never exposes sealed client conversations to the global secretary
       socket.close();
       await socket.closed;
     }
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: thread.id, text: task.id });
     await env.settle(thread.id);
     const result = String(llm.calls.at(-1)?.messages.at(-1)?.content);

@@ -26,7 +26,11 @@ test("⌘K finds a project, a task and a settings section, and Enter goes there"
 });
 
 test("⌘K finds words inside messages, accents aside, and opens the chat at that message", async ({ page }) => {
-  const thread = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Zoología" });
+  const thread = await rpc<{ id: string }>("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "Zoología",
+  });
   await rpc("threads.send", { thread: thread.id, text: "Anotá que el ornitorrinco come camarones" });
   await until(async () => (await rpc<{ hits: unknown[] }>("threads.search", { query: "ornitorrinco" })).hits.length);
   await open(page);

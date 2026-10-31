@@ -7,7 +7,7 @@ test("a part type this client does not know becomes a notice instead of breaking
     id: "m1",
     thread_id: "t1",
     seq: 1,
-    author: { kind: "agent", id: "roby" },
+    author: { kind: "agent", id: "superagent" },
     parts: [
       { type: "text", text: "hi" },
       { type: "hologram", frames: 3 },

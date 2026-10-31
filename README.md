@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://agentprojectcontext.github.io/apx/"><img src="https://img.shields.io/badge/Website-APX_v2-3fb950?style=flat-square" alt="APX v2 website"></a>
+  <a href="https://apxagent.app/"><img src="https://img.shields.io/badge/Website-APX_v2-3fb950?style=flat-square" alt="APX v2 website"></a>
   <a href="https://github.com/agentprojectcontext/apx/releases/latest"><img src="https://img.shields.io/github/v/release/agentprojectcontext/apx?style=flat-square&label=Release&color=3fb950" alt="APX latest release"></a>
   <a href="https://github.com/agentprojectcontext/apx/releases"><img src="https://img.shields.io/github/downloads/agentprojectcontext/apx/total?style=flat-square&label=Downloads&color=3fb950" alt="Downloads from GitHub releases"></a>
   <a href="https://www.npmjs.com/package/@agentprojectcontext/apx"><img src="https://img.shields.io/npm/dm/%40agentprojectcontext%2Fapx?style=flat-square&label=v1%20on%20npm&color=3fb950" alt="APX v1 downloads on npm"></a>
@@ -20,8 +20,8 @@
 </p>
 
 <p align="center">
-  <b><a href="https://agentprojectcontext.github.io/apx/">Website →</a></b> ·
-  <a href="#install">Install</a> · <a href="https://agentprojectcontext.github.io/apx/start/introduction/">Docs</a> ·
+  <b><a href="https://apxagent.app/">Website →</a></b> ·
+  <a href="#install">Install</a> · <a href="https://apxagent.app/start/introduction/">Docs</a> ·
   <a href="#coming-from-apx-v1">From v1</a> · <a href="README_ES.md">Español</a> ·
   <a href="https://discord.gg/vxdZuT5WuE">Discord</a>
 </p>
@@ -102,19 +102,19 @@ APX's current open-source edition remains available under the [MIT license](LICE
 ## Install
 
 **Desktop app** (macOS, Windows, Linux): download it from the
-[website](https://agentprojectcontext.github.io/apx/#download) or the
+[website](https://apxagent.app/#download) or the
 [latest v2 release](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true), open it and follow the setup.
-The apps are not signed yet: the [install guide](https://agentprojectcontext.github.io/apx/start/install/) shows the
+The apps are not signed yet: the [install guide](https://apxagent.app/start/install/) shows the
 one extra click macOS and Windows ask for.
 
 **From a terminal** (detects your system; no root, data in `~/.apx/v2`):
 
 ```bash
-curl -fsSL https://agentprojectcontext.github.io/apx/install.sh | bash
+curl -fsSL https://apxagent.app/install.sh | bash
 ```
 
 ```powershell
-irm https://agentprojectcontext.github.io/apx/install.ps1 | iex
+irm https://apxagent.app/install.ps1 | iex
 ```
 
 On a new graphical computer this installs and opens desktop setup: choose server or client before a core starts.
@@ -125,21 +125,21 @@ for the server it talks to, with one button.
 
 **On a server** (a VPS, a homelab, no screen): use `bash -s -- --server` after the pipe (PowerShell: `-Server`), then
 `apx setup --headless --expose tailscale` (or `--expose lan`) and `apx pair` to connect your desktop and phone. The
-desktop app can also install APX on a server for you over SSH. Guide: [Run APX on a server](https://agentprojectcontext.github.io/apx/devices/server/).
+desktop app can also install APX on a server for you over SSH. Guide: [Run APX on a server](https://apxagent.app/devices/server/).
 
 **On your phone**: the Android app is in each [v2 release](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true)
 (`APX-<version>-android.apk`); pair it with the code the desktop shows. It installs beside v1's app.
-[Phone guide](https://agentprojectcontext.github.io/apx/devices/phone/).
+[Phone guide](https://apxagent.app/devices/phone/).
 
 ## Coming from APX v1
 
 Install v2 and the setup finds your v1 install: it brings your projects, agents, skills, chats and channels in, and
 leaves v1's files where they were. The install script stops a v1 daemon and takes over the `apx` command.
-[What carries over](https://agentprojectcontext.github.io/apx/start/from-v1/).
+[What carries over](https://apxagent.app/start/from-v1/).
 
 ## Documentation and community
 
-- [Website](https://agentprojectcontext.github.io/apx/) and [documentation](https://agentprojectcontext.github.io/apx/start/introduction/), in English and Spanish
+- [Website](https://apxagent.app/) and [documentation](https://apxagent.app/start/introduction/), in English and Spanish
 - [Discord community](https://discord.gg/vxdZuT5WuE)
 - [Report a bug or suggest an improvement](https://github.com/agentprojectcontext/apx/issues)
 
@@ -197,7 +197,7 @@ pnpm package    # this OS's desktop installer and server bundle, in out/ (also p
 ```
 
 The terminal from a checkout: `alias apx="node $PWD/apps/terminal/src/main.ts"`. Every command is in the
-[CLI reference](https://agentprojectcontext.github.io/apx/reference/cli/). How to work on the code, the rules and
+[CLI reference](https://apxagent.app/reference/cli/). How to work on the code, the rules and
 the checks: [`AGENTS.md`](AGENTS.md) and [`rules/`](rules/).
 
 </details>

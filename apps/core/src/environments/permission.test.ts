@@ -9,10 +9,10 @@ test("a computer grant for one chat covers only the agent it was given to, and t
   const vm = createComputer(env.core.store, { limaHome: "/unused", instance: "missing" });
   try {
     // A chat whose first agent is Roby, where Scout was let use the computer for that chat only.
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     env.core.store.approvals.grant(computerApproval, "session", chat.id, "scout");
     assert.equal(vm.permitted("scout", chat.id), true);
-    assert.equal(vm.permitted("roby", chat.id), false, "another agent in the same chat is not covered");
+    assert.equal(vm.permitted("superagent", chat.id), false, "another agent in the same chat is not covered");
     assert.equal(vm.permitted("scout", "home"), false, "nor the same agent in another chat");
     vm.permit("scout", false);
     assert.equal(vm.permitted("scout", chat.id), false, "revoked even where it is not the chat's first agent");
@@ -38,12 +38,12 @@ test("an agent whose permission is taken away mid-turn cannot drive the guest br
   const env = await startCore({ llm, computer: { limaHome: "/unused", instance: "missing" } });
   try {
     const chat = await computerChat(env);
-    await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.bind", { thread: chat });
     await env.client.call("threads.send", { thread: chat, text: "Open a page" });
     await waitFor(() => asked, "the turn to start");
-    await env.client.call("environments.permit", { agent: "roby", on: false });
+    await env.client.call("environments.permit", { agent: "superagent", on: false });
     go();
     const result = await env.settle(chat);
     const card = result.messages.flatMap((m) => m.parts).find((p) => p.type === "tool" && p.tool === "browser_open");

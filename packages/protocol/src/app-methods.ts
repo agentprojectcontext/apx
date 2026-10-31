@@ -262,10 +262,13 @@ export const appMethods = {
         z.object({
           id: z.string(),
           since: z.string(),
-          title: z.string(),
+          /** The owner's words (`about`: what they can do now), in English and Spanish: the panel shows its language. */
+          title: z.object({ en: z.string(), es: z.string() }),
+          about: z.object({ en: z.string(), es: z.string() }),
           seen: z.boolean(),
           applies: z.boolean(),
-          actions: z.array(z.string()),
+          /** `prompt`: what asking the super-agent for it says, as the owner's words. */
+          actions: z.array(z.object({ label: z.object({ en: z.string(), es: z.string() }), prompt: z.string() })),
         }),
       ),
     }),

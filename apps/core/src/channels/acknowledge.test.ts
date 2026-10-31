@@ -30,7 +30,11 @@ let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 before(async () => {
   tg = await fakeTelegram(TOKEN);
   env = await startCore({ llm, channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) } });
-  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent" },
+    token: TOKEN,
+  });
   tg.message(OWNER, "hola");
   await waitFor(() => tg.messagesTo(OWNER.id).length === 1, "pairing code");
   const code = /(\d{6})/.exec(String(tg.messagesTo(OWNER.id)[0]?.body.text))?.[1] ?? "";

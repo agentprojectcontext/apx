@@ -96,7 +96,7 @@ for (const phone of [false, true]) {
       ).toBeVisible();
     await expect(editor.locator(".fe-agent")).toBeHidden();
     const drawn = await rpc<Result<"flows.graph_get">>("flows.graph_get", { flow });
-    expect(drawn.draftBy).toBe("roby");
+    expect(drawn.draftBy).toBe("superagent");
     expect(drawn.draft?.nodes.find((n) => n.id === "hook")?.label).toBe("A lead arrives");
     await shot(page, `flow-ask-${at}`);
 

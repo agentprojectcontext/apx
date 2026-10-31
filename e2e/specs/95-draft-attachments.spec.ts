@@ -3,8 +3,8 @@ import { expect, open, rpc, test } from "./kit.ts";
 
 test("deleting a chat during upload clears its draft and ignores the late result", async ({ page }) => {
   await rpc("setup.finish");
-  const a = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Deleted upload" });
-  const b = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Remaining draft" });
+  const a = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "superagent", title: "Deleted upload" });
+  const b = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "superagent", title: "Remaining draft" });
   await open(page, `#thread=${a.id}`);
   const box = page.getByRole("textbox", { name: /^Escribile a/ });
   await box.fill("Deleted words");
@@ -47,7 +47,7 @@ test("deleting a chat during upload clears its draft and ignores the late result
 
 test("a delayed attachment chunk keeps selected filenames visible", async ({ page }) => {
   await rpc("setup.finish");
-  const chat = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Slow preview" });
+  const chat = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "superagent", title: "Slow preview" });
   let release = () => {};
   const held = new Promise<void>((resolve) => {
     release = resolve;
@@ -74,8 +74,8 @@ const PNG = Buffer.from(
 for (const width of [412, 1280]) {
   test(`draft image preview and pending uploads survive navigation at ${width}px`, async ({ page }) => {
     await rpc("setup.finish");
-    const a = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Draft images" });
-    const b = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Other draft" });
+    const a = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "superagent", title: "Draft images" });
+    const b = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "superagent", title: "Other draft" });
     await page.setViewportSize({ width, height: 900 });
     await open(page, `#thread=${a.id}`);
     const box = page.getByRole("textbox", { name: /^Escribile a/ });
@@ -151,8 +151,12 @@ for (const width of [412, 1280]) {
 
 test("navigation retains text and documents without resubmitting uploads", async ({ page }) => {
   await rpc("setup.finish");
-  const a = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Document draft" });
-  const b = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Other document draft" });
+  const a = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "superagent", title: "Document draft" });
+  const b = await rpc<Thread>("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "Other document draft",
+  });
   await open(page, `#thread=${a.id}`);
   const box = page.getByRole("textbox", { name: /^Escribile a/ });
   await box.fill("Keep this document");
@@ -185,8 +189,8 @@ test("navigation retains text and documents without resubmitting uploads", async
 for (const editOrigin of [false, true]) {
   test(`failed send restores draft with concurrent editing ${editOrigin} without another upload`, async ({ page }) => {
     await rpc("setup.finish");
-    const a = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Retry draft" });
-    const b = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Separate draft" });
+    const a = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "superagent", title: "Retry draft" });
+    const b = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "superagent", title: "Separate draft" });
     await open(page, `#thread=${a.id}`);
     const box = page.getByRole("textbox", { name: /^Escribile a/ });
     await box.fill("Retry with this image");
@@ -260,7 +264,7 @@ for (const editOrigin of [false, true]) {
 
 test("removing an uploading image prevents resurrection and reload only preserves text", async ({ page }) => {
   await rpc("setup.finish");
-  const chat = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Discard draft" });
+  const chat = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "superagent", title: "Discard draft" });
   await open(page, `#thread=${chat.id}`);
   const box = page.getByRole("textbox", { name: /^Escribile a/ });
   await box.fill("Text survives reload");

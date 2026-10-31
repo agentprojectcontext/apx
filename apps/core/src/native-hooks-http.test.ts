@@ -30,12 +30,12 @@ test("the public HTTP listener preserves native LINE HMAC and Teams JWT authenti
     await env.client.call("webhooks.set", { mode: "custom", url: "https://acme.example" });
     await env.client.call("channels.set", {
       id: "line",
-      channel: { type: "line", agent_id: "roby" },
+      channel: { type: "line", agent_id: "superagent" },
       token: line.secret,
     });
     await env.client.call("channels.set", {
       id: "teams",
-      channel: { type: "teams", agent_id: "roby" },
+      channel: { type: "teams", agent_id: "superagent" },
       token: teams.secret,
     });
     await waitFor(

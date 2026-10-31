@@ -59,7 +59,7 @@ for (const kind of ["line", "teams"] as const) {
       await env.client.call("webhooks.set", { mode: "custom", url: "https://acme.example" });
       await env.client.call("channels.set", {
         id: kind,
-        channel: { type: kind, agent_id: "roby" },
+        channel: { type: kind, agent_id: "superagent" },
         token: kind === "line" ? line.secret : teams.secret,
       });
       await waitFor(

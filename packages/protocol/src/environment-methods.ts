@@ -37,6 +37,13 @@ export type ComputerScreen = z.infer<typeof ComputerScreen>;
 
 const Ok = z.object({ ok: z.literal(true) });
 
+/** A step the owner takes once on the computer's host before it can start, and the command for it when there is one. */
+export const ComputerNeed = z.object({
+  reason: z.enum(["qemu", "kvm_group", "kvm_missing", "wsl", "git", "wsl_mirrored"]),
+  command: z.string().optional(),
+});
+export type ComputerNeed = z.infer<typeof ComputerNeed>;
+
 /**
  * A start refused for want of free memory, the `detail` of its conflict: what is free, what the VM and the host's
  * reserve need, and the VM memory that would fit now when a smaller one would still run it.
@@ -72,6 +79,8 @@ export const environmentMethods = {
       downloaded: z.number().nonnegative().optional(),
       total: z.number().nonnegative().optional(),
       error: z.string().optional(),
+      /** What the owner still has to install or change on this host before the computer can start. */
+      needs: ComputerNeed.optional(),
       /** The chats that work on the computer. */
       chats: z.array(z.string()).optional(),
       /** Agents the owner allowed to use it, for good: the Computers view shows once there is one. */

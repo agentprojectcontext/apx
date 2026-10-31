@@ -27,7 +27,7 @@ test("multiple delegated reports remain separate cards and nested requests do no
     await env.client.call("setup.finish", {});
     await env.client.call("agents.create", { slug: "alpha", name: "Alpha" });
     await env.client.call("agents.create", { slug: "beta", name: "Beta" });
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await page.goto(`${env.core.url}/#thread=${chat.id}`);
     await env.client.call("threads.send", { thread: chat.id, text: "Consult both helpers" });
     await env.settle(chat.id);

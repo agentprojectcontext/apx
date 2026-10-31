@@ -8,6 +8,7 @@ import type { Store } from "../domain/store.ts";
 import { gitDiff, gitStatus } from "../engine/changes.ts";
 import { badRequest, conflict, notFound } from "../errors.ts";
 import { insideReal, real, writeAtomic } from "../paths.ts";
+import { videoPosters } from "../services/video-poster.ts";
 import { scratchDir, workDir } from "../tools/folders.ts";
 import { reportedDiff } from "./reported-diff.ts";
 import type { Handlers } from "./router.ts";
@@ -88,7 +89,12 @@ function readWhole(abs: string, rel: string, limit: number, tooBig: string): Buf
   }
 }
 
-export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
+export function fileHandlers(
+  store: Store,
+  desktop: DesktopOps,
+  home: string,
+  posters = videoPosters(path.join(home, "media", "posters")),
+) {
   /** The folder browsed: a project's, or a chat's (APX's work folder is made when first opened, as an agent would). */
   const baseOf = ({ project, base, thread, scratch }: Where) => {
     if (thread && scratch) {
@@ -233,6 +239,19 @@ export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
       if (!/\.(md|markdown|txt)$/i.test(abs)) throw badRequest("only .md, .markdown and .txt files open here");
       if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) throw notFound(`file ${rel}`);
       await desktop.open(abs);
+      return { ok: true as const };
+    },
+    "media.poster": async ({ media_id }) => {
+      const m = store.media.get(media_id);
+      if (!m) throw notFound(`media ${media_id}`);
+      if (!m.mime.startsWith("video/")) return {};
+      const jpg = await posters.of(m.id, m.path);
+      return jpg ? { data: jpg.toString("base64") } : {};
+    },
+    "media.reveal": async ({ media_id }) => {
+      const m = store.media.get(media_id);
+      if (!m || !fs.existsSync(m.path)) throw notFound(`media ${media_id}`);
+      await desktop.reveal(m.path);
       return { ok: true as const };
     },
     "documents.open": async ({ media_id }) => {

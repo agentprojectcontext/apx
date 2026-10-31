@@ -201,7 +201,7 @@ after(async () => {
 
 const lastSeen = () => String(llm.calls.at(-1)?.messages.at(-1)?.content);
 const thread = async () =>
-  (await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "shell" })).id;
+  (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "shell" })).id;
 
 test("a read-only command runs in the foreground and its output comes back marked untrusted", async () => {
   const t = await thread();
@@ -274,7 +274,7 @@ test("a walk over a whole disk is refused before the owner is asked", async () =
 });
 
 test("manual: a command that changes something waits for the owner", async () => {
-  await env.client.call("agents.update", { agent: "roby", autonomy: "manual" });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "manual" });
   try {
     const t = await thread();
     await env.client.call("threads.send", { thread: t, text: "touch please" });
@@ -287,7 +287,7 @@ test("manual: a command that changes something waits for the owner", async () =>
     await env.settle(t);
     assert.match(lastSeen(), /not run: the owner declined/);
   } finally {
-    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: null });
   }
 });
 
@@ -304,7 +304,7 @@ test("auto reads in a cwd outside its folders; manual, in a chat with no project
   await env.client.call("threads.send", { thread: t, text: "escape please" });
   await env.settle(t);
   assert.match(lastSeen(), /exit 0/);
-  await env.client.call("agents.update", { agent: "roby", autonomy: "manual" });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "manual" });
   try {
     await env.client.call("threads.send", { thread: t, text: "escape please" });
     const input: PendingInput | undefined = await inputOrEnd(env.client, t);
@@ -314,7 +314,7 @@ test("auto reads in a cwd outside its folders; manual, in a chat with no project
     await env.settle(t);
     assert.match(lastSeen(), /not run: the owner declined/);
   } finally {
-    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: null });
   }
 });
 
@@ -374,5 +374,5 @@ test("an agent's command says whose it is, so the apx CLI does not speak as the 
   const t = await thread();
   await env.client.call("threads.send", { thread: t, text: "whose please" });
   await env.settle(t);
-  assert.match(lastSeen(), /agent=roby/);
+  assert.match(lastSeen(), /agent=superagent/);
 });

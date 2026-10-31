@@ -127,7 +127,7 @@ test("canceling the turn closes its pending input as expired (a no)", async () =
 });
 
 test("ask_owner waits for the owner's words, which come back to the model", async () => {
-  const t = await newThread("roby");
+  const t = await newThread("superagent");
   await env.client.call("threads.send", { thread: t.id, text: "ask me something" });
   const [input] = await pendingOf(t.id);
   assert.equal(input?.kind, "question");
@@ -147,14 +147,14 @@ test("only the owner answers: an agent client is refused", async () => {
 });
 
 test("invalid arguments go back to the model as the tool's result, without running it", async () => {
-  const t = await newThread("roby");
+  const t = await newThread("superagent");
   await env.client.call("threads.send", { thread: t.id, text: "bad args" });
   await env.settle(t.id);
   assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /invalid arguments for show_widget: name/);
 });
 
 test("a big output reaches the model capped, with a ref read_output pages through", async () => {
-  const t = await newThread("roby");
+  const t = await newThread("superagent");
   await env.client.call("threads.send", { thread: t.id, text: "big output" });
   await env.settle(t.id);
   const seen = String(llm.calls.at(-1)?.messages.at(-1)?.content);

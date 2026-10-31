@@ -41,7 +41,7 @@ after(async () => {
 test("a delegate from a chat that asks, asks before writing; the owner's own code chat follows the agent's mode", async () => {
   const chat = await env.client.call("threads.create", {
     kind: "code",
-    agent_id: "roby",
+    agent_id: "superagent",
     project_id: project,
     write: "ask",
   });

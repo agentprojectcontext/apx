@@ -63,7 +63,7 @@ test("the owner's saves, an agent's draft and a restore each leave an entry; res
   assert.deepEqual(
     listed.entries.map((e) => [e.entry, e.kind, e.by, e.byName, e.steps]),
     [
-      [2, "draft", "roby", "Roby", 2],
+      [2, "draft", "superagent", "Roby", 2],
       [1, "published", null, null, 2],
     ],
   );
@@ -85,7 +85,7 @@ test("the owner's saves, an agent's draft and a restore each leave an entry; res
     confirm: true,
   });
   assert.equal(back.draft?.nodes[0]?.label, "Two");
-  assert.equal(back.draftBy, "roby");
+  assert.equal(back.draftBy, "superagent");
   assert.equal(back.publishedRevision, published.publishedRevision);
   const after = await c.call("flows.history", { flow });
   assert.deepEqual(
@@ -124,7 +124,7 @@ test("the super-agent reads versions and what one drew, and can't bring one back
   const refused = await h.env.core.dispatch(
     "flows.history_restore",
     { flow, entry: 1, expectedVersion: v, confirm: true },
-    as("roby"),
+    as("superagent"),
     "k-restore",
   );
   assert.ok(!refused.ok && /reserved to the owner/.test(refused.error.message));

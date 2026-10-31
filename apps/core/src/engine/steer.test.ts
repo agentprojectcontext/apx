@@ -19,7 +19,7 @@ after(async () => {
 });
 
 test("steer puts the owner's text into the running turn at its next step", async () => {
-  const t = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "steer" })).id;
+  const t = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "steer" })).id;
   const first = await env.client.call("threads.send", { thread: t, text: "work a bit" });
   for (let i = 0; i < 100; i++) {
     const r = await env.client.call("runs.get", { run: first.run.id });
@@ -35,7 +35,7 @@ test("steer puts the owner's text into the running turn at its next step", async
 });
 
 test("with nothing running, steer simply queues a normal turn", async () => {
-  const t = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "idle" })).id;
+  const t = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "idle" })).id;
   const s = await env.client.call("threads.send", { thread: t, text: "hello", mode: "steer" });
   assert.equal(s.steered, undefined);
   const { messages } = await env.settle(t);

@@ -73,6 +73,10 @@
 }
 .apx-menu__text {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .apx-menu__shortcut {
   font-size: var(--apx-text-xs);

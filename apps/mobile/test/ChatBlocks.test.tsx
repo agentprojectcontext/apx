@@ -14,7 +14,7 @@ const turn = {
   id: "msg_1",
   thread_id: "th_1",
   seq: 1,
-  author: { kind: "agent", id: "roby" },
+  author: { kind: "agent", id: "superagent" },
   created_at: "2026-10-21T15:00:00.000Z",
   delivery: "read",
   parts: [
@@ -35,9 +35,9 @@ test("an agent's turn shows its skills, the picture forming, the page and the ch
   const ui = await render(
     <ChatMessage
       message={turn}
-      agents={[{ id: "roby", name: "Roby" }]}
+      agents={[{ id: "superagent", name: "Roby" }]}
       runState="working"
-      thread={{ kind: "agent", agent_ids: ["roby"] }}
+      thread={{ kind: "agent", agent_ids: ["superagent"] }}
       respond={async () => {}}
     />,
   );

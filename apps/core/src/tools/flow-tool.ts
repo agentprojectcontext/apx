@@ -3,6 +3,7 @@
 // table method, step kind or field reaches agents here and in the apx-flows skill: rules/FLOWS.md#agents-reach-it.
 import type { Store } from "../domain/store.ts";
 import { FLOWS } from "./flow-tool-flows.ts";
+import { FLOW_PUBLISH } from "./flow-tool-publish.ts";
 import { TABLES } from "./flow-tool-tables.ts";
 import { areaTool } from "./settings.ts";
 import type { Setting } from "./settings-kit.ts";
@@ -11,7 +12,7 @@ import type { Tool } from "./types.ts";
 export const FLOW_TOOL = "apx_flow";
 
 /** What the super-agent may read and change in Flows and tables, by method. */
-export const FLOW_SETTINGS: Readonly<Record<string, Setting>> = { ...FLOWS, ...TABLES };
+export const FLOW_SETTINGS: Readonly<Record<string, Setting>> = { ...FLOWS, ...FLOW_PUBLISH, ...TABLES };
 
 /** The area a method belongs to, as its card's title names it ("Changed a Flow"). */
 const AREA: Readonly<Record<string, string>> = { flows: "a Flow", tables: "a table" };
@@ -27,7 +28,7 @@ export function flowTools(store: Store): Tool[] {
         areas: AREA,
         looked: "Looked at the Flows",
         elsewhere:
-          "Drafts save freely and run nothing; publishing, running by hand, tests and a Flow's address stay the owner's, in the Flows editor.",
+          "Drafts save freely and run nothing; publishing and running one by hand wait for the owner's OK. Tests and a Flow's address and key stay the owner's, in the Flows editor.",
       },
       { store, profiles: [], templates: [] },
     ),

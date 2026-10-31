@@ -21,7 +21,7 @@ test("task_update snapshots a readable file and a later session reads and shares
     fs.writeFileSync(original, "Evidence kept with the task");
     const task = await env.client.call("tasks.create", { title: "File evidence" });
     taskId = task.id;
-    const source = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const source = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: source.id, text: "add file" });
     await env.settle(source.id);
     const asset = (await env.client.call("tasks.get", { task: task.id })).attachments[0];
@@ -32,7 +32,7 @@ test("task_update snapshots a readable file and a later session reads and shares
     const target = env.core.store.threads.create({
       kind: "loose",
       title: "Task session",
-      agent_ids: ["roby"],
+      agent_ids: ["superagent"],
       task_id: task.id,
     });
     await env.client.call("threads.send", { thread: target.id, text: `read:${asset.media_id}` });

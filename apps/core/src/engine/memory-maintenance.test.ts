@@ -19,7 +19,7 @@ test("discarded owner messages keep scan checkpoints without creating empty capt
       auto_compact: false,
       auto_dream: false,
     });
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     for (const text of ["ok", "Buenas noches!!!", "Do not keep this password discussion."]) {
       await env.client.call("threads.send", { thread: thread.id, text });
       await env.settle(thread.id);
@@ -48,7 +48,7 @@ test("disabled capture keeps historical recall without queueing work and resumes
       auto_capture: false,
       auto_dream: false,
     });
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: thread.id, text: "Northwind archives use violet labels." });
     await env.settle(thread.id);
     const first = env.core.store.runs.list(thread.id, 1)[0];
@@ -100,7 +100,7 @@ test("work queued while a maintenance pass runs is picked up when that pass ends
       "I always prefer amber labels for Northwind invoices.",
       "I always prefer violet labels for Northwind archives.",
     ]) {
-      const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       await env.client.call("threads.send", { thread: thread.id, text });
       await env.settle(thread.id);
       await waitFor(() => extractions === 1);
@@ -144,9 +144,9 @@ test("episode, capture, dream and its timestamp roll back together before indexi
     },
   });
   const set = store.settings.set;
-  const dreamKey = "memory_dream:roby:";
+  const dreamKey = "memory_dream:superagent:";
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: thread.id, text: "Northwind archives use violet labels." });
     await env.settle(thread.id);
     const run = store.runs.list(thread.id, 1)[0];

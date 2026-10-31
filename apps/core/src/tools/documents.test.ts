@@ -25,7 +25,7 @@ after(async () => {
 });
 
 async function present(args: object) {
-  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Documents" });
+  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Documents" });
   await env.client.call("threads.send", { thread: thread.id, text: JSON.stringify(args) });
   const result = await env.settle(thread.id);
   assert.equal(result.runs[0]?.state, "completed");
@@ -33,7 +33,7 @@ async function present(args: object) {
 }
 
 test("file-capable agents can present a UTF-8 txt as Markdown without changing its name or contents", async () => {
-  const agent = env.core.store.agents.get("roby");
+  const agent = env.core.store.agents.get("superagent");
   assert.ok(agent);
   assert.ok(
     allowedTools({ ...agent, tools: ["files"] }, mediaTools(env.core.store, env.home)).some(

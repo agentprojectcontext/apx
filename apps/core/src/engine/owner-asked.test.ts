@@ -44,7 +44,7 @@ async function answerLate(thread: string): Promise<void> {
 }
 
 test("the owner's answer to a question another agent's request raised does not let it change their settings", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Laundered" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Laundered" });
   const agent = new ApxClient({ url: env.core.url, actor: "agent" });
   await agent.call("threads.send", { thread: t.id, text: "check with the owner, then change her note" });
   await answerLate(t.id);
@@ -57,7 +57,7 @@ test("the owner's answer to a question another agent's request raised does not l
 });
 
 test("the owner's answer to a question in their own request still lets the change reach their card", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Own" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Own" });
   await env.client.call("threads.send", { thread: t.id, text: "check with the owner, then change her note" });
   await answerLate(t.id);
   const [card] = (await pendingIn(t.id)).filter((i) => i.kind === "confirm");

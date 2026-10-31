@@ -23,7 +23,7 @@ const graphs: FlowGraph[] = [
         id: "agent",
         kind: "agent",
         label: "Agent",
-        agent: "roby",
+        agent: "superagent",
         prompt: "Process",
         input: { kind: "event", path: [] },
       },

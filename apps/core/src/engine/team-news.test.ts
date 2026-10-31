@@ -49,7 +49,7 @@ test("another agent's news goes to the owner as before until a relay routine run
 
   const relay = await env.client.call("routines.set", {
     name: "Team news",
-    agent: "roby",
+    agent: "superagent",
     action: "relay",
     schedule: { kind: "manual" },
     prompt: "Tell the owner what the team had, or SKIP.",
@@ -59,7 +59,7 @@ test("another agent's news goes to the owner as before until a relay routine run
   // The super-agent's own routines still speak for themselves.
   const brief = await env.client.call("routines.set", {
     name: "Brief",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "manual" },
     prompt: "brief me",
   });

@@ -28,11 +28,11 @@ test("task consult replies arrive as traced events, survive reload and do not tu
   });
   try {
     await env.client.call("setup.finish", {});
-    await env.client.call("agents.update", { agent: "roby", name: "Holder" });
+    await env.client.call("agents.update", { agent: "superagent", name: "Holder" });
     const helper = await env.client.call("agents.create", { slug: "helper", name: "Helper" });
     const created = await env.client.call("tasks.create", { title: "Check the launch" });
     task = created.id;
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await page.goto(`${env.core.url}/#thread=${chat.id}`);
     await env.client.call("threads.send", { thread: chat.id, text: "Ask for a review" });
     await env.settle(chat.id);
@@ -54,7 +54,7 @@ test("task consult replies arrive as traced events, survive reload and do not tu
     await expect(event.locator("summary")).toContainText("Respuesta de Helper");
     await expect(event).toContainText("Consult evidence: tests passed.");
     const loaded = await env.client.call("threads.get", { thread: chat.id });
-    expect(loaded.thread.agent_ids).toEqual(["roby"]);
+    expect(loaded.thread.agent_ids).toEqual(["superagent"]);
     const response = loaded.messages.flatMap((m) =>
       m.parts.flatMap((p) => (p.type === "text" && p.response ? [p.response] : [])),
     )[0];
@@ -86,10 +86,10 @@ test("task consult replies arrive as traced events, survive reload and do not tu
       const group = env.core.store.threads.create({
         kind,
         title: `Team ${kind}`,
-        agent_ids: ["roby", helper.id],
+        agent_ids: ["superagent", helper.id],
         ...(kind === "a2a" ? { parent_id: chat.id } : {}),
       });
-      for (const id of ["roby", helper.id])
+      for (const id of ["superagent", helper.id])
         env.core.store.messages.add({
           thread_id: group.id,
           author: { kind: "agent", id },
@@ -134,7 +134,7 @@ for (const outcome of ["empty", "failed", "step_limit"] as const) {
       await env.client.call("agents.create", { slug: "helper", name: "Helper" });
       const created = await env.client.call("tasks.create", { title: "Check the outcome" });
       task = created.id;
-      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       await page.goto(`${env.core.url}/#thread=${chat.id}`);
       await env.client.call("threads.send", { thread: chat.id, text: "Check the outcome" });
       const event = page.locator(".transcript__agent-event");

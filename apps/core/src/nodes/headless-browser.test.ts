@@ -99,7 +99,7 @@ test("CDP input and output pipe errors reject work and stop Chrome without an un
       onChange: () => {},
     });
     try {
-      const opening = isolated.handle("browser.open", { url: "https://example.com", by: "roby" });
+      const opening = isolated.handle("browser.open", { url: "https://example.com", by: "superagent" });
       (stream === "input" ? input : output).emit("error", new Error("ECONNRESET"));
       await assert.rejects(opening, /ECONNRESET/);
       assert.equal(isolated.running(), false);
@@ -116,7 +116,7 @@ test("CDP input and output pipe errors reject work and stop Chrome without an un
 
 test("with no desktop app the core drives its own headless Chrome: open, read, click, type; never a password", async (t) => {
   assert.ok(browser.available());
-  const tab = (await browser.handle("browser.open", { url: `${base}/`, by: "roby" }).catch((error) => {
+  const tab = (await browser.handle("browser.open", { url: `${base}/`, by: "superagent" }).catch((error) => {
     t.diagnostic(`Browser executable: ${chrome}`);
     t.diagnostic(chromeStderr || "No browser stderr");
     throw error;
@@ -124,7 +124,7 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
   const snap = (await browser.handle("browser.snapshot", { tab: tab.tab })) as { tree: string; document: string };
   const evaluated = (await browser.handle("browser.evaluate", {
     tab: tab.tab,
-    by: "roby",
+    by: "superagent",
     script: "Promise.resolve({title: document.title, path: location.pathname})",
     origin: base,
     document: snap.document,
@@ -134,7 +134,7 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
   await assert.rejects(
     browser.handle("browser.evaluate", {
       tab: tab.tab,
-      by: "roby",
+      by: "superagent",
       origin: "https://northwind.example",
       document: snap.document,
       script: "document.title = 'wrong'",
@@ -144,7 +144,7 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
   await assert.rejects(
     browser.handle("browser.evaluate", {
       tab: tab.tab,
-      by: "roby",
+      by: "superagent",
       script: "(() => { throw new Error('expected failure') })()",
       origin: base,
       document: snap.document,
@@ -158,17 +158,19 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
   const search = /textbox "Search" \[(e\d+)\]/.exec(snap.tree)?.[1];
   const password = /textbox "Password" \[(e\d+)\]/.exec(snap.tree)?.[1];
   assert.ok(link && search && password, snap.tree);
-  await browser.handle("browser.type", { tab: tab.tab, ref: search, text: "plans", by: "roby" });
+  await browser.handle("browser.type", { tab: tab.tab, ref: search, text: "plans", by: "superagent" });
   await assert.rejects(
-    browser.handle("browser.type", { tab: tab.tab, ref: password, text: "x", by: "roby" }),
+    browser.handle("browser.type", { tab: tab.tab, ref: password, text: "x", by: "superagent" }),
     /password/,
   );
-  const clicked = (await browser.handle("browser.click", { tab: tab.tab, ref: link, by: "roby" })) as { url: string };
+  const clicked = (await browser.handle("browser.click", { tab: tab.tab, ref: link, by: "superagent" })) as {
+    url: string;
+  };
   assert.equal(clicked.url, `${base}/prices`);
   await assert.rejects(
     browser.handle("browser.evaluate", {
       tab: tab.tab,
-      by: "roby",
+      by: "superagent",
       origin: base,
       document: snap.document,
       script: "document.title = 'wrong'",
@@ -178,14 +180,14 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
   const text = (await browser.handle("browser.text", { tab: tab.tab })) as { text: string };
   assert.match(text.text, /From 10 a month/);
   await assert.rejects(
-    browser.handle("browser.handoff", { tab: tab.tab, reason: "log in", by: "roby" }),
+    browser.handle("browser.handoff", { tab: tab.tab, reason: "log in", by: "superagent" }),
     /nobody can take over/,
   );
   await assert.rejects(
-    browser.handle("browser.navigate", { tab: tab.tab, url: `http://127.0.0.1:${apxPort}/`, by: "roby" }),
+    browser.handle("browser.navigate", { tab: tab.tab, url: `http://127.0.0.1:${apxPort}/`, by: "superagent" }),
     /APX itself/,
   );
-  await browser.handle("browser.navigate", { tab: tab.tab, url: `${base}/to-apx`, by: "roby" });
+  await browser.handle("browser.navigate", { tab: tab.tab, url: `${base}/to-apx`, by: "superagent" });
   const after = (await browser.handle("browser.text", { tab: tab.tab })) as { text: string };
   assert.doesNotMatch(after.text, /^APX$/, "a redirect to APX is blocked too");
   assert.ok(seen.length > 0, "tab changes reach the panel");
@@ -270,7 +272,7 @@ test("a remote browser transport failure kills its process and never launches ho
     onChange: () => {},
   });
   try {
-    const work = remote.handle("browser.open", { url: "https://example.com", by: "roby" });
+    const work = remote.handle("browser.open", { url: "https://example.com", by: "superagent" });
     child.emit("error", new Error("SSH guest unavailable"));
     await assert.rejects(work, /SSH guest unavailable/);
     assert.equal(killed, true);

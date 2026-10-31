@@ -21,7 +21,11 @@ test("a bubble copies, forks the chat from it and says when there is no voice to
     );
   await switchVoices(false);
   try {
-    const t = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Acme plan" });
+    const t = await rpc<{ id: string }>("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      title: "Acme plan",
+    });
     await open(page, `#view=inbox&thread=${t.id}`);
     const main = page.getByRole("main");
     const box = page.getByRole("textbox", { name: /^Escribile a/ });

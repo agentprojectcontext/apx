@@ -22,10 +22,10 @@ const index: MemoryIndex = {
 
 async function setup() {
   const env = await startCore({ llm: scriptedLlm(() => say("Understood")) });
-  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: other.id, text: "Ready" });
   await env.settle(other.id);
-  const source = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const source = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: source.id, text: "Ready" });
   const initial = await env.settle(source.id);
   const answer = initial.messages.find((message) => message.author.kind === "agent");
@@ -46,7 +46,7 @@ async function setup() {
     role: "operator",
     session: undefined,
     log: createLog("test", true),
-    agent: { id: "roby", thread_id: source.id, run_id: sent.run.id },
+    agent: { id: "superagent", thread_id: source.id, run_id: sent.run.id },
     memoryReviewed: [memoryClaimKey(fact, evidence)],
   };
   const params = { scope: "agent" as const, text: fact, kind: "user" as const, evidence, tainted: false };
@@ -58,7 +58,7 @@ test("recertification updates provenance and cannot cross a prior fork boundary"
   try {
     const original = env.core.store.memories.add({
       scope: "agent",
-      agent_id: "roby",
+      agent_id: "superagent",
       source: "agent",
       thread_id: other.id,
       run_id: env.core.store.runs.list(other.id)[0]?.id,
@@ -86,7 +86,7 @@ test("a reviewed claim cannot certify a target outside its private notebook", as
       { scope: "global" as const },
       { scope: "project" as const },
       { scope: "agent" as const, agent_id: "scout" },
-      { scope: "agent" as const, agent_id: "roby", source: "owner" as const },
+      { scope: "agent" as const, agent_id: "superagent", source: "owner" as const },
     ]) {
       const note = env.core.store.memories.add({ source: "agent", text: fact, ...target });
       assert.throws(() => handler["memory.add"]({ ...params, id: note.id }, ctx));
@@ -96,7 +96,7 @@ test("a reviewed claim cannot certify a target outside its private notebook", as
     const { project } = await env.client.call("projects.register", { path: env.home, init: true });
     const note = env.core.store.memories.add({
       scope: "agent",
-      agent_id: "roby",
+      agent_id: "superagent",
       project_id: project.id,
       source: "agent",
       text: fact,
@@ -113,7 +113,7 @@ for (const action of ["edit", "forget"] as const)
   test(`recertification rejects a target changed by ${action} after selection`, async () => {
     const { env, ctx, params, handler } = await setup();
     try {
-      const note = env.core.store.memories.add({ scope: "agent", agent_id: "roby", source: "agent", text: fact });
+      const note = env.core.store.memories.add({ scope: "agent", agent_id: "superagent", source: "agent", text: fact });
       if (action === "edit")
         env.core.store.memories.edit(note.id, "I always prefer AMBAR for internal reports.", {
           tainted: false,
@@ -132,17 +132,22 @@ for (const action of ["edit", "forget"] as const)
 test("other project notes cannot crowd out a repairable personal note", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("Understood")) });
   try {
-    const personal = env.core.store.memories.add({ scope: "agent", agent_id: "roby", source: "agent", text: fact });
+    const personal = env.core.store.memories.add({
+      scope: "agent",
+      agent_id: "superagent",
+      source: "agent",
+      text: fact,
+    });
     const { project } = await env.client.call("projects.register", { path: env.home, init: true });
     for (let i = 0; i < 501; i++)
       env.core.store.memories.add({
         scope: "agent",
-        agent_id: "roby",
+        agent_id: "superagent",
         project_id: project.id,
         source: "agent",
         text: `Unrelated fixture ${i}`,
       });
-    const notes = captureNotebook(env.core.store, { agent_id: "roby", project_id: null });
+    const notes = captureNotebook(env.core.store, { agent_id: "superagent", project_id: null });
     assert.deepEqual(
       notes.map((note) => note.id),
       [personal.id],
@@ -158,7 +163,7 @@ test("a direct remember edit also updates its origin before any auxiliary captur
   try {
     const note = env.core.store.memories.add({
       scope: "agent",
-      agent_id: "roby",
+      agent_id: "superagent",
       source: "agent",
       thread_id: other.id,
       text: "I always prefer CUARZO for internal reports.",
@@ -183,7 +188,7 @@ test("an ineligible worker edit cannot replace a note's fork boundary with its o
   try {
     const note = env.core.store.memories.add({
       scope: "agent",
-      agent_id: "roby",
+      agent_id: "superagent",
       source: "agent",
       thread_id: source.id,
       run_id: ctx.agent?.run_id,
@@ -192,7 +197,7 @@ test("an ineligible worker edit cannot replace a note's fork boundary with its o
     const worker = env.core.store.threads.create({
       kind: "a2a",
       title: "Worker",
-      agent_ids: ["roby"],
+      agent_ids: ["superagent"],
       parent_id: source.id,
     });
     env.core.store.threads.mergeContext(worker.id, { worker: { name: "Helper", instructions: "Update the report" } });
@@ -203,7 +208,7 @@ test("an ineligible worker edit cannot replace a note's fork boundary with its o
       {
         ...ctx,
         memoryReviewed: undefined,
-        agent: { id: "roby", thread_id: worker.id, run_id: sent.run.id },
+        agent: { id: "superagent", thread_id: worker.id, run_id: sent.run.id },
       },
     );
     assert.equal(saved.thread_id, source.id);

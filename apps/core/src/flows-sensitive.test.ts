@@ -25,7 +25,7 @@ test("nested credential fields and known credential shapes are removed before st
       enabled: true,
       predicates: [],
       tableKey: "latest",
-      action: { kind: "agent", agent: "roby", prompt: "Summarize event" },
+      action: { kind: "agent", agent: "superagent", prompt: "Summarize event" },
     });
     env.core.store.flows.receive("redacted", "one", payload);
     assert.deepEqual(env.core.store.flows.rows("redacted", 10)[0]?.value, {

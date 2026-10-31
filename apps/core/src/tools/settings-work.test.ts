@@ -92,13 +92,13 @@ test("widgets: deleting one for good waits for the owner", async () => {
     name: "acme-board",
     title: "Acme board",
     html: "<p>a</p>",
-    created_by: "roby",
+    created_by: "superagent",
   });
   const drop = h.env.core.store.surfaces.upsert({
     name: "acme-old",
     title: "Acme old",
     html: "<p>b</p>",
-    created_by: "roby",
+    created_by: "superagent",
   });
   await h.ask({ method: "surfaces.remove", params: { surface: keep.id } }, "deny");
   const { detail } = await h.ask({ method: "surfaces.remove", params: { surface: drop.id } }, "approve");

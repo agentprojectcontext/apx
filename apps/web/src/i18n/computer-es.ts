@@ -19,6 +19,21 @@ export const esComputer: Record<ComputerKey, string> = {
   "computer.start": "Encender VM",
   "computer.enable": "Activar computadora",
   "computer.enableTitle": "Una computadora Linux para tus agentes",
+  "computer.needs.title": "Falta un paso en este equipo",
+  "computer.needs.qemu":
+    "La computadora arma su máquina Linux con QEMU. Instalalo una vez en este equipo, desde una terminal:",
+  "computer.needs.qemuAny":
+    "La computadora arma su máquina Linux con QEMU. Instalá QEMU y qemu-img una vez en este equipo con el gestor de paquetes de tu distribución.",
+  "computer.needs.kvm_group":
+    "Tu usuario necesita permiso para usar la virtualización de este equipo. Corré esto en una terminal y después cerrá sesión y volvé a entrar:",
+  "computer.needs.kvm_missing":
+    "Este equipo tiene la virtualización apagada. Activala en la configuración del firmware (BIOS o UEFI), o usá un servidor que la tenga.",
+  "computer.needs.wsl":
+    "La computadora corre sobre WSL 2. Instalalo en PowerShell como administrador y después reiniciá Windows:",
+  "computer.needs.git": "La computadora necesita Git para Windows. Instalalo en PowerShell:",
+  "computer.needs.wsl_mirrored":
+    "WSL usa la red «mirrored», que compartiría el localhost de este equipo con la computadora. Quitá networkingMode=mirrored de .wslconfig y después corré:",
+  "computer.needs.retry": "Listo, probar de nuevo",
   "computer.retry": "Reintentar preparación",
   "computer.preparing": "Preparando computadora…",
   "computer.stopping": "Apagando VM…",

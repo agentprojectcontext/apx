@@ -60,7 +60,7 @@ before(async () => {
   });
   await env.client.call("channels.set", {
     id: "sl",
-    channel: { type: "slack", agent_id: "roby" },
+    channel: { type: "slack", agent_id: "superagent" },
     token: `${TOKENS.app} ${TOKENS.bot}`,
   });
   await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");

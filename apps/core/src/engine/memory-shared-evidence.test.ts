@@ -67,7 +67,7 @@ for (const sharedContext of [false, true])
     };
     try {
       await env.client.call("memory.set_settings", { mode: "notes", auto_dream: false, auto_compact: false });
-      const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       await env.client.call("threads.send", { thread: thread.id, text: first });
       await env.settle(thread.id);
       await settle();

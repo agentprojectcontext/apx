@@ -70,7 +70,7 @@ before(async () => {
   });
   await env.client.call("channels.set", {
     id: "teams",
-    channel: { type: "teams", agent_id: "roby" },
+    channel: { type: "teams", agent_id: "superagent" },
     token: "example-token",
   });
   port = (await env.client.call("webhooks.get", {})).port;
@@ -293,7 +293,7 @@ test("a Teams group chat's long id can be listed as a room", async () => {
   const id = `19:${"a".repeat(36)}_${"b".repeat(36)}@unq.gbl.spaces`;
   const list = await env.client.call("channels.set", {
     id: "teams",
-    channel: { type: "teams", agent_id: "roby", rooms: { rooms: [{ id, name: "Acme team", mode: "mention" }] } },
+    channel: { type: "teams", agent_id: "superagent", rooms: { rooms: [{ id, name: "Acme team", mode: "mention" }] } },
   });
   assert.equal(list.channels.find((c) => c.id === "teams")?.rooms?.rooms[0]?.id, id);
 });

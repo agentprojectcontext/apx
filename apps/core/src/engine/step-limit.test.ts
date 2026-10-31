@@ -47,7 +47,7 @@ after(async () => {
 });
 
 async function send(text: string) {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: text });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: text });
   await env.client.call("threads.send", { thread: t.id, text });
   return { id: t.id, ...(await env.settle(t.id, 15_000)) };
 }
@@ -65,7 +65,7 @@ test("a turn that ran out of steps is stored as such, and its chat says it is no
   const notice = parts.find((p) => p.type === "notice" && p.code === "run.stepLimit");
   assert.equal(notice?.type === "notice" && notice.level, "warn");
   // The same run read by id says so too.
-  const { runs } = await env.client.call("runs.list", { agent: "roby", limit: 50 });
+  const { runs } = await env.client.call("runs.list", { agent: "superagent", limit: 50 });
   assert.equal(runs.find((r) => r.id === run?.id)?.end_reason, "step_limit");
 });
 
@@ -86,7 +86,7 @@ test("a caller waiting on a delegate that ran out of steps reads progress, not a
 });
 
 test("a delegate's late result carries its end reason, and the caller's framing says it is not the result", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "late" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "late" });
   await env.client.call("threads.send", { thread: t.id, text: "ask the looper slowly" });
   const until = Date.now() + 15_000;
   let got = await env.client.call("threads.get", { thread: t.id });

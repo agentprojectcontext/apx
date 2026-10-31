@@ -42,7 +42,7 @@ test("edit replaces the schedule and commands when they are given", () => {
 
 const weather = { ...routine, id: "rtn_w", name: "weather-acme", project_id: undefined } as Routine;
 const twinA = { ...routine, id: "rtn_a", name: "digest", project_id: "p_acme" } as Routine;
-const twinB = { ...routine, id: "rtn_b", name: "digest", agent_id: "roby", project_id: "p_north" } as Routine;
+const twinB = { ...routine, id: "rtn_b", name: "digest", agent_id: "superagent", project_id: "p_north" } as Routine;
 const all = [routine, weather, twinA, twinB];
 
 test("a routine is found by id, by name and by name in any case", () => {

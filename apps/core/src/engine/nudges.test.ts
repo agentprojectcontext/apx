@@ -100,7 +100,7 @@ test("the log lists what was meant, newest first, with what became of it", async
 test("a routine is made an anchor, and keeps it when changed without saying", async () => {
   const r = await env.client.call("routines.set", {
     name: "Morning brief",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "manual" },
     prompt: "Brief me",
     anchor: true,
@@ -110,7 +110,7 @@ test("a routine is made an anchor, and keeps it when changed without saying", as
   const again = await env.client.call("routines.set", {
     id: r.id,
     name: "Morning brief",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "manual" },
     prompt: "Brief me, shorter",
     enabled: false,

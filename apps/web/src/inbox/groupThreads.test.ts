@@ -19,7 +19,7 @@ const thread = (id: string, extra: Partial<Thread> = {}): Thread =>
     id,
     kind: "loose",
     title: id,
-    agent_ids: ["roby"],
+    agent_ids: ["superagent"],
     state: "completed",
     preview: "",
     unread: 0,
@@ -40,7 +40,7 @@ test("a Claude Code or Codex session sits under its engine, not under the agent 
   );
   const branches = trees[0]?.agents.map((b) => [b.agentId, b.engine, b.threads.map((t) => t.id)]);
   assert.deepEqual(branches, [
-    ["roby", undefined, ["ccc", "a"]],
+    ["superagent", undefined, ["ccc", "a"]],
     ["engine:codex", "codex", ["bb"]],
   ]);
 });
@@ -62,7 +62,7 @@ test("channel conversations keep their own tree identity instead of nesting unde
       ["task:task-example", false, ["dddd"]],
       ["channel:ccc", true, ["ccc"]],
       ["channel:bb", true, ["bb"]],
-      ["roby", false, ["a"]],
+      ["superagent", false, ["a"]],
     ],
   );
 });
@@ -83,7 +83,7 @@ test("a pinned chat tops its agent's branch and its project group, without reord
   };
   const branches = groupByAgent(threads, [], {})[0]?.agents.map((b) => [b.agentId, b.threads.map((t) => t.id)]);
   assert.deepEqual(branches, [
-    ["roby", ["a", "ccc"]],
+    ["superagent", ["a", "ccc"]],
     ["vera", ["bb"]],
   ]);
   assert.deepEqual(
@@ -147,7 +147,7 @@ test("a task's chats hang under the task in the tree, whoever works them, and ar
   assert.deepEqual(
     trees[0]?.agents.map((b) => [b.agentId, b.task, b.threads.map((t) => t.id)]),
     [
-      ["roby", undefined, ["ccc"]],
+      ["superagent", undefined, ["ccc"]],
       ["task:task_1", "task_1", ["bb", "a"]],
     ],
   );

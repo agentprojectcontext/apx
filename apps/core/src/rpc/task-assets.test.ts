@@ -10,7 +10,11 @@ const upload = (name = "screen.png") => ({ name, mime: "image/png", data: png.to
 test("selected task snapshots survive source chat deletion, pagination and restart; retries deduplicate", async () => {
   let env = await startCore({ llm: scriptedLlm(() => say("Done")) });
   try {
-    const source = await env.client.call("threads.create", { kind: "loose", title: "Evidence chat", agent_id: "roby" });
+    const source = await env.client.call("threads.create", {
+      kind: "loose",
+      title: "Evidence chat",
+      agent_id: "superagent",
+    });
     const { media } = await env.client.call("media.upload", { ...upload(), thread: source.id });
     const task = await env.client.call("tasks.create", {
       title: "Review screenshot",
@@ -177,19 +181,19 @@ test("live agents reuse readable media but cannot export contact, client or fore
       kind: "loose",
       title: "Evidence chat",
       project_id: "northwind",
-      agent_ids: ["roby"],
+      agent_ids: ["superagent"],
     });
     const contact = store.persons.create({ name: "Contact", role: "contact" });
     const sealed = store.threads.create({
       kind: "loose",
       title: "Evidence chat",
-      agent_ids: ["roby"],
+      agent_ids: ["superagent"],
       channel: { id: "telegram", conversation: "contact", person_id: contact.id },
     });
-    const client = store.threads.create({ kind: "loose", title: "Evidence chat", agent_ids: ["roby"] });
+    const client = store.threads.create({ kind: "loose", title: "Evidence chat", agent_ids: ["superagent"] });
     store.threads.mergeContext(client.id, { client: "outside" });
-    const robyChat = store.threads.create({ kind: "loose", title: "Evidence chat", agent_ids: ["roby"] });
-    const superCtx = context("roby", robyChat.id);
+    const robyChat = store.threads.create({ kind: "loose", title: "Evidence chat", agent_ids: ["superagent"] });
+    const superCtx = context("superagent", robyChat.id);
     for (const thread of [foreign, sealed, client]) {
       const m = (await env.client.call("media.upload", { ...upload(), thread: thread.id })).media;
       for (const caller of thread === foreign ? [ctx] : [ctx, superCtx]) {
@@ -249,8 +253,12 @@ test("task tools preserve the selected screenshot and later inspect it without o
   });
   const env = await startCore({ llm });
   try {
-    await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
-    const source = await env.client.call("threads.create", { kind: "loose", title: "Evidence chat", agent_id: "roby" });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
+    const source = await env.client.call("threads.create", {
+      kind: "loose",
+      title: "Evidence chat",
+      agent_id: "superagent",
+    });
     selected = (await env.client.call("media.upload", { ...upload(), thread: source.id })).media.id;
     env.core.store.messages.add({
       thread_id: source.id,
@@ -266,7 +274,7 @@ test("task tools preserve the selected screenshot and later inspect it without o
     const session = env.core.store.threads.create({
       kind: "loose",
       title: "Evidence chat",
-      agent_ids: ["roby"],
+      agent_ids: ["superagent"],
       task_id: task.id,
     });
     await env.client.call("threads.send", { thread: session.id, text: `read:${asset.media_id}` });

@@ -124,7 +124,8 @@ test("in the base project the super-agent is on top and a global agent can repor
   await autonomy.click();
   await page.getByRole("menuitem", { name: "Total: no pregunta nada" }).click();
   await expect(autonomy).toHaveText("Total: no pregunta nada");
-  const own = async () => (await rpc<{ agent: { autonomy?: string } }>("agents.get", { agent: "roby" })).agent.autonomy;
+  const own = async () =>
+    (await rpc<{ agent: { autonomy?: string } }>("agents.get", { agent: "superagent" })).agent.autonomy;
   expect(await own()).toBe("total");
   await autonomy.click();
   await page.getByRole("menuitem", { name: fromProject }).click();

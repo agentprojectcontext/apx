@@ -38,11 +38,11 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
     const work = path.join(env.home, "work");
     fs.mkdirSync(path.join(work, "src"), { recursive: true });
     fs.writeFileSync(path.join(work, "src", "app.ts"), 'const status = "Old";\n');
-    await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
     await env.client.call("setup.finish", {});
     const thread = await env.client.call("threads.create", {
       kind: "loose",
-      agent_id: "roby",
+      agent_id: "superagent",
       title: "Revisar archivos",
     });
     await page.goto(`${env.core.url}/#thread=${thread.id}&panel=changes`);
@@ -83,7 +83,7 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
     await expect(guide.locator(".diff__line--add")).toContainText(["# Guía", "", "Final"]);
     const legacy = env.core.store.messages.add({
       thread_id: thread.id,
-      author: { kind: "agent", id: "roby" },
+      author: { kind: "agent", id: "superagent" },
       parts: [
         { type: "changes", cwd: work, edits: true, files: [{ path: "src/app.ts", status: "M", added: 1, removed: 1 }] },
       ],
@@ -129,7 +129,11 @@ test("cambios: los archivos de la carpeta temporal se listan aparte, con su diff
   const env = await startCore({ port, llm });
   try {
     await env.client.call("setup.finish", {});
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Borrador" });
+    const thread = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      title: "Borrador",
+    });
     await page.goto(`${env.core.url}/#thread=${thread.id}&panel=changes`);
     await page.getByRole("textbox", { name: /^Escribile a/ }).fill("draft");
     await page.getByRole("button", { name: "Enviar", exact: true }).click();

@@ -8,7 +8,7 @@ test("team news adopts an existing scheduled record without losing its prompt or
   try {
     const old = await env.client.call("routines.set", {
       name: "Custom team news",
-      agent: "roby",
+      agent: "superagent",
       action: "relay",
       schedule: { kind: "every", minutes: 30 },
       prompt: "Only news that needs a decision",

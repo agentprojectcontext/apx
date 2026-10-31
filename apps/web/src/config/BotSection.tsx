@@ -1,4 +1,5 @@
 import type { ChannelInfo } from "@apx/protocol";
+import { SUPER_AGENT_ID } from "@apx/protocol/client";
 import { Badge, Button, Icons, Input, SettingRow, Switch, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
@@ -236,7 +237,7 @@ function Setup({ kind }: { kind: BotKind }) {
   const agents = useData((s) => s.agents);
   const secretary = Object.values(agents).find((a) => a.kind === "secretary");
   const tokens = useTokens(kind);
-  const [agent, setAgent] = useState(secretary?.id ?? "roby");
+  const [agent, setAgent] = useState(secretary?.id ?? SUPER_AGENT_ID);
   const [busy, setBusy] = useState(false);
   const connect = async () => {
     setBusy(true);

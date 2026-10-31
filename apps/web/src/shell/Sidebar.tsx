@@ -11,11 +11,12 @@ import { AppsDock, CornerCards, DesktopInstallNotice } from "../lazy.ts";
 import { AccountRow } from "./AccountRow.tsx";
 import { ChannelsNav } from "./ChannelsNav.tsx";
 import { ExternalSessionsNav } from "./ExternalSessionsNav.tsx";
+import { HelpMenu } from "./HelpMenu.tsx";
 import { LAYOUT } from "./layout.ts";
 import { go, useNav } from "./nav.ts";
 import { ProjectsNav } from "./ProjectsNav.tsx";
 
-/** Inbox · Tasks · Flows · Resources (pinned) · Channels · Projects · External sessions · Apps · account (with Settings). `rail` = 60px icons. */
+/** Inbox · Tasks · Flows · Resources · Files (pinned) · Channels · Projects · External sessions · Apps · account (with Settings). `rail` = 60px icons. */
 export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
   const t = useT();
   const view = useNav((s) => s.view);
@@ -89,6 +90,13 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
           active={view === "resources"}
           onClick={() => go.view("resources")}
         />
+        <NavItem
+          collapsed={rail}
+          icon={<Icons.Paperclip />}
+          label={t("nav.files")}
+          active={view === "files"}
+          onClick={() => go.view("files")}
+        />
         {computers && (
           <NavItem
             collapsed={rail}
@@ -122,6 +130,7 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
         </Suspense>
       )}
       <div className="sidebar__foot">
+        <HelpMenu rail={rail} />
         <AccountRow rail={rail} />
       </div>
     </aside>

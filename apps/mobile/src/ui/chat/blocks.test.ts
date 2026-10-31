@@ -55,12 +55,12 @@ const message = (author: Message["author"], parts: Part[]) =>
   ({ id: "m", thread_id: "t", seq: 1, author, parts, created_at: "" }) as Message;
 
 test("another agent's message in the owner's chat is an event; the chat's own agent is not", () => {
-  const chat = { kind: "agent", agent_ids: ["roby"] };
+  const chat = { kind: "agent", agent_ids: ["superagent"] };
   const text = { type: "text", text: "hi" } as Part;
   assert.equal(isAgentEvent(chat, message({ kind: "agent", id: "cody" }, [text])), true);
-  assert.equal(isAgentEvent(chat, message({ kind: "agent", id: "roby" }, [text])), false);
+  assert.equal(isAgentEvent(chat, message({ kind: "agent", id: "superagent" }, [text])), false);
   assert.equal(
-    isAgentEvent({ kind: "group", agent_ids: ["roby"] }, message({ kind: "agent", id: "cody" }, [text])),
+    isAgentEvent({ kind: "group", agent_ids: ["superagent"] }, message({ kind: "agent", id: "cody" }, [text])),
     false,
   );
 });

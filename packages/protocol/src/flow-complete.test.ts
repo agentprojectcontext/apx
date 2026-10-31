@@ -82,7 +82,7 @@ const COMPLETE: FlowNode[] = [
     maxOutputTokens: 64,
     timeoutMs: 5000,
   },
-  { id: "ai", label: "AI", kind: "agent", agent: "roby", prompt: "Answer", input },
+  { id: "ai", label: "AI", kind: "agent", agent: "superagent", prompt: "Answer", input },
   { id: "bot", label: "Bot", kind: "agent", bot: { name: "Helper", system: "Be brief" }, prompt: "Answer", input },
   { id: "rt", label: "Routine", kind: "routine", routine: "daily", input },
   {

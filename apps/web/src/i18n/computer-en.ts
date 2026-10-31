@@ -19,6 +19,20 @@ export const enComputer = {
   "computer.start": "Start VM",
   "computer.enable": "Enable computer",
   "computer.enableTitle": "A Linux computer for your agents",
+  "computer.needs.title": "One step left on this machine",
+  "computer.needs.qemu":
+    "The computer builds its Linux machine with QEMU. Install it once on this machine, in a terminal:",
+  "computer.needs.qemuAny":
+    "The computer builds its Linux machine with QEMU. Install QEMU and qemu-img once on this machine with your distribution's package manager.",
+  "computer.needs.kvm_group":
+    "Your user needs permission to use this machine's virtualization. Run this in a terminal, then sign out and back in:",
+  "computer.needs.kvm_missing":
+    "Virtualization is off on this machine. Turn it on in its firmware settings (BIOS or UEFI), or use a server that offers it.",
+  "computer.needs.wsl": "The computer runs on WSL 2. Install it in PowerShell as administrator, then restart Windows:",
+  "computer.needs.git": "The computer needs Git for Windows. Install it in PowerShell:",
+  "computer.needs.wsl_mirrored":
+    "WSL uses mirrored networking, which would share this machine's localhost with the computer. Remove networkingMode=mirrored from .wslconfig, then run:",
+  "computer.needs.retry": "Done, try again",
   "computer.retry": "Retry setup",
   "computer.preparing": "Preparing computer…",
   "computer.stopping": "Shutting down VM…",

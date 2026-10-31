@@ -1,0 +1,22 @@
+---
+// The home's download button on a doc page: the reader's system first, the latest release's files in its menu.
+import { releasesPage } from "../data/latest-release";
+import { HOME, type Lang } from "../i18n/home";
+import DownloadButton from "./home/DownloadButton.astro";
+
+interface Props {
+  lang?: Lang;
+}
+const { lang = "en" } = Astro.props;
+const releases = releasesPage;
+---
+
+<div class="apx-download not-content">
+  <DownloadButton t={HOME[lang].get} releases={releases} docs />
+</div>
+
+<style>
+  .apx-download {
+    margin: 1.25rem 0 0.5rem;
+  }
+</style>

@@ -60,7 +60,11 @@ before(async () => {
       [TYPE]: (c, s) => googlechatAdapter(c, s, { pubsub: gc.base, chat: gc.base, idleMs: 20 }),
     },
   });
-  await env.client.call("channels.set", { id: "gc", channel: { type: TYPE, agent_id: "roby" }, token: gc.secret });
+  await env.client.call("channels.set", {
+    id: "gc",
+    channel: { type: TYPE, agent_id: "superagent" },
+    token: gc.secret,
+  });
   await running();
 });
 after(async () => {
@@ -138,7 +142,7 @@ test("a space is offered but not read until listed; then its answer joins the th
     id: "gc",
     channel: {
       type: TYPE,
-      agent_id: "roby",
+      agent_id: "superagent",
       rooms: {
         rooms: [{ id: "spaces/team", name: "Team", mode: "mention" }],
         names: [],

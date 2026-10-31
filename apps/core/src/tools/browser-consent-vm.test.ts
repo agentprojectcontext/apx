@@ -49,12 +49,12 @@ if (RUNS_SCRIPTS && fs.existsSync(chromium.executablePath())) {
               run = current.id;
               // A host turn can move onto Computer after its tools were selected.
               await env.client.call("environments.bind", { thread });
-              await env.core.computer.claim("roby", thread, run);
+              await env.core.computer.claim("superagent", thread, run);
               const browser = env.core.computer.browser(run);
               const opened = (await browser.handle("browser.open", {
                 url: `${origin}/`,
                 profile: "shared",
-                by: "roby",
+                by: "superagent",
               })) as { tab: string };
               tab = opened.tab;
               const snapshot = (await browser.handle("browser.snapshot", { tab, max_chars: 1000 })) as {
@@ -76,8 +76,8 @@ if (RUNS_SCRIPTS && fs.existsSync(chromium.executablePath())) {
         const desktop = await new ApxClient({ url: env.core.url }).connect("node", ["browser"]);
         desktop.onRequest(async () => ({ tabs: [] }));
         try {
-          await env.client.call("environments.permit", { agent: "roby", on: true });
-          thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+          await env.client.call("environments.permit", { agent: "superagent", on: true });
+          thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
           await env.client.call("threads.send", { thread, text: "Evaluate the page" });
           const card = await waitFor(async () => {
             const current = env.core.store.runs.list(thread)[0];
@@ -91,7 +91,7 @@ if (RUNS_SCRIPTS && fs.existsSync(chromium.executablePath())) {
           const response = await waitFor(() => held, "the successfully executed result held in transit");
           if (change === "closure") await env.core.computer.browser(run).handle("browser.close", { tab });
           if (change === "reload")
-            await env.core.computer.browser(run).handle("browser.history", { tab, action: "reload", by: "roby" });
+            await env.core.computer.browser(run).handle("browser.history", { tab, action: "reload", by: "superagent" });
           if (change === "owner takeover") {
             const claim = env.core.computer.ledger.forRun(run);
             assert.ok(claim);

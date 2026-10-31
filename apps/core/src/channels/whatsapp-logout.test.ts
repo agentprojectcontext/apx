@@ -184,7 +184,7 @@ test("removing a stopped WhatsApp channel survives core restart without reusing 
       },
     });
   let env = await boot();
-  const config = { type: "whatsapp" as const, agent_id: "roby" };
+  const config = { type: "whatsapp" as const, agent_id: "superagent" };
   const channel = async (id: string) => (await env.client.call("channels.list", {})).channels.find((c) => c.id === id);
   try {
     for (const [id, fake] of fakes) {

@@ -1,7 +1,9 @@
 import { FLOW_OTHERWISE, flowBranches, flowCases } from "@apx/protocol/flow-cases";
 import type { FlowGraph, FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { MessageKey } from "../i18n/index.ts";
 
 type Condition = Extract<FlowNode, { kind: "condition" }>;
+type T = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
 // The edits an agent's tool makes too live in the protocol package, so both draw alike.
 export { connectionError, connectNodes, disconnectNodes, newNode, removeNode } from "@apx/protocol/flow-edit";
@@ -58,3 +60,24 @@ export function chainOrder(graph: FlowGraph): FlowNode[] {
   for (const n of graph.nodes) visit(n);
   return out;
 }
+
+/**
+ * A check's ways out, named for the person: a case by its name, else "Yes" for the first and "Case 2"… for the
+ * others; otherwise is "No" beside one case and "Otherwise" beside more.
+ */
+export function branchesOf(n: Condition, t: T): { id: string; label: string }[] {
+  const cases = flowCases(n);
+  return [
+    ...cases.map((c, i) => ({
+      id: c.id,
+      label: c.label.trim() || (i === 0 ? t("flow.f.yes") : t("flow.f.caseN", { n: i + 1 })),
+    })),
+    { id: FLOW_OTHERWISE, label: cases.length === 1 ? t("flow.f.no") : t("flow.f.otherwise") },
+  ];
+}
+
+/** The methods a webhook step takes, as its card and run log show them. */
+export const hookVerbs = (n: Extract<FlowNode, { kind: "webhook" }>) => (n.methods ?? ["POST"]).join(", ");
+
+/** A value as typed in a check or a variable: text quoted, anything else as it is. */
+export const literal = (v: string | number | boolean | null) => (typeof v === "string" ? `"${v}"` : String(v));

@@ -26,7 +26,10 @@ export type Setting = {
   says?: (p: Params, d: SettingsDeps) => string;
   /** The params that first line already says (the record it names), left off the lines under it. */
   named?: readonly string[];
-  /** A field the owner reads in words, not as before → after, by its path ("channel.hours"); undefined: it is dropped. */
+  /**
+   * A field the owner reads in words, not as before → after, by its path ("channel.hours"); undefined: it is dropped;
+   * "": the first line already says it.
+   */
   words?: Readonly<Record<string, (v: unknown, d: SettingsDeps) => string>>;
   /** The record as it is now, so the card shows each field before and after, and an equal one asks nobody. */
   now?: (p: Params, d: SettingsDeps) => Params | undefined;
@@ -36,6 +39,11 @@ export type Setting = {
   refuse?: (p: Params, d: SettingsDeps) => string | undefined;
   /** What the agent reads back once it ran (default: the method's result). */
   shows?: (result: unknown) => string;
+  /**
+   * Run as the owner, once they approved the card, when one call is not enough (publish then turn on): what the agent
+   * reads back. Without it, the method itself runs with the params `keep` fills.
+   */
+  owner?: (p: Params, d: SettingsDeps, call: NonNullable<ToolContext["callAsOwner"]>) => Promise<string>;
   /** Its card shows every value whole: a cut could hide what it runs or where a key goes. */
   whole?: true;
   /**

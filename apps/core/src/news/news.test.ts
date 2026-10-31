@@ -53,12 +53,13 @@ function setup(o: { entries?: readonly NewsEntry[]; models?: string[]; fail?: bo
 const ownerWrote = (store: Store) =>
   store.messages.add({ thread_id: "home", author: { kind: "user" }, parts: [{ type: "text", text: "hola" }] });
 const aWidget = (store: Store, name = "weather") =>
-  store.surfaces.upsert({ name, title: "Weather", html: "<p>sunny</p>", created_by: "roby" });
+  store.surfaces.upsert({ name, title: "Weather", html: "<p>sunny</p>", created_by: "superagent" });
 
 const entry = (id: string, since = "2.7.3"): NewsEntry => ({
   id,
   since,
-  title: id,
+  title: { en: `Title ${id}`, es: `Título ${id}` },
+  about: { en: `About ${id}.`, es: `Sobre ${id}.` },
   applies: () => true,
   text: `What ${id} brings.`,
   actions: [
@@ -88,7 +89,7 @@ test("public ingress news applies to widget or channel owners and is told once w
       type: "telegram",
       label: "Telegram",
       enabled: true,
-      agent_id: "roby",
+      agent_id: "superagent",
       strangers: "pair",
       concurrency: "steer",
       owner_thread: "home",
@@ -164,6 +165,8 @@ test("an upgrade with one entry that applies runs one capped, toolless call and 
     assert.ok(input.length < 900, `a compact input (${input.length} chars)`);
     assert.match(input, /remember their last reading/);
     assert.match(input, /their language \(es\)/);
+    assert.match(input, /one or two short sentences/);
+    assert.match(input, /in \*\*bold\*\*/, "the one thing that matters stands out");
     assert.match(String(call?.messages[0]?.content), /You are Roby/);
 
     assert.equal(notices.length, 1);
@@ -182,6 +185,30 @@ test("an upgrade with one entry that applies runs one capped, toolless call and 
     assert.ok(news.list().find((e) => e.id === "artifacts-kit")?.seen, "seen once delivered");
     await news.atBoot("2.7.3");
     assert.equal(llm.calls.length, 1, "told once");
+  } finally {
+    done();
+  }
+});
+
+test("several entries at once: the message names one and points to Help for the rest", async () => {
+  const { store, llm, news, done } = setup({ entries: [entry("a"), entry("b"), entry("c")] });
+  try {
+    ownerWrote(store);
+    await news.atBoot("2.7.2");
+    const input = String(llm.calls[0]?.messages.at(-1)?.content);
+    assert.match(input, /Do not list the rest: say the whole list is in Help › What's new/);
+  } finally {
+    done();
+  }
+});
+
+test("the list carries each entry's words for the person and its actions with what they ask", () => {
+  const { news, done } = setup({ entries: [entry("a")] });
+  try {
+    const [item] = news.list();
+    assert.deepEqual(item?.title, { en: "Title a", es: "Título a" });
+    assert.deepEqual(item?.about, { en: "About a.", es: "Sobre a." });
+    assert.deepEqual(item?.actions[0], { label: { en: "Do a", es: "Hacer a" }, prompt: "Please do a." });
   } finally {
     done();
   }
@@ -259,7 +286,7 @@ test("news from a release the install was already on when news began are known, 
   }
 });
 
-test("without an API model the entries go out as they are, in English", async () => {
+test("without an API model one line goes out in English: the first in bold, the rest counted", async () => {
   const { store, llm, news, notices, done } = setup({ models: [] });
   try {
     ownerWrote(store);
@@ -267,8 +294,10 @@ test("without an API model the entries go out as they are, in English", async ()
     const r = await news.atBoot("2.7.2");
     assert.equal(r.voiced, false);
     assert.equal(llm.calls.length, 0);
-    assert.match(notices[0]?.body.text ?? "", /^APX has something new for you/);
-    assert.match(notices[0]?.body.text ?? "", /Update my widgets, or Make one an app/);
+    const text = notices[0]?.body.text ?? "";
+    assert.match(text, /^APX has something new for you: \*\*Widgets remember and can become apps\*\*/);
+    assert.match(text, /Update my widgets, or Make one an app/);
+    assert.doesNotMatch(text, /\n- /, "no list: the Help menu has the rest");
   } finally {
     done();
   }
@@ -354,7 +383,13 @@ test("more integrations reach an owner who connected one; new channels an owner 
     assert.equal(applies("more-channels"), false, "no channel yet");
     store.settings.set("mcp_servers", JSON.stringify({ mcpServers: { notion: { command: "npx" }, acme: {} } }));
     assert.equal(applies("more-apps"), true, "a catalog one counts; the owner's own servers do not");
-    const telegram = { id: "telegram", type: "telegram", label: "Telegram", enabled: true, agent_id: "roby" } as const;
+    const telegram = {
+      id: "telegram",
+      type: "telegram",
+      label: "Telegram",
+      enabled: true,
+      agent_id: "superagent",
+    } as const;
     store.settings.write("channels", [{ ...telegram, strangers: "pair", concurrency: "steer", owner_thread: "home" }]);
     assert.equal(applies("more-channels"), true);
   } finally {

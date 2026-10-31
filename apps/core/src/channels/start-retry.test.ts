@@ -37,7 +37,7 @@ const info = async (id: string) => (await env.client.call("channels.list", {})).
 test("a channel that could not reach its platform says why and starts again on its own", async () => {
   await env.client.call("channels.set", {
     id: "flaky",
-    channel: { type: "telegram", agent_id: "roby" },
+    channel: { type: "telegram", agent_id: "superagent" },
     token: "123456:TEST",
   });
   const first = await info("flaky");
@@ -52,7 +52,7 @@ test("a channel that could not reach its platform says why and starts again on i
 test("a refused token is not retried", async () => {
   await env.client.call("channels.set", {
     id: "refused",
-    channel: { type: "telegram", agent_id: "roby" },
+    channel: { type: "telegram", agent_id: "superagent" },
     token: "123456:TEST",
   });
   await new Promise((r) => setTimeout(r, 150));

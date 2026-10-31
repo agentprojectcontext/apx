@@ -24,8 +24,8 @@ after(async () => {
 });
 
 test("an outside app asks an agent in a chat of its own, and its words arrive as another app's", async () => {
-  assert.ok((await app.call("agents.list", {})).agents.some((a) => a.id === "roby"));
-  const t = await app.call("threads.create", { kind: "code", agent_id: "roby" });
+  assert.ok((await app.call("agents.list", {})).agents.some((a) => a.id === "superagent"));
+  const t = await app.call("threads.create", { kind: "code", agent_id: "superagent" });
   assert.equal(t.kind, "loose", "never a code thread");
   assert.equal(t.title, "Claude Code: Roby");
   await app.call("threads.send", { thread: t.id, text: "summarize the repo" });

@@ -79,7 +79,7 @@ describe("line channel", () => {
       id: "line",
       channel: {
         type: TYPE,
-        agent_id: "roby",
+        agent_id: "superagent",
         rooms: {
           rooms: [{ id: GROUP, name: "Acme team", mode: "mention" }],
           names: [],
@@ -177,7 +177,7 @@ describe("line channel", () => {
 describe("line adapter", () => {
   let line: Awaited<ReturnType<typeof fakeLine>>;
   let dir: string;
-  const config = { id: "line", type: TYPE, agent_id: "roby" } as Parameters<typeof lineAdapter>[0];
+  const config = { id: "line", type: TYPE, agent_id: "superagent" } as Parameters<typeof lineAdapter>[0];
   const io = (got: Inbound[], statuses: string[], address: () => string | undefined): AdapterIO => ({
     receive: (m) => void got.push(m),
     action() {},

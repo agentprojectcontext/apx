@@ -21,7 +21,7 @@ before(async () => {
   env = await startCore({ llm });
   base = path.join(env.home, "work");
   fs.mkdirSync(base, { recursive: true });
-  const agent = env.core.store.agents.get("roby");
+  const agent = env.core.store.agents.get("superagent");
   assert.ok(agent);
   assert.ok(
     allowedTools({ ...agent, tools: ["files"] }, mediaTools(env.core.store, env.home)).some(
@@ -35,7 +35,11 @@ after(async () => {
 });
 
 async function attach(file: string) {
-  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Attachments" });
+  const thread = await env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "Attachments",
+  });
   await env.client.call("threads.send", { thread: thread.id, text: file });
   const result = await env.settle(thread.id);
   assert.equal(result.runs[0]?.state, "completed");
@@ -102,10 +106,10 @@ test("outside callers cannot read a local file through media.attach", async () =
 test("the protocol scopes attachments to a live owner run and replays retries without copying twice", async () => {
   const store = env.core.store;
   fs.writeFileSync(path.join(base, "Note.txt"), "Note");
-  const thread = store.threads.create({ kind: "loose", title: "Delivery", agent_ids: ["roby"] });
+  const thread = store.threads.create({ kind: "loose", title: "Delivery", agent_ids: ["superagent"] });
   const queued = store.runs.create({
     thread_id: thread.id,
-    agent_id: "roby",
+    agent_id: "superagent",
     trigger: "user",
     input: { origin: { kind: "user" }, text: "Share note" },
     deadline_at: new Date(Date.now() + 60_000).toISOString(),
@@ -117,7 +121,7 @@ test("the protocol scopes attachments to a live owner run and replays retries wi
     actor: "agent" as const,
     session: undefined,
     log: createLog("test", true),
-    agent: { id: "roby", run_id: run.id, thread_id: thread.id },
+    agent: { id: "superagent", run_id: run.id, thread_id: thread.id },
   };
   const first = await env.core.dispatch("media.attach", { path: "Note.txt" }, ctx, "file-retry");
   assert.equal(first.ok, true);
@@ -137,7 +141,7 @@ test("the protocol scopes attachments to a live owner run and replays retries wi
   const sealed = store.threads.create({
     kind: "loose",
     title: "Contact chat",
-    agent_ids: ["roby"],
+    agent_ids: ["superagent"],
     channel: { id: "telegram", conversation: "contact", person_id: contact.id },
   });
   assert.equal(
@@ -153,7 +157,7 @@ test("the protocol scopes attachments to a live owner run and replays retries wi
   );
   const contactRun = store.runs.create({
     thread_id: sealed.id,
-    agent_id: "roby",
+    agent_id: "superagent",
     trigger: "user",
     input: { origin: { kind: "user" }, text: "Share note" },
     deadline_at: run.deadline_at ?? "",

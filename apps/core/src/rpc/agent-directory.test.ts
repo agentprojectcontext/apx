@@ -52,14 +52,14 @@ test("agent discovery exposes scope and the resolved project orchestrator withou
       assert.equal(byId.get(id)?.project_orchestrator, null);
       assert.equal(byId.get(id)?.is_orchestrator, false);
     }
-    for (const id of ["roby", "vera"]) {
+    for (const id of ["superagent", "vera"]) {
       assert.equal(byId.get(id)?.scope, "global");
       assert.equal(byId.get(id)?.project_name, null);
       assert.equal(byId.get(id)?.project_orchestrator, null);
       assert.equal(byId.get(id)?.is_orchestrator, false);
     }
     const listed = async (query: string) => {
-      const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       await env.client.call("threads.send", { thread: thread.id, text: query });
       return texts((await env.settle(thread.id)).messages).at(-1) ?? "";
     };
@@ -155,7 +155,7 @@ test("a marked sub-team lead leads its reports, not the project; a parent by ful
     assert.deepEqual(byId.get(sub)?.leads, ["acme-w1", "acme-w2", "acme-w3"]);
     assert.equal(byId.get(head)?.reports_to, null);
 
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: thread.id, text: "acme" });
     const out = texts((await env.settle(thread.id)).messages).at(-1) ?? "";
     assert.match(out, /id: acme-boss\).*Is orchestrator: yes/);

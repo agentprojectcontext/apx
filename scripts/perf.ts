@@ -177,7 +177,7 @@ try {
 
   // Turns: the whole path but the model (context, tools, persistence, events).
   await rpc("models.set_config", { default: { model: "custom/fake-1", router: false } });
-  const thread = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "roby" });
+  const thread = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "superagent" });
   const turns: number[] = [];
   for (let i = 0; i < TURNS; i++) {
     const s = performance.now();

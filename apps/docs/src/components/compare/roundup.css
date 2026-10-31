@@ -1,0 +1,290 @@
+/* "Best AI agent apps": the comparison design, with a wide table, a benchmark and one card per app. */
+.roundup-short {
+  max-width: 760px;
+  margin: 0;
+  padding: 22px 24px;
+  border: 1px solid var(--apx-border-strong);
+  border-left: 3px solid var(--apx-brand);
+  border-radius: 16px;
+  background: var(--apx-surface);
+  font-size: 16.5px;
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+
+/* At a glance: grouped rows, the app column stays in view while the table scrolls sideways. */
+.roundup-table {
+  min-width: 920px;
+  font-size: 14px;
+}
+.roundup-table thead th:first-child {
+  width: 190px;
+}
+.roundup-table td:last-child {
+  color: var(--apx-fg-muted);
+}
+.roundup-table tbody th[scope="row"],
+.roundup-table thead th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--apx-surface);
+}
+.roundup-table .group-row th {
+  padding: 12px 20px;
+  background: var(--apx-fill);
+  font: 600 11px / 1.3 var(--apx-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--apx-fg-muted);
+}
+.roundup-table .group-row th[scope="colgroup"] {
+  position: static;
+}
+.roundup-table tr.is-apx > * {
+  background: color-mix(in srgb, var(--apx-brand) 7%, var(--apx-surface));
+}
+.app-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.app-cell a {
+  text-decoration: underline;
+  text-decoration-color: var(--apx-border-strong);
+  text-underline-offset: 3px;
+}
+.app-cell a:hover {
+  color: var(--apx-brand);
+}
+.app-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--apx-border);
+  border-radius: 9px;
+  background: var(--apx-bg);
+}
+.app-mark img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+.app-mark--lg {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
+.app-mark--lg img {
+  width: 26px;
+  height: 26px;
+}
+
+/* By the numbers */
+.bench-table {
+  min-width: 620px;
+}
+.bench-table tbody th[scope="row"] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bench-table tbody th[scope="row"] span {
+  font: 500 12px / 1.4 var(--apx-font-mono);
+  color: var(--apx-fg-muted);
+}
+.bench-num {
+  font: 600 15px / 1.4 var(--apx-font-mono);
+  white-space: nowrap;
+}
+.bench-meta {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 12px;
+  font-size: 14px;
+}
+.bench-meta div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.bench-meta dt {
+  min-width: 110px;
+  color: var(--apx-fg-subtle);
+}
+.bench-meta dd {
+  margin: 0;
+}
+.bench-meta a:hover {
+  color: var(--apx-brand);
+}
+
+/* The apps */
+.app-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.app-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: 22px;
+  background: var(--apx-surface);
+  scroll-margin-top: 120px;
+}
+.app-card p {
+  margin: 0;
+}
+.app-card__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.app-card__n {
+  font: 500 12px / 1 var(--apx-font-mono);
+  color: var(--apx-fg-subtle);
+}
+.app-card__name {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.app-card__summary {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--apx-fg-muted);
+  text-wrap: pretty;
+}
+.app-card__choose {
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+.app-card__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin: 0;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--apx-border);
+  font-size: 13.5px;
+}
+.app-card__facts dt {
+  font: 500 11px / 1.4 var(--apx-font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--apx-fg-subtle);
+}
+.app-card__facts dd {
+  margin: 2px 0 0;
+}
+.app-card__compare {
+  align-self: flex-start;
+  font-size: 14px;
+  font-weight: 500;
+}
+.app-card__compare:hover {
+  color: var(--apx-brand);
+}
+.app-card__sources {
+  margin-top: auto;
+  font-size: 13.5px;
+}
+.app-card__sources summary {
+  min-height: 32px;
+  color: var(--apx-fg-muted);
+  cursor: pointer;
+}
+.app-card__sources ol {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+.app-card__sources a {
+  overflow-wrap: anywhere;
+}
+.app-card__sources a:hover {
+  color: var(--apx-brand);
+}
+
+/* Questions */
+.roundup-faq {
+  border-top: 1px solid var(--apx-border);
+}
+.roundup-faq details {
+  border-bottom: 1px solid var(--apx-border);
+}
+.roundup-faq summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 0;
+  font-size: 16.5px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.roundup-faq summary::-webkit-details-marker {
+  display: none;
+}
+.roundup-faq summary > span:first-child {
+  flex: 1;
+}
+.roundup-faq .faq__plus {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: 50%;
+  transition: transform 0.25s;
+}
+.roundup-faq details[open] .faq__plus {
+  transform: rotate(45deg);
+}
+.roundup-faq__answer {
+  margin: -6px 46px 20px 0;
+}
+.roundup-faq__answer p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--apx-fg-muted);
+}
+.roundup-faq__answer .row-sources {
+  margin-top: 10px;
+}
+
+@media (pointer: coarse), (max-width: 1024px) {
+  .app-card__sources summary,
+  .app-card__compare,
+  .bench-meta a,
+  .app-cell a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .roundup-faq__answer .row-sources a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-right: 6px;
+  }
+}
+@media (max-width: 760px) {
+  .roundup-table thead th:first-child {
+    width: 150px;
+  }
+  .roundup-faq__answer {
+    margin-right: 0;
+  }
+}

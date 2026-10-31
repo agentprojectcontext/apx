@@ -233,7 +233,7 @@ describe("the email channel", () => {
   const to = (who: string) => smtp.sent.filter((m) => m.to.includes(who)).map(read);
   const settings = () => ({
     type: "email" as const,
-    agent_id: "roby",
+    agent_id: "superagent",
     email: {
       address: USER,
       name: "Roby",

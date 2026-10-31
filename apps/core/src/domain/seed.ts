@@ -1,5 +1,5 @@
 // First-run defaults: a secretary, a small team and the Home thread. Idempotent.
-import { randomAgentName } from "@apx/protocol";
+import { randomAgentName, SUPER_AGENT_ID } from "@apx/protocol";
 import type { Store } from "./store.ts";
 
 export const HOME_THREAD_ID = "home";
@@ -7,7 +7,7 @@ export const HOME_THREAD_ID = "home";
 export function seed(store: Store, agentName?: string): void {
   if (store.agents.list().length === 0) {
     store.agents.upsert({
-      id: "roby",
+      id: SUPER_AGENT_ID,
       name: agentName ?? randomAgentName(),
       role: "personal secretary",
       kind: "secretary",
@@ -32,6 +32,8 @@ export function seed(store: Store, agentName?: string): void {
     });
   }
   if (!store.threads.get(HOME_THREAD_ID)) {
-    store.threads.create({ id: HOME_THREAD_ID, kind: "home", title: "Home", agent_ids: ["roby"] });
+    // An older install keeps the super-agent id it was created with.
+    const superAgent = store.agents.list().find((a) => a.kind === "secretary")?.id ?? SUPER_AGENT_ID;
+    store.threads.create({ id: HOME_THREAD_ID, kind: "home", title: "Home", agent_ids: [superAgent] });
   }
 }

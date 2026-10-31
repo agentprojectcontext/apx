@@ -31,7 +31,7 @@ async function runRoutine(id: string) {
 }
 
 test("a chat turn the owner watches gets the same steps as background work", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "search everything" });
   await env.settle(t.id);
   assert.equal(steps(t.id), MAX_STEPS);
@@ -40,7 +40,7 @@ test("a chat turn the owner watches gets the same steps as background work", asy
 test("a routine gets the default steps, its own limit wins, and null puts the default back", async () => {
   const base = {
     name: "Long review",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "manual" as const },
     prompt: "Review every open issue.",
   };
@@ -63,7 +63,7 @@ test("a routine's limit is bounded", async () => {
   await assert.rejects(
     env.client.call("routines.set", {
       name: "Too long",
-      agent: "roby",
+      agent: "superagent",
       schedule: { kind: "manual" },
       prompt: "x",
       max_steps: 1000,

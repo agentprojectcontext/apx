@@ -17,7 +17,7 @@ test("private HTTP and WS page every row and failed event before explicit export
       enabled: true,
       predicates: [],
       tableKey: "latest",
-      action: { kind: "agent" as const, agent: "roby", prompt: "Process event" },
+      action: { kind: "agent" as const, agent: "superagent", prompt: "Process event" },
     };
     env.core.store.flows.save(definition);
     for (let n = 0; n < 205; n++) {

@@ -83,7 +83,7 @@ test("Computer installs only on enable, shows the chat agent's screen, follows A
     // Home stays on this Mac (DECISIONS.md#d-154): Roby works on the computer in a chat of its own.
     const robyChat = await env.client.call("threads.create", {
       kind: "loose",
-      agent_id: "roby",
+      agent_id: "superagent",
       title: "Probar en Linux",
     });
     await page.addInitScript((origin) => {
@@ -234,10 +234,10 @@ test("a late status poll cannot undo shutdown, and an optional VM error cannot b
     // Home stays on this Mac (DECISIONS.md#d-154): Roby works on the computer in a chat of its own.
     const robyChat = await env.client.call("threads.create", {
       kind: "loose",
-      agent_id: "roby",
+      agent_id: "superagent",
       title: "Probar en Linux",
     });
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.bind", { thread: robyChat.id });
     const stale = await env.client.call("environments.status", {});
     await mockVmDisplay(page);

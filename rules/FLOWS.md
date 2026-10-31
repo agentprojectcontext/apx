@@ -604,7 +604,11 @@ project's is `not_found`); a call with no agent behind it (`actor: agent` over H
 An agent's draft may not set or change an AI step's `autonomy`, `write` or `delegate`, nor change the `agent`, `bot` or
 `model` of, or remove, a step the owner limited (`ownersFieldChange`). Drafts keep `saved_by` (`draftBy`: the agent,
 null for the owner); the panel's on switch (`publishSaved`) never publishes an agent's draft and opens its editor
-instead. In `apx_flow` these are `own` methods: a change and `flows.graph_get` are `confirm: "untrusted"` (they
+instead. When the owner asks in the chat, `apx_flow`'s `flows.publish {flow, expectedDraftVersion}` and
+`flows.run_now` do it as the owner, each after a card (`tools/flow-tool-publish.ts`, [D-184](DECISIONS.md#d-184)):
+the publish card lists the draft's `flowOutward` lines and its AI steps, and on approval reads the draft again, passes
+`flows.outward`'s keys to `flows.publish` and turns the Flow on; a changed draft version stops it. `flows.set` refuses
+to turn on a Flow whose drawing was never published. In `apx_flow` these are `own` methods: a change and `flows.graph_get` are `confirm: "untrusted"` (they
 ask the owner only while outside content is in the turn), `flows.validate` asks nobody, and all run with `ctx.call`,
 never `callAsOwner`. `flows.create` revokes a route credential left under its new id.
 
@@ -633,7 +637,8 @@ makes the draft theirs (`draftBy` null).
 
 **Español:** El super-agente dibuja y cambia borradores de Flows desde cualquier chat con `apx_flow` (área
 `flows`): crear, leer, editar por pasos, revisar. Un borrador no corre: publicarlo (guardar con el flow prendido, o
-prenderlo) es del dueño en el editor, y lo que sale (mensajes, llamadas, comandos, escrituras) sigue pidiendo permiso.
+prenderlo) es del dueño en el editor, o del super-agente cuando el dueño se lo pide y aprueba la tarjeta que dice lo que
+sale (mensajes, llamadas, comandos, escrituras); correrlo a mano para probarlo también pasa por una tarjeta.
 Con contenido de afuera en el turno, guardar un borrador pregunta. Un agente de proyecto solo llega a los flows de su
 proyecto. El chat muestra una tarjeta con el dibujo y **Abrir en el editor**; el evento `flow.draft` refresca la lista,
 el detalle y la tarjeta. Desde el editor, **Pedírselo a {nombre}** abre ese chat sobre el lienzo: antes de cada mensaje
@@ -659,7 +664,8 @@ protocol. Every change to Flows checks, in the same commit:
   `skills/apx/apx-flows/SKILL.md` with its fields; `flow-tool.test.ts` fails without it.
 - **A new or changed field, case, binding or template placeholder**: the skill's table and examples say it as the
   editor does, and `flow-tool-drafts.ts`' `add`/`update` keep it (a draft keeps empty ones, D-177).
-- **What the owner keeps** (publishing, tests, an address, an AI step's autonomy): refused in the handler for an
+- **What the owner keeps** (tests, an address and its key, an AI step's autonomy; publishing and running by hand only
+  through their card): refused in the handler for an
   agent, listed in `OWNER_ONLY`, and the skill says to leave it to the owner.
 - **The agent-facing words**: `engine/flow-editor.ts`' `[flow editor]` line and the skill's calls name `apx_flow`.
 

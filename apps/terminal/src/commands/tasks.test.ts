@@ -76,9 +76,9 @@ test("commitments separate what the owner owes from what other people owe", asyn
 
 test("edit sends only the fields given", () => {
   assert.deepEqual(taskEditOf("tsk_1", { title: "New title" }), { task: "tsk_1", title: "New title" });
-  assert.deepEqual(taskEditOf("tsk_1", { agent: "roby", due: "2026-10-09", tags: " a, b ,," }), {
+  assert.deepEqual(taskEditOf("tsk_1", { agent: "superagent", due: "2026-10-09", tags: " a, b ,," }), {
     task: "tsk_1",
-    assignee: "roby",
+    assignee: "superagent",
     due_at: "2026-10-09",
     tags: ["a", "b"],
   });

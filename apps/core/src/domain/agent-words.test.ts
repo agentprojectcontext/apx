@@ -7,17 +7,17 @@ test("an agent's words outside a turn show in the chat, open its history after a
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   try {
     const { store } = env.core;
-    const chat = store.threads.create({ kind: "loose", title: "Notes", agent_ids: ["roby"] });
+    const chat = store.threads.create({ kind: "loose", title: "Notes", agent_ids: ["superagent"] });
     postAgentWords(store, {
       thread_id: chat.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       text: "Hello",
       note: "[APX: a note]",
       unread: false,
     });
     postAgentWords(store, {
       thread_id: chat.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       text: "News",
       said: "News\n\n1. Act",
       note: "[APX: news]",
@@ -27,8 +27,8 @@ test("an agent's words outside a turn show in the chat, open its history after a
     assert.deepEqual(
       messages.map((m) => [m.author, m.parts]),
       [
-        [{ kind: "agent", id: "roby" }, [{ type: "text", text: "Hello" }]],
-        [{ kind: "agent", id: "roby" }, [{ type: "text", text: "News" }]],
+        [{ kind: "agent", id: "superagent" }, [{ type: "text", text: "Hello" }]],
+        [{ kind: "agent", id: "superagent" }, [{ type: "text", text: "News" }]],
       ],
     );
     assert.deepEqual(

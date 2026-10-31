@@ -22,7 +22,7 @@ test("Asana reads are untrusted and agent writes wait for owner approval before 
     },
   });
   try {
-    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
     const offered = () => llm.calls.at(-1)?.tools.map((t) => t.function.name) ?? [];
     await env.client.call("threads.send", { thread, text: "tools" });
     await env.settle(thread);
@@ -38,7 +38,7 @@ test("Asana reads are untrusted and agent writes wait for owner approval before 
       actor: "agent" as const,
       session: undefined,
       log: createLog("test", true),
-      agent: { id: "roby", run_id: "test", thread_id: thread },
+      agent: { id: "superagent", run_id: "test", thread_id: thread },
     };
     const rejected = await env.core.dispatch(
       "asana.write",

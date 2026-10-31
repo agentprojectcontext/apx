@@ -14,7 +14,7 @@ const entries = (runs: ChatItem[][]): LogEntry[] =>
 
 test("the system prompt has no clock and no roster: same agent and thread, same bytes", () => {
   const agent = {
-    id: "roby",
+    id: "superagent",
     name: "Roby",
     role: "secretary",
     kind: "secretary" as const,
@@ -92,7 +92,10 @@ test("the owner speaks plainly, their agents as the team; outside apps, widgets 
     /<delegation_result from="Scout" sub_thread="th" state="failed" trust="team">/,
   );
   // An agent asked by another answers in place: its answer returns by itself, so it never delegates back.
-  const asked = frameInput({ kind: "agent", id: "roby", name: "Roby", thread_id: "home", run_id: "r" }, "check #54");
+  const asked = frameInput(
+    { kind: "agent", id: "superagent", name: "Roby", thread_id: "home", run_id: "r" },
+    "check #54",
+  );
   assert.match(asked, /<agent_message from="Roby" trust="team">/);
   assert.doesNotMatch(asked, /trust="untrusted"/);
   assert.match(asked, /goes back to Roby on its own: answer here, never delegate back/);
@@ -155,7 +158,7 @@ test("an agent knows which APX it runs on, and a checkout reads as a development
   const { apxBuild } = await import("./turn.ts");
   assert.equal(apxBuild({ version: "2.1.1", code_sha: "75d71df30488" }), "2.1.1 (commit 75d71df)");
   assert.equal(apxBuild({ version: "0.0.0", code_sha: "75d71df30488" }), "a development build (commit 75d71df)");
-  const agent = { id: "roby", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
+  const agent = { id: "superagent", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
     typeof systemPrompt
   >[0];
   const prompt = systemPrompt(agent, { kind: "home" }, "es", undefined, "", "", undefined, "2.1.1 (commit 75d71df)");
@@ -163,7 +166,7 @@ test("an agent knows which APX it runs on, and a checkout reads as a development
 });
 
 test("two chats and two releases share the prompt up to its last lines, so the provider caches one prefix", () => {
-  const agent = { id: "roby", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
+  const agent = { id: "superagent", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
     typeof systemPrompt
   >[0];
   const of = (apx: string, scratch: string) =>
@@ -183,7 +186,7 @@ test("two chats and two releases share the prompt up to its last lines, so the p
 });
 
 test("an agent can link places in the app, and hears that computer use is off only when a desktop app has it off", () => {
-  const agent = { id: "roby", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
+  const agent = { id: "superagent", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
     typeof systemPrompt
   >[0];
   const off = systemPrompt(agent, { kind: "home" }, "es", undefined, "", "", undefined, "", "", true);
@@ -210,7 +213,7 @@ test("the owner's channel turn says the channel and the app are one chat, and wh
 });
 
 test("an unreadable source is a blocker in the shared rules, not 'not verifiable'", () => {
-  const agent = { id: "roby", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
+  const agent = { id: "superagent", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
     typeof systemPrompt
   >[0];
   const blocker = /unreadable source is a blocker.*never "not verifiable"/s;
@@ -226,7 +229,7 @@ test("an unreadable source is a blocker in the shared rules, not 'not verifiable
 });
 
 test("the web goes to the agent's own browser, a login is handed to the owner, and a declined step is not repeated", () => {
-  const agent = { id: "roby", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
+  const agent = { id: "superagent", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
     typeof systemPrompt
   >[0];
   const a = systemPrompt(agent, { kind: "home" }, "es");
@@ -241,7 +244,7 @@ test("the web goes to the agent's own browser, a login is handed to the owner, a
 });
 
 test("lines a turn may leave out (computer off, temp folder) never leave a blank line inside the rules", () => {
-  const agent = { id: "roby", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
+  const agent = { id: "superagent", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
     typeof systemPrompt
   >[0];
   const rules = (p: string) => p.slice(p.indexOf("## Rules"), p.indexOf("\n\nThread:"));

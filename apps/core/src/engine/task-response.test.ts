@@ -21,7 +21,7 @@ for (const failure of ["empty", "failed"] as const) {
       await env.client.call("agents.create", { slug: "helper", name: "Helper" });
       const created = await env.client.call("tasks.create", { title: "Check the change" });
       task = created.id;
-      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       await env.client.call("threads.send", { thread: chat.id, text: "Ask helper" });
       await env.settle(chat.id);
       const child = env.core.store.threads.children(created.thread_id)[0];

@@ -99,7 +99,7 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(page.getByText("Quiero que seas así: Con calma y paciencia.").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Directo y breve" })).toBeHidden();
-  const boss = await rpc<{ agent: { personality?: string } }>("agents.get", { agent: "roby" });
+  const boss = await rpc<{ agent: { personality?: string } }>("agents.get", { agent: "superagent" });
   expect(boss.agent.personality).toBe("Con calma y paciencia");
 
   // What came in.

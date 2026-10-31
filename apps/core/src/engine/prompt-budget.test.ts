@@ -44,7 +44,7 @@ after(async () => {
 });
 
 test("a default turn's system prompt and tools stay within the prompt budget", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "hola" });
   await env.settle(t.id);
   const call = llm.calls.at(-1);
@@ -92,7 +92,7 @@ test("a realistic owner's turns stay within their own budget", async () => {
     const channel = async () => (await real.client.call("channels.list", {})).channels.find((c) => c.id === "whatsapp");
     await real.client.call("channels.set", {
       id: "whatsapp",
-      channel: { type: "whatsapp", agent_id: "roby", self_owner: true },
+      channel: { type: "whatsapp", agent_id: "superagent", self_owner: true },
     });
     await waitFor(async () => Boolean((await channel())?.qr), "a QR");
     wa.scan();
@@ -113,11 +113,11 @@ test("a realistic owner's turns stay within their own budget", async () => {
       store.stickers.describe(s.id, meaning);
     }
     await real.client.call("owner.set", { name: "Alex", about: ABOUT });
-    await real.client.call("agents.update", { agent: "roby", prompt: INSTRUCTIONS });
-    await real.client.call("environments.permit", { agent: "roby", on: true });
+    await real.client.call("agents.update", { agent: "superagent", prompt: INSTRUCTIONS });
+    await real.client.call("environments.permit", { agent: "superagent", on: true });
     const { project: p } = await real.client.call("projects.register", { path: project });
 
-    const t = await real.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: p.id });
+    const t = await real.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: p.id });
     await real.client.call("threads.send", { thread: t.id, text: "¿qué falta para el deploy?" });
     await real.settle(t.id);
     const call = llm.calls.at(-1);

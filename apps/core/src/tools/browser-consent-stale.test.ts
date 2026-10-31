@@ -83,7 +83,7 @@ for (const scenario of [
     };
     let node = await connect();
     try {
-      const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+      const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
       await env.client.call("threads.send", { thread, text: "Evaluate and retry with a fresh snapshot" });
       const first = await waitFor(async () => (await env.client.call("runs.pending", { thread })).inputs[0]);
       firstInput = first.id;

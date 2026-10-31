@@ -38,7 +38,7 @@ test("a task executor does not block another specialist or a later independent t
   const env = await startCore({ llm });
   try {
     reviewer = (await env.client.call("agents.create", { slug: "reviewer", name: "Reviewer" })).id;
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const sent = await env.client.call("threads.send", {
       thread: chat.id,
       text: "Start analysis and independent review.",
@@ -54,7 +54,7 @@ test("a task executor does not block another specialist or a later independent t
     resuming = true;
     const resumed = env.core.engine.admit({
       thread_id: chat.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "user",
       origin: { kind: "user" },
       text: "Resume the same goal.",

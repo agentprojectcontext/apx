@@ -104,7 +104,7 @@ const allTasks = async () =>
   );
 
 test("a task an agent gave to another wakes its creator where it created it, with the closer's report", async () => {
-  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "goal" });
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "goal" });
   await env.client.call("threads.send", { thread: chat.id, text: "hand the goal to Vera" });
   const { runs, messages } = await runsOf(chat.id, 2);
   assert.deepEqual(
@@ -116,7 +116,7 @@ test("a task an agent gave to another wakes its creator where it created it, wit
 
   const task = (await allTasks()).find((t) => t.title === "Ship the goal");
   assert.equal(task?.state, "done");
-  assert.equal(task?.created_by, "roby");
+  assert.equal(task?.created_by, "superagent");
   const input = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("<task_result"));
   assert.match(
     String(input?.messages.at(-1)?.content),
@@ -127,7 +127,11 @@ test("a task an agent gave to another wakes its creator where it created it, wit
 });
 
 test("closing through RPC from another session preserves a fresh review without a closing note", async () => {
-  const creator = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Fresh review" });
+  const creator = await env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "Fresh review",
+  });
   await env.client.call("threads.send", { thread: creator.id, text: "prepare external review" });
   await runsOf(creator.id, 1);
   assert.ok(reviewTask);
@@ -150,7 +154,11 @@ test("closing through RPC from another session preserves a fresh review without 
 });
 
 test("closing through RPC from another session labels a review from an earlier run", async () => {
-  const creator = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Old review" });
+  const creator = await env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "Old review",
+  });
   await env.client.call("threads.send", { thread: creator.id, text: "prepare external review" });
   await runsOf(creator.id, 1);
   const reviewer = await env.client.call("threads.create", {
@@ -194,7 +202,7 @@ test("the super-agent hears in Home of a task it did not give, closed by its tea
 });
 
 test("nobody is woken when the owner closes a task or its creator closes it itself", async () => {
-  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "ideas" });
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "ideas" });
   await env.client.call("threads.send", { thread: chat.id, text: "note an idea" });
   await runsOf(chat.id, 1);
   await env.client.call("threads.send", { thread: chat.id, text: "close the idea" });
@@ -212,7 +220,7 @@ test("a task chat counts against the chat that gave it; past the limits a task g
   const { store } = env.core;
   await env.client.call("agents.set_limits", { runs: 1, tokens: 0 });
   try {
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "paused" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "paused" });
     await env.client.call("threads.send", { thread: chat.id, text: "hand paused goals to Vera" });
     await runsOf(chat.id, 1);
     const tasks = await allTasks();
@@ -277,7 +285,7 @@ test("the owner writing in a paused chat starts the tasks agents gave meanwhile"
   const { store } = env.core;
   await env.client.call("agents.set_limits", { runs: 1, tokens: 0 });
   try {
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "waiting" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "waiting" });
     await env.client.call("threads.send", { thread: chat.id, text: "hand waiting goals to Vera" });
     await runsOf(chat.id, 1);
     const second = (await allTasks()).find((t) => t.title === "Waiting goal 2");
@@ -294,21 +302,28 @@ test("the owner writing in a paused chat starts the tasks agents gave meanwhile"
 
 test("how deep agents hand tasks on is the breaker's: no fixed depth stops a start", async () => {
   const { store } = env.core;
-  const from = store.threads.create({ kind: "loose", title: "deep", agent_ids: ["roby"] });
+  const from = store.threads.create({ kind: "loose", title: "deep", agent_ids: ["superagent"] });
   const task = store.tasks.create({
     title: "Deep work",
     description: "Deliver the requested goal.",
     assignee: "vera",
     status: "todo",
     thread_id: store.threads.create({ kind: "task", title: "Deep work", agent_ids: ["vera"] }).id,
-    by: "roby",
+    by: "superagent",
   });
   const admitted: string[] = [];
   const fake = ((a: { thread_id: string }) => {
     admitted.push(a.thread_id);
     return { id: "run_deep" };
   }) as unknown as Parameters<typeof startTaskWork>[1];
-  const asker = { kind: "agent" as const, id: "roby", name: "Roby", thread_id: from.id, run_id: "run_x", depth: 9 };
+  const asker = {
+    kind: "agent" as const,
+    id: "superagent",
+    name: "Roby",
+    thread_id: from.id,
+    run_id: "run_x",
+    depth: 9,
+  };
   assert.ok(startTaskWork(store, fake, task, "vera", asker));
   assert.equal(admitted.length, 1);
 });

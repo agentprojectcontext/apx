@@ -67,7 +67,7 @@ async function setup(env: Env) {
     id: "chat",
     channel: {
       type: "discord",
-      agent_id: "roby",
+      agent_id: "superagent",
       rooms: { rooms: [{ id: "900", name: "sales", mode: "read" }] },
     },
     token: "acme-bot-token",
@@ -428,6 +428,65 @@ test("an HTTP step fills its body from bindings, reads its secret in the core an
   }
 });
 
+test("a variable fills an HTTP body, JSON or text, and a message, as it fills headers", async () => {
+  const api = await service((_req, res) => {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end("{}");
+  });
+  const chat = recorder();
+  const env = await startCore({
+    llm: scriptedLlm(() => say("unused")),
+    channelAdapters: { discord: () => chat.adapter },
+    flowHttpAllow: [`127.0.0.1:${api.port}`],
+  });
+  try {
+    const { alex } = await setup(env);
+    const vars: FlowNode = {
+      id: "v",
+      kind: "vars",
+      label: "Vars",
+      vars: [
+        { name: "shop", value: { kind: "literal", value: "Acme" } },
+        { name: "total", value: { kind: "expr", expr: "$trigger.price * $trigger.qty" } },
+      ],
+    };
+    const call = (id: string, body: string): FlowNode => ({
+      id,
+      kind: "http",
+      label: id,
+      method: "POST",
+      url: `${api.url}/${id}`,
+      headers: [{ name: "X-Shop", value: "$vars.shop" }],
+      body,
+      timeoutMs: 5000,
+    });
+    const flow = await publish(
+      env,
+      "vars-out",
+      chain(
+        hook,
+        vars,
+        call("json", '{ "shop": "$vars.shop", "total": "$vars.total", "note": "for $vars.shop" }'),
+        call("text", "order of $vars.total at $vars.shop"),
+        notify("say", { kind: "contact", person: alex }, "$vars.shop: $vars.total"),
+      ),
+    );
+    await post(env, flow, "e", { price: 25, qty: 4 });
+    assert.equal((await ended(env, flow, "e")).state, "succeeded");
+    assert.deepEqual(JSON.parse(api.seen[0]?.body ?? "null"), { shop: "Acme", total: 100, note: "for Acme" });
+    assert.equal(api.seen[0]?.headers["x-shop"], "Acme");
+    assert.equal(api.seen[1]?.body, "order of 100 at Acme");
+    assert.deepEqual(
+      chat.sent.map((m) => m.text),
+      ["Acme: 100"],
+    );
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+    await api.close();
+  }
+});
+
 test("HTTP steps refuse what the owner must fix: a key typed in, a secret not there, an address inside", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("unused")) });
   try {
@@ -573,7 +632,7 @@ test("a message to a channel that isn't running is taken back at once, never sen
   try {
     await env.client.call("channels.set", {
       id: "chat",
-      channel: { type: "discord", agent_id: "roby" },
+      channel: { type: "discord", agent_id: "superagent" },
       token: "acme-bot-token",
     });
     await waitFor(() => starts > 0, "the channel tried to start");

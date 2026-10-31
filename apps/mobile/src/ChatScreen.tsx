@@ -42,6 +42,7 @@ export function ChatScreen({
   onUnpair,
   onApps,
   base,
+  focus,
   data,
   onBack,
   onSwitch,
@@ -55,6 +56,8 @@ export function ChatScreen({
   onApps: () => void;
   /** The chat as the list knows it, until the live one loads. */
   base: Thread;
+  /** A message to scroll to and light for a moment once it is loaded (a shared file's). */
+  focus?: string;
   data: Workspace;
   onBack: () => void;
   onSwitch: () => void;
@@ -103,6 +106,21 @@ export function ChatScreen({
     () => new Set(data.channels.filter((c) => c.type === "email").map((c) => c.id)),
     [data.channels],
   );
+  const [flash, setFlash] = useState<string>();
+  const focused = useRef(false);
+  useEffect(() => {
+    if (!focus || focused.current || !settled) return;
+    const index = rows.findIndex((row) => row.kind !== "day" && row.message.id === focus);
+    if (index < 0) return;
+    focused.current = true;
+    setFlash(focus);
+    requestAnimationFrame(() => list.current?.scrollToIndex({ index, viewPosition: 0.5 }));
+  }, [focus, rows, settled]);
+  useEffect(() => {
+    if (!flash) return;
+    const off = setTimeout(() => setFlash(undefined), 2000);
+    return () => clearTimeout(off);
+  }, [flash]);
   const working = isWorking(live.state);
   const engine = thread.engine === "claude" || thread.engine === "codex" ? thread.engine : undefined;
   // A new chat keeps the model picked in it until it is made.
@@ -216,6 +234,11 @@ export function ChatScreen({
             inverted
             data={rows}
             keyExtractor={(row) => (row.kind === "day" ? row.key : row.message.id)}
+            // Rows not drawn yet have no size: jump near by the average, then aim again.
+            onScrollToIndexFailed={({ index, averageItemLength }) => {
+              list.current?.scrollToOffset({ offset: index * averageItemLength, animated: false });
+              setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5 }), 120);
+            }}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             contentContainerStyle={s.transcript}
@@ -236,23 +259,25 @@ export function ChatScreen({
                 item.message.id === live.messages[0]?.id ? (
                 <RoutinePrompt name={routineName(thread)} message={item.message} />
               ) : (
-                <ChatMessage
-                  message={item.message}
-                  agents={data.agents}
-                  waiting={live.state === "input-required"}
-                  runState={live.state}
-                  thread={thread}
-                  projects={data.projects}
-                  last={item.message.id === live.messages.at(-1)?.id}
-                  client={live.client}
-                  send={(words) => live.send(words)}
-                  respond={live.respond}
-                  goOn={(thread, mode) => live.client.call("threads.go_on", { thread, mode })}
-                  continueSession={(session) => continueSession(live.client, session)}
-                  sessionState={(session) => sessionState(live.client, session)}
-                  {...(onOpenThread ? { openThread: onOpenThread } : {})}
-                  mailChannels={mailChannels}
-                />
+                <View style={item.message.id === flash ? s.flash : undefined}>
+                  <ChatMessage
+                    message={item.message}
+                    agents={data.agents}
+                    waiting={live.state === "input-required"}
+                    runState={live.state}
+                    thread={thread}
+                    projects={data.projects}
+                    last={item.message.id === live.messages.at(-1)?.id}
+                    client={live.client}
+                    send={(words) => live.send(words)}
+                    respond={live.respond}
+                    goOn={(thread, mode) => live.client.call("threads.go_on", { thread, mode })}
+                    continueSession={(session) => continueSession(live.client, session)}
+                    sessionState={(session) => sessionState(live.client, session)}
+                    {...(onOpenThread ? { openThread: onOpenThread } : {})}
+                    mailChannels={mailChannels}
+                  />
+                </View>
               )
             }
           />
@@ -363,6 +388,8 @@ function RoutinePrompt({ name, message }: { name: string; message: Message }) {
 
 const useStyles = makeStyles((theme) => ({
   root: { flex: 1, backgroundColor: theme.bg },
+  // The message a shared file led to, lit for a moment.
+  flash: { borderRadius: theme.radiusMd, backgroundColor: theme.brandSoft },
   header: {
     height: 60,
     flexDirection: "row",

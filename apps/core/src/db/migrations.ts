@@ -1111,4 +1111,29 @@ export const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE flow_table_defs ADD COLUMN required TEXT NOT NULL DEFAULT '[]';
   `,
+  // Which files each message shows, kept by the messages themselves: the Files screen lists them and jumps to the message.
+  `
+  CREATE TABLE message_media (
+    message_id TEXT NOT NULL, media_id TEXT NOT NULL, name TEXT, PRIMARY KEY (message_id, media_id)
+  );
+  CREATE INDEX message_media_media ON message_media(media_id);
+  INSERT OR IGNORE INTO message_media(message_id, media_id, name)
+    SELECT m.id, json_extract(p.value, '$.media_id'), json_extract(p.value, '$.name')
+    FROM messages m, json_each(m.parts) p
+    WHERE m.parts LIKE '%"media_id"%' AND json_extract(p.value, '$.media_id') IS NOT NULL;
+  CREATE TRIGGER message_media_ai AFTER INSERT ON messages WHEN new.parts LIKE '%"media_id"%' BEGIN
+    INSERT OR IGNORE INTO message_media(message_id, media_id, name)
+      SELECT new.id, json_extract(p.value, '$.media_id'), json_extract(p.value, '$.name')
+      FROM json_each(new.parts) p WHERE json_extract(p.value, '$.media_id') IS NOT NULL;
+  END;
+  CREATE TRIGGER message_media_au AFTER UPDATE OF parts ON messages BEGIN
+    DELETE FROM message_media WHERE message_id = old.id;
+    INSERT OR IGNORE INTO message_media(message_id, media_id, name)
+      SELECT new.id, json_extract(p.value, '$.media_id'), json_extract(p.value, '$.name')
+      FROM json_each(new.parts) p WHERE json_extract(p.value, '$.media_id') IS NOT NULL;
+  END;
+  CREATE TRIGGER message_media_ad AFTER DELETE ON messages BEGIN
+    DELETE FROM message_media WHERE message_id = old.id;
+  END;
+  `,
 ];

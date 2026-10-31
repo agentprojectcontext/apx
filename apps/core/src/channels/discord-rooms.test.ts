@@ -70,7 +70,7 @@ before(async () => {
     id: "dc",
     channel: {
       type: "discord",
-      agent_id: "roby",
+      agent_id: "superagent",
       rooms: {
         rooms: [
           { id: ROOMS.general, name: "general", mode: "mention" },
@@ -193,7 +193,7 @@ test("owner only: in rooms only the owner gets answers", async () => {
     const cur = (await env.client.call("channels.list", {})).channels[0];
     await env.client.call("channels.set", {
       id: "dc",
-      channel: { type: "discord", agent_id: "roby", rooms: { ...(cur?.rooms ?? { rooms: [] }), owner_only } },
+      channel: { type: "discord", agent_id: "superagent", rooms: { ...(cur?.rooms ?? { rooms: [] }), owner_only } },
     });
     await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "up");
   };
@@ -218,7 +218,7 @@ test("research: none for members by default; off closes it to the owner too, eve
     const cur = (await env.client.call("channels.list", {})).channels[0];
     await env.client.call("channels.set", {
       id: "dc",
-      channel: { type: "discord", agent_id: "roby", rooms: cur?.rooms ?? { rooms: [] }, research: level },
+      channel: { type: "discord", agent_id: "superagent", rooms: cur?.rooms ?? { rooms: [] }, research: level },
     });
     await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "up");
   };

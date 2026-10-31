@@ -74,6 +74,9 @@ export const PERSON_RELATIONS = [
   "other",
 ] as const;
 
+/** The super-agent a fresh install starts with. Older installs keep the id theirs was created with. */
+export const SUPER_AGENT_ID = "superagent";
+
 /**
  * Names picked at random: a fresh super-agent's (and the setup's dice), and the new names of cloned agents. Short,
  * easy to say in Spanish and English, none twice.

@@ -20,7 +20,7 @@ function recordUsage(thread_id: string, model: string) {
   const { runs } = env.core.store;
   const run = runs.create({
     thread_id,
-    agent_id: "roby",
+    agent_id: "superagent",
     trigger: "user",
     input: { origin: { kind: "user" }, text: "Verify" },
     deadline_at: new Date(Date.now() + 30_000).toISOString(),
@@ -30,7 +30,7 @@ function recordUsage(thread_id: string, model: string) {
   runs.setState(run, "completed");
 }
 
-async function get(task: string, project_id?: string, agent_id = "roby") {
+async function get(task: string, project_id?: string, agent_id = "superagent") {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id, project_id });
   await env.client.call("threads.send", { thread: t.id, text: task });
   await env.settle(t.id);
@@ -50,14 +50,14 @@ test("task_get returns task fields, history, related work, usage and persisted c
   const session = store.threads.create({
     kind: "loose",
     title: "Implementation session",
-    agent_ids: ["roby"],
+    agent_ids: ["superagent"],
     project_id: "project_a",
     task_id: task.id,
   });
   const consult = store.threads.create({
     kind: "a2a",
     title: "Risk review",
-    agent_ids: ["roby", "vera"],
+    agent_ids: ["superagent", "vera"],
     project_id: "project_a",
     parent_id: task.thread_id,
   });
@@ -69,7 +69,7 @@ test("task_get returns task fields, history, related work, usage and persisted c
   });
   store.messages.add({
     thread_id: task.thread_id,
-    author: { kind: "agent", id: "roby" },
+    author: { kind: "agent", id: "superagent" },
     parts: [
       { type: "text", text: "Evidence attached" },
       { type: "file", media_id: "med_proof", name: "proof.txt", mime: "text/plain", bytes: 20 },
@@ -123,7 +123,7 @@ test("task_get filters related records from other projects and bounds long conve
   const hidden = store.threads.create({
     kind: "loose",
     title: "Hidden session",
-    agent_ids: ["roby"],
+    agent_ids: ["superagent"],
     project_id: "project_b",
     task_id: task.id,
   });
@@ -131,7 +131,7 @@ test("task_get filters related records from other projects and bounds long conve
   const consult = store.threads.create({
     kind: "a2a",
     title: "Hidden consult",
-    agent_ids: ["roby"],
+    agent_ids: ["superagent"],
     project_id: "project_b",
     parent_id: task.thread_id,
   });

@@ -74,7 +74,7 @@ test("forged auxiliary quotes and assistant claims cannot become durable facts",
   );
   const env = await startCore({ llm, aux: true, memoryMaintenance: true });
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: thread.id, text: "Can you investigate the deployment?" });
     await env.settle(thread.id);
     await waitFor(async () => (await env.client.call("memory.status", {})).jobs.every((j) => j.state === "completed"));
@@ -89,7 +89,7 @@ test("queue survives restart, expired final leases fail, and reservations stay i
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   let closed = false;
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: thread.id, text: "A short owner turn." });
     await env.settle(thread.id);
     const run = env.core.store.runs.list(thread.id, 1)[0];
@@ -97,7 +97,7 @@ test("queue survives restart, expired final leases fail, and reservations stay i
     const job = {
       id: "capture:restart",
       kind: "capture" as const,
-      agent_id: "roby",
+      agent_id: "superagent",
       thread_id: thread.id,
       run_id: run.id,
     };
@@ -140,7 +140,7 @@ test("consolidation rejects duplicate IDs, opposing signs and reordered preferen
   try {
     const note = env.core.store.memories.add({
       scope: "agent",
-      agent_id: "roby",
+      agent_id: "superagent",
       source: "agent",
       text: "Invoices use amber labels.",
     });
@@ -150,7 +150,7 @@ test("consolidation rejects duplicate IDs, opposing signs and reordered preferen
           { id: note.id, revision: 1 },
           { id: note.id, revision: 1 },
         ],
-        { agent_id: "roby" },
+        { agent_id: "superagent" },
       ),
       false,
     );
@@ -217,7 +217,7 @@ test("an interrupted capture resumes once after restart without duplicate memori
   });
   let env = await startCore({ llm });
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", {
       thread: thread.id,
       text: "Acme always archives invoices with violet labels.",

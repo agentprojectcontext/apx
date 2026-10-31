@@ -22,10 +22,10 @@ test("a limit notice follows live work, continues only a stopped session, and st
   try {
     await env.client.call("setup.finish", {});
     const { store } = env.core;
-    const root = store.threads.create({ kind: "loose", title: "Northwind review", agent_ids: ["roby"] });
+    const root = store.threads.create({ kind: "loose", title: "Northwind review", agent_ids: ["superagent"] });
     const parent = store.runs.create({
       thread_id: root.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "user",
       input: { origin: { kind: "user" }, text: "Review" },
       deadline_at: new Date().toISOString(),
@@ -34,18 +34,18 @@ test("a limit notice follows live work, continues only a stopped session, and st
     const sub = store.threads.create({
       kind: "a2a",
       title: "Check sources",
-      agent_ids: ["roby"],
+      agent_ids: ["superagent"],
       parent_id: root.id,
       session: "research",
     });
     const first = store.runs.create({
       thread_id: sub.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "a2a",
       parent_run_id: parent.id,
       depth: 1,
       input: {
-        origin: { kind: "agent", id: "roby", name: "Roby", thread_id: root.id, run_id: parent.id },
+        origin: { kind: "agent", id: "superagent", name: "Roby", thread_id: root.id, run_id: parent.id },
         text: "Check sources",
       },
       deadline_at: new Date().toISOString(),

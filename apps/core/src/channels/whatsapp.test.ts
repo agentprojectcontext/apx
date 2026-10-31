@@ -48,7 +48,7 @@ const envDir = () => env.home;
 test("linking the owner's own phone: a QR waits in the app, and once scanned the number is the owner's address", async () => {
   await env.client.call("channels.set", {
     id: "whatsapp",
-    channel: { type: "whatsapp", agent_id: "roby", self_owner: true },
+    channel: { type: "whatsapp", agent_id: "superagent", self_owner: true },
   });
   await waitFor(async () => Boolean((await channel())?.qr), "a QR to scan");
   const waiting = await channel();
@@ -423,7 +423,7 @@ test("logged out from the phone: the channel says so and keeps no dead credentia
 test("removing the channel unlinks the device and drops its folder", async () => {
   await env.client.call("channels.set", {
     id: "whatsapp",
-    channel: { type: "whatsapp", agent_id: "roby", self_owner: true },
+    channel: { type: "whatsapp", agent_id: "superagent", self_owner: true },
   });
   await waitFor(async () => Boolean((await channel())?.qr), "a new QR");
   wa.scan();

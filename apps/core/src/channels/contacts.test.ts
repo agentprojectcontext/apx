@@ -67,7 +67,11 @@ async function pairContact(): Promise<string> {
 before(async () => {
   tg = await fakeTelegram(TOKEN);
   env = await startCore({ llm, channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) } });
-  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent" },
+    token: TOKEN,
+  });
   await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
   tg.message(OWNER, "hola");
   await waitFor(() => tg.messagesTo(OWNER.id).length === 1, "owner's pairing code");
@@ -184,7 +188,7 @@ test("a reaction to the agent's message shows on it, and never wakes the agent",
 test("with closers set to react, a thanks gets an emoji instead of words", async () => {
   await env.client.call("channels.set", {
     id: "tg",
-    channel: { type: "telegram", agent_id: "roby", closers: "react" },
+    channel: { type: "telegram", agent_id: "superagent", closers: "react" },
   });
   await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
   const sent = tg.messagesTo(MAG.id).length;
@@ -202,7 +206,7 @@ test("with closers set to react, a thanks gets an emoji instead of words", async
   }, "the agent's reaction shown on their message");
   assert.equal(tg.messagesTo(MAG.id).length, sent, "no words went back");
   assert.equal(llm.calls.length, calls, "no model call");
-  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" } });
+  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "superagent" } });
   await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
 });
 
@@ -432,7 +436,7 @@ test("the owner's agent writes to a contact on their channel, kept in the contac
   );
 
   // The contact's words are now in the chat, so writing again asks first; at total autonomy the agent just acts.
-  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
   // A name that is nobody: nothing goes out, and the agent hears who the contacts are.
   await env.client.call("threads.send", { thread: "home", text: "tell nobody" });
   await env.settle("home");

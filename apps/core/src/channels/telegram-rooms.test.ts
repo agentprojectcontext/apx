@@ -46,7 +46,7 @@ async function setRooms(owner_only = false, room_replies_per_hour = 30) {
     id: "tg",
     channel: {
       type: "telegram",
-      agent_id: "roby",
+      agent_id: "superagent",
       rooms: {
         rooms: [
           { id: String(GROUPS.team), name: "Acme team", mode: "mention" },
@@ -73,7 +73,11 @@ before(async () => {
   });
   env.core.store.persons.owner();
   env.core.store.persons.link(OWNER_ID, { channel: "tg", external_id: String(OWNER.id), label: "Telegram" });
-  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent" },
+    token: TOKEN,
+  });
   await setRooms();
 });
 after(async () => {

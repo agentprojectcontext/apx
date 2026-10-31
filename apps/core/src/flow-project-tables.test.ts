@@ -224,7 +224,7 @@ async function agentCore() {
   });
   const env = await startCore({ llm });
   const ask = async (calls: object[], decision?: "approve" | "deny") => {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Tables" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Tables" });
     await env.client.call("threads.send", { thread: thread.id, text: JSON.stringify(calls) });
     let asked = false;
     if (decision) {

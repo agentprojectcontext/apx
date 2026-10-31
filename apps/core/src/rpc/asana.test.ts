@@ -131,8 +131,8 @@ test("Asana tools are conditional, writes require owner authority and request sc
     assert.equal(asana.usable("off"), false);
     assert.equal(asana.usable("on"), true);
     // Not offered in a chat an outside app started, which the handler refuses.
-    const mine = env.core.store.threads.create({ kind: "loose", title: "t", agent_ids: ["roby"] });
-    const theirs = env.core.store.threads.create({ kind: "loose", title: "t", agent_ids: ["roby"] });
+    const mine = env.core.store.threads.create({ kind: "loose", title: "t", agent_ids: ["superagent"] });
+    const theirs = env.core.store.threads.create({ kind: "loose", title: "t", agent_ids: ["superagent"] });
     env.core.store.threads.mergeContext(theirs.id, { client: "external" });
     assert.equal(tools[0]?.when?.(mine), true);
     assert.equal(tools[0]?.when?.(theirs), false);

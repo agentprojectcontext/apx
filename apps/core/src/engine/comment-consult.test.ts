@@ -29,7 +29,7 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
     return callTool("c4", "task_create", {
       title: "Recount the totals",
       description: "Recount the monthly totals.",
-      assignee: "roby",
+      assignee: "superagent",
     });
   if (system.startsWith("You are Scout") && said.includes("animation first")) return say("Noted: animation first.");
   if (system.startsWith("You are Scout")) return say("Yes: the totals include taxes.");
@@ -87,7 +87,7 @@ test("the answer to a question asked from the owner's chat goes to the asker's c
   const task = await env.client.call("tasks.create", { title: "Acme reel", description: "A short reel about Acme." });
   await env.client.call("threads.send", { thread: "home", text: `Tell Scout on ${task.id}: animation first.` });
   await waitFor(() => store.threads.sessions(task.thread_id).some((t) => t.agent_ids[0] === "scout"), "the consult");
-  const chat = () => store.threads.byTask(task.id).find((t) => t.agent_ids[0] === "roby");
+  const chat = () => store.threads.byTask(task.id).find((t) => t.agent_ids[0] === "superagent");
   await waitFor(
     () => store.runs.list(chat()?.id ?? "").some((r) => r.trigger === "a2a" && r.state === "completed"),
     "the secretary hears the answer in its chat for the task",

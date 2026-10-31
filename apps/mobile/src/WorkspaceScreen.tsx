@@ -28,6 +28,7 @@ import { RoutineEditPage } from "./pages/RoutineEditPage";
 import { RoutinesPage } from "./pages/RoutinesPage";
 import { SessionsPage } from "./pages/SessionsPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { SharedFilesPage } from "./pages/SharedFilesPage";
 import { TaskDetailPage } from "./pages/TaskDetailPage";
 import { TasksPage } from "./pages/TasksPage";
 import { SurfacesScreen } from "./SurfacesScreen";
@@ -52,7 +53,7 @@ const TABS: Array<NavItem<Tab>> = [
 
 /** What opens over the tabs: a chat, the apps, a routine, a task, a page of More, the archived chats. */
 type Page =
-  | { kind: "chat"; thread: Thread }
+  | { kind: "chat"; thread: Thread; focus?: string }
   | { kind: "apps" }
   | { kind: "archived" }
   | { kind: "routine" | "routineEdit"; routine: Routine }
@@ -108,6 +109,10 @@ export function WorkspaceScreen({
     () => ({ tree: workspace.fileTree, read: workspace.readFile, media: workspace.fileMedia }),
     [workspace.fileTree, workspace.readFile, workspace.fileMedia],
   );
+  const sharedActions = useMemo(
+    () => ({ list: workspace.sharedFiles, poster: workspace.videoPoster }),
+    [workspace.sharedFiles, workspace.videoPoster],
+  );
   const memoryActions = useMemo(
     () => ({ list: workspace.memories, add: workspace.addMemory, remove: workspace.removeMemory }),
     [workspace.memories, workspace.addMemory, workspace.removeMemory],
@@ -153,9 +158,9 @@ export function WorkspaceScreen({
   const { readThreads } = workspace;
   /** A chat opens over what is on screen; the one already on top stays as it is. */
   const showChat = useCallback(
-    (thread: Thread, how: "push" | "replace" = "push") => {
-      if (viewing === thread.id) return;
-      (how === "replace" ? replace : push)({ kind: "chat", thread });
+    (thread: Thread, how: "push" | "replace" = "push", focus?: string) => {
+      if (viewing === thread.id && !focus) return;
+      (how === "replace" ? replace : push)({ kind: "chat", thread, ...(focus ? { focus } : {}) });
       if (!isNewChat(thread.id) && thread.unread > 0) void readThreads([thread.id]).catch(() => undefined);
     },
     [viewing, push, replace, readThreads],
@@ -185,12 +190,13 @@ export function WorkspaceScreen({
     });
     return () => sub.remove();
   }, [picker, back, tab]);
-  const openById = (id: string) => {
+  /** A chat by id, from the list or asked of the core; `focus` scrolls it to one of its messages. */
+  const openById = (id: string, focus?: string) => {
     const found = workspace.data.threads.find((item) => item.id === id);
-    if (found) return showChat(found);
+    if (found) return showChat(found, "push", focus);
     void workspace
       .openThread(id)
-      .then((result) => showChat(result.thread as Thread))
+      .then((result) => showChat(result.thread as Thread, "push", focus))
       .catch(() => undefined);
   };
   const newChat = () => setPicker("new");
@@ -211,6 +217,7 @@ export function WorkspaceScreen({
             onUnpair={onUnpair}
             onApps={() => push({ kind: "apps" })}
             base={item.thread}
+            {...(item.focus ? { focus: item.focus } : {})}
             data={workspace.data}
             onSwitch={() => setPicker("switch")}
             onNewChat={newChat}
@@ -281,6 +288,15 @@ export function WorkspaceScreen({
             return <AboutPage data={workspace.data} url={creds.url} back={back} load={workspace.serverInfo} />;
           case "files":
             return <FilesPage data={workspace.data} back={back} actions={fileActions} />;
+          case "shared":
+            return (
+              <SharedFilesPage
+                data={workspace.data}
+                back={back}
+                actions={sharedActions}
+                openMessage={(thread, message) => openById(thread, message)}
+              />
+            );
           case "memory":
             return <MemoryPage data={workspace.data} back={back} actions={memoryActions} />;
           case "settings":

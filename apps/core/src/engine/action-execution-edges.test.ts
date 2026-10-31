@@ -23,7 +23,7 @@ for (const capture of ["proposal", "future", "unspecified"] as const) {
     });
     const env = await startCore({ llm });
     try {
-      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       const sent = await env.client.call("threads.send", { thread: chat.id, text: "Keep this for later and ask now." });
       await waitFor(() => Boolean(env.core.store.runs.get(sent.run.id)?.ended_at), "source completion");
       assert.equal(env.core.store.threads.sessions(chat.id).length, 1);
@@ -55,7 +55,7 @@ test("delegation followed by task assignment cannot open a second executor", asy
   });
   const env = await startCore({ llm });
   try {
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const sent = await env.client.call("threads.send", { thread: chat.id, text: "Review once." });
     await waitFor(() => Boolean(env.core.store.runs.get(sent.run.id)?.ended_at), "source completion");
     const step = env.core.store.runs.steps(sent.run.id).find((s) => s.call_id === "duplicate");

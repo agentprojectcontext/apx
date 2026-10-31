@@ -18,7 +18,7 @@ before(async () => {
   h = await settingsCore({ channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) } });
   await h.env.client.call("channels.set", {
     id: "tg",
-    channel: { type: "telegram", label: "Acme bot", agent_id: "roby", strangers: "ask", research: "off" },
+    channel: { type: "telegram", label: "Acme bot", agent_id: "superagent", strangers: "ask", research: "off" },
     token: TOKEN,
   });
   dad = (await h.env.client.call("contacts.set", { name: "Northwind Dad", nickname: "Dad", relation: "family" })).id;

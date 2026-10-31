@@ -45,7 +45,11 @@ let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 before(async () => {
   tg = await fakeTelegram(TOKEN);
   env = await startCore({ llm, channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) } });
-  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent" },
+    token: TOKEN,
+  });
   env.core.store.persons.link(env.core.store.persons.owner().id, { channel: "tg", external_id: String(OWNER.id) });
   // The model that names stickers: one that is not known not to read images.
   env.core.store.settings.set("model_aux", "openai/gpt-4o-mini");

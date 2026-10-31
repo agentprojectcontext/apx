@@ -81,7 +81,7 @@ test("the super-agent makes a Flow, off, with a tidy draft, without asking, and 
   // An open editor hears of it.
   assert.deepEqual(
     events.slice(before).map((e) => [e.flow, e.project, e.draft_version, e.by]),
-    [[id, acme, 1, "roby"]],
+    [[id, acme, 1, "superagent"]],
   );
 });
 
@@ -164,7 +164,7 @@ test("edits change the latest draft, place new steps beside theirs and say why i
   const fixed = (
     await edit([
       { op: "update", step: "save", set: { key: "$trigger.email" } },
-      { op: "update", step: "think", set: { agent: "roby" } },
+      { op: "update", step: "think", set: { agent: "superagent" } },
       { op: "disconnect", from: "save", to: "think" },
       { op: "connect", from: "hook", to: "think" },
       { op: "tidy" },
@@ -219,7 +219,9 @@ test("how freely an AI step acts stays the owner's", async () => {
     method: "flows.draft_save",
     params: {
       flow: id,
-      edits: [{ op: "add", after: "save", step: { kind: "agent", agent: "roby", prompt: "Go", autonomy: "total" } }],
+      edits: [
+        { op: "add", after: "save", step: { kind: "agent", agent: "superagent", prompt: "Go", autonomy: "total" } },
+      ],
     },
   });
   assert.match(raised.answer, /not saved: step "agent": autonomy stays the owner's/);
@@ -228,13 +230,13 @@ test("how freely an AI step acts stays the owner's", async () => {
 
 test("a step the owner limited keeps its limits, who it runs as and its place; who drew the draft is kept", async () => {
   const id = madeId((await h.ask(leads())).answer);
-  assert.equal((await doc(id)).draftBy, "roby");
+  assert.equal((await doc(id)).draftBy, "superagent");
   const mine = (await doc(id)).draft as FlowGraph;
   const limited = {
     id: "think",
     kind: "agent" as const,
     label: "Think",
-    agent: "roby",
+    agent: "superagent",
     prompt: "Sum up",
     autonomy: "manual" as const,
     input: { kind: "event" as const, path: [] },
@@ -253,7 +255,7 @@ test("a step the owner limited keeps its limits, who it runs as and its place; w
   );
   assert.match(await edit([{ op: "remove", step: "think" }]), /only the owner removes it, in the editor/);
   assert.match(await edit([{ op: "update", step: "think", set: { prompt: "Sum it up in a line" } }]), /draftVersion 3/);
-  assert.equal((await doc(id)).draftBy, "roby");
+  assert.equal((await doc(id)).draftBy, "superagent");
 });
 
 test("the owner's edits saved under an agent's draft they have not reviewed keep it waiting for review", async () => {
@@ -267,7 +269,7 @@ test("the owner's edits saved under an agent's draft they have not reviewed keep
     graph: moved,
     unreviewed: true,
   });
-  assert.deepEqual([kept.draftVersion, kept.draftBy], [2, "roby"], "still the agent's to review");
+  assert.deepEqual([kept.draftVersion, kept.draftBy], [2, "superagent"], "still the agent's to review");
   assert.equal(events.at(-1)?.by, null, "the owner's own save, told by nobody");
   assert.equal(events.length, before + 1);
   // The editor's Save makes it the owner's; after that the flag names nobody.
@@ -313,7 +315,7 @@ test("an agent reaches the Flows of its project only, and nothing reaches them w
   const publish = await h.env.core.dispatch(
     "flows.publish",
     { flow: id, expectedDraftVersion: 1, expectedPublishedRevision: null },
-    as("roby"),
+    as("superagent"),
     "k2",
   );
   assert.ok(!publish.ok && /reserved to the owner/.test(publish.error.message));

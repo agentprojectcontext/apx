@@ -1,10 +1,11 @@
 import type { Part, Result } from "@apx/protocol";
 import { Badge, Button, Icons, Skeleton } from "@apx/ui";
-import { useCallback, useContext, useEffect, useState } from "react";
+import { Suspense, useCallback, useContext, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { useFlowDraft } from "../data/flowDrafts.ts";
 import { useData } from "../data/state.ts";
 import { usePack, useT } from "../i18n/index.ts";
+import { FlowViewer } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { FlowCanvas, type StepLook } from "./FlowCanvas.tsx";
 import { stepDetail } from "./look.tsx";
@@ -39,6 +40,7 @@ function FlowPicture({ part }: { part: Extract<Part, { type: "flow" }> }) {
   const agents = useData((s) => s.agents);
   // null: the Flow is gone (retired) or out of reach.
   const [doc, setDoc] = useState<Doc | null>();
+  const [viewing, setViewing] = useState(false);
   // biome-ignore lint/correctness/useExhaustiveDependencies: a changed drawing is read again
   useEffect(() => {
     let live = true;
@@ -63,6 +65,8 @@ function FlowPicture({ part }: { part: Extract<Part, { type: "flow" }> }) {
     );
   const graph = doc?.draft ?? doc?.published;
   const draft = Boolean(doc?.draft);
+  const fitKey = `${part.flow}:${doc?.draftVersion ?? ""}:${doc?.publishedRevision ?? ""}`;
+  const edit = () => go.flows(undefined, part.flow, true);
   return (
     <section className="flowcard" aria-label={t("flow.card.label", { name: part.name })}>
       <header className="flowcard__head">
@@ -81,14 +85,20 @@ function FlowPicture({ part }: { part: Extract<Part, { type: "flow" }> }) {
       </header>
       <div className="flowcard__canvas">
         {graph ? (
-          <FlowCanvas
-            graph={graph}
-            look={look}
-            selected={null}
-            onSelect={() => {}}
-            still
-            fitKey={`${part.flow}:${doc?.draftVersion ?? ""}:${doc?.publishedRevision ?? ""}`}
-          />
+          <>
+            <FlowCanvas graph={graph} look={look} selected={null} onSelect={() => {}} still fitKey={fitKey} />
+            {/* The picture opens larger, like an image: a button over it, so the page still scrolls over the drawing. */}
+            <button
+              type="button"
+              className="flowcard__zoom"
+              aria-label={t("flow.view.open", { name: part.name })}
+              onClick={() => setViewing(true)}
+            >
+              <span className="flowcard__zoomhint" aria-hidden="true">
+                <Icons.Maximize2 size={14} />
+              </span>
+            </button>
+          </>
         ) : (
           <Skeleton width="100%" height="100%" />
         )}
@@ -99,15 +109,27 @@ function FlowPicture({ part }: { part: Extract<Part, { type: "flow" }> }) {
             {t(doc?.publishedRevision === null ? "flow.card.newHint" : "flow.card.changedHint")}
           </span>
         )}
-        <Button
-          size="sm"
-          variant="secondary"
-          leadingIcon={<Icons.Pencil size={14} />}
-          onClick={() => go.flows(undefined, part.flow, true)}
-        >
+        <Button size="sm" variant="secondary" leadingIcon={<Icons.Pencil size={14} />} onClick={edit}>
           {t("flow.card.open")}
         </Button>
       </footer>
+      {viewing && graph && (
+        <Suspense fallback={null}>
+          <FlowViewer
+            flowId={part.flow}
+            name={part.name}
+            project={project ?? part.project}
+            graph={graph}
+            draft={draft}
+            fitKey={fitKey}
+            onEdit={() => {
+              setViewing(false);
+              edit();
+            }}
+            onClose={() => setViewing(false)}
+          />
+        </Suspense>
+      )}
     </section>
   );
 }

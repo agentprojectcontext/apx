@@ -1,14 +1,13 @@
 import type { Params, Result } from "@apx/protocol";
-import { FLOW_OTHERWISE, flowCases } from "@apx/protocol/flow-cases";
 import type { FlowShape } from "@apx/protocol/flow-shape";
 import { type FlowStepTone, Icons } from "@apx/ui";
 import type { ReactNode } from "react";
 import type { FlowGraph, FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
 import { currentLocale, type MessageKey } from "../i18n/index.ts";
-import { isTrigger } from "./graph-edit.ts";
+import { branchesOf, isTrigger } from "./graph-edit.ts";
 import { readCron, timesText } from "./schedule-form.ts";
 
-export { chainOrder, dotted, isTrigger } from "./graph-edit.ts";
+export { branchesOf, chainOrder, dotted, hookVerbs, isTrigger, literal } from "./graph-edit.ts";
 
 export type Flow = Result<"flows.set">;
 export type FlowRun = Result<"flows.events">["events"][number];
@@ -65,20 +64,6 @@ export const PALETTE: { group: MessageKey; kinds: StepKind[] }[] = [
 type Condition = Extract<FlowNode, { kind: "condition" }>;
 type T = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
-/**
- * A check's ways out, named for the person: a case by its name, else "Yes" for the first and "Case 2"… for the
- * others; otherwise is "No" beside one case and "Otherwise" beside more.
- */
-export function branchesOf(n: Condition, t: T): { id: string; label: string }[] {
-  const cases = flowCases(n);
-  return [
-    ...cases.map((c, i) => ({
-      id: c.id,
-      label: c.label.trim() || (i === 0 ? t("flow.f.yes") : t("flow.f.caseN", { n: i + 1 })),
-    })),
-    { id: FLOW_OTHERWISE, label: cases.length === 1 ? t("flow.f.no") : t("flow.f.otherwise") },
-  ];
-}
 /** The name of the way out `id` of a check. */
 export const branchName = (n: Condition, id: string, t: T) => branchesOf(n, t).find((b) => b.id === id)?.label ?? id;
 
@@ -99,8 +84,6 @@ export const scheduleName = (cron: string, t: (key: MessageKey) => string) => {
   const form = readCron(cron);
   return form.mode === "times" && cron.trim() ? timesText(form.days, currentLocale()) : cron;
 };
-/** The methods a webhook step takes, as its card and run log show them. */
-export const hookVerbs = (n: Extract<FlowNode, { kind: "webhook" }>) => (n.methods ?? ["POST"]).join(", ");
 export const presetOf = (cron: string) => SCHEDULE_PRESETS.find((p) => p.cron === cron.trim().replace(/\s+/g, " "));
 
 /** A Flow's address, from its path (DECISIONS.md#d-178); a Flow from before paths has its identifier as its path. */
@@ -109,8 +92,6 @@ export const hookPath = (path: string) => `/flows/${path}`;
 export const testPath = (path: string) => `/flows/test/${path}`;
 /** The path of a saved Flow. */
 export const pathOf = (flow: Flow) => flow.path ?? flow.id;
-
-export const literal = (v: string | number | boolean | null) => (typeof v === "string" ? `"${v}"` : String(v));
 
 /** Steps after the trigger, as chips in a list row. */
 export const chipsOf = (shape: FlowShape): StepKind[] => [

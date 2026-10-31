@@ -40,3 +40,20 @@ export function widgetMedia(surface: string, version: number, ref: string): Prom
   }
   return p;
 }
+
+const posters = new Map<string, Promise<string | undefined>>();
+
+/** An object URL for a video's poster frame, or undefined when the core cannot make one. */
+export function posterUrl(id: string): Promise<string | undefined> {
+  let p = posters.get(id);
+  if (!p) {
+    p = client.call("media.poster", { media_id: id }).then(({ data }) => {
+      if (!data) return undefined;
+      const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+      return URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
+    });
+    p.catch(() => posters.delete(id));
+    posters.set(id, p);
+  }
+  return p;
+}

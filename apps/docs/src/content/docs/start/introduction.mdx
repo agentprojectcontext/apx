@@ -9,6 +9,7 @@ import { Aside, Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
 import Shot from "../../../components/Shot.astro";
 import Blob from "../../../components/Blob.astro";
 import InstallCommand from "../../../components/InstallCommand.astro";
+import AppDownload from "../../../components/AppDownload.astro";
 
 <Blob name="menta" size={56} />
 
@@ -23,8 +24,12 @@ stays in one local database, and the models are yours: your subscription or your
 
 ## Try it
 
-The desktop app is the easiest start: download it from [Install](/start/install/) and follow the setup. From a
-terminal, one line installs the core and the `apx` command, and `apx desktop` then opens the app:
+The desktop app is the easiest start: download it for your system and follow the setup. It brings its own core.
+
+<AppDownload />
+
+On a server, or if you prefer the terminal, one line installs the core and the `apx` command, and `apx desktop` then
+opens the app. [Install](/start/install/) has every option.
 
 <InstallCommand />
 

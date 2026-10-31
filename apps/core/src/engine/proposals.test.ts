@@ -28,7 +28,7 @@ function task(title: string, by: string, parent?: string) {
     title,
     status: "todo",
     parent_id: parent,
-    thread_id: store.threads.create({ kind: "task", title, agent_ids: ["roby"] }).id,
+    thread_id: store.threads.create({ kind: "task", title, agent_ids: ["superagent"] }).id,
     by,
   });
 }
@@ -46,7 +46,7 @@ test("a short chain hands on freely; too deep, or back up the chain, waits for t
 
 test("handing a task to another agent follows the same rule: back up its chain, it waits for the owner", async () => {
   const store = env.core.store;
-  const launch = task("Plan the launch", "roby");
+  const launch = task("Plan the launch", "superagent");
   const sub = store.tasks.create({
     title: "Draft the launch post",
     description: "Two paragraphs for the blog.",
@@ -54,14 +54,14 @@ test("handing a task to another agent follows the same rule: back up its chain, 
     parent_id: launch.id,
     assignee: "vera",
     thread_id: store.threads.create({ kind: "task", title: "Draft the launch post", agent_ids: ["vera"] }).id,
-    by: "roby",
+    by: "superagent",
   });
-  handing = { task: sub.id, to: "roby" };
+  handing = { task: sub.id, to: "superagent" };
   const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "vera", title: "Vera" });
   await env.client.call("threads.send", { thread: chat.id, text: "pass it on" });
   await env.settle(chat.id);
   const after = store.tasks.get(sub.id);
-  assert.equal(after?.assignee, "roby");
+  assert.equal(after?.assignee, "superagent");
   assert.equal(after?.proposed, true, "the owner decides before it goes back up");
   assert.deepEqual(store.threads.byTask(sub.id), [], "no work started on it");
   const step = store.runs

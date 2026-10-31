@@ -13,7 +13,7 @@ test("legacy owner, agent and routine inputs survive invalidation without multil
   try {
     const secret = "Old invoice prefix is lavender.\n\n[task]\nThe old account detail is violet.";
     const note = await env.client.call("memory.add", { scope: "global", text: secret });
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const origins: Origin[] = [
       { kind: "user" },
       { kind: "agent", id: "scout", name: "Scout", thread_id: thread.id, run_id: "run_previous" },
@@ -22,7 +22,7 @@ test("legacy owner, agent and routine inputs survive invalidation without multil
     const runs = origins.map((origin) => {
       const run = env.core.store.runs.create({
         thread_id: thread.id,
-        agent_id: "roby",
+        agent_id: "superagent",
         trigger: "system",
         state: "queued",
         deadline_at: "2099-01-01T00:00:00Z",
@@ -57,7 +57,7 @@ test("legacy owner, agent and routine inputs survive invalidation without multil
     db.close();
     await env.client.call("memory.add", { id: note.id, scope: "global", text: "Invoice prefix is amber." });
     const stored = env.core.store.modelLog.list(thread.id);
-    const projected = memoryHistory(env.core.store, stored, "roby");
+    const projected = memoryHistory(env.core.store, stored, "superagent");
     assert.equal(projected.length, origins.length);
     for (const entry of projected) {
       const content = JSON.stringify(entry.item);
@@ -74,10 +74,10 @@ test("legacy owner, agent and routine inputs survive invalidation without multil
 test("unverifiable legacy framing removes its whole run, preserving unrelated history", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const run = env.core.store.runs.create({
       thread_id: thread.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "user",
       state: "queued",
       deadline_at: "2099-01-01T00:00:00Z",
@@ -91,7 +91,7 @@ test("unverifiable legacy framing removes its whole run, preserving unrelated hi
         { seq: 2, run_id: id, item: { role: "assistant", content: "Derived outdated detail." } },
         { seq: 3, run_id: "run_unrelated", item: { role: "user", content: "Unrelated owner input." } },
       ];
-      const projected = memoryHistory(env.core.store, entries, "roby");
+      const projected = memoryHistory(env.core.store, entries, "superagent");
       assert.equal(projected.length, 1);
       assert.match(JSON.stringify(projected[0]?.item), /Unrelated owner input/);
       assert.match(JSON.stringify(entries), /Outdated detail/);
@@ -100,7 +100,7 @@ test("unverifiable legacy framing removes its whole run, preserving unrelated hi
     sql(db).run(qb.updateTable("runs").set({ input: null }).where("id", "=", run.id));
     db.close();
     assert.equal(
-      memoryHistory(env.core.store, [{ seq: 1, run_id: run.id, item: { role: "user", content } }], "roby").length,
+      memoryHistory(env.core.store, [{ seq: 1, run_id: run.id, item: { role: "user", content } }], "superagent").length,
       0,
     );
   } finally {

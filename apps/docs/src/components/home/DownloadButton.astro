@@ -1,0 +1,253 @@
+---
+// The hero's download: one button for the reader's system and a menu with the others. Each link is built pointing at
+// the latest v2 release's file (src/data/latest-release.ts); a newer release published since moves it on load.
+import { builtRelease, downloadHref } from "../../data/latest-release";
+import type { HomeText } from "../../i18n/home";
+import OsIcon from "../OsIcon.astro";
+
+interface Props {
+  t: HomeText["get"];
+  releases: string;
+  /** On a doc page, where the home's button styles are not loaded. */
+  docs?: boolean;
+  /** In the home's hero, styled by home.css. */
+  hero?: boolean;
+}
+const { t, releases, docs = false, hero = false } = Astro.props;
+const desktop = [
+  { id: "mac-arm64", icon: "mac", name: t.macArm, short: "macOS", file: "-mac-arm64.dmg", meta: ".dmg" },
+  { id: "mac-x64", icon: "mac", name: t.macIntel, short: "macOS", file: "-mac-x64.dmg", meta: ".dmg" },
+  { id: "win", icon: "windows", name: "Windows", short: "Windows", file: "-win-x64.exe", meta: ".exe" },
+  { id: "linux", icon: "linux", name: "Linux", short: "Linux", file: "-linux-x86_64.AppImage", meta: "AppImage" },
+  {
+    id: "linux-arm64",
+    icon: "linux",
+    name: t.linuxArm,
+    short: "Linux",
+    file: "-linux-arm64.AppImage",
+    meta: "AppImage",
+  },
+] as const;
+const phone = [
+  { id: "android", icon: "android", name: "Android", short: "Android", file: "-android.apk", meta: ".apk" },
+] as const;
+---
+
+<div class:list={["getapx", { "getapx--docs not-content": docs, "getapx--hero": hero }]} data-for={t.for} data-app={t.app}>
+  <a class="btn btn-light getapx__main" href={downloadHref("-mac-arm64.dmg")} data-pick="mac-arm64">
+    <OsIcon name="mac" /><span class="getapx__label">{t.for} macOS</span>
+  </a>
+  <button class="btn btn-light getapx__more" type="button" aria-haspopup="menu" aria-expanded="false" aria-label={t.more}>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+  </button>
+  <div class="getapx__menu" role="menu" hidden>
+    {
+      desktop.map((o) => (
+        <a role="menuitem" href={downloadHref(o.file)} data-id={o.id} data-file={o.file} data-release={builtRelease} data-short={o.short}>
+          <OsIcon name={o.icon} />
+          <span>{o.name}</span>
+          <span class="getapx__meta">{o.meta}</span>
+        </a>
+      ))
+    }
+    <p class="getapx__group">{t.phone}</p>
+    {
+      phone.map((o) => (
+        <a role="menuitem" href={downloadHref(o.file)} data-id={o.id} data-file={o.file} data-release={builtRelease} data-short={o.short}>
+          <OsIcon name={o.icon} />
+          <span>{o.name}</span>
+          <span class="getapx__meta">{o.meta}</span>
+        </a>
+      ))
+    }
+    <a role="menuitem" class="getapx__all" href={releases}>{t.all} ↗</a>
+  </div>
+</div>
+
+<style is:global>
+  .getapx {
+    position: relative;
+    display: inline-flex;
+  }
+  .getapx .getapx__main {
+    border-radius: 999px 0 0 999px;
+    padding-right: 20px;
+  }
+  .getapx .getapx__more {
+    border-radius: 0 999px 999px 0;
+    padding: 0 16px 0 14px;
+    border-left: 1px solid rgba(10, 11, 12, 0.14);
+  }
+  .getapx__more svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.2s;
+  }
+  .getapx__more[aria-expanded="true"] svg {
+    transform: rotate(180deg);
+  }
+  .getapx__menu {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 8px);
+    left: 0;
+    min-width: 100%;
+    width: max-content;
+    padding: 6px;
+    border-radius: 16px;
+    background: var(--card);
+    border: 1px solid var(--line-2);
+    box-shadow: 0 18px 50px var(--shadow);
+    text-align: left;
+  }
+  .getapx__menu[hidden] {
+    display: none;
+  }
+  .getapx__menu a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: var(--fg);
+    font: 500 14px / 1.2 var(--sans);
+    text-decoration: none;
+  }
+  .getapx__menu a:hover,
+  .getapx__menu a:focus-visible {
+    background: var(--ghost);
+    outline: none;
+  }
+  .getapx__menu a[aria-current="true"] {
+    background: var(--ghost-2);
+  }
+  .getapx__meta {
+    margin-left: auto;
+    padding-left: 16px;
+    font: 12px / 1 var(--sl-font-mono, var(--apx-font-mono, monospace));
+    opacity: 0.6;
+  }
+  .getapx__group {
+    margin: 6px 0 0;
+    padding: 10px 12px 4px;
+    border-top: 1px solid var(--line);
+    font: 500 11px / 1 var(--mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  .getapx--docs .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    height: 46px;
+    padding: 0 22px;
+    border: 0;
+    background: var(--sl-color-white);
+    color: var(--sl-color-black);
+    font: 500 15px / 1 var(--sl-font);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .getapx--docs .btn svg {
+    width: 18px;
+    height: 18px;
+  }
+  .getapx--docs .getapx__more {
+    border-left-color: color-mix(in srgb, var(--sl-color-black) 15%, transparent);
+  }
+  .getapx--docs .getapx__menu {
+    background: var(--sl-color-bg);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+    border-color: var(--sl-color-gray-5);
+  }
+  .getapx--docs .getapx__menu a {
+    color: var(--sl-color-white);
+  }
+  .getapx--docs .getapx__menu a:hover,
+  .getapx--docs .getapx__menu a:focus-visible,
+  .getapx--docs .getapx__menu a[aria-current="true"] {
+    background: var(--sl-color-gray-6);
+  }
+  .getapx__menu .getapx__all {
+    margin-top: 6px;
+    border-top: 1px solid var(--line);
+    border-radius: 0 0 10px 10px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+</style>
+
+<script>
+  import { fillLatest } from "../latest-release";
+
+  type Ua = Navigator & { userAgentData?: { platform?: string } };
+  // The reader's system picks the main button; an iPhone or an unknown one keeps the full list of downloads.
+  const ua = navigator.userAgent;
+  const platform = (navigator as Ua).userAgentData?.platform ?? navigator.platform;
+  const pick = /android/i.test(ua)
+    ? "android"
+    : /iphone|ipad|ipod/i.test(ua)
+      ? ""
+      : /win/i.test(platform)
+        ? "win"
+        : /linux/i.test(platform)
+          ? /arm|aarch/i.test(platform)
+            ? "linux-arm64"
+            : "linux"
+          : /mac/i.test(platform)
+            ? "mac-arm64"
+            : "";
+
+  for (const root of document.querySelectorAll<HTMLElement>(".getapx")) {
+    const main = root.querySelector<HTMLAnchorElement>(".getapx__main")!;
+    const more = root.querySelector<HTMLButtonElement>(".getapx__more")!;
+    const menu = root.querySelector<HTMLElement>(".getapx__menu")!;
+    const items = [...menu.querySelectorAll<HTMLAnchorElement>("a[data-id]")];
+
+    const choose = (id: string) => {
+      const item = items.find((i) => i.dataset.id === id);
+      if (!item) {
+        main.dataset.pick = "";
+        main.href = "#download";
+        if (root.classList.contains("getapx--docs")) main.href = menu.querySelector<HTMLAnchorElement>(".getapx__all")!.href;
+        main.querySelector("svg")?.remove();
+        main.querySelector(".getapx__label")!.textContent = root.dataset.app ?? "";
+        return;
+      }
+      main.dataset.pick = id;
+      main.href = item.href;
+      main.querySelector("svg")?.replaceWith(item.querySelector("svg")!.cloneNode(true));
+      main.querySelector(".getapx__label")!.textContent = `${root.dataset.for} ${item.dataset.short}`;
+      for (const i of items) i.setAttribute("aria-current", String(i === item));
+    };
+    choose(pick);
+
+    const open = (on: boolean) => {
+      menu.hidden = !on;
+      more.setAttribute("aria-expanded", String(on));
+      if (on) (menu.querySelector("[aria-current=true]") as HTMLElement | null)?.focus();
+    };
+    more.addEventListener("click", () => open(menu.hidden));
+    document.addEventListener("click", (e) => {
+      if (!root.contains(e.target as Node)) open(false);
+    });
+    root.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !menu.hidden) {
+        open(false);
+        more.focus();
+      }
+      if ((e.key === "ArrowDown" || e.key === "ArrowUp") && !menu.hidden) {
+        e.preventDefault();
+        const all = [...menu.querySelectorAll<HTMLAnchorElement>("a")];
+        const at = all.indexOf(document.activeElement as HTMLAnchorElement);
+        all[(at + (e.key === "ArrowDown" ? 1 : all.length - 1)) % all.length]?.focus();
+      }
+    });
+
+    fillLatest(items).then(() => choose(main.dataset.pick ?? ""));
+  }
+</script>

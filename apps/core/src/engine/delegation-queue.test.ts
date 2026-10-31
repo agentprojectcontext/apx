@@ -113,7 +113,7 @@ const cards = (env: Env, parent: string) =>
     .filter((p): p is Extract<Part, { type: "subthread" }> => p.type === "subthread");
 
 async function fanOut(env: Env, done = true) {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "audit" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "audit" });
   await env.client.call("threads.send", { thread: t.id, text: "fan out" });
   if (done) await waitFor(() => env.core.store.runs.list(t.id, 1)[0]?.state === "completed", "the caller's turn");
   return t.id;
@@ -247,11 +247,11 @@ test("a delegation waiting for the owner's answer frees its slot", async () => {
 test("a turn in a session that no delegation started frees its slot when it ends", async () => {
   const asks = ofParts(["part-1", "part-2", "part-3", "part-4"]);
   await withCore({ asks, keys: ["side"] }, async (env, g) => {
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "audit" });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "audit" });
     const side = env.core.store.threads.create({
       kind: "a2a",
       title: "Side session",
-      agent_ids: ["scout", "roby"],
+      agent_ids: ["scout", "superagent"],
       parent_id: t.id,
       session: "side",
     });
@@ -325,10 +325,10 @@ for (const kind of ["chain", "agent"] as const)
 /** Seeds a delegation per state, as a killed process leaves them: the caller's turn already ended. */
 function seedCut(store: Store, states: Array<"working" | "input-required" | "queued">) {
   const deadline = new Date(Date.now() + 60_000).toISOString();
-  const parentThread = store.threads.create({ kind: "loose", title: "parent", agent_ids: ["roby"] });
+  const parentThread = store.threads.create({ kind: "loose", title: "parent", agent_ids: ["superagent"] });
   let parent = store.runs.create({
     thread_id: parentThread.id,
-    agent_id: "roby",
+    agent_id: "superagent",
     trigger: "user",
     input: { origin: { kind: "user" }, text: "fan out" },
     deadline_at: deadline,
@@ -339,7 +339,7 @@ function seedCut(store: Store, states: Array<"working" | "input-required" | "que
     const sub = store.threads.create({
       kind: "a2a",
       title: `Roby → Scout: ${p}`,
-      agent_ids: ["scout", "roby"],
+      agent_ids: ["scout", "superagent"],
       parent_id: parentThread.id,
       session: p,
     });
@@ -349,7 +349,7 @@ function seedCut(store: Store, states: Array<"working" | "input-required" | "que
       agent_id: "scout",
       trigger: "a2a",
       input: {
-        origin: { kind: "agent", id: "roby", name: "Roby", thread_id: parentThread.id, run_id: parent.id },
+        origin: { kind: "agent", id: "superagent", name: "Roby", thread_id: parentThread.id, run_id: parent.id },
         text: `look into ${p}`,
       },
       parent_run_id: parent.id,
@@ -366,7 +366,7 @@ function seedCut(store: Store, states: Array<"working" | "input-required" | "que
   });
   const msg = store.messages.add({
     thread_id: parentThread.id,
-    author: { kind: "agent", id: "roby" },
+    author: { kind: "agent", id: "superagent" },
     run_id: parent.id,
     parts: delegated.map(({ sub, run }) => ({
       type: "subthread" as const,

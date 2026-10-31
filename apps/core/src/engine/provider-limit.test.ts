@@ -30,7 +30,7 @@ after(async () => {
 });
 
 async function turn(text: string) {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text });
   return { id: t.id, ...(await env.settle(t.id)) };
 }
@@ -113,7 +113,7 @@ test("a reset is shown as the time today, with the date on another day", () => {
 test("a routine a provider limit stopped is not reported on its own: the stall notice covers it", async () => {
   const r = await env.client.call("routines.set", {
     name: "Brief",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "manual" },
     prompt: "limited: the morning brief",
   });

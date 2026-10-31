@@ -57,6 +57,7 @@ export function mediaHandlers(services: Services, store: Store) {
         throw failed(err);
       }
     },
+    "media.shared": (query) => store.sharedFiles.list(query),
     "media.get": ({ id }, ctx) => {
       readableMedia(store, id, ctx);
       const m = services.read(id);

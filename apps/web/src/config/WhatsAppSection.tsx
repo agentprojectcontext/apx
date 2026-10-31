@@ -1,4 +1,5 @@
 import type { ChannelInfo } from "@apx/protocol";
+import { SUPER_AGENT_ID } from "@apx/protocol/client";
 import { Badge, Button, EmptyState, IconButton, Icons, SettingRow, Spinner, Switch } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
@@ -62,7 +63,7 @@ function Setup() {
   const t = useT();
   const agents = useData((s) => s.agents);
   const secretary = Object.values(agents).find((a) => a.kind === "secretary");
-  const [agent, setAgent] = useState(secretary?.id ?? "roby");
+  const [agent, setAgent] = useState(secretary?.id ?? SUPER_AGENT_ID);
   const [selfOwner, setSelfOwner] = useState(false);
   const [busy, setBusy] = useState(false);
   const link = async () => {

@@ -31,14 +31,14 @@ test("semantic review rejects reversed relationships even when the same words pa
   });
   const env = await startCore({ llm, aux: true, memoryMaintenance: true });
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: thread.id, text: quote });
     await env.settle(thread.id);
     await waitFor(() =>
       env.core.store.memoryWork.recent().some((j) => j.kind === "capture" && j.state === "completed"),
     );
     assert.equal(reviews, 1);
-    assert.equal(env.core.store.memories.list({ scope: "agent", agent_id: "roby", limit: 100 }).length, 0);
+    assert.equal(env.core.store.memories.list({ scope: "agent", agent_id: "superagent", limit: 100 }).length, 0);
   } finally {
     await env.core.close();
     await env.cleanup();
@@ -70,13 +70,13 @@ test("a capture checkpoint resumes validation after quota exhaustion without ext
       auto_dream: false,
       daily_memory_calls: 1,
     });
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: thread.id, text: quote });
     await env.settle(thread.id);
     await waitFor(() => env.core.store.memoryWork.recent().some((j) => j.error?.includes("budget")));
     assert.equal(extractions, 1);
     assert.equal(reviews, 0);
-    assert.equal(env.core.store.memories.list({ scope: "agent", agent_id: "roby", limit: 100 }).length, 0);
+    assert.equal(env.core.store.memories.list({ scope: "agent", agent_id: "superagent", limit: 100 }).length, 0);
     const job = env.core.store.memoryWork.recent().find((j) => j.kind === "capture");
     assert.ok(job);
     await env.client.call("memory.set_settings", {
@@ -87,7 +87,9 @@ test("a capture checkpoint resumes validation after quota exhaustion without ext
     });
     env.core.store.memoryWork.defer(job.id, "resume", new Date(0).toISOString());
     await env.client.call("memory.maintenance", {});
-    await waitFor(() => env.core.store.memories.list({ scope: "agent", agent_id: "roby", limit: 100 }).length === 1);
+    await waitFor(
+      () => env.core.store.memories.list({ scope: "agent", agent_id: "superagent", limit: 100 }).length === 1,
+    );
     assert.equal(extractions, 1);
     assert.equal(reviews, 1);
   } finally {
@@ -127,13 +129,13 @@ test("a recovered tool call alone never becomes a verified procedure", async () 
     ],
   });
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: thread.id, text: "Create the artifact and check its contents." });
     await env.settle(thread.id);
     assert.equal(attempts, 2);
     assert.equal(
       env.core.store.memories
-        .list({ scope: "agent", agent_id: "roby", limit: 100 })
+        .list({ scope: "agent", agent_id: "superagent", limit: 100 })
         .filter((m) => m.kind === "procedure").length,
       0,
     );
@@ -146,7 +148,7 @@ test("a recovered tool call alone never becomes a verified procedure", async () 
 test("a historical source is still available after seventy later owner turns", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const first = await env.client.call("threads.send", { thread: thread.id, text: quote });
     await env.settle(thread.id);
     for (let i = 0; i < 70; i++) {
@@ -188,13 +190,15 @@ test("capture joins two authorized owner statements and preserves both sources",
   });
   const env = await startCore({ llm, aux: true, memoryMaintenance: true });
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     for (const text of ["Prefiero CSV para informes internos.", "Prefiero PDF para clientes."]) {
       await env.client.call("threads.send", { thread: thread.id, text });
       await env.settle(thread.id);
     }
-    await waitFor(() => env.core.store.memories.list({ scope: "agent", agent_id: "roby", limit: 100 }).length === 1);
-    const [note] = (await env.client.call("memory.list", { agent: "roby" })).memories;
+    await waitFor(
+      () => env.core.store.memories.list({ scope: "agent", agent_id: "superagent", limit: 100 }).length === 1,
+    );
+    const [note] = (await env.client.call("memory.list", { agent: "superagent" })).memories;
     assert.equal(note?.text, correct);
     assert.equal(note.evidence?.length, 2);
   } finally {
@@ -257,7 +261,7 @@ test("real file tools record the readback evidence after recovering from an erro
     ],
   });
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     output = path.join(scratchDir(env.core.store, env.home, thread), "report.txt");
     await env.client.call("threads.send", {
       thread: thread.id,
@@ -271,10 +275,12 @@ test("real file tools record the readback evidence after recovering from an erro
 
     await waitFor(() =>
       env.core.store.memories
-        .list({ scope: "agent", agent_id: "roby", limit: 100 })
+        .list({ scope: "agent", agent_id: "superagent", limit: 100 })
         .some((m) => m.kind === "procedure"),
     );
-    const note = (await env.client.call("memory.list", { agent: "roby" })).memories.find((m) => m.kind === "procedure");
+    const note = (await env.client.call("memory.list", { agent: "superagent" })).memories.find(
+      (m) => m.kind === "procedure",
+    );
     assert.equal(note?.evidence?.[0]?.verification?.kind, "observed_result");
     assert.deepEqual(note?.evidence?.[0]?.verification?.step_ids, ["write", "read"]);
   } finally {
@@ -309,7 +315,11 @@ test("a fresh confirmation records proof even when the method has an unverified 
     ],
   });
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Legacy proof" });
+    const thread = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      title: "Legacy proof",
+    });
     const sent = await env.client.call("threads.send", { thread: thread.id, text: "Export the Acme asset." });
     await env.settle(thread.id);
     const run = env.core.store.runs.get(sent.run.id);
@@ -318,9 +328,9 @@ test("a fresh confirmation records proof even when the method has an unverified 
     assert.ok(note);
     const legacy = env.core.store.memories.add({
       scope: "agent",
-      agent_id: "roby",
+      agent_id: "superagent",
       source: "agent",
-      author_agent: "roby",
+      author_agent: "superagent",
       text: note.text,
       kind: "procedure",
       tainted: true,
@@ -330,12 +340,12 @@ test("a fresh confirmation records proof even when the method has an unverified 
     await env.settle(thread.id);
     await waitFor(() =>
       env.core.store.memories
-        .list({ agent_id: "roby", limit: 100 })
+        .list({ agent_id: "superagent", limit: 100 })
         .some((m) => m.evidence?.some((e) => e.verification?.kind === "owner_confirmation")),
     );
     assert.equal(env.core.store.memories.get(legacy.id)?.evidence?.[0]?.verification, undefined);
     const verified = env.core.store.memories
-      .list({ agent_id: "roby", limit: 100 })
+      .list({ agent_id: "superagent", limit: 100 })
       .find((m) => m.evidence?.some((e) => e.verification));
     assert.match(verified?.text ?? "", /`export_asset` `route-b`/);
   } finally {

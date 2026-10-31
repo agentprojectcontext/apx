@@ -97,7 +97,7 @@ describe("irc channel", () => {
     env = await startCore({ llm, roomBurstMs: 40, channelAdapters: { irc: ircAdapter } });
     await env.client.call("channels.set", {
       id: "irc",
-      channel: { type: "irc", agent_id: "roby", rooms: ROOMS },
+      channel: { type: "irc", agent_id: "superagent", rooms: ROOMS },
       token: `${irc.url} apxbot`,
     });
     await waitFor(

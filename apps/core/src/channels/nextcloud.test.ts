@@ -55,7 +55,7 @@ describe("nextcloud channel", () => {
     });
     await env.client.call("channels.set", {
       id: "nextcloud",
-      channel: { type: "nextcloud", agent_id: "roby", rooms: ROOMS },
+      channel: { type: "nextcloud", agent_id: "superagent", rooms: ROOMS },
       token: nc.secret,
     });
     await waitFor(
@@ -109,7 +109,7 @@ describe("nextcloud channel", () => {
 test("the place reached survives a restart, and reactions go on and come off", async () => {
   const nc = await fakeNextcloud();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-nextcloud-"));
-  const config = { id: "nc", type: "nextcloud", agent_id: "roby" } as Parameters<typeof nextcloudAdapter>[0];
+  const config = { id: "nc", type: "nextcloud", agent_id: "superagent" } as Parameters<typeof nextcloudAdapter>[0];
   const got: string[] = [];
   const io = (): AdapterIO => ({
     receive: (m) => void got.push(m.text),

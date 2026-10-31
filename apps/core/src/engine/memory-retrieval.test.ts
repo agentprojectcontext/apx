@@ -19,7 +19,7 @@ const indexWith = (rows: Awaited<ReturnType<MemoryIndex["searchEpisodes"]>>): Me
 async function source(env: Awaited<ReturnType<typeof startCore>>, text: string, thread?: string) {
   const t = thread
     ? env.core.store.threads.get(thread)
-    : await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    : await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   assert.ok(t);
   await env.client.call("threads.send", { thread: t.id, text });
   await env.settle(t.id);
@@ -33,7 +33,7 @@ async function source(env: Awaited<ReturnType<typeof startCore>>, text: string, 
     episode: {
       run_id: run.id,
       thread_id: t.id,
-      agent_id: "roby",
+      agent_id: "superagent",
       project_id: null,
       message_id: message,
       text,
@@ -50,7 +50,7 @@ test("old history in the current chat is recalled by meaning without visible tur
     const snapshot = await recallChats(
       env.core.store,
       indexWith([old.episode, recent.episode]),
-      "roby",
+      "superagent",
       old.thread,
       "Can participants tap choices in that questionnaire?",
       { excludeRuns: new Set([recent.run.id]) },
@@ -72,11 +72,11 @@ test("an older semantic match keeps its rank ahead of more than four recent dist
     const distractors = [];
     for (let n = 0; n < 6; n++)
       distractors.push((await source(env, `Questionnaire migration maintenance ticket ${n}.`)).episode);
-    const target = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const target = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const snapshot = await recallChats(
       env.core.store,
       indexWith([old.episode, ...distractors]),
-      "roby",
+      "superagent",
       target,
       "Questionnaire choices?",
     );
@@ -100,9 +100,16 @@ test("visible textual matches cannot crowd out an older current-chat source befo
       );
       visible.add(recent.run.id);
     }
-    const snapshot = await recallChats(env.core.store, indexWith([]), "roby", old.thread, "Northwind questionnaire", {
-      excludeRuns: visible,
-    });
+    const snapshot = await recallChats(
+      env.core.store,
+      indexWith([]),
+      "superagent",
+      old.thread,
+      "Northwind questionnaire",
+      {
+        excludeRuns: visible,
+      },
+    );
     assert.match(snapshot?.render() ?? "", /original violet ballot/);
     assert.doesNotMatch(snapshot?.render() ?? "", /maintenance ticket/);
   } finally {
@@ -128,14 +135,14 @@ test("queued and running owner messages in the current chat are never historical
     }),
   });
   try {
-    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: thread.id, text: "Northwind questionnaire currently running." });
     await started;
     await env.client.call("threads.send", {
       thread: thread.id,
       text: "Northwind questionnaire future queued instruction.",
     });
-    const snapshot = await recallChats(env.core.store, indexWith([]), "roby", thread, "Northwind questionnaire");
+    const snapshot = await recallChats(env.core.store, indexWith([]), "superagent", thread, "Northwind questionnaire");
     assert.equal(snapshot?.render(), undefined);
     release();
     await env.settle(thread.id);
@@ -155,7 +162,7 @@ test("old and new episodes are indexed independently of an exhausted extraction 
       env.core.store.memoryWork.enqueue({
         id,
         kind: "capture",
-        agent_id: "roby",
+        agent_id: "superagent",
         thread_id: old.thread.id,
         run_id: old.run.id,
       });
@@ -234,11 +241,11 @@ test("recall brings back how the agent did an earlier request: its completed too
     step("b", "browser_open", { url: "https://snapinsta.example.com" }, "ok");
     step("c", "browser_type", { text: "password hunter2" }, "ok");
     step("d", "browser_click", { ref: "download" }, "ok");
-    const target = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const target = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const snapshot = await recallChats(
       store,
       indexWith([old.episode]),
-      "roby",
+      "superagent",
       target,
       "download the reel like before",
     );

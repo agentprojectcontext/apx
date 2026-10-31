@@ -25,7 +25,7 @@ after(async () => {
 const search = (query: string) => env.client.call("threads.search", { query });
 
 test("a message is found by its words, accents and case aside, and by the start of a word", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "Pagá la factura de Northwind del miércoles" });
   await env.settle(t.id);
   const { hits } = await search("FACT miercoles");
@@ -44,7 +44,7 @@ test("operators typed in the box are words, not syntax", async () => {
 });
 
 test("a deleted chat's messages leave the index", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "zanahoria única" });
   await env.settle(t.id);
   assert.ok((await search("zanahoria")).hits.length > 0);

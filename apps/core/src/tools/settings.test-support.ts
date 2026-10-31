@@ -14,7 +14,7 @@ export async function settingsCore({
   const env = await startCore({ ...opts, llm });
 
   /** The owner asks for `call`; `decision` answers the confirmation it waits on. Returns the card and the answer. */
-  async function ask(call: object | string, decision?: "approve" | "deny", agent = "roby") {
+  async function ask(call: object | string, decision?: "approve" | "deny", agent = "superagent") {
     const thread = await env.client.call("threads.create", { kind: "loose", agent_id: agent, title: "Settings" });
     await env.client.call("threads.send", {
       thread: thread.id,

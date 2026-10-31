@@ -30,7 +30,7 @@ const owner = async () => (await env.client.call("contacts.list", {})).persons.f
 const configure = async (patch: Record<string, unknown>) => {
   await env.client.call("channels.set", {
     id: "whatsapp",
-    channel: { type: "whatsapp", agent_id: "roby", ...patch },
+    channel: { type: "whatsapp", agent_id: "superagent", ...patch },
   });
   await waitFor(async () => (await channel())?.status === "running", "running again");
 };
@@ -45,7 +45,7 @@ before(async () => {
         whatsappAdapter({ dir: `${env.home}/wa`, selfOwner: c.self_owner === true, lib: async () => wa.lib }),
     },
   });
-  await env.client.call("channels.set", { id: "whatsapp", channel: { type: "whatsapp", agent_id: "roby" } });
+  await env.client.call("channels.set", { id: "whatsapp", channel: { type: "whatsapp", agent_id: "superagent" } });
   await waitFor(async () => Boolean((await channel())?.qr), "a QR");
   wa.scan();
   await waitFor(async () => (await channel())?.status === "running", "linked");
@@ -153,7 +153,13 @@ test("changing who answers, where the owner's words go or what strangers get kee
   const before = wa.sockets;
   await env.client.call("channels.set", {
     id: "whatsapp",
-    channel: { type: "whatsapp", agent_id: "roby", strangers: "ignore", owner_thread: "own", concurrency: "steer" },
+    channel: {
+      type: "whatsapp",
+      agent_id: "superagent",
+      strangers: "ignore",
+      owner_thread: "own",
+      concurrency: "steer",
+    },
   });
   assert.equal((await channel())?.status, "running");
   assert.equal(wa.sockets, before, "no reconnect");

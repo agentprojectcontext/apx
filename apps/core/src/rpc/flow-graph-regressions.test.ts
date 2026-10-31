@@ -28,7 +28,7 @@ test("publishing leaves legacy pending and failed events on the legacy executor,
       enabled: false,
       predicates: [],
       tableKey: "latest",
-      action: { kind: "agent" as const, agent: "roby", prompt: "Summarize original event" },
+      action: { kind: "agent" as const, agent: "superagent", prompt: "Summarize original event" },
     };
     await env.client.call("flows.set", flow);
     // Persist at the recovery boundary without waking the dispatcher before disabling.

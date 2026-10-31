@@ -34,7 +34,7 @@ const llm = scriptedLlm(async (req, { said, afterTool }) => {
   if (said.includes("make a task"))
     return callTool("t1", "task_create", {
       title: "Draft the launch post",
-      assignee: "roby",
+      assignee: "superagent",
       description: "Write the launch draft.",
     });
   if (said.includes("peek at the other")) return callTool("t2", "task_list", {});
@@ -48,7 +48,7 @@ const llm = scriptedLlm(async (req, { said, afterTool }) => {
   if (said.includes("hand over subtask"))
     return callTool("t4", "delegate", { agent: "vera", task: "assign a subtask to roby" });
   if (said.includes("assign a subtask to roby"))
-    return callTool("t5", "task_create", { title: "Proofread the post", assignee: "roby" });
+    return callTool("t5", "task_create", { title: "Proofread the post", assignee: "superagent" });
   const ping = /ping roby on (task_\w+)/.exec(said);
   if (ping) return callTool("t3", "task_comment", { task: ping[1], text: "@roby what do you think?" });
   if (system.startsWith("You are Vera")) return say("Done my part, @roby your turn.");
@@ -136,7 +136,11 @@ test("an @mention of a teammate is a consult shown as a card on the task; the co
   );
   const conversation = await env.client.call("threads.get", { thread: t.thread_id });
   assert.equal(conversation.runs.length, 0);
-  assert.deepEqual(conversation.thread.agent_ids, ["roby", "vera"], "whoever spoke is listed on the conversation");
+  assert.deepEqual(
+    conversation.thread.agent_ids,
+    ["superagent", "vera"],
+    "whoever spoke is listed on the conversation",
+  );
   // The task shows the owner's comment and the consult's card with its answer: nothing copied twice.
   assert.deepEqual(await commentsOf(t.thread_id), ["user", "vera"]);
   const cards = conversation.messages.flatMap((m) => m.parts.filter((p) => p.type === "subthread"));
@@ -242,7 +246,7 @@ test("the owner writing in a task's conversation reaches its agent's working tur
   );
   assert.deepEqual(
     env.core.store.threads.children(t.thread_id).map((id) => env.core.store.threads.get(id)?.agent_ids[0]),
-    ["roby"],
+    ["superagent"],
   );
 });
 
@@ -353,11 +357,11 @@ test("an agent's @mention in a task comment asks that agent, and the answer come
   await env.client.call("threads.send", { thread: chat.id, text: `ping roby on ${t.id}` });
   await env.settle(chat.id);
   const consult = store.threads.get(store.threads.children(t.thread_id)[0] ?? "");
-  assert.equal(consult?.agent_ids[0], "roby");
+  assert.equal(consult?.agent_ids[0], "superagent");
   assert.deepEqual(store.threads.context(consult?.id ?? "").consult?.asker, { agent: "vera", thread: chat.id });
   await env.settle(consult?.id ?? "");
   await env.settle(chat.id);
-  const back = store.messages.list(chat.id, 50).find((m) => m.author.kind === "agent" && m.author.id === "roby");
+  const back = store.messages.list(chat.id, 50).find((m) => m.author.kind === "agent" && m.author.id === "superagent");
   assert.match(JSON.stringify(back?.parts), /Roby (answered|could not answer) your question/);
   const reply = back?.parts.find((p) => p.type === "text");
   const child = store.runs.list(consult?.id ?? "")[0];
@@ -402,7 +406,7 @@ test("a task an agent makes while working a task is its subtask, listed on it", 
 });
 
 test("an answering agent cannot silently drop a requested assignee and leave an orphan task", async () => {
-  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
   await env.client.call("threads.send", { thread: chat.id, text: "hand over subtask" });
   await env.settle(chat.id);
   const { tasks } = await env.client.call("tasks.list", { project });
@@ -423,7 +427,7 @@ test("an agent the owner consults on a task can create and start the tasks the o
   const { subtasks } = await env.client.call("tasks.get", { task: t.id });
   assert.deepEqual(
     subtasks.map((s) => [s.title, s.assignee, s.created_by]),
-    [["Cut the tools reel", "vera", "roby"]],
+    [["Cut the tools reel", "vera", "superagent"]],
   );
   const reel = subtasks[0];
   assert.ok(reel);
@@ -447,9 +451,9 @@ test("giving a task to an agent starts it in its chat; another agent gets a new 
   // A work turn's answer stays in its chat: the task's comments are what agents post there on purpose.
   assert.deepEqual(await commentsOf(t.thread_id), []);
 
-  await env.client.call("tasks.update", { task: t.id, assignee: "roby" });
+  await env.client.call("tasks.update", { task: t.id, assignee: "superagent" });
   const second = await settleTask(t.id);
-  const roby = second.sessions.filter((s) => s.agent_ids[0] === "roby");
+  const roby = second.sessions.filter((s) => s.agent_ids[0] === "superagent");
   assert.equal(roby.length, 1);
   const input = llm.calls.find(
     (c) =>
@@ -498,7 +502,12 @@ test("the hourly pickup starts only tasks assigned since it began, the most pres
 
 test("the hourly pickup starts an agent's task as that agent gave it, never as if the owner asked", async () => {
   const store = env.core.store;
-  const from = store.threads.create({ kind: "loose", title: "Roby's chat", agent_ids: ["roby"], project_id: project });
+  const from = store.threads.create({
+    kind: "loose",
+    title: "Roby's chat",
+    agent_ids: ["superagent"],
+    project_id: project,
+  });
   const task = store.tasks.create({
     title: "Check the invoices",
     description: "Compare them with the ledger.",
@@ -511,7 +520,7 @@ test("the hourly pickup starts an agent's task as that agent gave it, never as i
       agent_ids: ["vera"],
       project_id: project,
     }).id,
-    by: "roby",
+    by: "superagent",
     from: { thread: from.id, run: "run_roby_1" },
   });
   const admitted: Array<{ thread_id: string; trigger: string; origin?: { kind: string } }> = [];
@@ -528,11 +537,11 @@ test("the hourly pickup starts an agent's task as that agent gave it, never as i
 
 test("an agent's tasks go to its thread's project and it sees no other project's", async () => {
   const other = await env.client.call("tasks.create", { title: "Secret elsewhere" });
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
   await env.client.call("threads.send", { thread: t.id, text: "make a task" });
   await env.settle(t.id);
   const { tasks } = await env.client.call("tasks.list", { project });
-  assert.ok(tasks.some((x) => x.title === "Draft the launch post" && x.created_by === "roby"));
+  assert.ok(tasks.some((x) => x.title === "Draft the launch post" && x.created_by === "superagent"));
 
   await env.client.call("tasks.update", { task: other.id, title: "Secret elsewhere" });
   const p2 = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-tasks2-")));
@@ -548,7 +557,7 @@ test("an agent's tasks go to its thread's project and it sees no other project's
 test("outside any project the super-agent sees every project's board, each task with its project and last activity", async () => {
   await env.client.call("tasks.create", { title: "Northwind invoice", project });
   await env.client.call("tasks.create", { title: "Renew the base insurance" });
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "everything" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "everything" });
   await env.client.call("threads.send", { thread: t.id, text: "peek at the other projects" });
   await env.settle(t.id);
   const seen = String(llm.calls.at(-1)?.messages.at(-1)?.content);
@@ -559,7 +568,7 @@ test("outside any project the super-agent sees every project's board, each task 
 });
 
 test("what an agent wrote in a task reaches other turns as the team's words, not outside data", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
   await env.client.call("threads.send", { thread: t.id, text: "make a task" });
   await env.settle(t.id);
   const made = (await env.client.call("tasks.list", { project })).tasks.find(
@@ -569,7 +578,10 @@ test("what an agent wrote in a task reaches other turns as the team's words, not
   await env.client.call("tasks.comment", { task: made.id, text: "@vera please look" });
   await settleTask(made.id);
   const input = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("@vera please look"));
-  assert.match(String(input?.messages.at(-1)?.content), /<task created_by="roby" trust="team">\nDraft the launch post/);
+  assert.match(
+    String(input?.messages.at(-1)?.content),
+    /<task created_by="superagent" trust="team">\nDraft the launch post/,
+  );
 });
 
 test("an agent of one project is not assigned another project's task", async () => {

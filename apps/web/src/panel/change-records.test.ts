@@ -13,7 +13,7 @@ const message = (id: string, parts: Part[], thread = "visible"): Message => ({
   id,
   thread_id: thread,
   seq: 1,
-  author: { kind: "agent", id: "roby" },
+  author: { kind: "agent", id: "superagent" },
   parts,
   created_at: "",
 });

@@ -98,7 +98,7 @@ function assertDestination(task: Task | undefined) {
 
 test("the global super-agent's task tool infers the assignee's project and starts the right agent", async () => {
   const { output } = await ask(
-    "roby",
+    "superagent",
     `create ${JSON.stringify({ title: "Direct delivery", description: "Prepare the delivery for review.", assignee: worker })}`,
   );
   assert.match(output, /starts on it now/);
@@ -106,11 +106,11 @@ test("the global super-agent's task tool infers the assignee's project and start
 });
 
 test("the router uses the same destination rule, while the owner still chooses a project explicitly", async () => {
-  const thread = await chat("roby");
+  const thread = await chat("superagent");
   const response = await env.core.dispatch(
     "tasks.create",
     { title: "Router delivery", description: "Prepare the delivery for review.", assignee: worker },
-    context("roby", thread.id),
+    context("superagent", thread.id),
     "router-create",
   );
   assert.equal(response.ok, true);
@@ -133,11 +133,11 @@ test("the router uses the same destination rule, while the owner still chooses a
 });
 
 test("the global super-agent may explicitly choose a project for an unassigned task", async () => {
-  await ask("roby", `create ${JSON.stringify({ title: "Destination draft", project })}`);
+  await ask("superagent", `create ${JSON.stringify({ title: "Destination draft", project })}`);
   const task = tasks().find((t) => t.title === "Destination draft");
   assert.equal(task?.project_id, project);
   assert.equal(task?.assignee, undefined);
-  const thread = await chat("roby");
+  const thread = await chat("superagent");
   for (const [title, destination, assignee] of [
     ["Explicit mismatch", other, worker],
     ["Missing destination", "missing-project", undefined],
@@ -146,7 +146,7 @@ test("the global super-agent may explicitly choose a project for an unassigned t
     const result = await env.core.dispatch(
       "tasks.create",
       { title, project: destination, assignee },
-      context("roby", thread.id),
+      context("superagent", thread.id),
       title,
     );
     assert.equal(result.ok, false);
@@ -158,7 +158,7 @@ test("ordinary global agents and project-bound callers gain no cross-project cre
   for (const [agent, place] of [
     ["vera", undefined],
     [worker, other],
-    ["roby", other],
+    ["superagent", other],
   ] as const) {
     const thread = await chat(agent, place);
     for (const explicit of [false, true]) {
@@ -192,7 +192,7 @@ test("ordinary global agents and project-bound callers gain no cross-project cre
 });
 
 test("global unassigned tasks and same-project assignments keep their existing scope", async () => {
-  for (const agent of ["roby", "vera"]) {
+  for (const agent of ["superagent", "vera"]) {
     const title = `Global draft ${agent}`;
     await ask(agent, `create ${JSON.stringify({ title })}`);
     const task = tasks().find((t) => t.title === title);
@@ -209,24 +209,24 @@ test("global unassigned tasks and same-project assignments keep their existing s
 });
 
 test("the super-agent can choose the project orchestrator to prepare the task, then assign it itself", async () => {
-  const { thread } = await ask("roby", "coordinate delivery");
+  const { thread } = await ask("superagent", "coordinate delivery");
   const task = tasks().find((t) => t.title === "Coordinated delivery");
   assertDestination(task);
   assert.ok(task);
   assert.equal(task.created_by, orchestrator);
   const events = env.core.store.tasks.events(task.id);
   assert.equal(events[0]?.by, orchestrator);
-  assert.ok(events.some((e) => e.by === "roby" && e.op === "assign"));
+  assert.ok(events.some((e) => e.by === "superagent" && e.op === "assign"));
   const children = env.core.store.threads.children(thread.id).flatMap((id) => env.core.store.threads.get(id) ?? []);
   assert.equal(children[0]?.project_id, project);
-  assert.deepEqual(children[0]?.agent_ids, [orchestrator, "roby"]);
+  assert.deepEqual(children[0]?.agent_ids, [orchestrator, "superagent"]);
 });
 
 test("an answering orchestrator still cannot start task work through the router", async () => {
   const thread = env.core.store.threads.create({
     kind: "a2a",
     title: "Prepare delivery",
-    agent_ids: [orchestrator, "roby"],
+    agent_ids: [orchestrator, "superagent"],
     project_id: project,
   });
   const result = await env.core.dispatch(

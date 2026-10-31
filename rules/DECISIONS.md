@@ -3405,3 +3405,35 @@ Windows differs in what it can promise, and the guest is checked for each point,
 - WSL sizes memory and CPUs for all distributions in `.wslconfig`; the computer's settings do not change them.
 - A host agent that died with the core leaves a pid Lima on Windows cannot inspect past: a dead `ha.pid` is dropped,
   a folder from a cut-short setup is cleared, and stopping terminates the distribution when Lima cannot.
+
+<a id="d-182"></a>
+## D-182 — 2026-10-30 — Release news live in a Help menu; the super-agent names one thing
+Told all at once (D-117), a release with many entries made the super-agent's message a list owners skimmed past, and
+once read nothing let them go back to it. Now the sidebar foot has a Help menu: the newest entries that apply, then
+every release in a dialog, each entry with what it lets the owner do and a button that asks the super-agent for it
+(the action's prompt, sent to Home), plus the guides, the Discord and feedback. Each entry carries `title` and `about`
+in English and Spanish, written for the owner: the panel shows its own language, and `text` stays what the model is
+told. The super-agent's message is one or two sentences with the thing that matters most in bold, pointing to Help ›
+What's new for the rest; without a model it is one line with the first entry's title in bold and the rest counted.
+The Help button carries a dot while an entry that applies was not there the last time the menu opened on that device
+(kept per device, like the corner cards); a device that never opened it counts the newest release's entries as new.
+
+## D-184 — 2026-10-31 — The super-agent publishes and runs a Flow when the owner asks, each after a card
+
+The owner asked the super-agent to make a test Flow, then "turn it on and try it with a curl". It drew and validated
+the Flow, but could not go further: publishing and running by hand were the owner's, in the editor (D-174), and a
+webhook's key never reaches a model, so the curl it offered could not have worked. Its `flows.set {enabled: true}`
+was also accepted on a Flow never published, which turned on something that runs nothing.
+
+- `flows.publish` and `flows.run_now` move from `OWNER_ONLY` into `apx_flow` (`tools/flow-tool-publish.ts`) as owner
+  calls: each waits for the owner's card, like `flows.set`. The publish card names the Flow, says it will be turned on,
+  and lists what the draft sends, calls, runs and changes (`flowOutward`, the editor's **Let this flow act for you?**)
+  and its AI steps. On approval it reads the draft again, stops if its version is not the one asked about, passes
+  `flows.outward`'s keys to `flows.publish` and turns the Flow on, all as the owner. The run card shows the data whole.
+- A run by hand is how the agent tries a Flow, then reads it with `flows.run_get`; it never asks for the key.
+- `apx_flow`'s `flows.set` refuses to turn on a Flow whose drawing was never published, before anyone is asked.
+- The editor's on switch is unchanged: it still opens an agent's draft for review instead of publishing it. The card
+  is that review when the owner asks in the chat.
+
+Tests, the key, an address and an AI step's autonomy stay the owner's. Rejected: letting the agent read the webhook
+key to call it (a key never reaches a model, D-139), and turning on without publishing (it runs nothing).

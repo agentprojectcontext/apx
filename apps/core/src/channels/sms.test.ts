@@ -66,7 +66,11 @@ before(async () => {
       [TYPE]: (c, s) => smsAdapter(c, s, { dir: path.join(env.home, "channels", c.id), api: tw.api, pollMs: 50 }),
     },
   });
-  await env.client.call("channels.set", { id: "sms", channel: { type: TYPE, agent_id: "roby" }, token: tw.secret });
+  await env.client.call("channels.set", {
+    id: "sms",
+    channel: { type: TYPE, agent_id: "superagent" },
+    token: tw.secret,
+  });
   await running();
 });
 after(async () => {
@@ -130,10 +134,10 @@ test("a restart replays nothing, and what came while it was off is read once", a
   await pairOwner();
   const calls = llm.calls.length;
   assert.ok(fs.existsSync(path.join(env.home, "channels", "sms", "sms-state.json")));
-  await env.client.call("channels.set", { id: "sms", channel: { type: TYPE, agent_id: "roby", enabled: false } });
+  await env.client.call("channels.set", { id: "sms", channel: { type: TYPE, agent_id: "superagent", enabled: false } });
   await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status !== "running", "stopped");
   tw.message(OWNER, "while away");
-  await env.client.call("channels.set", { id: "sms", channel: { type: TYPE, agent_id: "roby", enabled: true } });
+  await env.client.call("channels.set", { id: "sms", channel: { type: TYPE, agent_id: "superagent", enabled: true } });
   await running();
   await waitFor(() => tw.sentTo(OWNER).some((t) => t.includes("You said: while away")), "missed message read");
   await new Promise((r) => setTimeout(r, 300));
@@ -141,7 +145,7 @@ test("a restart replays nothing, and what came while it was off is read once", a
 });
 
 test("long text goes in parts of at most 1600 characters; a number that answered STOP is a final failure", async () => {
-  const a = smsAdapter({ id: "x", type: TYPE, agent_id: "roby" } as Parameters<typeof smsAdapter>[0], tw.secret, {
+  const a = smsAdapter({ id: "x", type: TYPE, agent_id: "superagent" } as Parameters<typeof smsAdapter>[0], tw.secret, {
     dir: path.join(env.home, "scratch-sms"),
     api: tw.api,
   });

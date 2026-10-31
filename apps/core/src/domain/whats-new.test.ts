@@ -51,10 +51,10 @@ test("a new install starts quiet; the next release is told once, unread, with no
     assert.equal(thread.release, "2.3.33");
     assert.equal(thread.unread, 1);
     assert.equal(thread.title, "What's new in APX 2.3.33", "English whatever the owner speaks: the notes are");
-    assert.deepEqual(thread.agent_ids, ["roby"]);
+    assert.deepEqual(thread.agent_ids, ["superagent"]);
     const { messages } = await third.client.call("threads.get", { thread: thread.id });
     const text = JSON.stringify(messages[0]?.parts);
-    assert.deepEqual(messages[0]?.author, { kind: "agent", id: "roby" });
+    assert.deepEqual(messages[0]?.author, { kind: "agent", id: "superagent" });
     assert.match(text, /APX was updated to 2\.3\.33/);
     assert.match(text, /\*\*New\*\*\\n- A widget opens in the browser from its header/);
     assert.match(text, /\*\*Fixed\*\*\\n- A chat turn gets 60 steps/);

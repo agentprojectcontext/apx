@@ -1,6 +1,6 @@
 # Opens desktop setup on a graphical computer; -Server installs the daemon, CLI and Node without administrator access.
 #
-#   irm https://agentprojectcontext.github.io/apx/install.ps1 | iex
+#   irm https://apxagent.app/install.ps1 | iex
 #   .\install.ps1 -File apx-core-2.2.0-win-x64.tar.gz      # a bundle you already have (no download)
 #
 # Parameters: -File <bundle>  -Version <x.y.z>  -Feed <owner/repo | http(s) URL>  -NoService  -Uninstall

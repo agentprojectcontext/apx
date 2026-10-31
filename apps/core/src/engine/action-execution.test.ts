@@ -44,7 +44,7 @@ for (const mode of ["creation", "assignment", "batch"] as const) {
     });
     const env = await startCore({ llm });
     try {
-      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       const sent = await env.client.call("threads.send", { thread: chat.id, text: "Dispatch once" });
       await waitFor(() => Boolean(env.core.store.runs.get(sent.run.id)?.ended_at), "source completion");
       const steps = env.core.store.runs.steps(sent.run.id);
@@ -76,7 +76,7 @@ test("capture-only records a task without execution or pressure to assign", asyn
   );
   const env = await startCore({ llm });
   try {
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const sent = await env.client.call("threads.send", { thread: chat.id, text: "Record this idea only." });
     await waitFor(() => Boolean(env.core.store.runs.get(sent.run.id)?.ended_at), "capture completion");
     const tasks = env.core.store.tasks.list({ from_thread: chat.id, limit: 10 });
@@ -102,7 +102,7 @@ test("a simple action needs no task and receives action-first guidance", async (
   });
   const env = await startCore({ llm });
   try {
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     const sent = await env.client.call("threads.send", { thread: chat.id, text: "Show my tasks." });
     await waitFor(() => Boolean(env.core.store.runs.get(sent.run.id)?.ended_at), "direct action completion");
     assert.deepEqual(

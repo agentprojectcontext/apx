@@ -70,7 +70,7 @@ after(async () => {
 });
 
 test("only a tool that always asks, once the owner says yes, acts as the owner", async () => {
-  const thread = (await env.client.call("threads.create", { kind: "agent", agent_id: "roby" })).id;
+  const thread = (await env.client.call("threads.create", { kind: "agent", agent_id: "superagent" })).id;
   await env.client.call("threads.send", { thread, text: "quietly" });
   await env.settle(thread);
   let last = (await env.client.call("threads.get", { thread })).messages.at(-1);
@@ -96,9 +96,9 @@ const pendingIn = (thread: string) =>
   ).catch(() => []);
 
 test("on total, a tool that keeps its card acts as the owner only after the card, then on the owner's grant", async () => {
-  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
   try {
-    const thread = (await env.client.call("threads.create", { kind: "agent", agent_id: "roby" })).id;
+    const thread = (await env.client.call("threads.create", { kind: "agent", agent_id: "superagent" })).id;
     await env.client.call("threads.send", { thread, text: "kept" });
     const [card] = await pendingIn(thread);
     assert.equal(card?.tool, "list_secrets_kept");
@@ -117,6 +117,6 @@ test("on total, a tool that keeps its card acts as the owner only after the card
       /kept names/,
     );
   } finally {
-    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: null });
   }
 });

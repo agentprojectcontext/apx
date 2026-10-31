@@ -38,7 +38,11 @@ test("a question still waiting in the app after a restart follows the owner to T
     });
   let env = await boot();
   try {
-    await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+    await env.client.call("channels.set", {
+      id: "tg",
+      channel: { type: "telegram", agent_id: "superagent" },
+      token: TOKEN,
+    });
     await waitFor(
       async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running",
       "running",
@@ -51,7 +55,7 @@ test("a question still waiting in the app after a restart follows the owner to T
 
     // Asked in the app, with two minutes to answer there before it follows the owner.
     await env.client.call("notices.set", { inputs_after_s: 120 });
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: t.id, text: "launch the probe" });
     await waitFor(async () => (await env.client.call("runs.pending", { thread: t.id })).inputs.length > 0, "the card");
     const before = tg.messagesTo(OWNER.id).length;

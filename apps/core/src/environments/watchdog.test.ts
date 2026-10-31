@@ -22,7 +22,7 @@ function fake(o: { free: number; inUse?: boolean; watched?: boolean; lastActivit
         halted.push(reason);
         phase = "stopped";
         cancel("home");
-        return [{ screen: 1, agent: "roby", thread: "home", run: "run_1", at: new Date().toISOString() }];
+        return [{ screen: 1, agent: "superagent", thread: "home", run: "run_1", at: new Date().toISOString() }];
       },
     },
     freeMemory: async () => o.free,

@@ -34,7 +34,7 @@ test("asked from another project's chat, a project's agent works in its own proj
   const north = await register("northwind");
   const acme = await register("acme");
   builder = (await env.client.call("agents.create", { slug: "builder", name: "Builder", project_id: acme.id })).id;
-  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: north.id });
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: north.id });
   await env.client.call("threads.send", { thread: chat.id, text: "ask the builder" });
   await env.settle(chat.id);
   const [session] = env.core.store.threads.sessions(chat.id);

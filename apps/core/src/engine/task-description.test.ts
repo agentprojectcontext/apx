@@ -58,12 +58,12 @@ for (const description of blank) {
     const assigned = await env.client.call("tasks.update", { task: t.id, assignee: "vera", description });
     assert.equal(assigned.assignee, "vera");
     assert.deepEqual(sessions(t.id), []);
-    await env.client.call("tasks.update", { task: t.id, assignee: "roby", description: "\t" });
+    await env.client.call("tasks.update", { task: t.id, assignee: "superagent", description: "\t" });
     assert.deepEqual(sessions(t.id), []);
     await env.client.call("tasks.update", { task: t.id, description: "Turn the idea into a plan." });
     await finish(t.id);
     assert.equal(runs(t.id).length, 1);
-    assert.equal(runs(t.id)[0]?.agent_id, "roby");
+    assert.equal(runs(t.id)[0]?.agent_id, "superagent");
   });
 }
 
@@ -94,9 +94,9 @@ test("completing a closed or unassigned waiting task does not start work", async
 });
 
 test("an agent answering another agent cannot start waiting work by completing its description", async () => {
-  const t = await env.client.call("tasks.create", { title: "Waiting for specification", assignee: "roby" });
+  const t = await env.client.call("tasks.create", { title: "Waiting for specification", assignee: "superagent" });
   waitingTask = t.id;
-  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: chat.id, text: "request completion" });
   await env.settle(chat.id);
   assert.equal(env.core.store.tasks.get(t.id)?.description, "", "refused before persisting the specification");
@@ -110,10 +110,10 @@ test("an agent answering another agent cannot start waiting work by completing i
 
 for (const state of ["done", "dropped"] as const) {
   test(`an agent answering another agent may complete a ${state} task without starting work`, async () => {
-    const t = await env.client.call("tasks.create", { title: "Closed specification", assignee: "roby" });
+    const t = await env.client.call("tasks.create", { title: "Closed specification", assignee: "superagent" });
     await env.client.call("tasks.close", { task: t.id, state });
     waitingTask = t.id;
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: chat.id, text: "request completion" });
     await env.settle(chat.id);
     assert.equal(env.core.store.tasks.get(t.id)?.description, "Write the implementation plan.");

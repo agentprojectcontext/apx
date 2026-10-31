@@ -73,7 +73,7 @@ for (const scope of ["tab", "turn"] as const) {
         throw new Error(`Unexpected ${method}`);
       });
       try {
-        thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+        thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
         await env.client.call("threads.send", { thread, text: "Evaluate the page" });
         const input = await waitFor(async () => (await env.client.call("runs.pending", { thread })).inputs[0]);
         await env.client.call("runs.respond", { input: input.id, decision: "approve", scope });

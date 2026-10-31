@@ -16,7 +16,7 @@ test("in a chat on the Linux computer, the owner's Mac screen is never looked at
   } as unknown as NodeBroker;
   try {
     const h = computerHandlers(broker, env.core.store, env.home, { cancel: () => 0 }, (t) => t === "thr_vm");
-    const agent = (thread: string) => ({ agent: { id: "roby", run_id: "run_1", thread_id: thread } }) as never;
+    const agent = (thread: string) => ({ agent: { id: "superagent", run_id: "run_1", thread_id: thread } }) as never;
     await assert.rejects(
       h["computer.snapshot"]({ thread: "thr_vm" } as never, agent("thr_vm")),
       /this chat works on your Linux computer now: the screen tools see and act on the owner's Mac/,

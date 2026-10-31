@@ -132,7 +132,7 @@ test("an engine session started in APX is a code thread set to that engine", asy
   const project = (await env.client.call("projects.register", { path: repo })).project.id;
   const t = await env.client.call("threads.create", {
     kind: "code",
-    agent_id: "roby",
+    agent_id: "superagent",
     project_id: project,
     engine: "codex",
   });
@@ -141,9 +141,9 @@ test("an engine session started in APX is a code thread set to that engine", asy
   const listed = (await env.client.call("threads.list", { engine: "codex" })).threads;
   assert.ok(listed.some((x) => x.id === t.id));
   // An agent's chat set to that engine's model is still the agent's chat, not an engine session.
-  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   env.core.store.threads.mergeContext(chat.id, { model_choice: { model: "codex", router: false } });
   assert.ok(!(await env.client.call("threads.list", { engine: "codex" })).threads.some((x) => x.id === chat.id));
   assert.ok(listed.every((x) => x.engine === "codex"));
-  await assert.rejects(env.client.call("threads.create", { kind: "loose", agent_id: "roby", engine: "codex" }));
+  await assert.rejects(env.client.call("threads.create", { kind: "loose", agent_id: "superagent", engine: "codex" }));
 });

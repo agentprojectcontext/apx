@@ -6,7 +6,11 @@ const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwA
 for (const width of [412, 1280]) {
   test(`contact and channel identity in every Inbox view and header at ${width}px`, async ({ page }) => {
     await rpc("setup.finish");
-    const base = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Identity fixture" });
+    const base = await rpc<Thread>("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      title: "Identity fixture",
+    });
     const { agents } = await rpc<{ agents: Agent[] }>("agents.list");
     const agent = agents.find((item) => item.id === base.agent_ids[0]);
     if (!agent) throw new Error("Identity fixture agent not found");
@@ -109,7 +113,7 @@ for (const width of [412, 1280]) {
             ].map((channel) => ({
               ...channel,
               enabled: true,
-              agent_id: "roby",
+              agent_id: "superagent",
               strangers: "pair",
               concurrency: "queue",
               owner_thread: "own",

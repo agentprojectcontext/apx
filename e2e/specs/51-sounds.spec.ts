@@ -18,7 +18,7 @@ test("a routine's news sounds with all notices and stays quiet when only request
   const played = () => page.evaluate(() => (window as unknown as { played: string[] }).played.slice());
   const r = await rpc<{ id: string }>("routines.set", {
     name: "sound-probe",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "manual" },
     action: "message",
     prompt: "Probe for the sounds",

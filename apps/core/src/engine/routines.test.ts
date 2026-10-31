@@ -35,7 +35,11 @@ before(async () => {
     clock: () => clock,
     channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) },
   });
-  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent" },
+    token: TOKEN,
+  });
   const owner = env.core.store.persons.owner();
   env.core.store.persons.link(owner.id, { channel: "tg", external_id: String(OWNER_CHAT) });
   await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
@@ -49,7 +53,7 @@ after(async () => {
 test("a daily routine runs at its time once, in its own chat, and the owner hears the answer", async () => {
   const r = await env.client.call("routines.set", {
     name: "Invoices",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "cron", cron: "30 8 * * 1-5" },
     prompt: "check the invoices",
   });
@@ -81,7 +85,7 @@ test("a daily routine runs at its time once, in its own chat, and the owner hear
 test("nothing to say: the run is kept but the owner is not bothered", async () => {
   const r = await env.client.call("routines.set", {
     name: "Inbox",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "every", minutes: 30 },
     prompt: "anything new?",
   });
@@ -104,7 +108,7 @@ test("nothing to say: the run is kept but the owner is not bothered", async () =
 test("run now, a failed run is reported, and bad schedules are refused", async () => {
   const r = await env.client.call("routines.set", {
     name: "Breaker",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "manual" },
     prompt: "break now",
   });
@@ -117,7 +121,7 @@ test("run now, a failed run is reported, and bad schedules are refused", async (
   await assert.rejects(
     env.client.call("routines.set", {
       name: "x",
-      agent: "roby",
+      agent: "superagent",
       schedule: { kind: "cron", cron: "99 * * * *" },
       prompt: "p",
     }),
@@ -126,7 +130,7 @@ test("run now, a failed run is reported, and bad schedules are refused", async (
   await assert.rejects(
     env.client.call("routines.set", {
       name: "x",
-      agent: "roby",
+      agent: "superagent",
       schedule: { kind: "once", at: new Date(2020, 0, 1).toISOString() },
       prompt: "p",
     }),
@@ -138,7 +142,7 @@ test("a new routine keeps an imminent slot; a running one is not started again; 
   clock = new Date(2026, 9, 7, 8, 57);
   const r = await env.client.call("routines.set", {
     name: "Soon",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "cron", cron: "0 9 * * *" },
     prompt: "anything new?",
   });

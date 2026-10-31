@@ -1,0 +1,66 @@
+---
+import { sitePath } from "../doc-routes.mjs";
+
+const spanish = Astro.url.pathname.split("/").includes("es");
+const privacyPath = sitePath(`/${spanish ? "es/" : ""}reference/website-privacy/`, import.meta.env.BASE_URL);
+const text = spanish
+  ? {
+      title: "¿Nos ayudás a mejorar este sitio?",
+      body: "Si aceptás, usamos Google Analytics para contar visitas y saber qué páginas se consultan. Podés rechazarlo y seguir usando el sitio igual.",
+      accept: "Aceptar",
+      reject: "Rechazar",
+      settings: "Preferencias de cookies",
+      privacy: "Privacidad del sitio",
+      unsavedTitle: "No pudimos guardar tu elección",
+      unsaved:
+        "La medición está detenida, pero tu navegador no nos dejó guardar el rechazo. Si antes habías aceptado, al cerrar o recargar podría volver a activarse. Permití guardar datos para conservar tu elección.",
+    }
+  : {
+      title: "Help us improve this site?",
+      body: "If you accept, we use Google Analytics to count visits and understand which pages people read. You can decline and use the site just the same.",
+      accept: "Accept",
+      reject: "Decline",
+      settings: "Cookie preferences",
+      privacy: "Website privacy",
+      unsavedTitle: "We couldn’t save your choice",
+      unsaved:
+        "Measurement has stopped, but your browser would not save your decline. If you previously accepted, it could resume after you close or reload this page. Allow data storage to keep your choice.",
+    };
+---
+<div data-analytics-consent data-analytics-path={Astro.url.pathname}>
+  <button type="button" class="cookie-settings" data-cookie-settings hidden>{text.settings}</button>
+  <section class="cookie-panel" aria-label={text.settings} data-cookie-panel hidden>
+    <h2>{text.title}</h2>
+    <p>{text.body} <a href={privacyPath}>{text.privacy}</a></p>
+    <div class="cookie-error" role="status" data-cookie-error hidden>
+      <p class="cookie-error__title">{text.unsavedTitle}</p>
+      <p>{text.unsaved}</p>
+    </div>
+    <div class="cookie-actions">
+      <button type="button" data-cookie-reject>{text.reject}</button>
+      <button type="button" data-cookie-accept>{text.accept}</button>
+    </div>
+  </section>
+</div>
+<script>
+  import { initializeConsent } from "./analytics.mjs";
+  initializeConsent(window, document);
+</script>
+<style>
+  [hidden] { display: none !important; }
+  .cookie-panel, .cookie-settings { font-family: "Geist", system-ui, sans-serif; color: #f3f4f6; background: #18201e; border: 1px solid #697a72; box-shadow: 0 8px 32px #0004; }
+  .cookie-panel { position: fixed; z-index: 1000; bottom: 1rem; left: 1rem; width: min(32rem, calc(100vw - 2rem)); padding: 1.25rem; border-radius: 1rem; box-sizing: border-box; }
+  h2 { font-size: 1.125rem; line-height: 1.4; margin: 0 0 .5rem; color: inherit; }
+  p { margin: 0; font-size: .9375rem; line-height: 1.6; }
+  .cookie-panel a { color: #b4f1d4; text-decoration: underline; text-underline-offset: .15em; }
+  .cookie-panel a:hover, .cookie-panel a:focus-visible { color: #fff; text-decoration: underline; }
+  .cookie-error { margin-top: 1rem; padding: .875rem; border: 1px solid #96b1a2; border-left-width: 4px; border-radius: .5rem; }
+  .cookie-error .cookie-error__title { margin: 0 0 .375rem; color: inherit; font-size: 1rem; font-weight: 600; line-height: 1.4; }
+  .cookie-actions { display: flex; gap: .75rem; margin-top: 1rem; }
+  button { cursor: pointer; font: inherit; font-size: .875rem; }
+  .cookie-actions button { flex: 1; border: 1px solid #96b1a2; background: #263b31; color: #fff; border-radius: .5rem; min-height: 44px; padding: .5rem 1rem; }
+  .cookie-actions button:hover { background: #365643; }
+  button:focus-visible, a:focus-visible { outline: 3px solid #b4f1d4; outline-offset: 3px; }
+  .cookie-settings { position: fixed; z-index: 999; left: .75rem; bottom: .75rem; border-radius: 2rem; padding: .5rem .875rem; min-height: 44px; }
+  @media (max-height: 480px) { .cookie-panel { max-height: calc(100dvh - 2rem); overflow-y: auto; } }
+</style>

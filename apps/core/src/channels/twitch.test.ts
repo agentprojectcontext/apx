@@ -47,7 +47,7 @@ describe("twitch channel", () => {
     });
     await env.client.call("channels.set", {
       id: "twitch",
-      channel: { type: "twitch", agent_id: "roby", rooms: ROOMS },
+      channel: { type: "twitch", agent_id: "superagent", rooms: ROOMS },
       token: `apxbot oauth:${tw.token} ${CHANNEL}`,
     });
     await waitFor(
@@ -95,7 +95,7 @@ describe("twitch channel", () => {
 
 test("a refused token stops the channel; there is no one-to-one chat to write to", async () => {
   const tw = await fakeTwitch(CHANNEL);
-  const config = { id: "twitch", type: "twitch", agent_id: "roby" } as Parameters<typeof twitchAdapter>[0];
+  const config = { id: "twitch", type: "twitch", agent_id: "superagent" } as Parameters<typeof twitchAdapter>[0];
   const io = { receive() {}, action() {}, status() {}, signal: new AbortController().signal };
   const bad = twitchAdapter(config, `apxbot oauth:${"z".repeat(30)} ${CHANNEL}`, tw.url);
   await assert.rejects(bad.start(io), /refused the bot's token/);

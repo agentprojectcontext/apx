@@ -139,7 +139,7 @@ test("work going on now pairs each active chat with its running agent job", () =
 
 test("new chat offers every project's agents, the recent ones apart, and searches names, roles and projects", () => {
   const agents: Agent[] = [
-    { id: "roby", name: "Roby", kind: "secretary" },
+    { id: "superagent", name: "Roby", kind: "secretary" },
     { id: "base", name: "Base", kind: "agent" },
     { id: "ansel", name: "Ansel", kind: "agent", role: "Lead orchestrator", project_id: "p_acme" },
     { id: "golf", name: "Coach", kind: "agent", project_id: "p_northwind" },
@@ -147,7 +147,7 @@ test("new chat offers every project's agents, the recent ones apart, and searche
   const threads = [
     thread("t1", { agent_ids: ["golf"], project_id: "p_northwind", updated_at: "2026-10-12T10:00:00Z" }),
     thread("t2", { agent_ids: ["golf"], updated_at: "2026-10-12T09:00:00Z" }),
-    thread("t3", { agent_ids: ["roby"], engine: "codex", updated_at: "2026-10-12T11:00:00Z" }),
+    thread("t3", { agent_ids: ["superagent"], engine: "codex", updated_at: "2026-10-12T11:00:00Z" }),
   ];
   const projectName = (id: string) => ({ p_acme: "Acme", p_northwind: "Northwind" })[id] ?? id;
   const all = pickAgents(agents, threads, { query: "", projectName });
@@ -158,7 +158,7 @@ test("new chat offers every project's agents, the recent ones apart, and searche
   );
   assert.deepEqual(
     all.rest.map((a) => a.id),
-    ["roby", "base", "ansel"],
+    ["superagent", "base", "ansel"],
   );
   assert.deepEqual(
     pickAgents(agents, threads, { query: "ácme", projectName }).rest.map((a) => a.id),
@@ -171,7 +171,7 @@ test("new chat offers every project's agents, the recent ones apart, and searche
   const inProject = pickAgents(agents, threads, { projectId: "p_acme", query: "", projectName });
   assert.deepEqual(
     [...inProject.recent, ...inProject.rest].map((a) => a.id),
-    ["roby", "ansel"],
+    ["superagent", "ansel"],
   );
 });
 

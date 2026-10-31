@@ -17,7 +17,7 @@ automáticamente en el dispositivo donde abrís el panel. Qué necesita esa comp
 | Linux (x86-64 o ARM64) | QEMU (`sudo apt install qemu-system-x86 qemu-utils`, o `qemu-system-arm qemu-efi-aarch64` en ARM) y acceso a `/dev/kvm` (`sudo usermod -aG kvm $USER` y volver a iniciar sesión) | QEMU con KVM |
 | Windows 10 (build 19041 o posterior) u 11 | WSL 2 (`wsl --install --no-distribution` en un PowerShell de administrador y reiniciar) y Git para Windows, por su `ssh` (`winget install --id Git.Git -e`) | WSL 2, sobre una imagen Debian que APX prepara la primera vez |
 
-Si falta algo, el primer encendido se detiene y el panel dice qué instalar. En Windows:
+Si falta algo, el panel lo muestra como un paso: qué hacer, el comando de tu sistema para copiar (en Linux, el del gestor de paquetes de tu distribución: apt, dnf, pacman o zypper) y **Listo, probar de nuevo**. Instalar pide tu contraseña de administrador, así que es un paso que hacés una sola vez. En Windows:
 
 - El primer encendido arma la imagen Debian una sola vez (unos minutos) y la guarda para los siguientes.
 - La red "mirrored" de WSL (`networkingMode=mirrored` en `.wslconfig`) comparte el localhost del propio Windows con

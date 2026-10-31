@@ -6,7 +6,7 @@ test("an answer shows what its turn received: the parts' sizes, the system promp
   page,
 }) => {
   await rpc("setup.finish", {});
-  const t = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Received" });
+  const t = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "superagent", title: "Received" });
   await open(page, `#view=inbox&thread=${t.id}`);
   const main = page.getByRole("main");
   const box = page.getByRole("textbox", { name: /^Escribile a/ });

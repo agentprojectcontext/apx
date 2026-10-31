@@ -40,7 +40,7 @@ test("routines: deleting one waits for the owner", async () => {
   const set = (name: string) =>
     h.env.client.call("routines.set", {
       name,
-      agent: "roby",
+      agent: "superagent",
       schedule: { kind: "every", minutes: 60 },
       prompt: "Sum up.",
     });
@@ -75,7 +75,11 @@ test("tasks: deleting one for good waits for the owner", async () => {
 });
 
 test("chats: renamed once the owner approves; how one writes stays theirs", async () => {
-  const chat = await h.env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Acme plans" });
+  const chat = await h.env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "Acme plans",
+  });
   const rename = { method: "threads.update", params: { thread: chat.id, title: "Acme launch plans" } };
   const { detail } = await h.ask(rename, "approve");
   assert.equal(detail, 'Change the chat "Acme plans"\ntitle: "Acme plans" → "Acme launch plans"');
@@ -87,12 +91,16 @@ test("chats: renamed once the owner approves; how one writes stays theirs", asyn
 });
 
 test("imported sessions: a chat brought from a coding app is handed to another agent once the owner approves", async () => {
-  const chat = await h.env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Acme refactor" });
+  const chat = await h.env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "Acme refactor",
+  });
   h.env.core.store.threads.mergeContext(chat.id, { imported: { engine: "claude", session: "acme-session-1" } });
   const adopt = { method: "sessions.adopt", params: { thread: chat.id, agent: "acme-writer" } };
   await h.ask(adopt, "deny");
   const agents = async () => (await h.env.client.call("threads.get", { thread: chat.id })).thread.agent_ids;
-  assert.deepEqual(await agents(), ["roby"]);
+  assert.deepEqual(await agents(), ["superagent"]);
   const { detail } = await h.ask(adopt, "approve");
   assert.equal(detail, 'Hand the chat "Acme refactor" to Acme writer');
   assert.deepEqual(await agents(), ["acme-writer"]);

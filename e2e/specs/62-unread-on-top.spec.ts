@@ -11,7 +11,7 @@ test("Árbol: los chats sin leer se repiten arriba, aunque queden bajo «Ver má
   const ids: string[] = [];
   for (let i = 0; i < 5; i++)
     ids.push(
-      (await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: `Arriba ${i}` })).id,
+      (await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "superagent", title: `Arriba ${i}` })).id,
     );
   const old = ids[0] ?? "";
   await page.route("**/rpc/threads.list", async (route) => {
@@ -46,7 +46,11 @@ test("Árbol: los chats sin leer se repiten arriba, aunque queden bajo «Ver má
 test("Árbol: una sesión de Claude Code sin leer se muestra con su motor, no con el agente que la aloja", async ({
   page,
 }) => {
-  const { id } = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Revisión" });
+  const { id } = await rpc<{ id: string }>("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "Revisión",
+  });
   await page.route("**/rpc/threads.list", async (route) => {
     const response = await route.fetch();
     const body = await response.json();

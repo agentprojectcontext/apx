@@ -47,7 +47,7 @@ test("revocation during the last tab ownership check prevents JavaScript dispatc
     throw new Error(`Unexpected ${method}`);
   });
   try {
-    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
     await env.client.call("threads.send", { thread, text: "Evaluate a harmless expression" });
     const card = await waitFor(async () => (await env.client.call("runs.pending", { thread })).inputs[0]);
     await env.client.call("runs.respond", { input: card.id, decision: "approve", scope: "tab" });

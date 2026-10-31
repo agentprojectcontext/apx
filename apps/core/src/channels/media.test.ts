@@ -62,7 +62,11 @@ before(async () => {
   await env.client.call("services.set", { id: "draw", service: svc("image", "a1111") });
   await env.client.call("services.set", { id: "voice", service: svc("speech", "openai-speech") });
   await env.client.call("services.set", { id: "ears", service: svc("transcription", "whisper-local") });
-  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent" },
+    token: TOKEN,
+  });
   // The owner pairs once.
   tg.message(OWNER, "hola");
   await waitFor(() => tg.messagesTo(OWNER.id).length === 1, "pairing code");

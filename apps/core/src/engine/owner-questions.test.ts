@@ -97,7 +97,7 @@ test("stand-in questions and notes about other messages are refused; real ones p
 test("ask_owner refuses a stand-in before anything is written or shown to the owner", async () => {
   const before = (await inputNotices()).length;
   for (const q of ["placeholder", "x", "?", "Need update", "DISREGARD: no decision requested", "Ignorá esto"]) {
-    const t = await env.client.call("threads.create", { kind: "agent", agent_id: "roby" });
+    const t = await env.client.call("threads.create", { kind: "agent", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: t.id, text: `${STAND_IN}${q}` });
     const { messages } = await env.settle(t.id);
     assert.match(lastToolResult(), /invalid arguments for ask_owner: question: not sent: .*Ask one specific question/);
@@ -109,7 +109,7 @@ test("ask_owner refuses a stand-in before anything is written or shown to the ow
 });
 
 test("an agent withdraws its own open question: it ends withdrawn, nothing new reaches the owner", async () => {
-  const t = await env.client.call("threads.create", { kind: "agent", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "agent", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "ask me which color" });
   await env.settle(t.id);
   const [input] = (await env.client.call("runs.pending", { thread: t.id })).inputs;
@@ -158,7 +158,7 @@ test("an agent withdraws its own open question: it ends withdrawn, nothing new r
 
 test("an agent's task comment that asks the owner with a stand-in is refused and nothing is posted", async () => {
   const task = await env.client.call("tasks.create", { title: "Pick the venue", project });
-  const t = await env.client.call("threads.create", { kind: "agent", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "agent", agent_id: "superagent" });
   const commentsBefore = (await env.client.call("threads.get", { thread: task.thread_id })).messages.length;
   for (const text of ["@owner placeholder", "@owner Need update", "@owner DISREGARD: no decision requested"]) {
     await env.client.call("threads.send", { thread: t.id, text: `${COMMENT}${task.id}|${text}` });

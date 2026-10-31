@@ -51,15 +51,15 @@ test("guest browser cards, including old messages, stay in the VM; an open panel
       state: "agent",
       ...(environment ? { environment } : {}),
     };
-    env.core.store.messages.add({ thread_id: thread, author: { kind: "agent", id: "roby" }, parts: [part] });
+    env.core.store.messages.add({ thread_id: thread, author: { kind: "agent", id: "superagent" }, parts: [part] });
   };
   try {
     await env.client.call("setup.finish", {});
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     // Home stays on this Mac (DECISIONS.md#d-154): Roby works on the computer in a chat of its own.
     const chat = await env.client.call("threads.create", {
       kind: "loose",
-      agent_id: "roby",
+      agent_id: "superagent",
       title: "En la computadora",
     });
     await env.client.call("environments.bind", { thread: chat.id });
@@ -85,7 +85,7 @@ test("guest browser cards, including old messages, stay in the VM; an open panel
     await expect(page.locator(".computer")).toBeVisible();
     expect(hostCalls.filter((method) => method !== "browser.tabs")).toEqual([]);
 
-    const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const other = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     add(other.id, "Ordinary host page", "h1");
     await page.goto(`${env.core.url}/#thread=${other.id}`);
     await expect(page.locator(".apx-livebrowser__preview")).toHaveCount(1);

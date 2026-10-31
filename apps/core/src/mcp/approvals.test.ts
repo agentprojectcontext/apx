@@ -13,7 +13,7 @@ const SERVER = path.join(import.meta.dirname, "fake-server.test-support.mjs");
 const llm = () =>
   scriptedLlm((req, { said, afterTool }) => {
     if (said.startsWith("grant") && !afterTool)
-      return callTool("g", "grant_tool", { agent: said === "grant" ? "reader" : "roby", tools: ["mcp_notes_*"] });
+      return callTool("g", "grant_tool", { agent: said === "grant" ? "reader" : "superagent", tools: ["mcp_notes_*"] });
     if (said.startsWith("grant")) return say("Granted");
     if (said === "bridge" && !afterTool)
       return callTool("b", "mcp_call", { tool: "mcp_notes_echo", args: { text: "b" } });
@@ -51,7 +51,7 @@ async function setup() {
   };
 }
 
-const chat = (e: Awaited<ReturnType<typeof setup>>, agent = "roby") =>
+const chat = (e: Awaited<ReturnType<typeof setup>>, agent = "superagent") =>
   e.client.call("threads.create", { kind: "loose", agent_id: agent, project_id: e.project });
 
 test("through mcp_call an MCP tool still waits for the owner, who is asked about that tool", async () => {
@@ -135,7 +135,7 @@ test("always from a chat is that agent's, in every chat and after a restart; oth
     await next.settle(again.id);
     const [grant] = (await next.client.call("tools.approvals", {})).approvals;
     assert.equal(grant?.scope, "always");
-    assert.equal(grant?.agent_id, "roby");
+    assert.equal(grant?.agent_id, "superagent");
   } finally {
     if (next) await next.core.close();
     else await e.core.close();
@@ -221,20 +221,20 @@ test("a chat grant outlives a restart (DECISIONS.md#d-109); delayed one-shot gra
     const i = await pendingInput(e.client, t.id);
     await e.client.call("runs.respond", { input: i.id, decision: "approve", scope: "session" });
     await e.settle(t.id);
-    e.core.store.approvals.grantOnce(t.id, "roby", "mcp_notes_echo", { text: "same" }, "original-contract");
+    e.core.store.approvals.grantOnce(t.id, "superagent", "mcp_notes_echo", { text: "same" }, "original-contract");
     await e.core.close();
     next = await startCore({ llm: llm(), home: e.home });
     assert.equal((await next.client.call("tools.approvals", {})).approvals.length, 1);
     assert.equal(
-      next.core.store.approvals.takeOnce(t.id, "roby", "mcp_notes_echo", { text: "same" }, "changed-contract"),
+      next.core.store.approvals.takeOnce(t.id, "superagent", "mcp_notes_echo", { text: "same" }, "changed-contract"),
       false,
     );
     assert.equal(
-      next.core.store.approvals.takeOnce(t.id, "roby", "mcp_notes_echo", { text: "same" }, "original-contract"),
+      next.core.store.approvals.takeOnce(t.id, "superagent", "mcp_notes_echo", { text: "same" }, "original-contract"),
       true,
     );
     assert.equal(
-      next.core.store.approvals.takeOnce(t.id, "roby", "mcp_notes_echo", { text: "same" }, "original-contract"),
+      next.core.store.approvals.takeOnce(t.id, "superagent", "mcp_notes_echo", { text: "same" }, "original-contract"),
       false,
     );
     await next.client.call("threads.send", { thread: t.id, text: "read after restart" });
@@ -289,7 +289,7 @@ test("a tool that becomes destructive on reconnection cannot use its old reading
     e.core.store.approvals.grant(old.approval, "always", "");
     await mcp.close();
     fs.writeFileSync(mode, "write");
-    const agent = e.core.store.agents.get("roby");
+    const agent = e.core.store.agents.get("superagent");
     assert.ok(agent);
     const run = e.core.store.runs.create({
       thread_id: thread.id,
@@ -395,7 +395,7 @@ test("an agent that asks the owner for a tool cannot hand it to another one", as
   const e = await setup();
   try {
     await e.client.call("agents.create", { slug: "reader", name: "Reader" });
-    await e.client.call("agents.update", { agent: "roby", autonomy: "manual" });
+    await e.client.call("agents.update", { agent: "superagent", autonomy: "manual" });
     const roby = await chat(e);
     await e.client.call("threads.send", { thread: roby.id, text: "grant" });
     // On autonomy ask the owner confirms the grant itself.

@@ -93,7 +93,7 @@ before(async () => {
   });
   await env.client.call("channels.set", {
     id: "tg",
-    channel: { type: "telegram", agent_id: "roby" },
+    channel: { type: "telegram", agent_id: "superagent" },
     token: TOKEN,
   });
   await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
@@ -385,7 +385,7 @@ test("groups are ignored and a redelivered update is handled once", async () => 
   const count = () => tg.messagesTo(OWNER.id).filter((m) => /only once please/.test(String(m.body.text))).length;
   // A crash between storing and confirming: a restarted channel gets the same update again.
   tg.redeliver(id, OWNER, "only once please");
-  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" } });
+  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "superagent" } });
   await waitFor(() => !tg.queued().includes(id), "the redelivered update was fetched and confirmed");
   await new Promise((r) => setTimeout(r, 200));
   assert.equal(count(), 1);
@@ -425,7 +425,7 @@ test("a confirmation left unanswered in the app follows the owner to Telegram, s
   const hhmm = (h: number) => `${String(h % 24).padStart(2, "0")}:00`;
   await env.client.call("notices.set", { inputs_after_s: 1, quiet_from: hhmm(hour + 23), quiet_to: hhmm(hour + 2) });
   const before = tg.messagesTo(OWNER.id).length;
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "launch the probe" });
   await new Promise((r) => setTimeout(r, 400));
   assert.equal(tg.messagesTo(OWNER.id).length, before, "it waits in the app first");
@@ -509,7 +509,7 @@ test("a refused connection is retried (nothing went out); two quick saves leave 
       type: "telegram",
       label: "x",
       enabled: true,
-      agent_id: "roby",
+      agent_id: "superagent",
       strangers: "pair",
       concurrency: "queue",
       owner_thread: "home",
@@ -520,7 +520,8 @@ test("a refused connection is retried (nothing went out); two quick saves leave 
   const err = await offline.send("1", { text: "hi" }).catch((e: unknown) => e);
   assert.equal((err as { kind?: string }).kind, "retry");
 
-  const save = () => env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" } });
+  const save = () =>
+    env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "superagent" } });
   await Promise.all([save(), save()]);
   await new Promise((r) => setTimeout(r, 200));
   const a = tg.polls();
@@ -532,7 +533,7 @@ test("a refused connection is retried (nothing went out); two quick saves leave 
 test("a routine's news reaches the owner without buttons; the owner's 👍/👎 reaction rates it", async () => {
   const r = await env.client.call("routines.set", {
     name: "rated-probe",
-    agent: "roby",
+    agent: "superagent",
     schedule: { kind: "manual" },
     action: "message",
     prompt: "Rate me",
@@ -560,14 +561,18 @@ test("a routine's news reaches the owner without buttons; the owner's 👍/👎 
 });
 
 test("a notice the owner's chosen channel refuses goes to the next channel that knows them", async () => {
-  await env.client.call("channels.set", { id: "dc", channel: { type: "discord", agent_id: "roby" }, token: TOKEN });
+  await env.client.call("channels.set", {
+    id: "dc",
+    channel: { type: "discord", agent_id: "superagent" },
+    token: TOKEN,
+  });
   env.core.store.persons.link(OWNER_ID, { channel: "dc", external_id: "424242", label: "Discord" });
   const prefs = await env.client.call("notices.get", {});
   await env.client.call("notices.set", { ...prefs, channel: "dc" });
   try {
     const r = await env.client.call("routines.set", {
       name: "fallback-probe",
-      agent: "roby",
+      agent: "superagent",
       schedule: { kind: "manual" },
       action: "message",
       prompt: "Evening brief",
@@ -599,7 +604,7 @@ test("with the app only chosen, news stays in the app: no channel message, still
   try {
     const r = await env.client.call("routines.set", {
       name: "app-only-probe",
-      agent: "roby",
+      agent: "superagent",
       schedule: { kind: "manual" },
       action: "message",
       prompt: "App only brief",
@@ -675,7 +680,7 @@ test("an agent writing to the owner unasked goes through the notice budget; aske
   const pings = () =>
     tg.sent.filter((m) => m.method === "sendMessage" && String(m.body.text).includes("Ping from the agent")).length;
   try {
-    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: t.id, text: "ping me on telegram" });
     await waitFor(() => pings() === 1, "the owner's own request goes");
     await env.settle(t.id);
@@ -683,7 +688,7 @@ test("an agent writing to the owner unasked goes through the notice budget; aske
     store.nudges.add({ kind: "routine:other", text: "earlier news", state: "sent", exempt: false });
     const r = await env.client.call("routines.set", {
       name: "Ping",
-      agent: "roby",
+      agent: "superagent",
       schedule: { kind: "manual" },
       prompt: "ping me on telegram",
     });
@@ -715,7 +720,7 @@ test("with the app only chosen, an agent writing to the owner unasked reaches th
   try {
     const r = await env.client.call("routines.set", {
       name: "App only ping",
-      agent: "roby",
+      agent: "superagent",
       schedule: { kind: "manual" },
       prompt: "ping me on telegram",
     });
@@ -740,7 +745,7 @@ test("with the app only chosen, an agent writing to the owner unasked reaches th
 
 test("with its own chat chosen, the owner's words on the channel are answered there, not in Home (DECISIONS.md#d-129)", async () => {
   const save = (owner_thread: "home" | "own") =>
-    env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby", owner_thread } });
+    env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "superagent", owner_thread } });
   await save("own");
   try {
     await waitFor(

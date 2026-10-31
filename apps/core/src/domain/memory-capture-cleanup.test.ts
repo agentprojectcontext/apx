@@ -20,10 +20,10 @@ function tempStore() {
 const captured = (store: Store, text: string, quote = text, kind: Memory["kind"] = "project") =>
   store.memories.add({
     scope: "agent",
-    agent_id: "roby",
+    agent_id: "superagent",
     text,
     source: "agent",
-    author_agent: "roby",
+    author_agent: "superagent",
     kind,
     evidence: [{ message_id: `msg_${Math.random().toString(36).slice(2)}`, quote }],
   });
@@ -36,10 +36,10 @@ function seedNotes(store: Store) {
     durable: captured(store, "Always use the JADE label for Acme reports.", undefined, "feedback"),
     remembered: store.memories.add({
       scope: "agent",
-      agent_id: "roby",
+      agent_id: "superagent",
       text: "dale, revisá el build de Acme",
       source: "agent",
-      author_agent: "roby",
+      author_agent: "superagent",
     }),
     owner: store.memories.add({ scope: "global", text: "dale, terminá esa tarea", source: "owner" }),
     edited: (() => {
@@ -72,7 +72,7 @@ test("the capture cleanup retires noisy captured notes, keeps durable ones and t
       assert.equal(now?.revision, note.revision, `${note.text} is untouched`);
     }
     // Retiring leaves no exclusion: the owner can teach the same thing again.
-    assert.equal(store.memories.excluded({ agent_id: "roby" }, notes.request.text), false);
+    assert.equal(store.memories.excluded({ agent_id: "superagent" }, notes.request.text), false);
 
     // Restorable from the forgotten list, with its history intact.
     const restored = store.memories.restore(notes.request.id);

@@ -7,7 +7,7 @@ const msg = (seq: number, kind: "user" | "agent", text: string): Message => ({
   id: `m${seq}`,
   thread_id: "t",
   seq,
-  author: kind === "user" ? { kind: "user" } : { kind: "agent", id: "roby" },
+  author: kind === "user" ? { kind: "user" } : { kind: "agent", id: "superagent" },
   parts: [{ type: "text", text }],
   created_at: "2026-09-01T10:00:00.000Z",
 });

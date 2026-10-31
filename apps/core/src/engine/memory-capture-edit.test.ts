@@ -54,8 +54,8 @@ for (const scenario of ["manual-edit", "global-pending", "global-deleted", "owne
     try {
       await env.client.call("memory.set_settings", { mode: "notes", auto_compact: false, auto_dream: false });
       if (scenario === "owner-note")
-        noteId = (await env.client.call("memory.add", { scope: "agent", agent: "roby", text: first })).id;
-      const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+        noteId = (await env.client.call("memory.add", { scope: "agent", agent: "superagent", text: first })).id;
+      const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       await env.client.call("threads.send", { thread: thread.id, text: first });
       await env.settle(thread.id);
       await settledMemory();
@@ -96,7 +96,7 @@ for (const scenario of ["manual-edit", "global-pending", "global-deleted", "owne
         await env.client.call("memory.remove", { id: pending.id, forever: scenario === "global-deleted" });
         await env.client.call("memory.maintenance", { backfill: true });
         await settledMemory();
-        const fresh = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+        const fresh = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
         await env.client.call("threads.send", { thread: fresh.id, text: "Probe current notes" });
         const result = await env.settle(fresh.id);
         assert.doesNotMatch(texts(result.messages).join("\n"), /CUARZO/);

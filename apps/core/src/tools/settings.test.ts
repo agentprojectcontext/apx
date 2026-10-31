@@ -30,7 +30,7 @@ test("only the super-agent is offered apx_settings", async () => {
     await h.ask("hello", undefined, agent);
     return h.llm.calls.at(-1)?.tools.map((t) => t.function.name) ?? [];
   };
-  assert.ok((await offered("roby")).includes("apx_settings"));
+  assert.ok((await offered("superagent")).includes("apx_settings"));
   assert.ok(!(await offered("acme-writer")).includes("apx_settings"));
 });
 

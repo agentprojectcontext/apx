@@ -28,11 +28,11 @@ const systemOf = async (thread: string) => {
 test("an agent working in a project is told to look at a visible change running, also outside a code folder", async () => {
   fs.writeFileSync(path.join(folder.path, "AGENTS.md"), "# AGENTS.md: Acme web\n");
   const { project } = await env.client.call("projects.register", { path: folder.path });
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project.id });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project.id });
   assert.ok((await systemOf(t.id)).includes(VISUAL_CHECK));
 });
 
 test("a chat outside any project is not told it", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   assert.ok(!(await systemOf(t.id)).includes(VISUAL_CHECK));
 });

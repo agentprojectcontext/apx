@@ -1,0 +1,212 @@
+---
+import { getCollection } from "astro:content";
+import logo from "../../assets/logo.png";
+import blobs from "../../data/blobs.json";
+import { featured, labels } from "../../data/comparisons";
+import { sitePath } from "../../doc-routes.mjs";
+import { HOME, type Lang } from "../../i18n/home";
+import Blob from "../Blob.astro";
+import UiIcon from "../UiIcon.astro";
+import SocialIcon from "./SocialIcon.astro";
+import "./web.css";
+
+interface Props {
+  lang: Lang;
+  route?: string;
+}
+const { lang, route = "/" } = Astro.props;
+const t = HOME[lang];
+const pre = lang === "es" ? "/es" : "";
+const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
+const comparing = route.startsWith("/compare/");
+type BlobName = keyof typeof blobs;
+// Product: the home's sections, reachable from any page.
+const sections: [string, string, BlobName][] = [
+  ["what", t.nav.sectionsLabel.what, "menta"],
+  ["new", t.nav.sectionsLabel.new, "cobalto"],
+  ["start", t.nav.sectionsLabel.start, "coral"],
+  ["map", t.nav.sectionsLabel.map, "orbita"],
+  ["terminal", t.nav.sectionsLabel.terminal, "noche"],
+  ["questions", t.nav.sectionsLabel.questions, "ovni"],
+  ["compare", t.nav.sectionsLabel.compare, "amatista"],
+  ["download", t.nav.sectionsLabel.download, "aqua"],
+];
+// Docs: one row per guide section, described by its first page.
+const docs = await getCollection("docs");
+const describe = (path: string) =>
+  docs.find((d) => d.id === `${lang === "es" ? "es/" : ""}docs/${path}`)?.data.description ?? "";
+const guides: [string, string, BlobName][] = [
+  ["start/introduction", t.nav.start, "menta"],
+  ["concepts/agents", t.nav.ideas, "orbita"],
+  ["office/chat", t.nav.office, "cobalto"],
+  ["channels/overview", t.nav.channels, "brasa"],
+  ["devices/desktop", t.nav.devices, "aqua"],
+  ["extend/skills", t.nav.extend, "amatista"],
+  ["reference/cli", t.nav.cli, "noche"],
+];
+// Compare: the most relevant comparison as a card, the next three beside it.
+const [lead, ...rest] = featured;
+const listed = rest.slice(0, 3);
+const tones = ["warm", "dusk", "sea"] as const;
+---
+<script is:inline>
+  (() => {
+    let theme = "";
+    try { theme = localStorage.getItem("starlight-theme") || ""; } catch {}
+    const root = document.documentElement;
+    root.dataset.theme = theme === "light" || theme === "dark" ? theme : matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    root.classList.add("js");
+  })();
+</script>
+<nav class="web-header" id="nav" aria-label={t.nav.main}>
+  <div class="wrap nav__in">
+    <a class="brand" href={href(`${pre}/`)}><img src={logo.src} alt="" width="26" height="26" /><span>APX</span><span class="brand__v" aria-hidden="true">v2</span></a>
+    <div class="nav__links" id="navLinks">
+      <div class="nav__drop nav__product">
+        <a class="nav__drop-link" href={href(`${pre}/#what`)}>{t.nav.product}<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" /></svg></a>
+        <div class="nav__menu nav__menu--start">
+          <div class="nav__menu-card">
+            <ul class="nav__menu-sections">
+              {sections.map(([id, label, blob]) => (
+                <li><a href={href(`${pre}/#${id}`)} data-section={id}><Blob name={blob} size={22} /><span>{label}</span></a></li>
+              ))}
+            </ul>
+            <p class="nav__menu-foot"><span>{t.nav.productNote}</span><a href={href(`${pre}/#download`)}>{t.getApp} →</a></p>
+          </div>
+        </div>
+      </div>
+      <div class="nav__drop nav__docs">
+        <a class="nav__drop-link nav__docs-link" href={href(`${pre}/start/introduction/`)}>{t.nav.docs}<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" /></svg></a>
+        <div class="nav__menu nav__menu--start nav__menu--wide">
+          <div class="nav__menu-card">
+            <div class="nav__menu-grid">
+              <a class="nav__feat nav__feat--docs" href={href(`${pre}/start/introduction/`)}>
+                <span class="nav__feat-blob" aria-hidden="true"><Blob name="menta" size={48} /></span>
+                <span class="nav__feat-name">{t.nav.startHere}</span>
+                <span class="nav__feat-tag">{describe("start/introduction")}</span>
+              </a>
+              <ul class="nav__menu-list nav__menu-list--docs">
+                {guides.slice(1).map(([path, label, blob]) => (
+                  <li>
+                    <a href={href(`${pre}/${path}/`)}>
+                      <Blob name={blob} size={24} />
+                      <span class="nav__menu-text"><b>{label}</b><span>{describe(path)}</span></span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <p class="nav__menu-foot"><span>{t.nav.docsNote}</span><a href={href(`${pre}/start/introduction/#_top`)}>{t.nav.allDocs} →</a></p>
+          </div>
+        </div>
+      </div>
+      <div class="nav__drop nav__cmp">
+        <a class="nav__drop-link nav__cmp-link" href={href(`${pre}/compare/`)} aria-current={comparing ? "page" : undefined}>
+          {t.nav.compare}<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" /></svg>
+        </a>
+        {
+          lead && (
+            <div class="nav__menu">
+              <div class="nav__menu-card">
+                <div class="nav__menu-grid">
+                  <a class="nav__feat" href={href(`${pre}/compare/${lead.slug}/`)}>
+                    <span class="nav__feat-new">{t.nav.fresh}</span>
+                    <span class="nav__feat-blob" aria-hidden="true"><Blob name="menta" size={48} /></span>
+                    <span class="nav__feat-name">APX vs {lead.name}</span>
+                    <span class="nav__feat-tag">{lead.tagline[lang]}</span>
+                    <span class="nav__feat-date">{t.nav.checkedOn} {labels[lang].reviewed}</span>
+                  </a>
+                  <ul class="nav__menu-list">
+                    {listed.map((c, i) => (
+                      <li>
+                        <a href={href(`${pre}/compare/${c.slug}/`)}>
+                          <span class:list={["nav__menu-mark", `tone-${tones[i % tones.length]}`]} aria-hidden="true">
+                            <span><img src={href(`/brands/${c.logo}`)} class:list={["nav__menu-logo", { "mono-mark": c.mono }]} alt="" width="18" height="18" loading="lazy" /></span>
+                          </span>
+                          <span class="nav__menu-text"><b>APX vs {c.name}</b><span>{c.tagline[lang]}</span></span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <p class="nav__menu-foot"><a href={href(`${pre}/compare/best-ai-agent-apps/`)}>{labels[lang].roundup} →</a><a href={href(`${pre}/compare/#comparisons`)}>{t.nav.compareAll} →</a></p>
+              </div>
+            </div>
+          )
+        }
+      </div>
+      <a href={href(`${pre}/#questions`)}>{t.nav.questions}</a>
+      <a class="nav__sheet-get" href={href(`${pre}/#download`)}>{t.getApp}</a>
+    </div>
+    <div class="nav__cta">
+      <div class="lang" role="group" aria-label={t.langLabel}>
+        <a href={href(route)} class:list={{ on: lang === "en" }} hreflang="en" lang="en">EN</a>
+        <a href={href(`/es${route}`)} class:list={{ on: lang === "es" }} hreflang="es" lang="es">ES</a>
+      </div>
+      <button class="icon-btn" id="theme" type="button" aria-label={t.themeLabel} title={t.themeLabel}>
+        <UiIcon name="sun" class="sun" /><UiIcon name="moon" class="moon" />
+      </button>
+      <a class="icon-btn web-repo" href="https://github.com/agentprojectcontext/apx" aria-label="GitHub" title="GitHub"><SocialIcon name="GitHub" size={17} /></a>
+      <a class="btn btn-discord" href="https://discord.gg/vxdZuT5WuE" aria-label="Discord" title="Discord"><SocialIcon name="Discord" size={18} /><span class="lbl">Discord</span></a>
+      <a class="btn btn-light nav__get" href={href(`${pre}/#download`)} aria-label={t.getApp} title={t.getApp}>
+        <UiIcon name="download" /><span class="lbl">{t.getApp}</span>
+      </a>
+      <button class="icon-btn nav__toggle" type="button" aria-label={t.nav.menu} aria-expanded="false" aria-controls="navLinks"><span></span><span></span></button>
+    </div>
+  </div>
+</nav>
+<script>
+  const nav = document.getElementById("nav");
+  const toggle = nav?.querySelector<HTMLButtonElement>(".nav__toggle");
+  const open = (on: boolean) => {
+    nav?.toggleAttribute("data-open", on);
+    toggle?.setAttribute("aria-expanded", String(on));
+  };
+  toggle?.addEventListener("click", () => open(!nav?.hasAttribute("data-open")));
+  for (const link of nav?.querySelectorAll(".nav__links a") ?? []) link.addEventListener("click", () => open(false));
+  addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && nav?.hasAttribute("data-open")) {
+      open(false);
+      toggle?.focus();
+    }
+  });
+  // A menu closes once one of its links is chosen, until the pointer leaves it.
+  for (const drop of nav?.querySelectorAll<HTMLElement>(".nav__drop") ?? []) {
+    drop.querySelector(".nav__menu")?.addEventListener("click", (e) => {
+      if (!(e.target as Element).closest("a")) return;
+      drop.classList.add("is-dismissed");
+      (document.activeElement as HTMLElement | null)?.blur();
+    });
+    drop.addEventListener("pointerleave", () => drop.classList.remove("is-dismissed"));
+  }
+  // On the home, Product marks the section in view.
+  const marks = [...(nav?.querySelectorAll<HTMLAnchorElement>("a[data-section]") ?? [])];
+  const homeSections = marks.map((a) => document.getElementById(a.dataset.section ?? "")).filter((el): el is HTMLElement => Boolean(el));
+  if (homeSections.length) {
+    const inView = new Set<string>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) inView.add(e.target.id);
+          else inView.delete(e.target.id);
+        }
+        const current = homeSections.find((el) => inView.has(el.id))?.id;
+        for (const a of marks) {
+          if (a.dataset.section === current) a.setAttribute("aria-current", "location");
+          else a.removeAttribute("aria-current");
+        }
+      },
+      { rootMargin: "-45% 0px -50% 0px" },
+    );
+    for (const el of homeSections) io.observe(el);
+  }
+  // At the very top the header is a fade over the page; once the page moves it becomes a bar.
+  const onScroll = () => nav?.toggleAttribute("data-scrolled", scrollY > 24);
+  addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+  document.getElementById("theme")?.addEventListener("click", () => {
+    const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem("starlight-theme", next); } catch {}
+  });
+</script>

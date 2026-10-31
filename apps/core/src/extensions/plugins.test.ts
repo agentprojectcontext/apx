@@ -53,7 +53,7 @@ const extension = (id: string, plugin: Record<string, unknown>) => {
   return dir;
 };
 const turnInput = async (text: string) => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text });
   await env.settle(t.id, 10_000);
   return String(llm.calls.at(-1)?.messages.at(-1)?.content);
@@ -136,7 +136,7 @@ test("a misbehaving plugin cannot stall turns or APX: odd answers are ignored, a
   const before = await turnInput("garbage please");
   assert.match(before, /from="Plugin second"/);
   // The flood kills the plugin; the turn goes on without its context, and APX keeps answering.
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "flood please" });
   const { runs } = await env.settle(t.id, 10_000);
   assert.equal(runs.at(-1)?.state, "completed");

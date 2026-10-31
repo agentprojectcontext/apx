@@ -132,7 +132,11 @@ test("an artifact's file says who made it, and an installed one keeps its maker 
     fs.writeFileSync(path.join(root, "AGENTS.md"), "# Northwind\n");
     const { project } = await env.client.call("projects.register", { path: root });
     await env.client.call("owner.set", { name: "Ada" });
-    const chat = await env.client.call("threads.create", { kind: "agent", agent_id: "roby", project_id: project.id });
+    const chat = await env.client.call("threads.create", {
+      kind: "agent",
+      agent_id: "superagent",
+      project_id: project.id,
+    });
     // Made by an agent in its chat (a call from an agent's turn sets created_by; here the store does it directly).
     const s = env.core.store.surfaces.upsert({
       name: "orders",
@@ -140,11 +144,11 @@ test("an artifact's file says who made it, and an installed one keeps its maker 
       html: PAGE,
       project_id: project.id,
       thread_id: chat.id,
-      created_by: "roby",
+      created_by: "superagent",
     });
     const bundle = await env.client.call("surfaces.export", { surface: s.id });
     assert.equal(bundle.manifest.author, "Ada");
-    assert.equal(bundle.manifest.agent, env.core.store.agents.get("roby")?.name);
+    assert.equal(bundle.manifest.agent, env.core.store.agents.get("superagent")?.name);
     const projectName = env.core.store.projects.get(project.id)?.name;
     assert.equal(bundle.manifest.project, projectName);
     assert.ok(bundle.manifest.exported_at);

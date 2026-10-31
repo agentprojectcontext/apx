@@ -2,6 +2,7 @@ import type { ChannelInfo, ChannelRooms, RoomMode } from "@apx/protocol";
 import { Button, Icons, Input, Select, SettingRow, Switch, Tag, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
+import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { SubHead } from "./SectionHead.tsx";
 
@@ -115,6 +116,7 @@ export function RoomsSection({
   const set = (patch: Partial<ChannelRooms>) => void save({ ...cur, ...patch });
   const [adding, setAdding] = useState({ id: "", name: "" });
   const server = useServerRooms(channel);
+  const agentName = useData((s) => s.agents[channel.agent_id]?.name);
   const [byId, setById] = useState(false);
   const writable = new Map((server ?? []).map((r) => [r.id, r.writable]));
   const unlisted = (server ?? []).filter((r) => !cur.rooms.some((x) => x.id === r.id));
@@ -241,7 +243,7 @@ export function RoomsSection({
           key={cur.names.join(",")}
           aria-label={t("rooms.names")}
           className="rooms__names"
-          placeholder="roby"
+          placeholder={agentName?.toLowerCase()}
           defaultValue={cur.names.join(", ")}
           onBlur={(e) => {
             const names = e.currentTarget.value

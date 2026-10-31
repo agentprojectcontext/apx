@@ -17,7 +17,7 @@ test("a widget plays its project's MP4 behind it and shows the project's images"
   fs.copyFileSync(path.join(fixtures, "preview.jpg"), path.join(reels, "cover.jpg"));
   const chat = await rpc<{ id: string }>("threads.create", {
     kind: "agent",
-    agent_id: "roby",
+    agent_id: "superagent",
     project_id: northwind.id,
   });
   const stored = await rpc<{ media: { id: string } }>("media.upload", {

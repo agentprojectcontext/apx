@@ -16,8 +16,8 @@ after(async () => {
 const sum = (parts: Array<{ chars: number }>) => parts.reduce((n, p) => n + p.chars, 0);
 
 test("the owner sees what the model received on a run: the same system prompt, input and tools, with parts that add up", async () => {
-  await env.client.call("agents.update", { agent: "roby", prompt: "Answer in haiku when asked for poems." });
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  await env.client.call("agents.update", { agent: "superagent", prompt: "Answer in haiku when asked for poems." });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "hola" });
   const { runs } = await env.settle(t.id);
   const sent = llm.calls.at(-1);
@@ -44,7 +44,7 @@ test("only the latest runs keep what they received", async () => {
   const ids = Array.from({ length: RUN_CONTEXTS_KEPT + 2 }, (_, i) => {
     const r = store.runs.create({
       thread_id: "home",
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "user",
       input: { origin: { kind: "user" }, text: `n${i}` },
       deadline_at: new Date(Date.now() + 60_000).toISOString(),

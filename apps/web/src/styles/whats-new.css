@@ -1,0 +1,68 @@
+/* What's new: releases newest first, each news a line that opens to what it brings and what to ask. */
+.whatsnew .apx-dialog__body {
+  max-height: min(560px, 100vh - 200px);
+  overflow-y: auto;
+}
+.whatsnew__release + .whatsnew__release {
+  margin-top: 18px;
+}
+.whatsnew__version {
+  margin: 0 0 6px;
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-medium);
+  color: var(--apx-fg-subtle);
+}
+.whatsnew__entry {
+  border-radius: var(--apx-radius-md);
+}
+.whatsnew__entry.is-open {
+  background: var(--apx-fill);
+}
+.whatsnew__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--apx-radius-md);
+  background: transparent;
+  text-align: left;
+}
+.whatsnew__head:hover {
+  background: var(--apx-fill-hover);
+}
+.whatsnew__title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.whatsnew__chev {
+  flex: none;
+  color: var(--apx-fg-subtle);
+  transition: transform 0.15s;
+}
+.whatsnew__entry.is-open .whatsnew__chev {
+  transform: rotate(180deg);
+}
+.whatsnew__body {
+  padding: 0 10px 12px;
+}
+.whatsnew__about {
+  margin: 0 0 10px;
+  font-size: var(--apx-text-sm);
+  line-height: 1.5;
+  color: var(--apx-fg-muted);
+}
+.whatsnew__ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.whatsnew__askLabel {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}

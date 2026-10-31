@@ -54,7 +54,7 @@ test("the Computers view shows two screens in use as two tiles, and opens one la
     await env.client.call("setup.finish", {});
     const chats: Record<string, string> = {};
     for (const [agent, title] of [
-      ["roby", "Probar la tienda"],
+      ["superagent", "Probar la tienda"],
       ["scout", "Revisar el sitio de Acme"],
     ] as const) {
       await env.client.call("environments.permit", { agent, on: true });
@@ -72,7 +72,7 @@ test("the Computers view shows two screens in use as two tiles, and opens one la
     await expect(wall.locator(".computers__tile.is-off")).toHaveCount(2);
     await expect(wall.getByText("Pantalla apagada")).toHaveCount(2);
 
-    for (const agent of ["roby", "scout"])
+    for (const agent of ["superagent", "scout"])
       await env.client.call("threads.send", { thread: chats[agent] ?? "", text: "Trabajá en la computadora" });
     const tiles = wall.locator(".computers__tile");
     await expect(tiles).toHaveCount(2);
@@ -130,8 +130,12 @@ test("a screen kept up after its run shows on the wall as idle, opens large with
   });
   try {
     await env.client.call("setup.finish", {});
-    await env.client.call("environments.permit", { agent: "roby", on: true });
-    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Lint del repo" });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
+    const chat = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      title: "Lint del repo",
+    });
     await env.client.call("environments.bind", { thread: chat.id });
     await env.client.call("threads.send", { thread: chat.id, text: "Corré el lint" });
     await env.settle(chat.id);
@@ -156,7 +160,11 @@ test("a screen kept up after its run shows on the wall as idle, opens large with
     await expect(page).toHaveURL(new RegExp(`thread=${chat.id}`));
 
     // In another chat of Roby's, on this machine: its screen is that chat's, one click away.
-    const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Otro chat" });
+    const other = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      title: "Otro chat",
+    });
     await page.goto(`${env.core.url}/#thread=${other.id}&panel=computer`);
     const computer = page.locator(".computer");
     await expect(
@@ -190,7 +198,8 @@ test("the wall shows an off tile per allowed agent, turns one on, and says when 
   });
   try {
     await env.client.call("setup.finish", {});
-    for (const agent of ["roby", "scout", "vera"]) await env.client.call("environments.permit", { agent, on: true });
+    for (const agent of ["superagent", "scout", "vera"])
+      await env.client.call("environments.permit", { agent, on: true });
     await env.client.call("environments.status", {});
     await page.setViewportSize({ width: 1600, height: 1000 });
     await mockVmDisplay(page);
@@ -247,7 +256,7 @@ test("with the computer off the view shows only the global state", async ({ page
   });
   try {
     await env.client.call("setup.finish", {});
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await page.goto(`${env.core.url}/#view=computers`);
     const wall = page.locator(".computers");
     await expect(wall.getByText("La computadora está apagada")).toBeVisible();

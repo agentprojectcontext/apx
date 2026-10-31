@@ -41,13 +41,13 @@ const comments = async (thread: string) =>
     .flatMap((m) => m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])));
 
 test("asking the same agent again goes on in its session instead of opening another", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "ask vera twice" });
   await env.settle(t.id);
   const sessions = env.core.store.threads.sessions(t.id);
   assert.equal(sessions.length, 1, "one session with Vera");
   const asked = (await env.client.call("threads.get", { thread: sessions[0]?.id ?? "" })).messages.filter(
-    (m) => m.author.kind === "agent" && m.author.id === "roby",
+    (m) => m.author.kind === "agent" && m.author.id === "superagent",
   );
   assert.equal(asked.length, 2, "both requests reached the same session");
   assert.equal(
@@ -106,7 +106,7 @@ test("with nobody on the task, the super-agent picks the comment up", async () =
   await env.client.call("tasks.comment", { task: task.id, text: "Someone should take this." });
   handOwnerComments(store, env.core.engine.admit, new Date(Date.now() + COMMENT_PAUSE_MS + 1000));
   const [chat] = store.threads.byTask(task.id);
-  assert.equal(chat?.agent_ids[0], "roby");
+  assert.equal(chat?.agent_ids[0], "superagent");
   await env.settle(chat?.id ?? "");
   const reply = (await env.client.call("threads.get", { thread: chat?.id ?? "" })).messages.at(-1);
   assert.match(JSON.stringify(reply?.parts), /Gave it to Vera/);
@@ -148,7 +148,7 @@ test("a turn that failed leaves the comments delivered and is not waited on", as
 
 test("an archived session is not reused: asking again opens another", async () => {
   const store = env.core.store;
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "ask vera twice" });
   await env.settle(t.id);
   const [first] = store.threads.sessions(t.id);
@@ -179,7 +179,7 @@ test("the plan an agent keeps on the task reaches every turn of its work, whatev
 });
 
 test("a new session name for a teammate that already has a free session here goes on in that one", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: t.id, text: "ask vera again" });
   await env.settle(t.id);
   await env.client.call("threads.send", { thread: t.id, text: "ask vera by another name" });

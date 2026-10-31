@@ -63,9 +63,9 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   // The new check hangs off the webhook beside the save; join it into the chain: webhook → check → save.
   await named.locator(".fe-order__row", { hasText: "Webhook entrante" }).click();
   await named.getByRole("button", { name: "Quitar conexión" }).first().click();
-  await named.locator('.react-flow__node[data-id="condition-1"]').dragTo(named.locator(".react-flow__pane"), {
-    targetPosition: { x: 200, y: 200 },
-  });
+  // Close the step card so it covers no handle; joining from a handle never selects the step (moving one would).
+  await named.locator(".react-flow__pane").click({ position: { x: 20, y: 20 } });
+  await expect(named.getByRole("complementary", { name: "Ajustes del paso" })).toHaveCount(0);
   // A check has two ways out: «Sí» goes on when it matches.
   const out = named.locator('.react-flow__node[data-id="condition-1"] .fc-handle--yes');
   await out.dragTo(named.locator('.react-flow__node[data-id="table_write-1"] .fc-handle--in'));

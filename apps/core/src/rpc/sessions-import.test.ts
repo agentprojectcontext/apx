@@ -257,7 +257,7 @@ test("an agent of the project takes an imported chat over, earlier answers inclu
   assert.ok(
     messages.filter((m) => m.author.kind === "agent").every((m) => m.author.kind === "agent" && m.author.id === cmo.id),
   );
-  const loose = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const loose = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await assert.rejects(env.client.call("sessions.adopt", { thread: loose.id, agent: "cmo" }), /not a chat brought/);
 });
 

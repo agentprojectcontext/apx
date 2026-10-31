@@ -32,11 +32,11 @@ for (const id of ["aider", "antigravity"] as const) {
     });
     try {
       assert.equal(harness.id, id);
-      await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+      await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
       const project = (await env.client.call("projects.register", { path: folder, init: true })).project.id;
       const thread = await env.client.call("threads.create", {
         kind: "code",
-        agent_id: "roby",
+        agent_id: "superagent",
         project_id: project,
         engine: id,
         write: "auto",
@@ -58,7 +58,7 @@ for (const id of ["aider", "antigravity"] as const) {
       mode = "echo";
       const readOnly = await env.client.call("threads.create", {
         kind: "code",
-        agent_id: "roby",
+        agent_id: "superagent",
         project_id: project,
         engine: id,
         write: "read-only",

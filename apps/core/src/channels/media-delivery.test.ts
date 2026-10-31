@@ -32,7 +32,7 @@ const config = (type: "discord" | "slack"): ChannelConfig => ({
   type,
   label: "Media",
   enabled: true,
-  agent_id: "roby",
+  agent_id: "superagent",
   strangers: "pair",
   concurrency: "steer",
   owner_thread: "home",

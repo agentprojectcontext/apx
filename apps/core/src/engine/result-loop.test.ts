@@ -60,7 +60,7 @@ test("a Claude Code session reads a delegate's late result framed, with what to 
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
   const t = await env.client.call("threads.create", {
     kind: "code",
-    agent_id: "roby",
+    agent_id: "superagent",
     project_id: project,
     engine: "claude",
   });
@@ -76,7 +76,7 @@ test("a Claude Code session reads a delegate's late result framed, with what to 
 });
 
 test("a delegate that ends without an answer is a warning on its card and in its caller's reply", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "mute" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "mute" });
   await env.client.call("threads.send", { thread: t.id, text: "ask mute" });
   const got = await env.settle(t.id);
   const card = got.messages
@@ -92,7 +92,7 @@ test("a delegate that ends without an answer is a warning on its card and in its
 });
 
 test("a result turn that says nothing is tried once more, then the owner's tray says so as a warning", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "echo" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "echo" });
   await env.client.call("threads.send", { thread: t.id, text: "ask echo" });
   const results = () =>
     env.core.store.runs.list(t.id).filter((r) => r.input?.origin.kind === "delegation_result" && r.ended_at);

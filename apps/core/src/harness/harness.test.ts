@@ -79,7 +79,7 @@ after(async () => {
 async function session(engine: "claude" | "codex") {
   const repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-harness-")));
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
-  return env.client.call("threads.create", { kind: "code", agent_id: "roby", project_id: project, engine });
+  return env.client.call("threads.create", { kind: "code", agent_id: "superagent", project_id: project, engine });
 }
 
 test("a Claude Code session runs there, with APX tools, cards, usage and its own session kept", async () => {
@@ -111,7 +111,7 @@ test("a CLI is never an agent's model, the router or the install default; one sa
       .catch((e: unknown) => e);
     assert.ok(asDefault instanceof ApxError && asDefault.code === "bad_request", bad);
     const asAgent = await env.client
-      .call("agents.update", { agent: "roby", model_choice: { model: bad, router: false } })
+      .call("agents.update", { agent: "superagent", model_choice: { model: bad, router: false } })
       .catch((e: unknown) => e);
     assert.ok(asAgent instanceof ApxError && asAgent.code === "bad_request", bad);
     const inChat = await env.client
@@ -188,7 +188,7 @@ test("a model ref nothing can run is refused when it is set", async () => {
     assert.ok(err instanceof ApxError && err.code === "bad_request", bad);
   }
   const err = await env.client
-    .call("agents.update", { agent: "roby", model_choice: { model: "nope/x", router: false } })
+    .call("agents.update", { agent: "superagent", model_choice: { model: "nope/x", router: false } })
     .catch((e: unknown) => e);
   assert.ok(err instanceof ApxError && err.code === "bad_request");
 });
@@ -333,7 +333,7 @@ test("an outside agent in a delegated session that asks before changes asks for 
     store.threads.create({
       kind: "a2a",
       title: `helper ${write}`,
-      agent_ids: ["roby"],
+      agent_ids: ["superagent"],
       parent_id: t0.id,
       project_id: t0.project_id,
       cwd: top?.cwd,
@@ -343,9 +343,9 @@ test("an outside agent in a delegated session that asks before changes asks for 
   const probe = (threadId: string) =>
     env.core.engine.admit({
       thread_id: threadId,
-      agent_id: "roby",
+      agent_id: "superagent",
       trigger: "a2a",
-      origin: { kind: "agent", id: "roby", name: "Roby", thread_id: t0.id, run_id: "run_top" },
+      origin: { kind: "agent", id: "superagent", name: "Roby", thread_id: t0.id, run_id: "run_top" },
       text: `probe ${JSON.stringify([{ kind: "edit", path: path.join(top?.cwd ?? "", "a.ts") }])}`,
     });
   const answer = async (threadId: string) => {
@@ -369,7 +369,7 @@ test("an outside agent in a delegated session that asks before changes asks for 
 test("an outside agent's file tools never change git's folder, even in total, as ours never do", async () => {
   const t0 = await session("claude");
   const cwd = env.core.store.threads.get(t0.id)?.cwd ?? "";
-  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
   try {
     const asks = [
       { kind: "edit", path: path.join(cwd, ".git", "config") },
@@ -382,14 +382,14 @@ test("an outside agent's file tools never change git's folder, even in total, as
     const answer = t.messages.at(-1)?.parts.find((p) => p.type === "text");
     assert.equal(answer?.type === "text" ? answer.text : "", "[false,false,true,true]");
   } finally {
-    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: null });
   }
 });
 
 test("an outside agent's edit of APC files or AGENTS.md always asks, even when its rules act outside on their own, as file_write does", async () => {
   const t0 = await session("claude");
   const cwd = env.core.store.threads.get(t0.id)?.cwd ?? "";
-  await env.client.call("agents.update", { agent: "roby", autonomy: "auto", rules: { outside: "auto" } });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "auto", rules: { outside: "auto" } });
   try {
     const asks = [
       { kind: "edit", path: path.join(cwd, ".apc", "agents", "roby.md") },
@@ -407,7 +407,7 @@ test("an outside agent's edit of APC files or AGENTS.md always asks, even when i
     const answer = t.messages.at(-1)?.parts.find((p) => p.type === "text");
     assert.equal(answer?.type === "text" ? answer.text : "", "[false,false]");
   } finally {
-    await env.client.call("agents.update", { agent: "roby", autonomy: null, rules: null });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: null, rules: null });
   }
 });
 
@@ -415,7 +415,7 @@ test("an outside agent's command that writes outside its folders is put to the o
   const t0 = await session("claude");
   await using tmp = tempDir("apx-away-");
   const away = tmp.path;
-  await env.client.call("agents.update", { agent: "roby", autonomy: "manual" });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "manual" });
   try {
     const asks = [{ kind: "execute", command: `touch ${sh(away)}/made.txt` }];
     await env.client.call("threads.send", { thread: t0.id, text: `probe ${JSON.stringify(asks)}` });
@@ -428,7 +428,7 @@ test("an outside agent's command that writes outside its folders is put to the o
     const answer = t.messages.at(-1)?.parts.find((p) => p.type === "text");
     assert.equal(answer?.type === "text" ? answer.text : "", "[false]");
   } finally {
-    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: null });
   }
 });
 
@@ -437,7 +437,7 @@ test("an outside agent whose rules turn acting outside off keeps to its folders,
   await using tmp = tempDir("apx-away-");
   const away = tmp.path;
   fs.writeFileSync(path.join(away, "notes.txt"), "elsewhere");
-  await env.client.call("agents.update", { agent: "roby", autonomy: "total", rules: { outside: "off" } });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "total", rules: { outside: "off" } });
   try {
     const asks = [
       { kind: "read", path: path.join(away, "notes.txt") },
@@ -449,7 +449,7 @@ test("an outside agent whose rules turn acting outside off keeps to its folders,
     const answer = t.messages.at(-1)?.parts.find((p) => p.type === "text");
     assert.equal(answer?.type === "text" ? answer.text : "", "[false,false,true]");
   } finally {
-    await env.client.call("agents.update", { agent: "roby", autonomy: null, rules: null });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: null, rules: null });
   }
 });
 
@@ -476,7 +476,7 @@ test("an outside agent's commands follow the shell tool's folder rule and reach:
   const away = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
   await env.client.call("projects.update", { project: t0.project_id ?? "", read_only_folders: [ref] });
   // Total autonomy: nothing is put to the owner, so only the folder rule says no.
-  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
   try {
     const commands: Array<[string, boolean]> = [
       [`cat ${sh(ref)}/a.ts`, true],
@@ -499,7 +499,7 @@ test("an outside agent's commands follow the shell tool's folder rule and reach:
     const said = JSON.parse(answer?.type === "text" ? answer.text : "[]") as boolean[];
     for (const [i, [command, allowed]] of commands.entries()) assert.equal(said[i], allowed, command);
   } finally {
-    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+    await env.client.call("agents.update", { agent: "superagent", autonomy: null });
     await env.client.call("projects.update", { project: t0.project_id ?? "", read_only_folders: [] });
     await removeDir(ref);
     await removeDir(away);

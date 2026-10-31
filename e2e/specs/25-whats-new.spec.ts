@@ -17,7 +17,7 @@ test("See what's new opens the chat that tells the update, and goes once it is r
   await rpc("setup.finish", {});
   const chat = await rpc<{ id: string }>("threads.create", {
     kind: "agent",
-    agent_id: "roby",
+    agent_id: "superagent",
     title: "Novedades de APX 9.9.9",
   });
   await page.route("**/rpc/threads.list", async (route: Route) => {

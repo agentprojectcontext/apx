@@ -32,7 +32,7 @@ test("system.usage carries the shared computer's numbers once the owner set it u
   try {
     const chat = await computerChat(env);
     assert.equal((await env.client.call("system.usage", {})).vm, undefined, "a computer nobody set up has no slot");
-    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.permit", { agent: "superagent", on: true });
     await env.client.call("environments.enable", { thread: chat, appearance: "light" });
     assert.deepEqual((await env.client.call("system.usage", {})).vm, numbers);
   } finally {

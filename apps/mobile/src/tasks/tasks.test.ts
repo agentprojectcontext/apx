@@ -12,17 +12,17 @@ const agent = (id: string, extra: Partial<Agent> = {}): Agent => ({ id, name: id
 test("a project's task goes to its team and the super-agent; a global one to agents outside projects", () => {
   const agents = [
     agent("zed"),
-    agent("roby", { kind: "secretary" }),
+    agent("superagent", { kind: "secretary" }),
     agent("ada", { project_id: "p1" }),
     agent("bob", { project_id: "p2" }),
   ];
   assert.deepEqual(
     assignableAgents(agents, "p1").map((a) => a.id),
-    ["roby", "ada"],
+    ["superagent", "ada"],
   );
   assert.deepEqual(
     assignableAgents(agents).map((a) => a.id),
-    ["roby", "zed"],
+    ["superagent", "zed"],
   );
 });
 

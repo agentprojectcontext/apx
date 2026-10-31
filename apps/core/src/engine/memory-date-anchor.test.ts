@@ -27,7 +27,7 @@ for (const mixedDays of [false, true])
       const zone = "Pacific/Kiritimati";
       const at = "2026-01-01T10:30:00.000Z";
       await env.client.call("owner.set", { timezone: zone });
-      const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
       const quotes = mixedDays
         ? [
             { text: "Acme siempre usa revisión corta.", at: "2026-01-01T09:30:00.000Z" },
@@ -45,9 +45,9 @@ for (const mixedDays of [false, true])
       }));
       id = env.core.store.memories.add({
         scope: "agent",
-        agent_id: "roby",
+        agent_id: "superagent",
         source: "agent",
-        author_agent: "roby",
+        author_agent: "superagent",
         text: "Acme siempre usa revisión corta. La fecha de inicio es mañana.",
         evidence,
         tainted: false,

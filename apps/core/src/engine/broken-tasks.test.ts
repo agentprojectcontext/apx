@@ -22,7 +22,7 @@ function task(title: string, fields: { assignee?: string; status?: string; descr
     assignee: fields.assignee,
     status: fields.status ?? "todo",
     parent_id: fields.parent,
-    thread_id: store.threads.create({ kind: "task", title, agent_ids: ["roby"] }).id,
+    thread_id: store.threads.create({ kind: "task", title, agent_ids: ["superagent"] }).id,
     by: "owner",
   });
 }

@@ -118,14 +118,14 @@ test("global agents report to another global agent or to the super-agent, who re
   assert.equal(moved.parent, lead.id);
   assert.equal((await env.client.call("agents.get", { agent: analyst.id })).agent.parent, lead.id, "kept");
   await assert.rejects(env.client.call("agents.update", { agent: lead.id, parent: analyst.id }), /loop/);
-  await assert.rejects(env.client.call("agents.update", { agent: "roby", parent: lead.id }), /reports to nobody/);
+  await assert.rejects(env.client.call("agents.update", { agent: "superagent", parent: lead.id }), /reports to nobody/);
   await assert.rejects(env.client.call("agents.update", { agent: analyst.id, parent: "boss" }), /not another agent/);
   assert.equal((await env.client.call("agents.update", { agent: analyst.id, parent: "" })).parent, undefined);
 });
 
 test("the owner sets an agent's autonomy: kept for a global agent, written to a project agent's file", async () => {
-  assert.equal((await env.client.call("agents.update", { agent: "roby", autonomy: "total" })).autonomy, "total");
-  assert.equal((await env.client.call("agents.get", { agent: "roby" })).agent.autonomy, "total");
+  assert.equal((await env.client.call("agents.update", { agent: "superagent", autonomy: "total" })).autonomy, "total");
+  assert.equal((await env.client.call("agents.get", { agent: "superagent" })).agent.autonomy, "total");
   const { agents } = await env.client.call("agents.list", {});
   const boss = agents.find((a) => a.project_id === project && a.slug === "boss");
   assert.ok(boss);

@@ -30,6 +30,7 @@ import { routinesRepo } from "./routines.ts";
 import { runContextsRepo } from "./run-contexts.ts";
 import { runsRepo } from "./runs.ts";
 import { harnessSessionsRepo, idempotencyRepo, settingsRepo } from "./settings.ts";
+import { sharedFilesRepo } from "./shared-files.ts";
 import { sql } from "./sql.ts";
 import { stickersRepo } from "./stickers.ts";
 import { suggestionsRepo } from "./suggestions.ts";
@@ -74,6 +75,7 @@ export function createStore(db: Db, bus: Bus) {
     memories: memoriesRepo(q),
     memoryWork: memoryWorkRepo(q),
     media: mediaRepo(q),
+    sharedFiles: sharedFilesRepo(q),
     taskAttachments: taskAttachmentsRepo(q),
     persons: personsRepo(q),
     suggestions: suggestionsRepo(q),

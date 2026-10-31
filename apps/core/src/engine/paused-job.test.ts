@@ -28,14 +28,14 @@ after(async () => {
 
 test("a background command that ends while agents are paused is kept, and going on gives its agent the output", async () => {
   await env.client.call("agents.set_limits", { runs: 1, tokens: 0 });
-  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Builds" });
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Builds" });
   await env.client.call("threads.send", { thread: chat.id, text: "two commands please" });
   const notice = await waitFor(async () => {
     const { messages } = await env.client.call("threads.get", { thread: chat.id });
     return messages.flatMap((m) => m.parts).find((p) => p.type === "notice" && p.code === "breaker.paused");
   }, "paused notice");
   assert.ok(notice);
-  assert.equal(env.core.store.threads.context(chat.id).kept, "roby", "the chat keeps the result for its agent");
+  assert.equal(env.core.store.threads.context(chat.id).kept, "superagent", "the chat keeps the result for its agent");
 
   const { started } = await env.client.call("threads.go_on", { thread: chat.id, mode: "release" });
   assert.equal(started, 1);

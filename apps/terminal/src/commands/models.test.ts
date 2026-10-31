@@ -47,12 +47,12 @@ test("agents clone sends the agents, the target project and --rename", async () 
     },
   });
   const out = await printed(() =>
-    agentEdit(client, ["clone", "acme:lead", "roby"], { project: "p_nw", rename: true, under: "boss" }),
+    agentEdit(client, ["clone", "acme:lead", "superagent"], { project: "p_nw", rename: true, under: "boss" }),
   );
   assert.match(out, /Nova \(nw:nova\) · reports to boss/);
   assert.match(out, /skipped Roby: the super-agent/);
   assert.deepEqual(calls, [
-    ["agents.clone", { agents: ["acme:lead", "roby"], rename: true, project_id: "p_nw", hang_under: "boss" }],
+    ["agents.clone", { agents: ["acme:lead", "superagent"], rename: true, project_id: "p_nw", hang_under: "boss" }],
   ]);
 });
 

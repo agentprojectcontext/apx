@@ -17,7 +17,7 @@ after(async () => {
 });
 
 test("an engine's list holds its own sessions only, and a CLI runs nowhere else", async () => {
-  const ran = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const ran = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   await env.client.call("threads.send", { thread: ran.id, text: "hello" });
   await env.settle(ran.id);
   // Outside its own sessions a CLI is no chat's model.
@@ -29,7 +29,7 @@ test("an engine's list holds its own sessions only, and a CLI runs nowhere else"
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
   const session = await env.client.call("threads.create", {
     kind: "code",
-    agent_id: "roby",
+    agent_id: "superagent",
     project_id: project,
     engine: "claude",
   });

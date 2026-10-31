@@ -52,7 +52,7 @@ for (const mode of ["held", "scheduled"] as const) {
     });
     env = await startCore({ llm });
     try {
-      chat = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+      chat = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
       oldRun = (await env.client.call("threads.send", { thread: chat, text: "Schedule analysis." })).run.id;
       await env.settle(chat);
       oldTask = env.core.store.tasks.list({ from_thread: chat, limit: 10 })[0]?.id ?? "";

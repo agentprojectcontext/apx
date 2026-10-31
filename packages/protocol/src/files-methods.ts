@@ -1,6 +1,6 @@
 // A folder as the owner browses it (a project's, or a chat's): one level at a time, and a file's text.
 import { z } from "zod";
-import { Id } from "./domain.ts";
+import { Author, Id } from "./domain.ts";
 
 export const FileEntry = z.object({
   name: z.string(),
@@ -27,6 +27,32 @@ export const ChangedFile = z.object({
   removed: z.number().int().optional(),
 });
 export type ChangedFile = z.infer<typeof ChangedFile>;
+
+/** What a file shared in a chat is, by its MIME type: Documents is everything that is not a picture, video or sound. */
+export const SharedKind = z.enum(["image", "video", "audio", "document"]);
+export type SharedKind = z.infer<typeof SharedKind>;
+/** Newest or oldest first, or by name. */
+export const SharedOrder = z.enum(["new", "old", "az", "za"]);
+export type SharedOrder = z.infer<typeof SharedOrder>;
+
+/** A file a message shows (sent by the owner, a contact or an agent), with where it was said. */
+export const SharedFile = z.object({
+  media_id: Id,
+  kind: SharedKind,
+  mime: z.string(),
+  /** The file's own name, or how it was asked for when APX made it; empty when it has neither. */
+  name: z.string(),
+  bytes: z.number().int(),
+  /** Where it is kept on the core's computer. */
+  path: z.string(),
+  thread_id: Id,
+  thread_title: z.string(),
+  project_id: Id.optional(),
+  message_id: Id,
+  author: Author,
+  created_at: z.string(),
+});
+export type SharedFile = z.infer<typeof SharedFile>;
 
 /**
  * Whose folder: a project's, the base project's (`base`: APX's work folder, where its chats work), or the one a chat
@@ -180,6 +206,44 @@ export const filesMethods = {
   /** Moves a file or folder to the system trash (recoverable there); never the project's folder itself. */
   "files.trash": {
     params: z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
+  /**
+   * Files shared in chats: of one kind, one project's chats (`project`) or chats outside any project (`base`), whose
+   * name has `query`, in `order` (newest first by default). `counts` are per kind under the same project and query.
+   */
+  "media.shared": {
+    params: z
+      .object({
+        kind: SharedKind.optional(),
+        project: Id.optional(),
+        base: z.literal(true).optional(),
+        query: z.string().trim().max(200).optional(),
+        order: SharedOrder.default("new"),
+        offset: z.number().int().min(0).default(0),
+        limit: z.number().int().min(1).max(200).default(60),
+      })
+      .strict(),
+    result: z.object({
+      items: z.array(SharedFile),
+      more: z.boolean(),
+      counts: z.record(SharedKind, z.number().int()),
+    }),
+    effect: false,
+    access: "human",
+  },
+  /** A small JPEG of a video's first frame, base64; none when the core cannot make one (no ffmpeg). */
+  "media.poster": {
+    params: z.object({ media_id: Id }).strict(),
+    result: z.object({ data: z.string().optional() }),
+    effect: false,
+    access: "human",
+  },
+  /** Shows a file shared in a chat in Finder (Explorer, the file manager) on the core's computer. */
+  "media.reveal": {
+    params: z.object({ media_id: Id }).strict(),
     result: z.object({ ok: z.literal(true) }),
     effect: true,
     access: "human",

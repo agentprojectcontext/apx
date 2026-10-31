@@ -69,7 +69,7 @@ test("an uploaded voice note keeps its bytes and transcript through send, reload
 });
 
 test("another chat cannot transcribe or attach an uploaded recording, and malformed requests never call the service", async () => {
-  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   const { media } = await env.client.call("media.upload", {
     name: "Other.wav",
     mime: "audio/wav",
