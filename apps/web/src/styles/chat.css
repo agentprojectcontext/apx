@@ -411,8 +411,6 @@
   text-decoration: underline;
 }
 
-/* An agent's face and name open its block beside the chat. */
-.chat__agentbtn,
 /* A block the agent wrote (code, a page, a diagram, an email), as a card between its bubbles, wider than words. */
 .turn .apx-msg__col:has(> .apx-msg__bare > .turn__card) {
   width: min(100%, 760px);
@@ -423,6 +421,9 @@
   width: 100%;
   min-width: 0;
 }
+
+/* An agent's face and name open its block beside the chat. */
+.chat__agentbtn,
 .turn__agentbtn {
   display: inline-flex;
   padding: 0;
