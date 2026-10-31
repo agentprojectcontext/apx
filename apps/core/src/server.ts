@@ -94,6 +94,7 @@ import { createNews } from "./news/news.ts";
 import { nodeChildEnv } from "./node-runtime.ts";
 import { createNodeBroker } from "./nodes/broker.ts";
 import { createHeadlessBrowser } from "./nodes/headless-browser.ts";
+import { createWidgetPages } from "./nodes/widget-pages.ts";
 import { officeScheduler } from "./office-wiring.ts";
 import { createChatgptLogin } from "./providers/chatgpt-login.ts";
 import { createLlm, type Llm, NO_KEY, type SignIn } from "./providers/llm.ts";
@@ -245,6 +246,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
         },
       })
     : undefined;
+  // A widget in edit mode runs in a page of that same browser, apart from its tabs.
+  const widgetPages = headless?.available() ? createWidgetPages(() => headless.pageCdp()) : undefined;
 
   let selfUrl = "";
   const providers = providerRegistry(store, config.providers);
@@ -693,6 +696,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       identity,
       broker,
       headless,
+      widgetPages,
       bus,
       llmLabel: () => llm.label(),
       engine,
@@ -818,6 +822,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       telemetry.stop();
       chatgpt.stop();
       localModels.cancel();
+      await widgetPages?.closeAll().catch(() => {});
       headless?.close();
       scheduler.stop();
       stopFlowEvents();

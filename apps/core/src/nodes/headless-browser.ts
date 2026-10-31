@@ -17,7 +17,7 @@ import {
 import { assertNavigable, CdpPage } from "@apx/protocol/cdp";
 import { ApxError } from "@apx/protocol/client";
 import { findProgram } from "../programs.ts";
-import { type PageCall, type PageCheck, runPageCheck } from "./page-check.ts";
+import { type PageCall, type PageCdp, type PageCheck, runPageCheck } from "./page-check.ts";
 
 const MAX_TABS = 6;
 const NAV_TIMEOUT_MS = 10_000;
@@ -445,6 +445,18 @@ export function createHeadlessBrowser(deps: {
     return t;
   }
 
+  /** Each command goes through ready(): a page in use keeps the browser from stopping as idle. */
+  async function pageCdp(): Promise<PageCdp> {
+    await ready();
+    return {
+      send: async (method, params, session) => (await ready()).send(method, params ?? {}, session),
+      listen: (session, fn) => {
+        listeners.set(session, fn);
+        return () => listeners.delete(session);
+      },
+    };
+  }
+
   const noHuman = () =>
     new ApxError({
       code: "unavailable",
@@ -463,19 +475,10 @@ export function createHeadlessBrowser(deps: {
     },
     /** Runs an artifact's page in a throwaway tab (no network, no cookies): the errors it threw and what it shows. */
     async checkPage(html: string, onCall: PageCall): Promise<PageCheck> {
-      const p = await ready();
-      return runPageCheck(
-        {
-          send: (method, params, session) => p.send(method, params ?? {}, session),
-          listen: (session, fn) => {
-            listeners.set(session, fn);
-            return () => listeners.delete(session);
-          },
-        },
-        html,
-        onCall,
-      );
+      return runPageCheck(await pageCdp(), html, onCall);
     },
+    /** The browser itself, for pages the core runs on its own (a widget in edit mode), started if needed. */
+    pageCdp,
     async handle(method: string, raw: unknown): Promise<unknown> {
       switch (method) {
         case BROWSER_HOLD:

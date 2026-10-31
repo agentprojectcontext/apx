@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { PickedElement } from "@apx/protocol";
 import { enBrowserEdit } from "../i18n/browser-edit-en.ts";
 import type { T } from "../i18n/index.ts";
-import { type EditItem, editRequest, editsOf, hexOf, isChanged } from "./browserEdit.ts";
+import { type EditItem, editRequest, editsOf, hexOf, isChanged, pageHeader } from "./browserEdit.ts";
 
 const t: T = (key, vars) =>
   (enBrowserEdit as Record<string, string>)[key]?.replace(/\{(\w+)\}/g, (_, n: string) => String(vars?.[n])) ?? key;
@@ -37,7 +37,7 @@ test("the request names the page, each changed element and only what changed", (
     { element: element({ node: 3, selector: "p" }), text: "Book a demo", style: {}, note: "" },
   ];
   assert.equal(
-    editRequest("http://localhost:5173/", items, t),
+    editRequest(pageHeader("http://localhost:5173/", t), items, t),
     [
       "> Changes to the page localhost:5173 (http://localhost:5173/):",
       "> 1. «Book a demo» (`a.cta`): text → «Get your demo»; text color → #3b6cff; font size → 17 px; Bigger please",

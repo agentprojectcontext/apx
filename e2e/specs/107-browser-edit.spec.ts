@@ -130,7 +130,7 @@ for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 860 });
       await open(page, `#thread=${thread}&panel=browser`);
       await page.getByRole("button", { name: "Editar", exact: true }).click();
-      await expect(page.getByText("Tocá una parte de la página para cambiarla")).toBeVisible();
+      await expect(page.getByText("Tocá la parte que querés cambiar")).toBeVisible();
       await expect(page.getByText("Elegí qué cambiar")).toBeVisible();
       await expect(page.locator(".bedit__shot img")).toBeVisible();
 

@@ -195,3 +195,14 @@
   gap: 6px;
   margin-top: auto;
 }
+/* A widget in edit mode fills the widget panel; its picture and fields share it like a browser tab's. */
+.widgets--edit {
+  overflow: hidden;
+  padding-bottom: 0;
+}
+.widget-edit {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  margin: 0 -10px;
+}

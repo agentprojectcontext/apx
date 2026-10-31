@@ -1,7 +1,12 @@
 // An artifact's own memory (store, db), its bundle and its credentialed fetch. `surface` is fixed by the host,
 // never chosen by the page.
 import { z } from "zod";
+import { ElementEdit, PickedElement } from "./browser.ts";
 import { ArtifactBundle, ArtifactMemory, ArtifactSqlParam, Id, SurfaceSummary } from "./domain.ts";
+
+/** A widget open in edit mode: a throwaway page of the core's own browser, not a tab anyone browses. */
+const EditPage = z.string().regex(/^w\d{1,9}$/);
+const Fraction = z.number().min(0).max(1);
 
 const Sql = z.string().trim().min(1).max(100_000);
 const SqlParams = z.array(ArtifactSqlParam).max(1000).optional();
@@ -100,5 +105,52 @@ export const artifactMethods = {
       .strict(),
     result: z.object({ status: z.number().int(), headers: z.record(z.string(), z.string()), body: z.string() }),
     effect: false,
+  },
+  /**
+   * Edit mode for a widget: the core runs it in a page of its own browser, cut off from the network and from the
+   * owner's logins, sized to `width`, with the panel's theme (`theme`: CSS custom properties only). Owner only.
+   */
+  "surfaces.edit_open": {
+    params: z
+      .object({
+        surface: Id,
+        width: z.number().int().min(240).max(2400),
+        theme: z
+          .string()
+          .max(40_000)
+          .regex(/^[^<>]*$/),
+        mode: z.enum(["light", "dark"]),
+      })
+      .strict(),
+    result: z.object({ page: EditPage }),
+    effect: true,
+    access: "human",
+  },
+  /** The widget's element under a point of its page (fractions 0–1), or null. */
+  "surfaces.edit_inspect": {
+    params: z.object({ page: EditPage, x: Fraction, y: Fraction }).strict(),
+    result: z.object({ element: PickedElement.nullable() }),
+    effect: false,
+    access: "human",
+  },
+  /** Shows exactly these edits in the widget's edit page; an empty list undoes them. */
+  "surfaces.edit_preview": {
+    params: z.object({ page: EditPage, edits: z.array(ElementEdit).max(50) }).strict(),
+    result: z.object({ shown: z.number().int() }),
+    effect: true,
+    access: "human",
+  },
+  /** A picture of the widget's edit page. */
+  "surfaces.edit_shot": {
+    params: z.object({ page: EditPage }).strict(),
+    result: z.object({ mime: z.literal("image/jpeg"), data: z.string(), bytes: z.number().int() }),
+    effect: false,
+    access: "human",
+  },
+  "surfaces.edit_close": {
+    params: z.object({ page: EditPage }).strict(),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
+    access: "human",
   },
 } as const;

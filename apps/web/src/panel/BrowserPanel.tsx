@@ -23,7 +23,7 @@ export function BrowserPanel() {
   const t = useT();
   const { tabs, active } = useActiveTab();
   const [adding, setAdding] = useState(false);
-  const editing = useSlice(browserEdit, (s) => s.tab);
+  const editing = useSlice(browserEdit, (s) => s.target);
   // Edit mode belongs to one tab the owner holds: another tab, or an agent taking it back, ends it.
   const editable = active && active.control.kind !== "agent" && active.control.kind !== "handoff";
   const inEdit = !adding && editable && editing === active.tab;
@@ -32,7 +32,7 @@ export function BrowserPanel() {
     void loadTabs();
   }, []);
   useEffect(() => {
-    if (editing && !inEdit) void leaveEditing(editing);
+    if (editing && !editing.startsWith("widget:") && !inEdit) void leaveEditing(editing);
   }, [editing, inEdit]);
 
   return (
