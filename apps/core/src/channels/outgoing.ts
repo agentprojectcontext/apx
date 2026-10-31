@@ -10,7 +10,7 @@ import type { Services } from "../services/registry.ts";
 import type { createDelivery } from "./delivery.ts";
 import type { createPoster, Posted } from "./post.ts";
 import { type createRooms, quietMentions, roomMentions } from "./rooms.ts";
-import type { ChannelAdapter, ChannelConfig, Presence } from "./types.ts";
+import { type ChannelAdapter, type ChannelConfig, contactAgentOf, type Presence } from "./types.ts";
 
 const AVATAR_TTL_MS = 24 * 3600_000;
 const SETTLE_POLL_MS = 100;
@@ -102,7 +102,7 @@ export function createOutgoing(deps: {
       thread = store.threads.create({
         kind: "channel",
         title: person.name,
-        agent_ids: [pick.cfg.agent_id],
+        agent_ids: [owner ? pick.cfg.agent_id : contactAgentOf(pick.cfg)],
         channel: { id: pick.cfg.id, conversation: pick.conversation, person_id: person.id },
       });
       store.threads.mergeContext(thread.id, { reply_to: { channel: pick.cfg.id, conversation: pick.conversation } });

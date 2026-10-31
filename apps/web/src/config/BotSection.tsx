@@ -270,7 +270,7 @@ function Setup({ kind }: { kind: BotKind }) {
         </div>
       ))}
       <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: BOTS[kind].name })}>
-        <AgentSelect size="sm" className="tgagent" value={agent} onChange={(id) => id && setAgent(id)} />
+        <AgentSelect size="sm" className="tgagent" channel value={agent} onChange={(id) => id && setAgent(id)} />
       </SettingRow>
       <div>
         <Button disabled={!tokens.ok} loading={busy} onClick={() => void connect()}>
@@ -408,6 +408,7 @@ function Connected({ channel, kind }: { channel: ChannelInfo; kind: BotKind }) {
     strangers: channel.strangers,
     concurrency: channel.concurrency,
     owner_thread: channel.owner_thread,
+    contacts_agent_id: channel.contacts_agent_id,
     ...(channel.self_owner ? { self_owner: true } : {}),
     ...(channel.rooms ? { rooms: channel.rooms } : {}),
     closers: channel.closers,

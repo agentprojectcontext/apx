@@ -64,6 +64,8 @@ export type ChannelDraft = {
   type?: ChannelInfo["type"];
   label?: string;
   agent_id: string;
+  /** Who answers the contacts and rooms, when it is not `agent_id` (kept on every save, or it would be dropped). */
+  contacts_agent_id?: string | undefined;
   enabled: boolean;
   strangers: ChannelInfo["strangers"];
   concurrency: ChannelInfo["concurrency"];
