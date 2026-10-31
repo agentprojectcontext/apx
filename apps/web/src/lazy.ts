@@ -155,12 +155,21 @@ export const DelegationActions = lazy(() =>
 );
 export const GoOn = lazy(() => import("./chat/parts/GoOn.tsx").then((m) => ({ default: m.GoOn })));
 
+// A file from the chat opened inside APX (a PDF, text).
+export const FileViewer = lazy(() => import("./chat/parts/FileViewer.tsx").then((m) => ({ default: m.FileViewer })));
+
 export const DocumentActions = lazy(() =>
   import("./panel/DocumentActions.tsx").then((m) => ({ default: m.DocumentActions })),
 );
 
 // The run button and its terminal load the first time a chat shows a shell block.
 export const RunnableCode = lazy(() => import("./chat/RunnableCode.tsx").then((m) => ({ default: m.RunnableCode })));
+// Any other code block's frame (copy, expand, an HTML page's preview) loads the first time a chat shows one; the
+// Mermaid renderer, much larger, only when a block is a diagram.
+export const CodeBlock = lazy(() => import("./chat/CodeBlock.tsx").then((m) => ({ default: m.CodeBlock })));
+export const MermaidDiagram = lazy(() =>
+  import("./chat/MermaidDiagram.tsx").then((m) => ({ default: m.MermaidDiagram })),
+);
 export const ReceivedDialog = lazy(() =>
   import("./chat/ReceivedDialog.tsx").then((m) => ({ default: m.ReceivedDialog })),
 );

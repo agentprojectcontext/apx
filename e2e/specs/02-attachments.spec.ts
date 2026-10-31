@@ -1,9 +1,14 @@
 import fs from "node:fs";
 import net, { type AddressInfo } from "node:net";
 import path from "node:path";
+import type { Page } from "@playwright/test";
 import { callTool, say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import type { Tool } from "../../apps/core/src/tools/types.ts";
 import { expect, test } from "./kit.ts";
+
+/** A file's chip in the chat, by its exact name. */
+const chip = (page: Page, name: string) =>
+  page.locator(".filechip").filter({ has: page.getByText(name, { exact: true }) });
 
 const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
@@ -79,7 +84,7 @@ test("arrastrar MP4 5,3 MB y PDF grande permite enviar; rechazo muestra motivo c
     const downloaded = await (await download).path();
     expect(downloaded).toBeTruthy();
     expect(fs.readFileSync(downloaded ?? "")).toEqual(video);
-    await expect(page.getByRole("button", { name: /^report.pdf/ })).toBeVisible();
+    await expect(chip(page, "report.pdf")).toBeVisible();
   } finally {
     await page.goto("about:blank");
     await env.core.close();
@@ -147,17 +152,17 @@ test("adjuntos usuario y agente muestran imágenes y descargan archivos después
     await expect(page.locator(".transcript").getByText("Files shown", { exact: true })).toBeVisible();
     await expect(page.getByRole("img", { name: "ticket.png", exact: true })).toBeVisible();
     await expect(page.getByRole("img", { name: "Agent copy: ticket.png", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^receipt.pdf/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Agent copy: receipt.pdf/ })).toBeVisible();
+    await expect(chip(page, "receipt.pdf")).toBeVisible();
+    await expect(chip(page, "Agent copy: receipt.pdf")).toBeVisible();
     const download = page.waitForEvent("download");
-    await page.getByRole("button", { name: /^Agent copy: receipt.pdf/ }).click();
+    await chip(page, "Agent copy: receipt.pdf").getByRole("button", { name: "Descargar" }).click();
     const file = await download;
     const at = await file.path();
     expect(at).toBeTruthy();
     expect(fs.readFileSync(at ?? "")).toEqual(PDF);
     await page.reload();
     await expect(page.getByRole("img", { name: "Agent copy: ticket.png", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Agent copy: receipt.pdf/ })).toBeVisible();
+    await expect(chip(page, "Agent copy: receipt.pdf")).toBeVisible();
   } finally {
     // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
     await page.goto("about:blank");

@@ -148,13 +148,28 @@ Cuando un agente escribe un bloque de shell en su respuesta (por ejemplo, un com
 trae **Ejecutar en una terminal**. Se abre en el panel Terminal sobre una terminal real, así podés escribir ahí una
 contraseña; cuando termina, al agente que lo escribió le llega cómo salió.
 
+### Tablas, código, páginas y diagramas en las respuestas
+
+- **Tablas**: debajo tienen **Copiar como Markdown** y **Copiar como CSV** (el CSV se pega en una planilla; las
+  celdas con comas o comillas quedan enteras). El botón de la esquina abre la tabla más grande.
+- **Código**: se muestra en un marco con su lenguaje, números de línea y colores, más **Copiar** y **Expandir** (una
+  vista más grande).
+- **HTML** que un agente escribe en un bloque `html` se ve como la página que dibuja, con **Vista previa** / **Código**
+  para cambiar. La página se muestra en un marco aislado: sus propios scripts no corren, no puede llegar a APX ni a
+  tus cuentas y no carga nada de la web, así que las imágenes de otros sitios no aparecen.
+- **Diagramas Mermaid** en un bloque `mermaid` se dibujan como imagen, con el mismo cambio a su código. Si el código no
+  es un diagrama válido, se muestra el código con un aviso.
+- **Archivos** que adjunta un agente aparecen como una tarjeta con su nombre y tamaño: **Descargar** los guarda y
+  **Abrir** muestra un PDF o un archivo de texto (CSV, Markdown, código) dentro de APX, como texto, sin ejecutarlo.
+
 ### Los documentos son copias guardadas
 
 Pedile al agente que abra un informe o plan como documento después de escribirlo. Los archivos Markdown y de texto
 (`.md`, `.markdown`, `.txt`, hasta 400 KB) se abren en **Documentos**, con vistas de Markdown, código fuente y
 descarga. Incluso `.txt` se muestra como Markdown. Es una copia guardada: editar el archivo después no la cambia ni
 la abre automáticamente. No es una app ni un widget. Los agentes también pueden adjuntar archivos al chat (hasta
-20 MB); las imágenes se muestran ahí y los audios y videos se pueden reproducir.
+20 MB); las imágenes se muestran ahí, los audios y videos se pueden reproducir y los demás archivos aparecen como
+una tarjeta para descargar o abrir.
 
 ## Buscá todo con ⌘K
 
