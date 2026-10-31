@@ -178,8 +178,10 @@
   gap: 6px;
   padding: 0 4px;
 }
+/* On the owner's side the meta keeps to the bubble's edge; the controls open on its inner side, not past it. */
 .apx-msg--user .apx-msg__meta {
-  justify-content: flex-end;
+  flex-direction: row-reverse;
+  justify-content: flex-start;
 }
 /* A message's own controls: out of the way until the pointer or keyboard is on it. */
 .apx-msg__actions {

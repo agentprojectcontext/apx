@@ -28,6 +28,8 @@
 - MediaLoader is new (a loading file as a moving icon of its kind: image, video, audio or file); not in the Claude
   Design project yet.
 - MarkdownView now renders safe pipe tables; its remote preview and bundle need a re-sync.
+- Message: on the owner's side (`from="user"`) the meta line keeps to the bubble's edge and the hover controls open
+  on its inner side; re-sync the shared CSS bundle.
 - Lint fixes (DECISIONS.md#d-005) changed markup in Avatar, AgentAvatar, Checkbox, Switch, SegmentedControl (now a
   Base UI RadioGroup), DayDivider, VoiceNote and the list keys of ActionGroup/StepList/EntityCard/Menu/Kbd/
   AvatarStack/MessageMeta. Pixel-identical in all four looks, same public API; the remote bundle is just stale.

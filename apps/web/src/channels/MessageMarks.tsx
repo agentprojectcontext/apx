@@ -1,8 +1,9 @@
-// What a message sent on a channel carries besides its words: how far it got (ticks) and the emoji put on it. Shared
-// by the channel view and the main chat, so both read the same.
-import type { MessageDelivery, MessageReaction } from "@apx/protocol";
-import { Icons, Tooltip } from "@apx/ui";
-import type { ReactNode } from "react";
+// What a message sent on a channel carries besides its words: the chat app it went out or came in on, how far it got
+// (ticks) and the emoji put on it. Shared by the channel view and the main chat, so both read the same.
+import type { Message, MessageDelivery, MessageReaction, Thread } from "@apx/protocol";
+import { ChannelIcon, Icons, Tooltip } from "@apx/ui";
+import { createContext, type ReactNode, useContext, useEffect } from "react";
+import { loadChannels, useChannels } from "../data/channels.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 
 const TICKS: Record<MessageDelivery, { icon: ReactNode; label: MessageKey }> = {
@@ -39,4 +40,40 @@ export function ReactionList({ list, agentName }: { list: MessageReaction[]; age
       </Tooltip>
     );
   });
+}
+
+/** The channel a transcript shows only the part of (Home filtered to it): its messages need no mark. */
+export const ViaFilter = createContext<string | undefined>(undefined);
+
+/**
+ * The chat app a message went out or came in on, when the chat is not that app's own (Home, a project's chat): there
+ * the owner could not tell it also reached their phone or a contact's. None for a chat of that very channel.
+ */
+export function useVia(thread: Thread, message: Message) {
+  const channel = useChannels((s) => s.channels.find((c) => c.id === message.via));
+  const ready = useChannels((s) => s.ready);
+  const filtered = useContext(ViaFilter);
+  const shown = Boolean(message.via) && message.via !== thread.channel?.id && message.via !== filtered;
+  useEffect(() => {
+    if (shown && !ready) void loadChannels();
+  }, [shown, ready]);
+  if (!shown) return undefined;
+  const out = message.author.kind === "agent" || (message.author.kind === "user" && Boolean(message.author.direct));
+  return { kind: channel?.type ?? "", label: channel?.label, out };
+}
+
+/** A small mark of that app, saying whether the message went out there or came in from there. */
+export function ViaMark({ thread, message }: { thread: Thread; message: Message }) {
+  const t = useT();
+  const via = useVia(thread, message);
+  if (!via) return null;
+  const app = via.label ?? t("ch.via.otherApp");
+  const label = t(via.out ? "ch.via.sent" : "ch.via.received", { channel: app });
+  return (
+    <Tooltip content={label}>
+      <span className="chan__via" role="img" aria-label={label} data-via={via.kind || "other"}>
+        <ChannelIcon channel={via.kind} size={12} />
+      </span>
+    </Tooltip>
+  );
 }

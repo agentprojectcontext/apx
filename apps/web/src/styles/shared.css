@@ -35,6 +35,12 @@
 .chan__ticks.is-failed {
   color: var(--apx-danger);
 }
+/* The chat app a message also went out or came in on: a quiet mark beside its time, never a label. */
+.chan__via {
+  display: inline-flex;
+  vertical-align: -2px;
+  opacity: 0.85;
+}
 /* A QR code's box, also while it loads. */
 .qrcode {
   flex: none;
