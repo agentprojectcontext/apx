@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { headerLink } from "../web-nav.ts";
 
 const base = (process.env.DOCS_BASE ?? "/").replace(/\/$/, "");
 const origin = process.env.DOCS_TEST_ORIGIN ?? "http://127.0.0.1:4410";
@@ -9,7 +10,7 @@ test("published base keeps navigation, documentation redirects, search and insta
 }, testInfo) => {
   for (const pre of ["", "/es"]) {
     await page.goto(`${origin}${base}${pre}/compare/openbot/`);
-    await page.locator(".web-header a[href$='/docs/start/introduction/']").click();
+    await (await headerLink(page, ".nav__docs-link")).click();
     await expect(page).toHaveURL(`${origin}${base}${pre}/docs/start/introduction/`);
     await expect(page.locator("main h1")).toBeVisible();
     await page.goto(`${origin}${base}${pre}/start/introduction/?old=1#_top`);

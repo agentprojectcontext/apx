@@ -74,9 +74,18 @@ body {
   -webkit-backdrop-filter: blur(18px) saturate(1.4);
   border-bottom: 1px solid var(--apx-line);
 }
+/* The wordmark in the text colour, like the site's; only the logo is green. */
 .site-title {
   font-weight: 700;
   letter-spacing: -0.02em;
+  color: var(--sl-color-white);
+}
+/* GitHub and Discord in the header: quiet icons that light up on hover. */
+.page > header .social-icons a {
+  color: var(--sl-color-gray-3);
+}
+.page > header .social-icons a:hover {
+  color: var(--sl-color-white);
 }
 .site-title img {
   height: 1.6rem;
@@ -155,4 +164,30 @@ h1#_top {
 .apx-page-blob {
   float: right;
   margin: -0.4rem 0 0.6rem 1rem;
+}
+
+/* Wide screens: the text takes the room the "On this page" column would leave empty. */
+@media (min-width: 90rem) {
+  :root {
+    --sl-content-width: 52rem;
+  }
+}
+
+/* The sidebar's scrollbar: thin, and only while the pointer is over it. */
+.sidebar-pane {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.sidebar-pane:hover {
+  scrollbar-color: var(--sl-color-gray-5) transparent;
+}
+.sidebar-pane::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-pane::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background: transparent;
+}
+.sidebar-pane:hover::-webkit-scrollbar-thumb {
+  background: var(--sl-color-gray-5);
 }

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { headerLink } from "../web-nav.ts";
 
 for (const lang of ["en", "es"]) {
   const pre = lang === "es" ? "/es" : "";
@@ -6,7 +7,7 @@ for (const lang of ["en", "es"]) {
     await page.goto(`${pre}/`);
     const header = await page.locator(".web-header").innerText();
     const footer = await page.locator(".web-footer").innerText();
-    await page.locator('.web-header a[href$="/compare/"]').click();
+    await (await headerLink(page, 'a[href$="/compare/"]')).click();
     await expect(page).toHaveURL(`${pre}/compare/`);
     expect(await page.locator(".web-header").innerText()).toBe(header);
     expect(await page.locator(".web-footer").innerText()).toBe(footer);
@@ -72,28 +73,42 @@ for (const lang of ["en", "es"]) {
           name: lang === "es" ? "Plataformas disponibles" : "Available platforms",
         });
         await expect(platforms.getByRole("listitem")).toHaveText(["macOS", "Windows", "Linux", "Android"]);
-        await expect(footer.locator(".web-footer__groups nav")).toHaveCount(4);
+        await expect(footer.locator(".web-footer__row nav")).toHaveCount(10);
         const layout = await footer.evaluate((element) => {
           const bounds = (selector: string) => {
             const rect = element.querySelector(selector)?.getBoundingClientRect();
             return { x: rect?.x ?? 0, y: rect?.y ?? 0, bottom: rect?.bottom ?? 0 };
           };
           return {
-            main: bounds(".web-footer__main"),
-            availability: bounds(".web-footer__availability"),
-            origin: bounds(".web-footer__origin"),
             brand: bounds(".web-footer__intro"),
-            columns: [...element.querySelectorAll(".web-footer__groups nav")].map(
-              (nav) => nav.getBoundingClientRect().y,
+            origin: bounds(".web-footer__origin"),
+            availability: bounds(".web-footer__availability"),
+            groups: bounds(".web-footer__groups"),
+            site: bounds(".web-footer__row--site"),
+            docs: bounds(".web-footer__row--docs"),
+            docColumns: [...element.querySelectorAll(".web-footer__row--docs .web-footer__col")].map(
+              (col) => col.getBoundingClientRect().x,
             ),
+            mark: bounds(".web-footer__mark"),
           };
         });
-        expect(layout.availability.y).toBeGreaterThanOrEqual(layout.main.bottom);
-        expect(layout.origin.y).toBeGreaterThanOrEqual(layout.main.bottom);
+        // The brand, its legal lines and the platforms come first; the links below; the big mark right after.
+        expect(layout.groups.y).toBeGreaterThanOrEqual(layout.brand.bottom);
+        // Where APX runs and where it is made share one line under the brand and the website's links.
+        expect(layout.availability.y).toBeGreaterThanOrEqual(layout.brand.bottom);
+        expect(layout.availability.bottom).toBeLessThanOrEqual(layout.groups.y);
+        expect(layout.origin.bottom).toBeLessThanOrEqual(layout.groups.y);
+        if (!isMobile) expect(Math.abs(layout.origin.y - layout.availability.y)).toBeLessThan(12);
+        expect(layout.mark.y).toBeGreaterThanOrEqual(layout.groups.bottom);
+        expect(layout.mark.y - layout.groups.bottom).toBeLessThan(48);
+        // The website's links (Product, Community, Compare) come before the docs' sections.
+        expect(layout.docs.y).toBeGreaterThanOrEqual(layout.site.bottom);
         if (!isMobile) {
-          expect(new Set(layout.columns).size).toBe(1);
-          expect(layout.columns[0]).toBeLessThan(layout.brand.bottom);
-          expect(Math.abs(layout.origin.y - layout.availability.y)).toBeLessThan(1);
+          // At desktop width they sit beside the brand block, filling the space next to it.
+          expect(layout.site.y).toBeLessThan(layout.brand.bottom);
+          expect(layout.site.x).toBeGreaterThan(layout.brand.x + 200);
+          // At desktop width the docs' sections are five columns in one row.
+          expect(new Set(layout.docColumns).size).toBe(5);
         }
         for (const [name, url] of [
           ["GitHub", "https://github.com/agentprojectcontext/apx"],

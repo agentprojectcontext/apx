@@ -1,8 +1,10 @@
 ---
+import { getCollection } from "astro:content";
 import logo from "../../assets/logo.png";
-import { comparisons } from "../../data/comparisons";
+import { comparisons, labels } from "../../data/comparisons";
 import { sitePath } from "../../doc-routes.mjs";
 import { HOME, type Lang } from "../../i18n/home";
+import Blob from "../Blob.astro";
 import OsIcon from "../OsIcon.astro";
 import SocialIcon from "./SocialIcon.astro";
 import "./web.css";
@@ -11,47 +13,83 @@ interface Props {
   lang: Lang;
 }
 const { lang } = Astro.props;
-const es = lang === "es";
-const pre = es ? "/es" : "";
+const t = HOME[lang].footer;
+const pre = lang === "es" ? "/es" : "";
 const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
-const groups = [
-  {
-    title: es ? "Empezá con APX" : "Start with APX",
-    links: [
-      [es ? "Introducción" : "Introduction", href(`${pre}/start/introduction/`)],
-      [es ? "Instalación" : "Installation", href(`${pre}/start/install/`)],
-      [es ? "Tu equipo" : "Your crew", href(`${pre}/concepts/agents/`)],
-      [es ? "Tu oficina" : "Your office", href(`${pre}/office/chat/`)],
-      [es ? "Canales" : "Channels", href(`${pre}/channels/overview/`)],
-    ],
-  },
-  {
-    title: es ? "Explorá" : "Explore",
-    links: [
-      [es ? "Habilidades" : "Skills", href(`${pre}/extend/skills/`)],
-      ["MCP", href(`${pre}/extend/mcp/`)],
-      [es ? "En tu servidor" : "On your server", href(`${pre}/devices/server/`)],
-      ["CLI", href(`${pre}/reference/cli/`)],
-    ],
-  },
-  {
-    title: es ? "Compará APX" : "Compare APX",
-    links: [
-      [es ? "Todas las comparativas" : "All comparisons", href(`${pre}/compare/`)],
-      ...comparisons.map((item) => [`APX vs ${item.name}`, href(`${pre}/compare/${item.slug}/`)]),
-    ],
-  },
-  {
-    title: es ? "Comunidad" : "Community",
-    links: [
-      [es ? "Versiones" : "Releases", "https://github.com/agentprojectcontext/apx/releases"],
-      [es ? "Reportar un problema" : "Report an issue", "https://github.com/agentprojectcontext/apx/issues"],
-      ["APC", "https://github.com/agentprojectcontext/agentprojectcontext"],
-    ],
-  },
+const github = "https://github.com/agentprojectcontext/apx";
+// Doc links are labelled with each page's own title, in this language; a page that is missing fails the build.
+const docs = await getCollection("docs");
+const doc = (path: string): [string, string] => {
+  const entry = docs.find((d) => d.id === `${lang === "es" ? "es/" : ""}docs/${path}`);
+  if (!entry) throw new Error(`Footer link to a missing doc page: ${path}`);
+  return [entry.data.title, href(`${pre}/${path}/`)];
+};
+const section = (key: keyof typeof t.sections, pages: string[]) => ({
+  title: t.sections[key],
+  links: pages.map((page) => doc(`${key}/${page}`)),
+});
+const contact = "mailto:manu@incubit.com.ar";
+type Group = { title: string; links: (readonly [string, string])[] };
+const product: Group = {
+  title: t.product,
+  links: [
+    [t.newIn, href(`${pre}/#new`)],
+    [t.download, href(`${pre}/#download`)],
+    [t.questions, href(`${pre}/#questions`)],
+    [t.phone, href(`${pre}/devices/phone/`)],
+    [t.server, href(`${pre}/devices/server/`)],
+  ],
+};
+const community: Group = {
+  title: t.community,
+  links: [
+    [t.releases, `${github}/releases`],
+    [t.issue, `${github}/issues`],
+    [t.github, github],
+    [t.discord, "https://discord.gg/vxdZuT5WuE"],
+    [t.youtube, "https://www.youtube.com/@apx-agents"],
+    [t.contact, contact],
+    ["APC", "https://github.com/agentprojectcontext/agentprojectcontext"],
+    doc("reference/website-privacy"),
+  ],
+};
+// The docs' sections below the website's links; short groups stack in pairs so the row stays balanced.
+const docColumns: Group[][] = [
+  [
+    section("start", ["introduction", "how-it-works", "install", "first-steps", "from-v1"]),
+    section("devices", ["desktop", "phone", "server"]),
+  ],
+  [section("concepts", ["agents", "projects", "conversations", "models", "autonomy", "memory"])],
+  [
+    section("office", [
+      "chat",
+      "secretary",
+      "tasks",
+      "routines",
+      "board",
+      "artifacts",
+      "browser",
+      "computers",
+      "email",
+      "code",
+    ]),
+  ],
+  [
+    section("channels", ["overview", "telegram", "whatsapp", "discord-slack", "imessage", "supervised"]),
+    section("reference", ["cli", "configuration", "troubleshooting", "privacy"]),
+  ],
+  [section("extend", ["skills", "mcp", "extensions", "integrations", "outside-clients"])],
 ];
+const compare: Group = {
+  title: t.compare,
+  links: [
+    [t.allComparisons, href(`${pre}/compare/`)],
+    [labels[lang].roundup, href(`${pre}/compare/best-ai-agent-apps/`)],
+    ...comparisons.map((item) => [`APX vs ${item.name}`, href(`${pre}/compare/${item.slug}/`)] as const),
+  ],
+};
 const socials = [
-  { name: "GitHub", url: "https://github.com/agentprojectcontext/apx" },
+  { name: "GitHub", url: github },
   { name: "Discord", url: "https://discord.gg/vxdZuT5WuE" },
   { name: "YouTube", url: "https://www.youtube.com/@apx-agents" },
 ] as const;
@@ -61,26 +99,66 @@ const platforms = [
   { name: "linux", label: "Linux" },
   { name: "android", label: "Android" },
 ] as const;
+const front = ["coral", "cobalto", "menta", "amatista", "brasa"] as const;
+const back = ["orbita", "perla", "caracol", "kiwi"] as const;
 ---
 <footer class="web-footer">
   <div class="wrap">
-    <div class="web-footer__main">
+    <div class="web-footer__top">
       <div class="web-footer__intro">
-        <a class="brand" href={href(`${pre}/`)}><img src={logo.src} alt="" width="40" height="40" />APX</a>
-        <p class="web-footer__description">{es ? "Un equipo de agentes de IA para tus proyectos, en tu computadora." : "A team of AI agents for your projects, on your computer."}</p>
-        <nav class="web-footer__socials" aria-label={es ? "APX en redes" : "APX on social media"}>
-          {socials.map(({ name, url }) => <a href={url} aria-label={name} title={name}><SocialIcon name={name} /></a>)}
-        </nav>
+        <a class="brand" href={href(`${pre}/`)}><img src={logo.src} alt="" width="26" height="26" />APX</a>
+        <p class="web-footer__description">{t.description}</p>
+        <p class="web-footer__home"><Blob name="menta" size={20} /><b>Home</b>{t.home}</p>
+        <div class="web-footer__reach">
+          <nav class="web-footer__socials" aria-label={t.social}>
+            {socials.map(({ name, url }) => <a href={url} aria-label={name} title={name}><SocialIcon name={name} size={20} /></a>)}
+          </nav>
+          <a class="web-footer__contact" href={contact}>{t.contact}</a>
+        </div>
+        <div class="web-footer__legal">
+          <p>© 2026 APX <span class="web-footer__sep" aria-hidden="true">·</span> <a href={`${github}/blob/main/LICENSE`}>{t.license}</a></p>
+          <p class="web-footer__fine">{t.trademarks}</p>
+        </div>
       </div>
-      <div class="web-footer__groups">{groups.map((group) => <nav aria-label={group.title}><h2>{group.title}</h2><ul>{group.links.map(([label, url]) => <li><a href={url}>{label}</a></li>)}</ul></nav>)}</div>
+      <div class="web-footer__row web-footer__row--site">
+        {[product, community].map((group) => (
+          <div class="web-footer__col"><nav aria-label={group.title}><h2>{group.title}</h2><ul>{group.links.map(([label, url]) => <li><a href={url}>{label}</a></li>)}</ul></nav></div>
+        ))}
+        <div class="web-footer__col web-footer__col--compare">
+          <nav aria-label={compare.title}>
+            <details class="web-footer__fold" open>
+              <summary><h2>{compare.title}</h2></summary>
+              <ul style={`--rows: ${Math.ceil(compare.links.length / 2)}`}>{compare.links.map(([label, url]) => <li><a href={url}>{label}</a></li>)}</ul>
+            </details>
+          </nav>
+        </div>
+      </div>
+      <div class="web-footer__bar">
+        <div class="web-footer__availability">
+          <p class="web-footer__available">{t.availableFor}</p>
+          <ul class="web-footer__platforms" aria-label={t.platforms}>{platforms.map(({ name, label }) => <li><OsIcon name={name} size={13} />{label}</li>)}</ul>
+        </div>
+        <p class="web-footer__origin">{t.madeWith} <span class="web-footer__heart" role="img" aria-label={t.love}>♥</span> {t.inArgentina}</p>
+      </div>
     </div>
-    <div class="web-footer__bottom">
-      <div class="web-footer__legal"><p>© 2026 · {HOME[lang].footer}</p><a href="https://github.com/agentprojectcontext/apx/blob/main/LICENSE">MIT</a><p>{es ? "Las marcas pertenecen a sus respectivos titulares." : "Trademarks belong to their respective owners."}</p></div>
-      <div class="web-footer__availability">
-        <p class="web-footer__available">{es ? "Disponible para" : "Available for"}</p>
-        <ul class="web-footer__platforms" aria-label={es ? "Plataformas disponibles" : "Available platforms"}>{platforms.map(({ name, label }) => <li><OsIcon name={name} size={16} />{label}</li>)}</ul>
+    <div class="web-footer__groups">
+      <div class="web-footer__row web-footer__row--docs">
+        {docColumns.map((column) => (
+          <div class="web-footer__col">
+            {column.map((group) => <nav aria-label={group.title}><h2>{group.title}</h2><ul>{group.links.map(([label, url]) => <li><a href={url}>{label}</a></li>)}</ul></nav>)}
+          </div>
+        ))}
       </div>
-      <p class="web-footer__origin">{es ? "Hecho con" : "Made with"} <span class="web-footer__heart" role="img" aria-label={es ? "amor" : "love"}>♥</span> {es ? "en Argentina" : "in Argentina"}</p>
     </div>
   </div>
+  <div class="wrap web-footer__mark" aria-hidden="true">
+    <div class="web-footer__wordmark"><img class="web-footer__logo" src={logo.src} alt="" width="220" height="220" loading="lazy" /><span>APX</span></div>
+    <div class="web-footer__back">{back.map((name) => <Blob name={name} size="clamp(20px, 2.6vw, 26px)" />)}</div>
+    <div class="web-footer__front">{front.map((name) => <Blob name={name} size="clamp(34px, 5vw, 52px)" />)}</div>
+  </div>
 </footer>
+<script>
+  // On phones the long list of comparisons starts folded; without scripts it stays open.
+  if (matchMedia("(max-width: 760px)").matches)
+    for (const fold of document.querySelectorAll(".web-footer__fold")) fold.removeAttribute("open");
+</script>

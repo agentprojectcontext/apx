@@ -1,4 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { comparisons } from "../../../apps/docs/src/data/comparisons.ts";
+import { readingNav } from "../web-nav.ts";
+
+const tagline = (slug: string, lang: "en" | "es") =>
+  comparisons.find((item) => item.slug === slug)?.tagline[lang] ?? "";
 
 for (const lang of ["en", "es"] as const) {
   const prefix = lang === "es" ? "/es" : "";
@@ -6,12 +11,21 @@ for (const lang of ["en", "es"] as const) {
     ["hermes-agent", "Hermes Agent"],
     ["openclaw", "OpenClaw"],
     ["openbot", "OpenBot"],
-  ]) {
+    ["claude-cowork", "Claude Cowork"],
+    ["chatgpt-dots", "ChatGPT dots"],
+    ["manus", "Manus"],
+    ["devin", "Devin"],
+    ["paperclip", "Paperclip"],
+    ["viktor", "Viktor"],
+    ["grok-bot", "Grok Bot"],
+    ["muse", "Muse"],
+    ["instinct", "Instinct"],
+  ] as const) {
     test(`${lang}: ${name} sources, language, reading progress and responsive layout`, async ({ page }, testInfo) => {
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
       await page.goto(`${prefix}/compare/${slug}/`);
-      await expect(page.getByRole("heading", { level: 1 })).toHaveText(`APX vs ${name}`);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(`APX vs ${name}: ${tagline(slug, lang)}`);
       await expect(page.locator("html")).toHaveAttribute("lang", lang);
       const rows = page.locator(".compare-table tbody tr");
       await expect(rows).toHaveCount(8);
@@ -38,25 +52,38 @@ for (const lang of ["en", "es"] as const) {
           await expect(rows.nth(5).locator("td").last()).toContainText(platform);
         await expect(rows.nth(7).locator("td").last()).toContainText("PolyForm Noncommercial 1.0.0");
       }
-      for (const image of await page.locator("img").all()) {
+      // Every image in the page's content and footer; the reading navigation's blob is checked once it shows.
+      for (const image of await page.locator("main img, .web-footer img").all()) {
         await image.scrollIntoViewIfNeeded();
         await expect(image).toHaveJSProperty("complete", true);
         expect(await image.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      expect(await page.evaluate(() => window.innerWidth)).toBe(page.viewportSize()?.width);
       await page.locator("h1").scrollIntoViewIfNeeded();
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: testInfo.outputPath("hero.png") });
-      const rail = page.getByRole("navigation", { name: lang === "es" ? "En esta página" : "On this page" });
+      const rail = await readingNav(page, lang);
       await rail.locator('a[href="#overview"]').click();
       await expect(page).toHaveURL(/#overview$/);
       await expect(rail.locator('[aria-current="location"]')).toHaveAttribute("href", "#overview");
+      const guide = rail.locator(".apx-blob img:visible").first();
+      await expect(guide).toHaveJSProperty("complete", true);
+      expect(await guide.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
       await page.screenshot({ path: testInfo.outputPath("table.png") });
       await page
         .locator("#sources")
         .evaluate((section) => section.scrollIntoView({ block: "start", behavior: "instant" }));
       await expect(rail.locator('[aria-current="location"]')).toHaveAttribute("href", "#sources");
-      await expect(page.locator("#source-other a").first()).toHaveAttribute("href", /^https:/);
+      // Every page a row cites is listed with its title under Sources.
+      const listed = await page
+        .locator("#source-other a")
+        .evaluateAll((links) => links.map((a) => a.getAttribute("href")));
+      expect(listed.length).toBeGreaterThan(1);
+      for (const href of await page
+        .locator(".compare-table td:last-child .row-sources a")
+        .evaluateAll((links) => links.map((a) => a.getAttribute("href"))))
+        expect(listed).toContain(href);
       await page.screenshot({ path: testInfo.outputPath("sources.png") });
       await page.getByRole("link", { name: lang === "es" ? "EN" : "ES", exact: true }).click();
       await expect(page).toHaveURL(`${lang === "es" ? "" : "/es"}/compare/${slug}/`);
@@ -66,11 +93,20 @@ for (const lang of ["en", "es"] as const) {
   }
   test(`${lang}: comparison index leads to each product`, async ({ page }) => {
     await page.goto(`${prefix}/compare/`);
-    await expect(page.locator(".comparison-card")).toHaveCount(3);
+    await expect(page.locator(".comparison-card")).toHaveCount(12);
+    await expect(page.locator('.comparison-card[aria-current="page"]')).toHaveCount(0);
     await page.locator('.comparison-card[href$="/openbot/"]').click();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("APX vs OpenBot");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(`APX vs OpenBot: ${tagline("openbot", lang)}`);
+    // Keep comparing lists every product, the one being read marked as such.
+    await expect(page.locator(".comparison-card")).toHaveCount(12);
+    await expect(page.locator('.comparison-card[aria-current="page"]')).toHaveAttribute(
+      "href",
+      `${prefix}/compare/openbot/`,
+    );
     await page.locator('.comparison-card[href$="/hermes-agent/"]').click();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("APX vs Hermes Agent");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      `APX vs Hermes Agent: ${tagline("hermes-agent", lang)}`,
+    );
   });
 }
 
@@ -87,8 +123,9 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
     });
     try {
       await page.goto("/es/compare/openbot/", { waitUntil: "domcontentloaded" });
-      const blobs = page.locator(".reading-rail .apx-blob, .apx-choice .apx-blob");
-      await expect(blobs).toHaveCount(6);
+      // Home in the hero's chat, four in the short answer, Scout, and the crew card.
+      const blobs = page.locator(".compare-main .apx-blob");
+      await expect(blobs).toHaveCount(9);
       for (const blob of await blobs.all()) {
         expect(await blob.locator("img").evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(0);
         await expect(blob.locator("svg")).toBeHidden();
@@ -109,7 +146,9 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
 test("failed blob bodies never leave visible eyes", async ({ page }) => {
   await page.route("**/*.webp", (route) => route.abort());
   await page.goto("/compare/hermes-agent/");
-  for (const blob of await page.locator(".reading-rail .apx-blob, .apx-choice .apx-blob").all()) {
+  const blobs = page.locator(".compare-main .apx-blob");
+  await expect(blobs).toHaveCount(9);
+  for (const blob of await blobs.all()) {
     await blob.scrollIntoViewIfNeeded();
     await expect(blob.locator("img")).toHaveJSProperty("complete", true);
     await expect(blob.locator("svg")).toBeHidden();
@@ -119,7 +158,7 @@ test("failed blob bodies never leave visible eyes", async ({ page }) => {
 
 test("reading navigation works from the keyboard", async ({ page }) => {
   await page.goto("/compare/hermes-agent/");
-  const link = page.locator('.reading-rail a[href="#difference"]');
+  const link = (await readingNav(page)).locator('a[href="#difference"]');
   await link.focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/#difference$/);

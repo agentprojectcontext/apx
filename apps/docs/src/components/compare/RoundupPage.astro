@@ -1,0 +1,329 @@
+---
+// "Best AI agent apps": seventeen apps in one page, in the comparisons' design. Facts come from src/data/roundup/.
+import logo from "../../assets/logo.png";
+import { apxSources, comparisons, type Lang, labels } from "../../data/comparisons";
+import {
+  roundupApps,
+  roundupBenchmark,
+  roundupBenchmarkColumns,
+  roundupChecked,
+  roundupFaq,
+  roundupGroups,
+  roundupIntro,
+  roundupShort,
+  roundupTitle,
+} from "../../data/roundup/index.ts";
+import { sitePath } from "../../doc-routes.mjs";
+import { ROUNDUP_UI } from "../../i18n/roundup";
+import AnalyticsConsent from "../AnalyticsConsent.astro";
+import Blob from "../Blob.astro";
+import BlobEyes from "../BlobEyes.astro";
+import BrandMark from "../BrandMark.astro";
+import UiIcon from "../UiIcon.astro";
+import PageMeta from "../web/PageMeta.astro";
+import WebFooter from "../web/WebFooter.astro";
+import WebHeader from "../web/WebHeader.astro";
+import "./compare.css";
+import "./roundup.css";
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = labels[lang];
+const u = ROUNDUP_UI[lang];
+const pre = lang === "es" ? "/es" : "";
+const href = (p: string) => sitePath(p, import.meta.env.BASE_URL);
+const route = "/compare/best-ai-agent-apps/";
+const title = roundupTitle[lang];
+const description = roundupIntro[lang];
+const crumbs = (items: [string, string][]) => ({
+  "@type": "BreadcrumbList",
+  itemListElement: items.map(([name, path], i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    name,
+    item: new URL(href(`${pre}${path}`), Astro.site).href,
+  })),
+});
+const schema = [
+  crumbs([
+    ["APX", "/"],
+    [lang === "es" ? "Comparar" : "Compare", "/compare/"],
+    [title, route],
+  ]),
+];
+const sections = ["answer", "overview", "numbers", "apps", "questions", "sources"].map((id, i) => ({
+  id,
+  label: u.rail[i] ?? id,
+}));
+const two = (n: number) => String(n + 1).padStart(2, "0");
+type App = (typeof roundupApps)[number];
+// A black one-colour mark (ChatGPT's) is inverted on the dark theme, as on the comparison pages.
+const mono = (app: App) => Boolean(app.logo && comparisons.find((c) => c.logo === app.logo)?.mono);
+const appName = (slug: string) => roundupApps.find((a) => a.slug === slug)?.name ?? slug;
+const dateFormat = new Intl.DateTimeFormat(lang === "es" ? "es-AR" : "en-US", { dateStyle: "long", timeZone: "UTC" });
+const benchmarkDate = dateFormat.format(new Date(roundupBenchmark.date));
+---
+<!doctype html>
+<html lang={lang} data-theme="dark">
+  <head>
+    <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+    <PageMeta lang={lang} title={title} description={description} path={route} type="article" imageAlt={title} schema={schema} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body class="h compare roundup">
+    <a class="skip-link" href="#main">{t.skip}</a>
+    <WebHeader lang={lang} route={route} />
+    <nav class="reading-chip" aria-label={t.read}>
+      <div class="reading-chip__line" aria-hidden="true">
+        <span class="reading-chip__fill"></span>
+        <span class="reading-chip__rider"><Blob name="menta" size={16} /></span>
+      </div>
+      <details>
+        <summary>
+          <Blob name="menta" size={16} />
+          <span class="reading-chip__n" data-chip-n>{t.read}</span>
+          <span class="reading-chip__label" data-chip-label></span>
+          <UiIcon name="chevronDown" size={14} class="reading-chip__caret" />
+        </summary>
+        <ol>{sections.map((s, i) => <li><a href={`#${s.id}`} data-section={s.id}><span>{two(i)}</span>{s.label}</a></li>)}</ol>
+      </details>
+    </nav>
+    <nav class="reading-rail" aria-label={t.read}>
+      <span class="reading-rail__panel" aria-hidden="true"></span>
+      <ol class="reading-rail__track">
+        {sections.map((s) => <li><a href={`#${s.id}`} data-section={s.id}><span class="reading-rail__label">{s.label}</span><span class="reading-rail__seg" aria-hidden="true"><span></span></span></a></li>)}
+      </ol>
+      <span class="reading-rail__tip" aria-hidden="true"><Blob name="menta" size={18} /></span>
+    </nav>
+    <main id="main" class="compare-main">
+      <div class="compare-wrap">
+        <header class="compare-hero">
+          <div class="compare-hero__text">
+            <a class="compare-back" href={href(`${pre}/compare/`)}><UiIcon name="arrowLeft" size={14} />{t.back}</a>
+            <p class="compare-eyebrow">{u.eyebrow}</p>
+            <h1>{title}</h1>
+            <p class="compare-intro">{description}</p>
+            <p class="compare-checked"><time datetime={roundupChecked}>{t.checked}</time><span aria-hidden="true">·</span><a href="#sources">{t.sourcesLink}</a></p>
+          </div>
+          <div class="compare-hero__chat" aria-hidden="true">
+            <div class="chat-window">
+              <p class="chat-window__bar"><span class="chat-window__dots"><i></i><i></i><i></i></span>{u.window}</p>
+              <div class="chat-window__body">
+                <p class="chat-window__ask">{u.ask}</p>
+                <div class="chat-window__reply">
+                  <Blob name="menta" size={28} />
+                  <div>
+                    <p class="chat-window__lead">{u.reply}</p>
+                    <div class="chat-window__card">
+                      {roundupGroups.map((g) => <p class="chat-window__row"><b>{g.title[lang]}</b><span>{roundupApps.filter((a) => a.group === g.id).length} {u.apps17}</span></p>)}
+                    </div>
+                    <p class="chat-window__status"><span class="dots"><i></i><i></i><i></i></span>{u.checking}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div class="compare-body roundup-body">
+          <section id="answer" data-sec="0" class="compare-section" aria-labelledby="answer-title">
+            <h2 id="answer-title">{u.short}</h2>
+            <p class="roundup-short">{roundupShort[lang]}</p>
+          </section>
+
+          <section id="overview" data-sec="1" class="compare-section" aria-labelledby="overview-title">
+            <h2 id="overview-title">{u.glance}</h2>
+            <p class="table-hint">{u.tableHint}</p>
+            <div class="compare-table-wrap roundup-table-wrap" role="region" aria-label={`${title} — ${u.glance}`} tabindex="0">
+              <table class="compare-table roundup-table">
+                <caption>{title} — {u.glance}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">{u.columns.app}</th>
+                    <th scope="col">{u.columns.bestFor}</th>
+                    <th scope="col">{u.columns.runsOn}</th>
+                    <th scope="col">{u.columns.models}</th>
+                    <th scope="col">{u.columns.price}</th>
+                  </tr>
+                </thead>
+                {roundupGroups.map((group) => (
+                  <tbody>
+                    <tr class="group-row"><th scope="colgroup" colspan="5">{group.title[lang]}</th></tr>
+                    {roundupApps.filter((a) => a.group === group.id).map((app) => (
+                      <tr class="app-row" class:list={{ "is-apx": app.slug === "apx" }}>
+                        <th scope="row">
+                          <span class="app-cell">
+                            <span class="app-mark">
+                              {app.logo ? <img src={href(`/brands/${app.logo}`)} class:list={{ "mono-mark": mono(app) }} alt="" width="20" height="20" loading="lazy" /> : "mark" in app && app.mark ? <BrandMark brand={app.mark as "codex"} size={18} /> : <img src={logo.src} alt="" width="20" height="20" />}
+                            </span>
+                            {app.comparePage ? <a href={href(`${pre}/compare/${app.comparePage}/`)}>{app.name}</a> : <span>{app.name}</span>}
+                          </span>
+                        </th>
+                        <td>{app.bestFor[lang]}</td>
+                        <td>{app.runsOn[lang]}</td>
+                        <td>{app.models[lang]}</td>
+                        <td>{app.price[lang]}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                ))}
+              </table>
+            </div>
+          </section>
+
+          <section id="numbers" data-sec="2" class="compare-section" aria-labelledby="numbers-title">
+            <h2 id="numbers-title">{u.numbers}</h2>
+            <div class="compare-table-wrap" role="region" aria-label={`${title} — ${u.numbers}`} tabindex="0">
+              <table class="compare-table bench-table">
+                <caption>{roundupBenchmark.index}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">{roundupBenchmarkColumns.agent[lang]}</th>
+                    <th scope="col">{roundupBenchmarkColumns.score[lang]}</th>
+                    <th scope="col">{roundupBenchmarkColumns.cost[lang]}</th>
+                    <th scope="col">{roundupBenchmarkColumns.time[lang]}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roundupBenchmark.rows.map((row) => (
+                    <tr class="bench-row">
+                      <th scope="row"><b>{appName(row.app)}</b><span>{row.agent}</span></th>
+                      <td class="bench-num">{row.score}</td>
+                      <td class="bench-num">${row.costUsd.toFixed(2)}</td>
+                      <td class="bench-num">{row.minutes} min</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <dl class="bench-meta">
+              <div><dt>{u.index}</dt><dd>{roundupBenchmark.index}</dd></div>
+              <div><dt>{u.numbersSource}</dt><dd><a href={roundupBenchmark.source.url}>{roundupBenchmark.source.title} ↗</a></dd></div>
+              <div><dt>{u.methodology}</dt><dd><a href={roundupBenchmark.methodology.url}>{roundupBenchmark.methodology.title} ↗</a></dd></div>
+              <div><dt>{u.readOn}</dt><dd><time datetime={roundupBenchmark.date}>{benchmarkDate}</time></dd></div>
+            </dl>
+            <p class="compare-note">{roundupBenchmark.caveats[lang]}</p>
+          </section>
+
+          <section id="apps" data-sec="3" class="compare-section" aria-labelledby="apps-title">
+            <h2 id="apps-title">{u.apps}</h2>
+            <ol class="app-cards">
+              {roundupApps.map((app, i) => (
+                <li class="app-card" id={`app-${app.slug}`}>
+                  <p class="app-card__head">
+                    <span class="app-card__n">{two(i)}</span>
+                    <span class="app-mark app-mark--lg">
+                      {app.logo ? <img src={href(`/brands/${app.logo}`)} class:list={{ "mono-mark": mono(app) }} alt="" width="26" height="26" loading="lazy" /> : "mark" in app && app.mark ? <BrandMark brand={app.mark as "codex"} size={22} /> : <img src={logo.src} alt="" width="26" height="26" />}
+                    </span>
+                    <span class="app-card__name">{app.name}</span>
+                  </p>
+                  <p class="app-card__summary">{app.summary[lang]}</p>
+                  <p class="app-card__choose"><b>{u.chooseIf}</b> {app.chooseIf[lang]}</p>
+                  <dl class="app-card__facts">
+                    <div><dt>{u.columns.bestFor}</dt><dd>{app.bestFor[lang]}</dd></div>
+                    <div><dt>{u.columns.runsOn}</dt><dd>{app.runsOn[lang]}</dd></div>
+                    <div><dt>{u.columns.models}</dt><dd>{app.models[lang]}</dd></div>
+                    <div><dt>{u.columns.price}</dt><dd>{app.price[lang]}</dd></div>
+                  </dl>
+                  {app.comparePage && <a class="app-card__compare" href={href(`${pre}/compare/${app.comparePage}/`)}>{u.compareWith} {app.name} →</a>}
+                  <details class="app-card__sources">
+                    <summary>{u.appSources} ({app.sources.length})</summary>
+                    <ol>{app.sources.map((s) => <li><a href={s.url}>{s.title} ↗</a></li>)}</ol>
+                  </details>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <section id="questions" data-sec="4" class="compare-section" aria-labelledby="questions-title">
+            <h2 id="questions-title">{u.questions}</h2>
+            <div class="roundup-faq">
+              {roundupFaq.map((f) => (
+                <details>
+                  <summary><span>{f.q[lang]}</span><span class="faq__plus" aria-hidden="true"><UiIcon name="plus" size={14} /></span></summary>
+                  <div class="roundup-faq__answer">
+                    <p>{f.a[lang]}</p>
+                    <p class="row-sources">{[...new Set(f.sources)].map((url, n) => <a href={url} aria-label={`${u.source} ${n + 1}`}>{u.source} {n + 1} ↗</a>)}</p>
+                  </div>
+                </details>
+              ))}
+            </div>
+          </section>
+
+          <section id="sources" data-sec="5" class="compare-section" aria-labelledby="sources-title">
+            <h2 id="sources-title">{u.sources}</h2>
+            <p class="compare-note">{u.note}</p>
+            <p class="compare-note"><time datetime={roundupChecked}>{t.checked}</time></p>
+            <div class="source-columns">
+              <div id="source-apx">
+                <h3><img class="source-mark" src={logo.src} alt="" width="16" height="16" />{u.apxSourcesTitle}</h3>
+                <ol class="source-list">{apxSources.map((s, i) => <li><a href={s.url}><span class="source-list__n">{two(i)}</span><span>{s.title[lang]}</span><span aria-hidden="true">↗</span></a></li>)}</ol>
+              </div>
+              <div>
+                <h3>{u.benchmarkSources}</h3>
+                <ol class="source-list">{[roundupBenchmark.source, roundupBenchmark.methodology, roundupBenchmark.publisher].map((s, i) => <li><a href={s.url}><span class="source-list__n">{two(i)}</span><span>{s.title}</span><span aria-hidden="true">↗</span></a></li>)}</ol>
+              </div>
+              {roundupApps.filter((a) => a.slug !== "apx").map((app) => (
+                <div>
+                  <h3>{app.name}</h3>
+                  <ol class="source-list">{app.sources.map((s, i) => <li><a href={s.url}><span class="source-list__n">{two(i)}</span><span>{s.title}</span><span aria-hidden="true">↗</span></a></li>)}</ol>
+                </div>
+              ))}
+            </div>
+            <p class="compare-trademarks">{t.trademarks}</p>
+          </section>
+        </div>
+
+        <section id="comparisons" class="compare-more" aria-labelledby="more-title">
+          <h2 id="more-title">{t.more}</h2>
+          <ul class="comparison-list">
+            {comparisons.map((c) => (
+              <li>
+                <a class="comparison-card" href={href(`${pre}/compare/${c.slug}/`)}>
+                  <span class="comparison-card__marks" aria-hidden="true">
+                    <span class="pair-mark pair-mark--sm"><img src={logo.src} alt="" width="20" height="20" /></span>
+                    <span class="comparison-card__dash"></span>
+                    <span class="pair-mark pair-mark--sm"><img src={href(`/brands/${c.logo}`)} class:list={{ "mono-mark": c.mono }} alt="" width="20" height="20" loading="lazy" /></span>
+                  </span>
+                  <span class="comparison-card__text"><span class="comparison-card__name">APX vs {c.name}</span><span class="comparison-card__tag">{c.tagline[lang]}</span></span>
+                  <span class="comparison-card__meta">{t.reviewed}</span>
+                  <span class="comparison-card__go" aria-hidden="true">→</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+          <a class="crew-card" href={href(`${pre}/#download`)}>
+            <span class="crew-card__blobs" aria-hidden="true"><Blob name="menta" size={32} /><Blob name="noche" size={32} /><Blob name="amatista" size={32} /></span>
+            <span class="crew-card__title">{t.crew}</span>
+            <span class="crew-card__cta">{t.getApp}</span>
+          </a>
+        </section>
+      </div>
+    </main>
+    <WebFooter lang={lang} />
+    <BlobEyes />
+    <AnalyticsConsent />
+    <script>
+      import { startReading } from "./reading";
+
+      for (const image of document.querySelectorAll<HTMLImageElement>(".compare .apx-blob img")) {
+        const revealEyes = async () => {
+          try {
+            await image.decode();
+            if (image.naturalWidth > 0) image.parentElement?.setAttribute("data-body-ready", "");
+          } catch {
+            image.parentElement?.removeAttribute("data-body-ready");
+          }
+        };
+        image.addEventListener("load", revealEyes);
+        image.addEventListener("error", () => image.parentElement?.removeAttribute("data-body-ready"));
+        if (image.complete) void revealEyes();
+      }
+      startReading();
+    </script>
+  </body>
+</html>

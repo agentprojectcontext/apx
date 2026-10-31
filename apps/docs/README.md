@@ -91,3 +91,8 @@ panel in English, once per theme (Spanish pages reuse them). It runs with its ow
 logged in, so nothing of the machine it runs on (paths, browser profiles, tailnet names) ends up in a capture. It needs the panel built (`pnpm build:web` at the
 repo root) and Playwright's Chromium (`pnpm exec playwright install chromium` at the root). The list of shots is in
 the script; add one there and run `pnpm shots` again.
+
+The `android-*` shots (the home's "On your phone" fan) are not taken by the script: they come from the Android app
+(the published APK, in English, on a real device) paired with the demo office that `SHOTS_SERVE=1` keeps running,
+cropped to the app without the status and navigation bars, 780 px wide, once per theme. `pnpm shots` leaves them
+alone; retake them by hand the same way.

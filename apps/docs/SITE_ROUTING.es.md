@@ -54,6 +54,8 @@ Los instaladores siguen en `<base>install.sh` y `<base>install.ps1`, fuera de do
 
 Desde `apps/docs`, ejecutá `pnpm build && pnpm check`. Para un prefijo de proyecto, ejecutá `DOCS_BASE=/apx/ pnpm build && DOCS_BASE=/apx/ pnpm check`. Restaurá el build raíz antes de compartir su preview. Los tests de artefactos verifican cada par de rutas antiguas/nuevas, canonical, sitemap y preservación bilingüe. Desde la raíz del repositorio, ejecutá `pnpm exec playwright test --config e2e/docs-comparisons.config.ts` para navegación, idioma, tema, búsqueda, descarga de instaladores, redirects e indicador de lectura en desktop y teléfono.
 
+Los enlaces de descarga (los botones y tarjetas de Inicio y el botón de descarga de las guías) se resuelven al construir el sitio: `src/data/latest-release.ts` le pide a GitHub una vez el release `v2.x.y` más nuevo que no sea borrador y escribe la URL directa de cada archivo en el HTML, con `GITHUB_TOKEN` si está definido. Si ese pedido falla, los enlaces quedan en la página de releases de v2, con un aviso, y el build sigue. En el navegador, `fillLatest` solo los mueve a un release más nuevo publicado después del build. El workflow de pages reconstruye el sitio cuando se publica un release `v2.`.
+
 La dependencia explícita `@astrojs/sitemap` reutiliza la integración ya requerida por Starlight. Se declara directamente para configurar filtros e idiomas mediante su API soportada, excluyendo compatibilidad sin modificar XML generado ni depender de imports transitivos.
 
 Docs impact: updated — este archivo, su versión inglesa, README y las guías bilingües de comparativas explican las nuevas rutas y límites. Sin cambios de core, protocolo, estado privado ni autorización.
