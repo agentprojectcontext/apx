@@ -217,12 +217,20 @@
 .bedit-host--page .bedit__page {
   border: 0;
   border-radius: 0;
+  background: #fff;
+}
+/* The page as it shows outside edit mode: edge to edge on a computer, framed as a phone at a phone's width. */
+.bedit-host--phone .bedit__page {
   background: var(--apx-bg);
 }
-.bedit-host--page .bedit__shot {
-  margin: 16px auto 24px;
+.bedit-host--phone .bedit__shot {
+  margin: 16px auto;
+  border-radius: 18px;
   box-shadow: var(--apx-shadow-md);
   outline: 1px solid var(--apx-border);
+}
+.bedit-host--phone .bedit__shot img {
+  border-radius: 18px;
 }
 .bedit-host--page .bedit__panel {
   max-height: 46vh;

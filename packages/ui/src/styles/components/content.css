@@ -416,7 +416,7 @@
   gap: 2px;
   margin-top: 4px;
 }
-.apx-md__tableactions .apx-btn {
+.apx-md__tableactions .apx-iconbtn {
   color: var(--apx-fg-muted);
 }
 .apx-md__dialog {
@@ -475,28 +475,21 @@
   justify-content: flex-end;
   gap: 2px;
 }
-.apx-codeframe__actions .apx-btn {
+.apx-codeframe__actions .apx-btn,
+.apx-codeframe__actions .apx-iconbtn {
   color: var(--apx-fg-muted);
 }
-/* In a narrow chat, Copy and Expand keep only their icons (the words stay for screen readers), so one row holds all. */
+/* In a narrow chat the bar keeps a readable title: the controls go to a second line, at the right, when they do not fit. */
 @container (max-width: 440px) {
-  .apx-codeframe__actions .apx-btn__label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
   .apx-codeframe__bar {
     flex-wrap: wrap;
     padding-left: 10px;
   }
-  /* What does not fit beside the language and title goes to a second line, at the right. */
+  .apx-codeframe__title {
+    flex-basis: 7em;
+  }
   .apx-codeframe__actions {
-    flex: 1 1 auto;
-    min-width: 0;
-    flex-wrap: wrap;
+    margin-left: auto;
   }
   .apx-codeframe__actions .apx-segmented__item {
     padding-inline: 8px;

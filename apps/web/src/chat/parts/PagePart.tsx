@@ -1,5 +1,5 @@
 import type { SurfaceSummary } from "@apx/protocol";
-import { Button, CodeFrame, IconButton, Icons, Menu, Skeleton } from "@apx/ui";
+import { CodeFrame, IconButton, Icons, Menu, Skeleton } from "@apx/ui";
 import { Suspense, useMemo } from "react";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
@@ -40,14 +40,12 @@ export function PagePart({ surface }: { surface: SurfaceSummary }) {
       className="pagepart"
       actions={
         <>
-          <Button
-            variant="ghost"
+          <IconButton
             size="sm"
-            leadingIcon={<Icons.Pencil size={13} />}
+            label={t("browser.edit")}
+            icon={<Icons.Pencil size={14} />}
             onClick={() => openPage(surface.id, true)}
-          >
-            {t("browser.edit")}
-          </Button>
+          />
           <Menu
             align="end"
             items={pageMenu(surface, t)}

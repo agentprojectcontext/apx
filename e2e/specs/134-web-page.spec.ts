@@ -121,7 +121,9 @@ for (const width of [1280, 390]) {
 
       // Edit mode: the whole page at that width, scrolling on its own; the panel stays where it is.
       await screen.getByRole("button", { name: "Editar", exact: true }).click();
-      await expect.poll(() => opened.at(-1)).toBe(width === 1280 ? 1280 : 390);
+      // As wide as the page shows beside the panel (1:1, as outside edit mode), or a phone's width on a phone.
+      if (width === 1280) await expect.poll(() => opened.at(-1) ?? 0).toBeGreaterThan(800);
+      else await expect.poll(() => opened.at(-1)).toBe(390);
       const canvas = page.locator(".bedit__page");
       const shot = page.locator(".bedit__shot img");
       await expect(shot).toBeVisible();

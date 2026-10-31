@@ -1,6 +1,5 @@
-import { Check, Copy, Maximize2 } from "lucide-react";
+import { Check, Copy, FileSpreadsheet, Maximize2 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { IconButton } from "./IconButton";
 
@@ -88,15 +87,14 @@ export function MarkdownTable({
     const table = scroller.current?.querySelector("table");
     return table ? tableCsv(table) : "";
   };
+  // Icons named by their tooltips, as every block's controls are.
   const action = (kind: "md" | "csv", label: string, text: () => string) => (
-    <Button
-      variant="ghost"
+    <IconButton
       size="sm"
-      leadingIcon={copied === kind ? <Check size={13} /> : <Copy size={13} />}
+      label={copied === kind ? labels.copied : label}
+      icon={copied === kind ? <Check size={14} /> : kind === "md" ? <Copy size={14} /> : <FileSpreadsheet size={14} />}
       onClick={copy(kind, text)}
-    >
-      {copied === kind ? labels.copied : label}
-    </Button>
+    />
   );
   return (
     <div className="apx-md__tablebox">

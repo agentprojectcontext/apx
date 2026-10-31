@@ -1,6 +1,6 @@
 import type { SurfaceSummary } from "@apx/protocol";
 import { AgentAvatar, Button, IconButton, Icons, Menu, SegmentedControl, Skeleton } from "@apx/ui";
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { useSlice } from "../data/createStore.ts";
 import { blobOf, projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
@@ -14,9 +14,11 @@ import { pageMenu } from "../surfaces/pageActions.tsx";
 import { ShareMenu } from "../surfaces/ShareMenu.tsx";
 import { WidgetEdit } from "../surfaces/WidgetEdit.tsx";
 
-/** The widths a page is seen and edited at: a computer's and a phone's. */
-const WIDTHS = { desktop: 1280, phone: 390 } as const;
-type Width = keyof typeof WIDTHS;
+/** A phone's width; on a computer the page takes the room it has, beside the edit panel while editing. */
+const PHONE = 390;
+/** The edit panel's width beside the page, from where the screen is wide enough for both (browser-edit.css). */
+const PANEL = { width: 320, from: 768 };
+type Width = "desktop" | "phone";
 const WIDTH_KEY = "apx.pageWidth";
 
 /** The width last chosen; the first time, the one of the screen it is seen on. */
@@ -40,6 +42,14 @@ export function PageScreen({ page }: { page: SurfaceSummary }) {
   const editing = useSlice(browserEdit, (s) => s.target === `widget:${page.id}`);
   const [width, setWidth] = useState<Width>(savedWidth);
   const [code, setCode] = useState(false);
+  const body = useRef<HTMLDivElement>(null);
+  // Measured as edit mode starts: the page is drawn as wide as it shows, so the picture reads like the page itself.
+  const [room, setRoom] = useState<number>();
+  useLayoutEffect(() => {
+    const w = body.current?.clientWidth;
+    if (editing && w) setRoom(Math.round(Math.min(2400, Math.max(320, w >= PANEL.from ? w - PANEL.width : w))));
+  }, [editing]);
+  const editWidth = width === "phone" ? PHONE : room;
   const back = () => {
     stopEditing();
     nav.set({ view: "inbox" });
@@ -119,7 +129,7 @@ export function PageScreen({ page }: { page: SurfaceSummary }) {
           trigger={<IconButton size="sm" label={t("common.more")} icon={<Icons.Ellipsis size={16} />} />}
         />
       </header>
-      <div className="appscreen__body pagescreen__body">
+      <div ref={body} className="appscreen__body pagescreen__body">
         {code ? (
           html === undefined ? (
             <Skeleton shape="block" height="100%" />
@@ -131,10 +141,12 @@ export function PageScreen({ page }: { page: SurfaceSummary }) {
             </div>
           )
         ) : editing ? (
-          <WidgetEdit key={width} surface={page} width={WIDTHS[width]} asked={asked} />
+          editWidth ? (
+            <WidgetEdit key={editWidth} surface={page} width={editWidth} asked={asked} />
+          ) : null
         ) : (
           <div className={`pagescreen__view pagescreen__view--${width}`}>
-            <PageFrame surfaceId={page.id} fit="fill" {...(width === "phone" ? { width: WIDTHS.phone } : {})} />
+            <PageFrame surfaceId={page.id} fit="fill" {...(width === "phone" ? { width: PHONE } : {})} />
           </div>
         )}
       </div>
