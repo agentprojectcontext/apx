@@ -119,9 +119,15 @@ export async function until<T>(fn: () => Promise<T | undefined | false>, ms = 10
   }
 }
 
-// Noise that is not the app's: the favicon, a fetch the browser aborts when a test navigates away, and this kit's own
-// init script refused by a preview frame that runs no scripts (the signature preview).
-const IGNORED = [/favicon/i, /net::ERR_ABORTED/, /^Blocked script execution in 'about:srcdoc'.*'allow-scripts'/];
+// Noise that is not the app's: the favicon, a fetch the browser aborts when a test navigates away, this kit's own
+// init script refused by a preview frame that runs no scripts (the signature preview), and an agent's HTML whose own
+// scripts the chat's preview frame refuses (only its nonce'd sizing script runs there).
+const IGNORED = [
+  /favicon/i,
+  /net::ERR_ABORTED/,
+  /^Blocked script execution in 'about:srcdoc'.*'allow-scripts'/,
+  /^Executing inline (script|event handler) violates the following Content Security Policy directive 'script-src 'nonce-[\w-]+''/,
+];
 
 export const test = base.extend<{
   page: Page;

@@ -1,13 +1,15 @@
-import { EMAIL_LANG, parseEmailBlock, type Thread } from "@apx/protocol";
+import type { Thread } from "@apx/protocol";
+import { EMAIL_LANG, parseEmailBlock } from "@apx/protocol/email-block";
 import type { CodeRenderer } from "@apx/ui";
 import { Suspense } from "react";
-import { EmailCard, RunnableCode } from "../lazy.ts";
+import { CodeBlock, EmailCard, RunnableCode } from "../lazy.ts";
 
 const SHELL_LANGS: ReadonlySet<string> = new Set(["bash", "sh", "zsh", "shell", "console", "fish"]);
 
 /**
  * A fenced shell block an agent wrote gets run and copy buttons (in the chat's folder, or else APX's work folder); an
- * ```email block is an email card.
+ * ```email block is an email card; any other block gets its frame (language, copy, expand, and a preview for HTML
+ * and Mermaid).
  */
 export function runnableCode(thread: Thread, messageId: string): CodeRenderer {
   return (code, lang, pre) => {
@@ -23,7 +25,9 @@ export function runnableCode(thread: Thread, messageId: string): CodeRenderer {
         <RunnableCode thread={thread} messageId={messageId} code={code} pre={pre} />
       </Suspense>
     ) : (
-      pre
+      <Suspense fallback={pre}>
+        <CodeBlock code={code} lang={lang} pre={pre} />
+      </Suspense>
     );
   };
 }

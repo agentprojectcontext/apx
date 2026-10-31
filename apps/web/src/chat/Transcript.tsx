@@ -1,4 +1,5 @@
-import { type Message as Msg, receivedMail, type Thread } from "@apx/protocol";
+import type { Message as Msg, Thread } from "@apx/protocol";
+import { receivedMail } from "@apx/protocol/email-block";
 import {
   ActivityPill,
   AgentAvatar,
