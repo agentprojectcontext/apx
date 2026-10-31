@@ -1,7 +1,7 @@
 import type { Agent, Message as Msg, Part, Thread } from "@apx/protocol";
 import { AgentAvatar, EngineIcon, IconButton, Icons, MarkdownView, Message, MessageMeta } from "@apx/ui";
 import { type ReactNode, Suspense, useState } from "react";
-import { DeliveryTicks, ReactionList } from "../channels/MessageMarks.tsx";
+import { DeliveryTicks, ReactionList, ViaMark } from "../channels/MessageMarks.tsx";
 import { isSignal } from "../channels/signal.ts";
 import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
 import { blobOf } from "../data/identity.ts";
@@ -130,6 +130,7 @@ export function AgentTurn({
       model={message.model && baseRef(message.model)}
       effort={effort && effortLabel(effort)}
     >
+      <ViaMark thread={thread} message={message} />
       {message.delivery && <DeliveryTicks state={message.delivery} />}
     </MessageMeta>
   );
