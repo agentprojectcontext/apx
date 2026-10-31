@@ -23,6 +23,8 @@ type To = { channel: string; conversation: string };
 
 /** Turns that answer someone in a chat (not a routine, a delegation or a job's result). */
 const CONVERSATION = new Set(["user", "channel", "hours_began"]);
+/** Unasked turns told to answer SKIP when there is nothing for the owner (context.ts frames them). */
+const MAY_SKIP = new Set(["mail", "routine"]);
 
 export function createSignals(deps: {
   store: Store;
@@ -57,7 +59,9 @@ export function createSignals(deps: {
    */
   async function handle(run: RunRecord, out: string, to: To | undefined): Promise<boolean> {
     const origin = run.input?.origin;
-    if (run.state !== "completed" || !(CONVERSATION.has(origin?.kind ?? "") || answersChecked(origin))) return false;
+    if (run.state !== "completed") return false;
+    const chat = CONVERSATION.has(origin?.kind ?? "") || answersChecked(origin);
+    if (!chat && !(MAY_SKIP.has(origin?.kind ?? "") && isSkip(out))) return false;
     if (isSkip(out)) {
       // In the app alone the words never show (the panel hides them); a channel's chat drops them.
       if (to) hideWords(run.message_id);

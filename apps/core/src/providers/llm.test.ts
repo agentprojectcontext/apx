@@ -477,6 +477,52 @@ test("a usage limit stops the chain with the earliest reset any model gave, what
   assert.equal(seen.filter((m) => m === "m1").length, 1);
 });
 
+test("a model at its usage limit is passed over until its reset, then asked again", async () => {
+  // The provider's reset is read against real time (an implausible one is dropped): the test's clock starts there.
+  let clock = Math.ceil(Date.now() / 1000) * 1000;
+  const reset = new Date(clock + 4 * 3600_000).toISOString();
+  const seen: string[] = [];
+  const llm = createLlm({
+    providers: () => providers,
+    secrets,
+    firstByteMs: 1000,
+    retryDelayMs: 5,
+    now: () => clock,
+    fetchImpl: (async (_url: string, init: RequestInit) => {
+      const model = (JSON.parse(String(init.body)) as { model: string }).model;
+      seen.push(model);
+      if (model === "m1" && clock < Date.parse(reset))
+        return new Response(
+          JSON.stringify({ error: { type: "usage_limit_reached", resets_at: Date.parse(reset) / 1000 } }),
+          { status: 429 },
+        );
+      return sse([{ choices: [{ delta: { content: `from ${model}` } }] }]);
+    }) as typeof fetch,
+  });
+  const call = (models: string[]) =>
+    llm.complete({ models, messages: [], tools: [], signal: new AbortController().signal, onText: () => {} }).then(
+      (out) => out,
+      (e: unknown) => (e instanceof ProviderError ? e : new ProviderError("network", String(e))),
+    );
+  const first = await call(["pa/m1", "pb/m3"]);
+  assert.ok(!(first instanceof Error) && first.model === "pb/m3");
+  // The next turn goes straight to the backup, and says why the first choice was skipped.
+  clock += 3600_000;
+  const second = await call(["pa/m1", "pb/m3"]);
+  assert.ok(!(second instanceof Error) && second.model === "pb/m3");
+  assert.match(second.failed?.[0]?.why ?? "", /usage limit has not lifted/);
+  assert.deepEqual(seen, ["m1", "m3", "m3"]);
+  // With no backup, a held model stops the work with its reset without being asked.
+  const alone = await call(["pa/m1"]);
+  assert.ok(alone instanceof ProviderError && alone.limit);
+  assert.equal(alone.resetsAt, reset);
+  assert.equal(seen.length, 3);
+  // Past the reset it answers again.
+  clock = Date.parse(reset) + 1000;
+  const back = await call(["pa/m1", "pb/m3"]);
+  assert.ok(!(back instanceof Error) && back.model === "pa/m1");
+});
+
 test("a key to fix is told as such, even when another model hit a limit; a short rate limit is a pause", async () => {
   const fetchWith = (second: () => Response) =>
     (async (_url: string, init: RequestInit) => {

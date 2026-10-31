@@ -170,6 +170,7 @@ export const CodeBlock = lazy(() => import("./chat/CodeBlock.tsx").then((m) => (
 export const MermaidDiagram = lazy(() =>
   import("./chat/MermaidDiagram.tsx").then((m) => ({ default: m.MermaidDiagram })),
 );
+export const EmailCard = lazy(() => import("./chat/EmailCard.tsx").then((m) => ({ default: m.EmailCard })));
 export const ReceivedDialog = lazy(() =>
   import("./chat/ReceivedDialog.tsx").then((m) => ({ default: m.ReceivedDialog })),
 );

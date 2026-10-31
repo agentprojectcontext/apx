@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { ProviderError } from "../providers/types.ts";
-import { resetLabel } from "./provider-limit.ts";
+import { LIMIT_RESUME_NOTE, resetLabel } from "./provider-limit.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 let now = new Date("2026-03-02T10:00:00Z");
@@ -9,6 +9,12 @@ let now = new Date("2026-03-02T10:00:00Z");
 const on = (hhmm: string) => `${now.toISOString().slice(0, 10)}T${hhmm}:00.000Z`;
 
 const llm = scriptedLlm((_req, { said }) => {
+  // A plan out of quota until 14:30 on the test clock's day, then answering again.
+  if (said.includes("lifts at 14:30")) {
+    if (now.getTime() < Date.parse(on("14:30")))
+      throw new ProviderError("quota", "fake/fake-1: HTTP 429: usage_limit_reached", on("14:30"));
+    return say("Finished the report.");
+  }
   if (said.includes("limited later"))
     throw new ProviderError("quota", "fake/fake-1: HTTP 429: usage_limit_reached", on("20:00"));
   if (said.includes("limited"))
@@ -129,4 +135,58 @@ test("a routine a provider limit stopped is not reported on its own: the stall n
   runs = (await env.client.call("routines.runs", { routine: r.id })).runs;
   assert.equal(runs[0]?.delivered, false);
   assert.ok(!env.core.store.nudges.list(100).some((n) => n.kind === "routine:Brief"));
+});
+
+test("a turn a limit stopped goes on by itself once the limit lifts, knowing why it stopped", async () => {
+  now = new Date("2026-03-05T10:00:00Z");
+  const t = await turn("lifts at 14:30: write the report");
+  assert.equal(t.runs[0]?.end_reason, "provider_limit");
+  // Before the reset nothing starts (earlier tests' stalls, already past theirs, do).
+  now = new Date(on("14:00"));
+  env.core.scheduler.tick();
+  await wait(50);
+  assert.equal((await env.client.call("threads.get", { thread: t.id })).runs.length, 1);
+  // Past it, the same chat goes on with what it had, told why it stopped.
+  now = new Date(on("14:31"));
+  env.core.scheduler.tick();
+  const done = await env.settle(t.id);
+  assert.equal(done.runs.length, 2);
+  const resumed = done.runs.find((r) => r.id !== t.runs[0]?.id);
+  assert.equal(resumed?.state, "completed");
+  const said = (m: { role: string; content?: unknown }, text: string) =>
+    m.role === "user" && String(m.content).includes(text);
+  const call = llm.calls.findLast((c) => c.messages.some((m) => said(m, "write the report")));
+  assert.ok(call?.messages.some((m) => said(m, LIMIT_RESUME_NOTE)));
+  assert.match(JSON.stringify(done.messages.at(-1)?.parts), /Finished the report/);
+  // Once picked up it is not picked up again.
+  env.core.scheduler.tick();
+  await wait(50);
+  assert.equal((await env.client.call("threads.get", { thread: t.id })).runs.length, 2);
+});
+
+test("a stopped turn the owner already followed up, or a routine's, is not picked up again", async () => {
+  now = new Date("2026-03-06T10:00:00Z");
+  const t = await turn("lifts at 14:30: draft the plan");
+  await env.client.call("threads.send", { thread: t.id, text: "hello" });
+  await env.settle(t.id);
+  const r = await env.client.call("routines.set", {
+    name: "Plan",
+    agent: "superagent",
+    schedule: { kind: "manual" },
+    prompt: "lifts at 14:30: the plan",
+  });
+  await env.client.call("routines.run", { routine: r.id });
+  const until = Date.now() + 5000;
+  let runs = (await env.client.call("routines.runs", { routine: r.id })).runs;
+  while (!runs[0]?.ended_at && Date.now() < until) {
+    await wait(25);
+    runs = (await env.client.call("routines.runs", { routine: r.id })).runs;
+  }
+  const routineThread = runs[0]?.thread_id ?? "";
+  const before = (await env.client.call("threads.get", { thread: routineThread })).runs.length;
+  now = new Date(on("14:31"));
+  env.core.scheduler.tick();
+  await wait(100);
+  assert.equal((await env.client.call("threads.get", { thread: t.id })).runs.length, 2);
+  assert.equal((await env.client.call("threads.get", { thread: routineThread })).runs.length, before);
 });

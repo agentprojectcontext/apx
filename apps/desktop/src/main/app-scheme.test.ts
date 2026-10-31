@@ -93,7 +93,7 @@ test("local panel refuses encoded separator escapes before fetch and reports una
   }
 });
 
-test("only HTTP and HTTPS links can reach the system browser; invalid input has no native effect", async () => {
+test("only HTTP and HTTPS links reach a browser, a mail link only the mail app; invalid input has no native effect", async () => {
   for (const value of [
     undefined,
     null,
@@ -104,13 +104,25 @@ test("only HTTP and HTTPS links can reach the system browser; invalid input has 
     "file:///tmp/a",
     "javascript:alert(1)",
     "apx:settings",
-    "mailto:user@example.com",
   ]) {
     assert.equal(isWebUrl(value), false);
     assert.equal(await openExternal(value), false);
   }
   assert.deepEqual(opened, []);
+  assert.equal(isWebUrl("mailto:user@example.com"), false);
+  assert.equal(
+    await openExternal("mailto:user@example.com", "firefox"),
+    false,
+    "a named browser never gets a mail link",
+  );
+  assert.equal(await openExternal("mailto:user@example.com ?x"), false);
+  assert.deepEqual(opened, []);
   assert.equal(await openExternal("https://example.com/path?q=1"), true);
   assert.equal(await openExternal("http://example.com"), true);
-  assert.deepEqual(opened, ["https://example.com/path?q=1", "http://example.com"]);
+  assert.equal(await openExternal("mailto:user@example.com?subject=Hi%20there"), true);
+  assert.deepEqual(opened, [
+    "https://example.com/path?q=1",
+    "http://example.com",
+    "mailto:user@example.com?subject=Hi%20there",
+  ]);
 });
