@@ -83,6 +83,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "browser.preview_edits": "the owner's own preview of a page's edits; agents change the page's code instead",
   "surfaces.edit_open": "the owner's own edit view of a widget; agents change the widget itself instead",
   "surfaces.edit_preview": "the owner's own preview of a widget's edits; agents change the widget itself instead",
+  "surfaces.edit_save": "the owner's own edits saved into a widget; agents use edit_widget instead",
   "surfaces.edit_close": "the owner's own edit view of a widget; agents change the widget itself instead",
   "system.update": MACHINE,
   "system.update_prepare": MACHINE,

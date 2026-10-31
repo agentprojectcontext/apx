@@ -1,8 +1,10 @@
 import type { Page, Route } from "@playwright/test";
+import type { Message } from "../../packages/protocol/src/domain.ts";
 import { expect, open, rpc, test, until } from "./kit.ts";
 
 // The widget's edit page is the core's own headless browser; here a real browser page stands in for it, answering the
-// panel's surfaces.edit_* calls, so what the owner sees and sends is checked on any machine.
+// panel's surfaces.edit_* calls, so what the owner sees, saves and sends is checked on any machine. Saving into the
+// HTML itself is checked against real Chrome in widget-save.test.ts.
 const WIDGET = `<div style="padding:16px;font-family:system-ui"><h2 id="title">Weekly sales</h2>
 <p class="total">Total: <b>$12,480</b></p><button class="cta">See details</button></div>`;
 
@@ -59,13 +61,14 @@ async function show(widget: Page, edits: Edit[]) {
 }
 
 for (const width of [1280, 390]) {
-  test(`widget edit mode at ${width}px: pick a part of a widget and ask its agent for the change`, async ({
+  test(`a web page an agent made, at ${width}px: shown as a page, edited one part at a time, saved without asking`, async ({
     page,
   }, info) => {
     await rpc("setup.finish", {});
     const widget = await page.context().newPage();
     const opened: Array<{ surface: string; width: number; mode: string }> = [];
     const shown: Edit[][] = [];
+    const saved: Edit[][] = [];
     let closed = 0;
     const reply = (route: Route, result: unknown) => route.fulfill({ json: { ok: true, result } });
     const body = (route: Route) => JSON.parse(route.request().postData() ?? "{}");
@@ -90,60 +93,91 @@ for (const width of [1280, 390]) {
       await show(widget, p.edits);
       await reply(route, { shown: p.edits.length });
     });
+    await page.route("**/rpc/surfaces.edit_save", async (route) => {
+      const p = body(route);
+      saved.push(p.edits);
+      await reply(route, { saved: p.edits.map((e: Edit) => e.node), missed: [] });
+    });
     await page.route("**/rpc/surfaces.edit_close", async (route) => {
       closed++;
       await reply(route, { ok: true });
     });
     try {
-      const vera = await rpc<{ id: string }>("agents.create", { slug: `widget-maker-${width}`, name: "Vera" });
-      const thread = (
-        await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: vera.id, title: "Weekly sales" })
-      ).id;
-      const made = await rpc<{ id: string }>("surfaces.show", {
-        name: `weekly-sales-${width}`,
-        title: "Weekly sales",
-        html: WIDGET,
-        thread,
+      const thread = (await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "superagent" })).id;
+      await rpc("threads.send", { thread, text: `make a web page weekly-sales-${width}` });
+      let made = "";
+      await until(async () => {
+        const { messages } = await rpc<{ messages: Message[] }>("threads.get", { thread });
+        for (const m of messages) for (const p of m.parts) if (p.type === "surface") made = p.surface_id;
+        return made !== "";
       });
       await page.setViewportSize({ width, height: 860 });
-      await open(page, `#thread=${thread}&panel=widget`);
-      const card = page.getByRole("region", { name: "Weekly sales" });
-      await card.getByRole("button", { name: "Elegí partes de la página y pedí cambios" }).click();
+      await open(page, `#thread=${thread}`);
+      // A web page shows as one, in a page's frame with its title where the address goes, not as a widget's card.
+      const card = page.locator(".transcript .surfacecard--page");
+      await expect(card.locator(".pagecard__address")).toHaveText("Weekly sales");
+      await expect(page.locator(".transcript").getByText(/^Widget ·/)).toHaveCount(0);
+      await expect(card.frameLocator("iframe").getByText("Weekly sales")).toBeVisible();
+      await page.screenshot({ path: info.outputPath(`page-card-${width}.png`) });
+      await card.getByRole("button", { name: "Editar", exact: true }).click();
       await until(async () => opened.length === 1);
-      expect(opened[0]?.surface).toBe(made.id);
+      expect(opened[0]?.surface).toBe(made);
       expect(opened[0]?.width).toBeGreaterThan(200);
       await expect(page.getByText("Tocá la parte que querés cambiar")).toBeVisible();
       await expect(page.locator(".bedit__shot img")).toBeVisible();
 
       const shot = await page.locator(".bedit__shot").boundingBox();
-      const title = await widget.locator("h2").boundingBox();
       const size = widget.viewportSize();
-      if (!shot || !title || !size) throw new Error("no box");
-      const x = shot.x + ((title.x + 20) / size.width) * shot.width;
-      const y = shot.y + ((title.y + title.height / 2) / size.height) * shot.height;
-      await page.mouse.move(x, y);
+      if (!shot || !size) throw new Error("no box");
+      const point = async (selector: string) => {
+        const b = await widget.locator(selector).boundingBox();
+        if (!b) throw new Error(`no ${selector}`);
+        return {
+          x: shot.x + ((b.x + Math.min(20, b.width / 2)) / size.width) * shot.width,
+          y: shot.y + ((b.y + b.height / 2) / size.height) * shot.height,
+        };
+      };
+      const title = await point("h2");
+      await page.mouse.move(title.x, title.y);
       await expect(page.locator(".bedit__box.is-hover")).toBeVisible();
-      await page.mouse.click(x, y);
+      await page.mouse.click(title.x, title.y);
       const panel = page.getByRole("complementary", { name: "Editar" });
-      await expect(panel.getByText("h2#title")).toBeVisible();
+      await expect(panel.getByRole("heading", { name: "Weekly sales" })).toBeVisible();
       await panel.getByRole("textbox", { name: "Texto", exact: true }).fill("Sales this week");
       await until(async () => shown.at(-1)?.some((e) => e.text === "Sales this week"));
       await expect(widget.locator("h2")).toHaveText("Sales this week");
-      await panel.getByPlaceholder("Decilo con tus palabras").fill("Que se lea más grande");
-      await page.screenshot({ path: info.outputPath(`widget-edit-${width}.png`) });
+      // A change made here is saved straight into the page.
+      await expect(panel.getByRole("button", { name: "Guardar cambios" })).toBeEnabled();
 
-      await panel.getByRole("button", { name: "Pedirle a Vera" }).click();
+      // One part at a time: a part only looked at leaves the list when another is picked.
+      const total = await point(".total b");
+      await page.mouse.click(total.x, total.y);
+      await expect(panel.getByRole("heading", { name: "$12,480" })).toBeVisible();
+      const cta = await point(".cta");
+      await page.mouse.click(cta.x, cta.y);
+      await expect(panel.getByRole("heading", { name: "See details" })).toBeVisible();
+      const list = panel.getByRole("region", { name: "Tus cambios" });
+      await expect(list.locator(".bedit__row")).toHaveCount(1);
+      await expect(list.getByText("Sales this week")).toHaveCount(0);
+      await expect(list.getByText("Weekly sales")).toBeVisible();
+      await expect(list.getByText("Cambiado")).toBeVisible();
+      await expect(page.locator(".bedit__num")).toHaveCount(1);
+
+      // What the owner writes is what goes to the agent.
+      await panel.getByPlaceholder("Decilo con tus palabras").fill("Que se vea como un botón principal");
+      await expect(list.locator(".bedit__row")).toHaveCount(2);
+      await page.screenshot({ path: info.outputPath(`page-edit-${width}.png`) });
+
+      await panel.getByRole("button", { name: /^Guardar y pedirle a/ }).click();
+      await until(async () => saved.length === 1);
+      expect(saved[0]).toEqual([{ node: expect.any(Number), text: "Sales this week" }]);
       const composer = page.getByRole("textbox", { name: /Escribile/ });
       await expect(composer).toHaveValue(
-        new RegExp(`^> Cambios en el widget «Weekly sales» \\(weekly-sales-${width}\\):`),
+        "Cambios en la página «Weekly sales»:\n- «See details»: Que se vea como un botón principal\n\n",
       );
-      await expect(composer).toHaveValue(
-        /> 1\. «Weekly sales» \(`h2#title`\): texto → «Sales this week»; Que se lea más grande/,
-      );
-      // Leaving edit mode closes the widget's page; the widget shows again as it is.
       await until(async () => closed === 1);
       await expect(page.locator(".bedit")).toHaveCount(0);
-      await page.screenshot({ path: info.outputPath(`widget-asked-${width}.png`) });
+      await page.screenshot({ path: info.outputPath(`page-saved-${width}.png`) });
     } finally {
       await widget.close();
     }

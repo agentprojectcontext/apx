@@ -23,6 +23,7 @@ const toSurface = (r: Selectable<SurfacesTable>): Surface => ({
   version: r.version,
   pinned: Boolean(r.pinned),
   app: Boolean(r.app),
+  ...(r.page ? { page: true } : {}),
   ...opt("project_id", r.project_id),
   ...opt("thread_id", r.thread_id),
   created_by: r.created_by,
@@ -109,6 +110,7 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
       created_by: string;
       pinned?: boolean | undefined;
       app?: boolean | undefined;
+      page?: boolean | undefined;
       /** Absent keeps the current origins; [] removes them. */
       connect?: string[] | undefined;
     }): Surface {
@@ -125,6 +127,8 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
           app: s.app ?? cur.app,
           updated_at: ts,
         };
+        if (s.page ?? cur.page) next.page = true;
+        else delete next.page;
         const connect = s.connect ?? cur.connect ?? [];
         if (connect.length) next.connect = connect;
         else delete next.connect;
@@ -137,6 +141,7 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
               version: next.version,
               pinned: Number(next.pinned),
               app: Number(next.app),
+              page: Number(Boolean(next.page)),
               connect: next.connect ? JSON.stringify(next.connect) : null,
               updated_at: ts,
             })
@@ -153,6 +158,7 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
         version: 1,
         pinned: s.pinned ?? false,
         app: s.app ?? false,
+        ...(s.page ? { page: true } : {}),
         ...(s.project_id ? { project_id: s.project_id } : {}),
         ...(s.thread_id ? { thread_id: s.thread_id } : {}),
         created_by: s.created_by,
@@ -168,6 +174,7 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
           version: 1,
           pinned: Number(created.pinned),
           app: Number(created.app),
+          page: Number(Boolean(created.page)),
           project_id: created.project_id ?? null,
           thread_id: created.thread_id ?? null,
           created_by: created.created_by,
@@ -178,14 +185,24 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
       emit(created);
       return created;
     },
-    patch(id: string, p: { pinned?: boolean | undefined; app?: boolean | undefined }): SurfaceSummary | undefined {
+    patch(
+      id: string,
+      p: { pinned?: boolean | undefined; app?: boolean | undefined; page?: boolean | undefined },
+    ): SurfaceSummary | undefined {
       const cur = repo.get(id);
       if (!cur) return undefined;
-      const next = { ...cur, pinned: p.pinned ?? cur.pinned, app: p.app ?? cur.app, updated_at: now() };
+      const next: Surface = { ...cur, pinned: p.pinned ?? cur.pinned, app: p.app ?? cur.app, updated_at: now() };
+      if (p.page ?? cur.page) next.page = true;
+      else delete next.page;
       run(
         qb
           .updateTable("surfaces")
-          .set({ pinned: Number(next.pinned), app: Number(next.app), updated_at: next.updated_at })
+          .set({
+            pinned: Number(next.pinned),
+            app: Number(next.app),
+            page: Number(Boolean(next.page)),
+            updated_at: next.updated_at,
+          })
           .where("id", "=", cur.id),
       );
       emit(next);

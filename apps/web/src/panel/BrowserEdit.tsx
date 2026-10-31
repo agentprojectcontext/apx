@@ -24,6 +24,7 @@ import {
   pageHeader,
   pick,
   removeItem,
+  select,
   stopEditing,
 } from "./browserEdit.ts";
 
@@ -69,6 +70,7 @@ export function PageEdit({ target }: { target: EditTarget }) {
   const [hover, setHover] = useState<PickedElement | null>(null);
   const inspect = useInspector(target);
   const item = items.find((i) => i.element.node === selected);
+  const changed = items.filter(isChanged);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && void target.leave();
@@ -120,7 +122,7 @@ export function PageEdit({ target }: { target: EditTarget }) {
             >
               <img src={shot} alt={tr("bedit.page")} draggable={false} />
               {hover?.box && <span className="bedit__box is-hover" style={boxStyle(hover.box)} />}
-              {items.map((i, n) =>
+              {changed.map((i, n) =>
                 i.element.box ? (
                   <span
                     key={i.element.node}
@@ -131,65 +133,107 @@ export function PageEdit({ target }: { target: EditTarget }) {
                   </span>
                 ) : null,
               )}
+              {item?.element.box && !isChanged(item) && (
+                <span className="bedit__box is-selected" style={boxStyle(item.element.box)} />
+              )}
             </div>
           ) : (
             <Skeleton shape="block" height="100%" />
           )}
         </div>
-        <EditPanel target={target} items={items} item={item} />
+        <EditPanel target={target} changed={changed} item={item} />
       </div>
     </div>
   );
 }
 
-function EditPanel({ target, items, item }: { target: EditTarget; items: EditItem[]; item: EditItem | undefined }) {
+function EditPanel({ target, changed, item }: { target: EditTarget; changed: EditItem[]; item: EditItem | undefined }) {
   const t = useT();
   const threadId = useNav((s) => s.threadId);
   const agentName = useData((s) => {
     const id = threadId ? s.threads[threadId]?.agent_ids[0] : undefined;
     return id ? s.agents[id]?.name : undefined;
   });
-  const changed = items.filter(isChanged);
+  const [busy, setBusy] = useState(false);
   const panel = useRef<HTMLElement>(null);
   const picked = item?.element.node;
   // A newly picked element shows its fields from the top.
   useEffect(() => {
     if (picked !== undefined) panel.current?.scrollTo({ top: 0 });
   }, [picked]);
-  const ask = () => {
-    if (!threadId || !changed.length) return;
-    const request = editRequest(target.header(tr), changed, tr);
-    const draft = draftOf(threadId).trim();
-    keepDraft(threadId, draft ? `${request}\n\n${draft}` : `${request}\n\n`);
+  // Where the page can be saved, what the owner changed goes straight into it; the agent gets only what they wrote.
+  const direct = target.save ? editsOf(changed) : [];
+  const forAgent = target.save ? changed.filter((i) => i.note.trim()) : changed;
+  const canFinish = changed.length > 0 && !busy && (threadId !== undefined || !forAgent.length);
+  const finish = async () => {
+    if (!canFinish) return;
+    let left = forAgent;
+    let saved = 0;
+    if (target.save && direct.length) {
+      setBusy(true);
+      try {
+        const r = await target.save(direct);
+        const done = new Set(r.saved);
+        saved = done.size;
+        // A part its code draws when it runs is not in the page's HTML: its agent changes it.
+        left = changed
+          .filter((i) => i.note.trim() || !done.has(i.element.node))
+          .map((i) => (done.has(i.element.node) ? { ...i, text: undefined, style: {} } : i));
+      } catch (e) {
+        notify(tr("bedit.saveFailed", { error: errText(e) }));
+        setBusy(false);
+        return;
+      }
+      setBusy(false);
+    }
+    if (left.length && threadId) {
+      const request = editRequest(target.header(tr), left, tr);
+      const draft = draftOf(threadId).trim();
+      keepDraft(threadId, draft ? `${request}\n\n${draft}` : `${request}\n\n`);
+    }
     void target.leave();
     // On a phone the panel covers the chat: go back to it, where the request waits to be sent.
-    if (window.matchMedia("(max-width: 767px)").matches) nav.set({ panel: null });
-    notify(tr("bedit.asked"), "info");
+    if (left.length && window.matchMedia("(max-width: 767px)").matches) nav.set({ panel: null });
+    notify(tr(left.length ? (saved ? "bedit.savedAsked" : "bedit.asked") : "bedit.saved"), "info");
   };
+  const name = agentName ?? "";
+  const label = target.save
+    ? forAgent.length
+      ? direct.length
+        ? agentName
+          ? t("bedit.saveAsk", { name })
+          : t("bedit.saveAskAgent")
+        : agentName
+          ? t("bedit.ask", { name })
+          : t("bedit.askAgent")
+      : t("bedit.save")
+    : agentName
+      ? changed.length > 1
+        ? t("bedit.askCount", { name, n: changed.length })
+        : t("bedit.ask", { name })
+      : t("bedit.askAgent");
   return (
     <aside ref={panel} className="bedit__panel" aria-label={t("browser.edit")}>
       {item ? (
-        <ItemForm key={item.element.node} item={item} />
+        <ItemForm key={item.element.node} item={item} saves={Boolean(target.save)} />
       ) : (
         <EmptyState icon={<Icons.Pencil />} title={t("bedit.emptyTitle")}>
           {t("bedit.emptyBody")}
         </EmptyState>
       )}
-      {items.length > 0 && (
+      {changed.length > 0 && (
         <section className="bedit__list" aria-label={t("bedit.list")}>
           <h4 className="bedit__listtitle">{t("bedit.list")}</h4>
-          {items.map((i, n) => (
+          {changed.map((i, n) => (
             <div key={i.element.node} className="bedit__row">
               <button
                 type="button"
                 className={item?.element.node === i.element.node ? "bedit__rowpick is-selected" : "bedit__rowpick"}
-                onClick={() => browserEdit.set({ selected: i.element.node })}
+                onClick={() => select(i.element.node)}
               >
                 <span className="bedit__rownum">{n + 1}</span>
-                <span className="bedit__rowname">
-                  {elementLabel(i.element) || t("bedit.element", { tag: i.element.tag })}
-                </span>
-                <span className="bedit__rowstate">{isChanged(i) ? t("bedit.changed") : t("bedit.unchanged")}</span>
+                <span className="bedit__rowname">{elementLabel(i.element) || t("bedit.request.unnamed")}</span>
+                <span className="bedit__rowstate">{t("bedit.changed")}</span>
               </button>
               <IconButton
                 size="sm"
@@ -202,13 +246,9 @@ function EditPanel({ target, items, item }: { target: EditTarget; items: EditIte
         </section>
       )}
       <footer className="bedit__actions">
-        {!threadId && <p className="bedit__muted">{t("bedit.noChat")}</p>}
-        <Button disabled={!threadId || !changed.length} onClick={ask}>
-          {agentName
-            ? changed.length > 1
-              ? t("bedit.askCount", { name: agentName, n: changed.length })
-              : t("bedit.ask", { name: agentName })
-            : t("bedit.askAgent")}
+        {!threadId && forAgent.length > 0 && <p className="bedit__muted">{t("bedit.noChat")}</p>}
+        <Button disabled={!canFinish} onClick={() => void finish()}>
+          {label}
         </Button>
         <Button variant="secondary" onClick={() => void target.leave()}>
           {t("bedit.discard")}
@@ -218,7 +258,7 @@ function EditPanel({ target, items, item }: { target: EditTarget; items: EditIte
   );
 }
 
-function ItemForm({ item }: { item: EditItem }) {
+function ItemForm({ item, saves }: { item: EditItem; saves: boolean }) {
   const t = useT();
   const { element } = item;
   const node = element.node;
@@ -226,10 +266,7 @@ function ItemForm({ item }: { item: EditItem }) {
   return (
     <div className="bedit__form">
       <header>
-        <h3 className="bedit__title">{elementLabel(element) || t("bedit.element", { tag: element.tag })}</h3>
-        <p className="bedit__muted">
-          <code>{element.selector}</code>
-        </p>
+        <h3 className="bedit__title">{elementLabel(element) || t("bedit.request.unnamed")}</h3>
       </header>
       {element.sensitive ? (
         <p className="bedit__muted">{t("bedit.sensitive")}</p>
@@ -279,7 +316,7 @@ function ItemForm({ item }: { item: EditItem }) {
           </div>
         </>
       )}
-      <Field label={t("bedit.note")}>
+      <Field label={t("bedit.note")} hint={saves ? t("bedit.noteHint") : undefined}>
         {(id) => (
           <Textarea
             id={id}
@@ -290,7 +327,7 @@ function ItemForm({ item }: { item: EditItem }) {
           />
         )}
       </Field>
-      {!element.sensitive && <p className="bedit__muted">{t("bedit.live")}</p>}
+      {!element.sensitive && <p className="bedit__muted">{t(saves ? "bedit.liveSave" : "bedit.live")}</p>}
     </div>
   );
 }

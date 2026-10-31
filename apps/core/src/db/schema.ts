@@ -644,6 +644,7 @@ export interface SurfacesTable {
   connect: string | null;
   state: string | null;
   origin: string | null;
+  page: Generated<number>;
 }
 
 export interface TaskAttachmentsTable {

@@ -1830,6 +1830,7 @@ export const appMethods = {
         html: z.string().min(1).max(400_000),
         pinned: z.boolean().optional(),
         app: z.boolean().optional(),
+        page: z.boolean().optional(),
         /** Origins it may read live data from ([] removes them; absent keeps the current ones). */
         connect: z.array(SurfaceOrigin).max(5).optional(),
         thread: Id.optional(),
@@ -1874,7 +1875,14 @@ export const appMethods = {
     access: "human",
   },
   "surfaces.update": {
-    params: z.object({ surface: Id, pinned: z.boolean().optional(), app: z.boolean().optional() }).strict(),
+    params: z
+      .object({
+        surface: Id,
+        pinned: z.boolean().optional(),
+        app: z.boolean().optional(),
+        page: z.boolean().optional(),
+      })
+      .strict(),
     result: SurfaceSummary,
     effect: true,
   },

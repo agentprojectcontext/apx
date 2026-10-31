@@ -147,6 +147,20 @@ export const artifactMethods = {
     effect: false,
     access: "human",
   },
+  /**
+   * Saves these edits into the widget's own HTML as a new version, for the elements its HTML holds; `missed` are the
+   * ones its code draws at run time, left for its agent.
+   */
+  "surfaces.edit_save": {
+    params: z.object({ page: EditPage, edits: z.array(ElementEdit).min(1).max(50) }).strict(),
+    result: z.object({
+      saved: z.array(z.number().int()),
+      missed: z.array(z.number().int()),
+      surface: SurfaceSummary.optional(),
+    }),
+    effect: true,
+    access: "human",
+  },
   "surfaces.edit_close": {
     params: z.object({ page: EditPage }).strict(),
     result: z.object({ ok: z.literal(true) }),

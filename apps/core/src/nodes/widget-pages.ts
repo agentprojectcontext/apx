@@ -6,6 +6,7 @@ import { CdpPage } from "@apx/protocol/cdp";
 import { ApxError } from "@apx/protocol/client";
 import { injectSurfaceHead, surfaceLayoutCss, WIDGET_KIT_CSS } from "../../../../packages/surfaces/src/widget-kit.ts";
 import { type PageCall, type PageCdp, withBridge } from "./page-check.ts";
+import { applyEdits, type DomNode, type Locator, locate, serialize } from "./widget-save.ts";
 
 /** A page nobody looked at for this long closes; at most MAX_PAGES live at once (the oldest goes first). */
 const IDLE_MS = 10 * 60_000;
@@ -37,6 +38,9 @@ ${surfaceLayoutCss(opts.layout)}</style>
 type Page = {
   target: string;
   context: string;
+  /** What it shows: the widget's id, for saving into it. */
+  of: string;
+  send: <T>(method: string, params?: object) => Promise<T>;
   page: CdpPage;
   stop: () => void;
   used: number;
@@ -69,7 +73,7 @@ export function createWidgetPages(
   }
 
   /** Runs the page at `width`, answering its reads with `onCall`; its height is what it shows, within bounds. */
-  async function open(html: string, width: number, onCall: PageCall): Promise<string> {
+  async function open(html: string, width: number, onCall: PageCall, of = ""): Promise<string> {
     for (const [id, p] of pages) if (now() - p.used > IDLE_MS) await close(id);
     while (pages.size >= MAX_PAGES) {
       const oldest = [...pages.entries()].sort((a, b) => a[1].used - b[1].used)[0];
@@ -112,6 +116,8 @@ export function createWidgetPages(
     pages.set(id, {
       target: targetId,
       context: browserContextId,
+      of,
+      send,
       page: new CdpPage(send, { selectAllModifiers: 0 }),
       stop,
       used: now(),
@@ -143,9 +149,47 @@ export function createWidgetPages(
     return id;
   }
 
+  /**
+   * The widget's HTML (`source`) with these edits in it, for the elements found there, read with scripts off in a page
+   * of the same closed context. The running page goes back to its own look first, so it is matched as its code drew it.
+   */
+  async function save(id: string, edits: readonly ElementEdit[], source: string) {
+    const p = get(id);
+    await p.page.previewEdits([]);
+    const live = (await p.send<{ root: DomNode }>("DOM.getDocument", { depth: -1 })).root;
+    const found: Array<{ edit: ElementEdit; at: Locator }> = [];
+    for (const edit of edits) {
+      const at = locate(live, edit.node);
+      if (at) found.push({ edit, at });
+    }
+    const c = await cdp();
+    const { targetId } = await c.send<{ targetId: string }>("Target.createTarget", {
+      url: "about:blank",
+      browserContextId: p.context,
+    });
+    try {
+      const { sessionId } = await c.send<{ sessionId: string }>("Target.attachToTarget", { targetId, flatten: true });
+      const send = <T>(method: string, params?: object) => c.send<T>(method, params ?? {}, sessionId);
+      await send("Network.enable");
+      await send("Network.setBlockedURLs", { urls: ["*"] });
+      await send("Emulation.setScriptExecutionDisabled", { value: true });
+      const { frameTree } = await send<{ frameTree: { frame: { id: string } } }>("Page.getFrameTree");
+      await send("Page.setDocumentContent", { frameId: frameTree.frame.id, html: source });
+      const doc = (await send<{ root: DomNode }>("DOM.getDocument", { depth: -1 })).root;
+      const saved = await applyEdits(send, doc, found);
+      const html = saved.length ? await serialize(send, doc, source) : source;
+      return { html, saved, missed: edits.map((e) => e.node).filter((n) => !saved.includes(n)) };
+    } finally {
+      await c.send("Target.closeTarget", { targetId }).catch(() => {});
+    }
+  }
+
   return {
     open,
     close,
+    save,
+    /** The widget a page shows. */
+    widgetOf: (id: string) => get(id).of,
     inspect: async (id: string, x: number, y: number): Promise<PickedElement | null> => get(id).page.inspect(x, y),
     preview: async (id: string, edits: readonly ElementEdit[]) => get(id).page.previewEdits(edits),
     shot: async (id: string) => get(id).page.screenshot(),
