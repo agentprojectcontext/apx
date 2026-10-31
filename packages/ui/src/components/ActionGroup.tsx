@@ -3,11 +3,14 @@ import { ChevronRight, Wrench } from "lucide-react";
 import type { ReactNode } from "react";
 import { cx } from "../cx";
 import { keyed } from "../keys";
+import { Spinner } from "./Spinner";
 import { StatusIcon, type StepStatus } from "./StatusIcon";
 
 export interface ActionItem {
-  /** Tool name, e.g. "fs.read", "browser.open". */
+  /** What it did, in words: "Opened acme.com", "Memory saved". */
   name: ReactNode;
+  /** The kind of action (a globe for the web, a file for a read); without one, a status glyph shows instead. */
+  icon?: ReactNode;
   /** Argument or result summary, one line. */
   detail?: ReactNode;
   status?: StepStatus;
@@ -25,14 +28,17 @@ export interface ActionGroupProps {
   /** Tool calls listed when expanded. */
   items?: ActionItem[];
   defaultOpen?: boolean;
-  /** Leading icon; defaults to a wrench. */
+  /** Leading icon; defaults to a wrench, `null` for none (the chevron alone). */
   icon?: ReactNode;
   /** Custom expanded content instead of `items` (reasoning text, a diff). */
   children?: ReactNode;
   className?: string;
 }
 
-/** Folds an agent's tool calls/reasoning into one line ("Worked 2 min ▸") that expands to the list. */
+/**
+ * Folds an agent's tool calls/reasoning into one line ("Worked 2 min ▸") that expands to the list: each action hangs
+ * from one line with the icon of its kind; only a failed one is marked (in red), a running one spins.
+ */
 export function ActionGroup({
   title,
   failed = 0,
@@ -47,7 +53,7 @@ export function ActionGroup({
     <Collapsible.Root defaultOpen={defaultOpen} className={cx("apx-actions", className)}>
       <Collapsible.Trigger className="apx-actions__head">
         <ChevronRight size={14} className="apx-actions__chevron" />
-        <span className="apx-actions__icon">{icon ?? <Wrench size={14} />}</span>
+        {icon !== null && <span className="apx-actions__icon">{icon ?? <Wrench size={14} />}</span>}
         <span className="apx-actions__title">{title}</span>
         {failed > 0 && (
           <span className="apx-actions__failed">
@@ -57,10 +63,16 @@ export function ActionGroup({
       </Collapsible.Trigger>
       <Collapsible.Panel className="apx-actions__panel">
         {children ?? (
-          <ul className="apx-actions__list">
+          <ul className="apx-actions__list apx-branches">
             {keyed(items ?? [], (it) => it.name).map(({ item: it, key }) => (
               <li key={key} className={cx("apx-actions__item", it.status === "failed" && "is-failed")}>
-                <StatusIcon status={it.status ?? "done"} />
+                <span className="apx-actions__itemicon">
+                  {it.status === "running" ? (
+                    <Spinner size={12} />
+                  ) : (
+                    (it.icon ?? <StatusIcon status={it.status ?? "done"} />)
+                  )}
+                </span>
                 <span className="apx-actions__name">{it.name}</span>
                 {it.detail && <span className="apx-actions__detail">{it.detail}</span>}
                 {it.aside && <span className="apx-actions__aside">{it.aside}</span>}

@@ -1,16 +1,42 @@
 import type { Part } from "@apx/protocol";
 import { ActionGroup, type ActionItem, Icons, Spinner } from "@apx/ui";
+import type { ReactNode } from "react";
 import { duration } from "../../common/format.ts";
 import { useT } from "../../i18n/index.ts";
 import { ComputerIcon } from "./ComputerIcon.tsx";
+import { stepLabel, type ToolKind, toolKind } from "./toolKind.ts";
 
 type ToolPart = Extract<Part, { type: "tool" }>;
 
 const STATUS = { running: "running", ok: "done", error: "failed" } as const;
 
+const ICON: Record<ToolKind, ReactNode> = {
+  web: <Icons.Globe />,
+  read: <Icons.FileText />,
+  write: <Icons.SquarePen />,
+  memory: <Icons.Brain />,
+  command: <Icons.Terminal />,
+  computer: <Icons.Monitor />,
+  message: <Icons.MessageCircle />,
+  mail: <Icons.Mail />,
+  calendar: <Icons.Calendar />,
+  agents: <Icons.Users />,
+  task: <Icons.ListChecks />,
+  widget: <Icons.LayoutGrid />,
+  image: <Icons.Image />,
+  file: <Icons.Paperclip />,
+  phone: <Icons.Smartphone />,
+  ask: <Icons.Hand />,
+  flow: <Icons.GitBranch />,
+  settings: <Icons.Settings />,
+  skill: <Icons.Sparkles />,
+  tool: <Icons.Wrench />,
+};
+
 /**
  * Tool calls folded into one group: "4 steps · 12 s" once done, the time its steps took (older answers kept none). While
  * the run waits on the owner (a question, a confirmation, a browser tab handed over) it says so instead of "working".
+ * Each step is the icon of its kind of action and what it did, in words; only a failed one is marked.
  */
 export function ToolGroup({ parts, waiting = false }: { parts: ToolPart[]; waiting?: boolean }) {
   const t = useT();
@@ -22,8 +48,8 @@ export function ToolGroup({ parts, waiting = false }: { parts: ToolPart[]; waiti
   const steps = n === 1 ? t("tools.steps.one") : t("tools.steps.other", { n });
   const took = parts.some((p) => p.ms !== undefined) ? parts.reduce((sum, p) => sum + (p.ms ?? 0), 0) : undefined;
   const items: ActionItem[] = parts.map((p) => ({
-    name: p.tool,
-    detail: p.title,
+    name: stepLabel(p.tool, p.title),
+    icon: ICON[toolKind(p.tool)],
     status: STATUS[p.status],
   }));
   return (
@@ -47,7 +73,7 @@ export function ToolGroup({ parts, waiting = false }: { parts: ToolPart[]; waiti
           ) : (
             <Spinner size={14} />
           )
-        ) : undefined
+        ) : null
       }
       failed={failed}
       failedLabel={failed === 1 ? t("tools.failed.one") : t("tools.failed.other")}
