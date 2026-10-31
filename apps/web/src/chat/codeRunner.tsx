@@ -1,4 +1,5 @@
-import { EMAIL_LANG, parseEmailBlock, type Thread } from "@apx/protocol";
+import type { Thread } from "@apx/protocol";
+import { EMAIL_LANG, parseEmailBlock } from "@apx/protocol/email-block";
 import type { CodeRenderer } from "@apx/ui";
 import { Suspense } from "react";
 import { CodeBlock, EmailCard, RunnableCode } from "../lazy.ts";
