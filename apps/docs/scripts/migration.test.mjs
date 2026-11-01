@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { test } from "node:test";
+import { comparisons } from "../src/data/comparisons.ts";
+import { builtDocumentationRoutes } from "../src/doc-routes.mjs";
 
 const dist = new URL("../dist/", import.meta.url);
 const base = (process.env.DOCS_BASE ?? "/").replace(/\/$/, "");
@@ -10,8 +12,7 @@ test("every built documentation page has a legacy redirect and a canonical new a
   let count = 0;
   for (const prefix of ["", "es/"]) {
     const entries = await readdir(new URL(`${prefix}docs/`, dist), { recursive: true });
-    for (const file of entries.filter((entry) => entry.endsWith("index.html") && entry !== "index.html")) {
-      const route = `${prefix}docs/${file.replace(/index\.html$/, "")}`;
+    for (const route of builtDocumentationRoutes(entries, prefix)) {
       const html = await readFile(new URL(`${route}index.html`, dist), "utf8");
       const canonical = new URL(`${base}/${route}`, site).href;
       assert.ok(html.includes(`rel="canonical" href="${canonical}"`), route);
@@ -29,7 +30,27 @@ test("every built documentation page has a legacy redirect and a canonical new a
 test("sitemap lists only canonical pages, including bilingual documentation and comparisons", async () => {
   const xml = await readFile(new URL("sitemap-0.xml", dist), "utf8");
   const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
-  assert.equal(urls.length, 110);
+  const expected = [];
+  for (const prefix of ["", "es/"]) {
+    const entries = await readdir(new URL(`${prefix}docs/`, dist), { recursive: true });
+    for (const route of builtDocumentationRoutes(entries, prefix)) {
+      expected.push(`${site}${base}/${route}`);
+    }
+    for (const route of [
+      "",
+      "compare/",
+      "compare/best-ai-agent-apps/",
+      ...comparisons.map(({ slug }) => `compare/${slug}/`),
+    ]) {
+      expected.push(`${site}${base}/${prefix}${route}`);
+    }
+  }
+  assert.equal(new Set(urls).size, urls.length, "canonical URLs must not repeat");
+  assert.deepEqual(
+    urls.toSorted(),
+    expected.toSorted(),
+    "every canonical page is listed once, without redirects or extra routes",
+  );
   assert.ok(urls.includes(`${site}${base}/docs/reference/website-privacy/`));
   assert.ok(urls.includes(`${site}${base}/es/docs/reference/website-privacy/`));
   assert.ok(urls.includes(`${site}${base}/docs/start/introduction/`));

@@ -28,6 +28,21 @@
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-subtle);
 }
+.quick__offline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--apx-border);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.quick__offline > svg {
+  flex-shrink: 0;
+}
+.quick__offline > span {
+  flex: 1;
+}
 .quick__body {
   flex: 1;
   min-height: 0;

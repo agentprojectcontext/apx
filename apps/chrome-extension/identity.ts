@@ -1,0 +1,4 @@
+// This public key pins the unpacked origin across folders; it is not proof of authorship.
+export const EXTENSION_PUBLIC_KEY =
+  "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmT4FCGlwnuVZsdXMmZgonv7QxFG2Dn3prbmTkCP9U0xMgcOIrKJgo1NTcV/jZj5STZiRBDlc1pQlcU/5eexOO4smkSRrxCwUpRMviVvblf/nddkfXkh4QaduapXWuhGJFydtZJKpRnTq14XAvaGJHAAb4q/83Xs/W2ajY2m7SMUkgf5BAOCm6vAN30b9bTMFwMkfOYN1BnGi3qlt7AvbF/NnsO6x9EwrzZYDqAFkvGEf1ZPaO9M4AvAJDHBfnYgo0MzctwjVBZOM31EuyxlLWp0Avcmfk1yjJKJGFrcyjlBj5thQxg++YAva292ioNeq68aP/nigs+omXzW804s41wIDAQAB";
+export const EXTENSION_ID = "pfpnbpijklnekfbnpgbohlmmmfljmklf";

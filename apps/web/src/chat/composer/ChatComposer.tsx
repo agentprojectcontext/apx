@@ -38,11 +38,17 @@ export function ChatComposer({
   thread,
   agent,
   onMade = (id) => go.madeThread(thread.id, id),
+  onNew = go.thread,
   prepare,
+  offlineHint = true,
 }: {
   thread: Thread;
   agent: Agent | undefined;
   onMade?: (id: string) => void;
+  /** Embedded chats handle /new without navigating the full panel. */
+  onNew?: (id: string) => void;
+  /** Hide the repeated placeholder notice when the surrounding screen already explains the offline state. */
+  offlineHint?: boolean;
   /** Runs before each message goes: the words to send (with what the screen adds), or null to keep them unsent. */
   prepare?: (words: string) => Promise<string | null>;
 }) {
@@ -75,7 +81,7 @@ export function ChatComposer({
   const room = thread.channel && !thread.channel.person_id ? thread.title : undefined;
   const [direct, setDirect] = useState(false);
   const agentName = agent?.name ?? t("composer.yourAgent");
-  const slash = useSlashMenu({ thread, agent, text, setText, busy });
+  const slash = useSlashMenu({ thread, agent, text, setText, busy, onNew });
   const runs = useMemo(
     () =>
       Object.values(runsById)
@@ -159,7 +165,7 @@ export function ChatComposer({
       <Composer
         highlight={withMentions}
         placeholder={
-          offline
+          offline && offlineHint
             ? t("composer.offline")
             : room
               ? t(direct ? "ch.room.writeMe" : "ch.room.writeAgent", { agent: agentName, room })
@@ -263,6 +269,7 @@ export function ChatComposer({
 /** The chat's own model, tried before the agent's; "the agent's model" goes back to it. */
 function ChatModel({ thread, agent }: { thread: Thread; agent: Agent | undefined }) {
   const t = useT();
+  const offline = useData((s) => s.connection !== "online");
   const catalog = useModels((s) => s.catalog);
   const config = useModels((s) => s.config);
   const own = thread.model_choice;
@@ -273,7 +280,8 @@ function ChatModel({ thread, agent }: { thread: Thread; agent: Agent | undefined
       label={t("composer.modelOfChat")}
       value={own ?? null}
       {...(agent?.model_choice ? { inherited: agent.model_choice } : {})}
-      text={text}
+      text={offline ? t("models.unavailable") : text}
+      disabled={offline}
       align="start"
       className={`composer__model${own ? " is-own" : ""}`}
       icon={

@@ -51,6 +51,9 @@ function serveStatic(dist: string, pathname: string, res: ServerResponse): boole
   if (!fs.existsSync(file)) return false;
   res.writeHead(200, {
     "content-type": MIME[path.extname(file)] ?? "application/octet-stream",
+    ...(path.extname(file) === ".html"
+      ? { "content-security-policy": "frame-ancestors 'self' chrome-extension://pfpnbpijklnekfbnpgbohlmmmfljmklf" }
+      : {}),
     "cache-control": file.endsWith("index.html") ? "no-cache" : "public, max-age=31536000, immutable",
   });
   fs.createReadStream(file).pipe(res);

@@ -7,7 +7,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "chat.agentMessage": "Mensaje de {name}",
   "input.sessionScope": "Esta sesión",
 
-  "composer.offline": "Sin conexión con el core…",
+  "composer.offline": "Sin conexión con APX",
   "composer.placeholder": "Escribile a {name}…",
   "composer.yourAgent": "tu agente",
   "composer.attach": "Adjuntar",
