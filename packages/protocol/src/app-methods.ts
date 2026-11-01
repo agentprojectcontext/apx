@@ -34,6 +34,7 @@ import {
   MemorySettings,
   Message,
   ModelChoice,
+  ModelRef,
   NoticePrefs,
   Nudge,
   Organization,
@@ -682,6 +683,8 @@ export const appMethods = {
         /** Code threads: a folder inside the project (relative, or absolute under it); default the project's root. */
         cwd: z.string().max(1024).optional(),
         write: WritePolicy.optional(),
+        /** External sessions only: full engine/model reference, optionally #effort; omitted uses the engine default. */
+        model: ModelRef.optional(),
         /** A code thread with an outside engine itself ("claude", "codex", "acp:opencode"): its own prompt, no persona. */
         engine: z
           .string()

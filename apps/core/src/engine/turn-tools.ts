@@ -17,7 +17,7 @@ import { MAX_DEPTH } from "./limits.ts";
 import type { Turn, TurnDeps } from "./turn.ts";
 
 /** What only a caller may use: a delegate asks no one (DECISIONS.md#d-074). */
-const SESSION_TOOLS = new Set(["delegate", "list_sessions", "stop_session"]);
+const SESSION_TOOLS = new Set(["delegate", "list_sessions", "stop_session", "start_session"]);
 const MEMORY_TOOLS = new Set(["remember", "recall", "forget", "search_owner_notes"]);
 /**
  * The owner's turns on WhatsApp keep notes, write to people and rooms, and hand the rest off: a phone chat is no place

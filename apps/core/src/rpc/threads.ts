@@ -2,6 +2,7 @@ import path from "node:path";
 import type { Author, Task } from "@apx/protocol";
 import { ownerActsOn } from "../domain/channels.ts";
 import { OWNER_ID } from "../domain/persons.ts";
+import { engineOf } from "../domain/refs.ts";
 import { type Attachment, ownerOrigin, publicRun, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
@@ -39,7 +40,7 @@ export function codeFolder(store: Store, projectId: string | undefined, cwd: str
 /** A new chat or code thread. An outside app gets a plain chat, named after it, that only it can use. */
 function createThread(
   store: Store,
-  { kind, agent_id, title, project_id, cwd, write, engine }: CreateParams,
+  { kind, agent_id, title, project_id, cwd, write, engine, model }: CreateParams,
   ctx: CallContext,
 ) {
   const agent = store.agents.get(agent_id);
@@ -59,6 +60,9 @@ function createThread(
     });
   }
   if (engine && kind !== "code") throw badRequest("an engine session is a code thread: it works in a folder");
+  if (model && (!engine || engineOf(model) !== engine))
+    throw badRequest("a session's model must belong to its external engine");
+  const caller = engine && ctx.agent ? store.threads.get(ctx.agent.thread_id) : undefined;
   const folder = kind === "code" ? codeFolder(store, pid, cwd) : undefined;
   return store.tx(() => {
     const t = store.threads.create({
@@ -68,11 +72,13 @@ function createThread(
       project_id: pid,
       ...(folder ? { cwd: folder, write: write ?? "ask" } : {}),
       ...(engine ? { engine } : {}),
+      // Keep the caller's permissions and spend limits on every turn of a tool-started session.
+      ...(caller ? { parent_id: caller.id } : {}),
     });
     if (ctx.flowEvent?.graph) store.flowGraphRuns.linkThread({ ...ctx.flowEvent, ...ctx.flowEvent.graph }, t.id);
     else if (ctx.flowEvent) store.flows.setThread(ctx.flowEvent.flow, ctx.flowEvent.event, t.id);
     // The engine is the session: it always runs it, never the router.
-    if (engine) store.threads.mergeContext(t.id, { model_choice: { model: engine, router: false } });
+    if (engine) store.threads.mergeContext(t.id, { model_choice: { model: model ?? engine, router: false } });
     return engine ? (store.threads.get(t.id) ?? t) : t;
   });
 }
@@ -250,7 +256,12 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     }),
     "threads.list": ({ project_id, root_thread, include_subthreads, delegated, include_archived, engine }) => {
       if (!root_thread) {
-        const threads = store.threads.list({ project_id, include_subthreads, include_archived, engine });
+        const threads = store.threads.list({
+          project_id,
+          include_subthreads: include_subthreads || Boolean(engine),
+          include_archived,
+          engine,
+        });
         if (!delegated || engine) return { threads };
         const ids = threads.map((t) => t.id);
         const seen = new Set(ids);
@@ -315,6 +326,20 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       const task = ctx.actor === "agent" ? undefined : assignedTaskOf(store, thread);
       if (task) return toTaskWork(task, text, mode, attachments ?? []);
       if (mode === "interrupt") engine.interrupt(thread);
+      if (ctx.agent && target.engine && target.parent_id === ctx.agent.thread_id) {
+        const parent = store.runs.get(ctx.agent.run_id);
+        const from = store.agents.get(ctx.agent.id);
+        if (!parent || !from || parent.agent_id !== from.id || parent.thread_id !== target.parent_id)
+          throw unauthorized("the session's caller is no longer available");
+        return post(thread, text, { kind: "agent", id: from.id }, false, {
+          agent_id: agent.id,
+          trigger: "a2a",
+          origin: { kind: "agent", id: from.id, name: from.name, thread_id: parent.thread_id, run_id: parent.id },
+          parent_run_id: parent.id,
+          depth: parent.depth + 1,
+          queued: store.runs.activeDelegations(target.parent_id) >= MAX_ACTIVE_DELEGATIONS,
+        });
+      }
       // A model-driven client (another tool's agent) is not the owner: its text arrives as untrusted data, and it
       // never steers a running turn.
       if (ctx.actor === "agent")

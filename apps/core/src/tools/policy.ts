@@ -44,7 +44,8 @@ export function toolRisk(tool: Tool): ToolRisk {
 const GROUPS: Record<string, (name: string) => boolean> = {
   browser: (n) => n.startsWith("browser_"),
   widgets: (n) => n.endsWith("_widget"),
-  agents: (n) => n === "list_agents" || n === "delegate" || n === "grant_tool" || n === "agent_set",
+  agents: (n) =>
+    n === "list_agents" || n === "delegate" || n === "grant_tool" || n === "agent_set" || n === "start_session",
   shell: (n) => n.startsWith("shell"),
   files: (n) => n.startsWith("file_") || n === "send_file" || n === "open_document",
   mcp: (n) => n.startsWith("mcp_"),

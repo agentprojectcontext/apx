@@ -88,6 +88,7 @@ import { computerTools } from "./tools/computer.ts";
 import { connectionTools } from "./tools/connections.ts";
 import { contactTools } from "./tools/contact.ts";
 import { directoryTools } from "./tools/directory.ts";
+import { externalSessionTools } from "./tools/external-sessions.ts";
 import { fileTools } from "./tools/files.ts";
 import { flowTools } from "./tools/flow-tool.ts";
 import { limitTools } from "./tools/limits.ts";
@@ -163,6 +164,7 @@ export function builtinTools(
     ...agentTools(store),
     ...agentSetTools(store),
     ...chatTools(store),
+    ...externalSessionTools(store),
     ...browserTools(store, home, vm),
     ...surfaceTools(store, home),
     ...ownerTools(store),
