@@ -129,6 +129,8 @@ for (const language of ["en", "es"] as const) {
     await page.screenshot({ path: info.outputPath(`models-${language}-desktop.png`), fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(page.getByText(unconfirmed).first()).toBeVisible();
+    await expect(page.locator(".chat__header")).toBeVisible();
+    await expect(page.locator(".chat__modelrequest")).toBeVisible();
     const headerBox = await page.locator(".chat__header").boundingBox();
     const requestBox = await page.locator(".chat__modelrequest").boundingBox();
     expect(headerBox).not.toBeNull();
