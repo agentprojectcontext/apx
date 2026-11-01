@@ -28,3 +28,44 @@ export function rowColumns(columns: readonly string[], rows: readonly { value: u
     else if (value !== undefined) seen.add("value");
   return [...seen];
 }
+
+/** JSON with every object's keys sorted: the same content reads the same whatever order it was written in. */
+const canonical = (v: Json): string =>
+  v === null || typeof v !== "object"
+    ? JSON.stringify(v)
+    : Array.isArray(v)
+      ? `[${v.map(canonical).join(",")}]`
+      : `{${Object.keys(v)
+          .sort()
+          .map((k) => `${JSON.stringify(k)}:${canonical(v[k] as Json)}`)
+          .join(",")}}`;
+
+/** Where a part sits in a value, as `repeats` names it. */
+export const partKey = (path: readonly string[]) => JSON.stringify(path);
+
+/**
+ * The parts that only repeat what shows above them, in reading order: a table read gives its row as columns, as `row`
+ * and under its key in `rows`, the same cells three times. An object's plain fields count as shown, as one row.
+ */
+export function repeats(value: Fields): Set<string> {
+  const seen = new Set<string>();
+  const out = new Set<string>();
+  const walk = (v: Fields, path: string[]) => {
+    const entries: [string, Json][] = Array.isArray(v) ? v.map((x, i) => [String(i + 1), x]) : Object.entries(v);
+    const plain = entries.filter(([, x]) => x === null || typeof x !== "object");
+    if (!Array.isArray(v) && plain.length) seen.add(canonical(Object.fromEntries(plain)));
+    for (const [k, x] of entries) {
+      if (x === null || typeof x !== "object") continue;
+      const at = [...path, k];
+      const content = canonical(x);
+      if (content === "{}" || content === "[]") continue;
+      if (seen.has(content)) out.add(partKey(at));
+      else {
+        seen.add(content);
+        walk(x, at);
+      }
+    }
+  };
+  walk(value, []);
+  return out;
+}

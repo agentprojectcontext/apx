@@ -165,7 +165,10 @@ versiones y todas las que usó alguna ronda.
 Al abrir un flow ves sus pasos como corrieron en la ronda elegida (numerados, en verde si corrieron, punteados si no,
 en rojo si fallaron) y las rondas a la derecha con su duración y tokens. Al tocar un paso queda marcado con un anillo; el
 panel de abajo muestra cuándo empezó y cuánto tardó, y su **Entrada** y **Salida**: los datos como **Campos** que se
-pliegan, o como **Texto**, con botones para copiarlos y agrandarlos. Un paso que guarda en una tabla también muestra sus
+pliegan, o como **Texto**, con botones para copiarlos y agrandarlos. Una parte que solo repite lo que se ve arriba (una
+lectura de tabla da su fila como columnas, como `row` y bajo su clave en `rows`) arranca plegada, marcada **Igual que
+arriba**. La entrada del disparador dice cómo arrancó la ronda (su dirección, **Correr ahora** o la hora que tocaba) y su
+salida son los datos que los pasos siguientes leen como `$trigger`. Un paso que guarda en una tabla también muestra sus
 últimas filas en columnas: tocá la clave de una fila para verla entera. **Ronda completa** muestra **Paso a paso** qué
 llegó y qué recibió y dio cada paso. Una ronda hecha con un dibujo anterior muestra ese dibujo y dice **Versión anterior**. Una ronda que
 cortó una condición marca esa condición con **no** y los pasos siguientes como no corridos. Un paso que le pasó trabajo
