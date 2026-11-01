@@ -6,7 +6,8 @@ import type { ModelChoice } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import type { Log } from "../log.ts";
 import { listField, textField } from "./frontmatter.ts";
-import { type ApcAgent, isApcProject, readAgents, readProject } from "./read.ts";
+import type { ProjectFiles, ReadProjectFiles } from "./project-reader.ts";
+import { type ApcAgent, type ApcProject, isApcProject, readAgents, readProject } from "./read.ts";
 
 /**
  * An agent file's `autonomy:`, with the names files written before the five modes used (DECISIONS.md#d-106): a file in
@@ -21,6 +22,8 @@ const FILE_MODES: Record<string, string> = {
 const modeOfFile = (v: string | undefined) => (v === undefined ? v : (FILE_MODES[v.trim().toLowerCase()] ?? v));
 
 const DEBOUNCE_MS = 400;
+/** How long a project folder has to answer at start before it shows as waiting (rule 9). */
+export const PROJECT_READ_MS = 5_000;
 
 export const projectIdOf = (apcId: string) => `p_${apcId}`;
 export const agentIdOf = (apcId: string, slug: string) => `${apcId}-${slug}`.toLowerCase();
@@ -40,10 +43,32 @@ function choiceFromV1(model: string | undefined, engines: { has(id: string): boo
 
 export type SyncResult = { project: string; agents: number; archived: number };
 
-export function createApcSync(deps: { store: Store; log: Log; engines: { has(id: string): boolean } }) {
+/** A timer the load's deadline runs on: the engine's run timers, so a test moves it by hand. */
+type Timers = { after(ms: number, callback: () => void): () => void };
+const realTimers: Timers = {
+  after(ms, callback) {
+    const t = setTimeout(callback, ms);
+    return () => clearTimeout(t);
+  },
+};
+
+export function createApcSync(deps: {
+  store: Store;
+  log: Log;
+  engines: { has(id: string): boolean };
+  /** Where `load` reads folders: worker threads in the core, a stand-in in tests. */
+  read?: ReadProjectFiles;
+  timers?: Timers;
+  readMs?: number;
+}) {
   const { store, log } = deps;
   const watchers = new Map<string, fs.FSWatcher[]>();
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
+  // A folder still being read is not read a second time: one held read holds one thread.
+  const reading = new Map<string, Promise<ProjectFiles>>();
+  // Each start-up read still inside its deadline; closing ends them.
+  const waits = new Set<() => void>();
+  let closed = false;
 
   /** An id for a new file's agent: the natural one unless another agent (e.g. a renamed one) already holds it. */
   function freshId(base: string, slug: string, used: string[]): string {
@@ -54,7 +79,10 @@ export function createApcSync(deps: { store: Store; log: Log; engines: { has(id:
 
   function syncRoot(root: string): SyncResult {
     const abs = path.resolve(root);
-    const p = readProject(abs);
+    return apply(abs, readProject(abs), readAgents(abs));
+  }
+
+  function apply(abs: string, p: ApcProject, agents: ApcAgent[]): SyncResult {
     // One folder is one project: the record registered here keeps its id, chats and tasks even when project.json's
     // apx_id changed (another tool rewrote it) or cannot be read. One removed from APX does not outrank the apx_id.
     const records = store.projects.atPath(abs);
@@ -69,7 +97,6 @@ export function createApcSync(deps: { store: Store; log: Log; engines: { has(id:
     // An unreadable project.json says nothing about the name or kind: keep what the index knew.
     const meta = p.metaError && indexed ? indexed : p;
     if (p.metaError) log.warn({ root: abs, err: p.metaError }, "could not read .apc/project.json");
-    const agents: ApcAgent[] = readAgents(abs);
     const present = new Set(agents.map((a) => a.slug));
     return store.tx(() => {
       // A second record an earlier apx_id change left at this folder stops being listed, and its agents with it;
@@ -122,7 +149,57 @@ export function createApcSync(deps: { store: Store; log: Log; engines: { has(id:
           },
         });
       }
+      store.projects.setUnreadable(projectId, undefined);
       return { project: projectId, agents: agents.length, archived: store.agents.archiveMissing(projectId, ids) };
+    });
+  }
+
+  /** What one folder's read found, written to the index; the folder is watched once it was read. */
+  function settle(id: string, root: string, files: ProjectFiles): SyncResult | undefined {
+    if (files.state === "read") {
+      const r = apply(root, files.project, files.agents);
+      watch(root);
+      return r;
+    }
+    store.projects.setPresent(id, false);
+    store.projects.setUnreadable(id, files.state === "denied" ? "denied" : undefined);
+    return undefined;
+  }
+
+  /** Reads one folder off the main thread; past the deadline it shows as waiting, and its answer still lands. */
+  function loadOne(id: string, root: string): Promise<void> {
+    const read = deps.read;
+    if (!read) return Promise.resolve();
+    let pending = reading.get(root);
+    if (!pending) {
+      pending = read(root);
+      reading.set(root, pending);
+      void pending
+        .then((files) => {
+          // Closed, or removed from APX while it was read: nothing to write.
+          if (closed || store.projects.get(id)?.registered === false) return;
+          const r = settle(id, root, files);
+          if (r) log.info({ project: r.project, agents: r.agents }, "project read");
+        })
+        .catch((err) => closed || log.warn({ project: id, err: String(err) }, "could not read project"))
+        .finally(() => reading.delete(root));
+    }
+    return new Promise<void>((resolve) => {
+      const end = () => {
+        cancel();
+        waits.delete(end);
+        resolve();
+      };
+      const cancel = (deps.timers ?? realTimers).after(deps.readMs ?? PROJECT_READ_MS, () => {
+        if (!closed) {
+          log.warn({ project: id, root }, "project folder did not answer; it shows as waiting until it does");
+          store.projects.setPresent(id, false);
+          store.projects.setUnreadable(id, "waiting");
+        }
+        end();
+      });
+      waits.add(end);
+      void pending.then(end, end);
     });
   }
 
@@ -181,6 +258,8 @@ export function createApcSync(deps: { store: Store; log: Log; engines: { has(id:
       for (const p of store.projects.list()) {
         if (projectId && p.id !== projectId) continue;
         if (!p.path) continue;
+        // A folder still being read off the main thread may be held by the system: that read settles it.
+        if (reading.has(path.resolve(p.path))) continue;
         if (!fs.existsSync(p.path) || !isApcProject(p.path)) {
           store.projects.setPresent(p.id, false);
           continue;
@@ -197,7 +276,17 @@ export function createApcSync(deps: { store: Store; log: Log; engines: { has(id:
       }
       return out;
     },
+    /**
+     * Reads every registered project at start, each off the main thread with a deadline: a folder the system holds
+     * (a macOS privacy prompt nobody answered) shows as waiting, and the core and every other project go on.
+     */
+    async load(): Promise<void> {
+      // One after another, so one thread reads them all; until a folder is read, the index from the last start stands.
+      for (const p of store.projects.list()) if (p.path) await loadOne(p.id, path.resolve(p.path));
+    },
     close(): void {
+      closed = true;
+      for (const end of waits) end();
       for (const list of watchers.values()) for (const w of list) w.close();
       for (const t of timers.values()) clearTimeout(t);
       watchers.clear();

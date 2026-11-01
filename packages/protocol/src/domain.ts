@@ -97,6 +97,11 @@ export const Project = z.object({
   kind: z.string().optional(),
   /** false when the registered folder is not on disk (moved, unmounted drive). */
   present: z.boolean().default(true),
+  /**
+   * Why a folder that is there could not be read: `waiting`, the system has not let APX in yet (a macOS privacy
+   * prompt nobody answered); `denied`, it refused. Known only to the running core.
+   */
+  unreadable: z.enum(["waiting", "denied"]).optional(),
   /** Blob name from the design system catalog, used as the project's avatar. */
   blob: z.string().optional(),
   path: z.string().optional(),

@@ -872,6 +872,10 @@ export const en = {
   "project.settings.folder": "Folder",
   "project.settings.folderHint": "Chats that work in the folder use it, and its .apc/ holds the agents and settings.",
   "project.settings.folderMissing": "The folder is not on disk right now (moved, or a drive that is not mounted).",
+  "project.settings.folderWaiting":
+    "This folder has not opened for APX yet. If your Mac asks whether “node” can access it, choose Allow: APX reads the folder as soon as it can.",
+  "project.settings.folderDenied":
+    "APX is not allowed to open this folder. On a Mac, turn on “node” in System Settings › Privacy & Security › Files and Folders, then restart APX.",
   "project.settings.agentsMdLong": "AGENTS.md past the limit",
   "project.settings.agentsMdLongBody":
     "It has {chars} characters, more than the {limit} agents get whole: they get its start and its end, are told which lines are left out and read them when they need them.",

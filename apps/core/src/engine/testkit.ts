@@ -6,6 +6,7 @@ import path from "node:path";
 import type { Message, PendingInput } from "@apx/protocol";
 import { ApxClient } from "@apx/protocol/client";
 import type { TailscaleRun } from "../access.ts";
+import type { ReadProjectFiles } from "../apc/project-reader.ts";
 import type { AdapterFactory } from "../channels/types.ts";
 import { type ProviderConfig, testConfig } from "../config.ts";
 import type { DesktopOps } from "../desktop.ts";
@@ -132,6 +133,8 @@ export async function startCore(opts: {
   releases?: ReleaseSource;
   /** Loopback servers a test's Flow HTTP steps may reach (`127.0.0.1:port`). */
   flowHttpAllow?: string[];
+  /** Reads a project folder at start instead of the worker threads (a test holds one or answers it). */
+  projectRead?: ReadProjectFiles;
 }) {
   const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx-engine-"));
   // A provider named "fake" so refs like "fake/fake-1" are valid; the scripted model answers for it.
@@ -186,6 +189,7 @@ export async function startCore(opts: {
       ...(opts.unseenAfterMs !== undefined ? { unseenAfterMs: opts.unseenAfterMs } : {}),
       ...(opts.telemetrySink ? { telemetrySink: opts.telemetrySink } : {}),
       ...(opts.releases ? { releases: opts.releases } : {}),
+      ...(opts.projectRead ? { projectRead: opts.projectRead } : {}),
     },
   );
   // Tests choose their model like an owner would: through the settings, never through code defaults.

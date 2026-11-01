@@ -877,6 +877,10 @@ export const es: Partial<Record<MessageKey, string>> = {
   "project.settings.folderHint":
     "La usan los chats que trabajan en la carpeta, y su .apc/ guarda los agentes y la configuración.",
   "project.settings.folderMissing": "La carpeta no está en el disco ahora (se movió, o es un disco sin montar).",
+  "project.settings.folderWaiting":
+    "Esta carpeta todavía no se abrió para APX. Si tu Mac pregunta si “node” puede acceder, elegí Permitir: APX la lee en cuanto pueda.",
+  "project.settings.folderDenied":
+    "APX no tiene permiso para abrir esta carpeta. En una Mac, activá “node” en Ajustes del Sistema › Privacidad y seguridad › Archivos y carpetas, y reiniciá APX.",
   "project.settings.agentsMdLong": "AGENTS.md pasa el límite",
   "project.settings.agentsMdLongBody":
     "Tiene {chars} caracteres, más que los {limit} que los agentes reciben enteros: reciben el principio y el final, saben qué líneas quedaron afuera y las leen cuando las necesitan.",

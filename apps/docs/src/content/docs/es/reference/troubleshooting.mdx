@@ -85,6 +85,24 @@ La app de escritorio anota cada paso de su propia actualización (descarga, rein
 `.APX-<versión>.update` junto a `APX.app`, es una versión descargada que nunca se puso en su lugar; APX la borra la
 próxima vez que arranca.
 
+## macOS le pide a “node” acceso a Documentos
+
+El core corre como `node`, la copia de Node que viene con APX. La primera vez que lee un proyecto en una carpeta que
+macOS protege (Documentos, Escritorio, Descargas, iCloud Drive, un disco externo o de red), macOS pregunta si “node”
+puede abrirla. Cuando el core arranca solo al iniciar sesión, esa ventana puede quedar detrás de otras, o aparecer sin
+nadie frente a la computadora.
+
+- Elegí **Permitir**. APX lee el proyecto apenas respondés; no hace falta nada más.
+- Mientras nadie responde, APX arranca y funciona como siempre. Los ajustes de ese proyecto dicen que su carpeta
+  todavía no se abrió, y sus agentes no trabajan en su carpeta; tus otros proyectos siguen igual.
+- Si elegiste **No permitir**, o la ventana ya no está: abrí **Ajustes del Sistema › Privacidad y seguridad › Archivos
+  y carpetas**, activá la carpeta debajo de “node” y reiniciá APX (`apx service restart`, o salí y abrí la app de
+  escritorio).
+- Para que no pregunte, guardá los proyectos en una carpeta que macOS no protege, como `~/work/…`.
+
+Antes de la 2.12.4 el core esperaba la respuesta para arrancar: la app de escritorio se quedaba en **Conectando con
+APX** y `apx status` no encontraba ningún core hasta que alguien respondía la ventana.
+
 ## El puerto ya está en uso
 
 Un solo proceso puede escuchar en el `7440`. Si otro core ya lo tiene (un `pnpm dev` de antes, el core de la app de

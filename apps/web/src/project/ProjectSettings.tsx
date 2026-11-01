@@ -159,7 +159,15 @@ export function ProjectSettings({
           {full.path && (
             <Field
               label={t("project.settings.folder")}
-              hint={missing ? t("project.settings.folderMissing") : t("project.settings.folderHint")}
+              hint={
+                real?.unreadable === "waiting"
+                  ? t("project.settings.folderWaiting")
+                  : real?.unreadable === "denied"
+                    ? t("project.settings.folderDenied")
+                    : missing
+                      ? t("project.settings.folderMissing")
+                      : t("project.settings.folderHint")
+              }
             >
               <code className="projsettings__path">{full.path}</code>
             </Field>

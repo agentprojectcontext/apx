@@ -81,6 +81,24 @@ The desktop app writes each step of its own update (download, restart, quit, and
 Windows, `~/.config/APX/logs/update.log` on Linux. On macOS, a leftover `.APX-<version>.update` folder next to
 `APX.app` means a downloaded version that was never put in place; APX removes it the next time it starts.
 
+## macOS asks “node” for access to Documents
+
+The core runs as `node`, the copy of Node that comes with APX. The first time it reads a project in a folder macOS
+protects (Documents, Desktop, Downloads, iCloud Drive, an external or network drive), macOS asks whether “node” may
+open it. When the core starts on its own at login, that window can be behind others, or appear with nobody at the
+computer.
+
+- Choose **Allow**. APX reads the project as soon as you answer; there is nothing else to do.
+- Until someone answers, APX starts and works as usual. That project's settings say its folder has not opened yet,
+  and its agents don't work in its folder; your other projects are not affected.
+- If you chose **Don't Allow**, or the window is gone: open **System Settings › Privacy & Security › Files and
+  Folders**, turn on the folder under “node”, then restart APX (`apx service restart`, or quit and open the desktop
+  app).
+- To avoid the question, keep projects in a folder macOS doesn't protect, such as `~/work/…`.
+
+Before 2.12.4 the core waited for the answer before it started: the desktop app stayed on **Connecting to APX** and
+`apx status` found no core until someone answered the window.
+
 ## The port is already in use
 
 Only one process can listen on `7440`. If another core already holds it (an earlier `pnpm dev`, the desktop app's own
