@@ -112,7 +112,10 @@ Una ronda de prueba aparece entre las rondas del flow, marcada **Prueba**, con e
 
 Un flow es de un proyecto, que se elige arriba al crear el flow: los pasos que lo necesitan (agentes, tablas, rutinas,
 una carpeta) lo dicen hasta que lo elegís. Los campos de texto ofrecen valores mientras escribís `$`, `{{` o
-`secret://`, o con su botón de llaves; donde puede ir una clave, la lista también ofrece **Guardar una clave**.
+`secret://`, o con su botón de llaves; donde puede ir una clave, la lista también ofrece **Guardar una clave**. La
+**Instrucción** de un paso Modelo IA es la excepción: se manda tal como está, así que un valor como `$steps.leer.respuesta`
+le llega al modelo como ese texto, y el paso lo avisa abajo. Elegí con qué trabaja en **Qué recibe**, que le llega como
+datos.
 
 **Quién responde** es **Un agente** (uno del crew, con sus instrucciones, personalidad, memoria y herramientas) o **Un
 bot de este flow**: un nombre y **Cómo trabaja**, el prompt de sistema que escribís. Un bot arranca de cero en cada

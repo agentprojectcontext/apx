@@ -229,6 +229,8 @@ export const enFlow = {
   "flow.f.saveNote": "It doesn't call a model.",
   "flow.f.agent": "Agent of the crew",
   "flow.f.task": "Instruction",
+  "flow.f.taskRefs":
+    "{ref} is sent as written: this step doesn't fill in values. Choose what it works on in What it receives.",
   "flow.f.agentNote": "Uses the agent's engine and skills. This step spends tokens.",
   "flow.f.routine": "Routine",
   "flow.f.noRoutines": "This project has no manual routines.",

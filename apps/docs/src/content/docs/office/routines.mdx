@@ -107,7 +107,9 @@ the list, and a schedule doesn't skip its time because of it.
 
 A flow belongs to one project, chosen at the top of a new flow: the steps that need it (agents, tables, routines, a
 folder) say so until it is chosen. Text fields offer values as you type `$`, `{{` or `secret://`, or with their braces
-button; where a secret can go, the list also offers **Save a secret**.
+button; where a secret can go, the list also offers **Save a secret**. An AI model step's **Instruction** is the
+exception: it is sent as written, so a value like `$steps.read.answer` in it reaches the model as that text, and the
+step says so under it. Pick what it works on in **What it receives**, which reaches it as data.
 
 **Who answers** is **An agent** (one of the crew, with its instructions, personality, memory and tools) or **A bot for
 this flow**: a name and **How it works**, the system prompt you write. A bot starts from scratch on every run: no memory,
