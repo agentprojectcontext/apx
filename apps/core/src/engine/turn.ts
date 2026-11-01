@@ -341,6 +341,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     sessionId: undefined,
     outside: () => exec.untrusted,
     onText: display.text,
+    onModel: display.setModel,
     // Kept as it grows: a turn that fails or is canceled still shows what it spent.
     onUsage: (u) => {
       run = store.runs.patch(run, { usage: u });
@@ -837,7 +838,8 @@ async function finishRun(
   const { display, thread, outcome } = t;
   display.close();
   // The message names the effort too (a model ref); the run keeps the bare model for usage and context windows.
-  display.setModel(outcome.effort ? `${outcome.model}#${outcome.effort}` : outcome.model);
+  if (outcome.modelConfirmed !== false)
+    display.setModel(outcome.effort ? `${outcome.model}#${outcome.effort}` : outcome.model);
   // The chosen model failed and another answered: the owner sees which and why, the log keeps it too.
   const first = outcome.failed?.[0];
   if (first) {
@@ -871,7 +873,10 @@ async function finishRun(
   if (outcome.outOfSteps) display.notice("warn", "run.stepLimit", STEP_LIMIT, { vars: {} });
   const window = outcome.usage?.window ?? (outcome.usage?.context ? contextWindow(outcome.model) : undefined);
   const usage = outcome.usage && { ...outcome.usage, ...(window ? { window } : {}) };
-  let run = store.runs.patch(t.run, { model: outcome.model, ...(usage ? { usage } : {}) });
+  let run = store.runs.patch(t.run, {
+    ...(outcome.modelConfirmed !== false ? { model: outcome.model } : {}),
+    ...(usage ? { usage } : {}),
+  });
   // Only our own loop can tell; an outside engine's completed turn keeps no reason.
   const end = outcome.outOfSteps ? "step_limit" : (run.harness ?? "native") === "native" ? "normal" : undefined;
   run = store.runs.setState(run, "completed", undefined, end && { reason: end });

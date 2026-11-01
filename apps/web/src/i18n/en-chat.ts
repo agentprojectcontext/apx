@@ -1,5 +1,8 @@
 // UI strings, English: the chat's composer and its Usage panel.
 export const enChat = {
+  "chat.modelUnconfirmed": "Model unconfirmed",
+  "chat.modelRequested": "Requested:",
+  "chat.modelEngineDefault": "{engine} default",
   "chat.agentProgress": "Progress from {name}",
   "chat.agentResponse": "Response from {name}",
   "chat.agentMessage": "Message from {name}",

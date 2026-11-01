@@ -28,6 +28,18 @@ itself, in a folder, from **External sessions**. They are not models for your ag
   lives in Claude Code sessions, and agents that should think with Claude use an Anthropic API key.
 </Aside>
 
+## See an external session's model
+
+In the next unreleased update, the external chat header shows **Requested:** followed by the selected model and effort, or the engine's default.
+That is a request, not confirmation of what ran. Each response's footer shows the model reported by the engine;
+**Model unconfirmed** means APX has not received that information. This is visible in read-only conversations
+between agents too.
+
+In the next unreleased update, Claude Code reports its model as the turn starts, so it remains visible while waiting
+for your approval or after cancellation. The saved response keeps that model when you reload or resume the chat.
+Later responses can report a different model without changing earlier ones. Effort appears with the confirmed model
+only when reported; an effort shown under **Requested:** is still only the one you asked for.
+
 ## Add a provider
 
 Open **Settings › Engines and models**. Under **Model APIs (APX's own loop)**, click **Add provider** and pick its

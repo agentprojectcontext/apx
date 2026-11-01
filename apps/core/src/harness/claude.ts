@@ -209,7 +209,14 @@ async function attempt(
   const onAbort = () => ac.abort();
   io.signal.addEventListener("abort", onAbort, { once: true });
   let text = "";
-  let model = o.chosen ?? "default";
+  let model = "default";
+  let modelConfirmed = false;
+  const reportModel = (reported: string | undefined) => {
+    if (!reported || reported === "default" || reported === "<synthetic>") return;
+    model = reported;
+    modelConfirmed = true;
+    io.onModel?.(`claude/${reported}`);
+  };
   let sessionId = o.resume;
   // The call each stream is on (the turn's own, keyed "", and each subagent's), for the tokens its deltas add.
   const current = new Map<string, string>();
@@ -239,7 +246,10 @@ async function attempt(
     });
     for await (const m of q) {
       io.alive?.();
-      if (m.type === "stream_event") {
+      if (m.type === "system" && m.subtype === "init") {
+        sessionId = m.session_id;
+        reportModel(m.model);
+      } else if (m.type === "stream_event") {
         const ev = m.event;
         const main = !m.parent_tool_use_id;
         if (ev.type === "message_start") {
@@ -247,7 +257,10 @@ async function attempt(
           o.tally.call(ev.message.id, ev.message.usage, main);
         } else if (ev.type === "message_delta") o.tally.call(current.get(m.parent_tool_use_id ?? ""), ev.usage, main);
         if (!main) continue;
-        if (ev.type === "message_start") text = "";
+        if (ev.type === "message_start") {
+          text = "";
+          reportModel(ev.message.model);
+        }
         if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
           text += ev.delta.text;
           io.onText(text);
@@ -255,7 +268,7 @@ async function attempt(
       } else if (m.type === "assistant") {
         o.tally.call(m.message.id, m.message.usage, !m.parent_tool_use_id);
         if (m.parent_tool_use_id) continue;
-        model = m.message.model || model;
+        reportModel(m.message.model);
         sessionId = m.session_id;
         // Its own tools are shown as cards and recorded as steps; web tools also tell the policy that outside text
         // is now in the turn.
@@ -280,10 +293,10 @@ async function attempt(
             (m.usage.cache_creation_input_tokens ?? 0),
           output: m.usage.output_tokens ?? 0,
         };
-        return { text: m.result || text, model: `claude/${model}`, effort: o.effort, sessionId, usage };
+        return { text: m.result || text, model: `claude/${model}`, modelConfirmed, sessionId, usage };
       }
     }
-    return { text, model: `claude/${model}`, effort: o.effort, sessionId, usage: o.tally.total() };
+    return { text, model: `claude/${model}`, modelConfirmed, sessionId, usage: o.tally.total() };
   } finally {
     io.signal.removeEventListener("abort", onAbort);
   }

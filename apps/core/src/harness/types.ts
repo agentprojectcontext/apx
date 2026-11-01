@@ -29,6 +29,8 @@ export type TurnIO = {
   /** Whether outside content is in this turn so far (or was in this engine session before: it keeps it). */
   outside(): boolean;
   onText(soFar: string): void;
+  /** The external engine reported its active model, not merely the model requested by APX. */
+  onModel?(model: string): void;
   /** This turn's tokens so far, reported as they grow: a turn that fails or is canceled still shows what it spent. */
   onUsage?(soFar: Usage): void;
   /** Any sign of progress (a token, a tool's result or progress, a status): the turn is still working. */
@@ -74,6 +76,8 @@ export type TurnIO = {
 export type TurnOutcome = {
   text: string;
   model: string;
+  /** False when an external engine never reported its model; the requested/default ref is not display evidence. */
+  modelConfirmed?: boolean;
   /** The reasoning effort the model ran with, when one was asked for. */
   effort?: string | undefined;
   /** Models tried first that did not answer, with why (each once). */

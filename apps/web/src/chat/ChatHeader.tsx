@@ -6,6 +6,7 @@ import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { compactThread } from "../data/actions.ts";
 import { DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
+import { effortLabel, modelOf, splitRef, useModels } from "../data/models.ts";
 import { isNewChat } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { updateThread } from "../data/threadAdmin.ts";
@@ -69,6 +70,10 @@ export function ChatHeader({
   // An engine session is the engine itself: its name and icon, not the agent that owns the run.
   const engine = useEngineLabel(thread.engine);
   const name = sub || thread.channel ? thread.title : (engine ?? agent?.name ?? thread.title);
+  const catalog = useModels((s) => s.catalog);
+  const requestedRef = thread.model_choice?.model;
+  const requested = requestedRef ? splitRef(requestedRef) : undefined;
+  const requestedName = requestedRef && modelOf(requestedRef, catalog)?.name;
 
   return (
     <header className={compact ? "chat__header chat__header--compact" : "chat__header"}>
@@ -158,6 +163,21 @@ export function ChatHeader({
             </span>
           )}
         </div>
+        {engine && (
+          <div className="chat__crumb chat__modelrequest">
+            <span>{t("chat.modelRequested")}</span>
+            {requested?.model ? (
+              requestedName ? (
+                <span>{requestedName}</span>
+              ) : (
+                <code>{requested.model}</code>
+              )
+            ) : (
+              <span>{t("chat.modelEngineDefault", { engine })}</span>
+            )}
+            {requested?.effort && <span>· {effortLabel(requested.effort)}</span>}
+          </div>
+        )}
       </div>
       <div className="chat__tools">
         <IconButton

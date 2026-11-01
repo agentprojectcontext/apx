@@ -46,6 +46,16 @@
   color: var(--apx-fg-muted);
   white-space: nowrap;
 }
+.chat__header:has(.chat__modelrequest) {
+  height: auto;
+  min-height: var(--shell-header-h);
+  padding-block: 8px;
+}
+.chat__modelrequest {
+  flex-wrap: wrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .chat__crumbsep {
   color: var(--apx-fg-subtle);
 }

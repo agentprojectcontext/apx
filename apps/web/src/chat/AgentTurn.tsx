@@ -5,7 +5,7 @@ import { DeliveryTicks, ReactionList, ViaMark } from "../channels/MessageMarks.t
 import { isSignal } from "../channels/signal.ts";
 import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
 import { blobOf } from "../data/identity.ts";
-import { baseRef, effortLabel, splitRef } from "../data/models.ts";
+import { baseRef, effortLabel, modelOf, splitRef, useModels } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import {
@@ -123,13 +123,17 @@ export function AgentTurn({
   const lookIn = message.run_id ? (
     <IconButton size="sm" label={t("msg.received")} icon={<Icons.Eye size={13} />} onClick={() => setReceived(true)} />
   ) : null;
-  const effort = message.model ? splitRef(message.model).effort : undefined;
+  const catalog = useModels((s) => s.catalog);
+  const reported = message.model ? splitRef(message.model) : undefined;
+  const confirmed = reported?.model && reported.model !== "default" ? message.model : undefined;
+  const effort = engine ? undefined : reported?.effort;
+  const model = engine
+    ? confirmed
+      ? (modelOf(confirmed, catalog)?.name ?? <code>{splitRef(confirmed).model}</code>)
+      : t("chat.modelUnconfirmed")
+    : message.model && baseRef(message.model);
   const meta = (
-    <MessageMeta
-      agent={engine?.label ?? agent?.name}
-      model={message.model && baseRef(message.model)}
-      effort={effort && effortLabel(effort)}
-    >
+    <MessageMeta agent={engine?.label ?? agent?.name} model={model} effort={effort && effortLabel(effort)}>
       <ViaMark thread={thread} message={message} />
       {message.delivery && <DeliveryTicks state={message.delivery} />}
     </MessageMeta>
