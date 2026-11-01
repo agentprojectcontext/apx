@@ -6,7 +6,7 @@ import { engineOf } from "../domain/refs.ts";
 import { type Attachment, ownerOrigin, publicRun, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
-import { tree } from "../engine/breaker.ts";
+import { agentTripped, tree, tripped } from "../engine/breaker.ts";
 import type { Admit, Engine } from "../engine/engine.ts";
 import { goOn } from "../engine/go-on.ts";
 import { MAX_ACTIVE_DELEGATIONS } from "../engine/limits.ts";
@@ -38,6 +38,11 @@ export function codeFolder(store: Store, projectId: string | undefined, cwd: str
   }
 }
 
+function checkSessionBudget(store: Store, caller: string, agent: { id: string; name: string }): void {
+  const paused = tripped(store, caller) ?? agentTripped(store, caller, agent.id, agent.name);
+  if (paused) throw conflict(paused);
+}
+
 /** A new chat or code thread. An outside app gets a plain chat, named after it, that only it can use. */
 function createThread(
   store: Store,
@@ -64,6 +69,7 @@ function createThread(
   if (model && (!engine || engineOf(model) !== engine))
     throw badRequest("a session's model must belong to its external engine");
   const caller = engine && ctx.agent ? store.threads.get(ctx.agent.thread_id) : undefined;
+  if (caller) checkSessionBudget(store, caller.id, agent);
   const folder = kind === "code" ? codeFolder(store, pid, cwd ?? caller?.cwd) : undefined;
   if (caller?.cwd && folder && !insideReal(caller.cwd, folder))
     throw unauthorized("an external session must stay inside its caller's folder");
@@ -334,6 +340,7 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         const from = store.agents.get(ctx.agent.id);
         if (!parent || !from || parent.agent_id !== from.id || parent.thread_id !== target.parent_id)
           throw unauthorized("the session's caller is no longer available");
+        checkSessionBudget(store, target.parent_id, agent);
         return post(thread, text, { kind: "agent", id: from.id }, false, {
           agent_id: agent.id,
           trigger: "a2a",
