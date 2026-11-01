@@ -1,8 +1,13 @@
-import { ModelRef, WritePolicy } from "@apx/protocol";
+import { DEFAULT_AUTONOMY, ModelRef, WritePolicy } from "@apx/protocol";
 import { z } from "zod";
 import { engineOf } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
+import { strictestWrite } from "../domain/threads.ts";
+import { modeOf, withProjectAutonomy } from "./policy.ts";
 import { defineTool, type Tool } from "./types.ts";
+
+const writeOfMode = (mode: string): z.infer<typeof WritePolicy> =>
+  mode === "plan" ? "read-only" : mode === "manual" ? "ask" : "auto";
 
 export function externalSessionTools(store: Store): Tool[] {
   return [
@@ -40,13 +45,19 @@ export function externalSessionTools(store: Store): Tool[] {
         )
           return "refused: this agent cannot start a session in another project";
         if (a.model && engineOf(a.model) !== a.engine) return `refused: model must belong to ${a.engine}`;
-        const write = a.write ?? ctx.thread.write ?? "ask";
+        let write = a.write ?? ctx.thread.write ?? "ask";
         if (
           (ctx.thread.write === "read-only" && write !== "read-only") ||
           (ctx.thread.write === "ask" && write === "auto") ||
           (ctx.agent.rules?.write === "off" && write !== "read-only")
         )
           return "refused: a session cannot have more write permission than its caller";
+        // A global caller in total mode cannot lift a destination project's ceiling (D-126).
+        write = strictestWrite(
+          write,
+          ctx.thread.write ?? writeOfMode(modeOf(withProjectAutonomy(store, ctx.agent))),
+          writeOfMode(project.autonomy ?? DEFAULT_AUTONOMY),
+        );
         const thread = await ctx.call("threads.create", {
           kind: "code",
           agent_id: ctx.agent.id,

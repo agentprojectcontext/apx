@@ -134,6 +134,33 @@ test("an external engine cannot edit from a read-only session", async () => {
   assert.equal(approvals.get(started.thread), false);
 });
 
+test("a global caller in total mode cannot lift the destination project's write ceiling", async () => {
+  try {
+    for (const [autonomy, expected] of [
+      ["manual", "ask"],
+      ["plan", "read-only"],
+    ] as const) {
+      await env.client.call("projects.update", { project, autonomy });
+      for (const engine of ["claude", "codex"]) {
+        const started = JSON.parse((await start({ engine, write: "auto" })).result) as {
+          thread: string;
+          write: string;
+        };
+        await env.settle(started.thread);
+        assert.equal(started.write, expected);
+        assert.equal(seen.find((io) => io.thread.id === started.thread)?.thread.write, expected);
+      }
+      const readonly = JSON.parse((await start({ write: "read-only", task: "probe-write" })).result) as {
+        thread: string;
+      };
+      await env.settle(readonly.thread);
+      assert.equal(approvals.get(readonly.thread), false);
+    }
+  } finally {
+    await env.client.call("projects.update", { project, autonomy: null });
+  }
+});
+
 test("an engine failure stays visible in the external session instead of falling back to the native model", async () => {
   const started = JSON.parse((await start({ task: "fail-session" })).result) as { thread: string; run: string };
   await env.settle(started.thread);
