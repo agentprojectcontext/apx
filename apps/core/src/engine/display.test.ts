@@ -31,6 +31,26 @@ async function answerIn() {
   return { t, store, display };
 }
 
+test("model report provenance is persisted, upgraded without a model change and kept below owner messages", async () => {
+  const { t, store, display } = await answerIn();
+  display.setModel("claude/reported");
+  assert.equal(store.messages.get(display.message.id)?.model_reported, undefined);
+  display.setModel("claude/reported", true);
+  assert.equal(store.messages.get(display.message.id)?.model_reported, true);
+  display.finalText("First response");
+  const first = display.message.id;
+  store.messages.add({ thread_id: t, author: { kind: "user" }, parts: [{ type: "text", text: "continue" }] });
+  const next = display.below();
+  assert.equal(store.messages.get(next.id)?.model_reported, true);
+  display.setModel("claude/next", true);
+  display.finalText("Next response");
+  assert.equal(store.messages.get(first)?.model, "claude/reported");
+  assert.equal(store.messages.get(first)?.model_reported, true);
+  assert.equal(store.messages.get(next.id)?.model, "claude/next");
+  display.setModel("claude/requested");
+  assert.equal(store.messages.get(next.id)?.model_reported, undefined);
+});
+
 test("after the owner's words, a card shown above them still changes in place", async () => {
   const { t, store, display } = await answerIn();
   display.upsert((p) => p.type === "subthread", card("working"));

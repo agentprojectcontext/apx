@@ -53,18 +53,79 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     }, "Claude permission");
     const waiting = await client.call("threads.get", { thread: thread.id });
     assert.equal(waiting.messages.at(-1)?.model, "claude/reported-b");
+    assert.equal(waiting.messages.at(-1)?.model_reported, true);
     await client.call("threads.cancel", { thread: thread.id });
     done = await env.settle(thread.id);
     assert.equal(done.messages.at(-1)?.model, "claude/reported-b");
     const reloaded = await client.call("threads.get", { thread: thread.id });
     assert.equal(reloaded.messages.at(-1)?.model, "claude/reported-b");
+    assert.equal(reloaded.messages.at(-1)?.model_reported, true);
+    assert.equal(reloaded.messages.find((m) => m.model === "claude/reported-a")?.model_reported, true);
   } finally {
     await env.core.close();
     await env.cleanup();
   }
 });
 
-test("a requested Claude model and effort are not evidence when the engine reports neither", async () => {
+for (const kind of ["stream_event", "assistant"] as const) {
+  test(`Claude ${kind} updates the main model without trusting child or synthetic models`, async () => {
+    await using dir = tempDir("apx-model-report-");
+    const bin = path.join(dir.path, "claude.js");
+    const event = (model: string, parent: string | null) => {
+      const message = { id: `${model}-${parent}`, model, content: [], usage: { input_tokens: 1, output_tokens: 1 } };
+      return kind === "assistant"
+        ? { type: kind, parent_tool_use_id: parent, message, session_id: "fixture-session" }
+        : { type: kind, parent_tool_use_id: parent, event: { type: "message_start", message } };
+    };
+    const events = [
+      { type: "system", subtype: "init", model: "initial", session_id: "fixture-session" },
+      event("reported-main", null),
+      event("nested-child", "parent-tool"),
+      event("<synthetic>", null),
+      {
+        type: "result",
+        subtype: "success",
+        result: "Done",
+        session_id: "fixture-session",
+        modelUsage: {},
+        usage: { input_tokens: 1, output_tokens: 1 },
+      },
+    ];
+    fs.writeFileSync(
+      bin,
+      `
+const readline = require("node:readline");
+const send = (v) => process.stdout.write(JSON.stringify(v) + "\\n");
+readline.createInterface({ input: process.stdin }).on("line", (line) => {
+  const m = JSON.parse(line);
+  if (m.type === "control_request") send({ type: "control_response", response: { subtype: "success", request_id: m.request_id, response: {} } });
+  else if (m.type === "user") for (const event of ${JSON.stringify(events)}) send(event);
+});
+`,
+    );
+    const harness = claudeHarness({ claudePath: async () => bin, cwd: () => dir.path, readImage: () => undefined });
+    const env = await startCore({ llm: scriptedLlm(() => say("ok")), harnesses: { claude: harness } });
+    try {
+      const { project } = await env.client.call("projects.register", { path: dir.path, init: true });
+      const thread = await env.client.call("threads.create", {
+        kind: "code",
+        agent_id: "superagent",
+        project_id: project.id,
+        engine: "claude",
+      });
+      await env.client.call("threads.send", { thread: thread.id, text: "finish" });
+      const done = await env.settle(thread.id);
+      assert.equal(done.runs[0]?.state, "completed");
+      assert.equal(done.messages.at(-1)?.model, "claude/reported-main");
+      assert.equal(done.messages.at(-1)?.model_reported, true);
+    } finally {
+      await env.core.close();
+      await env.cleanup();
+    }
+  });
+}
+
+test("requested models, effort and startup aliases do not confirm a Claude model", async () => {
   await using dir = tempDir("apx-model-unknown-");
   const bin = path.join(dir.path, "claude.js");
   fs.writeFileSync(
@@ -75,7 +136,11 @@ const send = (v) => process.stdout.write(JSON.stringify(v) + "\\n");
 readline.createInterface({ input: process.stdin }).on("line", (line) => {
   const m = JSON.parse(line);
   if (m.type === "control_request") send({ type: "control_response", response: { subtype: "success", request_id: m.request_id, response: {} } });
-  else if (m.type === "user") send({ type: "result", subtype: "success", result: "Done", session_id: "fixture-session", modelUsage: {}, usage: { input_tokens: 1, output_tokens: 1 } });
+  else if (m.type === "user") {
+    for (const model of ["default", "opus", "sonnet", "haiku", "sonnet[1m]", "opusplan", "<synthetic>"])
+      send({ type: "system", subtype: "init", model, session_id: "fixture-session" });
+    send({ type: "result", subtype: "success", result: "Done", session_id: "fixture-session", modelUsage: {}, usage: { input_tokens: 1, output_tokens: 1 } });
+  }
 });
 `,
   );
@@ -94,6 +159,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     const done = await env.settle(thread.id);
     assert.equal(done.runs[0]?.state, "completed");
     assert.equal(done.messages.at(-1)?.model, undefined);
+    assert.equal(done.messages.at(-1)?.model_reported, undefined);
     assert.equal(done.runs[0]?.model, undefined);
   } finally {
     await env.core.close();

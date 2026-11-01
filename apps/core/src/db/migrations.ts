@@ -1157,4 +1157,6 @@ export const MIGRATIONS: readonly string[] = [
     ), 0) = 0;
   UPDATE surfaces SET pinned = 0 WHERE page = 1;
   `,
+  // Existing model labels have unknown provenance and remain NULL.
+  `ALTER TABLE messages ADD COLUMN model_reported INTEGER;`,
 ];

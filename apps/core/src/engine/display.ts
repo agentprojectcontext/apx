@@ -77,6 +77,7 @@ export function openDisplay(store: Store, message: Message) {
         parts: [],
         ...(current.run_id ? { run_id: current.run_id } : {}),
         ...(current.model ? { model: current.model } : {}),
+        ...(current.model_reported !== undefined ? { model_reported: current.model_reported } : {}),
       });
       if (current.parts.length) earlier.push(current);
       else store.messages.drop(current.thread_id, [current.id]);
@@ -109,9 +110,9 @@ export function openDisplay(store: Store, message: Message) {
     ) {
       upsert((p) => p.type === "notice" && p.code === code, { type: "notice", level, code, text, ...extra });
     },
-    setModel(model: string) {
-      if (current.model === model) return;
-      current = store.messages.update({ ...current, model });
+    setModel(model: string, model_reported?: boolean) {
+      if (current.model === model && current.model_reported === model_reported) return;
+      current = store.messages.update({ ...current, model, model_reported });
     },
     close: flush,
   };

@@ -341,7 +341,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     sessionId: undefined,
     outside: () => exec.untrusted,
     onText: display.text,
-    onModel: display.setModel,
+    onModel: (model) => display.setModel(model, true),
     // Kept as it grows: a turn that fails or is canceled still shows what it spent.
     onUsage: (u) => {
       run = store.runs.patch(run, { usage: u });
@@ -839,7 +839,7 @@ async function finishRun(
   display.close();
   // The message names the effort too (a model ref); the run keeps the bare model for usage and context windows.
   if (outcome.modelConfirmed !== false)
-    display.setModel(outcome.effort ? `${outcome.model}#${outcome.effort}` : outcome.model);
+    display.setModel(outcome.effort ? `${outcome.model}#${outcome.effort}` : outcome.model, outcome.modelConfirmed);
   // The chosen model failed and another answered: the owner sees which and why, the log keeps it too.
   const first = outcome.failed?.[0];
   if (first) {

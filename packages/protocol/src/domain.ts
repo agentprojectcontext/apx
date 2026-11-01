@@ -634,6 +634,8 @@ export const Message = z.object({
   parts: z.array(Part),
   run_id: Id.optional(),
   model: z.string().optional(),
+  /** True only when the engine confirmed the model; absent means historical provenance is unknown. */
+  model_reported: z.boolean().optional(),
   /** Sent on a channel: queued, taken by the platform, on their device, seen by them, or not sent. */
   delivery: MessageDelivery.optional(),
   /** Emoji put on it on a channel, at most one per side. */

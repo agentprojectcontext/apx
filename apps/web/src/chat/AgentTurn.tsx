@@ -125,7 +125,8 @@ export function AgentTurn({
   ) : null;
   const catalog = useModels((s) => s.catalog);
   const reported = message.model ? splitRef(message.model) : undefined;
-  const confirmed = reported?.model && reported.model !== "default" ? message.model : undefined;
+  const confirmed =
+    message.model_reported === true && reported?.model && reported.model !== "default" ? message.model : undefined;
   const effort = engine ? undefined : reported?.effort;
   const model = engine
     ? confirmed

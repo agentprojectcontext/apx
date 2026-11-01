@@ -371,6 +371,7 @@ export interface MessagesTable {
   delivery: string | null;
   reactions: string | null;
   via: string | null;
+  model_reported: number | null;
 }
 
 export interface MessagesNTable {

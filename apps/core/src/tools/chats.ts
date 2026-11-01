@@ -5,8 +5,8 @@ import type { Message, Thread } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import { canReadChat as canRead } from "../domain/chat-access.ts";
+import { messageQuery } from "../domain/messages.ts";
 import type { Store } from "../domain/store.ts";
-import { messageQuery } from "../domain/threads.ts";
 import { cap, untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
