@@ -28,10 +28,15 @@ muestra la misma versión y el `code_sha`.
 
 Si el core no está corriendo, vas a ver:
 
-<Terminal command="apx status">{`apx: the core is not running (try: apx service install, or pnpm dev)`}</Terminal>
+<Terminal command="apx status">{`apx: Core not running: See why and what to do: apx doctor`}</Terminal>
 
-Arrancalo con la app de escritorio, con `apx service install` (o `apx service restart` si el servicio ya existe), o
-con `pnpm dev` desde el código. Si arranca y se cae, leé su log.
+`apx doctor` revisa esta computadora sin el core: qué dice el log del core sobre su último arranque, si el servicio
+está instalado y corriendo, y si salió un APX más nuevo. Termina con el comando a correr. Si una versión no puede
+arrancar (su log muestra `ERR_MODULE_NOT_FOUND`), `apx update` la reemplaza aunque el core esté caído, en un APX
+instalado con el script de instalación; la app de escritorio se reemplaza bajando la más nueva.
+
+Si no, arrancalo con la app de escritorio, con `apx service install` (o `apx service restart` si el servicio ya
+existe), o con `pnpm dev` desde el código. Si arranca y se cae, leé su log.
 
 ## Dónde están los logs
 

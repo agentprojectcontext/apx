@@ -178,6 +178,9 @@ function errorCodes(err: unknown, depth = 0): string[] {
   ];
 }
 
+/** Nothing listens on the core's address: it is not running. */
+export const coreRefused = (err: unknown) => errorCodes(err).includes("ECONNREFUSED");
+
 /** What to tell the owner when the core could not be reached; undefined for any other error. */
 export function unreachableCore(err: unknown): { title: string; lines: string[] } | undefined {
   const codes = errorCodes(err);
@@ -190,7 +193,7 @@ export function unreachableCore(err: unknown): { title: string; lines: string[] 
       ],
     };
   if (codes.includes("ECONNREFUSED"))
-    return { title: "Core not running", lines: ["Start it: apx service install, or pnpm dev"] };
+    return { title: "Core not running", lines: ["See why and what to do: apx doctor"] };
   return undefined;
 }
 

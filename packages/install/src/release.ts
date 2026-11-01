@@ -1,6 +1,8 @@
 // Updates for a daemon installed from a bundle (install.sh/ps1): the release feed says whether a newer APX is out, and
 // on the owner's word the bundle for this platform is downloaded, checked against its .sha256, unpacked beside the one
-// running and made `current`. The running version is never touched, so a failed update changes nothing.
+// running and made `current`. The running version is never touched, so a failed update changes nothing. The core uses
+// it, and so does `apx update` when the core cannot start.
+import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -15,8 +17,27 @@ import {
   parseSha256,
   type Release,
 } from "@apx/protocol";
-import { realpath } from "./paths.ts";
-import type { Runner } from "./updates.ts";
+
+/** Runs a command; never throws (a failure is a non-zero code). */
+export type Runner = (cmd: string, args: string[], timeoutMs: number) => Promise<{ code: number; out: string }>;
+
+/** Runs a command in `cwd`, keeping the end of its output. */
+export const commandRunner =
+  (cwd: string): Runner =>
+  (cmd, args, timeoutMs) =>
+    new Promise((resolve) => {
+      const child = spawn(cmd, args, { cwd, stdio: ["ignore", "pipe", "pipe"], timeout: timeoutMs });
+      let out = "";
+      const keep = (d: Buffer) => {
+        out = (out + d.toString()).slice(-8000);
+      };
+      child.stdout.on("data", keep);
+      child.stderr.on("data", keep);
+      child.on("error", (err) => resolve({ code: 1, out: err instanceof Error ? err.message : String(err) }));
+      child.on("close", (code) => resolve({ code: code ?? 1, out }));
+    });
+
+const realpath = (p: string) => (process.platform === "win32" ? fs.realpathSync.native(p) : fs.realpathSync(p));
 
 export type ReleaseCheck = { newer: Release[] };
 

@@ -90,6 +90,15 @@ about 4 MB it never used. `process.getBuiltinModule("node:http")` returns the sa
 
 ## Repo hygiene
 
+<a id="cli-without-core"></a>
+### `apx doctor` and `apx update` work with the core down
+**Rule:** the terminal diagnoses a core that does not answer (`apx doctor`) and updates a bundle install without it
+(`apx update`), reading this machine directly instead of the protocol: the one exception to rule 3, since there is
+no core to ask. The bundle install itself is the core's own code, shared from `packages/install/src/release.ts`.
+**Why:** the 2.12.0 and 2.12.1 bundles could not start their core; `apx update` then only said "Core not running"
+and pointed at `apx service install`, which started the same broken version again.
+**Where:** `apps/terminal/src/commands/doctor.ts`, `packages/install/src/release.ts`.
+
 <a id="private-terms"></a>
 ### `check:private` scans untracked files too
 **Rule:** the gate scans tracked **and** untracked-not-ignored files.
