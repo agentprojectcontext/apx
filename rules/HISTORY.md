@@ -26,6 +26,20 @@ transfer's source, independently of the creation event, and still notifies a dif
 **Where:** `engine/task-handoff.ts`, `engine/task-work.ts`, `engine/executor.ts`, `harness/native.ts`,
 `rpc/tasks.ts` and `engine/task-report.ts` under `apps/core/src/`.
 
+<a id="project-read-prompt"></a>
+### Project folders are read after the core listens, in worker threads
+**Rule:** the core never reads a registered project's folder before it listens, and at start reads each one in a
+worker thread (`createProjectReader`) with a deadline (`PROJECT_READ_MS`). A folder that does not answer in time is
+marked not present with `unreadable: "waiting"` (in memory only; the next start reads it again); its late answer
+still lands and the project comes back. A folder the system refuses reads as `unreadable: "denied"`.
+**Why:** on macOS, a read of ~/Documents, ~/Desktop, Downloads, iCloud Drive or a removable drive by the launchd
+core's `node` blocks inside the system call until someone answers the privacy prompt. The core read every project
+synchronously before `listen`, so one unanswered prompt left the desktop app on "Connecting to APX". Moving the
+read after `listen` alone does not help: a blocked synchronous read stops the whole event loop, and `fs.promises`
+would park one of libuv's four pool threads per held folder (DNS and other async work share them). Code that reads
+project files later skips projects that are not present.
+**Where:** `apps/core/src/apc/project-reader.ts`, `apc/sync.ts` (`load`), `server.ts`.
+
 <a id="connection-attempt-timeout"></a>
 ### Give dual-stack connections enough time
 **Rule:** the core entry point gives each address attempt at least two seconds, preserving longer configured values.

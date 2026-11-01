@@ -14,6 +14,7 @@ import {
 import { prepareLocalTarget } from "../../../packages/install/src/paths.ts";
 import { desktopSessionEnv } from "../../../packages/install/src/session.ts";
 import { createAccess, type TailscaleRun } from "./access.ts";
+import { createProjectReader, type ReadProjectFiles } from "./apc/project-reader.ts";
 import { createApcSync } from "./apc/sync.ts";
 import type { TemplateRoot } from "./apc/templates.ts";
 import { createBus } from "./bus.ts";
@@ -197,6 +198,8 @@ export type CoreOptions = {
   releases?: ReleaseSource;
   /** The Linux VM's memory and disk for system.usage; none until a VM is set up. */
   vmUsage?: UsageOptions["vm"];
+  /** Reads a project folder at start (by default in a worker thread); tests hold one or answer it. */
+  projectRead?: ReadProjectFiles;
 };
 
 export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
@@ -282,8 +285,15 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const catalog = createCatalog({ store, secrets, providers: providers.active, home: config.home, signIns });
   const engineIds = knownEngines(store, providers);
   // Live: an ACP agent or a provider added later is recognized without a restart.
-  const apc = createApcSync({ store, log, engines: { has: (id) => engineIds.harness.has(id) || providers.has(id) } });
-  apc.sync();
+  const projectReader = opts.projectRead ? undefined : createProjectReader();
+  // Folders are read after the core listens (load below): one macOS privacy prompt must not keep it from starting.
+  const apc = createApcSync({
+    store,
+    log,
+    engines: { has: (id) => engineIds.harness.has(id) || providers.has(id) },
+    read: opts.projectRead ?? projectReader?.read,
+    ...(opts.runTimers ? { timers: opts.runTimers } : {}),
+  });
   // The port this core answers on: the configured one, or the one the OS gave (tests listen on 0).
   let listening = config.port || 7440;
   const imessage =
@@ -754,6 +764,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   }
   const url = transport.url;
   selfUrl = url;
+  void apc.load().catch((err) => log.warn({ err: errorMessage(err) }, "projects not read"));
   engine.start();
   const nativeRoutes = nativePublicRoutes({ store, deliver: channels.webhook });
   const publishedRoutes = publishedPublicRoutes(store);
@@ -836,6 +847,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       services.close();
       await mcp.close();
       apc.close();
+      projectReader?.close();
       await transport.close();
       db.close();
     },

@@ -5,7 +5,11 @@ import { now, opt, qb, type Sql } from "./sql.ts";
 
 /** `context` is AGENTS.md and `memory` the owner's .apc/memory.md: both go to the agents, never to clients. */
 export type ProjectRecord = Project & { path?: string; context?: string; memory?: string };
-type ProjectWrite = Omit<ProjectRecord, "present" | "agents_md_chars"> & { present?: boolean; context_chars?: number };
+type ProjectWrite = Omit<ProjectRecord, "present" | "agents_md_chars" | "unreadable"> & {
+  present?: boolean;
+  context_chars?: number;
+};
+type Unreadable = NonNullable<Project["unreadable"]>;
 
 const toProject = (r: Selectable<ProjectsTable>): ProjectRecord => ({
   id: r.id,
@@ -49,6 +53,13 @@ export function projectsRepo({ one, all, run }: Sql, changed: () => void) {
   const write = (q: Parameters<Sql["run"]>[0]) => {
     if (run(q)) changed();
   };
+  // Not stored: the next start reads every folder again (apc/sync.ts load).
+  const unreadable = new Map<string, Unreadable>();
+  const shape = (r: Selectable<ProjectsTable>): ProjectRecord => {
+    const p = toProject(r);
+    const why = unreadable.get(p.id);
+    return why ? { ...p, unreadable: why } : p;
+  };
   /** Every record indexed at a folder, the one that holds it first: registered, then the oldest. */
   const atPath = (p: string): ProjectRecord[] =>
     all(
@@ -59,16 +70,16 @@ export function projectsRepo({ one, all, run }: Sql, changed: () => void) {
         .orderBy("registered", "desc")
         .orderBy("created_at")
         .orderBy("id"),
-    ).map(toProject);
+    ).map(shape);
   return {
     list(includeUnregistered = false): ProjectRecord[] {
       let query = qb.selectFrom("projects").selectAll().orderBy("name");
       if (!includeUnregistered) query = query.where("registered", "=", 1);
-      return all(query).map(toProject);
+      return all(query).map(shape);
     },
     get(id: string): ProjectRecord | undefined {
       const r = one(qb.selectFrom("projects").selectAll().where("id", "=", id));
-      return r ? toProject(r) : undefined;
+      return r ? shape(r) : undefined;
     },
     /** When each project last moved: its newest task change or chat message. */
     lastActivity(): Map<string, string> {
@@ -157,6 +168,13 @@ export function projectsRepo({ one, all, run }: Sql, changed: () => void) {
           .where("id", "=", id)
           .where("present", "!=", present ? 1 : 0),
       );
+    },
+    /** Why its folder could not be read, while this core runs; undefined once it was. */
+    setUnreadable(id: string, why: Unreadable | undefined): void {
+      if (unreadable.get(id) === why) return;
+      if (why) unreadable.set(id, why);
+      else unreadable.delete(id);
+      changed();
     },
     /** How far its agents go on their own when they set nothing; undefined = standard. */
     setAutonomy(id: string, autonomy: Autonomy | undefined): void {
