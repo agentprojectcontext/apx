@@ -88,6 +88,11 @@ test("the tool starts a visible external session on its engine default, linked t
   assert.equal(run?.input?.origin.kind, "agent");
   assert.match(texts((await env.settle(caller.id)).messages).join("\n"), /review complete/);
   assert.ok((await env.client.call("threads.list", { engine: "claude" })).threads.some((t) => t.id === started.thread));
+  for (const filter of [{}, { project_id: project }]) {
+    const listed = (await env.client.call("threads.list", filter)).threads.find((t) => t.id === started.thread);
+    assert.equal(listed?.project_id, project, "the external session is listed in its registered project");
+    assert.equal(listed?.parent_id, caller.id, "listing keeps the async delivery and budget lineage");
+  }
   assert.deepEqual(env.core.store.threads.context(started.thread).model_choice, { model: "claude", router: false });
 });
 

@@ -170,7 +170,12 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
               .limit(1)
               .as("routine_id"),
           )
-          .$if(!opts.include_subthreads, (q) => q.where("parent_id", "is", null))
+          // External code sessions are chats of their project too, even when a caller owns their delivery.
+          .$if(!opts.include_subthreads, (q) =>
+            q.where((eb) =>
+              eb.or([eb("parent_id", "is", null), eb.and([eb("kind", "=", "code"), eb("engine", "is not", null)])]),
+            ),
+          )
           .$if(!opts.include_archived, (q) => q.where("archived", "=", 0))
           // A routine's quiet runs are reached from the routine: they would crowd every other chat out of the cap.
           .where((eb) => eb.or([eb("kind", "!=", "routine"), eb("archived", "=", 0)]))
