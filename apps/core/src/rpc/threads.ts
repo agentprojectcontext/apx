@@ -15,6 +15,7 @@ import { answersOwner } from "../engine/task-inbox.ts";
 import { addComment, assignedTaskOf, consultMentioned, sessionFor, startHeld } from "../engine/task-work.ts";
 import type { Upkeep } from "../engine/upkeep.ts";
 import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
+import { insideReal } from "../paths.ts";
 import { folderInProject } from "../tools/folders.ts";
 import type { CallContext } from "./context.ts";
 
@@ -63,7 +64,9 @@ function createThread(
   if (model && (!engine || engineOf(model) !== engine))
     throw badRequest("a session's model must belong to its external engine");
   const caller = engine && ctx.agent ? store.threads.get(ctx.agent.thread_id) : undefined;
-  const folder = kind === "code" ? codeFolder(store, pid, cwd) : undefined;
+  const folder = kind === "code" ? codeFolder(store, pid, cwd ?? caller?.cwd) : undefined;
+  if (caller?.cwd && folder && !insideReal(caller.cwd, folder))
+    throw unauthorized("an external session must stay inside its caller's folder");
   return store.tx(() => {
     const t = store.threads.create({
       kind,

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, inputsOrEnd, say, scriptedLlm, startCore, texts } from "../engine/testkit.ts";
@@ -49,12 +50,14 @@ async function start(
   write?: "ask" | "auto" | "read-only",
   decision?: "approve" | "deny",
   agent = "superagent",
+  callerCwd?: string,
 ) {
   args = { engine: "claude", project, task: "review the change", ...options };
   const caller = await env.client.call("threads.create", {
-    kind: "loose",
+    kind: callerCwd ? "code" : "loose",
     agent_id: agent,
     project_id: project,
+    ...(callerCwd ? { cwd: callerCwd } : {}),
   });
   if (write) await env.client.call("threads.update", { thread: caller.id, write });
   await env.client.call("agents.update", { agent, autonomy: decision ? "auto" : "total" });
@@ -138,6 +141,31 @@ test("an engine failure stays visible in the external session instead of falling
   assert.match(env.core.store.runs.get(started.run)?.error ?? "", /external engine is unavailable/);
   assert.equal(env.core.store.threads.get(started.thread)?.engine, "claude");
   assert.equal(seen.filter((s) => s.thread.id === started.thread).length, 1);
+});
+
+test("an external session keeps its caller's folder by default and refuses roots, siblings and symlink escapes", async () => {
+  const scope = path.join(repo.path, "scoped");
+  const sibling = path.join(repo.path, "sibling");
+  const nested = path.join(scope, "nested");
+  fs.mkdirSync(nested, { recursive: true });
+  fs.mkdirSync(sibling, { recursive: true });
+  const link = path.join(scope, "escape");
+  fs.symlinkSync(sibling, link, process.platform === "win32" ? "junction" : "dir");
+  for (const cwd of [repo.path, sibling, link]) {
+    const count = seen.length;
+    assert.match(
+      (await start({ cwd, write: "read-only" }, undefined, undefined, "superagent", scope)).result,
+      /caller's folder/,
+    );
+    assert.equal(seen.length, count);
+  }
+  for (const options of [{}, { cwd: nested }]) {
+    const started = JSON.parse(
+      (await start({ ...options, write: "read-only" }, undefined, undefined, "superagent", scope)).result,
+    ) as { thread: string };
+    await env.settle(started.thread);
+    assert.equal(seen.find((s) => s.thread.id === started.thread)?.thread.cwd, options.cwd ?? scope);
+  }
 });
 
 test("a project agent cannot launch a session in another project", async () => {
