@@ -10,6 +10,7 @@ import { channels, contacts, pairing } from "./commands/channels.ts";
 import { chat } from "./commands/chat.ts";
 import { clients } from "./commands/clients.ts";
 import { desktop, openPanel } from "./commands/desktop.ts";
+import { doctor, updateOffline } from "./commands/doctor.ts";
 import { expose } from "./commands/expose.ts";
 import { extensions } from "./commands/extensions.ts";
 import { flows } from "./commands/flows.ts";
@@ -33,7 +34,7 @@ import { skillsImport } from "./commands/skills-import.ts";
 import { tasks } from "./commands/tasks.ts";
 import { agents, jobs, projects, runs, runtimeSkills, secrets, skills, threads, usage } from "./commands/threads.ts";
 import { v1 } from "./commands/v1.ts";
-import { themedCard as card, failure, unreachableCore } from "./presentation.ts";
+import { themedCard as card, coreRefused, failure, unreachableCore } from "./presentation.ts";
 
 const HELP = `apx — the APX terminal
 
@@ -44,7 +45,8 @@ Usage:
   apx wizard              Guided terminal setup and maintenance
   apx open                The panel in your browser
   apx desktop             The desktop app (downloads and opens its installer when it is not here)
-  apx upgrade [--check] [--json]   Check or apply the core's existing updater
+  apx upgrade [--check] [--json]   Check or apply the core's updater (a server install updates itself even when its core is down)
+  apx doctor [--json]     Why the core does not answer on this machine, and what to run next
   apx devices [list|pair|revoke <id>] [--json]
   apx tailscale [status|connect|off]   Expose APX through Tailscale (must already be logged in)
   apx mcp tools <server> [<tool>] [--project <id>] [--scope global|project] [--json]
@@ -288,9 +290,20 @@ try {
     case "status":
       await status(client, { json: values.json, plain: values.plain });
       break;
-    case "devices":
     case "upgrade":
     case "update":
+      try {
+        await admin(client, command ?? "", rest, values);
+      } catch (err) {
+        // A core that cannot start cannot update itself either.
+        if (!coreRefused(err)) throw err;
+        await updateOffline({ check: values.check || rest[0] === "check" });
+      }
+      break;
+    case "doctor":
+      await doctor({ json: values.json });
+      break;
+    case "devices":
     case "tailscale":
       await admin(client, command ?? "", rest, values);
       break;

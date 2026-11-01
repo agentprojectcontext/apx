@@ -49,7 +49,8 @@ console doesn't start: `apx` prints the help instead.
 | `apx desktop` | Open the desktop app (it downloads and opens the installer the first time). |
 | `apx wizard` | Guided terminal setup and maintenance. |
 | `apx upgrade --check` | Is there a newer APX? |
-| `apx upgrade` | Apply it, the same as **Update now** in the panel. |
+| `apx upgrade` | Apply it, the same as **Update now** in the panel. When the core does not answer, an APX installed with the install script updates itself anyway: it downloads the newest bundle, checks it and has the service start it. `apx update` is the same command. |
+| `apx doctor` | Why the core does not answer on this computer (what its log says, the service, a newer release) and the one command to run next. Works without the core; `--json`. |
 | `apx logs` | The newest lines of the core's log, through the core: `-n 200`, `--level info\|warn\|error`, `--grep text`, `--scope core\|output`, `--json`. With no core answering, the file on this computer. |
 | `apx service logs` | The log file on this computer (`<home>/logs/core.log`); `-n 100`, `-f` to follow it. |
 | `apx daemon` | Explains which `apx service` command to use (the background core is now a service). |
@@ -66,7 +67,7 @@ take `--json`. `apx status --plain` drops the card and the portrait.
 |---|---|
 | `apx service install` | Run the core in the background: a systemd user unit (Linux), a launchd agent (macOS) or a login entry (Windows), started at login and again if it dies. |
 | `apx service status` | Whether the service is installed and running, and whether the core answers. |
-| `apx service restart` | Restart it (the core reads `core.env` when it starts). |
+| `apx service restart` | Restart it (the core reads `core.env` when it starts). `apx service start` does the same, or installs it when it is not installed yet. |
 | `apx service uninstall` | Remove the service. |
 | `apx expose tailscale` | Publish the core to your tailnet at `https://<machine>.<tailnet>.ts.net`; the core stays on loopback. |
 | `apx expose lan` | Listen on every network address of this machine. |

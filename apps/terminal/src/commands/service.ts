@@ -28,7 +28,7 @@ import {
 const USAGE = `apx service install     Run the core in the background, started at login and again if it dies
 apx service uninstall
 apx service status
-apx service restart
+apx service restart     (start: the same, or install when it is not installed yet)
 apx service logs [-n 100] [-f]   The core's log on this machine (<home>/logs/core.log; on Linux, the systemd journal)`;
 
 /** The core exits with this code to be started again after an update (apps/core/src/updates.ts). */
@@ -138,6 +138,7 @@ export async function service(
   if (sub === "uninstall") return uninstall();
   if (sub === "status") return status();
   if (sub === "restart") return restart();
+  if (sub === "start") return installed() ? restart() : install();
   if (sub === "run") return supervise(opts.home ?? apxHome());
   throw new Error(USAGE);
 }
@@ -212,6 +213,22 @@ export async function status(): Promise<void> {
   console.log(`target   local machine, home ${apxHome()}`);
   console.log(`service  ${manager}`);
   console.log(`core     ${(await coreUp(url)) ? "answers" : "does not answer"} on ${url}`);
+}
+
+/** Whether this home's service is installed and, as far as the OS says, running. */
+export function serviceState(): "running" | "stopped" | "none" | "unknown" {
+  try {
+    if (!installed()) return "none";
+    if (process.platform === "linux")
+      return sh("systemctl", ["--user", "is-active", names().systemd]).out.trim() === "active" ? "running" : "stopped";
+    if (process.platform === "darwin") {
+      const r = sh("launchctl", ["print", `${launchdTarget()}/${names().launchd}`]);
+      return r.ok && /^\s*state = running$/m.test(r.out) ? "running" : "stopped";
+    }
+    return "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 
 export async function restart(): Promise<void> {

@@ -28,10 +28,15 @@ and `code_sha`.
 
 If the core isn't running at all you'll see:
 
-<Terminal command="apx status">{`apx: the core is not running (try: apx service install, or pnpm dev)`}</Terminal>
+<Terminal command="apx status">{`apx: Core not running: See why and what to do: apx doctor`}</Terminal>
 
-Start it with the desktop app, `apx service install` (or `apx service restart` if the service exists), or `pnpm dev`
-from a checkout. If it starts and dies, read its log.
+`apx doctor` reads this computer's side without the core: what the core's log says about its last start, whether the
+service is installed and running, and whether a newer APX is out. It ends with the one command to run next. If a
+version cannot start (its log shows `ERR_MODULE_NOT_FOUND`), `apx update` replaces it even with the core down, for an
+APX installed with the install script; the desktop app is replaced by downloading the newest one.
+
+Otherwise start it with the desktop app, `apx service install` (or `apx service restart` if the service exists), or
+`pnpm dev` from a checkout. If it starts and dies, read its log.
 
 ## Where the logs are
 
