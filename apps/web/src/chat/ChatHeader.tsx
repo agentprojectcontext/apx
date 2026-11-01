@@ -130,6 +130,17 @@ export function ChatHeader({
               {t("tasks.fromTask")}
             </button>
           )}
+          {thread.flow && (
+            <button
+              type="button"
+              className="chat__task"
+              title={t("flows.fromFlowHint")}
+              onClick={() => go.flows(thread.project_id, thread.flow?.id)}
+            >
+              <Icons.GitBranch size={11} />
+              {t("flows.fromFlow")}
+            </button>
+          )}
           {thread.channel && (
             <Suspense fallback={null}>
               <ChannelFace thread={thread} labelOnly />

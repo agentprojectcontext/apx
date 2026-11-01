@@ -72,6 +72,7 @@ function metaLine(thread: Thread, agent: Agent | undefined, t: T, channel: Chann
   if (thread.kind === "a2a") return t("thread.a2a");
   if (thread.kind === "group") return t("thread.group", { n: thread.agent_ids.length });
   if (thread.kind === "routine") return t("thread.routineOf", { name: routineName(thread) });
+  if (thread.flow) return t("thread.flowStep");
   if (channel) return t("chat.viaChannel", { channel: t(CHANNEL_KINDS[channel].name) });
   const kind = thread.kind === "home" ? t("thread.home") : t("thread.chat");
   return agent?.role ? `${kind} · ${agent.role}` : kind;

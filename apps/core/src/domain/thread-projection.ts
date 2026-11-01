@@ -5,12 +5,14 @@ import { opt } from "./sql.ts";
 import type { ThreadContext } from "./threads.ts";
 
 /** What a chat's context shows outside: the model picked in its composer, the release it tells about. */
-function fromContext(context: string): Pick<Thread, "model_choice" | "release"> {
+function fromContext(context: string): Pick<Thread, "model_choice" | "release" | "flow"> {
   try {
     const c = JSON.parse(context) as ThreadContext;
+    const flow = c.flow_step?.flow;
     return {
       ...(c.model_choice ? { model_choice: c.model_choice } : {}),
       ...(c.release ? { release: c.release.version } : {}),
+      ...(flow ? { flow: { id: flow, ...(c.flow_step?.node ? { step: c.flow_step.node } : {}) } } : {}),
     };
   } catch {
     return {};
