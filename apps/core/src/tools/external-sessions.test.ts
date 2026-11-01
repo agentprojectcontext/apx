@@ -88,6 +88,11 @@ test("the tool starts a visible external session on its engine default, linked t
   assert.equal(run?.input?.origin.kind, "agent");
   assert.match(texts((await env.settle(caller.id)).messages).join("\n"), /review complete/);
   assert.ok((await env.client.call("threads.list", { engine: "claude" })).threads.some((t) => t.id === started.thread));
+  for (const filter of [{}, { project_id: project }]) {
+    const listed = (await env.client.call("threads.list", filter)).threads.find((t) => t.id === started.thread);
+    assert.equal(listed?.project_id, project, "the external session is listed in its registered project");
+    assert.equal(listed?.parent_id, caller.id, "listing keeps the async delivery and budget lineage");
+  }
   assert.deepEqual(env.core.store.threads.context(started.thread).model_choice, { model: "claude", router: false });
 });
 
@@ -132,6 +137,33 @@ test("an external engine cannot edit from a read-only session", async () => {
   const started = JSON.parse((await start({ write: "read-only", task: "probe-write" })).result) as { thread: string };
   await env.settle(started.thread);
   assert.equal(approvals.get(started.thread), false);
+});
+
+test("a global caller in total mode cannot lift the destination project's write ceiling", async () => {
+  try {
+    for (const [autonomy, expected] of [
+      ["manual", "ask"],
+      ["plan", "read-only"],
+    ] as const) {
+      await env.client.call("projects.update", { project, autonomy });
+      for (const engine of ["claude", "codex"]) {
+        const started = JSON.parse((await start({ engine, write: "auto" })).result) as {
+          thread: string;
+          write: string;
+        };
+        await env.settle(started.thread);
+        assert.equal(started.write, expected);
+        assert.equal(seen.find((io) => io.thread.id === started.thread)?.thread.write, expected);
+      }
+      const readonly = JSON.parse((await start({ write: "read-only", task: "probe-write" })).result) as {
+        thread: string;
+      };
+      await env.settle(readonly.thread);
+      assert.equal(approvals.get(readonly.thread), false);
+    }
+  } finally {
+    await env.client.call("projects.update", { project, autonomy: null });
+  }
 });
 
 test("an engine failure stays visible in the external session instead of falling back to the native model", async () => {
