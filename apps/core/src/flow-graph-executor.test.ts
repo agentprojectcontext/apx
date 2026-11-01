@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { FlowGraph } from "../../../packages/protocol/src/flow-graph.ts";
+import type { FlowGraph } from "@apx/protocol/flow-graph";
 import { openDb } from "./db/db.ts";
 import { FLOW_RUN_MS } from "./domain/flow-graphs.ts";
 import { flowsRepo } from "./domain/flows.ts";

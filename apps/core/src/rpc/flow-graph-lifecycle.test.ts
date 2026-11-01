@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
-import type { FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowGraph } from "@apx/protocol/flow-graph";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { tempDir } from "../testkit/platform.ts";
 

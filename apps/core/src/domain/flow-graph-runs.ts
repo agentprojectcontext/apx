@@ -1,13 +1,9 @@
 // Checkpoints of graph runs: one row per event (its pinned revision, payload and deadline) and one per step. Every
 // transition is a compare-and-set inside a transaction that also checks the run is still going, so a step runs once
 // and a late answer never reopens an ended run (DECISIONS.md#d-167).
+
+import { FlowGraph, type FlowNode, type FlowRunDetail, type FlowStepRecord } from "@apx/protocol/flow-graph";
 import { sql as raw } from "kysely";
-import {
-  FlowGraph,
-  type FlowNode,
-  type FlowRunDetail,
-  type FlowStepRecord,
-} from "../../../../packages/protocol/src/flow-graph.ts";
 import type { Db } from "../db/db.ts";
 import { redactedJson } from "../log.ts";
 import { boundedFlowValue, type FlowNodeState } from "./flow-graph-semantics.ts";

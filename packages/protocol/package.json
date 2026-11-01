@@ -16,7 +16,11 @@
     "./flow-edit": "./src/flow-edit.ts",
     "./flow-path": "./src/flow-path.ts",
     "./task-groups": "./src/task-groups.ts",
-    "./delegation": "./src/delegation.ts"
+    "./delegation": "./src/delegation.ts",
+    "./flow-graph": "./src/flow-graph.ts",
+    "./flow-methods": "./src/flow-methods.ts",
+    "./flow-history": "./src/flow-history.ts",
+    "./table-cells": "./src/table-cells.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",

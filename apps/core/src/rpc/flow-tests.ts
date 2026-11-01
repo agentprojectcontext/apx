@@ -1,6 +1,6 @@
 // A Flow's address and the owner's tests of it with a real event (DECISIONS.md#d-178). Owner-only, like running and
 // stopping a Flow: a test sends, calls, runs and writes for real.
-import { FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
+import { FlowGraph } from "@apx/protocol/flow-graph";
 import { FlowCapacityError } from "../domain/flow-events.ts";
 import { isFlowTrigger } from "../domain/flow-graph-validate.ts";
 import { FlowGraphConflict, FlowTriggerMismatch } from "../domain/flow-graphs.ts";

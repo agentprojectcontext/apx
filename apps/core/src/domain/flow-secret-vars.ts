@@ -2,7 +2,7 @@
 // where a step reads secrets itself (an HTTP header, a command's environment): there a `$vars.name` placeholder, once
 // the text is parsed, stands for that reference as the owner's own text. Anywhere else the secret would travel as text,
 // or its name would, so validation refuses it (DECISIONS.md#d-173).
-import type { FlowBinding, FlowGraph, FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowBinding, FlowGraph, FlowNode } from "@apx/protocol/flow-graph";
 import type { FlowVarIndex } from "./flow-expr.ts";
 import { type FlowTemplatePart, parseFlowTemplate } from "./flow-template.ts";
 

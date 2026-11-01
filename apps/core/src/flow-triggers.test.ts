@@ -2,8 +2,8 @@
 // on different days, a webhook that takes GET as well as POST, and the key its callers send, made or chosen.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { switchTrigger } from "../../../packages/protocol/src/flow-edit.ts";
-import type { FlowGraph } from "../../../packages/protocol/src/flow-graph.ts";
+import { switchTrigger } from "@apx/protocol/flow-edit";
+import type { FlowGraph } from "@apx/protocol/flow-graph";
 import { flowCronProblem, nextCrons, parseCrons } from "./domain/schedule.ts";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";
 

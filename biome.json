@@ -55,6 +55,26 @@
       }
     },
     {
+      "includes": ["apps/core/src/**", "apps/terminal/src/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/packages/protocol/**"],
+                    "message": "Import @apx/protocol/<subpath> (add it to the package's exports): the installed core carries the protocol as a package, not its source files."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["apps/core/src/domain/**"],
       "linter": {
         "rules": {
@@ -66,6 +86,10 @@
                   {
                     "group": ["**/transport/**", "**/rpc/**", "**/channels/**"],
                     "message": "domain never imports transport, rpc or channels (AGENTS.md rule 4)."
+                  },
+                  {
+                    "group": ["**/packages/protocol/**"],
+                    "message": "Import @apx/protocol/<subpath> (add it to the package's exports): the installed core carries the protocol as a package, not its source files."
                   }
                 ]
               }
@@ -86,6 +110,10 @@
                   {
                     "group": ["**/transport/**"],
                     "message": "rpc never imports transport (AGENTS.md rule 4: transport \u2192 rpc \u2192 domain)."
+                  },
+                  {
+                    "group": ["**/packages/protocol/**"],
+                    "message": "Import @apx/protocol/<subpath> (add it to the package's exports): the installed core carries the protocol as a package, not its source files."
                   }
                 ]
               }

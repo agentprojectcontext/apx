@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { FlowBinding, FlowGraph, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
+import type { FlowBinding, FlowGraph, FlowNode } from "@apx/protocol/flow-graph";
 import type { FlowGraphRun, FlowStepKey } from "./domain/flow-graph-runs.ts";
 import {
   boundedFlowValue,

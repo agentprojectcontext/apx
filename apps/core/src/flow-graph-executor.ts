@@ -2,7 +2,7 @@
 // once. Each step goes through its checkpoint, so it runs once; a step whose effect is uncertain is left for the owner,
 // never repeated. Nothing here polls: receipts, management changes, a run ending, startup and deadlines wake it.
 import { createHash } from "node:crypto";
-import type { FlowBinding, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
+import type { FlowBinding, FlowNode } from "@apx/protocol/flow-graph";
 import { type FlowGraphRun, type FlowStepKey, flowUncertainWhy } from "./domain/flow-graph-runs.ts";
 import {
   conditionBranch,

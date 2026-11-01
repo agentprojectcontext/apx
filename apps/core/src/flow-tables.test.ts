@@ -1,7 +1,7 @@
 // A project's named tables and variables holding a secret, through the real executor (DECISIONS.md#d-173).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { FlowGraph, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
+import type { FlowGraph, FlowNode } from "@apx/protocol/flow-graph";
 import { openDb } from "./db/db.ts";
 import { flowTablesRepo } from "./domain/flow-tables.ts";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";

@@ -2,7 +2,7 @@
 // Publishing a revision is the owner's approval of exactly that list (DECISIONS.md#d-169), so the destinations are
 // fixed fields of the revision, checked against the owner's own channels, contacts and secrets.
 import { createHash } from "node:crypto";
-import type { FlowGraph, FlowGraphIssue, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
+import type { FlowGraph, FlowGraphIssue, FlowNode } from "@apx/protocol/flow-graph";
 import type { ChannelConfig } from "./channels/types.ts";
 import { flowVarIndex } from "./domain/flow-graph-validate.ts";
 import { flowHttpUrlProblem } from "./domain/flow-http-url.ts";

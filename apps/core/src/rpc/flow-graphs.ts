@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { ErrorCode } from "@apx/protocol";
-import { FlowDraftGraph, type FlowGraph, type FlowGraphIssue } from "../../../../packages/protocol/src/flow-graph.ts";
+import { FlowDraftGraph, type FlowGraph, type FlowGraphIssue } from "@apx/protocol/flow-graph";
 import type { Bus } from "../bus.ts";
 import { FlowGraphConflict, FlowGraphUnavailable } from "../domain/flow-graphs.ts";
 import { FlowPathError } from "../domain/flows.ts";

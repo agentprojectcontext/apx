@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { FlowGraph, FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowGraph, FlowNode } from "@apx/protocol/flow-graph";
 import {
   boundedFlowValue,
   evaluateFlowCondition,

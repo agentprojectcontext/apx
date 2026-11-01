@@ -2,7 +2,7 @@
 // lacks read as empty, and the cases drawn before (a value, a formula) unchanged.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { FlowBinding, FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowBinding, FlowNode } from "@apx/protocol/flow-graph";
 import { flowCompare } from "./flow-compare.ts";
 import { evaluateFlowCondition, resolveFlowInput } from "./flow-graph-semantics.ts";
 import { validateFlowGraph } from "./flow-graph-validate.ts";

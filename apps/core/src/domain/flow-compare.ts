@@ -1,7 +1,7 @@
 // A check's comparisons (DECISIONS.md#d-180): each side is a template filled from the run, read as text, a number or
 // yes or no. A field that is not there is empty; nothing is evaluated.
-import type { FlowCase, FlowComparison } from "../../../../packages/protocol/src/flow-cases.ts";
-import type { FlowBinding } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowCase, FlowComparison } from "@apx/protocol/flow-cases";
+import type { FlowBinding } from "@apx/protocol/flow-graph";
 import type { FlowVarIndex } from "./flow-expr.ts";
 import { FlowFieldUnavailable } from "./flow-graph-validate.ts";
 import { emptyFlowValue, type FlowApx, flowValueText, parseFlowTemplate, renderFlowTemplate } from "./flow-template.ts";

@@ -1,7 +1,7 @@
 // When schedule Flows tick. Each one keeps `since`, the moment its next time is counted from: the tick that admits
 // a run moves it to that moment, so times missed while the core was off run once, not once each. Off, a Flow keeps
 // none (domain/flows.ts deletes it): turned on again it counts from then and owes nothing.
-import { FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
+import { FlowGraph } from "@apx/protocol/flow-graph";
 import type { Db } from "../db/db.ts";
 import { nextCrons, parseCrons } from "./schedule.ts";
 import { qb, sql } from "./sql.ts";

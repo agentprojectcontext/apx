@@ -3,8 +3,8 @@
 // runs nothing. Listening lives in memory: a restart stops it, and nothing waits or ticks while nobody listens.
 import { randomUUID } from "node:crypto";
 import type { CoreEvent } from "@apx/protocol";
-import { hookMethods } from "../../../packages/protocol/src/flow-edit.ts";
-import type { FlowGraph } from "../../../packages/protocol/src/flow-graph.ts";
+import { hookMethods } from "@apx/protocol/flow-edit";
+import type { FlowGraph } from "@apx/protocol/flow-graph";
 import type { HookRequest, HookResponse } from "./channels/types.ts";
 import { FlowCapacityError } from "./domain/flow-events.ts";
 import type { FlowEventSource } from "./domain/flow-graphs.ts";

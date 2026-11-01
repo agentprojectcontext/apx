@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { CoreEvent } from "@apx/protocol";
-import type { FlowGraph } from "../../../packages/protocol/src/flow-graph.ts";
+import type { FlowGraph } from "@apx/protocol/flow-graph";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";
 import { FLOW_TEST_MS } from "./flow-tests.ts";
 import { manualTimers, waitFor } from "./testkit/platform.ts";

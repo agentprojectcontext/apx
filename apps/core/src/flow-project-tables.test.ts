@@ -2,7 +2,7 @@
 // read empty by a run, filled column by column, and reached by the super-agent without a Flow.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { FlowGraph, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
+import type { FlowGraph, FlowNode } from "@apx/protocol/flow-graph";
 import { callTool, say, scriptedLlm, startCore } from "./engine/testkit.ts";
 import { createLog } from "./log.ts";
 import { waitFor } from "./testkit/platform.ts";

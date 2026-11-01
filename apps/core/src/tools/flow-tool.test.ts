@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { methods } from "@apx/protocol";
-import { FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
+import { FlowNode } from "@apx/protocol/flow-graph";
 import { SPANISH_TITLES } from "../engine/tool-titles.ts";
 import { readSkillFile, skillsFor } from "../skills/skills.ts";
 import { FLOW_SETTINGS } from "./flow-tool.ts";

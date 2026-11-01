@@ -1,7 +1,7 @@
 // Notify and HTTP steps of a graph run (DECISIONS.md#d-169). Both act outside APX, so each goes out at most once: a
 // send or a non-GET request commits `dispatched` right before it can reach the other side, and anything after that
 // without a clear answer is left uncertain for the owner, never repeated. Destinations are the revision's own fields.
-import type { FlowBinding, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
+import type { FlowBinding, FlowNode } from "@apx/protocol/flow-graph";
 import type { FlowVarIndex } from "./domain/flow-expr.ts";
 import type { FlowGraphRun, FlowStepKey } from "./domain/flow-graph-runs.ts";
 import {

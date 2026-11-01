@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
-import type { FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowGraph } from "@apx/protocol/flow-graph";
 import { openDb } from "../db/db.ts";
 import { MIGRATIONS } from "../db/migrations.ts";
 import { tempDir } from "../testkit/platform.ts";

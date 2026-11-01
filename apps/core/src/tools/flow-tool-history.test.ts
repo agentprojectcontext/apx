@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import type { FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowGraph } from "@apx/protocol/flow-graph";
 import { createLog } from "../log.ts";
 import { flowTools } from "./flow-tool.ts";
 import { settingsCore } from "./settings.test-support.ts";
