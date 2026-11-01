@@ -222,6 +222,8 @@ export const esFlow: Record<keyof typeof enFlow, string> = {
   "flow.f.saveNote": "No llama a un modelo.",
   "flow.f.agent": "Agente del crew",
   "flow.f.task": "Instrucción",
+  "flow.f.taskRefs":
+    "{ref} se manda tal como está: este paso no completa valores. Elegí con qué trabaja en Qué recibe.",
   "flow.f.agentNote": "Usa el motor y las skills del agente. Este paso gasta tokens.",
   "flow.f.routine": "Rutina",
   "flow.f.noRoutines": "Este proyecto no tiene rutinas manuales.",

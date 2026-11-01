@@ -1,6 +1,7 @@
 // Settings of the AI model step: who answers (an agent of the crew, or a bot just for this flow), on which harness,
 // model and effort, how freely it acts, and whether it may hand work to other agents (DECISIONS.md#d-172).
 import type { Agent, CatalogEngine } from "@apx/protocol";
+import { flowTaskRefs } from "@apx/protocol/flow-complete";
 import { AgentGrid, EngineIcon, Field, Input, SegmentedControl, Select, Switch, Textarea } from "@apx/ui";
 import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
@@ -150,7 +151,7 @@ export function AiFields({
           )}
         </div>
       )}
-      <Field label={t("flow.f.task")}>
+      <Field label={t("flow.f.task")} hint={taskHint(n.prompt, t)}>
         {(id) => (
           <Textarea
             id={id}
@@ -251,6 +252,12 @@ export function AiFields({
       )}
     </>
   );
+}
+
+/** Under an AI step's task, when it names values: those are sent as written (DECISIONS.md#d-172). */
+export function taskHint(prompt: string, t: ReturnType<typeof useT>) {
+  const [ref] = flowTaskRefs(prompt);
+  return ref ? t("flow.f.taskRefs", { ref }) : undefined;
 }
 
 /** What the step's note says: what it keeps of the agent, or what a bot or a CLI starts from. */
