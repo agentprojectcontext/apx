@@ -154,7 +154,10 @@ have unsaved changes. The last 50 versions are kept, and every one a run still u
 Opening a flow shows its steps as they ran in the chosen run (numbered, green when they ran, dashed when they didn't,
 red when they failed) and the runs at the right with their duration and tokens. Click a step and it gets a ring; the
 panel below shows when it started and how long it took, and its **Input** and **Output**: data as **Fields** whose parts
-fold, or as **Text**, with buttons to copy it and to expand it. A save step also shows the table's latest rows in
+fold, or as **Text**, with buttons to copy it and to expand it. A part that only repeats what shows above it (a
+table read gives its row as columns, as `row` and under its key in `rows`) starts folded, marked **Same as above**. The
+trigger's input says how the run started (its address, **Run now** or the time it was due) and its output is the data
+later steps read as `$trigger`. A save step also shows the table's latest rows in
 columns: click a row's key to see it whole. **Whole run** shows **Step by step** what arrived and what each step got and
 gave. A run made with an earlier drawing shows that drawing and says **Previous version**. A run
 a check stopped marks that check **no** and the steps after it as not run. A step that handed work to an agent opens
