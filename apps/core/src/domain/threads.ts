@@ -119,7 +119,14 @@ export type HeldTask = { task: string; agent: string; run: string; depth: number
  * A Flow step's chat: whether it may hand work to or message other agents, whether it is a bot of the Flow (no memory,
  * history or team) and the mode it acts in on APX's harness, over the agent's own.
  */
-export type FlowStepContext = { delegate: boolean; bot?: boolean; autonomy?: "manual" | "auto" | "total" };
+export type FlowStepContext = {
+  delegate: boolean;
+  bot?: boolean;
+  autonomy?: "manual" | "auto" | "total";
+  /** The Flow and the step in it that opened this chat: the chat links back to them. */
+  flow?: string;
+  node?: string;
+};
 export type Worker = { name: string; instructions: string; tools?: string[] | undefined };
 
 /** What a thread list shows of the last thing said. */

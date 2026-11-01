@@ -19,8 +19,8 @@ test("a typed cell keeps numbers, true/false and JSON as values, and anything el
 
 test("rows show by column, an older row saved whole shows in its value column, and an edit sends only what changed", () => {
   const rows = gridRows({ columns: ["name", "value"] }, [
-    { key: "a", value: { name: "Alex", hidden: 1 }, updated_at: "2026-10-29T00:00:00.000Z" },
-    { key: "b", value: "just text", updated_at: "2026-10-28T00:00:00.000Z" },
+    { key: "a", value: { name: "Alex", hidden: 1 } },
+    { key: "b", value: "just text" },
   ]);
   assert.deepEqual(
     rows.map((r) => r.cells),

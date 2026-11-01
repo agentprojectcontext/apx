@@ -107,6 +107,8 @@ export const enOffice = {
   "tasks.chipHint": "Open the task ({id})",
   "tasks.openInList": "Open in Tasks",
   "tasks.fromTaskHint": "This chat works on a task; its answers go to the task as comments",
+  "flows.fromFlow": "Open the flow",
+  "flows.fromFlowHint": "A step of a flow opened this chat in one of its runs",
   "tasks.help.columns": "About columns",
   "tasks.help.columnsTitle": "Columns: where the work is",
   "tasks.help.col.backlog": "Just arrived or not planned yet. New tasks land here.",

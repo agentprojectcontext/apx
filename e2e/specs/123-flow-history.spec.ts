@@ -64,9 +64,9 @@ for (const phone of [false, true]) {
     }
     await editor.getByRole("button", { name: "Salir del editor" }).click();
 
-    // The Flow's page: History lists the two saves and the drawing it was made with.
+    // The Flow's page: Versions lists the two saves and the drawing it was made with.
     await open(page, `#view=flows&scope=${project}&flow=${flow}`);
-    await page.getByRole("radio", { name: "Historial" }).click();
+    await page.getByRole("radio", { name: "Versiones" }).click();
     const versions = page.locator(".fd__ver");
     await expect(versions).toHaveCount(3);
     await expect(versions.nth(0)).toContainText("#3");
@@ -104,7 +104,7 @@ for (const phone of [false, true]) {
     // The editor shows it; its history brings back the four steps into the canvas.
     await page.getByRole("button", { name: "Editar flujo" }).click();
     await expect(nodes).toHaveCount(2);
-    await editor.getByRole("button", { name: "Historial" }).click();
+    await editor.getByRole("button", { name: "Versiones" }).click();
     const list = page.locator(".fe-hist");
     await expect(list.locator(".fd__ver")).toHaveCount(4);
     await shot(page, `editor-history-${at}`);

@@ -483,6 +483,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "inbox.routineBundle.runs.other": "{n} ejecuciones",
   "thread.routine": "Rutina",
   "thread.routineOf": "Rutina · {name}",
+  "thread.flowStep": "Paso de un flujo",
   "thread.routineHint": "Lo que contó la rutina {name}",
   "thread.routinePrompt": "Rutina {name}: sus instrucciones",
   "thread.group": "Grupo · {n} agentes",

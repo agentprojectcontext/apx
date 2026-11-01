@@ -109,6 +109,8 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "tasks.chipHint": "Abrir la tarea ({id})",
   "tasks.openInList": "Abrir en Tareas",
   "tasks.fromTaskHint": "Este chat trabaja una tarea; sus respuestas van a la tarea como comentarios",
+  "flows.fromFlow": "Ver el flujo",
+  "flows.fromFlowHint": "Un paso de un flujo abrió este chat en una de sus rondas",
   "tasks.help.columns": "Sobre las columnas",
   "tasks.help.columnsTitle": "Columnas: en qué punto está",
   "tasks.help.col.backlog": "Recién llegada o sin decidir cuándo. Las tareas nuevas caen acá.",

@@ -482,6 +482,7 @@ export const en = {
   "inbox.routineBundle.runs.other": "{n} runs",
   "thread.routine": "Routine",
   "thread.routineOf": "Routine · {name}",
+  "thread.flowStep": "Flow step",
   "thread.routineHint": "What the routine {name} told",
   "thread.routinePrompt": "Routine {name}: its instructions",
   "thread.group": "Group · {n} agents",

@@ -32,10 +32,11 @@
   border-style: dashed;
   opacity: 0.6;
 }
+/* The run's colours already sit on the border: the pick is a ring of the text colour, apart from it. */
 .apx-flowstep--selected {
-  box-shadow:
-    0 0 0 3px var(--apx-fill-strong),
-    var(--apx-shadow-md);
+  outline: 2px solid var(--apx-fg);
+  outline-offset: 3px;
+  box-shadow: var(--apx-shadow-md);
 }
 .apx-flowstep__order {
   position: absolute;

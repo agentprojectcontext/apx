@@ -1,0 +1,119 @@
+.sv.apx-codeframe {
+  min-width: 0;
+}
+.sv .apx-codeframe__body:not(.apx-codeframe__body--large) {
+  max-height: 340px;
+}
+.sv--empty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sv__text {
+  margin: 0;
+  padding: 10px 12px;
+  background: transparent;
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.sv.is-failed .apx-codeframe__lang,
+.sv.is-failed .sv__text {
+  color: var(--apx-danger);
+}
+.sv.is-muted .sv__text {
+  color: var(--apx-fg-subtle);
+}
+.sv__list {
+  list-style: none;
+  margin: 0 0 0 5px;
+  padding: 0 0 0 14px;
+  border-left: 1px solid var(--apx-border);
+}
+.sv__list--root {
+  margin: 0;
+  padding: 8px 12px 10px;
+  border-left: 0;
+}
+.sv__leaf,
+.sv__node > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 2px 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+/* Long text reads under its name, with its line breaks, instead of one escaped line. */
+.sv__leaf.is-long {
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 0;
+}
+.sv__key {
+  flex: none;
+  font-family: var(--apx-font-mono);
+  font-size: 11.5px;
+  color: var(--apx-fg-muted);
+}
+.sv__key.is-index {
+  color: var(--apx-fg-subtle);
+}
+.sv__v {
+  min-width: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.sv__leaf.is-long .sv__v {
+  align-self: stretch;
+  padding: 6px 9px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-fill);
+}
+.sv__v--number,
+.sv__v--boolean,
+.sv__v--null {
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+}
+.sv__v--number,
+.sv__v--boolean {
+  color: var(--apx-info-soft-fg);
+}
+.sv__v--null {
+  color: var(--apx-fg-subtle);
+}
+.sv__node > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.sv__node > summary::-webkit-details-marker {
+  display: none;
+}
+.sv__node > summary::before {
+  content: "";
+  flex: none;
+  align-self: center;
+  width: 0;
+  height: 0;
+  margin-right: -2px;
+  border-left: 4px solid var(--apx-fg-subtle);
+  border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent;
+  transition: transform 0.12s ease;
+}
+.sv__node[open] > summary::before {
+  transform: rotate(90deg);
+}
+.sv__count {
+  font-size: 11px;
+  color: var(--apx-fg-subtle);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sv__node > summary::before {
+    transition: none;
+  }
+}

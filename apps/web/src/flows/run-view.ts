@@ -140,6 +140,9 @@ export type StepView = {
   retry?: boolean;
   /** An AI model step: who answered, on which harness and model. */
   answered?: string;
+  /** When the step started and ended, as the core recorded them. */
+  started?: string;
+  ended?: string;
 };
 export type LogLine = { at: string; node: string; text: string; tone?: "ok" | "err" };
 export type RunView = { steps: Map<string, StepView>; log: LogLine[]; ran: number };
@@ -276,6 +279,8 @@ function actionStep(
     input,
     output,
     ...(run ? { run } : {}),
+    ...(e.run_started_at ? { started: e.run_started_at } : {}),
+    ...(e.run_ended_at ? { ended: e.run_ended_at } : {}),
   });
   if (e.run_started_at) log.push({ at: e.run_started_at, node: n.id, text: t("flow.log.started", { who: name }) });
   if (e.run_ended_at)
@@ -537,6 +542,8 @@ export function viewGraphRun(run: RunDetail, flow: string, t: T, who: (n: FlowNo
             ? settings
             : (outwardInput(n, r.input, t) ?? JSON_TEXT(r.input)),
       output,
+      ...(r.started_at ? { started: r.started_at } : {}),
+      ...(r.ended_at ? { ended: r.ended_at } : {}),
       ...(r.run_id ? { run: r.run_id } : {}),
       ...(n.kind === "agent" && r.answered
         ? {
