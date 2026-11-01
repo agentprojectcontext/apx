@@ -30,6 +30,8 @@ export type EditTarget = {
   asked?(thread: string): void;
   /** The picture is of the whole page, at this many CSS pixels wide: it changes only when an edit shows. */
   whole?: number;
+  /** The first picture is up (or the page could not open): edit mode can take the screen. */
+  ready?(): void;
 };
 
 export type BrowserEditState = { target: string | undefined; items: EditItem[]; selected: number | undefined };

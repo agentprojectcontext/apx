@@ -163,7 +163,8 @@ for (const width of [1280, 390]) {
       await expect(list.getByText("Sales this week")).toHaveCount(0);
       await expect(list.getByText("Weekly sales")).toBeVisible();
       await expect(list.getByText("Cambiado")).toBeVisible();
-      await expect(page.locator(".bedit__num")).toHaveCount(1);
+      // The changed part keeps its number; the one being looked at shows the next, and nothing else is numbered.
+      await expect(page.locator(".bedit__num")).toHaveText(["1", "2"]);
 
       // What the owner writes is what goes to the agent.
       await panel.getByPlaceholder("Decilo con tus palabras").fill("Que se vea como un botón principal");

@@ -17,16 +17,21 @@ export function WidgetEdit({
   surface,
   width: pageWidth,
   asked,
+  ready,
 }: {
   surface: SurfaceSummary;
   width?: number;
   asked?: (thread: string) => void;
+  /** Its first picture is up, or it could not open. */
+  ready?: () => void;
 }) {
   const t = useT();
   usePack("browserEdit");
   const { mode } = useApx();
   const box = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState<{ id: string } | { error: "unavailable" | "failed" }>();
+  const readyRef = useRef(ready);
+  readyRef.current = ready;
 
   useEffect(() => {
     const el = box.current;
@@ -43,7 +48,9 @@ export function WidgetEdit({
         else void client.call("surfaces.edit_close", { page: id }).catch(() => {});
       })
       .catch((e: unknown) => {
-        if (alive) setPage({ error: e instanceof ApxError && e.code === "unavailable" ? "unavailable" : "failed" });
+        if (!alive) return;
+        setPage({ error: e instanceof ApxError && e.code === "unavailable" ? "unavailable" : "failed" });
+        readyRef.current?.();
       });
     return () => {
       alive = false;
@@ -71,9 +78,10 @@ export function WidgetEdit({
             ...(surface.thread_id ? { thread: surface.thread_id } : {}),
             ...(asked ? { asked } : {}),
             ...(surface.page && pageWidth ? { whole: pageWidth } : {}),
+            ...(ready ? { ready } : {}),
           }
         : undefined,
-    [id, surface.id, surface.title, surface.page, surface.thread_id, pageWidth, asked],
+    [id, surface.id, surface.title, surface.page, surface.thread_id, pageWidth, asked, ready],
   );
 
   return (

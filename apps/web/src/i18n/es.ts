@@ -621,6 +621,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "page.width": "Ancho",
   "page.desktop": "Escritorio",
   "page.phone": "Teléfono",
+  "page.preparing": "Preparando la edición…",
   "page.download": "Descargar (.html)",
   "artifact.noMemory": "Sin memoria",
   "artifact.noMemoryHint": "No guarda nada: ni configuración, ni datos, ni registros.",

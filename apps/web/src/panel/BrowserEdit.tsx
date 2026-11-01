@@ -126,8 +126,8 @@ export function PageEdit({ target }: { target: EditTarget }) {
             // biome-ignore lint/a11y/useKeyWithClickEvents: Escape leaves; the picked elements are listed in the panel
             <div
               className="bedit__shot"
-              // A page keeps its own width (a phone's stays narrow); a wider one is scaled to fit.
-              style={whole ? { width: `min(100%, ${whole}px)` } : undefined}
+              // A phone's page keeps its width; a computer's fills the room it was drawn for.
+              style={whole && whole < PHONE_MAX ? { width: `min(100%, ${whole}px)` } : undefined}
               onMouseMove={(e) => inspect(at(e)).then(setHover)}
               onMouseLeave={() => setHover(null)}
               onClick={(e) =>
@@ -150,7 +150,9 @@ export function PageEdit({ target }: { target: EditTarget }) {
                 ) : null,
               )}
               {item?.element.box && !isChanged(item) && (
-                <span className="bedit__box is-selected" style={boxStyle(item.element.box)} />
+                <span className="bedit__box is-selected" style={boxStyle(item.element.box)}>
+                  <span className="bedit__num">{changed.length + 1}</span>
+                </span>
               )}
             </div>
           ) : (
@@ -426,6 +428,7 @@ function useShot(target: EditTarget): [string | undefined, () => void] {
       const next = await target.shot().catch(() => undefined);
       if (!alive) return;
       if (next) setSrc(next);
+      target.ready?.();
       clearTimeout(timer);
       if (every) timer = setTimeout(take, every);
     };

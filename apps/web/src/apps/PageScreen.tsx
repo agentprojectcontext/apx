@@ -50,6 +50,11 @@ export function PageScreen({ page }: { page: SurfaceSummary }) {
     if (editing && w) setRoom(Math.round(Math.min(2400, Math.max(320, w >= PANEL.from ? w - PANEL.width : w))));
   }, [editing]);
   const editWidth = width === "phone" ? PHONE : room;
+  // Until edit mode has its picture, the page stays on screen as it is, so opening it never shows an empty screen.
+  const [shown, setShown] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new edit page (on, or another width) starts unshown
+  useLayoutEffect(() => setShown(false), [editing, editWidth]);
+  const onShown = useCallback(() => setShown(true), []);
   const back = () => {
     stopEditing();
     nav.set({ view: "inbox" });
@@ -141,9 +146,21 @@ export function PageScreen({ page }: { page: SurfaceSummary }) {
             </div>
           )
         ) : editing ? (
-          editWidth ? (
-            <WidgetEdit key={editWidth} surface={page} width={editWidth} asked={asked} />
-          ) : null
+          <>
+            {!shown && (
+              <div className={`pagescreen__view pagescreen__view--${width}`}>
+                <div className="pagescreen__preparing" role="status">
+                  {t("page.preparing")}
+                </div>
+                <PageFrame surfaceId={page.id} fit="fill" {...(width === "phone" ? { width: PHONE } : {})} />
+              </div>
+            )}
+            {editWidth ? (
+              <div className={shown ? "pagescreen__edit" : "pagescreen__edit pagescreen__edit--hidden"}>
+                <WidgetEdit key={editWidth} surface={page} width={editWidth} asked={asked} ready={onShown} />
+              </div>
+            ) : null}
+          </>
         ) : (
           <div className={`pagescreen__view pagescreen__view--${width}`}>
             <PageFrame surfaceId={page.id} fit="fill" {...(width === "phone" ? { width: PHONE } : {})} />

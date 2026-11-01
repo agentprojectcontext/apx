@@ -13,6 +13,9 @@ const IDLE_MS = 10 * 60_000;
 const MAX_PAGES = 4;
 /** How long the widget may run its start-up code before it is measured and shown. */
 const SETTLE_MS = 900;
+/** A web page is shown once it has loaded, after a moment for its start-up code; never later than SETTLE_MS. */
+const PAGE_SETTLE_MS = 120;
+const LOAD_POLL_MS = 40;
 const MIN_HEIGHT = 240;
 const MAX_HEIGHT = 2400;
 /** A web page is laid out in a window this tall (its full-height parts keep this size) and shown down to PAGE_MAX. */
@@ -169,8 +172,11 @@ export function createWidgetPages(
       }
       const { frameTree } = await send<{ frameTree: { frame: { id: string } } }>("Page.getFrameTree");
       await send("Page.setDocumentContent", { frameId: frameTree.frame.id, html });
+      if (whole) {
+        await loaded(send);
+        return id;
+      }
       await sleep(SETTLE_MS);
-      if (whole) return id;
       const measured = await send<{ result?: { value?: unknown } }>("Runtime.evaluate", {
         expression: "Math.ceil(document.body ? document.body.scrollHeight : 0)",
         returnByValue: true,
@@ -216,6 +222,22 @@ export function createWidgetPages(
       return { html, saved, missed: edits.map((e) => e.node).filter((n) => !saved.includes(n)) };
     } finally {
       await c.send("Target.closeTarget", { targetId }).catch(() => {});
+    }
+  }
+
+  /** Until the document has loaded (its images are inline), then a moment for its code; at most SETTLE_MS. */
+  async function loaded(send: Page["send"]): Promise<void> {
+    const end = now() + SETTLE_MS;
+    while (now() < end) {
+      const r = await send<{ result?: { value?: unknown } }>("Runtime.evaluate", {
+        expression: "document.readyState",
+        returnByValue: true,
+      }).catch(() => undefined);
+      if (r?.result?.value === "complete") {
+        await sleep(Math.min(PAGE_SETTLE_MS, Math.max(0, end - now())));
+        return;
+      }
+      await sleep(LOAD_POLL_MS);
     }
   }
 
