@@ -206,7 +206,8 @@ function AppLauncher({ running }: { running: ReadonlySet<string> }) {
                 {s.title}
                 <small>
                   {projectName(projects, s.project_id)} · {kindLabel(kindOf(s), t)}
-                  {s.in_apps ? ` · ${t("artifact.pinned")}` : ""}
+                  {/* An app is one wherever it is; a widget or page says when it is kept in Apps. */}
+                  {s.in_apps && !s.app ? ` · ${t("artifact.pinned")}` : ""}
                 </small>
               </span>
               {running.has(s.id) && <span className="navitem__running" title={t("artifact.running")} />}

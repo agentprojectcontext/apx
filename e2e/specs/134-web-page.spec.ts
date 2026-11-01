@@ -208,7 +208,12 @@ for (const width of [1280, 390]) {
     const dock = page.locator(".appsdock__icon .apx-tile").first();
     await expect(dock).toHaveClass(/apx-tile--violet/);
     await expect(card.getByText(/^Widget ·/)).toBeVisible();
+    // The launcher names it as what it is, kept in Apps: never "App".
+    await page.getByRole("button", { name: "Abrir un artefacto" }).first().click();
+    const row = page.getByRole("option", { name: /Coverage audit/ }).first();
+    await expect(row).toContainText("Widget · En Apps");
     await page.screenshot({ path: info.outputPath(`apps-widget-${width}.png`) });
+    await page.keyboard.press("Escape");
     await card.getByRole("button", { name: "Más" }).click();
     await page.getByRole("menuitem", { name: "Desfijar de Apps" }).click();
 
