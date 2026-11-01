@@ -36,6 +36,31 @@
   box-shadow: var(--apx-shadow-md);
   outline: 1px solid var(--apx-border);
 }
+/* Edit mode takes the screen once its picture is up; until then the page shows as it is, under a quiet note. */
+.pagescreen__edit {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.pagescreen__edit--hidden {
+  display: none;
+}
+.pagescreen__view {
+  position: relative;
+}
+.pagescreen__preparing {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  z-index: 1;
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-md);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
 .pagescreen__code {
   flex: 1;
   min-height: 0;

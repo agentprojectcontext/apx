@@ -32,9 +32,13 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-xs);
 }
+/* The marks sit on the page itself, light or dark, so they keep one vivid blue whatever APX's own look. */
+.bedit {
+  --bedit-mark: #2563eb;
+}
 .bedit__shot {
   position: relative;
-  cursor: crosshair;
+  cursor: pointer;
 }
 .bedit__shot img {
   display: block;
@@ -44,31 +48,33 @@
 }
 .bedit__box {
   position: absolute;
-  border: 1.5px solid var(--apx-accent);
+  border: 1.5px solid var(--bedit-mark);
   border-radius: 3px;
   pointer-events: none;
 }
 .bedit__box.is-hover {
   border-style: dashed;
-  background: color-mix(in srgb, var(--apx-accent) 8%, transparent);
+  background: color-mix(in srgb, var(--bedit-mark) 8%, transparent);
 }
 .bedit__box.is-selected {
   border-width: 2px;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--apx-accent) 25%, transparent);
+  background: color-mix(in srgb, var(--bedit-mark) 6%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bedit-mark) 30%, transparent);
 }
 .bedit__num {
   position: absolute;
-  top: -9px;
-  left: -9px;
+  top: -10px;
+  left: -10px;
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: var(--apx-accent);
-  color: var(--apx-accent-fg);
+  background: var(--bedit-mark);
+  color: #fff;
   font-size: var(--apx-text-2xs);
   font-weight: 600;
+  box-shadow: 0 0 0 2px #fff;
 }
 .bedit__panel {
   display: flex;
@@ -173,8 +179,8 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--apx-accent);
-  color: var(--apx-accent-fg);
+  background: var(--bedit-mark);
+  color: #fff;
   font-size: var(--apx-text-2xs);
   font-weight: 600;
 }

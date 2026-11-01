@@ -26,13 +26,15 @@ async function chatWithPage(tag: string) {
  * The core's edit page, played by a real browser page holding the long page at the width asked: its whole picture,
  * and what lies under a point of it (fractions of the whole page, as the core answers for a web page).
  */
-async function fakeEditPage(page: Page, opened: number[]) {
+async function fakeEditPage(page: Page, opened: number[], hold: Promise<void> = Promise.resolve()) {
   const edit = await page.context().newPage();
   const reply = (route: Route, result: unknown) => route.fulfill({ json: { ok: true, result } });
   const body = (route: Route) => JSON.parse(route.request().postData() ?? "{}");
   await page.route("**/rpc/surfaces.edit_open", async (route) => {
     const { width } = body(route);
     opened.push(width);
+    // The test lets the edit page answer once it has seen what shows meanwhile.
+    await hold;
     await edit.setViewportSize({ width, height: 800 });
     await edit.setContent(LONG);
     await reply(route, { page: "p1" });
@@ -80,7 +82,8 @@ for (const width of [1280, 390]) {
     await rpc("setup.finish", {});
     const { thread } = await chatWithPage(String(width));
     const opened: number[] = [];
-    const edit = await fakeEditPage(page, opened);
+    let release = () => {};
+    const edit = await fakeEditPage(page, opened, new Promise<void>((r) => (release = r)));
     try {
       await page.setViewportSize({ width, height: 860 });
       await open(page, `#thread=${thread}`);
@@ -124,6 +127,10 @@ for (const width of [1280, 390]) {
       // As wide as the page shows beside the panel (1:1, as outside edit mode), or a phone's width on a phone.
       if (width === 1280) await expect.poll(() => opened.at(-1) ?? 0).toBeGreaterThan(800);
       else await expect.poll(() => opened.at(-1)).toBe(390);
+      // While edit mode gets ready the page stays on screen as it is, never an empty screen.
+      await expect(screen.getByRole("status").filter({ hasText: "Preparando la edición…" })).toBeVisible();
+      await expect(frame.contentFrame().getByRole("heading", { name: "Coffee at your door" })).toBeVisible();
+      release();
       const canvas = page.locator(".bedit__page");
       const shot = page.locator(".bedit__shot img");
       await expect(shot).toBeVisible();
@@ -149,7 +156,12 @@ for (const width of [1280, 390]) {
       const atY = pic.y + at * pic.height;
       await page.mouse.click(pic.x + pic.width * 0.2, atY);
       await expect(panel.getByRole("heading", { name: "Write to us" })).toBeVisible();
-      await expect(page.locator(".bedit__box.is-selected")).toBeInViewport();
+      // The part picked is marked where it is, with its number, under an ordinary pointer.
+      const mark = page.locator(".bedit__box.is-selected");
+      await expect(mark).toBeInViewport();
+      await expect(mark.locator(".bedit__num")).toHaveText("1");
+      await expect(page.locator(".bedit__shot")).toHaveCSS("cursor", "pointer");
+      await expect(screen.getByText("Preparando la edición…")).toHaveCount(0);
       await page.screenshot({ path: info.outputPath(`page-edit-${width}.png`) });
       await panel.getByRole("button", { name: "Descartar" }).click();
       await expect(page.locator(".bedit")).toHaveCount(0);

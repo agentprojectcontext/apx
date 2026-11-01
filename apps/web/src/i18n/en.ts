@@ -619,6 +619,7 @@ export const en = {
   "page.width": "Width",
   "page.desktop": "Desktop",
   "page.phone": "Phone",
+  "page.preparing": "Getting edit mode ready…",
   "page.download": "Download (.html)",
   "artifact.noMemory": "No memory",
   "artifact.noMemoryHint": "It keeps nothing: no settings, data or records.",
