@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { FlowBinding } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowBinding } from "@apx/protocol/flow-graph";
 import { evalFlowExpr, FlowExprError, flowExprBindings, flowTruthy, parseFlowExpr } from "./flow-expr.ts";
 import { resolveFlowBinding } from "./flow-graph-validate.ts";
 

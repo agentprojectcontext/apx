@@ -2,7 +2,7 @@
 // (DECISIONS.md#d-180): what the editor sends is what runs.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { FlowGraph, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
+import type { FlowGraph, FlowNode } from "@apx/protocol/flow-graph";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";
 import { waitFor } from "./testkit/platform.ts";
 

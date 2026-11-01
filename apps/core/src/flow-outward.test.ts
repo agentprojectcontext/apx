@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { test } from "node:test";
-import type { FlowGraph, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
+import type { FlowGraph, FlowNode } from "@apx/protocol/flow-graph";
 import type { ChannelAdapter, OutFile } from "./channels/types.ts";
 import type { Presentation } from "./domain/channels.ts";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";

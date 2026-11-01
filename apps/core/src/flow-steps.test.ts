@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
-import type { FlowGraph, FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
+import type { FlowGraph, FlowNode } from "@apx/protocol/flow-graph";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";
 import { flowOutward } from "./flow-outward.ts";
 import { FLOW_COMMANDS_PER_HOUR } from "./flow-work-steps.ts";

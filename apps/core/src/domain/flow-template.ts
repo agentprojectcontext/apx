@@ -2,7 +2,7 @@
 // `$trigger.a.b` reads the payload, `$steps.<step>.a.b` an earlier step's output, `$vars.name` a variable,
 // `$apx.project|now|run` what APX knows of the run, `$$` is a dollar sign. Each placeholder is an ordinary binding, so validation, ancestors and redaction are the same as for any
 // step's input; nothing is evaluated.
-import type { FlowBinding } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowBinding } from "@apx/protocol/flow-graph";
 import type { FlowVarIndex } from "./flow-expr.ts";
 
 /** What APX knows of a run: its project's name, when the step ran (ISO) and the run's id. */

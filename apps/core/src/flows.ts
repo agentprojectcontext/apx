@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { CoreEvent } from "@apx/protocol";
-import { hookMethods } from "../../../packages/protocol/src/flow-edit.ts";
-import { type FlowDraftGraph, FlowGraph, type FlowGraphIssue } from "../../../packages/protocol/src/flow-graph.ts";
-import type { FlowDefinition } from "../../../packages/protocol/src/flow-methods.ts";
+import { hookMethods } from "@apx/protocol/flow-edit";
+import { type FlowDraftGraph, FlowGraph, type FlowGraphIssue } from "@apx/protocol/flow-graph";
+import type { FlowDefinition } from "@apx/protocol/flow-methods";
 import { FlowCapacityError } from "./domain/flow-events.ts";
 import { flowGapIssues, validateFlowGraph } from "./domain/flow-graph-validate.ts";
 import { FlowTriggerMismatch } from "./domain/flow-graphs.ts";

@@ -40,6 +40,7 @@ function harness(saved?: PendingUpdate, current = "2.0.0") {
     },
     activate: () => {
       activations++;
+      return { ok: true as const };
     },
     sleep: async () => {
       time += 1000;
@@ -82,10 +83,31 @@ test("server failure prevents activation including restart and quit", async () =
   h.endpoint.apply = async () => ({ ok: false, log: "Server install failed" });
   const result = await h.coordinator.install("2.1.0");
   assert.equal(result.ok, false);
-  await h.coordinator.restart();
+  const restarted = await h.coordinator.restart();
+  assert.equal(restarted.ok, false);
+  assert.match(restarted.ok ? "" : restarted.error, /not confirmed|failed/);
   assert.equal(h.activations(), 0);
   assert.equal(h.coordinator.canApplyOnQuit(), false);
   assert.equal(h.pending()?.target, "2.1.0");
+});
+
+test("a restart that cannot go ahead says why instead of leaving the panel waiting", async () => {
+  const lost = harness();
+  lost.coordinator.connect(undefined);
+  assert.deepEqual(await lost.coordinator.restart(), {
+    ok: false,
+    error: "APX lost its connection. Quit APX and open it again to update.",
+  });
+  const nothing = harness();
+  assert.deepEqual(await nothing.coordinator.restart(), {
+    ok: false,
+    error: "No update is ready for this connection. Check for updates again.",
+  });
+  assert.equal(lost.activations() + nothing.activations(), 0);
+  const local = harness();
+  local.coordinator.connect({ ...local.endpoint, local: true });
+  assert.deepEqual(await local.coordinator.restart(), { ok: true });
+  assert.equal(local.activations(), 1);
 });
 
 test("a lost apply response succeeds only after exact running version confirmation", async () => {

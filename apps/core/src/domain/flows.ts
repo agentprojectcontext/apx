@@ -1,6 +1,6 @@
-import type { FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
-import { FlowDefinition as Definition } from "../../../../packages/protocol/src/flow-methods.ts";
-import { flowPathOf, flowPathProblem, freeFlowPath } from "../../../../packages/protocol/src/flow-path.ts";
+import type { FlowGraph } from "@apx/protocol/flow-graph";
+import { FlowDefinition as Definition } from "@apx/protocol/flow-methods";
+import { flowPathOf, flowPathProblem, freeFlowPath } from "@apx/protocol/flow-path";
 import type { Db } from "../db/db.ts";
 import { redactedJson } from "../log.ts";
 import { firstFailedPredicate, matchesFlowPredicates } from "./flow-evaluate.ts";

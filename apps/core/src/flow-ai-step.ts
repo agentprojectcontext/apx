@@ -1,7 +1,7 @@
 // How a Flow's AI model step runs (DECISIONS.md#d-172): the chat it gets, who answers in it and what that one may do.
 // An agent keeps its instructions, memory and tools; a bot of the Flow is a name and a system prompt with neither.
 // Either may run on APX's harness or a CLI's own session; delegating to other agents is off unless the step allows it.
-import type { FlowNode } from "../../../packages/protocol/src/flow-graph.ts";
+import type { FlowNode } from "@apx/protocol/flow-graph";
 import type { AgentRecord } from "./domain/agents.ts";
 import { harnessOf, parseRef } from "./domain/refs.ts";
 import type { Store } from "./domain/store.ts";

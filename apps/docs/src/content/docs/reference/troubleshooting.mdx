@@ -64,6 +64,18 @@ Lines in the **Process output** source are what the core printed outside its log
 Desktop app versions before this change wrote `core.log` in the app's own logs folder (`~/Library/Logs/APX` on
 macOS, `%APPDATA%\APX\logs` on Windows, `~/.config/APX/logs` on Linux); older lines stay there.
 
+## An app update doesn't go in
+
+If **Restart now** can't put the new version in, the update window says why, or after a minute says APX didn't
+restart. Quit APX (Cmd+Q on macOS, **Quit APX** from the tray icon elsewhere) and open it again. On macOS and Linux
+a downloaded version goes in when APX quits; on Windows, choose **Restart now** again once it is open. If APX doesn't
+quit, force it (Activity Monitor on macOS, Task Manager on Windows).
+
+The desktop app writes each step of its own update (download, restart, quit, and on macOS the swap of `APX.app`) to
+`update.log` in its logs folder: `~/Library/Logs/APX/update.log` on macOS, `%APPDATA%\APX\logs\update.log` on
+Windows, `~/.config/APX/logs/update.log` on Linux. On macOS, a leftover `.APX-<version>.update` folder next to
+`APX.app` means a downloaded version that was never put in place; APX removes it the next time it starts.
+
 ## The port is already in use
 
 Only one process can listen on `7440`. If another core already holds it (an earlier `pnpm dev`, the desktop app's own

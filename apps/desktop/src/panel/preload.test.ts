@@ -101,7 +101,6 @@ test("panel actions use fixed IPC channels and normalize browser, attention and 
     ["setTitleBar", ["dark"], "desktop:titlebar", ["dark"]],
     ["setLanguage", [123], "desktop:language", ["123"]],
     ["menuAction", ["about"], "desktop:menu-action", ["about"]],
-    ["restartToUpdate", [], "desktop:update-restart", []],
   ];
   for (const [method, args, channel, forwarded] of cases) {
     call("apxDesktop", method, ...args);
@@ -126,6 +125,7 @@ test("panel requests return native replies without exposing a general invoke cap
     ["updateStatus", [true], "desktop:update-status", [true]],
     ["updateStatus", ["true"], "desktop:update-status", [false]],
     ["installUpdate", [], "desktop:update-install", []],
+    ["restartToUpdate", [], "desktop:update-restart", []],
   ];
   for (const [method, args, channel, forwarded] of cases) {
     assert.deepEqual(await call("apxDesktop", method, ...args), { channel, args: forwarded }, method);

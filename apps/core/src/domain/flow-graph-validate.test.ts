@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { FlowBinding, FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
+import { FlowBinding, FlowGraph } from "@apx/protocol/flow-graph";
 import { resolveFlowBinding, validateFlowGraph } from "./flow-graph-validate.ts";
 
 const graph: FlowGraph = {

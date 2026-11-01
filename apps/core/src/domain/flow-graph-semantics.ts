@@ -1,4 +1,4 @@
-import type { FlowBinding, FlowGraph, FlowNode } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowBinding, FlowGraph, FlowNode } from "@apx/protocol/flow-graph";
 import { flowCaseHolds } from "./flow-compare.ts";
 import { evalFlowExpr, type FlowVarIndex, flowTruthy, parseFlowExpr } from "./flow-expr.ts";
 import { FLOW_OTHERWISE, flowCases, resolveFlowBinding, validateFlowGraph } from "./flow-graph-validate.ts";

@@ -1,4 +1,4 @@
-import type { FlowHistoryEntry } from "../../../../packages/protocol/src/flow-history.ts";
+import type { FlowHistoryEntry } from "@apx/protocol/flow-history";
 import type { Db } from "../db/db.ts";
 import { qb, sql } from "./sql.ts";
 

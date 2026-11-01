@@ -26,6 +26,7 @@ import {
 import { app, shell } from "electron";
 import { replaceableBundle } from "./app-bundle.ts";
 import { removeOldInstallers } from "./installer-files.ts";
+import { updateLog } from "./update-log.ts";
 
 export type DesktopUpdate = {
   current: string;
@@ -42,6 +43,8 @@ export type DesktopUpdate = {
   error?: string | undefined;
 };
 export type InstallAnswer = { ok: true; ready: boolean } | { ok: false; error: string };
+/** ok: the app is quitting into the newer APX. */
+export type RestartAnswer = { ok: true } | { ok: false; error: string };
 
 const FIRST_MS = 60_000;
 const run = promisify(execFile);
@@ -104,18 +107,21 @@ async function fetchChecked(release: Release, asset: ReleaseAsset, file: string)
 
 // Swaps APX.app once APX (and the core it runs from inside the bundle) has quit; puts the old one back if that fails.
 const SWAP = `
-pid="$1"; old="$2"; new="$3"; stage="$4"; relaunch="$5"
+pid="$1"; old="$2"; new="$3"; stage="$4"; relaunch="$5"; log="$6"
+say() { [ -n "$log" ] && echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) swap: $*" >> "$log"; }
 i=0; while kill -0 "$pid" 2>/dev/null && [ $i -lt 600 ]; do sleep 0.1; i=$((i+1)); done
+kill -0 "$pid" 2>/dev/null && say "APX was still running after 60 s"
 i=0; while pgrep -f "$old/Contents/" >/dev/null 2>&1 && [ $i -lt 100 ]; do sleep 0.1; i=$((i+1)); done
+pgrep -f "$old/Contents/" >/dev/null 2>&1 && say "a process still ran from the old app after 10 s"
 if mv "$old" "$stage/previous.app"; then
-  if mv "$new" "$old"; then rm -rf "$stage"; else mv "$stage/previous.app" "$old"; fi
-fi
-if [ "$relaunch" = 1 ]; then open "$old"; fi
+  if mv "$new" "$old"; then rm -rf "$stage"; say "new app in place"; else mv "$stage/previous.app" "$old"; say "could not move the new app in, the old one is back"; fi
+else say "could not move the old app aside"; fi
+if [ "$relaunch" = 1 ]; then open "$old" || say "could not open $old"; fi
 `;
 
 type Staged = { version: string; restart(): void; onQuit?(): void };
 
-export function createDesktopUpdater(opts: { quit(): void; changed(status: DesktopUpdate): void }) {
+export function createDesktopUpdater(opts: { quit(): void; changed(status: DesktopUpdate): void; logFile?: string }) {
   const env = process.env.APX_RELEASES;
   const feed = env === "off" ? undefined : env || RELEASE_FEED;
   const enabled = app.isPackaged && Boolean(feed) && Boolean(platformOf(process.platform, process.arch));
@@ -130,6 +136,7 @@ export function createDesktopUpdater(opts: { quit(): void; changed(status: Deskt
   let swapping = false;
   let generation = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const log = opts.logFile ? updateLog(opts.logFile) : () => {};
 
   const current = (): DesktopUpdate => ({ ...status, downloading: Boolean(downloading), ready: staged?.version });
   const publish = () => opts.changed(current());
@@ -151,6 +158,7 @@ export function createDesktopUpdater(opts: { quit(): void; changed(status: Deskt
         error: err instanceof Error ? err.message : String(err),
         checked_at: new Date().toISOString(),
       };
+      log(`check failed: ${status.error}`);
     }
     publish();
     return current();
@@ -162,12 +170,19 @@ export function createDesktopUpdater(opts: { quit(): void; changed(status: Deskt
     if (staged && staged.version === (target ?? staged.version)) return Promise.resolve({ ok: true, ready: true });
     staged = undefined;
     const started = generation;
+    log(`download: ${target ?? found?.release.version ?? "latest"}`);
     downloading ??= prepare(target, deferOpen)
       .then((answer) => {
         if (started !== generation) {
           staged = undefined;
+          log("download dropped: the connection changed");
           return { ok: false as const, error: "The APX connection changed. Retry the update." };
         }
+        log(
+          answer.ok
+            ? `download ${answer.ready ? "ready" : "opened"}: ${staged?.version ?? ""}`
+            : `download failed: ${answer.error}`,
+        );
         return answer;
       })
       .finally(() => {
@@ -244,7 +259,8 @@ export function createDesktopUpdater(opts: { quit(): void; changed(status: Deskt
     await run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", next]).catch(() => undefined);
     const swap = (relaunch: boolean) => {
       swapping = true;
-      spawn("/bin/sh", ["-c", SWAP, "apx-update", String(process.pid), old, next, stage, relaunch ? "1" : "0"], {
+      const args = [String(process.pid), old, next, stage, relaunch ? "1" : "0", opts.logFile ?? ""];
+      spawn("/bin/sh", ["-c", SWAP, "apx-update", ...args], {
         detached: true,
         stdio: "ignore",
       }).unref();
@@ -298,6 +314,8 @@ export function createDesktopUpdater(opts: { quit(): void; changed(status: Deskt
   return {
     enabled,
     mode,
+    /** Adds a line to the update log (steps decided outside this updater, like a coordinated server update). */
+    log,
     status: current,
     check,
     install,
@@ -306,13 +324,28 @@ export function createDesktopUpdater(opts: { quit(): void; changed(status: Deskt
       staged = undefined;
       publish();
     },
-    /** Quits and opens the newer APX. */
-    restart() {
-      staged?.restart();
+    /** Quits and opens the newer APX; a failed answer means the app keeps running as it is. */
+    restart(): RestartAnswer {
+      if (!staged) {
+        log("restart: nothing is ready");
+        return { ok: false, error: "The new version is no longer ready. Check for updates again." };
+      }
+      log(`restart: ${staged.version}`);
+      try {
+        staged.restart();
+        return { ok: true };
+      } catch (err) {
+        const error = err instanceof Error ? err.message : String(err);
+        log(`restart failed: ${error}`);
+        return { ok: false, error };
+      }
     },
     /** Quitting with a newer APX ready puts it in place (where that needs no installer window). */
     quitting() {
-      if (staged?.onQuit && !swapping) staged.onQuit();
+      if (staged?.onQuit && !swapping) {
+        log(`quit: putting ${staged.version} in place`);
+        staged.onQuit();
+      }
     },
     /** `found(status)`: a background check found a newer APX (auto mode then downloads it on its own). */
     start(found: (s: DesktopUpdate) => void) {

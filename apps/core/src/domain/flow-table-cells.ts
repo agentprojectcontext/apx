@@ -1,7 +1,7 @@
 // A save's value per column and what a read gives later steps (DECISIONS.md#d-176): `$steps.<read>.<column>` is the
 // first row's cell, empty (null) when the table has no row, so an empty table reads nothing and fails no step.
-import type { FlowBinding } from "../../../../packages/protocol/src/flow-graph.ts";
-import { tableCells } from "../../../../packages/protocol/src/table-cells.ts";
+import type { FlowBinding } from "@apx/protocol/flow-graph";
+import { tableCells } from "@apx/protocol/table-cells";
 import type { FlowVarIndex } from "./flow-expr.ts";
 import { type FlowApx, parseFlowTemplate, renderFlowTemplate } from "./flow-template.ts";
 

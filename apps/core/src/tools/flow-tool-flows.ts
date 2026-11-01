@@ -1,4 +1,4 @@
-import { flowMethods } from "../../../../packages/protocol/src/flow-methods.ts";
+import { flowMethods } from "@apx/protocol/flow-methods";
 import { FLOW_DRAFTS, flowLines } from "./flow-tool-drafts.ts";
 import { merged, type Setting, str } from "./settings-kit.ts";
 

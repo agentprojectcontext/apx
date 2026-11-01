@@ -13,13 +13,8 @@ import {
   placeSteps,
   removeNode,
 } from "@apx/protocol/flow-edit";
+import { FlowDraftGraph, FlowGraph, type FlowGraphIssue, type FlowNode } from "@apx/protocol/flow-graph";
 import { z } from "zod";
-import {
-  FlowDraftGraph,
-  FlowGraph,
-  type FlowGraphIssue,
-  type FlowNode,
-} from "../../../../packages/protocol/src/flow-graph.ts";
 import { CallError as CoreCallError } from "../errors.ts";
 import type { Params, Setting } from "./settings-kit.ts";
 import { projectName } from "./settings-kit.ts";

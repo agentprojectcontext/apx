@@ -90,7 +90,10 @@ test("disabled updates stay offline and cannot claim an available installer", as
   assert.deepEqual(await h.updater.install(), { ok: false, error: "No newer APX for this computer." });
   h.updater.start(() => assert.fail("Disabled updater started"));
   h.updater.stop();
-  h.updater.restart();
+  assert.deepEqual(h.updater.restart(), {
+    ok: false,
+    error: "The new version is no longer ready. Check for updates again.",
+  });
   h.updater.quitting();
   assert.equal(fetch.mock.callCount(), 0);
   assert.equal(h.quits(), 0);
@@ -183,7 +186,7 @@ test("a remote manual installer stays unopened until activation and uses the exa
   assert.deepEqual(opened, []);
   h.updater.quitting();
   assert.deepEqual(opened, []);
-  h.updater.restart();
+  assert.deepEqual(h.updater.restart(), { ok: true });
   assert.deepEqual(opened, [path.join(directory, name)]);
 });
 

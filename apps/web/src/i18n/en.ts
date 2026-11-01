@@ -242,6 +242,7 @@ export const en = {
   "update.now": "Update now",
   "update.updating": "Updating. This can take a few minutes.",
   "update.restarting": "Restarting APX with the new version…",
+  "update.restartStalled": "APX did not restart. Quit APX and open it again to finish the update.",
   "update.done": "Updated. Restart APX to use the new version.",
   "update.failed": "The update stopped and nothing changed in what runs now. What happened:",
   "update.cardTitle": "APX {v} is out",

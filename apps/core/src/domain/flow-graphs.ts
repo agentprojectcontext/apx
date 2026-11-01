@@ -1,4 +1,4 @@
-import { FlowDraftGraph, FlowGraph, FlowGraphDocument } from "../../../../packages/protocol/src/flow-graph.ts";
+import { FlowDraftGraph, FlowGraph, FlowGraphDocument } from "@apx/protocol/flow-graph";
 import type { Db } from "../db/db.ts";
 import { redactedJson } from "../log.ts";
 import { checkFlowCapacity, FlowCapacityError } from "./flow-events.ts";

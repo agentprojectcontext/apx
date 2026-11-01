@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { methods } from "@apx/protocol";
-import type { FlowGraph } from "../../../packages/protocol/src/flow-graph.ts";
+import type { FlowGraph } from "@apx/protocol/flow-graph";
 import { FlowTriggerMismatch } from "./domain/flow-graphs.ts";
 import { nextCron, parseCron } from "./domain/schedule.ts";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";

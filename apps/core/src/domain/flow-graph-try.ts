@@ -2,7 +2,7 @@
 // Steps that would read a table, write one, call a model, run code or a command, query a database or start a run are
 // only said to run; what they would give back is unknown, so a step that needs it can't be told.
 
-import type { FlowBinding, FlowGraph } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowBinding, FlowGraph } from "@apx/protocol/flow-graph";
 import type { FlowVarIndex } from "./flow-expr.ts";
 import {
   conditionBranch,

@@ -91,8 +91,8 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   updateStatus: (check?: boolean): Promise<unknown> => ipcRenderer.invoke("desktop:update-status", check === true),
   /** Downloads the newer app and leaves it ready for the next restart (or opens it for the owner to drag in). */
   installUpdate: (): Promise<unknown> => ipcRenderer.invoke("desktop:update-install"),
-  /** Quits and opens the newer app that is ready. */
-  restartToUpdate: () => ipcRenderer.send("desktop:update-restart"),
+  /** Quits and opens the newer app that is ready; an answer that comes back says why it could not. */
+  restartToUpdate: (): Promise<unknown> => ipcRenderer.invoke("desktop:update-restart"),
   /** The app's update changed (found, downloading, ready), wherever it was started (the panel or the app menu). */
   onUpdateStatus: (listener: (status: unknown) => void) => {
     const on = (_e: unknown, s: unknown) => listener(s);

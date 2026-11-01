@@ -4,6 +4,7 @@ export type Coordination = Result<"system.update_prepare">;
 export type UpdateState = Result<"system.update_state">;
 export type PendingUpdate = { identity: string; home: string; target: string };
 type Answer = { ok: true; ready: boolean } | { ok: false; error: string };
+type RestartAnswer = { ok: true } | { ok: false; error: string };
 export type UpdateEndpoint = {
   identity: string;
   local: boolean;
@@ -18,7 +19,7 @@ export function createUpdateCoordinator(opts: {
   load(): PendingUpdate | undefined;
   save(pending: PendingUpdate | undefined): void;
   stage(target: string): Promise<Answer>;
-  activate(): void;
+  activate(): RestartAnswer;
   sleep(): Promise<void>;
   now(): number;
   timeoutMs: number;
@@ -159,12 +160,17 @@ export function createUpdateCoordinator(opts: {
         // Offline and legacy servers stay blocked; an explicit update reports actionable recovery.
       }
     },
-    async restart(): Promise<void> {
-      if (endpoint?.local) return opts.activate();
+    /** Activates the staged app; a failed answer says why it stays as it is. */
+    async restart(): Promise<RestartAnswer> {
+      if (!endpoint) return { ok: false, error: "APX lost its connection. Quit APX and open it again to update." };
+      if (endpoint.local) return opts.activate();
       const saved = authorized ?? pending();
-      if (!saved || saved.identity !== endpoint?.identity) return;
+      if (!saved || saved.identity !== endpoint.identity)
+        return { ok: false, error: "No update is ready for this connection. Check for updates again." };
       const answer = await install(saved.target);
-      if (answer.ok && authorized) opts.activate();
+      if (!answer.ok) return answer;
+      if (!authorized) return { ok: false, error: "The server has not confirmed the new version yet. Try again." };
+      return opts.activate();
     },
     canApplyOnQuit(): boolean {
       // A remote core may change while the app is put away. Recheck asynchronously on explicit restart instead.

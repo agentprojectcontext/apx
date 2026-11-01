@@ -2,8 +2,9 @@
 // writes or deletes rows as its own call through the router, asked only while outside content is in the turn, like a
 // Flow draft (D-174): rows are data in the owner's project. Renaming or removing a table or a column changes what the
 // owner's Flows read, so those wait for the owner's OK. Field shapes are in the apx-flows skill, never the prompt.
+
+import { FlowColumnName, FlowTableName } from "@apx/protocol/flow-graph";
 import { z } from "zod";
-import { FlowColumnName, FlowTableName } from "../../../../packages/protocol/src/flow-graph.ts";
 import { CallError as CoreCallError } from "../errors.ts";
 import { inlineName, untrusted } from "./result.ts";
 import { type Params, projectName, type Setting, type SettingsDeps, str } from "./settings-kit.ts";

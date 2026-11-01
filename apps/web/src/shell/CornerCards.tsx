@@ -63,7 +63,7 @@ export function CornerCards({ floating = false }: { floating?: boolean }) {
         )}
         description={t(ready ? "update.cardReadyDesc" : "update.cardDesc")}
         action={t(ready ? "update.restartNow" : "update.cardCta")}
-        onAction={() => (ready ? restartApp() : openUpdate(update.target))}
+        onAction={() => (ready ? void restartApp() : openUpdate(update.target))}
         onClose={() => closeCard({ update: version })}
       />,
     );

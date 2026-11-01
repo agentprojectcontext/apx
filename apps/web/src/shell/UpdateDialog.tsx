@@ -23,7 +23,7 @@ export function UpdateDialog() {
     target === "both"
       ? t("update.leadBoth", { v: app?.latest ?? app?.ready ?? "", current: app?.current ?? "" })
       : target === "app"
-        ? phase === "ready" || phase === "restarting"
+        ? phase === "ready" || phase === "restarting" || phase === "stalled"
           ? t("update.leadReady", { v: app?.ready ?? app?.latest ?? "" })
           : t(drag ? "update.leadAppDrag" : "update.leadApp", { v: app?.latest ?? "", current: app?.current ?? "" })
         : byApp
@@ -54,9 +54,9 @@ export function UpdateDialog() {
             <Button variant="secondary" onClick={close}>
               {t("update.later")}
             </Button>
-            <Button onClick={restartApp}>{t("update.restartNow")}</Button>
+            <Button onClick={() => void restartApp()}>{t("update.restartNow")}</Button>
           </>
-        ) : phase === "done" || phase === "failed" ? (
+        ) : phase === "done" || phase === "failed" || phase === "stalled" ? (
           <Button variant="secondary" onClick={close}>
             {t("common.close")}
           </Button>
@@ -89,6 +89,7 @@ export function UpdateDialog() {
           {t(window.apxDesktop?.platform === "win32" ? "update.readyLaterMenu" : "update.readyLater")}
         </p>
       )}
+      {phase === "stalled" && <p className="update__note">{t("update.restartStalled")}</p>}
       {phase === "done" && <p className="update__note">{t(drag ? "update.dragDone" : "update.done")}</p>}
       {phase === "failed" && (
         <>

@@ -1,7 +1,7 @@
 // The small expression language of a check's cases and of variables: `$trigger.a`, `$steps.<step>.a`, `$vars.name`,
 // literals, comparisons, `&&` `||` `!`, arithmetic, `? :` and a few functions. It is parsed here and evaluated over
 // JSON values; nothing is ever run as code, so a payload can only be data (DECISIONS.md#d-170).
-import type { FlowBinding } from "../../../../packages/protocol/src/flow-graph.ts";
+import type { FlowBinding } from "@apx/protocol/flow-graph";
 import { flowValueText } from "./flow-template.ts";
 
 export type FlowExpr =

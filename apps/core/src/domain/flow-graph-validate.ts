@@ -1,11 +1,5 @@
-import {
-  FLOW_OTHERWISE,
-  type FlowCase,
-  flowBranches,
-  flowCases,
-  flowCompareAlone,
-} from "../../../../packages/protocol/src/flow-cases.ts";
-import { flowGraphGaps } from "../../../../packages/protocol/src/flow-complete.ts";
+import { FLOW_OTHERWISE, type FlowCase, flowBranches, flowCases, flowCompareAlone } from "@apx/protocol/flow-cases";
+import { flowGraphGaps } from "@apx/protocol/flow-complete";
 import {
   type FlowBinding,
   type FlowDraftGraph,
@@ -13,7 +7,7 @@ import {
   type FlowGraphIssue,
   type FlowNode,
   FlowNode as FlowNodeSchema,
-} from "../../../../packages/protocol/src/flow-graph.ts";
+} from "@apx/protocol/flow-graph";
 import { FlowExprError, type FlowVarIndex, flowExprBindings, parseFlowExpr } from "./flow-expr.ts";
 import { flowHttpUrlProblem } from "./flow-http-url.ts";
 import {

@@ -97,6 +97,15 @@ about 4 MB it never used. `process.getBuiltinModule("node:http")` returns the sa
 fixtures and previews. On its first run in v2 it caught a real name in a design-system preview.
 **Where:** `scripts/check-private-terms.ts`.
 
+<a id="protocol-subpaths"></a>
+### The core imports the protocol only through `@apx/protocol` subpaths
+**Rule:** `apps/core` and `apps/terminal` never import `packages/protocol/src/…` by path; a module they need becomes a
+subpath in the protocol's `exports`.
+**Why:** the installed core carries the protocol compiled into `node_modules/@apx/protocol` (one entry per export), not
+its source folder. Flow modules imported by path worked in a checkout but made the 2.12.0 and 2.12.1 bundles exit at
+start with `ERR_MODULE_NOT_FOUND`, in the desktop app and the service alike.
+**Where:** `packages/protocol/package.json` exports, `apps/desktop/scripts/stage-protocol.ts`, lint in `biome.json`.
+
 ## Embedded browser
 
 <a id="cdp-attach-after-load"></a>
