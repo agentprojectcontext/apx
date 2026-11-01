@@ -161,11 +161,14 @@ fi
 rm -rf "$APP/versions/$VERSION"
 mv "$WORK/unpacked/apx" "$APP/versions/$VERSION"
 ln -sfn "versions/$VERSION" "$APP/current.new"
-mv -f "$APP/current.new" "$APP/current" 2>/dev/null || {
-  rm -rf "$APP/current"
+# A plain `mv` onto `current` follows the link and drops the new one inside the old version: -T (GNU) and -h (BSD)
+# replace the link itself.
+mv -fT "$APP/current.new" "$APP/current" 2>/dev/null || mv -fh "$APP/current.new" "$APP/current" 2>/dev/null || {
+  rm -f "$APP/current"
   mv "$APP/current.new" "$APP/current"
 }
-[ -e "$APP/current" ] || die "could not make $VERSION current"
+rm -f "$APP"/versions/*/current.new
+[ "$(readlink "$APP/current")" = "versions/$VERSION" ] || die "could not make $VERSION current"
 
 # 4. APX v1: its daemon stops (two daemons would answer the same Telegram bots) and its `apx` command goes.
 if [ "$MODE" = server ]; then
