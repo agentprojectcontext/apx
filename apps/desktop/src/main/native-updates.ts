@@ -87,7 +87,10 @@ export function nativeUpdates(
     now: Date.now,
     timeoutMs: 120_000,
     sleep: () => new Promise((resolve) => setTimeout(resolve, 1000)),
-    failed: recovery.show,
+    failed: (error) => {
+      updater.log(`coordinated update failed: ${error}`);
+      recovery.show(error);
+    },
   });
 
   function connect(connection: NativeUpdateConnection | undefined): void {
@@ -153,8 +156,10 @@ export function nativeUpdates(
       if (active && !active.local)
         recovery.show("The remote panel could not load. Retry the coordinated update or choose another connection.");
     },
-    restart: () => {
-      void coordinator.restart();
+    restart: async () => {
+      const answer = await coordinator.restart();
+      if (!answer.ok) updater.log(`restart refused: ${answer.error}`);
+      return answer;
     },
     quitting: () => {
       if (coordinator.canApplyOnQuit()) updater.quitting();

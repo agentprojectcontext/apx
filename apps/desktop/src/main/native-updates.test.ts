@@ -67,11 +67,13 @@ function rawUpdater() {
       },
       restart: () => {
         restarts++;
+        return { ok: true as const };
       },
       quitting: () => {
         quits++;
       },
       discard: () => {},
+      log: () => {},
       start: () => {},
       stop: () => {},
     } as ReturnType<typeof createDesktopUpdater>,

@@ -6,6 +6,7 @@ import type { DesktopUpdate } from "../apx-desktop.d.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
 import { releaseBefore } from "./release.ts";
+import { restartOutcome } from "./update-restart.ts";
 import { updateTarget } from "./update-target.ts";
 
 type Status = Result<"system.updates">;
@@ -21,8 +22,11 @@ type State = {
   coreBehind: string | undefined;
   /** The dialog is open (from the top bar's pill or the corner card). */
   open: boolean;
-  /** ready: the desktop app downloaded the newer one, which goes in when it restarts (now or later). */
-  phase: "idle" | "updating" | "ready" | "restarting" | "done" | "failed";
+  /**
+   * ready: the desktop app downloaded the newer one, which goes in when it restarts (now or later). stalled: it was
+   * asked to restart and is still here.
+   */
+  phase: "idle" | "updating" | "ready" | "restarting" | "stalled" | "done" | "failed";
   log: string;
 };
 const store = createStore<State>({
@@ -133,10 +137,15 @@ async function applyBoth(): Promise<void> {
   await applyAppUpdate();
 }
 
-/** The desktop app quits and opens the newer one it has ready. */
-export function restartApp(): void {
-  store.set({ phase: "restarting" });
-  window.apxDesktop?.restartToUpdate?.();
+/** The desktop app quits and opens the newer one it has ready; if it cannot, the dialog says so and can be closed. */
+export async function restartApp(): Promise<void> {
+  store.set((s) => ({ open: true, target: s.target === "both" ? "both" : "app", phase: "restarting", log: "" }));
+  const desktop = window.apxDesktop;
+  const outcome = await restartOutcome(
+    desktop?.restartToUpdate && (() => desktop.restartToUpdate?.()),
+    (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  );
+  if (store.get().phase === "restarting") store.set({ open: true, ...outcome });
 }
 
 /**

@@ -66,6 +66,20 @@ Las versiones de la app de escritorio anteriores a este cambio escribían `core.
 (`~/Library/Logs/APX` en macOS, `%APPDATA%\APX\logs` en Windows, `~/.config/APX/logs` en Linux); las líneas
 viejas siguen ahí.
 
+## Una actualización de la app no se instala
+
+Si **Reiniciar ahora** no puede poner la versión nueva, la ventana de actualización dice por qué, o después de un
+minuto avisa que APX no se reinició. Salí de APX (Cmd+Q en macOS, **Salir de APX** desde el ícono de la bandeja en los
+demás) y volvé a abrirlo. En macOS y Linux, una versión ya descargada se instala cuando APX se cierra; en Windows,
+elegí **Reiniciar ahora** otra vez cuando esté abierto. Si APX no se cierra, forzá la salida (Monitor de Actividad en
+macOS, Administrador de tareas en Windows).
+
+La app de escritorio anota cada paso de su propia actualización (descarga, reinicio, salida y, en macOS, el cambio de
+`APX.app`) en `update.log`, dentro de su carpeta de logs: `~/Library/Logs/APX/update.log` en macOS,
+`%APPDATA%\APX\logs\update.log` en Windows, `~/.config/APX/logs/update.log` en Linux. En macOS, si queda una carpeta
+`.APX-<versión>.update` junto a `APX.app`, es una versión descargada que nunca se puso en su lugar; APX la borra la
+próxima vez que arranca.
+
 ## El puerto ya está en uso
 
 Un solo proceso puede escuchar en el `7440`. Si otro core ya lo tiene (un `pnpm dev` de antes, el core de la app de

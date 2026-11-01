@@ -239,6 +239,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "update.now": "Actualizar ahora",
   "update.updating": "Actualizando. Puede tardar unos minutos.",
   "update.restarting": "Reiniciando APX con la versión nueva…",
+  "update.restartStalled": "APX no se reinició. Salí de APX y volvé a abrirlo para terminar de actualizar.",
   "update.done": "Listo. Reiniciá APX para usar la versión nueva.",
   "update.failed": "La actualización se frenó y lo que corre ahora no cambió. Qué pasó:",
   "update.cardTitle": "Salió APX {v}",
