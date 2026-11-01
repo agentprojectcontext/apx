@@ -129,15 +129,17 @@ for (const language of ["en", "es"] as const) {
     await page.screenshot({ path: info.outputPath(`models-${language}-desktop.png`), fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(page.getByText(unconfirmed).first()).toBeVisible();
-    await expect(page.locator(".chat__header")).toBeVisible();
-    await expect(page.locator(".chat__modelrequest")).toBeVisible();
-    const headerBox = await page.locator(".chat__header").boundingBox();
-    const requestBox = await page.locator(".chat__modelrequest").boundingBox();
-    expect(headerBox).not.toBeNull();
-    expect(requestBox).not.toBeNull();
-    expect((requestBox?.y ?? 0) + (requestBox?.height ?? 0)).toBeLessThanOrEqual(
-      (headerBox?.y ?? 0) + (headerBox?.height ?? 0),
-    );
+    await expect(async () => {
+      await expect(page.locator(".chat__header")).toBeVisible();
+      await expect(page.locator(".chat__modelrequest")).toBeVisible();
+      const headerBox = await page.locator(".chat__header").boundingBox();
+      const requestBox = await page.locator(".chat__modelrequest").boundingBox();
+      expect(headerBox).not.toBeNull();
+      expect(requestBox).not.toBeNull();
+      expect((requestBox?.y ?? 0) + (requestBox?.height ?? 0)).toBeLessThanOrEqual(
+        (headerBox?.y ?? 0) + (headerBox?.height ?? 0),
+      );
+    }).toPass({ timeout: 5_000 });
     await page.screenshot({ path: info.outputPath(`models-${language}-phone.png`), fullPage: true });
     await page.reload();
     await expect(page.locator(".apx-msgmeta").filter({ hasText: "Reported model A" })).toHaveCount(1);
