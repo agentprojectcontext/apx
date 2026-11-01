@@ -71,6 +71,11 @@ rules by case, a rule that turns something off anywhere up the chain stays off, 
 in the chain may use. Asking for a session that works in another folder opens a new session with the same agent
 there, with a note saying so.
 
+External Claude Code, Codex and ACP sessions use these same permission rules. Auto is not Total: a command
+containing `rm -f` still asks for your OK, even when it deletes one generated file inside the project. If a command
+combines several operations, approving it covers the whole command, not just its read-only part. A delegated session
+set to ask before changes keeps asking even if the agent normally works in Auto.
+
 ## Rules by case
 
 An agent can also have its own rule for each kind of action, over its autonomy: **read and look**, **change the

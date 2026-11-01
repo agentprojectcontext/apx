@@ -71,6 +71,11 @@ sus propias reglas por caso, una regla que apaga algo en cualquier punto de la c
 herramientas que pueden usar todos los agentes de la cadena. Pedir una sesión que trabaja en otra carpeta abre una
 sesión nueva con el mismo agente ahí, con una nota que lo dice.
 
+Las sesiones externas de Claude Code, Codex y ACP usan estas mismas reglas de permisos. Auto no es Total: un
+comando que incluye `rm -f` sigue pidiendo tu OK, aunque borre un solo archivo generado dentro del proyecto. Si el
+comando combina varias operaciones, aprobarlo autoriza el comando entero, no solo su parte de lectura. Una sesión
+delegada configurada para preguntar antes de hacer cambios sigue preguntando aunque el agente normalmente use Auto.
+
 ## Reglas por caso
 
 Un agente también puede tener su propia regla para cada tipo de acción, por encima de su autonomía: **leer y mirar**,
