@@ -341,7 +341,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     sessionId: undefined,
     outside: () => exec.untrusted,
     onText: display.text,
-    onModel: (model) => display.setModel(model, true),
+    onModel: (model) => display.setModel(model, model !== undefined),
     // Kept as it grows: a turn that fails or is canceled still shows what it spent.
     onUsage: (u) => {
       run = store.runs.patch(run, { usage: u });

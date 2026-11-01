@@ -110,7 +110,7 @@ export function openDisplay(store: Store, message: Message) {
     ) {
       upsert((p) => p.type === "notice" && p.code === code, { type: "notice", level, code, text, ...extra });
     },
-    setModel(model: string, model_reported?: boolean) {
+    setModel(model: string | undefined, model_reported?: boolean) {
       if (current.model === model && current.model_reported === model_reported) return;
       current = store.messages.update({ ...current, model, model_reported });
     },

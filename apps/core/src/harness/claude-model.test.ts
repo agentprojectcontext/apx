@@ -166,3 +166,74 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     await env.cleanup();
   }
 });
+
+for (const retry of ["finish", "wait", "report"]) {
+  test(`a lost Claude session clears its failed model before a fresh attempt can ${retry}`, async () => {
+    await using dir = tempDir("apx-model-retry-");
+    const bin = path.join(dir.path, "claude.js");
+    fs.writeFileSync(
+      bin,
+      `
+const fs = require("node:fs");
+const readline = require("node:readline");
+const send = (v) => process.stdout.write(JSON.stringify(v) + "\\n");
+readline.createInterface({ input: process.stdin }).on("line", (line) => {
+  const m = JSON.parse(line);
+  if (m.type === "control_request") send({ type: "control_response", response: { subtype: "success", request_id: m.request_id, response: {} } });
+  else if (m.type === "user") {
+    const resumed = process.argv.some((arg) => arg.startsWith("--resume="));
+    const marker = __filename + ".started";
+    if (resumed) {
+      send({ type: "system", subtype: "init", model: "abandoned", session_id: "lost-session" });
+      send({ type: "result", subtype: "error_session_not_found", session_id: "lost-session", modelUsage: {}, usage: {} });
+    } else {
+      if (!fs.existsSync(marker)) {
+        fs.writeFileSync(marker, "started");
+        send({ type: "system", subtype: "init", model: "established", session_id: "fixture-session" });
+      } else if (${JSON.stringify(retry)} === "report") {
+        send({ type: "system", subtype: "init", model: "replacement", session_id: "fresh-session" });
+      } else if (${JSON.stringify(retry)} === "wait") {
+        send({ type: "control_request", request_id: "permission", request: { subtype: "can_use_tool", tool_name: "Bash", input: { command: "rm -f output.wav" } } });
+        return;
+      }
+      send({ type: "result", subtype: "success", result: "Done", session_id: "fresh-session", modelUsage: {}, usage: { input_tokens: 1, output_tokens: 1 } });
+    }
+  }
+});
+`,
+    );
+    const harness = claudeHarness({ claudePath: async () => bin, cwd: () => dir.path, readImage: () => undefined });
+    const env = await startCore({ llm: scriptedLlm(() => say("ok")), harnesses: { claude: harness } });
+    try {
+      const { project } = await env.client.call("projects.register", { path: dir.path, init: true });
+      const thread = await env.client.call("threads.create", {
+        kind: "code",
+        agent_id: "superagent",
+        project_id: project.id,
+        engine: "claude",
+      });
+      await env.client.call("threads.send", { thread: thread.id, text: "establish" });
+      const first = await env.settle(thread.id);
+      assert.equal(first.messages.at(-1)?.model_reported, true);
+      await env.client.call("threads.send", { thread: thread.id, text: retry });
+      if (retry === "wait") {
+        await waitFor(
+          async () => (await env.client.call("runs.pending", { thread: thread.id })).inputs[0],
+          "fresh session permission",
+        );
+        const pending = await env.client.call("threads.get", { thread: thread.id });
+        assert.notEqual(pending.messages.at(-1)?.model_reported, true);
+        assert.equal(pending.messages.at(-1)?.model, undefined);
+        await env.client.call("threads.cancel", { thread: thread.id });
+      }
+      const done = await env.settle(thread.id);
+      if (retry !== "wait") assert.equal(done.runs.at(-1)?.state, "completed");
+      assert.equal(done.messages.at(-1)?.model, retry === "report" ? "claude/replacement" : undefined);
+      assert.equal(done.messages.at(-1)?.model_reported, retry === "report");
+      assert.equal(done.messages.find((m) => m.model === "claude/established")?.model_reported, true);
+    } finally {
+      await env.core.close();
+      await env.cleanup();
+    }
+  });
+}

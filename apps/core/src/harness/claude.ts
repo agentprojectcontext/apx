@@ -329,8 +329,10 @@ export function claudeHarness(opts: {
         // but only for that, and never after any tool ran (ours or Claude's), since a rerun would repeat its effect.
         // See DECISIONS.md#d-007
         const gone = /session|conversation/i.test(errorMessage(err));
-        if (io.sessionId && gone && !io.signal.aborted && counts.apx === 0 && counts.builtins === 0)
+        if (io.sessionId && gone && !io.signal.aborted && counts.apx === 0 && counts.builtins === 0) {
+          io.onModel?.(undefined);
           return attempt(io, { ...base, counts, tally, resume: undefined });
+        }
         throw err;
       }
     },
