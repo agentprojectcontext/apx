@@ -114,7 +114,11 @@ context like `AGENTS.md`. Titles and summaries use an auxiliary model: the `mode
 the API models the owner already chose; never a CLI and never a model name in code. A long thread is compacted after a
 run into a fixed five-section summary (rejected when the shape is wrong) that replaces the older turns as a new epoch;
 the newest turns stay verbatim, and a summary of outside content stays marked untrusted so the policy does not relax.
-Claude Code and Codex keep and compact their own transcripts.
+"Long" is either measure, whichever comes first: the last model call of the newest native run read 80% of the model's
+window (provider-reported input tokens over the reported or known window), or the history as the model sees it passed
+75% of the history budget in characters. The character rule stays even when the window is known: past the budget
+the oldest turns would leave the context with no summary of them. Claude Code and Codex keep and compact their own
+transcripts.
 
 <a id="d-014"></a>
 ## D-014 — 2026-10-01 — Channels are adapters over threads.send; who writes decides everything

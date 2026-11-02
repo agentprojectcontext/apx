@@ -40,7 +40,8 @@ export const enChat = {
   "composer.agentModel": "The agent's model",
   "composer.agentModelDesc": "This chat uses what {name} has set up.",
   "composer.backToAgentModel": "Back to the agent's",
-  "composer.contextOf": "{used} of {window} context used",
+  "composer.contextShare":
+    "Context used: {share} ({used} of {window}). When it fills up, the older part of this chat is summarized.",
   "composer.spent": "In this chat: {input} tokens read (input), {output} written (output)",
   "composer.spentCached":
     "In this chat: {input} tokens read (input, {cached} of them from the cache), {output} written (output)",

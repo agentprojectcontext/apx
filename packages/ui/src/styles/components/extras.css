@@ -325,8 +325,31 @@
   height: 8px;
   border-radius: 2px;
 }
+.apx-meter-ring {
+  flex: none;
+}
+.apx-meter-ring__track,
+.apx-meter-ring__fill {
+  fill: none;
+  stroke-width: 2.5;
+}
+.apx-meter-ring__track {
+  stroke: var(--apx-border);
+}
+.apx-meter-ring__fill {
+  stroke: var(--apx-brand);
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.3s ease;
+}
+.apx-meter-ring--warning .apx-meter-ring__fill {
+  stroke: var(--apx-warning);
+}
+.apx-meter-ring--danger .apx-meter-ring__fill {
+  stroke: var(--apx-danger);
+}
 @media (prefers-reduced-motion: reduce) {
-  .apx-meter__fill {
+  .apx-meter__fill,
+  .apx-meter-ring__fill {
     transition: none;
   }
 }
