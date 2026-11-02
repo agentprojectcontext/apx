@@ -261,6 +261,7 @@ test("through the protocol: list and delete computers and backups, refused while
   let changed = 0;
   const core = await createCore(testConfig({ home: h }), {
     quiet: true,
+    storageDisk: async () => ({ free: 100 * 1024 ** 3, total: 200 * 1024 ** 3 }),
     computer: { limaHome: path.join(h, "computer", "lima"), instance: "computer", lifecycle },
     // A plenty disk: on a nearly full machine the low-disk check would tell the panel too.
     storageDisk: async () => ({ free: 1024 * GB, total: 2048 * GB }),
