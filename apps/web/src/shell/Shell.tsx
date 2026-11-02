@@ -31,7 +31,8 @@ import { useAnyLive } from "../surfaces/liveAny.ts";
 import { useApxFiles } from "../surfaces/openedFiles.ts";
 import { widgetChatOpen } from "../surfaces/widgetChatOpen.ts";
 import { ChatWorkspace } from "./ChatWorkspace.tsx";
-import { computeLayout, layoutVars } from "./layout.ts";
+import { DiskBanner } from "./DiskBanner.tsx";
+import { BREAKPOINTS, computeLayout, layoutVars } from "./layout.ts";
 import { go, nav, showsChat, useNav } from "./nav.ts";
 import { OfflineBanner } from "./OfflineBanner.tsx";
 import { Sidebar } from "./Sidebar.tsx";
@@ -70,8 +71,15 @@ export function Shell() {
     <div className="shell" style={layoutVars(layout) as CSSProperties}>
       <Topbar />
       <OfflineBanner />
+      {/* The corner cards' place is missing here (see below and Sidebar): the disk warning comes as a strip. */}
+      {layout.rail && (layout.compact || layout.listW === 0) && <DiskBanner />}
       <div className="shell__body">
-        <Sidebar rail={layout.rail} width={layout.sidebarW} />
+        <Sidebar
+          rail={layout.rail}
+          width={layout.sidebarW}
+          narrow={width < BREAKPOINTS.sidebarFull}
+          fixed={layout.compact}
+        />
         <main className="shell__main">
           <ShellLayout.Provider value={layout}>
             <Suspense fallback={null}>

@@ -34,6 +34,7 @@ import {
   MemorySettings,
   Message,
   ModelChoice,
+  ModelRef,
   NoticePrefs,
   Nudge,
   Organization,
@@ -682,6 +683,8 @@ export const appMethods = {
         /** Code threads: a folder inside the project (relative, or absolute under it); default the project's root. */
         cwd: z.string().max(1024).optional(),
         write: WritePolicy.optional(),
+        /** External sessions only: full engine/model reference, optionally #effort; omitted uses the engine default. */
+        model: ModelRef.optional(),
         /** A code thread with an outside engine itself ("claude", "codex", "acp:opencode"): its own prompt, no persona. */
         engine: z
           .string()
@@ -743,6 +746,37 @@ export const appMethods = {
       })
       .strict(),
     result: PendingInput,
+    effect: true,
+    access: "human",
+  },
+  /** A waiting message of the owner's, changed before its turn starts; a turn that started refuses it. */
+  "runs.update_queued": {
+    params: z.object({ run: Id, text: z.string().min(1).max(50_000) }).strict(),
+    result: z.object({ message: Message }),
+    effect: true,
+    access: "human",
+  },
+  /** Takes a waiting message of the owner's out of the line and out of the chat, before its turn starts. */
+  "runs.remove_queued": {
+    params: z.object({ run: Id }).strict(),
+    result: z.object({ removed: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
+  /** The chat's waiting messages in the order they should run: all of them, each once. */
+  "runs.reorder": {
+    params: z.object({ thread: Id, runs: z.array(Id).min(1).max(100) }).strict(),
+    result: z.object({ messages: z.array(Message) }),
+    effect: true,
+    access: "human",
+  },
+  /**
+   * The owner's waiting message now: the running turn cuts its current step short and takes it. `now` false: the
+   * agent can only take it between turns (an outside engine), so it goes first in line.
+   */
+  "runs.send_now": {
+    params: z.object({ message: Id }).strict(),
+    result: z.object({ now: z.boolean() }),
     effect: true,
     access: "human",
   },
@@ -1830,6 +1864,7 @@ export const appMethods = {
         html: z.string().min(1).max(400_000),
         pinned: z.boolean().optional(),
         app: z.boolean().optional(),
+        page: z.boolean().optional(),
         /** Origins it may read live data from ([] removes them; absent keeps the current ones). */
         connect: z.array(SurfaceOrigin).max(5).optional(),
         thread: Id.optional(),
@@ -1874,7 +1909,18 @@ export const appMethods = {
     access: "human",
   },
   "surfaces.update": {
-    params: z.object({ surface: Id, pinned: z.boolean().optional(), app: z.boolean().optional() }).strict(),
+    params: z
+      .object({
+        surface: Id,
+        /** On its project's board; never a web page's. */
+        pinned: z.boolean().optional(),
+        /** What it is (an app); making one an app also lists it in Apps. */
+        app: z.boolean().optional(),
+        page: z.boolean().optional(),
+        /** Listed in Apps, whatever it is. */
+        in_apps: z.boolean().optional(),
+      })
+      .strict(),
     result: SurfaceSummary,
     effect: true,
   },

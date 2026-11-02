@@ -372,6 +372,15 @@ desktop app it is Electron with `ELECTRON_RUN_AS_NODE=1` inherited (checked with
 for at most 3 seconds, and any failure to run it passes the script. Where: `apps/core/src/tools/widget-syntax.ts`.
 
 <a id="read-only-continuation"></a>
+### apps-listing
+Being an app and being listed in Apps were one flag (`surfaces.app`), so the owner's "Pin to Apps" turned a widget into
+an app: green in lists and laid out fullscreen. `in_apps` now says where it is listed; `app` stays what it is, set when
+it is made (`show_widget app: true`, the page's `apx-surface` app meta) or by its agent. The migration kept everything
+in Apps there and left an app only what its page declares or its agent last made one: on the owner's data the page meta
+alone would have turned an app made with `app: true` into a widget. Web pages were unpinned from boards in the same
+migration: a page is a document, reached from its chat, its project's list and its own screen, not a board tile.
+Where: `apps/core/src/db/migrations.ts`, `domain/surfaces.ts` (`placed`), test in `domain/surfaces.test.ts`.
+
 ### A consult opened read-only no longer keeps the work it leads to read-only
 The super-agent asked a developer agent to look at a task read-only, then told the same session to go on and finish it
 without naming a write policy. The session kept `read-only`, so the developer could neither run tests nor fix code, and

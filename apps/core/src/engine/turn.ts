@@ -89,12 +89,15 @@ import { taskBlock } from "./office.ts";
 import type { Permissions } from "./permissions.ts";
 import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands, stepsFor } from "./pipeline.ts";
 import { type ProfileRoot, profileBlock } from "./profiles.ts";
-import { resetLabel } from "./provider-limit.ts";
+import { LIMIT_RESUME_NOTE, resetLabel } from "./provider-limit.ts";
 import { recallFor } from "./recall.ts";
 import { keepContext } from "./received.ts";
 import { closeTurnLog, RESUME_NOTE } from "./recovery.ts";
 import { askedPick, type SkillPicker } from "./skill-pick.ts";
 import { channelKindOf, turnTools } from "./turn-tools.ts";
+
+/** How the owner's words written while a turn works reach its model. */
+export const OWNER_ADDS = "[The owner adds, while you work]";
 
 export type TurnDeps = {
   vm?: import("../environments/computer.ts").Computer | undefined;
@@ -127,6 +130,8 @@ export type TurnDeps = {
   desktopLinked?: (() => boolean) | undefined;
   /** Owner text and results steered into this turn since the last call, ready to read. */
   takeSteered(): string[];
+  /** Aborts when the owner asks the turn to take their words now: only the step in progress stops. */
+  stepSignal?: (() => AbortSignal) | undefined;
   /** The engine showed a sign of life: an outside engine's idle deadline starts over. */
   alive?: (() => void) | undefined;
   /** The turn waits on work in progress (a command running): its idle deadline holds until the returned call. */
@@ -338,6 +343,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     sessionId: undefined,
     outside: () => exec.untrusted,
     onText: display.text,
+    onModel: (model) => display.setModel(model, model !== undefined),
     // Kept as it grows: a turn that fails or is canceled still shows what it spent.
     onUsage: (u) => {
       run = store.runs.patch(run, { usage: u });
@@ -346,7 +352,13 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     approve: exec.approve,
     observe: exec.observe,
     showImage: (file) => showImage(deps, { thread, run, display, owner: audience.kind === "owner" }, file),
-    takeSteered: deps.takeSteered,
+    takeSteered: () => {
+      const taken = deps.takeSteered();
+      // The owner's words sit in the chat below what the agent said so far: its next words go below them.
+      if (taken.some((t) => t.startsWith(OWNER_ADDS))) run = store.runs.patch(run, { message_id: display.below().id });
+      return taken;
+    },
+    ...(deps.stepSignal ? { stepSignal: deps.stepSignal } : {}),
     alive: deps.alive ?? (() => {}),
     log: (items) => store.modelLog.append(thread.id, run.id, items),
   });
@@ -531,8 +543,12 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
   const images = (turn.input.attachments ?? []).filter((a) => a.kind === "image");
   const message = (text: string): InputBlock[] => [{ name: "message", text }];
   // A resumed turn already has its message in the history: it only learns why it stopped.
+  const resumeNote =
+    turn.input.resume_of && store.runs.get(turn.input.resume_of)?.end_reason === "provider_limit"
+      ? LIMIT_RESUME_NOTE
+      : RESUME_NOTE;
   const blocks: InputBlock[] = turn.input.resume_of
-    ? message(String(systemNote(RESUME_NOTE).content))
+    ? message(String(systemNote(resumeNote).content))
     : room
       ? message(
           roomInput(store, {
@@ -584,7 +600,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
                 : undefined,
           });
   const input: ChatItem & { role: "user" } = turn.input.resume_of
-    ? (systemNote(RESUME_NOTE) as ChatItem & { role: "user" })
+    ? (systemNote(resumeNote) as ChatItem & { role: "user" })
     : {
         role: "user",
         ...(images.length ? { images: images.map((a) => ({ media_id: a.media_id, mime: a.mime })) } : {}),
@@ -825,7 +841,8 @@ async function finishRun(
   const { display, thread, outcome } = t;
   display.close();
   // The message names the effort too (a model ref); the run keeps the bare model for usage and context windows.
-  display.setModel(outcome.effort ? `${outcome.model}#${outcome.effort}` : outcome.model);
+  if (outcome.modelConfirmed !== false)
+    display.setModel(outcome.effort ? `${outcome.model}#${outcome.effort}` : outcome.model, outcome.modelConfirmed);
   // The chosen model failed and another answered: the owner sees which and why, the log keeps it too.
   const first = outcome.failed?.[0];
   if (first) {
@@ -859,7 +876,10 @@ async function finishRun(
   if (outcome.outOfSteps) display.notice("warn", "run.stepLimit", STEP_LIMIT, { vars: {} });
   const window = outcome.usage?.window ?? (outcome.usage?.context ? contextWindow(outcome.model) : undefined);
   const usage = outcome.usage && { ...outcome.usage, ...(window ? { window } : {}) };
-  let run = store.runs.patch(t.run, { model: outcome.model, ...(usage ? { usage } : {}) });
+  let run = store.runs.patch(t.run, {
+    ...(outcome.modelConfirmed !== false ? { model: outcome.model } : {}),
+    ...(usage ? { usage } : {}),
+  });
   // Only our own loop can tell; an outside engine's completed turn keeps no reason.
   const end = outcome.outOfSteps ? "step_limit" : (run.harness ?? "native") === "native" ? "normal" : undefined;
   run = store.runs.setState(run, "completed", undefined, end && { reason: end });

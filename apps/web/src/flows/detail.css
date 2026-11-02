@@ -182,7 +182,37 @@
 .fd__io {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  align-items: start;
   gap: 12px;
+}
+.fd__out {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.fd__when {
+  font-size: 12px;
+  color: var(--apx-fg-subtle);
+  white-space: nowrap;
+}
+.fd__mono {
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+}
+.fd__grid td {
+  font-size: 12.5px;
+}
+.fd__grid tr.is-open > th,
+.fd__grid tr.is-open > td {
+  border-bottom: 0;
+  background: var(--apx-fill);
+}
+.fd__grid tr.fd__rowopen > td {
+  max-width: none;
+  padding: 0 10px 10px;
+  white-space: normal;
+  background: var(--apx-fill);
 }
 .fd__io > div,
 .fd__logwrap,
@@ -227,7 +257,6 @@
 .fd__actions {
   display: flex;
   gap: 8px;
-  margin-top: 6px;
 }
 .fd__actions:empty {
   display: none;
@@ -267,22 +296,6 @@
 .fd__logline.is-muted {
   color: var(--apx-fg-subtle);
   display: block;
-}
-.fd__row {
-  display: grid;
-  grid-template-columns: minmax(80px, auto) minmax(0, 1fr);
-  gap: 10px;
-  padding: 6px 0;
-  border-top: 1px solid var(--apx-border);
-  font-size: 12px;
-}
-.fd__row pre {
-  margin: 0;
-  max-height: 140px;
-  overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 11.5px;
 }
 
 /* Runs rail */

@@ -176,6 +176,11 @@ for (const lang of ["en", "es"] as const) {
       ["think", "uncertain"],
       ["save", "cancelled"],
     ]);
+    // The trigger says how the run started and gives the body it got, as later steps read it.
+    await page.locator('.react-flow__node[data-id="start"]').click();
+    const frames = page.locator(".fd__io .sv");
+    await expect(frames.first()).toContainText(l.runNow);
+    await expect(frames.nth(1).locator(".sv__leaf").filter({ hasText: /^text/ })).toContainText("Two lamps");
     // A second Run now offers the body it last received.
     await page.getByRole("button", { name: l.runNow }).click();
     await expect(body).toHaveValue(/"text": "Two lamps"/);

@@ -14,6 +14,7 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
   if (system.startsWith("You are Project lead")) {
     if (!afterTool)
       return callTool("prepare", "task_create", {
+        goal: "Done as asked",
         title: "Coordinated delivery",
         description: "Prepare the delivery for review.",
       });
@@ -99,7 +100,7 @@ function assertDestination(task: Task | undefined) {
 test("the global super-agent's task tool infers the assignee's project and starts the right agent", async () => {
   const { output } = await ask(
     "superagent",
-    `create ${JSON.stringify({ title: "Direct delivery", description: "Prepare the delivery for review.", assignee: worker })}`,
+    `create ${JSON.stringify({ title: "Direct delivery", goal: "Done as asked", description: "Prepare the delivery for review.", assignee: worker })}`,
   );
   assert.match(output, /starts on it now/);
   assertDestination(tasks().find((t) => t.title === "Direct delivery"));
@@ -185,7 +186,7 @@ test("ordinary global agents and project-bound callers gain no cross-project cre
   }
   const { output } = await ask(
     "vera",
-    `create ${JSON.stringify({ title: "Tool escape", description: "Prepare the delivery for review.", assignee: worker, project })}`,
+    `create ${JSON.stringify({ title: "Tool escape", goal: "Done as asked", description: "Prepare the delivery for review.", assignee: worker, project })}`,
   );
   assert.match(output, /only in its own project/);
   assert.ok(!tasks().some((t) => t.title === "Tool escape"));
@@ -202,7 +203,7 @@ test("global unassigned tasks and same-project assignments keep their existing s
   }
   await ask(
     worker,
-    `create ${JSON.stringify({ title: "Local delivery", description: "Prepare the delivery for review.", assignee: worker, project })}`,
+    `create ${JSON.stringify({ title: "Local delivery", goal: "Done as asked", description: "Prepare the delivery for review.", assignee: worker, project })}`,
     project,
   );
   assertDestination(tasks().find((t) => t.title === "Local delivery"));

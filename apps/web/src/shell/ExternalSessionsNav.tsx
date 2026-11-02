@@ -65,16 +65,15 @@ export function ExternalSessionsNav({ rail }: { rail: boolean }) {
     />
   );
   return (
-    <>
-      <SidebarSection
-        rail={rail}
-        title={t("nav.externalSessions")}
-        folded={folded}
-        onToggle={() => {
-          setMoreOpen(false);
-          setPrefs({ externalSessionsFolded: !folded });
-        }}
-      />
+    <SidebarSection
+      rail={rail}
+      title={t("nav.externalSessions")}
+      folded={folded}
+      onToggle={() => {
+        setMoreOpen(false);
+        setPrefs({ externalSessionsFolded: !folded });
+      }}
+    >
       {!hidden && shown.slice(0, cut).map((engine) => row(engine))}
       {!hidden && rest.length > 0 && (
         <SidebarOverflow
@@ -91,7 +90,7 @@ export function ExternalSessionsNav({ rail }: { rail: boolean }) {
         </SidebarOverflow>
       )}
       {!hidden && !rail && <SidebarRowsGrip section="engines" total={shown.length} title={t("nav.externalSessions")} />}
-    </>
+    </SidebarSection>
   );
 }
 

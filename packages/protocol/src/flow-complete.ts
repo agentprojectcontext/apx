@@ -70,3 +70,13 @@ export function flowGraphGaps(graph: Pick<FlowDraftGraph, "nodes">): { node: Flo
     return field ? [{ node, field }] : [];
   });
 }
+
+const TASK_REF = /\$(?:trigger|steps|vars|apx)(?![A-Za-z0-9_])(?:\.[A-Za-z0-9_-]+)*/g;
+
+/**
+ * The placeholders an AI step's task names (`$steps.read.answer`…), each once. A task is never filled in: what the step
+ * works on reaches it apart, as data (DECISIONS.md#d-172), so these reach the model as written.
+ */
+export function flowTaskRefs(prompt: string): string[] {
+  return [...new Set(prompt.match(TASK_REF) ?? [])];
+}

@@ -16,6 +16,12 @@ export { Button, type ButtonProps } from "./components/Button";
 export { Card, type CardProps } from "./components/Card";
 export { ChannelIcon, type ChannelIconProps } from "./components/ChannelIcon";
 export { Checkbox, type CheckboxProps } from "./components/Checkbox";
+export {
+  CODE_FRAME_LABELS,
+  CodeFrame,
+  type CodeFrameLabels,
+  type CodeFrameProps,
+} from "./components/CodeFrame";
 export { Composer, type ComposerProps } from "./components/Composer";
 export { ContextMenu, type ContextMenuProps } from "./components/ContextMenu";
 export { ConversationRow, type ConversationRowProps } from "./components/ConversationRow";
@@ -61,7 +67,7 @@ export {
 } from "./components/IntegrationIcon";
 export { Kbd, type KbdProps } from "./components/Kbd";
 export { LiveBrowserCard, type LiveBrowserCardProps } from "./components/LiveBrowserCard";
-export { type MarkdownLabels, tableMarkdown, tableTsv } from "./components/MarkdownTable";
+export { cellsCsv, type MarkdownLabels, tableCsv, tableMarkdown } from "./components/MarkdownTable";
 export {
   type CodeRenderer,
   type LinkRenderer,

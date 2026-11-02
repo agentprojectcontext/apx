@@ -27,10 +27,10 @@ export function cellValue(text: string): unknown {
 }
 
 /** Each row's cells by column, in the table's order, plus cells of fields that are no column (kept, not shown). */
-export function gridRows(table: Pick<TableInfo, "columns">, rows: readonly TableRow[]) {
+export function gridRows(table: Pick<TableInfo, "columns">, rows: readonly Pick<TableRow, "key" | "value">[]) {
   return rows.map((r) => {
     const cells = tableCells(r.value);
-    return { key: r.key, updated_at: r.updated_at, cells: table.columns.map((c) => cellText(cells[c])) };
+    return { key: r.key, cells: table.columns.map((c) => cellText(cells[c])) };
   });
 }
 

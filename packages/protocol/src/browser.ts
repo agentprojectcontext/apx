@@ -35,6 +35,49 @@ const Ref = z.string().regex(/^e\d+$/);
 const Url = z.string().url().max(4096);
 /** Who drives the tab; shown in the pill ("Roby is using this tab"). */
 const By = z.string().min(1).max(64).default("operator");
+const Fraction = z.number().min(0).max(1);
+/** Only a hex color: a value that can never close the declaration it goes into. */
+const HexColor = z.string().regex(/^#[0-9a-fA-F]{3,8}$/);
+
+/** An element of the page the owner picked in edit mode. Its name and text are untrusted page content. */
+export const PickedElement = z.object({
+  /** The page's own id for the element while its document lives (a backend node id). */
+  node: z.number().int().positive(),
+  tag: z.string(),
+  role: z.string(),
+  name: z.string(),
+  selector: z.string(),
+  /** Its text when it holds just one, so it can be rewritten; null otherwise. */
+  text: z.string().nullable(),
+  /** A password, one-time code or card field: never read nor edited. */
+  sensitive: z.boolean(),
+  /** Where it sits, as fractions of the visible page. */
+  box: z.object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() }).nullable(),
+  style: z.object({
+    color: z.string().optional(),
+    background: z.string().optional(),
+    font_size: z.number().optional(),
+    padding: z.number().optional(),
+  }),
+});
+export type PickedElement = z.infer<typeof PickedElement>;
+
+export const ElementEdit = z
+  .object({
+    node: z.number().int().positive(),
+    text: z.string().max(2000).optional(),
+    style: z
+      .object({
+        color: HexColor.optional(),
+        background: HexColor.optional(),
+        font_size: z.number().int().min(6).max(200).optional(),
+        padding: z.number().int().min(0).max(200).optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+export type ElementEdit = z.infer<typeof ElementEdit>;
 
 export const browserMethods = {
   "browser.tabs": {
@@ -106,6 +149,23 @@ export const browserMethods = {
     params: z.object({ tab: Tab }).strict(),
     result: z.object({ mime: z.literal("image/jpeg"), data: z.string(), bytes: z.number().int() }),
     effect: false,
+  },
+  /** Edit mode: the element under a point of the visible page (fractions 0–1), or null. Owner only. */
+  "browser.inspect": {
+    params: z.object({ tab: Tab, x: Fraction, y: Fraction }).strict(),
+    result: z.object({ element: PickedElement.nullable() }),
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Edit mode: shows exactly these edits in the page, only in the owner's view, until it reloads; elements edited before
+   * and not listed go back. An empty list undoes all. Refused while an agent drives the tab.
+   */
+  "browser.preview_edits": {
+    params: z.object({ tab: Tab, edits: z.array(ElementEdit).max(50) }).strict(),
+    result: z.object({ shown: z.number().int() }),
+    effect: true,
+    access: "human",
   },
   /** The human's hand from any operator: take the tab, give it back, or finish a handoff. */
   "browser.control": {

@@ -46,13 +46,14 @@ export function surfaceTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "show_widget",
       description:
-        "One self-contained HTML, inline CSS/JS/SVG. Default to a simple widget; an app only when asked or it must keep records. Add <script src='/_apx/kit@1.js'></script> and use ax-* classes (ax-page, ax-card, ax-stat, ax-table); load apx-artifacts first for more than a quick view, an app, memory or live data. Network only to connect origins. Project media: data-apx-src='clip.mp4' or 'media:ID' on img/video, or apx.media(ref). Same name replaces it; edit_widget edits parts. pin adds it to the board. window.apx.sendPrompt(text) writes to this chat.",
+        "One self-contained HTML, inline CSS/JS/SVG. Default to a simple widget; an app only when asked or it must keep records. Add <script src='/_apx/kit@1.js'></script> and use ax-* classes (ax-page, ax-card, ax-stat, ax-table); load apx-artifacts first for more than a quick view, an app, memory or live data. Network only to connect origins. Project media: data-apx-src='clip.mp4' or 'media:ID' on img/video, or apx.media(ref). Same name replaces it; edit_widget edits parts. pin adds it to the board; page when asked for a web page. window.apx.sendPrompt(text) writes to this chat.",
       args: z.object({
         name: z.string().describe("stable kebab-case name, e.g. monthly-sales"),
         title: z.string().describe("human title"),
         html: z.string().describe("full HTML body"),
         pin: z.boolean().optional(),
         app: z.boolean().optional().describe("Fullscreen app listed in Apps."),
+        page: z.boolean().optional().describe("A web page in its own styles, no kit."),
         // Checked against SurfaceOrigin in check(): its pattern in the schema costs every turn.
         connect: z
           .array(z.string().max(300))
@@ -83,13 +84,17 @@ export function surfaceTools(store: Store, home: string): Tool[] {
           // Where the widget lives is the owner's choice once made: an agent adds a place, never takes one away.
           ...(a.pin ? { pinned: true } : {}),
           ...(a.app ? { app: true } : {}),
+          ...(a.page ? { page: true } : {}),
           ...(a.connect === undefined ? {} : { connect: a.connect }),
         });
         card(ctx, surface);
         const where = [
           surface.project_id ? "" : "in no project (a chat outside a project makes a global widget)",
           surface.pinned ? "pinned to the project's board" : "",
-          surface.app ? "listed as an app" : "",
+          a.pin && surface.page ? "not pinned: a web page is never on a board" : "",
+          surface.app ? "an app" : "",
+          surface.in_apps ? "listed in Apps" : "",
+          surface.page ? "shown as a web page" : "",
           surface.connect ? `connecting to ${surface.connect.join(", ")}` : "",
         ].filter(Boolean);
         return `widget "${surface.name}" v${surface.version} shown${where.length ? `, ${where.join(", ")}` : ""}.`;
@@ -110,7 +115,10 @@ export function surfaceTools(store: Store, home: string): Tool[] {
             return `no widgets ${ctx.thread.project_id ? "in this project" : "outside a project"} yet: make one with show_widget.`;
           return list
             .slice(0, 40)
-            .map((s) => `- ${s.name}: ${s.title} (v${s.version}${s.pinned ? ", pinned" : ""}${s.app ? ", app" : ""})`)
+            .map(
+              (s) =>
+                `- ${s.name}: ${s.title} (v${s.version}${s.app ? ", app" : s.page ? ", web page" : ""}${s.pinned ? ", pinned" : ""}${s.in_apps ? ", in Apps" : ""})`,
+            )
             .join("\n");
         }
         const s = find(ctx, a.name);
@@ -128,7 +136,7 @@ export function surfaceTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "edit_widget",
       description:
-        "Edit a widget by name: exact old/new HTML edits, title, app/pin flags or its state. Flags or state alone keep HTML, version and public link. HTML edits must match once; read_widget first if needed. All apply together or none.",
+        "Edit a widget by name: exact old/new HTML edits, title, app/pin/page flags or its state. Flags or state alone keep HTML, version and public link. HTML edits must match once; read_widget first if needed. All apply together or none.",
       args: z.object({
         name: z.string(),
         edits: z
@@ -139,6 +147,7 @@ export function surfaceTools(store: Store, home: string): Tool[] {
         title: z.string().trim().min(1).max(120).optional(),
         app: z.boolean().optional(),
         pin: z.boolean().optional(),
+        page: z.boolean().optional(),
         state: z.record(z.string(), z.unknown()).optional().describe("APX.state keys to set, null removes"),
       }),
       effect: "local",
@@ -147,19 +156,21 @@ export function surfaceTools(store: Store, home: string): Tool[] {
       async run(a, ctx) {
         const s = find(ctx, a.name);
         if (!s) return `no widget named ${a.name}: make it with show_widget, or list them with read_widget.`;
+        if (a.pin && (a.page ?? s.page)) return "a web page is a document, not a board tile: it cannot be pinned.";
         const flags = {
           ...(a.app === undefined ? {} : { app: a.app }),
           ...(a.pin === undefined ? {} : { pinned: a.pin }),
+          ...(a.page === undefined ? {} : { page: a.page }),
         };
         const remembered = a.state ? `; state: ${Object.keys(a.state).join(", ")} changed` : "";
         if (!a.edits && a.title === undefined) {
-          const hasFlags = a.app !== undefined || a.pin !== undefined;
-          if (!hasFlags && !a.state) return "provide edits, title, app, pin or state; nothing changed.";
+          const hasFlags = a.app !== undefined || a.pin !== undefined || a.page !== undefined;
+          if (!hasFlags && !a.state) return "provide edits, title, app, pin, page or state; nothing changed.";
           if (ctx.signal.aborted) return STOPPED;
           if (a.state) await ctx.call("surfaces.set_state", { surface: s.id, patch: a.state });
           const surface = hasFlags ? await ctx.call("surfaces.update", { surface: s.id, ...flags }) : s;
           if (hasFlags) card(ctx, surface);
-          return `widget "${surface.name}" v${surface.version}: ${surface.app ? "app" : "widget"}, ${surface.pinned ? "pinned" : "not pinned"}; HTML unchanged${remembered}.`;
+          return `widget "${surface.name}" v${surface.version}: ${surface.app ? "app" : surface.page ? "web page" : "widget"}, ${surface.pinned ? "pinned" : "not pinned"}${surface.in_apps ? ", in Apps" : ""}; HTML unchanged${remembered}.`;
         }
         const files = builtFromFiles(home, s.project_id, s.name);
         if (files) return files;

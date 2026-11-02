@@ -1,5 +1,6 @@
 import { noticeEn } from "@apx/protocol/notices";
 import type { ApprovalKey } from "./approvals-en.ts";
+import type { BrowserEditKey } from "./browser-edit-en.ts";
 import type { ComputerKey } from "./computer-en.ts";
 import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
@@ -16,6 +17,7 @@ import type { enFlow } from "./flow-en.ts";
 import type { enIngress } from "./ingress-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
 import type { enSecretary } from "./secretary-en.ts";
+import type { enStorage } from "./storage-en.ts";
 import type { SysUsageKey } from "./sysusage-en.ts";
 import type { enThreadDialogs } from "./thread-dialogs-en.ts";
 
@@ -254,6 +256,11 @@ export const en = {
   "update.cardCta": "See what's new",
   "corner.label": "News and invitations",
   "community.title": "Join the community",
+  "storage.cardTitle": "Your disk is almost full",
+  "storage.cardDesc": "Only {free} left. When it runs out, APX can't save chats or files.",
+  "storage.cardCta": "See storage",
+  "storage.bannerText": "Disk almost full: {free} left",
+  "storage.bannerCta": "Review",
   "v1.cardTitle": "APX v1 is still running",
   "v1.cardDesc": "Your routines and bots may run twice. Turn v1 off and make apx this version; v1's files stay.",
   "v1.cardCta": "Turn v1 off",
@@ -306,11 +313,11 @@ export const en = {
   "phone.hint":
     "You need the APX app installed. If the phone is not paired yet, the scan pairs it; the code works once, for 10 minutes.",
   "phone.failed": "Could not create the code",
-  "nav.collapse": "Fold the sidebar",
-  "nav.expand": "Unfold the sidebar",
   "nav.back": "Back",
   "nav.forward": "Forward",
-  "nav.resize": "Resize the sidebar",
+  "nav.resize": "Fold or resize the sidebar",
+  "nav.resizeHint": "Click to fold the sidebar · drag to resize it",
+  "nav.unfoldHint": "Click to open the sidebar",
   "nav.rowsResize": "Show more or fewer {section}",
   "inbox.resize": "Resize the list",
   "nav.label": "Navigation",
@@ -481,6 +488,7 @@ export const en = {
   "inbox.routineBundle.runs.other": "{n} runs",
   "thread.routine": "Routine",
   "thread.routineOf": "Routine · {name}",
+  "thread.flowStep": "Flow step",
   "thread.routineHint": "What the routine {name} told",
   "thread.routinePrompt": "Routine {name}: its instructions",
   "thread.group": "Group · {n} agents",
@@ -529,9 +537,11 @@ export const en = {
   "chat.agentWorking": "{name} is working…",
   "chat.agentWaiting": "{name} is waiting for you",
   "chat.agentQueued": "Queued: {name} starts once one of the running delegations finishes",
-  "tools.working": "Working · action {n}",
-  "tools.waiting": "Waiting for you · action {n}",
-  "tools.summary": "Actions 1–{n} of {n}",
+  "tools.working": "Working · step {n}",
+  "tools.waiting": "Waiting for you · step {n}",
+  "tools.steps.one": "1 step",
+  "tools.steps.other": "{n} steps",
+  "tools.stepsTook": "{steps} · {time}",
   "tools.computer.working": "Controlling the computer…",
   "tools.computer.done": "Controlled the computer · {n} actions",
   "tools.failed.one": "failed",
@@ -552,12 +562,12 @@ export const en = {
   "subthread.actionsFailed": "Some actions failed",
 
   // Widgets, apps, sharing
-  "widget.gone": "The widget “{title}” no longer exists.",
+  "widget.gone": "“{title}” no longer exists.",
   "widget.eyebrow": "Widget · {title}",
   "widget.connects": "Live data from {hosts}",
   "widget.chat": "Ask its agent for changes",
-  "widget.delete": "Delete widget",
-  "widget.delete.title": "Delete this widget?",
+  "artifact.delete": "Delete",
+  "artifact.delete.title": "Delete it for good?",
   "widget.delete.body": "It is deleted for good, with what it remembers. The chats that showed it keep their messages.",
   "widget.delete.what": "“{title}” will be deleted.",
   "widget.chatOf": "Chat of the widget {title}",
@@ -569,7 +579,7 @@ export const en = {
   "widget.askWaiting": "The widget shows here as soon as the agent makes it.",
   "widget.chatNoAgent": "There is no agent to keep this widget.",
   "widget.chatDraft": 'Keep editing the widget "{title}" (name: {name}): ',
-  "widget.openApp": "Open as app",
+  "widget.openApp": "Open full screen",
   "widget.installApp": "Pin to Apps",
   "widget.unavailable": "Widget not available",
   "widget.toPanel": "Show in the side panel",
@@ -586,10 +596,7 @@ export const en = {
   "app.remove": "Unpin from Apps",
   "share.copied": "Link copied.",
   "share.copyFailed": "Could not copy the link.",
-  "share.hint":
-    "Private by default. Publishing makes the HTML readable by anyone with its link. Public pages cannot access APX state, private files or actions.",
-  "share.tunnelHint":
-    "Copy and open require a public address (Settings › Devices). Enabling it also exposes previously shared HTML; review its content first.",
+  "share.tunnelHint": "Copy and open need a public address (Settings › Devices).",
   "share.linkUnavailable":
     "Public link unavailable. Check the public address in Settings › Devices and allow new tabs.",
   "share.private": "Private",
@@ -610,11 +617,21 @@ export const en = {
   "artifact.outsideHint": "This app shows in a window of its own. Close that window, or bring it back here.",
   "artifact.bringBack": "Bring it back here",
   "artifact.launcher": "Open an artifact",
-  "artifact.launcherSearch": "Search apps and widgets",
+  "artifact.launcherSearch": "Search apps, widgets and pages",
   "artifact.launcherEmpty": "Nothing by that name",
   "artifact.kindApp": "App",
   "artifact.kindWidget": "Widget",
-  "artifact.pinned": "Pinned",
+  "artifact.kindPage": "Web page",
+  "page.sub": "Web page in {project} · made by {author}",
+  "page.width": "Width",
+  "page.desktop": "Desktop",
+  "page.phone": "Phone",
+  "page.preparing": "Getting edit mode ready…",
+  "page.download": "Download (.html)",
+  "artifact.noMemory": "No memory",
+  "artifact.noMemoryHint": "It keeps nothing: no settings, data or records.",
+  "artifact.popupBlocked": "The browser blocked the window. Allow pop-ups for APX.",
+  "artifact.pinned": "In Apps",
   "artifact.download": "Download (.apxart)",
   "artifact.downloadPlain": "The artifact alone",
   "artifact.downloadMemory": "With what it remembers",
@@ -637,7 +654,7 @@ export const en = {
   "artifact.installClash":
     "There is already an artifact named {name} there: this one installs beside it with another name.",
   "artifact.installPin": "Pin to Apps",
-  "artifact.installPinHint": "Pinned, it is an app: in the sidebar and running until you close it.",
+  "artifact.installPinHint": "Listed in Apps in the sidebar, and running until you close it.",
   "artifact.installMemory": "With its data",
   "artifact.installMemoryHint": "What it remembers in the file: your settings, its last saved reading, its records.",
   "artifact.part.state": "your settings",
@@ -819,6 +836,8 @@ export const en = {
   "browser.agentUsing": "{name} is using this tab",
   "browser.takeControl": "Take control",
   "browser.giveBack": "Give back",
+  "browser.edit": "Edit",
+  "browser.editHint": "Pick parts of the page and ask for changes",
   "browser.handoffDone": "When you finish, press Done and it takes the tab back.",
   "browser.handedYou": "handed you the tab",
   "browser.liveView": "Live view of the tab",
@@ -1052,6 +1071,7 @@ export const en = {
   "config.agents": "Agents",
   "config.browser": "Browser",
   "config.advanced": "Advanced",
+  "config.storage": "Storage",
   "config.logs": "Logs",
   "logs.lead":
     "What the core writes while it runs: what it started, what failed and why. Newest first, refreshed every few seconds.",
@@ -1861,9 +1881,11 @@ export const en = {
 export type MessageKey =
   | keyof typeof en
   | ApprovalKey
+  | BrowserEditKey
   | ComputerKey
   | ReceivedKey
   | SysUsageKey
+  | keyof typeof enStorage
   | keyof typeof enEmailSignatures
   | keyof typeof enThreadDialogs
   | keyof typeof enIngress

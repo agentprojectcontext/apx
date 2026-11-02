@@ -2,11 +2,17 @@ import type { Part } from "@apx/protocol";
 import { Button, IconButton, Icons } from "@apx/ui";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
+import { startEditing } from "../../panel/browserEdit.ts";
 import { go, useNav } from "../../shell/nav.ts";
+import { KindIcon, kindOf } from "../../surfaces/artifactKind.tsx";
 import { SurfaceActions } from "../../surfaces/SurfaceActions.tsx";
 import { SurfaceFrame } from "../../surfaces/SurfaceFrame.tsx";
+import { PagePart } from "./PagePart.tsx";
 
-/** A widget the agent produced, rendered inline with pin / app actions; a card while it shows in the side panel. */
+/**
+ * An artifact the agent produced: a widget inline with its actions, or a card while it shows in the side panel; a web
+ * page as a page (PagePart).
+ */
 export function SurfacePart({ part }: { part: Extract<Part, { type: "surface" }> }) {
   const t = useT();
   const surface = useData((s) => s.surfaces[part.surface_id]);
@@ -18,6 +24,8 @@ export function SurfacePart({ part }: { part: Extract<Part, { type: "surface" }>
       </div>
     );
   }
+  // A web page reads as one, in the frame HTML blocks use; it never moves to the side panel.
+  if (surface.page) return <PagePart surface={surface} />;
   if (aside)
     return (
       <div className="surfacecard surfacecard--aside">
@@ -34,7 +42,7 @@ export function SurfacePart({ part }: { part: Extract<Part, { type: "surface" }>
   return (
     <div className="surfacecard">
       <div className="surfacecard__head">
-        <Icons.LayoutGrid size={12} />
+        <KindIcon kind={kindOf(surface)} size={12} />
         <span className="surfacecard__eyebrow">{t("widget.eyebrow", { title: surface.title })}</span>
         {surface.connect && (
           <span className="surfacecard__net" title={surface.connect.join("\n")}>
@@ -43,7 +51,16 @@ export function SurfacePart({ part }: { part: Extract<Part, { type: "surface" }>
           </span>
         )}
         <span className="surfacecard__spacer" />
-        <SurfaceActions surface={surface} />
+        <IconButton
+          size="sm"
+          label={t("browser.edit")}
+          icon={<Icons.Pencil size={14} />}
+          onClick={() => {
+            go.widget(surface.id);
+            startEditing(`widget:${surface.id}`);
+          }}
+        />
+        <SurfaceActions surface={surface} inChat />
         <IconButton
           size="sm"
           label={t("widget.toPanel")}

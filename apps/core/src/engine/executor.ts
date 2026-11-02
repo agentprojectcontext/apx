@@ -87,6 +87,10 @@ function describe(args: Record<string, unknown>): string {
 }
 
 /** What the model reads when the owner has not said yes: still waiting, or declined (or never answered). */
+/** A tool call the owner's "send now" stopped part way: the model reads their words next. */
+export const CUT_SHORT =
+  "stopped part way: the owner sent you a message to read now. It may have done part of its work; check before repeating it.";
+
 function unanswered(answer: InputRecord): { card: string; text: string } | undefined {
   if (answer.state === "pending")
     return {
@@ -243,7 +247,7 @@ export function createExecutor(o: {
     return unanswered(answer) ?? { thread: lent, asked: true };
   };
 
-  const execute: TurnIO["execute"] = async (callId, called, given) => {
+  const execute: TurnIO["execute"] = async (callId, called, given, step) => {
     const run = o.run();
     const transfer = handedOff(store, run);
     if (transfer) return { ok: false, text: transfer, endTurn: true };
@@ -253,6 +257,7 @@ export function createExecutor(o: {
     const bridged = called !== MCP_CALL || (name.startsWith("mcp_") && name !== MCP_CALL && name !== MCP_SEARCH);
     const tool = bridged ? byName.get(name) : undefined;
     const title = tool ? toolTitle(store, tool, raw) : name;
+    const began = Date.now();
     const card = (status: "running" | "ok" | "error", detail?: string) =>
       display.upsert((p) => p.type === "tool" && p.call_id === callId, {
         type: "tool",
@@ -261,6 +266,7 @@ export function createExecutor(o: {
         title,
         status,
         ...(detail ? { detail } : {}),
+        ...(status === "running" ? {} : { ms: Date.now() - began }),
       });
     card("running");
     signal.throwIfAborted();
@@ -425,7 +431,8 @@ export function createExecutor(o: {
       agent,
       thread: callThread,
       run,
-      signal,
+      // Only the tool's own work stops for the owner's words; their cards above still answer to the turn.
+      signal: step ? AbortSignal.any([signal, step]) : signal,
       untrusted: () => untrusted,
       ...(o.inView ? { inView: () => o.inView as ReadonlySet<string> } : {}),
       approvalFor: (n) => byName.get(n)?.approval,
@@ -530,6 +537,10 @@ export function createExecutor(o: {
     const full = out.text.slice(0, STORED_OUTPUT_CHARS);
     store.runs.endStep(run.id, callId, out.ok ? "ok" : "error", out.text.slice(0, STEP_SUMMARY_CHARS), full);
     signal.throwIfAborted();
+    if (step?.aborted) {
+      card("error", "stopped for your message");
+      return { ok: false, text: CUT_SHORT };
+    }
     card(out.ok ? "ok" : "error", out.text.slice(0, CARD_DETAIL_CHARS));
     // The model gets a capped copy; the whole text stays in the step for read_output.
     const shown = cap(out.text);
@@ -609,13 +620,14 @@ export function createExecutor(o: {
     return answer.state === "approved" && allow();
   };
 
-  const seen = new Set<string>();
+  /** When each of an external agent's tool calls began. */
+  const seen = new Map<string, number>();
   const observe: TurnIO["observe"] = (ev) => {
     const run = o.run();
     // What an external agent fetched from the web is now in its context.
     if (ev.kind === "fetch") untrusted = true;
     if (!seen.has(ev.callId)) {
-      seen.add(ev.callId);
+      seen.set(ev.callId, Date.now());
       const looks = LOOKING.has(ev.kind);
       if (!looks) toolsRan++;
       store.runs.beginStep(run.id, {
@@ -635,6 +647,7 @@ export function createExecutor(o: {
       title: ev.title,
       status: ev.status,
       ...(ev.detail ? { detail: ev.detail } : {}),
+      ...(ev.status === "running" ? {} : { ms: Date.now() - (seen.get(ev.callId) ?? Date.now()) }),
     });
   };
 

@@ -212,9 +212,9 @@ test("Sesiones externas: plegado independiente, persistente y accesible desde ba
   await page.reload();
   await expect(fold).toHaveAttribute("aria-expanded", "false");
   await expect(engine).toBeHidden();
-  await page.getByRole("button", { name: "Plegar la barra", exact: true }).click();
+  await page.getByRole("separator", { name: "Plegar o cambiar el ancho de la barra", exact: true }).click();
   await expect(engine).toBeVisible();
-  await page.getByRole("button", { name: "Desplegar la barra", exact: true }).click();
+  await page.getByRole("separator", { name: "Plegar o cambiar el ancho de la barra", exact: true }).click();
   await expect(engine).toBeHidden();
   await fold.click();
   await expect(engine).toBeVisible();
@@ -307,19 +307,19 @@ test("Canales: tres visibles, orden persistente y sin leer visibles también en 
   await page.reload();
   await expect(fold).toHaveAttribute("aria-expanded", "false");
   await expect(rows).toHaveCount(0);
-  await page.getByRole("button", { name: "Plegar la barra", exact: true }).click();
+  await page.getByRole("separator", { name: "Plegar o cambiar el ancho de la barra", exact: true }).click();
   await expect(rows).toHaveCount(3);
   await expect(more.locator(".apx-nav__dot")).toBeVisible();
-  await page.getByRole("button", { name: "Desplegar la barra", exact: true }).click();
+  await page.getByRole("separator", { name: "Plegar o cambiar el ancho de la barra", exact: true }).click();
   await expect(rows).toHaveCount(0);
   await fold.focus();
   await page.keyboard.press("Enter");
   await expect(fold).toHaveAttribute("aria-expanded", "true");
   await expect(rows).toHaveCount(3);
   await expect(fold.locator(".apx-nav__count")).toHaveCount(0);
-  await page.getByRole("button", { name: "Plegar la barra", exact: true }).click();
+  await page.getByRole("separator", { name: "Plegar o cambiar el ancho de la barra", exact: true }).click();
   await expect(more.locator(".apx-nav__dot")).toBeVisible();
-  await page.getByRole("button", { name: "Desplegar la barra", exact: true }).click();
+  await page.getByRole("separator", { name: "Plegar o cambiar el ancho de la barra", exact: true }).click();
   await page
     .locator('[data-channel-id="whatsapp"]')
     .dragTo(page.locator('[data-channel-id="telegram"]'), { targetPosition: { x: 20, y: 1 } });

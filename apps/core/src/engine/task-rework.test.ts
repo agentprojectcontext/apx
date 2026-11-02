@@ -28,6 +28,7 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
     });
   if (said.includes("Create delivery"))
     return callTool("create", "task_create", {
+      goal: "Done as asked",
       title: "Delivery for rework",
       description: "Prepare the delivery for review.",
       assignee: "vera",

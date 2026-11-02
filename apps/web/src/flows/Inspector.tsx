@@ -7,7 +7,7 @@ import { forAgents, useModels } from "../data/models.ts";
 import { listSecrets } from "../data/resources.ts";
 import { useT } from "../i18n/index.ts";
 import { VariableDialog } from "../resources/VariablesTab.tsx";
-import { AiFields, aiNote } from "./AiFields.tsx";
+import { AiFields, aiNote, taskHint } from "./AiFields.tsx";
 import { CaseFields } from "./CaseFields.tsx";
 import { type Address, HookFields } from "./HookFields.tsx";
 import { InputPicker } from "./InputPicker.tsx";
@@ -321,7 +321,7 @@ function ModelFields(
           />
         )}
       </Field>
-      <Field label={t("flow.f.task")}>
+      <Field label={t("flow.f.task")} hint={taskHint(n.prompt, t)}>
         {(id) => (
           <Textarea
             id={id}

@@ -290,8 +290,12 @@ export const Thread = z.object({
   task_id: Id.optional(),
   /** The routine whose execution opened this chat; stable across routine renames. */
   routine_id: Id.optional(),
+  /** A Flow's AI model step opened this chat: that Flow, and the step's id in it. */
+  flow: z.object({ id: Id, step: Id.optional() }).optional(),
   /** An a2a sub-thread's name: its caller continues the same session (same agent, same context) by it. */
   session: z.string().optional(),
+  /** A helper's name: a session its caller (agent_ids[0]) runs under instructions it wrote for one task. */
+  worker: z.string().optional(),
   /** Code threads: the folder the agent works in (inside its project) and what it may change there. */
   cwd: z.string().optional(),
   write: WritePolicy.optional(),
@@ -461,6 +465,8 @@ const KnownPart = z.discriminatedUnion("type", [
     title: z.string(),
     status: z.enum(["running", "ok", "error"]),
     detail: z.string().optional(),
+    /** How long it took, once it ended. */
+    ms: z.number().int().nonnegative().optional(),
   }),
   z.object({ type: z.literal("surface"), surface_id: Id, version: z.number().int(), title: z.string() }),
   z.object({
@@ -622,6 +628,10 @@ export type MessageDelivery = z.infer<typeof MessageDelivery>;
 /** An emoji on a channel message: the agent's own, or the other side's (the contact, or the owner on their chat). */
 export const MessageReaction = z.object({ emoji: z.string().min(1).max(32), by: z.enum(["agent", "them"]) });
 export type MessageReaction = z.infer<typeof MessageReaction>;
+/** How the owner's words written while their agent works wait for it (Message.waiting). */
+export const MessageWaiting = z.object({ until: z.enum(["step", "turn"]), run: Id.optional() });
+export type MessageWaiting = z.infer<typeof MessageWaiting>;
+
 export const Message = z.object({
   id: Id,
   thread_id: Id,
@@ -630,12 +640,19 @@ export const Message = z.object({
   parts: z.array(Part),
   run_id: Id.optional(),
   model: z.string().optional(),
+  /** True only when the engine confirmed the model; absent means historical provenance is unknown. */
+  model_reported: z.boolean().optional(),
   /** Sent on a channel: queued, taken by the platform, on their device, seen by them, or not sent. */
   delivery: MessageDelivery.optional(),
   /** Emoji put on it on a channel, at most one per side. */
   reactions: z.array(MessageReaction).optional(),
   /** The channel (its id) it came on or went out on; a chat everyone writes into (Home) shows each channel's part. */
   via: z.string().optional(),
+  /**
+   * The owner's words their agent has not taken yet: `step`, its running turn takes them at its next step; `turn`,
+   * they wait in line (as run `run`) until that turn ends, and can still be edited, removed or moved.
+   */
+  waiting: MessageWaiting.optional(),
   created_at: z.string(),
 });
 export type Message = z.infer<typeof Message>;
@@ -1456,7 +1473,12 @@ export const Surface = z.object({
   html: z.string(),
   version: z.number().int(),
   pinned: z.boolean(),
+  /** What it is: an app (fullscreen, its own navigation), decided when it is made; otherwise a widget or a page. */
   app: z.boolean(),
+  /** A web page: shown as a browser shows it (its own styles, no kit or memory), with its code and an editor. */
+  page: z.boolean().optional(),
+  /** Where it is listed: in Apps in the sidebar. An app made is; a widget is when the owner puts it there. */
+  in_apps: z.boolean().optional(),
   project_id: Id.optional(),
   thread_id: Id.optional(),
   created_by: Id,

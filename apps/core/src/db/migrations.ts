@@ -1136,4 +1136,39 @@ export const MIGRATIONS: readonly string[] = [
     DELETE FROM message_media WHERE message_id = old.id;
   END;
   `,
+  // A web page an agent made to look at and edit, shown in a page's frame instead of a widget's card.
+  `ALTER TABLE surfaces ADD COLUMN page INTEGER NOT NULL DEFAULT 0;`,
+  // Being listed in Apps is apart from being an app. Whatever was in Apps stays there; it is an app only when its page
+  // says so (apx-surface app) or its agent last made it one, so a widget the owner put in Apps is a widget again.
+  // A web page is a document, never a board tile. See HISTORY.md#apps-listing.
+  `
+  ALTER TABLE surfaces ADD COLUMN in_apps INTEGER NOT NULL DEFAULT 0;
+  UPDATE surfaces SET in_apps = app;
+  UPDATE surfaces SET app = 0
+  WHERE app = 1
+    AND NOT (html LIKE '%apx-surface%' AND (html LIKE '%content="app"%' OR html LIKE '%content=''app''%'
+      OR html LIKE '%content=app%'))
+    AND html NOT LIKE '%data-ax-surface="app"%'
+    AND COALESCE((
+      SELECT json_extract(st.args, '$.app') FROM steps st
+      WHERE st.tool IN ('show_widget', 'edit_widget') AND json_valid(st.args)
+        AND json_extract(st.args, '$.name') = surfaces.name AND json_extract(st.args, '$.app') IS NOT NULL
+      ORDER BY st.started_at DESC LIMIT 1
+    ), 0) = 0;
+  UPDATE surfaces SET pinned = 0 WHERE page = 1;
+  `,
+  // Existing model labels have unknown provenance and remain NULL.
+  `ALTER TABLE messages ADD COLUMN model_reported INTEGER;`,
+  // The owner's words their agent has not taken yet, and the order waiting turns start in (DECISIONS.md#d-186).
+  `
+  ALTER TABLE messages ADD COLUMN waiting TEXT;
+  ALTER TABLE runs ADD COLUMN queue_order INTEGER;
+  UPDATE runs SET queue_order = rowid;
+  CREATE INDEX runs_queue_order ON runs(queue_order);
+  `,
+  // Where a task's work must arrive, and the owner's own words behind it (a JSON list), read first on every turn.
+  `
+  ALTER TABLE tasks ADD COLUMN goal TEXT;
+  ALTER TABLE tasks ADD COLUMN asked TEXT;
+  `,
 ];

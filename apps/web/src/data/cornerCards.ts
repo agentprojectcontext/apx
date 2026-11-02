@@ -10,6 +10,8 @@ type Closed = {
   update: string;
   /** "v1 is still running", closed for this session only. */
   v1: boolean;
+  /** "Your disk is almost full", closed for this session only: it says so again next time while it lasts. */
+  disk: boolean;
   /** The welcome to v2 as the release, said once. */
   welcome: boolean;
 };
@@ -24,10 +26,11 @@ function load(): Closed {
       star: raw.star === true,
       update: "",
       v1: false,
+      disk: false,
       welcome: raw.welcome === true,
     };
   } catch {
-    return { discord: false, star: false, update: "", v1: false, welcome: false };
+    return { discord: false, star: false, update: "", v1: false, disk: false, welcome: false };
   }
 }
 

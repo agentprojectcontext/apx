@@ -123,6 +123,16 @@ test("a run with nothing arrived says who started it, and the core's own cut sho
   const owner = runLog(run({ source: "owner", arrived: null }), { steps: views }, "", words);
   assert.equal(owner[0]?.title, "flow.tlog.byYou");
   assert.equal(owner[0]?.blocks.length, 0);
+  // Run now with data: the data it started with shows, laid out; empty data shows nothing.
+  const withData = (output: string) =>
+    runLog(
+      run({ source: "owner", arrived: null, steps: [{ ...step("start", "succeeded", null, null), output }] }),
+      { steps: views },
+      "",
+      words,
+    )[0]?.blocks;
+  assert.deepEqual(withData('{"test":2}'), [{ label: "flow.tlog.data", text: '{\n  "test": 2\n}', cut: false }]);
+  assert.deepEqual(withData("{}"), []);
   const cut = runLog(
     run({ arrived: { headers: {}, body: '{"a":1}', truncated: true } }),
     { steps: views },

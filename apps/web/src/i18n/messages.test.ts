@@ -16,6 +16,8 @@ import { enReceived } from "./received-en.ts";
 import { esReceived } from "./received-es.ts";
 import { enSecretary } from "./secretary-en.ts";
 import { esSecretary } from "./secretary-es.ts";
+import { enStorage } from "./storage-en.ts";
+import { esStorage } from "./storage-es.ts";
 import { enSysUsage } from "./sysusage-en.ts";
 import { esSysUsage } from "./sysusage-es.ts";
 import { enThreadDialogs } from "./thread-dialogs-en.ts";
@@ -106,6 +108,7 @@ const en = {
   ...enComputer,
   ...enReceived,
   ...enSysUsage,
+  ...enStorage,
   ...enEmailSignatures,
   ...enThreadDialogs,
   ...enIngress,
@@ -118,6 +121,7 @@ const es = {
   ...esComputer,
   ...esReceived,
   ...esSysUsage,
+  ...esStorage,
   ...esEmailSignatures,
   ...esThreadDialogs,
   ...esIngress,
@@ -129,6 +133,17 @@ const es = {
 test("every English text has its Spanish translation", () => {
   const missing = Object.keys(en).filter((k) => (es as Record<string, string | undefined>)[k] === undefined);
   assert.deepEqual(missing, []);
+});
+
+// Loanwords are common elsewhere ("Chat", "Skills"); the model picker has none besides these names.
+test("the model picker's Spanish texts are translated, not copied from English", () => {
+  const tr = es as Record<string, string | undefined>;
+  const words = (s: string) => s.replace(/\{\w+\}|Router|Ultra|[^A-Za-z]/g, "");
+  const copied = Object.entries(en).filter(([k, v]) => k.startsWith("models.") && tr[k] === v && words(v));
+  assert.deepEqual(
+    copied.map(([k]) => k),
+    [],
+  );
 });
 
 test("a translation keeps the placeholders of its English text", () => {

@@ -47,8 +47,9 @@ Values a step reads are **bindings**: `{kind: "event", path: ["form", "email"]}`
 `{kind: "node", node: "<step id>", path: [...]}` (an earlier step's output) or `{kind: "literal", value}`. Text
 fields marked *template* take placeholders: `$trigger.form.email`, `$steps.<step>.field`, `$vars.name`, `$apx.now`,
 `$apx.project`, `$apx.run`, and `$$` for a `$`. An AI step's `prompt` (`agent`, `llm`) is fixed text, not a template:
-placeholders in it reach the model as written. Give it what it works on through `input` (`{kind: "node", node:
-"<step id>", path: []}` for an earlier step's output, a table read's row included).
+placeholders in it reach the model as written (the answer lists them under "Check before publishing"). Say in words
+what to do and give it what it works on through `input` (`{kind: "node", node: "<step id>", path: []}` for an earlier
+step's output, a table read's row included).
 
 | kind | fields |
 |---|---|

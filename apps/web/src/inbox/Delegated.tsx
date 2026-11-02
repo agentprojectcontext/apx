@@ -78,7 +78,7 @@ function WithDelegated({
         <div className="delegated__row">{children}</div>
       </div>
       {open && (
-        <div className="tree__sessions delegated__list">
+        <div className="tree__sessions apx-branches delegated__list">
           {shown.map((k) => (
             <ListedChat key={k.id} thread={k} selected={selected} nested ancestors={[...ancestors, thread.id]}>
               <SessionRow

@@ -85,7 +85,8 @@ for (const creator of ["superagent", "vera", "owner"] as const) {
         return say("Finished.");
       }
       if (said.includes("Seed a draft")) {
-        if (!afterTool) return callTool("seed", "task_create", { title: "Update delivery task" });
+        if (!afterTool)
+          return callTool("seed", "task_create", { goal: "Done as asked", title: "Update delivery task" });
         task = /created (task_\w+)/.exec(String(req.messages.at(-1)?.content))?.[1] ?? "";
         return say("Draft saved.");
       }

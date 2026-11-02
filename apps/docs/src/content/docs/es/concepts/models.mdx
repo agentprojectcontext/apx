@@ -30,6 +30,20 @@ modelos para tus agentes.
   de Anthropic.
 </Aside>
 
+## Ver el modelo de una sesión externa
+
+En la próxima actualización, todavía no publicada, el encabezado del chat externo muestra **Solicitado:** seguido
+del modelo y esfuerzo elegidos, o del predeterminado del motor. Eso es un pedido, no la confirmación de lo que corrió.
+El pie de cada respuesta muestra el modelo informado por el motor; **Modelo sin confirmar** significa que APX todavía
+no recibió ese dato. También se ve en las conversaciones entre agentes de solo lectura. Las respuestas anteriores
+sin evidencia guardada de un informe del motor también muestran **Modelo sin confirmar**: APX no presenta una
+selección guardada anteriormente como un modelo confirmado.
+
+Claude Code informa su modelo al empezar el turno, así queda visible mientras espera tu aprobación o después de
+cancelarlo. La respuesta guardada conserva ese modelo al recargar o retomar el chat. Las respuestas siguientes pueden
+informar otro modelo sin cambiar las anteriores. El esfuerzo aparece junto al modelo confirmado solo si fue informado;
+el esfuerzo bajo **Solicitado:** sigue siendo únicamente el que pediste.
+
 ## Sumar un proveedor
 
 Abrí **Configuración › Motores y modelos**. En **APIs de modelos (loop propio de APX)**, tocá **Agregar proveedor** y
@@ -94,6 +108,13 @@ segundos; si el proveedor pide esperar menos de 30 segundos se espera, y una esp
 Después ese paso va al modelo siguiente de la cadena. Vale para cualquier paso de un turno, antes o después de que
 corra una herramienta: cada paso sólo le pregunta al modelo qué hacer, así que nada corre dos veces. Cuando cambia, el
 chat muestra un aviso con qué modelo no respondió, por qué y cuál siguió.
+
+Un modelo que llega al límite de uso de su cuenta (la cuota de un plan, un límite de frecuencia largo) se saltea hasta
+la hora de reinicio que dio el proveedor, o 10 minutos si no dio ninguna: los turnos siguientes van directo al modelo
+siguiente en lugar de volver a preguntarle. Si ningún modelo de la cadena puede responder, el turno se detiene y dice
+cuándo se levanta el límite; cuando se levanta, APX retoma el turno en el mismo chat, con lo que ya había hecho, y el
+agente lo termina. Lo hace solo con el último turno del chat y hasta tres veces seguidas, nunca con una rutina (su
+próxima corrida llega a su hora) ni con los agentes en pausa. Un turno detenido hace más de un día queda como está.
 
 ## Por agente, por chat, por defecto
 

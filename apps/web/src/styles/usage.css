@@ -170,6 +170,12 @@
   white-space: nowrap;
   color: var(--apx-fg);
 }
+/* A narrow row wraps its name rather than cutting it. */
+@media (max-width: 719px) {
+  .usage__name {
+    white-space: normal;
+  }
+}
 .usage__bar {
   height: 4px;
   border-radius: var(--apx-radius-pill);

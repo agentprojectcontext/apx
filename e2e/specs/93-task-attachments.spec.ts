@@ -35,7 +35,7 @@ test("task attachments persist across creation and reload, preview, download, an
   await assets
     .getByLabel("Adjuntar archivos", { exact: true })
     .setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("Northwind attachment snapshot") });
-  await expect(assets.getByRole("button", { name: /^notes\.txt / })).toBeVisible();
+  await expect(assets.locator(".filechip", { hasText: "notes.txt" })).toBeVisible();
   const listed = await rpc<{ tasks: Array<{ id: string; title: string }> }>("tasks.list", {});
   const task = listed.tasks.find((t) => t.title === "Northwind durable assets");
   expect(task).toBeDefined();
@@ -44,9 +44,9 @@ test("task attachments persist across creation and reload, preview, download, an
     .poll(async () => (await detail()).attachments.map((a) => a.name).sort())
     .toEqual(["brief.png", "notes.txt"]);
   await page.reload();
-  await expect(assets.getByRole("button", { name: /^notes\.txt / })).toBeVisible();
+  await expect(assets.locator(".filechip", { hasText: "notes.txt" })).toBeVisible();
   const download = page.waitForEvent("download");
-  await assets.getByRole("button", { name: /^notes\.txt / }).click();
+  await assets.locator(".filechip", { hasText: "notes.txt" }).getByRole("button", { name: "Descargar" }).click();
   const file = await download;
   expect(file.suggestedFilename()).toBe("notes.txt");
   const stream = await file.createReadStream();
@@ -117,7 +117,7 @@ test("existing tasks accept more than 20 attachments and stop at 50", async ({ p
   await assets
     .getByLabel("Adjuntar archivos", { exact: true })
     .setInputFiles({ name: "last.txt", mimeType: "text/plain", buffer: Buffer.from("Last") });
-  await expect(assets.getByRole("button", { name: /^last\.txt / })).toBeVisible();
+  await expect(assets.locator(".filechip", { hasText: "last.txt" })).toBeVisible();
   await expect(assets.getByRole("button", { name: "Adjuntar archivos", exact: true })).toBeDisabled();
   await expect.poll(async () => (await rpc<Detail>("tasks.get", { task: task.id })).attachments.length).toBe(50);
 });

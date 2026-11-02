@@ -42,11 +42,12 @@ export function placeEntries(s: SurfaceSummary, t: typeof tr, after?: { removedF
       onSelect: () => void setSurfaceFlags(s.id, { pinned: !s.pinned }),
     },
     {
-      label: s.app ? t("app.remove") : t("widget.installApp"),
+      label: s.in_apps ? t("app.remove") : t("widget.installApp"),
       icon: <Icons.AppWindow size={16} />,
       onSelect: async () => {
-        await setSurfaceFlags(s.id, { app: !s.app });
-        if (s.app) after?.removedFromApps?.();
+        // Listed or not in Apps: what it is (widget or app) stays.
+        await setSurfaceFlags(s.id, { in_apps: !s.in_apps });
+        if (s.in_apps) after?.removedFromApps?.();
       },
     },
   ];

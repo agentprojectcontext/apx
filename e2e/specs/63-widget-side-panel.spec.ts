@@ -35,7 +35,8 @@ test("a widget shows in the side panel, the chat keeps a card of it, and it come
   const head = panel.locator(".widgets__head");
   await expect(head.getByRole("button", { name: "Volver al chat" })).toHaveCount(0);
   let opens = page.waitForEvent("popup");
-  await head.getByRole("button", { name: "Abrir en otra ventana" }).click();
+  await head.getByRole("button", { name: "Más" }).click();
+  await page.getByRole("menuitem", { name: "Abrir en otra ventana" }).click();
   const first = await opens;
   const surfaceId = new URL(first.url()).searchParams.get("artifact") ?? "";
   expect(surfaceId).not.toBe("");
@@ -43,7 +44,8 @@ test("a widget shows in the side panel, the chat keeps a card of it, and it come
   await rpc("surfaces.share", { surface: surfaceId, shared: true });
   await first.close();
   opens = page.waitForEvent("popup");
-  await head.getByRole("button", { name: "Abrir en otra ventana" }).click();
+  await head.getByRole("button", { name: "Más" }).click();
+  await page.getByRole("menuitem", { name: "Abrir en otra ventana" }).click();
   expect(new URL((await opens).url()).searchParams.get("artifact")).toBe(surfaceId);
 
   await card.getByRole("button", { name: "Mostrar acá" }).click();

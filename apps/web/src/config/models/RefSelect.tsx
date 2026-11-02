@@ -1,5 +1,5 @@
 import type { CatalogEngine, ModelRef } from "@apx/protocol";
-import { Select, type SelectOption } from "@apx/ui";
+import { SegmentedControl, Select, type SelectOption } from "@apx/ui";
 import { baseRef, effortLabel, modelOf, splitRef, useModels, withEffort } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
 
@@ -72,6 +72,25 @@ export function EffortRow({ value, onChange }: { value?: ModelRef; onChange(ref:
   const model = value ? modelOf(value, catalog) : undefined;
   const efforts = model?.efforts ?? [];
   const effort = value ? splitRef(value).effort : undefined;
+  const fallback = model?.default_effort;
+  // With a few levels the choice is one row of buttons; the model's own default is marked as the chosen one.
+  if (value && efforts.length > 0 && efforts.length + (fallback ? 0 : 1) <= 4) {
+    return (
+      <div className="mlist__effort">
+        <span>{t("models.effort")}</span>
+        <SegmentedControl
+          size="sm"
+          label={t("models.effort")}
+          value={effort ?? fallback ?? ""}
+          options={[
+            ...(fallback ? [] : [{ value: "", label: t("models.effortDefault") }]),
+            ...efforts.map((e) => ({ value: e, label: effortLabel(e) })),
+          ]}
+          onValueChange={(v) => onChange(withEffort(value, v && v !== fallback ? v : undefined))}
+        />
+      </div>
+    );
+  }
   return (
     <div className="mlist__effort">
       <span>{t("models.effort")}</span>

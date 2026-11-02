@@ -6,12 +6,14 @@ import { useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { ArtifactMemoryButton } from "../surfaces/ArtifactMemory.tsx";
 import { ArtifactPropertiesDialog } from "../surfaces/ArtifactProperties.tsx";
+import { KindTile, kindOf } from "../surfaces/artifactKind.tsx";
 import { downloadEntry, placeEntries } from "../surfaces/artifactMenu.tsx";
 import { bringBack, popOut, useOutside } from "../surfaces/artifactWindows.ts";
 import { dropLive, useRunningApps } from "../surfaces/livePool.ts";
 import { ShareMenu } from "../surfaces/ShareMenu.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
 import { openWidgetChat } from "../surfaces/widgetChatActions.ts";
+import { PageScreen } from "./PageScreen.tsx";
 
 /** A maximized surface; its saved app flag controls padding, independently of this view. */
 export function AppScreen() {
@@ -44,13 +46,12 @@ export function AppScreen() {
       </section>
     );
   }
+  if (app.page) return <PageScreen page={app} />;
   return (
     <section className="appscreen" aria-label={app.title}>
       <header className="appscreen__head">
         <IconButton label={t("common.back")} icon={<Icons.ArrowLeft size={16} />} onClick={back} />
-        <span className="appscreen__tile">
-          <Icons.LayoutGrid size={14} />
-        </span>
+        <KindTile kind={kindOf(app)} size={28} />
         <div className="appscreen__titles">
           <div className="appscreen__title">{app.title}</div>
           <div className="appscreen__sub">

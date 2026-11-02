@@ -45,6 +45,8 @@ export type Prefs = {
   /** Columns the owner resized (px; 0 = the default) or folded away. */
   sidebarW: number;
   sidebarCollapsed: boolean;
+  /** Unfolded by the owner in a window narrow enough to show the icon rail on its own. */
+  sidebarOpen: boolean;
   listW: number;
   panelW: number;
   /**
@@ -95,6 +97,7 @@ const DEFAULTS: Prefs = {
   tasksProject: "",
   sidebarW: 0,
   sidebarCollapsed: false,
+  sidebarOpen: false,
   listW: 0,
   panelW: 0,
   boards: {},
@@ -132,6 +135,7 @@ function load(): Prefs {
       tasksProject: typeof raw.tasksProject === "string" ? raw.tasksProject : "",
       sidebarW: typeof raw.sidebarW === "number" ? raw.sidebarW : 0,
       sidebarCollapsed: raw.sidebarCollapsed === true,
+      sidebarOpen: raw.sidebarOpen === true,
       listW: typeof raw.listW === "number" ? raw.listW : 0,
       panelW: typeof raw.panelW === "number" ? raw.panelW : 0,
       boards: boardsOf(raw.boards),

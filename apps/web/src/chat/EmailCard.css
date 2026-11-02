@@ -1,0 +1,92 @@
+/* An email in a chat: a draft to send, or one received, as a card with its subject, people and body. */
+.mailcard {
+  margin: 8px 0;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  overflow: hidden;
+  min-width: 0;
+}
+.mailcard__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px 6px 12px;
+}
+.mailcard__title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: var(--apx-text-md);
+  color: var(--apx-fg);
+  overflow-wrap: anywhere;
+}
+.mailcard__tools {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.mailcard__fields {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0;
+  padding: 0 12px 10px;
+  font-size: var(--apx-text-sm);
+  border-bottom: 1px solid var(--apx-border);
+}
+.mailcard__fields dt {
+  color: var(--apx-fg-subtle);
+}
+.mailcard__fields dd {
+  margin: 0;
+  color: var(--apx-fg);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.mailcard__body {
+  padding: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--apx-text-md);
+  line-height: 1.55;
+  color: var(--apx-fg);
+}
+.mailcard__body.is-folded {
+  mask-image: linear-gradient(to bottom, #000 75%, transparent);
+}
+.mailcard__more {
+  margin: -6px 12px 8px;
+}
+.mailcard__foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--apx-border);
+  background: var(--apx-fill);
+}
+.mailcard__split {
+  display: inline-flex;
+  gap: 1px;
+}
+.mailcard__split > .apx-btn:not(:only-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.mailcard__split > .apx-iconbtn {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.mailcard__via,
+.mailcard__sent,
+.mailcard__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+  overflow-wrap: anywhere;
+}

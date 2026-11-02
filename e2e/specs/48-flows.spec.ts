@@ -157,6 +157,9 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   await page.getByRole("radio", { name: "Paso" }).click();
   await page.getByRole("button", { name: "Abrir chat" }).click();
   await expect.poll(() => page.url()).toContain("thread=");
+  // The chat says which flow opened it, and takes you back there.
+  await page.getByRole("button", { name: "Ver el flujo" }).click();
+  await expect.poll(() => page.url()).toContain(`flow=${flow?.id}`);
 
   // The filter narrows the list to a project; all projects show every flow.
   await open(page, `#view=flows&scope=${second.project.id}`);

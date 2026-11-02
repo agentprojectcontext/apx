@@ -119,7 +119,7 @@
   }
 }
 
-/* "38k / 200k" with its ring */
+/* "64%" with its ring */
 .ctxchip {
   display: inline-flex;
   flex: none;
@@ -143,20 +143,6 @@
 .ctxchip.is-open {
   background: var(--apx-fill-strong);
   color: var(--apx-fg);
-}
-.ctxchip__track {
-  fill: none;
-  stroke: var(--apx-border);
-  stroke-width: 2.5;
-}
-.ctxchip__fill {
-  fill: none;
-  stroke: var(--apx-accent);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-}
-.ctxchip.is-full .ctxchip__fill {
-  stroke: var(--apx-warning);
 }
 
 /* Files in a sent message */
@@ -197,6 +183,66 @@
   flex: none;
   color: var(--apx-fg-subtle);
 }
+/* A file in the chat: its kind, name and size, then download and (when APX can show it) open. */
+.filechip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(320px, 100%);
+  padding: 6px 6px 6px 8px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
+  color: var(--apx-fg);
+}
+.filechip__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+}
+.filechip__info {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  margin-right: 4px;
+  font-size: var(--apx-text-xs);
+  line-height: 1.35;
+}
+.filechip__name {
+  overflow: hidden;
+  font-weight: var(--apx-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.filechip__size {
+  color: var(--apx-fg-subtle);
+}
+.fileviewer {
+  width: calc(100vw - 32px);
+}
+.fileviewer__text {
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+}
+.fileviewer__text .cm-editor {
+  height: auto;
+}
+.fileviewer__pdf {
+  display: block;
+  width: 100%;
+  height: calc(100vh - 180px);
+  border: 0;
+}
+.fileviewer__failed {
+  color: var(--apx-fg-muted);
+}
 
 @media (max-width: 640px) {
   .composer__model {
@@ -204,7 +250,7 @@
   }
 }
 /* A composer in a narrow card (a floating chat), whatever the window's width: the model gives way first, then the
-   context chip keeps only its ring, so the mic and send stay inside. */
+   context chip keeps only its ring and percentage, so the mic and send stay inside. */
 .chat__composer {
   container-type: inline-size;
 }
@@ -212,7 +258,8 @@
   .composer__model {
     max-width: 150px;
   }
-  .ctxchip__text {
+  /* A percentage is short enough to stay. */
+  .ctxchip__text:not(.is-share) {
     display: none;
   }
 }

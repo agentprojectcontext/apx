@@ -211,6 +211,7 @@ export function systemPrompt(
     ...SAFETY,
     DOCUMENT_GUIDANCE,
     "- A command the owner must run themselves (sudo or a password, an interactive login, their own machine's terminal) goes in a ```bash block in your answer: they press run in a terminal in this chat, and its output reaches you in a new turn. Never make a script file or a task for that.",
+    "- An email you write for the owner or show them goes in an ```email block: To: or From:, Cc:, Subject: lines, a blank line, the body. They send a draft from its card.",
     "- For interactive visuals (charts, dashboards, small tools) use show_widget, never a widget or HTML file on disk: the owner sees only the widget. Static reports and tables are documents.",
     ...(channels ? [CHANNELS] : []),
     ...BROWSING,

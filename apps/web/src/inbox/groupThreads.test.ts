@@ -45,6 +45,34 @@ test("a Claude Code or Codex session sits under its engine, not under the agent 
   ]);
 });
 
+test("a tool-started external session stays visible under its registered project and engine", () => {
+  const threads = {
+    home: thread("home", { kind: "task" }),
+    session: thread("session", {
+      kind: "code",
+      engine: "claude",
+      project_id: "p_acme",
+      parent_id: "home",
+      cwd: "/different/folder",
+    }),
+    internal: thread("internal", { kind: "code", project_id: "p_acme", parent_id: "home" }),
+  };
+  const tree = groupByAgent(threads, [], { projectId: "p_acme" });
+  assert.equal(tree[0]?.key, "p_acme");
+  assert.deepEqual(
+    tree[0]?.agents.map((b) => [b.engine, b.threads.map((t) => t.id)]),
+    [["claude", ["session"]]],
+  );
+  assert.deepEqual(
+    listedThreads(threads, { projectId: "p_acme" }).map((t) => t.id),
+    ["session"],
+  );
+  assert.deepEqual(
+    archivedThreads({ session: { ...threads.session, archived: true } }, { projectId: "p_acme" }).map((t) => t.id),
+    ["session"],
+  );
+});
+
 test("channel conversations keep their own tree identity instead of nesting under their responding agent", () => {
   const trees = groupByAgent(
     {

@@ -27,6 +27,7 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
     return say("Go on with that, Scout.");
   if (system.startsWith("You are Scout") && said.includes("make it a task") && !afterTool)
     return callTool("c4", "task_create", {
+      goal: "Done as asked",
       title: "Recount the totals",
       description: "Recount the monthly totals.",
       assignee: "superagent",

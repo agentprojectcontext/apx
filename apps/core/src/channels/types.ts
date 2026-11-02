@@ -120,6 +120,8 @@ export interface ChannelAdapter {
   webhook?(req: HookRequest, signal?: AbortSignal): Promise<HookResponse>;
   /** Text, then `files` (the presentation's media, already read). */
   send(conversation: string, p: Presentation, files?: OutFile[]): Promise<{ external_id?: string }>;
+  /** A new mail the owner wrote (a mailbox channel): sent from its address as they reviewed it, signed. */
+  compose?(mail: { to: string[]; cc: string[]; subject: string; body: string }): Promise<{ external_id?: string }>;
   typing?(conversation: string): Promise<void>;
   /** Puts the agent's emoji on a message (`ref`: the platform's id of it); "" takes it off. */
   react?(conversation: string, ref: string, emoji: string): Promise<void>;

@@ -24,6 +24,8 @@
 }
 .apx-menu {
   min-width: 200px;
+  /* A long label wraps instead of pushing the menu off the screen. */
+  max-width: min(340px, calc(100vw - 16px));
   padding: 5px;
   border-radius: var(--apx-radius-md);
   background: var(--apx-surface-raised);

@@ -48,22 +48,19 @@ test("an agent's table keeps its columns, scrolls in its frame, maximizes and co
   await expect.poll(() => scroller.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
   await scroller.evaluate((el) => el.scrollTo({ left: 0 }));
 
-  // Copy: as Markdown (the source, task id included) and as TSV (what the cells read).
-  await frame.hover();
-  await frame.getByRole("button", { name: "Copiar tabla" }).click();
-  await page.getByRole("menuitem", { name: "Copiar como Markdown" }).click();
+  // Copy: as Markdown (the source, task id included) and as CSV (what the cells read), from under the table.
+  const tablebox = main.locator(".apx-md__tablebox").first();
+  await tablebox.getByRole("button", { name: "Copiar como Markdown" }).click();
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
     .toContain(
       `| Issue | Classification | Priority | Assigned agent | Result |\n| --- | --- | :---: | --- | --- |\n| #112 | Confirmed bug | High | Fausto | Created \`${task.id}\``,
     );
-  await frame.hover();
-  await frame.getByRole("button", { name: "Copiar tabla" }).click();
-  await page.getByRole("menuitem", { name: "Copiar como TSV" }).click();
+  await tablebox.getByRole("button", { name: "Copiar como CSV" }).click();
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
     .toMatch(
-      /^Issue\tClassification\tPriority\tAssigned agent\tResult\n#112\tConfirmed bug\tHigh\tFausto\tCreated \[Bug #112\] Avoid automatic runs/,
+      /^Issue,Classification,Priority,Assigned agent,Result\r\n#112,Confirmed bug,High,Fausto,"?Created \[Bug #112\] Avoid automatic runs/,
     );
 
   // Maximize: the same table over the app, wider than in the bubble; Esc closes it.

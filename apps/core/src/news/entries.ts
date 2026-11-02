@@ -3,7 +3,11 @@
 import type { Store } from "../domain/store.ts";
 import { computerHost } from "../environments/host.ts";
 import { CATALOG } from "../integrations/catalog.ts";
+import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
+import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
+import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
+import { TASK_GOALS_NEWS } from "./task-goals.ts";
 
 /** What an entry may ask about this install before it is told. */
 export type NewsFacts = {
@@ -30,6 +34,8 @@ export type NewsFacts = {
   claude?: boolean;
   /** At least one paired Desktop can use coordinated remote updates. */
   desktop?: boolean;
+  /** Open tasks with an agent on them. */
+  tasks?: number;
 };
 
 export type NewsAction = {
@@ -55,7 +61,54 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  TASK_GOALS_NEWS,
+  QUEUED_MESSAGES_NEWS,
+  EXTERNAL_SESSIONS_NEWS,
+  BROWSER_EDIT_NEWS,
   BROWSER_JAVASCRIPT_NEWS,
+  {
+    id: "storage-screen",
+    since: "2.13.0",
+    title: { en: "See and free up APX's disk space", es: "Mirá y liberá el espacio que usa APX" },
+    about: {
+      en: "Settings › Storage shows what APX keeps on your computer by area, and Free up space clears caches and old logs. APX also tells you when your disk is almost full.",
+      es: "Configuración › Almacenamiento muestra lo que APX guarda en tu computadora por área, y Liberar espacio borra la caché y los registros viejos. APX también te avisa cuando tu disco está casi lleno.",
+    },
+    applies: () => true,
+    text:
+      "Settings, Storage now shows how much disk APX uses, split into chats and files, projects, the agents' " +
+      "computers, the browser, local models, logs, caches and backups. Free up space removes only what APX makes " +
+      "again by itself (caches and old logs) and says first how much; chats, memory, files and projects stay. When " +
+      "the disk holding APX has less than 5 GB free, the panel says so with a link to that screen. Only the owner " +
+      "frees space, from the screen.",
+    actions: [
+      {
+        label: { en: "Where do I see it?", es: "¿Dónde lo veo?" },
+        prompt: "Tell me in two lines where I see how much disk APX uses and what Free up space removes.",
+      },
+    ],
+  },
+  {
+    id: "email-cards",
+    since: "2.13.0",
+    title: { en: "Emails as cards in the chat", es: "Los emails, como tarjetas en el chat" },
+    about: {
+      en: "An email your agent writes shows as a card you can send from Gmail or an Email channel, with a few seconds to undo, or open in your mail app.",
+      es: "Un email que escribe tu agente aparece como una tarjeta que podés mandar desde Gmail o un canal de Email, con unos segundos para deshacer, o abrir en tu app de correo.",
+    },
+    applies: () => true,
+    text:
+      "An email an agent writes for the owner now shows as a card in the chat, on the computer and on the phone. " +
+      "With Gmail or an Email channel connected the owner sends it from the card, with a few seconds to undo; " +
+      "otherwise it opens in their mail app, Gmail or Outlook on the web, or is copied. Mail that reaches an Email " +
+      "channel shows the same way.",
+    actions: [
+      {
+        label: { en: "Write one to try it", es: "Escribí uno para probarlo" },
+        prompt: "Draft a short test email to me so I can see the new email card and how I send it from there.",
+      },
+    ],
+  },
   {
     id: "help-whats-new",
     since: "2.12.0",
@@ -1101,6 +1154,7 @@ export const newsFacts = (store: Store): NewsFacts => ({
   integrations: connectedIntegrations(store),
   computer: computerHost() !== undefined && store.projects.list().length > 0,
   mac: process.platform === "darwin" && store.projects.list().length > 0,
+  tasks: store.tasks.list({ state: "open", limit: 500 }).filter((t) => t.assignee).length,
 });
 
 /** The action a channel button stands for. */

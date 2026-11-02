@@ -44,6 +44,10 @@ const PACKS = {
     en: () => import("./en-email-signatures.ts").then((m) => m.enEmailSignatures),
     es: () => import("./es-email-signatures.ts").then((m) => m.esEmailSignatures),
   },
+  browserEdit: {
+    en: () => import("./browser-edit-en.ts").then((m) => m.enBrowserEdit),
+    es: () => import("./browser-edit-es.ts").then((m) => m.esBrowserEdit),
+  },
   computer: {
     en: () => import("./computer-en.ts").then((m) => m.enComputer),
     es: () => import("./computer-es.ts").then((m) => m.esComputer),
@@ -51,6 +55,10 @@ const PACKS = {
   received: {
     en: () => import("./received-en.ts").then((m) => m.enReceived),
     es: () => import("./received-es.ts").then((m) => m.esReceived),
+  },
+  storage: {
+    en: () => import("./storage-en.ts").then((m) => m.enStorage),
+    es: () => import("./storage-es.ts").then((m) => m.esStorage),
   },
   usage: {
     en: () => import("./sysusage-en.ts").then((m) => m.enSysUsage),

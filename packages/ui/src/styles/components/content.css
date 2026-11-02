@@ -193,6 +193,18 @@
   gap: 4px;
   padding: 4px 8px 8px;
 }
+.apx-composer__hint {
+  margin-right: 6px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+  white-space: nowrap;
+}
+/* A phone has no Ctrl or ⌘: the space goes to the controls. */
+@media (max-width: 560px) {
+  .apx-composer__hint {
+    display: none;
+  }
+}
 .apx-composer--box .apx-composer__btn {
   width: 30px;
   height: 30px;
@@ -408,7 +420,111 @@
     opacity: 0;
   }
 }
+/* Copy actions sit under the table, at its right edge. */
+.apx-md__tableactions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px;
+  margin-top: 4px;
+}
+.apx-md__tableactions .apx-iconbtn {
+  color: var(--apx-fg-muted);
+}
 .apx-md__dialog {
+  width: calc(100vw - 32px);
+}
+
+/* ── CodeFrame ─────────────────────────────────────────────────────────────── */
+.apx-codeframe {
+  container-type: inline-size;
+  max-width: 100%;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+  overflow: hidden;
+}
+.apx-codeframe__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  padding: 4px 4px 4px 12px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.apx-codeframe__lang {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.apx-codeframe__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+  color: var(--apx-fg);
+}
+.apx-codeframe__status {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.apx-codeframe__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+.apx-codeframe__actions .apx-btn,
+.apx-codeframe__actions .apx-iconbtn {
+  color: var(--apx-fg-muted);
+}
+/* In a narrow chat the bar keeps a readable title: the controls go to a second line, at the right, when they do not fit. */
+@container (max-width: 440px) {
+  .apx-codeframe__bar {
+    flex-wrap: wrap;
+    padding-left: 10px;
+  }
+  .apx-codeframe__title {
+    flex-basis: 7em;
+  }
+  .apx-codeframe__actions {
+    margin-left: auto;
+  }
+  .apx-codeframe__actions .apx-segmented__item {
+    padding-inline: 8px;
+  }
+}
+.apx-codeframe__body {
+  max-height: 420px;
+  overflow: auto;
+}
+.apx-codeframe__body > pre {
+  margin: 0;
+  border-radius: 0;
+}
+/* What the code draws sits on the page's own surface, like the page or picture it is. */
+.apx-codeframe__body--preview {
+  background: var(--apx-surface);
+}
+.apx-codeframe__body--large {
+  max-height: calc(100vh - 160px);
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+}
+.apx-codeframe__dialog {
   width: calc(100vw - 32px);
 }
 

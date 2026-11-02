@@ -29,6 +29,7 @@ import type { Log } from "./log.ts";
 import { refProblem } from "./models/choice.ts";
 import type { NodeBroker } from "./nodes/broker.ts";
 import type { HeadlessBrowser } from "./nodes/headless-browser.ts";
+import type { WidgetPages } from "./nodes/widget-pages.ts";
 import { findProgram } from "./programs.ts";
 import { accessHandlers } from "./rpc/access.ts";
 import { agentHandlers } from "./rpc/agents.ts";
@@ -52,6 +53,7 @@ import { gitHandlers } from "./rpc/git.ts";
 import { integrationHandlers } from "./rpc/integrations.ts";
 import type { InternalCall } from "./rpc/internal.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
+import { mailHandlers } from "./rpc/mail.ts";
 import { mcpHandlers } from "./rpc/mcp.ts";
 import { mediaHandlers } from "./rpc/media.ts";
 import { memoryHandlers } from "./rpc/memory.ts";
@@ -66,7 +68,14 @@ import { runHandlers } from "./rpc/runs.ts";
 import { sessionHandlers } from "./rpc/sessions.ts";
 import { setupHandlers } from "./rpc/setup.ts";
 import { artifactHandlers } from "./rpc/surfaces.ts";
-import { newsHandlers, systemHandlers, telemetryHandlers, updateHandlers, usageHandlers } from "./rpc/system.ts";
+import {
+  newsHandlers,
+  storageHandlers,
+  systemHandlers,
+  telemetryHandlers,
+  updateHandlers,
+  usageHandlers,
+} from "./rpc/system.ts";
 import { taskHandlers } from "./rpc/tasks.ts";
 import { teamHandlers } from "./rpc/team.ts";
 import { terminalHandlers } from "./rpc/terminal.ts";
@@ -86,6 +95,7 @@ import { computerTools } from "./tools/computer.ts";
 import { connectionTools } from "./tools/connections.ts";
 import { contactTools } from "./tools/contact.ts";
 import { directoryTools } from "./tools/directory.ts";
+import { externalSessionTools } from "./tools/external-sessions.ts";
 import { fileTools } from "./tools/files.ts";
 import { flowTools } from "./tools/flow-tool.ts";
 import { limitTools } from "./tools/limits.ts";
@@ -161,6 +171,7 @@ export function builtinTools(
     ...agentTools(store),
     ...agentSetTools(store),
     ...chatTools(store),
+    ...externalSessionTools(store),
     ...browserTools(store, home, vm),
     ...surfaceTools(store, home),
     ...ownerTools(store),
@@ -200,6 +211,7 @@ type HandlerDeps = {
   identity: Identity;
   broker: NodeBroker;
   headless: HeadlessBrowser | undefined;
+  widgetPages: WidgetPages | undefined;
   /** Turns ending let go of the browser tabs they held. */
   bus: Bus;
   llmLabel: () => string;
@@ -256,6 +268,8 @@ type HandlerDeps = {
   terminals: Parameters<typeof terminalHandlers>[1];
   /** What the computer has and what APX takes of it. */
   usage: Parameters<typeof usageHandlers>[0];
+  /** The APX home by area, clearing what APX rebuilds, and the disk's free space. */
+  storage: Parameters<typeof storageHandlers>[0];
 };
 
 /** The handler table the router serves: one entry per protocol method. */
@@ -273,6 +287,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...telemetryHandlers(d.telemetry),
     ...newsHandlers(d.news),
     ...usageHandlers(d.usage),
+    ...storageHandlers(d.storage),
     ...systemHandlers(d.identity, d.app.home, d.panel, () => ({
       protocol: { status: "ok" },
       browser: d.broker.withCap(BROWSER_CAP)
@@ -290,6 +305,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
     ...channelHandlers(d.store, d.channels, d.nudges),
     ...emailSignatureHandlers(d.store, d.google),
+    ...mailHandlers(d.store, d.google, d.channels),
     ...mediaHandlers(d.services, d.store),
     ...transcriptionHandlers(d.services, d.localModels),
     ...embeddingHandlers(d.localEmbeds, () => d.memory.engine()),
@@ -344,6 +360,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
       checkPage: d.headless?.available()
         ? (html, onCall) => d.headless?.checkPage(html, onCall) ?? Promise.resolve({ errors: [], text: "", views: [] })
         : undefined,
+      widgetPages: d.widgetPages,
     }),
     ...agents,
     "agents.create": (p: Parameters<(typeof agents)["agents.create"]>[0], ctx: CallContext) => {

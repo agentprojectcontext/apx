@@ -1,9 +1,10 @@
 // An AI model step answered by a bot of the flow (a name and how it works, on APX's harness), whose answer a command
-// reads through values inserted with the picker: the step's answer and a secret, shown as badges. The fake model
-// answers in the sandbox core; no real model or channel is reached. FLOW_SHOTS=<folder> also saves screenshots.
+// reads through values inserted with the picker: the step's answer and a secret, shown as badges. A value named in
+// its task is sent as written, and the field says so. The fake model answers in the sandbox core; no real model or
+// channel is reached. FLOW_SHOTS=<folder> also saves screenshots.
 import fs from "node:fs";
 import path from "node:path";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { Result } from "../../packages/protocol/src/index.ts";
 import { expect, open, rpc, test } from "./kit.ts";
 
@@ -20,6 +21,7 @@ const L = {
     botName: "Bot name",
     system: "How it works",
     task: "Instruction",
+    asWritten: "$trigger.text is sent as written: this step doesn't fill in values.",
     harness: "Harness",
     apx: "APX",
     delegate: "Can ask other agents",
@@ -50,6 +52,7 @@ const L = {
     botName: "Nombre del bot",
     system: "Cómo trabaja",
     task: "Instrucción",
+    asWritten: "$trigger.text se manda tal como está: este paso no completa valores.",
     harness: "Harness",
     apx: "APX",
     delegate: "Puede pedirle a otros agentes",
@@ -71,13 +74,16 @@ const L = {
 };
 
 const shots = process.env.FLOW_SHOTS;
-async function shot(page: Page, name: string, phone = false) {
+/** `focus` is scrolled into view at each width. */
+async function shot(page: Page, name: string, phone = false, focus?: Locator) {
   if (!shots) return;
   fs.mkdirSync(shots, { recursive: true });
+  await focus?.scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(shots, `${name}.png`) });
   if (!phone) return;
   const size = page.viewportSize();
   await page.setViewportSize({ width: 390, height: 844 });
+  await focus?.scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(shots, `${name}-phone.png`) });
   if (size) await page.setViewportSize(size);
 }
@@ -111,7 +117,15 @@ for (const lang of ["en", "es"] as const) {
     await expect(editor.getByRole("switch", { name: l.delegate })).toHaveCount(0);
     await editor.getByRole("textbox", { name: l.botName }).fill("Triage");
     await editor.getByRole("textbox", { name: l.system }).fill("Label each request: damage, billing or other.");
-    await editor.getByRole("textbox", { name: l.task }).fill("Label this request.");
+    // A value named in the task is sent as written, and the field says so; plain words say nothing.
+    const task = editor.getByRole("textbox", { name: l.task });
+    await task.fill("Label $trigger.text as damage, billing or other.");
+    // By the page: at phone width the editor shows no step palette, which `editor` is found by.
+    const hint = page.getByText(l.asWritten);
+    await expect(hint).toBeVisible();
+    await shot(page, `ai-task-refs-${lang}`, true, hint);
+    await task.fill("Label this request.");
+    await expect(editor.getByText(l.asWritten)).toHaveCount(0);
     await expect(editor.getByRole("combobox", { name: l.harness })).toContainText(l.apx);
     await shot(page, `ai-bot-${lang}`, true);
 

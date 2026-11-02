@@ -153,6 +153,16 @@
 .apx-msg__bare {
   position: relative;
 }
+/* Written but not taken yet: the bubble's outline only, so it reads as not sent to the agent so far. */
+.apx-msg.is-waiting .apx-msg__bubble {
+  background: transparent;
+  color: var(--apx-fg);
+  border: 1px dashed var(--apx-border-strong, var(--apx-border));
+}
+/* Its controls stay in one row beside a short message, even on a phone. */
+.apx-msg.is-waiting .apx-msg__col {
+  max-width: min(94%, 640px);
+}
 .apx-msg__reactions {
   position: absolute;
   right: 6px;
@@ -178,8 +188,10 @@
   gap: 6px;
   padding: 0 4px;
 }
+/* On the owner's side the meta keeps to the bubble's edge; the controls open on its inner side, not past it. */
 .apx-msg--user .apx-msg__meta {
-  justify-content: flex-end;
+  flex-direction: row-reverse;
+  justify-content: flex-start;
 }
 /* A message's own controls: out of the way until the pointer or keyboard is on it. */
 .apx-msg__actions {
@@ -338,6 +350,30 @@
   color: var(--apx-fg-muted);
 }
 
+/* ── Branches ──────────────────────────────────────────────────────────────── */
+/* Rows hanging from one vertical line whose end curves into the last row's middle: an agent's chats in the inbox, a
+   turn's steps. The parent leaves `--apx-branch-gap` of room on the left; `--apx-branch-mid` is the last row's middle. */
+.apx-branches > * {
+  position: relative;
+}
+.apx-branches > *::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-1 * var(--apx-branch-gap, 11px));
+  border-left: 1px solid var(--apx-border);
+  pointer-events: none;
+}
+/* Stop at the final row's center, even when that row has an expanded subtree. */
+.apx-branches > :last-child::before {
+  bottom: auto;
+  width: calc(var(--apx-branch-gap, 11px) - 1px);
+  height: var(--apx-branch-mid, 15px);
+  border-bottom: 1px solid var(--apx-border);
+  border-bottom-left-radius: 7px;
+}
+
 /* ── ActionGroup ───────────────────────────────────────────────────────────── */
 .apx-actions {
   border-radius: var(--apx-radius-md);
@@ -383,26 +419,42 @@
 .apx-actions__panel {
   overflow: hidden;
 }
+/* The steps hang from a line under the chevron (the same line as an agent's chats in the inbox). */
 .apx-actions__list {
+  --apx-branch-mid: 13px;
   list-style: none;
   margin: 0;
-  padding: 0 12px 10px 34px;
+  padding: 0 12px 10px 30px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
 }
 .apx-actions__item {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
+  min-height: 26px;
+  padding-left: 6px;
   font-size: var(--apx-text-sm);
 }
+.apx-actions__itemicon {
+  display: inline-flex;
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.apx-actions__itemicon svg {
+  width: 14px;
+  height: 14px;
+}
+.apx-actions__item.is-failed :is(.apx-actions__itemicon, .apx-actions__name) {
+  color: var(--apx-danger);
+}
 .apx-actions__name {
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-xs);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--apx-fg);
-  flex-shrink: 0;
 }
 .apx-actions__detail {
   min-width: 0;

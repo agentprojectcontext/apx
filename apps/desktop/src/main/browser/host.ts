@@ -182,6 +182,18 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         const jpeg = await this.#get(p.tab).cdp.screenshot();
         return { mime: "image/jpeg", data: jpeg.toString("base64"), bytes: jpeg.length };
       }
+      case "browser.inspect": {
+        const p = browserMethods["browser.inspect"].params.parse(raw);
+        return { element: await this.#get(p.tab).cdp.inspect(p.x, p.y) };
+      }
+      case "browser.preview_edits": {
+        const p = browserMethods["browser.preview_edits"].params.parse(raw);
+        const tab = this.#get(p.tab);
+        // Changing the page under an agent would hand it a page its own code never made.
+        if (tab.control.kind === "agent")
+          throw new ApxError({ code: "paused_by_user", message: `tab ${p.tab} is in use by ${tab.control.by}` });
+        return tab.cdp.previewEdits(p.edits);
+      }
       case "browser.text": {
         const p = browserMethods["browser.text"].params.parse(raw);
         const wc = this.#readable(p.tab).view.webContents;

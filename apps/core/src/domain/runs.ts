@@ -283,9 +283,11 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
       const id = newId("run");
       const ts = now();
       const input: RunInput = { ...r.input, project_at_start: undefined };
+      const last = one(qb.selectFrom("runs").select((eb) => eb.fn.max("queue_order").as("n")));
       run(
         qb.insertInto("runs").values({
           id,
+          queue_order: Number(last?.n ?? 0) + 1,
           thread_id: r.thread_id,
           agent_id: r.agent_id,
           state: r.state ?? "submitted",
@@ -328,11 +330,59 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .selectAll()
           .where("thread_id", "=", threadId)
           .where("state", "=", "submitted")
-          .orderBy("created_at")
-          .orderBy(raw`rowid`)
+          .orderBy("queue_order")
           .limit(1),
       );
       return r ? toRun(r) : undefined;
+    },
+    /** The text an owner's turn that has not started will read (they edited their waiting message). */
+    setText(id: string, text: string): RunRecord | undefined {
+      const cur = repo.get(id);
+      if (!cur?.input) return cur;
+      run(
+        qb
+          .updateTable("runs")
+          .set({ input: JSON.stringify({ ...cur.input, text }) })
+          .where("id", "=", id),
+      );
+      return repo.get(id);
+    },
+    /** Gives these runs the places in line they hold between them, in this order. */
+    reorder(ids: readonly string[]): void {
+      const places = all(
+        qb
+          .selectFrom("runs")
+          .select("queue_order")
+          .where("id", "in", [...ids]),
+      )
+        .map((r) => Number(r.queue_order))
+        .sort((a, b) => a - b);
+      ids.forEach((id, i) => {
+        run(
+          qb
+            .updateTable("runs")
+            .set({ queue_order: places[i] ?? null })
+            .where("id", "=", id),
+        );
+      });
+    },
+    /** Puts a turn that has not started first in its thread's line. */
+    toFront(id: string): void {
+      const cur = repo.get(id);
+      if (!cur) return;
+      const first = one(
+        qb
+          .selectFrom("runs")
+          .select((eb) => eb.fn.min("queue_order").as("n"))
+          .where("thread_id", "=", cur.thread_id)
+          .where("state", "=", "submitted"),
+      );
+      run(
+        qb
+          .updateTable("runs")
+          .set({ queue_order: Number(first?.n ?? 1) - 1 })
+          .where("id", "=", id),
+      );
     },
     queuedThreads(): string[] {
       return all(qb.selectFrom("runs").select("thread_id").distinct().where("state", "=", "submitted")).map(
@@ -376,6 +426,18 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
     /** Runs a crash or restart left mid-turn. */
     interrupted(): RunRecord[] {
       return all(qb.selectFrom("runs").selectAll().where("state", "in", ["working", "input-required"])).map(toRun);
+    },
+    /** Runs a provider's usage limit stopped that ended since `since`, oldest first. */
+    limitStopped(since: string): RunRecord[] {
+      return all(
+        qb
+          .selectFrom("runs")
+          .selectAll()
+          .where("state", "=", "failed")
+          .where("end_reason", "=", "provider_limit")
+          .where("ended_at", ">=", since)
+          .orderBy("ended_at"),
+      ).map(toRun);
     },
     children(runId: string): RunRecord[] {
       return all(qb.selectFrom("runs").selectAll().where("parent_run_id", "=", runId)).map(toRun);

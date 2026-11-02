@@ -95,6 +95,7 @@ import { createNews } from "./news/news.ts";
 import { nodeChildEnv } from "./node-runtime.ts";
 import { createNodeBroker } from "./nodes/broker.ts";
 import { createHeadlessBrowser } from "./nodes/headless-browser.ts";
+import { createWidgetPages } from "./nodes/widget-pages.ts";
 import { officeScheduler } from "./office-wiring.ts";
 import { createChatgptLogin } from "./providers/chatgpt-login.ts";
 import { createLlm, type Llm, NO_KEY, type SignIn } from "./providers/llm.ts";
@@ -126,6 +127,7 @@ import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
 import { syncRuntimeSkills } from "./skills/runtimes.ts";
 import { skillsFor } from "./skills/skills.ts";
+import { createStorage, type StorageOptions } from "./storage.ts";
 import { createTelemetry } from "./telemetry.ts";
 import { type TelemetrySink, telemetrySink } from "./telemetry-sink.ts";
 import { createTerminals } from "./terminal/terminals.ts";
@@ -198,6 +200,8 @@ export type CoreOptions = {
   releases?: ReleaseSource;
   /** The Linux VM's memory and disk for system.usage; none until a VM is set up. */
   vmUsage?: UsageOptions["vm"];
+  /** The free and total bytes of the disk holding the home (tests stand in a full one). */
+  storageDisk?: StorageOptions["disk"];
   /** Reads a project folder at start (by default in a worker thread); tests hold one or answer it. */
   projectRead?: ReadProjectFiles;
 };
@@ -207,6 +211,11 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const identity = readIdentity(config.home);
   const db = openDb(config.home);
   const bus = createBus();
+  const storage = createStorage({
+    home: config.home,
+    onChange: () => bus.emit({ type: "storage.changed" }),
+    ...(opts.storageDisk ? { disk: opts.storageDisk } : {}),
+  });
   // The engine exists by the time a command ends.
   const terminals = createTerminals({ bus, commandEnded: (e) => wakeAfterCommand(store, engine.admit, e) });
   const store = createStore(db, bus);
@@ -248,6 +257,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
         },
       })
     : undefined;
+  // A widget in edit mode runs in a page of that same browser, apart from its tabs.
+  const widgetPages = headless?.available() ? createWidgetPages(() => headless.pageCdp()) : undefined;
 
   let selfUrl = "";
   const providers = providerRegistry(store, config.providers);
@@ -617,6 +628,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     openHeld: () => channels.openHeld((a) => engine.admit(a)),
     flowTick: (at) => flows.tick(at),
     checks: (remind) => [
+      storage.check,
       calendarReminders({
         store,
         source: {
@@ -703,6 +715,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       identity,
       broker,
       headless,
+      widgetPages,
       bus,
       llmLabel: () => llm.label(),
       engine,
@@ -741,7 +754,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       updates,
       telemetry,
       news,
-      usage: createUsage({ home: config.home, vm: opts.vmUsage ?? (() => vm.monitored()) }),
+      usage: createUsage({ home: config.home, storage, vm: opts.vmUsage ?? (() => vm.monitored()) }),
+      storage,
       panel: () => panelEntry(servedPanel(config)),
       profileRoots,
       templateRoots,
@@ -829,6 +843,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       telemetry.stop();
       chatgpt.stop();
       localModels.cancel();
+      await widgetPages?.closeAll().catch(() => {});
       headless?.close();
       scheduler.stop();
       stopFlowEvents();

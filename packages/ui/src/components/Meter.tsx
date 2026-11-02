@@ -18,6 +18,8 @@ export interface MeterProps {
   /** Spoken value ("6.2 of 16 GB"); the percentage when omitted. */
   valueText?: string;
   size?: "sm" | "md";
+  /** `ring`: a small circle for one amount, beside text (14px `sm`, 16px `md`); segments and legend are ignored. */
+  shape?: "bar" | "ring";
   /** A swatch and label under the bar for each segment that has a label. */
   legend?: boolean;
   className?: string;
@@ -26,8 +28,45 @@ export interface MeterProps {
 /** Fill toned by share: brand, warning past 80%, danger past 92%. */
 const toneFor = (share: number): MeterTone => (share >= 0.92 ? "danger" : share >= 0.8 ? "warning" : "brand");
 
-/** Horizontal bar for an amount out of a whole (RAM, disk), single or stacked. */
-export function Meter({ value, segments, max, label, valueText, size = "md", legend, className }: MeterProps) {
+const R = 7;
+const C = 2 * Math.PI * R;
+
+/** Horizontal bar for an amount out of a whole (RAM, disk), single or stacked; or a small ring for one amount. */
+export function Meter({
+  value,
+  segments,
+  max,
+  label,
+  valueText,
+  size = "md",
+  shape = "bar",
+  legend,
+  className,
+}: MeterProps) {
+  if (shape === "ring") {
+    const share = max > 0 ? Math.min(1, Math.max(0, value ?? 0) / max) : 0;
+    const px = size === "sm" ? 14 : 16;
+    return (
+      <svg
+        className={cx("apx-meter-ring", `apx-meter-ring--${toneFor(share)}`, className)}
+        width={px}
+        height={px}
+        viewBox="0 0 18 18"
+        role="img"
+        aria-label={`${label}: ${valueText ?? `${Math.round(share * 100)}%`}`}
+      >
+        <circle cx="9" cy="9" r={R} className="apx-meter-ring__track" />
+        <circle
+          cx="9"
+          cy="9"
+          r={R}
+          className="apx-meter-ring__fill"
+          strokeDasharray={`${share * C} ${C}`}
+          transform="rotate(-90 9 9)"
+        />
+      </svg>
+    );
+  }
   const parts = segments ?? [{ value: value ?? 0, tone: toneFor(max > 0 ? (value ?? 0) / max : 0) }];
   const total = parts.reduce((n, p) => n + Math.max(0, p.value), 0);
   const pct = (v: number) => (max > 0 ? Math.min(100, (Math.max(0, v) / max) * 100) : 0);

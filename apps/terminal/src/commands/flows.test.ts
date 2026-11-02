@@ -95,6 +95,12 @@ test("Flow commands call the canonical protocol and reject malformed input befor
 });
 
 test("run and stop call the owner's methods, and refuse inside an agent's command", async (t) => {
+  const inherited = process.env.APX_AGENT;
+  t.after(() => {
+    if (inherited === undefined) delete process.env.APX_AGENT;
+    else process.env.APX_AGENT = inherited;
+  });
+  delete process.env.APX_AGENT;
   t.mock.method(console, "log", () => {});
   const calls: Array<{ method: string; params: Record<string, unknown> }> = [];
   const client = {
@@ -113,14 +119,8 @@ test("run and stop call the owner's methods, and refuse inside an agent's comman
     { method: "flows.run_now", params: { flow: "s" } },
     { method: "flows.cancel_run", params: { flow: "f", event: "owner:1" } },
   ]);
-  const inherited = process.env.APX_AGENT;
   process.env.APX_AGENT = "builder";
-  try {
-    await assert.rejects(flows(client, ["run", "f"]), /inside an agent's command/);
-    await assert.rejects(flows(client, ["stop", "f", "owner:1"]), /inside an agent's command/);
-  } finally {
-    if (inherited === undefined) delete process.env.APX_AGENT;
-    else process.env.APX_AGENT = inherited;
-  }
+  await assert.rejects(flows(client, ["run", "f"]), /inside an agent's command/);
+  await assert.rejects(flows(client, ["stop", "f", "owner:1"]), /inside an agent's command/);
   assert.equal(calls.length, 3, "nothing ran from an agent's command");
 });

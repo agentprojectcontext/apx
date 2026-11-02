@@ -1,0 +1,34 @@
+/* A block's code sits in the frame's body at its own height; the body scrolls past its limit. */
+.codeblock .codeview--snippet .cm-editor {
+  height: auto;
+}
+.codeblock .codeview--snippet .cm-content {
+  padding: 8px 0;
+}
+.codeblock__frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+.codeblock__diagram {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+.codeblock__diagram img {
+  max-width: 100%;
+  height: auto;
+}
+.apx-codeframe__body--large .codeblock__diagram img {
+  width: 100%;
+  max-height: calc(100vh - 200px);
+  object-fit: contain;
+}
+.codeblock__note {
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--apx-border);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}

@@ -98,6 +98,7 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
     return `Le pidió a ${str(worker?.name ?? a.agent ?? a.session)}`;
   },
   list_sessions: () => "Buscó sesiones",
+  start_session: (a) => `Abrió una sesión de ${str(a.engine)}`,
   stop_session: (a) => `Detuvo la sesión ${str(a.session)}`,
   browser_open: (a) => `Abrió ${host(a.url)}`,
   browser_snapshot: () => "Leyó la página",

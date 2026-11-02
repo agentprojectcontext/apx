@@ -3,10 +3,11 @@
 // task, and the owner's comment that @mentions its agent asks it there (its answer comes back as a comment) and anyone
 // else in a consult shown on the task as a card (task-work.ts). A task an agent creates from a chat about a task is its
 // subtask; an agent answering another one gives nobody work (DECISIONS.md#d-079).
-import { type Author, SUPER_AGENT_ID, type Task } from "@apx/protocol";
+import { type Author, SUPER_AGENT_ID, type Task, type TaskAsked } from "@apx/protocol";
 import { publicRun } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
+import { ownerWordsOf } from "../domain/task-asked.ts";
 import { noticeTaskProposed, noticeTaskWaiting } from "../domain/task-attention.ts";
 import {
   boardScope,
@@ -67,6 +68,12 @@ export function taskHandlers(
         }
       : { kind: "owner" };
 
+  /**
+   * What the owner said in the turn an agent writes a task from (DECISIONS.md#d-187). Said in the task's own
+   * conversation, it is already there.
+   */
+  const ownerWords = (ctx: CallContext, taskThread?: string): TaskAsked[] =>
+    ctx.agent && ctx.agent.thread_id !== taskThread ? ownerWordsOf(store, ctx.agent.run_id) : [];
   const visible = (id: string, ctx: CallContext): Task => visibleTask(store, id, agentScope(ctx));
   /** The agent that asked, when this call comes from an agent answering another one (a delegation). */
   const answering = (ctx: CallContext): string | undefined => {
@@ -287,6 +294,8 @@ export function taskHandlers(
           due_at: due ?? undefined,
           remind_at: remind ?? undefined,
           start_at: start ?? undefined,
+          goal: p.goal,
+          asked: ownerWords(ctx),
           proposed,
           kind: p.kind,
           priority: p.priority,
@@ -365,6 +374,9 @@ export function taskHandlers(
         attach(cur, sources, ctx);
         noticeTaskWaiting(store, cur, c.awaits_owner ?? cur.awaits_owner);
         if (moving) store.threads.moveTo(cur.thread_id, target);
+        // Rewriting what the task asks passes on what the owner just said about it.
+        if (c.title !== undefined || c.description !== undefined || c.goal !== undefined)
+          store.tasks.heard(cur.id, ownerWords(ctx, cur.thread_id));
         const updated = store.tasks.change(
           task,
           {
@@ -452,6 +464,7 @@ export function taskHandlers(
         );
       const author: Author = ctx.agent ? { kind: "agent", id: ctx.agent.id } : { kind: "user" };
       return store.tx(() => {
+        store.tasks.heard(t.id, ownerWords(ctx, t.thread_id));
         const message = addComment(store, t, author, text, by(ctx));
         // An agent's @mentions are consults whose answers come back to it (DECISIONS.md#d-132).
         const current = store.tasks.get(t.id) ?? t;

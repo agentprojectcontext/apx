@@ -33,6 +33,7 @@ const llm = scriptedLlm(async (req, { said, afterTool }) => {
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 120)}`);
   if (said.includes("make a task"))
     return callTool("t1", "task_create", {
+      goal: "Done as asked",
       title: "Draft the launch post",
       assignee: "superagent",
       description: "Write the launch draft.",
@@ -40,6 +41,7 @@ const llm = scriptedLlm(async (req, { said, afterTool }) => {
   if (said.includes("peek at the other")) return callTool("t2", "task_list", {});
   if (said.includes("open the reel tasks"))
     return callTool("t6", "task_create", {
+      goal: "Done as asked",
       title: "Cut the tools reel",
       assignee: "vera",
       description: "Edit the tools reel from the brief.",
@@ -48,7 +50,11 @@ const llm = scriptedLlm(async (req, { said, afterTool }) => {
   if (said.includes("hand over subtask"))
     return callTool("t4", "delegate", { agent: "vera", task: "assign a subtask to roby" });
   if (said.includes("assign a subtask to roby"))
-    return callTool("t5", "task_create", { title: "Proofread the post", assignee: "superagent" });
+    return callTool("t5", "task_create", {
+      goal: "Done as asked",
+      title: "Proofread the post",
+      assignee: "superagent",
+    });
   const ping = /ping roby on (task_\w+)/.exec(said);
   if (ping) return callTool("t3", "task_comment", { task: ping[1], text: "@roby what do you think?" });
   if (system.startsWith("You are Vera")) return say("Done my part, @roby your turn.");
