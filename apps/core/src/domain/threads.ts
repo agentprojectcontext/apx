@@ -79,6 +79,10 @@ export type ThreadContext = {
   budget_from?: string;
   /** On a tree's top chat: the owner let agents go on with no limit at this moment, until they write there again. */
   released_at?: string;
+  /** On a task's conversation: when a step of its plan was last done (the progress guard counts from it). */
+  progress_at?: string;
+  /** On a task's conversation: the stretch without progress the owner was already told about (its start). */
+  stuck_told?: string;
   /** Brought from the owner's Claude Code or Codex: that session. */
   /** Fork relatives do not automatically recall each other beyond their copied history. */
   memory_family?: string;
