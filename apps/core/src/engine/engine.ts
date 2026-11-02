@@ -496,6 +496,23 @@ export function createEngine(deps: {
   }
 
   /**
+   * Enter on a message that went into line behind a turn of an outside engine, which cannot take words mid-turn: it
+   * is "Send now" at once (DECISIONS.md#d-189). Our own loop's turn takes Enter's words itself; true when it acted.
+   */
+  function enterNow(messageId: string): boolean {
+    const message = store.messages.get(messageId);
+    if (message?.waiting?.until !== "turn") return false;
+    const outside = [...active.entries()].some(([runId, a]) => {
+      if (a.thread !== message.thread_id || a.ac.signal.aborted) return false;
+      const harness = store.runs.get(runId)?.harness;
+      return harness !== undefined && harness !== "native";
+    });
+    if (!outside) return false;
+    sendNow(messageId);
+    return true;
+  }
+
+  /**
    * Boot: words a restart cut off before the turn took them run as a turn of their own, and a message whose turn is
    * gone no longer waits.
    */
@@ -604,6 +621,7 @@ export function createEngine(deps: {
     removeQueued: (runId: string) => removeFromLine(store, runId, ended),
     reorderQueued: (threadId: string, runs: readonly string[]) => reorderLine(store, threadId, runs),
     sendNow,
+    enterNow,
     /** The owner's answer to something an agent asked (runs.respond). */
     respond: inputs.respond,
     pending: inputs.pending,

@@ -3495,9 +3495,9 @@ and no way to fix one that waited. Now each is the owner's choice and shows as s
 
 Both states are rows (the message's `waiting`, the run): a restart keeps the line and its order, and words a restart
 cut off before the turn took them run as a turn of their own. An outside engine takes words only between turns, so
-Enter leaves the message in line there, and **Send now** stops the turn at work as the owner's next message would
-(`Superseded`: what it delegated keeps going, the line stays) and runs the message first (`now: true`). It also does so
-for a message with files, which a running turn cannot take. With no turn at work it only goes first (`now: false`). Channel messages are unchanged: the owner's steer as before, and no
+**Send now** stops the turn at work as the owner's next message would (`Superseded`: what it delegated keeps going,
+the line stays) and runs the message first (`now: true`). It also does so for a message with files, which a running turn
+cannot take. [D-189](#d-189) makes Enter do the same there. With no turn at work it only goes first (`now: false`). Channel messages are unchanged: the owner's steer as before, and no
 `waiting` (the app shows them as delivered).
 <a id="d-187"></a>
 ## D-187 — 2026-11-02 — A task carries the owner's words and a goal; its plan is steps
@@ -3560,3 +3560,22 @@ adding a restriction, without one step of its plan working.
 
 Rejected: a cap on delegations per task (good work also delegates; what matters is that steps get done), and resetting
 the count on any plan rewrite (an agent could rewrite its plan to go on forever).
+<a id="d-189"></a>
+
+## D-189 — 2026-11-02 — Enter on an agent in an outside engine's session sends now
+
+[D-186](#d-186) left Enter in line behind a Claude Code or Codex turn, since those cannot take words mid-turn, and the
+owner then had to click **Send now** on every message. In their session Enter is now **Send now** (the owner's choice):
+`threads.send` with `mode: "steer"`, once the message is admitted behind a turn of a harness other than `native`, calls
+`engine.enterNow`, which is `sendNow` on it (one implementation: the turn is stopped with `Superseded`, what it delegated
+keeps going, the message runs first and the rest of the line keeps its order). Ctrl/⌘+Enter (`mode: "queue"`) still waits
+for the turn to end; our own loop's turn still takes Enter at its next step; a message with files behaves as Send now
+does for it. A contact's or room's chat never steered, and does not stop a turn here either.
+
+- The composer's send tooltip for such a session says Enter sends now and stops what the agent is doing; the
+  ⌘+Enter hint is unchanged.
+- A message the owner saw waiting, once the agent has taken it, shows two ticks and "Now" under the bubble
+  (`waiting__taken`), as a delivered mark; the panel remembers it only while open, since `waiting` is cleared when taken.
+
+Rejected: a setting to choose per agent (the owner wants one rule), and keeping the turn alive to deliver the words
+after its next step (an outside engine has no such step).
