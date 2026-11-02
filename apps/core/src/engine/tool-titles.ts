@@ -53,6 +53,7 @@ const SETTING_AREA: Record<string, string> = {
 
 /** Spanish titles for the built-in tools, by tool name. */
 export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
+  plan_usage: () => "Consultó el consumo de los planes",
   video_transcript: (a) => `Miró ${str(a.url)}`,
   pass_request: (a) =>
     `${a.task === undefined ? "Revisó pedidos" : a.task ? "Actualizó pedido" : "Pasó el pedido"}: ${str(a.summary)}`,

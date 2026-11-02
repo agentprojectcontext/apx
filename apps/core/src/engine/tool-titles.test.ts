@@ -34,6 +34,15 @@ test("titles follow the owner's language, Spanish by default", () => {
   assert.equal(toolTitle(store, post, { room: "#apx-help" }), "Posted in #apx-help");
 });
 
+test("plan quota cards use the owner's language", () => {
+  const { store, tools } = setup();
+  const quota = tools.find((t) => t.name === "plan_usage");
+  assert.ok(quota);
+  assert.equal(toolTitle(store, quota, {}), "Consultó el consumo de los planes");
+  store.settings.set("owner_language", "en");
+  assert.equal(toolTitle(store, quota, {}), "Checked plan usage");
+});
+
 test("a skill's second file reads as that file, not as loading the skill again", () => {
   const { store, tools } = setup();
   const load = tools.find((t) => t.name === "load_skill");
