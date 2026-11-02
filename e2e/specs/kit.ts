@@ -44,6 +44,10 @@ export const world = {
         calls: { method: string; url: string; headers: Record<string, string>; body: string }[];
       }
     ).calls,
+  /** Stops the core's clock at `at` (ISO), or lets it run again with null. */
+  clock: async (at: string | null) => {
+    await post(`${control}/clock`, { at });
+  },
   desktopTrash: async () => (await (await fetch(`${control}/desktop/trash`)).json()) as { paths: string[] },
   telegram: async (from: { id: number; name: string }, text: string) => {
     await fetch(`${control}/tg/message`, { method: "POST", body: JSON.stringify({ from, text }) });

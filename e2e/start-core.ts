@@ -6,7 +6,15 @@ const record = process.env.E2E_DESKTOP_TRASH_RECORD;
 const projectRoot = process.env.E2E_PROJECT_ROOT;
 if (!record || !projectRoot) throw new Error("E2E_DESKTOP_TRASH_RECORD and E2E_PROJECT_ROOT are required");
 const config = loadConfig();
+// A spec may stop the core's clock at a moment (e2e/env.ts's /clock), so what it shows about time is the same any day.
+let stoppedAt: number | undefined;
+process.on("message", (m: { clock: string | null }) => {
+  stoppedAt = m.clock ? Date.parse(m.clock) : undefined;
+  process.send?.({ clock: m.clock });
+});
+process.channel?.unref();
 const core = await createCore(config, {
+  clock: () => (stoppedAt === undefined ? new Date() : new Date(stoppedAt)),
   desktop: {
     reveal: async () => {},
     open: async () => {},

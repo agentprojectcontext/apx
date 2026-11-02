@@ -67,6 +67,7 @@ machine it was written on is a broken test. The helpers live in `apps/core/src/t
 | Wait until something is true | `waitFor(check, what, { ms })`: fails after `ms` of wall-clock time × `TEST_TIME_SCALE` | A loop of N tries, or a local `until` |
 | A run's input or its end | `pendingInput(client, thread)`, `inputOrEnd(…)` | Polling `runs.pending` by hand |
 | Idle, cap, deadline, burst | `manualTimers()` passed as `runTimers`; `tick(ms)`, or `autoAdvance` when runs chain | A window of real milliseconds |
+| A schedule's times, a date shown | `clock` on `startCore`; in e2e `world.clock(at)` with `page.clock.setFixedTime(at)`, then `world.clock(null)` | Today's date or hour |
 | A temp folder | `tempDir(prefix)` → `{ path, remove() }`; `removeDir(dir)` for a folder made otherwise | `fs.rmSync(dir, { recursive: true })` |
 | A child to be gone | `await stopped(child)` (or the product's `await stopTree(pid)`) before removing its folder | Removing the folder while it runs |
 | Compare paths | `isInside`, `samePath` (`paths.ts`), `assertPath` in tests | ``startsWith(`${root}/`)``, `===` on paths |

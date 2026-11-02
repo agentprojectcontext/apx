@@ -66,7 +66,8 @@ const hook = path.join(root, "e2e/baileys-hook.ts");
 const desktopTrashRecord = path.join(dir, "desktop-trash.jsonl");
 const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.join(root, "e2e/start-core.ts")], {
   cwd: root,
-  stdio: ["ignore", "pipe", "pipe"],
+  // The channel carries /clock to the core (e2e/start-core.ts).
+  stdio: ["ignore", "pipe", "pipe", "ipc"],
   env: {
     // Only the sandbox's own CLIs, node and the system: none of the machine's agents (claude, codex, opencode…).
     PATH: [fx.bin, "/usr/bin", "/bin"].join(path.delimiter),
@@ -107,8 +108,8 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
   },
 });
 const log = fs.createWriteStream(path.join(dir, "core.log"));
-core.stdout.pipe(log);
-core.stderr.pipe(log);
+core.stdout?.pipe(log);
+core.stderr?.pipe(log);
 
 /** The outside world for the tests: a Telegram user writing, what the bot sent, where things are. */
 const control = http.createServer((req, res) => {
@@ -135,6 +136,12 @@ const control = http.createServer((req, res) => {
         service: serviceUrl,
       });
     if (req.url === "/service/calls") return json(200, { calls });
+    // The core's clock stopped at `at`, or running again (null); answered once the core has it.
+    if (req.url === "/clock" && req.method === "POST") {
+      core.once("message", () => json(200, { ok: true }));
+      core.send({ clock: typeof body.at === "string" ? body.at : null });
+      return;
+    }
     if (req.url === "/tg/message" && req.method === "POST") {
       // In a group: its chat, and what the message carries (an @mention's entities).
       const chat = body.chat as { id: number; type: string; title: string } | undefined;
