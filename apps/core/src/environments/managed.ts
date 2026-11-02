@@ -127,6 +127,13 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
   const lifecycle = createVmLifecycle({
     supported: Boolean(host),
     installed,
+    // Lima's own delete, then what a setup left without its lima.yaml and the mark that the desktop was secured.
+    async remove() {
+      await egress.close();
+      if (installed()) await run(["delete", "--tty=false", instance], { timeout: 120_000 });
+      fs.rmSync(path.join(limaHome, instance), { recursive: true, force: true });
+      fs.rmSync(prepared, { force: true });
+    },
     prepared: () => fs.existsSync(prepared),
     running,
     stop,

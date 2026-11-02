@@ -8,6 +8,7 @@ import { loadDiskStatus } from "../data/storage.ts";
 import { size } from "../data/usageModel.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { SectionHead } from "./SectionHead.tsx";
+import { BackupItems, ComputerItems } from "./StorageItems.tsx";
 
 const MB = 1048576;
 const human = (bytes: number) => (bytes > 0 && bytes < MB ? "< 1 MB" : size(bytes / MB));
@@ -26,6 +27,14 @@ function Storage() {
   const [usage, setUsage] = useState<StorageUsage>();
   const [error, setError] = useState<string>();
   const [clearing, setClearing] = useState(false);
+  /** Areas opened to show each thing in them: the agents' computers, the backups. */
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+  const toggle = (id: string) =>
+    setOpen((was) => {
+      const next = new Set(was);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   const live = useRef(true);
 
   const load = useCallback(async (refresh = false) => {
@@ -65,6 +74,11 @@ function Storage() {
     } finally {
       setClearing(false);
     }
+  };
+
+  const freed = () => {
+    void loadDiskStatus();
+    void load(true);
   };
 
   const measured = usage?.measured_at !== undefined;
@@ -128,15 +142,35 @@ function Storage() {
           </div>
           {measured ? (
             <ul className="usage__list">
-              {usage?.areas.map((a) => (
-                <li key={a.id} className="usage__row">
-                  <span className="usage__name">{t(`sysUsage.part.${a.id}`)}</span>
-                  <span className="usage__bar" aria-hidden="true">
-                    <span style={{ width: `${max ? (a.bytes / max) * 100 : 0}%` }} />
-                  </span>
-                  <span className="usage__value">{human(a.bytes)}</span>
-                </li>
-              ))}
+              {usage?.areas.map((a) => {
+                const each = a.id === "computers" || a.id === "backups" ? a.id : undefined;
+                const name = t(`sysUsage.part.${a.id}`);
+                return (
+                  <li key={a.id} className={each ? "usage__group" : undefined}>
+                    <div className="usage__row">
+                      {each ? (
+                        <button
+                          type="button"
+                          className="usage__name usage__toggle"
+                          aria-expanded={open.has(each)}
+                          onClick={() => toggle(each)}
+                        >
+                          {open.has(each) ? <Icons.ChevronDown size={14} /> : <Icons.ChevronRight size={14} />}
+                          {name}
+                        </button>
+                      ) : (
+                        <span className="usage__name">{name}</span>
+                      )}
+                      <span className="usage__bar" aria-hidden="true">
+                        <span style={{ width: `${max ? (a.bytes / max) * 100 : 0}%` }} />
+                      </span>
+                      <span className="usage__value">{human(a.bytes)}</span>
+                    </div>
+                    {each === "computers" && open.has(each) && <ComputerItems onFreed={freed} />}
+                    {each === "backups" && open.has(each) && <BackupItems onFreed={freed} />}
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <Skeleton height={120} shape="block" />
