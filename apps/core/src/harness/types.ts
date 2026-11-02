@@ -37,10 +37,12 @@ export type TurnIO = {
   alive?(): void;
   /** Runs one APX tool with its card and step record. Every harness calls tools through here. */
   /** `images`: what the tool showed the model to look at with its result (a picture of the screen). */
+  /** `step`: aborts only this call, when the owner asks the turn to take their words now. */
   execute(
     callId: string,
     name: string,
     args: Record<string, unknown>,
+    step?: AbortSignal,
   ): Promise<{ ok: boolean; text: string; images?: Array<{ media_id: string; mime: string }>; endTurn?: boolean }>;
   /** Appends items to what the model saw in this turn (native writes as it goes, so a crash keeps them). */
   log(items: ChatItem[]): void;
@@ -49,6 +51,11 @@ export type TurnIO = {
    * loop that can take it mid-turn calls this between steps.
    */
   takeSteered?(): string[];
+  /**
+   * Aborts when the owner asks the turn to take their words now (a loop that takes them mid-turn): the step in
+   * progress stops, the turn goes on. A fresh signal once one has aborted.
+   */
+  stepSignal?(): AbortSignal;
   /**
    * An external agent asks to use one of its own tools (edit a file, run a command): our policy answers, asking
    * the owner when it must. `kind` is the protocol's tool kind (read, edit, execute, fetch…).

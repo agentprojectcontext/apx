@@ -6,6 +6,7 @@ import { CATALOG } from "../integrations/catalog.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
+import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 
 /** What an entry may ask about this install before it is told. */
 export type NewsFacts = {
@@ -57,6 +58,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  QUEUED_MESSAGES_NEWS,
   EXTERNAL_SESSIONS_NEWS,
   BROWSER_EDIT_NEWS,
   BROWSER_JAVASCRIPT_NEWS,

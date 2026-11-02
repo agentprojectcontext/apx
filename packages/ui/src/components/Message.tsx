@@ -21,6 +21,8 @@ export interface MessageProps {
   variant?: "bubble" | "bare";
   /** Consecutive message from the same side: tighter top spacing. */
   grouped?: boolean;
+  /** Written but not taken yet (in line for its turn): an outlined, quieter bubble. */
+  waiting?: boolean;
   className?: string;
 }
 
@@ -34,6 +36,7 @@ export function Message({
   reactions,
   variant = "bubble",
   grouped = false,
+  waiting = false,
   className,
 }: MessageProps) {
   return (
@@ -42,6 +45,7 @@ export function Message({
         "apx-msg",
         `apx-msg--${from}`,
         grouped && "is-grouped",
+        waiting && "is-waiting",
         actions != null && "has-actions",
         className,
       )}

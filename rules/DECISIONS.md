@@ -3463,3 +3463,28 @@ memory and files; projects; agents' computers; browser; local models; logs; cach
   the state flips; the panel then reads `storage.status` and shows a corner card leading to the screen, closed for the
   session only.
 - The browser profile's cache is not cleared: Chromium holds it while the desktop app runs.
+
+<a id="d-186"></a>
+## D-186 — 2026-11-02 — Writing while the agent works: sent, sent now, or in line
+
+The owner's words written while an agent works either went into its running turn at the next step (Enter) or waited
+for the turn to end (Ctrl/⌘+Enter), with nothing in the chat to tell them apart, no way to make a sent one land sooner,
+and no way to fix one that waited. Now each is the owner's choice and shows as such:
+
+- **Sent** (Enter): the running turn takes it at its next step, as before. Until it does, the message carries
+  `waiting: {until: "step"}` and shows **Send now**, which aborts only the step in progress (`TurnIO.stepSignal`: the
+  model call, or the tool call through its `ToolContext.signal`); the loop then takes the words and goes on. A cut
+  tool call tells the model it may have done part of its work; calls after it in the same step are not run.
+- **In line** (Ctrl/⌘+Enter): a run of its own, `waiting: {until: "turn", run}`, ordered by `runs.queue_order` (a
+  permutation of their places when the owner moves them, so other waiting work keeps its slot). Until it starts it
+  is edited (`runs.update_queued`), moved (`runs.reorder`, every message in line each once), removed
+  (`runs.remove_queued`: canceled, and out of the chat) or sent now (`runs.send_now`: it leaves the line and joins
+  the running turn). When its turn starts the message moves to the end of the chat, so it reads above its answer
+  whatever the order was; edits after that are refused.
+- **Stop** stays as it was: it cancels the turn and what is in line, whose messages no longer wait.
+
+Both states are rows (the message's `waiting`, the run): a restart keeps the line and its order, and words a restart
+cut off before the turn took them run as a turn of their own. An outside engine takes words only between turns, so
+**Send now** there puts the message first in line. Channel messages are unchanged: the owner's steer as before, and no
+`waiting` (the app shows them as delivered).
+

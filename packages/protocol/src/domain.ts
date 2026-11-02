@@ -626,6 +626,10 @@ export type MessageDelivery = z.infer<typeof MessageDelivery>;
 /** An emoji on a channel message: the agent's own, or the other side's (the contact, or the owner on their chat). */
 export const MessageReaction = z.object({ emoji: z.string().min(1).max(32), by: z.enum(["agent", "them"]) });
 export type MessageReaction = z.infer<typeof MessageReaction>;
+/** How the owner's words written while their agent works wait for it (Message.waiting). */
+export const MessageWaiting = z.object({ until: z.enum(["step", "turn"]), run: Id.optional() });
+export type MessageWaiting = z.infer<typeof MessageWaiting>;
+
 export const Message = z.object({
   id: Id,
   thread_id: Id,
@@ -642,6 +646,11 @@ export const Message = z.object({
   reactions: z.array(MessageReaction).optional(),
   /** The channel (its id) it came on or went out on; a chat everyone writes into (Home) shows each channel's part. */
   via: z.string().optional(),
+  /**
+   * The owner's words their agent has not taken yet: `step`, its running turn takes them at its next step; `turn`,
+   * they wait in line (as run `run`) until that turn ends, and can still be edited, removed or moved.
+   */
+  waiting: MessageWaiting.optional(),
   created_at: z.string(),
 });
 export type Message = z.infer<typeof Message>;

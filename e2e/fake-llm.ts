@@ -283,6 +283,9 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
   // A step that takes a while, so the owner can write while it works (steer).
   if (/^work for a moment/i.test(said) && messages.at(-1)?.role !== "tool")
     return { name: "shell", arguments: JSON.stringify({ command: "sleep 3" }) };
+  // A step long enough that only the owner's "send now" ends it in a test's time.
+  if (/^work for a long while/i.test(said) && messages.at(-1)?.role !== "tool")
+    return { name: "shell", arguments: JSON.stringify({ command: "sleep 25" }) };
   // A command that writes: the owner is asked first.
   if (/^make a note file/i.test(said))
     return { name: "shell", arguments: JSON.stringify({ command: "touch e2e-note.txt" }) };

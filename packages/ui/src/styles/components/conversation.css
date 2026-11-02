@@ -153,6 +153,16 @@
 .apx-msg__bare {
   position: relative;
 }
+/* Written but not taken yet: the bubble's outline only, so it reads as not sent to the agent so far. */
+.apx-msg.is-waiting .apx-msg__bubble {
+  background: transparent;
+  color: var(--apx-fg);
+  border: 1px dashed var(--apx-border-strong, var(--apx-border));
+}
+/* Its controls stay in one row beside a short message, even on a phone. */
+.apx-msg.is-waiting .apx-msg__col {
+  max-width: min(94%, 640px);
+}
 .apx-msg__reactions {
   position: absolute;
   right: 6px;

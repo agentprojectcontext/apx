@@ -130,6 +130,8 @@ export type TurnDeps = {
   desktopLinked?: (() => boolean) | undefined;
   /** Owner text and results steered into this turn since the last call, ready to read. */
   takeSteered(): string[];
+  /** Aborts when the owner asks the turn to take their words now: only the step in progress stops. */
+  stepSignal?: (() => AbortSignal) | undefined;
   /** The engine showed a sign of life: an outside engine's idle deadline starts over. */
   alive?: (() => void) | undefined;
   /** The turn waits on work in progress (a command running): its idle deadline holds until the returned call. */
@@ -356,6 +358,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
       if (taken.some((t) => t.startsWith(OWNER_ADDS))) run = store.runs.patch(run, { message_id: display.below().id });
       return taken;
     },
+    ...(deps.stepSignal ? { stepSignal: deps.stepSignal } : {}),
     alive: deps.alive ?? (() => {}),
     log: (items) => store.modelLog.append(thread.id, run.id, items),
   });

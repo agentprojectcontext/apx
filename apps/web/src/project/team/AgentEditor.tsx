@@ -8,6 +8,7 @@ import {
 } from "@apx/protocol";
 import { AgentAvatar, Button, Dialog, Icons, Kbd, NavItem, SearchField, Skeleton } from "@apx/ui";
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { MOD } from "../../common/modKey.ts";
 import { client } from "../../data/client.ts";
 import { blobOf } from "../../data/identity.ts";
 import { activeProfileName, loadProfiles, useProfiles } from "../../data/profiles.ts";
@@ -61,8 +62,6 @@ const SIZE = {
   height: `min(${LAYOUT.configH}px, calc(100vh - 64px))`,
   "--config-nav-w": "240px",
 } as CSSProperties;
-
-const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl";
 
 /** `lead`: it heads its team now, marked or guessed by its role, so the switch shows what the chart shows. */
 const draftOf = (a: Agent, prompt: string, lead: boolean): Draft => ({
