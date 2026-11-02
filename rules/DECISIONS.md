@@ -3579,3 +3579,19 @@ does for it. A contact's or room's chat never steered, and does not stop a turn 
 
 Rejected: a setting to choose per agent (the owner wants one rule), and keeping the turn alive to deliver the words
 after its next step (an outside engine has no such step).
+## D-190 — 2026-11-02 — Asking the same teammate or helper again goes on in the same conversation
+D-129 gave delegations one session per teammate. Two paths still opened a new sub-thread per ask: an @mention of a
+teammate on a task (D-120, D-132) and a delegation to a worker. The owner saw several sessions with the same
+teammate, each without what the last one learned.
+
+- A new @mention of the same teammate on a task, by the same asker (the owner, or the same agent), continues the
+  latest consult with that teammate when it is free: same sub-thread, with its context. The task gets a new card
+  for the new answer (the consult fills in the latest one); the answer still goes back to the asker, which may now
+  be in another chat of its own, and the consult still asks nobody. A consult still working is left alone (a new one
+  opens, so parallel asks stay parallel). A review consult is never continued, and never continues an @mention.
+- A delegation to a worker with the same name from the same chat continues that worker's free session, with the
+  instructions and tools it was first given (as `session` already did); a busy one stays apart, and another name
+  opens its own.
+
+Rejected: reusing a busy consult or session (a second ask would queue behind the first), and a consult shared by
+different askers (the answer goes to whoever asked, so two askers would read each other's context).

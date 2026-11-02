@@ -54,8 +54,9 @@ test("helpers asked again and again with no step done pause the task, and the ow
   const work = store.threads.byTask(task.id)[0];
   assert.ok(work);
   // It paused at the limit: no helper started past it.
-  const helpers = store.threads.children(work.id);
-  assert.equal(helpers.length, STUCK_LIMITS.runs);
+  // The same helper goes on in one session (D-190): its turns, not its sessions, are what count.
+  const helperRuns = store.threads.children(work.id).flatMap((id) => store.runs.list(id));
+  assert.equal(helperRuns.length, STUCK_LIMITS.runs);
   const trip = stuckTrip(store, work.id);
   assert.equal(trip?.by, "runs");
   // The owner sees why in the chat, with the way to go on, and once in the tray.
