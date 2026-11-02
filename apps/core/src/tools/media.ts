@@ -97,6 +97,7 @@ export function mediaTools(store: Store, home: string, vm?: { hasThread(id: stri
             media_id: m.id,
             mime: m.mime,
             alt: a.prompt.slice(0, 200),
+            ...(ctx.callId ? { tool_call_id: ctx.callId } : {}),
           });
         const note = r.skipped.length ? ` (skipped: ${r.skipped.join("; ")})` : "";
         const ids = r.media.map((m) => m.id).join(", ");

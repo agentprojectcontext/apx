@@ -142,6 +142,14 @@ vision models and the panel shows attachments from both sides. Owner uploads are
 `.apx-attachments/upload-*` folder inside the turn work directory so file tools can inspect PDFs and other
 documents. Contact uploads stay in their sealed chat and never get a shared work-folder copy. Voice uploads stay
 playable beside their words, even if transcription fails; `media.transcribe` can reuse the uploaded file by id.
+Generated pictures carry an optional `tool_call_id` on their image part, supplied by `make_image` from the
+executing tool context. The panel groups only matching pictures from agent messages in the same run into the call's
+stable inline slot, including when an owner reply splits that run across messages. Cubes remain until the media
+loads, then the same container resizes and reveals the existing image grid.
+Reduced motion disables the transition. A failed media load stops the cubes and offers a retry without generating
+again. Historical and unrelated pictures keep the ordinary media layout; no
+new media endpoint, permission, persistence table or tool-result parsing is involved.
+
 Agents share local project files through `send_file` → `media.attach`: a snapshot, at most 20 MB, scoped to
 their running owner's chat and work folder. Images appear inline; video/audio files play and download in the
 panel. Attachments survive changes to the source file and a chat reload.

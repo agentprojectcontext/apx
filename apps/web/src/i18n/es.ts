@@ -812,6 +812,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "link.go.project": "Abrir el proyecto",
   "link.go.projectNamed": "Abrir el proyecto {name}",
   "media.generating": "Generando imágenes",
+  "media.imageLoadFailed": "No se pudieron cargar las imágenes.",
   "media.previous": "Anterior",
   "media.next": "Siguiente",
   "media.download": "Descargar",

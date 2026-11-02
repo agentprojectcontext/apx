@@ -810,6 +810,7 @@ export const en = {
   "link.go.project": "Open the project",
   "link.go.projectNamed": "Open the project {name}",
   "media.generating": "Generating images",
+  "media.imageLoadFailed": "Could not load the images.",
   "media.previous": "Previous",
   "media.next": "Next",
   "media.download": "Download",
