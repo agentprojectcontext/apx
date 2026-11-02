@@ -3,9 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { type BuildOptions, build } from "esbuild";
 import { buildVersion } from "../../../scripts/version.ts";
+import { prepareDesktopObserver } from "./prepare-computer-observer.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
 const out = path.join(root, "dist");
+prepareDesktopObserver({ output: out, platform: process.platform, arch: process.arch, target: process.env.APX_TARGET });
 fs.mkdirSync(out, { recursive: true });
 
 const common: BuildOptions = {

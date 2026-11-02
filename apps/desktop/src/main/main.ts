@@ -26,6 +26,9 @@ import { installedBrowsers, isWebUrl, openExternal } from "./browser/external.ts
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
 import { type Bounds, createPopout } from "./browser/popout.ts";
 import { COMPUTER_PLATFORMS, computerPermissions, createComputer, openPrivacy } from "./computer.ts";
+import { macDriver } from "./computer-mac.ts";
+import { createNativePointer } from "./computer-native-pointer.ts";
+import { createPointerQuitBarrier } from "./computer-quit.ts";
 import { applySavedLocalTarget, loadConnection, localCoreUrl } from "./connection.ts";
 import { createConnector } from "./connector.ts";
 import { createCursor } from "./cursor.ts";
@@ -313,8 +316,18 @@ app.whenReady().then(() => {
 
   // Computer use: off until the panel applies the owner's choice (Config › Desktop); macOS and Windows.
   let computerOn = false;
+  const nativePointer =
+    process.platform === "darwin"
+      ? createNativePointer({
+          executable: app.isPackaged
+            ? path.join(process.resourcesPath, "computer", "observer")
+            : path.join(DIST, "native", "computer-observer"),
+        })
+      : undefined;
   const computer = createComputer({
-    cursor: createCursor(),
+    cursor: createCursor(nativePointer),
+    ...(nativePointer ? { driver: { ...macDriver, visiblePress: nativePointer.press } } : {}),
+    available: () => computerOn && link !== undefined,
     onActivity: (a) => panel.webContents.send("computer:activity", a),
     onStopped: (stopped) => {
       if (stopped) link?.emit("computer.stopped");
@@ -348,6 +361,10 @@ app.whenReady().then(() => {
       n.show();
     },
   });
+  const pointerQuit = createPointerQuitBarrier(computer.drainPointer, () => app.quit());
+  app.on("before-quit", (event) => {
+    if (quitting) pointerQuit(event);
+  });
   // The emergency stop, from any app, while computer use is on.
   // Ctrl+Shift+Esc is Windows' own Task Manager: there it is Ctrl+Alt+Esc.
   const STOP_KEYS = process.platform === "win32" ? "Control+Alt+Escape" : "CommandOrControl+Shift+Escape";
@@ -365,6 +382,7 @@ app.whenReady().then(() => {
     isOwnWindow: (sender) =>
       sender === panel.webContents || popout.isPanel(sender) || quick.isQuick(sender) || artifactWindows.owns(sender),
     disconnected: () => {
+      computer.cancelPointer();
       updater.connect(undefined);
       link?.stop();
       link = undefined;
@@ -374,6 +392,7 @@ app.whenReady().then(() => {
     },
     updating: (connection) => updater.connect(connection),
     opened: (url, node) => {
+      computer.cancelPointer();
       base = url;
       quick.start();
       link?.stop();
@@ -382,6 +401,8 @@ app.whenReady().then(() => {
       link = startNodeLink(host, node.url, () => {}, node.token, {
         on: () => computerOn && COMPUTER_PLATFORMS.includes(process.platform),
         handle: computer.handle,
+        visible: process.platform === "darwin",
+        cancel: computer.cancelPointer,
       });
     },
   });
@@ -448,6 +469,7 @@ app.whenReady().then(() => {
   });
   ipcMain.on("desktop:prefs", (e, prefs: DesktopPrefs & { computerUse?: boolean }) => {
     if (e.sender !== panel.webContents || typeof prefs?.shortcut !== "string") return;
+    if (prefs.computerUse !== true) computer.cancelPointer();
     computerOn = prefs.computerUse === true;
     armStop();
     link?.refresh();

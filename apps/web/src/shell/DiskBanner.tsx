@@ -1,5 +1,6 @@
 import { Button, IconButton, Icons } from "@apx/ui";
 import { closeCard, useClosedCards } from "../data/cornerCards.ts";
+import { diskWarning } from "../data/diskModel.ts";
 import { freeText, useDiskStatus } from "../data/storage.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "./nav.ts";
@@ -9,7 +10,7 @@ export function DiskBanner() {
   const t = useT();
   const disk = useDiskStatus();
   const closed = useClosedCards((s) => s.disk);
-  if (!disk?.low || closed) return null;
+  if (!disk || diskWarning(disk, closed) !== "card") return null;
   return (
     <div className="offline" role="alert" data-testid="disk-banner">
       <Icons.HardDrive size={14} />

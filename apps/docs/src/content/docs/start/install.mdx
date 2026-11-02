@@ -160,6 +160,8 @@ docker exec -it apx apx pair            # pair the desktop app or the phone with
 <TabItem label="From source">
 
 To work on APX, or to run the newest code, use a checkout. You need Node 24.11 or later and pnpm.
+Building the macOS desktop also requires Apple's Xcode command-line tools (`swiftc`, `lipo` and `codesign`).
+The core-only `pnpm dev` command does not compile the desktop helper.
 
 ```bash
 pnpm install

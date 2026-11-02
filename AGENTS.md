@@ -35,7 +35,7 @@ pnpm --filter @apx/web dev                 # panel on :7441, proxies /rpc, /ws, 
 pnpm preflight                             # check:private + check:schema + lint + typecheck + test — must be green before push
 pnpm verify                                # preflight + e2e (web, desktop) + perf budgets — what CI runs; green before merge
 pnpm package                               # this OS's installer + daemon bundle in out/ (CI: push a v2.x.y tag)
-pnpm package:linux                         # …or another OS's (also :mac, :win), built from this computer
+pnpm package:linux                         # cross-build Linux or Windows (:win); :mac requires macOS + Xcode tools
 ```
 
 - The core runs `.ts` directly (Node 24 type stripping): no build step. `pnpm dev` uses `node --watch`, so a

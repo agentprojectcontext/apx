@@ -27,6 +27,7 @@ import { AgentTurn } from "./AgentTurn.tsx";
 import { isAgentEvent, isIndividualChat } from "./agentEvent.ts";
 import { MessageActions } from "./MessageActions.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
+import { imageGenerationRuns } from "./parts/imageGeneration.ts";
 import { AudioPart } from "./parts/lazyAudio.tsx";
 import { bubbleFiles, mediaBlocks, withoutFilesNote } from "./parts/mediaGroups.ts";
 import { NoticePart } from "./parts/NoticePart.tsx";
@@ -51,6 +52,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
     () => (line.length ? shown.filter((m) => m.waiting?.until !== "turn") : shown),
     [shown, line],
   );
+  const generationRuns = useMemo(() => imageGenerationRuns(messages), [messages]);
   const agents = useShownAgents();
   const engineLabel = useEngineLabel(thread.engine);
   const engine = thread.engine && engineLabel ? { id: thread.engine, label: engineLabel } : undefined;
@@ -197,6 +199,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
                   <AgentTurn
                     thread={thread}
                     message={msg}
+                    generationImages={msg.run_id ? generationRuns.get(msg.run_id) : undefined}
                     agent={agents[msg.author.id]}
                     showAvatar={false}
                     showTools={showTools}
@@ -208,6 +211,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
               <AgentTurn
                 thread={thread}
                 message={msg}
+                generationImages={msg.run_id ? generationRuns.get(msg.run_id) : undefined}
                 agent={agents[msg.author.id]}
                 showAvatar={multiAgent}
                 showTools={showTools}

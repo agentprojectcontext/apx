@@ -16,4 +16,27 @@ export const esStorage: Record<keyof typeof enStorage, string> = {
   "storage.freed": "Se liberaron {size}.",
   "storage.failed": "No se pudo liberar espacio: {error}",
   "storage.unavailable": "No se pudo leer el almacenamiento: {error}",
+  "storage.delete": "Borrar",
+  "storage.deleteFailed": "No se pudo borrar: {error}",
+  "storage.computers.agents": "La computadora de tus agentes",
+  "storage.computers.lab": "Computadora de prueba que quedó: {name}",
+  "storage.computers.on": "Encendida",
+  "storage.computers.off": "Apagada",
+  "storage.computers.lastUse": "usada {when}",
+  "storage.computers.offFirst": "Apagala para poder borrarla.",
+  "storage.computers.turnOff": "Apagar",
+  "storage.computers.turnOffFailed": "No se pudo apagar: {error}",
+  "storage.computers.empty": "No hay computadoras de los agentes en este disco.",
+  "storage.computers.confirmAgentsTitle": "¿Borrar la computadora de tus agentes?",
+  "storage.computers.confirmLabTitle": "¿Borrar la computadora de prueba {name}?",
+  "storage.computers.confirmAgents":
+    "Se pierde todo lo que tus agentes instalaron o guardaron adentro, y se liberan {size}. Se vuelve a preparar desde cero la próxima vez que un agente la necesite.",
+  "storage.computers.confirmLab":
+    "Se pierde todo lo que se instaló o guardó adentro, y se liberan {size}. La dejó una prueba; APX no la usa.",
+  "storage.computers.deleted": "Computadora borrada. Se liberaron {size}.",
+  "storage.backups.empty": "No hay copias de seguridad.",
+  "storage.backups.confirmTitle": "¿Borrar la copia del {date}?",
+  "storage.backups.confirmBody":
+    "Esta copia de tus chats, memoria y tareas se borra para siempre, y se liberan {size}. Lo que APX tiene ahora queda como está.",
+  "storage.backups.deleted": "Copia borrada. Se liberaron {size}.",
 };

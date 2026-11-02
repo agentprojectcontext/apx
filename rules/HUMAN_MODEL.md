@@ -13,6 +13,26 @@ boundary changes.
 | **desktop** | `apps/desktop` (`pnpm --filter @apx/desktop dev`) | Panel on the left, embedded browser on the right; connects to core as a **node** offering `browser`. | While the app is open. |
 | **mobile** | `apps/mobile` (Expo) | Operator + node (camera, notify). | App lifecycle. |
 
+The macOS Desktop build also carries an experimental private observation helper at `Resources/computer/observer`
+(outside ASAR); its Swift sources live in `apps/desktop/native/computer-observer`. Its observation mode remains
+experimental and unconnected; its private pointer mode serves the unreleased Desktop preview below. The helper is
+not included in the standalone daemon bundle. Building it requires macOS and Xcode command-line tools; installed
+apps do not compile it.
+
+The unreleased macOS pointer preview uses a persistent native indicator rather than Electron's cursor window.
+Its per-agent label comes from private `NodeComputerParams.cursorAgent` metadata: `rpc/computer.ts` derives the id
+from `ctx.agent` and the name from `store.agents`; public computer inputs remain strict and cannot claim an identity.
+All five computer operations forward that metadata; direct operators omit it and Desktop uses the action note or APX.
+The native 20-point white/green cursor uses a quadratic curve with a 20% perpendicular control offset and eased
+300–700 ms Core Animation travel. It retains glow, three twinkling sparks, a click ring and an 11-point rounded action
+label. It stays between actions and hides on stop/disconnection. Windows keeps the Electron indicator.
+Only the drawn cursor travels. The explicit native accessible mode performs one AXPress without moving the physical
+pointer, validating the destination app/window/control, not origin, idle time or trajectory. Recognized web content
+and secure or unsupported controls refuse without physical fallback or uncertain retry. In the coordinate path a
+control without a press still gets a physical click (jump, click, pointer restored); Stop can end the wait for the
+owner's mouse but never splits mouse down from up, and cancels queued undelivered clicks.
+These are unreleased development contracts with bounded fixture evidence, not general product validation.
+
 Desktop supervises only a bundled child for its explicitly local home/port. URL and SSH connections never grant
 implicit lifecycle control over the server. Explicit remote updates use the owner-authenticated shared release plan:
 the core installs once, confirms its running target after restart, then Desktop clients may activate their own package.
@@ -142,6 +162,14 @@ vision models and the panel shows attachments from both sides. Owner uploads are
 `.apx-attachments/upload-*` folder inside the turn work directory so file tools can inspect PDFs and other
 documents. Contact uploads stay in their sealed chat and never get a shared work-folder copy. Voice uploads stay
 playable beside their words, even if transcription fails; `media.transcribe` can reuse the uploaded file by id.
+Generated pictures carry an optional `tool_call_id` on their image part, supplied by `make_image` from the
+executing tool context. The panel groups only matching pictures from agent messages in the same run into the call's
+stable inline slot, including when an owner reply splits that run across messages. Cubes remain until the media
+loads, then the same container resizes and reveals the existing image grid.
+Reduced motion disables the transition. A failed media load stops the cubes and offers a retry without generating
+again. Historical and unrelated pictures keep the ordinary media layout; no
+new media endpoint, permission, persistence table or tool-result parsing is involved.
+
 Agents share local project files through `send_file` → `media.attach`: a snapshot, at most 20 MB, scoped to
 their running owner's chat and work folder. Images appear inline; video/audio files play and download in the
 panel. Attachments survive changes to the source file and a chat reload.

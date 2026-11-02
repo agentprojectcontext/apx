@@ -3,6 +3,7 @@ import { coreLogFile, readCoreLog } from "../core-log.ts";
 import type { Identity } from "../identity.ts";
 import type { News } from "../news/news.ts";
 import type { Storage } from "../storage.ts";
+import type { StorageItems } from "../storage-items.ts";
 import type { Telemetry } from "../telemetry.ts";
 import type { Updates } from "../updates.ts";
 import type { Usage } from "../usage.ts";
@@ -72,10 +73,15 @@ export function usageHandlers(usage: Usage) {
 }
 
 /** The APX home by area, clearing what APX makes again by itself, and the disk's free space. */
-export function storageHandlers(storage: Pick<Storage, "usage" | "disk" | "clear">) {
+export function storageHandlers(storage: Pick<Storage, "usage" | "disk" | "clear"> & { items: StorageItems }) {
+  const { items } = storage;
   return {
     "storage.usage": ({ refresh }) => storage.usage({ refresh }),
     "storage.status": () => storage.disk(),
     "storage.clear": () => storage.clear(),
+    "storage.computers.list": async () => ({ computers: await items.listComputers() }),
+    "storage.computers.delete": ({ id }) => items.deleteComputer(id),
+    "storage.backups.list": () => ({ backups: items.listBackups() }),
+    "storage.backups.delete": ({ id }) => items.deleteBackup(id),
   } satisfies Partial<Handlers>;
 }
