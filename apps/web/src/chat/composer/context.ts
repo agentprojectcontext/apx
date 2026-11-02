@@ -9,6 +9,11 @@ export function contextOf(runs: readonly Run[]): { used: number; window?: number
   return last?.usage?.context ? { used: last.usage.context, window: last.usage.window } : undefined;
 }
 
+/** How full the context is, 0 to 1, when the model's window is known; the core summarizes the chat near the top. */
+export function shareOf(context: { used: number; window?: number } | undefined): number | undefined {
+  return context?.window ? Math.min(1, context.used / context.window) : undefined;
+}
+
 /** Tokens this chat has spent, from the core's totals over all its runs; undefined when none reported any. */
 export function spentOf(
   totals: { input: number; output: number; cached: number } | undefined,
