@@ -83,7 +83,7 @@ hello+command+close, partial-hello hangup, closed outputs, and empty/partial-hel
 requests. Run them with:
 
 ```sh
-OBSERVER_HELPER="$SCRATCH/ax-session-observer" node --test "$NATIVE/transport.test.mjs"
+OBSERVER_HELPER="$SCRATCH/ax-session-observer" node --test "$NATIVE/transport-smoke.mjs"
 OBSERVER_HELPER="$SCRATCH/ax-session-observer" OBSERVER_SCRATCH="$SCRATCH" \
   python3 "$NATIVE/transport-negative-tests.py"
 ```
