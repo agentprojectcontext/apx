@@ -17,6 +17,7 @@ import type { enFlow } from "./flow-en.ts";
 import type { enIngress } from "./ingress-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
 import type { enSecretary } from "./secretary-en.ts";
+import type { enStorage } from "./storage-en.ts";
 import type { SysUsageKey } from "./sysusage-en.ts";
 import type { enThreadDialogs } from "./thread-dialogs-en.ts";
 
@@ -255,6 +256,11 @@ export const en = {
   "update.cardCta": "See what's new",
   "corner.label": "News and invitations",
   "community.title": "Join the community",
+  "storage.cardTitle": "Your disk is almost full",
+  "storage.cardDesc": "Only {free} left. When it runs out, APX can't save chats or files.",
+  "storage.cardCta": "See storage",
+  "storage.bannerText": "Disk almost full: {free} left",
+  "storage.bannerCta": "Review",
   "v1.cardTitle": "APX v1 is still running",
   "v1.cardDesc": "Your routines and bots may run twice. Turn v1 off and make apx this version; v1's files stay.",
   "v1.cardCta": "Turn v1 off",
@@ -1065,6 +1071,7 @@ export const en = {
   "config.agents": "Agents",
   "config.browser": "Browser",
   "config.advanced": "Advanced",
+  "config.storage": "Storage",
   "config.logs": "Logs",
   "logs.lead":
     "What the core writes while it runs: what it started, what failed and why. Newest first, refreshed every few seconds.",
@@ -1878,6 +1885,7 @@ export type MessageKey =
   | ComputerKey
   | ReceivedKey
   | SysUsageKey
+  | keyof typeof enStorage
   | keyof typeof enEmailSignatures
   | keyof typeof enThreadDialogs
   | keyof typeof enIngress
