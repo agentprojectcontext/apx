@@ -14,9 +14,23 @@ boundary changes.
 | **mobile** | `apps/mobile` (Expo) | Operator + node (camera, notify). | App lifecycle. |
 
 The macOS Desktop build also carries an experimental private observation helper at `Resources/computer/observer`
-(outside ASAR); its Swift sources live in `apps/desktop/native/computer-observer`. It is not enabled at runtime yet,
-is not included in the standalone daemon bundle and adds no agent capability or permission. Building it requires
-macOS and Xcode command-line tools; installed apps do not compile it.
+(outside ASAR); its Swift sources live in `apps/desktop/native/computer-observer`. Its observation mode remains
+experimental and unconnected; its private pointer mode serves the unreleased Desktop preview below. The helper is
+not included in the standalone daemon bundle. Building it requires macOS and Xcode command-line tools; installed
+apps do not compile it.
+
+The unreleased macOS pointer preview uses a persistent native indicator rather than Electron's cursor window.
+Its per-agent label comes from private `NodeComputerParams.cursorAgent` metadata: `rpc/computer.ts` derives the id
+from `ctx.agent` and the name from `store.agents`; public computer inputs remain strict and cannot claim an identity.
+All five computer operations forward that metadata; direct operators omit it and Desktop uses the action note or APX.
+The native 20-point white/green cursor uses a quadratic curve with a 20% perpendicular control offset and eased
+300–700 ms Core Animation travel. It retains glow, three twinkling sparks, a click ring and an 11-point rounded action
+label. It stays between actions and hides on stop/disconnection. Windows keeps the Electron indicator.
+Only the drawn cursor travels. The explicit native accessible mode performs one AXPress without moving the physical
+pointer, validating the destination app/window/control, not origin, idle time or trajectory. Recognized web content
+and secure or unsupported controls refuse without physical fallback or uncertain retry. macOS physical mouse fallback
+is disabled in the coordinate path too; unsupported controls require the owner to click. Stop cancels queued undelivered clicks.
+These are unreleased development contracts with bounded fixture evidence, not general product validation.
 
 Desktop supervises only a bundled child for its explicitly local home/port. URL and SSH connections never grant
 implicit lifecycle control over the server. Explicit remote updates use the owner-authenticated shared release plan:

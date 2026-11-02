@@ -1,6 +1,6 @@
 // Keeps the desktop connected to the core as a node lending "browser" (and "computer" when the owner turned it on).
 // Reconnects with backoff, forever; turning computer use on or off reconnects at once with the new capabilities.
-import { BROWSER_CAP, COMPUTER_CAP } from "@apx/protocol";
+import { BROWSER_CAP, COMPUTER_CAP, COMPUTER_POINTER_CAP } from "@apx/protocol";
 import { ApxClient, type ApxSocket } from "@apx/protocol/client";
 import type { BrowserHost } from "./browser/host.ts";
 
@@ -16,7 +16,7 @@ export function startNodeLink(
   url: string,
   onStatus: (s: "connected" | "offline") => void,
   token?: string,
-  computer?: { on(): boolean; handle: ComputerHandler },
+  computer?: { on(): boolean; handle: ComputerHandler; visible?: boolean; cancel?(): void },
   connect?: (caps: string[], signal: AbortSignal) => Promise<NodeSocket>,
 ): { refresh(): void; emit(type: string, payload?: unknown): void; stop(): void } {
   const controller = new AbortController();
@@ -39,14 +39,17 @@ export function startNodeLink(
     if (stopped) return;
     try {
       lent = Boolean(computer?.on());
-      const opened = await open(lent ? [BROWSER_CAP, COMPUTER_CAP] : [BROWSER_CAP], controller.signal);
+      const opened = await open(
+        lent ? [BROWSER_CAP, COMPUTER_CAP, ...(computer?.visible ? [COMPUTER_POINTER_CAP] : [])] : [BROWSER_CAP],
+        controller.signal,
+      );
       if (stopped) {
         opened.close();
         return;
       }
       socket = opened;
       socket.onRequest((method, params) => {
-        if (stopped) return Promise.reject(new Error("desktop connection ended"));
+        if (stopped || socket !== opened) return Promise.reject(new Error("desktop connection ended"));
         if (!method.startsWith("computer.")) return host.handle(method, params);
         // Turned off since connecting: nothing more reaches the screen.
         if (!computer?.on()) return Promise.reject(new Error("computer use is off on this computer"));
@@ -62,6 +65,7 @@ export function startNodeLink(
     }
     if (stopped) return;
     socket = undefined;
+    computer?.cancel?.();
     host.dropHolds();
     onStatus("offline");
     timer = setTimeout(() => void loop(Math.min(delay * 2, 10_000)), delay);
@@ -70,7 +74,10 @@ export function startNodeLink(
   return {
     /** The owner changed computer use: reconnect lending what is on now. */
     refresh() {
-      if (socket && lent !== Boolean(computer?.on())) socket.close();
+      if (socket && lent !== Boolean(computer?.on())) {
+        computer?.cancel?.();
+        socket.close();
+      }
     },
     /** An event for the core about what this node lends (the emergency stop). */
     emit(type, payload = {}) {
@@ -79,6 +86,7 @@ export function startNodeLink(
     stop() {
       if (stopped) return;
       stopped = true;
+      computer?.cancel?.();
       controller.abort();
       if (timer) clearTimeout(timer);
       host.off("changed", changed);

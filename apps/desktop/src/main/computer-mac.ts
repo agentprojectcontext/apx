@@ -7,21 +7,23 @@ import { parseKeys } from "./keys.ts";
 const OSA_MS = 15_000;
 /** Reading every element of a window, within the core's deadline for a look (the picture still has to follow). */
 const ELEMENTS_MS = 4_000;
-/**
- * A real click waits for the owner's mouse to rest this long, and gives up after the wait: long enough for them to
- * approve the click and let go (inside CLICK_MS, itself inside the core's deadline for a click).
- */
-const MOUSE_IDLE_S = 0.5;
-const MOUSE_WAIT_MS = 20_000;
-const CLICK_MS = 25_000;
 
-function osa(script: string, args: string[] = [], language = "AppleScript", timeout = OSA_MS): Promise<string> {
+function osa(
+  script: string,
+  args: string[] = [],
+  language = "AppleScript",
+  timeout = OSA_MS,
+  signal?: AbortSignal,
+): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(
+    if (signal?.aborted) return reject(new Error("computer action cancelled before delivery"));
+    const child = execFile(
       "osascript",
       ["-l", language, "-e", script, ...args],
       { timeout, maxBuffer: 4 * 1024 * 1024 },
       (err, out, stderr) => {
+        signal?.removeEventListener("abort", cancel);
+        if (signal?.aborted) return reject(new Error("computer action cancelled; outcome uncertain; do not retry"));
         if (!err) return resolve(out.trimEnd());
         if (err.killed) return reject(new Error("timed out"));
         // osascript's own words ("execution error: … (-1743)"), not the script it ran.
@@ -34,6 +36,12 @@ function osa(script: string, args: string[] = [], language = "AppleScript", time
         reject(new Error(why.slice(0, 300)));
       },
     );
+    // Keep the action locked until execFile observes close, not just until cancellation is requested.
+    const cancel = () => {
+      child.kill("SIGKILL");
+    };
+    signal?.addEventListener("abort", cancel, { once: true });
+    if (signal?.aborted) cancel();
   });
 }
 
@@ -120,7 +128,7 @@ end run`;
 const KEY = `
 function run(argv) {
   ObjC.import("CoreGraphics");
-  const procs = Application("System Events").processes.whose({ name: argv[0] });
+  const procs = Application("System Events").processes.whose({ name: argv[0] })();
   if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
   const pid = procs[0].unixId();
   const code = Number(argv[1]);
@@ -143,7 +151,7 @@ function run(argv) {
 const AX_PRESS = `
 function run(argv) {
   ObjC.import("ApplicationServices");
-  const procs = Application("System Events").processes.whose({ name: argv[0] });
+  const procs = Application("System Events").processes.whose({ name: argv[0] })();
   if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
   const app = $.AXUIElementCreateApplication(procs[0].unixId());
   // Electron builds its page tree for AXManualAccessibility, Chrome for AXEnhancedUserInterface (screen readers).
@@ -179,15 +187,17 @@ function run(argv) {
     const label = (str(el, "AXTitle") || str(el, "AXDescription")).slice(0, 40);
     if (FIELD.indexOf(role) >= 0) {
       if ($.AXUIElementSetAttributeValue(el, $("AXFocused"), $.kCFBooleanTrue) === 0) return "focused " + role + " " + label;
-      return "none";
+      throw new Error("accessibility focus outcome uncertain; do not retry or fall back");
     }
     let actions = [];
     try {
       const a = Ref();
       if ($.AXUIElementCopyActionNames(el, a) === 0 && a[0]) actions = ObjC.deepUnwrap(ObjC.castRefToObject(a[0])) || [];
     } catch (e) {}
-    if (PRESS.indexOf(role) >= 0 && actions && actions.indexOf("AXPress") >= 0)
-      return $.AXUIElementPerformAction(el, $("AXPress")) === 0 ? "pressed " + role + " " + label : "none";
+    if (PRESS.indexOf(role) >= 0 && actions && actions.indexOf("AXPress") >= 0) {
+      if ($.AXUIElementPerformAction(el, $("AXPress")) === 0) return "pressed " + role + " " + label;
+      throw new Error("accessibility press outcome uncertain; do not retry or fall back");
+    }
     if (["AXWebArea", "AXWindow", "AXApplication"].indexOf(role) >= 0) return "none: " + seen.join(" < ");
     try {
       const up = Ref();
@@ -200,52 +210,13 @@ function run(argv) {
 }`;
 
 /**
- * A real mouse click, when nothing at the point takes a press: the pointer goes there, clicks and comes straight back
- * to where the owner had it. It waits for a pause in the owner's mouse first, since a click mixed with their movement
- * is lost. Refused if another app's window covers the point. argv = app, x, y.
- */
-const CLICK = `
-function idle() {
-  let least = 1e9;
-  for (const t of [$.kCGEventMouseMoved, $.kCGEventLeftMouseDragged, $.kCGEventRightMouseDragged, $.kCGEventLeftMouseDown, $.kCGEventRightMouseDown, $.kCGEventScrollWheel])
-    least = Math.min(least, $.CGEventSourceSecondsSinceLastEventType($.kCGEventSourceStateHIDSystemState, t));
-  return least;
-}
-function run(argv) {
-  ObjC.import("CoreGraphics");
-  ObjC.import("Foundation");
-  const until = Date.now() + ${MOUSE_WAIT_MS};
-  while (idle() < ${MOUSE_IDLE_S}) {
-    if (Date.now() > until) throw new Error("the owner kept using their mouse for ${MOUSE_WAIT_MS / 1000} seconds, so nothing was clicked: ask them to leave it still for a moment, then try again");
-    delay(0.1);
-  }
-  const procs = Application("System Events").processes.whose({ name: argv[0] });
-  if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
-  const pid = procs[0].unixId();
-  const x = Number(argv[1]);
-  const y = Number(argv[2]);
-  const list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionOnScreenOnly | $.kCGWindowListExcludeDesktopElements, 0)));
-  const top = list.find((w) => w.kCGWindowLayer === 0 && w.kCGWindowBounds && x >= w.kCGWindowBounds.X && x < w.kCGWindowBounds.X + w.kCGWindowBounds.Width && y >= w.kCGWindowBounds.Y && y < w.kCGWindowBounds.Y + w.kCGWindowBounds.Height);
-  if (!top || top.kCGWindowOwnerPID !== pid) throw new Error("another window covers that point (" + (top ? top.kCGWindowOwnerName : "none") + "): take a new screen_snapshot");
-  const back = $.CGEventGetLocation($.CGEventCreate(null));
-  const p = $.CGPointMake(x, y);
-  for (const type of [$.kCGEventMouseMoved, $.kCGEventLeftMouseDown, $.kCGEventLeftMouseUp]) {
-    $.CGEventPost($.kCGHIDEventTap, $.CGEventCreateMouseEvent(null, type, p, $.kCGMouseButtonLeft));
-    delay(0.03);
-  }
-  $.CGWarpMouseCursorPosition(back);
-  $.CGAssociateMouseAndMouseCursorPosition(true);
-  return argv[0];
-}`;
-
-/**
  * Types into the app's focused field through accessibility (inserted at the caret), in front or not. argv = app,
  * text. Returns "typed", or "no" when that field does not take it.
  */
 const AX_TYPE = `
 function run(argv) {
   ObjC.import("ApplicationServices");
-  const procs = Application("System Events").processes.whose({ name: argv[0] });
+  const procs = Application("System Events").processes.whose({ name: argv[0] })();
   if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
   const app = $.AXUIElementCreateApplication(procs[0].unixId());
   $.AXUIElementSetAttributeValue(app, $("AXManualAccessibility"), $.kCFBooleanTrue);
@@ -263,7 +234,7 @@ const TYPE = `
 function run(argv) {
   ObjC.import("AppKit");
   ObjC.import("CoreGraphics");
-  const procs = Application("System Events").processes.whose({ name: argv[0] });
+  const procs = Application("System Events").processes.whose({ name: argv[0] })();
   if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
   const proc = procs[0];
   const pid = proc.unixId();
@@ -357,6 +328,7 @@ async function front(withElements: boolean): Promise<Front> {
 }
 
 export const macDriver: ComputerDriver = {
+  physicalClickSupported: false,
   front,
   activate: (app) => osa(ACTIVATE, [app]).then(() => {}),
   async topAt(x, y) {
@@ -377,8 +349,12 @@ export const macDriver: ComputerDriver = {
     if (!k) throw new Error(`cannot press "${keys}"`);
     return osa(KEY, [app, String(k.code), String(k.flags)], "JavaScript");
   },
-  press: (app, x, y) => osa(AX_PRESS, [app, String(x), String(y)], "JavaScript"),
-  click: (app, x, y) => osa(CLICK, [app, String(x), String(y)], "JavaScript", CLICK_MS).then(() => {}),
+  press: (app, x, y, signal) => osa(AX_PRESS, [app, String(x), String(y)], "JavaScript", OSA_MS, signal),
+  async click() {
+    throw new Error(
+      "not clicked: physical mouse fallback is disabled on macOS; use a control that supports accessibility or ask the owner to click",
+    );
+  },
   insert: (app, text) => osa(AX_TYPE, [app, text], "JavaScript").then((r) => r === "typed"),
   paste: (app, text) => osa(TYPE, [app, text], "JavaScript").then(() => {}),
 };

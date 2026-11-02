@@ -15,6 +15,9 @@ const sources = [
   "NativeSelection.swift",
   "Protocol.swift",
   "Transport.swift",
+  "PointerOverlay.swift",
+  "PointerAction.swift",
+  "PointerRuntime.swift",
   "Main.swift",
 ];
 

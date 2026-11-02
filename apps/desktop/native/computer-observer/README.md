@@ -1,9 +1,19 @@
 # Native window observer spike
 
-Experimental macOS observation only. Original Swift code, platform frameworks only; no upstream source copied,
-no new package/dependency, registration, named endpoint, shell, daemon, persistence, or action path.
-The Desktop build now carries this private executable outside ASAR on macOS. No runtime caller is enabled yet.
-The laboratory CLI bridge is unchanged. This is **not** a production tool or a permission boundary by itself.
+The observation mode is experimental and unconnected to agent tools. Original Swift code and platform frameworks
+only; no upstream source copied or new dependency. The macOS Desktop carries this private executable outside ASAR.
+Its unreleased `--pointer` mode now serves a persistent curved overlay and one AXPress, without moving the mouse, over
+inherited private pipes. It is not an agent-accessible CLI, listener or permission boundary; Desktop's existing
+capability, authorization and cancellation paths govern every request. The laboratory observation bridge is unchanged.
+
+Pointer sources are `PointerOverlay.swift`, `PointerAction.swift` and `PointerRuntime.swift`. `PointerTests.swift`
+exercises movement, cancellation, destination classification and easing without touching the screen; Desktop's
+`native-pointer.test.ts` compiles and runs it on macOS. Production builds exclude overlays from capture.
+`POINTER_RECORDING` is a lab-only compile flag that makes the synthetic indicator recordable; it changes no action
+validation or movement. Packaging never sets it. See the task's pointer preview report for real runtime evidence.
+Field roles with missing, empty or whitespace-only subroles refuse before action selection. An uncertain AXPress is
+never retried or converted to physical input. Physical mouse fallback is also disabled in the macOS coordinate driver;
+controls without a supported accessibility action require the owner to click.
 
 ## Plan and files
 
@@ -14,8 +24,8 @@ The laboratory CLI bridge is unchanged. This is **not** a production tool or a p
 5. Retain explicitly selected AX windows separately: `WindowSelection.swift`, `NativeSelection.swift`.
 6. Exercise public behavior with synthetic fixtures: `Fixtures.swift`, `TargetTests.swift`, `SelectionTests.swift`, `Tests.swift`.
 
-Architecture impact: local build resource, without runtime integration. No core, broker, policy, permission or protocol
-behavior changes. The trusted future parent must enforce owner authorization, browser policy, capability, request scope,
+Observation architecture impact: local build resource, without observation runtime integration. The pointer mode
+above is integrated with the Desktop capability and existing core authorization; it does not expose observation tools. The trusted future parent must enforce owner authorization, browser policy, capability, request scope,
 process lifecycle and stop; spawning this executable must never become an agent-accessible bypass.
 
 ## Build and tests
@@ -29,7 +39,9 @@ NATIVE=apps/desktop/native/computer-observer
 swiftc -warnings-as-errors -parse-as-library \
   "$NATIVE/Contract.swift" "$NATIVE/TargetValidation.swift" "$NATIVE/Traversal.swift" \
   "$NATIVE/WindowSelection.swift" "$NATIVE/NativeObserver.swift" "$NATIVE/NativeSelection.swift" \
-  "$NATIVE/Protocol.swift" "$NATIVE/Transport.swift" "$NATIVE/Main.swift" -o "$SCRATCH/ax-session-observer"
+  "$NATIVE/Protocol.swift" "$NATIVE/Transport.swift" \
+  "$NATIVE/PointerOverlay.swift" "$NATIVE/PointerAction.swift" "$NATIVE/PointerRuntime.swift" \
+  "$NATIVE/Main.swift" -o "$SCRATCH/ax-session-observer"
 swiftc -warnings-as-errors -parse-as-library \
   "$NATIVE/Contract.swift" "$NATIVE/TargetValidation.swift" "$NATIVE/Traversal.swift" \
   "$NATIVE/WindowSelection.swift" "$NATIVE/Protocol.swift" "$NATIVE/Fixtures.swift" \
@@ -301,7 +313,7 @@ checks; metadata can be wrong or unsupported. Filtering minimizes known secure f
 credential detection**; a label on a noneditable control can contain sensitive data. Never log/publish successful trees.
 No retries, uncertain effects or physical fallback exist because there are no effects at all.
 
-## Remaining work before any integration
+## Remaining observation work
 
 Disposable-app runtime proof and comparative benchmarks belong to the caller, not this unit suite. Signing, packaging,
 TCC attribution/inheritance, notarization, helper provenance, isolation from same-user peers, cancellation/lifecycle,
@@ -309,5 +321,6 @@ APX broker/policy authorization, supported OS range, browser-boundary completene
 reviews remain open. The helper checks `AXIsProcessTrusted()` without prompting; no permission request or system setting
 is performed. Compilation is not evidence of TCC permission. No production ship/integration recommendation is implied.
 
-Docs impact: updated — this experimental README covers the API, verification and safety limits. No shipped capability,
-user instructions, translated UI, news or product documentation changed.
+Docs impact: updated — this README covers observation experiments and the unreleased pointer mode. Desktop guides
+in English and Spanish, the computer skill, human model and news cover the native cursor and disabled macOS physical
+fallback. Observation experiments remain unconnected to agent tools.

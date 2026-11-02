@@ -4,7 +4,7 @@ import Darwin
 @main
 struct NativeObserverMain {
     static func main() {
-        let status = run()
+        let status = CommandLine.arguments == [CommandLine.arguments[0], "--pointer"] ? runPointerRuntime() : run()
         close(STDIN_FILENO)
         close(STDOUT_FILENO)
         close(STDERR_FILENO)

@@ -65,6 +65,24 @@ Looking at the screen changes nothing, so it runs without asking (Manual still a
 clicking, typing and pressing keys are `always` tools, so they ask in every autonomy except total (see
 [Autonomy](/concepts/autonomy/)). Linux does not lend this capability yet.
 
+### Native agent cursor development preview
+
+An unreleased macOS preview shows a small native agent cursor, with a curved, eased movement toward its next action.
+The white and green arrow, twinkling sparks, click pulse and rounded action label explain what the agent is about
+to do. Agent names distinguish their labels. Only the drawn cursor travels; your physical pointer stays where it is.
+Windows keeps its existing indicator.
+
+Agents can request `pointer: "visible"` in `screen_do` for a native accessible press. That mode checks the destination
+app, window and control, refusing recognized web content, secure fields and destinations it cannot inspect. It does
+not inspect your pointer's origin or route, and does not move it. Unsupported controls fail without a physical-click
+fallback or automatic retry. Without this option, coordinate clicks still try accessibility. Physical mouse fallback
+is disabled on macOS: if a control cannot be pressed or focused through accessibility, APX asks you to click it.
+
+The indicator stays visible between actions and hides on emergency stop or disconnection. The emergency stop,
+turning computer use off, changing connections or quitting cancels the gesture, including a queued click not yet
+delivered. Cancellation cannot withdraw an action already delivered; an uncertain result must not be retried
+automatically. This preview is still awaiting native runtime and safety validation.
+
 ## The browser your agents drive
 
 The desktop app connects to the core as a **node**: it lends the core its `browser` (and `computer`, when you turn

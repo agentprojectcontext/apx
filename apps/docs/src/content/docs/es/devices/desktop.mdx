@@ -68,6 +68,25 @@ Mirar la pantalla no cambia nada, así que corre sin preguntar (en Manual sí pr
 herramienta `ask`; hacer clic, escribir y apretar teclas son herramientas `always`, así que preguntan en cualquier
 autonomía menos total (mirá [Autonomía](/es/concepts/autonomy/)). Linux todavía no presta esta capacidad.
 
+### Vista previa del cursor nativo del agente
+
+Una vista previa todavía no publicada para macOS muestra un cursor nativo chico, que viaja con una curva y una
+aceleración suave hacia su próxima acción. La flecha blanca y verde, las chispas titilando, el pulso del clic y la
+etiqueta redondeada explican qué está por hacer el agente. Los nombres distinguen sus etiquetas. Sólo viaja el cursor
+dibujado; tu puntero físico queda donde está. Windows conserva su indicador actual.
+
+Los agentes pueden pedir `pointer: "visible"` en `screen_do` para una activación accesible nativa. Ese modo verifica
+la app, la ventana y el control de destino; rechaza contenido web reconocido, campos protegidos y destinos que no
+puede inspeccionar. No inspecciona el origen ni el recorrido de tu puntero y no lo mueve. Los controles no compatibles
+fallan sin clic físico alternativo ni reintento automático. Sin esta opción, los clics por coordenadas siguen intentando
+usar accesibilidad. El clic físico alternativo está deshabilitado en macOS: si un control no se puede activar o enfocar
+por accesibilidad, APX te pide que hagas clic vos.
+
+El indicador queda visible entre acciones y se oculta ante el freno de emergencia o una desconexión. El freno de
+emergencia, desactivar el uso de la computadora, cambiar de conexión o salir cancela el gesto, incluido un clic en
+espera que todavía no se entregó. La cancelación no puede retirar una acción ya entregada; un resultado incierto no
+debe reintentarse automáticamente. Esta vista previa todavía requiere validación nativa de funcionamiento y seguridad.
+
 ## El navegador que manejan tus agentes
 
 La app de escritorio se conecta al core como un **nodo**: le presta su `browser` (y `computer`, cuando prendés el uso
