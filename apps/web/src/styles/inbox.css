@@ -217,6 +217,15 @@ button.chatprocesses {
   right: -3px;
   bottom: -2px;
 }
+/* A helper's mark where an agent's face goes: it is its caller at work, not another agent. */
+.threadavatar__helper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg-muted);
+}
 .threadavatar__group {
   position: absolute;
   right: -5px;
