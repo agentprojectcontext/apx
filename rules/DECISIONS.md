@@ -3437,3 +3437,25 @@ was also accepted on a Flow never published, which turned on something that runs
 
 Tests, the key, an address and an AI step's autonomy stay the owner's. Rejected: letting the agent read the webhook
 key to call it (a key never reaches a model, D-139), and turning on without publishing (it runs nothing).
+
+## D-185 — 2026-11-02 — Storage: the home by area, clearing only what APX rebuilds, and a low-disk warning
+
+The owner could see how big the APX folder was (system.usage, by folder) but not what of it they could let go, nor was
+anyone told when the disk ran out under APX. Settings › Storage now shows the home by area in the owner's words (chats,
+memory and files; projects; agents' computers; browser; local models; logs; caches; backups; the rest) and one action,
+**Free up space**, that says first how much it frees.
+
+- **One walk, one classification.** `apps/core/src/storage.ts` owns the measure; `system.usage`'s home parts are the
+  same areas from the same cached walk, so the usage dialog and the storage screen never disagree. The walk stops at an
+  entry cap and a deadline (marked partial) and never follows a link, so a link in the home neither counts nor clears
+  what it points to.
+- **What clearing removes.** Only what APX makes again on its own: video posters, copies of documents opened in another
+  app and Codex's image work folder (after a day: one may still be open), rotated logs, other logs untouched for 14 days
+  (never the live `core.log`) and background commands' output untouched for 30 days. Never the database (chats, memory,
+  tasks), chat files, artifacts, projects, skills, secrets, backups, the agents' computers, the browser profile or
+  models. A clear folder that is a link or resolves outside the home is skipped.
+- **Low disk.** Under 5 GB free on the volume holding the home. A percentage was rejected: on a large disk it warns with
+  tens of gigabytes still free. A background check (D-171) looks every 10 minutes and emits `storage.changed` only when
+  the state flips; the panel then reads `storage.status` and shows a corner card leading to the screen, closed for the
+  session only.
+- The browser profile's cache is not cleared: Chromium holds it while the desktop app runs.
