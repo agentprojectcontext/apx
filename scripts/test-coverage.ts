@@ -239,7 +239,7 @@ async function runE2ESuites(
   which: Pick<CoveragePart, "web" | "desktop">,
 ): Promise<boolean> {
   let failed = false;
-  const ports = await sandboxPorts();
+  let ports = await sandboxPorts();
   const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
   const run = (command: string, args: string[]) => {
     const result = spawnSync(command, args, {
@@ -262,6 +262,8 @@ async function runE2ESuites(
     run(pnpm, ["exec", "playwright", "test", "--project", "chromium", ...shard]);
   }
   if (!which.desktop) return failed;
+  // Listeners of their own: a web sandbox still closing never makes the desktop run's server "already used".
+  ports = await sandboxPorts();
   run(pnpm, ["--filter", "@apx/desktop", "build"]);
   snapshot(path.join(root, "apps/desktop/dist"));
   const desktop = ["exec", "playwright", "test", "--project", "desktop"];

@@ -216,7 +216,15 @@ console.log(
   `apx e2e: core http://127.0.0.1:${E2E.port} · control :${(control.address() as AddressInfo).port} · ${dir}`,
 );
 
+let stopping = false;
 const stop = async () => {
+  if (stopping) return;
+  stopping = true;
+  // A server that will not close (a connection held open) never keeps the sandbox's ports past this.
+  setTimeout(() => {
+    core.kill("SIGKILL");
+    process.exit(1);
+  }, 5_000).unref();
   core.kill("SIGTERM");
   await Promise.all([
     llm.close(),
@@ -230,6 +238,12 @@ const stop = async () => {
 };
 process.on("SIGINT", stop);
 process.on("SIGTERM", stop);
+// Playwright holds this end of the pipe: when its run ends in any way, even killed, the sandbox stops with it.
+const stdin = fs.fstatSync(0);
+if (stdin.isFIFO() || stdin.isSocket()) {
+  process.stdin.on("end", stop);
+  process.stdin.resume();
+}
 core.on("exit", (code) => {
   if (code) console.error(`apx e2e: the core stopped (${code}); see ${path.join(dir, "core.log")}`);
 });
