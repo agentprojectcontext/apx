@@ -104,7 +104,7 @@ export function computerTools(store: Store): Tool[] {
     defineTool({
       name: "screen_do",
       description:
-        'Do several actions in a row in the app named, then see its window again (one approval for all of them). Each step is a click at screen_snapshot\'s positions (sent to the app directly; the owner\'s pointer does not move), keys ("enter", "tab", "esc", "cmd+l", arrows, "pagedown") or text typed into the focused field (never passwords or payment data). Put every step you can predict in one call; it stops at the first that fails and says which.',
+        'Do several actions in a row in the app named, then see its window again (one approval for all of them). Each step is a click at screen_snapshot\'s positions (normally sent to the app directly; pointer: visible uses a native accessible press on macOS without moving your pointer or a physical-click fallback), keys ("enter", "tab", "esc", "cmd+l", arrows, "pagedown") or text typed into the focused field (never passwords or payment data). Put every step you can predict in one call; it stops at the first that fails and says which.',
       args: z.object({
         app: z.string().min(1).max(120),
         steps: z
@@ -120,6 +120,10 @@ export function computerTools(store: Store): Tool[] {
           .min(1)
           .max(12)
           .describe("click takes x and y, key takes keys, type takes text"),
+        pointer: z
+          .literal("visible")
+          .optional()
+          .describe("macOS: native accessible press without moving your pointer or falling back to a physical click"),
         look: z.boolean().optional().describe("see the window after the last step (default true)"),
         note: NOTE,
       }),
@@ -137,6 +141,12 @@ export function computerTools(store: Store): Tool[] {
             );
         }
       },
+      explain: (a) =>
+        a.pointer === "visible"
+          ? store.settings.get("owner_language") === "en"
+            ? "The agent's cursor points to each click; your mouse stays where it is."
+            : "El cursor del agente señala cada clic; tu mouse no se mueve."
+          : undefined,
       title: (a) => `In ${String(a.app ?? "an app")}: ${stepsText(a.steps)}`.slice(0, 160),
       async run(a, ctx) {
         const done: string[] = [];
@@ -146,7 +156,12 @@ export function computerTools(store: Store): Tool[] {
           const base = { app: a.app, ...(a.note ? { note: a.note } : {}) };
           try {
             if (st.do === "click") {
-              const r = await ctx.call("computer.click", { ...base, x: st.x ?? 0, y: st.y ?? 0 });
+              const r = await ctx.call("computer.click", {
+                ...base,
+                x: st.x ?? 0,
+                y: st.y ?? 0,
+                ...(a.pointer ? { pointer: a.pointer } : {}),
+              });
               done.push(`${i + 1}. clicked ${st.x},${st.y}${r.how ? `: ${r.how}` : ""}`);
             } else if (st.do === "key") {
               await ctx.call("computer.key", { ...base, keys: st.keys ?? "" });

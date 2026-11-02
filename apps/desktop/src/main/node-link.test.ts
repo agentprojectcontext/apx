@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { test } from "node:test";
 import type { RequestHandler } from "@apx/protocol/client";
+import { waitFor } from "../../../core/src/testkit/platform.ts";
 import { startNodeLink } from "./node-link.ts";
 
 class Host extends EventEmitter<{ changed: [] }> {
@@ -42,6 +43,47 @@ class Socket {
 const flush = async () => {
   for (let i = 0; i < 5; i++) await Promise.resolve();
 };
+
+test("native accessible press support is advertised explicitly and node loss cancels gestures", async () => {
+  const host = new Host();
+  const socket = new Socket();
+  let cancellations = 0;
+  let calls = 0;
+  let capabilities: string[] = [];
+  const link = startNodeLink(
+    host,
+    "http://core.example",
+    () => {},
+    undefined,
+    {
+      on: () => true,
+      visible: true,
+      cancel: () => {
+        cancellations++;
+      },
+      handle: async () => {
+        calls++;
+        return {};
+      },
+    },
+    async (caps) => {
+      capabilities = caps;
+      return socket;
+    },
+  );
+  try {
+    await waitFor(() => Boolean(socket.handler), "node handler");
+    assert.deepEqual(capabilities, ["browser", "computer", "computer.pointer"]);
+    assert.ok(socket.handler);
+    await socket.handler("computer.click", {});
+    socket.close();
+    await waitFor(() => cancellations > 0, "gesture cancellation on node loss");
+    await assert.rejects(socket.handler("computer.click", {}), /connection ended/);
+    assert.equal(calls, 1);
+  } finally {
+    link.stop();
+  }
+});
 
 test("stopping a node revokes calls, events and reconnects without leaving host listeners", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });

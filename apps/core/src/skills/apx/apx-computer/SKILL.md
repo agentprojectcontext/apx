@@ -23,6 +23,26 @@ making **fewer calls**, not faster ones.
 A form is one `screen_do`: click the first field, type, `tab`, type, `tab`, type. A menu is one `screen_do` too when
 you know it: click the button, then arrows and `enter` instead of a second look and a second click.
 
+## Native agent cursor preview (macOS)
+
+The development build draws a small native cursor with a curved, eased 300–700 ms journey, twinkling sparks and a
+click pulse. Its rounded label says what you will do; an agent's short name distinguishes its label. Only this drawn
+cursor travels, never the owner's physical pointer. Use a useful action note, such as "Click Save" or "Type in Search".
+Windows retains the existing Electron indicator.
+
+`screen_do` accepts `pointer: "visible"` for a native accessible press that leaves the physical pointer alone. Only
+the destination app, window and control are checked; no idle wait, starting-point check or route inspection is needed.
+Recognized web content, secure fields and unreadable or unsupported destinations refuse. There is no physical-click
+fallback or automatic retry in this mode. Without this option, coordinate clicks try accessibility first; when nothing
+at the point takes a press, the pointer jumps there, clicks and comes straight back. Do not retry an uncertain result.
+Never claim a refused control was activated. General native runtime and safety validation remain bounded by the
+preview's evidence; one synthetic fixture is not proof of support for every app.
+
+The indicator stays visible between actions, with the action note and a stored agent's short name (APX when no note or agent is available),
+and hides on stop or disconnection. Stop, turning computer use off, changing connections or quitting cancels the
+gesture and any queued click not yet delivered. If delivery is uncertain, do not retry automatically: an already
+delivered effect cannot be withdrawn. Do not use this option to bypass browser rules or handle credentials.
+
 ## Shortcuts before clicks
 
 - Browsers: `cmd+l` address bar, `cmd+t` new tab, `cmd+f` find, `cmd+[` back. `cmd+w` and `cmd+q` are refused.
