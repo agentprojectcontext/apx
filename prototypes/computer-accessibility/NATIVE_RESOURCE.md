@@ -1,10 +1,11 @@
-# Native resource build experiment
+# Private Desktop observer resource
 
-This is a build-only experiment for the observation-only Swift helper. No Desktop, daemon, protocol, tool or package
-configuration imports it. It does not implement product distribution, executable authentication or accessibility
-permission management. See [the owned reader contract](OWNED_OBSERVER.md) and [the native spike](native-observer/README.md).
+The original build experiment now lives in `apps/desktop/scripts/build-computer-observer.ts`; its Swift sources and
+native behavioral tests live in `apps/desktop/native/computer-observer/`. The Desktop build carries the private helper
+on macOS, but no runtime caller or agent capability is enabled yet. See [the owned reader contract](OWNED_OBSERVER.md)
+and [the native experiment](../../apps/desktop/native/computer-observer/README.md).
 
-## Behavior
+## Build contract
 
 `buildObserverResource()` accepts an absolute, developer-controlled output directory and an explicit nonempty list
 of `arm64` and/or `x64` slices. It compiles the fixed Swift source list using `/usr/bin/swiftc`, verifies each slice
@@ -20,50 +21,73 @@ A filesystem refusal can prevent either initial removal or rollback: an error do
 **Consumers must abort on any error and use only the path returned by a successful invocation**, never discover a
 helper by its existence after a failed build. Intermediate files may also remain when cleanup is denied.
 Invalid configuration is refused before filesystem changes or tool execution and preserves any previous helper.
-On a non-macOS host it returns `unsupported`, removes a previous destination and invokes no macOS toolchain.
-This is **not cross-packaging support**: packaging a macOS Desktop elsewhere must fail or use separately verified
-artifacts, rather than interpreting this result as a successfully built helper.
+On a non-macOS target the builder returns `unsupported`, removes a previous destination and invokes no macOS toolchain.
+
+`prepareDesktopObserver()` selects the build target through the shared `targetOf()` contract. macOS targets require
+a macOS build host and a successful `built` result. The Desktop build invokes it before esbuild; exceptions abort the
+build. `scripts/package.ts` passes the explicit target to this build and waits for its success before invoking
+electron-builder. A failure must not be recovered by invoking electron-builder directly on old build output.
+The development output is fixed at `apps/desktop/dist/native/computer-observer`. The macOS-only `extraResources`
+entry copies it to `Resources/computer/observer`, outside ASAR and outside the standalone daemon's staging tree.
+Linux and Windows targets do not copy it. Build-time `APX_TARGET` is not a runtime executable override.
 
 The executable is not resolved through PATH, and no compiler is run at observation time. Build-time toolchain
 selection still follows the installed Apple development tools; reproducible release toolchain provenance is not
 established here. Ad hoc signature verification checks code consistency, **not publisher identity or protection from
-same-user replacement**. There is no adjacent hash presented as authentication. Development and packaged runtime
-paths, nested signing by electron-builder, TCC behavior and resource loading remain unimplemented.
+same-user replacement**. There is no adjacent hash presented as authentication. Final nested signing, TCC behavior,
+runtime resource loading and request authorization remain separate work.
 
 ## Reproduce
 
-Run from this task's worktree on macOS, with `SCRATCH` set to the task's existing isolated temporary directory:
+Run from the worktree on macOS with Xcode command-line tools:
 
 ```sh
-node --test prototypes/computer-accessibility/native-resource.test.ts
-node --input-type=module -e '
-  import { buildObserverResource } from "./prototypes/computer-accessibility/native-resource.ts";
-  const result = buildObserverResource({
-    output: `${process.env.SCRATCH}/observer-resource`,
-    architectures: ["arm64", "x64"],
-    platform: process.platform,
-  });
-  console.log(result.kind);
-'
+node --test 'apps/desktop/scripts/*.test.ts'
+pnpm --filter @apx/desktop build
+lipo -archs apps/desktop/dist/native/computer-observer
+codesign --verify --strict apps/desktop/dist/native/computer-observer
 ```
 
-The output directory is a build-only laboratory input, not an agent-facing executable override. Keep binaries outside
-the repository and do not substitute user applications for the synthetic fixtures.
+For a different macOS architecture use `APX_TARGET=mac-x64` or `APX_TARGET=mac-arm64` at build time. Do not run
+concurrent builds against the same output directory. A cross-build does not establish native Intel behavior.
 
 ## Evidence and limits
 
-Twenty-two behavioral tests use disposable filesystem output and an injected tool runner. They cover thin and
-universal publication, non-macOS refusal, per-stage tool failures, unexpected architecture inventories, invalid input,
-filesystem refusals, cleanup failure after publication and both successful and denied rollback. These tests do not run
+Twenty-two builder tests use disposable filesystem output and an injected tool runner. Five consumer tests cover
+architecture selection, the fixed private output directory, aborting with residual output, unsupported results,
+invalid targets, non-macOS hosts and removal of leftover macOS resources for other targets. These tests do not run
 Swift, lipo, codesign or a package.
 
-Separately, the real Apple Swift 6.4/Xcode 27 toolchain compiled both slices on an arm64 macOS host, lipo confirmed the
-universal inventory, and codesign verified the ad hoc signature. The final universal binary then ran twice through
-`ObserverReader`, with `/usr/bin/arch` explicitly selecting `arm64` and `x86_64`. Both completed the private hello and
-returned the exact validated `IDENTITY_MISMATCH` refusal for a nonexistent PID before any AX read, followed by stop.
-The x86_64 execution was on the arm64 host, **not a physical Intel Mac**. This is startup/transport evidence only;
-it does not establish native AX access, TCC inheritance, a shipped package, general platform support, end-to-end
-improvement, or permission to read any real application.
+Before relocation, the real Apple Swift 6.4/Xcode 27 toolchain compiled both slices on an arm64 macOS host, lipo
+confirmed the universal inventory, and codesign verified the ad hoc signature. The universal binary ran through
+`ObserverReader`, with `/usr/bin/arch` explicitly selecting each slice. Both completed the private hello and returned
+validated `IDENTITY_MISMATCH` refusals for a nonexistent PID before any AX read, followed by stop. This was an arm64
+host, **not a physical Intel Mac**. After relocation, the actual Desktop build compiled and verified arm64 and x64
+helpers separately; the x64 helper also completed the validated refusal and stop on the arm64 host. The relocated
+Swift behavior suite passed 50 tests, and the arm64 build passed 17 Node and 19 Python real-descriptor tests.
 
-Docs impact: updated — this experiment documents its build contract and deliberately separates it from product
-installation, permissions and runtime behavior, which remain unchanged.
+A separate electron-builder 26.15.3 arm64 directory build used the real Desktop configuration with only the daemon's
+staged resources omitted and the app name, identifier and output isolated. The helper appeared at the configured
+`Resources/computer/observer` path. `codesign --verify --deep --strict` passed on that app; the packaged helper
+completed hello, a validated `IDENTITY_MISMATCH` refusal without AX, and stop through `ObserverReader`.
+Electron-builder replaced the helper's build-time signing identifier with an automatically generated identifier;
+the final signature remained ad hoc, with no team identity. Do not use the pre-build identifier as publisher proof.
+That first check was a resource-only directory package, not a full installer or a running packaged Desktop.
+
+The subsequent official `pnpm package:mac` flow completed without mocks: panel build, Desktop build, daemon staging,
+isolated staged-core `/health` smoke, electron-builder ZIP and DMG, daemon bundle and checksums. Inspection of the
+extracted ZIP confirmed the external arm64 helper, no duplicate inside ASAR, and coexistence with both global
+resource sets (daemon sources and dependencies). The standalone daemon archive contained no native observer.
+The extracted app passed deep strict signature verification; its helper completed the validated refusal and stop;
+all three artifact checksum sidecars matched. No artifact was installed, published or opened as a Desktop app.
+
+A separate failure-path check launched the actual official package entry and its actual Desktop build subprocess,
+while omitting only the web build and injecting a filesystem refusal when removing the existing native helper.
+The process failed with `OBSERVER_BUILD_FAILED`, retained the helper byte-for-byte, and never reached staging or
+electron-builder. This is process-level build-abort evidence, separate from the injected consumer unit test.
+
+This evidence does not establish native AX access, TCC inheritance, a shipped release, general platform support,
+end-to-end improvement, or permission to read any real application.
+
+Docs impact: updated — build prerequisites and target handling are documented in the source-install guides in both
+languages, the Desktop guides, `rules/RELEASE.md` and these laboratory notes. Runtime permission behavior is unchanged.

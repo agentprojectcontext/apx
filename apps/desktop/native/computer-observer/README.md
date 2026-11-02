@@ -1,8 +1,9 @@
 # Native window observer spike
 
 Experimental macOS observation only. Original Swift code, platform frameworks only; no upstream source copied,
-no package/dependency, APX integration, registration, named endpoint, shell, daemon, persistence, or action path.
-The sibling CLI bridge is unchanged. This is **not** a production tool or a permission boundary by itself.
+no new package/dependency, registration, named endpoint, shell, daemon, persistence, or action path.
+The Desktop build now carries this private executable outside ASAR on macOS. No runtime caller is enabled yet.
+The laboratory CLI bridge is unchanged. This is **not** a production tool or a permission boundary by itself.
 
 ## Plan and files
 
@@ -13,8 +14,8 @@ The sibling CLI bridge is unchanged. This is **not** a production tool or a perm
 5. Retain explicitly selected AX windows separately: `WindowSelection.swift`, `NativeSelection.swift`.
 6. Exercise public behavior with synthetic fixtures: `Fixtures.swift`, `TargetTests.swift`, `SelectionTests.swift`, `Tests.swift`.
 
-Architecture impact: local, unintegrated experiment. No core, desktop, broker, policy, permission, or protocol files
-are changed. The trusted future parent must enforce owner authorization, browser policy, capability, request scope,
+Architecture impact: local build resource, without runtime integration. No core, broker, policy, permission or protocol
+behavior changes. The trusted future parent must enforce owner authorization, browser policy, capability, request scope,
 process lifecycle and stop; spawning this executable must never become an agent-accessible bypass.
 
 ## Build and tests
@@ -24,7 +25,7 @@ outside the worktree; keep binaries and all runtime evidence there. Do not use a
 `@main` entry points.
 
 ```sh
-NATIVE=prototypes/computer-accessibility/native-observer
+NATIVE=apps/desktop/native/computer-observer
 swiftc -warnings-as-errors -parse-as-library \
   "$NATIVE/Contract.swift" "$NATIVE/TargetValidation.swift" "$NATIVE/Traversal.swift" \
   "$NATIVE/WindowSelection.swift" "$NATIVE/NativeObserver.swift" "$NATIVE/NativeSelection.swift" \
@@ -57,7 +58,7 @@ waited. A separate running baseline `screen_snapshot` also showed the synthetic 
 These are not paired end-to-end latency/token measurements or proof of product improvement. The normal observer
 was subsequently tested on the synthetic Electron fixture and failed ELECTRON_CONTENT_NOT_OBSERVED, even with
 renderer accessibility enabled. A separate fixture-only laboratory reaches synthetic renderer controls; see
-[the runtime contract and limits](../runtime/README.md). General Electron support, TCC denial and cursor/focus behavior
+[the runtime contract and limits](../../../../prototypes/computer-accessibility/runtime/README.md). General Electron support, TCC denial and cursor/focus behavior
 remain **UNVERIFIED**. Do not treat fixture tests as proof of general native behavior or measured improvement.
 
 The initial FIFO-only transport rejected Node's inherited socketpair. The observational spike now accepts the

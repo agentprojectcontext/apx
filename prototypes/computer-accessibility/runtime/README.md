@@ -132,7 +132,7 @@ Use the current worktree, a scratch folder and the existing Electron development
 required. Compile the regular retained helper as described in the native-observer notes. For the standalone lab:
 
 ```bash
-NATIVE=prototypes/computer-accessibility/native-observer
+NATIVE=apps/desktop/native/computer-observer
 LAB=prototypes/computer-accessibility/runtime
 swiftc -warnings-as-errors -parse-as-library "$LAB/ProcessIdentity.swift" -o "$SCRATCH/runtime-identity-probe"
 swiftc -warnings-as-errors -parse-as-library "$NATIVE/Contract.swift" "$NATIVE/Traversal.swift" \

@@ -13,6 +13,11 @@ boundary changes.
 | **desktop** | `apps/desktop` (`pnpm --filter @apx/desktop dev`) | Panel on the left, embedded browser on the right; connects to core as a **node** offering `browser`. | While the app is open. |
 | **mobile** | `apps/mobile` (Expo) | Operator + node (camera, notify). | App lifecycle. |
 
+The macOS Desktop build also carries an experimental private observation helper at `Resources/computer/observer`
+(outside ASAR); its Swift sources live in `apps/desktop/native/computer-observer`. It is not enabled at runtime yet,
+is not included in the standalone daemon bundle and adds no agent capability or permission. Building it requires
+macOS and Xcode command-line tools; installed apps do not compile it.
+
 Desktop supervises only a bundled child for its explicitly local home/port. URL and SSH connections never grant
 implicit lifecycle control over the server. Explicit remote updates use the owner-authenticated shared release plan:
 the core installs once, confirms its running target after restart, then Desktop clients may activate their own package.

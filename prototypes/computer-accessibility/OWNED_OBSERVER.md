@@ -83,7 +83,7 @@ pnpm exec tsc --noEmit --target es2024 --module nodenext --moduleResolution node
   prototypes/computer-accessibility/owned-observer.ts \
   prototypes/computer-accessibility/owned-observer.test.ts
 pnpm check:tests
-# After compiling the current Swift helper using native-observer/README.md:
+# After compiling the helper using apps/desktop/native/computer-observer/README.md:
 OBSERVER_HELPER="$SCRATCH/ax-owned-parent-observer" OBSERVER_SCRATCH="$SCRATCH" \
   node prototypes/computer-accessibility/runtime/owned-transport-smoke.ts
 ```

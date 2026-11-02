@@ -164,6 +164,8 @@ docker exec -it apx apx pair            # emparejá la app de escritorio o el te
 <TabItem label="Desde el código">
 
 Para trabajar en APX, o para correr el código más nuevo, usá un checkout. Necesitás Node 24.11 o más nuevo y pnpm.
+Para compilar la app de escritorio de macOS también necesitás las herramientas de línea de comandos de Xcode
+(`swiftc`, `lipo` y `codesign`). El comando `pnpm dev`, que corre solo el core, no compila ese ejecutable auxiliar.
 
 ```bash
 pnpm install

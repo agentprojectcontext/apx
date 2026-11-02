@@ -18,7 +18,7 @@ const sources = [
   "Main.swift",
 ];
 
-/** Build-time experiment only; ad hoc signing does not authenticate a publisher or defend against replacement. */
+/** Ad hoc signing checks consistency, not publisher identity or protection from replacement. */
 export function buildObserverResource(config: {
   output: string;
   architectures: readonly ObserverArchitecture[];
@@ -55,7 +55,7 @@ export function buildObserverResource(config: {
         "-parse-as-library",
         "-target",
         `${arch}-apple-macos12.0`,
-        ...sources.map((name) => path.join(import.meta.dirname, "native-observer", name)),
+        ...sources.map((name) => path.join(import.meta.dirname, "../native/computer-observer", name)),
         "-o",
         part,
       ]);

@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
-import { samePath } from "../../apps/core/src/paths.ts";
-import { tempDir } from "../../apps/core/src/testkit/platform.ts";
-import { buildObserverResource } from "./native-resource.ts";
+import { samePath } from "../../core/src/paths.ts";
+import { tempDir } from "../../core/src/testkit/platform.ts";
+import { buildObserverResource } from "./build-computer-observer.ts";
 
 function fixture(t: TestContext, options: { archs?: string; fail?: string } = {}) {
   const temporary = tempDir("observer-resource-");
