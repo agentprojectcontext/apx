@@ -1,5 +1,6 @@
 import Foundation
 import CoreGraphics
+import QuartzCore
 
 private struct Failure: Error {}
 private func require(_ value: @autoclosure () -> Bool) throws { if !value() { throw Failure() } }
@@ -82,6 +83,26 @@ struct PointerTests {
             try require(pointerAnimationDuration(0) == 0.3)
             try require(pointerAnimationDuration(600) == 0.5)
             try require(pointerAnimationDuration(10000) == 0.7)
+        }
+        try test("travel accelerates and settles in scale without moving the destination") {
+            let start = CGPoint(x: -100, y: 40)
+            let end = CGPoint(x: 500, y: 40)
+            let animation = pointerTravelAnimation(from: start, to: end)
+            try require(animation.duration == 0.5)
+            guard let children = animation.animations, children.count == 2,
+                  let travel = children[0] as? CAKeyframeAnimation,
+                  let settle = children[1] as? CAKeyframeAnimation,
+                  let path = travel.path, let timing = travel.timingFunction,
+                  let scales = settle.values as? [Double] else { throw Failure() }
+            try require(path.currentPoint == end && travel.keyPath == "position")
+            try require(settle.keyPath == "transform.scale" && scales.first == 1 && scales.last == 1)
+            try require(scales.allSatisfy { $0 >= 0.96 && $0 <= 1.035 } && scales.contains { $0 > 1 })
+            try require(travel.duration == animation.duration && settle.duration == animation.duration)
+            var control: [Float] = [0, 0]
+            timing.getControlPoint(at: 1, values: &control)
+            try require(abs(control[0] - 0.65) < 0.001 && control[1] == 0)
+            timing.getControlPoint(at: 2, values: &control)
+            try require(abs(control[0] - 0.35) < 0.001 && control[1] == 1)
         }
         try test("curve control is perpendicular to travel at twenty percent distance") {
             try require(pointerCurveControl(from: .zero, to: CGPoint(x: 100, y: 0)) == CGPoint(x: 50, y: 20))

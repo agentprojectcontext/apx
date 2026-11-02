@@ -10,5 +10,5 @@ for (const platform of ["win32", "linux"]) {
 
 test("native pointer harness reports actual platform coverage explicitly", async () => {
   const result = await checkNativePointer();
-  assert.deepEqual(result, process.platform === "darwin" ? { kind: "passed", cases: 24 } : { kind: "unsupported" });
+  assert.deepEqual(result, process.platform === "darwin" ? { kind: "passed", cases: 25 } : { kind: "unsupported" });
 });

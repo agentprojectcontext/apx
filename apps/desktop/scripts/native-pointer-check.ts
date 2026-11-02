@@ -23,6 +23,6 @@ export async function checkNativePointer(
     { timeout: 120000, stdio: ["ignore", "pipe", "pipe"] },
   );
   const output = execFileSync(executable, [], { encoding: "utf8", timeout: 10000 });
-  assert.match(output, /24 pointer behavior tests passed/);
-  return { kind: "passed", cases: 24 };
+  assert.match(output, /25 pointer behavior tests passed/);
+  return { kind: "passed", cases: 25 };
 }

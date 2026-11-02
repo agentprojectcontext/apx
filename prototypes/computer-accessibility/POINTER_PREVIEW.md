@@ -12,11 +12,14 @@ reviewer executed tests or supplied an integral product approval. Final verifica
 The macOS Desktop uses its bundled Swift helper in private `--pointer` mode. It persists across actions and owns
 non-activating, click-through, capture-protected overlay windows, one per agent (bounded to sixteen). Only the drawn
 cursor travels. Its quadratic curve uses a perpendicular control offset of 20% of the travel distance, with native
-Core Animation easing over 300–700 ms. The physical pointer is neither sampled as the start nor moved by this mode.
+Core Animation easing over 300–700 ms. Travel accelerates and brakes with a pronounced ease-in-out curve;
+a bounded scale spring (96–103.5%) gives the drawn badge a soft start and settling bounce without overshooting the
+position target or extending the action deadline. macOS Reduce Motion skips both travel and scale animation.
+The physical pointer is neither sampled as the start nor moved by this mode.
 
 The arrow is 60% of the previous size (about 20 points), white with the original green edge and glow. Three sparks
 repeat the original staggered opacity/scale animation; a green ring pulses on successful activation. An almost-black
-rounded label uses 11-point semibold white text and says the action. Stored agent names supply a short prefix;
+rounded label has no colored border, uses 11-point semibold white text and says the action. Stored agent names supply a short prefix;
 operator calls show their action note, with action-specific click/typing defaults when no note is available. Core derives identity from the turn, not
 public tool input. Windows retains the existing Electron cursor.
 
@@ -27,6 +30,21 @@ coordinate accessibility path. Physical mouse fallback is disabled on macOS: uns
 to click. This avoids leaving a button held or a pointer displaced when a subprocess is killed during delivery.
 A delivered accessibility error is uncertain, never permission for another action. No new transport, agent-accessible helper or permission
 is introduced.
+
+## Final visual refinement evidence
+
+The final refinement adds acceleration, braking and a subtle scale-only settling bounce, removes the action label's
+colored border and preserves the smaller arrow and animated sparks. The owner approved the visual direction.
+The native harness passes 25 behavioral cases, plus three platform-runner checks. The final production helper,
+compiled through the Desktop builder, delivered two AXPress actions in 1216/580 ms through an isolated core and
+Desktop node; the fixture counter reached two, with zero physical mouse-downs and identical before/after pointer
+positions. Disabled and secure controls and a post-Stop request were refused. These are fixture measurements,
+not comparative performance claims. The running core reported the base revision plus the uncommitted visual delta.
+
+A separate capture-enabled helper recorded the borderless badge and curved travel; its only capture difference is
+`POINTER_RECORDING`. During that recording the physical pointer changed between samples, so the video does not
+establish that it stayed still. The production run's unchanged samples are separate evidence. General verification
+remains incomplete: the remaining suites did not start because the bounded wait for another worktree's gates expired.
 
 ## Destination and lifecycle
 

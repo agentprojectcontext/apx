@@ -10,6 +10,26 @@ func pointerCurveControl(from start: CGPoint, to end: CGPoint) -> CGPoint {
             y: (start.y + end.y) / 2 + (end.x - start.x) * 0.20)
 }
 
+func pointerTravelAnimation(from start: CGPoint, to end: CGPoint) -> CAAnimationGroup {
+    let path = CGMutablePath()
+    path.move(to: start)
+    path.addQuadCurve(to: end, control: pointerCurveControl(from: start, to: end))
+    let travel = CAKeyframeAnimation(keyPath: "position")
+    travel.path = path
+    travel.calculationMode = .linear
+    travel.timingFunction = CAMediaTimingFunction(controlPoints: 0.65, 0, 0.35, 1)
+    let settle = CAKeyframeAnimation(keyPath: "transform.scale")
+    settle.values = [1.0, 0.96, 1.035, 0.99, 1.0]
+    settle.keyTimes = [0, 0.18, 0.78, 0.9, 1]
+    settle.timingFunctions = (0..<4).map { _ in CAMediaTimingFunction(name: .easeInEaseOut) }
+    let group = CAAnimationGroup()
+    group.duration = pointerAnimationDuration(hypot(end.x - start.x, end.y - start.y))
+    travel.duration = group.duration
+    settle.duration = group.duration
+    group.animations = [travel, settle]
+    return group
+}
+
 private final class PointerWindow: NSWindow {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
@@ -96,8 +116,6 @@ private final class PointerBadge {
         addSparks(to: layer)
         pill.backgroundColor = NSColor(calibratedWhite: 0.025, alpha: 0.96).cgColor
         pill.cornerRadius = 12
-        pill.borderColor = NSColor(cgColor: pointerGreen)?.withAlphaComponent(0.65).cgColor
-        pill.borderWidth = 0.8
         pill.addSublayer(text)
         layer.addSublayer(pill)
         text.font = NSFont.systemFont(ofSize: 11, weight: .semibold)
@@ -193,16 +211,9 @@ final class PointerOverlay {
         entry.badge.layer.position = to
         CATransaction.commit()
         entry.window.orderFrontRegardless()
-        if distance < 1 { completion() }
+        if distance < 1 || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { completion() }
         else {
-            let path = CGMutablePath()
-            path.move(to: from)
-            path.addQuadCurve(to: to, control: pointerCurveControl(from: from, to: to))
-            let animation = CAKeyframeAnimation(keyPath: "position")
-            animation.path = path
-            animation.duration = pointerAnimationDuration(distance)
-            animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            animation.calculationMode = .linear
+            let animation = pointerTravelAnimation(from: from, to: to)
             CATransaction.begin()
             CATransaction.setCompletionBlock(completion)
             entry.badge.layer.add(animation, forKey: "travel")
