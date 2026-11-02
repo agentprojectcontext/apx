@@ -4,6 +4,7 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript-parser";
+import { runE2ESuites } from "./coverage-e2e.ts";
 import { missingSourceMaps, readCoveragePayloads, snapshotSourceMaps } from "./coverage-maps.ts";
 import { sourceMapResolver } from "./coverage-source-map.ts";
 import { checkTests, repositoryFiles, testFiles } from "./test-quality.ts";
@@ -232,51 +233,6 @@ export function coveragePart(argv: readonly string[]): CoveragePart & { name?: s
   throw new Error(`--part must be unit, web or desktop, not ${part}`);
 }
 
-async function runE2ESuites(
-  root: string,
-  raw: string,
-  snapshot: (directory: string) => void,
-  which: Pick<CoveragePart, "web" | "desktop">,
-): Promise<boolean> {
-  let failed = false;
-  const ports = await sandboxPorts();
-  const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-  const run = (command: string, args: string[]) => {
-    const result = spawnSync(command, args, {
-      cwd: root,
-      stdio: "inherit",
-      shell: process.platform === "win32",
-      env: { ...process.env, ...ports, APX_TEST_COVERAGE: "1", APX_TEST_COVERAGE_DIR: raw, NODE_V8_COVERAGE: raw },
-      timeout: 15 * 60_000,
-    });
-    if (result.status !== 0) {
-      failed = true;
-      if (result.error) console.error(result.error.message);
-    }
-  };
-  run(pnpm, ["build:web"]);
-  snapshot(path.join(root, "apps/web/dist"));
-  snapshot(path.join(root, "packages/ui/dist"));
-  if (which.web) {
-    const shard = typeof which.web === "string" ? [`--shard=${which.web}`] : [];
-    run(pnpm, ["exec", "playwright", "test", "--project", "chromium", ...shard]);
-  }
-  if (!which.desktop) return failed;
-  run(pnpm, ["--filter", "@apx/desktop", "build"]);
-  snapshot(path.join(root, "apps/desktop/dist"));
-  const desktop = ["exec", "playwright", "test", "--project", "desktop"];
-  if (process.platform === "linux" && !process.env.DISPLAY) {
-    // Xvfb supplies a display; a window manager supplies real focus and minimization transitions.
-    const launch =
-      'command -v openbox >/dev/null || { echo "Install openbox for desktop window tests" >&2; exit 1; }; openbox >/dev/null 2>&1 & exec "$@"';
-    run("xvfb-run", ["-a", "sh", "-c", launch, "apx-desktop", pnpm, ...desktop]);
-  } else if (process.platform === "darwin") {
-    // Native focus assertions need an awake display for the lifetime of the test process.
-    run("caffeinate", ["-d", "-i", pnpm, ...desktop]);
-  } else run(pnpm, desktop);
-  return failed;
-}
-
 /** The unit suites, area by area, then the mobile app's own; their coverage lands in `raw` and `nativeOutput`. */
 function runUnitSuites(root: string, raw: string, nativeOutput: string, snapshot: (directory: string) => void) {
   let failed = false;
@@ -473,7 +429,8 @@ async function main() {
   };
   let failed = false;
   if (part.unit) failed = runUnitSuites(root, raw, path.join(output, "mobile"), snapshot) || failed;
-  if (part.web || part.desktop) failed = (await runE2ESuites(root, raw, snapshot, part)) || failed;
+  if (part.web || part.desktop)
+    failed = (await runE2ESuites(part, { root, raw, snapshot, ports: sandboxPorts })) || failed;
   const status = {
     failed,
     suites: [...(part.unit ? ["unit"] : []), ...(part.web ? ["web"] : []), ...(part.desktop ? ["desktop"] : [])],
