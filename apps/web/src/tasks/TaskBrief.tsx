@@ -74,7 +74,7 @@ export function TaskDescription({ task }: { task: Task }) {
   useEffect(() => setDraft(task.description), [task.description]);
   if (!editing && task.description.trim())
     return (
-      <section className="taskdetail__descview" aria-label={t("tasks.description")}>
+      <div className="taskdetail__descview">
         <IconButton
           className="taskdetail__descedit"
           size="sm"
@@ -83,7 +83,7 @@ export function TaskDescription({ task }: { task: Task }) {
           onClick={() => setEditing(true)}
         />
         <MarkdownView source={task.description} size="sm" labels={labels} />
-      </section>
+      </div>
     );
   return (
     <Textarea

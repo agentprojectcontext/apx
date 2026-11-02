@@ -60,6 +60,8 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     const drawer = page.getByRole("complementary", { name: task.title });
     const body = drawer.locator(".taskpanel__body");
     const comment = drawer.getByRole("textbox", { name: "Comentario", exact: true });
+    // A written description reads as formatted text; the pencil opens it to edit.
+    await drawer.getByRole("button", { name: "Editar la descripción" }).click();
     const description = drawer.getByRole("textbox", { name: "Descripción", exact: true });
     expect((await description.boundingBox())?.height).toBeGreaterThanOrEqual(180);
     // The list moves aside for the open task instead of staying under it.
