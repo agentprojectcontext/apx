@@ -5,6 +5,7 @@ import { TURN_STEPS } from "@apx/protocol";
 import type { Llm } from "../providers/llm.ts";
 import type { ChatItem, ModelFailure, Usage } from "../providers/types.ts";
 import { readsImages } from "../providers/vision.ts";
+import { contextWindow } from "../providers/windows.ts";
 import { modelSpec } from "../tools/types.ts";
 import type { Harness } from "./types.ts";
 
@@ -86,7 +87,13 @@ export function nativeHarness(llm: Llm): Harness {
         usage.input += c.usage?.input ?? 0;
         usage.output += c.usage?.output ?? 0;
         if (c.usage?.cached) usage.cached = (usage.cached ?? 0) + c.usage.cached;
-        if (c.usage?.input) usage.context = c.usage.input;
+        if (c.usage?.input) {
+          usage.context = c.usage.input;
+          // Known while the turn runs, so the chat's context ring never loses its share between calls.
+          const window = c.usage.window ?? contextWindow(c.model);
+          if (window) usage.window = window;
+          else delete usage.window;
+        }
         io.onUsage?.({ ...usage });
         push(c.message);
         if (c.message.content) text = prefix + c.message.content;
