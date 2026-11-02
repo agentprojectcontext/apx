@@ -7,6 +7,7 @@ import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
+import { TASK_GOALS_NEWS } from "./task-goals.ts";
 
 /** What an entry may ask about this install before it is told. */
 export type NewsFacts = {
@@ -33,6 +34,8 @@ export type NewsFacts = {
   claude?: boolean;
   /** At least one paired Desktop can use coordinated remote updates. */
   desktop?: boolean;
+  /** Open tasks with an agent on them. */
+  tasks?: number;
 };
 
 export type NewsAction = {
@@ -58,6 +61,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  TASK_GOALS_NEWS,
   QUEUED_MESSAGES_NEWS,
   EXTERNAL_SESSIONS_NEWS,
   BROWSER_EDIT_NEWS,
@@ -1151,6 +1155,7 @@ export const newsFacts = (store: Store): NewsFacts => ({
   integrations: connectedIntegrations(store),
   computer: computerHost() !== undefined && store.projects.list().length > 0,
   mac: process.platform === "darwin" && store.projects.list().length > 0,
+  tasks: store.tasks.list({ state: "open", limit: 500 }).filter((t) => t.assignee).length,
 });
 
 /** The action a channel button stands for. */

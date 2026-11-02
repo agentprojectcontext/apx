@@ -10,8 +10,10 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
     const { name, args } = JSON.parse(said.slice(6)) as { name: string; args: object };
     return callTool("task", name, args);
   }
-  if (said.startsWith("create: ")) return callTool("make", "task_create", { title: said.slice(8) });
-  if (said.startsWith("for ann: ")) return callTool("make", "task_create", { title: said.slice(9), person: "Ann" });
+  if (said.startsWith("create: "))
+    return callTool("make", "task_create", { goal: "Done as asked", title: said.slice(8) });
+  if (said.startsWith("for ann: "))
+    return callTool("make", "task_create", { goal: "Done as asked", title: said.slice(9), person: "Ann" });
   return callTool("list", "task_list", JSON.parse(said) as object);
 });
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -76,7 +78,11 @@ test("task_create tells the agent to look for the same open task before making a
 
 test("task tools report that assigned work with no description is waiting, never started", async () => {
   const invoke = (name: string, args: object) => list(`tool: ${JSON.stringify({ name, args })}`);
-  const created = await invoke("task_create", { title: "Waiting specification", assignee: "vera" });
+  const created = await invoke("task_create", {
+    goal: "Done as asked",
+    title: "Waiting specification",
+    assignee: "vera",
+  });
   assert.match(created, /It has not started: add a non-empty description with task_update/);
   assert.doesNotMatch(created, /starts on it now/);
   const id = /created (task_\w+)/.exec(created)?.[1];

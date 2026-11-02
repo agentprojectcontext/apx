@@ -49,6 +49,7 @@ for (const independent of [true, false]) {
           { ms: 15000 },
         );
         return callTool("report", "task_create", {
+          goal: "Done as asked",
           title: "Analyze report",
           description: "Analyze the quarterly report.",
           assignee: "vera",

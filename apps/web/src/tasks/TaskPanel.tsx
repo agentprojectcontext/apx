@@ -1,18 +1,5 @@
 import type { Message, Task, TaskEvent } from "@apx/protocol";
-import {
-  AgentAvatar,
-  Badge,
-  Button,
-  IconButton,
-  Icons,
-  MarkdownView,
-  Menu,
-  Select,
-  Skeleton,
-  Tabs,
-  TagInput,
-  Textarea,
-} from "@apx/ui";
+import { AgentAvatar, Badge, Button, IconButton, Icons, Menu, Select, Skeleton, Tabs, TagInput } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { QuoteContext, quoteBlock } from "../chat/quote.ts";
 import { Transcript } from "../chat/Transcript.tsx";
@@ -20,7 +7,6 @@ import { Drawer } from "../common/Drawer.tsx";
 import { shortWhen } from "../common/format.ts";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
-import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
 import { loadThread } from "../data/actions.ts";
 import { baseName, blobOf } from "../data/identity.ts";
 import { useOwnerName } from "../data/owner.ts";
@@ -32,6 +18,7 @@ import { formatCompact } from "./compact.ts";
 import { historyLines } from "./history.ts";
 import { mentionToken } from "./mentions.ts";
 import { TaskAttachments } from "./TaskAttachments.tsx";
+import { TaskAsked, TaskDescription, TaskGoal, TaskPlan } from "./TaskBrief.tsx";
 import { TaskComment } from "./TaskComment.tsx";
 import {
   DueField,
@@ -126,7 +113,9 @@ export function TaskPanel({ task, onClose, actions }: { task: Task; onClose: () 
         <StateBar task={task} />
         <Properties task={task} detail={detail} />
         <TaskActivity task={task} detail={detail} />
-        <Description task={task} />
+        <TaskGoal task={task} />
+        <TaskAsked task={task} />
+        <TaskDescription task={task} />
         {detail && (
           <TaskAttachments
             key={task.id}
@@ -486,36 +475,6 @@ function Title({ task }: { task: Task }) {
           requestAnimationFrame(() => (e.target as HTMLTextAreaElement).blur());
         }
       }}
-    />
-  );
-}
-
-/** The plan its agent keeps on the task: the steps and where it stands, read again on every turn of its work. */
-function TaskPlan({ plan }: { plan: string }) {
-  const t = useT();
-  const labels = useMarkdownLabels();
-  return (
-    <section className="taskdetail__plan" aria-label={t("tasks.plan")}>
-      <h3 className="taskdetail__planhead">{t("tasks.plan")}</h3>
-      <MarkdownView source={plan} size="sm" labels={labels} />
-    </section>
-  );
-}
-
-/** What the task is about; saved when the owner leaves the box. */
-function Description({ task }: { task: Task }) {
-  const t = useT();
-  const [draft, setDraft] = useState(task.description);
-  useEffect(() => setDraft(task.description), [task.description]);
-  return (
-    <Textarea
-      className="taskdetail__desc"
-      aria-label={t("tasks.description")}
-      placeholder={t("tasks.descriptionHint")}
-      rows={Math.min(14, Math.max(6, draft.split("\n").length))}
-      value={draft}
-      onChange={(e) => setDraft(e.currentTarget.value)}
-      onBlur={() => draft !== task.description && void updateTask(task.id, { description: draft })}
     />
   );
 }

@@ -12,6 +12,7 @@ const llm = scriptedLlm((_req, { said, afterTool }) => {
     return callTool("s1", "commitment_settle", { task: settling, outcome: "kept" });
   if (said.includes("Ana owes me the contract"))
     return callTool("c1", "task_create", {
+      goal: "Done as asked",
       title: "Signed contract",
       person: "ana",
       owed_by: "person",
