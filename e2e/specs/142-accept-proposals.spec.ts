@@ -192,7 +192,8 @@ test("a lost response after acceptance reports uncertainty instead of failure", 
   let writes = 0;
   await page.route("**/rpc/tasks.update", async (route) => {
     writes++;
-    await rpc("tasks.update", { task: proposal.id, proposed: false });
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
     await route.abort("aborted");
   });
   await page.getByRole("button", { name: "Aceptar todas", exact: true }).click();
