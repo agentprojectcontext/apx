@@ -76,7 +76,7 @@ const agentsMd = (chars: number) => {
   return text.slice(0, chars);
 };
 
-test("a realistic owner's turns stay within their own budget", async () => {
+test("a realistic owner's turns stay within their own budget", async (ctx) => {
   const wa = fakeWhatsApp();
   const project = fs.mkdtempSync(path.join(temp, "acme-"));
   const rules = agentsMd(20_000);
@@ -129,6 +129,19 @@ test("a realistic owner's turns stay within their own budget", async () => {
     const tools = JSON.stringify(call?.tools ?? []).length;
     assert.ok(system <= REALISTIC.system, `system prompt: ${system} chars, budget ${REALISTIC.system}`);
     assert.ok(tools <= REALISTIC.tools, `tools: ${tools} chars, budget ${REALISTIC.tools}`);
+
+    ctx.diagnostic(`realistic tools without quotas: ${tools} chars`);
+    for (const mode of ["Claude enabled", "ChatGPT linked"] as const) {
+      await real.client.call("engines.set_usage", { engine: "claude", enabled: mode === "Claude enabled" });
+      if (mode === "ChatGPT linked") real.core.secrets.set("chatgpt_login", "test-link-metadata");
+      await real.client.call("threads.send", { thread: t.id, text: "Check my plan quotas" });
+      await real.settle(t.id);
+      const offered = llm.calls.at(-1)?.tools ?? [];
+      assert.ok(offered.some((tool) => tool.function.name === "plan_usage"));
+      const size = JSON.stringify(offered).length;
+      ctx.diagnostic(`realistic tools with ${mode}: ${size} chars`);
+      assert.ok(size <= REALISTIC.tools, `${mode}: tools ${size} chars, budget ${REALISTIC.tools}`);
+    }
 
     const before = llm.calls.length;
     wa.fromOwner("¿qué tengo hoy?");

@@ -7,9 +7,9 @@ export function planUsageTools(enabled: () => boolean): Tool[] {
     defineTool({
       name: "plan_usage",
       description:
-        "Read account quota for all usage-enabled plans, not just your current model. Optional query filters by provider/plan name or engine id (Claude, Codex, ChatGPT, Cursor). Returns reported percentages, windows, resets and check time; unavailable is not zero. Uses the AI usage menu's source and preferences; cannot enable checks or read credentials.",
+        "Read all usage-enabled plans' quotas, independent of your model, from the AI usage menu. Filter query by provider/plan or engine. Returns percentages, windows, resets and check time; missing is not zero.",
       args: z.object({
-        query: z.string().trim().min(1).max(100).optional().describe("provider/plan name or engine id; omit for all"),
+        query: z.string().trim().min(1).max(100).optional(),
       }),
       when: enabled,
       effect: "none",

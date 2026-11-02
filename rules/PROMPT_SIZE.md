@@ -23,7 +23,7 @@ is for what a new owner needs to find their way, not for padding. A channel turn
 A realistic owner has its own budget in the same test: a WhatsApp channel with stickers, the computer allowed,
 instructions of their own, an "about" and a project with a 20,000-character AGENTS.md. Its project chat sends 7,982
 chars of system prompt besides that AGENTS.md, which goes whole (budget 8,000: an agent that can change a project's
-files is told to look at a visible change running, [D-166](DECISIONS.md#d-166)), and 26,620 of tools (29,000); its
+files is told to look at a visible change running, [D-166](DECISIONS.md#d-166)), and 28,957 of tools with account quota checks enabled (29,000), including a default-linked ChatGPT account; its
 WhatsApp turn's input is 265 chars before the message (600). Before the fixed instructions left the turn they were about
 27,000 and 2,250.
 
