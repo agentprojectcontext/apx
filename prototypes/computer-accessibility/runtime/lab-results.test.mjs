@@ -39,6 +39,28 @@ test("audit requires real native requests and classified fixture inputs, not onl
   );
 });
 
+test("local and nested audits reject disconnected hooks and missing required native evidence", () => {
+  const nested = { ...localAudit(), allowedDocuments: 1, deniedDocuments: 1, filteredNodes: 1 };
+  assert.doesNotThrow(() => validateReadAudit({ readAudit: nested }, "nested-iframe"));
+  for (const [mode, audit] of [
+    ["local", localAudit()],
+    ["nested-iframe", nested],
+  ]) {
+    for (const result of [{}, { readAudit: null }, { readAudit: { ...audit, attributeRequests: {} } }]) {
+      assert.throws(() => validateReadAudit(result, mode));
+    }
+    for (const name of ["AXRole", "AXSubrole", "AXChildren", "AXWindow", "AXURL"]) {
+      for (const value of [undefined, 0]) {
+        const attributeRequests = { ...audit.attributeRequests, [name]: value };
+        assert.throws(() => validateReadAudit({ readAudit: { ...audit, attributeRequests } }, mode));
+      }
+    }
+    for (const change of [{ filteredNodes: 0 }, { allowedDocuments: 0 }, { deniedDocuments: 2 }]) {
+      assert.throws(() => validateReadAudit({ readAudit: { ...audit, ...change } }, mode));
+    }
+  }
+});
+
 function observedResult() {
   return {
     navigationPaused: true,

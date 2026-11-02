@@ -88,6 +88,12 @@ filtered title/children requests. Other denied variants also had no partial obse
 Local cold probe was 536 ms; root-mismatch/nested/HTTP refusals 28/28/29 ms (single samples, no speedup claim).
 These measurements are distinct from the earlier unaudited samples. Audit coverage does not certify general privacy.
 
+The driver requires non-vacuous audit evidence: both local documents, four filtered local inputs, and positive
+role, subrole, child, window and URL request counts. The nested case requires one accepted and one rejected document
+and filtered-node evidence. The five result-validator tests reject absent/disconnected audits, missing or zero required
+attribute counts, missing document classifications, filtered-node loss, unrelated navigation errors and partial output.
+A repeated native run with these assertions passed all five cases; this still does not certify reads outside the hook.
+
 ## Controlled navigation interleaving
 
 The `navigate` case starts from the same accepted static data documents. A lab-only callback pauses after a successful
