@@ -4,6 +4,7 @@
 // else in a consult shown on the task as a card (task-work.ts). A task an agent creates from a chat about a task is its
 // subtask; an agent answering another one gives nobody work (DECISIONS.md#d-079).
 import { type Author, SUPER_AGENT_ID, type Task, type TaskAsked } from "@apx/protocol";
+import { planSteps } from "@apx/protocol/task-plan";
 import { publicRun } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
@@ -377,6 +378,11 @@ export function taskHandlers(
         // Rewriting what the task asks passes on what the owner just said about it.
         if (c.title !== undefined || c.description !== undefined || c.goal !== undefined)
           store.tasks.heard(cur.id, ownerWords(ctx, cur.thread_id));
+        // A step newly done, or a new agent on it, starts the progress guard's count over (DECISIONS.md#d-188).
+        const done = (plan: string | null | undefined) =>
+          planSteps(plan ?? "")?.filter((x) => x.state === "done").length ?? 0;
+        if ((c.plan !== undefined && done(c.plan) > done(cur.plan)) || (c.assignee && c.assignee !== cur.assignee))
+          store.threads.mergeContext(cur.thread_id, { progress_at: new Date().toISOString() });
         const updated = store.tasks.change(
           task,
           {

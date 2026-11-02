@@ -110,7 +110,7 @@ async function fixture(mode: string, run: (bin: string, env: NodeJS.ProcessEnv, 
 
 test("Claude delegates auth to an isolated, nonpersistent CLI command with zero model turns", async () => {
   await fixture("success", async (bin, env, log) => {
-    assert.equal((await readClaudeUsage(bin, { launch, env }))?.[0]?.used_percent, 15);
+    assert.equal((await readClaudeUsage(bin, { launch, env, runTimers: manualTimers() }))?.[0]?.used_percent, 15);
     const calls = fs
       .readFileSync(log, "utf8")
       .trim()
@@ -143,7 +143,8 @@ test("Claude delegates auth to an isolated, nonpersistent CLI command with zero 
 for (const mode of ["old", "cap", "malformed"]) {
   test(`Claude ${mode} fails closed and cleans up`, async () => {
     await fixture(mode, async (bin, env, log) => {
-      assert.equal(await readClaudeUsage(bin, { launch, env, maxBytes: 4096 }), undefined);
+      // Held timers: on a busy machine a real deadline could stop the child before it starts.
+      assert.equal(await readClaudeUsage(bin, { launch, env, maxBytes: 4096, runTimers: manualTimers() }), undefined);
       if (mode === "old") assert.equal(fs.readFileSync(log, "utf8").trim().split("\n").length, 1);
     });
   });

@@ -365,14 +365,22 @@ export function taskTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "task_comment",
       description:
-        "Comment on a task's conversation. @owner requests the owner's attention (their reply clears it); @agent asks that teammate here and its answer comes back to you.",
-      args: z.object({ task: z.string().min(1).max(64), text: z.string().trim().min(1).max(5000) }),
+        "Comment on a task only when others must know now: blocked, a decision, done. @owner asks the owner, until they reply; @agent asks a teammate; you get the answer.",
+      args: z.object({ task: z.string().min(1).max(64), text: z.string().trim().min(1).max(1500) }),
       effect: "local",
       confirm: handsOff,
       check: (a, ctx) => void taskOf(a.task, ctx),
       deadlineMs: 5_000,
       title: (a) => `Commented on ${String(a.task ?? "")}`,
       async run(a, ctx) {
+        // One comment a turn: progress shows in the plan, and a task's conversation is read by people (D-188).
+        const said = store.runs
+          .steps(ctx.run.id)
+          .some((s) => s.tool === "task_comment" && s.state === "ok" && s.args.task === a.task);
+        if (said)
+          throw badRequest(
+            "text: you already commented on this task in this turn; say the rest in your answer, or in one comment next turn",
+          );
         const r = await ctx.call("tasks.comment", a);
         return r.runs.length
           ? `commented; ${r.runs.length} agent(s) will answer there, and the answer comes back to you: do not wait for it.`

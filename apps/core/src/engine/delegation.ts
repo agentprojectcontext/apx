@@ -10,7 +10,7 @@ import { agentReply } from "../tools/agents.ts";
 import { folderInProject } from "../tools/folders.ts";
 import { modeOf, withProjectAutonomy } from "../tools/policy.ts";
 import { ancestors } from "./ancestry.ts";
-import { agentTripped, heldNotice, tripped } from "./breaker.ts";
+import { agentTripped, heldNotice, tellStuck, tripped } from "./breaker.ts";
 import type { Display } from "./display.ts";
 import { MAX_ACTIVE_DELEGATIONS, MAX_DEPTH } from "./limits.ts";
 import { MAX_AUTO_PARTS, stalled } from "./progress.ts";
@@ -526,6 +526,7 @@ export function createDelegations(deps: {
       }
       const paused = tripped(store, parentThread.id);
       if (paused) {
+        tellStuck(store, parentThread.id);
         holdDelegation(parentThread.id, from.agent.id, worker?.name ?? to.name, task);
         return `refused: ${paused}. Tell the owner what you were about to delegate; if they let agents go on you get a new turn, and you delegate it again then.`;
       }

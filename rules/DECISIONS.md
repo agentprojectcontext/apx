@@ -3495,7 +3495,9 @@ and no way to fix one that waited. Now each is the owner's choice and shows as s
 
 Both states are rows (the message's `waiting`, the run): a restart keeps the line and its order, and words a restart
 cut off before the turn took them run as a turn of their own. An outside engine takes words only between turns, so
-**Send now** there puts the message first in line. Channel messages are unchanged: the owner's steer as before, and no
+Enter leaves the message in line there, and **Send now** stops the turn at work as the owner's next message would
+(`Superseded`: what it delegated keeps going, the line stays) and runs the message first (`now: true`). It also does so
+for a message with files, which a running turn cannot take. With no turn at work it only goes first (`now: false`). Channel messages are unchanged: the owner's steer as before, and no
 `waiting` (the app shows them as delivered).
 <a id="d-187"></a>
 ## D-187 — 2026-11-02 — A task carries the owner's words and a goal; its plan is steps
@@ -3528,3 +3530,33 @@ Nothing on the task let anyone see the brief had drifted from the request.
 
 Rejected: asking the creating agent to quote the owner (the same agent that paraphrased would choose what to quote),
 and keeping every owner message of the chat (Home mixes unrelated requests).
+
+<a id="d-188"></a>
+## D-188 — 2026-11-02 — Agents on a task pause when they get nowhere; a review ends in one verdict
+
+With the spend limits off by default (D-160), nothing stopped an agent that kept working without getting anywhere. On
+one task an agent spent about eight hours and seventy delegations, most of them review rounds by two teammates, each
+adding a restriction, without one step of its plan working.
+
+- **A progress guard, on by default** (`STUCK_LIMITS` in `engine/limits.ts`, `stuckTrip` in `engine/breaker.ts`): the
+  turns and fresh tokens agents spend on a task's conversation, its work chats and every session under them are counted
+  like the breaker's (delegations, results, APX's own continuations), since the latest of: a step of its plan newly
+  done or a new agent on it (`progress_at` on its conversation), the owner's last message in those chats, or their go
+  on. At 12 turns or 2M tokens the chain pauses through the breaker itself, so continuations, results and delegations
+  wait the same way and the same Go on button lets them through. The notice names the task (variants `progressRuns` and
+  `progressTokens`); the owner is also told once per stretch in the tray (`stuck:<task>`). It is not a spend cap: work
+  that keeps finishing steps never stops.
+- A step counts as done only in a checklist plan (`- [x]`), read with `planSteps`; rewriting the plan with no new done
+  step is no progress.
+- **Reviews end in one verdict**: an agent asked by another, and a worker, are told to answer Approved, Approved with
+  notes, or Blocked with the one thing that blocks it; notes never block and they ask for no other round. The task
+  block asks for one review when a whole change is done, not one per part. "Approved with notes" opens with "Approved",
+  so a task review (D-128) reads it as approved.
+
+- **Fewer, shorter task comments**: a task's conversation is read by people, and one agent left 56 dense comments on
+  one task. `task_comment` takes one comment per task per turn (a second is refused: the rest goes in the answer) and
+  at most 1,500 characters, and is for what others must know now: blocked, a decision, done. Progress shows in the
+  plan; helpers comment only when they find a block or something for the owner to decide.
+
+Rejected: a cap on delegations per task (good work also delegates; what matters is that steps get done), and resetting
+the count on any plan rewrite (an agent could rewrite its plan to go on forever).

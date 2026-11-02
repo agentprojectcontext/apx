@@ -772,7 +772,8 @@ export const appMethods = {
   },
   /**
    * The owner's waiting message now: the running turn cuts its current step short and takes it. `now` false: the
-   * agent can only take it between turns (an outside engine), so it goes first in line.
+   * agent can only take it between turns (an outside engine): its turn at work is stopped and the message runs first.
+   * With no turn at work it only goes first in line.
    */
   "runs.send_now": {
     params: z.object({ message: Id }).strict(),
