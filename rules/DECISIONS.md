@@ -3487,4 +3487,34 @@ Both states are rows (the message's `waiting`, the run): a restart keeps the lin
 cut off before the turn took them run as a turn of their own. An outside engine takes words only between turns, so
 **Send now** there puts the message first in line. Channel messages are unchanged: the owner's steer as before, and no
 `waiting` (the app shows them as delivered).
+<a id="d-187"></a>
+## D-187 — 2026-11-02 — A task carries the owner's words and a goal; its plan is steps
 
+The owner asked the super-agent, over a few messages, to copy what an open-source desktop agent does well: its smooth,
+animated cursor, one per agent. The super-agent wrote the task as a 600-word brief and added criteria nobody said ("no
+drawn cursor on top", "never more than one agent on the computer"), the opposite of the reference. The agent doing it
+read only that brief, reviewers stacked restrictions on it, and eight hours went by without one working click.
+Nothing on the task let anyone see the brief had drifted from the request.
+
+- **The owner's words travel with the task** (`Task.asked`, `domain/task-asked.ts`). When an agent creates a task, or
+  rewrites its title, description or goal, or comments on it, in a turn the owner started, the core keeps the owner's
+  message as written, with up to two they sent in that chat in the ten minutes before ("this repo"). It comes from the
+  run, never from the agent's arguments, so no agent can edit it. Each message is kept once; the newest twelve stay.
+  Words said in the task's own conversation are already there and are not copied.
+- **A goal** (`Task.goal`): where the work must arrive, in a line or two, as the owner would check it. `task_create`
+  refuses an assigned task without one; the owner edits it in the drawer.
+- **The task block reads them first**: goal, then the owner's words, then the brief marked as its creator's reading of
+  them. Where the brief asks for more than the owner said or goes against them, the owner's words win; when unclear,
+  the agent asks. A task without a goal tells its agent to set one before working.
+- **The plan is steps**: `task_update plan` is a Markdown checklist (`- [x] done`, `- [~] doing`, `- [ ] next`), read
+  as steps by `@apx/protocol/task-plan`; a free-text plan still reads as Markdown. The agent writes it before working
+  and keeps it current; the drawer shows it as a checklist with a count. When the work stops leading to the goal, it
+  tells the owner what is missing.
+- `task_create`'s description is capped at 3,000 and asks for short Markdown lines; the drawer shows it formatted, with
+  a pencil to edit.
+- The tools stay within the prompt budget (rules/PROMPT_SIZE.md): structured plan steps cost more than the budget left,
+  so the checklist is text, and `task_create` lost a line that only described what the core does on its own (a global
+  agent's task going to its assignee's project).
+
+Rejected: asking the creating agent to quote the owner (the same agent that paraphrased would choose what to quote),
+and keeping every owner message of the chat (Home mixes unrelated requests).

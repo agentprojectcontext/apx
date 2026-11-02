@@ -6,7 +6,12 @@ import { tempDir, waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { pendingInput, say, scriptedLlm, startCore } from "./testkit.ts";
 
-const goal = { title: "One executor", description: "Finish the current work once.", assignee: "superagent" };
+const goal = {
+  title: "One executor",
+  goal: "The current work is finished once",
+  description: "Finish the current work once.",
+  assignee: "superagent",
+};
 
 test("an asynchronous APX tool must drain before a concurrent handoff can start a task", async () => {
   const folder = tempDir("apx-handoff-concurrent-");

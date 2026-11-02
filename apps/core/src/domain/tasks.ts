@@ -1,6 +1,15 @@
 // Tasks: the row is the task as it is now; every change is also an event, so its history can be told. The board's
 // columns are a setting; "done" and "dropped" are states, never columns.
-import type { CommitmentOutcome, Task, TaskColumn, TaskEvent, TaskKind, TaskPriority, TaskState } from "@apx/protocol";
+import type {
+  CommitmentOutcome,
+  Task,
+  TaskAsked,
+  TaskColumn,
+  TaskEvent,
+  TaskKind,
+  TaskPriority,
+  TaskState,
+} from "@apx/protocol";
 import type { Selectable } from "kysely";
 import { sql as raw } from "kysely";
 import type { Bus } from "../bus.ts";
@@ -8,6 +17,29 @@ import type { TasksTable } from "../db/schema.ts";
 import { badRequest, notFound, unauthorized } from "../errors.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 import type { Store } from "./store.ts";
+
+/** How many of the owner's messages a task keeps, and how long each may be: the newest stay. */
+const ASKED_KEPT = 12;
+const ASKED_CHARS = 4000;
+
+const askedOf = (json: string | null): TaskAsked[] => {
+  if (!json) return [];
+  try {
+    const list: unknown = JSON.parse(json);
+    return Array.isArray(list) ? (list as TaskAsked[]) : [];
+  } catch {
+    return [];
+  }
+};
+const askedField = (json: string | null) => {
+  const asked = askedOf(json);
+  return asked.length ? { asked } : {};
+};
+const keptAsked = (words: TaskAsked[]) =>
+  words
+    .map((w) => ({ ...w, text: w.text.slice(0, ASKED_CHARS) }))
+    .sort((a, b) => a.at.localeCompare(b.at))
+    .slice(-ASKED_KEPT);
 
 export const DEFAULT_COLUMNS: TaskColumn[] = [
   { id: "backlog", label: "Backlog" },
@@ -157,6 +189,8 @@ const toTask = (r: Selectable<TasksTable> & { person_name: string | null; chats:
   ...opt("remind_at", r.remind_at),
   ...opt("start_at", r.start_at),
   ...opt("reviewer", r.reviewer),
+  ...opt("goal", r.goal),
+  ...askedField(r.asked),
   ...opt("plan", r.plan),
   ...(r.proposed ? { proposed: true } : {}),
   // A person removed before this fix left an id behind: shown as no person, never as the id.
@@ -190,6 +224,7 @@ export type TaskChange = Partial<{
   remind_at: string | null;
   start_at: string | null;
   reviewer: string | null;
+  goal: string | null;
   plan: string | null;
   proposed: boolean;
   awaits_owner: boolean;
@@ -270,6 +305,9 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       due_at?: string | undefined;
       remind_at?: string | undefined;
       start_at?: string | undefined;
+      goal?: string | undefined;
+      /** The owner's words of the turn that created it (see task-asked.ts). */
+      asked?: TaskAsked[] | undefined;
       /** An agent's proposal: nothing starts until the owner accepts it. */
       proposed?: boolean | undefined;
       /** Already reminded (an import: what was due before it arrived is not news). */
@@ -299,6 +337,8 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
           due_at: t.due_at ?? null,
           remind_at: t.remind_at ?? null,
           start_at: t.start_at ?? null,
+          goal: t.goal?.trim() || null,
+          asked: t.asked?.length ? JSON.stringify(keptAsked(t.asked)) : null,
           proposed: t.proposed ? 1 : 0,
           reminded_at: t.reminded_at ?? null,
           kind: t.kind ?? (t.person_id ? "commitment" : "task"),
@@ -357,6 +397,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
             ...(c.awaits_owner !== undefined ? { awaits_owner: c.awaits_owner ? 1 : 0 } : {}),
             ...(c.start_at !== undefined ? { start_at: c.start_at } : {}),
             ...(c.reviewer !== undefined ? { reviewer: c.reviewer } : {}),
+            ...(c.goal !== undefined ? { goal: c.goal?.trim() || null } : {}),
             ...(c.plan !== undefined ? { plan: c.plan } : {}),
             ...(c.proposed !== undefined ? { proposed: c.proposed ? 1 : 0 } : {}),
             updated_at: at,
@@ -365,6 +406,29 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
           .where("id", "=", id),
       );
       event(id, opOf(cur, c), by, { ...c, ...(note ? { note } : {}) });
+      const task = repo.get(id) as Task;
+      emit(task);
+      return task;
+    },
+    /**
+     * The owner's words an agent passed on to the task: added once each (by message), oldest first, the newest kept.
+     * Not an edit of the task: no event, only its activity.
+     */
+    heard(id: string, words: TaskAsked[]): Task | undefined {
+      const cur = repo.get(id);
+      if (!cur || !words.length) return cur;
+      const had = cur.asked ?? [];
+      const seen = (w: TaskAsked) =>
+        had.some((h) => (w.message_id ? h.message_id === w.message_id : h.text === w.text));
+      const fresh = words.filter((w) => !seen(w));
+      if (!fresh.length) return cur;
+      const asked = keptAsked([...had, ...fresh]);
+      run(
+        qb
+          .updateTable("tasks")
+          .set({ asked: JSON.stringify(asked), activity_at: now() })
+          .where("id", "=", id),
+      );
       const task = repo.get(id) as Task;
       emit(task);
       return task;

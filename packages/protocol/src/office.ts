@@ -18,6 +18,14 @@ export const TaskTag = z.string().trim().min(1).max(32);
 /** How a commitment ended: kept, missed (its date passed undelivered) or dropped (released by agreement). */
 export const CommitmentOutcome = z.enum(["kept", "missed", "dropped"]);
 export type CommitmentOutcome = z.infer<typeof CommitmentOutcome>;
+/** What the owner said that asked for a task or changed it, word for word, and which agent passed it on. */
+export const TaskAsked = z.object({
+  text: z.string(),
+  at: z.string(),
+  by: z.string(),
+  message_id: z.string().optional(),
+});
+export type TaskAsked = z.infer<typeof TaskAsked>;
 export type TaskColumn = z.infer<typeof TaskColumn>;
 export const Task = z.object({
   id: Id,
@@ -43,6 +51,10 @@ export const Task = z.object({
   start_at: z.string().optional(),
   /** Who checks it in review: "owner" or an agent's id. */
   reviewer: z.string().optional(),
+  /** Where the work must arrive: the result someone checks to call it done, in a line or two. */
+  goal: z.string().optional(),
+  /** The owner's own words behind it, oldest first, kept by the core from the turns an agent created or changed it in. */
+  asked: z.array(TaskAsked).optional(),
   /** The plan its agent keeps: steps, what is done, what is next (Markdown). It outlives any chat's summaries. */
   plan: z.string().optional(),
   /** An agent proposed it: it waits for the owner to accept it (tasks.update proposed:false) before work starts. */

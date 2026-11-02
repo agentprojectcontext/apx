@@ -246,7 +246,11 @@ test("task tools preserve the selected screenshot and later inspect it without o
   const llm = scriptedLlm((req, { said, afterTool }) => {
     if (afterTool) return say(String(req.messages.at(-1)?.content));
     if (said === "create with screen")
-      return callTool("create", "task_create", { title: "Inspect screenshot", attachments: [selected] });
+      return callTool("create", "task_create", {
+        goal: "Done as asked",
+        title: "Inspect screenshot",
+        attachments: [selected],
+      });
     if (said.startsWith("read:")) return callTool("read", "file_read", { path: said.slice(5) });
     if (said.startsWith("chat:")) return callTool("chat", "read_chat", { chat: said.slice(5) });
     return say("Done");

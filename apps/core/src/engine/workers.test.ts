@@ -87,6 +87,10 @@ test("a worker runs as the caller under the instructions it wrote, with only the
   assert.equal(c.state, "completed");
   assert.match(c.summary ?? "", /## Report[\s\S]*One is stale/, "the whole report, not a clipped line");
   assert.equal(typeof c.ms, "number");
+  // The panel shows its session as a helper of the caller, not as the caller talking to itself.
+  const session = await env.client.call("threads.get", { thread: c.thread_id });
+  assert.equal(session.thread.worker, "Researcher");
+  assert.equal((await env.client.call("threads.get", { thread: t.id })).thread.worker, undefined);
 
   const call = llm.calls.find((x) => String(x.messages[0]?.content).startsWith("You are Researcher"));
   assert.ok(call);

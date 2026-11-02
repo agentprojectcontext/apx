@@ -294,6 +294,8 @@ export const Thread = z.object({
   flow: z.object({ id: Id, step: Id.optional() }).optional(),
   /** An a2a sub-thread's name: its caller continues the same session (same agent, same context) by it. */
   session: z.string().optional(),
+  /** A helper's name: a session its caller (agent_ids[0]) runs under instructions it wrote for one task. */
+  worker: z.string().optional(),
   /** Code threads: the folder the agent works in (inside its project) and what it may change there. */
   cwd: z.string().optional(),
   write: WritePolicy.optional(),

@@ -27,6 +27,7 @@ test("a task executor does not block another specialist or a later independent t
     const results = req.messages.filter((m) => m.role === "tool");
     if (!afterTool)
       return callTool("start", "task_create", {
+        goal: "Done as asked",
         title: "Analyze the report",
         assignee: "vera",
         description: "Analyze the report and deliver findings.",

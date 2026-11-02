@@ -11,6 +11,7 @@ for (const capture of ["proposal", "future", "unspecified"] as const) {
       const results = req.messages.filter((m) => m.role === "tool");
       if (!afterTool)
         return callTool("capture", "task_create", {
+          goal: "Done as asked",
           title: "Review the report",
           assignee: "vera",
           ...(capture !== "unspecified" ? { description: "Review the report." } : {}),
@@ -47,6 +48,7 @@ test("delegation followed by task assignment cannot open a second executor", asy
     if (!afterTool) return callTool("ask", "delegate", { agent: "vera", task: "Review the report.", wait_s: 0 });
     if (results.length === 1)
       return callTool("duplicate", "task_create", {
+        goal: "Done as asked",
         title: "Review the report",
         description: "Review the report.",
         assignee: "vera",

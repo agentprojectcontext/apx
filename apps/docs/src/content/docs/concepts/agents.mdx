@@ -198,7 +198,9 @@ project's type becomes **Company** when you add them. Agents read them, so Lucí
 
 An agent with the `delegate` tool can hand a task to a standing agent ("ask Tomás to fix the checkout") or start a
 **worker**: a helper it defines on the spot with a name, instructions and, optionally, a shorter list of tools. A
-worker runs on its caller's model, gets no personality and no roster, asks nobody else and reports back.
+worker runs on its caller's model, gets no personality and no roster, asks nobody else and reports back. In the inbox and
+the chat a worker shows a helper mark, with the agent that started it as a small badge, so it never looks like that
+agent talking to itself.
 
 The answer comes back inside the same turn if it is quick, or later as a new turn that wakes the caller. The chat
 shows a card with the progress, the whole report (folded until you open it) and how long it took.

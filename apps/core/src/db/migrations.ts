@@ -1166,4 +1166,9 @@ export const MIGRATIONS: readonly string[] = [
   UPDATE runs SET queue_order = rowid;
   CREATE INDEX runs_queue_order ON runs(queue_order);
   `,
+  // Where a task's work must arrive, and the owner's own words behind it (a JSON list), read first on every turn.
+  `
+  ALTER TABLE tasks ADD COLUMN goal TEXT;
+  ALTER TABLE tasks ADD COLUMN asked TEXT;
+  `,
 ];

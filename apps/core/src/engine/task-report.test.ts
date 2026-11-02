@@ -31,13 +31,14 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
   }
   if (said.includes("<task_result")) return say("Vera finished it.");
   if (said.includes("prepare external review")) {
-    if (!afterTool) return callTool("prepare", "task_create", { title: "External review" });
+    if (!afterTool) return callTool("prepare", "task_create", { goal: "Done as asked", title: "External review" });
     reviewTask = /created (task_\w+)/.exec(last)?.[1] ?? "";
     return say("Review ready.");
   }
   if (said.includes("hand the goal")) {
     if (!afterTool)
       return callTool("r1", "task_create", {
+        goal: "Done as asked",
         title: "Ship the goal",
         description: "Deliver the requested goal.",
         assignee: "vera",
@@ -47,6 +48,7 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
   if (said.includes("hand waiting goals")) {
     if (tools < 2)
       return callTool(`w${tools}`, "task_create", {
+        goal: "Done as asked",
         title: `Waiting goal ${tools + 1}`,
         description: "Deliver the requested goal.",
         assignee: "vera",
@@ -56,6 +58,7 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
   if (said.includes("hand paused goals")) {
     if (tools < 2)
       return callTool(`p${tools}`, "task_create", {
+        goal: "Done as asked",
         title: `Paused goal ${tools + 1}`,
         description: "Deliver the requested goal.",
         assignee: "vera",
@@ -63,7 +66,7 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
     return say("Both handed off.");
   }
   if (said.includes("note an idea")) {
-    if (!afterTool) return callTool("r3", "task_create", { title: "Someday idea" });
+    if (!afterTool) return callTool("r3", "task_create", { goal: "Done as asked", title: "Someday idea" });
     idea = /created (task_\w+)/.exec(last)?.[1] ?? "";
     return say("Noted.");
   }
