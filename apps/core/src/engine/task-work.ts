@@ -280,8 +280,22 @@ export function assignedTaskOf(store: Store, threadId: string): (Task & { assign
 }
 
 /**
+ * The consult a new @mention of the same teammate on this task by the same asker goes on in (the latest one, with its
+ * context) instead of a new sub-thread. Reviews stay apart, and one still working is left, so asks made in parallel
+ * stay parallel (DECISIONS.md#d-185).
+ */
+function consultToContinue(store: Store, task: Task, agentId: string, asker: string | undefined): Thread | undefined {
+  const latest = store.threads.sessions(task.thread_id).find((t) => {
+    const c = store.threads.context(t.id).consult;
+    return c && !c.review && !t.archived && t.kind === "a2a" && t.agent_ids[0] === agentId && c.asker?.agent === asker;
+  });
+  return latest && !store.threads.busy([latest.id]) ? latest : undefined;
+}
+
+/**
  * A teammate the owner asked on a task: a sub-thread of the task's conversation with the question, and a card there
- * (the teammate's) that its answer fills in. Like a delegation, it holds only the question and the answer.
+ * (the teammate's) that its answer fills in. Like a delegation, it holds only the question and the answer. Asked again
+ * by the same asker, the teammate goes on in that sub-thread with a new card for the new answer.
  */
 function consult(
   store: Store,
@@ -292,16 +306,23 @@ function consult(
   how: { by?: string; trigger?: "user" | "system"; review?: boolean; asker?: Asker } = {},
 ): RunRecord | undefined {
   const from = (how.asker?.kind === "agent" && how.asker.name) || ownerIdentity(store).name || "The owner";
-  const sub = store.threads.create({
-    kind: "a2a",
-    title: how.review
-      ? `Review: ${task.title.slice(0, 80)}`
-      : `${from} → ${agent.name}: ${previewOf(text).slice(0, 60)}`,
-    agent_ids: [agent.id],
-    project_id: task.project_id,
-    parent_id: task.thread_id,
-    session: `${task.id}-${agent.id}-${Date.now().toString(36)}`.slice(0, 60),
-  });
+  const title = how.review
+    ? `Review: ${task.title.slice(0, 80)}`
+    : `${from} → ${agent.name}: ${previewOf(text).slice(0, 60)}`;
+  const again = how.review
+    ? undefined
+    : consultToContinue(store, task, agent.id, how.asker?.kind === "agent" ? how.asker.id : undefined);
+  const sub =
+    again ??
+    store.threads.create({
+      kind: "a2a",
+      title,
+      agent_ids: [agent.id],
+      project_id: task.project_id,
+      parent_id: task.thread_id,
+      session: `${task.id}-${agent.id}-${Date.now().toString(36)}`.slice(0, 60),
+    });
+  if (again) store.threads.patch(again.id, { title });
   const who = task.assignee ? (store.agents.get(task.assignee)?.name ?? task.assignee) : "nobody";
   const question = `${text}\n\n[Asked on task ${task.id}, assigned to ${who}. Answer the question; the task's work is not yours unless it says so.]\n${taskWords(task, task.title.slice(0, 200))}`;
   const author: Author = how.asker?.kind === "agent" ? { kind: "agent", id: how.asker.id } : { kind: "user" };

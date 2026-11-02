@@ -296,6 +296,18 @@ export function createDelegations(deps: {
     return latest && !store.threads.busy([latest.id]) ? latest : undefined;
   }
 
+  /**
+   * The latest free session of a worker by this name that this caller keeps in this chat: a helper asked again goes on
+   * there with its instructions, and a busy one stays apart. See DECISIONS.md#d-185
+   */
+  function workerSession(parentId: string, name: string, callerId: string): Thread | undefined {
+    const latest = store.threads.sessions(parentId).find((t) => {
+      const kept = store.threads.context(t.id).worker;
+      return t.kind === "a2a" && !t.archived && t.agent_ids[0] === callerId && kept && slug(kept.name) === slug(name);
+    });
+    return latest && !store.threads.busy([latest.id]) ? latest : undefined;
+  }
+
   /** A free session name under `parentId`, from what the caller asked for (or the agent's name). */
   function sessionName(parentId: string, wanted: string): string {
     const base = slug(wanted);
@@ -458,7 +470,11 @@ export function createDelegations(deps: {
         return "refused: you are answering another agent, so you do it yourself and ask no one else.";
       // Sessions are stored under a slug of the name the caller gave: look them up the same way (or by id).
       // One conversation per teammate: a new name for an agent that already has a free session here goes on there.
-      const own = req.agent && !req.worker ? agentSession(parentThread.id, req.agent.id, from.agent.id) : undefined;
+      const own = req.worker
+        ? workerSession(parentThread.id, req.worker.name, from.agent.id)
+        : req.agent
+          ? agentSession(parentThread.id, req.agent.id, from.agent.id)
+          : undefined;
       let existing = req.session ? (sessionOf(store, parentThread.id, req.session) ?? own) : own;
       const kept = existing ? store.threads.context(existing.id).worker : undefined;
       if (existing && req.worker && !kept)
