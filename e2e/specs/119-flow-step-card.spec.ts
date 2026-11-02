@@ -101,7 +101,13 @@ for (const lang of ["en", "es"] as const) {
     await expect.poll(() => zoomOf(editor)).toBeLessThan(1);
     // The zoom-out animates too: its zoom is the one it settles on.
     let zoom = await zoomOf(editor);
-    await expect.poll(async () => zoom - (zoom = await zoomOf(editor))).toBe(0);
+    await expect
+      .poll(async () => {
+        const last = zoom;
+        zoom = await zoomOf(editor);
+        return zoom - last;
+      })
+      .toBe(0);
     await hook.click();
     await expect(card).toBeVisible();
     await expect(card.locator(".drawer__title")).toHaveText(l.hook);
