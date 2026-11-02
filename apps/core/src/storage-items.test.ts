@@ -9,7 +9,7 @@ import { testConfig } from "./config.ts";
 import { createVmLifecycle } from "./environments/lifecycle.ts";
 import { createCore } from "./server.ts";
 import { createStorageItems, type ManagedComputer } from "./storage-items.ts";
-import { type TempDir, tempDir } from "./testkit/platform.ts";
+import { removeDir, type TempDir, tempDir } from "./testkit/platform.ts";
 
 const KB = 1024;
 const LIMITS = { maxEntries: 10_000, deadlineMs: 60_000 };
@@ -46,7 +46,7 @@ function fakeComputer(h: string, phase: string) {
     phase: async () => state.phase,
     remove: async () => {
       state.removed++;
-      fs.rmSync(path.join(h, "computer", "lima", "computer"), { recursive: true, force: true });
+      await removeDir(path.join(h, "computer", "lima", "computer"));
     },
     lastStop: () => JSON.stringify({ reason: "idle", at: "2026-10-30T10:00:00.000Z" }),
   };
@@ -254,7 +254,7 @@ test("through the protocol: list and delete computers and backups, refused while
     },
     appearance: async () => {},
     remove: async () => {
-      fs.rmSync(path.join(h, "computer", "lima", "computer"), { recursive: true, force: true });
+      await removeDir(path.join(h, "computer", "lima", "computer"));
     },
   });
   let changed = 0;

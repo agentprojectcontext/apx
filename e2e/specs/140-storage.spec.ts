@@ -5,7 +5,7 @@ import path from "node:path";
 import type { Page } from "@playwright/test";
 import { say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import { createVmLifecycle } from "../../apps/core/src/environments/lifecycle.ts";
-import { tempDir } from "../../apps/core/src/testkit/platform.ts";
+import { removeDir, tempDir } from "../../apps/core/src/testkit/platform.ts";
 import { expect, open, openSettings, rpc, test, world } from "./kit.ts";
 
 const MB = 1024 * 1024;
@@ -152,7 +152,7 @@ test.describe("one by one", () => {
       },
       appearance: async () => {},
       remove: async () => {
-        fs.rmSync(vmDir, { recursive: true, force: true });
+        await removeDir(vmDir);
       },
     });
     const core = await startCore({
