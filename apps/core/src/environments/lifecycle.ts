@@ -180,6 +180,8 @@ export function createVmLifecycle(driver: VmDriver) {
       if (operation || phase === "preparing" || phase === "stopping")
         throw conflict("the computer is starting or stopping; wait until it is off");
       if (driver.installed() && (await driver.running())) throw conflict("the computer is on; turn it off first");
+      // A start may have begun while the guest was asked.
+      if (operation) throw conflict("the computer is starting or stopping; wait until it is off");
       generation++;
       const task = driver.remove();
       track(task);

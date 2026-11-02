@@ -213,6 +213,29 @@ test("the lifecycle deletes the VM only while off and outside any other operatio
   assert.equal((await off.status()).phase, "stopped");
   await off.remove();
   assert.equal(removed, 1);
+
+  // A start that begins while the guest is asked whether it runs wins: the delete is refused.
+  let answer: (on: boolean) => void = () => {};
+  const racing = createVmLifecycle({
+    supported: true,
+    installed: () => true,
+    running: () =>
+      new Promise<boolean>((r) => {
+        answer = r;
+      }),
+    prepare: async () => {},
+    stop: async () => {},
+    appearance: async () => {},
+    remove: async () => {
+      removed++;
+    },
+  });
+  const removing = racing.remove();
+  racing.start("light");
+  answer(false);
+  await assert.rejects(removing, /starting or stopping/);
+  assert.equal(removed, 1);
+  await racing.close();
 });
 
 test("through the protocol: list and delete computers and backups, refused while on", async () => {
