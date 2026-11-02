@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Run } from "@apx/protocol";
-import { contextOf, spentOf, tokens, usageStamp } from "./context.ts";
+import { contextOf, shareOf, spentOf, tokens, usageStamp } from "./context.ts";
 
 const run = (id: string, usage?: Run["usage"]) => ({ id, usage }) as Run;
 
@@ -45,4 +45,11 @@ test("the totals are asked again when a run starts or ends, not otherwise", () =
     usageStamp(working),
     "a run ended",
   );
+});
+
+test("the share of the window is known only with the window, and never past full", () => {
+  assert.equal(shareOf(undefined), undefined);
+  assert.equal(shareOf({ used: 82_000 }), undefined, "window unknown: no share");
+  assert.equal(shareOf({ used: 82_000, window: 128_000 }), 0.640625);
+  assert.equal(shareOf({ used: 300_000, window: 200_000 }), 1);
 });

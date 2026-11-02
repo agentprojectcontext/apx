@@ -358,7 +358,9 @@ export async function fakeLlm() {
                       )
                     ? "REACT ❤️"
                     : (reviewTable(said) ?? `Got it: ${said || "(nothing)"}`);
-      const usage = { prompt_tokens: 120, completion_tokens: 8, total_tokens: 128 };
+      // "fill the context" reads as a long chat: most of a 128k window (a qwen model's).
+      const read = /fill the context/i.test(said) ? 82_000 : 120;
+      const usage = { prompt_tokens: read, completion_tokens: 8, total_tokens: read + 8 };
       const call = relay && "check" in relay ? undefined : toolCall(body.messages ?? [], said);
       const wanted = fanOut(body.messages ?? [], said) ?? (call ? [call] : undefined);
       if (wanted) {
