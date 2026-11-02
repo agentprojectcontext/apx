@@ -17,6 +17,16 @@ try {
   assert.equal(result.error, "INVALID_REQUEST");
   assert.equal(result.listing, undefined);
   assert.equal(result.selectedObservation, undefined);
+  const next = await observer.request({
+    op: "listWindows",
+    pid: 0,
+    launchIdentity: { seconds: 1, microseconds: 0 },
+  });
+  assert.equal(next.error, "INVALID_REQUEST");
+  assert.equal(next.listing, undefined);
+  assert.equal(next.selectedObservation, undefined);
+  assert.equal(typeof next.generation, "string");
+  assert.notEqual(next.generation, result.generation);
 } finally {
   await observer.stop();
 }

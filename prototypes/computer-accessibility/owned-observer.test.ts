@@ -11,7 +11,12 @@ function fixture(onRequest: string, onHello = hello, timers?: ObserverClock) {
 let n=0;
 readline.createInterface({input:process.stdin}).on('line',line=>{
   if(n++===0){if(line!==JSON.stringify({op:'hello'}))throw Error('bad handshake');${onHello}}
-  else {${onRequest}}
+  else {
+    const frame=JSON.parse(line);
+    line=JSON.stringify(frame.command);
+    const send=result=>process.stdout.write(JSON.stringify({requestID:frame.requestID,result})+'\\n');
+    ${onRequest}
+  }
 });`;
   return new OwnedObserver({
     executable: process.execPath,
@@ -40,8 +45,8 @@ function manualClock() {
 }
 
 test("owned helper performs a separate handshake and sequential requests without inherited environment", async () => {
-  const observer = fixture(`process.stdout.write(JSON.stringify({version:1,op:JSON.parse(line).op,
-    env:Object.keys(process.env).sort(),count:n})+'\\n');`);
+  const observer = fixture(`send({version:1,op:JSON.parse(line).op,
+    env:Object.keys(process.env).sort(),count:n});`);
   try {
     await observer.ready();
     const first = await observer.request(command);
@@ -109,7 +114,7 @@ test("injected whole-request deadline kills the child, cancels timers and never 
 });
 
 test("concurrent calls fail busy without killing the admitted request", async () => {
-  const observer = fixture(hello.replace('"ready":true', '"done":true'));
+  const observer = fixture("send({version:1,done:true});");
   try {
     await observer.ready();
     const admitted = observer.request(command);
@@ -127,7 +132,15 @@ for (const [name, output, error] of [
   ["response suffix", "process.stdout.write('{\"version\":1}\\nextra');", "OBSERVER_INVALID_FRAME"],
   ["oversize output", "process.stdout.write('x'.repeat(65538));", "OBSERVER_OUTPUT_LIMIT"],
   ["stderr", "process.stderr.write('private sentinel');", "OBSERVER_STDERR"],
-  ["unexpected protocol", "process.stdout.write('{\"version\":2}\\n');", "OBSERVER_UNEXPECTED_RESPONSE"],
+  ["unexpected protocol", "send({version:2});", "OBSERVER_UNEXPECTED_RESPONSE"],
+  ["missing correlation", "process.stdout.write('{\"version\":1}\\n');", "OBSERVER_UNEXPECTED_RESPONSE"],
+  [
+    "foreign correlation",
+    "process.stdout.write(JSON.stringify({requestID:'foreign',result:{version:1}})+'\\n');",
+    "OBSERVER_UNEXPECTED_RESPONSE",
+  ],
+  ["array result", "send([]);", "OBSERVER_UNEXPECTED_RESPONSE"],
+  ["null result", "send(null);", "OBSERVER_UNEXPECTED_RESPONSE"],
 ] as const) {
   test(`refuses ${name} with a sanitized terminal error`, async () => {
     const observer = fixture(output);
@@ -181,7 +194,7 @@ test("hello with a buffered suffix never reaches readiness", async () => {
 
 test("fragmented responses are reassembled before validation", async () => {
   const observer = fixture(
-    "process.stdout.write('{\"version\":');setImmediate(()=>process.stdout.write('1,\"done\":true}\\n'));",
+    "const wire=JSON.stringify({requestID:frame.requestID,result:{version:1,done:true}})+'\\n';process.stdout.write(wire.slice(0,10));setImmediate(()=>process.stdout.write(wire.slice(10)));",
   );
   try {
     assert.equal((await observer.request(command)).done, true);
@@ -199,8 +212,31 @@ test("spawn failure is sanitized and stop still completes", async () => {
   }
 });
 
+test("a delayed old response cannot satisfy a newly admitted request", async () => {
+  const script = `import readline from 'node:readline';
+let n=0,old;
+readline.createInterface({input:process.stdin}).on('line',line=>{
+  if(n++===0){${hello}return;}
+  const frame=JSON.parse(line);
+  const result={version:1,marker:'old'};
+  if(n===2){old=frame.requestID?{requestID:frame.requestID,result}:result;}
+  process.stdout.write(JSON.stringify(old)+'\\n');
+});`;
+  const observer = new OwnedObserver({
+    executable: process.execPath,
+    home: os.tmpdir(),
+    args: ["--input-type=module", "-e", script],
+  });
+  try {
+    assert.equal((await observer.request(command)).marker, "old");
+    await assert.rejects(observer.request(command), /OBSERVER_UNEXPECTED_RESPONSE/);
+  } finally {
+    await observer.stop();
+  }
+});
+
 test("oversize input is not delivered and leaves the observer usable", async () => {
-  const observer = fixture('process.stdout.write(\'{"version":1,"done":true}\\n\');');
+  const observer = fixture("send({version:1,done:true});");
   try {
     await assert.rejects(
       observer.request({ ...command, op: "observeSelected", handle: "x".repeat(8192) }),

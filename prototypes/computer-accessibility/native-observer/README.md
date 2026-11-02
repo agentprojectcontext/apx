@@ -37,7 +37,7 @@ swiftc -warnings-as-errors -parse-as-library \
 "$SCRATCH/ax-session-tests"
 ```
 
-Verified on Swift 6.4, arm64 macOS: helper compiles with warnings as errors; **46 behavioral tests pass** including
+Verified on Swift 6.4, arm64 macOS: helper compiles with warnings as errors; **50 behavioral tests pass** including
 six descriptor cases documented in [DESCRIPTORS.md](DESCRIPTORS.md). The behavior suite and real transport checks
 are separate evidence, not native accessibility proof.
 Tests exercise real validation, traversal, filtering-before-read, serialization, injected deadlines, ref retirement,
@@ -61,7 +61,7 @@ renderer accessibility enabled. A separate fixture-only laboratory reaches synth
 remain **UNVERIFIED**. Do not treat fixture tests as proof of general native behavior or measured improvement.
 
 The initial FIFO-only transport rejected Node's inherited socketpair. The observational spike now accepts the
-strict Darwin unnamed connected-stream representation measured here. Fifteen real Node `execFile` tests cover
+strict Darwin unnamed connected-stream representation measured here. Seventeen real Node `execFile` tests cover correlated request IDs, malformed-envelope refusal,
 handshake, fragmented/multiple/oversize frames, early/partial EOF, buffered-command rejection before acknowledgement,
 closed socket output, post-handshake EOF, parent watchdog termination and kill/wait. Nineteen Python real-descriptor
 tests cover anonymous pipes, wrong direction, file, TTY, closed FD, datagram, closed peer, TCP listener/connected pair,
@@ -104,6 +104,15 @@ without acknowledgement. The helper revalidates both descriptors and checks inpu
 acknowledgement; already-queued input, EOF/hangup or a poll error rejects. This deliberately conservative check also
 rejects otherwise valid pipelined traffic. Before readiness, EOF, transport errors, oversize/malformed frames or the
 five-second input deadline exit nonzero. Subsequent frames use the operations below.
+
+The owned Node parent uses correlated envelopes after this handshake: `{requestID, command}` where the ID is a
+36-byte UUID string and `command` is one of the same observational objects below. The helper passes that command to
+the same controller and wraps its result in `{requestID, result}`. Envelope keys are exact; IDs are echoed unchanged,
+not interpreted as authority. Invalid envelopes retire state through the controller's invalid-input path and produce
+an uncorrelated refusal. The existing direct transport laboratory still sends unwrapped observational objects;
+the owned parent never accepts uncorrelated responses or falls back to them. This is correlation, not IPC
+authentication. The whole input/output envelopes share the 8192/65536-byte caps. If wrapping would overflow output,
+state is retired and an uncorrelated refusal is emitted, causing the owned parent to terminate the session.
 
 The quiet-input check and acknowledgement are **not atomic** with peer writes or close. A concurrent close/input
 arrival can occur after the check; a ready response does not prove that the parent is still alive, exclusive or

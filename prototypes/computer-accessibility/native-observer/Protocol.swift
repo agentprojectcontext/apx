@@ -24,6 +24,25 @@ struct ObservationController {
     }
 }
 
+func handleObserverFrame(_ input: Data?, handle: (Data?) -> Data) -> Data {
+    guard let input, let object = try? JSONSerialization.jsonObject(with: input) as? [String: Any],
+          object["requestID"] != nil || object["command"] != nil else { return handle(input) }
+    guard input.count <= 8192, Set(object.keys) == Set(["requestID", "command"]),
+          let requestID = object["requestID"] as? String, requestID.utf8.count == 36,
+          UUID(uuidString: requestID) != nil, let command = object["command"] as? [String: Any],
+          let commandData = try? JSONSerialization.data(withJSONObject: command, options: [.sortedKeys]) else {
+        return handle(nil)
+    }
+    let result = handle(commandData)
+    guard let value = try? JSONSerialization.jsonObject(with: result),
+          let response = try? JSONSerialization.data(withJSONObject: ["requestID": requestID, "result": value],
+                                                     options: [.sortedKeys]), response.count <= 65_536 else {
+        // Retire state and refuse transport rather than publishing an oversized correlated response.
+        return handle(nil)
+    }
+    return response
+}
+
 struct InputFramer {
     private var buffer = Data()
     private var oversized = false

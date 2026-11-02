@@ -42,6 +42,51 @@ test("real Node execFile socketpair handshake, invalid request, EOF and reaped e
   assert.equal(child.exitCode, 0);
 });
 
+test("correlated requests echo distinct IDs without bypassing request refusal", async () => {
+  const { child, done } = start();
+  await handshake(child);
+  const ids = ["12345678-1234-4234-8234-123456789abc", "12345678-1234-4234-8234-123456789abd"];
+  child.stdin.end(
+    `${ids.map((requestID) => JSON.stringify({ requestID, command: { op: "not-an-observation" } })).join("\n")}\n`,
+  );
+  const result = await done;
+  assert.equal(result.error, null);
+  assert.equal(result.stderr, "");
+  const frames = result.stdout
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.equal(frames.length, 3);
+  assert.deepEqual(
+    frames.slice(1).map((frame) => frame.requestID),
+    ids,
+  );
+  for (const frame of frames.slice(1)) {
+    assert.deepEqual(Object.keys(frame).sort(), ["requestID", "result"]);
+    assert.equal(frame.result.error, "INVALID_REQUEST");
+    assert.equal(frame.result.listing, undefined);
+    assert.equal(frame.result.selectedObservation, undefined);
+  }
+  assert.notEqual(frames[1].result.generation, frames[2].result.generation);
+});
+
+test("invalid correlated envelope is refused without echoing caller text", async () => {
+  const { child, done } = start();
+  await handshake(child);
+  child.stdin.end(`${JSON.stringify({ requestID: "PRIVATE_MARKER", command: { op: "listWindows" } })}\n`);
+  const result = await done;
+  assert.equal(result.error, null);
+  assert.equal(result.stderr, "");
+  const frames = result.stdout
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.equal(frames.length, 2);
+  assert.equal(frames[1].error, "INVALID_REQUEST");
+  assert.equal(frames[1].requestID, undefined);
+  assert.equal(result.stdout.includes("PRIVATE_MARKER"), false);
+});
+
 test("fragmented hello and multiple bounded frames", async () => {
   const { child, done } = start();
   await handshake(child, ['{"op":', '"hello"}', "\n"]);

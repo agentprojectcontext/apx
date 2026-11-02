@@ -15,13 +15,19 @@ an inherited secret. These controls do not defend against a compromised binary, 
 child spawning descendants. There is no process-group supervision, signing, hash verification or OS sandbox here.
 
 The parent sends a standalone hello and waits for the exact version-1 ready frame before a request. It admits one
-request at a time; concurrent calls fail busy without disrupting the admitted read. Successful transport responses
-are untrusted JSON objects with version 1, **not validated observation results**. Before exposing any tree, the caller
+request at a time; concurrent calls fail busy without disrupting the admitted read. Each command is wrapped in
+`{requestID, command}` using a fresh UUID; the helper returns `{requestID, result}`. Both envelope keys must be exact,
+and the response ID must match the currently admitted request. A delayed response from an earlier request terminates
+the session instead of satisfying a newer request, even if it arrives in a separate chunk after admission. IDs are
+correlation, not authentication. A helper without this envelope support fails closed; there is no uncorrelated
+fallback. Successful transport results are untrusted JSON objects with version 1, **not validated observation results**. Before exposing any tree, the caller
 must validate the full operation-specific response shape, request identity, generation, retained handle, node limits,
 privacy and browser policy. The TypeScript command type limits intended operations to window listing/observation;
 it is not a runtime authorization boundary. The Swift helper still validates the complete request.
 
-Input is capped at 8192 bytes, each response at 65536 bytes plus newline. Invalid UTF-8, malformed JSON, a co-buffered
+Input including the correlation envelope is capped at 8192 bytes, each response including its envelope at 65536
+bytes plus newline. If adding a response envelope exceeds the helper's output cap, it retires selection state and
+returns an uncorrelated refusal; the parent treats that as a terminal transport error, not an observation. Invalid UTF-8, malformed JSON, a co-buffered
 suffix, unsolicited idle output, wrong protocol and any stderr content terminate the session with a fixed error;
 raw child text is never returned in an error. Stderr is drained without retaining its contents. Frames can be
 fragmented across chunks. Separate descriptors and separate chunks have no atomic ordering: an apparently valid
@@ -62,8 +68,9 @@ input recovery. They do not start apps or inspect the screen. Deadlines use an i
 thresholds. Every started child is stopped and waited in cleanup.
 
 A separate local smoke compiled the current Swift sources using the native README's explicit file list, started
-that binary through this parent, completed hello, and sent `listWindows` with PID zero. It returned exactly
-`INVALID_REQUEST` without a listing or observation. Stop then completed and readiness refused reuse. This exercises
+that binary through this parent, completed hello, and sent two correlated `listWindows` requests with PID zero.
+Both returned exactly `INVALID_REQUEST` without a listing or observation and with distinct generations. Stop then
+completed and readiness refused reuse. This exercises
 the real inherited-pipe contract but intentionally performs **no native AX read**, desktop/core request, action,
 cursor movement, or end-to-end improvement measurement.
 

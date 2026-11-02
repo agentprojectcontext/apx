@@ -32,7 +32,72 @@ struct ObserverTests {
         try SelectionTests.run(test)
         try treeTests(test)
         try protocolTests(test)
+        try correlationTests(test)
         print("\(passed) behavioral tests passed; native AX runtime not exercised")
+    }
+
+    static func correlationTests(_ test: (String, () throws -> Void) throws -> Void) throws {
+        try test("correlated frame binds exact ID and unwraps only the command") {
+            let id = UUID().uuidString
+            let command = try object(validInput)
+            let frame = try JSONSerialization.data(withJSONObject: ["requestID": id, "command": command])
+            var received: Data?
+            let response = handleObserverFrame(frame) { input in
+                received = input
+                return Data("{\"version\":1,\"error\":\"UNAVAILABLE\"}".utf8)
+            }
+            let body = try object(response)
+            try expect(body["requestID"] as? String == id && body.count == 2, "Unbound response")
+            let result = body["result"] as? [String: Any]
+            try expect(result?["error"] as? String == "UNAVAILABLE", "Changed result")
+            try expect(received != nil, "Missing command")
+            let request = try ObserveRequest.parse(received ?? Data())
+            try expect(request.pid == 42 && request.windowID == 7, "Changed command")
+        }
+        try test("malformed correlation retires state without passing a command") {
+            let id = UUID().uuidString
+            let command = try object(validInput)
+            let frames: [[String: Any]] = [
+                ["requestID": "not-a-uuid", "command": command],
+                ["requestID": id, "command": []],
+                ["requestID": id, "command": command, "extra": true],
+                ["requestID": id], ["command": command],
+                ["requestID": NSNull(), "command": command]
+            ]
+            for frame in frames {
+                var called = false
+                var commandPassed = false
+                let data = try JSONSerialization.data(withJSONObject: frame)
+                let response = handleObserverFrame(data) { input in
+                    called = true
+                    commandPassed = input != nil
+                    return Data("{\"version\":1,\"error\":\"INVALID_REQUEST\"}".utf8)
+                }
+                try expect(called && !commandPassed, "Malformed envelope reached command")
+                let body = try object(response)
+                try expect(body["requestID"] == nil, "Malformed correlation echoed")
+            }
+        }
+        try test("correlation overhead refuses oversized output and retires state") {
+            let frame = try JSONSerialization.data(withJSONObject: ["requestID": UUID().uuidString,
+                                                                    "command": try object(validInput)])
+            var retired = false
+            let response = handleObserverFrame(frame) { input in
+                if input == nil {
+                    retired = true
+                    return Data("{\"version\":1,\"error\":\"INVALID_REQUEST\"}".utf8)
+                }
+                return Data(("{\"version\":1,\"text\":\"" + String(repeating: "x", count: 65500) + "\"}").utf8)
+            }
+            try expect(retired && response.count <= 65536, "Oversize correlated success")
+            let body = try object(response)
+            try expect(body["result"] == nil, "Partial result published")
+        }
+        try test("unwrapped observational frames still use the same controller input") {
+            var sameInput = false
+            _ = handleObserverFrame(validInput) { input in sameInput = input == validInput; return Data() }
+            try expect(sameInput, "Changed observational frame")
+        }
     }
 
     static func contractTests(_ test: (String, () throws -> Void) throws -> Void) throws {

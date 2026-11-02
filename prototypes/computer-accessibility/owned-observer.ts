@@ -1,4 +1,5 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { TextDecoder } from "node:util";
 
@@ -15,6 +16,7 @@ const clock: ObserverClock = {
 };
 
 type Pending = {
+  id: string;
   resolve(value: Record<string, unknown>): void;
   reject(error: Error): void;
   cancel(): void;
@@ -103,11 +105,12 @@ export class OwnedObserver {
       throw this.#terminal;
     }
     if (this.#pending) throw new Error("OBSERVER_BUSY");
-    const line = JSON.stringify(command);
+    const id = randomUUID();
+    const line = JSON.stringify({ requestID: id, command });
     if (Buffer.byteLength(line) > 8192) throw new Error("OBSERVER_INPUT_LIMIT");
     return new Promise((resolve, reject) => {
       const cancel = this.#clock.after(this.#deadline, () => this.#fail("OBSERVER_DEADLINE"));
-      this.#pending = { resolve, reject, cancel };
+      this.#pending = { id, resolve, reject, cancel };
       this.#write(`${line}\n`);
     });
   }
@@ -141,7 +144,7 @@ export class OwnedObserver {
     this.#buffer = Buffer.concat([this.#buffer, chunk]);
     const newline = this.#buffer.indexOf(10);
     if (newline < 0) return;
-    // No pipelining: a response suffix cannot be mistaken for the next request's response.
+    // Refuse buffered suffixes as well as checking request identity below.
     if (newline !== this.#buffer.length - 1) return this.#fail("OBSERVER_INVALID_FRAME");
     let value: unknown;
     try {
@@ -161,9 +164,19 @@ export class OwnedObserver {
       return;
     }
     const pending = this.#pending;
-    if (!pending || object.version !== 1) return this.#fail("OBSERVER_UNEXPECTED_RESPONSE");
+    const result = object.result;
+    if (
+      !pending ||
+      object.requestID !== pending.id ||
+      Object.keys(object).length !== 2 ||
+      !result ||
+      typeof result !== "object" ||
+      Array.isArray(result) ||
+      (result as Record<string, unknown>).version !== 1
+    )
+      return this.#fail("OBSERVER_UNEXPECTED_RESPONSE");
     this.#pending = undefined;
     pending.cancel();
-    pending.resolve(object);
+    pending.resolve(result as Record<string, unknown>);
   }
 }

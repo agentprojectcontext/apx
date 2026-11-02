@@ -39,7 +39,7 @@ struct NativeObserverMain {
         let emit: (Data?) -> Void = { input in
             guard !failed else { return }
             autoreleasepool {
-                write(controller.handle(input, observe: observeNative))
+                write(handleObserverFrame(input) { controller.handle($0, observe: observeNative) })
             }
         }
         var bytes = [UInt8](repeating: 0, count: 4096)
