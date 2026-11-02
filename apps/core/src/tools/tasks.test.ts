@@ -96,6 +96,22 @@ test("task tools report that assigned work with no description is waiting, never
   assert.deepEqual(env.core.store.threads.byTask(pending.id), []);
 });
 
+test("task_update groups existing assigned work without a second execution", async () => {
+  const parent = await env.client.call("tasks.create", { title: "Delivery" });
+  const child = await env.client.call("tasks.create", {
+    title: "Review",
+    description: "Review delivery.",
+    assignee: "vera",
+    start_at: "2200-01-01",
+  });
+  const result = await list(
+    `tool: ${JSON.stringify({ name: "task_update", args: { task: child.id, parent: parent.id } })}`,
+  );
+  assert.doesNotMatch(result, /error/i);
+  assert.equal(env.core.store.tasks.get(child.id)?.parent_id, parent.id);
+  assert.deepEqual(env.core.store.threads.byTask(child.id), []);
+});
+
 test("a board too long to show whole keeps promises, dates, waits and recent moves on their lines, the rest counted", () => {
   const at = Date.parse("2026-10-13T21:30:00Z");
   const task = (i: number, o: Partial<Task>): Task => ({

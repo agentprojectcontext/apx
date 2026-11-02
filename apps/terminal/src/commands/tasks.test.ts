@@ -74,6 +74,11 @@ test("commitments separate what the owner owes from what other people owe", asyn
   assert.deepEqual(calls, [["tasks.list", { commitments: true }]]);
 });
 
+test("edit changes or clears the existing parent without assigning or starting work", () => {
+  assert.deepEqual(taskEditOf("tsk_1", { parent: "tsk_parent" }), { task: "tsk_1", parent: "tsk_parent" });
+  assert.deepEqual(taskEditOf("tsk_1", { parent: "" }), { task: "tsk_1", parent: null });
+});
+
 test("edit sends only the fields given", () => {
   assert.deepEqual(taskEditOf("tsk_1", { title: "New title" }), { task: "tsk_1", title: "New title" });
   assert.deepEqual(taskEditOf("tsk_1", { agent: "superagent", due: "2026-10-09", tags: " a, b ,," }), {

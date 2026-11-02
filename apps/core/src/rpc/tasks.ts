@@ -15,6 +15,7 @@ import {
   checkAssignee,
   checkColumn,
   checkSettle,
+  checkTaskParent,
   columnsOf,
   dueOf,
   personOf,
@@ -321,7 +322,7 @@ export function taskHandlers(
       return created;
     },
     "tasks.update": (
-      { task, attachments, person, due_at, remind_at, start_at, reviewer, project, tags, ...c },
+      { task, attachments, person, due_at, remind_at, start_at, reviewer, project, parent, tags, ...c },
       ctx,
     ) => {
       const { changed, forced, requestReview } = assets.write((attach) => {
@@ -334,6 +335,8 @@ export function taskHandlers(
         if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
         const moving = project !== undefined && (project ?? undefined) !== cur.project_id;
         const target = moving ? (project ?? undefined) : cur.project_id;
+        checkTaskParent(store, cur, parent, target, agentScope(ctx));
+        const taskParent = parent === undefined ? cur.parent_id : (parent ?? undefined);
         checkAssignee(store, c.assignee, target);
         const checker = reviewerOf(reviewer, target);
         if (c.proposed === false && agentScope(ctx)) throw unauthorized("only the owner accepts a proposed task");
@@ -347,7 +350,7 @@ export function taskHandlers(
           ctx.agent && c.assignee && c.assignee !== cur.assignee && !cur.proposed
             ? assignment
               ? assignment.reason
-              : proposalReason(store, cur.parent_id, c.assignee, ctx.agent.id)
+              : proposalReason(store, taskParent, c.assignee, ctx.agent.id)
             : undefined;
         // Its agent stays only if it can work there.
         const keeper = c.assignee !== undefined ? c.assignee : cur.assignee;
@@ -360,8 +363,8 @@ export function taskHandlers(
           !cur.description.trim() &&
           Boolean(c.description?.trim()) &&
           store.threads.byTask(cur.id).length === 0;
-        if (moving || c.assignee !== undefined || c.description !== undefined)
-          requireSubtaskWork(ctx, cur.parent_id, unassign ? null : keeper, c.description ?? cur.description);
+        if (moving || parent !== undefined || c.assignee !== undefined || c.description !== undefined)
+          requireSubtaskWork(ctx, taskParent, unassign ? null : keeper, c.description ?? cur.description);
         // Its start moved to now (or cleared) before its work began: it begins now.
         const unscheduled =
           start_at !== undefined &&
@@ -398,6 +401,7 @@ export function taskHandlers(
             ...(c.assignee && c.assignee !== cur.assignee ? { status: c.status ?? cur.status } : {}),
             ...(forced ? { proposed: true } : {}),
             ...(moving ? { project_id: target ?? null } : {}),
+            ...(parent !== undefined ? { parent_id: parent } : {}),
             ...(unassign ? { assignee: null } : {}),
             ...(tags !== undefined ? { tags: tagsOf(tags) ?? [] } : {}),
             ...(person !== undefined ? { person_id: person === null ? null : personOf(store, person) } : {}),

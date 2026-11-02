@@ -317,6 +317,13 @@ export function taskTools(store: Store, home: string): Tool[] {
         "Update a task's fields (they mean what task_create's do); assignee:null unassigns it. Finish or drop with task_close.",
       args: z.object({
         task: z.string().min(1).max(64),
+        parent: z
+          .string()
+          .min(1)
+          .max(64)
+          .nullable()
+          .optional()
+          .describe("existing parent task; null detaches, without restarting work"),
         status: z.string().max(40).optional(),
         assignee: z.string().max(80).nullable().optional(),
         title: z.string().trim().min(3).max(200).optional(),

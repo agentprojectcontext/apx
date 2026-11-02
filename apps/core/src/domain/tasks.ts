@@ -118,6 +118,24 @@ export function visibleTask(store: Store, id: string, scope: { project: string |
   return t;
 }
 
+/** Regrouping keeps work in one project and cannot introduce an ancestry loop. */
+export function checkTaskParent(
+  store: Store,
+  task: Task,
+  parent: string | null | undefined,
+  project: string | undefined,
+  scope: { project: string | undefined } | undefined,
+): void {
+  if (!parent) return;
+  const target = visibleTask(store, parent, scope);
+  if (target.project_id !== project) throw badRequest("parent: tasks must belong to the same project");
+  const seen = new Set([task.id]);
+  for (let up: Task | undefined = target; up; up = up.parent_id ? store.tasks.get(up.parent_id) : undefined) {
+    if (seen.has(up.id)) throw badRequest("parent: a task cannot contain itself or its ancestors");
+    seen.add(up.id);
+  }
+}
+
 /** A column the board has. */
 export function checkColumn(store: Store, status: string | undefined): void {
   const columns = columnsOf(store);
@@ -235,6 +253,7 @@ export type TaskChange = Partial<{
   state: TaskState;
   assignee: string | null;
   project_id: string | null;
+  parent_id: string | null;
   kind: TaskKind;
   priority: TaskPriority;
   tags: string[];
@@ -405,6 +424,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
             ...(c.outcome !== undefined ? { outcome: c.outcome } : c.state === "open" ? { outcome: null } : {}),
             ...(c.assignee !== undefined ? { assignee: c.assignee } : {}),
             ...(c.project_id !== undefined ? { project_id: c.project_id } : {}),
+            ...(c.parent_id !== undefined ? { parent_id: c.parent_id } : {}),
             ...(c.kind !== undefined ? { kind: c.kind } : {}),
             ...(c.priority !== undefined ? { priority: c.priority } : {}),
             ...(c.tags !== undefined ? { tags: JSON.stringify(c.tags) } : {}),

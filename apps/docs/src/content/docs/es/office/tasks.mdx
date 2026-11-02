@@ -64,6 +64,18 @@ lista en un solo proyecto o muestra **Todos los proyectos**; este navegador recu
   nombra). Se le pide la revisión enseguida: si pide cambios, vuelve al que la hizo; si aprueba, pasa a la tuya.
 - **Cerradas hace poco**: hechas o descartadas, las más nuevas primero.
 
+### Agrupar tareas existentes como subtareas
+
+En la rama de integración todavía no publicada, pedile a tu agente que ponga tareas relacionadas debajo de una
+tarea madre existente. Ambas deben estar en el mismo proyecto. Conservan sus IDs, historial, comentarios, sesiones
+y responsables; agruparlas por sí solo no vuelve a iniciar el trabajo ni cambia si están abiertas o cerradas.
+Las tareas ajenas quedan separadas.
+
+Desde la terminal: `apx tasks edit <id> --parent <parent-id>`; `--parent ""` separa la tarea. La herramienta
+`task_update` y el método `tasks.update` aceptan `parent` (el ID de una tarea existente o `null` para separarla).
+Una tarea no puede ser su propia madre ni quedar debajo de una descendiente. La lista anida tareas cuando madre
+e hija aparecen en el filtro actual; abrir la madre también muestra sus subtareas.
+
 ## Adjuntos y acciones de los chats de una tarea
 
 Las tareas pueden guardar capturas y archivos seleccionados como copias independientes, al crearlas o después.
