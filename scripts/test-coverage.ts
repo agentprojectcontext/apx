@@ -247,7 +247,8 @@ async function runE2ESuites(
       stdio: "inherit",
       shell: process.platform === "win32",
       env: { ...process.env, ...ports, APX_TEST_COVERAGE: "1", APX_TEST_COVERAGE_DIR: raw, NODE_V8_COVERAGE: raw },
-      timeout: 15 * 60_000,
+      // The web e2e alone runs ~17 min under coverage; a kill here stops pnpm, not the run under it.
+      timeout: 30 * 60_000,
     });
     if (result.status !== 0) {
       failed = true;
