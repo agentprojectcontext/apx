@@ -1,7 +1,9 @@
 # Accessibility bridge experiment
 
 Research only. This is not shipped, not an APX tool, and not a replacement for `ComputerDriver`.
-Nothing in this directory is registered with the core, broker, desktop or policy. The TypeScript bridge below was
+Nothing in this directory is registered with the core, broker, desktop or policy. The separate
+[owned observer parent](OWNED_OBSERVER.md) experiments with direct-child lifecycle and bounded pipe reads; it is not
+a product authorization or observation-result validator. The TypeScript bridge below was
 verified only with an injected executor, not native commands. Separate [native observer](native-observer/README.md)
 and [Electron laboratory](runtime/README.md) experiments ran against disposable synthetic app windows; those native
 results do not verify this bridge or grant access to real apps. See [research and integration criteria](RESEARCH.md).
