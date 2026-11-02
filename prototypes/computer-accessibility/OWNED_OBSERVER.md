@@ -101,10 +101,10 @@ completed and readiness refused reuse. This exercises
 the real inherited-pipe contract but intentionally performs **no native AX read**, desktop/core request, action,
 cursor movement, or end-to-end improvement measurement.
 
-The private semantic caller additionally passed 57 behavioral tests (47 result/limit checks and ten real Node-child
+The private semantic caller additionally passed 58 behavioral tests (47 result/limit checks and eleven real Node-child
 reader cases), including PID/launch/session/handle mismatches, generation replay, caps, malformed shapes, disclosure
 fields, secure-node violations, copied inputs/output, concurrent admission and terminal stop. Together with the
-existing transport/bridge/tree suites, 114 tests pass. Targeted strict TypeScript, Biome, test quality and private-data
+existing transport/bridge/tree suites, 115 tests pass. Targeted strict TypeScript, Biome, test quality and private-data
 gates pass. These checks do not exercise native AX or the product.
 
 A freshly compiled Swift helper also completed two correlated reads for the nonexistent maximum signed PID with
@@ -116,6 +116,42 @@ it does not establish positive native-tree compatibility or authorize an app rea
 OBSERVER_HELPER="$SCRATCH/ax-validated-observer" OBSERVER_SCRATCH="$SCRATCH" \
   node prototypes/computer-accessibility/runtime/validated-transport-smoke.ts
 ```
+
+## Positive native fixture read
+
+`runtime/validated-native-fixture.ts` launches only the disposable AppKit fixture identified explicitly by its trusted
+launcher. The fixture's source and bundle metadata are `runtime/NativeWindowFixture.swift` and
+`runtime/NativeWindowFixture.plist`. The driver resolves the launched PID/start identity, uses the same `ObserverReader`
+for every read, and emits counts, flags and timing samples only, never titles, trees or helper error text. It kills and
+waits for the owned fixture after stopping the reader. This is a developer-run experiment, not an agent-facing launcher.
+
+The real native run passed with both identically titled windows marked ambiguous, distinct synthetic button labels,
+secure sentinel absent from the returned trees, preserved retained selection after reordering, and exact
+`WINDOW_UNRESOLVED` refusals after replacing/closing a window. The caller then refused retired selection locally.
+A second run rebuilt the fixture and identity probe from the repository sources and passed the same assertions.
+Listing/observation samples were 36/14/8 ms and 32/14/5 ms, respectively. They are not a paired benchmark, include
+different cold/warm costs, and do not measure product end-to-end speed, tokens, focus or pointer behavior.
+
+Reproduce on macOS after compiling the current helper with the native README. The launcher must restrict all paths
+to this worktree's sources and an isolated scratch directory; do not substitute a real user application. This creates
+and closes disposable windows, so coordinate one screen operator first.
+
+```sh
+LAB=prototypes/computer-accessibility/runtime
+mkdir -p "$SCRATCH/AcmeWindowSession.app/Contents/MacOS"
+cp "$LAB/NativeWindowFixture.plist" "$SCRATCH/AcmeWindowSession.app/Contents/Info.plist"
+swiftc -warnings-as-errors "$LAB/NativeWindowFixture.swift" \
+  -o "$SCRATCH/AcmeWindowSession.app/Contents/MacOS/AcmeWindowSession"
+swiftc -warnings-as-errors -parse-as-library "$LAB/ProcessIdentity.swift" -o "$SCRATCH/runtime-identity-probe"
+OBSERVER_HELPER="$SCRATCH/ax-session-observer" OBSERVER_SCRATCH="$SCRATCH" \
+OBSERVER_NATIVE_FIXTURE="$SCRATCH/AcmeWindowSession.app/Contents/MacOS/AcmeWindowSession" \
+OBSERVER_IDENTITY_PROBE="$SCRATCH/runtime-identity-probe" node "$LAB/validated-native-fixture.ts"
+```
+
+Independent review identified a non-window-root gap, now rejected with a negative regression, and requested stop after
+transport admission, now covered by an injected-clock subprocess test. The latter does not establish that a native
+backend received the read before stopping; it establishes that an admitted outstanding read cannot publish a result.
+Review closure on these changes remains separate from running tests. No product integration is approved by this evidence.
 
 The first smoke accidentally targeted an older scratch binary and returned `OBSERVER_EXITED`; recompilation from the
 current source produced the passing result. Neither the older binary failure nor the corrected smoke establishes a

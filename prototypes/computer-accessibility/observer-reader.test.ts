@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import test from "node:test";
 import { ObserverReader } from "./observer-reader.ts";
-import type { ObserverCommand } from "./owned-observer.ts";
+import type { ObserverClock, ObserverCommand } from "./owned-observer.ts";
 
 const command: ObserverCommand = { op: "listWindows", pid: 42, launchIdentity: { seconds: 100, microseconds: 0 } };
-function reader(mutation = "") {
+function reader(mutation = "", clock?: ObserverClock) {
   const script = `import readline from 'node:readline';
 import {randomUUID} from 'node:crypto';
 let n=0; const session=randomUUID(); let handle;
@@ -28,6 +28,7 @@ readline.createInterface({input:process.stdin}).on('line',line=>{
     executable: process.execPath,
     home: os.tmpdir(),
     args: ["--input-type=module", "-e", script],
+    ...(clock ? { clock } : {}),
   });
 }
 
@@ -98,6 +99,42 @@ test("stop during initialization prevents a validated response", async () => {
   const rejected = assert.rejects(pending, /^Error: OBSERVER_READ_FAILED$/);
   await subject.stop();
   await rejected;
+});
+
+test("stop after transport admission cannot publish a pending observation", async () => {
+  let calls = 0;
+  let acknowledgeAdmission: () => void = () => {};
+  const admitted = new Promise<void>((resolve) => {
+    acknowledgeAdmission = resolve;
+  });
+  const callbacks = new Set<() => void>();
+  const subject = reader("if(command.op==='observeSelected')return;", {
+    after(_ms, callback) {
+      callbacks.add(callback);
+      // The third timer belongs to the observation after hello and listing.
+      if (++calls === 3) queueMicrotask(acknowledgeAdmission);
+      return () => {
+        callbacks.delete(callback);
+      };
+    },
+  });
+  try {
+    const listed = await subject.request(command);
+    assert.equal(listed.kind, "listing");
+    if (listed.kind !== "listing") throw new Error("Expected listing");
+    const handle = listed.windows[0]?.handle;
+    assert.ok(handle);
+    const pending = subject.request({ ...command, op: "observeSelected", handle });
+    const rejected = assert.rejects(pending, /^Error: OBSERVER_READ_FAILED$/);
+    await admitted;
+    assert.equal(callbacks.size, 1);
+    await subject.stop();
+    await rejected;
+    assert.equal(callbacks.size, 0);
+    await assert.rejects(subject.request(command), /^Error: OBSERVER_READ_FAILED$/);
+  } finally {
+    await subject.stop();
+  }
 });
 
 test("an error response has no tree and the caller can explicitly relist", async () => {
