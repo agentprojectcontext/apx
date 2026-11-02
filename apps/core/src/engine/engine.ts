@@ -459,8 +459,9 @@ export function createEngine(deps: {
 
   /**
    * "Send now" on a waiting message: the running turn cuts its step short and takes it at once. A message in line
-   * leaves the line for that turn; when the agent only takes words between turns (an outside engine) or it has files,
-   * it goes first in line instead (`now` false).
+   * leaves the line for that turn. When the agent only takes words between turns (an outside engine) or the message
+   * has files, the turn at work is stopped as the owner's new message would (what it delegated keeps going) and the
+   * message runs first in line, at once (`now` true); with no turn at work it only goes first (`now` false).
    */
   function sendNow(messageId: string): { now: boolean } {
     const message = store.messages.get(messageId);
@@ -478,7 +479,7 @@ export function createEngine(deps: {
     if (!into || !running || queued.input?.attachments?.length) {
       const rest = lineOf(store, message.thread_id).flatMap((l) => (l.run.id === queued.id ? [] : [l.run.id]));
       reorderLine(store, message.thread_id, [queued.id, ...rest]);
-      return { now: false };
+      return { now: Boolean(running) && stopRunning(message.thread_id, new Superseded()) > 0 };
     }
     store.tx(() => {
       ended(store.runs.setState(queued, "canceled", "sent into the turn that was running", { reason: "canceled" }));

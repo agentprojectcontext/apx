@@ -3495,7 +3495,9 @@ and no way to fix one that waited. Now each is the owner's choice and shows as s
 
 Both states are rows (the message's `waiting`, the run): a restart keeps the line and its order, and words a restart
 cut off before the turn took them run as a turn of their own. An outside engine takes words only between turns, so
-**Send now** there puts the message first in line. Channel messages are unchanged: the owner's steer as before, and no
+Enter leaves the message in line there, and **Send now** stops the turn at work as the owner's next message would
+(`Superseded`: what it delegated keeps going, the line stays) and runs the message first (`now: true`). It also does so
+for a message with files, which a running turn cannot take. With no turn at work it only goes first (`now: false`). Channel messages are unchanged: the owner's steer as before, and no
 `waiting` (the app shows them as delivered).
 <a id="d-187"></a>
 ## D-187 — 2026-11-02 — A task carries the owner's words and a goal; its plan is steps

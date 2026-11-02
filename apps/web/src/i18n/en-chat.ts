@@ -23,7 +23,6 @@ export const enChat = {
   "waiting.remove": "Remove",
   "waiting.up": "Move up",
   "waiting.down": "Move down",
-  "waiting.goesNext": "It goes first in line: this agent reads new messages when it finishes what it is doing.",
   "waiting.error": "Could not change the message: {error}",
   "composer.send": "Send",
   "composer.attachFile": "File",
