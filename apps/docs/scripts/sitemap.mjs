@@ -1,5 +1,26 @@
+// Keep the public route contract independent of the build and the comparison catalog.
+export const publicMarketingRoutes = ["", "es/"].flatMap((locale) =>
+  [
+    "",
+    "compare/",
+    "compare/best-ai-agent-apps/",
+    "compare/chatgpt-dots/",
+    "compare/claude-cowork/",
+    "compare/devin/",
+    "compare/grok-bot/",
+    "compare/hermes-agent/",
+    "compare/instinct/",
+    "compare/manus/",
+    "compare/muse/",
+    "compare/openbot/",
+    "compare/openclaw/",
+    "compare/paperclip/",
+    "compare/viktor/",
+  ].map((route) => `/${locale}${route}`),
+);
+
 /** Compare sitemap addresses with the indexable HTML routes produced by the same build. */
-export function sitemapErrors(pages, urls, site, base = "/") {
+export function sitemapErrors(pages, urls, site, base = "/", requiredRoutes = []) {
   const prefix = base.replace(/\/+$/, "");
   const expected = new Set();
   const errors = [];
@@ -16,6 +37,11 @@ export function sitemapErrors(pages, urls, site, base = "/") {
     const address = new URL(`${prefix}${route}`, site).href;
     const canonical = tags.find((tag) => tag.rel === "canonical")?.href;
     if (canonical !== address) errors.push(`${route}: expected self canonical ${address}, got ${canonical ?? "none"}`);
+    expected.add(address);
+  }
+  for (const route of requiredRoutes) {
+    const address = new URL(`${prefix}${route}`, site).href;
+    if (!expected.has(address)) errors.push(`${route}: required public page is missing or not indexable`);
     expected.add(address);
   }
   const listed = new Set();

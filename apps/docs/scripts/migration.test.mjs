@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { sep } from "node:path";
 import { test } from "node:test";
-import { sitemapErrors } from "./sitemap.mjs";
+import { publicMarketingRoutes, sitemapErrors } from "./sitemap.mjs";
 
 const dist = new URL("../dist/", import.meta.url);
 const base = (process.env.DOCS_BASE ?? "/").replace(/\/$/, "");
@@ -42,7 +42,7 @@ test("sitemap lists only canonical pages, including bilingual documentation and 
         }),
     ),
   );
-  assert.deepEqual(sitemapErrors(pages, urls, site, base), []);
+  assert.deepEqual(sitemapErrors(pages, urls, site, base, publicMarketingRoutes), []);
   assert.ok(urls.includes(`${site}${base}/docs/reference/website-privacy/`));
   assert.ok(urls.includes(`${site}${base}/es/docs/reference/website-privacy/`));
   assert.ok(urls.includes(`${site}${base}/docs/start/introduction/`));

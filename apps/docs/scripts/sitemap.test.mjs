@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { sitemapErrors } from "./sitemap.mjs";
+import { publicMarketingRoutes, sitemapErrors } from "./sitemap.mjs";
 
 const site = "https://example.com";
 const page = (url, extra = "") => `<html><head><link href="${url}" rel="canonical">${extra}</head><body></body></html>`;
@@ -62,6 +62,41 @@ test("sitemap excludes noindex pages and legacy redirects even if their canonica
     assert.deepEqual(sitemapErrors(pages, [`${site}/`, url], site), [`sitemap: not an indexable built route: ${url}`]);
   }
 });
+
+for (const failure of ["missing", "noindex", "redirect"]) {
+  test(`required public routes cannot become ${failure} while disappearing from the sitemap`, () => {
+    for (const base of ["/", "/preview", "/preview/"]) {
+      const prefix = base.replace(/\/+$/, "");
+      const address = (route) => `${site}${prefix}${route}`;
+      const pages = new Map(publicMarketingRoutes.map((route) => [route, page(address(route))]));
+      const urls = publicMarketingRoutes.map(address);
+      assert.deepEqual(sitemapErrors(pages, urls, site, base, publicMarketingRoutes), []);
+      for (const route of publicMarketingRoutes) {
+        const changed = new Map(pages);
+        if (failure === "missing") changed.delete(route);
+        else
+          changed.set(
+            route,
+            page(
+              address(route),
+              failure === "noindex"
+                ? '<meta name="robots" content="noindex,follow">'
+                : '<meta http-equiv="refresh" content="0;url=/">',
+            ),
+          );
+        const listed = urls.filter((url) => url !== address(route));
+        assert.deepEqual(
+          sitemapErrors(changed, listed, site, base, publicMarketingRoutes),
+          [
+            `${route}: required public page is missing or not indexable`,
+            `sitemap: missing canonical route: ${address(route)}`,
+          ],
+          `${failure}: ${base} ${route}`,
+        );
+      }
+    }
+  });
+}
 
 test("built indexable routes need a self canonical, not an alias or a missing tag", () => {
   assert.deepEqual(sitemapErrors(new Map([["/", page(`${site}/es/`)]]), [`${site}/`], site), [
