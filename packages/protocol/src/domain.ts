@@ -503,6 +503,8 @@ const KnownPart = z.discriminatedUnion("type", [
     url: z.string().optional(),
     media_id: Id.optional(),
     mime: z.string().optional(),
+    /** The tool call that generated this picture, scoped to its run, including across split messages. */
+    tool_call_id: z.string().optional(),
     alt: z.string().default(""),
   }),
   /** Recorded or synthesized speech; the bytes come from media.get. */

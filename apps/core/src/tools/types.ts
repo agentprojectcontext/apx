@@ -30,6 +30,8 @@ export type KeepsCard = "card" | "grant";
 export type ScopedThread = Thread & FolderThread;
 
 export type ToolContext = {
+  /** The executing call, for associating generated media with its inline slot. */
+  callId?: string;
   agent: AgentRecord;
   thread: ScopedThread;
   run: RunRecord;

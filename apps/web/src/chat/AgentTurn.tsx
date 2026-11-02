@@ -27,9 +27,9 @@ import { MessageActions } from "./MessageActions.tsx";
 import { ChangesPart } from "./parts/ChangesPart.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { ImageGenerationPreview } from "./parts/ImageGenerationPreview.tsx";
-import { isGeneratingImage } from "./parts/imageGeneration.ts";
+import { imageGenerationBlocks } from "./parts/imageGeneration.ts";
 import { AudioPart } from "./parts/lazyAudio.tsx";
-import { type MediaBlock, mediaBlocks } from "./parts/mediaGroups.ts";
+import type { MediaBlock } from "./parts/mediaGroups.ts";
 import { NoticePart } from "./parts/NoticePart.tsx";
 import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
@@ -52,6 +52,7 @@ export function AgentTurn({
   showAvatar,
   showTools,
   showSkills = true,
+  generationImages,
   engine,
   actions,
 }: {
@@ -62,6 +63,8 @@ export function AgentTurn({
   showTools: boolean;
   /** The skills picked for the turn, as chips on top (a task's conversation leaves them out). */
   showSkills?: boolean;
+  /** Result pictures from the same run, including messages split by an intervening owner reply. */
+  generationImages?: Parameters<typeof imageGenerationBlocks>[3];
   /** An engine session: its answers are signed by the engine ("Codex"), not by the agent behind the run. */
   engine?: { id: string; label: string } | undefined;
   /** Extra controls for the whole answer (ask again), with the last bubble's. */
@@ -75,16 +78,22 @@ export function AgentTurn({
   const skills = showSkills ? message.parts.find((p): p is SkillsPick => p.type === "skills") : undefined;
   const projectId = useData((s) => s.threads[message.thread_id]?.project_id);
   // Pictures and videos side by side become one grid or one carousel; everything else is a block of its own.
-  const blocks: { key: string; part: Part; media?: Exclude<MediaBlock, { kind: "part" }> }[] = mediaBlocks(
+  const blocks: {
+    key: string;
+    part: Part;
+    media?: Exclude<MediaBlock, { kind: "part" }>;
+    generation?: boolean;
+  }[] = imageGenerationBlocks(
     message.parts,
-    (p) =>
-      (p.type === "tool" && !isGeneratingImage(p, runState)) ||
-      p.type === "skills" ||
-      (p.type === "text" && (!p.text.trim() || isSignal(p.text))),
+    runState,
+    (p) => p.type === "skills" || (p.type === "text" && (!p.text.trim() || isSignal(p.text))),
+    generationImages,
   ).map((b) =>
-    b.kind === "part"
-      ? { key: b.part.type === "text" ? `x:${b.index}` : cardKey(b.part, b.index), part: b.part }
-      : { key: b.key, part: b.parts[0] as Part, media: b },
+    b.kind === "generation"
+      ? { key: b.key, part: b.part, generation: true, ...(b.media ? { media: b.media } : {}) }
+      : b.kind === "part"
+        ? { key: b.part.type === "text" ? `x:${b.index}` : cardKey(b.part, b.index), part: b.part }
+        : { key: b.key, part: b.parts[0] as Part, media: b },
   );
   const live = runState === "working" || runState === "submitted" || runState === "queued";
   // A text part's words, cut where a block draws something of its own; `whole` is the part's text, for its controls.
@@ -94,6 +103,7 @@ export function AgentTurn({
     media?: Exclude<MediaBlock, { kind: "part" }>;
     segment?: ReplySegment;
     whole?: string;
+    generation?: boolean;
   }[] = blocks.flatMap((b) => {
     if (b.part.type !== "text" || b.media) return [b];
     const text = b.part.text;
@@ -144,8 +154,8 @@ export function AgentTurn({
     <div className="turn">
       {skills && <SkillsPart part={skills} projectId={projectId} />}
       {tools.length > 0 && <ToolGroup parts={tools} waiting={waiting} />}
-      {items.map(({ key, part, media, segment, whole }, i) => {
-        if (isGeneratingImage(part, runState)) return <ImageGenerationPreview key={key} />;
+      {items.map(({ key, part, media, segment, whole, generation }, i) => {
+        if (generation) return <ImageGenerationPreview key={key} block={media} />;
         const last = i === items.length - 1;
         const card = segment?.kind === "block";
         const words = part.type === "text" && !card;

@@ -448,6 +448,7 @@ export function createExecutor(o: {
       see: (image) => {
         seen.push(image);
       },
+      callId,
       upsertPart: display.upsert,
       call: (method, params) => o.call(method, params, { run, callId }),
       // A tool that always asks acts as the owner once this call passed its card (answered or granted above), or
