@@ -2,6 +2,10 @@
 // saying first how much; a disk running out shows a corner card that leads there.
 import fs from "node:fs";
 import path from "node:path";
+import type { Page } from "@playwright/test";
+import { say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
+import { createVmLifecycle } from "../../apps/core/src/environments/lifecycle.ts";
+import { tempDir } from "../../apps/core/src/testkit/platform.ts";
 import { expect, open, openSettings, rpc, test, world } from "./kit.ts";
 
 const MB = 1024 * 1024;
@@ -100,5 +104,129 @@ test.describe("a disk running out", () => {
     await expect(dialog.getByRole("heading", { name: "Almacenamiento" })).toBeVisible();
     // The section opened is in view in the row of sections.
     await expect(dialog.getByRole("button", { name: "Almacenamiento" })).toBeInViewport();
+  });
+});
+
+/** Answers storage.status as the test says: low until `room()` is called. */
+async function diskStatus(page: Page) {
+  const gb = 1024 ** 3;
+  let free = 4.3 * gb;
+  await page.route("**/rpc/storage.status", (route) =>
+    route.fulfill({
+      json: {
+        ok: true,
+        result: { free_bytes: free, total_bytes: 256 * gb, low: free < 5 * gb, threshold_bytes: 5 * gb },
+      },
+    }),
+  );
+  return {
+    room: () => {
+      free = 40 * gb;
+    },
+  };
+}
+
+test.describe("one by one", () => {
+  test.use({ diskWarning: true });
+
+  test("the owner deletes an agents' computer once it is off, and a backup; the disk mark goes when there is room", async ({
+    page,
+  }) => {
+    const home = tempDir("apx-storage-items-").path;
+    const vmDir = path.join(home, "computer", "lima", "computer");
+    write(home, "computer/lima/computer/disk", 3 * MB);
+    write(home, "computer/lima/computer/lima.yaml", 1024);
+    write(home, "labs/apx-vm-lab-demo/lima/apx-lab/disk", 2 * MB);
+    const backup = write(home, "backups/apx-before-reimport.db", MB, 30);
+    const env = write(home, "backups/core.env", 100);
+    let running = true;
+    const lifecycle = createVmLifecycle({
+      supported: true,
+      installed: () => fs.existsSync(path.join(vmDir, "lima.yaml")),
+      running: async () => running,
+      prepare: async () => {
+        running = true;
+      },
+      stop: async () => {
+        running = false;
+      },
+      appearance: async () => {},
+      remove: async () => {
+        fs.rmSync(vmDir, { recursive: true, force: true });
+      },
+    });
+    const core = await startCore({
+      home,
+      llm: scriptedLlm(async () => say("ok")),
+      computer: { limaHome: path.join(home, "computer", "lima"), instance: "computer", lifecycle },
+    });
+    try {
+      await core.client.call("setup.finish", {});
+      const disk = await diskStatus(page);
+      await page.goto(`${core.core.url}/`);
+      await expect(page.getByRole("button", { name: "Inbox" })).toBeVisible();
+
+      // Closing the low-disk card leaves a disk mark beside help, which opens Settings › Storage.
+      const corner = page.getByRole("complementary", { name: "Novedades e invitaciones" });
+      await corner.locator('[data-card="disk"]').getByRole("button", { name: "Cerrar" }).click();
+      const mark = page.getByRole("button", { name: "Disco casi lleno: quedan 4.3 GB" });
+      await expect(mark).toBeVisible();
+      await mark.click();
+      const dialog = page.getByRole("dialog", { name: "Configuración" });
+      await expect(dialog.getByRole("heading", { name: "Almacenamiento" })).toBeVisible();
+
+      // The agents' computers, each with its size and state; the one on is turned off before it can go.
+      await dialog.getByRole("button", { name: "Computadoras de los agentes" }).click();
+      const computers = dialog.getByTestId("storage-computers");
+      const agents = computers.getByRole("listitem").filter({ hasText: "La computadora de tus agentes" });
+      await expect(agents).toContainText("Encendida");
+      await expect(agents).toContainText("Apagala para poder borrarla.");
+      await expect(agents.getByRole("button", { name: /^Borrar/ })).toHaveCount(0);
+      const lab = computers
+        .getByRole("listitem")
+        .filter({ hasText: "Computadora de prueba que quedó: apx-vm-lab-demo" });
+      await expect(lab).toContainText("Apagada");
+      await agents.getByRole("button", { name: "Apagar" }).click();
+      await expect(agents).toContainText("Apagada", { timeout: 15_000 });
+
+      // Deleting asks first, saying what is lost and that it is set up again next time.
+      await agents.getByRole("button", { name: /^Borrar/ }).click();
+      const confirm = page.getByRole("dialog", { name: "¿Borrar la computadora de tus agentes?" });
+      await expect(confirm).toContainText("Se pierde todo lo que tus agentes instalaron o guardaron adentro");
+      await expect(confirm).toContainText("Se vuelve a preparar desde cero la próxima vez que un agente la necesite.");
+      await confirm.getByRole("button", { name: "Cancelar" }).click();
+      await expect(confirm).toHaveCount(0);
+      expect(fs.existsSync(vmDir)).toBe(true);
+      await agents.getByRole("button", { name: /^Borrar/ }).click();
+      await confirm.getByRole("button", { name: "Borrar" }).click();
+      await expect(page.getByText(/^Computadora borrada\. Se liberaron/)).toBeVisible();
+      await expect(agents).toHaveCount(0);
+      await expect(lab).toBeVisible();
+      expect(fs.existsSync(vmDir)).toBe(false);
+
+      // A backup copy, by its date; core.env is never one. Once there is room, the mark goes by itself.
+      await dialog.getByRole("button", { name: "Copias de seguridad" }).click();
+      const backups = dialog.getByTestId("storage-backups");
+      await expect(backups.getByRole("listitem")).toHaveCount(1);
+      await expect(backups).not.toContainText("core.env");
+      await expect(page.getByTestId("disk-mark")).toBeVisible();
+      disk.room();
+      await backups.getByRole("button", { name: /^Borrar/ }).click();
+      const sure = page.getByRole("dialog", { name: /^¿Borrar la copia del/ });
+      await expect(sure).toContainText("se borra para siempre");
+      await sure.getByRole("button", { name: "Borrar" }).click();
+      await expect(page.getByText(/^Copia borrada\. Se liberaron/)).toBeVisible();
+      await expect(dialog.getByText("No hay copias de seguridad.")).toBeVisible();
+      expect(fs.existsSync(backup)).toBe(false);
+      expect(fs.existsSync(env)).toBe(true);
+      await dialog.getByRole("button", { name: "Cerrar" }).first().click();
+      await expect(page.getByTestId("disk-mark")).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Inbox" })).toBeVisible();
+    } finally {
+      await page.unrouteAll({ behavior: "ignoreErrors" });
+      await page.goto("about:blank");
+      await core.core.close();
+      await core.cleanup();
+    }
   });
 });

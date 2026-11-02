@@ -176,6 +176,24 @@
 .apx-iconbtn.is-active:not(.apx-iconbtn--primary) {
   color: var(--apx-brand);
 }
+.apx-iconbtn.has-mark {
+  position: relative;
+}
+.apx-iconbtn__mark {
+  position: absolute;
+  top: 22%;
+  right: 22%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--apx-mark-ring, var(--apx-bg));
+}
+.apx-iconbtn__mark--brand {
+  background: var(--apx-brand);
+}
+.apx-iconbtn__mark--warning {
+  background: var(--apx-warning);
+}
 
 /* ── Badge ─────────────────────────────────────────────────────────────────── */
 .apx-badge {

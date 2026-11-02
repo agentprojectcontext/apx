@@ -2,6 +2,7 @@ import "../styles/corner.css";
 import { Button, ChannelIcon, IconButton, Icons, ProjectTile } from "@apx/ui";
 import type { CSSProperties, ReactNode } from "react";
 import { closeCard, useClosedCards } from "../data/cornerCards.ts";
+import { diskWarning } from "../data/diskModel.ts";
 import { LINKS } from "../data/links.ts";
 import { freeText, useDiskStatus } from "../data/storage.ts";
 import { PRIVACY_URL, setUsage, useTelemetry } from "../data/telemetry.ts";
@@ -46,7 +47,7 @@ export function CornerCards({ floating = false }: { floating?: boolean }) {
       />,
     );
   // A full disk stops chats and files from being saved: before any news.
-  if (disk?.low && !closed.disk)
+  if (disk && diskWarning(disk, closed.disk) === "card")
     cards.push(
       <CornerCard
         key="disk"
