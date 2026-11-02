@@ -72,6 +72,10 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.bind": POWER,
   "telemetry.set": POWER,
   "storage.clear": "the owner frees space from Settings › Storage, having seen what it removes (DECISIONS.md#d-185)",
+  "storage.computers.delete":
+    "an agents' computer and all it holds go only when the owner deletes it (DECISIONS.md#d-185)",
+  "storage.backups.delete":
+    "a backup copy of the owner's data goes only when the owner deletes it (DECISIONS.md#d-185)",
   "desktop.set": MACHINE,
   "desktop.install": MACHINE,
   "desktop.install_cancel": MACHINE,

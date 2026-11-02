@@ -128,6 +128,7 @@ import { mediaData } from "./services/uploads.ts";
 import { syncRuntimeSkills } from "./skills/runtimes.ts";
 import { skillsFor } from "./skills/skills.ts";
 import { createStorage, type StorageOptions } from "./storage.ts";
+import { createStorageItems } from "./storage-items.ts";
 import { createTelemetry } from "./telemetry.ts";
 import { type TelemetrySink, telemetrySink } from "./telemetry-sink.ts";
 import { createTerminals } from "./terminal/terminals.ts";
@@ -329,10 +330,26 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     fetch: opts.asanaFetch,
     offIn: (project) => !integrationsOff.takesGlobals(project) || integrationsOff.offIn(project).includes("asana"),
   });
-  const vm = createComputer(
-    store,
-    opts.computer && !opts.computer.managed ? opts.computer : managedVmConfig(store, config.home, opts.computer),
-  );
+  const vmConfig =
+    opts.computer && !opts.computer.managed ? opts.computer : managedVmConfig(store, config.home, opts.computer);
+  const vm = createComputer(store, vmConfig);
+  const vmLifecycle = vmConfig.lifecycle;
+  // The agents' computer and the backups, deleted one by one from Settings › Storage (storage-items.ts).
+  const storageItems = createStorageItems({
+    home: config.home,
+    changed: storage.changed,
+    ...(vmLifecycle
+      ? {
+          computer: {
+            limaHome: vmConfig.limaHome,
+            instance: vmConfig.instance,
+            phase: async () => (await vmLifecycle.status()).phase,
+            remove: () => vmLifecycle.remove(),
+            lastStop: () => store.settings.get("computer_last_stop"),
+          },
+        }
+      : {}),
+  });
   // A screen is held for one run: once the run is over, the screen is free for another agent.
   bus.on((e) => {
     if (e.type === "run.updated" && TERMINAL.has(e.run.state)) {
@@ -755,7 +772,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       telemetry,
       news,
       usage: createUsage({ home: config.home, storage, vm: opts.vmUsage ?? (() => vm.monitored()) }),
-      storage,
+      storage: { ...storage, items: storageItems },
       panel: () => panelEntry(servedPanel(config)),
       profileRoots,
       templateRoots,

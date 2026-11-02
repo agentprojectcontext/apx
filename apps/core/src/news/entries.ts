@@ -67,8 +67,8 @@ export const NEWS: readonly NewsEntry[] = [
     since: "2.13.0",
     title: { en: "See and free up APX's disk space", es: "Mirá y liberá el espacio que usa APX" },
     about: {
-      en: "Settings › Storage shows what APX keeps on your computer by area, and Free up space clears caches and old logs. APX also tells you when your disk is almost full.",
-      es: "Configuración › Almacenamiento muestra lo que APX guarda en tu computadora por área, y Liberar espacio borra la caché y los registros viejos. APX también te avisa cuando tu disco está casi lleno.",
+      en: "Settings › Storage shows what APX keeps on your computer by area, and Free up space clears caches and old logs. You can also delete an agents' computer or an old backup one by one. APX also tells you when your disk is almost full.",
+      es: "Configuración › Almacenamiento muestra lo que APX guarda en tu computadora por área, y Liberar espacio borra la caché y los registros viejos. También podés borrar de a una las computadoras de los agentes o las copias viejas. APX también te avisa cuando tu disco está casi lleno.",
     },
     applies: () => true,
     text:
@@ -76,7 +76,8 @@ export const NEWS: readonly NewsEntry[] = [
       "computers, the browser, local models, logs, caches and backups. Free up space removes only what APX makes " +
       "again by itself (caches and old logs) and says first how much; chats, memory, files and projects stay. When " +
       "the disk holding APX has less than 5 GB free, the panel says so with a link to that screen. Only the owner " +
-      "frees space, from the screen.",
+      "frees space, from the screen. The agents' computers and the backups open into a list of each one, which " +
+      "the owner deletes one by one after a confirmation (a computer only once it is off).",
     actions: [
       {
         label: { en: "Where do I see it?", es: "¿Dónde lo veo?" },

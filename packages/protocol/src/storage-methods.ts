@@ -43,6 +43,36 @@ export const StorageUsage = z.object({
 });
 export type StorageUsage = z.infer<typeof StorageUsage>;
 
+/**
+ * One of the agents' computers on this disk: the shared Lima VM APX manages (`agents`), or a test VM left under
+ * `labs/` (`lab`). `id` is the core's own; a delete names it, never a path.
+ */
+export const StorageComputer = z.object({
+  id: z.string(),
+  kind: z.enum(["agents", "lab"]),
+  /** The folder's name: shown for a lab only, the agents' computer is named by its kind. */
+  name: z.string(),
+  bytes: z.number(),
+  /** On, starting or stopping: it cannot be deleted until it is off. */
+  on: z.boolean(),
+  /** `environments.stop` turns it off (the agents' computer while it runs). */
+  can_turn_off: z.boolean().optional(),
+  last_used_at: z.string().optional(),
+});
+export type StorageComputer = z.infer<typeof StorageComputer>;
+
+/** A copy of the database kept in the backups folder (with its -wal/-shm beside it, counted in `bytes`). */
+export const StorageBackup = z.object({
+  id: z.string(),
+  name: z.string(),
+  bytes: z.number(),
+  created_at: z.string(),
+});
+export type StorageBackup = z.infer<typeof StorageBackup>;
+
+const ItemId = z.object({ id: z.string().min(1).max(200) }).strict();
+const Freed = z.object({ freed_bytes: z.number() });
+
 export const storageMethods = {
   /** The APX home by area and what clearing would free; `refresh` measures again now. */
   "storage.usage": {
@@ -60,6 +90,35 @@ export const storageMethods = {
   "storage.clear": {
     params: z.object({}).strict(),
     result: z.object({ freed_bytes: z.number(), files: z.number() }),
+    effect: true,
+    access: "human",
+  },
+  /** The agents' computers on this disk, each with its size and whether it is on. */
+  "storage.computers.list": {
+    params: z.object({}).strict(),
+    result: z.object({ computers: z.array(StorageComputer) }),
+    effect: false,
+  },
+  /**
+   * Deletes a computer the list named, with everything inside it; refused while it is on. The agents' computer is set
+   * up again from scratch the next time an agent needs it.
+   */
+  "storage.computers.delete": {
+    params: ItemId,
+    result: Freed,
+    effect: true,
+    access: "human",
+  },
+  /** Copies of the database in the backups folder, newest first. */
+  "storage.backups.list": {
+    params: z.object({}).strict(),
+    result: z.object({ backups: z.array(StorageBackup) }),
+    effect: false,
+  },
+  /** Deletes a backup copy the list named. */
+  "storage.backups.delete": {
+    params: ItemId,
+    result: Freed,
     effect: true,
     access: "human",
   },

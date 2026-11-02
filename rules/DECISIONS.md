@@ -3463,6 +3463,16 @@ memory and files; projects; agents' computers; browser; local models; logs; cach
   the state flips; the panel then reads `storage.status` and shows a corner card leading to the screen, closed for the
   session only.
 - The browser profile's cache is not cleared: Chromium holds it while the desktop app runs.
+- **One by one.** Free up space stays caches and old logs only. The two big things it never touches are deleted one by
+  one from their areas, each behind a confirmation that says what is lost: the agents' computers
+  (`storage.computers.list|delete`: the Lima VM APX manages, and test VMs left under `labs/`) and the backup copies
+  (`storage.backups.list|delete`: database files in `backups/` with their `-wal`/`-shm`, never `core.env` or anything
+  else there). A delete names an id the core listed, never a path, checked inside the home without following links.
+  A computer that is on, starting or stopping is refused; the agents' VM goes through the computer's own lifecycle
+  (`VmLifecycle.remove`, Lima's `delete`, then its setup mark), so it is set up again from scratch on the next start.
+  A lab has no core of its own to ask: it is removed as a folder once no host agent of it runs. Both deletes are the
+  owner's own (`settings-reach.ts`): no agent deletes a computer or a backup. Once the low-disk card is closed, a disk
+  mark beside help (`IconButton` `mark`) stays while `storage.status` says low and goes by itself on room again.
 
 <a id="d-186"></a>
 ## D-186 — 2026-11-02 — Writing while the agent works: sent, sent now, or in line

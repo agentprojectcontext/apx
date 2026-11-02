@@ -120,6 +120,15 @@ async function walk(
   return { partial: false };
 }
 
+/** What a folder of the home takes on disk (relative, with `/`), by the same bounded walk. */
+export async function sizeOf(home: string, rel: string, limits: WalkLimits = LIMITS): Promise<number> {
+  let bytes = 0;
+  await walk(home, [rel], limits, (f) => {
+    bytes += f.bytes;
+  });
+  return bytes;
+}
+
 export type Measure = Omit<StorageUsage, "measuring" | "disk">;
 
 /** The home by area, and what clearing would free from each. */
@@ -239,6 +248,12 @@ export function createStorage(o: StorageOptions) {
     return { measuring: measuring !== undefined, ...(last ?? { total_bytes: 0, freeable_bytes: 0, areas: [] }) };
   };
 
+  const changed = () => {
+    last = undefined;
+    void start();
+    o.onChange?.();
+  };
+
   async function disk(): Promise<DiskStatus> {
     const d = await readDisk(o.home);
     return { free_bytes: d.free, total_bytes: d.total, low: isLow(d.free, threshold), threshold_bytes: threshold };
@@ -264,11 +279,11 @@ export function createStorage(o: StorageOptions) {
     },
     async clear(): Promise<{ freed_bytes: number; files: number }> {
       const r = await clearStorage(o.home, limits);
-      last = undefined;
-      void start();
-      o.onChange?.();
+      changed();
       return r;
     },
+    /** Space was freed elsewhere (a computer or a backup deleted): measured again, and the panel hears. */
+    changed,
     /** Waits for a walk in progress (tests, and a clear right after one). */
     settled: () => measuring ?? Promise.resolve(),
     /** Looks at the disk on the office clock; the panel hears only when low flips. */

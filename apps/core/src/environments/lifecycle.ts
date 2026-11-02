@@ -21,6 +21,8 @@ export type VmDriver = {
   connect?(): Promise<void>;
   disconnect?(): Promise<void>;
   appearance(mode: Appearance): Promise<void>;
+  /** Deletes the stopped VM and everything in it; the next start sets it up from scratch. */
+  remove?(): Promise<void>;
 };
 
 /** One lifecycle operation at a time; stopping fences new tools before canceling installation. */
@@ -170,6 +172,24 @@ export function createVmLifecycle(driver: VmDriver) {
           }
         })(),
       );
+    },
+    /** Deletes the VM while it is off, as one more lifecycle operation (a start meanwhile is refused). */
+    async remove() {
+      allowed();
+      if (!driver.remove) throw unavailable("this computer cannot be deleted from here");
+      if (operation || phase === "preparing" || phase === "stopping")
+        throw conflict("the computer is starting or stopping; wait until it is off");
+      if (driver.installed() && (await driver.running())) throw conflict("the computer is on; turn it off first");
+      generation++;
+      const task = driver.remove();
+      track(task);
+      try {
+        await task;
+      } finally {
+        phase = undefined;
+        progress = undefined;
+        error = undefined;
+      }
     },
     async appearance(mode: Appearance) {
       allowed();
