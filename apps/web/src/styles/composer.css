@@ -119,7 +119,7 @@
   }
 }
 
-/* "38k / 200k" with its ring */
+/* "64%" with its ring */
 .ctxchip {
   display: inline-flex;
   flex: none;
@@ -143,20 +143,6 @@
 .ctxchip.is-open {
   background: var(--apx-fill-strong);
   color: var(--apx-fg);
-}
-.ctxchip__track {
-  fill: none;
-  stroke: var(--apx-border);
-  stroke-width: 2.5;
-}
-.ctxchip__fill {
-  fill: none;
-  stroke: var(--apx-accent);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-}
-.ctxchip.is-full .ctxchip__fill {
-  stroke: var(--apx-warning);
 }
 
 /* Files in a sent message */
@@ -264,7 +250,7 @@
   }
 }
 /* A composer in a narrow card (a floating chat), whatever the window's width: the model gives way first, then the
-   context chip keeps only its ring, so the mic and send stay inside. */
+   context chip keeps only its ring and percentage, so the mic and send stay inside. */
 .chat__composer {
   container-type: inline-size;
 }
@@ -272,7 +258,8 @@
   .composer__model {
     max-width: 150px;
   }
-  .ctxchip__text {
+  /* A percentage is short enough to stay. */
+  .ctxchip__text:not(.is-share) {
     display: none;
   }
 }

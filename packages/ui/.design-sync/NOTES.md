@@ -23,6 +23,8 @@
 - AgentAvatar's eye canvas now keeps its full size inside icon buttons; re-sync the shared CSS bundle.
 - Meter is new (single or stacked bar with a legend) and the icon set gained Gauge, Cpu, HardDrive and MemoryStick:
   neither is in the Claude Design project yet.
+- Meter gained `shape="ring"` (one amount as a small circle beside text, for the composer's context use); not in the
+  Claude Design project yet.
 - TemplateField is new (a text field whose placeholders read as badges, with a grouped value picker), for Flow
   steps, and the icon set gained Braces: neither is in the Claude Design project yet.
 - AgentGrid is new (agents as two-column cards, for a Flow's AI step); TemplateField gained one-line fields and a

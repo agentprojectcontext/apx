@@ -1,6 +1,7 @@
 // What the computer has and what APX takes of it: memory, CPU, disk, the APX home by part, and the Linux VM when
 // there is one. Read-only; the home's sizes are measured in the background and kept a while (a walk is slow).
 import { z } from "zod";
+import { StorageArea } from "./storage-methods.ts";
 
 export const DiskSpace = z.object({
   /** "home": the volume holding the APX home; "system": the system's. One volume can be both. */
@@ -11,10 +12,9 @@ export const DiskSpace = z.object({
 });
 export type DiskSpace = z.infer<typeof DiskSpace>;
 
-/** Parts of the APX home, each a set of its top-level folders and files. */
-export const HOME_PARTS = ["databases", "logs", "models", "files", "browser", "projects", "computer", "other"] as const;
-export const HomePart = z.enum(HOME_PARTS);
-export type HomePart = z.infer<typeof HomePart>;
+/** Parts of the APX home: the storage screen's areas (storage-methods.ts), counted by the same walk. */
+export const HomePart = StorageArea;
+export type HomePart = StorageArea;
 
 export const HomeUsage = z.object({
   /** Being measured now: `parts` are from the last measure, or empty before the first. */

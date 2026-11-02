@@ -114,7 +114,11 @@ context like `AGENTS.md`. Titles and summaries use an auxiliary model: the `mode
 the API models the owner already chose; never a CLI and never a model name in code. A long thread is compacted after a
 run into a fixed five-section summary (rejected when the shape is wrong) that replaces the older turns as a new epoch;
 the newest turns stay verbatim, and a summary of outside content stays marked untrusted so the policy does not relax.
-Claude Code and Codex keep and compact their own transcripts.
+"Long" is either measure, whichever comes first: the last model call of the newest native run read 80% of the model's
+window (provider-reported input tokens over the reported or known window), or the history as the model sees it passed
+75% of the history budget in characters. The character rule stays even when the window is known: past the budget
+the oldest turns would leave the context with no summary of them. Claude Code and Codex keep and compact their own
+transcripts.
 
 <a id="d-014"></a>
 ## D-014 — 2026-10-01 — Channels are adapters over threads.send; who writes decides everything
@@ -3437,3 +3441,50 @@ was also accepted on a Flow never published, which turned on something that runs
 
 Tests, the key, an address and an AI step's autonomy stay the owner's. Rejected: letting the agent read the webhook
 key to call it (a key never reaches a model, D-139), and turning on without publishing (it runs nothing).
+
+## D-185 — 2026-11-02 — Storage: the home by area, clearing only what APX rebuilds, and a low-disk warning
+
+The owner could see how big the APX folder was (system.usage, by folder) but not what of it they could let go, nor was
+anyone told when the disk ran out under APX. Settings › Storage now shows the home by area in the owner's words (chats,
+memory and files; projects; agents' computers; browser; local models; logs; caches; backups; the rest) and one action,
+**Free up space**, that says first how much it frees.
+
+- **One walk, one classification.** `apps/core/src/storage.ts` owns the measure; `system.usage`'s home parts are the
+  same areas from the same cached walk, so the usage dialog and the storage screen never disagree. The walk stops at an
+  entry cap and a deadline (marked partial) and never follows a link, so a link in the home neither counts nor clears
+  what it points to.
+- **What clearing removes.** Only what APX makes again on its own: video posters, copies of documents opened in another
+  app and Codex's image work folder (after a day: one may still be open), rotated logs, other logs untouched for 14 days
+  (never the live `core.log`) and background commands' output untouched for 30 days. Never the database (chats, memory,
+  tasks), chat files, artifacts, projects, skills, secrets, backups, the agents' computers, the browser profile or
+  models. A clear folder that is a link or resolves outside the home is skipped.
+- **Low disk.** Under 5 GB free on the volume holding the home. A percentage was rejected: on a large disk it warns with
+  tens of gigabytes still free. A background check (D-171) looks every 10 minutes and emits `storage.changed` only when
+  the state flips; the panel then reads `storage.status` and shows a corner card leading to the screen, closed for the
+  session only.
+- The browser profile's cache is not cleared: Chromium holds it while the desktop app runs.
+
+<a id="d-186"></a>
+## D-186 — 2026-11-02 — Writing while the agent works: sent, sent now, or in line
+
+The owner's words written while an agent works either went into its running turn at the next step (Enter) or waited
+for the turn to end (Ctrl/⌘+Enter), with nothing in the chat to tell them apart, no way to make a sent one land sooner,
+and no way to fix one that waited. Now each is the owner's choice and shows as such:
+
+- **Sent** (Enter): the running turn takes it at its next step, as before. Until it does, the message carries
+  `waiting: {until: "step"}` and shows **Send now**, which aborts only the step in progress (`TurnIO.stepSignal`: the
+  model call, or the tool call through its `ToolContext.signal`); the loop then takes the words and goes on. A cut
+  tool call tells the model it may have done part of its work; calls after it in the same step are not run.
+- **In line** (Ctrl/⌘+Enter): a run of its own, `waiting: {until: "turn", run}`, ordered by `runs.queue_order` (a
+  permutation of their places when the owner moves them, so other waiting work keeps its slot). Until it starts it
+  is edited (`runs.update_queued`), moved (`runs.reorder`, every message in line each once), removed
+  (`runs.remove_queued`: canceled, and out of the chat) or sent now (`runs.send_now`: it leaves the line and joins
+  the running turn). When its turn starts the message moves to the end of the chat, so it reads above its answer
+  whatever the order was; edits after that are refused.
+- **Stop** stays as it was: it cancels the turn and what is in line, whose messages no longer wait.
+
+Both states are rows (the message's `waiting`, the run): a restart keeps the line and its order, and words a restart
+cut off before the turn took them run as a turn of their own. An outside engine takes words only between turns, so
+**Send now** there puts the message first in line. Channel messages are unchanged: the owner's steer as before, and no
+`waiting` (the app shows them as delivered).
+

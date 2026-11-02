@@ -43,11 +43,26 @@ Mientras trabaja, ves cada paso en el momento: las herramientas que usó, las p�
 les preguntó. Al terminar se pliegan en una línea, como **4 pasos · 12 s**, que se abre con un clic en cada paso
 dicho en palabras ("Leyó notes.md", "Buscó precios 2026") con un ícono según el tipo de acción (la web, leer un
 archivo, escribirlo, la memoria). Solo se marca un paso que falló, en rojo, y la línea dice cuántos fallaron. **Mostrar
-herramientas** en el encabezado prende o apaga esos pasos si solo querés las respuestas. Podés escribir mientras
-trabaja: tu mensaje entra al turno en su próximo paso, queda donde lo escribiste y lo que el agente dice después de
-leerlo aparece debajo.
+herramientas** en el encabezado prende o apaga esos pasos si solo querés las respuestas.
 Cuando un agente necesita tu OK (para correr un comando, mandar un mensaje, usar tu login en un sitio) el chat
 muestra la pregunta con **Aceptar una vez**, **Aceptar durante esta sesión** o **Aceptar siempre para este agente**.
+
+### Escribir mientras trabaja
+
+No hace falta esperar a que el agente termine, ni cortarlo:
+
+- **Enter** envía. El agente lee tu mensaje en su próximo paso (después de la herramienta o la respuesta en la que
+  está) y sigue teniéndolo en cuenta. El mensaje queda donde lo escribiste y lo que el agente dice después de leerlo
+  aparece debajo. Hasta que lo lea, debajo del mensaje aparece **Enviar ahora**: el agente corta el paso en el que
+  está y lee tu mensaje en el momento, sin perder lo que ya hizo.
+- **Ctrl/⌘+Enter** deja el mensaje **en cola** para cuando el agente termine lo que está haciendo. Los mensajes en
+  cola esperan debajo del chat con la burbuja delineada, en el orden en que van a correr. Hasta que empiece su turno
+  los podés **Editar**, **Subir** o **Bajar**, **Quitar**, o **Enviar ahora**. Un agente que corre en un motor externo
+  (Claude Code, Codex) solo lee mensajes nuevos entre turnos: ahí **Enviar ahora** lo pone primero en la cola.
+- **Detener** (el cuadrado que reemplaza a enviar) corta todo: el turno en curso y los mensajes en cola.
+
+Lo que está en cola sobrevive a un reinicio de APX, en su orden. Los mensajes que llegan por un canal (WhatsApp,
+Telegram) siguen como antes: el agente los lee en su próximo paso.
 
 Un ejemplo. Lucía es la PM de Acme Store:
 
@@ -66,12 +81,13 @@ La caja de abajo ("Escribile a Lucía…") es donde escribís. Algunas cosas que
 
 - **Adjuntos.** Arrastrá archivos o imágenes al chat, o usá **Adjuntar** › **Archivo** / **Imagen**.
 - **Selector de modelo.** Cada chat usa el modelo de su agente. Podés elegir otro solo para este chat, o **Auto** para
-  que decida el router; **Volver al del agente** lo deshace. El chip de al lado muestra cuánto contexto se usó y abre
-  el panel de Consumo.
+  que decida el router; **Volver al del agente** lo deshace. El chip de al lado muestra cuánto del contexto del modelo
+  se usó, en porcentaje, y abre el panel de Consumo; cuando se llena, los turnos viejos se resumen
+  ([Compactación](/es/concepts/conversations/#compactación)).
 - **Dictado por voz.** **Dictar** pasa lo que decís a texto. Instalá un modelo de transcripción local (whisper.cpp)
   en Configuración › Voces para que quede todo en tu máquina.
-- **Teclas.** Enter envía (si el agente está trabajando, lo corta y responde esto). Ctrl/⌘+Enter lo deja en cola para
-  cuando termine. Shift+Enter agrega una línea.
+- **Teclas.** Enter envía (si el agente está trabajando, lo lee en su próximo paso). Ctrl/⌘+Enter lo deja en cola para
+  cuando termine; mientras el agente trabaja, el compositor te lo recuerda. Shift+Enter agrega una línea.
 
 Los borradores de adjuntos, incluidas las cargas en curso, sobreviven a cambiar de chat dentro de la página.
 Seleccioná una miniatura para previsualizar su archivo. A diferencia del texto del borrador guardado, los adjuntos

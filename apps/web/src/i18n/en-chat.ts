@@ -14,7 +14,17 @@ export const enChat = {
   "composer.attach": "Attach",
   "composer.stop": "Stop",
   "composer.sendHint":
-    "Enter: send (if it is working, stops it and answers this) · Ctrl/⌘+Enter: queue it for when it ends · Shift+Enter: new line · /: commands and skills",
+    "Enter: send (if it is working, it reads it at its next step) · Ctrl/⌘+Enter: put it in line for when it finishes · Shift+Enter: new line · /: commands and skills",
+  "composer.queueHint": "{mod}+Enter to put it in line",
+  "waiting.sendNow": "Send now",
+  "waiting.lineTitle": "In line for when {name} finishes",
+  "waiting.edit": "Edit",
+  "waiting.save": "Save",
+  "waiting.remove": "Remove",
+  "waiting.up": "Move up",
+  "waiting.down": "Move down",
+  "waiting.goesNext": "It goes first in line: this agent reads new messages when it finishes what it is doing.",
+  "waiting.error": "Could not change the message: {error}",
   "composer.send": "Send",
   "composer.attachFile": "File",
   "composer.attachImage": "Image",
@@ -40,7 +50,8 @@ export const enChat = {
   "composer.agentModel": "The agent's model",
   "composer.agentModelDesc": "This chat uses what {name} has set up.",
   "composer.backToAgentModel": "Back to the agent's",
-  "composer.contextOf": "{used} of {window} context used",
+  "composer.contextShare":
+    "Context used: {share} ({used} of {window}). When it fills up, the older part of this chat is summarized.",
   "composer.spent": "In this chat: {input} tokens read (input), {output} written (output)",
   "composer.spentCached":
     "In this chat: {input} tokens read (input, {cached} of them from the cache), {output} written (output)",

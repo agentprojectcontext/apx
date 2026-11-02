@@ -19,6 +19,7 @@ import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { useChannels } from "../data/channels.ts";
 import { blobOf, isWorking, routineName, threadAgent } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
+import { inLine } from "../data/waiting.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { AgentEvent, EmailCard, MediaGroup, TaskDescription } from "../lazy.ts";
 import { nav, useNav } from "../shell/nav.ts";
@@ -31,6 +32,7 @@ import { bubbleFiles, mediaBlocks, withoutFilesNote } from "./parts/mediaGroups.
 import { NoticePart } from "./parts/NoticePart.tsx";
 import { quotedIndex, quoteParts, splitQuote } from "./quote.ts";
 import { Regenerate, UserMessage } from "./Rewind.tsx";
+import { InLine } from "./WaitingMessage.tsx";
 
 const EMPTY: Msg[] = [];
 
@@ -42,7 +44,13 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
   const t = useT();
   const lang = useLanguage();
   const all = useData((s) => s.messages[thread.id] ?? EMPTY);
-  const messages = useMemo(() => (via ? all.filter((m) => m.via === via) : all), [all, via]);
+  const shown = useMemo(() => (via ? all.filter((m) => m.via === via) : all), [all, via]);
+  // What waits for the agent's next turn sits below the chat, in the order it will run, not where it was written.
+  const line = useMemo(() => inLine(shown), [shown]);
+  const messages = useMemo(
+    () => (line.length ? shown.filter((m) => m.waiting?.until !== "turn") : shown),
+    [shown, line],
+  );
   const agents = useShownAgents();
   const engineLabel = useEngineLabel(thread.engine);
   const engine = thread.engine && engineLabel ? { id: thread.engine, label: engineLabel } : undefined;
@@ -229,6 +237,16 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
             <ActivityPill tone="danger" label={t("chat.agentWaiting", { name: agent?.name ?? t("chat.theAgent") })} />
           </div>
         )}
+        <InLine
+          line={line}
+          agentName={agent?.name ?? t("chat.theAgent")}
+          body={(m) => (
+            <>
+              <UserFiles message={m} />
+              <UserText text={textOf(m)} sourceOf={(quote) => quoted(m.id, quote)} />
+            </>
+          )}
+        />
       </StickyScroll>
     </ViaFilter.Provider>
   );

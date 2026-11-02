@@ -5,6 +5,7 @@ import { TURN_STEPS } from "@apx/protocol";
 import type { Llm } from "../providers/llm.ts";
 import type { ChatItem, ModelFailure, Usage } from "../providers/types.ts";
 import { readsImages } from "../providers/vision.ts";
+import { contextWindow } from "../providers/windows.ts";
 import { modelSpec } from "../tools/types.ts";
 import type { Harness } from "./types.ts";
 
@@ -14,6 +15,8 @@ import type { Harness } from "./types.ts";
  */
 export const MAX_STEPS = TURN_STEPS;
 const MAX_CONTINUATIONS = 2;
+/** A call the model asked for after the owner's "send now" stopped the step: their words come first. */
+const NOT_RUN_FOR_OWNER = "not run: the owner sent you a message to read first.";
 /** The same call this many times in a row gets a reminder to change course; tools never go off for it before STUCK_AT. */
 const REMIND_AT = [3, 5] as const;
 /** The same call this many times in a row = stuck: tools go off and the turn answers with what it has. */
@@ -66,12 +69,12 @@ export function nativeHarness(llm: Llm): Harness {
       let toolsOff = false;
       let continuations = 0;
 
-      const step = async (tools: boolean) => {
+      const step = async (tools: boolean, cut?: AbortSignal) => {
         const c = await llm.complete({
           models: io.models,
           messages,
           tools: tools && !toolsOff ? io.tools.map(modelSpec) : [],
-          signal: io.signal,
+          signal: cut ? AbortSignal.any([io.signal, cut]) : io.signal,
           cacheKey: io.thread.id,
           onText: (s) => {
             io.alive?.();
@@ -86,7 +89,13 @@ export function nativeHarness(llm: Llm): Harness {
         usage.input += c.usage?.input ?? 0;
         usage.output += c.usage?.output ?? 0;
         if (c.usage?.cached) usage.cached = (usage.cached ?? 0) + c.usage.cached;
-        if (c.usage?.input) usage.context = c.usage.input;
+        if (c.usage?.input) {
+          usage.context = c.usage.input;
+          // Known while the turn runs, so the chat's context ring never loses its share between calls.
+          const window = c.usage.window ?? contextWindow(c.model);
+          if (window) usage.window = window;
+          else delete usage.window;
+        }
         io.onUsage?.({ ...usage });
         push(c.message);
         if (c.message.content) text = prefix + c.message.content;
@@ -97,7 +106,14 @@ export function nativeHarness(llm: Llm): Harness {
       for (let i = 0; i < limit; i++) {
         // What arrived while we work (the owner's words, a command's end) goes in after the last tool results.
         for (const t of io.takeSteered?.() ?? []) push({ role: "user", content: t });
-        const c = await step(true);
+        // The owner's "send now" stops this step only: a cut answer is dropped, the loop takes their words next.
+        const cut = io.stepSignal?.();
+        const c = await step(true, cut).catch((err: unknown) => {
+          if (io.signal.aborted || !cut?.aborted) throw err;
+          io.onText(prefix);
+          return undefined;
+        });
+        if (!c) continue;
         const calls = c.message.tool_calls ?? [];
         if (!calls.length) {
           // A cut answer is not a finished one: ask for the rest instead of presenting half of it.
@@ -121,11 +137,16 @@ export function nativeHarness(llm: Llm): Harness {
         // The model that asked for these tools takes the next step too, unless it fails over.
         const sees = readsImages(c.model);
         for (const call of calls) {
+          // Every call needs its result: the ones after a cut are not run.
+          if (cut?.aborted) {
+            push({ role: "tool", tool_call_id: call.id, content: NOT_RUN_FOR_OWNER });
+            continue;
+          }
           let args: Record<string, unknown> = {};
           try {
             args = JSON.parse(call.function.arguments || "{}") as Record<string, unknown>;
           } catch {}
-          const out = await io.execute(call.id, call.function.name, args);
+          const out = await io.execute(call.id, call.function.name, args, cut);
           io.alive?.();
           push({ role: "tool", tool_call_id: call.id, content: out.text });
           if (out.endTurn) transferred = true;

@@ -5,7 +5,7 @@
 import type { RunTrigger, Thread } from "@apx/protocol";
 import { type Attachment, type Origin, type RunInput, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { Canceled, DeadlineExceeded, Shutdown, Superseded } from "../errors.ts";
+import { Canceled, conflict, DeadlineExceeded, notFound, Shutdown, Superseded } from "../errors.ts";
 import type { Harnesses } from "../harness/index.ts";
 import type { Log } from "../log.ts";
 import type { RuntimeHomes } from "../skills/runtimes.ts";
@@ -27,6 +27,7 @@ import { recoverInterrupted } from "./recovery.ts";
 import { droppedResult, outcomeNote } from "./run-outcome.ts";
 import type { SkillPicker } from "./skill-pick.ts";
 import { OWNER_ADDS, runTurn, type ToolCall } from "./turn.ts";
+import { askedIn, editInLine, lineOf, removeFromLine, reorderLine } from "./waiting.ts";
 
 /**
  * A turn on our own loop ends after this long without progress (a token, a tool's result): a long browser or
@@ -232,14 +233,14 @@ export function createEngine(deps: {
   const { store, log } = deps;
   const busy = new Set<string>();
   const running = new Set<Promise<void>>();
-  /** Running turns: run id → its abort controller, thread and deadline. */
-  const active = new Map<string, { ac: AbortController; thread: string; clock: Clock }>();
+  /** Running turns: run id → its abort controller, thread and deadline, and what cuts its current step short. */
+  const active = new Map<string, { ac: AbortController; thread: string; clock: Clock; cut: AbortController }>();
   const live = new Map<string, Display>();
   /**
    * What reaches a running turn between its steps, not yet taken by its loop: the owner's words, or (`apx`) a result
    * that would otherwise start a turn of its own, such as a background command's end (DECISIONS.md#d-162).
    */
-  const steered = new Map<string, Array<{ text: string; apx?: Admit }>>();
+  const steered = new Map<string, Array<{ text: string; apx?: Admit; message_id?: string }>>();
   /** The running turn of `agentId` in `threadId` whose loop takes text mid-turn (ours), if any. */
   const steerable = (threadId: string, agentId?: string): RunRecord | undefined => {
     for (const [runId, a] of active) {
@@ -325,6 +326,9 @@ export function createEngine(deps: {
   });
 
   function admit(a: Admit): RunRecord {
+    // The owner's words from the app wait in line when a turn is ahead of them (DECISIONS.md#d-186).
+    const asked = a.trigger === "user" && a.origin.kind === "user" && !a.resume_of ? a.origin.message_id : undefined;
+    const behind = Boolean(asked) && (busy.has(a.thread_id) || Boolean(store.runs.nextQueued(a.thread_id)));
     const run = store.runs.create({
       thread_id: a.thread_id,
       agent_id: a.agent_id,
@@ -345,6 +349,7 @@ export function createEngine(deps: {
     });
     if (store.threads.get(a.thread_id)?.state !== "working")
       store.threads.patch(a.thread_id, { state: a.queued ? "queued" : "submitted" });
+    if (asked && behind) store.messages.setWaiting(asked, { until: "turn", run: run.id });
     // After the caller's transaction commits: the turn must never run on a row that could still roll back.
     queueMicrotask(() => {
       kick(a.thread_id);
@@ -371,6 +376,12 @@ export function createEngine(deps: {
   }
 
   async function execute(run: RunRecord): Promise<void> {
+    // Before any await: from here its message is no longer in line, and edits to it are refused.
+    const asked = askedIn(run);
+    if (asked && store.messages.get(asked)?.waiting) {
+      store.messages.toEnd(asked);
+      store.messages.setWaiting(asked, undefined);
+    }
     const ac = new AbortController();
     // A restart re-runs queued work with a fresh deadline: the clock starts when the run can actually work.
     const limit = runLimit(deps.store, run.thread_id, run.trigger, deps);
@@ -401,17 +412,24 @@ export function createEngine(deps: {
       (at) => deps.store.runs.setDeadline(run.id, new Date(at).toISOString()),
       deps.runTimers,
     );
-    active.set(run.id, { ac, thread: run.thread_id, clock });
+    const entry = { ac, thread: run.thread_id, clock, cut: new AbortController() };
+    active.set(run.id, entry);
     try {
       const takeSteered = () => {
         const taken = steered.get(run.id) ?? [];
         steered.set(run.id, []);
+        for (const s of taken) if (s.message_id) store.messages.setWaiting(s.message_id, undefined);
         return taken.map((s) => (s.apx ? s.text : `${OWNER_ADDS}\n${s.text}`));
+      };
+      // What the owner's "send now" aborts: the step in progress, never the turn (DECISIONS.md#d-186).
+      const stepSignal = () => {
+        if (entry.cut.signal.aborted) entry.cut = new AbortController();
+        return entry.cut.signal;
       };
       // Waiting on a delegate at work is the turn at work too.
       const delegate: typeof delegations.delegate = (...a) => delegations.delegate(...a).finally(clock.busy());
       const done = await runTurn(
-        { ...deps, inputs, jobs, takeSteered, delegate, alive: clock.touch, busy: clock.busy },
+        { ...deps, inputs, jobs, takeSteered, stepSignal, delegate, alive: clock.touch, busy: clock.busy },
         run,
         ac.signal,
       );
@@ -429,13 +447,75 @@ export function createEngine(deps: {
             thread_id: run.thread_id,
             agent_id: run.agent_id,
             trigger: "user",
-            origin: { kind: "user" },
+            origin: { kind: "user", ...(s.message_id ? { message_id: s.message_id } : {}) },
             text: s.text,
           },
         );
       steered.delete(run.id);
       live.delete(run.id);
       delegations.callerEnded(run.id);
+    }
+  }
+
+  /**
+   * "Send now" on a waiting message: the running turn cuts its step short and takes it at once. A message in line
+   * leaves the line for that turn; when the agent only takes words between turns (an outside engine) or it has files,
+   * it goes first in line instead (`now` false).
+   */
+  function sendNow(messageId: string): { now: boolean } {
+    const message = store.messages.get(messageId);
+    if (!message) throw notFound(`message ${messageId}`);
+    if (!message.waiting) throw conflict("your agent already took this message");
+    const running = [...active.entries()].find(([, a]) => a.thread === message.thread_id && !a.ac.signal.aborted);
+    if (message.waiting.until === "step") {
+      running?.[1].cut.abort();
+      return { now: Boolean(running) };
+    }
+    const queued = store.runs.get(message.waiting.run ?? "");
+    if (!queued || queued.state !== "submitted" || askedIn(queued) !== messageId)
+      throw conflict("its turn already started");
+    const into = steerable(message.thread_id, queued.agent_id);
+    if (!into || !running || queued.input?.attachments?.length) {
+      const rest = lineOf(store, message.thread_id).flatMap((l) => (l.run.id === queued.id ? [] : [l.run.id]));
+      reorderLine(store, message.thread_id, [queued.id, ...rest]);
+      return { now: false };
+    }
+    store.tx(() => {
+      ended(store.runs.setState(queued, "canceled", "sent into the turn that was running", { reason: "canceled" }));
+      store.runs.setReplyTo(into.id, queued.input?.reply_to ?? null);
+      store.messages.toEnd(messageId);
+      steered.set(into.id, [
+        ...(steered.get(into.id) ?? []),
+        { text: queued.input?.text ?? "", message_id: messageId },
+      ]);
+      store.messages.setWaiting(messageId, { until: "step" });
+    });
+    running[1].cut.abort();
+    return { now: true };
+  }
+
+  /**
+   * Boot: words a restart cut off before the turn took them run as a turn of their own, and a message whose turn is
+   * gone no longer waits.
+   */
+  function requeueWaiting(): void {
+    for (const m of store.messages.waitingIn()) {
+      const queued = m.waiting?.until === "turn" ? store.runs.get(m.waiting.run ?? "") : undefined;
+      if (queued?.state === "submitted") continue;
+      const agent = store.threads.get(m.thread_id)?.agent_ids[0];
+      const text = m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n");
+      if (m.waiting?.until !== "step" || !agent || !text) {
+        store.messages.setWaiting(m.id, undefined);
+        continue;
+      }
+      const run = admit({
+        thread_id: m.thread_id,
+        agent_id: agent,
+        trigger: "user",
+        origin: { kind: "user", message_id: m.id },
+        text,
+      });
+      store.messages.setWaiting(m.id, { until: "turn", run: run.id });
     }
   }
 
@@ -488,6 +568,8 @@ export function createEngine(deps: {
       const r = store.runs.get(id);
       if (r) {
         ended(store.runs.setState(r, "canceled", "canceled before it started"));
+        const asked = askedIn(r);
+        if (asked && store.messages.get(asked)?.waiting) store.messages.setWaiting(asked, undefined);
         n++;
       }
     }
@@ -504,12 +586,23 @@ export function createEngine(deps: {
     cancel,
     /** Starts the thread's queued delegations that fit (after the owner lets agents go on); how many it started. */
     release: (threadId: string) => delegations.release(threadId),
-    /** Hands owner text to the thread's running turn when its loop can take it mid-turn (ours); else undefined. */
-    steer(threadId: string, text: string): RunRecord | undefined {
+    /**
+     * Hands owner text to the thread's running turn when its loop can take it mid-turn (ours); else undefined. With
+     * `messageId`, the message shows it waits until the turn takes it.
+     */
+    steer(threadId: string, text: string, messageId?: string): RunRecord | undefined {
       const run = steerable(threadId);
-      if (run) steered.set(run.id, [...(steered.get(run.id) ?? []), { text }]);
+      if (!run) return undefined;
+      steered.set(run.id, [...(steered.get(run.id) ?? []), { text, ...(messageId ? { message_id: messageId } : {}) }]);
+      if (messageId) store.messages.setWaiting(messageId, { until: "step" });
       return run;
     },
+    /** Changes the words of a message in line, before its turn starts. */
+    editQueued: (runId: string, text: string) => editInLine(store, runId, text),
+    /** Takes a message out of the line and the chat, before its turn starts. */
+    removeQueued: (runId: string) => removeFromLine(store, runId, ended),
+    reorderQueued: (threadId: string, runs: readonly string[]) => reorderLine(store, threadId, runs),
+    sendNow,
     /** The owner's answer to something an agent asked (runs.respond). */
     respond: inputs.respond,
     pending: inputs.pending,
@@ -563,6 +656,7 @@ export function createEngine(deps: {
       }
       // Only once the resumed ones hold their slots: a slot a cut delegation frees must not let a queued one in too.
       for (const run of cut) ended(run);
+      requeueWaiting();
       for (const threadId of store.runs.queuedThreads()) kick(threadId);
       // After the resumed delegations are admitted, so they hold their slots first.
       for (const threadId of store.runs.heldParents()) delegations.release(threadId);

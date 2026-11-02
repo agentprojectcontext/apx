@@ -42,10 +42,26 @@ While it works you see each step as it happens: tools it used, pages it opened, 
 into one line, such as **4 steps · 12 s**, that opens on click into each step in words ("Read notes.md", "Searched
 prices 2026") with an icon for its kind of action (the web, a file read, a file written, memory). Only a step that
 failed is marked, in red, and the line says how many failed. **Show tools** in the header toggles those steps if
-you only want the answers. You can write while it works: your message reaches the turn at its next step, stays where
-you wrote it, and what the agent says after reading it comes below. When an agent needs your OK (to run a command, send a
+you only want the answers. When an agent needs your OK (to run a command, send a
 message, use your login on a site) the chat shows the question with **Approve once**, **Approve for this session** or
 **Always allow for this agent**.
+
+### Writing while it works
+
+You don't have to wait for the agent to finish, and you don't have to stop it:
+
+- **Enter** sends. The agent reads your message at its next step (after the tool or the answer it is on) and goes on
+  with it in mind. The message stays where you wrote it, and what the agent says after reading it comes below. Until it
+  reads it, **Send now** shows under the message: the agent stops the step it is on and reads your message at once,
+  keeping what it did so far.
+- **Ctrl/⌘+Enter** puts the message **in line** for when the agent finishes what it is doing. Messages in line wait
+  below the chat with an outlined bubble, in the order they will run. Until their turn starts you can **Edit** them,
+  move them **up** or **down**, **Remove** them, or **Send now**. An agent that runs on an outside engine (Claude Code,
+  Codex) only reads new messages between turns: there **Send now** puts the message first in line.
+- **Stop** (the square that replaces send) stops everything: the turn at work and the messages in line.
+
+What is in line survives a restart of APX, in its order. Messages that come on a channel (WhatsApp, Telegram) keep
+working as before: the agent reads them at its next step.
 
 A quick example. Lucía is Acme Store's PM:
 
@@ -64,12 +80,13 @@ The box at the bottom ("Message Lucía…") is where you write. A few things it 
 
 - **Attachments.** Drag and drop files or images onto the chat, or use **Attach** › **File** / **Image**.
 - **Model picker.** Each chat follows its agent's model by default. Pick another one for this chat only, or **Auto**
-  to let the router choose; **Back to the agent's** undoes it. The chip next to it shows how much context is used and
-  opens the Usage panel.
+  to let the router choose; **Back to the agent's** undoes it. The chip next to it shows how much of the model's context
+  is used, as a percentage, and opens the Usage panel; when it fills, older turns are summarized
+  ([Compaction](/concepts/conversations/#compaction)).
 - **Voice dictation.** **Dictate** turns speech into text. Install a local transcription model (whisper.cpp) in
   Settings › Voices to keep it on your machine.
-- **Keys.** Enter sends (if the agent is working, it stops and answers this instead). Ctrl/⌘+Enter queues the message
-  for when it ends. Shift+Enter adds a line.
+- **Keys.** Enter sends (if the agent is working, it reads it at its next step). Ctrl/⌘+Enter puts it in line for when
+  it finishes; while the agent works the composer reminds you. Shift+Enter adds a line.
 
 Attachment drafts, including uploads in progress, survive switching chats within the page. Select a thumbnail to
 preview its file. Unlike saved draft text, attachment drafts do not survive reloading or closing the page; they are

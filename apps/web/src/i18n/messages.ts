@@ -56,6 +56,10 @@ const PACKS = {
     en: () => import("./received-en.ts").then((m) => m.enReceived),
     es: () => import("./received-es.ts").then((m) => m.esReceived),
   },
+  storage: {
+    en: () => import("./storage-en.ts").then((m) => m.enStorage),
+    es: () => import("./storage-es.ts").then((m) => m.esStorage),
+  },
   usage: {
     en: () => import("./sysusage-en.ts").then((m) => m.enSysUsage),
     es: () => import("./sysusage-es.ts").then((m) => m.esSysUsage),

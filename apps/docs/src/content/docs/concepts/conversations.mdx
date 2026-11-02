@@ -111,11 +111,14 @@ menu in the top bar shows what is running across every chat.
 ## Compaction
 
 Long chats get heavy. When a thread grows, APX summarizes its older turns into a fixed five-part summary and keeps
-the newest turns word for word, so the agent keeps working with a smaller context. A summary of outside content
-stays marked as outside content, so the safety rules don't relax.
+the newest turns word for word, so the agent keeps working with a smaller context. That happens once the model's
+last answer used 80% of its context window (as the provider counted it), or once the chat passes the history APX
+sends each turn, whichever comes first; with a model whose window APX doesn't know, only the second applies.
+A summary of outside content stays marked as outside content, so the safety rules don't relax.
 
 - It happens on its own with **Summarize long chats** in Settings › Memory (on by default).
 - Type `/compact` in a chat to do it now, or run `apx compact <thread>`.
+- The ring next to the model picker shows how full the context is, as a percentage of the model's window.
 - Claude Code and Codex sessions compact their own transcripts.
 
 ## From the terminal
