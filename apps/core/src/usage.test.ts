@@ -7,8 +7,9 @@ import { after, before, test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
 import { testConfig } from "./config.ts";
 import { createCore } from "./server.ts";
+import { createStorage } from "./storage.ts";
 import { removeDir, tempDir, waitFor } from "./testkit/platform.ts";
-import { availableFromMeminfo, availableFromVmStat, createUsage, measureHome, partOf } from "./usage.ts";
+import { availableFromMeminfo, availableFromVmStat, createUsage } from "./usage.ts";
 
 const MB = 1048576;
 let core: Awaited<ReturnType<typeof createCore>>;
@@ -61,9 +62,8 @@ test("asked for disk, the first answer is measuring; the next has the home by pa
   assert.equal(h.measuring, false);
   const by: Record<string, number> = Object.fromEntries(h.parts.map((p) => [p.id, p.mb]));
   assert.ok((by.models ?? 0) >= 3, `models: ${by.models}`);
-  assert.ok((by.files ?? 0) >= 3, `media and artifacts: ${by.files}`);
-  assert.ok((by.computer ?? 0) >= 2, `the VM folder: ${by.computer}`);
-  assert.ok((by.databases ?? 0) > 0, "the core's own database");
+  assert.ok((by.data ?? 0) >= 3, `media, artifacts and the database: ${by.data}`);
+  assert.ok((by.computers ?? 0) >= 2, `the VM folder: ${by.computers}`);
   assert.deepEqual(
     h.parts.map((p) => p.mb),
     [...h.parts.map((p) => p.mb)].sort((a, b) => b - a),
@@ -88,7 +88,7 @@ test("the VM's slot carries what its provider says, and a provider that fails le
 });
 
 test("a home measure kept within its time is not walked again; a stale one is", async () => {
-  const usage = createUsage({ home, homeTtlMs: 60_000 });
+  const usage = createUsage({ home, storage: createStorage({ home, ttlMs: 60_000 }) });
   const wait = () =>
     waitFor(async () => {
       const h = (await usage.read({ disk: true })).home;
@@ -100,24 +100,14 @@ test("a home measure kept within its time is not walked again; a stale one is", 
   assert.equal(two?.measured_at, one.measured_at, "kept, not walked on each call");
   assert.equal(two?.measuring, false);
   // Past its time at once: once a measure is kept, a later read starts the next walk.
-  const stale = createUsage({ home, homeTtlMs: 0 });
+  const stale = createUsage({ home, storage: createStorage({ home, ttlMs: 0 }) });
   await waitFor(async () => {
     const h = (await stale.read({ disk: true })).home;
     return h?.measured_at && h.measuring;
   }, "a read past its time walking again");
 });
 
-test("a walk past its deadline stops and says it is partial", async () => {
-  const m = await measureHome(home, -1);
-  assert.equal(m.partial, true);
-});
-
-test("parts by name, and memory as macOS and Linux count it", () => {
-  assert.equal(partOf("apx.db-wal"), "databases");
-  assert.equal(partOf("daemon-lock.sqlite"), "databases");
-  assert.equal(partOf("jobs"), "logs");
-  assert.equal(partOf("codex-images"), "files");
-  assert.equal(partOf("channels"), "other");
+test("memory as macOS and Linux count it", () => {
   const vmStat = [
     "Mach Virtual Memory Statistics: (page size of 16384 bytes)",
     "Pages free:                               10000.",

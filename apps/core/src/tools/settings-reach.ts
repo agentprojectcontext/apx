@@ -71,6 +71,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.enable": POWER,
   "environments.bind": POWER,
   "telemetry.set": POWER,
+  "storage.clear": "the owner frees space from Settings › Storage, having seen what it removes (DECISIONS.md#d-185)",
   "desktop.set": MACHINE,
   "desktop.install": MACHINE,
   "desktop.install_cancel": MACHINE,
