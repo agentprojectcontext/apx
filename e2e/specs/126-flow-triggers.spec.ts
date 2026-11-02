@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Locator, Page } from "@playwright/test";
 import type { Result } from "../../packages/protocol/src/index.ts";
-import { expect, open, rpc, test } from "./kit.ts";
+import { expect, open, rpc, test, world } from "./kit.ts";
 
 const shots = process.env.FLOW_SHOTS;
 async function shot(page: Page, name: string, focus: Locator) {
@@ -24,6 +24,7 @@ const HOST = "https://apx.example.com";
 const docOf = (flow: string) => rpc<Result<"flows.graph_get">>("flows.graph_get", { flow });
 
 test.afterEach(async () => {
+  await world.clock(null);
   await rpc("webhooks.set", { mode: "off" });
 });
 
@@ -59,6 +60,10 @@ test("a schedule is set by days and times, switched to a webhook in place, which
   });
   const flow = made.flow.id;
   const route = made.flow.path ?? "";
+  // Next runs counted from a Sunday noon UTC, on the core and the page: Sunday or early Monday in every zone.
+  const sunday = "2026-11-01T12:00:00Z";
+  await world.clock(sunday);
+  await page.clock.setFixedTime(sunday);
   await page.addInitScript(() => localStorage.setItem("apx.prefs", JSON.stringify({ language: "en" })));
   await open(page, `#view=flows&scope=${project}&flow=${flow}&edit=1`);
   const editor = page.locator(".fe");
@@ -73,8 +78,9 @@ test("a schedule is set by days and times, switched to a webhook in place, which
   await card.getByRole("button", { name: "Tuesday", exact: true }).click();
   await expect(card.getByRole("button", { name: "Tuesday", exact: true })).toHaveAttribute("aria-pressed", "false");
   await expect(trigger).toContainText("Mon 05:00, 08:30 · Wed, Thu, Fri 08:30");
-  // Its next runs come from the crons it makes, Monday's 05:00 among them.
-  await expect(card.locator(".fe-next")).toContainText("05:00");
+  // Its next runs come from the crons it makes: Monday's 05:00 first, then 08:30 on Monday and Wednesday.
+  await expect(card.locator(".fe-next")).toContainText(/05:00.*08:30.*08:30/);
+  await world.clock(null);
   await shot(page, "schedule-card", card.getByRole("button", { name: "Sunday", exact: true }));
   await editor.getByRole("button", { name: "Save draft" }).click();
   await expect(editor.getByRole("status")).toContainText("Draft saved");
