@@ -422,6 +422,20 @@ export const enOffice = {
     "Tasks an agent proposes: nothing starts until you accept them. Accept the ones worth doing and drop the rest.",
   "tasks.accept": "Accept",
   "tasks.acceptAll": "Accept all",
+  "tasks.acceptAll.changed": "These proposals changed. Review the list and try again; nothing was accepted.",
+  "tasks.acceptAll.title": "Accept these proposals?",
+  "tasks.acceptAll.titleOne": "Accept this proposal?",
+  "tasks.acceptAll.failedOne": "We couldn’t confirm whether it was accepted. Check the proposals before trying again.",
+  "tasks.acceptAll.failed":
+    "We couldn’t confirm whether these proposals were accepted. Check the list before trying again.",
+  "tasks.acceptAll.partial":
+    "Confirmed {n} of {total} proposals accepted. Check the remaining proposals before trying again.",
+  "tasks.acceptAll.body":
+    "You’re about to accept {n} proposals from this list. Assigned agents can start working on them.",
+  "tasks.acceptAll.bodyOne":
+    "You’re about to accept 1 proposal from this list. Its assigned agent can start working on it.",
+  "tasks.acceptAll.confirm": "Accept {n} proposals",
+  "tasks.acceptAll.confirmOne": "Accept 1 proposal",
   "tasks.row.proposedBy": "Proposed by {name}",
   "tasks.row.proposed": "Proposed",
   "tasks.group.closed": "Closed recently",
