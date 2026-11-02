@@ -17,8 +17,11 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "composer.stop": "Detener",
   "composer.sendHint":
     "Enter: enviar (si está trabajando, lo lee en su próximo paso) · Ctrl/⌘+Enter: dejarlo en cola para cuando termine · Shift+Enter: nueva línea · /: comandos y skills",
+  "composer.sendHintStop":
+    "Enter: enviar ahora (corta lo que está haciendo y lo lee) · Ctrl/⌘+Enter: dejarlo en cola para cuando termine · Shift+Enter: nueva línea · /: comandos y skills",
   "composer.queueHint": "{mod}+Enter para dejarlo en cola",
   "waiting.sendNow": "Enviar ahora",
+  "waiting.taken": "Ahora",
   "waiting.lineTitle": "En cola para cuando {name} termine",
   "waiting.edit": "Editar",
   "waiting.save": "Guardar",

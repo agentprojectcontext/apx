@@ -54,6 +54,8 @@ test("messages in line are edited, moved and removed, and Send now has the agent
   await now.click();
   await expect(page.getByText("Got it: use metric units")).toBeVisible({ timeout: 10_000 });
   await expect(now).toBeHidden();
+  // Taken: two ticks and "Ahora" take the place of the button.
+  await expect(sent.getByText("Ahora")).toBeVisible();
   await expect(page.getByText("Got it: first, edited")).toBeVisible({ timeout: 15_000 });
   await expect(line).toHaveCount(0);
 

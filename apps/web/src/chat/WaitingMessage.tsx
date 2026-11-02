@@ -8,6 +8,25 @@ import { useT } from "../i18n/index.ts";
 
 const textOf = (m: Msg) => m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n\n");
 
+const seenWaiting = new Set<string>();
+
+/** Whether the agent has taken a message the owner saw waiting: it carries a mark saying so, "Now". */
+export function useTaken(message: Msg): boolean {
+  if (message.waiting) seenWaiting.add(message.id);
+  return !message.waiting && seenWaiting.has(message.id);
+}
+
+/** Under a message the agent has taken while it worked: two ticks and "Now", as a chat app marks a delivered one. */
+export function TakenMark() {
+  const t = useT();
+  return (
+    <span className="waiting__taken">
+      <Icons.CheckCheck size={12} />
+      {t("waiting.taken")}
+    </span>
+  );
+}
+
 /** The agent takes this message at once: the step it is on stops. */
 export function SendNowButton({ message }: { message: Msg }) {
   const t = useT();

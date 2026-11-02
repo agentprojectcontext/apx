@@ -19,3 +19,10 @@
 .waiting__now {
   color: var(--apx-fg-muted);
 }
+.waiting__taken {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}

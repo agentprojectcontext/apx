@@ -8,7 +8,7 @@ import { isWorking } from "../data/identity.ts";
 import { rewindThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
 import { MessageActions } from "./MessageActions.tsx";
-import { SendNowButton } from "./WaitingMessage.tsx";
+import { SendNowButton, TakenMark, useTaken } from "./WaitingMessage.tsx";
 
 /** Whether this chat can go back: nothing running, not a channel's chat (delivered), not an engine session. */
 export function canRewind(thread: Thread): boolean {
@@ -90,6 +90,7 @@ export function UserMessage({
   const { ask, dialog } = useConfirm();
   const pending = message.id.startsWith("local_");
   const via = useVia(thread, message);
+  const taken = useTaken(message);
   const send = () => {
     const next = draft?.trim();
     if (!next || next === text.trim()) return setDraft(undefined);
@@ -109,10 +110,11 @@ export function UserMessage({
       // Where it came in from (or went out on) stays in sight, unlike the controls; so does "Send now" while the agent
       // has not taken it.
       meta={
-        draft === undefined && (via || message.waiting) ? (
+        draft === undefined && (via || message.waiting || taken) ? (
           <>
             {via && <ViaMark thread={thread} message={message} />}
             {message.waiting && <SendNowButton message={message} />}
+            {taken && <TakenMark />}
           </>
         ) : undefined
       }

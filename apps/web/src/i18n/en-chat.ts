@@ -15,8 +15,11 @@ export const enChat = {
   "composer.stop": "Stop",
   "composer.sendHint":
     "Enter: send (if it is working, it reads it at its next step) · Ctrl/⌘+Enter: put it in line for when it finishes · Shift+Enter: new line · /: commands and skills",
+  "composer.sendHintStop":
+    "Enter: send now (it stops what it is doing and reads it) · Ctrl/⌘+Enter: put it in line for when it finishes · Shift+Enter: new line · /: commands and skills",
   "composer.queueHint": "{mod}+Enter to put it in line",
   "waiting.sendNow": "Send now",
+  "waiting.taken": "Now",
   "waiting.lineTitle": "In line for when {name} finishes",
   "waiting.edit": "Edit",
   "waiting.save": "Save",
