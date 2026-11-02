@@ -2,13 +2,10 @@
 // step in progress stops and the turn takes them at once), and in line (they wait for the turn to end, and can be
 // edited, moved or removed until it starts). See DECISIONS.md#d-185.
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { after, before, test } from "node:test";
 import type { Message } from "@apx/protocol";
 import { z } from "zod";
-import { removeDir, waitFor } from "../testkit/platform.ts";
+import { tempDir, waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
@@ -181,8 +178,8 @@ test("stop cancels what is in line, and its messages no longer wait", async () =
 });
 
 test("what waits survives a restart: the line and the order it runs in", async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-waiting-"));
-  const first = await startCore({ llm, extraTools: [hold], home });
+  const home = tempDir("apx-waiting-");
+  const first = await startCore({ llm, extraTools: [hold], home: home.path });
   const t = (await first.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
   const w = await first.client.call("threads.send", { thread: t, text: "work before restart" });
   await waitFor(() => first.core.store.runs.steps(w.run.id).length > 0, "the turn at work");
@@ -193,7 +190,7 @@ test("what waits survives a restart: the line and the order it runs in", async (
   gates.splice(0);
 
   const after = scriptedLlm((_req, { said: s }) => say(`Plain: ${s.split("\n").at(-1)}`));
-  const second = await startCore({ llm: after, home });
+  const second = await startCore({ llm: after, home: home.path });
   try {
     const { messages } = await second.settle(t);
     const owner = messages.filter((m) => m.author.kind === "user").map(said);
@@ -201,6 +198,6 @@ test("what waits survives a restart: the line and the order it runs in", async (
     assert.ok(messages.every((m) => !m.waiting));
   } finally {
     await second.core.close();
-    await removeDir(home);
+    await second.cleanup();
   }
 });
