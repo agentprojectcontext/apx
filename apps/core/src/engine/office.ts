@@ -142,12 +142,12 @@ export function taskBlock(
     return [
       ...head,
       `You are helping with this task for ${name(parent.agent_ids[0] ?? "")}, whose chat for it is ${parent.id}. ${lookup}`,
-      "Your answer goes back to them. If what you found matters to everyone on the task (verified, blocked, needs a decision), also leave a short task_comment on it.",
+      "Your answer goes back to them. Only if what you found blocks the task or needs the owner's decision, also leave a short task_comment on it.",
     ].join("\n");
   return [
     ...head,
     others.length ? `Worked on before by: ${[...new Set(others)].join(", ")}. ${lookup}` : "",
-    "This is your chat for this task; what you say here stays here. Comment on the task with task_comment when others should know: a step done and verified, a block, something to review or decide. Two or three lines, never a transcript.",
+    "This is your chat for this task; what you say here stays here. Comment on the task with task_comment only when the owner or a teammate must know now: you are blocked, a decision is needed, or it is done. Progress shows in the plan, not in comments. One comment a turn at most, in short Markdown lines, never a transcript.",
     "Before working, keep its plan on the task with task_update plan: the steps that reach the goal, as a checklist (- [x] done, - [~] doing, - [ ] next). Mark a step doing when you start it and done once verified, and rewrite the plan when the way changes: it is what the next turn reads, whatever this chat forgets. When the work stops leading to the goal, tell the owner what is missing instead of going on. Ask for one review when a whole change is done, not one for each part.",
     "Keep the task up to date with task_update (doing while you work on it, review when it is ready to be checked: the owner checks it unless you name a reviewer agent) and task_close when it is done: the answer of the turn that closes it is posted as your report to whoever created the task.",
     "Mention @owner in a task_comment or in your answer when you need the owner. To ask a teammate, use delegate: its answer comes back to you (an @mention of an agent asks no one).",

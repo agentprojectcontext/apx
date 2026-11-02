@@ -3551,5 +3551,10 @@ adding a restriction, without one step of its plan working.
   block asks for one review when a whole change is done, not one per part. "Approved with notes" opens with "Approved",
   so a task review (D-128) reads it as approved.
 
+- **Fewer, shorter task comments**: a task's conversation is read by people, and one agent left 56 dense comments on
+  one task. `task_comment` takes one comment per task per turn (a second is refused: the rest goes in the answer) and
+  at most 1,500 characters, and is for what others must know now: blocked, a decision, done. Progress shows in the
+  plan; helpers comment only when they find a block or something for the owner to decide.
+
 Rejected: a cap on delegations per task (good work also delegates; what matters is that steps get done), and resetting
 the count on any plan rewrite (an agent could rewrite its plan to go on forever).

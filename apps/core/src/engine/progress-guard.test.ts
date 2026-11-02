@@ -15,6 +15,12 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
     refusals.push(last);
     return say("Paused: I will tell the owner.");
   }
+  const twice = /comment twice on (task_\w+)/.exec(said);
+  if (twice && system.startsWith("You are Vera")) {
+    const tools = req.messages.filter((m) => m.role === "tool").length;
+    if (tools < 2) return callTool(`c${tools}`, "task_comment", { task: twice[1], text: `Note ${tools + 1}` });
+    return say(last.slice(0, 200));
+  }
   // Vera checks the same thing over and over, never marking a step done.
   if (system.startsWith("You are Vera") && said.includes("Polish the pointer")) {
     const asked = req.messages.filter((m) => m.role === "tool").length;
@@ -75,4 +81,19 @@ test("a step newly done starts the count over; rewriting the same plan does not"
   assert.ok(stuckTrip(store, work), "a plan with nothing done is no progress");
   await env.client.call("tasks.update", { task: task.id, plan: "- [x] Read the code\n- [~] Smooth it" });
   assert.equal(stuckTrip(store, work), undefined);
+});
+
+test("an agent comments on a task once a turn; the rest goes in its answer", async () => {
+  const task = await env.client.call("tasks.create", { title: "Pick the palette", description: "Choose colors." });
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "vera" });
+  await env.client.call("threads.send", { thread: chat.id, text: `comment twice on ${task.id}` });
+  const { messages } = await env.settle(chat.id);
+  const notes = env.core.store.messages
+    .list(task.thread_id, 50)
+    .map((m) => m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""));
+  assert.deepEqual(
+    notes.filter((n) => n.startsWith("Note")),
+    ["Note 1"],
+  );
+  assert.match(JSON.stringify(messages.at(-1)?.parts), /already commented on this task in this turn/);
 });
