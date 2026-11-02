@@ -253,6 +253,25 @@ app.whenReady().then(() => {
   panel.webContents.on("did-finish-load", fullScreen);
   layout();
 
+  // A reloaded panel has no slot until its page reports one: the tab must not stay over whatever it now shows.
+  panel.webContents.on("did-start-navigation", (details) => {
+    if (!details.isMainFrame || details.isSameDocument) return;
+    slot = null;
+    layout();
+  });
+
+  // A still of the tab the panel shows in its place while the live page steps behind (a popup, a column drag).
+  ipcMain.handle("panel:browser-frame", async (e) => {
+    const view = shown;
+    if (!view || e.sender !== panel.webContents || view.webContents.isDestroyed()) return null;
+    try {
+      const image = await view.webContents.capturePage();
+      return image.isEmpty() ? null : `data:image/jpeg;base64,${image.toJPEG(85).toString("base64")}`;
+    } catch {
+      return null;
+    }
+  });
+
   ipcMain.on("panel:browser-bounds", (e, b: Bounds | null) => {
     const next =
       b && Number.isFinite(b.x)

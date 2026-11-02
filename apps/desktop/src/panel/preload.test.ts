@@ -119,6 +119,7 @@ test("panel requests return native replies without exposing a general invoke cap
     ["computerPermissions", [], "computer:permissions", []],
     ["openPrivacy", ["screen"], "computer:open-privacy", ["screen"]],
     ["computerFrame", [], "computer:frame", []],
+    ["browserFrame", [], "panel:browser-frame", []],
     ["stopComputer", [], "computer:stop", []],
     ["pickFolder", [], "panel:pick-folder", []],
     ["memory", [], "desktop:memory", []],
