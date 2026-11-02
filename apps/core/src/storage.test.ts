@@ -118,7 +118,7 @@ test("the walk stops at its entry cap and at its deadline, and says it is partia
   assert.ok(capped.total_bytes < 30 * KB, "it stopped before reading every file");
   // The clock passes the deadline after the first folder is read.
   let reads = 0;
-  const late = await measureStorage(h, { maxEntries: 10_000, deadlineMs: 1000, now: () => NOW + reads++ * 1000 });
+  const late = await measureStorage(h, { maxEntries: 10_000, deadlineMs: 60_000, now: () => NOW + reads++ * 60_000 });
   assert.equal(late.partial, true);
   assert.equal((await measureStorage(h, LIMITS)).partial, undefined, "within both, the whole home");
 });

@@ -33,14 +33,14 @@ const AREA_OF: Record<string, StorageArea> = {
   "codex-images": "caches",
   backups: "backups",
 };
-/** Folders inside another area's that APX makes again when needed (a video's poster, a copy opened in an app). */
-const CACHE_DIRS = ["media/posters", "media/open"];
+/** Folders inside the media folder that APX makes again when needed (a video's poster, a copy opened in an app). */
+const MEDIA_CACHES = ["posters", "open"];
 const DATABASE = /\.(db|sqlite)(-wal|-shm|-journal)?$/;
 
 /** The area of a path relative to the home, written with `/`. */
 export function areaOf(rel: string): StorageArea {
-  if (CACHE_DIRS.some((d) => rel === d || rel.startsWith(`${d}/`))) return "caches";
-  const top = rel.split("/")[0] ?? "";
+  const [top = "", sub] = rel.split("/");
+  if (top === "media" && sub !== undefined && MEDIA_CACHES.includes(sub)) return "caches";
   return AREA_OF[top] ?? (top === rel && DATABASE.test(top) ? "data" : "other");
 }
 
@@ -52,8 +52,10 @@ export function areaOf(rel: string): StorageArea {
 export function clearable(rel: string, mtimeMs: number, now: number): boolean {
   const parts = rel.split("/");
   const age = now - mtimeMs;
-  if (rel.startsWith("media/posters/")) return true;
-  if (rel.startsWith("media/open/") || rel.startsWith("codex-images/")) return age > DAY;
+  const [top, sub] = parts;
+  if (top === "media" && sub === "posters" && parts.length > 2) return true;
+  if ((top === "media" && sub === "open" && parts.length > 2) || (top === "codex-images" && parts.length > 1))
+    return age > DAY;
   if (parts.length === 2 && parts[0] === "logs") {
     const name = parts[1] ?? "";
     if (name === "core.log") return false;
