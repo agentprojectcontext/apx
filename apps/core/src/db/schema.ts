@@ -372,6 +372,7 @@ export interface MessagesTable {
   reactions: string | null;
   via: string | null;
   model_reported: number | null;
+  waiting: string | null;
 }
 
 export interface MessagesNTable {
@@ -580,6 +581,7 @@ export interface RunsTable {
   activity: string | null;
   end_reason: string | null;
   resets_at: string | null;
+  queue_order: number | null;
 }
 
 export interface StepsTable {

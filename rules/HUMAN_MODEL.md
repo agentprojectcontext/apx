@@ -295,7 +295,11 @@ notice when there is no text. Tools that touch core state call protocol methods 
   a project folder; opening an owner's shell and browsing files still need a folder.
 - **Terminal jobs** (`engine/jobs.ts`): the `shell` tool runs commands in the project's folder; background ones
   are `jobs` rows with an output file, and their end wakes the agent.
-- **Steer**: `threads.send` with `mode: "steer"` puts the owner's text into the running turn at its next step.
+- **Steer**: `threads.send` with `mode: "steer"` puts the owner's text into the running turn at its next step; the
+  message carries `waiting: {until: "step"}` until the loop takes it. `runs.send_now` cuts the step in progress
+  (`TurnIO.stepSignal`) so the loop takes it at once. `mode: "queue"` while a turn works puts the message in line
+  (`waiting: {until: "turn", run}`), ordered by `runs.queue_order`; `runs.update_queued`, `runs.reorder` and
+  `runs.remove_queued` change it until the run starts (`engine/waiting.ts`, [D-185](DECISIONS.md#d-185)).
 
 On start, `engine/recovery.ts` closes runs a crash cut (effect UNKNOWN for started tools), expired inputs and cut
 jobs are closed, and queued runs are picked up.

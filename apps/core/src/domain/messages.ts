@@ -1,5 +1,5 @@
 // Display messages and their search projection; model context lives separately.
-import type { Author, Message, MessageDelivery, MessageReaction, Part } from "@apx/protocol";
+import type { Author, Message, MessageDelivery, MessageReaction, MessageWaiting, Part } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import { sql } from "kysely";
 import type { Bus } from "../bus.ts";
@@ -19,6 +19,7 @@ const toMessage = (r: Selectable<MessagesTable>): Message => ({
   ...(r.delivery ? { delivery: r.delivery as MessageDelivery } : {}),
   ...(r.reactions ? { reactions: JSON.parse(r.reactions) as MessageReaction[] } : {}),
   ...opt("via", r.via),
+  ...(r.waiting ? { waiting: JSON.parse(r.waiting) as MessageWaiting } : {}),
   created_at: r.created_at,
 });
 
@@ -298,6 +299,7 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
         ...(stored?.delivery ? { delivery: stored.delivery } : {}),
         ...(stored?.reactions ? { reactions: stored.reactions } : {}),
         ...(stored?.via ? { via: stored.via } : {}),
+        ...(stored?.waiting ? { waiting: stored.waiting } : {}),
       };
       bus.emit({ type: "message.updated", message: out });
       return out;
@@ -368,6 +370,60 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
       );
       const { reactions: _old, ...rest } = was;
       bus.emit({ type: "message.updated", message: reactions.length ? { ...rest, reactions } : rest });
+    },
+    /** Whether the owner's words still wait for their agent, and how; undefined once it took them. */
+    setWaiting(id: string, waiting: MessageWaiting | undefined): Message | undefined {
+      const was = repo.get(id);
+      if (!was) return undefined;
+      run(
+        qb
+          .updateTable("messages")
+          .set({ waiting: waiting ? JSON.stringify(waiting) : null })
+          .where("id", "=", id),
+      );
+      const { waiting: _old, ...rest } = was;
+      const out = waiting ? { ...rest, waiting } : rest;
+      bus.emit({ type: "message.updated", message: out });
+      return out;
+    },
+    /** The thread's messages still waiting for their agent, oldest first. */
+    waitingIn(threadId?: string): Message[] {
+      return all(
+        qb
+          .selectFrom("messages")
+          .selectAll()
+          .where("waiting", "is not", null)
+          .$if(threadId !== undefined, (q) => q.where("thread_id", "=", threadId as string))
+          .orderBy("seq"),
+      ).map(toMessage);
+    },
+    /** Moves a message to the end of its thread: the owner's words in line read where their turn starts. */
+    toEnd(id: string): Message | undefined {
+      const was = repo.get(id);
+      if (!was) return undefined;
+      const last = one(
+        qb
+          .selectFrom("messages")
+          .select((eb) => eb.fn.max("seq").as("seq"))
+          .where("thread_id", "=", was.thread_id),
+      );
+      if (Number(last?.seq ?? 0) === was.seq) return was;
+      const seq = Number(last?.seq ?? 0) + 1;
+      run(qb.updateTable("messages").set({ seq }).where("id", "=", id));
+      const out = { ...was, seq };
+      bus.emit({ type: "message.updated", message: out });
+      return out;
+    },
+    /** Gives these messages of one thread these places (a permutation of the places they hold). */
+    reseat(threadId: string, places: ReadonlyArray<{ id: string; seq: number }>): Message[] {
+      // Out of the way first: each seq is unique in its thread.
+      for (const p of places)
+        run(qb.updateTable("messages").set({ seq: -p.seq }).where("id", "=", p.id).where("thread_id", "=", threadId));
+      for (const p of places)
+        run(qb.updateTable("messages").set({ seq: p.seq }).where("id", "=", p.id).where("thread_id", "=", threadId));
+      const out = places.flatMap((p) => repo.get(p.id) ?? []);
+      for (const m of out) bus.emit({ type: "message.updated", message: m });
+      return out;
     },
     /** Stores the parts and announces only the one that changed. */
     setPart(message: Message, index: number): void {
