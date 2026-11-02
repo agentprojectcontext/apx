@@ -16,6 +16,7 @@ import { createHooks } from "./engine/hooks.ts";
 import type { Permissions } from "./engine/permissions.ts";
 import { applyProfile, listProfiles, type ProfileRoot } from "./engine/profiles.ts";
 import type { Upkeep } from "./engine/upkeep.ts";
+import { usageChoices } from "./engine-usage/preferences.ts";
 import type { Computer } from "./environments/computer.ts";
 import { errorMessage } from "./errors.ts";
 import { createExtensions } from "./extensions/extensions.ts";
@@ -105,6 +106,7 @@ import { messageTools } from "./tools/message.ts";
 import { ownerTools } from "./tools/owner.ts";
 import { phoneTools } from "./tools/phone.ts";
 import { planTools } from "./tools/plan.ts";
+import { planUsageTools } from "./tools/plan-usage.ts";
 import { requestTools } from "./tools/requests.ts";
 import { routineTools } from "./tools/routines.ts";
 import { settingsTools } from "./tools/settings.ts";
@@ -167,6 +169,7 @@ export function builtinTools(
   /** Where agent profiles and agent templates are found, for the super-agent's settings. */
   roots?: Parameters<typeof settingsTools>[1],
   vm?: Computer,
+  linkedChatGpt: () => boolean = () => false,
 ): Tool[] {
   const tools = [
     ...agentTools(store),
@@ -184,6 +187,7 @@ export function builtinTools(
     ...directoryTools(store),
     ...routineTools(store),
     ...limitTools(store),
+    ...planUsageTools(() => Object.values(usageChoices(store.settings, linkedChatGpt())).some(Boolean)),
     ...skillTools(store, { home, apps: skillApps }),
     ...memoryTools(store),
     ...mediaTools(store, home, vm),

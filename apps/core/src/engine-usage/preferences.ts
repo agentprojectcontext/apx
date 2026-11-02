@@ -5,13 +5,18 @@ import { cachedEngineUsage } from "./cache.ts";
 type Preferences = Record<string, boolean>;
 const canonical = (id: string) => (id === "acp:opencode" ? "opencode" : id);
 
+export const usageChoices = (settings: Store["settings"], linked: boolean): Preferences => ({
+  codex: linked,
+  ...settings.read("engine_usage"),
+});
+
 /** Opting out stops probes as well as hiding cached account metadata. */
 export function usagePreferences(
   settings: Store["settings"],
   makeReader: (enabled: (id: string) => boolean) => () => Promise<EngineUsageReport>,
   linked: () => boolean,
 ) {
-  const get = () => ({ engines: { codex: linked(), ...settings.read("engine_usage") } });
+  const get = () => ({ engines: usageChoices(settings, linked()) });
   const enabled = (prefs: Preferences, id: string) => prefs[canonical(id)] === true;
   let key: string | undefined;
   let read: (() => Promise<EngineUsageReport>) | undefined;

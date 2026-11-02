@@ -92,6 +92,24 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "plan-usage-tool",
+    since: "2.13.0",
+    title: { en: "Ask about your plan quotas", es: "Consultá las cuotas de tus planes" },
+    about: {
+      en: "Ask your agent for reported plan usage and reset times across your usage-enabled accounts, not just its current model.",
+      es: "Pedile a tu agente el consumo informado y los reinicios de tus cuentas con Uso activado, sin limitarte a su modelo actual.",
+    },
+    applies: (facts) => Boolean(facts.claude || facts.codex),
+    text: "Use plan_usage to read the AI usage menu's account quotas for all usage-enabled engines, or filter with query by engine id or provider/plan name. Claude and Codex currently report windows; other engines may be unsupported or unavailable. Keep checked_at and missing data explicit, never infer zero usage. This is a read-only query, not proactive monitoring or automatic stopping.",
+    actions: [
+      {
+        label: { en: "Check plan quotas", es: "Consultar cuotas" },
+        prompt:
+          "Check the reported quotas and reset times for all my usage-enabled plans. Tell me which data is unavailable.",
+      },
+    ],
+  },
+  {
     id: "email-cards",
     since: "2.13.0",
     title: { en: "Emails as cards in the chat", es: "Los emails, como tarjetas en el chat" },

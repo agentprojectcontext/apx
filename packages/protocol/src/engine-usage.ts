@@ -41,6 +41,5 @@ export const engineUsageMethods = {
     params: z.object({}).strict(),
     result: EngineUsageReport,
     effect: false,
-    access: "human",
   },
 } as const satisfies Record<string, MethodDef>;

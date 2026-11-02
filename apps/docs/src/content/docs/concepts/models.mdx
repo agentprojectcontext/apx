@@ -143,6 +143,18 @@ plan; Codex metadata still needs its separately linked local CLI account. Turnin
 hides cached results. Your explicit choice is remembered. Chat tokens, costs and context usage remain separate
 from these account limits.
 
+On the unreleased integration branch, ask your agent “Check all my plan quotas” or “How much of my Claude weekly
+limit have I used?” The read-only `plan_usage` tool shares the menu's source, preferences and cache (up to 60 seconds),
+regardless of the agent's current model. The tool is offered when at least one engine has Usage enabled. Omit `query` for all usage-enabled engines, or filter by a provider/plan name
+or engine id (`Claude`, `Claude Auto`, `Codex`, `ChatGPT`, `Cursor`). It returns reported percentages, window durations,
+reset times and the report's check time. Changing the Usage switch still requires the owner.
+
+Only Claude and Codex currently provide quota windows. Other configured engines can report unsupported or unavailable
+limits. A disabled or unknown account may be absent entirely; a missing match is not zero usage. `not_available` means
+the source returned no usable data, not a confirmed empty balance; it cannot distinguish every CLI error from missing
+account data. Failed requests remain errors. This source does not identify subscription tiers or multiple accounts per
+engine. No proactive warnings or automatic stopping are added.
+
 ## From the terminal
 
 <Terminal command="apx models">{`claude — Claude Code

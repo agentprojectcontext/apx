@@ -385,6 +385,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     config.runtimeSkills.homes,
     { profiles: profileRoots, templates: templateRoots },
     vm,
+    () => secrets.listed("chatgpt_login"),
   );
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
   // The router exists only after the engine, hence the late binding.
