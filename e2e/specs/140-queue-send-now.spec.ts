@@ -1,4 +1,4 @@
-// Writing while the agent works (DECISIONS.md#d-185): Ctrl/⌘+Enter puts a message in line, where it is edited, moved
+// Writing while the agent works (DECISIONS.md#d-186): Ctrl/⌘+Enter puts a message in line, where it is edited, moved
 // and removed before its turn; Enter sends it into the running turn, and "Send now" stops the step it is on so the
 // agent reads it at once. What is in line then runs in its order, each above its answer.
 import { expect, open, rpc, test } from "./kit.ts";

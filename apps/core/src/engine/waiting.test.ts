@@ -1,6 +1,6 @@
 // The owner's words written while their agent works: sent (the turn takes them at its next step), "send now" (the
 // step in progress stops and the turn takes them at once), and in line (they wait for the turn to end, and can be
-// edited, moved or removed until it starts). See DECISIONS.md#d-185.
+// edited, moved or removed until it starts). See DECISIONS.md#d-186.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import type { Message } from "@apx/protocol";

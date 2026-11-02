@@ -1159,7 +1159,7 @@ export const MIGRATIONS: readonly string[] = [
   `,
   // Existing model labels have unknown provenance and remain NULL.
   `ALTER TABLE messages ADD COLUMN model_reported INTEGER;`,
-  // The owner's words their agent has not taken yet, and the order waiting turns start in (DECISIONS.md#d-185).
+  // The owner's words their agent has not taken yet, and the order waiting turns start in (DECISIONS.md#d-186).
   `
   ALTER TABLE messages ADD COLUMN waiting TEXT;
   ALTER TABLE runs ADD COLUMN queue_order INTEGER;

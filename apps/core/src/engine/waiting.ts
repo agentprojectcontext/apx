@@ -1,4 +1,4 @@
-// The owner's words written while their agent works (DECISIONS.md#d-185): sent ones its running turn takes at the
+// The owner's words written while their agent works (DECISIONS.md#d-186): sent ones its running turn takes at the
 // next step, and the ones they put in line, which wait for that turn to end and can be edited, removed or moved first.
 
 import type { Message } from "@apx/protocol";

@@ -299,7 +299,7 @@ notice when there is no text. Tools that touch core state call protocol methods 
   message carries `waiting: {until: "step"}` until the loop takes it. `runs.send_now` cuts the step in progress
   (`TurnIO.stepSignal`) so the loop takes it at once. `mode: "queue"` while a turn works puts the message in line
   (`waiting: {until: "turn", run}`), ordered by `runs.queue_order`; `runs.update_queued`, `runs.reorder` and
-  `runs.remove_queued` change it until the run starts (`engine/waiting.ts`, [D-185](DECISIONS.md#d-185)).
+  `runs.remove_queued` change it until the run starts (`engine/waiting.ts`, [D-186](DECISIONS.md#d-186)).
 
 On start, `engine/recovery.ts` closes runs a crash cut (effect UNKNOWN for started tools), expired inputs and cut
 jobs are closed, and queued runs are picked up.

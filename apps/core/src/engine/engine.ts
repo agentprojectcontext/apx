@@ -326,7 +326,7 @@ export function createEngine(deps: {
   });
 
   function admit(a: Admit): RunRecord {
-    // The owner's words from the app wait in line when a turn is ahead of them (DECISIONS.md#d-185).
+    // The owner's words from the app wait in line when a turn is ahead of them (DECISIONS.md#d-186).
     const asked = a.trigger === "user" && a.origin.kind === "user" && !a.resume_of ? a.origin.message_id : undefined;
     const behind = Boolean(asked) && (busy.has(a.thread_id) || Boolean(store.runs.nextQueued(a.thread_id)));
     const run = store.runs.create({
@@ -421,7 +421,7 @@ export function createEngine(deps: {
         for (const s of taken) if (s.message_id) store.messages.setWaiting(s.message_id, undefined);
         return taken.map((s) => (s.apx ? s.text : `${OWNER_ADDS}\n${s.text}`));
       };
-      // What the owner's "send now" aborts: the step in progress, never the turn (DECISIONS.md#d-185).
+      // What the owner's "send now" aborts: the step in progress, never the turn (DECISIONS.md#d-186).
       const stepSignal = () => {
         if (entry.cut.signal.aborted) entry.cut = new AbortController();
         return entry.cut.signal;

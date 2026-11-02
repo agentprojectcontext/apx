@@ -30,7 +30,7 @@ const IMAGE_TYPES = "image/png,image/jpeg,image/webp,image/gif";
 /**
  * The chat's composer, left to right: + (file, image), the chat's model, then how full the chat is (opens Usage),
  * the mic (records audio with its words) and send. While the agent works, Enter sends (its next step reads it) and
- * Ctrl/⌘+Enter puts it in line for when it finishes (DECISIONS.md#d-185).
+ * Ctrl/⌘+Enter puts it in line for when it finishes (DECISIONS.md#d-186).
  * A field starting with "/" opens the command and skill menu.
  * Files also arrive dragged or pasted. What is typed stays as the chat's draft until it is sent.
  * A new chat (see newChat.ts) is made with its first message; `onMade` then opens it (by default, where it was).

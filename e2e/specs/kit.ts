@@ -134,12 +134,26 @@ export const test = base.extend<{
   cornerCards: boolean;
   welcome: boolean;
   desktopInstallNotice: boolean;
+  diskWarning: boolean;
 }>({
   // The corner cards and the welcome cover what sits under them, so they start closed unless a spec is about them.
   cornerCards: [false, { option: true }],
   welcome: [false, { option: true }],
   desktopInstallNotice: [false, { option: true }],
-  page: async ({ page, cornerCards, welcome, desktopInstallNotice }, use) => {
+  // The machine running the tests may be short of disk: its warning card stays out unless a spec is about it.
+  diskWarning: [false, { option: true }],
+  page: async ({ page, cornerCards, welcome, desktopInstallNotice, diskWarning }, use) => {
+    if (!diskWarning) {
+      const gb = 1024 ** 3;
+      await page.route("**/rpc/storage.status", (route) =>
+        route.fulfill({
+          json: {
+            ok: true,
+            result: { free_bytes: 100 * gb, total_bytes: 500 * gb, low: false, threshold_bytes: 5 * gb },
+          },
+        }),
+      );
+    }
     if (!desktopInstallNotice) {
       await page.route("**/rpc/desktop.install_status", (route) =>
         route.fulfill({

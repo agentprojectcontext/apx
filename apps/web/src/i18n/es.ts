@@ -252,6 +252,11 @@ export const es: Partial<Record<MessageKey, string>> = {
   "update.cardCta": "Ver novedades",
   "corner.label": "Novedades e invitaciones",
   "community.title": "Sumate a la comunidad",
+  "storage.cardTitle": "Tu disco está casi lleno",
+  "storage.cardDesc": "Quedan {free}. Cuando se acabe, APX no podrá guardar chats ni archivos.",
+  "storage.cardCta": "Ver almacenamiento",
+  "storage.bannerText": "Disco casi lleno: quedan {free}",
+  "storage.bannerCta": "Revisar",
   "v1.cardTitle": "APX v1 sigue prendido",
   "v1.cardDesc":
     "Tus rutinas y bots pueden correr dos veces. Apagá v1 y que apx sea esta versión; los archivos de v1 quedan.",
@@ -1073,6 +1078,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "config.agents": "Agentes",
   "config.browser": "Navegador",
   "config.advanced": "Avanzado",
+  "config.storage": "Almacenamiento",
   "config.logs": "Registros",
   "logs.lead":
     "Lo que el core escribe mientras corre: qué arrancó, qué falló y por qué. Lo más nuevo primero, se actualiza cada pocos segundos.",

@@ -127,6 +127,7 @@ import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
 import { syncRuntimeSkills } from "./skills/runtimes.ts";
 import { skillsFor } from "./skills/skills.ts";
+import { createStorage, type StorageOptions } from "./storage.ts";
 import { createTelemetry } from "./telemetry.ts";
 import { type TelemetrySink, telemetrySink } from "./telemetry-sink.ts";
 import { createTerminals } from "./terminal/terminals.ts";
@@ -199,6 +200,8 @@ export type CoreOptions = {
   releases?: ReleaseSource;
   /** The Linux VM's memory and disk for system.usage; none until a VM is set up. */
   vmUsage?: UsageOptions["vm"];
+  /** The free and total bytes of the disk holding the home (tests stand in a full one). */
+  storageDisk?: StorageOptions["disk"];
   /** Reads a project folder at start (by default in a worker thread); tests hold one or answer it. */
   projectRead?: ReadProjectFiles;
 };
@@ -208,6 +211,11 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const identity = readIdentity(config.home);
   const db = openDb(config.home);
   const bus = createBus();
+  const storage = createStorage({
+    home: config.home,
+    onChange: () => bus.emit({ type: "storage.changed" }),
+    ...(opts.storageDisk ? { disk: opts.storageDisk } : {}),
+  });
   // The engine exists by the time a command ends.
   const terminals = createTerminals({ bus, commandEnded: (e) => wakeAfterCommand(store, engine.admit, e) });
   const store = createStore(db, bus);
@@ -620,6 +628,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     openHeld: () => channels.openHeld((a) => engine.admit(a)),
     flowTick: (at) => flows.tick(at),
     checks: (remind) => [
+      storage.check,
       calendarReminders({
         store,
         source: {
@@ -745,7 +754,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       updates,
       telemetry,
       news,
-      usage: createUsage({ home: config.home, vm: opts.vmUsage ?? (() => vm.monitored()) }),
+      usage: createUsage({ home: config.home, storage, vm: opts.vmUsage ?? (() => vm.monitored()) }),
+      storage,
       panel: () => panelEntry(servedPanel(config)),
       profileRoots,
       templateRoots,
