@@ -1159,4 +1159,9 @@ export const MIGRATIONS: readonly string[] = [
   `,
   // Existing model labels have unknown provenance and remain NULL.
   `ALTER TABLE messages ADD COLUMN model_reported INTEGER;`,
+  // Where a task's work must arrive, and the owner's own words behind it (a JSON list), read first on every turn.
+  `
+  ALTER TABLE tasks ADD COLUMN goal TEXT;
+  ALTER TABLE tasks ADD COLUMN asked TEXT;
+  `,
 ];

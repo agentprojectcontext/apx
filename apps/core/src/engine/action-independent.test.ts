@@ -17,6 +17,7 @@ for (const taskFirst of [true, false]) {
       const results = req.messages.filter((m) => m.role === "tool");
       const startTask = () =>
         callTool("task", "task_create", {
+          goal: "Done as asked",
           title: "Analyze report",
           description: "Analyze the quarterly report.",
           assignee: "vera",

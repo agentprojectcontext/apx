@@ -699,6 +699,8 @@ export interface TasksTable {
   reviewer: string | null;
   plan: string | null;
   proposed: Generated<number>;
+  goal: string | null;
+  asked: string | null;
 }
 
 export interface ThreadsTable {

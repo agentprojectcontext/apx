@@ -89,6 +89,7 @@ export const officeMethods = {
       .object({
         title: z.string().trim().min(1).max(200),
         description: z.string().max(10_000).optional(),
+        goal: z.string().trim().max(500).optional(),
         attachments: z.array(Id).max(20).optional(),
         project: Id.optional(),
         assignee: Id.optional(),
@@ -132,6 +133,7 @@ export const officeMethods = {
         start_at: z.string().max(40).nullable().optional(),
         /** Who checks it in review: "owner" or an agent (id or name); null: the owner again. */
         reviewer: z.string().max(80).nullable().optional(),
+        goal: z.string().trim().max(500).nullable().optional(),
         plan: z.string().max(4000).nullable().optional(),
         /** false accepts a proposal (the owner only): its work starts as if it had just been given. */
         proposed: z.literal(false).optional(),

@@ -17,6 +17,7 @@ for (const mode of ["held", "scheduled"] as const) {
         return afterTool
           ? say("Scheduled.")
           : callTool("old", "task_create", {
+              goal: "Done as asked",
               title: "Deferred analysis",
               description: "Analyze the earlier report.",
               assignee: "vera",
@@ -25,6 +26,7 @@ for (const mode of ["held", "scheduled"] as const) {
       if (said !== "Start current analysis.") return say("Results received.");
       if (!afterTool)
         return callTool("current", "task_create", {
+          goal: "Done as asked",
           title: "Current analysis",
           description: "Analyze the current report.",
           assignee: "vera",

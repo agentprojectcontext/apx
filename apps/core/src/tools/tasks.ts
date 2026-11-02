@@ -24,6 +24,8 @@ const attachmentsArg = z
   .describe(
     "selected med_ ids or readable file paths to snapshot into the task; include the request's relevant screenshot",
   );
+const goalArg = z.string().trim().max(500).optional().describe("what the owner checks to call it done");
+const descriptionArg = z.string().max(3000).optional();
 const isMediaId = (value: string) => /^med_[0-9a-f]{16}$/.test(value);
 const attachmentIds = async (refs: string[] | undefined, ctx: ToolContext) =>
   refs &&
@@ -266,10 +268,11 @@ export function taskTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "First task_list: if an open task is the same or close, continue that one. Record requested tasks or track substantial work, not every action. Capture only: omit assignee; nothing starts. To execute, give assignee and description (subtasks too): assignment already starts a task session; never also delegate that work. Immediate self-assignment transfers execution: end this turn. Reviews or another area's work: propose it; a delegate proposes to its caller. A global agent's task goes to the assignee's project. A promise: person, owed_by, due_at.",
+        "First task_list: if an open task is the same or close, continue that one. Record requested tasks or track substantial work, not every action. Capture only: omit assignee; nothing starts. To execute, give assignee, goal and a description in short Markdown lines: assignment starts its session, never also delegate it. Self-assigning now transfers execution: end this turn. Reviews or another area's work: propose it (a delegate, to its caller). A promise: person, owed_by, due_at.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
-        description: z.string().max(5000).optional(),
+        goal: goalArg,
+        description: descriptionArg,
         attachments: attachmentsArg,
         assignee: z.string().max(80).optional(),
         project: z.string().min(1).max(80).optional().describe("project id; super-agent only"),
@@ -282,7 +285,12 @@ export function taskTools(store: Store, home: string): Tool[] {
       effect: "local",
       outside: outsideAssets,
       confirm: handsOff,
-      check: (a, ctx) => checkNamed(a, a.due_at, taskProject(store, { id: ctx.agent.id, thread_id: ctx.thread.id }, a)),
+      check: (a, ctx) => {
+        checkNamed(a, a.due_at, taskProject(store, { id: ctx.agent.id, thread_id: ctx.thread.id }, a));
+        // Work handed on needs its arrival point, or whoever does it cannot tell when it drifts (DECISIONS.md#d-185).
+        if (a.assignee && !a.propose && !a.goal?.trim())
+          throw badRequest("goal: say in a line where this work must arrive, as the owner would check it");
+      },
       deadlineMs: 5_000,
       title: (a) => `Created the task ${String(a.title ?? "").slice(0, 60)}`,
       async run(a, ctx) {
@@ -314,7 +322,8 @@ export function taskTools(store: Store, home: string): Tool[] {
         status: z.string().max(40).optional(),
         assignee: z.string().max(80).nullable().optional(),
         title: z.string().trim().min(3).max(200).optional(),
-        description: z.string().max(5000).optional(),
+        goal: z.string().trim().max(500).optional(),
+        description: descriptionArg,
         attachments: attachmentsArg,
         awaits_owner: z.boolean().optional(),
         why: z
@@ -324,7 +333,7 @@ export function taskTools(store: Store, home: string): Tool[] {
           .optional()
           .describe("with awaits_owner:true, what the owner must do or decide"),
         reviewer: z.string().max(80).optional().describe('"owner" or agent'),
-        plan: z.string().max(4000).optional().describe("the steps, marked done as you go; replaces the last"),
+        plan: z.string().max(4000).optional().describe("- [x] done, - [~] doing, - [ ] next"),
         ...shapeArgs,
         ...commitmentArgs,
       }),

@@ -32,7 +32,7 @@ const PLANS: Record<string, Plan[]> = {
     () => ({ name: "read_page", args: {} }),
     () => ({ name: "remember", args: { text: "The owner likes short answers.", scope: "agent" } }),
     () => ({ name: "notify_owner", args: { text: "The report is ready." } }),
-    () => ({ name: "task_create", args: { title: "Check the invoices" } }),
+    () => ({ name: "task_create", args: { goal: "Done as asked", title: "Check the invoices" } }),
     (last) => ({ name: "task_close", args: { task: /created (\S+) in/.exec(last)?.[1] ?? "", state: "done" } }),
     () => ({ name: "send_file", args: { path: "report.md" } }),
     () => ({ name: "open_document", args: { path: "report.md" } }),
@@ -63,7 +63,10 @@ const PLANS: Record<string, Plan[]> = {
   ],
   "hand it on": [
     () => ({ name: "read_page", args: {} }),
-    () => ({ name: "task_create", args: { title: "Check the page", assignee: agents.Free ?? "" } }),
+    () => ({
+      name: "task_create",
+      args: { goal: "Done as asked", title: "Check the page", assignee: agents.Free ?? "" },
+    }),
     (last) => ({ name: "task_comment", args: { task: /created (\S+) in/.exec(last)?.[1] ?? "", text: "@free look" } }),
   ],
   "ask careful": [() => ({ name: "delegate", args: { agent: "Careful", task: "check it, then stamp it" } })],
