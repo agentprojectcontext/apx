@@ -275,7 +275,11 @@ export function createComputer(o: {
           await d.activate(app).catch(() => {});
           ready();
           await d.click(app, x, y, signal);
-          ready();
+          try {
+            ready();
+          } catch {
+            throw new Error("clicked just as computer use stopped; do not retry");
+          }
           how = `a real click (nothing there takes a press: ${done.replace(/^none:? ?/, "")})`;
         }
         o.cursor.pulse();

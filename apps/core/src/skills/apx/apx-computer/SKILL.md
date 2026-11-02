@@ -33,9 +33,8 @@ Windows retains the existing Electron indicator.
 `screen_do` accepts `pointer: "visible"` for a native accessible press that leaves the physical pointer alone. Only
 the destination app, window and control are checked; no idle wait, starting-point check or route inspection is needed.
 Recognized web content, secure fields and unreadable or unsupported destinations refuse. There is no physical-click
-fallback or automatic retry in this mode. Without this option, coordinate clicks still try accessibility. Physical
-mouse fallback is disabled on macOS: if a control cannot be pressed or focused through accessibility, ask the owner
-to click it. Do not retry an uncertain accessibility result.
+fallback or automatic retry in this mode. Without this option, coordinate clicks try accessibility first; when nothing
+at the point takes a press, the pointer jumps there, clicks and comes straight back. Do not retry an uncertain result.
 Never claim a refused control was activated. General native runtime and safety validation remain bounded by the
 preview's evidence; one synthetic fixture is not proof of support for every app.
 

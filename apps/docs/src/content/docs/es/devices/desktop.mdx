@@ -78,9 +78,8 @@ dibujado; tu puntero físico queda donde está. Windows conserva su indicador ac
 Los agentes pueden pedir `pointer: "visible"` en `screen_do` para una activación accesible nativa. Ese modo verifica
 la app, la ventana y el control de destino; rechaza contenido web reconocido, campos protegidos y destinos que no
 puede inspeccionar. No inspecciona el origen ni el recorrido de tu puntero y no lo mueve. Los controles no compatibles
-fallan sin clic físico alternativo ni reintento automático. Sin esta opción, los clics por coordenadas siguen intentando
-usar accesibilidad. El clic físico alternativo está deshabilitado en macOS: si un control no se puede activar o enfocar
-por accesibilidad, APX te pide que hagas clic vos.
+fallan sin clic físico alternativo ni reintento automático. Sin esta opción, los clics por coordenadas intentan primero
+por accesibilidad; si el control no lo acepta, tu puntero salta ahí, hace clic y vuelve enseguida a donde lo tenías.
 
 El indicador queda visible entre acciones y se oculta ante el freno de emergencia o una desconexión. El freno de
 emergencia, desactivar el uso de la computadora, cambiar de conexión o salir cancela el gesto, incluido un clic en

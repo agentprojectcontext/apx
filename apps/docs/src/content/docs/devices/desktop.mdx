@@ -75,8 +75,8 @@ Windows keeps its existing indicator.
 Agents can request `pointer: "visible"` in `screen_do` for a native accessible press. That mode checks the destination
 app, window and control, refusing recognized web content, secure fields and destinations it cannot inspect. It does
 not inspect your pointer's origin or route, and does not move it. Unsupported controls fail without a physical-click
-fallback or automatic retry. Without this option, coordinate clicks still try accessibility. Physical mouse fallback
-is disabled on macOS: if a control cannot be pressed or focused through accessibility, APX asks you to click it.
+fallback or automatic retry. Without this option, coordinate clicks try accessibility first; when the control does not
+take it, your pointer jumps there, clicks and comes straight back to where you had it.
 
 The indicator stays visible between actions and hides on emergency stop or disconnection. The emergency stop,
 turning computer use off, changing connections or quitting cancels the gesture, including a queued click not yet

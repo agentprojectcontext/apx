@@ -28,8 +28,9 @@ The native 20-point white/green cursor uses a quadratic curve with a 20% perpend
 label. It stays between actions and hides on stop/disconnection. Windows keeps the Electron indicator.
 Only the drawn cursor travels. The explicit native accessible mode performs one AXPress without moving the physical
 pointer, validating the destination app/window/control, not origin, idle time or trajectory. Recognized web content
-and secure or unsupported controls refuse without physical fallback or uncertain retry. macOS physical mouse fallback
-is disabled in the coordinate path too; unsupported controls require the owner to click. Stop cancels queued undelivered clicks.
+and secure or unsupported controls refuse without physical fallback or uncertain retry. In the coordinate path a
+control without a press still gets a physical click (jump, click, pointer restored); Stop can end the wait for the
+owner's mouse but never splits mouse down from up, and cancels queued undelivered clicks.
 These are unreleased development contracts with bounded fixture evidence, not general product validation.
 
 Desktop supervises only a bundled child for its explicitly local home/port. URL and SSH connections never grant

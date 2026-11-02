@@ -7,6 +7,12 @@ import { parseKeys } from "./keys.ts";
 const OSA_MS = 15_000;
 /** Reading every element of a window, within the core's deadline for a look (the picture still has to follow). */
 const ELEMENTS_MS = 4_000;
+/**
+ * A real click waits for the owner's mouse to rest this long, and gives up after the wait: long enough for them to
+ * approve the click and let go (inside the core's deadline for a click).
+ */
+const MOUSE_IDLE_S = 0.5;
+const MOUSE_WAIT_MS = 20_000;
 
 function osa(
   script: string,
@@ -209,6 +215,50 @@ function run(argv) {
   return "none: " + (seen.join(" < ") || "no element at that point");
 }`;
 
+/** Waits for a pause in the owner's mouse, since a click mixed with their movement is lost. Stop may end the wait. */
+const MOUSE_IDLE = `
+function idle() {
+  let least = 1e9;
+  for (const t of [$.kCGEventMouseMoved, $.kCGEventLeftMouseDragged, $.kCGEventRightMouseDragged, $.kCGEventLeftMouseDown, $.kCGEventRightMouseDown, $.kCGEventScrollWheel])
+    least = Math.min(least, $.CGEventSourceSecondsSinceLastEventType($.kCGEventSourceStateHIDSystemState, t));
+  return least;
+}
+function run() {
+  ObjC.import("CoreGraphics");
+  const until = Date.now() + ${MOUSE_WAIT_MS};
+  while (idle() < ${MOUSE_IDLE_S}) {
+    if (Date.now() > until) throw new Error("the owner kept using their mouse for ${MOUSE_WAIT_MS / 1000} seconds, so nothing was clicked: ask them to leave it still for a moment, then try again");
+    delay(0.1);
+  }
+  return "idle";
+}`;
+
+/**
+ * A real mouse click, when nothing at the point takes a press: the pointer jumps there, clicks and comes straight back
+ * to where the owner had it. Refused if another app's window covers the point. argv = app, x, y.
+ */
+const CLICK = `
+function run(argv) {
+  ObjC.import("CoreGraphics");
+  const procs = Application("System Events").processes.whose({ name: argv[0] })();
+  if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
+  const pid = procs[0].unixId();
+  const x = Number(argv[1]);
+  const y = Number(argv[2]);
+  const list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionOnScreenOnly | $.kCGWindowListExcludeDesktopElements, 0)));
+  const top = list.find((w) => w.kCGWindowLayer === 0 && w.kCGWindowBounds && x >= w.kCGWindowBounds.X && x < w.kCGWindowBounds.X + w.kCGWindowBounds.Width && y >= w.kCGWindowBounds.Y && y < w.kCGWindowBounds.Y + w.kCGWindowBounds.Height);
+  if (!top || top.kCGWindowOwnerPID !== pid) throw new Error("another window covers that point (" + (top ? top.kCGWindowOwnerName : "none") + "): take a new screen_snapshot");
+  const back = $.CGEventGetLocation($.CGEventCreate(null));
+  const p = $.CGPointMake(x, y);
+  for (const type of [$.kCGEventMouseMoved, $.kCGEventLeftMouseDown, $.kCGEventLeftMouseUp]) {
+    $.CGEventPost($.kCGHIDEventTap, $.CGEventCreateMouseEvent(null, type, p, $.kCGMouseButtonLeft));
+    delay(0.03);
+  }
+  $.CGWarpMouseCursorPosition(back);
+  $.CGAssociateMouseAndMouseCursorPosition(true);
+  return argv[0];
+}`;
+
 /**
  * Types into the app's focused field through accessibility (inserted at the caret), in front or not. argv = app,
  * text. Returns "typed", or "no" when that field does not take it.
@@ -328,7 +378,6 @@ async function front(withElements: boolean): Promise<Front> {
 }
 
 export const macDriver: ComputerDriver = {
-  physicalClickSupported: false,
   front,
   activate: (app) => osa(ACTIVATE, [app]).then(() => {}),
   async topAt(x, y) {
@@ -350,10 +399,11 @@ export const macDriver: ComputerDriver = {
     return osa(KEY, [app, String(k.code), String(k.flags)], "JavaScript");
   },
   press: (app, x, y, signal) => osa(AX_PRESS, [app, String(x), String(y)], "JavaScript", OSA_MS, signal),
-  async click() {
-    throw new Error(
-      "not clicked: physical mouse fallback is disabled on macOS; use a control that supports accessibility or ask the owner to click",
-    );
+  async click(app, x, y, signal) {
+    await osa(MOUSE_IDLE, [], "JavaScript", MOUSE_WAIT_MS + 2_000, signal);
+    if (signal.aborted) throw new Error("computer action cancelled before delivery");
+    // No signal: killed between mouse down and up, the owner's button would stay pressed and the pointer astray.
+    await osa(CLICK, [app, String(x), String(y)], "JavaScript");
   },
   insert: (app, text) => osa(AX_TYPE, [app, text], "JavaScript").then((r) => r === "typed"),
   paste: (app, text) => osa(TYPE, [app, text], "JavaScript").then(() => {}),

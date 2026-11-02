@@ -58,16 +58,39 @@ test("legacy accessibility never launches an already cancelled action", async ()
   assert.equal(launches, before);
 });
 
-for (const aborted of [false, true]) {
-  test(`macOS physical fallback refuses before launching any input process (cancelled: ${aborted})`, async () => {
-    const controller = new AbortController();
-    if (aborted) controller.abort();
-    const before = launches;
-    await assert.rejects(macDriver.click("Acme", 10, 20, controller.signal), /physical mouse fallback is disabled/);
-    assert.equal(launches, before);
-    assert.equal(kills, 1);
-  });
-}
+test("a physical click already cancelled never launches input", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const before = launches;
+  await assert.rejects(macDriver.click("Acme", 10, 20, controller.signal), /cancelled before delivery/);
+  assert.equal(launches, before);
+});
+
+test("stop while waiting for the owner's mouse cancels the click before any input", async () => {
+  const controller = new AbortController();
+  const before = { launches, kills };
+  const result = macDriver.click("Acme", 10, 20, controller.signal);
+  const rejected = assert.rejects(result, /cancelled/);
+  controller.abort();
+  assert.equal(kills, before.kills + 1);
+  finish(Object.assign(new Error("killed"), { killed: true }), "", "");
+  await rejected;
+  assert.equal(launches, before.launches + 1);
+});
+
+test("stop during the physical click lets it finish so the mouse button is released", async () => {
+  const controller = new AbortController();
+  const before = { launches, kills };
+  const result = macDriver.click("Acme", 10, 20, controller.signal);
+  finish(null, "idle", "");
+  await new Promise((r) => setImmediate(r));
+  assert.equal(launches, before.launches + 2);
+  assert.deepEqual(invokedArgs.slice(-3), ["Acme", "10", "20"]);
+  controller.abort();
+  assert.equal(kills, before.kills);
+  finish(null, "Acme", "");
+  await result;
+});
 
 function accessibilityEnvironment(role: string, fail: boolean) {
   let effects = 0;

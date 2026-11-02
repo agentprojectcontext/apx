@@ -274,7 +274,8 @@ test("stop aborts an in-flight legacy driver and keeps the gate until it closes"
     await released.promise;
   };
   const action = s.computer.handle("computer.click", { app: "Acme", x: 10, y: 20 });
-  const rejected = assert.rejects(action, /cancelled/);
+  // The driver finishes its click after the stop: delivered, so reported as such and never retried.
+  const rejected = assert.rejects(action, /clicked just as computer use stopped; do not retry/);
   await entered.promise;
   s.computer.stop();
   assert.equal(signal?.aborted, true);
