@@ -61,6 +61,28 @@ export const NEWS: readonly NewsEntry[] = [
   BROWSER_EDIT_NEWS,
   BROWSER_JAVASCRIPT_NEWS,
   {
+    id: "storage-screen",
+    since: "2.13.0",
+    title: { en: "See and free up APX's disk space", es: "Mirá y liberá el espacio que usa APX" },
+    about: {
+      en: "Settings › Storage shows what APX keeps on your computer by area, and Free up space clears caches and old logs. APX also tells you when your disk is almost full.",
+      es: "Configuración › Almacenamiento muestra lo que APX guarda en tu computadora por área, y Liberar espacio borra la caché y los registros viejos. APX también te avisa cuando tu disco está casi lleno.",
+    },
+    applies: () => true,
+    text:
+      "Settings, Storage now shows how much disk APX uses, split into chats and files, projects, the agents' " +
+      "computers, the browser, local models, logs, caches and backups. Free up space removes only what APX makes " +
+      "again by itself (caches and old logs) and says first how much; chats, memory, files and projects stay. When " +
+      "the disk holding APX has less than 5 GB free, the panel says so with a link to that screen. Only the owner " +
+      "frees space, from the screen.",
+    actions: [
+      {
+        label: { en: "Where do I see it?", es: "¿Dónde lo veo?" },
+        prompt: "Tell me in two lines where I see how much disk APX uses and what Free up space removes.",
+      },
+    ],
+  },
+  {
     id: "email-cards",
     since: "2.13.0",
     title: { en: "Emails as cards in the chat", es: "Los emails, como tarjetas en el chat" },
