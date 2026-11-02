@@ -267,6 +267,7 @@ export function taskHandlers(
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
       if (p.parent) visible(p.parent, ctx);
       const parent = p.parent ?? chatTask(ctx);
+      checkTaskParent(store, undefined, parent, project, agentScope(ctx));
       requireSubtaskWork(ctx, parent, p.assignee, p.description);
       const person = p.person ? personOf(store, p.person) : undefined;
       const due = dueOf(p.due_at);
@@ -363,7 +364,7 @@ export function taskHandlers(
           !cur.description.trim() &&
           Boolean(c.description?.trim()) &&
           store.threads.byTask(cur.id).length === 0;
-        if (moving || parent !== undefined || c.assignee !== undefined || c.description !== undefined)
+        if (moving || c.assignee !== undefined || c.description !== undefined)
           requireSubtaskWork(ctx, taskParent, unassign ? null : keeper, c.description ?? cur.description);
         // Its start moved to now (or cleared) before its work began: it begins now.
         const unscheduled =

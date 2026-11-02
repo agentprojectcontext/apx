@@ -67,6 +67,46 @@ test("existing tasks regroup and detach over HTTP/WS without losing history or s
   }
 });
 
+test("task hierarchy stays in one project when creating and moving tasks", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("Complete.")) });
+  try {
+    env.core.store.projects.upsert({ id: "acme", name: "Acme" });
+    env.core.store.projects.upsert({ id: "northwind", name: "Northwind" });
+    const parent = await env.client.call("tasks.create", { title: "Delivery", project: "acme" });
+    const child = await env.client.call("tasks.create", { title: "Review", parent: parent.id, project: "acme" });
+    for (const project of [undefined, "northwind"]) {
+      await assert.rejects(
+        env.client.call("tasks.create", { title: "Wrong project", parent: parent.id, project }),
+        /same project/,
+      );
+    }
+    for (const task of [parent.id, child.id]) {
+      for (const project of [null, "northwind"]) {
+        await assert.rejects(env.client.call("tasks.update", { task, project }), /detach subtasks|same project/);
+        const unchanged = await env.client.call("tasks.get", { task });
+        assert.equal(unchanged.task.project_id, "acme");
+        assert.equal(unchanged.events.length, 1);
+      }
+    }
+    const moved = await env.client.call("tasks.update", { task: child.id, project: "northwind", parent: null });
+    assert.equal(moved.project_id, "northwind");
+    assert.equal(moved.parent_id, undefined);
+    assert.equal((await env.client.call("tasks.update", { task: parent.id, project: null })).project_id, undefined);
+    const historical = await env.client.call("tasks.create", { title: "Historical review" });
+    await env.client.call("tasks.close", { task: historical.id, state: "done" });
+    const model = new ApxClient({ url: env.core.url, actor: "agent" });
+    const grouped = await model.call("tasks.update", { task: historical.id, parent: parent.id });
+    assert.equal(grouped.parent_id, parent.id);
+    assert.equal(grouped.state, "done");
+    assert.equal(grouped.assignee, undefined);
+    assert.equal(grouped.description, historical.description);
+    assert.deepEqual(env.core.store.threads.byTask(historical.id), []);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
 test("reparenting refuses self, descendant cycles, missing and cross-project parents without partial writes", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("Complete.")) });
   try {

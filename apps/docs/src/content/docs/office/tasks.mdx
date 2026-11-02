@@ -73,6 +73,8 @@ The CLI equivalent is `apx tasks edit <id> --parent <parent-id>`; `--parent ""` 
 `task_update` tool and `tasks.update` protocol method accept `parent` (an existing task ID, or `null` to detach).
 A task cannot become its own parent or sit below one of its descendants. The list nests tasks when both the parent
 and child are present in the current filter; opening the parent also lists its subtasks.
+Detach a child before moving it to another project (or detach and move it in the same update). Detach all
+subtasks before moving their parent. Creating a subtask also requires the same project as its parent.
 
 ## Attachments and task chat actions
 

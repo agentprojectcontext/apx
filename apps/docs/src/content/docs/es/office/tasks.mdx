@@ -75,6 +75,8 @@ Desde la terminal: `apx tasks edit <id> --parent <parent-id>`; `--parent ""` sep
 `task_update` y el método `tasks.update` aceptan `parent` (el ID de una tarea existente o `null` para separarla).
 Una tarea no puede ser su propia madre ni quedar debajo de una descendiente. La lista anida tareas cuando madre
 e hija aparecen en el filtro actual; abrir la madre también muestra sus subtareas.
+Separá una hija antes de moverla a otro proyecto (o separala y movela en la misma actualización). Separá todas
+las subtareas antes de mover su madre. Al crear una subtarea también debe coincidir el proyecto de su madre.
 
 ## Adjuntos y acciones de los chats de una tarea
 
