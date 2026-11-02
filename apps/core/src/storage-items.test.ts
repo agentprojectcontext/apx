@@ -12,6 +12,7 @@ import { createStorageItems, type ManagedComputer } from "./storage-items.ts";
 import { removeDir, type TempDir, tempDir } from "./testkit/platform.ts";
 
 const KB = 1024;
+const GB = KB * KB * KB;
 const LIMITS = { maxEntries: 10_000, deadlineMs: 60_000 };
 
 let dir: TempDir;
@@ -261,6 +262,8 @@ test("through the protocol: list and delete computers and backups, refused while
   const core = await createCore(testConfig({ home: h }), {
     quiet: true,
     computer: { limaHome: path.join(h, "computer", "lima"), instance: "computer", lifecycle },
+    // A plenty disk: on a nearly full machine the low-disk check would tell the panel too.
+    storageDisk: async () => ({ free: 1024 * GB, total: 2048 * GB }),
   });
   const off = core.bus.on((e) => {
     if (e.type === "storage.changed") changed++;

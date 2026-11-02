@@ -48,7 +48,7 @@ async function fixture(mode: string, run: (bin: string, env: NodeJS.ProcessEnv, 
 
 test("Codex reads only supported account quota and closes its child before returning", async () => {
   await fixture("success", async (bin, env, log) => {
-    assert.deepEqual(await readCodexUsage(bin, { env }), [
+    assert.deepEqual(await readCodexUsage(bin, { env, runTimers: manualTimers() }), [
       { id: "primary", window_minutes: 300, used_percent: 25, resets_at: new Date(1800000000000).toISOString() },
       { id: "secondary", window_minutes: 10080, used_percent: 70 },
     ]);
@@ -68,7 +68,8 @@ test("Codex reads only supported account quota and closes its child before retur
 for (const mode of ["error", "malformed", "empty", "invalid", "exit", "cap"]) {
   test(`Codex ${mode} returns no quota and cleans up`, async () => {
     await fixture(mode, async (bin, env) => {
-      assert.equal(await readCodexUsage(bin, { env, maxBytes: 4096 }), undefined);
+      // Held timers: on a busy machine a real deadline could stop the child before it starts.
+      assert.equal(await readCodexUsage(bin, { env, maxBytes: 4096, runTimers: manualTimers() }), undefined);
     });
   });
 }
