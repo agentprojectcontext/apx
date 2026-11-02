@@ -44,12 +44,39 @@ The OS may delay termination or closure. A hostile descendant retaining descript
 this parent does not promise bounded kill/wait in that case. Its response framing does not establish provenance of
 Electron renderer contents. Do not use this parent to enable mutation or bypass the product broker/policy/stop path.
 
+## Private semantic caller
+
+`observer-reader.ts` composes the transport with `observer-results.ts`; it is still an unregistered laboratory caller,
+not a product adapter. Its trusted launcher still chooses and verifies the executable and authorizes synthetic targets.
+No core, desktop, broker, permission or browser-policy boundary imports it. It does not establish native provenance,
+truthful redaction, safe Electron document ancestry, or privacy of static text and window titles.
+
+Before delivery it copies the command and checks PID/start identity shape and, for observation, membership in the
+current retained selection. It admits one read at a time, refusing concurrent work without cancelling the admitted read.
+The returned result must have exactly the keys for the requested operation, the same PID/start identity, a stable helper
+session, a fresh UUID generation and matching inner/outer generation. Listings admit at most 64 unique handles scoped
+to that session/list generation; absent or duplicate titles must be explicitly ambiguous. A new listing replaces the
+selection. An observation must use the selected handle and the AX-only/no-capture association. It never supplies a
+coordinate or action target.
+
+Trees admit one non-redacted AXWindow root, at most 256 distinct generation-scoped refs and depth 16. Roles are allowlisted; editable roles
+must be redacted, and redacted nodes cannot expose titles or descendants. Titles are optional, at most 128 UTF-8 bytes,
+and limited to the native observer's display-label roles; the caller additionally refuses Unicode control/format
+characters. Unknown fields, values, actions, mixed error/success frames and unknown failure codes are refused, not
+silently stripped. Validated output owns a new tree, so changing the input object afterward cannot change it.
+
+A fixed native error retires selection but permits explicit relisting. A malformed result, invalid command, transport
+failure or explicit stop retires the entire reader and waits for transport shutdown, returning only a fixed error.
+There is no replay or automatic recovery. Generation history is capped at 4096 accepted responses; reaching that cap
+requires explicit creation of a new reader rather than unbounded retention. The same trusted-helper/no-descendants
+shutdown limitation still applies. Checking a redaction flag is not proof that the helper avoided sensitive reads.
+
 ## Verification
 
 From the task worktree:
 
 ```sh
-node --test prototypes/computer-accessibility/owned-observer.test.ts
+node --test prototypes/computer-accessibility/{owned-observer,observer-reader,observer-results,observer-result-limits}.test.ts
 pnpm exec biome check prototypes/computer-accessibility/owned-observer*.ts
 pnpm exec tsc --noEmit --target es2024 --module nodenext --moduleResolution nodenext \
   --strict --skipLibCheck --allowImportingTsExtensions --types node \
@@ -73,6 +100,22 @@ Both returned exactly `INVALID_REQUEST` without a listing or observation and wit
 completed and readiness refused reuse. This exercises
 the real inherited-pipe contract but intentionally performs **no native AX read**, desktop/core request, action,
 cursor movement, or end-to-end improvement measurement.
+
+The private semantic caller additionally passed 57 behavioral tests (47 result/limit checks and ten real Node-child
+reader cases), including PID/launch/session/handle mismatches, generation replay, caps, malformed shapes, disclosure
+fields, secure-node violations, copied inputs/output, concurrent admission and terminal stop. Together with the
+existing transport/bridge/tree suites, 114 tests pass. Targeted strict TypeScript, Biome, test quality and private-data
+gates pass. These checks do not exercise native AX or the product.
+
+A freshly compiled Swift helper also completed two correlated reads for the nonexistent maximum signed PID with
+syntactically valid start identities through `ObserverReader`. Both returned exactly the validated fixed
+`IDENTITY_MISMATCH` result; stop was terminal. This reaches the real process-identity refusal before AX traversal;
+it does not establish positive native-tree compatibility or authorize an app read. Reproduce with:
+
+```sh
+OBSERVER_HELPER="$SCRATCH/ax-validated-observer" OBSERVER_SCRATCH="$SCRATCH" \
+  node prototypes/computer-accessibility/runtime/validated-transport-smoke.ts
+```
 
 The first smoke accidentally targeted an older scratch binary and returned `OBSERVER_EXITED`; recompilation from the
 current source produced the passing result. Neither the older binary failure nor the corrected smoke establishes a
