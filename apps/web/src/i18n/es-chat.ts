@@ -25,7 +25,6 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "waiting.remove": "Quitar",
   "waiting.up": "Subir",
   "waiting.down": "Bajar",
-  "waiting.goesNext": "Queda primero en la cola: este agente lee mensajes nuevos cuando termina lo que está haciendo.",
   "waiting.error": "No se pudo cambiar el mensaje: {error}",
   "composer.send": "Enviar",
   "composer.attachFile": "Archivo",

@@ -57,7 +57,8 @@ You don't have to wait for the agent to finish, and you don't have to stop it:
 - **Ctrl/⌘+Enter** puts the message **in line** for when the agent finishes what it is doing. Messages in line wait
   below the chat with an outlined bubble, in the order they will run. Until their turn starts you can **Edit** them,
   move them **up** or **down**, **Remove** them, or **Send now**. An agent that runs on an outside engine (Claude Code,
-  Codex) only reads new messages between turns: there **Send now** puts the message first in line.
+  Codex) only reads new messages between turns: there Enter leaves the message in line too, and **Send now** stops the
+  turn at work, as **Stop** does, and runs your message right away, ahead of the rest of the line.
 - **Stop** (the square that replaces send) stops everything: the turn at work and the messages in line.
 
 What is in line survives a restart of APX, in its order. Messages that come on a channel (WhatsApp, Telegram) keep

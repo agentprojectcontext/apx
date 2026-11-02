@@ -17,11 +17,10 @@ function keep(threadId: string, messages: Message[]): void {
   }));
 }
 
-/** The agent takes it at once: its current step stops. Says so when it can only go first in line. */
+/** The agent takes it at once: the step in progress stops, or an outside engine's turn does and this one runs. */
 export async function sendNow(message: Message): Promise<void> {
   try {
-    const r = await client.call("runs.send_now", { message: message.id });
-    if (!r.now) notify(t("waiting.goesNext"), "info");
+    await client.call("runs.send_now", { message: message.id });
   } catch (e) {
     notify(t("waiting.error", { error: errText(e) }));
   }
