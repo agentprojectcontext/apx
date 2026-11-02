@@ -31,6 +31,14 @@ export const noticeEn = {
   "notice.breaker.held.agentTokens":
     "Paused for {who}: {who} spent {spent} tokens on its own since you last wrote here, its own limit. It starts “{task}” once you let them go on.",
   "notice.breaker.held.link": "Change the limit",
+  "notice.breaker.paused.progressRuns":
+    "Paused: agents took {spent} turns on “{stuck}” without finishing a step of its plan. {who} finished; write to continue.",
+  "notice.breaker.paused.progressTokens":
+    "Paused: agents spent {spent} tokens on “{stuck}” without finishing a step of its plan. {who} finished; write to continue.",
+  "notice.breaker.held.progressRuns":
+    "Paused: agents took {spent} turns on “{stuck}” without finishing a step of its plan. {who} starts “{task}” once you let them go on.",
+  "notice.breaker.held.progressTokens":
+    "Paused: agents spent {spent} tokens on “{stuck}” without finishing a step of its plan. {who} starts “{task}” once you let them go on.",
   "notice.breaker.reset": "Restart the budget",
   "notice.breaker.release": "Let them finish this round",
   "notice.breaker.wentOn": "Agents went on",
@@ -111,6 +119,14 @@ export const noticeEs: Record<NoticeKey, string> = {
   "notice.breaker.held.agentTokens":
     "En pausa para {who}: {who} gastó {spent} tokens solo desde tu último mensaje acá, su propio límite. Empieza «{task}» cuando los dejes seguir.",
   "notice.breaker.held.link": "Cambiar el límite",
+  "notice.breaker.paused.progressRuns":
+    "En pausa: los agentes hicieron {spent} turnos en «{stuck}» sin terminar un paso de su plan. {who} terminó; escribí para seguir.",
+  "notice.breaker.paused.progressTokens":
+    "En pausa: los agentes gastaron {spent} tokens en «{stuck}» sin terminar un paso de su plan. {who} terminó; escribí para seguir.",
+  "notice.breaker.held.progressRuns":
+    "En pausa: los agentes hicieron {spent} turnos en «{stuck}» sin terminar un paso de su plan. {who} empieza «{task}» cuando los dejes seguir.",
+  "notice.breaker.held.progressTokens":
+    "En pausa: los agentes gastaron {spent} tokens en «{stuck}» sin terminar un paso de su plan. {who} empieza «{task}» cuando los dejes seguir.",
   "notice.breaker.reset": "Reiniciar presupuesto",
   "notice.breaker.release": "Liberar en esta ronda",
   "notice.breaker.wentOn": "Los agentes siguieron",

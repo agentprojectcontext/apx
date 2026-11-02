@@ -110,6 +110,12 @@ Above the description, a task shows where its work must arrive and what you said
 - **Plan**: before working, the agent writes its steps toward the goal and marks each one pending, under way or done
   as it goes. The drawer shows them as a checklist with how many are done. When the work stops leading to the goal,
   the agent tells you what is missing instead of going on.
+- **A pause when it gets nowhere**: if the agents on a task take 12 turns or 2 million tokens without finishing a
+  step of its plan (counted since the last step done or since you last wrote), they pause. You see why in the chat,
+  with the button to let them go on, and once in your notifications. A step done, or your message, starts the count
+  over.
+- **One review per change**: the agent asks for a review when a whole change is done, and the reviewer answers
+  Approved, Approved with notes, or Blocked with the one thing that blocks it. Notes never block.
 
 The description reads as formatted text (lists, bold, links); the pencil opens it to edit.
 

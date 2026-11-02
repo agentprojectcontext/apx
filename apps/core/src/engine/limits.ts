@@ -21,6 +21,12 @@ export const MAX_UNATTENDED_RUNS = 0;
 /** Fresh tokens those unattended turns may spend before the chain pauses: input read from a provider's cache is not
  *  counted (domain/runs.ts). Off by default, like the turns. */
 export const MAX_UNATTENDED_TOKENS = 0;
+/**
+ * What agents may spend on a task without finishing a step of its plan, counted since the last step done, the owner's
+ * last word in its chats or their go on. Past it the chain pauses and the owner is told. On by default: unlike a spend
+ * cap, it only stops work that is not getting anywhere (DECISIONS.md#d-188).
+ */
+export const STUCK_LIMITS = { runs: 12, tokens: 2_000_000 } as const;
 /** What turning the limits on starts from: room for a large feature (a hundred turns seen in real ones). */
 export const SUGGESTED_LIMITS = { runs: 100, tokens: 5_000_000 } as const;
 
