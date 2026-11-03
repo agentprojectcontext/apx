@@ -11,7 +11,7 @@ import {
 } from "@apx/protocol";
 import { assertNavigable as checkNavigable } from "@apx/protocol/cdp";
 import { ApxError } from "@apx/protocol/client";
-import { app, type Session, session, WebContentsView } from "electron";
+import { app, type Session, session, type WebContents, WebContentsView } from "electron";
 import type { ProcessOwner } from "../memory.ts";
 import { CdpTab } from "./cdp.ts";
 import { discoverSources, importCookies, listDomains } from "./cookies.ts";
@@ -21,6 +21,7 @@ type Tab = {
   id: string;
   profile: BrowserProfile;
   view: WebContentsView;
+  wc: WebContents;
   cdp: CdpTab;
   control: TabControl;
   /** Last time an agent or the owner did something with it (idle tabs close: see idle.ts). */
@@ -75,7 +76,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
   }
 
   info(tab: Tab): TabInfo {
-    const wc = tab.view.webContents;
+    const wc = tab.wc;
     return {
       tab: tab.id,
       url: wc.getURL(),
@@ -87,7 +88,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
   }
 
   list(): TabInfo[] {
-    return [...this.#tabs.values()].map((t) => this.info(t));
+    return [...this.#tabs.values()].filter((t) => !t.wc.isDestroyed()).map((t) => this.info(t));
   }
 
   /** Executes a browser.* request coming from the core. Params are re-validated: the node trusts nobody. */
@@ -124,23 +125,23 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         const p = browserMethods["browser.navigate"].params.parse(raw);
         const tab = p.by === "operator" ? this.#get(p.tab) : this.#drive(p.tab, p.by);
         await this.#load(tab, p.url);
-        return { url: tab.view.webContents.getURL(), title: tab.view.webContents.getTitle() };
+        return { url: tab.wc.getURL(), title: tab.wc.getTitle() };
       }
       case "browser.history": {
         const p = browserMethods["browser.history"].params.parse(raw);
         // The human's own toolbar calls as "operator" and must not take the tab over as an agent.
         const tab = p.by === "operator" ? this.#get(p.tab) : this.#drive(p.tab, p.by);
-        const nav = tab.view.webContents.navigationHistory;
+        const nav = tab.wc.navigationHistory;
         if (p.action === "back" && nav.canGoBack()) nav.goBack();
         else if (p.action === "forward" && nav.canGoForward()) nav.goForward();
-        else if (p.action === "reload") tab.view.webContents.reload();
+        else if (p.action === "reload") tab.wc.reload();
         await this.#settle(tab);
-        return { url: tab.view.webContents.getURL(), title: tab.view.webContents.getTitle() };
+        return { url: tab.wc.getURL(), title: tab.wc.getTitle() };
       }
       case "browser.snapshot": {
         const p = browserMethods["browser.snapshot"].params.parse(raw);
         const tab = this.#readable(p.tab);
-        const wc = tab.view.webContents;
+        const wc = tab.wc;
         const snap = await tab.cdp.snapshot(p.max_chars);
         // Page text is data, never instructions, wherever it ends up (rule 10).
         const tree = `<untrusted_web source="${wc.getURL()}">\n${snap.tree}\n</untrusted_web>`;
@@ -158,14 +159,14 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         const tab = this.#drive(p.tab, p.by);
         await tab.cdp.click(p.ref);
         await this.#settle(tab);
-        return { ok: true, url: tab.view.webContents.getURL() };
+        return { ok: true, url: tab.wc.getURL() };
       }
       case "browser.type": {
         const p = browserMethods["browser.type"].params.parse(raw);
         const tab = this.#drive(p.tab, p.by);
         await tab.cdp.type(p.ref, p.text, p.submit);
         if (p.submit) await this.#settle(tab);
-        return { ok: true, url: tab.view.webContents.getURL() };
+        return { ok: true, url: tab.wc.getURL() };
       }
       case "browser.approval_context": {
         const p = browserMethods["browser.approval_context"].params.parse(raw);
@@ -175,7 +176,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         const p = browserMethods["browser.evaluate"].params.parse(raw);
         const tab = this.#drive(p.tab, p.by);
         const result = await tab.cdp.evaluate(p.script, p.origin, p.document, p.epoch);
-        return { url: tab.view.webContents.getURL(), ...result };
+        return { url: tab.wc.getURL(), ...result };
       }
       case "browser.screenshot": {
         const p = browserMethods["browser.screenshot"].params.parse(raw);
@@ -184,7 +185,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
       }
       case "browser.text": {
         const p = browserMethods["browser.text"].params.parse(raw);
-        const wc = this.#readable(p.tab).view.webContents;
+        const wc = this.#readable(p.tab).wc;
         // Isolated world: the page's scripts cannot see or patch this read.
         // Resolves to the script's value (a string), not to an array of results.
         const full = (await wc.executeJavaScriptInIsolatedWorld(999, [
@@ -224,7 +225,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         if (!this.#tabs.has(tab.id)) return { resolved: false, url: "", title: "" };
         tab.control = resolved ? { kind: "agent", by: p.by, since: new Date().toISOString() } : { kind: "idle" };
         this.emit("changed");
-        return { resolved, url: tab.view.webContents.getURL(), title: tab.view.webContents.getTitle() };
+        return { resolved, url: tab.wc.getURL(), title: tab.wc.getTitle() };
       }
       case "browser.cookie_sources":
         return {
@@ -292,12 +293,18 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
     };
     wc.on("before-input-event", (_e, input) => input.type === "keyDown" && touched());
     wc.on("before-mouse-event", (_e, mouse) => mouse.type === "mouseDown" && touched());
-    for (const ev of ["did-navigate", "did-navigate-in-page", "page-title-updated", "did-stop-loading"] as const) {
-      wc.on(ev as "did-stop-loading", () => this.emit("changed"));
-    }
     const cdp = new CdpTab(wc);
-    cdp.onInvalidate = () => this.emit("changed");
-    const tab: Tab = { id, profile, view, cdp, control, used: Date.now() };
+    const tab: Tab = { id, profile, view, wc, cdp, control, used: Date.now() };
+    const changed = () => {
+      if (this.#tabs.get(id) !== tab) return;
+      if (wc.isDestroyed()) this.#remove(tab);
+      else this.emit("changed");
+    };
+    for (const ev of ["page-title-updated", "did-stop-loading"] as const) {
+      wc.on(ev as "did-stop-loading", changed);
+    }
+    cdp.onInvalidate = changed;
+    wc.once("destroyed", () => this.#remove(tab));
     this.#tabs.set(id, tab);
     this.select(id);
     await this.#load(tab, url);
@@ -315,16 +322,21 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
 
   async close(id: string): Promise<void> {
     const tab = this.#get(id);
-    this.#tabs.delete(id);
-    this.#handoffs.get(id)?.(false);
-    const ses = tab.view.webContents.session;
-    tab.view.webContents.close();
+    const ses = tab.wc.session;
+    // Detach the tab before native close can synchronously invalidate CDP or reenter layout.
+    this.#remove(tab);
+    if (!tab.wc.isDestroyed()) tab.wc.close();
     // In-memory partitions live until app exit unless cleared.
     if (tab.profile === "incognito") await Promise.all([ses.clearStorageData(), ses.clearCache()]);
-    if (this.#active === id) {
-      this.#active = [...this.#tabs.keys()].at(-1);
-      this.onShow(this.#active ? this.#get(this.#active).view : undefined);
-    }
+  }
+
+  #remove(tab: Tab): void {
+    if (this.#tabs.get(tab.id) !== tab) return;
+    this.#tabs.delete(tab.id);
+    const active = this.#active === tab.id;
+    if (active) this.#active = [...this.#tabs.values()].filter((t) => !t.wc.isDestroyed()).at(-1)?.id;
+    this.#handoffs.get(tab.id)?.(false);
+    if (active) this.onShow(this.#active ? this.#tabs.get(this.#active)?.view : undefined);
     this.emit("changed");
   }
 
@@ -368,7 +380,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
 
   #get(id: string): Tab {
     const tab = this.#tabs.get(id);
-    if (!tab) throw new ApxError({ code: "bad_request", message: `unknown tab ${id}` });
+    if (!tab || tab.wc.isDestroyed()) throw new ApxError({ code: "bad_request", message: `unknown tab ${id}` });
     tab.used = Date.now();
     return tab;
   }
@@ -407,7 +419,8 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
   processOwners(): Map<number, ProcessOwner> {
     const out = new Map<number, ProcessOwner>();
     for (const t of this.#tabs.values()) {
-      const wc = t.view.webContents;
+      const wc = t.wc;
+      if (wc.isDestroyed()) continue;
       let site = "";
       try {
         site = new URL(wc.getURL()).hostname;
@@ -432,7 +445,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
   /** Resolves at dom-ready (usable page), not at full load: ads and trackers must not hold the agent hostage. */
   async #load(tab: Tab, url: string): Promise<void> {
     assertNavigable(url);
-    const wc = tab.view.webContents;
+    const wc = tab.wc;
     const ready = new Promise<void>((resolve) => {
       const done = () => {
         wc.off("dom-ready", done);
@@ -450,7 +463,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
   /** After an action that may navigate: give it a beat, then wait for loading to stop (bounded). */
   async #settle(tab: Tab): Promise<void> {
     await new Promise((r) => setTimeout(r, 250));
-    const wc = tab.view.webContents;
+    const wc = tab.wc;
     if (!wc.isLoading()) return;
     await Promise.race([
       new Promise<void>((resolve) => wc.once("did-stop-loading", () => resolve())),
