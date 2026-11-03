@@ -229,6 +229,24 @@ message goes there too, with a button for each thing it offers; without one, the
 message calls a model, and only when something applies to you; a new install is told nothing. `APX_NEWS=off` turns it
 off, and `apx news` lists what there is.
 
+### Large histories and backups
+
+An update can rebuild database indexes before APX starts accepting connections. With a large chat history, allow
+extra startup time and free disk space for the index, temporary files and SQLite's write-ahead log. A connection
+timeout during this work does not mean the update failed; avoid repeated restarts while it is progressing.
+
+Before upgrading an important installation, keep a consistent backup. Stop APX and any background service or
+supervisor that would start it again, then copy the data folder to a separate, protected location. Keep `apx.db`
+and any `apx.db-wal` and `apx.db-shm` files together; copying only `apx.db` while APX is running can miss recent
+changes. A live database backup needs SQLite's online backup API instead. Files in the data folder do not include
+secrets stored in the operating system's keyring.
+
+Database migrations commit individually. An interrupted index build is rolled back and retried at the next start;
+earlier completed migrations remain. If startup reports a disk-space or database error, keep the backup, resolve
+the cause and retry. To roll back an upgrade, stop APX again and restore the pre-upgrade data with its matching
+program version, keeping the failed-upgrade data separately. Do not reset the schema version by hand. Restoring a
+backup discards changes made since that backup.
+
 ## Uninstall
 
 Uninstalling removes the program and its service. **Your data stays** in `~/.apx/v2`; delete that folder yourself
