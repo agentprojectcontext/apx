@@ -241,7 +241,15 @@ export function createEngine(deps: {
    * What reaches a running turn between its steps, not yet taken by its loop: the owner's words, or (`apx`) a result
    * that would otherwise start a turn of its own, such as a background command's end (DECISIONS.md#d-162).
    */
-  const steered = new Map<string, Array<{ text: string; apx?: Admit; message_id?: string }>>();
+  const steered = new Map<
+    string,
+    Array<{
+      text: string;
+      apx?: Admit;
+      message_id?: string;
+      task_assignment?: Extract<Origin, { kind: "user" }>["task_assignment"];
+    }>
+  >();
   /** The running turn of `agentId` in `threadId` whose loop takes text mid-turn (ours), if any. */
   const steerable = (threadId: string, agentId?: string): RunRecord | undefined => {
     for (const [runId, a] of active) {
@@ -327,9 +335,14 @@ export function createEngine(deps: {
   });
 
   function admit(a: Admit): RunRecord {
+    // Null records missing authority at arrival; replay must not acquire a later assignment.
     const origin =
-      a.trigger === "user" && a.origin.kind === "user" && !a.origin.task_assignment && !a.resume_of && !a.retry_of
-        ? { ...a.origin, task_assignment: ownerTaskAssignment(store, a.thread_id, a.agent_id) }
+      a.trigger === "user" &&
+      a.origin.kind === "user" &&
+      a.origin.task_assignment === undefined &&
+      !a.resume_of &&
+      !a.retry_of
+        ? { ...a.origin, task_assignment: ownerTaskAssignment(store, a.thread_id, a.agent_id) ?? null }
         : a.origin;
     // The owner's words from the app wait in line when a turn is ahead of them (DECISIONS.md#d-186).
     const asked = a.trigger === "user" && a.origin.kind === "user" && !a.resume_of ? a.origin.message_id : undefined;
@@ -452,7 +465,11 @@ export function createEngine(deps: {
             thread_id: run.thread_id,
             agent_id: run.agent_id,
             trigger: "user",
-            origin: { kind: "user", ...(s.message_id ? { message_id: s.message_id } : {}) },
+            origin: {
+              kind: "user",
+              task_assignment: s.task_assignment ?? null,
+              ...(s.message_id ? { message_id: s.message_id } : {}),
+            },
             text: s.text,
           },
         );
@@ -478,10 +495,15 @@ export function createEngine(deps: {
       return { now: Boolean(running) };
     }
     const queued = store.runs.get(message.waiting.run ?? "");
-    if (!queued || queued.state !== "submitted" || askedIn(queued) !== messageId)
-      throw conflict("its turn already started");
+    if (queued?.state !== "submitted" || askedIn(queued) !== messageId) throw conflict("its turn already started");
     const into = steerable(message.thread_id, queued.agent_id);
-    if (!into || !running || queued.input?.attachments?.length) {
+    const origin = queued.input?.origin;
+    const task_assignment = origin?.kind === "user" ? (origin.task_assignment ?? null) : null;
+    const target = into?.input?.origin;
+    const targetAssignment = target?.kind === "user" || target?.kind === "agent" ? target.task_assignment : undefined;
+    const sameAssignment =
+      task_assignment?.task === targetAssignment?.task && task_assignment?.id === targetAssignment?.id;
+    if (!into || !running || queued.input?.attachments?.length || !sameAssignment) {
       const rest = lineOf(store, message.thread_id).flatMap((l) => (l.run.id === queued.id ? [] : [l.run.id]));
       reorderLine(store, message.thread_id, [queued.id, ...rest]);
       return { now: Boolean(running) && stopRunning(message.thread_id, new Superseded()) > 0 };
@@ -492,9 +514,9 @@ export function createEngine(deps: {
       store.messages.toEnd(messageId);
       steered.set(into.id, [
         ...(steered.get(into.id) ?? []),
-        { text: queued.input?.text ?? "", message_id: messageId },
+        { text: queued.input?.text ?? "", message_id: messageId, task_assignment },
       ]);
-      store.messages.setWaiting(messageId, { until: "step" });
+      store.messages.setWaiting(messageId, { until: "step", ...(task_assignment ? { task_assignment } : {}) });
     });
     running[1].cut.abort();
     return { now: true };
@@ -535,7 +557,7 @@ export function createEngine(deps: {
         thread_id: m.thread_id,
         agent_id: agent,
         trigger: "user",
-        origin: { kind: "user", message_id: m.id },
+        origin: { kind: "user", message_id: m.id, task_assignment: m.waiting.task_assignment ?? null },
         text,
       });
       store.messages.setWaiting(m.id, { until: "turn", run: run.id });
@@ -616,8 +638,13 @@ export function createEngine(deps: {
     steer(threadId: string, text: string, messageId?: string): RunRecord | undefined {
       const run = steerable(threadId);
       if (!run) return undefined;
-      steered.set(run.id, [...(steered.get(run.id) ?? []), { text, ...(messageId ? { message_id: messageId } : {}) }]);
-      if (messageId) store.messages.setWaiting(messageId, { until: "step" });
+      const task_assignment = messageId ? (ownerTaskAssignment(store, threadId, run.agent_id) ?? null) : null;
+      steered.set(run.id, [
+        ...(steered.get(run.id) ?? []),
+        { text, task_assignment, ...(messageId ? { message_id: messageId } : {}) },
+      ]);
+      if (messageId)
+        store.messages.setWaiting(messageId, { until: "step", ...(task_assignment ? { task_assignment } : {}) });
       return run;
     },
     /** Changes the words of a message in line, before its turn starts. */

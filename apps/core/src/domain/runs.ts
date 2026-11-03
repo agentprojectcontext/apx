@@ -11,7 +11,7 @@ import type { ThreadContext } from "./threads.ts";
 export type FlowRoutineEvent = { flow: string; id: string; data: unknown };
 
 export type Origin =
-  | { kind: "user"; message_id?: string; task_assignment?: { task: string; id: string } }
+  | { kind: "user"; message_id?: string; task_assignment?: { task: string; id: string } | null }
   | {
       kind: "agent";
       id: string;
