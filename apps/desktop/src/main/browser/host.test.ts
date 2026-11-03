@@ -121,20 +121,24 @@ test("external destruction selects a live sibling and stale invalidations cannot
 test("close publishes removal before reentrant layout and preserves the selection made by it", async () => {
   const host = new BrowserHost();
   const first = await opened(host);
+  const alternate = await opened(host);
   const second = await opened(host);
-  host.onShow = () => {
+  host.onShow = (view) => {
     assert.equal(
       host.list().some((t) => t.tab === second.tab.id),
       false,
     );
     assert.notEqual(host.active, second.tab.id);
+    if (view === alternate.tab.view) host.select(first.tab.id);
   };
   host.on("changed", () => host.list());
   await host.close(second.tab.id);
   assert.equal(host.active, first.tab.id);
   assert.equal(second.wc.destroyed, true);
   await assert.rejects(host.close(second.tab.id), /unknown tab/);
+  host.onShow = () => {};
   await host.close(first.tab.id);
+  await host.close(alternate.tab.id);
   assert.deepEqual(host.list(), []);
 });
 
