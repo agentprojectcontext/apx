@@ -1094,3 +1094,94 @@ test("a verified review return can reach its direct author without permitting or
     "allowed",
   );
 });
+
+test("review escalation is limited to the verified same-project coordinator", () => {
+  const store = env.core.store,
+    project = "escalation-security-project",
+    lead = "escalation-security-lead",
+    author = "escalation-security-author",
+    reviewer = "escalation-security-reviewer";
+  store.projects.upsert({ id: project, name: "Escalation security" });
+  for (const [id, parent, head] of [
+    [lead, undefined, true],
+    [author, lead, false],
+    [reviewer, lead, false],
+  ] as const)
+    store.agents.upsertApc({
+      id,
+      name: id,
+      project_id: project,
+      parent,
+      slug: id,
+      role: id,
+      prompt: "",
+      extra: head ? { orchestrator: true } : {},
+    });
+  const source = store.threads.create({ kind: "loose", title: "Coordinator", project_id: project, agent_ids: [lead] });
+  const root = store.runs.create({
+    thread_id: source.id,
+    agent_id: lead,
+    trigger: "user",
+    input: { origin: { kind: "user" }, text: "Coordinate" },
+    deadline_at: "2099-01-01",
+  });
+  const home = store.threads.create({ kind: "task", title: "Task", project_id: project, agent_ids: [author] });
+  const task = store.tasks.create({
+    title: "Secure escalation",
+    description: "Resolve verified issue",
+    status: "doing",
+    project_id: project,
+    assignee: author,
+    thread_id: home.id,
+    by: lead,
+    from: { thread: source.id, run: root.id },
+  });
+  const workThread = store.threads.create({
+    kind: "loose",
+    title: "Work",
+    project_id: project,
+    agent_ids: [author],
+    task_id: task.id,
+  });
+  const work = store.runs.create({
+    thread_id: workThread.id,
+    agent_id: author,
+    trigger: "a2a",
+    input: { origin: { kind: "agent", id: lead, name: lead, thread_id: source.id, run_id: root.id }, text: "Work" },
+    deadline_at: "2099-01-01",
+  });
+  store.threads.mergeContext(home.id, {
+    coordination_from: { thread: source.id, run: root.id, work_run: work.id, root_run: root.id },
+  });
+  const reviewed = store.tasks.change(task.id, { assignee: reviewer, status: "review" }, author);
+  assert.ok(reviewed);
+  const reviewThread = store.threads.create({
+    kind: "loose",
+    title: "Review",
+    project_id: project,
+    agent_ids: [reviewer],
+    task_id: task.id,
+  });
+  const review = store.runs.create({
+    thread_id: reviewThread.id,
+    agent_id: reviewer,
+    trigger: "a2a",
+    input: {
+      origin: { kind: "agent", id: author, name: author, thread_id: workThread.id, run_id: work.id },
+      text: "Review",
+    },
+    deadline_at: "2099-01-01",
+  });
+  const ctx = { id: reviewer, thread_id: reviewThread.id, run_id: review.id },
+    options = { allowReviewReturn: true };
+  assert.equal(authorizedChildHandoff(store, reviewed, ctx, lead, options), "allowed");
+  assert.equal(authorizedChildHandoff(store, { ...reviewed, status: "doing" }, ctx, lead, options), "backflow");
+  store.threads.mergeContext(home.id, { coordination_from: { thread: source.id, run: root.id, work_run: "forged" } });
+  assert.equal(authorizedChildHandoff(store, reviewed, ctx, lead, options), "backflow");
+  store.threads.mergeContext(home.id, {
+    coordination_from: { thread: source.id, run: root.id, work_run: work.id, root_run: root.id },
+  });
+  store.projects.upsert({ id: "other-escalation-project", name: "Other" });
+  store.threads.moveTo(source.id, "other-escalation-project");
+  assert.equal(authorizedChildHandoff(store, reviewed, ctx, lead, options), "backflow");
+});
