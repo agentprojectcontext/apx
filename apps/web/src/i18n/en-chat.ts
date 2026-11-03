@@ -6,6 +6,8 @@ export const enChat = {
   "chat.agentProgress": "Progress from {name}",
   "chat.agentResponse": "Response from {name}",
   "chat.agentMessage": "Message from {name}",
+  "chat.plan": "Plan",
+  "chat.planDone": "{done} of {count} done",
   "input.sessionScope": "This session",
 
   "composer.offline": "No connection to the core…",

@@ -3595,3 +3595,36 @@ teammate, each without what the last one learned.
 
 Rejected: reusing a busy consult or session (a second ask would queue behind the first), and a consult shared by
 different askers (the answer goes to whoever asked, so two askers would read each other's context).
+
+<a id="d-191"></a>
+## D-191 — 2026-11-02 — Every chat's multi-step work has a plan, shown live under the agent's answer
+
+Only tasks had a plan (D-187, D-188); in a loose chat, Home or a code chat the owner could not see where a long piece of
+work stood until the agent answered. They want it like a coding agent's checklist, in every chat, and not left to the
+agent to decide for work of several steps.
+
+- **One tool, `plan`** (`tools/plan.ts`), kept by every agent whatever its tool list (`ALWAYS` in `tools/policy.ts`) and
+  allowed in every mode (effect `none`: it changes nothing of the owner's). It takes the whole checklist each time
+  (`- [x]`, `- [~]`, `- [ ]`, read with `planSteps`) and upserts one `plan` part in the answer, so the checklist under
+  the message changes in place while the turn works. A text that is not a checklist is refused with how to write it.
+- **In a task's chat the plan is the task's.** The tool also writes `Task.plan` through `tasks.update`, so the drawer,
+  the task block and the progress guard (D-188) read the same steps; `task_update` no longer takes `plan`, so there are
+  never two plans for one task. Its JSON is what paid for part of the tool.
+- **The next turns read it.** Outside a task, while a step is left, the turn's input carries the latest `plan` part of
+  the chat (`[your plan in this chat]`, `chatPlanBlock`), found in its messages (`messages.latestPart`): it survives a
+  summary of the chat and needs no store of its own. It is enveloped as the team's words, not as outside content: it is
+  the agent's own writing in this chat, already in its history, and marking it untrusted would make every later turn
+  ask the owner for strong actions.
+- **Native, not optional**: one line in the system prompt says work of more than two steps starts with `plan` and marks
+  each step as it goes.
+- **Budget**: the tool and that line were paid for by trimming tool descriptions with the same meaning (`send_file`,
+  attachments, `delegate`, `search_chats`, `channel_list`, `computer`, `shell`, `video_transcript`,
+  `suggest_connection`, `ask_owner`) and two sentences of the system prompt that repeated `task_create`'s and
+  `delegate`'s descriptions. The realistic turn sends fewer tool and system characters than before.
+- **Panel**: `PlanCard` (`chat/parts/PlanPart.tsx`) shows the steps with the design system's `StepList` and how many
+  are done; the task drawer's plan uses the same card.
+
+Rejected: a second tool beside `task_update` (two ways to write one task's plan), storing the chat's plan in the
+thread's context (the messages already hold it, and tools change chats only through the protocol), and moving the
+checklist to the newest answer by removing it from older ones (it rewrites what the owner already read; each answer
+keeps the plan as it stood).

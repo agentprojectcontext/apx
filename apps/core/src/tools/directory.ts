@@ -78,7 +78,7 @@ export function directoryTools(store: Store): Tool[] {
     defineTool({
       name: "channel_list",
       description:
-        "List the channels APX talks through for the owner (WhatsApp, Telegram, Discord, Slack…), whether each is up, and its rooms: shared places inside a channel, such as a Discord #channel, as opposed to contacts, who are people (contact_list). Check it before saying you cannot reach a channel or a room.",
+        "List the channels APX talks through for the owner (WhatsApp, Telegram, Discord, Slack…), whether each is up, and its rooms (shared places such as a Discord #channel; people are in contact_list). Check it before saying you cannot reach a channel or a room.",
       args: z.object({}),
       effect: "none",
       when: () => channelsOn(store),

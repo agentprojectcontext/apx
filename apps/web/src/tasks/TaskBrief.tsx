@@ -1,7 +1,8 @@
 import type { Task } from "@apx/protocol";
 import { planSteps } from "@apx/protocol/task-plan";
-import { Button, IconButton, Icons, MarkdownView, StepList, Textarea } from "@apx/ui";
+import { Button, IconButton, Icons, MarkdownView, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
+import { PlanCard } from "../chat/parts/PlanPart.tsx";
 import { shortWhen } from "../common/format.ts";
 import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
 import { useData } from "../data/state.ts";
@@ -107,24 +108,9 @@ export function TaskPlan({ plan }: { plan: string }) {
   const t = useT();
   const labels = useMarkdownLabels();
   const steps = planSteps(plan);
-  const done = steps?.filter((s) => s.state === "done").length ?? 0;
   return (
-    <section className="taskdetail__plan" aria-label={t("tasks.plan")}>
-      <h3 className="taskdetail__planhead">
-        {t("tasks.plan")}
-        {steps && <span className="taskdetail__plancount">{t("tasks.planDone", { done, count: steps.length })}</span>}
-      </h3>
-      {steps ? (
-        <StepList
-          className="taskdetail__steps"
-          steps={steps.map((s) => ({
-            label: s.step,
-            status: s.state === "doing" ? "running" : s.state === "done" ? "done" : "pending",
-          }))}
-        />
-      ) : (
-        <MarkdownView source={plan} size="sm" labels={labels} />
-      )}
-    </section>
+    <PlanCard label={t("tasks.plan")} {...(steps ? { steps } : {})}>
+      <MarkdownView source={plan} size="sm" labels={labels} />
+    </PlanCard>
   );
 }

@@ -8,6 +8,8 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "chat.agentProgress": "Avance de {name}",
   "chat.agentResponse": "Respuesta de {name}",
   "chat.agentMessage": "Mensaje de {name}",
+  "chat.plan": "Plan",
+  "chat.planDone": "{done} de {count} hechos",
   "input.sessionScope": "Esta sesión",
 
   "composer.offline": "Sin conexión con el core…",

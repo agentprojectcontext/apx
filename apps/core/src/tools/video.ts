@@ -118,7 +118,7 @@ export function videoTools(bin: string | undefined): Tool[] {
     defineTool({
       name: "video_transcript",
       description:
-        "What a video says, without a browser: title, channel, length, description and its captions as text with time marks (YouTube, Vimeo and most video sites). Use it to watch, summarize or analyze a video from a link.",
+        "What a video says, without a browser: title, channel, length, description and its captions as text with time marks (YouTube, Vimeo and most video sites). Use it to watch or summarize a video from a link.",
       args: z.object({
         url: z.string().min(8).max(2000),
         lang: z.string().max(12).optional().describe("Captions language to prefer (es, en…); default the video's own."),

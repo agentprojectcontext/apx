@@ -104,6 +104,7 @@ import { memoryTools } from "./tools/memory.ts";
 import { messageTools } from "./tools/message.ts";
 import { ownerTools } from "./tools/owner.ts";
 import { phoneTools } from "./tools/phone.ts";
+import { planTools } from "./tools/plan.ts";
 import { requestTools } from "./tools/requests.ts";
 import { routineTools } from "./tools/routines.ts";
 import { settingsTools } from "./tools/settings.ts";
@@ -189,6 +190,7 @@ export function builtinTools(
     ...phoneTools(),
     ...computerTools(store),
     ...taskTools(store, home),
+    ...planTools(),
     ...videoTools(findProgram("yt-dlp")),
     ...webTools(),
     ...contactTools(store),

@@ -152,6 +152,21 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
             json_extract(value, '$.type') = 'notice' and json_extract(value, '$.code') = ${code})`),
       ).map(toMessage);
     },
+    /** The newest part of this type in the thread's messages, wherever it is in their history. */
+    latestPart(threadId: string, type: Part["type"]): Part | undefined {
+      const r = one(
+        qb
+          .selectFrom("messages")
+          .select("parts")
+          .where("thread_id", "=", threadId)
+          .where(
+            sql<boolean>`exists (select 1 from json_each(messages.parts) where json_extract(value, '$.type') = ${type})`,
+          )
+          .orderBy("seq", "desc")
+          .limit(1),
+      );
+      return r ? (JSON.parse(r.parts) as Part[]).findLast((p) => p.type === type) : undefined;
+    },
     around(threadId: string, seq: number, limit = 20): Message[] {
       const half = Math.floor(limit / 2);
       return all(

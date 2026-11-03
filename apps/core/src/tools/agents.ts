@@ -120,7 +120,7 @@ export function agentTools(store: Store): Tool[] {
     defineTool({
       name: "delegate",
       description:
-        "Hand work to another agent or to a worker you define (it uses your model and tools); give one, not both. Task assignment already starts its executor: do not also delegate that work. A worker of your own is for substantial independent work that would overwhelm your context, or when the owner asks for a helper or a review. In task give the goal, what you found, the paths you checked, a method you know works, the project and the expected result. Asking an agent again continues its session. The answer comes back within wait_s, or later in a new turn: never poll for it.",
+        "Hand work to another agent or to a worker you define (it uses your model and tools); give one, not both. Task assignment already starts its executor: do not also delegate that work. A worker of your own is for substantial independent work that would overwhelm your context, or when the owner asks for a helper or a review. In task give the goal, your findings, paths checked, a method that works, the project and the expected result. Asking an agent again continues its session. The answer comes back within wait_s, or later in a new turn: never poll for it.",
       args: z
         .object({
           agent: z.string().optional().describe("agent id or unique name"),
