@@ -17,6 +17,9 @@ test("a review return informs the coordinator so another ready task can start", 
     if (afterTool) return say("Reviewed and verified.");
     const task = /Task (task_\w+)/.exec(JSON.stringify(req.messages))?.[1] ?? "";
     if (system.startsWith("You are Feedback Lead")) {
+      assert.match(system, /project coordinator/i);
+      assert.match(system, /blocker.*delegat/i);
+      assert.doesNotMatch(system, /or one specialist/);
       if (said.includes("<task_feedback") && said.includes(first))
         return callTool("next", "task_update", { task: second, assignee: other });
       if (!said.includes("<task_feedback"))
@@ -24,6 +27,7 @@ test("a review return informs the coordinator so another ready task can start", 
       return say("No work is ready.");
     }
     if (system.startsWith("You are Feedback Developer")) {
+      assert.match(system, /specialist agent/);
       firstDevTurns++;
       return firstDevTurns === 1
         ? callTool("review", "task_update", { task, status: "review", assignee: qa })

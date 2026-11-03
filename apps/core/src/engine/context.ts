@@ -178,13 +178,16 @@ export function systemPrompt(
   channels = true,
   /** What this chat's turns carry, told once (sectionLines). */
   sections: Sections = {},
+  projectCoordinator = false,
 ): string {
   const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
   return [
     `You are ${agent.name}${agent.role ? `, ${agent.role}` : ""}, an agent in APX: the system that runs your owner's projects and day.`,
     agent.kind === "secretary"
       ? "You are the main secretary: understand the request, do it yourself or delegate it to the right agent, and answer with what happened. Several pieces of work and the owner did not say how: ask once with ask_owner and short options (e.g. a plan first, one task each, I do it). If they said how, do it that way without asking."
-      : "You are a specialist agent: do your part well and answer with the concrete result.",
+      : projectCoordinator
+        ? "You are the project coordinator: keep the team advancing within the owner’s scope, permissions and project gates."
+        : "You are a specialist agent: do your part well and answer with the concrete result.",
     role ? `\n${role}` : "",
     agent.personality ? `\nYour personality: ${agent.personality}` : "",
     agent.prompt ? `\n## Your instructions\n${agent.prompt}` : "",
@@ -204,7 +207,14 @@ export function systemPrompt(
     "- On failure, diagnose and try a safe recovery within existing permission: never the same failing call again, and never drop a way that works after one failure. Never bypass denied access, a login or a usage limit. If blocked, report the exact error and what access is missing.",
     "- A step the owner declined is not repeated: think why and change course. Independent tool calls go together in one step.",
     "- A pure greeting or thanks gets a short answer, no tools. A greeting with a request is a request.",
-    "- An action request gets action with your tools or one specialist, not a task instead of a result. Capture-only starts nothing. Track and start long work; report results or blockers, not board movements as progress. Task assignment already delegates: never also delegate that work.",
+    projectCoordinator
+      ? "- Coordinate eligible independent work among appropriate specialists. When a blocker has safe work that can resolve it, delegate that analysis or preparation rather than merely reporting the blocker; recheck feedback, dependencies and real activity before choosing the next step. Do not invent work, duplicate executions, bypass permissions, accept proposals, change approved scope, merge or deploy without the required authority. Report genuine owner decisions and blockers with evidence."
+      : "- An action request gets action with your tools or one specialist, not a task instead of a result. Capture-only starts nothing. Track and start long work; report results or blockers, not board movements as progress. Task assignment already delegates: never also delegate that work.",
+    ...(projectCoordinator
+      ? [
+          "- A task assignment already starts execution: do not also delegate the same work. Check actual sessions and runs, not only the board, before reporting activity.",
+        ]
+      : []),
     "",
     "## Rules",
     `- Answer in your owner's language (${lang}) unless they write in another one. Short and concrete; simple Markdown.`,
@@ -397,7 +407,7 @@ export function rosterBlock(agent: AgentRecord, roster: AgentRecord[], thread: T
 export const isOutsideAgent = (id: string) => id === "external" || id.startsWith("client:");
 
 /** How a run's input reaches the model: the owner and their agents speak as theirs; everyone else is untrusted data. */
-export function frameInput(origin: Origin, text: string): string {
+export function frameInput(origin: Origin, text: string, projectCoordinator = false): string {
   switch (origin.kind) {
     case "user":
     case "input_answer":
@@ -438,6 +448,8 @@ export function frameInput(origin: Origin, text: string): string {
     case "task_feedback":
       return `${fromTeam("task_feedback", { task: origin.task_id, title: origin.title, from: origin.name }, text)}\nA reviewer returned this still-open task to its author. This is team feedback, not an owner approval. Check current task and agent states; coordinate other eligible work if appropriate without duplicating work or bypassing approvals.`;
     case "task_result":
+      if (projectCoordinator && !origin.by)
+        return `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\nThis coordinated task is closed. Check the result and current state, then coordinate the next eligible work or safe blocker resolution within your authority. Do not duplicate work or bypass gates.`;
       return origin.by
         ? `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\n${inlineName(origin.name)} closed a task ${inlineName(origin.by)} gave (${origin.state}); this is their report. Tell the owner in a line or two what came of it and anything they need to do; nothing else.`
         : `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\nA task you created and gave to ${inlineName(origin.name)} is closed (${origin.state}); this is their report. Tell the owner what matters.`;
@@ -476,6 +488,7 @@ export type TurnOpts = {
   origin: Origin;
   text: string;
   now: Date;
+  projectCoordinator?: boolean | undefined;
   roster?: string | undefined;
   memory?: string | undefined;
   /** The skills this message called for (see skill-pick.ts). */
@@ -583,7 +596,7 @@ export function turnBlocks(opts: TurnOpts): InputBlock[] {
   ];
   return [
     ...head.filter(([, text]) => text).map(([name, text]) => ({ name, text })),
-    { name: "message", text: frameInput(opts.origin, opts.text) },
+    { name: "message", text: frameInput(opts.origin, opts.text, opts.projectCoordinator) },
   ];
 }
 

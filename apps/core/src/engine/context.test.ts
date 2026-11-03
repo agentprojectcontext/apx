@@ -40,6 +40,49 @@ test("the system prompt has no clock and no roster: same agent and thread, same 
   assert.doesNotMatch(a, /A turn with no tool call did nothing/);
 });
 
+test("a project coordinator is prompted to unblock and coordinate, not treated as one specialist", () => {
+  const agent = {
+    id: "lead",
+    name: "Lead",
+    role: "Orchestrator",
+    kind: "agent" as const,
+    browser_profile: "shared" as const,
+    source: "local" as const,
+    prompt: "",
+  };
+  const lead = systemPrompt(
+    agent,
+    { kind: "loose" },
+    "es",
+    { name: "Project" },
+    "",
+    "",
+    undefined,
+    "",
+    "",
+    false,
+    true,
+    {},
+    true,
+  );
+  assert.match(lead, /project coordinator/i);
+  assert.match(lead, /blocker.*delegat/i);
+  assert.doesNotMatch(lead, /or one specialist/);
+  const specialist = systemPrompt(agent, { kind: "loose" }, "es");
+  assert.match(specialist, /specialist agent/);
+  assert.doesNotMatch(specialist, /project coordinator/i);
+  const result = {
+    kind: "task_result" as const,
+    task_id: "task_a",
+    title: "A",
+    state: "done" as const,
+    agent_id: "worker",
+    name: "Worker",
+  };
+  assert.match(frameInput(result, "done", true), /next.*work/i);
+  assert.doesNotMatch(frameInput(result, "done"), /next.*work/i);
+});
+
 test("history keeps whole runs, prunes old tool output and stays within budget", () => {
   const big = "x".repeat(5000);
   const runs: ChatItem[][] = [0, 1, 2, 3].map((i) => [
