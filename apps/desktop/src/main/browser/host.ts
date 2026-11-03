@@ -22,6 +22,8 @@ type Tab = {
   profile: BrowserProfile;
   view: WebContentsView;
   wc: WebContents;
+  session: Session;
+  cleanup?: Promise<void>;
   cdp: CdpTab;
   control: TabControl;
   /** Last time an agent or the owner did something with it (idle tabs close: see idle.ts). */
@@ -294,7 +296,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
     wc.on("before-input-event", (_e, input) => input.type === "keyDown" && touched());
     wc.on("before-mouse-event", (_e, mouse) => mouse.type === "mouseDown" && touched());
     const cdp = new CdpTab(wc);
-    const tab: Tab = { id, profile, view, wc, cdp, control, used: Date.now() };
+    const tab: Tab = { id, profile, view, wc, session: wc.session, cdp, control, used: Date.now() };
     const changed = () => {
       if (this.#tabs.get(id) !== tab) return;
       if (wc.isDestroyed()) this.#remove(tab);
@@ -322,17 +324,22 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
 
   async close(id: string): Promise<void> {
     const tab = this.#get(id);
-    const ses = tab.wc.session;
     // Detach the tab before native close can synchronously invalidate CDP or reenter layout.
     this.#remove(tab);
     if (!tab.wc.isDestroyed()) tab.wc.close();
-    // In-memory partitions live until app exit unless cleared.
-    if (tab.profile === "incognito") await Promise.all([ses.clearStorageData(), ses.clearCache()]);
+    await tab.cleanup;
   }
 
   #remove(tab: Tab): void {
     if (this.#tabs.get(tab.id) !== tab) return;
     this.#tabs.delete(tab.id);
+    if (tab.profile === "incognito") {
+      // In-memory partitions outlive destroyed contents; all retirement paths share one cleanup.
+      tab.cleanup = Promise.resolve().then(async () => {
+        await Promise.all([tab.session.clearStorageData(), tab.session.clearCache()]);
+      });
+      void tab.cleanup.catch((error: unknown) => console.warn("Could not clear private browsing data", error));
+    }
     const active = this.#active === tab.id;
     if (active) this.#active = [...this.#tabs.values()].filter((t) => !t.wc.isDestroyed()).at(-1)?.id;
     this.#handoffs.get(tab.id)?.(false);

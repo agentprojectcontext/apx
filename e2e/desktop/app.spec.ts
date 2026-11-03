@@ -246,13 +246,27 @@ test("native tab destruction during CDP invalidation removes only that tab and t
   }, 20_000);
   const url = `http://127.0.0.1:${process.env.E2E_CONTROL_PORT ?? 7461}/info`;
   const first = await rpc<{ tab: string }>("browser.open", { url: `${url}#survivor`, by: "e2e" });
-  const second = await rpc<{ tab: string }>("browser.open", { url: `${url}#destroyed`, by: "e2e" });
+  const second = await rpc<{ tab: string }>("browser.open", {
+    url: `${url}#destroyed`,
+    by: "e2e",
+    profile: "incognito",
+  });
   try {
-    await app.evaluate(({ webContents }, target) => {
+    const cookies = await app.evaluate(async ({ webContents }, target) => {
       const wc = webContents.getAllWebContents().find((contents) => contents.getURL() === target);
       if (!wc) throw new Error("test tab not found");
+      const session = wc.session;
+      await session.cookies.set({ url: target, name: "private-tab", value: "temporary" });
+      const removed = new Promise<boolean>((resolve) => {
+        session.cookies.once("changed", (_event, cookie, _cause, gone) =>
+          resolve(cookie.name === "private-tab" && gone),
+        );
+      });
       wc.close();
+      if (!(await removed)) throw new Error("private cookie was not removed");
+      return session.cookies.get({ name: "private-tab" });
     }, `${url}#destroyed`);
+    expect(cookies).toEqual([]);
     await expect
       .poll(async () => (await rpc<{ tabs: Array<{ tab: string }> }>("browser.tabs")).tabs.map((t) => t.tab))
       .toEqual([first.tab]);

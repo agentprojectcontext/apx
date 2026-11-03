@@ -164,6 +164,7 @@ test("incognito close updates selection before storage cleanup and does not over
   };
   const close = host.close(tab.id);
   assert.equal(host.active, second.tab.id);
+  await Promise.resolve();
   assert.equal(cleared, 2);
   host.select(first.tab.id);
   cleanup.resolve();
@@ -171,6 +172,51 @@ test("incognito close updates selection before storage cleanup and does not over
   assert.equal(host.active, first.tab.id);
   first.wc.close();
   second.wc.close();
+});
+
+test("external destruction clears private storage and cache exactly once despite stale native events", async () => {
+  const host = new BrowserHost();
+  const tab = await host.open("https://example.com", "incognito", { kind: "idle" });
+  const view = tab.view as unknown as View;
+  const calls: string[] = [];
+  view.contents.session.clearStorageData = async () => {
+    calls.push("storage");
+  };
+  view.contents.session.clearCache = async () => {
+    calls.push("cache");
+  };
+  view.missing = true;
+  view.contents.close();
+  view.contents.emit("destroyed");
+  view.contents.debugger.emit("detach");
+  await Promise.resolve();
+  assert.deepEqual(calls.sort(), ["cache", "storage"]);
+  assert.deepEqual(host.list(), []);
+  await assert.rejects(host.close(tab.id), /unknown tab/);
+});
+
+test("native destruction racing with explicit close shares one private-session cleanup", async () => {
+  const host = new BrowserHost();
+  const tab = await host.open("https://example.com", "incognito", { kind: "idle" });
+  const view = tab.view as unknown as View;
+  const cleanup = Promise.withResolvers<void>();
+  let storage = 0;
+  let cache = 0;
+  view.contents.session.clearStorageData = () => {
+    storage++;
+    return cleanup.promise;
+  };
+  view.contents.session.clearCache = async () => {
+    cache++;
+  };
+  host.onShow = () => view.contents.close();
+  const closing = host.close(tab.id);
+  view.contents.emit("destroyed");
+  cleanup.resolve();
+  await closing;
+  assert.equal(storage, 1);
+  assert.equal(cache, 1);
+  assert.deepEqual(host.list(), []);
 });
 
 test("navigation still updates URL and invalidates document consent without retiring live tabs", async () => {
