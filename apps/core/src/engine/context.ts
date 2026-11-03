@@ -435,6 +435,8 @@ export function frameInput(origin: Origin, text: string): string {
       return `APX: your task "${origin.title}" (${origin.task_id}) is still in progress and your last turn ended without closing it. Part ${origin.part} of at most ${origin.of}: check where it stands, do what is left and verify it. Done: close it with task_close and say what you verified. Waiting on the owner: task_update awaits_owner=true with why (what they need to do). Blocked by something you cannot fix: say exactly what. Do not stop just to report progress.`;
     case "stalled_task":
       return `APX: your task "${origin.title.slice(0, 120)}" (${origin.task_id}) is still open, but nothing has run on it since your last turn. Check where it stands: if part of it is yours to do, go on with it; if it waits on the owner, mark it with task_update awaits_owner=true and why (what they need to do); if it is done, close it with task_close.`;
+    case "task_feedback":
+      return `${fromTeam("task_feedback", { task: origin.task_id, title: origin.title, from: origin.name }, text)}\nA reviewer returned this still-open task to its author. This is team feedback, not an owner approval. Check current task and agent states; coordinate other eligible work if appropriate without duplicating work or bypassing approvals.`;
     case "task_result":
       return origin.by
         ? `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\n${inlineName(origin.name)} closed a task ${inlineName(origin.by)} gave (${origin.state}); this is their report. Tell the owner in a line or two what came of it and anything they need to do; nothing else.`

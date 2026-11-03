@@ -31,7 +31,10 @@ import {
   type Asker,
   addComment,
   askMentioned,
+  authorizedChildHandoff,
+  authorizedExistingHandoff,
   consultFromAgent,
+  projectCoordinatorChat,
   proposalReason,
   reviewRequested,
   reworkTask,
@@ -262,7 +265,19 @@ export function taskHandlers(
       const due = dueOf(p.due_at);
       const remind = dueOf(p.remind_at);
       const start = dueOf(p.start_at);
-      const forced = ctx.agent ? proposalReason(store, parent, p.assignee, ctx.agent.id) : undefined;
+      const active = ctx.agent
+        ? authorizedChildHandoff(store, parent ? store.tasks.get(parent) : undefined, ctx.agent, p.assignee)
+        : undefined;
+      const forced = ctx.agent
+        ? active === "limit"
+          ? "the active owner-authorized chain reached its handoff limit"
+          : active === "backflow"
+            ? "it gives work back up its active chain"
+            : proposalReason(store, parent, p.assignee, ctx.agent.id, {
+                ignoreHistoricalDepth: active === "allowed",
+                ignoreHistoricalBackflow: active === "allowed",
+              })
+        : undefined;
       const proposed = Boolean(p.propose) || Boolean(forced);
       checkTransfer(ctx, {
         assignee: p.assignee,
@@ -326,9 +341,38 @@ export function taskHandlers(
       if (c.proposed === false && agentScope(ctx)) throw unauthorized("only the owner accepts a proposed task");
       const accepting = Boolean(cur.proposed) && c.proposed === false;
       // Handing it to another agent follows the rules of giving it new: deep or back up the chain, it is a proposal.
+      const handoff =
+        ctx.agent && c.assignee && c.assignee !== cur.assignee && !cur.proposed
+          ? authorizedExistingHandoff(store, cur, ctx.agent)
+          : undefined;
+      let coordinationRoot: string | undefined;
+      const active =
+        handoff !== "denied" &&
+        handoff !== "limit" &&
+        ctx.agent &&
+        c.assignee &&
+        c.assignee !== cur.assignee &&
+        !cur.proposed
+          ? authorizedChildHandoff(store, cur, ctx.agent, c.assignee, {
+              allowCoordinatorChat: true,
+              allowReviewReturn: true,
+              onVerifiedRoot: (id) => {
+                coordinationRoot = id;
+              },
+            })
+          : undefined;
       const forced =
         ctx.agent && c.assignee && c.assignee !== cur.assignee && !cur.proposed
-          ? proposalReason(store, cur.parent_id, c.assignee, ctx.agent.id)
+          ? handoff === "limit" || active === "limit"
+            ? "the active owner-authorized chain reached its handoff limit"
+            : handoff === "denied"
+              ? "the owner's earlier authorization no longer covers this run"
+              : active === "backflow"
+                ? "it gives work back up its active chain"
+                : proposalReason(store, cur.parent_id, c.assignee, ctx.agent.id, {
+                    ignoreHistoricalDepth: handoff === "allowed" || active === "allowed",
+                    ignoreHistoricalBackflow: active === "allowed",
+                  })
           : undefined;
       // Its agent stays only if it can work there.
       const keeper = c.assignee !== undefined ? c.assignee : cur.assignee;
@@ -383,8 +427,32 @@ export function taskHandlers(
           },
           by(ctx),
         ) as Task;
-        if (updated.assignee && starting)
-          startTaskWork(store, engine.admit, updated, updated.assignee, askerOf(ctx), { transfer: true });
+        // A new owner or unrelated chat replaces any old coordinator; task-local review handoffs retain it.
+        if (
+          c.assignee !== undefined &&
+          c.assignee !== cur.assignee &&
+          (!ctx.agent || store.threads.get(ctx.agent.thread_id)?.task_id !== updated.id)
+        )
+          store.threads.mergeContext(updated.thread_id, { coordination_from: undefined });
+        if (updated.assignee && starting) {
+          const coordinate = Boolean(
+            ctx.agent && active === "allowed" && projectCoordinatorChat(store, cur, ctx.agent),
+          );
+          const work = startTaskWork(store, engine.admit, updated, updated.assignee, askerOf(ctx), {
+            transfer: true,
+            ...(coordinate ? { coordination: coordinationRoot ? { root_run: coordinationRoot } : {} } : {}),
+          });
+          if (work && ctx.agent && coordinate) {
+            store.threads.mergeContext(updated.thread_id, {
+              coordination_from: {
+                thread: ctx.agent.thread_id,
+                run: ctx.agent.run_id,
+                work_run: work.id,
+                ...(coordinationRoot ? { root_run: coordinationRoot } : {}),
+              },
+            });
+          }
+        }
         return updated;
       });
       if (forced) noticeTaskProposed(store, changed);

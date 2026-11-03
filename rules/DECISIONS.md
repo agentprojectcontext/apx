@@ -3437,3 +3437,23 @@ was also accepted on a Flow never published, which turned on something that runs
 
 Tests, the key, an address and an AI step's autonomy stay the owner's. Rejected: letting the agent read the webhook
 key to call it (a key never reaches a model, D-139), and turning on without publishing (it runs nothing).
+
+
+## D-185 — 2026-11-02 — Owner-started work may hand on without inheriting old task depth
+
+A task explicitly assigned or accepted by the owner may sit under a long historical task tree. Counting all those
+parents as new hand-offs made an independent review wait for a second approval, even though the owner had just started
+the task. A different agent's chat must not gain that authority: the active caller must be the task's current assignee
+in its own task session, after the owner's assignment or acceptance. An owner clearing the assignee revokes the anchor.
+
+For that one existing task, hand-offs since the anchor are counted instead of its old parent depth: up to three actual
+changes of assignee, then the next is proposed. A no-op assignment does not spend one. For a new subtask, APX follows
+verified run origins, resumptions and task-result provenance back to the owner's request or recorded routine; a short active chain may hand
+on without inheriting unrelated task history. Three active hops or work handed back to an active sender is proposed.
+Missing, inconsistent or external provenance falls back to the old parent-chain rule. The existing refusal for work
+given back up an unverified ancestor chain, A2A restrictions, budgets, project scope and explicit proposal acceptance
+stay in force; a proposal already waiting is never auto-accepted. This is not an assertion that every old task is
+owner-authorized. Automatic task continuations record their prior run; a stall revival does so only when that run is in
+the same task chat and belongs to the assignee. Legacy records without this link fall back to the existing rule.
+A routine may itself be managed by an agent granted Total settings access: its owner-equivalent privilege is unchanged,
+and the delegation-depth cap is not a global rate limit across separate scheduled runs. When the project orchestrator is still the task assignee or the task is unassigned without a revocation, an owner-origin project coordination chat may also hand it on through a verified active chain; other agents, external clients, other projects and revoked authorizations do not gain that exemption. A verified author-reviewer pair on the same task may exchange up to two review rounds, counted separately from nested delegation; unrelated backflow and existing proposals remain blocked.

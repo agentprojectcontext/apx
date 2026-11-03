@@ -175,13 +175,18 @@ te pregunta (un plan, una tarea por cada una o hacerlo él); si ya le dijiste c�
 
 Las propuestas:
 
-- **Una cadena de tres pases.** Una subtarea de una subtarea de una subtarea queda propuesta, así los agentes no siguen
-  pasándose trabajo solos.
-- **Trabajo devuelto hacia arriba.** Una subtarea para un agente que creó una de las tareas de arriba queda propuesta,
-  así dos agentes no se pasan el mismo trabajo de ida y vuelta.
+- **Una cadena de tres pases.** Una subtarea de una subtarea de una subtarea normalmente queda propuesta, así los agentes
+  no siguen pasándose trabajo solos. Si APX puede verificar una cadena activa más corta hasta tu pedido, cuenta esa cadena
+  en lugar de tareas padre antiguas. Una ejecución registrada de una rutina puede iniciar esa cadena, y las
+  continuaciones automáticas enlazadas la conservan. Si no puede verificarla, conserva la regla de propuestas existente.
+- **Trabajo devuelto hacia arriba.** Una subtarea para un agente de la cadena activa queda propuesta para evitar pases
+  de ida y vuelta. Si no se puede verificar esa cadena, APX comprueba el historial de tareas padre. La misma tarea puede pasar entre autor y revisor hasta dos rondas verificadas; los pases ajenos a la revisión siguen teniendo un límite de profundidad.
 
 Lo mismo pasa cuando un agente le pasa una tarea que ya existe a otro agente: si darla nueva la volvería propuesta, el
-pase también queda propuesto y arranca cuando lo aceptás.
+pase también queda propuesto y arranca cuando lo aceptás. Si vos asignaste o aceptaste esa tarea, su responsable puede
+pasar esa misma tarea desde su chat de trabajo sin que sus antiguas tareas padre cuenten como pases nuevos. Después de
+tres cambios reales de responsable desde tu autorización, el siguiente pase espera tu decisión. El trabajo devuelto hacia
+arriba sigue esperando tu decisión y una propuesta pendiente nunca se acepta automáticamente. El orquestador del proyecto también puede pasar una tarea que tiene asignada o que no tiene responsable desde un chat del proyecto iniciado por vos, si se verifica la cadena activa; esto no acepta propuestas existentes.
 
 ## Compromisos
 

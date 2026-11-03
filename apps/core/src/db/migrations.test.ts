@@ -465,3 +465,27 @@ test("a project's tables are kept with their rows, columns from the rows' fields
     cleanup();
   }
 });
+
+test("upgrading a scheduled flow records its existing authority epoch", () => {
+  const { db, cleanup } = upgradeFrom("ALTER TABLE flow_schedules ADD COLUMN activated_at", (db) => {
+    db.prepare("INSERT INTO projects (id, name, created_at) VALUES ('epoch-project', 'Epoch', '2026-10-01')").run();
+    db.prepare(
+      "INSERT INTO flows (id, project_id, enabled, predicates, table_key) VALUES ('epoch-flow', 'epoch-project', 1, '[]', 'latest')",
+    ).run();
+    db.prepare("INSERT INTO flow_schedules (flow_id, since) VALUES ('epoch-flow', '2026-11-02T10:00:00.000Z')").run();
+  });
+  try {
+    assert.equal(
+      db.prepare("SELECT activated_at FROM flow_schedules WHERE flow_id = 'epoch-flow'").get()?.activated_at,
+      "2026-11-02T10:00:00.000Z",
+    );
+    db.prepare("UPDATE flow_schedules SET since = '2026-11-02T10:05:00.000Z' WHERE flow_id = 'epoch-flow'").run();
+    assert.equal(
+      db.prepare("SELECT activated_at FROM flow_schedules WHERE flow_id = 'epoch-flow'").get()?.activated_at,
+      "2026-11-02T10:00:00.000Z",
+    );
+  } finally {
+    db.close();
+    cleanup();
+  }
+});

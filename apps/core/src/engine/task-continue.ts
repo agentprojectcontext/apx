@@ -50,6 +50,7 @@ export function continueTask(store: Store, admit: AdmitFn, run: RunRecord): RunR
     title: task.title.slice(0, 120),
     part: done.length + 2,
     of: MAX_AUTO_PARTS + 1,
+    from_run: run.id,
   };
   return admit({
     thread_id: thread.id,

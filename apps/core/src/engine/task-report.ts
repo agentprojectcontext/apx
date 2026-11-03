@@ -52,6 +52,38 @@ function reportOf(store: Store, task: Task, closer: string, note: unknown, fresh
 /** `watch`: the super-agent, told of a task it did not create so it tells the owner; `by` is who created it. */
 type Recipient = { agent: AgentRecord; thread: Thread; run?: RunRecord | undefined; by?: string };
 
+/** The verified coordinator and the exact task execution it started, if that coordination is still recorded. */
+export function coordinatedTaskSource(
+  store: Store,
+  task: Task,
+): { thread: string; run: RunRecord; root?: RunRecord } | undefined {
+  const from = store.threads.context(task.thread_id).coordination_from;
+  const source = from && store.runs.get(from.run);
+  const work = from && store.runs.get(from.work_run);
+  const root = from?.root_run ? store.runs.get(from.root_run) : undefined;
+  const origin = work?.input?.origin;
+  if (
+    !from ||
+    !source ||
+    source.thread_id !== from.thread ||
+    store.threads.get(from.thread)?.project_id !== task.project_id ||
+    !work ||
+    store.threads.get(work.thread_id)?.task_id !== task.id ||
+    origin?.kind !== "agent" ||
+    origin.id !== source.agent_id ||
+    origin.run_id !== source.id ||
+    origin.thread_id !== source.thread_id ||
+    source.started_at > work.started_at ||
+    (from.root_run &&
+      (!root ||
+        root.thread_id !== source.thread_id ||
+        root.agent_id !== source.agent_id ||
+        root.started_at > source.started_at))
+  )
+    return undefined;
+  return { thread: from.thread, run: source, ...(root ? { root } : {}) };
+}
+
 function recipients(store: Store, task: Task, closer: string, created: Record<string, unknown>): Recipient[] {
   const out: Recipient[] = [];
   const add = (threadId: unknown, runId: unknown, agentId?: string) => {
@@ -67,6 +99,8 @@ function recipients(store: Store, task: Task, closer: string, created: Record<st
     if (run?.thread_id === from.thread && store.threads.get(from.thread)?.project_id === task.project_id)
       add(from.thread, from.run);
   }
+  const coordination = coordinatedTaskSource(store, task);
+  if (coordination) add(coordination.thread, coordination.run.id);
   if (task.created_by !== closer) add(created.from_thread, created.from_run, task.created_by);
   // The super-agent hears of every task its team closes, so the owner does: unless it gave or closed it itself.
   const boss = store.agents.list().find((a) => a.kind === "secretary");

@@ -1136,4 +1136,9 @@ export const MIGRATIONS: readonly string[] = [
     DELETE FROM message_media WHERE message_id = old.id;
   END;
   `,
+  // A re-enabled schedule has a new authority epoch; old events cannot regain it when the clock advances.
+  `
+  ALTER TABLE flow_schedules ADD COLUMN activated_at TEXT;
+  UPDATE flow_schedules SET activated_at = since WHERE activated_at IS NULL;
+  `,
 ];

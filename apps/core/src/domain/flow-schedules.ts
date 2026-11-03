@@ -37,7 +37,7 @@ export function flowSchedulesRepo(db: Db) {
       run(
         qb
           .insertInto("flow_schedules")
-          .values({ flow_id: flow, since: at.toISOString() })
+          .values({ flow_id: flow, since: at.toISOString(), activated_at: at.toISOString() })
           .onConflict((c) => c.column("flow_id").doNothing()),
       );
     },
@@ -46,8 +46,10 @@ export function flowSchedulesRepo(db: Db) {
       run(
         qb
           .insertInto("flow_schedules")
-          .values({ flow_id: flow, since: at.toISOString() })
-          .onConflict((c) => c.column("flow_id").doUpdateSet({ since: at.toISOString() })),
+          .values({ flow_id: flow, since: at.toISOString(), activated_at: at.toISOString() })
+          .onConflict((c) =>
+            c.column("flow_id").doUpdateSet({ since: at.toISOString(), activated_at: at.toISOString() }),
+          ),
       );
     },
     stop(flow: string): void {
