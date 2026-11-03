@@ -257,3 +257,91 @@ test("a coordinator can continue across many completed independent tasks without
     await env.cleanup();
   }
 });
+
+test("a long series of coordinator-created tasks retains verified authority for later existing work", async () => {
+  const project = "created-long-project",
+    lead = "created-long-lead",
+    worker = "created-long-worker";
+  let completed = 0,
+    last = "";
+  const llm = scriptedLlm((req, { system, said, afterTool }) => {
+    if (afterTool) return say("Step completed.");
+    if (system.startsWith("You are Created Long Lead")) {
+      if (said.includes("<task_result")) completed++;
+      return completed < 34
+        ? callTool(`create-${completed}`, "task_create", {
+            title: `Created work ${completed}`,
+            description: "Perform and verify.",
+            status: "doing",
+            assignee: worker,
+          })
+        : completed === 34
+          ? callTool("last", "task_update", { task: last, assignee: worker })
+          : say("All delivered.");
+    }
+    if (system.startsWith("You are Created Long Worker")) {
+      const task = /Task (task_\w+)/.exec(JSON.stringify(req.messages))?.[1] ?? "";
+      return callTool("close", "task_close", { task, state: "done", note: "Completed and verified the test output." });
+    }
+    return say("ok");
+  });
+  const env = await startCore({ llm });
+  try {
+    const store = env.core.store;
+    store.projects.upsert({ id: project, name: "Created long project" });
+    for (const [id, name, parent, head] of [
+      [lead, "Created Long Lead", undefined, true],
+      [worker, "Created Long Worker", lead, false],
+    ] as const)
+      store.agents.upsertApc({
+        id,
+        name,
+        parent,
+        project_id: project,
+        slug: id,
+        role: name,
+        prompt: "",
+        extra: head ? { orchestrator: true } : {},
+      });
+    const old = (title: string, parent?: string) =>
+      store.tasks.create({
+        title,
+        status: "todo",
+        project_id: project,
+        parent_id: parent,
+        thread_id: store.threads.create({ kind: "task", title, project_id: project, agent_ids: [lead] }).id,
+        by: worker,
+      });
+    const a = old("History"),
+      b = old("Phase", a.id),
+      c = old("Branch", b.id);
+    const task = store.tasks.create({
+      title: "Existing last task",
+      description: "Verify.",
+      status: "doing",
+      project_id: project,
+      parent_id: c.id,
+      assignee: lead,
+      thread_id: store.threads.create({
+        kind: "task",
+        title: "Existing last task",
+        project_id: project,
+        agent_ids: [lead],
+      }).id,
+      by: worker,
+    });
+    last = task.id;
+    const chat = await env.client.call("threads.create", {
+      kind: "loose",
+      title: "Coordinate",
+      agent_id: lead,
+      project_id: project,
+    });
+    await env.client.call("threads.send", { thread: chat.id, text: "Coordinate work." });
+    await waitFor(() => store.tasks.get(last)?.state === "done", "next work after 34 created tasks", { ms: 12000 });
+    assert.notEqual(store.tasks.get(last)?.proposed, true);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});

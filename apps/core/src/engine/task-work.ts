@@ -208,6 +208,37 @@ export function startTaskWork(
   const work = ask(store, admit, task, agentId, text, asker, author, sessionFor(store, task, agentId, source));
   if (self) markHandoff(store, task, asker, work);
   const sourceRun = asker.kind === "agent" ? store.runs.get(asker.run_id) : undefined;
+  // A coordinator-created task needs the same feedback route as an existing one it assigned. Record it only once
+  // execution really starts and only when the creation event identifies this exact coordinating chat and run.
+  if (
+    asker.kind === "agent" &&
+    sourceRun &&
+    sourceRun.agent_id === asker.id &&
+    sourceRun.thread_id === asker.thread_id &&
+    task.created_by === asker.id &&
+    projectCoordinatorChat(store, task, asker)
+  ) {
+    const created = store.tasks.events(task.id).find((event) => event.op === "create");
+    if (created?.data.from_thread === asker.thread_id && created.data.from_run === asker.run_id) {
+      // Reuse the owner-lineage verifier; the virtual assignee only asks whether this chat can trace to its root.
+      // It grants no task permission and keeps nested or unverified chains uncompressed.
+      let root: string | undefined;
+      authorizedChildHandoff(store, { ...task, assignee: asker.id }, asker, agentId, {
+        allowCoordinatorChat: true,
+        onVerifiedRoot: (id) => {
+          root = id;
+        },
+      });
+      store.threads.mergeContext(task.thread_id, {
+        coordination_from: {
+          thread: asker.thread_id,
+          run: asker.run_id,
+          work_run: work.id,
+          ...(root ? { root_run: root } : {}),
+        },
+      });
+    }
+  }
   if (asker.kind === "agent" && sourceRun && !sourceRun.ended_at) {
     const previous = store.threads.context(asker.thread_id).task_dispatches;
     const source = { id: asker.run_id, thread_id: asker.thread_id };
@@ -476,12 +507,20 @@ export function authorizedChildHandoff(
   if (taskAuthority === "denied") return undefined;
   const initial = run.input?.origin;
   const assignment = store.tasks.events(parent.id).findLast((e) => Object.hasOwn(e.data, "assignee"));
+  const coordination = coordinatedTaskSource(store, parent);
+  // A reviewer may return to the task's exact coordinating project head when a decision or correction is needed.
+  // This is still bounded by the same verified owner lineage and review-round limits, not a general backflow bypass.
+  const coordinatorEscalation = Boolean(
+    assignee &&
+      coordination?.run.agent_id === assignee &&
+      projectCoordinatorChat(store, parent, { id: assignee, thread_id: coordination.thread }),
+  );
   const reviewReturn = Boolean(
     options.allowReviewReturn &&
       !coordinatorChat &&
       parent.status === "review" &&
       initial?.kind === "agent" &&
-      initial.id === assignee &&
+      (initial.id === assignee || coordinatorEscalation) &&
       store.threads.get(initial.thread_id)?.task_id === parent.id &&
       assignment?.by === initial.id &&
       assignment.data.assignee === agent.id &&
