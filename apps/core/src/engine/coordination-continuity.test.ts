@@ -566,3 +566,90 @@ test("a worker may return a child to its coordinator working in another task", a
     await env.cleanup();
   }
 });
+
+test("coordinator can receive an escalation after a prior task result opened the next task", async () => {
+  const project = "task-result-origin-project",
+    lead = "task-result-origin-lead",
+    worker = "task-result-origin-worker";
+  let children = 0,
+    worked = 0;
+  const llm = scriptedLlm((req, { system, said, afterTool }) => {
+    if (afterTool) return say("Done.");
+    if (system.startsWith("You are Task Result Lead")) {
+      if (said === "Continue" || said.includes("<task_result")) {
+        children++;
+        return callTool(`create-${children}`, "task_create", {
+          title: `Result child ${children}`,
+          description: "Complete or report blocker",
+          assignee: worker,
+        });
+      }
+      return say("Escalation received.");
+    }
+    if (system.startsWith("You are Task Result Worker")) {
+      const task = /Task (task_\w+)/.exec(JSON.stringify(req.messages))?.[1] ?? "";
+      worked++;
+      return worked === 1
+        ? callTool("done", "task_close", { task, state: "done", note: "Completed and checked" })
+        : callTool("escalate", "task_update", { task, assignee: lead, status: "doing" });
+    }
+    return say("ok");
+  });
+  const env = await startCore({ llm });
+  try {
+    const store = env.core.store;
+    store.projects.upsert({ id: project, name: "Task result origin" });
+    store.agents.upsertApc({
+      id: lead,
+      name: "Task Result Lead",
+      project_id: project,
+      slug: lead,
+      role: "Lead",
+      prompt: "",
+      extra: { orchestrator: true },
+    });
+    store.agents.upsertApc({
+      id: worker,
+      name: "Task Result Worker",
+      project_id: project,
+      parent: lead,
+      slug: worker,
+      role: "Worker",
+      prompt: "",
+      extra: {},
+    });
+    const home = store.threads.create({ kind: "task", title: "Parent", project_id: project, agent_ids: [lead] });
+    const parent = store.tasks.create({
+      title: "Parent",
+      description: "Coordinate",
+      status: "doing",
+      project_id: project,
+      assignee: lead,
+      thread_id: home.id,
+      by: "owner",
+    });
+    const source = store.threads.create({
+      kind: "loose",
+      title: "Parent session",
+      project_id: project,
+      agent_ids: [lead],
+      task_id: parent.id,
+    });
+    await env.client.call("threads.send", { thread: source.id, text: "Continue" });
+    await waitFor(() => worked >= 2, "second worker starts after prior task result");
+    await waitFor(
+      () =>
+        store.tasks
+          .list({ limit: 50 })
+          .some((t) => t.title === "Result child 2" && (t.assignee === lead || t.proposed)),
+      "second worker returns",
+    );
+    const child = store.tasks.list({ limit: 50 }).find((t) => t.title === "Result child 2");
+    assert.ok(child);
+    assert.equal(child.assignee, lead);
+    assert.notEqual(child.proposed, true);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
