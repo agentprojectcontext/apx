@@ -345,3 +345,69 @@ test("a long series of coordinator-created tasks retains verified authority for 
     await env.cleanup();
   }
 });
+
+test("a worker escalates, the coordinator resolves and the worker resumes the same task", async () => {
+  const project = "roundtrip-project",
+    lead = "roundtrip-lead",
+    worker = "roundtrip-worker";
+  let task = "",
+    workerTurns = 0;
+  const llm = scriptedLlm((_req, { system, afterTool }) => {
+    if (afterTool) return say("Done for now.");
+    if (system.startsWith("You are Roundtrip Lead"))
+      return callTool("assign", "task_update", { task, assignee: worker });
+    if (system.startsWith("You are Roundtrip Worker")) {
+      workerTurns++;
+      return workerTurns === 1
+        ? callTool("escalate", "task_update", { task, assignee: lead })
+        : callTool("finish", "task_close", { task, state: "done", note: "Completed and verified." });
+    }
+    return say("ok");
+  });
+  const env = await startCore({ llm });
+  try {
+    const store = env.core.store;
+    store.projects.upsert({ id: project, name: "Roundtrip" });
+    store.agents.upsertApc({
+      id: lead,
+      name: "Roundtrip Lead",
+      project_id: project,
+      slug: "lead",
+      role: "Lead",
+      prompt: "",
+      extra: { orchestrator: true },
+    });
+    store.agents.upsertApc({
+      id: worker,
+      name: "Roundtrip Worker",
+      project_id: project,
+      parent: lead,
+      slug: "worker",
+      role: "Worker",
+      prompt: "",
+      extra: {},
+    });
+    task = store.tasks.create({
+      title: "Roundtrip work",
+      description: "Perform bounded work.",
+      status: "doing",
+      project_id: project,
+      assignee: lead,
+      thread_id: store.threads.create({ kind: "task", title: "Task", project_id: project, agent_ids: [lead] }).id,
+      by: worker,
+    }).id;
+    const chat = await env.client.call("threads.create", {
+      kind: "loose",
+      title: "Coordinate",
+      agent_id: lead,
+      project_id: project,
+    });
+    await env.client.call("threads.send", { thread: chat.id, text: "Continue." });
+    await waitFor(() => store.tasks.get(task)?.state === "done", "worker resumes and completes the original task");
+    assert.notEqual(store.tasks.get(task)?.proposed, true);
+    assert.equal(workerTurns, 2);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});

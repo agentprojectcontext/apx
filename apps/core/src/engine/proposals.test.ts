@@ -1182,7 +1182,121 @@ test("review escalation is limited to the verified same-project coordinator", ()
   store.threads.mergeContext(home.id, {
     coordination_from: { thread: source.id, run: root.id, work_run: work.id, root_run: root.id },
   });
+  // The coordinator can send a verified reviewer escalation back to that reviewer too, not just the first worker.
+  const escalated = store.tasks.change(task.id, { assignee: lead, status: "doing" }, reviewer);
+  assert.ok(escalated);
+  const leadSession = store.threads.create({
+    kind: "loose",
+    title: "Resolve",
+    project_id: project,
+    agent_ids: [lead],
+    task_id: task.id,
+  });
+  const resolution = store.runs.create({
+    thread_id: leadSession.id,
+    agent_id: lead,
+    trigger: "a2a",
+    input: {
+      origin: { kind: "agent", id: reviewer, name: reviewer, thread_id: reviewThread.id, run_id: review.id },
+      text: "Resolve",
+    },
+    deadline_at: "2099-01-01",
+  });
+  assert.equal(
+    authorizedChildHandoff(
+      store,
+      escalated,
+      { id: lead, thread_id: leadSession.id, run_id: resolution.id },
+      reviewer,
+      options,
+    ),
+    "allowed",
+  );
   store.projects.upsert({ id: "other-escalation-project", name: "Other" });
   store.threads.moveTo(source.id, "other-escalation-project");
   assert.equal(authorizedChildHandoff(store, reviewed, ctx, lead, options), "backflow");
+});
+
+test("a coordinator can return an escalated task to its verified executor within the owner chain", () => {
+  const store = env.core.store;
+  const project = "resume-coordinator-project",
+    lead = "resume-coordinator-lead",
+    worker = "resume-coordinator-worker";
+  store.projects.upsert({ id: project, name: "Resume" });
+  for (const [id, parent, head] of [
+    [lead, undefined, true],
+    [worker, lead, false],
+  ] as const)
+    store.agents.upsertApc({
+      id,
+      name: id,
+      project_id: project,
+      parent,
+      slug: id,
+      role: id,
+      prompt: "",
+      extra: head ? { orchestrator: true } : {},
+    });
+  const source = store.threads.create({ kind: "loose", title: "Coordinate", project_id: project, agent_ids: [lead] });
+  const root = store.runs.create({
+    thread_id: source.id,
+    agent_id: lead,
+    trigger: "user",
+    input: { origin: { kind: "user" }, text: "Continue" },
+    deadline_at: "2099-01-01",
+  });
+  const home = store.threads.create({ kind: "task", title: "Task", project_id: project, agent_ids: [worker] });
+  const task = store.tasks.create({
+    title: "Resume work",
+    description: "Resolve",
+    status: "doing",
+    project_id: project,
+    assignee: worker,
+    thread_id: home.id,
+    by: lead,
+    from: { thread: source.id, run: root.id },
+  });
+  const session = store.threads.create({
+    kind: "loose",
+    title: "Work",
+    project_id: project,
+    agent_ids: [worker],
+    task_id: task.id,
+  });
+  const work = store.runs.create({
+    thread_id: session.id,
+    agent_id: worker,
+    trigger: "a2a",
+    input: { origin: { kind: "agent", id: lead, name: lead, thread_id: source.id, run_id: root.id }, text: "Work" },
+    deadline_at: "2099-01-01",
+  });
+  store.threads.mergeContext(home.id, {
+    coordination_from: { thread: source.id, run: root.id, work_run: work.id, root_run: root.id },
+  });
+  const returned = store.tasks.change(task.id, { assignee: lead, status: "doing" }, worker);
+  assert.ok(returned);
+  const leadSession = store.threads.create({
+    kind: "loose",
+    title: "Escalation",
+    project_id: project,
+    agent_ids: [lead],
+    task_id: task.id,
+  });
+  const escalation = store.runs.create({
+    thread_id: leadSession.id,
+    agent_id: lead,
+    trigger: "a2a",
+    input: {
+      origin: { kind: "agent", id: worker, name: worker, thread_id: session.id, run_id: work.id },
+      text: "Resolve",
+    },
+    deadline_at: "2099-01-01",
+  });
+  const ctx = { id: lead, thread_id: leadSession.id, run_id: escalation.id };
+  assert.equal(authorizedChildHandoff(store, returned, ctx, worker, { allowCoordinatorReturn: true }), "allowed");
+  assert.equal(authorizedChildHandoff(store, returned, ctx, worker), "backflow");
+  store.threads.mergeContext(home.id, {
+    coordination_from: { thread: source.id, run: root.id, work_run: "forged", root_run: root.id },
+  });
+  assert.equal(authorizedChildHandoff(store, returned, ctx, worker, { allowCoordinatorReturn: true }), "backflow");
 });
