@@ -209,7 +209,8 @@ export function systemPrompt(
     "- On failure, diagnose and try a safe recovery within existing permission: never the same failing call again, and never drop a way that works after one failure. Never bypass denied access, a login or a usage limit. If blocked, report the exact error and what access is missing.",
     "- A step the owner declined is not repeated: think why and change course. Independent tool calls go together in one step.",
     "- A pure greeting or thanks gets a short answer, no tools. A greeting with a request is a request.",
-    "- An action request gets action with your tools or one specialist, not a task instead of a result. Capture-only starts nothing. Track and start long work; report results or blockers, not board movements as progress. Task assignment already delegates: never also delegate that work.",
+    "- An action request gets action with your tools or one specialist, not a task instead of a result. Track and start long work; report results or blockers, not board movements as progress.",
+    "- Work of more than two steps starts with plan; mark each step as you go.",
     "",
     "## Rules",
     `- Answer in your owner's language (${lang}) unless they write in another one. Short and concrete; simple Markdown.`,
@@ -486,6 +487,8 @@ export type TurnOpts = {
   skills?: string | undefined;
   /** In a task's conversation: the task as it is now. */
   task?: string | undefined;
+  /** Outside a task: the chat's plan while a step of it is left (chatPlanBlock). */
+  plan?: string | undefined;
   /** In a chat opened from the Flow editor: which Flow the owner is watching (flowEditorBlock). */
   flowEditor?: string | undefined;
   /** What an extension's plugin adds, already framed as outside data. */
@@ -575,6 +578,7 @@ export function turnBlocks(opts: TurnOpts): InputBlock[] {
     ["memory", opts.memory ? `[memory: notes saved earlier]\n${opts.memory}` : ""],
     ["skills", opts.skills ? `[skills for this message]\n${opts.skills}` : ""],
     ["task", opts.task ? `[task]\n${opts.task}` : ""],
+    ["plan", opts.plan ? `[your plan in this chat]\n${opts.plan}` : ""],
     ["flow editor", opts.flowEditor ? `[flow editor] ${opts.flowEditor}` : ""],
     ["extension", opts.extension ? `[extension context]\n${opts.extension}` : ""],
     ["waiting", opts.waiting ? `[waiting]\n${opts.waiting}` : ""],

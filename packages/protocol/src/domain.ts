@@ -596,6 +596,11 @@ const KnownPart = z.discriminatedUnion("type", [
    * is shown. `why`: the agent's line on what it would do with it.
    */
   z.object({ type: z.literal("connect"), why: z.string().optional(), offers: z.array(ConnectOffer) }),
+  /** The agent's plan for this chat's work: steps it marks as it goes (in a task's chat, the task's plan too). */
+  z.object({
+    type: z.literal("plan"),
+    steps: z.array(z.object({ step: z.string(), state: z.enum(["pending", "doing", "done"]) })),
+  }),
   /** A Flow an agent made or changed in this turn: the chat shows its drawing and opens it in the editor. */
   z.object({ type: z.literal("flow"), flow: z.string(), project: z.string(), name: z.string() }),
   /** Something the system says about the turn (interrupted, fallback engine, no answer): never the agent's words. */

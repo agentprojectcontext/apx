@@ -108,7 +108,8 @@ Above the description, a task shows where its work must arrive and what you said
   before the description, which is the other agent's summary of them; where the summary asks for more than you said,
   or for the opposite, your words win, and when it is not clear the agent asks you.
 - **Plan**: before working, the agent writes its steps toward the goal and marks each one pending, under way or done
-  as it goes. The drawer shows them as a checklist with how many are done. When the work stops leading to the goal,
+  as it goes. The drawer shows them as a checklist with how many are done, and so does the task's chat, under the
+  agent's message ([The agent's plan](/office/chat/#the-agents-plan)). When the work stops leading to the goal,
   the agent tells you what is missing instead of going on.
 - **A pause when it gets nowhere**: if the agents on a task take 12 turns or 2 million tokens without finishing a
   step of its plan (counted since the last step done or since you last wrote), they pause. You see why in the chat,
@@ -263,6 +264,7 @@ works in any chat.
 - Detail sections are bounded for the model, with omission markers for long content and older comments. Task and conversation content is returned as data, not instructions.
 - Project agents can read their project's and global tasks, not other projects' tasks or related work. Missing and out-of-scope IDs return the same safe error. The global secretary keeps its board-wide visibility.
 - `task_create`, `task_update`, `task_comment` and `task_close` create and maintain tasks; `commitment_settle` records an agreed commitment outcome.
+- `plan` keeps the agent's checklist; in a task's chat it is the task's plan.
 
 ## Next
 

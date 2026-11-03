@@ -722,32 +722,6 @@ body.is-dragging {
   font-size: var(--apx-text-2xs);
 }
 
-/* The agent's plan under the description: a quiet block, read-only. */
-.taskdetail__plan {
-  display: grid;
-  gap: 6px;
-  padding: 10px 12px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-surface);
-}
-.taskdetail__planhead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 0;
-  font-size: var(--apx-text-xs);
-  font-weight: 600;
-  color: var(--apx-fg-muted);
-}
-.taskdetail__plancount {
-  font-weight: 400;
-}
-.taskdetail__steps {
-  margin: 0;
-}
-
 /* Above the description: where the work must arrive, then what the owner said, word for word. */
 .taskdetail__goal,
 .taskdetail__asked {

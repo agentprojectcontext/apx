@@ -109,7 +109,8 @@ Arriba de la descripción, una tarea muestra adónde tiene que llegar su trabajo
   palabras antes que la descripción, que es el resumen que hizo el otro agente; si el resumen pide más de lo que
   dijiste, o lo contrario, mandan tus palabras, y si no queda claro el agente te pregunta.
 - **Plan**: antes de trabajar, el agente escribe sus pasos hacia el objetivo y marca cada uno como pendiente, en curso
-  o hecho a medida que avanza. El panel los muestra como una lista con cuántos van hechos. Si el trabajo deja de
+  o hecho a medida que avanza. El panel los muestra como una lista con cuántos van hechos, y también el chat de la
+  tarea, debajo del mensaje del agente ([El plan del agente](/es/office/chat/#el-plan-del-agente)). Si el trabajo deja de
   llevar al objetivo, el agente te dice qué falta en vez de seguir.
 - **Una pausa cuando no avanza**: si los agentes de una tarea hacen 12 turnos o gastan 2 millones de tokens sin
   terminar un paso de su plan (contando desde el último paso hecho o desde tu último mensaje), se pausan. Ves el
@@ -268,6 +269,7 @@ el tablero para Tomás" funciona en cualquier chat.
 - Cada sección tiene un límite para el modelo, con marcas cuando se omite contenido o hay comentarios anteriores. El contenido se devuelve como datos, no como instrucciones.
 - Los agentes de proyecto pueden leer tareas de su proyecto y globales, pero no tareas ni trabajo relacionado de otros proyectos. Un ID inexistente o fuera del ámbito devuelve el mismo error seguro. La secretaria global conserva su visibilidad de todo el tablero.
 - `task_create`, `task_update`, `task_comment` y `task_close` crean y mantienen tareas; `commitment_settle` registra el resultado acordado de un compromiso.
+- `plan` guarda la lista de pasos del agente; en el chat de una tarea es el plan de la tarea.
 
 ## Lo que sigue
 

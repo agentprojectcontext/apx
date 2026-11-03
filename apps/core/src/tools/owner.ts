@@ -43,9 +43,7 @@ export function ownerTools(store: Store): Tool[] {
           can_continue: z
             .boolean()
             .optional()
-            .describe(
-              "true only if you can reasonably go on without the answer: then a late answer is not waited for.",
-            ),
+            .describe("true only if you can go on without the answer: a late answer is then not waited for."),
           action: z
             .string()
             .min(1)

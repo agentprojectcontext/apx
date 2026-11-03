@@ -31,6 +31,7 @@ import { imageGenerationBlocks } from "./parts/imageGeneration.ts";
 import { AudioPart } from "./parts/lazyAudio.tsx";
 import type { MediaBlock } from "./parts/mediaGroups.ts";
 import { NoticePart } from "./parts/NoticePart.tsx";
+import { PlanPart } from "./parts/PlanPart.tsx";
 import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
 import { type ReplySegment, replySegments } from "./replySegments.ts";
@@ -229,6 +230,7 @@ function cardKey(p: Part, i: number): string {
   if (p.type === "browser") return `b:${p.tab}`;
   if (p.type === "input") return `i:${p.input_id}`;
   if (p.type === "flow") return `f:${p.flow}`;
+  if (p.type === "plan") return "plan";
   return `${p.type}:${i}`;
 }
 
@@ -261,6 +263,8 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
       return <AudioPart part={p} />;
     case "notice":
       return <NoticePart part={p} />;
+    case "plan":
+      return <PlanPart part={p} />;
     case "input":
       return (
         <Suspense fallback={null}>

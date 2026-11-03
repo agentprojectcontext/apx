@@ -444,7 +444,6 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "tasks.askedTo": "{when} · a {agent}",
   "tasks.askedAll": "Ver todo ({count})",
   "tasks.descriptionEdit": "Editar la descripción",
-  "tasks.planDone": "{done} de {count} hechos",
   "tasks.reviewerOwner": "Vos",
   "tasks.seeMore": "Ver {n} más",
   "tasks.commitment": "Compromiso",

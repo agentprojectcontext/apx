@@ -21,9 +21,7 @@ const attachmentsArg = z
   .array(z.string().min(1).max(1000))
   .max(20)
   .optional()
-  .describe(
-    "selected med_ ids or readable file paths to snapshot into the task; include the request's relevant screenshot",
-  );
+  .describe("med_ ids or readable file paths to copy into the task; include the request's screenshot");
 const goalArg = z.string().trim().max(500).optional().describe("what the owner checks to call it done");
 const descriptionArg = z.string().max(3000).optional();
 const isMediaId = (value: string) => /^med_[0-9a-f]{16}$/.test(value);
@@ -333,7 +331,6 @@ export function taskTools(store: Store, home: string): Tool[] {
           .optional()
           .describe("with awaits_owner:true, what the owner must do or decide"),
         reviewer: z.string().max(80).optional().describe('"owner" or agent'),
-        plan: z.string().max(4000).optional().describe("- [x] done, - [~] doing, - [ ] next"),
         ...shapeArgs,
         ...commitmentArgs,
       }),

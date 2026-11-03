@@ -54,8 +54,8 @@ const GROUPS: Record<string, (name: string) => boolean> = {
   tasks: (n) => n.startsWith("task_"),
 };
 
-/** Tools every agent keeps whatever its list says: they only read what the turn or memory holds, or ask the owner. */
-const ALWAYS = new Set(["read_output", "ask_owner", "load_skill", "recall"]);
+/** Tools every agent keeps whatever its list says: they read what the turn or memory holds, ask the owner, or plan. */
+const ALWAYS = new Set(["read_output", "ask_owner", "load_skill", "recall", "plan"]);
 
 /** What an agent's editor offers: each assignable tool with its group, and whether every agent keeps it anyway. */
 export function toolCatalog(

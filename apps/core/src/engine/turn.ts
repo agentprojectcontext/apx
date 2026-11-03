@@ -36,6 +36,7 @@ import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { contactToolNames } from "../tools/contact.ts";
 import { channelsOn } from "../tools/directory.ts";
 import { harnessDir, readOnlyFolders, scratchDir, workDir } from "../tools/folders.ts";
+import { chatPlanBlock } from "../tools/plan.ts";
 import { modeOf } from "../tools/policy.ts";
 import { waitingBlock } from "../tools/requests.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
@@ -572,6 +573,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
             memory: memoryBlock,
             skills: picked?.block || undefined,
             task: taskBlock(store, thread),
+            plan: chatPlanBlock(store, thread),
             flowEditor: ownerTurn ? flowEditorBlock(store, thread.id) : undefined,
             extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
             waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,

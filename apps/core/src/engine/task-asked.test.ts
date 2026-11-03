@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { planSteps } from "@apx/protocol/task-plan";
 import { type TempDir, tempDir, waitFor } from "../testkit/platform.ts";
 import { taskBlock } from "./office.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
@@ -21,12 +20,8 @@ const llm = scriptedLlm(async (req, { said, afterTool }) => {
     return callTool("c2", "task_create", { title: "Pointer without an arrival point", assignee: "vera" });
   const add = /add this to (task_\w+)/.exec(said);
   if (add) return callTool("c3", "task_comment", { task: add[1], text: "Owner adds: it must look animated." });
-  const plan = /plan (task_\w+)/.exec(said);
-  if (plan)
-    return callTool("c4", "task_update", {
-      task: plan[1],
-      plan: "- [x] Read the reference cursor\n- [~] Draw the overlay\n- [ ] Record the video",
-    });
+  const urgent = /make (task_\w+) urgent/.exec(said);
+  if (urgent) return callTool("c4", "task_update", { task: urgent[1], priority: "urgent" });
   if (req.messages[0]?.content?.toString().startsWith("You are Vera") && said.includes("Recount the stock"))
     return callTool("c7", "task_comment", {
       task: env.core.store.tasks.list({ limit: 50 }).find((t) => t.title === "Stock count")?.id ?? "",
@@ -101,19 +96,15 @@ test("what the owner adds later through an agent joins the task once; their word
   assert.ok(t);
   const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
   await ownerSays(chat.id, `It must look animated, add this to ${t.id}`);
-  await ownerSays(chat.id, `plan ${t.id}`);
+  await ownerSays(chat.id, `make ${t.id} urgent`);
   await env.client.call("tasks.comment", { task: t.id, text: "Said in the task itself" });
   const now = await env.client.call("tasks.get", { task: t.id });
   const said = now.task.asked?.map((a) => a.text) ?? [];
   assert.equal(said.filter((s) => s === `It must look animated, add this to ${t.id}`).length, 1);
   assert.ok(!said.includes("Said in the task itself"));
-  // A plan update rewrites no request: the owner's "plan …" is not kept as one.
-  assert.ok(!said.includes(`plan ${t.id}`));
-  assert.deepEqual(planSteps(now.task.plan), [
-    { step: "Read the reference cursor", state: "done" },
-    { step: "Draw the overlay", state: "doing" },
-    { step: "Record the video", state: "pending" },
-  ]);
+  // An update that rewrites nothing the task asks keeps no request: the owner's "make … urgent" is not kept as one.
+  assert.ok(!said.includes(`make ${t.id} urgent`));
+  assert.equal(now.task.priority, "urgent");
 });
 
 test("a task an agent creates for another agent carries no owner's words", async () => {

@@ -439,7 +439,6 @@ export const enOffice = {
   "tasks.askedTo": "{when} · to {agent}",
   "tasks.askedAll": "Show all ({count})",
   "tasks.descriptionEdit": "Edit the description",
-  "tasks.planDone": "{done} of {count} done",
   "tasks.reviewerOwner": "You",
   "tasks.seeMore": "See {n} more",
   "tasks.commitment": "Commitment",
