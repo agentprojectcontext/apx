@@ -222,8 +222,33 @@ Las propuestas:
 - **Trabajo devuelto hacia arriba.** Una subtarea para un agente que creó una de las tareas de arriba queda propuesta,
   así dos agentes no se pasan el mismo trabajo de ida y vuelta.
 
-Lo mismo pasa cuando un agente le pasa una tarea que ya existe a otro agente: si darla nueva la volvería propuesta, el
-pase también queda propuesto y arranca cuando lo aceptás.
+**Todavía no publicado:** para una tarea existente que asignaste o aceptaste explícitamente, APX puede verificar al
+agente que la ejecuta y los pases registrados en vez de contar sus padres históricos. Pueden continuar hasta tres
+pases reales hacia adelante; una revisión independiente puede volver a quien la pidió durante hasta dos rondas con el
+mismo autor y revisor. El pase tiene que pedir **Revisión** explícitamente y APX inicia al otro agente con un encargo de
+revisión. Un estado Revisión anterior no demuestra por sí solo una ronda. Una tercera ronda, cambiar la pareja de
+revisión o devolver trabajo ajeno hacia arriba en la cadena activa espera tu decisión. Esto no acepta una propuesta que
+ya esté esperando.
+
+La autorización tiene que seguir correspondiendo a la tarea, al agente que la ejecuta y a su proyecto. Desasignarla,
+cambiar su alcance o pausarla para tu decisión impide esta continuación. Si una asignación tuya registrada ya no se puede
+verificar, APX propone el pase incluso en una tarea sin padres históricos. Las tareas sin una asignación tuya registrada
+conservan las reglas por la cadena de padres de arriba: una tarea sin asignar y sin tu autorización no puede saltárselas
+como continuación autorizada. Las asignaciones ordinarias que ya pasaban esas reglas no cambian. El chat del orquestador no autoriza por sí solo: la tarea tiene que pertenecerle y su
+ejecución tiene que estar vinculada con tu asignación vigente. Aceptá vos la propuesta cuando quieras que arranque;
+quitar padres históricos no es un paso de autorización.
+
+### ¿Revisor o nuevo responsable?
+
+Para pedir una revisión sin cambiar al agente responsable, mové la tarea a **Revisión** y elegí un agente independiente
+en **Revisor** (o pedile a tu agente que lo configure). APX abre una consulta de revisión, durante un máximo de dos
+rondas: los cambios pedidos vuelven al responsable; una aprobación se te comunica a vos. La aprobación no vuelve a
+arrancar automáticamente al responsable para entregar el trabajo. Una tarea propuesta no inicia revisión hasta que la
+aceptás.
+
+Cambiar el **responsable**, en cambio, transfiere la responsabilidad y arranca una sesión de trabajo de la tarea. Ese es
+el pase explicado arriba, no la consulta de revisión. Tu instancia de revisión y los presupuestos de los agentes siguen
+vigentes.
 
 ## Compromisos
 

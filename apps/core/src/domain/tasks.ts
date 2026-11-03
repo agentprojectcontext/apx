@@ -210,6 +210,24 @@ const toTask = (r: Selectable<TasksTable> & { person_name: string | null; chats:
   activity_at: r.activity_at,
 });
 
+export type TaskReviewHandoff = { author: string; reviewer: string; round: number };
+
+export function taskReviewHandoff(value: unknown): TaskReviewHandoff | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  if (
+    !("author" in value) ||
+    typeof value.author !== "string" ||
+    !("reviewer" in value) ||
+    typeof value.reviewer !== "string" ||
+    !("round" in value) ||
+    typeof value.round !== "number" ||
+    !Number.isSafeInteger(value.round) ||
+    value.round < 1
+  )
+    return undefined;
+  return { author: value.author, reviewer: value.reviewer, round: value.round };
+}
+
 export type TaskChange = Partial<{
   title: string;
   description: string;
@@ -356,7 +374,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
         title: t.title,
         status: t.status,
         ...(t.proposed ? { proposed: true } : {}),
-        ...(t.assignee ? { assignee: t.assignee } : {}),
+        ...(t.assignee ? { assignee: t.assignee, assignment_id: newId("assignment") } : {}),
         ...(t.from ? { from_thread: t.from.thread, from_run: t.from.run } : {}),
       });
       const task = repo.get(id) as Task;
@@ -364,7 +382,13 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       return task;
     },
     /** Applies a change and records it as one event (move, assign, done… or a plain update). */
-    change(id: string, c: TaskChange, by: string, note?: string): Task | undefined {
+    change(
+      id: string,
+      c: TaskChange,
+      by: string,
+      note?: string,
+      from?: { thread: string; run: string; review?: TaskReviewHandoff },
+    ): Task | undefined {
       const cur = repo.get(id);
       if (!cur) return undefined;
       const at = now();
@@ -405,7 +429,13 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
           })
           .where("id", "=", id),
       );
-      event(id, opOf(cur, c), by, { ...c, ...(note ? { note } : {}) });
+      event(id, opOf(cur, c), by, {
+        ...c,
+        ...(c.assignee !== undefined || c.proposed === false ? { assignment_id: newId("assignment") } : {}),
+        ...(note ? { note } : {}),
+        ...(from ? { from_thread: from.thread, from_run: from.run } : {}),
+        ...(from?.review ? { review_handoff: from.review } : {}),
+      });
       const task = repo.get(id) as Task;
       emit(task);
       return task;

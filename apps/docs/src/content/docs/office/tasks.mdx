@@ -217,8 +217,30 @@ The proposals:
 - **Work given back up the chain.** A sub-task for an agent that created one of the tasks above it is proposed, so two
   agents cannot ping-pong the same work.
 
-The same goes when an agent hands an existing task to another agent: if giving it new would make it a proposal, the
-hand-off is proposed too, and it starts once you accept it.
+**Unreleased:** for an existing task you explicitly assigned or accepted, APX can verify its current executor and
+recorded hand-offs instead of counting its historical parents. Up to three actual forward hand-offs may continue;
+an independent review may return to its direct sender for up to two rounds with the same author and reviewer. The
+handoff must explicitly request **Review**, and APX starts that separate agent with a review assignment. A previous
+Review status alone does not establish a review round. A third round, a changed review pair or unrelated work sent
+back up the active chain waits for you. This does not accept a proposal already waiting.
+
+The authorization must still match the task, its executor and its project. Clearing its assignee, changing its scope
+or pausing it for your decision prevents this continuation. If a recorded owner assignment can no longer be verified,
+APX proposes the hand-off even for a task without historical parents. Tasks without a recorded owner assignment keep
+the parent-chain rules above: an unassigned task with no owner authorization cannot bypass those rules as an authorized
+continuation. Ordinary assignments that already passed those rules are unchanged. The orchestrator's chat is not authorization by itself: the task must belong to it and its execution must
+be linked to your current assignment. Accept the proposal yourself when you want it to start; removing historical
+parents is not an authorization step.
+
+### A reviewer or a new assignee?
+
+To ask for a review while keeping the same responsible agent, move the task to **Review** and choose an independent
+agent in **Reviewer** (or ask your agent to set it). APX opens a review consultation, for at most two rounds: requested
+changes go back to the responsible agent; an approval is brought to you. Approval does not automatically restart the
+responsible agent for delivery. A proposed task starts no review until you accept it.
+
+Changing the **assignee** instead transfers responsibility and starts a task work session. That is the hand-off
+covered above, not the review consultation. Your review gate and the agents' budgets still apply.
 
 ## Commitments
 

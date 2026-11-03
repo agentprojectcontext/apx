@@ -50,6 +50,7 @@ export function continueTask(store: Store, admit: AdmitFn, run: RunRecord): RunR
   if (done.length && stalled(store.runs.steps(run.id), done[1] ? store.runs.steps(done[1].id) : [])) return undefined;
   const origin: Continue = {
     kind: "task_continue",
+    from_run: run.id,
     task_id: task.id,
     title: task.title.slice(0, 120),
     part: done.length + 2,
