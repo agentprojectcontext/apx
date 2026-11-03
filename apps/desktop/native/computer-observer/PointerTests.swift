@@ -128,6 +128,21 @@ struct PointerTests {
         try test("overlay canvas uses the same top-left coordinate system as screen positions") {
             try require(pointerCanvas(frame: CGRect(x: 0, y: 0, width: 800, height: 600)).isFlipped)
         }
+        try test("a point on a side screen lands inside that screen's overlay, not the main one's") {
+            let main = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+            let side = CGRect(x: 1920, y: 0, width: 1920, height: 1080)
+            let point = CGPoint(x: 2500, y: 500)
+            let onSide = pointerScreenPoint(point, screen: side, mainHeight: main.maxY)
+            let onMain = pointerScreenPoint(point, screen: main, mainHeight: main.maxY)
+            try require(CGRect(origin: .zero, size: side.size).contains(onSide))
+            try require(!CGRect(origin: .zero, size: main.size).contains(onMain))
+            try require(onMain.x - onSide.x == side.minX - main.minX && onMain.y == onSide.y)
+        }
+        try test("a screen above the main one maps a negative screen point by its own top edge") {
+            let above = CGRect(x: -300, y: 1080, width: 1920, height: 1080)
+            let point = pointerScreenPoint(CGPoint(x: 100, y: -500), screen: above, mainHeight: 1080)
+            try require(abs(point.x - 397) < 0.001 && abs(point.y - 577.48) < 0.001)
+        }
         print("\(passed) pointer behavior tests passed; native screen not exercised")
     }
 }

@@ -258,7 +258,9 @@ async function tabView(): Promise<{
       return !(b.x === 0 && b.y === 0 && b.width === full?.width && b.height === full?.height);
     });
     const at = i < 0 ? 0 : i;
-    return { on: at === kids.length - 1 ? ("top" as const) : ("behind" as const), ...kids[at].getBounds() };
+    const view = kids[at];
+    if (!view) return null;
+    return { on: at === kids.length - 1 ? ("top" as const) : ("behind" as const), ...view.getBounds() };
   });
 }
 
@@ -320,7 +322,11 @@ test("the browser tab follows its slot, a popup over it shows a still, and a rel
     location.hash = hash;
   }, `#thread=${thread.id}`);
   await expect(slot).toHaveCount(0);
-  await main.evaluate(() => window.apxDesktop?.setBrowserBounds({ x: 40, y: 40, width: 400, height: 300 }));
+  await main.evaluate(() =>
+    (
+      window as { apxDesktop?: { setBrowserBounds(b: { x: number; y: number; width: number; height: number }): void } }
+    ).apxDesktop?.setBrowserBounds({ x: 40, y: 40, width: 400, height: 300 }),
+  );
   await expect.poll(async () => (await tabView())?.on).toBe("top");
   await main.reload();
   await expect.poll(async () => (await tabView())?.on).toBe("behind");
