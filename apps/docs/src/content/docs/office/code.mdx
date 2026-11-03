@@ -13,6 +13,10 @@ APX is not only for office work. An agent can work inside a project's folder: re
 commands, and show you every change as a diff. You can do it in two ways: a **code thread** with one of your agents,
 or a session with **Claude Code** or **Codex** themselves, right inside APX.
 
+## Reading an exact Git revision
+
+`file_read_revision` reads one text file at a full Git commit ID and returns the verified commit and blob IDs. It does not use a working-copy file as a fallback. This reads repository history: agents restricted to `file_read` do **not** receive it unless the owner also grants `file_read_revision` (the broader `files` group includes it). The normal folder rules still apply. It requires Git with `--no-lazy-fetch`; missing objects, alternate object stores, binary files and files over 1 MB are refused rather than fetched or read elsewhere.
+
 ## Code threads
 
 A code thread is a chat whose agent works in a folder of a [project](/concepts/projects/). Its header shows the folder
