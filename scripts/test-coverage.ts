@@ -25,7 +25,7 @@ export async function sandboxPorts(env: NodeJS.ProcessEnv = process.env): Promis
   const ports: Record<string, string> = {};
   const servers: net.Server[] = [];
   try {
-    for (const name of ["E2E_PORT", "E2E_CONTROL_PORT", "E2E_WA_PORT"]) {
+    for (const name of ["E2E_PORT", "E2E_CONTROL_PORT", "E2E_WA_PORT", "E2E_PAIR_PORT"]) {
       if (env[name]) {
         ports[name] = env[name];
         continue;
@@ -239,7 +239,7 @@ async function runE2ESuites(
   which: Pick<CoveragePart, "web" | "desktop">,
 ): Promise<boolean> {
   let failed = false;
-  const ports = await sandboxPorts();
+  let ports = await sandboxPorts();
   const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
   const run = (command: string, args: string[]) => {
     const result = spawnSync(command, args, {
@@ -247,7 +247,8 @@ async function runE2ESuites(
       stdio: "inherit",
       shell: process.platform === "win32",
       env: { ...process.env, ...ports, APX_TEST_COVERAGE: "1", APX_TEST_COVERAGE_DIR: raw, NODE_V8_COVERAGE: raw },
-      timeout: 15 * 60_000,
+      // The web e2e alone runs ~17 min under coverage; a kill here stops pnpm, not the run under it.
+      timeout: 30 * 60_000,
     });
     if (result.status !== 0) {
       failed = true;
@@ -262,6 +263,8 @@ async function runE2ESuites(
     run(pnpm, ["exec", "playwright", "test", "--project", "chromium", ...shard]);
   }
   if (!which.desktop) return failed;
+  // Listeners of their own: a web sandbox still closing never makes the desktop run's server "already used".
+  ports = await sandboxPorts();
   run(pnpm, ["--filter", "@apx/desktop", "build"]);
   snapshot(path.join(root, "apps/desktop/dist"));
   const desktop = ["exec", "playwright", "test", "--project", "desktop"];
