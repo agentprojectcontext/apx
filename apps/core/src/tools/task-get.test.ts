@@ -169,7 +169,7 @@ test("task_get distinguishes new proposal provenance from unclassified legacy", 
     out,
     /Pending proposal provenance \(creation cause only, not approval or current eligibility\):[\s\S]*"reason":"explicit"/,
   );
-  assert.match(out, /"actor":"non_agent"/);
+  assert.match(out, /"actor":"unattributed"/);
   const thread = env.core.store.threads.create({
     kind: "task",
     title: "Legacy",

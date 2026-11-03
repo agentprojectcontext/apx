@@ -274,7 +274,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       /** An agent's proposal: nothing starts until the owner accepts it. */
       proposed?: boolean | undefined;
       proposal_provenance?:
-        | { reason: ProposalReason; explicit: boolean; actor_scope: "agent" | "non_agent" }
+        | { reason: ProposalReason; explicit: boolean; actor_scope: "agent_run" | "unattributed" }
         | undefined;
       /** Already reminded (an import: what was due before it arrived is not news). */
       reminded_at?: string | undefined;
@@ -334,7 +334,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       c: TaskChange,
       by: string,
       note?: string,
-      provenance?: { reason: ProposalReason; explicit: boolean; actor_scope: "agent" | "non_agent" },
+      provenance?: { reason: ProposalReason; explicit: boolean; actor_scope: "agent_run" | "unattributed" },
     ): Task | undefined {
       const cur = repo.get(id);
       if (!cur) return undefined;

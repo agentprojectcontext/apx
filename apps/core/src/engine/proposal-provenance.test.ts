@@ -21,7 +21,7 @@ test("reason codes do not store free text and legacy proposals remain unknown", 
       by: "owner",
       data: {
         proposed: true,
-        proposal_provenance: { version: 1, reason: "explicit", explicit: true, actor_scope: "non_agent" },
+        proposal_provenance: { version: 1, reason: "explicit", explicit: true, actor_scope: "unattributed" },
       },
     },
     { at: "2026", op: "update" as const, by: "owner", data: { proposed: false } },
@@ -35,7 +35,7 @@ test("reason codes do not store free text and legacy proposals remain unknown", 
       by: "owner",
       data: {
         proposed: true,
-        proposal_provenance: { version: 1, reason: "explicit", explicit: true, actor_scope: "non_agent" },
+        proposal_provenance: { version: 1, reason: "explicit", explicit: true, actor_scope: "unattributed" },
       },
     },
     { at: "2026", op: "assign" as const, by: "other-agent", data: { assignee: "vera" } },
@@ -52,7 +52,7 @@ test("reason codes do not store free text and legacy proposals remain unknown", 
       by: "owner",
       data: {
         proposed: true,
-        proposal_provenance: { version: 1, reason: "explicit", explicit: true, actor_scope: "non_agent" },
+        proposal_provenance: { version: 1, reason: "explicit", explicit: true, actor_scope: "unattributed" },
       },
     },
   ];
@@ -77,8 +77,8 @@ test("explicit proposal persists actor classification without implying a verifie
     assert.deepEqual(proposalProvenance(true, events), {
       reason: "explicit",
       explicit: true,
-      actor: "non_agent",
-      actor_scope: "non_agent",
+      actor: "unattributed",
+      actor_scope: "unattributed",
     });
     assert.equal(env.core.store.threads.byTask(task.id).length, 0, "provenance must not start work");
     assert.doesNotMatch(JSON.stringify(events.at(-1)), /Synthetic only/, "do not duplicate free text in provenance");
@@ -171,7 +171,7 @@ test("accepted proposal followed by a new forced handoff records the new proposa
       reason: "task_ancestry_backflow",
       explicit: false,
       actor: "vera",
-      actor_scope: "agent",
+      actor_scope: "agent_run",
     });
   } finally {
     await env.core.close();
@@ -231,6 +231,32 @@ test("forced handoff rolls back state and events if provenance write fails", asy
     assert.equal(store.tasks.events(task.id).length, before);
     assert.deepEqual(published, []);
     off();
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("agent caller without a bound run remains unattributed", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  try {
+    const { createLog } = await import("../log.ts");
+    const res = await env.core.dispatch(
+      "tasks.create",
+      { title: "Agent without run", description: "Synthetic", assignee: "vera", propose: true },
+      { transport: "internal", role: "operator", actor: "agent", session: undefined, log: createLog("test", true) },
+      "agent-no-run",
+    );
+    assert.equal(res.ok, true);
+    const task = env.core.store.tasks.list({ limit: 100 }).find((t) => t.title === "Agent without run");
+    assert.ok(task);
+    const provenance = proposalProvenance(true, env.core.store.tasks.events(task.id));
+    assert.deepEqual(provenance, {
+      reason: "explicit",
+      explicit: true,
+      actor: "unattributed",
+      actor_scope: "unattributed",
+    });
   } finally {
     await env.core.close();
     await env.cleanup();

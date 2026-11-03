@@ -42,15 +42,15 @@ export function proposalProvenance(proposed: boolean | undefined, events: TaskEv
     typeof v.reason !== "string" ||
     !allowed.includes(v.reason) ||
     typeof v.explicit !== "boolean" ||
-    (v.actor_scope !== "agent" && v.actor_scope !== "non_agent") ||
-    (v.actor_scope === "non_agent" && record.by !== "owner") ||
-    (v.actor_scope === "agent" && record.by === "owner")
+    (v.actor_scope !== "agent_run" && v.actor_scope !== "unattributed") ||
+    (v.actor_scope === "unattributed" && record.by !== "owner") ||
+    (v.actor_scope === "agent_run" && record.by === "owner")
   )
     return { reason: "unknown" as const };
   return {
     reason: v.reason as ProposalReason,
     explicit: v.explicit,
-    actor: v.actor_scope === "agent" ? record.by : "non_agent",
+    actor: v.actor_scope === "agent_run" ? record.by : "unattributed",
     actor_scope: v.actor_scope,
   };
 }

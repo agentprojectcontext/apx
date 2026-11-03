@@ -294,7 +294,7 @@ export function taskHandlers(
                 proposal_provenance: {
                   reason: proposalReasonCode(forced),
                   explicit: Boolean(p.propose),
-                  actor_scope: ctx.agent ? ("agent" as const) : ("non_agent" as const),
+                  actor_scope: ctx.agent ? ("agent_run" as const) : ("unattributed" as const),
                 },
               }
             : {}),
@@ -394,7 +394,11 @@ export function taskHandlers(
           by(ctx),
           undefined,
           forced
-            ? { reason: proposalReasonCode(forced), explicit: false, actor_scope: ctx.agent ? "agent" : "non_agent" }
+            ? {
+                reason: proposalReasonCode(forced),
+                explicit: false,
+                actor_scope: ctx.agent ? "agent_run" : "unattributed",
+              }
             : undefined,
         ) as Task;
         if (updated.assignee && starting)

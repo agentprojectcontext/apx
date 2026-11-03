@@ -69,7 +69,7 @@ test("handing a task to another agent follows the same rule: back up its chain, 
     reason: "task_ancestry_backflow",
     explicit: false,
     actor: "vera",
-    actor_scope: "agent",
+    actor_scope: "agent_run",
   });
   assert.deepEqual(store.threads.byTask(sub.id), [], "no work started on it");
   const step = store.runs
@@ -115,7 +115,7 @@ test("explicit proposal with a forced backflow records both facts without starti
     reason: "task_ancestry_backflow",
     explicit: true,
     actor: "vera",
-    actor_scope: "agent",
+    actor_scope: "agent_run",
   });
   assert.equal(store.threads.byTask(created.id).length, 0);
 });
