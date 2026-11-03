@@ -148,77 +148,90 @@ private final class PointerBadge {
     }
 }
 
+/** A screen point (top-left origin, main screen at 0,0) inside one screen's own overlay, which is flipped too. */
+func pointerScreenPoint(_ point: CGPoint, screen: CGRect, mainHeight: CGFloat) -> CGPoint {
+    CGPoint(x: point.x - screen.minX - 3, y: point.y - (mainHeight - screen.maxY) - 2.52)
+}
+
+// One overlay per screen: with separate Spaces per display, macOS shows a window spanning several on one only.
 final class PointerOverlay {
-    private struct Entry {
+    private struct Surface {
         let window: NSWindow
         let badge: PointerBadge
+        let screen: CGRect
+    }
+    private struct Entry {
+        var surfaces: [Surface]
         var at: CGPoint
         var idle: DispatchWorkItem?
     }
     private var entries: [String: Entry] = [:]
-    var windowIDs: Set<CGWindowID> { Set(entries.values.map { CGWindowID($0.window.windowNumber) }) }
-
-    private func desktopFrame() -> CGRect {
-        NSScreen.screens.reduce(CGRect.null) { $0.union($1.frame) }
+    var windowIDs: Set<CGWindowID> {
+        Set(entries.values.flatMap { $0.surfaces.map { CGWindowID($0.window.windowNumber) } })
     }
 
-    private func local(_ point: CGPoint, frame: CGRect) -> CGPoint {
-        let mainHeight = NSScreen.screens.first?.frame.maxY ?? 0
-        return CGPoint(x: point.x - frame.minX - 3, y: point.y - (mainHeight - frame.maxY) - 2.52)
+    private func surface(for screen: NSScreen) -> Surface {
+        let window = PointerWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = false
+        window.ignoresMouseEvents = true
+        window.level = .screenSaver
+        #if POINTER_RECORDING
+        window.sharingType = .readOnly
+        #else
+        window.sharingType = .none
+        #endif
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle, .stationary]
+        window.isReleasedWhenClosed = false
+        window.setAccessibilityElement(false)
+        window.setFrame(screen.frame, display: false)
+        let view = pointerCanvas(frame: CGRect(origin: .zero, size: screen.frame.size))
+        view.setAccessibilityElement(false)
+        view.wantsLayer = true
+        window.contentView = view
+        let badge = PointerBadge(scale: screen.backingScaleFactor)
+        view.layer?.addSublayer(badge.layer)
+        return Surface(window: window, badge: badge, screen: screen.frame)
+    }
+
+    /** The agent's overlays, made again when screens were added, removed or moved. */
+    private func surfaces(_ current: [Surface]) -> [Surface] {
+        let screens = NSScreen.screens
+        if current.map(\.screen) == screens.map(\.frame) { return current }
+        for old in current { old.window.close() }
+        return screens.map(surface(for:))
     }
 
     func move(agent: String, label: String, point: CGPoint, completion: @escaping () -> Void) {
-        let desktop = desktopFrame()
-        guard !desktop.isNull else { completion(); return }
+        guard let main = NSScreen.screens.first?.frame else { completion(); return }
         if entries[agent] == nil {
             if entries.count >= 16, let key = entries.keys.sorted().first, let removed = entries.removeValue(forKey: key) {
                 removed.idle?.cancel()
-                removed.window.close()
+                for old in removed.surfaces { old.window.close() }
             }
-            let window = PointerWindow(contentRect: desktop, styleMask: .borderless, backing: .buffered, defer: false)
-            window.isOpaque = false
-            window.backgroundColor = .clear
-            window.hasShadow = false
-            window.ignoresMouseEvents = true
-            window.level = .screenSaver
-            #if POINTER_RECORDING
-            window.sharingType = .readOnly
-            #else
-            window.sharingType = .none
-            #endif
-            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
-            window.isReleasedWhenClosed = false
-            window.setAccessibilityElement(false)
-            let view = pointerCanvas(frame: CGRect(origin: .zero, size: desktop.size))
-            view.setAccessibilityElement(false)
-            view.wantsLayer = true
-            window.contentView = view
-            let badge = PointerBadge(scale: NSScreen.main?.backingScaleFactor ?? 2)
-            view.layer?.addSublayer(badge.layer)
-            let initial = CGPoint(x: desktop.midX, y: (NSScreen.screens.first?.frame.maxY ?? 0) - desktop.midY)
-            entries[agent] = Entry(window: window, badge: badge, at: initial)
+            entries[agent] = Entry(surfaces: [], at: CGPoint(x: main.midX, y: main.midY))
         }
         guard var entry = entries[agent] else { completion(); return }
         entry.idle?.cancel()
-        entry.window.setFrame(desktop, display: false)
-        entry.window.contentView?.frame.size = desktop.size
-        let from = local(entry.at, frame: desktop)
-        let to = local(point, frame: desktop)
+        entry.surfaces = surfaces(entry.surfaces)
         let distance = hypot(point.x - entry.at.x, point.y - entry.at.y)
+        let animate = distance >= 1 && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        entry.badge.label(label)
-        entry.badge.layer.position = to
-        CATransaction.commit()
-        entry.window.orderFrontRegardless()
-        if distance < 1 || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { completion() }
-        else {
-            let animation = pointerTravelAnimation(from: from, to: to)
+        if animate { CATransaction.setCompletionBlock(completion) }
+        for item in entry.surfaces {
+            let from = pointerScreenPoint(entry.at, screen: item.screen, mainHeight: main.maxY)
+            let to = pointerScreenPoint(point, screen: item.screen, mainHeight: main.maxY)
             CATransaction.begin()
-            CATransaction.setCompletionBlock(completion)
-            entry.badge.layer.add(animation, forKey: "travel")
+            CATransaction.setDisableActions(true)
+            item.badge.label(label)
+            item.badge.layer.position = to
             CATransaction.commit()
+            if animate { item.badge.layer.add(pointerTravelAnimation(from: from, to: to), forKey: "travel") }
+            item.window.orderFrontRegardless()
         }
+        CATransaction.commit()
+        if !animate { completion() }
         entry.at = point
         let idle = DispatchWorkItem { [weak self] in self?.hide(agent: agent) }
         entry.idle = idle
@@ -231,12 +244,12 @@ final class PointerOverlay {
         move(agent: agent, label: label, point: entries[agent]?.at ?? CGPoint(x: main.midX, y: main.midY), completion: completion)
     }
 
-    func pulse(agent: String) { entries[agent]?.badge.pulse() }
+    func pulse(agent: String) { entries[agent]?.surfaces.forEach { $0.badge.pulse() } }
 
     func hide(agent: String? = nil) {
         for key in agent.map({ [$0] }) ?? Array(entries.keys) {
             entries[key]?.idle?.cancel()
-            entries[key]?.window.orderOut(nil)
+            entries[key]?.surfaces.forEach { $0.window.orderOut(nil) }
         }
     }
 }

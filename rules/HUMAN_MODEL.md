@@ -25,7 +25,8 @@ from `ctx.agent` and the name from `store.agents`; public computer inputs remain
 All five computer operations forward that metadata; direct operators omit it and Desktop uses the action note or APX.
 The native 20-point white/green cursor uses a quadratic curve with a 20% perpendicular control offset and eased
 300–700 ms Core Animation travel. It retains glow, three twinkling sparks, a click ring and an 11-point rounded action
-label. It stays between actions and hides on stop/disconnection. Windows keeps the Electron indicator.
+label. It draws one overlay window per screen, since macOS shows a window spanning several displays on one only when each
+has its own Spaces. It stays between actions and hides on stop/disconnection. Windows keeps the Electron indicator.
 Only the drawn cursor travels. The explicit native accessible mode performs one AXPress without moving the physical
 pointer, validating the destination app/window/control, not origin, idle time or trajectory. Recognized web content
 and secure or unsupported controls refuse without physical fallback or uncertain retry. In the coordinate path a
