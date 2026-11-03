@@ -63,8 +63,18 @@ try {
       const beforeRevoke = google.length;
       await page.locator("[data-cookie-settings]").click();
       await page.locator("[data-cookie-reject]").click();
-      await expect.poll(() => page.evaluate(() => window["ga-disable-G-BZT6ME07J4"])).toBe(true);
-      await expect.poll(() => second.evaluate(() => window["ga-disable-G-BZT6ME07J4"])).toBe(true);
+      // Withdrawal reloads both tabs; retry only the context replacement during navigation.
+      const disabled = async (tab) => {
+        try {
+          return await tab.evaluate(() => window["ga-disable-G-BZT6ME07J4"]);
+        } catch (error) {
+          if (error.message.includes("Execution context was destroyed")) return false;
+          throw error;
+        }
+      };
+      await expect.poll(() => disabled(page)).toBe(true);
+      await expect.poll(() => disabled(second)).toBe(true);
+      await Promise.all([page.waitForLoadState("networkidle"), second.waitForLoadState("networkidle")]);
       await page.reload({ waitUntil: "networkidle" });
       assert.equal(google.length, beforeRevoke, "no Google reload after withdrawal");
       assert.deepEqual(errors, []);
