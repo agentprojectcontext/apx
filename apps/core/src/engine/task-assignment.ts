@@ -6,6 +6,26 @@ import { type Transfer, type TransferPolicy, transferBudget } from "./task-trans
 
 type Caller = { id: string; thread_id: string; run_id: string };
 
+/** Owner follow-ups keep the current assignment's identity without creating a new authorization boundary. */
+export function ownerTaskAssignment(store: Store, threadId: string, agentId: string) {
+  const thread = store.threads.get(threadId);
+  const task = thread?.task_id ? store.tasks.get(thread.task_id) : undefined;
+  if (
+    task?.state !== "open" ||
+    task.proposed ||
+    task.awaits_owner ||
+    task.assignee !== agentId ||
+    thread?.agent_ids[0] !== agentId ||
+    thread.project_id !== task.project_id ||
+    store.threads.context(threadId).client
+  )
+    return undefined;
+  const assignment = store.tasks.events(task.id).findLast((event) => typeof event.data.assignment_id === "string");
+  return typeof assignment?.data.assignment_id === "string"
+    ? { task: task.id, id: assignment.data.assignment_id }
+    : undefined;
+}
+
 function assignmentRun(store: Store, current: RunRecord, task: Task): RunRecord | undefined {
   let run: RunRecord | undefined = current;
   const seen = new Set<string>();

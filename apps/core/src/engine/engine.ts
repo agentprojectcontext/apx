@@ -26,6 +26,7 @@ import type { ProfileRoot } from "./profiles.ts";
 import { recoverInterrupted } from "./recovery.ts";
 import { droppedResult, outcomeNote } from "./run-outcome.ts";
 import type { SkillPicker } from "./skill-pick.ts";
+import { ownerTaskAssignment } from "./task-assignment.ts";
 import { OWNER_ADDS, runTurn, type ToolCall } from "./turn.ts";
 import { askedIn, editInLine, lineOf, removeFromLine, reorderLine } from "./waiting.ts";
 
@@ -326,6 +327,10 @@ export function createEngine(deps: {
   });
 
   function admit(a: Admit): RunRecord {
+    const origin =
+      a.trigger === "user" && a.origin.kind === "user" && !a.origin.task_assignment && !a.resume_of && !a.retry_of
+        ? { ...a.origin, task_assignment: ownerTaskAssignment(store, a.thread_id, a.agent_id) }
+        : a.origin;
     // The owner's words from the app wait in line when a turn is ahead of them (DECISIONS.md#d-186).
     const asked = a.trigger === "user" && a.origin.kind === "user" && !a.resume_of ? a.origin.message_id : undefined;
     const behind = Boolean(asked) && (busy.has(a.thread_id) || Boolean(store.runs.nextQueued(a.thread_id)));
@@ -335,7 +340,7 @@ export function createEngine(deps: {
       ...(a.queued ? { state: "queued" as const } : {}),
       trigger: a.trigger,
       input: {
-        origin: a.origin,
+        origin,
         text: a.text,
         ...(a.attachments?.length ? { attachments: a.attachments } : {}),
         reply_to: a.reply_to !== undefined ? a.reply_to : (store.threads.context(a.thread_id).reply_to ?? null),

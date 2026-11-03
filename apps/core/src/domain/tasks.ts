@@ -431,7 +431,10 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       );
       event(id, opOf(cur, c), by, {
         ...c,
-        ...(c.assignee !== undefined || c.proposed === false ? { assignment_id: newId("assignment") } : {}),
+        ...(c.proposed === false ||
+        (c.assignee !== undefined && (by === "owner" || c.assignee !== (cur.assignee ?? null)))
+          ? { assignment_id: newId("assignment") }
+          : {}),
         ...(note ? { note } : {}),
         ...(from ? { from_thread: from.thread, from_run: from.run } : {}),
         ...(from?.review ? { review_handoff: from.review } : {}),

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { assignmentProposalReason } from "./task-assignment.ts";
+import { ask } from "./task-work.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 function fixture(store: Store, taskThread = true) {
@@ -187,6 +188,34 @@ test("verified assignment boundaries preserve budgets, review rounds and negativ
       f.transfer("scout", "review");
       store.tasks.change(f.task.id, { assignee: "scout" }, "scout");
       assert.deepEqual(f.reason("vera"), { verified: true });
+      const task = store.tasks.get(f.task.id);
+      assert.ok(task);
+      const followup = ask(
+        store,
+        (a) =>
+          store.runs.create({
+            thread_id: a.thread_id,
+            agent_id: a.agent_id,
+            trigger: a.trigger,
+            input: { origin: a.origin, text: a.text },
+            deadline_at: "2099-01-01T00:00:00Z",
+          }),
+        task,
+        "scout",
+        "Return the reviewed work.",
+        { kind: "owner" },
+        { kind: "user" },
+      );
+      assert.deepEqual(
+        assignmentProposalReason(
+          store,
+          task,
+          { id: "scout", thread_id: followup.thread_id, run_id: followup.id },
+          "vera",
+        ),
+        { verified: true },
+        "a new ask after the no-op retains the actual assignment identity",
+      );
     });
   } finally {
     await env.core.close();
