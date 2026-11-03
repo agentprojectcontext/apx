@@ -6,6 +6,7 @@ import { sql as raw } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { TasksTable } from "../db/schema.ts";
 import { badRequest, notFound, unauthorized } from "../errors.ts";
+import type { ProposalReason } from "./proposal-provenance.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 import type { Store } from "./store.ts";
 
@@ -272,6 +273,9 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       start_at?: string | undefined;
       /** An agent's proposal: nothing starts until the owner accepts it. */
       proposed?: boolean | undefined;
+      proposal_provenance?:
+        | { reason: ProposalReason; explicit: boolean; actor_scope: "agent" | "non_agent" }
+        | undefined;
       /** Already reminded (an import: what was due before it arrived is not news). */
       reminded_at?: string | undefined;
       kind?: TaskKind | undefined;
@@ -316,6 +320,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
         title: t.title,
         status: t.status,
         ...(t.proposed ? { proposed: true } : {}),
+        ...(t.proposal_provenance ? { proposal_provenance: { version: 1, ...t.proposal_provenance } } : {}),
         ...(t.assignee ? { assignee: t.assignee } : {}),
         ...(t.from ? { from_thread: t.from.thread, from_run: t.from.run } : {}),
       });
@@ -324,7 +329,13 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       return task;
     },
     /** Applies a change and records it as one event (move, assign, done… or a plain update). */
-    change(id: string, c: TaskChange, by: string, note?: string): Task | undefined {
+    change(
+      id: string,
+      c: TaskChange,
+      by: string,
+      note?: string,
+      provenance?: { reason: ProposalReason; explicit: boolean; actor_scope: "agent" | "non_agent" },
+    ): Task | undefined {
       const cur = repo.get(id);
       if (!cur) return undefined;
       const at = now();
@@ -364,7 +375,11 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
           })
           .where("id", "=", id),
       );
-      event(id, opOf(cur, c), by, { ...c, ...(note ? { note } : {}) });
+      event(id, opOf(cur, c), by, {
+        ...c,
+        ...(note ? { note } : {}),
+        ...(provenance ? { proposal_provenance: { version: 1, ...provenance } } : {}),
+      });
       const task = repo.get(id) as Task;
       emit(task);
       return task;

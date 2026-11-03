@@ -2,6 +2,7 @@
 // chain, a new task is a proposal for the owner instead of starting.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { createLog } from "../log.ts";
 import { proposalReason } from "./task-work.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
@@ -63,6 +64,13 @@ test("handing a task to another agent follows the same rule: back up its chain, 
   const after = store.tasks.get(sub.id);
   assert.equal(after?.assignee, "superagent");
   assert.equal(after?.proposed, true, "the owner decides before it goes back up");
+  const { proposalProvenance } = await import("../domain/proposal-provenance.ts");
+  assert.deepEqual(proposalProvenance(after?.proposed, store.tasks.events(sub.id)), {
+    reason: "task_ancestry_backflow",
+    explicit: false,
+    actor: "vera",
+    actor_scope: "agent",
+  });
   assert.deepEqual(store.threads.byTask(sub.id), [], "no work started on it");
   const step = store.runs
     .list(chat.id, 5)
@@ -74,4 +82,40 @@ test("handing a task to another agent follows the same rule: back up its chain, 
     tray.notifications.some((n) => n.ref?.startsWith("proposals:")),
     "the owner is told of the proposal",
   );
+});
+
+test("explicit proposal with a forced backflow records both facts without starting work", async () => {
+  const store = env.core.store;
+  const parent = task("Mixed proposal parent", "superagent");
+  const chat = store.threads.create({ kind: "loose", title: "Mixed", agent_ids: ["vera"] });
+  const response = await env.core.dispatch(
+    "tasks.create",
+    {
+      title: "Mixed proposal",
+      description: "Bounded synthetic work",
+      assignee: "superagent",
+      parent: parent.id,
+      propose: true,
+    },
+    {
+      transport: "internal",
+      role: "operator",
+      actor: "agent",
+      session: undefined,
+      log: createLog("test", true),
+      agent: { id: "vera", thread_id: chat.id, run_id: "mixed-test" },
+    },
+    "mixed-proposal",
+  );
+  assert.equal(response.ok, true);
+  const created = store.tasks.list({ parent: parent.id, limit: 10 }).find((t) => t.title === "Mixed proposal");
+  assert.ok(created);
+  const { proposalProvenance } = await import("../domain/proposal-provenance.ts");
+  assert.deepEqual(proposalProvenance(created.proposed, store.tasks.events(created.id)), {
+    reason: "task_ancestry_backflow",
+    explicit: true,
+    actor: "vera",
+    actor_scope: "agent",
+  });
+  assert.equal(store.threads.byTask(created.id).length, 0);
 });

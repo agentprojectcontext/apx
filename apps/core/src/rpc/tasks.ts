@@ -4,6 +4,7 @@
 // else in a consult shown on the task as a card (task-work.ts). A task an agent creates from a chat about a task is its
 // subtask; an agent answering another one gives nobody work (DECISIONS.md#d-079).
 import { type Author, SUPER_AGENT_ID, type Task } from "@apx/protocol";
+import { proposalReasonCode } from "../domain/proposal-provenance.ts";
 import { publicRun } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
@@ -288,6 +289,15 @@ export function taskHandlers(
           remind_at: remind ?? undefined,
           start_at: start ?? undefined,
           proposed,
+          ...(proposed
+            ? {
+                proposal_provenance: {
+                  reason: proposalReasonCode(forced),
+                  explicit: Boolean(p.propose),
+                  actor_scope: ctx.agent ? ("agent" as const) : ("non_agent" as const),
+                },
+              }
+            : {}),
           kind: p.kind,
           priority: p.priority,
           tags: tagsOf(p.tags),
@@ -382,6 +392,10 @@ export function taskHandlers(
             ...(checker !== undefined ? { reviewer: checker } : {}),
           },
           by(ctx),
+          undefined,
+          forced
+            ? { reason: proposalReasonCode(forced), explicit: false, actor_scope: ctx.agent ? "agent" : "non_agent" }
+            : undefined,
         ) as Task;
         if (updated.assignee && starting)
           startTaskWork(store, engine.admit, updated, updated.assignee, askerOf(ctx), { transfer: true });

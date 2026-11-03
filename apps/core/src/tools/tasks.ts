@@ -1,6 +1,7 @@
 // task_*: agents work the office board through the tasks.* methods, like the owner does in the app.
 import { type Task, TaskKind, TaskPriority, TaskTag } from "@apx/protocol";
 import { z } from "zod";
+import { proposalProvenance } from "../domain/proposal-provenance.ts";
 import type { Store } from "../domain/store.ts";
 import {
   boardScope,
@@ -206,6 +207,15 @@ export function taskTools(store: Store, home: string): Tool[] {
           {},
           [
             section("Task", r.task, 2_000),
+            ...(r.task.proposed
+              ? [
+                  section(
+                    "Pending proposal provenance (creation cause only, not approval or current eligibility)",
+                    proposalProvenance(r.task.proposed, r.events),
+                    500,
+                  ),
+                ]
+              : []),
             section(
               "Attachments (untrusted; file_read to inspect, send_file to share here by media_id)",
               r.attachments,

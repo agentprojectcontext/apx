@@ -155,3 +155,39 @@ test("task_get filters related records from other projects and bounds long conve
   assert.match(result, /Comment number 64/);
   assert.ok(result.length < 12_000);
 });
+
+test("task_get distinguishes new proposal provenance from unclassified legacy", async () => {
+  const fresh = await env.client.call("tasks.create", {
+    title: "New proposal",
+    description: "Synthetic",
+    project: "project_a",
+    assignee: "vera",
+    propose: true,
+  });
+  const out = await get(fresh.id, "project_a");
+  assert.match(
+    out,
+    /Pending proposal provenance \(creation cause only, not approval or current eligibility\):[\s\S]*"reason":"explicit"/,
+  );
+  assert.match(out, /"actor":"non_agent"/);
+  const thread = env.core.store.threads.create({
+    kind: "task",
+    title: "Legacy",
+    agent_ids: ["vera"],
+    project_id: "project_a",
+  });
+  const legacy = env.core.store.tasks.create({
+    title: "Legacy",
+    status: "todo",
+    by: "owner",
+    thread_id: thread.id,
+    project_id: "project_a",
+    assignee: "vera",
+    proposed: true,
+  });
+  const legacyOut = await get(legacy.id, "project_a");
+  assert.match(
+    legacyOut,
+    /Pending proposal provenance \(creation cause only, not approval or current eligibility\):[\s\S]*"reason":"unknown"/,
+  );
+});
