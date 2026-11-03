@@ -280,3 +280,68 @@ test("a reviewer can escalate a coordinator-created task to its verified project
     await env.cleanup();
   }
 });
+
+test("an author can return a coordinator-started task to its verified coordinator without a proposal", async () => {
+  const project = "author-return-project",
+    lead = "author-return-lead",
+    author = "author-return-author";
+  const llm = scriptedLlm((req, { system, afterTool }) => {
+    if (afterTool) return say("Reported.");
+    const task = /Task (task_\w+)/.exec(JSON.stringify(req.messages))?.[1] ?? "";
+    if (system.startsWith("You are Author Return Lead"))
+      return task
+        ? say("Handoff received.")
+        : callTool("create", "task_create", {
+            title: "Published work needs coordination",
+            description: "Prepare and report the result.",
+            status: "doing",
+            assignee: author,
+          });
+    if (system.startsWith("You are Author Return Worker"))
+      return callTool("return", "task_update", { task, status: "review", assignee: lead });
+    return say("ok");
+  });
+  const env = await startCore({ llm });
+  try {
+    const store = env.core.store;
+    store.projects.upsert({ id: project, name: "Author return" });
+    for (const [id, name, parent, head] of [
+      [lead, "Author Return Lead", undefined, true],
+      [author, "Author Return Worker", lead, false],
+    ] as const)
+      store.agents.upsertApc({
+        id,
+        name,
+        parent,
+        project_id: project,
+        slug: id,
+        role: name,
+        prompt: "",
+        extra: head ? { orchestrator: true } : {},
+      });
+    const chat = await env.client.call("threads.create", {
+      kind: "loose",
+      title: "Coordinate",
+      agent_id: lead,
+      project_id: project,
+    });
+    await env.client.call("threads.send", { thread: chat.id, text: "Coordinate work." });
+    const task = await waitFor(
+      () =>
+        store.tasks
+          .list({ projects: [project], state: "open", limit: 20 })
+          .find((t) => t.title === "Published work needs coordination"),
+      "created task",
+    );
+    await waitFor(() => store.tasks.get(task.id)?.assignee === lead, "author returned to coordinator", { ms: 5000 });
+    assert.notEqual(store.tasks.get(task.id)?.proposed, true);
+    await waitFor(
+      () => store.threads.byTask(task.id).some((t) => t.agent_ids[0] === lead && store.runs.list(t.id, 10).length > 0),
+      "coordinator execution starts",
+      { ms: 5000 },
+    );
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});

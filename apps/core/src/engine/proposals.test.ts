@@ -1173,9 +1173,10 @@ test("review escalation is limited to the verified same-project coordinator", ()
     deadline_at: "2099-01-01",
   });
   const ctx = { id: reviewer, thread_id: reviewThread.id, run_id: review.id },
-    options = { allowReviewReturn: true };
+    options = { allowReviewReturn: true, allowCoordinatorReturn: true };
   assert.equal(authorizedChildHandoff(store, reviewed, ctx, lead, options), "allowed");
-  assert.equal(authorizedChildHandoff(store, { ...reviewed, status: "doing" }, ctx, lead, options), "backflow");
+  assert.equal(authorizedChildHandoff(store, reviewed, ctx, lead, { allowReviewReturn: true }), "backflow");
+  assert.equal(authorizedChildHandoff(store, { ...reviewed, status: "doing" }, ctx, lead, options), "allowed");
   store.threads.mergeContext(home.id, { coordination_from: { thread: source.id, run: root.id, work_run: "forged" } });
   assert.equal(authorizedChildHandoff(store, reviewed, ctx, lead, options), "backflow");
   store.threads.mergeContext(home.id, {

@@ -67,6 +67,7 @@ test("a project coordinator is prompted to unblock and coordinate, not treated a
   );
   assert.match(lead, /project coordinator/i);
   assert.match(lead, /blocker.*delegat/i);
+  assert.match(lead, /after dispatching one task.*other ready work/i);
   assert.doesNotMatch(lead, /or one specialist/);
   const specialist = systemPrompt(agent, { kind: "loose" }, "es");
   assert.match(specialist, /specialist agent/);

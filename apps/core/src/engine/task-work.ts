@@ -479,7 +479,12 @@ export function authorizedChildHandoff(
   parent: Task | undefined,
   agent: { id: string; thread_id: string; run_id: string },
   assignee: string | undefined,
-  options: { allowCoordinatorChat?: boolean; allowReviewReturn?: boolean; onVerifiedRoot?: (id: string) => void } = {},
+  options: {
+    allowCoordinatorChat?: boolean;
+    allowReviewReturn?: boolean;
+    allowCoordinatorReturn?: boolean;
+    onVerifiedRoot?: (id: string) => void;
+  } = {},
 ): "allowed" | "limit" | "backflow" | undefined {
   const thread = store.threads.get(agent.thread_id);
   let run = store.runs.get(agent.run_id);
@@ -508,19 +513,23 @@ export function authorizedChildHandoff(
   const initial = run.input?.origin;
   const assignment = store.tasks.events(parent.id).findLast((e) => Object.hasOwn(e.data, "assignee"));
   const coordination = coordinatedTaskSource(store, parent);
-  // A reviewer may return to the task's exact coordinating project head when a decision or correction is needed.
-  // This is still bounded by the same verified owner lineage and review-round limits, not a general backflow bypass.
-  const coordinatorEscalation = Boolean(
-    assignee &&
+  // A worker may return to the task's verified same-project coordinator; it must still trace through the exact
+  // recorded execution and owner lineage below. This never permits a return to some other earlier agent.
+  const coordinatorReturn = Boolean(
+    options.allowCoordinatorReturn &&
+      !coordinatorChat &&
+      assignee &&
       coordination?.run.agent_id === assignee &&
       projectCoordinatorChat(store, parent, { id: assignee, thread_id: coordination.thread }),
   );
+  const coordinatedWork = store.threads.context(parent.thread_id).coordination_from?.work_run;
+  let sawCoordinatedWork = false;
   const reviewReturn = Boolean(
     options.allowReviewReturn &&
       !coordinatorChat &&
       parent.status === "review" &&
       initial?.kind === "agent" &&
-      (initial.id === assignee || coordinatorEscalation) &&
+      initial.id === assignee &&
       store.threads.get(initial.thread_id)?.task_id === parent.id &&
       assignment?.by === initial.id &&
       assignment.data.assignee === agent.id &&
@@ -535,6 +544,7 @@ export function authorizedChildHandoff(
   const events = store.tasks.events(parent.id);
   while (run && seen.size < 32 && !seen.has(run.id)) {
     seen.add(run.id);
+    if (run.id === coordinatedWork) sawCoordinatedWork = true;
     agents.add(run.agent_id);
     const input: RunRecord["input"] = run.input;
     if (!input) return undefined;
@@ -614,8 +624,15 @@ export function authorizedChildHandoff(
     ) {
       if (store.threads.context(run.thread_id).client) return undefined;
       if (hops + (reviewMoves ? 1 : 0) >= MAX_HANDOFF_DEPTH) return "limit";
-      if (reviewReturn && reviewMoves >= MAX_REVIEW_ROUNDS * 2) return "limit";
-      if (assignee && assignee !== agent.id && agents.has(assignee) && !reviewReturn) return "backflow";
+      if ((reviewReturn || coordinatorReturn) && reviewMoves >= MAX_REVIEW_ROUNDS * 2) return "limit";
+      if (
+        assignee &&
+        assignee !== agent.id &&
+        agents.has(assignee) &&
+        !reviewReturn &&
+        !(coordinatorReturn && sawCoordinatedWork)
+      )
+        return "backflow";
       // Only a flat, same-agent coordinator lineage can be compacted. Nested handoffs retain their full chain.
       if (coordinatorChat && hops === 0 && reviewMoves === 0 && agents.size === 1 && run.agent_id === agent.id)
         options.onVerifiedRoot?.(run.id);

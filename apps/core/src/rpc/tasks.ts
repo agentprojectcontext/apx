@@ -356,6 +356,7 @@ export function taskHandlers(
           ? authorizedChildHandoff(store, cur, ctx.agent, c.assignee, {
               allowCoordinatorChat: true,
               allowReviewReturn: true,
+              allowCoordinatorReturn: true,
               onVerifiedRoot: (id) => {
                 coordinationRoot = id;
               },
