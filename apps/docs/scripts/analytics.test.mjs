@@ -83,6 +83,9 @@ function fixture(choice, unavailable = false, broadcasts = new Set()) {
     addEventListener(name, callback) {
       listeners[name] = callback;
     },
+    removeEventListener(name, callback) {
+      if (listeners[name] === callback) delete listeners[name];
+    },
     body: { append() {} },
     querySelector() {
       return root;

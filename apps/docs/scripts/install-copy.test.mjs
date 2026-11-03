@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bindInstallationCopy } from "../src/components/install-copy.mjs";
+import { bindInstallationCopy, copyInstallation } from "../src/components/install-copy.mjs";
 
 function copyButton(original = "Copy", done = "Copied") {
   const label = { textContent: original };
   let click;
   const written = [];
+  const events = [];
   const button = {
+    dispatchEvent: (event) => events.push(event),
     dataset: { copy: "example command", done },
     querySelector: () => label,
     addEventListener: (_type, handler) => {
@@ -17,6 +19,12 @@ function copyButton(original = "Copy", done = "Copied") {
   let nextTimer = 0;
   let now = 0;
   const win = {
+    CustomEvent: class {
+      constructor(type, options) {
+        this.type = type;
+        this.bubbles = options.bubbles;
+      }
+    },
     navigator: {
       clipboard: {
         writeText: async (text) => {
@@ -41,7 +49,7 @@ function copyButton(original = "Copy", done = "Copied") {
     }
   };
   bindInstallationCopy(win, button);
-  return { label, written, win, click: () => click(), advance };
+  return { label, written, events, win, click: () => click(), advance };
 }
 
 for (const [original, done] of [
@@ -60,6 +68,7 @@ for (const [original, done] of [
     fixture.advance(500);
     assert.equal(fixture.label.textContent, original);
     assert.deepEqual(fixture.written, ["example command", "example command"]);
+    assert.equal(fixture.events.length, 2);
   });
 }
 
@@ -76,6 +85,7 @@ for (const unavailable of [false, true]) {
     fixture.advance(2000);
     assert.equal(fixture.label.textContent, "Copy");
     assert.deepEqual(fixture.written, []);
+    assert.deepEqual(fixture.events, []);
   });
 }
 
@@ -90,4 +100,23 @@ test("copy buttons keep their feedback independent", async () => {
   assert.equal(second.label.textContent, "Copiado");
   second.advance(1500);
   assert.equal(second.label.textContent, "Copiar");
+});
+
+test("copy success waits for the write and never includes command content", async () => {
+  const fixture = copyButton();
+  let finish;
+  fixture.win.navigator.clipboard.writeText = () =>
+    new Promise((resolve) => {
+      finish = resolve;
+    });
+  const copying = copyInstallation(fixture.win, {
+    dataset: { copy: "synthetic private command" },
+    dispatchEvent: (event) => fixture.events.push(event),
+  });
+  assert.deepEqual(fixture.events, []);
+  finish();
+  assert.equal(await copying, true);
+  assert.equal(fixture.events[0].type, "apx:install-copied");
+  assert.equal(fixture.events[0].bubbles, true);
+  assert.ok(!JSON.stringify(fixture.events).includes("synthetic private command"));
 });
