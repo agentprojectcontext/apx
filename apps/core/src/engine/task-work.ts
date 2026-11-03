@@ -522,6 +522,28 @@ export function authorizedChildHandoff(
       coordination?.run.agent_id === assignee &&
       projectCoordinatorChat(store, parent, { id: assignee, thread_id: coordination.thread }),
   );
+  // A coordinator may create a child while working another task, rather than from a project-level chat.
+  // Trust only the exact task-create event and direct worker run; the normal lineage walk still reaches the owner.
+  const sourceThread = initial?.kind === "agent" ? store.threads.get(initial.thread_id) : undefined;
+  const created = store.tasks.events(parent.id).find((e) => e.op === "create");
+  const directEscalation = Boolean(
+    options.allowCoordinatorReturn &&
+      !coordination &&
+      assignee &&
+      initial?.kind === "agent" &&
+      initial.id === assignee &&
+      sourceThread?.project_id === parent.project_id &&
+      sourceThread?.task_id &&
+      sourceThread.task_id === parent.parent_id &&
+      (sourceThread.kind === "loose" || sourceThread.kind === "agent") &&
+      !store.threads.context(sourceThread.id).client &&
+      projectOrchestrator(store.agents.list().filter((a) => a.project_id === parent.project_id))?.agent.id ===
+        assignee &&
+      created?.by === assignee &&
+      created.data.assignee === agent.id &&
+      created.data.from_thread === initial.thread_id &&
+      created.data.from_run === initial.run_id,
+  );
   const coordinatedWork = store.threads.context(parent.thread_id).coordination_from?.work_run;
   // A coordinator resolving an executor's escalation may return this same task to that executor, not an arbitrary
   // earlier agent. The exact original work and owner-root lineage must still be verified below, with normal hop limits.
@@ -542,14 +564,24 @@ export function authorizedChildHandoff(
   const reviewReturn = Boolean(
     options.allowReviewReturn &&
       !coordinatorChat &&
-      parent.status === "review" &&
       initial?.kind === "agent" &&
       initial.id === assignee &&
       store.threads.get(initial.thread_id)?.task_id === parent.id &&
       assignment?.by === initial.id &&
       assignment.data.assignee === agent.id &&
-      assignment.data.status === "review" &&
-      assignment.at <= run.started_at,
+      assignment.at <= run.started_at &&
+      ((parent.status === "review" && assignment.data.status === "review") ||
+        (parent.status === "doing" &&
+          assignment.data.status === "doing" &&
+          store.tasks
+            .events(parent.id)
+            .some(
+              (e) =>
+                e.by === agent.id &&
+                e.data.assignee === assignee &&
+                e.data.status === "review" &&
+                e.at <= assignment.at,
+            ))),
   );
   const seen = new Set<string>();
   const agents = new Set<string>();
@@ -648,7 +680,8 @@ export function authorizedChildHandoff(
         assignee !== agent.id &&
         agents.has(assignee) &&
         !reviewReturn &&
-        !((coordinatorReturn || coordinatorResume) && sawCoordinatedWork)
+        !((coordinatorReturn || coordinatorResume) && sawCoordinatedWork) &&
+        !directEscalation
       )
         return "backflow";
       // Only a flat, same-agent coordinator lineage can be compacted. Nested handoffs retain their full chain.
@@ -675,7 +708,15 @@ export function authorizedChildHandoff(
           (e) =>
             e.by === origin.id &&
             e.data.assignee === currentRun.agent_id &&
-            e.data.status === "review" &&
+            (e.data.status === "review" ||
+              (e.data.status === "doing" &&
+                events.some(
+                  (prior) =>
+                    prior.by === currentRun.agent_id &&
+                    prior.data.assignee === origin.id &&
+                    prior.data.status === "review" &&
+                    prior.at <= e.at,
+                ))) &&
             e.at >= previous.started_at &&
             e.at <= currentRun.started_at,
         );
@@ -833,7 +874,10 @@ export function authorizedExistingHandoff(
     if (next !== previous) {
       if (typeof next !== "string" || event.by !== previous) return "denied";
       const pair = [previous, next].sort().join("\0");
-      if (event.data.status === "review" && (!reviewPair || reviewPair === pair)) {
+      if (
+        (event.data.status === "review" && (!reviewPair || reviewPair === pair)) ||
+        (event.data.status === "doing" && reviewPair === pair)
+      ) {
         reviewPair = pair;
         reviewMoves++;
       } else transfers++;

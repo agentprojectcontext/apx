@@ -1300,3 +1300,210 @@ test("a coordinator can return an escalated task to its verified executor within
   });
   assert.equal(authorizedChildHandoff(store, returned, ctx, worker, { allowCoordinatorReturn: true }), "backflow");
 });
+
+test("a verified author may return corrected work to the same reviewer for a second review", () => {
+  const store = env.core.store;
+  const project = "cycle-repro-project",
+    lead = "cycle-repro-lead",
+    author = "cycle-repro-author",
+    reviewer = "cycle-repro-reviewer";
+  store.projects.upsert({ id: project, name: "Review cycle" });
+  for (const [id, parent, head] of [
+    [lead, undefined, true],
+    [author, lead, false],
+    [reviewer, lead, false],
+  ] as const)
+    store.agents.upsertApc({
+      id,
+      name: id,
+      project_id: project,
+      parent,
+      slug: id,
+      role: id,
+      prompt: "",
+      extra: head ? { orchestrator: true } : {},
+    });
+  const source = store.threads.create({ kind: "loose", title: "Lead", project_id: project, agent_ids: [lead] });
+  const root = store.runs.create({
+    thread_id: source.id,
+    agent_id: lead,
+    trigger: "user",
+    input: { origin: { kind: "user" }, text: "Work" },
+    deadline_at: "2099-01-01",
+  });
+  const home = store.threads.create({ kind: "task", title: "Task", project_id: project, agent_ids: [author] });
+  const task = store.tasks.create({
+    title: "Cycle",
+    description: "Review",
+    status: "doing",
+    project_id: project,
+    assignee: author,
+    thread_id: home.id,
+    by: lead,
+    from: { thread: source.id, run: root.id },
+  });
+  const a = store.threads.create({
+    kind: "loose",
+    title: "Author",
+    project_id: project,
+    agent_ids: [author],
+    task_id: task.id,
+  });
+  const work = store.runs.create({
+    thread_id: a.id,
+    agent_id: author,
+    trigger: "a2a",
+    input: { origin: { kind: "agent", id: lead, name: lead, thread_id: source.id, run_id: root.id }, text: "Work" },
+    deadline_at: "2099-01-01",
+  });
+  store.threads.mergeContext(home.id, {
+    coordination_from: { thread: source.id, run: root.id, work_run: work.id, root_run: root.id },
+  });
+  store.tasks.change(task.id, { assignee: reviewer, status: "review" }, author);
+  const b = store.threads.create({
+    kind: "loose",
+    title: "Reviewer",
+    project_id: project,
+    agent_ids: [reviewer],
+    task_id: task.id,
+  });
+  const review = store.runs.create({
+    thread_id: b.id,
+    agent_id: reviewer,
+    trigger: "a2a",
+    input: { origin: { kind: "agent", id: author, name: author, thread_id: a.id, run_id: work.id }, text: "Review" },
+    deadline_at: "2099-01-01",
+  });
+  const returned = store.tasks.change(task.id, { assignee: author, status: "doing" }, reviewer);
+  assert.ok(returned);
+  const corrected = store.runs.create({
+    thread_id: a.id,
+    agent_id: author,
+    trigger: "a2a",
+    input: {
+      origin: { kind: "agent", id: reviewer, name: reviewer, thread_id: b.id, run_id: review.id },
+      text: "Revise",
+    },
+    deadline_at: "2099-01-01",
+  });
+  assert.equal(
+    authorizedChildHandoff(store, returned, { id: author, thread_id: a.id, run_id: corrected.id }, reviewer, {
+      allowReviewReturn: true,
+      allowCoordinatorReturn: true,
+    }),
+    "allowed",
+  );
+});
+
+test("a task started by a coordinator on another task can escalate back to that coordinator", () => {
+  const store = env.core.store;
+  const project = "task-chat-repro-project",
+    lead = "task-chat-repro-lead",
+    worker = "task-chat-repro-worker";
+  store.projects.upsert({ id: project, name: "Task chat" });
+  for (const [id, parent, head] of [
+    [lead, undefined, true],
+    [worker, lead, false],
+  ] as const)
+    store.agents.upsertApc({
+      id,
+      name: id,
+      project_id: project,
+      parent,
+      slug: id,
+      role: id,
+      prompt: "",
+      extra: head ? { orchestrator: true } : {},
+    });
+  const parentHome = store.threads.create({
+    kind: "task",
+    title: "Other task",
+    project_id: project,
+    agent_ids: [lead],
+  });
+  const other = store.tasks.create({
+    title: "Other task",
+    description: "Coordinate",
+    status: "doing",
+    project_id: project,
+    assignee: lead,
+    thread_id: parentHome.id,
+    by: "owner",
+  });
+  const source = store.threads.create({
+    kind: "loose",
+    title: "Lead task session",
+    project_id: project,
+    task_id: other.id,
+    agent_ids: [lead],
+  });
+  const root = store.runs.create({
+    thread_id: source.id,
+    agent_id: lead,
+    trigger: "user",
+    input: { origin: { kind: "user" }, text: "Continue" },
+    deadline_at: "2099-01-01",
+  });
+  const home = store.threads.create({ kind: "task", title: "Child", project_id: project, agent_ids: [worker] });
+  const task = store.tasks.create({
+    title: "Child",
+    description: "Work",
+    status: "doing",
+    project_id: project,
+    parent_id: other.id,
+    assignee: worker,
+    thread_id: home.id,
+    by: lead,
+    from: { thread: source.id, run: root.id },
+  });
+  const session = store.threads.create({
+    kind: "loose",
+    title: "Worker",
+    project_id: project,
+    agent_ids: [worker],
+    task_id: task.id,
+  });
+  const work = store.runs.create({
+    thread_id: session.id,
+    agent_id: worker,
+    trigger: "a2a",
+    input: { origin: { kind: "agent", id: lead, name: lead, thread_id: source.id, run_id: root.id }, text: "Work" },
+    deadline_at: "2099-01-01",
+  });
+  assert.equal(
+    authorizedChildHandoff(store, task, { id: worker, thread_id: session.id, run_id: work.id }, lead, {
+      allowCoordinatorReturn: true,
+    }),
+    "allowed",
+  );
+  assert.equal(
+    authorizedChildHandoff(
+      store,
+      { ...task, proposed: true },
+      { id: worker, thread_id: session.id, run_id: work.id },
+      lead,
+      { allowCoordinatorReturn: true },
+    ),
+    undefined,
+    "a pending proposal is never auto-accepted",
+  );
+  assert.equal(
+    authorizedChildHandoff(
+      store,
+      { ...task, parent_id: "forged" },
+      { id: worker, thread_id: session.id, run_id: work.id },
+      lead,
+      { allowCoordinatorReturn: true },
+    ),
+    "backflow",
+    "a mismatched parent is not proof",
+  );
+  store.tasks.change(task.id, { assignee: null }, "owner");
+  assert.equal(
+    authorizedChildHandoff(store, task, { id: worker, thread_id: session.id, run_id: work.id }, lead, {
+      allowCoordinatorReturn: true,
+    }),
+    undefined,
+    "owner revocation is never bypassed",
+  );
+});
