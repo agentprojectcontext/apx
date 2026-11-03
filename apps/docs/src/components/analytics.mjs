@@ -1,3 +1,5 @@
+import { campaignParameters, initializeMarketing } from "./marketing.mjs";
+
 export const measurementId = "G-BZT6ME07J4";
 export const consentKey = "apx-website-analytics-v1";
 export const denialCookie = "apx_analytics_denied";
@@ -19,6 +21,7 @@ export function initializeConsent(win, doc) {
   const error = root.querySelector("[data-cookie-error]");
   let loaded = false;
   let pendingDecline = false;
+  let disposeMarketing;
   let channel;
   try {
     channel = new win.BroadcastChannel(consentKey);
@@ -71,12 +74,26 @@ export function initializeConsent(win, doc) {
       page_title: "APX website",
       cookie_expires: 31536000,
       cookie_update: false,
+      ...campaignParameters(win.location.search),
     });
     gtag("event", "page_view", {
       page_location: pageLocation(win.location, root.dataset.analyticsPath),
       page_referrer: "",
       page_title: "APX website",
     });
+    disposeMarketing = initializeMarketing(
+      win,
+      doc,
+      (name, parameters) => {
+        gtag("event", name, {
+          ...parameters,
+          page_location: pageLocation(win.location, root.dataset.analyticsPath),
+          page_referrer: "",
+          page_title: "APX website",
+        });
+      },
+      () => !pendingDecline && !win[`ga-disable-${measurementId}`] && readChoice() === "accepted",
+    );
     const script = doc.createElement("script");
     script.async = true;
     script.referrerPolicy = "no-referrer";
@@ -111,6 +128,7 @@ export function initializeConsent(win, doc) {
 
   function stop() {
     win[`ga-disable-${measurementId}`] = true;
+    disposeMarketing?.();
     clearCookies();
   }
 
