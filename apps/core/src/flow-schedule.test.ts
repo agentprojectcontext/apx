@@ -6,7 +6,7 @@ import { FlowTriggerMismatch } from "./domain/flow-graphs.ts";
 import { nextCron, parseCron } from "./domain/schedule.ts";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";
 import type { Llm, LlmRequest } from "./providers/llm.ts";
-import { tempDir, waitFor } from "./testkit/platform.ts";
+import { manualTimers, tempDir, waitFor } from "./testkit/platform.ts";
 
 type Env = Awaited<ReturnType<typeof startCore>>;
 const at = (iso: string) => new Date(iso);
@@ -59,7 +59,11 @@ const flowCall = (req: LlmRequest) => req.once === true;
 
 test("a schedule ticks on the scheduler's beat: one run per time due, counted from when it was turned on", async () => {
   let now = at("2026-11-02T10:02:00Z");
-  const env = await startCore({ llm: scriptedLlm(() => say("Unused")), clock: () => now });
+  const env = await startCore({
+    llm: scriptedLlm(() => say("Unused")),
+    clock: () => now,
+    runTimers: { ...manualTimers(), now: () => now.getTime() },
+  });
   try {
     const flow = await publish(env, "every5", graphOf(tick, save(["scheduled_at"])));
     // The first beat after turning it on starts the count; nothing is owed from before.
@@ -97,7 +101,12 @@ test("a schedule ticks on the scheduler's beat: one run per time due, counted fr
 });
 
 test("a time due is admitted once per Flow: a second tick for it is a duplicate", async () => {
-  const env = await startCore({ llm: scriptedLlm(() => say("Unused")), clock: () => at("2026-11-02T10:00:00Z") });
+  const now = at("2026-11-02T10:00:00Z");
+  const env = await startCore({
+    llm: scriptedLlm(() => say("Unused")),
+    clock: () => now,
+    runTimers: { ...manualTimers(), now: () => now.getTime() },
+  });
   try {
     const flow = await publish(env, "dedup", graphOf(tick, save(["scheduled_at"])));
     env.core.flows.tick(at("2026-11-02T10:00:00Z"));
@@ -123,14 +132,24 @@ test("a time due is admitted once per Flow: a second tick for it is a duplicate"
 test("times missed while the core was off run once when it starts, not once each", async () => {
   const home = tempDir();
   let now = at("2026-11-02T10:00:30Z");
-  let env = await startCore({ home: home.path, llm: scriptedLlm(() => say("Unused")), clock: () => now });
+  let env = await startCore({
+    home: home.path,
+    llm: scriptedLlm(() => say("Unused")),
+    clock: () => now,
+    runTimers: { ...manualTimers(), now: () => now.getTime() },
+  });
   try {
     const flow = await publish(env, "missed", graphOf(tick, save(["scheduled_at"])));
     env.core.scheduler.tick();
     await env.core.close();
     // Off for three hours: 36 times went by. Starting, the core beats once at once.
     now = at("2026-11-02T13:07:00Z");
-    env = await startCore({ home: home.path, llm: scriptedLlm(() => say("Unused")), clock: () => now });
+    env = await startCore({
+      home: home.path,
+      llm: scriptedLlm(() => say("Unused")),
+      clock: () => now,
+      runTimers: { ...manualTimers(), now: () => now.getTime() },
+    });
     const [late, ...rest] = events(env, flow);
     assert.equal(rest.length, 0);
     assert.equal(late?.scheduled_at, "2026-11-02T10:05:00.000Z");
@@ -152,7 +171,11 @@ test("times missed while the core was off run once when it starts, not once each
 
 test("a Flow that is off does not tick, and turned on owes nothing from while it was off", async () => {
   let now = at("2026-11-02T10:00:00Z");
-  const env = await startCore({ llm: scriptedLlm(() => say("Unused")), clock: () => now });
+  const env = await startCore({
+    llm: scriptedLlm(() => say("Unused")),
+    clock: () => now,
+    runTimers: { ...manualTimers(), now: () => now.getTime() },
+  });
   try {
     const flow = await publish(env, "off", graphOf(tick, save(["scheduled_at"])), false);
     env.core.flows.tick(at("2026-11-02T10:00:00Z"));
@@ -188,7 +211,11 @@ test("a Flow that is off does not tick, and turned on owes nothing from while it
 test("schedules run in the owner's time zone", async () => {
   // 2026-11-02 is a Monday; Buenos Aires is UTC-3 all year.
   let now = at("2026-11-02T11:00:00Z");
-  const env = await startCore({ llm: scriptedLlm(() => say("Unused")), clock: () => now });
+  const env = await startCore({
+    llm: scriptedLlm(() => say("Unused")),
+    clock: () => now,
+    runTimers: { ...manualTimers(), now: () => now.getTime() },
+  });
   try {
     env.core.store.settings.write("owner_profile", { about: "", timezone: "America/Argentina/Buenos_Aires" });
     const weekdays = { ...tick, label: "Weekdays 08:30", cron: "30 8 * * 1-5" };
@@ -447,7 +474,11 @@ test("Try a run follows a branched drawing without doing any of its work", async
 
 test("turning a Flow on or publishing a new schedule counts from then: an old count owes nothing", async () => {
   let now = at("2026-11-02T08:59:50Z");
-  const env = await startCore({ llm: scriptedLlm(() => say("Unused")), clock: () => now });
+  const env = await startCore({
+    llm: scriptedLlm(() => say("Unused")),
+    clock: () => now,
+    runTimers: { ...manualTimers(), now: () => now.getTime() },
+  });
   try {
     env.core.store.settings.write("owner_profile", { about: "", timezone: "UTC" });
     const daily = { ...tick, cron: "0 9 * * *" };

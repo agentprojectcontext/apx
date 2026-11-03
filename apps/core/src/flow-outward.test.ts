@@ -7,7 +7,7 @@ import type { ChannelAdapter, OutFile } from "./channels/types.ts";
 import type { Presentation } from "./domain/channels.ts";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";
 import { FLOW_CALLS_PER_HOUR, FLOW_SENDS_PER_HOUR } from "./flow-outward-steps.ts";
-import { tempDir, waitFor } from "./testkit/platform.ts";
+import { manualTimers, tempDir, waitFor } from "./testkit/platform.ts";
 
 type Env = Awaited<ReturnType<typeof startCore>>;
 const hook = { kind: "webhook" as const, id: "start", label: "Webhook" };
@@ -600,10 +600,13 @@ test("a non-GET request cut before an answer is left to look at; a GET tries onc
 test("a schedule whose last run is still going skips its time and says so, instead of queueing it", async () => {
   const hang = await service(() => {});
   let now = new Date("2026-11-02T10:00:30Z");
+  // Advance schedule beats without letting the held HTTP call's deadline race real I/O.
+  const timers = { ...manualTimers(), now: () => now.getTime() };
   const env = await startCore({
     llm: scriptedLlm(() => say("unused")),
     flowHttpAllow: [`127.0.0.1:${hang.port}`],
     clock: () => now,
+    runTimers: timers,
   });
   try {
     const flow = await publish(
