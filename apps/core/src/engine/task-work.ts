@@ -9,6 +9,7 @@ import { ownerIdentity } from "../domain/owner.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { noticeTaskReview } from "../domain/task-attention.ts";
+import { taskReviewHandoff } from "../domain/tasks.ts";
 import { type HeldTask, previewOf } from "../domain/threads.ts";
 import { badRequest, conflict } from "../errors.ts";
 import { taskWords } from "../tools/tasks.ts";
@@ -20,6 +21,7 @@ import { outcomeOf } from "./run-outcome.ts";
 import { continueTask } from "./task-continue.ts";
 import { checkSelfHandoff, markHandoff, runLineage } from "./task-handoff.ts";
 import { answersOwner, ownerTurnEnded } from "./task-inbox.ts";
+import { MAX_HANDOFF_DEPTH, MAX_REVIEW_ROUNDS } from "./task-limits.ts";
 import { closedIn, reportClose } from "./task-report.ts";
 
 /** How often assigned tasks that never started are looked at, and how many start each time. */
@@ -81,11 +83,15 @@ export function ask(
     store.threads.mergeContext(thread.id, { asked_from: asker.thread_id });
   store.messages.add({ thread_id: thread.id, author, parts });
   store.threads.patch(thread.id, { preview: previewOf(text) });
+  const assignment = store.tasks.events(task.id).findLast((event) => typeof event.data.assignment_id === "string");
+  const origin = originOf(asker);
+  if ((origin.kind === "user" || origin.kind === "agent") && typeof assignment?.data.assignment_id === "string")
+    origin.task_assignment = { task: task.id, id: assignment.data.assignment_id };
   return admit({
     thread_id: thread.id,
     agent_id: agentId,
     trigger: asker.kind === "owner" ? "user" : "a2a",
-    origin: originOf(asker),
+    origin,
     text,
     depth: depthOf(asker),
   });
@@ -148,7 +154,18 @@ export function startTaskWork(
     return undefined;
   }
   const ownWords = task.created_by === "owner";
-  const text = ownWords ? [task.title, task.description].filter(Boolean).join("\n\n") : "Work on this task.";
+  const assignment = store.tasks.events(task.id).findLast((event) => typeof event.data.assignment_id === "string");
+  const review = taskReviewHandoff(assignment?.data.review_handoff);
+  const reviewRequest =
+    asker.kind === "agent" &&
+    review?.author === asker.id &&
+    review.reviewer === agentId &&
+    assignment?.data.from_run === asker.run_id &&
+    assignment.data.from_thread === asker.thread_id;
+  const workText = ownWords ? [task.title, task.description].filter(Boolean).join("\n\n") : "Work on this task.";
+  const text = reviewRequest
+    ? `Independently review this task's delivery. Report what you verified and any required corrections.\n\n${workText}`
+    : workText;
   const author: Author =
     asker.kind === "agent" ? { kind: "agent", id: asker.id } : ownWords ? { kind: "user" } : { kind: "system" };
   const self =
@@ -362,9 +379,6 @@ function consult(
   });
 }
 
-/** Hand-offs above a task an agent may still add to on its own; deeper, its new task is a proposal for the owner. */
-const MAX_HANDOFF_DEPTH = 3;
-
 /**
  * Why an agent's new task waits for the owner instead of starting: a chain of hand-offs too deep, or work given back to
  * an agent that handed it down the same chain (two agents passing work to and fro). Undefined: it may start.
@@ -389,9 +403,6 @@ export function proposalReason(
     return "it gives work back up its own chain";
   return undefined;
 }
-
-/** Review rounds an agent reviewer gets on one task before the owner decides. */
-const MAX_REVIEW_ROUNDS = 2;
 
 /** Whether a task's start time is still ahead: its work waits until then. */
 export const startsLater = (task: Pick<Task, "start_at">, now = new Date()): boolean =>
@@ -446,6 +457,7 @@ function askerOfCreation(store: Store, task: Task): Asker {
  * the owner: no new budget window); otherwise it is the owner's to check, and their tray says so.
  */
 export function reviewRequested(store: Store, admit: AdmitFn, task: Task): RunRecord | undefined {
+  if (task.proposed || task.state !== "open") return undefined;
   const reviewer = task.reviewer ? store.agents.get(task.reviewer) : undefined;
   const rounds = store.threads
     .sessions(task.thread_id)
@@ -453,6 +465,7 @@ export function reviewRequested(store: Store, admit: AdmitFn, task: Task): RunRe
   // Paused agents ask no one, and past two rounds the owner decides: the owner checks it, as when no agent is named.
   if (
     !reviewer ||
+    reviewer.id === task.assignee ||
     rounds >= MAX_REVIEW_ROUNDS ||
     trip(store, task.thread_id) ||
     agentTrip(store, task.thread_id, reviewer.id)
