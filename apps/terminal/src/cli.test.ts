@@ -56,7 +56,7 @@ test("with --plain an error is one line with the message, for scripts and agents
   assert.equal(r.status, 1);
   assert.equal(
     r.stderr.trim(),
-    "apx: APX · Error: usage: apx agents model <agent> <engine/model|engine|router|default> [--router]",
+    "apx: APX · Error: usage: apx agents model <agent> <engine/model|engine|router|default> [--router] [--fallbacks <ref>,<ref>]",
   );
   assert.equal(
     failure("APX · not_found", ["agent \u001b[2Jx not found"], true),

@@ -35,6 +35,22 @@ test("a model with the router: the model first, then the matching rule, then the
   ]);
 });
 
+test("an agent's own fallbacks come right after its model, in order, and before the router", () => {
+  const choice = { model: "pa/main", router: true, fallbacks: ["pb/one", "pa/main", "pc/two"] };
+  assert.deepEqual(candidates(choice, router, f({ text: "fix this bug" })), [
+    "pa/main",
+    "pb/one",
+    "pc/two",
+    "codex",
+    "claude",
+    "gemini/flash",
+  ]);
+  // Without the router, the own list is all there is.
+  assert.deepEqual(candidates({ ...choice, router: false }, router, f()), ["pa/main", "pb/one", "pc/two"]);
+  // No list: today's order.
+  assert.deepEqual(candidates({ model: "pa/main", router: false, fallbacks: [] }, router, f()), ["pa/main"]);
+});
+
 test("the router alone: first matching rule wins, conditions all hold, no repeats", () => {
   assert.deepEqual(candidates({ router: true }, router, f({ text: "x".repeat(2500) })), [
     "claude/claude-opus-5-5",

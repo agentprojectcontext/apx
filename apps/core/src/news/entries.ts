@@ -3,6 +3,7 @@
 import type { Store } from "../domain/store.ts";
 import { computerHost } from "../environments/host.ts";
 import { CATALOG } from "../integrations/catalog.ts";
+import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
@@ -37,6 +38,8 @@ export type NewsFacts = {
   desktop?: boolean;
   /** Open tasks with an agent on them. */
   tasks?: number;
+  /** Agents that run on a model of their own (not the router alone). */
+  ownModels?: number;
 };
 
 export type NewsAction = {
@@ -68,6 +71,7 @@ export const NEWS: readonly NewsEntry[] = [
   EXTERNAL_SESSIONS_NEWS,
   BROWSER_EDIT_NEWS,
   BROWSER_JAVASCRIPT_NEWS,
+  AGENT_FALLBACKS_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",
@@ -1158,6 +1162,7 @@ export const newsFacts = (store: Store): NewsFacts => ({
   computer: computerHost() !== undefined && store.projects.list().length > 0,
   mac: process.platform === "darwin" && store.projects.list().length > 0,
   tasks: store.tasks.list({ state: "open", limit: 500 }).filter((t) => t.assignee).length,
+  ownModels: store.agents.list().filter((a) => a.model_choice?.model).length,
 });
 
 /** The action a channel button stands for. */

@@ -129,11 +129,19 @@ export const ModelRef = z
   .max(200);
 export type ModelRef = z.infer<typeof ModelRef>;
 
+/** How many models of its own an agent may fall back on after its main one. */
+export const MAX_MODEL_FALLBACKS = 5;
+
 /**
  * How an agent picks its model for a turn: a fixed model; a model with the router as fallback; or the router alone
- * (`model` absent). An agent without a choice uses the install default.
+ * (`model` absent). `fallbacks` are tried in order after `model` and before the router (DECISIONS.md#d-195). An agent
+ * without a choice uses the install default.
  */
-export const ModelChoice = z.object({ model: ModelRef.optional(), router: z.boolean() });
+export const ModelChoice = z.object({
+  model: ModelRef.optional(),
+  router: z.boolean(),
+  fallbacks: z.array(ModelRef).max(MAX_MODEL_FALLBACKS).optional(),
+});
 export type ModelChoice = z.infer<typeof ModelChoice>;
 
 /** The model router: per-turn rules (first match wins) and the fallback chain after them. */

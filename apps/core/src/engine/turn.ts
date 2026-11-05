@@ -751,8 +751,12 @@ function systemFor(
  * chat runs our loop over the chosen model and the router's chain; a CLI ref saved before D-043 is skipped.
  */
 function enginePick(deps: TurnDeps, turn: Turn, start: RunRecord, history: ChatItem[]): Engine {
-  // The chat's own model (picked in its composer) first, then the agent's, then the install default.
-  const chosen = deps.store.threads.context(turn.thread.id).model_choice ?? turn.agent.model_choice;
+  // The chat's own model (picked in its composer) first, then the agent's, then the install default. The agent's own
+  // fallbacks back whichever model the chat runs on (DECISIONS.md#d-195).
+  const chatChoice = deps.store.threads.context(turn.thread.id).model_choice;
+  const fallbacks = chatChoice?.fallbacks ?? turn.agent.model_choice?.fallbacks;
+  const picked = chatChoice ?? turn.agent.model_choice;
+  const chosen = picked && fallbacks ? { ...picked, fallbacks } : picked;
   const own = turn.thread.engine;
   if (own) {
     const ref = chosen?.model && engineOf(chosen.model) === own ? chosen.model : own;

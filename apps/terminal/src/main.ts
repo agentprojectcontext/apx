@@ -145,7 +145,7 @@ Usage:
                            Copy agents (whole definition) into a project; --rename gives each a new free name
   apx agents archive <agent>         Project agents: changes are written to .apc/agents/<slug>.md
   apx agents archived | restore <agent>   Archived agents, and bringing one back (deleting for good is in the app)
-  apx agents model <agent> <engine/model | engine | router | default> [--router]
+  apx agents model <agent> <engine/model | engine | router | default> [--router] [--fallbacks <ref>,<ref>]
                            An agent's model; --router keeps the router as its fallback
 
   apx models [--refresh]  Every engine and the models it offers (asked to the engine)
@@ -244,6 +244,7 @@ function argumentsOf() {
       yes: { type: "boolean", short: "y" },
       under: { type: "string" },
       router: { type: "boolean" },
+      fallbacks: { type: "string" },
       timeout: { type: "string" },
       run: { type: "boolean" },
       headless: { type: "boolean" },

@@ -713,7 +713,8 @@ agent, whatever its `tools:` list says): with only `agent` it reads that agent's
 needed); otherwise it creates one, changes only the fields given (name, role, description, prompt, personality,
 parent, a project agent's slug) or archives it, through `agents.create` / `agents.update` / `agents.archive` as the
 owner's act, each call waiting for the owner's yes (D-047 `always`; total autonomy asks nothing). Autonomy, tools,
-models and the browser profile are not among its fields: how far an agent may act stays the owner's own setting. A
+models and the browser profile are not among its fields: how far an agent may act stays the owner's own setting
+(the fallbacks behind a model the owner picked are, since [D-195](#d-195)). A
 rename keeps the agent's id, so threads, tasks, routines and messages that point at it need no rewrite; a project
 agent's new slug keeps the old one as an alias and moves its reports' `parent` along.
 
@@ -3628,3 +3629,32 @@ Rejected: a second tool beside `task_update` (two ways to write one task's plan)
 thread's context (the messages already hold it, and tools change chats only through the protocol), and moving the
 checklist to the newest answer by removing it from older ones (it rewrites what the owner already read; each answer
 keeps the plan as it stood).
+
+<a id="d-195"></a>
+## D-195 — 2026-11-05 — An agent has its own fallback models before the router's chain
+
+An agent with a model of its own ran on that model and then, when it allowed, on the router's one general chain. The
+owner wants each agent to have its model and its own fallbacks, with the router's chain still after them, and the agent
+back on its model by itself once its limit resets.
+
+- **One list on the choice.** `ModelChoice.fallbacks` (at most `MAX_MODEL_FALLBACKS`, five) is part of the agent's
+  `model_choice`, stored as the JSON it already was: no config shape changed, so no `doctor --fix` step. `candidates`
+  puts them right after `model` and before the router's matching rule and chain; a router-only choice has no model to
+  back and ignores them. `agents.update` checks every ref as it checks the model (`refProblem`).
+- **The gateway does the rest.** A turn hands the whole ordered list to `llm.complete`, which already walks it per call:
+  a model held for its usage limit (`providers/llm.ts`, `engine/provider-limit.ts`) is passed over without a request
+  until its reset, a retryable error is tried four times before the next model, any other failure moves on at once. Each call starts from the top again, so the
+  main model answers the first turn (or step) after its hold lifts with nothing to switch back. The run keeps the model
+  that answered (`Run.model`).
+- **Seen under the reply.** The engine already puts an `engine.fallback` notice on an answer the first model did not
+  give; the reply's meta line reads it and adds "Fallback" beside the model, so no new message field.
+- **Where a model is taken.** A chat's own composer pick keeps the agent's fallbacks behind it. An engine session
+  (Claude Code, Codex, ACP) runs its CLI with its own model: fallbacks do not apply there.
+- **Who sets them.** The agent's editor (Model and team), `apx agents model --fallbacks`, and the super-agent through
+  `agent_set` (`fallbacks`), each change waiting for the owner's yes. This narrows D-060: the main model, autonomy and
+  tools stay the owner's own; the fallbacks behind a model the owner picked can be set on the owner's request.
+  `agent_set` refuses fallbacks for an agent with no model of its own before the owner is asked.
+
+Rejected: a per-agent chain that replaces the router's (the owner asked for both, the agent's first); a message field
+for "answered by a fallback" (the notice already says it); a separate "back to main" timer (the per-call walk already
+returns to the main model once its hold lifts).

@@ -1,5 +1,6 @@
 // agent_set: the super-agent runs the team for the owner (create, rename, rewrite a prompt, archive), each change once
-// the owner says yes. Autonomy and models stay the owner's own (DECISIONS.md#d-060).
+// the owner says yes. Autonomy and the main model stay the owner's own (DECISIONS.md#d-060); the fallback models after
+// it are set here too (DECISIONS.md#d-195).
 import { type Organization, randomAgentName } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
@@ -24,6 +25,8 @@ function card(store: Store, a: AgentRecord): string {
     a.parent ? `reports to: ${a.parent}` : "",
     a.description ? `description: ${a.description}` : "",
     a.personality ? `personality: ${a.personality}` : "",
+    a.model_choice?.model ? `model: ${a.model_choice.model}` : "",
+    a.model_choice?.fallbacks?.length ? `fallbacks: ${a.model_choice.fallbacks.join(", ")}` : "",
     "prompt:",
     a.prompt || "(empty)",
   ]
@@ -81,7 +84,7 @@ const ROLE_MAX = 40;
 
 export function agentSetTools(store: Store): Tool[] {
   const args = z.object({
-    agent: z.string().trim().min(1).max(120).optional().describe("id or name; omit to create one"),
+    agent: z.string().trim().min(1).max(120).optional().describe("id or name"),
     slug: Slug.optional().describe("a new agent's id, or a project agent's new file name"),
     name: z.string().trim().min(1).max(80).optional(),
     role: z.string().trim().optional(),
@@ -93,17 +96,28 @@ export function agentSetTools(store: Store): Tool[] {
     parent: z.string().max(64).optional().describe("who it reports to"),
     project: z.string().optional(),
     archive: z.boolean().optional(),
+    // Refs and their count are checked by agents.update; a plain list keeps the schema short.
+    fallbacks: z.array(z.string()).optional(),
   });
   type Args = z.output<typeof args>;
   const changes = (a: Args) =>
-    [a.slug, a.name, a.role, a.area, a.orchestrator, a.description, a.prompt, a.personality, a.parent].some(
-      (v) => v !== undefined,
-    ) || a.archive === true;
+    [
+      a.slug,
+      a.name,
+      a.role,
+      a.area,
+      a.orchestrator,
+      a.description,
+      a.prompt,
+      a.personality,
+      a.parent,
+      a.fallbacks,
+    ].some((v) => v !== undefined) || a.archive === true;
   return [
     defineTool({
       name: "agent_set",
       description:
-        "Run the team: no args: team, areas, roles; only agent: read it; create one (slug, role; name only if the owner chose one; project: id/name, default this chat), change one (only what you give; a prompt replaces the old) or archive it.",
+        "Run the team: no args: team, areas, roles; only agent: read it; create one (slug, role; name only if the owner chose one; project: id/name, default this chat), change one (only what is given; prompt replaces) or archive it.",
       args,
       effect: "local",
       confirm: (a) => (changes(a) ? "always" : "never"),
@@ -114,11 +128,20 @@ export function agentSetTools(store: Store): Tool[] {
           ? `Created the agent ${a.name ?? a.slug ?? ""}`
           : `${a.archive ? "Archived" : changes(a as Args) ? "Changed" : "Looked at"} ${a.agent}`,
       // Before the owner is asked: a sentence as the role fills the team's role list and every agent card.
-      check(a) {
+      check(a, ctx) {
         if (a.role && a.role.length > ROLE_MAX)
           throw new Error(
             `role is a short title of a few words (like "Issue triage"), at most ${ROLE_MAX} characters: put the longer text in description`,
           );
+        // Fallbacks back the agent's own model: with none, there is nothing to fall back from.
+        if (a.fallbacks) {
+          if (!a.agent) throw new Error("fallbacks go on an existing agent: create it first");
+          const found = store.agents.resolve(a.agent, ctx.thread.project_id);
+          if (!("error" in found) && !found.agent.model_choice?.model)
+            throw new Error(
+              `${found.agent.name} runs on the router, not a model of its own: the owner picks its model first in its settings`,
+            );
+        }
       },
       async run(a, ctx) {
         let cur: AgentRecord | undefined;
@@ -196,11 +219,13 @@ export function agentSetTools(store: Store): Tool[] {
           // What the agent tells the owner: it is gone from the team, and where to bring it back or delete it.
           return `removed ${cur.name}: it is off the team and out of every list${r.moved_to ? ` (its file is kept in ${r.moved_to})` : ""}. Tell the owner they can bring it back whenever they want, or delete it for good, in [Config › Agents](apx:settings/agents).`;
         }
-        const { agent: _a, archive: _x, project: _p, area: _ar, ...fields } = a;
+        const { agent: _a, archive: _x, project: _p, area: _ar, fallbacks, ...fields } = a;
+        const choice = cur.model_choice;
         const now = await asOwner("agents.update", {
           agent: cur.id,
           ...fields,
           ...(area !== undefined ? { area } : {}),
+          ...(fallbacks && choice ? { model_choice: { ...choice, fallbacks } } : {}),
         });
         return `saved: ${now.name} (id: ${now.id}${now.slug ? `, slug: ${now.slug}` : ""})`;
       },
