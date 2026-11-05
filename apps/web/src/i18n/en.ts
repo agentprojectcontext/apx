@@ -18,6 +18,7 @@ import type { enIngress } from "./ingress-en.ts";
 import type { enMove } from "./move-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
 import type { enSecretary } from "./secretary-en.ts";
+import type { enSignIn } from "./signin-en.ts";
 import type { enStorage } from "./storage-en.ts";
 import type { SysUsageKey } from "./sysusage-en.ts";
 import type { enThreadDialogs } from "./thread-dialogs-en.ts";
@@ -1904,6 +1905,7 @@ export type MessageKey =
   | ReceivedKey
   | SysUsageKey
   | keyof typeof enStorage
+  | keyof typeof enSignIn
   | keyof typeof enMove
   | keyof typeof enEmailSignatures
   | keyof typeof enThreadDialogs

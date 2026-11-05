@@ -16,6 +16,8 @@ import { enReceived } from "./received-en.ts";
 import { esReceived } from "./received-es.ts";
 import { enSecretary } from "./secretary-en.ts";
 import { esSecretary } from "./secretary-es.ts";
+import { enSignIn } from "./signin-en.ts";
+import { esSignIn } from "./signin-es.ts";
 import { enStorage } from "./storage-en.ts";
 import { esStorage } from "./storage-es.ts";
 import { enSysUsage } from "./sysusage-en.ts";
@@ -109,6 +111,7 @@ const en = {
   ...enReceived,
   ...enSysUsage,
   ...enStorage,
+  ...enSignIn,
   ...enEmailSignatures,
   ...enThreadDialogs,
   ...enIngress,
@@ -122,6 +125,7 @@ const es = {
   ...esReceived,
   ...esSysUsage,
   ...esStorage,
+  ...esSignIn,
   ...esEmailSignatures,
   ...esThreadDialogs,
   ...esIngress,

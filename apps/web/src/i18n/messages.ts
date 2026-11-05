@@ -64,6 +64,10 @@ const PACKS = {
     en: () => import("./storage-en.ts").then((m) => m.enStorage),
     es: () => import("./storage-es.ts").then((m) => m.esStorage),
   },
+  signIn: {
+    en: () => import("./signin-en.ts").then((m) => m.enSignIn),
+    es: () => import("./signin-es.ts").then((m) => m.esSignIn),
+  },
   usage: {
     en: () => import("./sysusage-en.ts").then((m) => m.enSysUsage),
     es: () => import("./sysusage-es.ts").then((m) => m.esSysUsage),
