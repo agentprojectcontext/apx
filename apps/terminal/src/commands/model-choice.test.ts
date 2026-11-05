@@ -91,7 +91,8 @@ test("a new main model keeps the agent's fallbacks; --fallbacks sets or clears t
       "agents.update": { name: "Scout", model_choice: had },
     });
     const out = await printed(() => agentModel(client, ["scout", ref], o));
-    return { sent: (calls.at(-1)?.[1] as { model_choice: unknown }).model_choice, out };
+    const sent = calls.at(-1)?.[1] as { model_choice: unknown } | undefined;
+    return { sent: sent?.model_choice, out };
   };
   // The new main model leaves the list behind it.
   assert.deepEqual((await run("fake/new", { router: true })).sent, {
