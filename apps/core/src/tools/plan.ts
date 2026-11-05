@@ -54,7 +54,7 @@ export function planTools(): Tool[] {
         // One plan per task chat: the task keeps it, for its drawer and its progress guard (DECISIONS.md#d-188).
         if (ctx.thread.task_id) await ctx.call("tasks.update", { task: ctx.thread.task_id, plan: planText(steps) });
         const part: Part = { type: "plan", steps };
-        ctx.upsertPart((p) => p.type === "plan", part);
+        ctx.upsertPart((p) => p.type === "plan", part, { last: true });
         const left = steps.filter((s) => s.state !== "done").length;
         return left ? `plan kept: ${left} step(s) left.` : "plan kept: every step done.";
       },

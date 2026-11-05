@@ -160,6 +160,17 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
     const sinceOwner = messages.slice(messages.findLastIndex((m) => m.role === "user"));
     return sinceOwner.filter((m) => m.role === "tool").length < 2 ? delegate : undefined;
   }
+  // A plan marked as it goes: a worker's card, a wait, every step done, then the answer.
+  if (/^plan two checks/i.test(said)) {
+    const sinceOwner = messages.slice(messages.findLastIndex((m) => m.role === "user"));
+    const plan = (steps: string) => ({ name: "plan", arguments: JSON.stringify({ steps }) });
+    return [
+      plan("- [~] Check the sources\n- [ ] Write the summary"),
+      delegate,
+      { name: "shell", arguments: JSON.stringify({ command: "sleep 4" }) },
+      plan("- [x] Check the sources\n- [x] Write the summary"),
+    ][sinceOwner.filter((m) => m.role === "tool").length];
+  }
   if (messages.at(-1)?.role === "tool") return undefined;
   if (KEEP_GOING.test(said))
     return {
