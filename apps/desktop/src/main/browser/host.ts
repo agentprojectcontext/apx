@@ -11,7 +11,7 @@ import {
   type TabControl,
   type TabInfo,
 } from "@apx/protocol";
-import { assertNavigable as checkNavigable } from "@apx/protocol/cdp";
+import { assertNavigable as checkNavigable, scrubDeep } from "@apx/protocol/cdp";
 import { ApxError } from "@apx/protocol/client";
 import { app, type Session, session, type WebContents, WebContentsView } from "electron";
 import type { ProcessOwner } from "../memory.ts";
@@ -83,8 +83,9 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
     const wc = tab.wc;
     return {
       tab: tab.id,
-      url: wc.getURL(),
-      title: wc.getTitle(),
+      // A page may carry a filled value on into its address or title (a form sent by GET).
+      url: tab.cdp.scrub(wc.getURL()),
+      title: tab.cdp.scrub(wc.getTitle()),
       profile: tab.profile,
       control: tab.control,
       consent_epoch: tab.cdp.consentEpoch,
@@ -103,7 +104,9 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
     // The tab is locked while the call runs: closing it for being idle would pull the page from under the agent.
     this.#busy.set(id, (this.#busy.get(id) ?? 0) + 1);
     try {
-      return await this.#run(method, raw);
+      const out = await this.#run(method, raw);
+      const tab = this.#tabs.get(id);
+      return tab && method !== "browser.screenshot" ? scrubDeep(out, (t) => tab.cdp.scrub(t)) : out;
     } finally {
       const left = (this.#busy.get(id) ?? 1) - 1;
       if (left > 0) this.#busy.set(id, left);

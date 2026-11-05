@@ -5,6 +5,9 @@ import type { BrowserFillSecret, ElementEdit, PickedElement, SignInResult } from
 import { PageEdits } from "./cdp-edit.ts";
 import { captureDocument, evaluatePage } from "./cdp-evaluate.ts";
 import { SecretFields } from "./cdp-fill.ts";
+
+export { scrubDeep } from "./cdp-fill.ts";
+
 import { ApxError } from "./client.ts";
 
 type AXNode = {
@@ -107,22 +110,18 @@ export class CdpPage {
   }
 
   #assertNoSecret(): void {
-    if (this.#secrets.holds)
+    // For the tab's life: going back may bring the filled page back as it was.
+    if (this.#secrets.held || this.#secrets.leaked)
       throw new ApxError({
         code: "credential_field",
-        message: "a secret was filled into this page: JavaScript waits until the tab goes to another page",
+        message: "a secret was filled in this tab: page JavaScript is not run in it; open another tab",
       });
   }
 
   /** Puts a value the core resolved from a stored secret into a sign-in field. See DECISIONS.md#d-193 */
   fillSecret(ref: string, req: Pick<BrowserFillSecret, "kind" | "origins" | "value">): Promise<SignInResult> {
     const backendNodeId = this.#backend(ref);
-    return withTimeout(
-      this.#secrets.fill(backendNodeId, req, () =>
-        this.#key("a", "KeyA", 65, this.#selectAll, undefined, ["selectAll"]),
-      ),
-      10_000,
-    );
+    return withTimeout(this.#secrets.fill(backendNodeId, req), 10_000);
   }
 
   async approvalContext(origin: string, document: string): Promise<{ epoch: string }> {

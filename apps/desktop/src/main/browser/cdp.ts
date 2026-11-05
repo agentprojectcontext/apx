@@ -86,6 +86,11 @@ export class CdpTab {
     return this.#page.fillSecret(ref, req);
   }
 
+  /** Text with any value filled in this tab taken out. */
+  scrub(text: string): string {
+    return this.#page.scrub(text);
+  }
+
   /** Refuses reading a page that copied a secret's value; takes out any value filled into it. */
   readable(text: string): string {
     this.#page.assertReadable();

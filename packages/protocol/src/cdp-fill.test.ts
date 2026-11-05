@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CdpPage, type CdpSend } from "./cdp.ts";
-import { fieldKind } from "./cdp-fill.ts";
+import { fieldKind, scrubDeep } from "./cdp-fill.ts";
 
 const SECRET = "hunter2-correct-horse";
 
@@ -25,7 +25,8 @@ function fakePage(o: {
   body: Node[];
   frames?: Array<{ id: string; url: string }>;
   leaks?: number;
-  focusMoves?: boolean;
+  /** The field does not take the value (gone, or the page's own setter refuses it). */
+  refuses?: boolean;
   /** The document as DOM.getDocument shows it, when it differs (a frame in another process is not in it). */
   dom?: Node[];
 }) {
@@ -85,7 +86,11 @@ function fakePage(o: {
       case "Runtime.callFunctionOn": {
         const fn = String(params?.functionDeclaration);
         const args = (params?.arguments as Array<{ value: unknown }> | undefined) ?? [];
-        if (fn.includes("activeElement")) return { result: { value: !o.focusMoves } };
+        if (fn.includes("getOwnPropertyDescriptor")) {
+          if (o.refuses) return { result: { value: false } };
+          typed.push(String(args[0]?.value));
+          return { result: { value: true } };
+        }
         if (fn.includes("createTreeWalker")) return { result: { value: o.leaks ?? 0 } };
         if (fn.includes("__apxMask")) {
           masked += args[0]?.value ? 1 : -1;
@@ -134,6 +139,15 @@ test("a marked site's password field is filled, and nothing the agent reads of t
   assert.equal(page.holdsSecret, false);
   await page.screenshot();
   assert.deepEqual(shots.at(-1), { masked: false });
+  // The next page may carry the value on (a form sent by GET, going back): it stays out of what the agent reads, and
+  // no page JavaScript runs in this tab again.
+  assert.equal(page.scrub(`https://app.acme.com/?pw=${SECRET}`), "https://app.acme.com/?pw=[secret]");
+  assert.throws(() => page.evaluate("1", "https://app.acme.com", "doc1"), /secret was filled in this tab/);
+});
+
+test("every string of a tab's answer is scrubbed, nested or not", () => {
+  const out = scrubDeep({ url: `/?p=${SECRET}`, tabs: [{ title: SECRET }], n: 1 }, (t) => t.split(SECRET).join("*"));
+  assert.deepEqual(out, { url: "/?p=*", tabs: [{ title: "*" }], n: 1 });
 });
 
 test("another site, a frame from another site, or a field outside this page is refused before anything is typed", async () => {
@@ -203,12 +217,13 @@ test("a page that copies the value elsewhere gets it cleared and is kept from th
   await page.snapshot(10_000);
 });
 
-test("a page that takes the focus away from the field is refused, nothing is typed", async () => {
-  const { page, typed } = fakePage({ url: "https://app.acme.com/login", body: LOGIN, focusMoves: true });
+test("a field that does not take the value is refused and not protected", async () => {
+  const { page, typed } = fakePage({ url: "https://app.acme.com/login", body: LOGIN, refuses: true });
   await page.snapshot(10_000);
   const r = await page.fillSecret("e2", req("password"));
-  assert.match(r.reason ?? "", /focus away/);
+  assert.match(r.reason ?? "", /did not take the value/);
   assert.deepEqual(typed, []);
+  assert.equal(page.holdsSecret, false);
 });
 
 test("every site (*) means https, or http only on this computer", async () => {

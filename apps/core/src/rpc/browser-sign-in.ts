@@ -71,7 +71,7 @@ export function signInHandler(d: SignInDeps): Handler<"browser.sign_in"> {
     if (!origins.includes(origin) && d.signIn.allows(agent.run_id, key, origin, p.kind)) origins.push(origin);
     if (!origins.length) throw badRequest("no site to fill on");
     d.signIn.consume(agent.run_id, key, origin, p.kind);
-    const r = SignInResult.parse(await d.fill({ tab: p.tab, ref: p.ref, by: p.by, kind: p.kind, origins, value }, ctx));
+    const r = SignInResult.parse(await d.fill({ tab: p.tab, ref: p.ref, by: agent.id, kind: p.kind, origins, value }, ctx));
     if (r.outcome === "filled")
       d.secrets.markUsed(key, { origin: r.origin, at: new Date(now()).toISOString(), agent: agent.id });
     if (r.leaked) {

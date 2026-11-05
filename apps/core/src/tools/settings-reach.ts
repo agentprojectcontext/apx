@@ -38,6 +38,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "email.signature_import": "it only fills the owner's signature editor with Gmail's; saving it is theirs",
   "engines.set_usage": "the owner chooses whether APX queries and displays their external account limits",
   "secrets.set": SECRET,
+  "secrets.set_sites":
+    "where agents may sign in with a stored secret is the owner's to say; an agent asks with its own card (DECISIONS.md#d-193)",
   "providers.set": SECRET,
   "services.set": SECRET,
   "clients.create": SECRET,

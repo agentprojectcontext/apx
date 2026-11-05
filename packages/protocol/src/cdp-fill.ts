@@ -120,6 +120,15 @@ const SCAN = `function(secret) {
   return leaks;
 }`;
 
+/** Puts the value in the field as typing would, with the browser's own setter, and tells the page it changed. */
+const SET = `function(value) {
+  this.focus();
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(this, value);
+  this.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
+  this.dispatchEvent(new Event('change', { bubbles: true }));
+  return true;
+}`;
+
 /** The style that hides what a filled field shows while a picture of the page is taken. */
 const MASK = `function(on) {
   const props = ['color', '-webkit-text-fill-color', '-webkit-text-security', 'text-shadow', 'caret-color'];
@@ -136,16 +145,25 @@ const MASK = `function(on) {
   }
 }`;
 
+/** A result with every string run through `scrub`: what a tab answers the core, minus any value filled in it. */
+export function scrubDeep<T>(value: T, scrub: (text: string) => string): T {
+  if (typeof value === "string") return scrub(value) as T;
+  if (Array.isArray(value)) return value.map((v) => scrubDeep(v, scrub)) as T;
+  if (value && typeof value === "object")
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, scrubDeep(v, scrub)])) as T;
+  return value;
+}
+
 const refused = (origin: string, reason: string): SignInResult => ({ outcome: "refused", origin, reason });
 
 /**
- * One tab's filled fields while its document lives: what pictures cover, what snapshots and text leave out, and
- * whether page JavaScript may run there. A new document forgets them.
+ * One tab's filled fields while their document lives (what pictures cover), and the values filled in the tab while it
+ * lives: what snapshots, text, addresses and titles leave out, and why page JavaScript never runs there again.
  */
 export class SecretFields {
   readonly #send: CdpSend;
   #filled = new Map<number, string>();
-  /** The values put in this document: scrubbed from what the agent reads of it. */
+  /** The values put in this tab: a page may carry one on (a form sent by GET, an error page, going back). */
   #values = new Set<string>();
   #leaked = false;
 
@@ -158,14 +176,19 @@ export class SecretFields {
     return this.#filled.size > 0 || this.#leaked;
   }
 
+  /** A value was ever filled in this tab: its JavaScript stays refused until the tab is closed. */
+  get held(): boolean {
+    return this.#values.size > 0;
+  }
+
   /** The page copied a value: nothing of it reaches the agent until the tab leaves it. */
   get leaked(): boolean {
     return this.#leaked;
   }
 
+  /** A new document: its fields are new nodes. The values stay scrubbed for the tab's life. */
   forget(): void {
     this.#filled.clear();
-    this.#values.clear();
     this.#leaked = false;
   }
 
@@ -173,18 +196,14 @@ export class SecretFields {
     return this.#filled.has(backendNodeId);
   }
 
-  /** Text the agent reads, with any value put in this document taken out. */
+  /** Text the agent reads, with any value filled in this tab taken out. */
   scrub(text: string): string {
     let out = text;
     for (const v of this.#values) if (v.length >= SCAN_MIN) out = out.split(v).join("[secret]");
     return out;
   }
 
-  async fill(
-    backendNodeId: number,
-    req: Pick<BrowserFillSecret, "kind" | "origins" | "value">,
-    selectAll: () => Promise<void>,
-  ): Promise<SignInResult> {
+  async fill(backendNodeId: number, req: Pick<BrowserFillSecret, "kind" | "origins" | "value">): Promise<SignInResult> {
     const top = await this.#top();
     if (!top.origin || !siteAllowed(req.origins, top.origin))
       return refused(top.origin ?? "", `this page is on ${top.origin || "no site"}, not a site this secret is for`);
@@ -198,17 +217,17 @@ export class SecretFields {
       return refused(top.origin, `this field takes ${KIND_WORDS[kind]}, and the secret is for ${KIND_WORDS[req.kind]}`);
     const objectId = await this.#resolve(backendNodeId, found.frameId);
     await this.#send("DOM.scrollIntoViewIfNeeded", { backendNodeId });
-    await this.#send("DOM.focus", { backendNodeId });
-    // Checked again right before the value goes in: the page may have moved on or taken the focus elsewhere.
+    // Checked again right before the value goes in: the page may have moved on.
     const now = await this.#top();
     if (now.origin !== top.origin) return refused(now.origin ?? "", "the page changed before the field was filled");
-    if (!(await this.#call<boolean>(objectId, "function() { return this.ownerDocument.activeElement === this; }")))
-      return refused(top.origin, "the page moved the focus away from the field");
     // Protected before the value goes in: a picture taken meanwhile already covers the field.
     this.#filled.set(backendNodeId, found.frameId);
     this.#values.add(req.value);
-    await selectAll();
-    await this.#send("Input.insertText", { text: req.value });
+    // Set on that very node, not typed: wherever the page moves the focus, the value goes nowhere else.
+    if (!(await this.#call<boolean>(objectId, SET, [req.value]).catch(() => false))) {
+      this.#filled.delete(backendNodeId);
+      return refused(top.origin, "the field did not take the value");
+    }
     if (req.value.length < SCAN_MIN) return { outcome: "filled", origin: top.origin };
     await new Promise((r) => setTimeout(r, SETTLE_MS));
     const leaks = await this.#call<number>(objectId, SCAN, [req.value]).catch(() => 0);

@@ -3712,21 +3712,29 @@ else are refused in this version.
 
 **What the agent gets back.** `filled` with the ref and origin, or `refused` with a reason (wrong origin, frame,
 field kind, not allowed, leaked). Never the value, its length or a hint. The tool's arguments carry the secret's name
-only. The value is inserted with `Input.insertText` on the focused field, never through the `type` or `key` tools. The
-field is protected from just before the value goes in until the tab's document changes (a new address in the same
-document keeps it): `browser_evaluate` is refused there even under a tab or turn consent (D-165), snapshots leave the
-filled field's value out whatever its type becomes (a "show password" button does not reveal it), snapshots and page
-text have any filled value taken out, and agent pictures of the tab cover the filled field (the compositor fallback,
-which cannot, is refused). Pictures of the owner's whole screen (`screen_` tools) are the owner's own window and
-are not covered: a browser shows a password as dots, a username as typed.
+only. The value is set on that very field from an isolated world, with the browser's own setter and the `input` and
+`change` events typing would fire: never through the `type` or `key` tools, and never typed into whatever has the
+focus (a page that moves the focus cannot send it elsewhere). The field is protected from just before the value goes
+in until its document changes (a new address in the same document keeps it): snapshots leave its value out whatever
+its type becomes (a "show password" button does not reveal it) and agent pictures of the tab cover it (the
+compositor fallback, which cannot, is refused). For the tab's whole life, every value filled in it is taken out of
+everything the tab answers (snapshots, page text, addresses, titles), since the next page may carry it on (a form
+sent by GET, an error page, going back), and `browser_evaluate` is refused in that tab even under a tab or turn
+consent (D-165). Pictures of the owner's whole screen (`screen_` tools) are the owner's own window and are not
+covered: a browser shows a password as dots, a username as typed.
 
 **After the fill.** Once the page had a moment to react, the node scans, from an isolated world, every document of
 the tab it can reach (same-origin frames and open shadow roots: other fields' values, attributes, text and the
 address) for a value of four characters or more outside the filled field. When it appears elsewhere: the field and
 every place it leaked into are cleared, the tab's document stays protected (no snapshot, text, picture or JavaScript
 for the agent) until it navigates away, the tool answers `refused: the page copied the value`, and the owner gets a
-notice naming the secret and the site. A copy made later by the page, or a username the site shows once signed in,
-is not caught by the scan; page text is still scrubbed of the value while the document lives.
+notice naming the secret and the site. Not caught: a copy the page makes later onto a canvas, and a page script
+on the allowed site that undoes the cover's inline style before a picture; a username a later page shows in a
+picture. The site the owner allowed is trusted that far.
+
+**Where the value travels.** From the core to the browser that holds the tab in the same call: the core's own
+headless browser, or the owner's desktop app over its connection to the core (on another machine when the core runs
+as a server).
 
 **Audit.** Each fill or refusal writes a log line and a step in the chat that name the agent, the secret's name, the
 origin and the outcome, never the value. The secret's row in Variables shows its sites, and its sign-in dialog when
