@@ -210,6 +210,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.signIn.lastUsed": "Usada por última vez en {site}, {when}",
   "res.signIn.badge": "Inicio de sesión: {sites}",
   "res.signIn.badgeAny": "Inicio de sesión: cualquier sitio",
+  "res.signIn.badgeCount": "Inicio de sesión: {n} sitios",
   "res.actions": "Acciones",
   "res.varOverrides": "Pisa la global",
   "res.varOverridden": "Pisada acá",

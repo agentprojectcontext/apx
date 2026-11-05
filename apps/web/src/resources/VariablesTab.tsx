@@ -144,7 +144,9 @@ export function VariablesTab({ projectId, query, scope, adding, setAdding, res, 
                         <Badge tone="warning">{t("res.signIn.badgeAny")}</Badge>
                       ) : (
                         <Badge>
-                          {t("res.signIn.badge", { sites: r.sites.map((x) => siteLabel(x.origin)).join(", ") })}
+                          {r.sites.length === 1
+                            ? t("res.signIn.badge", { sites: siteLabel(r.sites[0]?.origin ?? "") })
+                            : t("res.signIn.badgeCount", { n: r.sites.length })}
                         </Badge>
                       )}
                     </span>

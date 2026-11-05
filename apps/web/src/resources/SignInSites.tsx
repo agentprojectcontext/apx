@@ -89,13 +89,16 @@ export function SignInSitesDialog(props: {
           {anySite && <p className="resd__note">{t("res.signIn.anySiteHint")}</p>}
         </div>
         {!anySite && (
-          <TagInput
-            label={t("res.signIn.sites")}
-            value={typed}
-            onValueChange={setTyped}
-            placeholder="app.acme.com"
-            max={12}
-          />
+          <div className="pform__field">
+            <span className="pform__label">{t("res.signIn.sites")}</span>
+            <TagInput
+              label={t("res.signIn.sites")}
+              value={typed}
+              onValueChange={setTyped}
+              placeholder="app.acme.com"
+              max={12}
+            />
+          </div>
         )}
         {!anySite && wrong.length > 0 && (
           <p className="resd__note" role="alert">

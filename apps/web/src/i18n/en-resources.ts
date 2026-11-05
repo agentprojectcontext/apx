@@ -205,6 +205,7 @@ export const enResources = {
   "res.signIn.lastUsed": "Last used on {site}, {when}",
   "res.signIn.badge": "Sign in: {sites}",
   "res.signIn.badgeAny": "Sign in: any site",
+  "res.signIn.badgeCount": "Sign in: {n} sites",
   "res.actions": "Actions",
   "res.varOverrides": "Over the global",
   "res.varOverridden": "Overridden here",
