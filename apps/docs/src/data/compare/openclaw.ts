@@ -30,10 +30,10 @@ export const openclaw: Product = {
     ["https://github.com/openclaw/openclaw/blob/b277db00687aabbf245c0d9287139a30bb2a22df/LICENSE", openclawReadme],
   ],
   short: text("personal assistant", "asistente personal"),
-  tagline: text("Your project crew or your personal assistant?", "¿Tu equipo de proyectos o tu asistente personal?"),
+  tagline: text("choosing an agent setup", "cómo elegir una configuración de agentes"),
   intro: text(
-    "Both run on hardware you control and connect AI to everyday work. APX organizes that work into projects and a crew. OpenClaw presents a personal assistant across your devices and chats, with multi-agent routing available too.",
-    "Ambos corren en equipos que controlás y conectan la IA con tu trabajo cotidiano. APX organiza ese trabajo en proyectos y un equipo. OpenClaw propone un asistente personal entre tus dispositivos y chats, y también ofrece enrutamiento entre agentes.",
+    "APX and OpenClaw are open-source options for running AI agents on your own hardware. Both document chat channels, multi-agent setups and scheduled work. They organize that work differently; the better fit depends on the workflow you want to run.",
+    "APX y OpenClaw son opciones de código abierto para ejecutar agentes de IA en tu propio equipo. Ambos documentan canales de chat, configuraciones multiagente y trabajo programado. Organizan ese trabajo de manera diferente; la mejor opción depende del flujo que quieras usar.",
   ),
   choice: text(
     "You want a personal assistant across your chat apps and devices, with a gateway, companion apps and an extensive plugin ecosystem.",
@@ -74,11 +74,11 @@ export const openclaw: Product = {
     ),
   ],
   detail: text(
-    "OpenClaw is not a chat-only tool: its official project documents native apps, device nodes, skills, multiple agents and team deployments. APX’s project-and-task workflow is the reason to evaluate it, not a claim that OpenClaw lacks those building blocks.",
-    "OpenClaw no es solo un chat: su proyecto oficial documenta apps nativas, dispositivos conectados, habilidades, varios agentes y despliegues para equipos. El flujo de proyectos y tareas de APX es una razón para evaluarlo, no una afirmación de que OpenClaw carece de esas capacidades.",
+    "APX organizes a project around an ordinary folder following APC: root AGENTS.md, an .apc/ directory and individual project agent Markdown files. Its local database keeps runtime history separately. OpenClaw documents per-agent workspaces, state directories and session stores, with channel bindings that route messages to agents. Its workspaces also use readable files such as AGENTS.md: readable context and multiple agents are not exclusive to APX. This is a comparison of the linked documentation, not a head-to-head performance, security or reliability test. Self-hosting either app does not make connected cloud models offline.",
+    "APX organiza un proyecto alrededor de una carpeta común que sigue APC: AGENTS.md en la raíz, un directorio .apc/ y archivos Markdown individuales para los agentes. Su base de datos local guarda el historial de ejecución por separado. OpenClaw documenta espacios de trabajo, directorios de estado y almacenamiento de sesiones por agente, con vinculaciones de canales que dirigen los mensajes. Sus espacios también usan archivos legibles como AGENTS.md: el contexto legible y los equipos de agentes no son exclusivos de APX. Esta comparación describe la documentación enlazada, no una prueba de rendimiento, seguridad ni confiabilidad entre ambos. Alojar cualquiera de las apps por tu cuenta no hace que los modelos conectados en la nube funcionen sin internet.",
   ),
   tryIt: text(
-    "Connect one channel and ask for a task that needs a handoff. Compare setup, approvals and how you follow the work from your phone and computer.",
-    "Conectá un canal y pedí una tarea que necesite un pase entre agentes. Compará la configuración, las aprobaciones y cómo seguís el trabajo desde el teléfono y la computadora.",
+    "Consider APX if you want a project folder with an agent roster, tasks and APC context alongside the work. Consider OpenClaw if its Gateway, channel bindings and per-agent workspace model fit how you route conversations. Features and defaults can change: check the current guides, connect one channel and try a real task with a handoff before deciding.",
+    "Considerá APX si querés una carpeta de proyecto con un equipo de agentes, tareas y contexto APC junto al trabajo. Considerá OpenClaw si su Gateway, sus vinculaciones de canales y su modelo de espacios por agente encajan con la forma en que dirigís las conversaciones. Las funciones y opciones predeterminadas pueden cambiar: revisá las guías actuales, conectá un canal y probá un trabajo real con un pase entre agentes antes de decidir.",
   ),
 };
