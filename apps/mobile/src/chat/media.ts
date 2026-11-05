@@ -118,7 +118,9 @@ export function mediaRows(parts: readonly Part[]): Row[] {
     } else if (item) rows.push({ kind: "media", item, key });
     else rows.push({ kind: "part", part, key });
   }
-  return rows;
+  // The plan closes the message while the agent works, as on the web panel.
+  const isPlan = (row: Row) => row.kind === "part" && row.part.type === "plan";
+  return [...rows.filter((row) => !isPlan(row)), ...rows.filter(isPlan)];
 }
 
 /**

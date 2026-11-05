@@ -62,6 +62,21 @@ test("title editing trims a changed value and cancelling an edit sends no update
   await ui.unmount();
 });
 
+test("the task shows its goal, which the owner can change, and the agent's plan", async () => {
+  const api = actions();
+  const planned = { ...task, goal: "The review is merged", plan: "- [x] Read the diff\n- [~] Leave comments" };
+  const ui = await render(view(planned, api));
+  expect(ui.getByText("The review is merged")).toBeVisible();
+  expect(ui.getByLabelText(t("tkPlan"))).toBeVisible();
+  expect(ui.getByText(t("planDone", { done: 1, count: 2 }))).toBeVisible();
+  expect(ui.getByText("Leave comments")).toBeVisible();
+  await fireEvent.press(ui.getByLabelText(`${t("tkEdit")}: ${t("tkGoal")}`));
+  await fireEvent.changeText(ui.getByLabelText(t("tkGoal")), "  The review is merged\n and released ");
+  await fireEvent.press(ui.getByRole("button", { name: t("save") }));
+  expect(api.update).toHaveBeenCalledWith(task.id, { goal: "The review is merged and released" });
+  await ui.unmount();
+});
+
 test("comments preserve the draft until success, prevent duplicate sends and reload detail", async () => {
   const api = actions();
   const pending = deferred<void>();
