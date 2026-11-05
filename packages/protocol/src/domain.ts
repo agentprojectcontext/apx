@@ -487,6 +487,8 @@ const KnownPart = z.discriminatedUnion("type", [
     asked_by: z.string().optional(),
     /** A completed run that did not go well: it gave no answer, or some of its actions failed. */
     issue: z.enum(["no_answer", "actions_failed"]).optional(),
+    /** Its answer waits for the others asked in the same turn: how many of them are in (DECISIONS.md#d-194). */
+    held: z.object({ got: z.number().int().nonnegative(), of: z.number().int().positive() }).optional(),
   }),
   z.object({
     type: z.literal("browser"),

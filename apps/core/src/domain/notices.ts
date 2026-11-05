@@ -31,6 +31,7 @@ export function followsOwner(origin: Origin | undefined): boolean {
     case "channel":
     case "input_answer":
     case "delegation_result":
+    case "delegation_results":
     case "go_on":
     case "terminal":
       return true;

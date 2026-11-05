@@ -34,6 +34,6 @@ test("a fourth delegation shows as queued, then runs once one of the three ends"
 
   await expect(side.getByText("Terminados (4)")).toBeVisible({ timeout: 15_000 });
   await expect(cards.getByText("En cola", { exact: true })).toHaveCount(0);
-  // Each result comes back as its own turn, which shows its card again.
+  // Asked in one turn, their results come back together in one turn, which shows their cards again.
   await expect(cards.getByText("Listo", { exact: true })).toHaveCount(8);
 });

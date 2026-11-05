@@ -556,6 +556,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "subthread.open": "Abrir conversación con {name}",
   "subthread.worker": "Ayudante",
   "subthread.took": "Tardó {time}",
+  "subthread.held": "Esperando respuestas: {got} de {of}",
   "subthread.more": "Mostrar más",
   "subthread.less": "Mostrar menos",
   "subthread.noAnswer": "Terminó sin respuesta",
