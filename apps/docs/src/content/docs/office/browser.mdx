@@ -61,7 +61,7 @@ can be picked but never read or changed.
 
 ## Approved JavaScript execution
 
-On unreleased staging builds, an agent can use `browser_evaluate` in its existing APX tab. Supply either a JavaScript
+An agent can use `browser_evaluate` in its existing APX tab. Supply either a JavaScript
 expression in `script`, or a local `.js` `path` plus the SHA-256 of its exact bytes in `sha256`. File access follows the
 agent's normal folder permissions; URLs are not script sources. VM chats accept inline code only, never host files.
 Use an async IIFE for statements and return a value:
