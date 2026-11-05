@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import type { Message, Part } from "@apx/protocol";
 import { pendingInput, say, scriptedLlm, startCore, texts } from "../../engine/testkit.ts";
 import { realpath } from "../../paths.ts";
 import { tempDir } from "../../testkit/platform.ts";
@@ -11,6 +12,7 @@ import { openSession } from "./agents.ts";
 const FAKE = path.join(import.meta.dirname, "fake-agent.test-support.mjs");
 
 let env: Awaited<ReturnType<typeof startCore>>;
+const cleanups: Array<() => Promise<void>> = [];
 before(async () => {
   env = await startCore({ llm: scriptedLlm(() => say("native")) });
   env.core.store.settings.set(
@@ -21,6 +23,7 @@ before(async () => {
 after(async () => {
   await env.core.close();
   await env.cleanup();
+  for (const done of cleanups) await done();
 });
 
 test("an ACP agent's session runs the turn: model picked, its edit asks the owner, its tool shown, session kept", async () => {
@@ -59,6 +62,41 @@ test("an ACP agent's session runs the turn: model picked, its edit asks the owne
   await env.client.call("runs.wait", { run: again.run.id, timeout_s: 10 });
   const after2 = await env.settle(t.id);
   assert.ok(texts(after2.messages).includes("model=m2 edit=rejected instructions=false"));
+});
+
+const plansIn = (messages: Message[]) =>
+  messages.flatMap((m) => m.parts.filter((p): p is Extract<Part, { type: "plan" }> => p.type === "plan"));
+
+test("an ACP agent's plan, as plan updates or as its to-do tool, is APX's plan under its answer (DECISIONS.md#d-192)", async () => {
+  // Removed with the core, after the agent's processes exited.
+  const repo = tempDir("apx-acp-plan-");
+  cleanups.push(() => repo.remove());
+  const project = (await env.client.call("projects.register", { path: realpath(repo.path), init: true })).project.id;
+  const t = await env.client.call("threads.create", {
+    kind: "code",
+    agent_id: "scout",
+    project_id: project,
+    engine: "acp:fake",
+  });
+  await env.client.call("threads.send", { thread: t.id, text: "plan it" });
+  let { messages } = await env.settle(t.id);
+  assert.equal(plansIn(messages).length, 1, "one plan part, updated in place");
+  assert.deepEqual(plansIn(messages)[0]?.steps, [
+    { step: "Count shelf A", state: "done" },
+    { step: "Count shelf B", state: "doing" },
+  ]);
+  assert.ok(texts(messages).includes("planned"));
+
+  await env.client.call("threads.send", { thread: t.id, text: "todo it" });
+  ({ messages } = await env.settle(t.id));
+  const answer = messages.at(-1);
+  assert.deepEqual(plansIn(answer ? [answer] : [])[0]?.steps, [
+    { step: "Count shelf A", state: "done" },
+    { step: "Count shelf B", state: "pending" },
+  ]);
+  // The to-do call is the plan: no card of its own beside the plan's.
+  const cards = answer?.parts.filter((p) => p.type === "tool").map((p) => (p.type === "tool" ? p.tool : ""));
+  assert.deepEqual(cards, ["plan"]);
 });
 
 test("a CLI nobody signed in to ends the session with how to sign in, and APX never signs it in itself", async () => {

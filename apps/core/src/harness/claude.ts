@@ -18,7 +18,8 @@ export function zodShape(params: object): z.ZodRawShape {
   return s instanceof z.ZodObject ? s.shape : {};
 }
 
-// Claude Code's own web, file and shell tools, each asked through our policy.
+// Claude Code's own web, file and shell tools, each asked through our policy. Its task list, subagents and questions
+// are not offered: APX's plan, delegate and ask_owner do those, with their cards (DECISIONS.md#d-192).
 const CLAUDE_BUILTINS = ["WebSearch", "WebFetch"];
 const CODE_READ = ["Read", "Glob", "Grep", "LS"];
 const CODE_WRITE = ["Edit", "MultiEdit", "Write", "NotebookEdit", "Bash"];
@@ -41,6 +42,14 @@ const KIND: Record<string, string> = {
 function subjectOf(input: Record<string, unknown>): string {
   return String(input.file_path ?? input.path ?? input.command ?? input.url ?? input.query ?? "");
 }
+
+/** Claude Code has no task list of its own here: its checklist is APX's plan, as our loop's is. */
+export const PLAN_NOTE =
+  "\n\nYour checklist here is mcp__apx__plan, shown to the owner under your answer: work of more than two steps starts with it, sent whole again as each step is done.";
+
+/** The line that steers Claude Code to APX's plan, when the turn offers it. */
+export const planNote = (io: Pick<TurnIO, "tools">) =>
+  io.tools.some((t) => t.function.name === "plan") ? PLAN_NOTE : "";
 
 const CLAUDE_MD_CAP = 12_000;
 
@@ -233,7 +242,7 @@ async function attempt(
         cwd,
         // Claude Code itself: its own prompt and the owner's own CLAUDE.md and settings; the folder's settings are a
         // repo's word, not the owner's, so only its CLAUDE.md comes in. See DECISIONS.md#d-057
-        systemPrompt: { type: "preset", preset: "claude_code", append: io.system + folderClaudeMd(cwd) },
+        systemPrompt: { type: "preset", preset: "claude_code", append: io.system + planNote(io) + folderClaudeMd(cwd) },
         ...toolOptions(io, o.counts),
         settingSources: ["user"],
         strictMcpConfig: true,

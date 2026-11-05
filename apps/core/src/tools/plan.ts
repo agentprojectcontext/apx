@@ -8,7 +8,7 @@ import { fromTeam } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 /** All a plan may hold: the same cap a task's plan has (tasks.update). */
-const PLAN_CHARS = 4000;
+export const PLAN_CHARS = 4000;
 const MARK: Record<PlanStep["state"], string> = { pending: " ", doing: "~", done: "x" };
 
 /** How far a plan the agent sent is: steps done and all of them, for its card's title. */
