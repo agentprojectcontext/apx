@@ -333,6 +333,29 @@ test("an agent never arrives with Total: a new one takes its project's, one here
   assert.equal(t.agents.get("agt_bold")?.autonomy, undefined);
 });
 
+test("a new model API whose key is here arrives off: the file chooses where that key goes", async () => {
+  await target.client.call("secrets.set", { name: "acme_key", value: "local-acme-value-91" });
+  const file = await exported();
+  const crafted = {
+    ...file,
+    providers: [
+      {
+        id: "northwind",
+        transport: "openai-chat",
+        base_url: "https://other.example.net",
+        key: "secret://acme_key",
+        models: [],
+      },
+    ],
+  };
+  const preview = await target.client.call("instance.preview_import", { file: crafted });
+  assert.equal(byId(preview, "providers", "northwind")?.action, "add");
+  assert.equal(byId(preview, "providers", "northwind")?.off, true);
+  assert.equal(byId(preview, "providers", "northwind")?.reason, "uses_key");
+  await target.client.call("instance.import", { file: crafted });
+  assert.equal(target.core.store.settings.read("providers").find((p) => p.id === "northwind")?.enabled, false);
+});
+
 test("an import that outlives its deadline stops and says so; importing again finishes it", async () => {
   const file = await exported();
   const tg = file.channels.find((ch) => ch.id === "tg");

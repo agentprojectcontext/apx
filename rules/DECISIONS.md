@@ -3656,7 +3656,8 @@ up**, `apx export` and `apx import` make and read one JSON file (`instance.expor
   (autonomy, read-only folders) this computer has is kept, not replaced; read-only folders pass `checkReadOnly`, and
   Total never comes from a file, for a project or an agent (one here keeps its own autonomy, a new one has none).
 - **What needs a secret, or changed, arrives off.** MCP servers and channels arrive off with their references, a
-  provider whose key is not here, and Google-backed checks. One that exists here and changes (a server's command, a
+  provider that uses a key or sign-in (its key here or not: the file chooses the address it goes to), and Google-backed
+  checks; only a provider with no key keeps its switch. One that exists here and changes (a server's command, a
   provider's address, a channel's agent or who it answers, a routine's work) is turned off until the owner looks: a
   file could otherwise send a key to another address or run another command under a switch the owner set. A routine
   that runs a command arrives off. Every Flow arrives off as a draft, whatever it does: publishing is where
@@ -3672,8 +3673,8 @@ up**, `apx export` and `apx import` make and read one JSON file (`instance.expor
 
 Rejected: copying the database file (it carries secrets' places, chats and machine paths, and cannot merge into an
 install that already has work), importing a Flow published (it would skip the owner's confirmation of what it does),
-and turning on a server or channel whose secret name already has a value here (the value may be another account's;
-a provider whose key is here keeps its switch, as it only calls a model).
+and turning on a server, channel or provider whose secret name already has a value here (the value may be another
+account's, and a provider would send it to the address the file gives).
 
 <a id="d-194"></a>
 ## D-194 — 2026-11-05 — Teammates asked in one turn answer the caller in one turn

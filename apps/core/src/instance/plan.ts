@@ -20,10 +20,12 @@ import { FlowDraftGraph } from "@apx/protocol/flow-graph";
 import { z } from "zod";
 import { isApcProject, readProject } from "../apc/read.ts";
 import { projectIdOf } from "../apc/sync.ts";
+import { OAUTH_CHATGPT } from "../config.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import { SETTINGS } from "../domain/setting-keys.ts";
 import { mcpConfig } from "../mcp/config.ts";
 import { expandHome } from "../paths.ts";
+import { NO_KEY } from "../providers/llm.ts";
 import type { Secrets } from "../secrets.ts";
 import { checkReadOnly } from "../tools/folders.ts";
 import {
@@ -222,7 +224,7 @@ function planAgents(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   }
 }
 
-/** A model API arrives off when its key is not here, or when it changed. */
+/** A model API arrives off when its key is not here, when it would use one that is, or when it changed. */
 function planProviders(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   const { store } = deps;
   const { push, skip, mine } = c;
@@ -237,7 +239,8 @@ function planProviders(deps: ImportDeps, file: InstanceFile, c: Ctx) {
     const want = providerShape(parsed.data[0] as Record<string, unknown>) as (typeof parsed.data)[number];
     const list = store.settings.read("providers");
     const here = list.find((x) => x.id === id);
-    const needsKey = !["none", "oauth:chatgpt"].includes(want.key) && !deps.secrets.resolve(want.key);
+    const keyless = want.key === NO_KEY;
+    const needsKey = !keyless && want.key !== OAUTH_CHATGPT && !deps.secrets.resolve(want.key);
     const compared = (x: object) => without(x, "enabled", "key");
     const action = !here ? "add" : same(compared(mine(providerShape(here))), compared(want)) ? "same" : "update";
     push(
@@ -247,11 +250,17 @@ function planProviders(deps: ImportDeps, file: InstanceFile, c: Ctx) {
       action,
       () => {
         const rest = store.settings.read("providers").filter((x) => x.id !== id);
-        // A changed one is off until the owner looks: its key could be sent to the address the file gives.
-        const next = here ? { ...want, key: here.key || want.key, enabled: false } : { ...want, enabled: !needsKey };
+        // Off until the owner looks, unless it needs no key: a key here could be sent to the address the file gives.
+        const next = here ? { ...want, key: here.key || want.key, enabled: false } : { ...want, enabled: keyless };
         store.settings.write("providers", [...rest, next]);
       },
-      here ? { off: true, reason: "changed" } : needsKey ? { off: true, reason: "needs_secret" } : {},
+      here
+        ? { off: true, reason: "changed" }
+        : needsKey
+          ? { off: true, reason: "needs_secret" }
+          : keyless
+            ? {}
+            : { off: true, reason: "uses_key" },
     );
   }
 }
