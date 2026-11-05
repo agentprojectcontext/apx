@@ -24,6 +24,10 @@ export function runHandlers(store: Store, engine: Engine) {
       return { messages: engine.reorderQueued(thread, runs) };
     },
     "runs.send_now": ({ message }) => engine.sendNow(message),
+    "runs.unsend": ({ message }) => {
+      engine.unsend(message);
+      return { removed: true as const };
+    },
     "runs.list": ({ agent, limit, before }) => {
       const runs = store.runs.byAgent(agent, limit, before);
       const threads = [...new Set(runs.map((r) => r.thread_id))].flatMap((id) => {

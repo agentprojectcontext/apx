@@ -781,6 +781,13 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /** Takes back a waiting message of the owner's before the agent reads it: out of its turn or the line, and the chat. */
+  "runs.unsend": {
+    params: z.object({ message: Id }).strict(),
+    result: z.object({ removed: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
   /** One job; for a terminal job, the end of its output (or a page of it from `offset`). */
   "jobs.get": {
     params: z

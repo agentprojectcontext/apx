@@ -328,7 +328,7 @@ notice when there is no text. Tools that touch core state call protocol methods 
   are `jobs` rows with an output file, and their end wakes the agent.
 - **Steer**: `threads.send` with `mode: "steer"` puts the owner's text into the running turn at its next step; the
   message carries `waiting: {until: "step"}` until the loop takes it. `runs.send_now` cuts the step in progress
-  (`TurnIO.stepSignal`) so the loop takes it at once. `mode: "queue"` while a turn works puts the message in line
+  (`TurnIO.stepSignal`) so the loop takes it at once; `runs.unsend` takes a waiting message back before it is read. `mode: "queue"` while a turn works puts the message in line
   (`waiting: {until: "turn", run}`), ordered by `runs.queue_order`; `runs.update_queued`, `runs.reorder` and
   `runs.remove_queued` change it until the run starts (`engine/waiting.ts`, [D-186](DECISIONS.md#d-186)).
 
