@@ -145,8 +145,15 @@ export function AgentTurn({
       ? (modelOf(confirmed, catalog)?.name ?? <code>{splitRef(confirmed).model}</code>)
       : t("chat.modelUnconfirmed")
     : message.model && baseRef(message.model);
+  // The engine notes when the agent's own model did not answer and a fallback did (engine.fallback).
+  const fellBack = message.parts.some((p) => p.type === "notice" && p.code === "engine.fallback");
   const meta = (
     <MessageMeta agent={engine?.label ?? agent?.name} model={model} effort={effort && effortLabel(effort)}>
+      {fellBack && (
+        <span className="apx-msgmeta__part" title={t("chat.modelFallbackHint")}>
+          {t("chat.modelFallback")}
+        </span>
+      )}
       <ViaMark thread={thread} message={message} />
       {message.delivery && <DeliveryTicks state={message.delivery} />}
     </MessageMeta>

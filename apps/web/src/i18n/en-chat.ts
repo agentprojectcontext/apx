@@ -1,6 +1,8 @@
 // UI strings, English: the chat's composer and its Usage panel.
 export const enChat = {
   "chat.modelUnconfirmed": "Model unconfirmed",
+  "chat.modelFallback": "Fallback",
+  "chat.modelFallbackHint": "Its own model did not answer this time: a fallback did.",
   "chat.modelRequested": "Requested:",
   "chat.modelEngineDefault": "{engine} default",
   "chat.agentProgress": "Progress from {name}",
