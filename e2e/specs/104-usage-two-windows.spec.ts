@@ -52,8 +52,8 @@ test("a plan with two limits shows the tightest one and lists both", async ({ pa
 
 test("a plan with one limit looks as before", async ({ page }) => {
   await rpc("setup.finish");
-  const one = claude();
-  one.engines[0]!.windows = one.engines[0]!.windows.slice(0, 1);
+  const full = claude();
+  const one = { ...full, engines: full.engines.map((engine) => ({ ...engine, windows: engine.windows.slice(0, 1) })) };
   await page.route("**/rpc/engines.usage", (route) => route.fulfill({ json: { ok: true, result: one } }));
   await open(page);
   const trigger = page.getByTestId("engine-usage-button");
