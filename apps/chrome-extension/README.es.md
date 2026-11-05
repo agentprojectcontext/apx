@@ -24,6 +24,8 @@ pnpm build:chrome-extension --port 7441
 
 Después recargá la extensión en Chrome. Solo acepta un puerto numérico; no admite direcciones remotas, credenciales ni URLs configurables.
 
+Para Chrome Web Store, armá el zip con `pnpm build:chrome-extension --store`. Queda en `out/apx-chrome-extension-<versión>.zip` con los mismos archivos que la versión descomprimida, sin la `key` del manifest: la tienda la rechaza en un ítem nuevo y firma el paquete con la suya.
+
 Si APX pide vincular, usá su procedimiento normal: ejecutá `apx pair` en la computadora que tiene ese core e ingresá el código **dentro de la pantalla de APX**. La extensión no tiene un campo para tokens. Esa vinculación da al cliente web el acceso normal del dueño; no es un permiso restringido al navegador. Puede solicitar las mismas acciones y aprobaciones que APX abierto en una pestaña normal. El almacenamiento del panel incrustado puede ser independiente del de una pestaña APX. Si Chrome lo bloquea, la vinculación explica que no pudo guardar la conexión; usá **Abrir APX en una pestaña**.
 
 ## Si no aparece el chat

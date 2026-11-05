@@ -31,15 +31,21 @@ const messages = {
   },
 };
 
-/** The frame owns APX authentication; the extension has no bridge into it. */
-export function extensionBundle(port = 7440): Record<string, string | Uint8Array> & { "manifest.json": string } {
+/**
+ * The frame owns APX authentication; the extension has no bridge into it. The store upload carries no `key`: the
+ * store refuses one on a new item and signs the package with its own.
+ */
+export function extensionBundle(
+  port = 7440,
+  opts: { store?: boolean } = {},
+): Record<string, string | Uint8Array> & { "manifest.json": string } {
   const origin = `http://127.0.0.1:${portNumber(port)}`;
   return {
     ...extensionIcons(),
     "manifest.json": JSON.stringify(
       {
         manifest_version: 3,
-        key: EXTENSION_PUBLIC_KEY,
+        ...(opts.store ? {} : { key: EXTENSION_PUBLIC_KEY }),
         minimum_chrome_version: "116",
         name: "APX",
         version: "0.1.0",

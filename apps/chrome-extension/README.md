@@ -24,6 +24,8 @@ pnpm build:chrome-extension --port 7441
 
 Reload the extension in Chrome after rebuilding. Only a numeric port is accepted; remote addresses, credentials and configurable URLs are not supported.
 
+For the Chrome Web Store, build the upload zip with `pnpm build:chrome-extension --store`. It is written to `out/apx-chrome-extension-<version>.zip` and has the same files as the unpacked build, without the manifest `key`: the store refuses one on a new item and signs the package with its own.
+
 If APX asks to pair, use its normal pairing flow: run `apx pair` on the computer running that core and enter the code **inside the APX screen**. The extension has no token field. Pairing grants this APX web client the owner's normal access; it is not a restricted browser capability. It can request the same agent actions and approvals as APX opened in a normal tab. Browser storage for the embedded panel may be separate from a normal APX tab. If your browser blocks its storage, pairing will explain that it could not save the connection; use **Open APX in a tab** instead.
 
 ## If the panel does not open

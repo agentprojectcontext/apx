@@ -12,7 +12,7 @@ const result = spawnSync(
   process.execPath,
   [
     "--test",
-    ...["browser.test.ts", "agents.test.ts", "navigation.test.ts", "framing.test.ts"].map((file) =>
+    ...["browser.test.ts", "agents.test.ts", "navigation.test.ts", "framing.test.ts", "store.test.ts"].map((file) =>
       path.join(import.meta.dirname, file),
     ),
   ],
