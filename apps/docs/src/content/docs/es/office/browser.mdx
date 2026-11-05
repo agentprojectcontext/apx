@@ -187,6 +187,35 @@ propio Chrome, Chromium o Edge **headless**, sin ventana, en el primer pedido de
 nadie puede tomar el control y no se usan tus sesiones. `APX_HEADLESS=off` lo apaga; `APX_CHROME` lo apunta a un
 navegador específico.
 
+## En tu propio Chrome
+
+Con la extensión de APX para Chrome, los agentes también pueden trabajar en tu propio Chrome, donde ya iniciaste
+sesión.
+
+<Steps>
+
+1. Instalá **APX** desde Chrome Web Store y abrilo desde la barra de Chrome: APX aparece en el panel lateral.
+2. Escribí ahí: "Roby, abrí el admin de Northwind y decime qué pedidos están atrasados."
+3. El agente abre una pestaña en un grupo naranja llamado **APX** y trabaja ahí mientras mirás. Chrome muestra una barra
+   que dice que APX empezó a depurar el navegador.
+
+</Steps>
+
+- Solo lo que escribís en ese panel lateral usa tu Chrome. Desde la app, el teléfono o un canal, los agentes siguen
+  usando el navegador de APX.
+- Los agentes ven solo las pestañas del grupo **APX**. Para compartir una pestaña que ya tenés abierta, arrastrala al
+  grupo; sacala para recuperarla.
+- **Cancelar** en la barra de Chrome frena a APX en esa pestaña al instante; sigue siendo tuya hasta que la saques del
+  grupo y la vuelvas a meter. Si el agente todavía necesita una, abre otra.
+- Las contraseñas, los códigos de un solo uso y los datos de tarjeta los escribís vos: los agentes rechazan esos campos
+  y te piden que inicies sesión. El JavaScript de página y la importación de sesiones quedan en el navegador de APX.
+- APX tiene que estar abierto en la misma computadora: conecta la extensión solo, en Chrome, Brave, Edge, Arc y
+  Chromium en macOS y Linux. `APX_CHROME_HOST=off` lo apaga.
+
+<Aside type="note">
+En Windows los agentes todavía no pueden usar tu Chrome; el panel lateral funciona.
+</Aside>
+
 ## Desde la terminal
 
 `apx browser` maneja el mismo navegador desde tu shell, útil para scripts y para ver lo mismo que ve un agente.
