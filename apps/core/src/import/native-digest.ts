@@ -14,7 +14,7 @@ const MAX_CHUNKS = 24;
 const MESSAGE_CHARS = 6000;
 const FRAMING_CHARS = 8000;
 
-export const DIGEST_SECTIONS = [
+const DIGEST_SECTIONS = [
   "Framing",
   "Role",
   "Recurring tasks",

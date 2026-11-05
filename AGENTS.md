@@ -32,7 +32,7 @@ pnpm app                                   # build panel + desktop, start the co
 pnpm dev                                   # core only, on 127.0.0.1:7440, home ~/.apx/v2 (override APX_HOME/APX_PORT)
 node apps/terminal/src/main.ts status      # is the core up, and is it running my code? (code_sha)
 pnpm --filter @apx/web dev                 # panel on :7441, proxies /rpc, /ws, /health to the core
-pnpm preflight                             # check:private + check:schema + lint + typecheck + test — must be green before push
+pnpm preflight                             # check:private + schema + lint + check:ui + check:dead + typecheck + test — must be green before push
 pnpm verify                                # preflight + e2e (web, desktop) + perf budgets — what CI runs; green before merge
 pnpm package                               # this OS's installer + daemon bundle in out/ (CI: push a v2.x.y tag)
 pnpm package:linux                         # cross-build Linux or Windows (:win); :mac requires macOS + Xcode tools
@@ -178,7 +178,8 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
 32. **A screen nobody looked at is not done.** UI work starts from a reference (the owner's, the design system's or
     a sketch the designer made) and ends with screenshots of the running build, desktop and phone width, reviewed by
     the designer against it. A form or JSON field is not a stand-in for a requested visual experience
-    ([UI changes](rules/WORKFLOW.md#ui-changes)). `[review]`
+    ([UI changes](rules/WORKFLOW.md#ui-changes)). `[review]`; native controls and literal colours in a
+    screen `[gate]` `pnpm check:ui`.
 
 33. **A Flow change reaches the agent in the same change.** A new Flow or table method, step kind or field is usable
     by the super-agent through `apx_flow` and explained in the `apx-flows` skill, or placed as the owner's with a reason

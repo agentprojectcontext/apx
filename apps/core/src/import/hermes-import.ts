@@ -23,8 +23,7 @@ const slugOf = (name: string) =>
     .replace(/^[^a-z]+|-+$/g, "")
     .slice(0, 50);
 
-export const agentSlug = (p: HermesProfile) =>
-  p.name === "default" ? "hermes" : `hermes-${slugOf(p.name) || "profile"}`;
+const agentSlug = (p: HermesProfile) => (p.name === "default" ? "hermes" : `hermes-${slugOf(p.name) || "profile"}`);
 
 function recordsOf(store: Store) {
   const key = (k: string) => `hermes_import:${k}`;

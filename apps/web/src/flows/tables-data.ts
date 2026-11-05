@@ -10,7 +10,7 @@ const store = createStore<State>({ byProject: {} });
 
 const loading = new Map<string, Promise<TableInfo[]>>();
 /** Reads a project's tables again (one read at a time per project); the list stays as it was when it fails. */
-export function loadTables(project: string): Promise<TableInfo[]> {
+function loadTables(project: string): Promise<TableInfo[]> {
   const going = loading.get(project);
   if (going) return going;
   const next = client
@@ -73,8 +73,6 @@ export const columnName = (typed: string) =>
     .replace(/[^A-Za-z0-9_-]+/g, "_")
     .replace(/^-+/, "")
     .slice(0, 64);
-/** Names a read gives besides its columns. */
-export const RESERVED_COLUMNS: ReadonlySet<string> = new Set(["rows", "row"]);
 /** Marks a column required or not: a save never leaves a required one empty (DECISIONS.md#d-180). */
 export const requireColumn = (project: string, table: string, column: string, required: boolean) =>
   changed(project, client.call("tables.column_required", { project, table, column, required }));

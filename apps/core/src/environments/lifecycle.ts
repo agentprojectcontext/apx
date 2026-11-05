@@ -1,15 +1,8 @@
 import { conflict, errorMessage, unavailable } from "../errors.ts";
 
 export type Appearance = "light" | "dark";
-export type ComputerPhase =
-  | "not_installed"
-  | "stopped"
-  | "preparing"
-  | "running"
-  | "stopping"
-  | "error"
-  | "unsupported";
-export type ComputerStep = "runtime" | "guest" | "desktop";
+type ComputerPhase = "not_installed" | "stopped" | "preparing" | "running" | "stopping" | "error" | "unsupported";
+type ComputerStep = "runtime" | "guest" | "desktop";
 export type ComputerProgress = { step: ComputerStep; downloaded?: number; total?: number };
 export type VmDriver = {
   supported: boolean;

@@ -4,7 +4,7 @@ import { baseRef, effortLabel, modelOf, splitRef, useModels, withEffort } from "
 import { useT } from "../../i18n/index.ts";
 
 /** The models one chain entry can be: its engine's own default, then each chat model the engine offers. */
-export function modelOptions(
+function modelOptions(
   ref: ModelRef,
   catalog: readonly CatalogEngine[],
   ownDefault: (engine: string) => string,

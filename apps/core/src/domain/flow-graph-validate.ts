@@ -23,7 +23,7 @@ import { type FlowTemplatePart, flowTemplateBindings, parseFlowTemplate } from "
 import { isCliRef } from "./refs.ts";
 import { flowCronProblem } from "./schedule.ts";
 
-export { FLOW_OTHERWISE, type FlowCase, flowBranches, flowCases };
+export { FLOW_OTHERWISE, flowCases };
 
 /** Which step sets each variable (the first, when validation would refuse a second). */
 export function flowVarIndex(graph: Pick<FlowGraph, "nodes">): Map<string, string> {
@@ -37,10 +37,7 @@ export function flowVarIndex(graph: Pick<FlowGraph, "nodes">): Map<string, strin
 export const isFlowTrigger = (node: FlowNode): boolean => node.kind === "webhook" || node.kind === "schedule";
 
 /** Steps that act outside APX: a message sent as the owner, a request to another service. */
-export const isFlowOutward = (node: FlowNode): boolean => node.kind === "notify" || node.kind === "http";
-/** Steps that change things on this computer: a command, a write to a database. */
-export const isFlowLocalEffect = (node: FlowNode): boolean =>
-  node.kind === "cmd" || (node.kind === "sql" && node.mode === "write");
+const isFlowOutward = (node: FlowNode): boolean => node.kind === "notify" || node.kind === "http";
 const OUTWARD_LIMIT = 8;
 /** Commands, SQL statements and code steps: each runs in a process of its own. */
 const PROCESS_LIMIT = 8;
@@ -64,13 +61,13 @@ export function flowNodeTemplates(node: FlowNode): string[] {
 }
 
 /** Both sides of each comparison of a case (DECISIONS.md#d-180); `empty` and `not_empty` read only the field. */
-export const flowCaseTemplates = (c: FlowCase): string[] =>
+const flowCaseTemplates = (c: FlowCase): string[] =>
   c.match.kind === "all" || c.match.kind === "any"
     ? c.match.rules.flatMap((r) => (flowCompareAlone(r.op) ? [r.left] : [r.left, r.right]))
     : [];
 
 /** The expressions of a step: a check's cases, a variables step's values. */
-export function flowNodeExprs(node: FlowNode): string[] {
+function flowNodeExprs(node: FlowNode): string[] {
   if (node.kind === "condition") return flowCases(node).flatMap((c) => (c.match.kind === "expr" ? [c.match.expr] : []));
   if (node.kind === "vars") return node.vars.flatMap((v) => (v.value.kind === "expr" ? [v.value.expr] : []));
   return [];

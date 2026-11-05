@@ -23,7 +23,7 @@ export interface MarkdownViewProps {
 export type LinkRenderer = (href: string, link: ReactElement, key: string) => ReactNode;
 export type CodeRenderer = (code: string, lang: string | undefined, pre: ReactElement, key: string) => ReactNode;
 export type QuoteRenderer = (quote: ReactElement, key: string) => ReactNode;
-export type CodeSpanRenderer = (text: string, code: ReactElement, key: string) => ReactNode;
+type CodeSpanRenderer = (text: string, code: ReactElement, key: string) => ReactNode;
 type InlineRenderers = { link?: LinkRenderer | undefined; codeSpan?: CodeSpanRenderer | undefined };
 
 type Block =

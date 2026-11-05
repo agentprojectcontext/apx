@@ -32,7 +32,7 @@ const MAX_REDIRECTS = 5;
 export type Hit = { title: string; url: string; snippet: string };
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
-export const decode = (s: string) =>
+const decode = (s: string) =>
   s
     .replace(/&#x([0-9a-f]+);/gi, (_, h: string) => String.fromCodePoint(Number.parseInt(h, 16)))
     .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(Number(d)))

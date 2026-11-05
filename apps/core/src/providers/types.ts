@@ -10,7 +10,7 @@ export type ToolCall = {
 };
 
 /** An image in a user item: a media reference in the log; `data` (base64) is filled in only for the call. */
-export type ChatImage = { media_id: string; mime: string; data?: string };
+type ChatImage = { media_id: string; mime: string; data?: string };
 
 export type ChatItem =
   | { role: "system"; content: string }
@@ -83,7 +83,7 @@ export class ProviderError extends Error {
   }
 }
 
-export function classifyHttp(status: number, body: string, headers?: Headers): ProviderError {
+function classifyHttp(status: number, body: string, headers?: Headers): ProviderError {
   const text = body.slice(0, 300);
   if (status === 401 || status === 403) return new ProviderError("auth", `HTTP ${status}: ${text}`);
   if (status === 404) return new ProviderError("model_gone", `HTTP 404: ${text}`);

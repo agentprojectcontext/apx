@@ -12,7 +12,7 @@ import { expandHome, isInside, realpath, tildeHome } from "../paths.ts";
 import type { Secrets } from "../secrets.ts";
 import type { Plugins } from "./plugins.ts";
 
-export const MANIFEST = "apx-extension.json";
+const MANIFEST = "apx-extension.json";
 const MAX_FILES = 2000;
 const MAX_BYTES = 50 * 1024 * 1024;
 
@@ -57,7 +57,7 @@ function fingerprint(root: string, files: string[]): string {
 }
 
 /** The manifest of a folder, checked: valid, its paths inside the folder, its secrets declared. */
-export function readManifest(dir: string): ExtensionManifest {
+function readManifest(dir: string): ExtensionManifest {
   let raw: unknown;
   try {
     raw = JSON.parse(fs.readFileSync(path.join(dir, MANIFEST), "utf8"));

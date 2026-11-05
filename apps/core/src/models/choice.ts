@@ -36,7 +36,7 @@ export function modelSettings(store: Store) {
   };
 }
 
-export function ruleMatches(rule: RouterRule, f: TurnFeatures): boolean {
+function ruleMatches(rule: RouterRule, f: TurnFeatures): boolean {
   const w = rule.when;
   if (w.has_image !== undefined && w.has_image !== f.has_image) return false;
   if (w.min_chars !== undefined && f.text.length < w.min_chars) return false;

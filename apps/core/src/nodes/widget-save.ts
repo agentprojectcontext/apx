@@ -73,7 +73,7 @@ const same = (n: DomNode, l: Locator) =>
   soleText(n)?.nodeValue?.trim() === l.text;
 
 /** The element at the locator's place when it is the same element; else the only one like it, if just one is. */
-export function resolve(doc: DomNode, l: Locator): DomNode | undefined {
+function resolve(doc: DomNode, l: Locator): DomNode | undefined {
   const body = bodyOf(doc);
   if (!body) return undefined;
   let at: DomNode | undefined = body;

@@ -17,7 +17,7 @@ import { isChannelKind } from "./kinds.ts";
 import { LinkMe, LinkPhone, OwnerRow, ownerOn, PairingRow } from "./StartRows.tsx";
 
 /** A saved contact picked before they have a chat: the list's selection names them instead of a chat. */
-export const PERSON_PICK = "person:";
+const PERSON_PICK = "person:";
 
 const ROOM_MODE_KEY: Record<RoomMode, MessageKey> = {
   always: "rooms.mode.always",

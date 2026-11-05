@@ -1,8 +1,15 @@
 import fs from "node:fs";
 import net, { type AddressInfo } from "node:net";
 import path from "node:path";
+import type { Page } from "@playwright/test";
 import { callTool, say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import { expect, test } from "./kit.ts";
+
+/** The scope is an @apx/ui Select: open it, then pick the option. */
+async function pickScope(page: Page, name: string) {
+  await page.getByRole("combobox", { name: "Elegir cambios" }).click();
+  await page.getByRole("option", { name, exact: true }).click();
+}
 
 test("cambios: lista unificada, diff expandible en vivo, historial y registros antiguos", async ({ page }) => {
   const listener = net.createServer();
@@ -74,11 +81,11 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
     await env.client.call("threads.send", { thread: thread.id, text: "single" });
     await env.settle(thread.id);
     await expect(panel.getByText("Cambios: 1 archivo editado", { exact: true })).toBeVisible();
-    await panel.getByRole("combobox", { name: "Elegir cambios" }).selectOption("all");
+    await pickScope(page, "Todos los turnos");
     await expect(panel.locator(".wchanges__file")).toHaveCount(4);
     fs.unlinkSync(path.join(work, "Guide.md"));
     await page.reload();
-    await panel.getByRole("combobox", { name: "Elegir cambios" }).selectOption("all");
+    await pickScope(page, "Todos los turnos");
     await guide.getByRole("button").click();
     await expect(guide.locator(".diff__line--add")).toContainText(["# Guía", "", "Final"]);
     const legacy = env.core.store.messages.add({
@@ -88,7 +95,7 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
         { type: "changes", cwd: work, edits: true, files: [{ path: "src/app.ts", status: "M", added: 1, removed: 1 }] },
       ],
     });
-    await panel.getByRole("combobox", { name: "Elegir cambios" }).selectOption("latest");
+    await pickScope(page, "Último turno");
     await expect(panel.locator(".wchanges__file")).toHaveCount(1);
     await code.getByRole("button").click();
     await expect(

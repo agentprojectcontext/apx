@@ -6,7 +6,7 @@ import type { FlowBinding } from "@apx/protocol/flow-graph";
 import type { FlowVarIndex } from "./flow-expr.ts";
 
 /** What APX knows of a run: its project's name, when the step ran (ISO) and the run's id. */
-export const FLOW_APX = ["project", "now", "run"] as const;
+const FLOW_APX = ["project", "now", "run"] as const;
 export type FlowApx = Record<(typeof FLOW_APX)[number], string>;
 export type FlowTemplatePart =
   | { text: string }

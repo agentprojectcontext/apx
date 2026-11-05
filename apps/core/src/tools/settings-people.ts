@@ -18,7 +18,7 @@ const fold = (s: string) =>
     .toLowerCase();
 
 /** One line per contact with everything the owner edits on their card, and each address's id (contacts.claim). */
-export function contactLine(p: Person): string {
+function contactLine(p: Person): string {
   const on = p.addresses.map((a) => `${a.channel} (${a.id})`).join(", ") || "no channel";
   const flags = [
     p.muted ? "silenced" : "",

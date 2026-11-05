@@ -18,7 +18,7 @@ const SNAPSHOTS_KEPT = 4;
 /** Messages back a chat's own tab is looked for: past them a new tab opens. */
 const CHAT_TAB_LOOKBACK = 40;
 
-export function profileFor(agent: AgentRecord): string {
+function profileFor(agent: AgentRecord): string {
   if (agent.browser_profile === "incognito") return "incognito";
   if (agent.browser_profile === "isolated") return `agent:${agent.id.toLowerCase().replace(/[^a-z0-9-]/g, "-")}`;
   return "shared";

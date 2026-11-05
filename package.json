@@ -21,11 +21,13 @@
     "test:coverage:all:strict": "node scripts/test-coverage.ts --e2e --strict",
     "test:coverage:strict": "node scripts/test-coverage.ts --strict",
     "check:tests": "node scripts/test-quality.ts",
+    "check:ui": "node scripts/check-ui.ts",
+    "check:dead": "knip --no-progress",
     "check:private": "node scripts/check-private-terms.ts",
     "check:commits": "node scripts/check-private-terms.ts --commits",
     "check:schema": "node --no-warnings apps/core/scripts/schema.ts --check",
     "preflight": "node scripts/verify.ts preflight",
-    "preflight:static": "pnpm check:private && pnpm check:schema && pnpm lint && pnpm typecheck && pnpm check:tests",
+    "preflight:static": "pnpm check:private && pnpm check:schema && pnpm lint && pnpm check:ui && pnpm check:dead && pnpm typecheck && pnpm check:tests",
     "app": "node scripts/app.ts",
     "build:web": "pnpm --filter @apx/ui build && pnpm --filter @apx/web build",
     "e2e": "pnpm build:web && playwright test --project chromium",
@@ -43,6 +45,7 @@
     "@biomejs/biome": "^2.5.15",
     "@playwright/test": "^1.63.0",
     "@types/node": "^24.10.0",
+    "knip": "^6.44.1",
     "typescript": "^7.0.2",
     "typescript-parser": "npm:typescript@5.9.3"
   }

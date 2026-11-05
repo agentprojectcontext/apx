@@ -3,14 +3,7 @@
 // 16-bit PCM, which is wrapped in a WAV header here.
 
 import { errorMessage } from "../errors.ts";
-import {
-  joinUrl,
-  PROBE_TIMEOUT_MS,
-  type ServiceConfig,
-  ServiceError,
-  SPEECH_TIMEOUT_MS,
-  type SpeechResult,
-} from "./types.ts";
+import { joinUrl, type ServiceConfig, ServiceError, SPEECH_TIMEOUT_MS, type SpeechResult } from "./types.ts";
 
 type Fetch = typeof fetch;
 
@@ -124,5 +117,3 @@ export const SPEECH_PROBE: Record<string, string> = {
   "openai-speech": "/v1/models",
   "gemini-speech": "/v1beta/models",
 };
-
-export { PROBE_TIMEOUT_MS };

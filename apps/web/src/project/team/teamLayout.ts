@@ -20,10 +20,10 @@ const BAND_COLS = 4;
 /** Rows inside one area's block, closer than levels of the tree. */
 const ROW_GAP = 28;
 
-export type PlacedNode = { id: string; x: number; y: number; depth: number };
-export type Edge = { from: string; to: string; area: string | undefined };
+type PlacedNode = { id: string; x: number; y: number; depth: number };
+type Edge = { from: string; to: string; area: string | undefined };
 /** The label over a group of siblings that share an area ("Product · 3"). */
-export type AreaPill = { parent: string; area: string; count: number; x: number; y: number };
+type AreaPill = { parent: string; area: string; count: number; x: number; y: number };
 export type TeamLayout = { nodes: PlacedNode[]; edges: Edge[]; pills: AreaPill[]; width: number; height: number };
 
 /** A laid-out subtree, its own root at x 0: what it holds, and per row of cards (by y) its leftmost and rightmost x. */

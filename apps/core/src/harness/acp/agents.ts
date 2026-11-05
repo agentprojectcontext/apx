@@ -25,7 +25,7 @@ export type AcpAgent = {
 };
 
 /** ACP CLIs APX knows how to start. An owner adds others with the `acp_agents` setting. */
-export const KNOWN_ACP_AGENTS: AcpAgent[] = [
+const KNOWN_ACP_AGENTS: AcpAgent[] = [
   {
     id: "opencode",
     label: "OpenCode",
@@ -69,7 +69,7 @@ const INIT_MS = 30_000;
 const SESSION_MS = 60_000;
 
 /** A model the agent offers, from either form of session config the protocol has had. */
-export type AcpModel = { id: string; name: string };
+type AcpModel = { id: string; name: string };
 
 export type AcpSession = {
   rpc: Rpc;

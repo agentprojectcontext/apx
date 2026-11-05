@@ -89,7 +89,7 @@ export function verifiedSender(h: ReturnType<typeof parseMail>["headers"], from:
 }
 
 /** Whether `address` is on the allow list (an exact address, or "@domain"). An empty list allows anyone. */
-export function allowedSender(allowed: readonly string[], address: string): boolean {
+function allowedSender(allowed: readonly string[], address: string): boolean {
   if (!allowed.length) return true;
   const a = address.toLowerCase();
   return allowed.some((x) => {

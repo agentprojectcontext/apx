@@ -21,7 +21,7 @@ const MEDIA_MAX = 40;
 /** A widget's state changes are merged and saved at most this often, whatever it sends. */
 const STATE_GAP_MS = 500;
 /** An app shown inline (in a chat) gets a window of its own height: it fills its viewport rather than grow. */
-export const APP_INLINE_H = 640;
+const APP_INLINE_H = 640;
 /** Bridge calls (store, db, fetch) one page may have waiting at once. */
 const CALLS_MAX = 16;
 

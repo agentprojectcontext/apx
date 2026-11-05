@@ -74,7 +74,7 @@
   border-radius: var(--apx-radius-pill);
   background: var(--apx-surface);
   color: var(--apx-fg);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 20%);
+  box-shadow: var(--apx-shadow-sm);
 }
 .sharedf__cardbody {
   display: flex;
@@ -289,7 +289,7 @@
   flex: 1;
   border: 0;
   border-radius: var(--apx-radius-sm);
-  background: #fff;
+  background: #fff; /* ui: an outside page is drawn on white, as a browser would. */
 }
 .sharedf__stage pre {
   width: 100%;

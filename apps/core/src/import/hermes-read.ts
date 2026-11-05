@@ -48,7 +48,7 @@ const read = (file: string): string => {
 const isProfile = (dir: string) => MARKERS.some((m) => fs.existsSync(path.join(dir, m)));
 
 /** Memory files keep entries separated by a line with `§`. */
-export const entries = (text: string) =>
+const entries = (text: string) =>
   text
     .split(/^\s*§\s*$/m)
     .map((e) => e.trim())

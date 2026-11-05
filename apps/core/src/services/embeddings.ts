@@ -6,7 +6,7 @@ import { joinUrl, type ServiceConfig, ServiceError } from "./types.ts";
 type Fetch = typeof fetch;
 
 /** An embedding call is short; a slow engine must not hold a turn (search falls back to words). */
-export const EMBED_TIMEOUT_MS = 20_000;
+const EMBED_TIMEOUT_MS = 20_000;
 
 async function postJson(f: Fetch, url: string, body: object, headers: Record<string, string>, signal: AbortSignal) {
   const res = await f(url, {

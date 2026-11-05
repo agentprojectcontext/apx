@@ -152,7 +152,7 @@ export function bundleTasks(list: Thread[]): ListEntry[] {
  * One branch of the tree: an agent's chats, (`engine`) an engine's own sessions wherever they were started, or
  * (`task`) the chats of every agent working one task.
  */
-export type AgentBranch = {
+type AgentBranch = {
   agentId: string;
   engine?: string | undefined;
   task?: string | undefined;

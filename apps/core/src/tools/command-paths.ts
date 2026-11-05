@@ -8,7 +8,7 @@ import { findGitBash } from "../processes.ts";
 import { gitLists } from "./git-reads.ts";
 
 /** A path as written, from where the command runs (`old`: from the folder it was in before its last `cd`). */
-export type Ref = { path: string; old?: boolean };
+type Ref = { path: string; old?: boolean };
 
 /**
  * What a command line does, in order: moves (`cd`, `to` undefined when only the shell knows where), reads or writes a

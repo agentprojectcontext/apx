@@ -145,12 +145,12 @@ export function dotStuff(data: Buffer): Buffer {
   return Buffer.from(`${text}${text.endsWith("\r\n") ? "" : "\r\n"}.\r\n`, "latin1");
 }
 
-export const domainOf = (address: string) => address.split("@")[1]?.replace(/[^a-z0-9.-]/gi, "") || "localhost";
+const domainOf = (address: string) => address.split("@")[1]?.replace(/[^a-z0-9.-]/gi, "") || "localhost";
 
 // ── composing ──────────────────────────────────────────────────────────
 
 /** A header value: as is when it is plain ASCII, else RFC 2047 encoded words (folded to stay under 78 columns). */
-export function encodeWords(s: string): string {
+function encodeWords(s: string): string {
   const clean = s.replace(/[\r\n]+/g, " ");
   if (/^[\x20-\x7e]*$/.test(clean)) return clean;
   const words: string[] = [];

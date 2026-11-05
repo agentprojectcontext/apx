@@ -26,7 +26,7 @@ import { memoryHistory } from "./memory-projection.ts";
  */
 export const COMPACT_AT_CHARS = Math.floor(HISTORY_BUDGET_CHARS * 0.75);
 /** …or once the model's last call read this share of its context window, whatever the size in characters. */
-export const COMPACT_AT_SHARE = 0.8;
+const COMPACT_AT_SHARE = 0.8;
 /** What stays verbatim after compacting: the newest turns, up to this many and this size (always at least one). */
 const KEEP_RUNS = 4;
 const KEEP_CHARS = Math.floor(HISTORY_BUDGET_CHARS * 0.35);
@@ -37,7 +37,7 @@ const AUX_TIMEOUT_MS = 90_000;
 const RECENT_NOTICE_WINDOW = 30;
 const STUDY_TIMEOUT_MS = 180_000;
 
-export const SUMMARY_SECTIONS = ["Goal", "Facts and decisions", "Done", "Open", "References"] as const;
+const SUMMARY_SECTIONS = ["Goal", "Facts and decisions", "Done", "Open", "References"] as const;
 
 const SUMMARY_PROMPT = [
   "You compress a conversation between an owner and their AI agent so the agent can go on without the full transcript.",
@@ -88,7 +88,7 @@ export function titleFromText(text: string): string | undefined {
 }
 
 /** The model log as plain text for the summarizer: who said what, tool calls and their results, shortened. */
-export function transcriptOf(items: ChatItem[]): string {
+function transcriptOf(items: ChatItem[]): string {
   const lines = items.map((m) => {
     if (m.role === "user") return `Owner/context: ${m.content}`;
     if (m.role === "tool") return `Tool result: ${m.content.slice(0, 800)}`;

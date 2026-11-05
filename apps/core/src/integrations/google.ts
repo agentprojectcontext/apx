@@ -19,7 +19,7 @@ import {
 } from "./google-oauth.ts";
 
 /** The panel route Google redirects to: the one address the owner registers in Cloud Console. */
-export const OAUTH_PATH = "/oauth/google";
+const OAUTH_PATH = "/oauth/google";
 const FLOW_TTL_MS = 10 * 60_000;
 
 const CLIENT_ID = "google_client_id";

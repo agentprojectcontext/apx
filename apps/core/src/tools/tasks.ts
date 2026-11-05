@@ -55,7 +55,7 @@ const line = (t: Task, project?: string) =>
  * Whose words a task's title and description are: the owner's, one of the owner's agents' (the owner's side,
  * DECISIONS.md#d-071), or outside text (an agent passing on a contact's request: it has a person).
  */
-export function taskSide(t: Pick<Task, "created_by" | "person_id">): "owner" | "team" | "outside" {
+function taskSide(t: Pick<Task, "created_by" | "person_id">): "owner" | "team" | "outside" {
   if (t.created_by === "owner") return "owner";
   return t.person_id ? "outside" : "team";
 }

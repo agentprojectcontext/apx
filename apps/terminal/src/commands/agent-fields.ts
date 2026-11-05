@@ -24,7 +24,7 @@ function kindOf(key: string): { type: string; nullable: boolean; values?: string
  * One `key=value`: a list as `a,b` (`key=` is none: back to all), true/false, an object as JSON, and `key=` back to
  * the default where the agent may have none of its own.
  */
-export function fieldValue(key: string, raw: string): unknown {
+function fieldValue(key: string, raw: string): unknown {
   if (!FIELDS.includes(key)) throw new Error(`unknown field "${key}". Fields: ${FIELDS.join(", ")}`);
   const k = kindOf(key);
   if (raw === "" && k.nullable) return null;

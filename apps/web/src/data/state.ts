@@ -17,10 +17,10 @@ import { useMemo } from "react";
 import { type Computers, NO_COMPUTERS } from "../computers/summary.ts";
 import { createStore, useSlice } from "./createStore.ts";
 
-export type Connection = "connecting" | "online" | "offline";
-export type LoadState = "loading" | "ready" | "error";
+type Connection = "connecting" | "online" | "offline";
+type LoadState = "loading" | "ready" | "error";
 /** `unavailable` = this core does not answer engines.* yet (older build): the UI explains instead of failing. */
-export type EnginesLoad = "idle" | "loading" | "ready" | "unavailable";
+type EnginesLoad = "idle" | "loading" | "ready" | "unavailable";
 
 export type DataState = {
   connection: Connection;

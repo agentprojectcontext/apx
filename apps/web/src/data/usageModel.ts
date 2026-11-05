@@ -2,7 +2,7 @@
 // dropdown, dialog, Settings › Advanced) count the same way. Polling lives here too, shared by whoever is looking.
 import type { SystemUsage } from "@apx/protocol";
 
-export type DesktopKind = "main" | "gpu" | "panel" | "quick" | "tab" | "page" | "app" | "helper";
+type DesktopKind = "main" | "gpu" | "panel" | "quick" | "tab" | "page" | "app" | "helper";
 export type DesktopMemory = {
   total_mb: number;
   items: Array<{ pid: number; kind: DesktopKind; site?: string; mb: number }>;

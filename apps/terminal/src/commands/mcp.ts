@@ -13,7 +13,7 @@ type Options = {
   header?: string[] | undefined;
 };
 
-export const MCPS_USAGE = `apx mcps [list [project]]                      MCP servers agents may use, and their state
+const MCPS_USAGE = `apx mcps [list [project]]                      MCP servers agents may use, and their state
 apx mcps tools|run|check <server> …            Its tools, run one, or test that it starts (apx mcp tools …)
 apx mcps signin <server> [--project p]         Sign in to one that asked for it (its page opens in your browser)
 apx mcps logs <server> [--project p] [-n 100]  What it printed on stderr since the core started (secrets masked)

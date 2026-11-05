@@ -11,7 +11,7 @@ import { MessageActions } from "./MessageActions.tsx";
 import { SendNowButton, TakenMark, useTaken } from "./WaitingMessage.tsx";
 
 /** Whether this chat can go back: nothing running, not a channel's chat (delivered), not an engine session. */
-export function canRewind(thread: Thread): boolean {
+function canRewind(thread: Thread): boolean {
   return (
     !thread.channel &&
     !thread.engine &&

@@ -30,7 +30,7 @@ export const googleAt = (base: string): GoogleEndpoints => ({
   driveUpload: `${base}/upload/drive/v3`,
 });
 
-export const b64url = (buf: Buffer | string) => Buffer.from(buf).toString("base64url");
+const b64url = (buf: Buffer | string) => Buffer.from(buf).toString("base64url");
 
 /** A PKCE pair: the verifier stays in the core, Google sees only its hash. */
 export function pkce(): { verifier: string; challenge: string } {
@@ -177,7 +177,7 @@ export async function refreshAccess(
 }
 
 /** The account's email from the id_token Google's token endpoint just sent (only shown to the owner). */
-export function emailOf(idToken: string | undefined): string | undefined {
+function emailOf(idToken: string | undefined): string | undefined {
   const seg = idToken?.split(".")[1];
   if (!seg) return undefined;
   try {

@@ -88,7 +88,7 @@ function describe(args: Record<string, unknown>): string {
 
 /** What the model reads when the owner has not said yes: still waiting, or declined (or never answered). */
 /** A tool call the owner's "send now" stopped part way: the model reads their words next. */
-export const CUT_SHORT =
+const CUT_SHORT =
   "stopped part way: the owner sent you a message to read now. It may have done part of its work; check before repeating it.";
 
 function unanswered(answer: InputRecord): { card: string; text: string } | undefined {

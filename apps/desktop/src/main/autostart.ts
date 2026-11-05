@@ -5,7 +5,7 @@ import path from "node:path";
 import { app } from "electron";
 
 /** What a Linux login starts: the AppImage itself when APX runs from one (its mount path changes every run). */
-export function linuxEntry(exec: string): string {
+function linuxEntry(exec: string): string {
   return [
     "[Desktop Entry]",
     "Type=Application",

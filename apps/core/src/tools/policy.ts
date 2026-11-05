@@ -25,14 +25,14 @@ export type Decision =
   | { kind: "deny"; reason: string };
 
 /** A call's risk: what always asks cannot be undone; otherwise what it may change says it (DECISIONS.md#d-090). */
-export function riskOf(level: Confirm, effect: Effect): ToolRisk {
+function riskOf(level: Confirm, effect: Effect): ToolRisk {
   if (level === "always") return "irreversible";
   if (effect === "none") return "read";
   return effect === "local" ? "write" : "outside";
 }
 
 /** A tool's usual risk, from a call with no arguments (a call's own may be higher: a shell command that deletes). */
-export function toolRisk(tool: Tool): ToolRisk {
+function toolRisk(tool: Tool): ToolRisk {
   let level: Confirm = "never";
   try {
     level = tool.confirm({});

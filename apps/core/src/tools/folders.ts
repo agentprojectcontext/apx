@@ -12,7 +12,7 @@ import { namedPaths } from "./command-paths.ts";
  * APX's own folder for a project, so one project's files never land among another's: the project's folder when APX
  * made it (a project with no folder elsewhere lives in `projects/<name>`), else `projects/<id>`.
  */
-export function projectSide(home: string, project: { id: string; path?: string | undefined }) {
+function projectSide(home: string, project: { id: string; path?: string | undefined }) {
   const projects = path.join(home, "projects");
   const own = project.path && path.relative(projects, project.path);
   return own && !own.startsWith("..") && !path.isAbsolute(own)
@@ -177,7 +177,7 @@ export function readOnlyFolders(store: Store, thread: { project_id?: string | un
  * The project's linked git worktrees, wherever they sit (`git worktree add ../x`): the same repository, so the same
  * project (DECISIONS.md#d-106). Only for a thread working in the project's own folder: one kept to a worktree stays in it.
  */
-export function projectWorktrees(store: Store, thread: Parameters<typeof workDir>[2]): string[] {
+function projectWorktrees(store: Store, thread: Parameters<typeof workDir>[2]): string[] {
   if (thread.cwd || !thread.project_id) return [];
   const p = store.projects.get(thread.project_id);
   if (!p?.path || !p.present) return [];
@@ -208,7 +208,7 @@ export function projectWorktrees(store: Store, thread: Parameters<typeof workDir
  * registered them, so moving between them is not acting outside (DECISIONS.md#d-108). Never one holding APX's home
  * or inside it; a thread kept to one folder stays in it.
  */
-export function ownerProjects(store: Store, home: string, thread: Thread): Root[] {
+function ownerProjects(store: Store, home: string, thread: Thread): Root[] {
   if (thread.cwd) return [];
   const apx = real(home);
   const out: Root[] = [];
@@ -330,7 +330,7 @@ export const refusal = {
  * Where a path really lands, as the system resolves it: each link followed before the `..` after it is applied
  * (`l/../x`, with `l` a link, lands beside the link's target, not beside `l`).
  */
-export function physical(from: string, file: string): string {
+function physical(from: string, file: string): string {
   const root = path.isAbsolute(file) ? path.parse(file).root : "";
   let cur = real(root || from);
   let exists = true;

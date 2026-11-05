@@ -30,7 +30,7 @@ const BODY_LIMIT = 32 * 1024;
 const SHOWN_BODY = 16 * 1024;
 const SHOWN_JSON = 24 * 1024;
 
-export const OUTWARD_WHY = {
+const OUTWARD_WHY = {
   nothing: "nothing_to_tell",
   limited: "rate_limited",
   destination: "destination_unavailable",
@@ -61,7 +61,7 @@ export type FlowNotifier = {
  * What a payload put in a message can't become a link or a ping in the owner's name: a Markdown link loses its form
  * and an @handle its mention (a zero-width space after an @ that starts a word; an email stays as it is).
  */
-export const plainBound = (text: string) => text.replace(/\]\(/g, "] (").replace(/(^|[^\w.+-])@(?=\w)/g, "$1@\u200b");
+const plainBound = (text: string) => text.replace(/\]\(/g, "] (").replace(/(^|[^\w.+-])@(?=\w)/g, "$1@\u200b");
 export type FlowHttpDeps = { policy: FlowHttpPolicy; secret(ref: string, project: string): string | undefined };
 
 class StepRefused extends Error {

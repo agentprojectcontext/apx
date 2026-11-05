@@ -32,7 +32,7 @@ export type Draft = {
 export type GrantChange = { revoke?: boolean; condition?: string; expires_at?: string };
 export const grantId = (key: string, agent?: string) => `${key}|${agent ?? ""}`;
 
-export const PAGES = [
+const PAGES = [
   "identity",
   "prompt",
   "team",

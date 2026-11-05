@@ -185,7 +185,7 @@ export async function install(): Promise<void> {
   console.log(`the core will listen on port ${corePort()}`);
 }
 
-export async function uninstall(): Promise<void> {
+async function uninstall(): Promise<void> {
   const wasInstalled = installed();
   if (process.platform === "linux") {
     sh("systemctl", ["--user", "disable", "--now", names().systemd]);
@@ -201,7 +201,7 @@ export async function uninstall(): Promise<void> {
   console.log("the core no longer runs as a service");
 }
 
-export async function status(): Promise<void> {
+async function status(): Promise<void> {
   const { url } = serviceConnection();
   let manager = "not installed";
   if (process.platform === "linux" && installed())

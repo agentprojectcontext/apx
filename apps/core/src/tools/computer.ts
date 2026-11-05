@@ -8,7 +8,7 @@ import { untrusted } from "./result.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 
 /** Actions on the computer in one turn before the owner is asked whether to go on (and again after as many more). */
-export const COMPUTER_ACTIONS_PER_TURN = 60;
+const COMPUTER_ACTIONS_PER_TURN = 60;
 
 const ASK = {
   es: {

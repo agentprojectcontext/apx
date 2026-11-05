@@ -17,7 +17,7 @@ import { apxHome, localConnection } from "./local.ts";
 import { lastLines, restart, serviceState } from "./service.ts";
 import { appRoot, coreMain } from "./service-files.ts";
 
-export type Install = { kind: "bundle"; app: string; version?: string | undefined } | { kind: "checkout" | "app" };
+type Install = { kind: "bundle"; app: string; version?: string | undefined } | { kind: "checkout" | "app" };
 export type ServiceState = "running" | "stopped" | "none" | "unknown";
 export type DoctorFacts = {
   url: string;
@@ -34,7 +34,7 @@ export type DoctorFacts = {
 };
 
 /** What the log says about the core's last start, when it is something known: its cause and what to do. */
-export function logCause(lines: string[], port: string): { cause: string; fix: string } | undefined {
+function logCause(lines: string[], port: string): { cause: string; fix: string } | undefined {
   const started = lines.findLastIndex((l) => l.includes("apx core listening"));
   const since = lines.slice(started + 1).join("\n");
   if (since.includes("ERR_MODULE_NOT_FOUND"))
@@ -99,7 +99,7 @@ export function diagnose(f: DoctorFacts): { ok: boolean; lines: string[]; next: 
 }
 
 /** The newest of `newer` with this computer's bundle. */
-export function newestFor(newer: Release[], platform: Platform): Release | undefined {
+function newestFor(newer: Release[], platform: Platform): Release | undefined {
   return newer.find((r) => r.assets.some((a) => a.name === coreBundleName(r.version, platform)));
 }
 
