@@ -178,6 +178,8 @@ export type CoreOptions = {
   /** The most a delegated run may work in all (tests shorten it). */
   a2aCapMs?: number;
   runTimers?: RunTimers;
+  /** How long answers of teammates asked together wait for each other is timed by these (tests). */
+  fanoutTimers?: RunTimers;
   /** Whether the Mac slept since a moment (tests decide); by default the core watches its own timers. */
   sleptSince?: (since: number) => boolean;
   /** How the core holds the Mac awake (tests count it); by default `caffeinate` on macOS. */
@@ -597,6 +599,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     ...(opts.turnIdleMs ? { turnIdleMs: opts.turnIdleMs } : {}),
     ...(opts.a2aCapMs ? { a2aCapMs: opts.a2aCapMs } : {}),
     ...(opts.runTimers ? { runTimers: opts.runTimers } : {}),
+    ...(opts.fanoutTimers ? { fanoutTimers: opts.fanoutTimers } : {}),
     mcpTools: mcp.toolsFor,
     mcpServers: mcp.serversFor,
     hasCap: (cap) => Boolean(broker.withCap(cap)) || (cap === BROWSER_CAP && Boolean(headless?.available())),

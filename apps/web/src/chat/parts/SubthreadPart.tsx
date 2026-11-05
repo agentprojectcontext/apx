@@ -17,6 +17,11 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
   const asker = useData((s) => (part.asked_by ? (s.agents[part.asked_by] ?? s.former[part.asked_by]) : undefined));
   const ownerName = useOwnerName();
   const st = responseStatus(part);
+  // Its answer waits for the others asked in the same turn: the caller reads them all together.
+  const meta = [
+    part.ms !== undefined ? t("subthread.took", { time: duration(part.ms) }) : undefined,
+    part.held ? t("subthread.held", { got: String(part.held.got), of: String(part.held.of) }) : undefined,
+  ].filter(Boolean);
   const name = part.worker ?? target?.name ?? part.agent_id;
   // A consult on a task names who asked; a delegation's asker is the message's author.
   const askedBy =
@@ -37,7 +42,7 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
       status={st.status}
       statusLabel={t(st.label)}
       summary={part.summary ? <MarkdownView source={part.summary} size="sm" labels={mdLabels} /> : undefined}
-      meta={part.ms !== undefined ? t("subthread.took", { time: duration(part.ms) }) : undefined}
+      meta={meta.length ? meta.join(" · ") : undefined}
       openLabel={t("subthread.open", { name })}
       moreLabel={t("subthread.more")}
       lessLabel={t("subthread.less")}

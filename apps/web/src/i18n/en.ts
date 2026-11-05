@@ -556,6 +556,7 @@ export const en = {
   "subthread.open": "Open conversation with {name}",
   "subthread.worker": "Worker",
   "subthread.took": "Took {time}",
+  "subthread.held": "Waiting for answers: {got} of {of}",
   "subthread.more": "Show more",
   "subthread.less": "Show less",
   "subthread.noAnswer": "Ended without an answer",

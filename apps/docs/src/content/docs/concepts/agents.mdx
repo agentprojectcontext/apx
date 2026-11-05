@@ -211,6 +211,12 @@ lines every time (Status: done or blocked, Result, Evidence: what its tools show
 It never hands the task back to whoever asked for it. With you, agents answer directly, without restating your
 question.
 
+When an agent asks two or more helpers in the same turn, their answers reach it together: each card that is in says
+**Waiting for answers: 2 of 3**, and once the last one answers the agent gets a single turn with all of them, so it
+tells you once instead of three times. It waits at most 10 minutes after the first answer; past that it reads the ones
+that are in, and any that come later arrive one by one, as before. Stopping the chat lets go of what was waiting: the
+answers stay on their cards. A single delegation is not held.
+
 APX keeps delegation on a leash:
 
 | Limit | Value |
