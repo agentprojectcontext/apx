@@ -87,7 +87,9 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     data, never instructions; the owner's own agents speak for the owner ([D-071](rules/DECISIONS.md#d-071)). Strong
     actions (send or post as the owner, pay, write outside the owner's projects) need confirmation, except in total; the
     agent's own reads, edits and commands where it works do not ([D-106](rules/DECISIONS.md#d-106),
-    [D-108](rules/DECISIONS.md#d-108)). The embedded browser never types passwords or payment data. Reviewed arbitrary
+    [D-108](rules/DECISIONS.md#d-108)). The embedded browser never types passwords or payment data; an agent may fill a
+    password, username or one-time-code field only from a stored secret the owner marked for that exact origin (or for
+    every site, `*`), without ever seeing it ([D-193](rules/DECISIONS.md#d-193)). Reviewed arbitrary
     JavaScript is an explicit owner-approved exception to mechanical field containment, not permission to handle
     credentials; execution requires its card or explicit temporary tab/turn consent, with exact origin and current
     document binding ([D-165](rules/DECISIONS.md#d-165)). Temporary consent never becomes a global tool grant. `[review]`

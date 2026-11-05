@@ -12,6 +12,7 @@ import { engineUsageMethods } from "./engine-usage.ts";
 import { environmentMethods } from "./environment-methods.ts";
 import { flowMethods } from "./flow-methods.ts";
 import { hermesMethods } from "./hermes-methods.ts";
+import { instanceMethods } from "./instance-methods.ts";
 import { mailMethods } from "./mail-methods.ts";
 import { storageMethods } from "./storage-methods.ts";
 import { tableMethods } from "./table-methods.ts";
@@ -115,6 +116,7 @@ export const methods = {
   ...telemetryMethods,
   ...usageMethods,
   ...storageMethods,
+  ...instanceMethods,
   ...engineUsageMethods,
   ...emailSignatureMethods,
   ...mailMethods,
@@ -135,7 +137,8 @@ export function isMethodName(name: string): name is MethodName {
 export const SCOPE_METHODS: Record<"chat" | "browser", readonly MethodName[]> = {
   chat: ["agents.list", "threads.create", "threads.get", "threads.send"],
   browser: (Object.keys(browserMethods) as MethodName[]).filter(
-    (m) => methodAccess(m) !== "human" && m !== "browser.approval_context",
+    // Signing in with the owner's stored secrets is for APX's own agents only (DECISIONS.md#d-193).
+    (m) => methodAccess(m) !== "human" && m !== "browser.approval_context" && m !== "browser.sign_in",
   ),
 };
 

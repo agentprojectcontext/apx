@@ -1,6 +1,7 @@
 // Methods behind Resources: skills (read, edit, on/off per project), MCP servers (approve, test, on/off per
 // project) and variables (stored secrets: names, a hint and where they are used; never the values).
 import { z } from "zod";
+import { SecretFieldKind } from "./browser.ts";
 import { CALENDAR_LEAD, CHECK_EVERY } from "./constants.ts";
 import { ConnectOffer, Id, McpServerStatus, ToolApproval } from "./domain.ts";
 
@@ -103,6 +104,16 @@ const ImportTarget = {
   project: Id.optional(),
 };
 
+/**
+ * A site where agents may put a stored secret into a sign-in field: an exact origin (`https://app.acme.com`), or `*`
+ * for any https site (http only on this computer).
+ */
+export const SecretSite = z.object({
+  origin: z.union([z.literal("*"), z.string().url().max(4096)]),
+  kind: SecretFieldKind,
+});
+export type SecretSite = z.infer<typeof SecretSite>;
+
 export const SecretInfo = z.object({
   name: z.string(),
   /** A project's own value: it wins over the global one of the same name for that project's MCP servers. */
@@ -112,6 +123,10 @@ export const SecretInfo = z.object({
   hint: z.string().optional(),
   /** Where it is named: "mcp:github", "provider:openai", "service:qvox", "channel:telegram". */
   used_in: z.array(z.string()).default([]),
+  /** Sites where agents may sign in with it, and into which field (DECISIONS.md#d-193). */
+  sites: z.array(SecretSite).default([]),
+  /** The last sign-in an agent made with it. */
+  last_used: z.object({ origin: z.string(), at: z.string(), agent: z.string().optional() }).optional(),
 });
 export type SecretInfo = z.infer<typeof SecretInfo>;
 
@@ -127,6 +142,19 @@ export const resourceMethods = {
    * One variable's value, for the owner's eyes only (the eye in Resources › Variables): never an agent's, never in a
    * prompt or a log.
    */
+  /** The sites where agents may sign in with a stored secret; an empty list takes them all away. */
+  "secrets.set_sites": {
+    params: z
+      .object({
+        name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/),
+        project: Id.optional(),
+        sites: z.array(SecretSite).max(64),
+      })
+      .strict(),
+    result: z.object({ sites: z.array(SecretSite) }),
+    effect: true,
+    access: "human",
+  },
   "secrets.reveal": {
     params: z.object({ name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/), project: Id.optional() }).strict(),
     result: z.object({ value: z.string() }),

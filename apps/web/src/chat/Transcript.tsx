@@ -31,6 +31,7 @@ import { imageGenerationRuns } from "./parts/imageGeneration.ts";
 import { AudioPart } from "./parts/lazyAudio.tsx";
 import { bubbleFiles, mediaBlocks, withoutFilesNote } from "./parts/mediaGroups.ts";
 import { NoticePart } from "./parts/NoticePart.tsx";
+import { latestPlan } from "./planLast.ts";
 import { quotedIndex, quoteParts, splitQuote } from "./quote.ts";
 import { Regenerate, UserMessage } from "./Rewind.tsx";
 import { InLine } from "./WaitingMessage.tsx";
@@ -110,6 +111,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
     return i >= 0 ? messages[i]?.id : undefined;
   };
 
+  const planAt = useMemo(() => latestPlan(messages), [messages]);
   const working = isWorking(thread.state);
   const reactionsOf = (m: Msg) =>
     m.reactions?.length ? <ReactionList list={m.reactions} agentName={agent?.name ?? ""} /> : undefined;
@@ -204,6 +206,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
                     showAvatar={false}
                     showTools={showTools}
                     showSkills={false}
+                    showPlan={msg.id === planAt}
                   />
                 </AgentEvent>
               </Suspense>
@@ -216,6 +219,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
                 showAvatar={multiAgent}
                 showTools={showTools}
                 showSkills={!comments}
+                showPlan={msg.id === planAt}
                 engine={engine}
                 actions={<Regenerate thread={thread} message={msg} messages={messages} />}
               />

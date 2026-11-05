@@ -271,6 +271,11 @@ start together:
 | Coverage report | merges the parts (`--merge --expect-parts=5`: a function ran if any part ran it; a part that never uploaded fails it) | 1 Linux |
 | Unit tests (portability) | the unit tests only, `test-shard.ts` over 4 Windows and 2 macOS machines | 6 |
 
+The unit part runs each package's tests as one `node --test` with a 10-minute limit; a package with more than 160
+test files (the core) runs in parts dealt out in turn (`apps/core 1/3`…), each with its own limit, all into the same
+report. A part that runs out of time is named as such; its files still running show as "still pending", not as
+failures of their own. That job sets `TEST_TIME_SCALE=2`: coverage slows every test.
+
 Static checks and unit tests together are `pnpm preflight`; coverage does not replace them (it runs the suites
 another way, with instrumentation). The budgets share the static job: a separate one sat in the runner queue for a
 quarter of an hour while taking one minute. `test-shard.ts` reads each package's own `test` script and deals the

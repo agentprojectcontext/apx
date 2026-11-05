@@ -187,6 +187,8 @@ const control = http.createServer((req, res) => {
       return json(200, { sent: sl.messagesTo(sl.dm(user)).map((s) => ({ text: s.body.text })) });
     }
     if (req.url === "/llm/calls") return json(200, { calls: llm.calls.length });
+    if (req.url === "/llm/carried" && req.method === "POST")
+      return json(200, { carried: llm.carried(String(body.text ?? "")) });
     // The model app on this computer opened or closed.
     if (req.url === "/local-models" && req.method === "POST") {
       localApp.set(body.open === true);

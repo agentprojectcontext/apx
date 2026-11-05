@@ -1,4 +1,12 @@
-import { BROWSER_CAP, BROWSER_HOLD, BROWSER_METHODS, type BrowserMethod, type TabInfo } from "@apx/protocol";
+import {
+  BROWSER_CAP,
+  BROWSER_FILL_SECRET,
+  BROWSER_HOLD,
+  BROWSER_METHODS,
+  type BrowserMethod,
+  siteOrigin,
+  type TabInfo,
+} from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import { TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -9,6 +17,7 @@ import { bindBrowserEpoch, browserEpochBackend, unbindBrowserEpoch } from "../no
 import { browserConsentCurrent, reconcileBrowserConsents } from "../nodes/browser-consent-reconcile.ts";
 import { createBrowserHolds } from "../nodes/browser-holds.ts";
 import type { HeadlessBrowser } from "../nodes/headless-browser.ts";
+import { type SignInDeps, signInHandler } from "./browser-sign-in.ts";
 import type { Handler } from "./router.ts";
 
 // Under the client's 15s default so the caller gets our typed timeout, not its own.
@@ -33,6 +42,7 @@ export function browserHandlers(
   bus?: Bus,
   vm?: Computer,
   store?: Store,
+  signIn?: Omit<SignInDeps, "store" | "tabOrigin" | "fill">,
 ) {
   const local = () => !broker.withCap(BROWSER_CAP) && headless?.available();
   // A tab an agent's turn uses stays open (not closed for being idle) until that turn ends.
@@ -131,6 +141,28 @@ export function browserHandlers(
   const handlers = Object.fromEntries(BROWSER_METHODS.map((m) => [m, forward(m)])) as {
     [M in BrowserMethod]: Handler<M>;
   };
+  if (signIn && store) {
+    const tabsOf = (ctx: Parameters<Handler<"browser.tabs">>[1]) => handlers["browser.tabs"]({}, ctx);
+    handlers["browser.sign_in"] = signInHandler({
+      ...signIn,
+      store,
+      tabOrigin: async (tab, ctx) => siteOrigin((await tabsOf(ctx)).tabs.find((t) => t.tab === tab)?.url ?? "") ?? "",
+      async fill(params, ctx) {
+        // The isolated computer's browser is another machine: a stored secret never goes there.
+        if (ctx.agent && store.settings.read("computer_chats").includes(ctx.agent.thread_id))
+          throw unavailable("signing in with a stored secret works only in the owner's browser");
+        if (local()) return headless?.handle(BROWSER_FILL_SECRET, params);
+        const out = await broker.invoke(
+          BROWSER_CAP,
+          BROWSER_FILL_SECRET,
+          params,
+          deadlineFor("browser.sign_in", params),
+        );
+        if (ctx.agent) holds.hold(ctx.agent.run_id, String(params.tab));
+        return out;
+      },
+    });
+  }
   // With no browser at all there are no tabs: an empty list, not an error the panel would log on every load.
   const tabs = handlers["browser.tabs"];
   handlers["browser.tabs"] = (params, ctx) =>

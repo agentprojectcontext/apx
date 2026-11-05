@@ -2,7 +2,7 @@
 export const enChat = {
   "chat.modelUnconfirmed": "Model unconfirmed",
   "chat.modelFallback": "Fallback",
-  "chat.modelFallbackHint": "Its own model did not answer this time: a fallback did.",
+  "chat.modelFallbackHint": "Its own model did not answer this time, so a fallback model did.",
   "chat.modelRequested": "Requested:",
   "chat.modelEngineDefault": "{engine} default",
   "chat.agentProgress": "Progress from {name}",

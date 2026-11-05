@@ -149,6 +149,7 @@ export function agentTools(store: Store): Tool[] {
       effect: "message",
       // The wait itself is bounded by wait_s; this covers the bookkeeping around it.
       deadlineMs: 130_000,
+      cut: "The teammate keeps working; its answer comes back in a new turn: do not delegate it again.",
       title: (a) => `Asked ${String(a.worker?.name ?? a.agent ?? a.session)}`,
       async run(a, ctx) {
         let agent: AgentRecord | undefined;
@@ -175,6 +176,7 @@ export function agentTools(store: Store): Tool[] {
           },
           a.task,
           (a.wait_s ?? 60) * 1000,
+          ctx.signal,
         );
       },
     }),

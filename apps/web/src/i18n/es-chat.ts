@@ -4,7 +4,7 @@ import type { MessageKey } from "./en.ts";
 export const esChat: Partial<Record<MessageKey, string>> = {
   "chat.modelUnconfirmed": "Modelo sin confirmar",
   "chat.modelFallback": "Con respaldo",
-  "chat.modelFallbackHint": "Su modelo no respondió esta vez: respondió un respaldo.",
+  "chat.modelFallbackHint": "Esta vez su modelo no respondió y contestó uno de respaldo.",
   "chat.modelRequested": "Solicitado:",
   "chat.modelEngineDefault": "Predeterminado de {engine}",
   "chat.agentProgress": "Avance de {name}",

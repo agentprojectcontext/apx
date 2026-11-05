@@ -446,6 +446,10 @@
   color: var(--apx-fg-muted);
   text-overflow: ellipsis;
 }
+.resvars__sites {
+  margin-left: var(--apx-space-1);
+  font-family: var(--apx-font-sans);
+}
 /* The value takes the room left: showing or hiding it never moves the other columns. */
 .resvars__table th:nth-child(3),
 .resvars__value {

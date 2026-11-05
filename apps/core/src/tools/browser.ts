@@ -6,7 +6,9 @@ import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
 import { pruneUploads, saveUpload } from "../services/uploads.ts";
+import type { SignIn } from "../sign-in.ts";
 import { browserEvaluateTool } from "./browser-evaluate.ts";
+import { browserSignInTool } from "./browser-sign-in.ts";
 import { cap, untrusted } from "./result.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 import { urlConfirm } from "./web.ts";
@@ -38,7 +40,12 @@ const refArg = z
   .regex(/^e\d+$/)
   .describe("ref like e12, from the last snapshot");
 
-export function browserTools(store: Store, home: string, vm?: { hasThread(id: string): boolean }): Tool[] {
+export function browserTools(
+  store: Store,
+  home: string,
+  vm?: { hasThread(id: string): boolean },
+  signIn?: SignIn,
+): Tool[] {
   /** The model looks at the tab itself: the tree alone misses images, charts and slides. */
   const look = async (ctx: ToolContext, tab: string) => {
     if (!ctx.see) return;
@@ -103,6 +110,7 @@ export function browserTools(store: Store, home: string, vm?: { hasThread(id: st
 
   return [
     browserEvaluateTool(store, home, own, vm),
+    browserSignInTool(store, signIn, own, vm),
     defineTool({
       needsCap: BROWSER_CAP,
       name: "browser_open",
@@ -187,7 +195,7 @@ export function browserTools(store: Store, home: string, vm?: { hasThread(id: st
       needsCap: BROWSER_CAP,
       name: "browser_type",
       description:
-        "Type text into a field by ref. Password, 2FA and card fields are refused: use browser_handoff instead.",
+        "Type text into a field by ref. Password, 2FA and card fields are refused: use browser_sign_in with a stored secret, or browser_handoff.",
       args: z.object({
         tab: tabArg,
         ref: refArg,

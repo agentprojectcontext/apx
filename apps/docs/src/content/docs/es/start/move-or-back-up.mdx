@@ -1,0 +1,74 @@
+---
+title: Mover o respaldar
+description: Llevá tus agentes, proyectos y ajustes a otra computadora, o guardá una copia, sin que tus claves viajen con ellos.
+sidebar:
+  order: 6
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Un archivo guarda lo que armaste en APX: agentes con sus instrucciones, modelos y skills, los ajustes de APX de tus
+proyectos, rutinas, Flows con sus tablas, notas de memoria, canales, servidores MCP, proveedores de modelos,
+preferencias y tus propias skills. Traelo a APX en otra computadora, o guardalo como copia de tu configuración.
+
+<Aside type="caution">
+Ninguna clave, token ni contraseña va en el archivo, ni el inicio de sesión de un canal. Donde algo necesita una, el
+archivo guarda el **nombre de la variable** (`secret://nombre`) y en la otra computadora cargás el valor de nuevo. Una
+clave escrita directo en los argumentos o la dirección de un servidor MCP, en el comando de una rutina o en el
+encabezado de un paso de un Flow recibe un nombre según dónde estaba (por ejemplo `secret://crm_api_key`), en la lista
+de claves para agregar. Las carpetas de tu home viajan como `~/…`.
+</Aside>
+
+## Descargar una copia
+
+En **Configuración › Mover o respaldar**, tocá **Descargar**. Marcá **Incluir chats** para llevar también las palabras
+de tus chats (sin sus archivos), e **Incluir filas de las tablas** para llevar lo que guardan tus tablas (sin eso, van
+solo sus columnas).
+
+Desde la terminal: `apx export` (agregá `--chats`, `--rows` o `--out archivo.json`).
+
+## Traerla
+
+<Steps>
+
+1. En la otra computadora, abrí **Configuración › Mover o respaldar** y tocá **Elegir archivo**.
+
+2. Leé qué haría: cuánto es nuevo, cambia, ya está o queda afuera, qué **llega apagado**, qué proyectos **esperan su
+   carpeta** y las **claves para agregar acá**. Todavía no cambió nada.
+
+3. Tocá **Importar**.
+
+4. Agregá las claves de la lista en **Variables** con los mismos nombres y después prendé cada servidor, canal o Flow
+   que las usa. Los Flows llegan como borradores: publicá cada uno desde su página, donde confirmás qué manda y a qué
+   llama.
+
+</Steps>
+
+Desde la terminal: `apx import archivo.json` muestra la misma vista previa; `apx import archivo.json --yes` lo importa.
+
+## Cómo llega cada cosa
+
+| Qué | Cómo llega |
+|---|---|
+| Agentes, rutinas, notas de memoria, preferencias | Como estaban. Un agente en Total llega con la autonomía de su proyecto (o conserva la que tiene acá). Una rutina conserva su interruptor, salvo que corra un comando en esta computadora: entonces llega apagada. |
+| Proyectos | Los ajustes de APX sobre cada proyecto. Si su carpeta está en el mismo lugar acá, se agrega; si no, el proyecto espera a que copies o clones la carpeta y la agregues en **Proyectos**, y conserva lo que llegó. Los archivos propios de un proyecto (`AGENTS.md`, `.apc/`) viajan con su carpeta. |
+| Servidores MCP, canales | **Apagados**, con los nombres de sus variables (un valor escrito como texto llega vacío). Un canal necesita de nuevo su token o su vinculación. |
+| Flows | **Apagados**, como borradores para publicar. Sus tablas llegan con sus columnas, y con sus filas si las marcaste. |
+| Proveedores de modelos | Apagados, para que revises a dónde manda tu clave cada uno. Uno que no necesita clave conserva su interruptor. |
+| Recordatorios del calendario y revisión del correo | Apagados hasta que Google esté conectado acá. |
+| Tus skills | Se agregan cuando esta computadora no tiene una con ese nombre. |
+| Chats (si los marcaste) | Sus palabras, en chats propios. Home se llena solo si acá está vacío. |
+
+Nunca en el archivo: valores secretos, tokens y contraseñas, la base de datos, los chats que no marcaste, archivos, ni
+las computadoras de tus agentes.
+
+## Importar dos veces
+
+Todo se reconoce por su identificador (las notas de memoria, por su texto), así que traer el mismo archivo de nuevo no
+cambia nada, y una importación que se quedó sin tiempo termina cuando lo traés de nuevo. Una preferencia, skill o ajuste de proyecto que configuraste en esta computadora se conserva. Un
+servidor, canal, proveedor de modelos o rutina que está acá y **cambió** en el archivo se actualiza y se apaga, para
+que lo mires antes de que vuelva a correr. La autonomía de un proyecto o de un agente nunca llega como Total, y las reglas de un agente nunca llegan
+configuradas para enviar, publicar o borrar sin preguntarte.
+
+Un archivo hecho por un APX con otro formato se rechaza y lo dice: actualizá APX en las dos computadoras y exportá de
+nuevo.

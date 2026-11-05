@@ -51,6 +51,7 @@ import { fileHandlers } from "./rpc/files.ts";
 import { flowHandlers } from "./rpc/flows.ts";
 import { gitHandlers } from "./rpc/git.ts";
 import { hermesHandlers } from "./rpc/hermes.ts";
+import { instanceHandlers } from "./rpc/instance.ts";
 import { integrationHandlers } from "./rpc/integrations.ts";
 import type { InternalCall } from "./rpc/internal.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
@@ -85,6 +86,7 @@ import { threadHandlers } from "./rpc/threads.ts";
 import { transcriptionHandlers } from "./rpc/transcription.ts";
 import { webhookHandlers } from "./rpc/webhooks.ts";
 import type { Secrets } from "./secrets.ts";
+import type { SignIn } from "./sign-in.ts";
 import type { RuntimeHomes } from "./skills/runtimes.ts";
 import { storedPublicPages } from "./surface-pages.ts";
 import type { Telemetry } from "./telemetry.ts";
@@ -168,13 +170,14 @@ export function builtinTools(
   /** Where agent profiles and agent templates are found, for the super-agent's settings. */
   roots?: Parameters<typeof settingsTools>[1],
   vm?: Computer,
+  signIn?: SignIn,
 ): Tool[] {
   const tools = [
     ...agentTools(store),
     ...agentSetTools(store),
     ...chatTools(store),
     ...externalSessionTools(store),
-    ...browserTools(store, home, vm),
+    ...browserTools(store, home, vm, signIn),
     ...surfaceTools(store, home),
     ...ownerTools(store),
     ...connectionTools(),
@@ -236,6 +239,7 @@ type HandlerDeps = {
   asana: Asana;
   providers: Parameters<typeof providerHandlers>[0];
   secrets: Parameters<typeof providerHandlers>[1];
+  signIn?: SignIn;
   chatgpt: Parameters<typeof providerHandlers>[2];
   localModels: Parameters<typeof transcriptionHandlers>[1];
   localEmbeds: Parameters<typeof embeddingHandlers>[0];
@@ -300,7 +304,14 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
           : { status: "off", detail: "no desktop node connected" },
       agent: { status: "ok", detail: d.llmLabel() },
     })),
-    ...browserHandlers(d.broker, d.headless, d.bus, d.vm, d.store),
+    ...browserHandlers(
+      d.broker,
+      d.headless,
+      d.bus,
+      d.vm,
+      d.store,
+      d.signIn && { secrets: d.secrets, signIn: d.signIn },
+    ),
     ...threadHandlers(d.store, d.engine, d.upkeep),
     ...threadAdminHandlers(d.store, d.app.home, d.vm?.beforeDelete),
     ...runHandlers(d.store, d.engine),
@@ -345,6 +356,17 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
       runtimeHomes: d.runtimeHomes,
     }),
     ...providerHandlers(d.providers, d.secrets, d.chatgpt),
+    ...instanceHandlers({
+      store: d.store,
+      secrets: d.secrets,
+      home: d.app.home,
+      userHome: os.homedir(),
+      version: d.identity.version,
+      register: (dir) => void d.apc.register(dir),
+      setChannel: (id, config) => d.channels.set(id, config),
+      mcpChanged: (name) => d.mcp.drop({ scope: "global", name }),
+      nextFor: (s) => d.scheduler.nextFor(s),
+    }),
     ...app,
     "projects.create": (p: Parameters<(typeof app)["projects.create"]>[0], ctx: CallContext) => {
       const r = app["projects.create"](p);

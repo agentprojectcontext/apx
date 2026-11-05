@@ -79,14 +79,19 @@ if (RUNS_SCRIPTS && fs.existsSync(chromium.executablePath())) {
           await env.client.call("environments.permit", { agent: "superagent", on: true });
           thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
           await env.client.call("threads.send", { thread, text: "Evaluate the page" });
-          const card = await waitFor(async () => {
-            const current = env.core.store.runs.list(thread)[0];
-            if (current && ["completed", "failed", "cancelled"].includes(current.state))
-              throw new Error(
-                `VM turn ended before approval: ${JSON.stringify(current)} ${JSON.stringify((await env.client.call("threads.get", { thread })).messages)}`,
-              );
-            return (await env.client.call("runs.pending", { thread })).inputs[0];
-          }, "a VM browser approval");
+          // The turn launches Chromium before it asks: the first launch on a cold runner takes seconds.
+          const card = await waitFor(
+            async () => {
+              const current = env.core.store.runs.list(thread)[0];
+              if (current && ["completed", "failed", "cancelled"].includes(current.state))
+                throw new Error(
+                  `VM turn ended before approval: ${JSON.stringify(current)} ${JSON.stringify((await env.client.call("threads.get", { thread })).messages)}`,
+                );
+              return (await env.client.call("runs.pending", { thread })).inputs[0];
+            },
+            "a VM browser approval",
+            { ms: 20_000 },
+          );
           await env.client.call("runs.respond", { input: card.id, decision: "approve", scope });
           const response = await waitFor(() => held, "the successfully executed result held in transit");
           if (change === "closure") await env.core.computer.browser(run).handle("browser.close", { tab });

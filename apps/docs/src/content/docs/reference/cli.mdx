@@ -81,6 +81,8 @@ take `--json`. `apx status --plain` drops the card and the portrait.
 | `apx devices pair` | Same as `apx pair`. |
 | `apx devices revoke <id>` | Revoke one device's key. |
 | `apx setup --headless` | A server with no desktop: service, optional import (`--import`), optional exposure (`--expose tailscale` or `--expose lan`), then a pair code. |
+| `apx export` | This setup as one file without secrets, to move or back up APX. `--chats` adds chats, `--rows` table rows, `--out` names the file. See [Move or back up](/start/move-or-back-up/). |
+| `apx import <file>` | What importing a copy would add, change or leave out, what arrives off and the keys to add; `--yes` imports it. The same file twice changes nothing. |
 | `apx import-v1` | Register the project folders a local APX v1 knows (read-only on v1). `--keys` also copies its model API keys, `--skills` its skills, `--services` its image engines and voices. |
 | `apx v1` | Is APX v1 still here and running? `apx v1 off` stops its daemon for good so `apx` is this one. |
 | `apx import hermes <folder>` | What a Hermes home folder (`~/.hermes`) becomes in APX; `--yes` imports it ([Moving from Hermes](/start/from-hermes/)). |

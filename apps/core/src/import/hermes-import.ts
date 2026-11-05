@@ -2,13 +2,15 @@
 // exactly what the preview listed. What was taken is remembered by what it was, so importing again changes nothing
 // and a thing changed in Hermes since is updated. Everything goes through APX's own methods, with the owner's checks.
 import { createHash } from "node:crypto";
+import path from "node:path";
 import type { HermesItem, Schedule } from "@apx/protocol";
 import { looksSecret } from "../domain/memories.ts";
 import type { Store } from "../domain/store.ts";
+import { expandHome } from "../paths.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import { serverName } from "./apply-extras.ts";
-import { type HermesJob, type HermesProfile, type HermesServer, readHermes } from "./hermes-read.ts";
-import { secretKeys } from "./native-extras.ts";
+import { type HermesJob, type HermesProfile, type HermesServer, readHermes, skillsIn } from "./hermes-read.ts";
+import { type ServerSecret, serverSecrets } from "./server-secrets.ts";
 
 type Step = HermesItem & { apply?: () => Promise<void> };
 type Record_ = { hash: string; ref?: string };
@@ -42,28 +44,89 @@ function scheduleOf(j: HermesJob): Schedule | "invalid" | "none" {
   return "invalid";
 }
 
-/** A server with each credential replaced by an empty secret:// reference, and the names of those references. */
-function withoutSecrets(h: HermesServer): { server: HermesServer["server"]; secrets: string[] } {
-  const keys = new Set(secretKeys(h.server));
+/** The folder a Hermes home is named by, as the owner or an agent wrote it. */
+export const hermesHome = (folder: string) => path.resolve(expandHome(folder));
+
+/**
+ * A server with each credential in env or headers replaced by an empty secret:// reference, and the names of those
+ * references. `stuck`: credentials in its arguments or address, where APX never keeps one (the process list shows
+ * arguments, and an address is not resolved), so the server is not brought.
+ */
+function withoutSecrets(h: HermesServer): { server: HermesServer["server"]; secrets: string[]; stuck: ServerSecret[] } {
+  const found = serverSecrets(h.server);
   const secrets: string[] = [];
-  const swap = (values: Record<string, string> | undefined, name: (k: string) => string) =>
+  const swap = (values: Record<string, string> | undefined, at: ServerSecret["at"], name: (k: string) => string) =>
     values &&
     Object.fromEntries(
       Object.entries(values).map(([k, v]) => {
-        if (!keys.has(k)) return [k, v];
+        if (!found.some((x) => x.at === at && x.key === k)) return [k, v];
         const ref = name(k);
         secrets.push(ref);
         return [k, `secret://${ref}`];
       }),
     );
-  const env = swap(h.server.env, (k) => k.replace(/[^A-Za-z0-9_.-]/g, "_").slice(0, 64));
-  const headers = swap(h.server.headers, (k) =>
+  const env = swap(h.server.env, "env", (k) => k.replace(/[^A-Za-z0-9_.-]/g, "_").slice(0, 64));
+  const headers = swap(h.server.headers, "header", (k) =>
     `${h.name}_${k}`
       .replace(/[^A-Za-z0-9_.-]/g, "_")
       .toUpperCase()
       .slice(0, 64),
   );
-  return { server: { ...h.server, ...(env ? { env } : {}), ...(headers ? { headers } : {}) }, secrets };
+  const server = { ...h.server, ...(env ? { env } : {}), ...(headers ? { headers } : {}) };
+  return { server, secrets, stuck: found.filter((x) => x.at === "arg" || x.at === "url") };
+}
+
+/** Where a server's stuck credentials are, and what the owner does instead. */
+function stuckDetail(stuck: ServerSecret[]): string {
+  const args = stuck.filter((x) => x.at === "arg").map((x) => x.key);
+  return [
+    args.length ? `in its arguments (${args.join(", ")}): add it yourself, the key in env` : "",
+    stuck.some((x) => x.at === "url") ? "in its address: add it yourself, the key in a header" : "",
+  ]
+    .filter(Boolean)
+    .join("; ");
+}
+
+const oneLine = (s: string) => s.replace(/\s+/g, " ").trim();
+const runs = (s: HermesServer["server"]) =>
+  oneLine(s.url ? `the server at ${s.url}` : `the command ${[s.command ?? "", ...(s.args ?? [])].join(" ")}`);
+
+/**
+ * What importing `home` brings, for the card an agent's import waits on: every MCP server whole, with what it runs
+ * and whether it comes on, then the rest by name or count. Undefined when the folder is not a Hermes home.
+ */
+export function hermesCard(home: string): string | undefined {
+  const profiles = readHermes(home);
+  if (!profiles) return undefined;
+  const agents = profiles.map((p) => oneLine(p.name === "default" ? "Hermes" : `Hermes ${p.name}`));
+  const notes = profiles
+    .flatMap((p) => [...p.memory, ...p.user])
+    .filter((t) => !looksSecret(t.slice(0, NOTE_CHARS))).length;
+  const skills = [...new Set(profiles.flatMap((p) => (p.skills ? skillsIn(p.skills) : [])))].map(oneLine);
+  const routines = profiles
+    .flatMap((p) => p.jobs)
+    .filter((j) => !j.script && j.prompt && typeof scheduleOf(j) !== "string").length;
+  const servers = profiles.flatMap((p) =>
+    p.servers.flatMap((h) => {
+      const { server, secrets, stuck } = withoutSecrets(h);
+      if (stuck.length) return [];
+      const name = serverName(h.name);
+      const how = secrets.length ? `off until you save ${secrets.join(", ")}` : "turned on";
+      return [`- MCP server ${name}, ${how}: runs ${runs(server)}`];
+    }),
+  );
+  return [
+    `Bring the Hermes setup in ${oneLine(home)} into APX:`,
+    `- Agents, their SOUL.md as instructions: ${agents.join(", ")}`,
+    notes ? `- ${notes} notes for their memory` : "",
+    skills.length
+      ? `- Skills for every agent: ${skills.slice(0, 30).join(", ")}${skills.length > 30 ? ` and ${skills.length - 30} more` : ""}`
+      : "",
+    routines ? `- ${routines} routines, turned off` : "",
+    ...servers,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /** Every step importing `home` takes, in order (an agent before what is its). Undefined if it is not a Hermes home. */
@@ -86,14 +149,19 @@ export async function hermesPlan(store: Store, call: InternalCall, home: string)
     const agentKey = `agent:${slug}`;
     const known = store.agents.get(slug);
     const made = records.get(agentKey);
-    const prompt = p.soul.slice(0, 100_000);
+    // Instructions go into every prompt: a SOUL.md holding a credential is left out, never copied.
+    const secretSoul = looksSecret(p.soul);
+    const prompt = secretSoul ? "" : p.soul.slice(0, 100_000);
+    const soulSkipped = { why: "secret" as const, detail: "SOUL.md: its instructions are left out" };
     const mine = !known || made !== null;
     if (known && !made) steps.push({ ...item("agent", slug), action: "skip", why: "taken" });
+    else if (known && secretSoul) steps.push({ ...item("agent", slug), action: "skip", ...soulSkipped });
     else if (known && made?.hash === hash(prompt)) steps.push({ ...item("agent", slug), action: "skip", why: "same" });
     else
       steps.push({
         ...item("agent", slug),
         action: known ? "update" : "add",
+        ...(secretSoul ? soulSkipped : {}),
         apply: async () => {
           if (known) await call("agents.update", { agent: slug, prompt }, OWNER);
           else
@@ -197,11 +265,13 @@ export async function hermesPlan(store: Store, call: InternalCall, home: string)
     for (const h of p.servers) {
       const name = serverName(h.name);
       const key = `server:${name}`;
-      const { server, secrets } = withoutSecrets(h);
+      const { server, secrets, stuck } = withoutSecrets(h);
       const r = records.get(key);
       const def = { ...server, ...(secrets.length ? { enabled: false } : {}) };
       const secret = secrets.length ? { why: "secret" as const, detail: secrets.join(", ") } : {};
       if (seen.has(key)) steps.push({ ...item("server", name), action: "skip", why: "same" });
+      else if (stuck.length)
+        steps.push({ ...item("server", name), action: "skip", why: "secret", detail: stuckDetail(stuck) });
       else if (servers.has(name) && !r) steps.push({ ...item("server", name), action: "skip", why: "taken" });
       else if (!servers.has(name) && r) steps.push({ ...item("server", name), action: "skip", why: "removed" });
       else if (r?.hash === hash(def)) steps.push({ ...item("server", name), action: "skip", why: "same" });
