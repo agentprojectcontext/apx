@@ -54,6 +54,7 @@ export function AgentTurn({
   showAvatar,
   showTools,
   showSkills = true,
+  showPlan = true,
   generationImages,
   engine,
   actions,
@@ -65,6 +66,8 @@ export function AgentTurn({
   showTools: boolean;
   /** The skills picked for the turn, as chips on top (a task's conversation leaves them out). */
   showSkills?: boolean;
+  /** Whether its plan shows: a newer message's plan replaces it. */
+  showPlan?: boolean;
   /** Result pictures from the same run, including messages split by an intervening owner reply. */
   generationImages?: Parameters<typeof imageGenerationBlocks>[3];
   /** An engine session: its answers are signed by the engine ("Codex"), not by the agent behind the run. */
@@ -106,7 +109,7 @@ export function AgentTurn({
     segment?: ReplySegment;
     whole?: string;
     generation?: boolean;
-  }[] = planLast(live, blocks).flatMap((b) => {
+  }[] = planLast(live, showPlan, blocks).flatMap((b) => {
     if (b.part.type !== "text" || b.media) return [b];
     const text = b.part.text;
     const segments = replySegments(text);
