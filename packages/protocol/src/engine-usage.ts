@@ -38,9 +38,9 @@ export const engineUsageMethods = {
     access: "human",
   },
   "engines.usage": {
-    params: z.object({}).strict(),
+    /** all: every detected engine, also those the owner keeps out of the top bar, for an agent the owner asks. */
+    params: z.object({ all: z.boolean().optional() }).strict(),
     result: EngineUsageReport,
     effect: false,
-    access: "human",
   },
 } as const satisfies Record<string, MethodDef>;
