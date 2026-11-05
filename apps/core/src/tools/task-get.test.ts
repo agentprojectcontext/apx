@@ -137,7 +137,15 @@ test("task_get filters related records from other projects and bounds long conve
   });
   store.threads.mergeContext(consult.id, { consult: { task: task.id, card: "msg_hidden" } });
   recordUsage(consult.id, "example/hidden-model");
-  await env.client.call("tasks.create", { title: "Hidden child", project: "project_b", parent: task.id });
+  // Historical links still need filtering even though new cross-project links are rejected.
+  store.tasks.create({
+    title: "Hidden child",
+    project_id: "project_b",
+    parent_id: task.id,
+    status: "todo",
+    thread_id: hidden.id,
+    by: "owner",
+  });
   for (let i = 0; i < 65; i++)
     store.messages.add({
       thread_id: task.thread_id,

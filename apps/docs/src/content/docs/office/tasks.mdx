@@ -63,6 +63,20 @@ project or shows **All projects**; this browser remembers the choice for the nex
   It is asked to review at once: asking for changes sends it back to whoever did it; approving makes it yours.
 - **Closed recently**: done or dropped, newest first.
 
+### Group existing tasks as subtasks
+
+In the unreleased integration branch, ask your agent to put related tasks under an existing parent task. Both
+must be in the same project. This keeps their IDs, history, comments, sessions and assignees; grouping alone does
+not start work again or change whether a task is open or closed. Unrelated tasks stay separate.
+
+The CLI equivalent is `apx tasks edit <id> --parent <parent-id>`; `--parent ""` detaches the task. The agent's
+`task_update` tool and `tasks.update` protocol method accept `parent` (an existing task ID, or `null` to detach).
+An agent can move a task beside or below others, never higher up: detaching it or moving it toward the top is yours.
+A task cannot become its own parent or sit below one of its descendants. The list nests tasks when both the parent
+and child are present in the current filter; opening the parent also lists its subtasks.
+Detach a child before moving it to another project (or detach and move it in the same update). Detach all
+subtasks before moving their parent. Creating a subtask also requires the same project as its parent.
+
 ## Attachments and task chat actions
 
 Tasks can keep selected screenshots and files as independent snapshots, when created or later. Preview or download

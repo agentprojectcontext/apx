@@ -79,6 +79,8 @@ test("two independent review rounds return, but a third round waits for the owne
     for (const run of runs.filter((r) => r.agent_id === "scout")) {
       assert.ok(run.input);
       assert.ok(run.input.text.startsWith("Independently review this task's delivery."));
+      // A review ends in one verdict (DECISIONS.md#d-188), also when the task itself is handed to the reviewer.
+      assert.match(run.input.text, /Approved, Approved with notes, or Blocked/);
       const origin = run.input.origin;
       assert.ok(origin.kind === "agent" && origin.task_assignment?.task === task);
       assert.ok(
