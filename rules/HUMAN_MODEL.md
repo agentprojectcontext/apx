@@ -133,8 +133,10 @@ settings (`integrations.settings` / `integrations.configure`, a `SETTINGS` entry
   (Telegram, WhatsApp, Discord, Slack, iMessage, email, Signal, Matrix, Mattermost) and enters through `threads.send`.
 - `apps/*` never import each other; `packages/*` never import `apps/*`.
 
-The top bar's AI usage panel calls owner-only `engines.usage`. The core probes CLI availability on its own
-computer and asks the local Codex app-server or Claude Code's structured `/usage` report for account rate-limit
+The top bar's AI usage panel and the super-agent share `engines.usage`. The panel reads the engines the owner turned
+on; the super-agent, when the owner asks, reads every detected engine (`all: true`, through `apx_settings`, so it costs
+the prompt nothing until used). Changing usage preferences remains owner-only. It can filter by engine id or
+provider/plan name, but the source identifies neither subscription tiers nor multiple accounts per engine. The core probes CLI availability on its own computer and asks the local Codex app-server or Claude Code's structured `/usage` report for account rate-limit
 metadata, with bounded child lifetimes, validated windows and a short shared cache. Claude requires version 2.1.273
 or later and runs isolated with safe mode, zero model turns, no session persistence, hooks, tools or MCP servers.
 Only global session and weekly limits are used; model-specific quotas are not substituted. It starts no model turn

@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { TemplateRoot } from "../apc/templates.ts";
 import type { Store } from "../domain/store.ts";
 import type { ProfileRoot } from "../engine/profiles.ts";
+import { USAGE } from "./plan-usage.ts";
 import { EMAIL } from "./settings-email.ts";
 import type { Params, Setting, SettingsDeps } from "./settings-kit.ts";
 import { PEOPLE } from "./settings-people.ts";
@@ -20,6 +21,7 @@ export const SETTINGS: Readonly<Record<string, Setting>> = {
   ...TEAM,
   ...WORK,
   ...EMAIL,
+  ...USAGE,
 };
 
 /** The area a method belongs to, as its card's title names it ("Changed a channel"). */

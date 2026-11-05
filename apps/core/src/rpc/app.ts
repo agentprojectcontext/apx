@@ -290,7 +290,7 @@ export function appHandlers(deps: {
       if (!s) throw notFound(`surface ${surface}`);
       return s;
     },
-    "engines.usage": () => engineUsage.read(),
+    "engines.usage": ({ all }) => (all ? engineUsage.readAll() : engineUsage.read()),
     "engines.usage_preferences": () => engineUsage.get(),
     "engines.set_usage": ({ engine, enabled }) => engineUsage.set(engine, enabled),
     "engines.status": async ({ refresh }) => ({

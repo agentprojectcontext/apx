@@ -1171,4 +1171,5 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE tasks ADD COLUMN goal TEXT;
   ALTER TABLE tasks ADD COLUMN asked TEXT;
   `,
+  `CREATE INDEX model_log_run_seq ON model_log(run_id, seq) WHERE run_id IS NOT NULL;`,
 ];
