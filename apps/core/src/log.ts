@@ -38,6 +38,12 @@ function scrub(text: string): string {
   });
 }
 
+/** A value that reads like a key or token once its secret:// references are taken out. */
+export const keyLike = (v: string) => {
+  const bare = v.replace(/secret:\/\/[a-zA-Z0-9_.-]+/g, "");
+  return /[A-Za-z0-9_-]{20,}/.test(bare) && /\d/.test(bare) && /[a-z]/i.test(bare);
+};
+
 const secretKey = (key: string) => SECRET_KEY.test(key.replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/-/g, "_"));
 
 /** What a log line may carry: secrets by reference (`secret://…`) stay, their values never do. */

@@ -171,7 +171,7 @@ export function createMcp(deps: {
     };
     let transport: InstanceType<typeof StreamableHTTPClientTransport> | InstanceType<typeof StdioClientTransport>;
     if (d.url)
-      transport = new StreamableHTTPClientTransport(new URL(d.url), {
+      transport = new StreamableHTTPClientTransport(new URL(resolveText(d.url, d.values_of)), {
         requestInit: { headers: resolve(d.headers, d.values_of) },
       });
     else {

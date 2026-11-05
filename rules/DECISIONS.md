@@ -3647,7 +3647,9 @@ up**, `apx export` and `apx import` make and read one JSON file (`instance.expor
   name, then the redaction durable data gets (credential fields and key shapes, `redactedJson`); a file that still
   holds a stored value is not made. A provider's key stays only as a reference; an MCP server's variables and headers
   travel only as references (a value typed as text goes empty) and its address without a user and password. Channel tokens and sign-ins are not
-  variables and never travel.
+  variables and never travel. A key typed where a command or an address takes it (an MCP server's arguments, path or
+  query, a routine's command, a Flow step's header or variable) becomes a reference named after its place
+  (`secret://<server>_<flag>`), which the preview asks for; an MCP server's command and arguments carry the home as `~`.
 - **One plan for the preview and the import.** `planImport` decides each item (add, update, same, skip, and why) and
   keeps its step; the preview returns the plan, the import runs its steps, so what is applied is what was shown.
   Items match by id (memory by its text in its place): the same file twice changes nothing, and a file listing an

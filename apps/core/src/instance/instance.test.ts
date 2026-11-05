@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import os from "node:os";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import { type InstanceFile, type InstancePlan, SUPER_AGENT_ID } from "@apx/protocol";
 import type { FlowGraph } from "@apx/protocol/flow-graph";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { samePath } from "../paths.ts";
 import { tempDir } from "../testkit/platform.ts";
 import { applyImport, ImportOutOfTime } from "./plan.ts";
 
@@ -354,6 +356,81 @@ test("a new model API whose key is here arrives off: the file chooses where that
   assert.equal(byId(preview, "providers", "northwind")?.reason, "uses_key");
   await target.client.call("instance.import", { file: crafted });
   assert.equal(target.core.store.settings.read("providers").find((p) => p.id === "northwind")?.enabled, false);
+});
+
+test("a key typed into a command, an address or a step's header travels as a reference", async () => {
+  const c = source.client;
+  const API = "nw9c2e71f04ab35d8e11";
+  const TOKEN = "zz81ab27c3d4e5f6a7b8";
+  const PATH_KEY = "a1B2c3D4e5F6g7H8i9J0k1L2";
+  const HEADER = "kk55ab27c3d4e5f6a7b8";
+  const bin = path.join(os.homedir(), "bin", "acme-mcp");
+  await c.call("mcp.set", {
+    name: "tools",
+    server: { command: bin, args: ["--api-key", API, "--model=claude-x", `--token=${TOKEN}`, "serve"] },
+  });
+  await c.call("mcp.set", {
+    name: "remote",
+    server: { url: `https://mcp.example.com/${PATH_KEY}/sse?apikey=${TOKEN}&region=eu` },
+  });
+  const nora = (await c.call("agents.list", {})).agents.find((a) => a.name === "Nora");
+  await c.call("routines.set", {
+    name: "Sync CRM",
+    agent: nora?.id ?? "",
+    schedule: { kind: "cron", cron: "0 9 * * *" },
+    prompt: "Sync",
+    pre_command: `CRM_TOKEN=${TOKEN} sync-crm --password ${API} --verbose`,
+    enabled: true,
+  });
+  const notify = (
+    await c.call("flows.create", {
+      project,
+      name: "Notify",
+      graph: { ...graph, nodes: [hook, { ...call, headers: [{ name: "X-Api-Key", value: HEADER }] }] },
+    })
+  ).flow.id;
+  const file = await exported();
+  const text = JSON.stringify(file);
+  for (const v of [API, TOKEN, PATH_KEY, HEADER]) assert.ok(!text.includes(v), `${v} is not in the file`);
+  assert.ok(!text.includes(os.homedir()), "no folder of this computer");
+  const tools = file.mcps.find((m) => m.name === "tools");
+  assert.equal(tools?.command, "~/bin/acme-mcp");
+  assert.deepEqual(tools?.args, [
+    "--api-key",
+    "secret://tools_api_key",
+    "--model=claude-x",
+    "--token=secret://tools_token",
+    "serve",
+  ]);
+  assert.equal(
+    file.mcps.find((m) => m.name === "remote")?.url,
+    "https://mcp.example.com/secret://remote_url_key/sse?apikey=secret://remote_apikey&region=eu",
+  );
+  assert.equal(
+    file.routines.find((r) => r.name === "Sync CRM")?.pre_command,
+    "CRM_TOKEN=secret://sync_crm_crm_token sync-crm --password secret://sync_crm_password --verbose",
+  );
+  const step = file.flows.find((f) => f.definition.id === notify)?.graph?.nodes.find((n) => n.id === "enroll");
+  assert.deepEqual(step && "headers" in step ? step.headers : undefined, [
+    { name: "X-Api-Key", value: "secret://notify_x_api_key" },
+  ]);
+
+  const preview = await target.client.call("instance.preview_import", { file });
+  for (const name of ["tools_api_key", "tools_token", "remote_url_key", "remote_apikey", "notify_x_api_key"])
+    assert.ok(preview.secrets.includes(name), `${name} is named to fill here`);
+  await target.client.call("instance.import", { file });
+  const there = JSON.parse(target.core.store.settings.get("mcp_servers") ?? "{}").mcpServers.tools;
+  assert.ok(samePath(there.command, bin), "the command is found under this computer's home");
+  const again = await target.client.call("instance.preview_import", { file });
+  assert.equal(byId(again, "mcps", "tools")?.action, "same");
+  assert.equal(byId(again, "mcps", "remote")?.action, "same");
+  const mine = await source.client.call("instance.preview_import", { file });
+  assert.equal(
+    byId(mine, "mcps", "tools")?.action,
+    "same",
+    "its own copy changes nothing on the computer it came from",
+  );
+  for (const name of ["tools", "remote"]) await c.call("mcp.set", { name, server: null });
 });
 
 test("an import that outlives its deadline stops and says so; importing again finishes it", async () => {

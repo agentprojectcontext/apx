@@ -2,6 +2,7 @@
 // or off, media services and widgets. A project's autonomy and read-only folders and memory's model stay the owner's
 // (DECISIONS.md#d-060). An MCP server names its keys as secret://NAME, never their value (DECISIONS.md#d-141).
 import { memorySettings } from "../domain/memory-settings.ts";
+import { keyLike } from "../log.ts";
 import { imageDefaultsOf } from "../services/registry.ts";
 import { inlineName } from "./result.ts";
 import { merged, ownersField, type Params, projectName, quoted, type Setting, str } from "./settings-kit.ts";
@@ -50,11 +51,6 @@ function keysGo(s: McpRaw): string {
     : `It gets no saved variable: ${to}.`;
 }
 
-/** A value that reads like a key or token once its secret:// references are taken out. */
-const keyLike = (v: string) => {
-  const bare = v.replace(SECRET_REF, "");
-  return /[A-Za-z0-9_-]{20,}/.test(bare) && /\d/.test(bare) && /[a-z]/i.test(bare);
-};
 /** The env or header written as a key's value instead of a reference to one the owner saved. */
 const pastedKey = (server: unknown): string | undefined => {
   const s = (server ?? {}) as McpRaw;

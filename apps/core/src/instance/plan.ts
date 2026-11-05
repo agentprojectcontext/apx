@@ -40,7 +40,7 @@ import {
   routineShape,
   SIGNED_IN_SETTINGS,
 } from "./export.ts";
-import { knownSecrets, scrubbed, secretRefs } from "./scrub.ts";
+import { graphWithoutKeys, knownSecrets, mcpWithoutKeys, routineWithoutKeys, scrubbed, secretRefs } from "./scrub.ts";
 
 export type ImportDeps = InstanceDeps & {
   secrets: Pick<Secrets, "list" | "resolve">;
@@ -273,7 +273,8 @@ function planMcps(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   for (const m of file.mcps) {
     const here = ownMcps(store).find((d) => d.name === m.name);
     const compared = (x: object) => without(x, "enabled");
-    const action = !here ? "add" : same(compared(mine(mcpShape(here))), compared(m)) ? "same" : "update";
+    const shaped = here && mcpWithoutKeys(mine(mcpShape(here, deps.userHome)));
+    const action = !shaped ? "add" : same(compared(shaped), compared(m)) ? "same" : "update";
     const { name, enabled: _e, project, ...server } = m;
     push(
       "mcps",
@@ -286,7 +287,17 @@ function planMcps(deps: ImportDeps, file: InstanceFile, c: Ctx) {
           Object.fromEntries(Object.entries(file).map(([k, v]) => [k, v === "" ? (local[k] ?? "") : v]));
         const env = keep(server.env, here?.env);
         const headers = keep(server.headers, here?.headers);
-        mcp.setGlobal(name, { ...server, env, headers, ...(project ? { project } : {}), enabled: false });
+        const command = server.command && expandHome(server.command, deps.userHome);
+        const args = server.args.map((a) => expandHome(a, deps.userHome));
+        mcp.setGlobal(name, {
+          ...server,
+          ...(command ? { command } : {}),
+          args,
+          env,
+          headers,
+          ...(project ? { project } : {}),
+          enabled: false,
+        });
         deps.mcpChanged(name);
       },
       { off: true, reason: here ? "changed" : "needs_secret" },
@@ -338,7 +349,8 @@ function planRoutines(deps: ImportDeps, file: InstanceFile, c: Ctx) {
     }
     const here = store.routines.get(r.id);
     const compared = (x: object) => without(x, "enabled");
-    const action = !here ? "add" : same(compared(mine(routineShape(here))), compared(want)) ? "same" : "update";
+    const shaped = here && routineWithoutKeys(mine(routineShape(here)));
+    const action = !shaped ? "add" : same(compared(shaped), compared(want)) ? "same" : "update";
     // A command runs on this computer: a routine with one, or one whose work changed, waits for the owner.
     const commands = Boolean(want.pre_command || want.post_command || want.action === "shell");
     const wait = commands || Boolean(here);
@@ -533,7 +545,7 @@ function planFlows(deps: ImportDeps, file: InstanceFile, c: Ctx) {
     const doc = store.flowGraphs.get(def.id);
     const kept = [doc.published, doc.draft].flatMap((g) => {
       const r = g ? FlowDraftGraph.safeParse(c.mine(g)) : undefined;
-      return r?.success ? [r.data] : [];
+      return r?.success ? [graphWithoutKeys(r.data, def.name)] : [];
     });
     const newGraph = graph !== null && !kept.some((g) => same(g, graph));
     const renamed = here.name !== def.name;
