@@ -4,7 +4,7 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript-parser";
-import { missingSourceMaps, readCoveragePayloads, snapshotSourceMaps } from "./coverage-maps.ts";
+import { mergeScripts, missingSourceMaps, readCoveragePayloads, snapshotSourceMaps } from "./coverage-maps.ts";
 import { sourceMapResolver } from "./coverage-source-map.ts";
 import { checkTests, repositoryFiles, testFiles } from "./test-quality.ts";
 
@@ -46,22 +46,6 @@ export async function sandboxPorts(env: NodeJS.ProcessEnv = process.env): Promis
 
 function lineStarts(text: string): number[] {
   return [0, ...Array.from(text.matchAll(/\r\n?|\n/g), (match) => match.index + match[0].length)];
-}
-
-function mergeScripts(scripts: V8Script[]): V8Script[] {
-  const merged = new Map<string, Map<string, V8Function>>();
-  for (const script of scripts) {
-    const functions = merged.get(script.url) ?? new Map<string, V8Function>();
-    for (const fn of script.functions) {
-      const range = fn.ranges[0];
-      if (!range) continue;
-      const key = `${range.startOffset}:${range.endOffset}`;
-      const old = functions.get(key);
-      if (!old || range.count > (old.ranges[0]?.count ?? 0)) functions.set(key, fn);
-    }
-    merged.set(script.url, functions);
-  }
-  return [...merged].map(([url, functions]) => ({ url, functions: [...functions.values()] }));
 }
 
 function sourceFiles(root: string): string[] {
