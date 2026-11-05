@@ -178,7 +178,8 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
 32. **A screen nobody looked at is not done.** UI work starts from a reference (the owner's, the design system's or
     a sketch the designer made) and ends with screenshots of the running build, desktop and phone width, reviewed by
     the designer against it. A form or JSON field is not a stand-in for a requested visual experience
-    ([UI changes](rules/WORKFLOW.md#ui-changes)). `[review]`
+    ([UI changes](rules/WORKFLOW.md#ui-changes)). `[review]`; native controls and literal colours in a
+    screen `[gate]` `pnpm check:ui`.
 
 33. **A Flow change reaches the agent in the same change.** A new Flow or table method, step kind or field is usable
     by the super-agent through `apx_flow` and explained in the `apx-flows` skill, or placed as the owner's with a reason

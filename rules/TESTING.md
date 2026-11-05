@@ -98,7 +98,17 @@ pnpm lint                          # Biome; `pnpm lint:fix` applies safe fixes
 pnpm check:private                 # public-safe gate (AGENTS.md rule 17)
 pnpm check:commits HEAD^..HEAD     # this commit only; use a base..head range for a change, see rules/RELEASE.md
 pnpm check:schema                  # apps/core/src/db/schema.ts matches the migrations (`node apps/core/scripts/schema.ts` rewrites it)
+pnpm check:ui                      # panel screens use @apx/ui controls and tokens (AGENTS.md rule 32)
 ```
+
+`pnpm check:ui` (`scripts/check-ui.ts`) reads every screen under `apps/web/src` (tests and `packages/ui` aside) and
+fails on a native `<button>`, `<select>`, `<textarea>` or text/checkbox `<input>` where the design system has a
+component, and on a literal colour (hex, `rgb()`, `hsl()`, `oklch()`…) in a string, template or stylesheet instead of
+an `--apx-*` token; a `var(--token, #fallback)` counts too. A `mask` only reads alpha and passes. `data-testid` is not
+banned: the e2e suite finds elements by it. Today's hits sit in `scripts/check-ui-allowlist.json`, counted per file
+and rule with their reason; a new hit fails, and so does an allowance a file no longer needs. Fix a file, then run
+`node scripts/check-ui.ts --shrink`; never add an entry. A deliberate exception (a QR code drawn dark on light, an
+outside page on white) carries a `ui: <why>` comment on its line or the line above.
 
 ## 3. Tests
 ```bash
@@ -163,7 +173,7 @@ While developing against a scratch state, set `APX_HOME` to a temp dir so `~/.ap
 
 ## 5. All at once
 ```bash
-pnpm preflight                     # check:private, check:schema, lint, typecheck, unit tests
+pnpm preflight                     # check:private, check:schema, lint, check:ui, typecheck, unit tests
 pnpm verify                        # preflight, all-suite execution coverage, then lightness budgets
 pnpm verify --stream               # the same, with every step's output as it runs
 ```
@@ -242,7 +252,7 @@ start together:
 
 | Job | What | Machines |
 |---|---|---|
-| Static checks and lightness budgets | commits, `pnpm preflight:static` (private terms, schema, lint, typecheck, test quality), mobile types, Android bundle; then `pnpm build:web` with coverage maps and `scripts/perf.ts` | 1 Linux |
+| Static checks and lightness budgets | commits, `pnpm preflight:static` (private terms, schema, lint, UI controls and tokens, typecheck, test quality), mobile types, Android bundle; then `pnpm build:web` with coverage maps and `scripts/perf.ts` | 1 Linux |
 | Unit tests | every package's tests, `node scripts/test-shard.ts <i>/2`, plus the POSIX installer onboarding | 2 Linux |
 | Coverage | `node scripts/test-coverage.ts --e2e --part=…`: unit, panel in three (`--part=web --shard=i/3`), desktop | 5 Linux |
 | Coverage report | merges the parts (`--merge --expect-parts=5`: a function ran if any part ran it; a part that never uploaded fails it) | 1 Linux |
