@@ -47,3 +47,12 @@ test("frontmatter edge cases: empty frontmatter, a ---- line in the body, CRLF a
   assert.deepEqual(p.fields.tools, ["browser", "shell"]);
   assert.equal(p.body, "Text\n----\nMore");
 });
+
+test("a map whose entries hold lists stays a map", () => {
+  const { fields } = parseFrontmatter(
+    "---\nmetadata:\n  tags:\n    - a\n    - b\n  category: devops\nservers:\n  docs:\n    args:\n      - -y\n---\n",
+  );
+  assert.deepEqual(fields["metadata.tags"], ["a", "b"]);
+  assert.equal(fields["metadata.category"], "devops");
+  assert.deepEqual(fields["servers.docs.args"], ["-y"]);
+});

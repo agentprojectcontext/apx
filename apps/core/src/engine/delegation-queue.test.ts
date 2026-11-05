@@ -67,7 +67,7 @@ function gated(o: GateOpts = {}) {
       if (o.fail?.includes(key)) throw new Error(`the provider refused the ${key} request`);
       return say(`Scout's findings on ${key}.`);
     }
-    if (said.includes("<delegation_result")) return say(`Noted: ${said.match(/part-\d/)?.[0] ?? "?"}`);
+    if (said.includes("<delegation_result")) return say(`Noted: ${[...new Set(said.match(/part-\d/g))].join(" + ")}`);
     if (afterTool) {
       if (o.holdCaller) await aborted();
       return say("Fanned out.");
@@ -158,14 +158,18 @@ test("a delegation past the cap is queued, starts when one finishes, and its res
     g.openAll();
     const done = await env.settle(waiting.t.id);
     assert.equal(done.runs[0]?.state, "completed");
+    // Asked in one turn, they answer the caller together, the queued one too (DECISIONS.md#d-194).
     await waitFor(() => {
       const woken = env.core.store.runs.list(parent, 20).filter((r) => r.trigger === "a2a_result");
-      return woken.length === PARTS.length && woken.every((r) => r.state === "completed");
-    }, "every result delivered");
+      return woken.length === 1 && woken[0]?.state === "completed";
+    }, "every result delivered in one turn");
     const delivered = env.core.store.runs
       .list(parent, 20)
       .filter((r) => r.trigger === "a2a_result")
-      .map((r) => (r.input?.origin.kind === "delegation_result" ? r.input.origin.thread_id : ""));
+      .flatMap((r) =>
+        r.input?.origin.kind === "delegation_results" ? r.input.origin.results.map((x) => x.thread_id) : [],
+      );
+    assert.equal(delivered.length, PARTS.length, "all of them in that turn");
     assert.ok(delivered.includes(waiting.t.id), "the queued one reports back like the others");
     assert.equal(cards(env, parent).find((c) => c.thread_id === waiting.t.id)?.state, "completed");
   });
@@ -383,7 +387,7 @@ function seedCut(store: Store, states: Array<"working" | "input-required" | "que
 test("a queued delegation survives a restart and still waits for a free slot", async () => {
   const llm = scriptedLlm((_req, { system, said }) => {
     if (system.startsWith("You are Scout")) return say(`Scout's findings on ${said.match(/part-\d/)?.[0] ?? "?"}.`);
-    if (said.includes("<delegation_result")) return say(`Noted: ${said.match(/part-\d/)?.[0] ?? "?"}`);
+    if (said.includes("<delegation_result")) return say(`Noted: ${[...new Set(said.match(/part-\d/g))].join(" + ")}`);
     return say("ok");
   });
   const first = await startCore({ llm });
@@ -408,11 +412,17 @@ test("a queued delegation survives a restart and still waits for a free slot", a
       () =>
         second.core.store.runs
           .list(parentThread.id, 20)
-          .some((r) => r.trigger === "a2a_result" && r.state === "completed" && r.input?.text.includes("part-4")),
-      "its result delivered",
+          .some(
+            (r) =>
+              r.trigger === "a2a_result" &&
+              r.state === "completed" &&
+              r.input?.origin.kind === "delegation_results" &&
+              r.input.origin.results.some((x) => x.thread_id === last.sub.id),
+          ),
+      "its result delivered with the others asked in that turn",
     );
     const final = await second.settle(parentThread.id);
-    assert.ok(texts(final.messages).includes("Noted: part-4"));
+    assert.ok(texts(final.messages).some((t) => t.startsWith("Noted:") && t.includes("part-4")));
   } finally {
     await second.core.close();
     await second.cleanup();

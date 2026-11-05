@@ -7,7 +7,7 @@ import type { LogEntry } from "../domain/model-log.ts";
 import { createHash } from "node:crypto";
 import type { Autonomy, Organization, PromptPart, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
-import { answersChecked, type Origin } from "../domain/runs.ts";
+import { answersChecked, type DelegationResult, type Origin } from "../domain/runs.ts";
 import type { ReleaseContext } from "../domain/threads.ts";
 import { HOME_COMPUTER } from "../environments/briefing.ts";
 import type { AssistantItem, ChatItem } from "../providers/types.ts";
@@ -406,6 +406,10 @@ export function rosterBlock(agent: AgentRecord, roster: AgentRecord[], thread: T
 /** An agent origin that is not one of the owner's agents: an outside app's (client:…) or an unnamed one. */
 export const isOutsideAgent = (id: string) => id === "external" || id.startsWith("client:");
 
+/** One delegated answer as its caller reads it: in the team's envelope, with how it ended and what APX recorded. */
+const delegationBlock = (r: DelegationResult, answer: string) =>
+  `${fromTeam("delegation_result", { from: r.name, sub_thread: r.thread_id, state: endedAs(r) }, answer)}\n${endNote(r, r)}${r.outcome ? outcomeNote(r.outcome) : ""}${r.actions ? `${actionsNote(r.actions)}\n` : ""}`;
+
 /** How a run's input reaches the model: the owner and their agents speak as theirs; everyone else is untrusted data. */
 export function frameInput(origin: Origin, text: string): string {
   switch (origin.kind) {
@@ -450,7 +454,9 @@ export function frameInput(origin: Origin, text: string): string {
         ? `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\n${inlineName(origin.name)} closed a task ${inlineName(origin.by)} gave (${origin.state}); this is their report. Tell the owner in a line or two what came of it and anything they need to do; nothing else.`
         : `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\nA task you created and gave to ${inlineName(origin.name)} is closed (${origin.state}); this is their report. Tell the owner what matters.`;
     case "delegation_result":
-      return `${fromTeam("delegation_result", { from: origin.name, sub_thread: origin.thread_id, state: endedAs(origin) }, text)}\n${endNote(origin, origin)}${origin.outcome ? outcomeNote(origin.outcome) : ""}${origin.actions ? `${actionsNote(origin.actions)}\n` : ""}This is the result of a task you delegated earlier. Tell the owner what matters; do not delegate the same task again. ${REDIRECT_NOTE}`;
+      return `${delegationBlock(origin, text)}This is the result of a task you delegated earlier. Tell the owner what matters; do not delegate the same task again. ${REDIRECT_NOTE}`;
+    case "delegation_results":
+      return `${origin.results.map((r) => delegationBlock(r, r.answer)).join("\n")}These are the results of the ${origin.results.length} tasks you delegated together, all that came in. Tell the owner what matters in one answer; do not delegate the same tasks again. ${REDIRECT_NOTE}`;
   }
 }
 

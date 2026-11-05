@@ -178,6 +178,8 @@ export const CatalogEngine = z.object({
   fetched_at: z.string().optional(),
   /** A model API's everyday chat model: what the router chain gets when the owner adds this provider. */
   starter: z.string().optional(),
+  /** A model app on this computer (Ollama, LM Studio), found with no setup or set up at its address: free. */
+  local: z.boolean().optional(),
 });
 export type CatalogEngine = z.infer<typeof CatalogEngine>;
 
@@ -487,6 +489,8 @@ const KnownPart = z.discriminatedUnion("type", [
     asked_by: z.string().optional(),
     /** A completed run that did not go well: it gave no answer, or some of its actions failed. */
     issue: z.enum(["no_answer", "actions_failed"]).optional(),
+    /** Its answer waits for the others asked in the same turn: how many of them are in (DECISIONS.md#d-194). */
+    held: z.object({ got: z.number().int().nonnegative(), of: z.number().int().positive() }).optional(),
   }),
   z.object({
     type: z.literal("browser"),
@@ -869,6 +873,8 @@ export const ProviderInfo = z.object({
   models: z.array(z.string()),
   enabled: z.boolean(),
   builtin: z.boolean(),
+  /** A model app on this computer: found running with no setup, or set up at its address. */
+  local: z.boolean().optional(),
 });
 export type ProviderInfo = z.infer<typeof ProviderInfo>;
 

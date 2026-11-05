@@ -84,6 +84,7 @@ aceptan `--json`. `apx status --plain` saca la tarjeta y el retrato.
 | `apx import <archivo>` | Qué agregaría, cambiaría o dejaría afuera importar una copia, qué llega apagado y las claves para agregar; `--yes` la importa. El mismo archivo dos veces no cambia nada. |
 | `apx import-v1` | Registra las carpetas de proyecto que conoce un APX v1 local (solo lee v1). `--keys` también copia sus claves de API de modelos, `--skills` sus skills, `--services` sus motores de imágenes y voces. |
 | `apx v1` | ¿Sigue APX v1 acá y corriendo? `apx v1 off` detiene su daemon para siempre y hace que `apx` sea este. |
+| `apx import hermes <folder>` | Qué se vuelve en APX una carpeta de Hermes (`~/.hermes`); `--yes` la importa ([Mudarse desde Hermes](/es/start/from-hermes/)). |
 
 `apx expose` edita `<home>/core.env` directamente; después reiniciá el core (`apx service restart`). `apx tailscale`
 pasa por el core que está corriendo, que se reinicia solo cuando corre bajo un supervisor como el servicio, y si no te

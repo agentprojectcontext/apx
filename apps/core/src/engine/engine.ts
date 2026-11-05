@@ -9,22 +9,22 @@ import { Canceled, conflict, DeadlineExceeded, notFound, Shutdown, Superseded } 
 import type { Harnesses } from "../harness/index.ts";
 import type { Log } from "../log.ts";
 import type { RuntimeHomes } from "../skills/runtimes.ts";
-import { fromTeam } from "../tools/result.ts";
 import type { Tool } from "../tools/types.ts";
-import { agentTrip, keepWhilePaused, trip } from "./breaker.ts";
+import { agentTrip, trip } from "./breaker.ts";
 import { frameInput } from "./context.ts";
-import { actionsNote, actionsOf, createDelegations, endedAs, endNote } from "./delegation.ts";
+import { createDelegations } from "./delegation.ts";
 import type { Display } from "./display.ts";
+import { createFanout, deliverResults } from "./fanout.ts";
 import type { Hooks } from "./hooks.ts";
 import { createInputs, type InputWaits } from "./inputs.ts";
 import { createJobs } from "./jobs.ts";
-import { A2A_CAP_MS } from "./limits.ts";
+import { A2A_CAP_MS, FANOUT_HOLD_MS } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { relayEnded } from "./owner-relay.ts";
 import type { Permissions } from "./permissions.ts";
 import type { ProfileRoot } from "./profiles.ts";
 import { recoverInterrupted } from "./recovery.ts";
-import { droppedResult, outcomeNote } from "./run-outcome.ts";
+import { droppedResult } from "./run-outcome.ts";
 import type { SkillPicker } from "./skill-pick.ts";
 import { ownerTaskAssignment } from "./task-assignment.ts";
 import { OWNER_ADDS, runTurn, type ToolCall } from "./turn.ts";
@@ -218,6 +218,8 @@ export function createEngine(deps: {
   a2aCapMs?: number;
   /** Timer source for run deadlines, independent of transports and background work. */
   runTimers?: RunTimers;
+  /** Timer source for how long answers of teammates asked together wait for each other (tests drive it). */
+  fanoutTimers?: RunTimers;
   /** Whether the Mac slept since a moment (engine/awake.ts): a turn it cut short gets one more window. */
   sleptSince?: (since: number) => boolean;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */
@@ -276,43 +278,16 @@ export function createEngine(deps: {
     live,
     ended,
     windowMs: (threadId) => runLimit(store, threadId, "a2a", deps).ms,
-    deliver: (parent, child, answer, stopped, outcome) => {
-      const agent = store.agents.get(child.agent_id);
-      const name = store.threads.context(child.thread_id).worker?.name ?? agent?.name ?? child.agent_id;
-      const session = store.threads.get(child.thread_id)?.session;
-      // Paused: the result is kept for the caller's next turn, and the owner sees why it stopped.
-      if (
-        keepWhilePaused(store, {
-          thread_id: parent.thread_id,
-          agent_id: parent.agent_id,
-          who: name,
-          run_id: child.id,
-          note: `A task you delegated to ${name} ended (${endedAs(child)}) while agents were paused:\n${fromTeam("delegation_result", { from: name }, answer.slice(0, 4000))}\n${endNote(child, { session, stopped })}${outcome ? outcomeNote(outcome) : ""}${actionsNote(actionsOf(store, child))}`,
-        })
-      )
-        return;
-      admit({
-        thread_id: parent.thread_id,
-        agent_id: parent.agent_id,
-        trigger: "a2a_result",
-        origin: {
-          kind: "delegation_result",
-          agent_id: child.agent_id,
-          name,
-          thread_id: child.thread_id,
-          run_id: child.id,
-          state: child.state,
-          ...(child.end_reason ? { end_reason: child.end_reason } : {}),
-          actions: actionsOf(store, child),
-          ...(session ? { session } : {}),
-          ...(stopped ? { stopped } : {}),
-          ...(outcome && outcome.level !== "ok" ? { outcome: { level: outcome.level, why: outcome.why } } : {}),
-        },
-        text: answer,
-        depth: parent.depth,
-        reply_to: parent.input?.reply_to,
-      });
-    },
+    deliver: (parent, child, stopped) => fanout.arrive(parent, child, stopped),
+  });
+
+  const fanout = createFanout({
+    store,
+    timers: deps.fanoutTimers ?? wallRunTimers,
+    holdMs: FANOUT_HOLD_MS,
+    running: (runId) => active.has(runId),
+    deliver: (parent, results) => deliverResults(store, admit, parent, results),
+    mark: (parent, child, held) => delegations.mark(parent, child, held),
   });
 
   const jobs = createJobs({ store, home: deps.home, log, admit: (a) => admit(a), steer: (a) => steerResult(a) });
@@ -587,6 +562,7 @@ export function createEngine(deps: {
     for (const w of waiters.get(run.id) ?? []) w(run);
     waiters.delete(run.id);
     delegations.childEnded(run);
+    fanout.settle(run);
     relayEnded(store, admit, run);
   }
 
@@ -608,6 +584,7 @@ export function createEngine(deps: {
 
   /** Cancels the thread's queued and running turns and, recursively, its sub-threads'. */
   function cancel(threadId: string): number {
+    fanout.drop(threadId);
     let n = 0;
     for (const id of store.runs.queuedIds(threadId)) {
       const r = store.runs.get(id);
@@ -680,6 +657,7 @@ export function createEngine(deps: {
     },
     /** Boot: close what a restart interrupted, then pick the durable queue back up. */
     start(): void {
+      fanout.restore();
       inputs.restore();
       jobs.reconcile();
       const interrupted = recoverInterrupted(store);
@@ -715,6 +693,7 @@ export function createEngine(deps: {
     /** Shutdown: stops every running turn (left open, so the next boot resumes it) and waits for them to finish writing. */
     async stop(): Promise<void> {
       stopping = true;
+      fanout.stop();
       for (const a of active.values()) a.ac.abort(new Shutdown());
       await Promise.allSettled([...running, jobs.stopAll()]);
     },

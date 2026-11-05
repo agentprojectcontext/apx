@@ -13,6 +13,11 @@ export const MAX_ACTIVE_DELEGATIONS = 3;
  * window without progress, like the owner's turns (DECISIONS.md#d-105).
  */
 export const A2A_CAP_MS = 2 * 3600_000;
+/**
+ * How long the first answer of teammates asked in one turn waits for the others; past it, what is in goes to the caller
+ * and later answers come one by one (DECISIONS.md#d-194).
+ */
+export const FANOUT_HOLD_MS = 10 * 60_000;
 /** Turns agents may start without the owner (delegations, results waking callers) in one conversation tree,
  *  counted since the owner last wrote in it. Past it the chain pauses until they write. Off by default: agents finish
  *  what they were asked, like a coding agent does; the owner sets one (`agents.set_limits`, setting "agent_limits")

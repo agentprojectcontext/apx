@@ -14,6 +14,7 @@ import { doctor, updateOffline } from "./commands/doctor.ts";
 import { expose } from "./commands/expose.ts";
 import { extensions } from "./commands/extensions.ts";
 import { flows } from "./commands/flows.ts";
+import { hermesImport } from "./commands/hermes-import.ts";
 import { init } from "./commands/init.ts";
 import { exportInstance, importInstance } from "./commands/instance.ts";
 import { localConnection } from "./commands/local.ts";
@@ -159,6 +160,9 @@ Usage:
 
   apx secrets [list] | set <name> (value on stdin) | rm <name>
   apx v1 [off]            Is APX v1 still here and running? off stops its daemon for good and makes apx this one
+  apx import hermes <folder> [--yes]
+                           What a Hermes home folder (~/.hermes) becomes in APX: agents, memory, skills,
+                           routines (off) and MCP servers. Secrets never come; --yes imports what it lists
   apx import-v1 [--keys] [--skills] [--services]
                            Import what a local APX v1 holds, from its files (read-only, v1 may be stopped):
                            projects, agents, memory, chats, channels, tasks, routines (off)… --keys also copies
@@ -488,7 +492,8 @@ try {
       await exportInstance(client, { out: values.out, chats: values.chats, rows: values.rows });
       break;
     case "import":
-      await importInstance(client, rest[0], { yes: values.yes });
+      if (rest[0] === "hermes") await hermesImport(client, rest[1], { yes: values.yes });
+      else await importInstance(client, rest[0], { yes: values.yes });
       break;
     case "import-v1":
       await importV1(client, {
