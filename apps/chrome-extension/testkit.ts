@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { chromium, expect, type FrameLocator, type Page, type Worker } from "@playwright/test";
+import { type BrowserContext, chromium, expect, type FrameLocator, type Page, type Worker } from "@playwright/test";
 import { ApxClient } from "../../packages/protocol/src/client.ts";
+import { CORE_ENV_FILE, serializeCoreEnv } from "../../packages/protocol/src/core-env.ts";
 import { testConfig } from "../core/src/config.ts";
 import { say, scriptedLlm } from "../core/src/engine/testkit.ts";
 import { which } from "../core/src/harness/detect.ts";
+import { installChromeHost } from "../core/src/nodes/chrome-host.ts";
 import { createCore } from "../core/src/server.ts";
 import { tempDir } from "../core/src/testkit/platform.ts";
 import { extensionBundle } from "./bundle.ts";
@@ -42,18 +44,21 @@ export async function withPanel(
     page: Page;
     frame: FrameLocator;
     worker: Worker;
+    context: BrowserContext;
     token: string;
     llm: ReturnType<typeof scriptedLlm>;
     stopCore(): Promise<void>;
     restartCore(): Promise<void>;
   }) => Promise<void>,
+  /** `script`: the model's answers. `nativeHost`: `apx chrome-host` registered in this profile, pointed at this core. */
+  opts: { script?: Parameters<typeof scriptedLlm>[0]; nativeHost?: boolean } = {},
 ) {
   assert.equal(await which("claude"), undefined, "Run the extension tests through the isolated pnpm runner");
   assert.equal(await which("codex"), undefined, "Run the extension tests through the isolated pnpm runner");
   await using home = tempDir("apx-chrome-panel-core-");
   await using profile = tempDir("apx-chrome-panel-profile-");
   await using extension = tempDir("apx-chrome-panel-bundle-");
-  const llm = scriptedLlm(() => say("The isolated chat reached APX."));
+  const llm = scriptedLlm(opts.script ?? (() => say("The isolated chat reached APX.")));
   const token = randomBytes(32).toString("hex");
   const startCore = (port = 0) =>
     createCore(
@@ -109,6 +114,21 @@ export async function withPanel(
       await fs.mkdir(path.dirname(file), { recursive: true });
       await fs.writeFile(file, content);
     }
+    if (opts.nativeHost) {
+      // The host reads the core's token where `apx` does; Chrome looks for hosts in its profile folder.
+      await fs.writeFile(path.join(home.path, CORE_ENV_FILE), serializeCoreEnv({ APX_TOKEN: token }), { mode: 0o600 });
+      const written = installChromeHost({
+        home: home.path,
+        port,
+        runner: {
+          exe: process.execPath,
+          main: path.resolve(import.meta.dirname, "../terminal/src/main.ts"),
+          electron: false,
+        },
+        browsers: [profile.path],
+      });
+      assert.equal(written.length, 1);
+    }
     context = await chromium.launchPersistentContext(profile.path, {
       channel: "chromium",
       headless: true,
@@ -127,7 +147,7 @@ export async function withPanel(
     const page = await context.newPage();
     await page.goto(new URL("panel.html", worker.url()).href);
     const frame = page.frameLocator('iframe[title="APX"]');
-    await run({ core, client, page, frame, worker, token, llm, stopCore, restartCore });
+    await run({ core, client, page, frame, worker, context, token, llm, stopCore, restartCore });
   } catch (error) {
     process.stderr.write(`${String(error)}\n`);
     if (context && process.env.APX_CHROME_EVIDENCE) {

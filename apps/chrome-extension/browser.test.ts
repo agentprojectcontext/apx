@@ -60,7 +60,8 @@ for (const language of ["en", "es"] as const) {
           content_scripts?: unknown;
           externally_connectable?: unknown;
         }>("chrome.runtime.getManifest()");
-        assert.deepEqual(manifest.permissions, ["sidePanel"]);
+        // Tabs are reached only through the debugger in Chrome's APX group: no host access, no content scripts.
+        assert.deepEqual(manifest.permissions, ["sidePanel", "nativeMessaging", "debugger", "tabs", "tabGroups"]);
         assert.deepEqual(manifest.icons, ICON_PATHS);
         assert.deepEqual(manifest.action.default_icon, ICON_PATHS);
         assert.equal(manifest.host_permissions, undefined);

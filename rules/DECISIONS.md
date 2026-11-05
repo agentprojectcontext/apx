@@ -3901,3 +3901,44 @@ Now a fixed list of the CLI's list and show forms is a reader like `git log` (D-
 redirection into a file or an expansion still asks. Anything else, the CLI by a path (`~/.local/bin/apx`), through a
 launcher (`pnpm exec apx`, `bash -c`), `secrets` in any form, and the `127.0.0.1:<port>` rule for the API stay
 `always`. Its output still counts as outside content (`reachesOut`): what a thread holds may come from a channel.
+
+<a id="d-198"></a>
+## D-198 — 2026-11-05 — Agents work in the owner's Chrome only for what they wrote in its side panel
+
+The owner wanted APX's Chrome extension to do what browser extensions of other agent apps do: drive their real
+Chrome, where they are signed in. APX already has two browsers (the desktop app's embedded one and the core's
+headless one), and the owner decided which one a turn uses: **the owner's Chrome only for words written in APX's
+panel in Chrome; everything else keeps APX's own browser.**
+
+How it fits the node model (rules 1 and 3):
+
+- The extension (`apps/chrome-extension/worker.js`) holds no APX logic. It answers four requests (list, open, close,
+  show) and relays DevTools commands through `chrome.debugger`, only for tabs of a tab group titled "APX". The
+  owner shares a tab by dragging it into the group; tabs outside it are never read. Moving a tab out detaches the
+  debugger. No host permissions and no content scripts.
+- `apx chrome-host` (`apps/terminal/src/chrome-host/`) is a native messaging host Chrome starts for the extension's
+  exact origin. It is a node with the `chrome` capability (`CHROME_CAP`), apart from `browser`, so the most recent
+  node never replaces the desktop's. It drives tabs with the same `CdpPage` as the headless and desktop browsers, so
+  credential fields stay refused (rule 10) and every document load passes `assertNavigable` through `Fetch`.
+- The core on the default home writes the launcher (`<home>/bin/apx-chrome-host`, home and port, never the token) and
+  the host manifest into each Chrome-family browser that has a data folder, at every start (`nodes/chrome-host.ts`),
+  like the `apx` command. A core with a home of its own (a test daemon, a second `pnpm dev`) registers nothing unless
+  `APX_CHROME_HOST=on`: there is one registration per browser. Windows needs the registry and is not done yet.
+- `threads.send` takes `via: "chrome"`; only a call with the owner's own access stamps it on the run's origin
+  (`inChrome`), never an agent, an outside app or a channel. The panel sends it when loaded as `?quick=chrome`, which
+  the extension's frame does; any other client with the owner's access could send it too. The flag gives no new
+  permission: it only picks the browser. An answer to an input such a turn raised stays in Chrome.
+- A Chrome turn offers the browser tools even with no other browser, and routes every `browser.*` call to the Chrome
+  node. When Chrome is not connected the tool says so: it never falls back to another browser the owner did not
+  choose. Holds, idle closing and consent epochs do not apply to the owner's own tabs.
+
+Refused in Chrome, with a reason the agent can pass on: other browser profiles, page JavaScript (D-165 binds consent
+to APX's browsers), filling stored secrets (D-193: the owner signs in themselves), importing logins (Chrome has them)
+and hand-off (the owner is right there). Cancel on Chrome's "started debugging" bar marks the tab as the owner's; it
+comes back only when the owner moves it out of the group and in again. A tab showing APX itself is never read or
+driven (checked on its live address by the host, and by the worker against the panel's origin), and the worker relays
+only the DevTools methods APX's page driver uses.
+
+Known limits, left for later: with the extension in more than one browser or profile, the Chrome node that connected
+last serves every Chrome turn. Work an agent delegates from a Chrome turn uses APX's own browser. A login form Chrome
+filled from the owner's saved passwords can be sent by an agent's click: the credential guard covers typing.

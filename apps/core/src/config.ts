@@ -3,6 +3,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { CORE_ENV_FILE, coreEnvDefaults, parseCoreEnv, RELEASE_FEED } from "@apx/protocol";
+import { browserDataDirs } from "./nodes/chrome-host.ts";
+import { samePath } from "./paths.ts";
 import { type SecretsBackend, systemBackend } from "./secrets-stores.ts";
 import { TELEMETRY_SINK } from "./telemetry-sink.ts";
 
@@ -99,6 +101,11 @@ export type CoreConfig = {
    * test core never starts one), a path picks the browser (APX_CHROME), true finds one.
    */
   headless: boolean | string;
+  /**
+   * The Chrome-family browsers' data folders where `apx chrome-host` is registered for APX's extension: only by the
+   * core on the default home, unless APX_CHROME_HOST=on (off: none; a test core registers nowhere).
+   */
+  chromeHost: string[];
   /** Ollama on this machine, for memory's embedding models (APX_OLLAMA_URL; a test points it elsewhere). */
   ollamaUrl: string;
   /**
@@ -244,6 +251,12 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     expoPushUrl: env.APX_EXPO_PUSH_URL || "https://exp.host/--/api/v2/push/send",
     imessage: env.APX_IMESSAGE !== "off",
     headless: env.APX_HEADLESS === "off" ? false : env.APX_CHROME || true,
+    // One registration per browser: only the owner's own core takes it, never a second core with a home of its own.
+    chromeHost:
+      env.APX_CHROME_HOST === "off" ||
+      (env.APX_CHROME_HOST !== "on" && env.APX_HOME !== undefined && !samePath(env.APX_HOME, defaultHome()))
+        ? []
+        : browserDataDirs(os.homedir()),
     native: {
       claude: env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude"),
       codex: env.CODEX_HOME ?? path.join(os.homedir(), ".codex"),
@@ -309,6 +322,7 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     releases: undefined,
     telemetry: undefined,
     headless: false,
+    chromeHost: [],
     localModels: [],
     agentName: "Roby",
     ...over,

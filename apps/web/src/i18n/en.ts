@@ -800,6 +800,7 @@ export const en = {
   "browser.youControl": "You're in control",
   "browser.agentBrowsing": "{name} is browsing · {host}",
   "browser.finished": "Finished · {host}",
+  "browser.inChrome": "{name} is using it in your Chrome",
   "browser.offline": "Offline · {host}",
   "browser.reopen": "Open again",
   "browser.openWindow": "Open in a separate window",

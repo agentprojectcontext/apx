@@ -61,3 +61,9 @@ Voice, downloads, external sign-in, daily-profile storage policies, every theme/
 The desktop quick-chat agent picker has an owner-news entry and English/Spanish desktop documentation. The unpacked Chrome development preview is not offered as an installed or released feature.
 
 **Docs impact: updated** — `README.md`, `README.es.md`, this report and the English/Spanish desktop device guides cover the actual workflow, permissions, troubleshooting and remaining limitations.
+
+## Tab control (0.2.0)
+
+- `control.test.ts` runs the whole path in a disposable Chromium profile: the core registers `apx chrome-host` in that profile, the real worker connects over native messaging, a message written in the panel opens a fixture page in the "APX" group and reads it back through the debugger. It also moves the tab out of the group and back in (a regression for a stale debugger attachment, which fails without the fix), refuses an APX tab dragged into the group, and checks that the same words sent from outside the panel touch no tab.
+- `apps/terminal/src/chrome-host/host.test.ts` covers the host against a fake Chrome: group-only listing, the address guard before any tab opens and on every document request, the owner's Cancel, refusals, framing and origin checks. `apps/core/src/rpc/browser-chrome.test.ts` covers routing (Chrome turn → Chrome node; other turns → APX's browser; Chrome missing → the agent is told) and `apps/core/src/nodes/chrome-host.test.ts` the registration.
+- UNVERIFIED: the owner's own Google Chrome profile and a store-installed build; Brave, Edge, Arc and Linux; screenshots of a tab behind others in a visible window; the host's reconnect loop against a core that restarts; Windows (not supported: it needs the registry).

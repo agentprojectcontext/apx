@@ -11,7 +11,13 @@ import type { ThreadContext } from "./threads.ts";
 export type FlowRoutineEvent = { flow: string; id: string; data: unknown };
 
 export type Origin =
-  | { kind: "user"; message_id?: string; task_assignment?: { task: string; id: string } | null }
+  | {
+      kind: "user";
+      message_id?: string;
+      task_assignment?: { task: string; id: string } | null;
+      /** Written in APX's panel in Chrome: the turn browses in the owner's Chrome (DECISIONS.md#d-198). */
+      via?: "chrome";
+    }
   | {
       kind: "agent";
       id: string;
@@ -129,6 +135,16 @@ export const runsOnComputer = (o: Origin): boolean => {
       return false;
   }
 };
+
+/**
+ * The turn browses in the owner's Chrome: they wrote from APX's panel there, or answered something such a turn asked.
+ * Every other turn uses APX's own browser (DECISIONS.md#d-198).
+ */
+export function inChrome(o: Origin | undefined, askedIn: (inputId: string) => Origin | undefined, depth = 0): boolean {
+  if (o?.kind === "user") return o.via === "chrome";
+  if (o?.kind !== "input_answer" || depth >= 10) return false;
+  return inChrome(askedIn(o.input_id), askedIn, depth + 1);
+}
 
 /** The owner speaking: from the app, or on a channel as the owner (never a contact). */
 export const ownerOrigin = (o: Origin | undefined): o is Extract<Origin, { kind: "user" | "channel" }> =>

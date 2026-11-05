@@ -1,7 +1,7 @@
 // Browser tools: the agent drives the embedded browser through the desktop node, in its own profile and tabs.
 // Every call goes through the router (browser.* methods), the same door the panel uses.
 import { setTimeout } from "node:timers/promises";
-import { BROWSER_CAP, type TabInfo } from "@apx/protocol";
+import { BROWSER_CAP, chromeTabId, type TabInfo } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
@@ -71,7 +71,11 @@ export function browserTools(
     const t = tabs.find((x) => x.tab === tab);
     ctx.upsertPart((p) => p.type === "browser" && p.tab === tab, {
       type: "browser",
-      ...(vm?.hasThread(ctx.thread.id) ? { environment: "vm" as const } : {}),
+      ...(vm?.hasThread(ctx.thread.id)
+        ? { environment: "vm" as const }
+        : chromeTabId(tab) !== undefined
+          ? { environment: "chrome" as const }
+          : {}),
       tab,
       url: t?.url ?? "",
       title: t?.title ?? "",

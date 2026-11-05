@@ -12,7 +12,7 @@ Requires Chrome 116+, Node 24.11+, repository dependencies and a running APX cor
 pnpm build:chrome-extension
 ```
 
-Load `apps/chrome-extension/dist` using **Load unpacked** at `chrome://extensions`, with developer mode enabled. Pin APX or select it from Chrome's extensions menu, then click it to open the side panel. No native messaging host is installed. The extension requires only the `sidePanel` permission; it cannot read or operate the current website.
+Load `apps/chrome-extension/dist` using **Load unpacked** at `chrome://extensions`, with developer mode enabled. Pin APX or select it from Chrome's extensions menu, then click it to open the side panel. The extension asks for `sidePanel`, `nativeMessaging`, `debugger`, `tabs` and `tabGroups`; it has no host permissions and no content scripts.
 
 A compact recovery strip follows the browser's system colors and preferred language (English or Spanish). The chat keeps APX's own appearance and language preferences; the wrapper does not read or synchronize them across origins. The model button stays compact; open its menu to read complete model names and references, including at narrow panel widths. **Home** is APX's existing name for the main conversation in both languages, not the owner's name or an agent name.
 
@@ -39,7 +39,16 @@ If APX asks to pair, use its normal pairing flow: run `apx pair` on the computer
 
 **New chat** opens APX's searchable agent picker, including your super-agent and agents grouped by project. Search by agent name, role or project; recent agents appear first with their project. Selecting an agent opens a draft in this panel with that agent's project and model settings. Opening or dismissing the picker does not replace your current conversation or create a saved chat; the first message creates it. Model overrides remain specific to their conversation. The header shows the selected agent and project; use **Back to Home** to return to the main conversation. The same picker is available in the desktop quick-chat window. The `/new` command starts a fresh conversation with the current agent and project inside this panel. If you switch conversations while a first message is being sent, its completion does not switch you back, even if you have returned to a new draft for the same agent.
 
-This first scope does **not** share tabs, create tab groups, inspect the page, handle browser logins, or connect a browser node. Voice input, external sign-in popups and downloads inside the embedded panel have not been verified; use APX directly for those paths.
+## Working in your tabs
+
+What you write in this side panel is a turn in your Chrome: the agent's browser tools open and drive tabs in an orange tab group called **APX**, where you are signed in and can watch ([D-198](../../rules/DECISIONS.md#d-198)). Messages from the app, a phone or a channel keep using APX's own browser.
+
+- The panel loads APX as `?quick=chrome`, so its messages carry `via: "chrome"`; the core routes that turn's `browser.*` calls to the `chrome` node.
+- The worker connects to the native host `dev.apx.chrome` when Chrome starts and when the panel opens. The APX core registers that host at every start for this extension's exact origin, in each Chrome-family browser with a data folder (`<home>/bin/apx-chrome-host` runs `apx chrome-host`). Not on Windows yet.
+- Only tabs of the **APX** group are listed, read or driven, through `chrome.debugger`. Drag a tab in to share it; moving it out detaches the debugger. **Cancel** on Chrome's debugging bar gives the tab back to you.
+- Credential and card fields are refused, every document load passes the same address guard as APX's other browsers (never APX itself, link-local or metadata addresses), and page JavaScript, stored sign-ins, login import and hand-off stay in APX's own browser.
+
+Voice input, external sign-in popups and downloads inside the embedded panel have not been verified; use APX directly for those paths.
 
 ## APX logo
 

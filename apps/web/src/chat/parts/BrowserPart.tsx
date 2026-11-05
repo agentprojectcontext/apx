@@ -23,7 +23,9 @@ export function BrowserPart({
   const t = useT();
   const onComputer = useData((s) => s.vmThreads.includes(threadId));
   const guest = part.environment === "vm" || onComputer;
-  const tab = useData((s) => (guest ? undefined : s.tabs.find((t) => t.tab === part.tab)));
+  const tab = useData((s) =>
+    guest || part.environment === "chrome" ? undefined : s.tabs.find((t) => t.tab === part.tab),
+  );
   const panel = useNav((s) => s.panel);
   const currentThread = useNav((s) => s.threadId);
   const wantedTab = useNav((s) => s.browserTab);
@@ -50,6 +52,16 @@ export function BrowserPart({
           : part.state === "agent"
             ? t("browser.agentBrowsing", { name, host })
             : t("browser.finished", { host });
+  if (part.environment === "chrome")
+    return (
+      <p className="browserpart__chrome" title={part.url}>
+        <Icons.Globe size={14} aria-hidden />
+        <span>
+          {part.title || hostPath(part.url)} ·{" "}
+          {part.state === "agent" ? t("browser.inChrome", { name }) : t("browser.finished", { host })}
+        </span>
+      </p>
+    );
   const open = () => (guest ? go.panel("computer") : go.browser(part.tab));
   // A closed tab opens again on the same page.
   const reopen = async () => {

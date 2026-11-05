@@ -411,9 +411,14 @@ const delegationBlock = (r: DelegationResult, answer: string) =>
   `${fromTeam("delegation_result", { from: r.name, sub_thread: r.thread_id, state: endedAs(r) }, answer)}\n${endNote(r, r)}${r.outcome ? outcomeNote(r.outcome) : ""}${r.actions ? `${actionsNote(r.actions)}\n` : ""}`;
 
 /** How a run's input reaches the model: the owner and their agents speak as theirs; everyone else is untrusted data. */
+/** Said with the owner's words from APX's panel in Chrome, where their own tabs are the browser (DECISIONS.md#d-198). */
+const IN_CHROME =
+  "(Written in APX's panel in the owner's Chrome: browser_ tools work in tabs of its APX group, where they watch and are signed in to their sites. When a site asks to sign in, ask them to.)";
+
 export function frameInput(origin: Origin, text: string): string {
   switch (origin.kind) {
     case "user":
+      return origin.via === "chrome" ? `${text}\n\n${IN_CHROME}` : text;
     case "input_answer":
       return text;
     case "channel":

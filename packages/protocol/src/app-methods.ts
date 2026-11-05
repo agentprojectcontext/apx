@@ -713,6 +713,8 @@ export const appMethods = {
         continue_run: Id.optional(),
         /** Files and images uploaded with media.upload, shown with the message and read by the agent. */
         attachments: z.array(Id).max(8).optional(),
+        /** The owner wrote from APX's panel in Chrome: this turn browses in their Chrome (DECISIONS.md#d-198). */
+        via: z.literal("chrome").optional(),
       })
       .strict(),
     /** `steered`: the text went into the running turn `run` instead of starting a new one. */
