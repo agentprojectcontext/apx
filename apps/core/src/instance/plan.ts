@@ -608,16 +608,22 @@ function planSkills(deps: ImportDeps, file: InstanceFile, c: Ctx) {
       else c.skip("skills", s.name, s.name, "kept_here");
       continue;
     }
-    // Written beside it and renamed whole: a stopped import never leaves half a skill that reads as the owner's.
+    // Written in a hidden folder beside it (never read as a skill, never one of the owner's) and renamed whole: a
+    // stopped import never leaves half a skill that reads as the owner's.
     c.push("skills", s.name, s.name, "add", () => {
-      const tmp = `${dir}.importing`;
-      fs.rmSync(tmp, { recursive: true, force: true });
-      for (const f of files) {
-        const at = path.join(tmp, ...f.path.split("/"));
-        fs.mkdirSync(path.dirname(at), { recursive: true });
-        fs.writeFileSync(at, f.text);
+      fs.mkdirSync(path.dirname(dir), { recursive: true });
+      const tmp = fs.mkdtempSync(path.join(path.dirname(dir), ".importing-"));
+      try {
+        for (const f of files) {
+          const at = path.join(tmp, ...f.path.split("/"));
+          fs.mkdirSync(path.dirname(at), { recursive: true });
+          fs.writeFileSync(at, f.text);
+        }
+        fs.renameSync(tmp, dir);
+      } catch (err) {
+        fs.rmSync(tmp, { recursive: true, force: true });
+        throw err;
       }
-      fs.renameSync(tmp, dir);
     });
   }
 }

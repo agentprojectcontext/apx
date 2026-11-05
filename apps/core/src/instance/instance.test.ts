@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -431,6 +432,17 @@ test("a key typed into a command, an address or a step's header travels as a ref
     "its own copy changes nothing on the computer it came from",
   );
   for (const name of ["tools", "remote"]) await c.call("mcp.set", { name, server: null });
+});
+
+test("a new skill never removes an owner's skill named like its temporary folder", async () => {
+  const skills = path.join(homes[1]?.path as string, "skills");
+  fs.mkdirSync(path.join(skills, "notes.importing"), { recursive: true });
+  fs.writeFileSync(path.join(skills, "notes.importing", "SKILL.md"), "# Mine\n");
+  const file = await exported();
+  const crafted = { ...file, skills: [{ name: "notes", files: [{ path: "SKILL.md", text: "# Notes\n" }] }] };
+  await target.client.call("instance.import", { file: crafted });
+  assert.equal(fs.readFileSync(path.join(skills, "notes", "SKILL.md"), "utf8"), "# Notes\n");
+  assert.equal(fs.readFileSync(path.join(skills, "notes.importing", "SKILL.md"), "utf8"), "# Mine\n");
 });
 
 test("an import that outlives its deadline stops and says so; importing again finishes it", async () => {
