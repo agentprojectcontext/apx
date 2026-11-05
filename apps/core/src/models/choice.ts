@@ -1,5 +1,5 @@
 // Which model runs a turn. An agent's choice (or the install default) gives a model, the router, or both; the
-// router adds its first matching rule and its fallback chain. The result is an ordered list of model refs the turn
+// agent's own fallbacks follow its model, then the router adds its first matching rule and its fallback chain. The result is an ordered list of model refs the turn
 // tries until one engine answers. Nothing here names a model: they all come from settings.
 import type { ModelChoice, ModelRef, RouterConfig, RouterRule } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
@@ -55,7 +55,8 @@ export function ruleMatches(rule: RouterRule, f: TurnFeatures): boolean {
 /** The models to try for this turn, in order, without repeats. */
 export function candidates(choice: ModelChoice, router: RouterConfig, f: TurnFeatures): ModelRef[] {
   const out: ModelRef[] = [];
-  if (choice.model) out.push(choice.model);
+  // Fallbacks back a model of the agent's own; a router-only choice has none to back.
+  if (choice.model) out.push(choice.model, ...(choice.fallbacks ?? []));
   if (choice.router || !choice.model) {
     const rule = router.rules.find((r) => ruleMatches(r, f));
     if (rule) out.push(rule.model);

@@ -139,6 +139,26 @@ Tres lugares eligen modelo, del más puntual al más general:
 | Un agente | El panel del agente, o `apx agents model` | Un modelo fijo, un modelo con el router detrás (`--router`), el router solo, o el por defecto de la instalación. |
 | La instalación | `apx models default`, o la cadena del router | Todos los agentes que no eligieron otro. |
 
+### Los respaldos propios de un agente
+
+Un agente con modelo propio puede tener hasta cinco **modelos de respaldo**, en orden. Se eligen en el editor del
+agente, en **Modelo y equipo › Modelos de respaldo** (agregar, subir o bajar, quitar), con
+`apx agents model <agente> <ref> --fallbacks <ref>,<ref>`, o pidiéndoselo a tu super-agente ("ponele a Robina Groq y
+Gemini de respaldo"): te muestra el cambio y espera tu sí. Un agente que usa sólo el router no tiene respaldos; primero
+elegí su modelo.
+
+Cada turno prueba primero el modelo del agente. Si está en su límite de uso (retenido hasta su reinicio, como arriba) o
+falla después de sus intentos, el turno sigue con el primer respaldo libre, después con el siguiente, y recién después
+de toda la lista con la cadena del router, si el agente tiene el router detrás. A un modelo retenido por su límite no se
+le vuelve a preguntar antes del reinicio. Cuando se reinicia el límite del modelo principal, el turno siguiente vuelve a
+él solo. Un chat con su propio modelo elegido en el compositor mantiene los respaldos del agente detrás de ese modelo.
+
+Debajo de cada respuesta, la línea con el nombre del agente muestra el modelo que respondió, y **Con respaldo** cuando no
+fue el suyo; el aviso de arriba dice qué modelo no respondió y por qué.
+
+Los respaldos valen donde el turno lo corre el loop propio de APX. Una sesión de Claude Code, Codex o ACP corre su propia
+CLI con su propio modelo, así que ahí no se aplican.
+
 ## Consumo
 
 Cada turno anota su modelo y sus tokens, y si estaban **incluidos** en una suscripción o eran **medidos** (pagados por
@@ -201,7 +221,7 @@ router chain: gemini/gemini-3.8-flash → chatgpt/gpt-6-sol
 | `apx models default <engine/model \| engine \| router> [--router]` | Define el modelo por defecto de la instalación. |
 | `apx models chain <ref> [<ref>…]` | Define la cadena de respaldo del router, en orden. |
 | `apx models rules < rules.json` | Reemplaza las reglas del router (JSON por stdin). |
-| `apx agents model <agent> <ref \| router \| default> [--router]` | Define el modelo de un agente. |
+| `apx agents model <agent> <ref \| router \| default> [--router] [--fallbacks <ref>,<ref>]` | Define el modelo de un agente y sus respaldos en orden (`--fallbacks ""` los borra; sin la opción, un modelo nuevo los mantiene). |
 
 Un archivo de reglas es una lista. Todas las condiciones de `when` tienen que cumplirse; `model` es lo que elige la
 regla:

@@ -132,6 +132,26 @@ Three places pick a model, most specific first:
 | An agent | The agent's panel, or `apx agents model` | A fixed model, a model with the router behind it (`--router`), the router alone, or the install default. |
 | The install | `apx models default`, or the router's chain | Every agent without its own choice. |
 
+### An agent's own fallbacks
+
+An agent with a model of its own can have up to five **fallback models**, in order. Set them in the agent's editor,
+under **Model and team › Fallback models** (add, move up or down, remove), with
+`apx agents model <agent> <ref> --fallbacks <ref>,<ref>`, or ask your super-agent ("give Robina Groq and Gemini as
+fallbacks"): it shows you the change and waits for your yes. An agent on the router alone has no fallbacks; pick its
+model first.
+
+Each turn tries the agent's model first. If it is at its usage limit (held until its reset, as above) or fails after
+its tries, the turn goes on with the first fallback that is free, then the next one, and only after the whole list
+with the router's chain, when the agent has the router behind it. A model held for its limit is never asked again
+before its reset. Once the main model's limit resets, the next turn goes back to it by itself. A chat whose own model
+was picked in the composer keeps the agent's fallbacks behind that model.
+
+Under each reply, the line with the agent's name shows the model that answered, and **Fallback** when it was not the
+agent's own; the notice above it says which model did not answer and why.
+
+Fallbacks apply where APX's own loop runs the turn. A Claude Code, Codex or ACP session runs its own CLI with its own
+model, so an agent's fallbacks do not apply there.
+
 ## Usage
 
 Every turn records its model and tokens, and whether they were **included** in a subscription or **metered** (paid
@@ -192,7 +212,7 @@ router chain: gemini/gemini-3.8-flash → chatgpt/gpt-6-sol
 | `apx models default <engine/model \| engine \| router> [--router]` | Sets the install default. |
 | `apx models chain <ref> [<ref>…]` | Sets the router's fallback chain, in order. |
 | `apx models rules < rules.json` | Replaces the router's rules (JSON on stdin). |
-| `apx agents model <agent> <ref \| router \| default> [--router]` | Sets one agent's model. |
+| `apx agents model <agent> <ref \| router \| default> [--router] [--fallbacks <ref>,<ref>]` | Sets one agent's model, and its fallbacks in order (`--fallbacks ""` clears them; without it, a new model keeps them). |
 
 A rules file is a list. Every condition in `when` must hold; `model` is what the rule picks:
 

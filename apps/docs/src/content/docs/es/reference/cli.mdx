@@ -139,7 +139,7 @@ Hay dos tareas abiertas en Acme Store: el catálogo de primavera (en curso, Luc�
 | `apx agents clone <agent…>` | Copia agentes a un proyecto (`--project <id>`); `--rename` le da a cada uno un nombre libre, `--under <slug>` fija el padre. |
 | `apx agents archive <agent>` | Archiva un agente (el archivo de un agente de proyecto pasa a `.apc/agents/.archived/`). |
 | `apx agents archived` | Agentes archivados; `apx agents restore <agent>` trae uno de vuelta. |
-| `apx agents model <agent> <ref>` | Su modelo: `<engine>/<model>`, `<engine>`, `router` o `default`; `--router` deja el router como respaldo. |
+| `apx agents model <agent> <ref>` | Su modelo: `<engine>/<model>`, `<engine>`, `router` o `default`; `--router` deja el router como respaldo; `--fallbacks <ref>,<ref>` define sus modelos de respaldo en orden (`""` los borra). |
 | `apx projects [list]` | Los proyectos (un `!` marca una carpeta que no está). |
 | `apx projects register <folder>` | Registra una carpeta con `AGENTS.md` y/o `.apc/`. |
 | `apx projects create "<Name>"` | Un proyecto nuevo, en `--path <folder>` (se crea si falta) o en una carpeta propia en el home de APX; `--kind personal\|app\|company\|software\|other`, `--desc "…"`. |
