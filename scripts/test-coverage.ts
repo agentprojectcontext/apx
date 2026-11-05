@@ -280,9 +280,37 @@ async function runE2ESuites(
   return failed;
 }
 
+/** An area with more test files than this runs in parts, each with its own time limit (`AREA_MS`). */
+export const AREA_FILES = 160;
+/** How long one area (or part of one) may run: a slow runner gets room, a hung test still ends the run. */
+const AREA_MS = 10 * 60_000;
+
+export type UnitArea = { name: string; dir: string; files: string[] };
+
+/**
+ * The unit test files (relative to the root) by package, a large package dealt out in turn into parts of at most
+ * `AREA_FILES`: each part's slow and quick files mix as in the whole, and one part running out of time names itself.
+ */
+export function unitAreas(files: readonly string[], max = AREA_FILES): UnitArea[] {
+  const groups = new Map<string, string[]>();
+  for (const file of files) {
+    const dir = file.startsWith(`scripts${path.sep}`) ? "scripts" : file.split(path.sep).slice(0, 2).join(path.sep);
+    groups.set(dir, [...(groups.get(dir) ?? []), file]);
+  }
+  return [...groups].flatMap(([dir, group]) => {
+    const parts = Math.ceil(group.length / max);
+    if (parts <= 1) return [{ name: dir, dir, files: group }];
+    return Array.from({ length: parts }, (_, i) => ({
+      name: `${dir} ${i + 1}/${parts}`,
+      dir,
+      files: group.filter((_, n) => n % parts === i),
+    }));
+  });
+}
+
 /** The unit suites, area by area, then the mobile app's own; their coverage lands in `raw` and `nativeOutput`. */
 function runUnitSuites(root: string, raw: string, nativeOutput: string, snapshot: (directory: string) => void) {
-  let failed = false;
+  const failedAreas: string[] = [];
   const allTests = testFiles(root).filter(
     (file) =>
       file.includes(".test.") &&
@@ -291,38 +319,34 @@ function runUnitSuites(root: string, raw: string, nativeOutput: string, snapshot
       // The docs site installs on its own and its tests read the built site: Pages builds it, then runs them (check).
       !file.startsWith(path.join(root, "apps/docs")),
   );
-  const groups = new Map<string, string[]>();
-  for (const file of allTests) {
-    const relative = path.relative(root, file);
-    const area = relative.startsWith("scripts/") ? "scripts" : relative.split(path.sep).slice(0, 2).join(path.sep);
-    const group = groups.get(area) ?? [];
-    group.push(relative);
-    groups.set(area, group);
-  }
   // UI tests consume the public build, including JSX and the design-system export boundary.
   const build = spawnSync(process.execPath, ["scripts/build.mjs"], {
     cwd: path.join(root, "packages/ui"),
     stdio: "inherit",
   });
-  if (build.status !== 0) failed = true;
+  if (build.status !== 0) failedAreas.push("packages/ui build");
   snapshot(path.join(root, "packages/ui/dist"));
-  for (const [area, files] of groups) {
-    console.log(`\nCoverage: ${area} (${files.length} files)`);
-    const cwd = area === "scripts" ? root : path.join(root, area);
+  for (const area of unitAreas(allTests.map((file) => path.relative(root, file)))) {
+    console.log(`\nCoverage: ${area.name} (${area.files.length} files)`);
+    const cwd = area.dir === "scripts" ? root : path.join(root, area.dir);
     const run = spawnSync(
       process.execPath,
-      ["--test", ...files.map((file) => path.relative(cwd, path.join(root, file)))],
+      ["--test", ...area.files.map((file) => path.relative(cwd, path.join(root, file)))],
       {
         cwd,
         env: { ...process.env, NODE_V8_COVERAGE: raw, APX_UI_TEST_COVERAGE_DIR: raw },
         stdio: "inherit",
-        timeout: 10 * 60_000,
+        timeout: AREA_MS,
       },
     );
-    if (run.status !== 0) {
-      failed = true;
-      if (run.error) console.error(run.error.message);
-    }
+    if (run.status === 0) continue;
+    const timedOut = (run.error as NodeJS.ErrnoException | undefined)?.code === "ETIMEDOUT";
+    failedAreas.push(timedOut ? `${area.name} (out of time)` : area.name);
+    if (timedOut)
+      console.error(
+        `Coverage: ${area.name} was stopped after ${AREA_MS / 60_000} min; its files still running show as "still pending" above, not as failures of their own.`,
+      );
+    else if (run.error) console.error(run.error.message);
   }
   const mobile = spawnSync(
     process.platform === "win32" ? "npm.cmd" : "npm",
@@ -336,10 +360,11 @@ function runUnitSuites(root: string, raw: string, nativeOutput: string, snapshot
     },
   );
   if (mobile.status !== 0) {
-    failed = true;
+    failedAreas.push("apps/mobile (Jest)");
     if (mobile.error) console.error(mobile.error.message);
   }
-  return failed;
+  if (failedAreas.length) console.error(`\nCoverage: unit suites failed in ${failedAreas.join(", ")}`);
+  return failedAreas.length > 0;
 }
 
 type PartStatus = { failed: boolean; suites: string[] };
