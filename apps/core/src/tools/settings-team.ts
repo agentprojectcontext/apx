@@ -176,6 +176,11 @@ export const TEAM: Readonly<Record<string, Setting>> = {
     named: ["engine", "cwd"],
     says: (p) => `Bring the ${str(p.engine)} sessions of ${str(p.cwd)} into APX`,
   },
+  "hermes.import": {
+    does: "bring a Hermes home folder (path) into APX: agents, memory, skills, routines turned off, MCP servers; never secrets",
+    named: ["path"],
+    says: (p) => `Bring the Hermes setup in ${str(p.path)} into APX`,
+  },
   "sessions.adopt": {
     does: "hand an imported chat (thread) to another agent of its project (agent)",
     named: ["thread", "agent"],
