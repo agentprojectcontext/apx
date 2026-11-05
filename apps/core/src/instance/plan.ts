@@ -566,8 +566,15 @@ function planSkills(deps: ImportDeps, file: InstanceFile, c: Ctx) {
     });
     // The same path twice (case aside, as some disks read it) or a file where another needs a folder: not one folder.
     const folded = files.map((f) => f.path.toLowerCase());
-    const clash =
-      new Set(folded).size !== folded.length || folded.some((p) => folded.some((q) => q.startsWith(`${p}/`)));
+    const folders = new Set(
+      folded.flatMap((p) =>
+        p
+          .split("/")
+          .slice(0, -1)
+          .map((_s, i, parts) => parts.slice(0, i + 1).join("/")),
+      ),
+    );
+    const clash = new Set(folded).size !== folded.length || folded.some((p) => folders.has(p));
     if (files.length !== s.files.length || clash) {
       c.skip("skills", s.name, s.name, "invalid");
       continue;
