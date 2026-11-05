@@ -149,7 +149,8 @@ The steps above prove the code works; these prove the screen makes sense.
   makes first. No reference, no implementation: ask for one. The designer owns the screen; engineering roles do not
   design it alone, however small the first version.
 - **Implement:** build from `@apx/ui` components (`Select`, `SegmentedControl`, `MasterDetail`, `EmptyState`…),
-  never native controls or one-off layouts when a component exists. Fields take values a person knows; JSON, IDs and
+  never native controls or one-off layouts when a component exists; `pnpm check:ui` fails on a native control or a
+  literal colour in a screen. Fields take values a person knows; JSON, IDs and
   paths are for the CLI and docs. Write the copy with the screen, by rule 31: each fact once, each list item with
   only the action it needs.
 - **Review:** the designer opens the running build and attaches screenshots at desktop and phone width, in English

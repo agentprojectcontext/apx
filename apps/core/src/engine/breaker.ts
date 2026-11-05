@@ -51,7 +51,7 @@ function over(max: Limits, u: Limits | undefined): Extract<Trip, { limit: "runs"
 }
 
 /** The open task a chat works for: its own, or the one of a chat above it (a helper's caller, a consult's task). */
-export function taskOf(store: Store, threadId: string): Task | undefined {
+function taskOf(store: Store, threadId: string): Task | undefined {
   for (let id: string | undefined = threadId, hops = 0; id && hops < 5; hops++) {
     const thread = store.threads.get(id);
     const task = thread?.task_id ? store.tasks.get(thread.task_id) : store.tasks.byThread(id);
@@ -195,7 +195,7 @@ export function heldNotice(store: Store, threadId: string, who: string, task: st
 }
 
 /** The notice the owner sees when a result arrives while the chain is paused: `who` finished, write to go on. */
-export function pausedNotice(store: Store, threadId: string, who: string) {
+function pausedNotice(store: Store, threadId: string, who: string) {
   const t = trip(store, threadId);
   if (!t) return undefined;
   return {

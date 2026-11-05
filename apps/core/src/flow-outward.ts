@@ -167,7 +167,7 @@ export function flowOutwardIssues(
 }
 
 /** A test's own fake server is not refused for being on this computer; nothing else is let through. */
-export function allowedPrivateUrl(url: string, outside: FlowOutside | undefined): boolean {
+function allowedPrivateUrl(url: string, outside: FlowOutside | undefined): boolean {
   if (!outside?.allowHttp?.length || flowHttpUrlProblem(url) !== "private") return false;
   try {
     const u = new URL(url);

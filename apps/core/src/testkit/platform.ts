@@ -13,7 +13,7 @@ import { real, samePath } from "../paths.ts";
  * How much longer than on a developer's machine a wait may take here. CI sets it for slow runners (Windows); it only
  * stretches budgets, never what a test decides.
  */
-export const TIME_SCALE = (() => {
+const TIME_SCALE = (() => {
   const n = Number(process.env.TEST_TIME_SCALE);
   return Number.isFinite(n) && n >= 1 ? n : 1;
 })();

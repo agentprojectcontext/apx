@@ -27,7 +27,7 @@ export type NgrokProcess = {
 };
 export type NgrokStart = (args: string[]) => NgrokProcess;
 
-export function findNgrok(env: NodeJS.ProcessEnv = process.env): string | undefined {
+function findNgrok(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const name = process.platform === "win32" ? "ngrok.exe" : "ngrok";
   const dirs = [...(env.PATH ?? "").split(path.delimiter), "/opt/homebrew/bin", "/usr/local/bin"].filter(Boolean);
   for (const dir of dirs) if (fs.existsSync(path.join(dir, name))) return path.join(dir, name);

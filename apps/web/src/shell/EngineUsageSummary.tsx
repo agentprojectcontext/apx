@@ -2,7 +2,7 @@ import type { Result } from "@apx/protocol";
 import { Button, Help, Icons, Meter } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { currentLocale, type MessageKey, useT } from "../i18n/index.ts";
-import { windowLabel } from "./engineUsageModel.ts";
+import { remainingPercent, resetLabel, windowLabel } from "./engineUsageModel.ts";
 import { go } from "./nav.ts";
 import { UsageLoading } from "./UsageLoading.tsx";
 
@@ -147,9 +147,7 @@ function EngineBlock({ engine }: { engine: Report["engines"][number] }) {
           <div className="usage__block" key={window.id}>
             <div className="usage__headrow">
               <span className="usage__figure">{windowLabel(window, t)}</span>
-              <span className="usage__figure">
-                {t("engineUsage.remaining", { pct: Math.round(100 - window.used_percent) })}
-              </span>
+              <span className="usage__figure">{t("engineUsage.remaining", { pct: remainingPercent(window) })}</span>
             </div>
             <Meter
               size="sm"
@@ -159,7 +157,7 @@ function EngineBlock({ engine }: { engine: Report["engines"][number] }) {
               valueText={t("engineUsage.used", { pct: Math.round(window.used_percent) })}
             />
             {window.resets_at && (
-              <p className="usage__note">{t("engineUsage.resets", { at: dateLabel(window.resets_at) })}</p>
+              <p className="usage__note">{resetLabel(window.resets_at, new Date(), currentLocale(), t)}</p>
             )}
           </div>
         ))}

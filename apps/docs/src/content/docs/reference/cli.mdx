@@ -142,7 +142,7 @@ Two tasks are open in Acme Store: the spring catalog (in progress, Lucía) and t
 | `apx agents clone <agent…>` | Copy agents into a project (`--project <id>`); `--rename` gives each a free name, `--under <slug>` sets the parent. |
 | `apx agents archive <agent>` | Archive an agent (a project agent's file moves to `.apc/agents/.archived/`). |
 | `apx agents archived` | Archived agents; `apx agents restore <agent>` brings one back. |
-| `apx agents model <agent> <ref>` | Its model: `<engine>/<model>`, `<engine>`, `router` or `default`; `--router` keeps the router as its fallback. |
+| `apx agents model <agent> <ref>` | Its model: `<engine>/<model>`, `<engine>`, `router` or `default`; `--router` keeps the router as its fallback; `--fallbacks <ref>,<ref>` sets its own fallback models in order (`""` clears them). |
 | `apx projects [list]` | Projects (a `!` marks a folder that is missing). |
 | `apx projects register <folder>` | Register a folder with `AGENTS.md` and/or `.apc/`. |
 | `apx projects create "<Name>"` | A new project, in `--path <folder>` (made if missing) or a folder of its own in APX's home; `--kind personal\|app\|company\|software\|other`, `--desc "…"`. |

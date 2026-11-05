@@ -7,7 +7,6 @@ type T = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
 // The edits an agent's tool makes too live in the protocol package, so both draw alike.
 export { connectionError, connectNodes, disconnectNodes, newNode, removeNode } from "@apx/protocol/flow-edit";
-export type NodeKind = FlowNode["kind"];
 
 /** A check in the form that has cases: one drawn before them keeps its value as its "yes" case. */
 export function withCases(n: Condition): Condition & { cases: NonNullable<Condition["cases"]> } {
@@ -33,7 +32,6 @@ export function removeCase(graph: FlowGraph, check: string, id: string): FlowGra
     edges: graph.edges.filter((e) => !(e.source === check && (e.when ?? "yes") === id)),
   };
 }
-export { FLOW_OTHERWISE };
 export function moveNode(graph: FlowGraph, id: string, x: number, y: number): FlowGraph {
   const point = { node: id, x: Math.max(-100000, Math.min(100000, x)), y: Math.max(-100000, Math.min(100000, y)) };
   return { ...graph, layout: [...graph.layout.filter((p) => p.node !== id), point] };

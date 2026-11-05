@@ -26,6 +26,7 @@ export function isPreviewHeight(m: unknown, key: string): m is PreviewHeight {
 export function htmlPreviewDoc(html: string, nonce: string, opts: { scripts?: boolean } = {}): string {
   const key = JSON.stringify(nonce);
   const scripts = opts.scripts === true;
+  // ui: the preview is an outside page, drawn light as a browser would draw it.
   const head = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp(nonce, scripts)}">
 <style>html{color-scheme:light;background:#fff;color:#111;font-family:system-ui,sans-serif}</style>
 <script${scripts ? "" : ` nonce="${nonce}"`}>(function(){var last=0;function size(){var h=Math.ceil(document.documentElement.offsetHeight);if(h!==last){last=h;parent.postMessage({apxPreview:${key},height:h},"*");}}

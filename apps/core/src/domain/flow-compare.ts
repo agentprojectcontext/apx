@@ -16,7 +16,7 @@ export type FlowOperandReads = {
  * One side's value: a placeholder alone gives its value as it is, anything else the filled text. A field the data
  * lacks reads as absent; a step whose answer isn't there yet throws (the check can't be told).
  */
-export function flowOperand(template: string, reads: FlowOperandReads): unknown {
+function flowOperand(template: string, reads: FlowOperandReads): unknown {
   const resolve = (b: FlowBinding) => {
     try {
       return reads.resolve(b);

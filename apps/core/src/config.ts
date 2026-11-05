@@ -14,7 +14,7 @@ export const defaultHome = () => path.join(os.homedir(), ".apx", "v2");
 /** Where v2 lived before it moved into ~/.apx (moved once, at start: see home.ts). */
 export const legacyHome = () => path.join(os.homedir(), ".apx2");
 
-export type ProviderTransport = "openai-chat" | "anthropic-messages" | "chatgpt-responses";
+type ProviderTransport = "openai-chat" | "anthropic-messages" | "chatgpt-responses";
 
 /** A model API. `key` is a reference (secret://name, env:VAR, or oauth:<login> for a sign-in), never the value. */
 export type ProviderConfig = {
@@ -37,7 +37,7 @@ export type ProviderConfig = {
 export type LocalApp = { id: string; label: string; port: number };
 
 /** Ollama and LM Studio at their usual ports. */
-export const LOCAL_APPS: LocalApp[] = [
+const LOCAL_APPS: LocalApp[] = [
   { id: "ollama", label: "Ollama", port: 11434 },
   { id: "lmstudio", label: "LM Studio", port: 1234 },
 ];
@@ -193,7 +193,7 @@ function localApps(v: string | undefined): LocalApp[] {
 }
 
 /** `<home>/core.env` (written by `apx expose`) as defaults under the process environment, which always wins. */
-export function withCoreEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+function withCoreEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const home = env.APX_HOME ?? defaultHome();
   let text: string;
   try {

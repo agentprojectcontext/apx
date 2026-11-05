@@ -97,4 +97,3 @@ export function createStore(db: Db, bus: Bus) {
 }
 
 export type Store = ReturnType<typeof createStore>;
-export type { AgentRecord } from "./agents.ts";

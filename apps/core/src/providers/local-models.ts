@@ -8,7 +8,7 @@ import { NO_KEY } from "./llm.ts";
 
 const HOST = "127.0.0.1";
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
-export const LOCAL_TIMEOUT_MS = 1500;
+const LOCAL_TIMEOUT_MS = 1500;
 const CHECK_EVERY_MS = 10 * 60_000;
 
 /** The `host:port` of a loopback address, so "localhost:11434" and "127.0.0.1:11434" are one server; else none. */
@@ -30,8 +30,6 @@ export async function localModelIds(base: string, fetchImpl: typeof fetch = fetc
   const body = (await res.json()) as { data?: Array<{ id?: unknown }> };
   return (body.data ?? []).flatMap((m) => (typeof m.id === "string" ? [m.id] : []));
 }
-
-export type LocalModels = ReturnType<typeof createLocalModels>;
 
 export function createLocalModels(deps: {
   store: Store;

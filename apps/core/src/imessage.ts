@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-export type IMessage = { handle: string; from_me: boolean; text: string; at: string };
+type IMessage = { handle: string; from_me: boolean; text: string; at: string };
 
 export type IMessageOps = {
   recent(o: { with?: string | undefined; limit: number }): Promise<IMessage[]>;

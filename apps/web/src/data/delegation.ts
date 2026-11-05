@@ -37,7 +37,7 @@ export function refreshDelegation(thread: string, force = false): Promise<void> 
   return pending;
 }
 
-export { type DelegationState, delegationState, latestDelegatedRun } from "@apx/protocol/delegation";
+export { delegationState, latestDelegatedRun } from "@apx/protocol/delegation";
 
 /** The core checks the run again atomically, so another click cannot queue a duplicate or interrupt new work. */
 export async function continueDelegation(thread: string, run: string): Promise<void> {

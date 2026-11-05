@@ -10,7 +10,7 @@ type Fetch = typeof fetch;
 export type Audio = { path: string; bytes: Buffer; mime: string };
 
 /** A minute of speech takes seconds on a local GPU; a stuck server must not hold a message forever. */
-export const TRANSCRIBE_TIMEOUT_MS = 3 * 60_000;
+const TRANSCRIBE_TIMEOUT_MS = 3 * 60_000;
 
 async function whisperLocal(s: ServiceConfig, a: Audio, signal: AbortSignal, f: Fetch): Promise<string> {
   const res = await f(joinUrl(s.base_url, "/transcribe"), {

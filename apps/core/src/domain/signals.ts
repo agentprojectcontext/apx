@@ -6,21 +6,21 @@ import type { Task } from "@apx/protocol";
 import type { Store } from "./store.ts";
 
 /** Fixed thresholds; the rest come from the running profile (waiting hours, a commitment's lead, a quiet project). */
-export const WATCH = {
+const WATCH = {
   /** A task this many days late is serious. */
   lateDays: 7,
   /** The same signal is told again only after this long. */
   repeatHours: 24,
 };
 
-export type SignalKind =
+type SignalKind =
   | "overdue_task"
   | "waiting_owner"
   | "commitment_due"
   | "overdue_commitment"
   | "stale_project"
   | "broken_task";
-export type Severity = "low" | "normal" | "high" | "critical";
+type Severity = "low" | "normal" | "high" | "critical";
 export type Signal = {
   /** Stable across runs ("overdue_task:tsk_…"): how a signal already told is recognized. */
   key: string;

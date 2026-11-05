@@ -4,9 +4,9 @@ import path from "node:path";
 // Files the owner opens with APX (double-click, "Open with", dropped on the Dock icon): kept until the panel takes them.
 
 /** The file types APX registers; only .apxart installs today. */
-export const OPENED_EXTS = [".apxart", ".apxapp", ".apxext"] as const;
+const OPENED_EXTS = [".apxart", ".apxapp", ".apxext"] as const;
 /** Larger than any artifact with its memory; a bigger file is refused unread. */
-export const OPENED_MAX_BYTES = 64 * 1024 * 1024;
+const OPENED_MAX_BYTES = 64 * 1024 * 1024;
 
 export type OpenedFile = { name: string; text?: string; error?: "too-big" | "unreadable" };
 

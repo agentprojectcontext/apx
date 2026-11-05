@@ -5,7 +5,7 @@ import { ownerTimeZone } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
 
 /** At most this many pieces in one team news (the newest), each cut to this many characters. */
-export const TEAM_NEWS_MAX = 30;
+const TEAM_NEWS_MAX = 30;
 const PIECE_CHARS = 1200;
 
 /** Who it came from: "April (april-check)" for a routine's news, the agent's name for its notice. */

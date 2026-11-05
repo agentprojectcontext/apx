@@ -31,7 +31,7 @@ export function withStored(loaded: DocumentPart[], stored: readonly DocRef[]): D
   return [...loaded.map(docRef), ...stored.filter((d) => !seen.has(d.media_id))];
 }
 
-export function isDocument(part: Part): part is DocumentPart {
+function isDocument(part: Part): part is DocumentPart {
   return part.type === "file" && part.document !== undefined;
 }
 

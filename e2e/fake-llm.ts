@@ -368,6 +368,11 @@ export async function fakeLlm() {
       const relay = ownerCheck(body.messages ?? []);
       const said = relay && "said" in relay ? relay.said : lastWords(body.messages ?? []);
       calls.push({ model: body.model ?? "", said });
+      // A plan out of its usage limit: an agent with fallbacks goes on with the next model.
+      if (body.model === "fake-limited") {
+        res.writeHead(429, { "content-type": "application/json" });
+        return res.end(JSON.stringify({ error: { type: "usage_limit_reached", message: "usage limit reached" } }));
+      }
       const system = String(body.messages?.[0]?.content ?? "");
       const slow = system.startsWith("You are Slow researcher, a worker");
       const staggered = system.startsWith("You are Staggered researcher, a worker");

@@ -2,9 +2,10 @@ import type { Result } from "@apx/protocol";
 import { IconButton, Icons, Popover, Skeleton } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
-import { usePack, useT } from "../i18n/index.ts";
-import EngineUsageQuick, { quickWindows } from "./EngineUsageQuick.tsx";
+import { currentLocale, usePack, useT } from "../i18n/index.ts";
+import EngineUsageQuick from "./EngineUsageQuick.tsx";
 import EngineUsageSummary from "./EngineUsageSummary.tsx";
+import { quickWindows, usageLines } from "./engineUsageModel.ts";
 import { UsageLoading } from "./UsageLoading.tsx";
 import { useVisible } from "./useVisible.ts";
 import "../styles/usage.css";
@@ -43,16 +44,15 @@ export default function EngineUsageButton() {
     };
   }, [visible, open, load, onReport]);
   const previews = quickWindows(quick);
-  const tooltip = [
-    t("engineUsage.title"),
-    ...previews.map(({ engine, window, remaining }) =>
-      t("engineUsage.quick", {
-        engine: engine.label,
-        pct: remaining,
-        window: window.window_minutes ? `${window.window_minutes} min` : window.id,
-      }),
-    ),
-  ].join("\n");
+  const lines = usageLines(quick, new Date(), currentLocale(), t);
+  const tooltip = (
+    <span className="engine-usage-tip">
+      <strong>{t("engineUsage.title")}</strong>
+      {lines.map((line) => (
+        <span key={line}>{line}</span>
+      ))}
+    </span>
+  );
   return (
     <Popover
       align="end"

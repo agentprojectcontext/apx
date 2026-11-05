@@ -136,6 +136,7 @@ export function pageHeader(url: string, t: T): string {
 export function hexOf(css: string | undefined): string {
   if (css && /^#[0-9a-f]{6}$/i.test(css)) return css.toLowerCase();
   const m = css?.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/);
+  // ui: a value for the native colour input, not a colour on screen.
   if (!m) return "#000000";
   return `#${[m[1], m[2], m[3]].map((v) => Number(v).toString(16).padStart(2, "0")).join("")}`;
 }

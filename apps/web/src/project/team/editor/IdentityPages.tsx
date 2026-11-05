@@ -16,7 +16,7 @@ import {
 } from "@apx/ui";
 import { useState } from "react";
 import { slugOf } from "../../../common/slug.ts";
-import { AgentModelPicker } from "../../../config/models/AgentModelPicker.tsx";
+import { AgentFallbacks, AgentModelPicker } from "../../../config/models/AgentModelPicker.tsx";
 import { DEFAULT_PID } from "../../../data/identity.ts";
 import { saveOrg, useOrg } from "../../../data/org.ts";
 import { useData } from "../../../data/state.ts";
@@ -340,6 +340,11 @@ export function TeamPage({
       <SettingRow title={t("agentedit.model")} description={t("agentedit.modelHint")}>
         <AgentModelPicker agent={agent} />
       </SettingRow>
+      {agent.model_choice?.model && (
+        <SettingRow stacked title={t("agentedit.fallbacks")} description={t("agentedit.fallbacksHint")}>
+          <AgentFallbacks agent={agent} />
+        </SettingRow>
+      )}
       {!isSuper && (
         <SettingRow title={t("agentedit.parent")} description={t("agentedit.parentHint")}>
           <Select

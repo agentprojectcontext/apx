@@ -1,5 +1,5 @@
 /** The guest's unprivileged probe user: it has no screen; setup checks the firewall and the admin boundary as it. */
-export const VM_WORKER = "apx-worker";
+const VM_WORKER = "apx-worker";
 export const MAX_SCREEN = 999;
 
 export type ScreenUser = { screen: number; user: string; uid: number; display: string; home: string; work: string };

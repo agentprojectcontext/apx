@@ -162,6 +162,11 @@ export function choiceLabel(choice: ModelChoice, catalog: readonly CatalogEngine
       : t(config?.router.rules.length ? "models.routerRules" : "models.router");
   }
   const m = shortRef(choice.model, catalog);
+  const n = choice.fallbacks?.length ?? 0;
+  if (n) {
+    const key = choice.router ? "models.withFallbacksRouter" : "models.withFallbacks";
+    return t(n === 1 ? `${key}.one` : `${key}.other`, { model: m, n });
+  }
   return choice.router ? t("models.withRouter", { model: m }) : m;
 }
 

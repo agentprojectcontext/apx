@@ -4,17 +4,16 @@ import type { ComputerMemoryRefusal } from "@apx/protocol";
 const GIB = 1024 ** 3;
 
 export type ComputerResources = { memory_gib: number; cpus: number; disk_gib: number };
-export type Range = { min: number; max: number };
+type Range = { min: number; max: number };
 export type ResourceLimits = { memory_gib: Range; cpus: Range; disk_gib: Range };
 export type Host = { memoryBytes: number; cpus: number };
 
 /** Free host memory a start must leave beside the VM's own, so the Mac keeps working. */
-export const START_RESERVE_GIB = 2;
+const START_RESERVE_GIB = 2;
 /** Below this much free host memory the watchdog stops a running VM (lower than the start reserve, so it never flaps). */
 export const STOP_BELOW_GIB = 1;
 /** Free disk a new guest disk must leave on its volume. */
-export const DISK_RESERVE_GIB = 2;
-export const DEFAULT_IDLE_MINUTES = 30;
+const DISK_RESERVE_GIB = 2;
 
 export const thisHost = (): Host => ({ memoryBytes: os.totalmem(), cpus: os.availableParallelism() });
 

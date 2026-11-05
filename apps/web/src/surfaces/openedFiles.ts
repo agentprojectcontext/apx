@@ -8,7 +8,7 @@ import { openInstall } from "./installRequest.ts";
 const kindOf = (name: string) => /\.(apxart|apxapp|apxext)$/i.exec(name)?.[1]?.toLowerCase();
 
 /** An .apxart opens the install dialog with it; .apxapp and .apxext do not install from a file yet. */
-export function openApxFile(file: File): void {
+function openApxFile(file: File): void {
   const kind = kindOf(file.name);
   if (kind === "apxart") openInstall(undefined, file);
   else if (kind) notify(t("artifact.fileNotYet", { name: file.name }), "info");

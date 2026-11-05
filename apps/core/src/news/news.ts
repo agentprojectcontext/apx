@@ -216,7 +216,7 @@ const voicePrompt = (boss: { name: string; personality?: string | undefined }) =
   `You are ${boss.name}, the owner's assistant in APX, the app you run in.${boss.personality ? ` Your personality: ${boss.personality}` : ""}`;
 
 /** A few hundred characters: what is new for this owner, and how the message should read. */
-export function newsInput(told: NewsEntry[], lang: string, moreActions: number, talk?: string): string {
+function newsInput(told: NewsEntry[], lang: string, moreActions: number, talk?: string): string {
   const items = told.map((e) => `- ${e.text}`).join("\n");
   const offers = told
     .flatMap((e) => (told.length === 1 ? e.actions : e.actions.slice(0, 1)))

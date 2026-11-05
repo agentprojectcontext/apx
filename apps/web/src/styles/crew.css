@@ -27,8 +27,8 @@
   pointer-events: none;
   background:
     radial-gradient(560px 360px at 50% 42%, color-mix(in srgb, var(--apx-brand) 14%, transparent), transparent 70%),
-    radial-gradient(460px 280px at 32% 30%, rgba(139, 92, 246, 0.1), transparent 70%),
-    radial-gradient(460px 280px at 68% 34%, rgba(255, 122, 26, 0.08), transparent 70%);
+    radial-gradient(460px 280px at 32% 30%, color-mix(in srgb, var(--apx-violet) 10%, transparent), transparent 70%),
+    radial-gradient(460px 280px at 68% 34%, color-mix(in srgb, var(--apx-warning) 8%, transparent), transparent 70%);
   transform: translateX(-50%);
   mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 70%, transparent);
   transition: opacity 0.9s;

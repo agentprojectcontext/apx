@@ -17,7 +17,7 @@ export type PanelKind =
   | "processes"
   | "document";
 
-export type View =
+type View =
   | "inbox"
   | "project"
   | "app"

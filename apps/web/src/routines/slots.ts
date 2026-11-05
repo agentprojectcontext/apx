@@ -2,7 +2,7 @@ import type { RoutineRun, Schedule } from "@apx/protocol";
 import { weeklyOf } from "./cron.ts";
 
 /** How many activations a routine's row shows. */
-export const SLOTS = 14;
+const SLOTS = 14;
 /** A run that starts a little before its time (clock skew) still counts for that time. */
 const GRACE = 60_000;
 

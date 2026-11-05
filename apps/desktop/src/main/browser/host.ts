@@ -51,7 +51,7 @@ export function blockAppOrigins(urls: string[]): void {
   blockedPorts = new Set(urls.map((u) => new URL(u).port || "80"));
 }
 
-export const assertNavigable = (url: string): void => checkNavigable(url, blockedPorts);
+const assertNavigable = (url: string): void => checkNavigable(url, blockedPorts);
 
 export class BrowserHost extends EventEmitter<{ changed: [] }> {
   #tabs = new Map<string, Tab>();

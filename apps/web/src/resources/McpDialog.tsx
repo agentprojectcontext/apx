@@ -8,7 +8,7 @@ import { type Pair, PairsEditor, pairsToRecord } from "./PairsEditor.tsx";
 const NAME = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,40}$/;
 
 /** A command line split on spaces, keeping "quoted parts" together. */
-export function splitCommand(line: string): string[] {
+function splitCommand(line: string): string[] {
   return [...line.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)].map((m) => m[1] ?? m[2] ?? m[3] ?? "");
 }
 

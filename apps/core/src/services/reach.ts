@@ -5,10 +5,10 @@ import { joinUrl, type ServiceConfig } from "./types.ts";
 type Fetch = typeof fetch;
 
 /** How long the owner's own "Test connection" waits: a LAN server that drops packets says nothing at all. */
-export const TEST_TIMEOUT_MS = 5000;
+const TEST_TIMEOUT_MS = 5000;
 
 /** The headers a service reads its key from: Gemini its own, the rest a bearer token (or x-api-key). */
-export function keyHeaders(s: Pick<ServiceConfig, "dialect">, key: string | undefined): Record<string, string> {
+function keyHeaders(s: Pick<ServiceConfig, "dialect">, key: string | undefined): Record<string, string> {
   if (!key) return {};
   return s.dialect.startsWith("gemini-")
     ? { "x-goog-api-key": key }
@@ -18,7 +18,7 @@ export function keyHeaders(s: Pick<ServiceConfig, "dialect">, key: string | unde
 const EMBED_HINT = /embed|bge|e5|gte|minilm|nomic|arctic|mxbai/i;
 
 /** The models in a listing (Ollama's tags, an OpenAI-compatible /models, Gemini's), embedding ones first. */
-export function modelNames(s: Pick<ServiceConfig, "dialect" | "kind">, body: unknown): string[] | undefined {
+function modelNames(s: Pick<ServiceConfig, "dialect" | "kind">, body: unknown): string[] | undefined {
   const b = body as {
     models?: Array<{ name?: string; supportedGenerationMethods?: string[] }>;
     data?: Array<{ id?: string }>;

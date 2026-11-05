@@ -28,7 +28,7 @@ const GIB = 1024 ** 3;
 const PROBE_MS = 1_200;
 
 /** What the owner set for the VM, held to this host's limits; read at each start, so a change applies on the next one. */
-export const ownerResources = (store: Store): ComputerResources =>
+const ownerResources = (store: Store): ComputerResources =>
   resolveResources(store.settings.read("computer"), thisHost());
 
 /** Construction and status are inert until an owner explicitly enables the computer. */

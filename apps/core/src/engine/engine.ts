@@ -34,12 +34,12 @@ import { askedIn, editInLine, lineOf, removeFromLine, reorderLine } from "./wait
  * A turn on our own loop ends after this long without progress (a token, a tool's result): a long browser or
  * computer session keeps going while it works, and its step limit bounds it. See DECISIONS.md#d-067
  */
-export const RUN_DEADLINE_MS = 6 * 60_000;
+const RUN_DEADLINE_MS = 6 * 60_000;
 /**
  * A session with an outside engine (Claude Code, Codex, an ACP agent) has no time limit while it works: it ends
  * only after this long without a single event from it. See DECISIONS.md#d-061
  */
-export const ENGINE_IDLE_MS = 20 * 60_000;
+const ENGINE_IDLE_MS = 20 * 60_000;
 /** Time a turn gets back after the owner answers, even if its clock had almost run out. */
 const AFTER_ANSWER_MS = 60_000;
 /** How often a working engine's moving deadline is written to its run (not on every streamed token). */

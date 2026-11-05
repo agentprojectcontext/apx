@@ -10,7 +10,7 @@ import { defineTool, type Tool } from "./types.ts";
 type Waiting = { code: string; channel: string; external_id: string; created_at: string };
 
 /** "WhatsApp +5491100000002" or "Telegram": what is known of a request without the name the stranger chose. */
-export function whereFrom(store: Store, r: Pick<Waiting, "channel" | "external_id">): string {
+function whereFrom(store: Store, r: Pick<Waiting, "channel" | "external_id">): string {
   const cfg = store.settings.read("channels").find((c) => c.id === r.channel);
   const label = cfg?.label ?? r.channel;
   const phone = cfg?.type === "whatsapp" ? /^(\d{6,})@s\.whatsapp\.net$/.exec(r.external_id)?.[1] : undefined;

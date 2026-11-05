@@ -1,5 +1,5 @@
 // Deterministic flow predicates: webhook data is never executable code.
-export type FlowScalar = string | number | boolean | null;
+type FlowScalar = string | number | boolean | null;
 export type FlowPredicate = { path: string[]; equals: FlowScalar };
 
 const FORBIDDEN_KEYS = new Set(["__proto__", "prototype", "constructor"]);

@@ -22,7 +22,7 @@ const BURST_MS = 8_000;
 const REPORT_MS = 30 * 60_000;
 
 /** v1's criterion when the owner wrote none: speak only when it adds something concrete. */
-export const DEFAULT_REPLY_WHEN =
+const DEFAULT_REPLY_WHEN =
   "Reply only when you can add something concrete: a direct question about the project that the notes or the conversation let you answer, a factual mistake you can correct, or a link someone is clearly looking for. Stay silent on greetings, thanks, jokes, opinions, people talking to each other, and questions someone else already answered.";
 
 const GATE_SYSTEM =

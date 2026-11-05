@@ -57,7 +57,7 @@ export function dueEvents(
 }
 
 /** One line per event, in the owner's language and time zone: when, how soon, what and where. */
-export function eventTexts(store: Store, events: readonly CalendarEvent[], now: Date): string[] {
+function eventTexts(store: Store, events: readonly CalendarEvent[], now: Date): string[] {
   const texts = channelTexts(store);
   const tz = ownerTimeZone(store);
   const clock = new Intl.DateTimeFormat(texts.locale, {

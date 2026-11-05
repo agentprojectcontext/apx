@@ -174,7 +174,7 @@ test("integrations: GitHub is connected with a token, then disconnected", async 
 
 test("integrations: Connect opens its dialog inside a project too", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: /^Northwind/ }).click();
+  await page.getByRole("button", { name: "Northwind", exact: true }).click();
   await page.getByRole("tab", { name: "Recursos" }).click();
   await page.getByRole("radio", { name: /^Integraciones/ }).click();
   await page.getByRole("button", { name: "Conectar", exact: true }).click();

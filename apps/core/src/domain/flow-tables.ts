@@ -45,7 +45,7 @@ const emptyCell = (value: unknown) =>
   (typeof value === "object" && value !== null && !Array.isArray(value) && Object.keys(value).length === 0);
 
 /** The required columns a row would leave empty. */
-export const emptyRequired = (required: readonly string[], row: unknown): string[] => {
+const emptyRequired = (required: readonly string[], row: unknown): string[] => {
   const cells = tableCells(row);
   return required.filter((c) => emptyCell(Object.hasOwn(cells, c) ? cells[c] : undefined));
 };
@@ -57,7 +57,7 @@ const parsed = (r: { key: string; value: string; updated_at: string }): FlowTabl
 });
 
 /** A key as it will be stored: one line of at most 128 characters, never a credential. */
-export function flowRowKey(key: string): string {
+function flowRowKey(key: string): string {
   const k = key.trim();
   if (!k || k.length > 128 || /[\r\n\0]/.test(k) || redactedJson(k) !== JSON.stringify(k))
     throw new Error("Invalid flow row key");
