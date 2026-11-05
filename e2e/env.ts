@@ -15,6 +15,7 @@ import { fakeTelegram } from "../apps/core/src/channels/fake-telegram.test-suppo
 import { fakeGoogle } from "../apps/core/src/integrations/fake-google.test-support.ts";
 import { compileCacheEnv } from "../scripts/compile-cache.ts";
 import { fakeLlm } from "./fake-llm.ts";
+import { fakeLocalModels } from "./fake-local-models.ts";
 import { writeFixtures } from "./fixtures.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -45,6 +46,7 @@ dc.guild.channels = [
   },
 ];
 const sl = await fakeSlack(E2E.slackTokens);
+const localApp = await fakeLocalModels(llm.url);
 const google = await fakeGoogle();
 // A service on this computer that Flow HTTP steps may call (the only one: APX_FLOW_HTTP_ALLOW); it keeps what came.
 const calls: { method?: string; url?: string; headers: http.IncomingHttpHeaders; body: string }[] = [];
@@ -102,6 +104,8 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_IMESSAGE: "off",
     // Never the machine's own Ollama: memory's local embedding models are looked for where nothing answers.
     APX_OLLAMA_URL: "http://127.0.0.1:9",
+    // Never the machine's own Ollama or LM Studio either: the only model app on "this computer" is the fake one.
+    APX_LOCAL_MODELS: `ollama:${localApp.port}`,
     E2E_WA_PORT: String(E2E.whatsapp),
     E2E_DESKTOP_TRASH_RECORD: desktopTrashRecord,
     E2E_PROJECT_ROOT: fx.repo,
@@ -183,6 +187,12 @@ const control = http.createServer((req, res) => {
       return json(200, { sent: sl.messagesTo(sl.dm(user)).map((s) => ({ text: s.body.text })) });
     }
     if (req.url === "/llm/calls") return json(200, { calls: llm.calls.length });
+    // The model app on this computer opened or closed.
+    if (req.url === "/local-models" && req.method === "POST") {
+      localApp.set(body.open === true);
+      return json(200, { ok: true });
+    }
+    if (req.url === "/local-models") return json(200, { chats: localApp.chats() });
     if (req.url === "/desktop/trash")
       return json(200, {
         paths: fs.existsSync(desktopTrashRecord)
@@ -230,6 +240,7 @@ const stop = async () => {
     llm.close(),
     tg.close(),
     google.close(),
+    localApp.close(),
     new Promise((r) => control.close(r)),
     new Promise((r) => service.close(r)),
   ]);
