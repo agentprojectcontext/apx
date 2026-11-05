@@ -78,7 +78,7 @@ export type InstanceDeps = {
 
 export const agentShape = (a: AgentRecord): InstanceFile["agents"][number] => InstanceAgent.parse(a);
 
-export const projectShape = (p: ProjectRecord, userHome: string): InstanceProject => ({
+const projectShape = (p: ProjectRecord, userHome: string): InstanceProject => ({
   id: p.id,
   name: p.name,
   ...(p.path ? { path: tildeHome(p.path, userHome) } : {}),
@@ -89,7 +89,7 @@ export const projectShape = (p: ProjectRecord, userHome: string): InstanceProjec
 });
 
 export const routineShape = (r: Routine) => InstanceRoutine.parse(r);
-export const memoryShape = (m: Memory) => InstanceMemory.parse(m);
+const memoryShape = (m: Memory) => InstanceMemory.parse(m);
 
 /** A variable's value travels only as a reference: one typed as text (a password in a URL, say) goes empty. */
 const references = (r: Record<string, string>) =>
@@ -123,7 +123,7 @@ export const ownMcps = (store: Store) =>
     .global()
     .filter((d) => d.own);
 
-export function tableShape(store: Store, project: string, name: string, rows: boolean): InstanceTable | undefined {
+function tableShape(store: Store, project: string, name: string, rows: boolean): InstanceTable | undefined {
   const t = store.flowTables.get(project, name);
   if (!t) return undefined;
   return {
@@ -149,7 +149,7 @@ function allTableRows(store: Store, project: string, name: string) {
   return out.reverse();
 }
 
-export function flowShape(store: Store, id: string, rows: boolean): InstanceFlow | undefined {
+function flowShape(store: Store, id: string, rows: boolean): InstanceFlow | undefined {
   const definition = store.flows.get(id);
   if (!definition) return undefined;
   const doc = store.flowGraphs.get(id);

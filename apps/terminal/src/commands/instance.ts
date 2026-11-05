@@ -50,7 +50,7 @@ export async function exportInstance(
 }
 
 /** The preview as lines: counts by section, then what arrives off or is left out, then the secrets to fill. */
-export function planLines(plan: InstancePlan): string[] {
+function planLines(plan: InstancePlan): string[] {
   const lines: string[] = [];
   for (const [section, label] of Object.entries(SECTIONS)) {
     const items = plan.items.filter((i) => i.section === section);

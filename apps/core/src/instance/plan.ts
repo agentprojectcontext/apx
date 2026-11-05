@@ -61,7 +61,7 @@ export class InstanceRefused extends Error {
   }
 }
 
-export function readInstanceFile(raw: unknown): InstanceFile {
+function readInstanceFile(raw: unknown): InstanceFile {
   const head = z.object({ format: z.unknown(), version: z.unknown() }).safeParse(raw);
   if (!head.success || head.data.format !== INSTANCE_FORMAT)
     throw new InstanceRefused("not_export", "This file is not an APX export");
@@ -119,7 +119,7 @@ const short = (text: string) => (text.length > 80 ? `${text.slice(0, 79)}…` : 
 const insideSkill = (p: string) =>
   !path.isAbsolute(p) && !p.includes("\\") && p.split("/").every((s) => s && s !== "." && s !== "..") ? p : undefined;
 
-export function planImport(deps: ImportDeps, raw: unknown) {
+function planImport(deps: ImportDeps, raw: unknown) {
   const file = readInstanceFile(raw);
   const { store } = deps;
   const known = knownSecrets(deps.secrets);
