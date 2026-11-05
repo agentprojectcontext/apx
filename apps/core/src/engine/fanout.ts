@@ -203,5 +203,3 @@ export function createFanout(deps: {
     },
   };
 }
-
-export type Fanout = ReturnType<typeof createFanout>;

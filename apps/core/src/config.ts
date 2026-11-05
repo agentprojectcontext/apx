@@ -37,7 +37,7 @@ export type ProviderConfig = {
 export type LocalApp = { id: string; label: string; port: number };
 
 /** Ollama and LM Studio at their usual ports. */
-export const LOCAL_APPS: LocalApp[] = [
+const LOCAL_APPS: LocalApp[] = [
   { id: "ollama", label: "Ollama", port: 11434 },
   { id: "lmstudio", label: "LM Studio", port: 1234 },
 ];

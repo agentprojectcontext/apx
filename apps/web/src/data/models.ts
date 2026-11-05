@@ -17,7 +17,7 @@ type ModelsState = {
   config: ModelsConfig | undefined;
 };
 
-const models = createStore<ModelsState>({ catalog: [], catalogLoad: "idle", config: undefined });
+export const models = createStore<ModelsState>({ catalog: [], catalogLoad: "idle", config: undefined });
 
 export function useModels<T>(select: (s: ModelsState) => T): T {
   return useSlice(models, select);

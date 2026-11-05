@@ -9,7 +9,7 @@ import { isInside } from "../paths.ts";
 import { sessionText } from "./native-read.ts";
 import type { NativeEngine, NativeHomes, NativeSession } from "./native-sessions.ts";
 
-type FoundServer = {
+export type FoundServer = {
   command?: string;
   args?: string[];
   env?: Record<string, string>;

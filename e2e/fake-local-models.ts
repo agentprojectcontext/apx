@@ -3,7 +3,7 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 
-export const LOCAL_MODELS = ["llama3.2:3b", "nomic-embed-text:latest"];
+const LOCAL_MODELS = ["llama3.2:3b", "nomic-embed-text:latest"];
 
 export async function fakeLocalModels(llmUrl: string) {
   let open = false;
