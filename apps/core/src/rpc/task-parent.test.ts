@@ -171,3 +171,106 @@ test("an agent regroups a task but never moves it higher up, which would skip th
     await env.cleanup();
   }
 });
+
+test("a project subtask under a global task, as earlier releases made them, stays editable", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("Complete.")) });
+  try {
+    env.core.store.projects.upsert({ id: "acme", name: "Acme" });
+    env.core.store.projects.upsert({ id: "northwind", name: "Northwind" });
+    const parent = await env.client.call("tasks.create", { title: "Plan the launch" });
+    const thread = env.core.store.threads.create({ kind: "task", title: "Site copy", agent_ids: ["vera"] });
+    const child = env.core.store.tasks.create({
+      title: "Site copy",
+      project_id: "acme",
+      status: "todo",
+      parent_id: parent.id,
+      thread_id: thread.id,
+      by: "superagent",
+    });
+    const edited = await env.client.call("tasks.update", { task: child.id, title: "Site copy, final" });
+    assert.equal(edited.title, "Site copy, final");
+    assert.equal(edited.parent_id, parent.id);
+    assert.equal(edited.project_id, "acme");
+    const chat = env.core.store.threads.create({
+      kind: "loose",
+      title: "Scoped",
+      project_id: "acme",
+      agent_ids: ["superagent"],
+    });
+    const moved = await env.core.dispatch("tasks.update", { task: child.id, status: "doing" }, context(chat.id), "st");
+    assert.equal(moved.ok, true);
+    assert.equal(env.core.store.tasks.get(child.id)?.status, "doing");
+    await assert.rejects(env.client.call("tasks.update", { task: child.id, project: "northwind" }), /same project/);
+    await assert.rejects(env.client.call("tasks.update", { task: child.id, parent: parent.id }), /same project/);
+    const fresh = await env.client.call("tasks.create", { title: "Pricing page", project: "acme" });
+    await assert.rejects(
+      env.client.call("tasks.update", { task: fresh.id, parent: parent.id, title: "Must not change" }),
+      /same project/,
+    );
+    const unchanged = env.core.store.tasks.get(fresh.id);
+    assert.equal(unchanged?.title, "Pricing page");
+    assert.equal(unchanged?.parent_id, undefined);
+    const detached = await env.client.call("tasks.update", { task: child.id, project: "northwind", parent: null });
+    assert.equal(detached.project_id, "northwind");
+    assert.equal(detached.parent_id, undefined);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("from a global task's chat the super-agent hands work to a project agent under that task", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("Complete.")) });
+  try {
+    env.core.store.projects.upsert({ id: "acme", name: "Acme" });
+    env.core.store.agents.upsertApc({
+      id: "acme-builder",
+      name: "Acme builder",
+      project_id: "acme",
+      slug: "acme-builder",
+      role: "Engineering",
+      prompt: "",
+      extra: {},
+    });
+    const global = await env.client.call("tasks.create", { title: "Plan the launch" });
+    const work = {
+      title: "Build the pricing page",
+      description: "Build the pricing page from the plan.",
+      assignee: "acme-builder",
+    };
+    const made = await env.core.dispatch("tasks.create", work, context(global.thread_id), "chat-create");
+    assert.equal(made.ok, true, !made.ok ? made.error.message : "");
+    const task = made.ok ? (made.result as { id: string }) : undefined;
+    const saved = task && env.core.store.tasks.get(task.id);
+    assert.equal(saved?.project_id, "acme");
+    assert.equal(saved?.parent_id, global.id);
+    assert.equal(saved?.assignee, "acme-builder");
+    const vague = await env.core.dispatch(
+      "tasks.create",
+      { title: "Something", assignee: "acme-builder" },
+      context(global.thread_id),
+      "chat-vague",
+    );
+    assert.equal(vague.ok, false);
+    assert.match(!vague.ok ? vague.error.message : "", /description:/);
+    const explicit = await env.core.dispatch(
+      "tasks.create",
+      { ...work, title: "Named parent", parent: global.id },
+      context(global.thread_id),
+      "chat-explicit",
+    );
+    assert.equal(explicit.ok, false);
+    assert.match(!explicit.ok ? explicit.error.message : "", /same project/);
+    // The link keeps counting hand-offs: three tasks up, the new one waits for the owner.
+    const phase = await env.client.call("tasks.create", { title: "Phase", parent: global.id });
+    const step = await env.client.call("tasks.create", { title: "Step", parent: phase.id });
+    const deep = await env.core.dispatch("tasks.create", work, context(step.thread_id), "chat-deep");
+    assert.equal(deep.ok, true, !deep.ok ? deep.error.message : "");
+    const held = deep.ok ? env.core.store.tasks.get((deep.result as { id: string }).id) : undefined;
+    assert.equal(held?.parent_id, step.id);
+    assert.equal(held?.proposed, true);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});

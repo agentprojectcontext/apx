@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { AGENTS_MD_LIMIT } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { removeDir } from "../testkit/platform.ts";
+import { manualTimers, removeDir, tempDir, waitFor } from "../testkit/platform.ts";
 
 function makeProject(root: string) {
   fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
@@ -26,7 +26,8 @@ function makeProject(root: string) {
 }
 
 test("one folder is one project: a BOM is read, a changed or unreadable project.json keeps the project", async () => {
-  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  // The folder watcher's reindex waits on this clock, so it never runs between the steps below.
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")), projectWatchTimers: manualTimers() });
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apcid-"));
   const clone = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apcidc-"));
   const at = async (folder: string) =>
@@ -87,6 +88,30 @@ test("one folder is one project: a BOM is read, a changed or unreadable project.
     await env.cleanup();
     await removeDir(root);
     await removeDir(clone);
+  }
+});
+
+test("a change in a project's files is reindexed once the watcher's quiet window passes on its clock", async () => {
+  const timers = manualTimers();
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")), projectWatchTimers: timers });
+  const root = tempDir("apx-apcwatch-");
+  const name = () => env.core.store.projects.get("p_abc123def456")?.name;
+  try {
+    makeProject(root.path);
+    await env.client.call("projects.register", { path: root.path });
+    const armed = timers.armed();
+    fs.writeFileSync(
+      path.join(root.path, ".apc", "project.json"),
+      JSON.stringify({ name: "Northwind Labs", apx_id: "abc123def456" }),
+    );
+    await waitFor(() => timers.armed() > armed, "the watcher to queue a reindex on its clock");
+    assert.equal(name(), "Northwind", "nothing is reindexed before the quiet window passes");
+    timers.tick(1_000);
+    assert.equal(name(), "Northwind Labs");
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+    await root.remove();
   }
 });
 

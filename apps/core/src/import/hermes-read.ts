@@ -1,10 +1,12 @@
 // A Hermes home folder (~/.hermes) read for moving to APX: each profile's identity (SOUL.md), memory, skills folder,
 // cron jobs and MCP servers, and the names of what it keeps that APX does not take. Read-only; of .env only the
-// variable names are kept, and auth.json is never opened.
+// variable names are kept, and auth.json is never opened. A link is never followed: it could pull any file of the
+// machine (a private key) into an agent's prompt.
 import fs from "node:fs";
 import path from "node:path";
 import { listField, parseFrontmatter } from "../apc/frontmatter.ts";
-import type { FoundServer } from "./native-extras.ts";
+import { insideReal } from "../paths.ts";
+import type { FoundServer } from "./server-secrets.ts";
 
 export type HermesJob = {
   id: string;
@@ -37,14 +39,31 @@ export type HermesProfile = {
 const MARKERS = ["config.yaml", ".env", "SOUL.md", "profile.yaml", "auth.json", "state.db"];
 const MAX_FILE = 1024 * 1024;
 
-const read = (file: string): string => {
+/** A file or folder of the home itself: not a link, and inside it once its folders' links are resolved. */
+const own = (home: string, p: string, kind: "file" | "dir") => {
   try {
-    const st = fs.statSync(file);
-    return st.isFile() && st.size <= MAX_FILE ? fs.readFileSync(file, "utf8") : "";
+    const st = fs.lstatSync(p);
+    return (kind === "file" ? st.isFile() : st.isDirectory()) && insideReal(home, p);
   } catch {
-    return "";
+    return false;
   }
 };
+
+/** A file of the home as text, or "" for a link, a file elsewhere or one too big. */
+function read(home: string, file: string): string {
+  if (!own(home, file, "file")) return "";
+  let fd: number | undefined;
+  try {
+    // O_NOFOLLOW: a file swapped for a link after the check is still refused.
+    fd = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0));
+    const st = fs.fstatSync(fd);
+    return st.isFile() && st.size <= MAX_FILE ? fs.readFileSync(fd, "utf8") : "";
+  } catch {
+    return "";
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+}
 const isProfile = (dir: string) => MARKERS.some((m) => fs.existsSync(path.join(dir, m)));
 
 /** Memory files keep entries separated by a line with `§`. */
@@ -141,8 +160,8 @@ function envNames(text: string): string[] {
   });
 }
 
-function profile(name: string, dir: string): HermesProfile {
-  const fields = config(read(path.join(dir, "config.yaml")));
+function profile(home: string, name: string, dir: string): HermesProfile {
+  const fields = config(read(home, path.join(dir, "config.yaml")));
   const keys = Object.keys(fields);
   const prefixed = (p: string) => [
     ...new Set(keys.filter((k) => k.startsWith(p)).map((k) => k.slice(p.length).split(".")[0] ?? "")),
@@ -161,29 +180,42 @@ function profile(name: string, dir: string): HermesProfile {
   return {
     name,
     dir,
-    soul: read(path.join(dir, "SOUL.md")).trim(),
+    soul: read(home, path.join(dir, "SOUL.md")).trim(),
     personalities: prefixed("agent.personalities."),
-    memory: entries(read(path.join(dir, "memories", "MEMORY.md"))),
-    user: entries(read(path.join(dir, "memories", "USER.md"))),
-    skills: fs.existsSync(skills) && fs.statSync(skills).isDirectory() ? skills : undefined,
-    jobs: jobs(read(path.join(dir, "cron", "jobs.json"))),
+    memory: entries(read(home, path.join(dir, "memories", "MEMORY.md"))),
+    user: entries(read(home, path.join(dir, "memories", "USER.md"))),
+    skills: own(home, skills, "dir") ? skills : undefined,
+    jobs: jobs(read(home, path.join(dir, "cron", "jobs.json"))),
     servers: servers(fields),
-    env: envNames(read(path.join(dir, ".env"))),
+    env: envNames(read(home, path.join(dir, ".env"))),
     settings,
   };
+}
+
+/** The skills in a skills folder, by their folder's name (links inside it are not followed). */
+export function skillsIn(dir: string): string[] {
+  try {
+    const found = fs
+      .readdirSync(dir, { recursive: true, withFileTypes: true })
+      .filter((e) => e.isFile() && e.name === "SKILL.md")
+      .map((e) => path.basename(e.parentPath));
+    return [...new Set(found)].sort();
+  } catch {
+    return [];
+  }
 }
 
 /** The home folder's profiles, the default one first; undefined when the folder is not a Hermes home. */
 export function readHermes(home: string): HermesProfile[] | undefined {
   if (!isProfile(home)) return undefined;
-  const out = [profile("default", home)];
+  const out = [profile(home, "default", home)];
   let names: string[] = [];
   try {
     names = fs.readdirSync(path.join(home, "profiles")).sort();
   } catch {}
   for (const n of names) {
     const dir = path.join(home, "profiles", n);
-    if (fs.statSync(dir).isDirectory() && isProfile(dir)) out.push(profile(n, dir));
+    if (own(home, dir, "dir") && isProfile(dir)) out.push(profile(home, n, dir));
   }
   return out;
 }

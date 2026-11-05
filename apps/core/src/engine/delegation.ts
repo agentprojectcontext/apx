@@ -498,7 +498,7 @@ export function createDelegations(deps: {
   }
 
   return {
-    async delegate(from: Caller, req: DelegateTo, task: string, waitMs: number): Promise<string> {
+    async delegate(from: Caller, req: DelegateTo, task: string, waitMs: number, signal?: AbortSignal): Promise<string> {
       const parentThread = store.threads.get(from.run.thread_id);
       if (!parentThread) return "refused: the thread is gone";
       if (parentThread.kind === "a2a" || ancestors(store, parentThread.id).length >= MAX_DEPTH)
@@ -648,16 +648,23 @@ export function createDelegations(deps: {
         return `queued: ${MAX_ACTIVE_DELEGATIONS} delegations are running from this thread; ${who} starts this one (session "${name}") when one finishes. Its result comes back like the others: do not delegate it again.${at}`;
       }
       let timer: ReturnType<typeof setTimeout> | undefined;
+      // Past wait_s, or once the call is stopped (the owner's "send now"), the answer comes in a new turn instead:
+      // a wait left behind would swallow it while the turn goes on.
+      let letGo = () => {};
       const done = new Promise<RunRecord | undefined>((resolve) => {
-        inline.set(child.id, { caller: from.run.id, resolve });
-        timer = setTimeout(() => {
+        letGo = () => {
           inline.delete(child.id);
           resolve(undefined);
-        }, waitMs);
+        };
+        inline.set(child.id, { caller: from.run.id, resolve });
+        timer = setTimeout(letGo, waitMs);
       });
+      if (signal?.aborted) letGo();
+      signal?.addEventListener("abort", letGo, { once: true });
       deps.kick(sub.id);
       const quick = await done;
       clearTimeout(timer);
+      signal?.removeEventListener("abort", letGo);
       inline.delete(child.id);
       const resume = `(session "${name}": delegate with session="${name}" to continue it with ${who}, who keeps the context)`;
       if (quick && TERMINAL.has(quick.state))

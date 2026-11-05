@@ -126,6 +126,7 @@ import { createModelInstaller } from "./services/local-whisper.ts";
 import { createPush } from "./services/push.ts";
 import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
+import { createSignIn } from "./sign-in.ts";
 import { syncRuntimeSkills } from "./skills/runtimes.ts";
 import { skillsFor } from "./skills/skills.ts";
 import { createStorage, type StorageOptions } from "./storage.ts";
@@ -181,6 +182,8 @@ export type CoreOptions = {
   runTimers?: RunTimers;
   /** How long answers of teammates asked together wait for each other is timed by these (tests). */
   fanoutTimers?: RunTimers;
+  /** When a changed project folder is read again is timed by these (tests). */
+  projectWatchTimers?: RunTimers;
   /** Whether the Mac slept since a moment (tests decide); by default the core watches its own timers. */
   sleptSince?: (since: number) => boolean;
   /** How the core holds the Mac awake (tests count it); by default `caffeinate` on macOS. */
@@ -224,6 +227,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const terminals = createTerminals({ bus, commandEnded: (e) => wakeAfterCommand(store, engine.admit, e) });
   const store = createStore(db, bus);
   const secrets = createSecrets(config.home, config.secrets);
+  // Who may sign in where with a stored secret: shared by the agents' tool and the method it calls.
+  const signIn = createSignIn(secrets);
   seed(store, config.agentName);
   const releases =
     opts.releases ?? (config.whatsNew ? localReleases(path.resolve(import.meta.dirname, "../../..")) : undefined);
@@ -320,6 +325,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     engines: { has: (id) => engineIds.harness.has(id) || providers.has(id) },
     read: opts.projectRead ?? projectReader?.read,
     ...(opts.runTimers ? { timers: opts.runTimers } : {}),
+    ...(opts.projectWatchTimers ? { watchTimers: opts.projectWatchTimers } : {}),
   });
   // The port this core answers on: the configured one, or the one the OS gave (tests listen on 0).
   let listening = config.port || 7440;
@@ -400,6 +406,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     config.runtimeSkills.homes,
     { profiles: profileRoots, templates: templateRoots },
     vm,
+    signIn,
   );
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
   // The router exists only after the engine, hence the late binding.
@@ -767,6 +774,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       asana,
       providers,
       secrets,
+      signIn,
       chatgpt: { login: chatgpt, v1Home: config.v1.home },
       localModels,
       localEmbeds,

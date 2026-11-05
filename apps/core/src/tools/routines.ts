@@ -1,5 +1,6 @@
 // routine_list / routine_set: the owner's routines, read and changed by their agent ("change April's prompt", "run
-// the morning brief now"). A routine is standing work, so every change waits for the owner's OK (DECISIONS.md#d-059).
+// the morning brief now"). A routine is standing work, so every change waits for the owner's OK
+// (DECISIONS.md#d-059-routines).
 import type { Routine, Schedule } from "@apx/protocol";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";

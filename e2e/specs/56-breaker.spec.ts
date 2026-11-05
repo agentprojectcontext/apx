@@ -6,7 +6,7 @@ import { expect, open, rpc, test, until, world } from "./kit.ts";
 const owner = { id: 4242, name: "Ana" };
 
 type Thread = { id: string; title: string };
-// Asking the same worker again goes on in its session (D-185): count its answers, not its sessions.
+// Asking the same worker again goes on in its session (D-190): count its answers, not its sessions.
 const workerAnswers = async () => {
   const threads = (await rpc<{ threads: Thread[] }>("threads.list", { include_subthreads: true })).threads.filter((t) =>
     t.title.includes("→ Researcher: check the sources"),

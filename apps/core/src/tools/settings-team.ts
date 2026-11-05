@@ -4,6 +4,8 @@
 import { readTemplates, singlesOf } from "../apc/templates.ts";
 import { activeProfile, listProfiles, textIn } from "../engine/profiles.ts";
 import { computerApproval } from "../environments/computer.ts";
+import { hermesCard, hermesHome } from "../import/hermes-import.ts";
+import { readHermes } from "../import/hermes-read.ts";
 import { inlineName } from "./result.ts";
 import { agentName, ownersField, type Params, projectName, quoted, type Setting, str } from "./settings-kit.ts";
 
@@ -179,7 +181,9 @@ export const TEAM: Readonly<Record<string, Setting>> = {
   "hermes.import": {
     does: "bring a Hermes home folder (path) into APX: agents, memory, skills, routines turned off, MCP servers; never secrets",
     named: ["path"],
-    says: (p) => `Bring the Hermes setup in ${str(p.path)} into APX`,
+    // Like mcp.set's card, it names every server it adds and what it runs (DECISIONS.md#d-143).
+    says: (p) => hermesCard(hermesHome(str(p.path))) ?? `Bring the Hermes setup in ${str(p.path)} into APX`,
+    refuse: (p) => (readHermes(hermesHome(str(p.path))) ? undefined : `no Hermes setup in ${hermesHome(str(p.path))}`),
   },
   "sessions.adopt": {
     does: "hand an imported chat (thread) to another agent of its project (agent)",

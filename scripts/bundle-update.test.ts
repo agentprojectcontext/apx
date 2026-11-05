@@ -10,6 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
 import { promisify } from "node:util";
+import { scaled, waitFor } from "../apps/core/src/testkit/platform.ts";
 import { coreBundleName, platformOf } from "../packages/protocol/src/releases.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -30,15 +31,9 @@ const freePort = () =>
     });
   });
 
-async function waitFor<T>(what: string, get: () => Promise<T | undefined>, ms = 30_000): Promise<T> {
-  const end = Date.now() + ms;
-  for (;;) {
-    const v = await get().catch(() => undefined);
-    if (v !== undefined) return v;
-    if (Date.now() > end) throw new Error(`timed out waiting for ${what}`);
-    await new Promise((r) => setTimeout(r, 150));
-  }
-}
+/** Until `check` holds; a request refused while a core restarts counts as not yet. */
+const until = (what: string, check: () => Promise<boolean>, ms: number) =>
+  waitFor(() => check().catch(() => false), what, { ms, every: 150 });
 
 function stop(child: ChildProcess): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
@@ -92,7 +87,7 @@ async function startFeed(out: string): Promise<string> {
   });
   children.push(feed);
   const url = `http://127.0.0.1:${port}`;
-  await waitFor("the feed", async () => ((await fetch(`${url}/releases`)).ok ? true : undefined));
+  await until("the feed", async () => (await fetch(`${url}/releases`)).ok, 30_000);
   return url;
 }
 
@@ -124,12 +119,14 @@ async function setup(name: string) {
   const upgrade = async () => {
     const { stdout } = await promisify(execFile)(process.execPath, [terminal, "upgrade", "--json"], {
       env,
-      timeout: 60_000,
+      // Downloads, checks and unpacks a whole bundle: on a loaded machine that alone takes tens of seconds.
+      timeout: scaled(120_000),
     });
     return JSON.parse(stdout) as { ok: boolean; restart: boolean; log: string };
   };
   const running = (version: string) =>
-    waitFor(`the core at ${version}`, async () => ((await health()).version === version ? true : undefined));
+    // A restart is a cold start of the whole core through the supervisor.
+    until(`the core at ${version}`, async () => (await health()).version === version, 60_000);
   const versions = () => fs.readdirSync(path.join(app, "versions")).sort();
   return { out, app, env, health, panel, upgrade, running, versions };
 }

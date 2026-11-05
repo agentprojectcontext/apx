@@ -129,6 +129,8 @@ jobs:
     env:
       APX_SECRETS: file
       CI: "true"
+      # Coverage slows every unit test and the area runs many files at once: waits get twice the room (budgets only).
+      TEST_TIME_SCALE: ${{ matrix.name == 'unit' && '2' || '1' }}
     steps:
       - uses: actions/checkout@v4
         with:

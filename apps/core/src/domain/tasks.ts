@@ -118,7 +118,10 @@ export function visibleTask(store: Store, id: string, scope: { project: string |
   return t;
 }
 
-/** Regrouping keeps work in one project and cannot introduce an ancestry loop. */
+/**
+ * Regrouping keeps work in one project and cannot introduce an ancestry loop. Checked when a parent is set or the task
+ * changes project, so a link older releases allowed never blocks other edits (DECISIONS.md#d-131).
+ */
 export function checkTaskParent(
   store: Store,
   task: Task | undefined,
@@ -126,9 +129,10 @@ export function checkTaskParent(
   project: string | undefined,
   scope: { project: string | undefined } | undefined,
 ): void {
-  if (task && task.project_id !== project && store.tasks.list({ parent: task.id, limit: 1 }).length)
+  const moving = Boolean(task) && task?.project_id !== project;
+  if (task && moving && store.tasks.list({ parent: task.id, limit: 1 }).length)
     throw badRequest("project: detach subtasks before moving their parent");
-  const parentId = parent === undefined ? task?.parent_id : parent;
+  const parentId = parent === undefined && moving ? task?.parent_id : parent;
   if (!parentId) return;
   const target = visibleTask(store, parentId, scope);
   if (target.project_id !== project) throw badRequest("parent: tasks must belong to the same project");
