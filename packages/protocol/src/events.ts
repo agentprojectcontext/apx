@@ -77,6 +77,8 @@ export const CoreEvent = z.discriminatedUnion("type", [
   }),
   /** The disk holding the APX home ran low or has room again, or space was freed: read `storage.status` again. */
   z.object({ type: z.literal("storage.changed") }),
+  /** A model app on this computer (Ollama, LM Studio) was found, opened or closed: read `models.list` again. */
+  z.object({ type: z.literal("models.changed") }),
   /** What a terminal printed (text as it came: escape codes and all). */
   z.object({ type: z.literal("terminal.output"), terminal: Id, data: z.string() }),
   /** Its shell ended. */

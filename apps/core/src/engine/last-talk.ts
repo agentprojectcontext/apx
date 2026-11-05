@@ -20,6 +20,7 @@ export function unasked(origin: Origin): boolean {
     case "stalled_task":
     case "task_result":
     case "delegation_result":
+    case "delegation_results":
     case "added":
       return true;
     case "user":

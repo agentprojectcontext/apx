@@ -78,24 +78,28 @@ export type Origin =
       name: string;
       by?: string;
     }
-  | {
-      kind: "delegation_result";
-      agent_id: string;
-      name: string;
-      thread_id: string;
-      run_id: string;
-      state: RunState;
-      /** Why it ended (`step_limit`: it reported progress, not a result); absent on runs older than the field. */
-      end_reason?: RunEndReason;
-      /** Its calls with an effect as APX recorded them (`actionsOf`), absent on runs older than the field. */
-      actions?: string[];
-      /** The session's name, to continue it with its context. */
-      session?: string;
-      /** Why APX stopped going on with it after a limit cut it short (DECISIONS.md#d-116): the owner decides. */
-      stopped?: string;
-      /** How it went when not well (`outcomeOf`): no answer, failed actions, an error. */
-      outcome?: { level: "warn" | "error"; why: string };
-    };
+  | ({ kind: "delegation_result" } & DelegationResult)
+  /** Answers of teammates asked in one turn, delivered together once all are in or the hold ran out (DECISIONS.md#d-194). */
+  | { kind: "delegation_results"; results: Array<DelegationResult & { answer: string }> };
+
+/** A delegated run that ended, as its caller hears of it. */
+export type DelegationResult = {
+  agent_id: string;
+  name: string;
+  thread_id: string;
+  run_id: string;
+  state: RunState;
+  /** Why it ended (`step_limit`: it reported progress, not a result); absent on runs older than the field. */
+  end_reason?: RunEndReason;
+  /** Its calls with an effect as APX recorded them (`actionsOf`), absent on runs older than the field. */
+  actions?: string[];
+  /** The session's name, to continue it with its context. */
+  session?: string;
+  /** Why APX stopped going on with it after a limit cut it short (DECISIONS.md#d-116): the owner decides. */
+  stopped?: string;
+  /** How it went when not well (`outcomeOf`): no answer, failed actions, an error. */
+  outcome?: { level: "warn" | "error"; why: string };
+};
 
 /**
  * What speaks for the owner in a chat on the computer, and so may run there: their words (from the app or as the owner
@@ -115,6 +119,7 @@ export const runsOnComputer = (o: Origin): boolean => {
     case "task_continue":
     case "task_result":
     case "delegation_result":
+    case "delegation_results":
       return true;
     case "channel":
       return o.role === "owner";

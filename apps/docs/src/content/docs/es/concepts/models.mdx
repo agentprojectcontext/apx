@@ -54,6 +54,19 @@ Presets: **OpenCode Zen**, **Gemini**, **Anthropic**, **OpenAI**, **OpenRouter**
 **DeepSeek**, **Mistral**, **Ollama**, **LM Studio**, y **OpenAI-compatible** para cualquier otra cosa que hable esa
 API. Ollama y LM Studio corren en tu máquina y no necesitan key.
 
+### Modelos en esta computadora
+
+Cuando **Ollama** o **LM Studio** está abierto en esta computadora, APX lo encuentra solo: sus modelos de chat aparecen
+en **Modelos** en una fila por app, marcados **En tu equipo** y **Gratis**, listos para elegir para un agente sin
+configurar nada. APX los busca solo en esta computadora (`127.0.0.1`, puertos `11434` y `1234`), cuando se abre o se
+actualiza la lista y cada diez minutos en segundo plano. Los modelos de embeddings quedan bajo **Mostrar también los de
+voz, imagen y embeddings**.
+
+Si cerrás la app, sus modelos siguen en la lista como no disponibles, así un agente que usa uno lo conserva; al abrirla
+de nuevo funcionan enseguida. Si ya habías agregado Ollama a mano en esa dirección, no aparece dos veces: tu entrada
+queda marcada como de esta computadora. Para dejar de ofrecer una app encontrada, quitala de la lista de APIs de
+modelos.
+
 <Shot name="settings-engines" alt="Configuración, Engines and models: la tarjeta del plan de ChatGPT y una lista de APIs de modelos con su estado" caption="Configuración › Motores y modelos" />
 
 En un servidor sin panel, tres variables de entorno suman un proveedor OpenAI-compatible: `APX_LLM_BASE_URL`,

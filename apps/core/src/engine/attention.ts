@@ -55,7 +55,12 @@ export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date
       if (dropped && store.runs.list(thread.id, 5).some((r) => r.input?.retry_of === run.id)) return;
       const failed = run.state === "failed";
       const origin = run.input?.origin;
-      const from = origin?.kind === "delegation_result" || origin?.kind === "task_result" ? origin.name : undefined;
+      const from =
+        origin?.kind === "delegation_result" || origin?.kind === "task_result"
+          ? origin.name
+          : origin?.kind === "delegation_results"
+            ? origin.results.map((r) => r.name).join(", ")
+            : undefined;
       store.notifications.add({
         kind: "run",
         // A turn that ended without a word or an action is not a finished one: the owner should look.

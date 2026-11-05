@@ -3630,6 +3630,34 @@ thread's context (the messages already hold it, and tools change chats only thro
 checklist to the newest answer by removing it from older ones (it rewrites what the owner already read; each answer
 keeps the plan as it stood).
 
+<a id="d-194"></a>
+## D-194 — 2026-11-05 — Teammates asked in one turn answer the caller in one turn
+
+An agent that asked three teammates at once got three result turns, one per answer, and told the owner three times. Now
+the answers of a fan-out reach the caller together (`engine/fanout.ts`).
+
+- **The group is the asking turn.** Delegations whose `parent_run_id` is the same run make one group, whether they were
+  asked in one step or across the turn. An answer that comes back after the turn ended is held while another delegation
+  of that run is still out (queued, at work, waiting on the owner, or a continuation APX started after a limit). A run
+  the engine is still executing counts as out even if its row already says it ended, so two answers landing together
+  never split the group. A single delegation, or one whose siblings all answered inside the turn, is never held.
+- **Held on the caller's chat.** The group lives in the chat's context (`fanout`: the asking run, when its hold ends and
+  the answers held so far), so a restart keeps it; the boot re-arms each hold for what is left of it.
+- **One turn, separate answers.** When the last one answers, one `a2a_result` run starts with origin
+  `delegation_results`: each answer in its own `delegation_result` envelope, capped like its card (6,000 characters), in
+  the order the caller asked. They stay the team's words (D-071), as a single result is, never the `assistant` role.
+- **The hold: 10 minutes after the first answer** (`FANOUT_HOLD_MS`). The delegations' own deadlines are no use here: a
+  teammate making progress may work two hours (D-105), far too long for the owner to wait for the first news. Past the
+  hold, the answers in go together and the group is closed: later ones come one by one, as before.
+- **Stopping the chat** (`threads.cancel`) drops its groups before the cascade: nothing held wakes the agent, and each
+  answer stays on its card. Canceling one sub-thread only takes it out of the count.
+- **The owner sees it.** Each card whose answer waits says "Waiting for answers: 2 of 3" (the subthread part's `held`);
+  the combined turn shows all the cards again above the agent's answer.
+
+Rejected: grouping by step only (a turn that delegates, reads and delegates again still answers once), holding until
+every delegation's own deadline (hours of silence), and a new table for the groups (the chat's context already persists
+per chat and survives restarts).
+
 <a id="d-195"></a>
 ## D-195 — 2026-11-05 — An agent has its own fallback models before the router's chain
 

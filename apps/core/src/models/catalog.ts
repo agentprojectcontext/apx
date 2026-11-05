@@ -17,7 +17,9 @@ import { which } from "../harness/detect.ts";
 import { harnessEnv } from "../harness/env.ts";
 import { ONESHOT, type OneshotId } from "../harness/oneshot.ts";
 import { NO_KEY } from "../providers/llm.ts";
+import { localModelIds } from "../providers/local-models.ts";
 import type { Secrets } from "../secrets.ts";
+import { EMBED_NAME } from "../services/local-embed.ts";
 import { starterModel } from "./starter.ts";
 
 const run = promisify(execFile);
@@ -42,6 +44,8 @@ export type CatalogEngine = {
   models: CatalogModel[];
   fetched_at?: string;
   starter?: string;
+  /** A model app on this computer: free, and asked again each time the list is read. */
+  local?: boolean;
 };
 
 /**
@@ -209,6 +213,8 @@ export function createCatalog(deps: {
   /** Tests replace the CLI-backed lists. */
   harnessLists?: Partial<Record<"claude" | "codex", () => Promise<CatalogModel[]>>>;
   acpList?: (agent: AcpAgent) => Promise<CatalogModel[]>;
+  /** Looks for model apps on this computer not found yet, before the list is read. */
+  discover?: () => Promise<void>;
   /** Signed-in plans by key reference: their models are asked to the plan with its sign-in. */
   signIns?: Record<string, { has(): boolean; credentials(): Promise<PlanCredentials> }>;
 }) {
@@ -226,6 +232,8 @@ export function createCatalog(deps: {
     } catch (err) {
       const prev = cached(base.id);
       const why = errorMessage(err);
+      // A local app that was closed: its models stay listed, so an agent using one still shows it, but unavailable.
+      if (base.local) return { ...base, available: false, models: prev?.models ?? [] };
       // A failed refresh keeps the last good list, marked stale.
       return prev?.models.length
         ? { ...prev, detail: `could not refresh (${why}); showing the list from ${prev.fetched_at}` }
@@ -257,8 +265,15 @@ export function createCatalog(deps: {
     ];
     for (const p of deps.providers()) {
       out.push({
-        base: { id: p.id, kind: "provider", label: p.label || p.id },
+        base: { id: p.id, kind: "provider", label: p.label || p.id, ...(p.local ? { local: true } : {}) },
         list: async () => {
+          // Embedding-only models on a local app go under the non-chat ones, as memory's setup tells them apart.
+          if (p.local && !p.models.length)
+            return (await localModelIds(p.base_url, deps.fetchImpl)).map((id) => ({
+              id,
+              name: id,
+              chat: !NOT_CHAT.test(id) && !EMBED_NAME.test(id),
+            }));
           const signIn = deps.signIns?.[p.key];
           if (signIn) {
             if (!signIn.has()) throw new Error("not signed in");
@@ -278,11 +293,13 @@ export function createCatalog(deps: {
   return {
     /** Every engine with its models. Uses the cache unless `refresh` or the cache is older than a day. */
     async list(refresh = false): Promise<CatalogEngine[]> {
+      await deps.discover?.();
       const listed = await Promise.all(
         engines().map(({ base, list }) => {
           const hit = cached(base.id);
           const fresh = hit?.fetched_at && Date.now() - Date.parse(hit.fetched_at) < TTL_MS;
-          if (!refresh && fresh && hit) return hit;
+          // A local app answers at once or not at all: asked each time, so one opened or closed shows right away.
+          if (!refresh && fresh && hit && !base.local) return hit;
           const key = base.id;
           const running = inflight.get(key);
           if (running) return running;
