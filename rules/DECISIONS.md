@@ -146,6 +146,7 @@ FTS5 tables are declared by hand next to the generated types and queried with `s
 because its `node:sqlite` driver exists only in its 1.0 release candidate; making the whole store async to use
 Kysely's executor would have touched every caller for no gain.
 
+<a id="d-016"></a>
 ## D-016 — 2026-10-01 — Routines: one scheduler that reserves before it runs; silence is an answer
 A routine is a row (schedule, prompt, agent) and each run is an ordinary run in a `routine` thread of its own, listed
 in `routine_runs`; its state is read from `runs`, never copied. One scheduler ticks every 15 s and, in the same
@@ -158,6 +159,7 @@ persistent rule and needs its own confirmation design. Known limit: on loopback 
 rests on the client declaring itself (`x-apx-actor`); a shell command an agent runs could call the API as the owner,
 which is why the shell tool asks before any command that reaches APX's port. Per-client tokens (mobile stage) close it.
 
+<a id="d-017"></a>
 ## D-017 — 2026-10-01 — Commitments are tasks with a person; one tray for what wants the owner
 A commitment (what the owner promised someone, or what someone owes the owner) is a task with `person_id` and
 `owed_by`, not a second aggregate: it already has a state, a history, a due date and a conversation, and the board,
@@ -165,6 +167,7 @@ tools and reminders work for both. A due task is reminded once (`reminded_at`, c
 scheduler's tick. Everything that wants the owner lands in one `notifications` table with a `ref`, so a notice about
 the same thing replaces the unread one and leaves by itself once answered, done or moved; channels only mirror it.
 
+<a id="d-018"></a>
 ## D-018 — 2026-10-01 — Extensions: a declarative bundle first; code only out of process
 An extension is a folder with `apx-extension.json` that brings skills, MCP servers, routine templates and the secrets
 it needs; the manifest is validated without running anything. Installing copies the folder into the home (plain files
@@ -178,6 +181,7 @@ the runner also refuses raw socket modules and makes `fetch` refuse this machine
 guard so a plugin cannot call APX's loopback API as the owner. Plugins watch declared events and may add context to
 owner turns (outside data, capped, 2.5 s); they never call APX.
 
+<a id="d-019"></a>
 ## D-019 — 2026-10-01 — Outside apps get a scoped client token and always act as a model
 An app such as Claude Code connects with its own token (`x-apx-client`, apart from `APX_TOKEN`'s Authorization
 header): the core keeps only its sha256, the token makes the caller an agent-actor whatever it declares, and the router
@@ -427,6 +431,7 @@ agent's `memory.md` becomes its own notes, and the super-agent takes v1's name, 
 personality is its own field (`personality:` in its file), apart from its instructions. A variable already in the
 Keychain from an earlier install no longer stops the import: only this install's index counts.
 
+<a id="d-040"></a>
 ## D-040 — 2026-10-04 — Workers: throwaway helpers an agent starts through `delegate`
 An agent often needs focused work (a long search, a review) that would fill its own context, and no standing agent
 fits it. `delegate` takes `worker {name, instructions, tools?}` instead of an agent: the sub-thread runs as the caller
@@ -697,7 +702,10 @@ unsigned build keeps losing the macOS permissions (Accessibility, Screen Recordi
 drag; only a Developer ID signature ends that. `APX_RELEASES` also takes a base URL, so a local feed can stand in for
 GitHub to try an update between two builds (`APX_VERSION` names a build's version in `pnpm package`).
 
+<a id="d-059-routines"></a>
 ## D-059 — 2026-10-10 — Agents change routines through `routine_set`, and the owner approves each call
+(Note, 2026-11-05: this entry repeats the number of the sealed-chat search entry below, which is [D-059](#d-059);
+links to this one use `#d-059-routines`.)
 D-016 kept routines owner-only until an agent creating standing work had a confirmation design. D-047's `always`
 level is that design: `routine_set` creates a routine, changes one by id or name (only what it is given), turns it on
 or off, or runs it now, and every call waits for the owner's yes (total autonomy, the owner's explicit choice, asks
@@ -706,6 +714,7 @@ the app and `apx routines edit` use. It never sets a pre- or post-command or a s
 the owner's machine on a schedule and stay in the app and the terminal. Removing a routine stays the owner's too.
 `routine_list` with a name returns that routine's whole prompt, so an agent edits the text it read, not a guess.
 
+<a id="d-060"></a>
 ## D-060 — 2026-10-10 — The super-agent runs the team with `agent_set`; the owner approves each change
 v1 had nine tools to manage agents (create, import, configure, rename, remove, set a prompt, set identity…), offered
 to every agent. v2 has one, `agent_set`, and only the super-agent gets it (policy.ts filters it out for every other
@@ -1119,6 +1128,7 @@ Changed 2026-10-17: a chat turn gets 60 too. At 14, ordinary work (read a few fi
 the middle and the owner had to say "go on" for it; the repeat check and the six-minute stop already bound a turn
 that loops.
 
+<a id="d-092"></a>
 ## D-092 — 2026-10-16 — Telemetry: a lifecycle ping for every install, usage numbers only with a yes
 We could not tell how many people install APX, how many open it, finish the setup or use it, or how much they use it.
 APX now keeps a random install id of its own (`<home>/telemetry-id`, apart from the home id the panel shows) and reports
@@ -1138,6 +1148,7 @@ and Zed (choice on the welcome screen, a log of what was sent). The lifecycle pi
 personal data and being disclosed in the dialog and the privacy page; if that is ever judged not enough, it moves
 behind the same checkbox by changing `due()` in telemetry.ts.
 
+<a id="d-093"></a>
 ## D-093 — 2026-10-17 — The breaker counts fresh tokens, and its defaults follow whoever never changed them
 The breaker summed each run's whole input, and every model call of a turn sends the conversation again, mostly from the
 provider's cache: three helpers auditing a codebase "spent" 1.15M tokens of which 190k were new, and a 600k limit paused
@@ -2243,6 +2254,7 @@ pause. "Pará" still stops a running turn from any channel: stopping acts for
 nobody. Steering a running turn and interrupting it are Telegram's and the app's. A public room the owner speaks in
 stays sealed as before (its turns have no owner tools).
 
+<a id="d-145"></a>
 ## D-145 — 2026-10-23 — CI in parallel parts, flaky Windows files rerun once and counted, only verified commits tagged
 `verify` took 16–28 minutes: the panel's 229 specs ran in one part (13–21 min) because they shared one sandbox, and
 Linux preflight ran every unit test in series (8.5 of its 11.5 min). The v2.9.0 tag went on a commit whose run then
@@ -2569,6 +2581,7 @@ not only news entries or commit subjects. Builds, route/anchor checks and transl
 source review; none proves every explanation correct. No source-text test or automatic check can decide semantic
 documentation relevance. See [WORKFLOW.md](WORKFLOW.md#documentation-impact-contract).
 
+<a id="d-160"></a>
 ## D-160 — 2026-10-27 — Agents finish what they were asked: limits are the owner's to turn on, and the super-agent asks how in its own words
 Supersedes the defaults of [D-069](#d-069) and [D-081](#d-081), and the fan-out check of [D-131](#d-131). A night's
 three tasks stalled: 30 unattended turns went fast because every background command that ended woke its agent as a
@@ -2698,6 +2711,7 @@ prohibited by policy and owner review, not claimed as mechanically prevented for
 Rejected: silently treating approval as technical containment, silently bypassing the ordinary guards, or calling a
 read-only snapshot console equivalent to executing code against the owner's actual page.
 
+<a id="d-166"></a>
 ## D-166 — 2026-10-28 — Screens talk to the person, and a UI change is looked at before it is done
 Flows and the public address reached the owner as a JSON form and a settings section that explained its own
 plumbing: "token bearer", "RPC", "listener", "registered routes", which channels sign their requests, what APX "does
@@ -2757,6 +2771,7 @@ and each run's steps; retirement keeps the owner's explicit `confirm-exported`),
 outbox (a canceled request is retried on every recovery pass). A routine step reuses the reviewed legacy routine
 admission, binding re-checked against the pinned revision, and keeps its usual delivery to the owner.
 
+<a id="d-168"></a>
 ## D-168 — 2026-10-28 — A schedule Flow ticks on the routine scheduler's beat and owes at most one run
 A Flow can start from a schedule (a five-field cron, in the owner's time zone) as well as from a POST. Its ticks come
 from the routine scheduler's existing beat (`officeScheduler` → `flows.tick`), not from a second loop or a timer per
@@ -3357,6 +3372,7 @@ Rejected: keeping the area inside `apx_settings` with a nicer title (the confirm
 exception), one tool per method like `routine_set` (each would add a definition to every turn), and tables in a third
 tool (they are the data Flows read and save, and the skill explains them together).
 
+<a id="d-182"></a>
 ## D-182 — 2026-10-29 — A Flow's triggers are set without cron or a second screen: days and times, GET, and the key in the card
 
 The owner never wants to type cron, and wants a schedule like "Monday at 04:00, 05:00 and 06:00, Wednesday at 09:15".
@@ -3390,6 +3406,7 @@ No news entry: these are fields of the editor, not something the super-agent off
 schedule object (a migration for every schedule Flow and a second reader in every place a cron is read), a key in the
 query string (it ends up in logs and proxies), and a GET without a key (an address anyone can trigger).
 
+<a id="d-183"></a>
 ## D-183 — 2026-10-29 — The isolated computer runs on Linux and Windows too, each with Lima's own driver
 The computer ([D-151](#d-151), [D-152](#d-152)) only ran on macOS with Apple Silicon. `environments/host.ts` now picks
 Lima's driver and pinned build per host: `vz` on macOS 13+ (Apple Silicon or Intel), `qemu` on Linux (x86-64, ARM64)
@@ -3411,8 +3428,10 @@ Windows differs in what it can promise, and the guest is checked for each point,
 - A host agent that died with the core leaves a pid Lima on Windows cannot inspect past: a dead `ha.pid` is dropped,
   a folder from a cut-short setup is cleared, and stopping terminates the distribution when Lima cannot.
 
-<a id="d-182"></a>
+<a id="d-182-news"></a>
 ## D-182 — 2026-10-30 — Release news live in a Help menu; the super-agent names one thing
+(Note, 2026-11-05: this entry repeats the number of the Flow triggers entry above, which is [D-182](#d-182); links
+to this one use `#d-182-news`.)
 Told all at once (D-117), a release with many entries made the super-agent's message a list owners skimmed past, and
 once read nothing let them go back to it. Now the sidebar foot has a Help menu: the newest entries that apply, then
 every release in a dialog, each entry with what it lets the owner do and a button that asks the super-agent for it
@@ -3423,6 +3442,7 @@ What's new for the rest; without a model it is one line with the first entry's t
 The Help button carries a dot while an entry that applies was not there the last time the menu opened on that device
 (kept per device, like the corner cards); a device that never opened it counts the newest release's entries as new.
 
+<a id="d-184"></a>
 ## D-184 — 2026-10-31 — The super-agent publishes and runs a Flow when the owner asks, each after a card
 
 The owner asked the super-agent to make a test Flow, then "turn it on and try it with a curl". It drew and validated
@@ -3443,6 +3463,7 @@ was also accepted on a Flow never published, which turned on something that runs
 Tests, the key, an address and an AI step's autonomy stay the owner's. Rejected: letting the agent read the webhook
 key to call it (a key never reaches a model, D-139), and turning on without publishing (it runs nothing).
 
+<a id="d-185"></a>
 ## D-185 — 2026-11-02 — Storage: the home by area, clearing only what APX rebuilds, and a low-disk warning
 
 The owner could see how big the APX folder was (system.usage, by folder) but not what of it they could let go, nor was
@@ -3523,6 +3544,8 @@ Nothing on the task let anyone see the brief had drifted from the request.
   as steps by `@apx/protocol/task-plan`; a free-text plan still reads as Markdown. The agent writes it before working
   and keeps it current; the drawer shows it as a checklist with a count. When the work stops leading to the goal, it
   tells the owner what is missing.
+  *Superseded in part by [D-191](#d-191) (2026-11-02): the plan is written with the `plan` tool, which keeps the
+  task's plan in a task's chat; `task_update` no longer takes `plan`. The checklist format and the drawer are unchanged.*
 - `task_create`'s description is capped at 3,000 and asks for short Markdown lines; the drawer shows it formatted, with
   a pencil to edit.
 - The tools stay within the prompt budget (rules/PROMPT_SIZE.md): structured plan steps cost more than the budget left,
@@ -3580,7 +3603,10 @@ does for it. A contact's or room's chat never steered, and does not stop a turn 
 
 Rejected: a setting to choose per agent (the owner wants one rule), and keeping the turn alive to deliver the words
 after its next step (an outside engine has no such step).
+
+<a id="d-190"></a>
 ## D-190 — 2026-11-02 — Asking the same teammate or helper again goes on in the same conversation
+
 D-129 gave delegations one session per teammate. Two paths still opened a new sub-thread per ask: an @mention of a
 teammate on a task (D-120, D-132) and a delegation to a worker. The owner saw several sessions with the same
 teammate, each without what the last one learned.

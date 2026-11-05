@@ -1,5 +1,5 @@
 // What each APX release brought this owner: the Help menu's latest lines and the What's new dialog, from the same
-// entries the super-agent tells (DECISIONS.md#d-182).
+// entries the super-agent tells (DECISIONS.md#d-182-news).
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
 
