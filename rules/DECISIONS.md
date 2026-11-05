@@ -3485,7 +3485,9 @@ and no way to fix one that waited. Now each is the owner's choice and shows as s
 - **Sent** (Enter): the running turn takes it at its next step, as before. Until it does, the message carries
   `waiting: {until: "step"}` and shows **Send now**, which aborts only the step in progress (`TurnIO.stepSignal`: the
   model call, or the tool call through its `ToolContext.signal`); the loop then takes the words and goes on. A cut
-  tool call tells the model it may have done part of its work; calls after it in the same step are not run.
+  tool call tells the model it may have done part of its work; calls after it in the same step are not run. A cut
+  `delegate` lets go of its wait (as when `wait_s` runs out): the teammate keeps working, its answer comes in a new
+  turn, and the model is told not to delegate it again (`Tool.cut`).
 - **In line** (Ctrl/⌘+Enter): a run of its own, `waiting: {until: "turn", run}`, ordered by `runs.queue_order` (a
   permutation of their places when the owner moves them, so other waiting work keeps its slot). Until it starts it
   is edited (`runs.update_queued`), moved (`runs.reorder`, every message in line each once), removed

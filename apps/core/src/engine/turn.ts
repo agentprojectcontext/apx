@@ -141,7 +141,7 @@ export type TurnDeps = {
   call: ToolCall;
   /** How the agent acts and how far its files reach: every permission question goes here. */
   permissions: Permissions;
-  delegate(caller: Caller, to: DelegateTo, task: string, waitMs: number): Promise<string>;
+  delegate(caller: Caller, to: DelegateTo, task: string, waitMs: number, signal?: AbortSignal): Promise<string>;
 };
 
 export type ToolCall = <M extends MethodName>(
@@ -317,7 +317,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     workDir: harnessDir(store, deps.home, thread),
     permissions: deps.permissions,
     // Harnesses and delegations see the agent as it acts here (its project's and callers' mode), never its bare record.
-    delegate: (to, task, waitMs) => deps.delegate({ run, agent: policy.agent, display }, to, task, waitMs),
+    delegate: (to, task, waitMs, signal) =>
+      deps.delegate({ run, agent: policy.agent, display }, to, task, waitMs, signal),
   });
   const system = () =>
     thread.engine
