@@ -76,6 +76,8 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   // An artifact's fetch waits up to 30 s on the outside API; a bundle may carry a 50 MB database.
   if (method === "surfaces.fetch") return 45_000;
   if (method === "surfaces.export" || method === "surfaces.import") return 180_000;
+  // A 20 MB export over a slow link to a remote core; the server stops importing at 90 s.
+  if (method === "instance.preview_import" || method === "instance.import") return 150_000;
   // Indexing every note by meaning may take a while on a local model.
   if (method === "memory.reindex") return 10 * 60_000;
   // Listing reads every session's head; importing copies whole histories and their images.

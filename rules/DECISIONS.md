@@ -3651,7 +3651,8 @@ up**, `apx export` and `apx import` make and read one JSON file (`instance.expor
 - **One plan for the preview and the import.** `planImport` decides each item (add, update, same, skip, and why) and
   keeps its step; the preview returns the plan, the import runs its steps, so what is applied is what was shown.
   Items match by id (memory by its text in its place): the same file twice changes nothing, and a file listing an
-  item twice is refused. Another install's super-agent is this one's. A preference, skill or project setting
+  item twice is refused. An import stops at 90 s between items (the client waits 150 s); what it wrote is whole, and
+  the same file again finishes it. A file of up to 20 MB is read, over HTTP too. Another install's super-agent is this one's. A preference, skill or project setting
   (autonomy, read-only folders) this computer has is kept, not replaced; read-only folders pass `checkReadOnly`, and
   Total never comes from a file.
 - **What needs a secret, or changed, arrives off.** MCP servers and channels arrive off with their references, a

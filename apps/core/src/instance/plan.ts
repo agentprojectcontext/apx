@@ -654,9 +654,26 @@ function planChats(deps: ImportDeps, file: InstanceFile, c: Ctx) {
 /** The preview: what would change, and nothing changed. */
 export const previewImport = (deps: ImportDeps, raw: unknown): InstancePlan => planImport(deps, raw).plan;
 
+/** The import stopped at its deadline: what it wrote stays whole, and importing the file again finishes it. */
+export class ImportOutOfTime extends Error {}
+
+/** How long an import may take on the server; the client waits longer (rule 9). */
+const IMPORT_MS = 90_000;
+
 /** The import: the preview's own steps, in its order. Each item is written whole; a second run finds them here. */
-export async function applyImport(deps: ImportDeps, raw: unknown) {
+export async function applyImport(deps: ImportDeps, raw: unknown, signal = AbortSignal.timeout(IMPORT_MS)) {
   const { plan, steps } = planImport(deps, raw);
-  for (const step of steps) await step();
+  const late = () => new ImportOutOfTime("The import ran out of time: import the file again to finish it");
+  for (const step of steps) {
+    if (signal.aborted) throw late();
+    const running = step();
+    if (!(running instanceof Promise)) continue;
+    await new Promise<void>((resolve, reject) => {
+      const stop = () => reject(late());
+      if (signal.aborted) return stop();
+      signal.addEventListener("abort", stop, { once: true });
+      running.then(resolve, reject).finally(() => signal.removeEventListener("abort", stop));
+    });
+  }
   return { ...plan, applied: steps.length };
 }

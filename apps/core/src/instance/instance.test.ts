@@ -5,6 +5,7 @@ import { type InstanceFile, type InstancePlan, SUPER_AGENT_ID } from "@apx/proto
 import type { FlowGraph } from "@apx/protocol/flow-graph";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { tempDir } from "../testkit/platform.ts";
+import { applyImport, ImportOutOfTime } from "./plan.ts";
 
 type Env = Awaited<ReturnType<typeof startCore>>;
 
@@ -291,4 +292,46 @@ test("a server's variable typed as text travels empty, and its address without a
   assert.deepEqual(db?.env, { LEVEL: "", KEY: "secret://acme_key" });
   assert.ok(!JSON.stringify(file).includes("hunter22"));
   await source.client.call("mcp.set", { name: "db", server: null });
+});
+
+test("a file over the usual request size previews and imports", async () => {
+  const file = await exported();
+  const page = "Northwind keeps its spring catalog in the shared drive. ".repeat(280);
+  const notes = Array.from({ length: 100 }, (_v, i) => ({
+    scope: "global" as const,
+    text: `Note ${i}: ${page}`,
+    source: "owner" as const,
+  }));
+  const big = { ...file, memory: [...file.memory, ...notes] };
+  assert.ok(Buffer.byteLength(JSON.stringify(big)) > 1.5 * 1024 * 1024);
+  const preview = await target.client.call("instance.preview_import", { file: big });
+  assert.equal(preview.items.filter((i) => i.section === "memory" && i.label.startsWith("Note ")).length, 100);
+  await target.client.call("instance.import", { file: big });
+  assert.ok(target.core.store.memories.standing(1000).some((m) => m.text.startsWith("Note 99: ")));
+});
+
+test("an import that outlives its deadline stops and says so; importing again finishes it", async () => {
+  const file = await exported();
+  const tg = file.channels.find((ch) => ch.id === "tg");
+  assert.ok(tg);
+  const crafted = { ...file, channels: [{ ...tg, id: "tg_late", label: "Late bot" }] };
+  const deadline = new AbortController();
+  const deps = {
+    store: target.core.store,
+    secrets: target.core.secrets,
+    home: homes[1]?.path as string,
+    userHome: os.homedir(),
+    version: "test",
+    register: () => {},
+    mcpChanged: () => {},
+    nextFor: () => undefined,
+  };
+  // The channel never answers: the deadline passes while the import waits on it.
+  const stuck = () => {
+    deadline.abort();
+    return new Promise<never>(() => {});
+  };
+  await assert.rejects(applyImport({ ...deps, setChannel: stuck }, crafted, deadline.signal), ImportOutOfTime);
+  const done = await applyImport({ ...deps, setChannel: async () => {} }, crafted);
+  assert.equal(byId(done, "channels", "tg_late")?.action, "add");
 });
