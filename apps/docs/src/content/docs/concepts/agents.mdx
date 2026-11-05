@@ -1,7 +1,8 @@
 ---
-title: Agents
-description: Who works for you in APX, how each agent is a markdown file, and how they hand work to each other.
+title: Build an AI agent team for each project
+description: Create project-specific AI agents with roles, instructions and tools. Keep their definitions in readable files alongside your project.
 sidebar:
+  label: Agents
   order: 1
 ---
 
@@ -11,8 +12,28 @@ import Terminal from "../../../components/Terminal.astro";
 import Blob from "../../../components/Blob.astro";
 
 
-An agent is someone on your crew: a name, a face, a role, a set of instructions and the tools it may use. Some work
-with you everywhere, some belong to one project, and some exist for a single errand and then disappear.
+A project often needs more than one kind of work: research, development, review or operations. In APX, give agents
+distinct roles inside a project and let them hand work to one another. Follow the work in project chats and
+[tasks](/office/tasks/). A project can be a software repository, a business or another folder where work happens.
+
+An agent has a name, a face, a role, instructions and tools it may use. For example, a researcher can examine options,
+a developer can implement a change and a reviewer can check it. These are roles you configure, not a promise that a
+task succeeds without review. Start from the project's **Agents** tab to create an agent or import a template.
+
+## Keep project context with the work
+
+APX projects follow [APC (Agent Project Context)](/concepts/projects/): a root `AGENTS.md` and an `.apc/` folder.
+Project agent definitions live in individual Markdown files under `.apc/agents/`. Shared instructions, curated notes
+and project skills can be read and versioned alongside the work.
+
+APX keeps chats, runs, tasks, routines and notes in its local database. Project files are the source of truth for
+agent definitions; a repository is not a replacement for runtime history.
+
+Configure each agent's [autonomy and tools](/concepts/autonomy/) to fit the job. External messages and web pages are
+data, not authority to act. APX runs on your computer or your own server, but connected cloud models still receive
+what each request needs; local APX does not mean offline cloud inference.
+
+Some agents work with you everywhere, some belong to one project, and some exist for a single errand.
 
 <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", alignItems: "center", margin: "1.5rem 0" }}>
   <Blob name="menta" size={56} bob />
