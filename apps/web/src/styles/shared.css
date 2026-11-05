@@ -81,6 +81,10 @@
   flex: none;
   color: var(--apx-warning);
 }
+/* A long, truncated name gives way; the arrow keeps its size. */
+.selectbtn__chevron {
+  flex: none;
+}
 
 /* Catalog list inside a picker */
 .mlist {

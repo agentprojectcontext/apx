@@ -137,6 +137,9 @@ for (const language of ["en", "es"] as const) {
         await capture(page, frame, language, "model-menu");
         await page.keyboard.press("Escape");
         await expect(frame.locator(".mchoice")).toBeHidden();
+        // A truncated long name must not squeeze the menu's arrow into a dot.
+        const arrow = await model.locator(".selectbtn__chevron").boundingBox();
+        assert.ok(arrow && arrow.width >= 11, `model arrow is ${arrow?.width}px wide`);
         const stored = await client.call("threads.get", { thread: "home" });
         assert.equal(stored.thread.model_choice?.model, `custom/${LONG_MODEL}`);
         await frame.locator("textarea").fill("Check the isolated extension chat.");

@@ -28,7 +28,7 @@ export function trigger(o: {
     >
       {o.warn ? <Icons.TriangleAlert size={12} className="selectbtn__warn" /> : o.icon}
       <span className="selectbtn__text">{o.text}</span>
-      <Icons.ChevronDown size={12} />
+      <Icons.ChevronDown size={12} className="selectbtn__chevron" />
     </button>
   );
 }
