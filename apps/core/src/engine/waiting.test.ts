@@ -139,6 +139,33 @@ test("sent while the agent works, the turn takes it at its next step; send now c
   gates.splice(0);
 });
 
+test("a message the agent has not read yet is taken back: out of its turn or the line, and out of the chat", async () => {
+  const { thread, run } = await working("work quietly");
+  const s = await env.client.call("threads.send", { thread, text: "never mind", mode: "steer" });
+  const q = await env.client.call("threads.send", { thread, text: "nor this", mode: "queue" });
+  assert.deepEqual(await env.client.call("runs.unsend", { message: s.message.id }), { removed: true });
+  await env.client.call("runs.unsend", { message: q.message.id });
+  assert.equal(message(s.message.id), undefined);
+  assert.equal(env.core.store.runs.get(q.run.id)?.state, "canceled");
+  await assert.rejects(env.client.call("runs.unsend", { message: s.message.id }), /not found/);
+  release();
+  const { messages, runs } = await env.settle(thread);
+  assert.deepEqual(
+    runs.filter((r) => r.state !== "canceled").map((r) => r.id),
+    [run],
+  );
+  assert.deepEqual(transcript(messages), ["user: work quietly", "agent: [hold] Finished."]);
+});
+
+test("a message the agent already read is not taken back", async () => {
+  const { thread } = await working("work then read");
+  const s = await env.client.call("threads.send", { thread, text: "read me", mode: "steer" });
+  await env.client.call("runs.send_now", { message: s.message.id });
+  await env.settle(thread);
+  await assert.rejects(env.client.call("runs.unsend", { message: s.message.id }), /already took/);
+  gates.splice(0);
+});
+
 test("send now stops a model call in progress, and the turn goes on with the owner's words", async () => {
   const { thread, run } = await working("think hard");
   const s = await env.client.call("threads.send", { thread, text: "short answer", mode: "steer" });

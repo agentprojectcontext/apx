@@ -149,6 +149,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "runs.remove_queued": AS_OWNER,
   "runs.reorder": AS_OWNER,
   "runs.send_now": AS_OWNER,
+  "runs.unsend": AS_OWNER,
   "channels.send": AS_OWNER,
   // Agents send mail with gmail_send or a contact message, behind their own card.
   "mail.send": AS_OWNER,

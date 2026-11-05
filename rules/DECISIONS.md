@@ -3537,7 +3537,8 @@ for the turn to end (Ctrl/⌘+Enter), with nothing in the chat to tell them apar
 and no way to fix one that waited. Now each is the owner's choice and shows as such:
 
 - **Sent** (Enter): the running turn takes it at its next step, as before. Until it does, the message carries
-  `waiting: {until: "step"}` and shows **Send now**, which aborts only the step in progress (`TurnIO.stepSignal`: the
+  `waiting: {until: "step"}` and shows **Send now** and **Remove** (`runs.unsend`: out of the turn's pending words and
+  out of the chat; it also removes a message in line), **Send now** aborting only the step in progress (`TurnIO.stepSignal`: the
   model call, or the tool call through its `ToolContext.signal`); the loop then takes the words and goes on. A cut
   tool call tells the model it may have done part of its work; calls after it in the same step are not run. A cut
   `delegate` lets go of its wait (as when `wait_s` runs out): the teammate keeps working, its answer comes in a new

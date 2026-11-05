@@ -497,6 +497,27 @@ export function createEngine(deps: {
     return { now: true };
   }
 
+  /** Takes a waiting message back before the agent reads it: out of the running turn or the line, and the chat. */
+  function unsend(messageId: string): void {
+    const message = store.messages.get(messageId);
+    if (!message) throw notFound(`message ${messageId}`);
+    if (!message.waiting) throw conflict("your agent already took this message");
+    if (message.waiting.until === "turn") {
+      removeFromLine(store, message.waiting.run ?? "", ended);
+      return;
+    }
+    for (const [runId, list] of steered) {
+      if (!list.some((s) => s.message_id === messageId)) continue;
+      steered.set(
+        runId,
+        list.filter((s) => s.message_id !== messageId),
+      );
+      store.messages.drop(message.thread_id, [messageId]);
+      return;
+    }
+    throw conflict("your agent already took this message");
+  }
+
   /**
    * Enter on a message that went into line behind a turn of an outside engine, which cannot take words mid-turn: it
    * is "Send now" at once (DECISIONS.md#d-189). Our own loop's turn takes Enter's words itself; true when it acted.
@@ -630,6 +651,7 @@ export function createEngine(deps: {
     removeQueued: (runId: string) => removeFromLine(store, runId, ended),
     reorderQueued: (threadId: string, runs: readonly string[]) => reorderLine(store, threadId, runs),
     sendNow,
+    unsend,
     enterNow,
     /** The owner's answer to something an agent asked (runs.respond). */
     respond: inputs.respond,
