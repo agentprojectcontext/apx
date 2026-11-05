@@ -23,7 +23,7 @@ export const HISTORY_BUDGET_CHARS = 120_000;
 export const FULL_OUTPUT_RUNS = 2;
 
 /** How a review an agent was asked for ends: one verdict, so reviews close instead of adding rounds (DECISIONS.md#d-188). */
-const REVIEW =
+export const REVIEW =
   "Asked to review: answer Approved, Approved with notes, or Blocked with the one thing that blocks it; notes never block, and do not ask for another round.";
 /** A delegated task's answer: no acknowledgement turn, and a report its caller can act on without asking back. */
 const REPORT =

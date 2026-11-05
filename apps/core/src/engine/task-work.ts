@@ -14,6 +14,7 @@ import { type HeldTask, previewOf } from "../domain/threads.ts";
 import { badRequest, conflict } from "../errors.ts";
 import { taskWords } from "../tools/tasks.ts";
 import { agentTrip, heldNotice, trip } from "./breaker.ts";
+import { REVIEW } from "./context.ts";
 import { actionsOf, reportCard } from "./delegation.ts";
 import type { AdmitFn } from "./engine.ts";
 import { mentioned, mentionsOwner, taskCommentAttention } from "./office.ts";
@@ -164,7 +165,7 @@ export function startTaskWork(
     assignment.data.from_thread === asker.thread_id;
   const workText = ownWords ? [task.title, task.description].filter(Boolean).join("\n\n") : "Work on this task.";
   const text = reviewRequest
-    ? `Independently review this task's delivery. Report what you verified and any required corrections.\n\n${workText}`
+    ? `Independently review this task's delivery. Report what you verified and any required corrections. ${REVIEW}\n\n${workText}`
     : workText;
   const author: Author =
     asker.kind === "agent" ? { kind: "agent", id: asker.id } : ownWords ? { kind: "user" } : { kind: "system" };
