@@ -215,7 +215,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "agentedit.modelHint": "El router elige según la tarea, salvo que tenga uno propio.",
   "agentedit.fallbacks": "Modelos de respaldo",
   "agentedit.fallbacksHint":
-    "Si su modelo llega al límite de uso o no responde, siguen estos en orden. Vuelve a su modelo cuando se libera.",
+    "Si su modelo llega al límite de uso o no responde, el agente usa estos en orden y vuelve al suyo cuando se libera.",
   "agentedit.addFallback": "Agregar respaldo",
   "agentedit.removeFallback": "Quitar este respaldo",
   "agentedit.parent": "Reporta a",
