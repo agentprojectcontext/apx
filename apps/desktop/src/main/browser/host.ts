@@ -13,7 +13,7 @@ import {
 } from "@apx/protocol";
 import { assertNavigable as checkNavigable, scrubDeep } from "@apx/protocol/cdp";
 import { ApxError } from "@apx/protocol/client";
-import { app, type Session, session, type WebContents, WebContentsView } from "electron";
+import { type Session, session, type WebContents, WebContentsView } from "electron";
 import type { ProcessOwner } from "../memory.ts";
 import { CdpTab } from "./cdp.ts";
 import { discoverSources, importCookies, listDomains } from "./cookies.ts";
@@ -34,11 +34,6 @@ type Tab = {
 
 const MAX_TABS = 8;
 const NAV_TIMEOUT_MS = 8_000;
-
-/** The honest Chromium UA: no "Electron/x" or app token. Client hints stay untouched (removing them breaks Google login). */
-function cleanUserAgent(): string {
-  return app.userAgentFallback.replace(/\sElectron\/\S+/, "").replace(/\s@?apx[^\s]*\/\S+/i, "");
-}
 
 function partitionFor(profile: BrowserProfile, seq: number): string {
   if (profile === "shared") return "persist:apx-shared";
@@ -504,7 +499,8 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
   #configure(ses: Session): void {
     if (this.#configured.has(ses)) return;
     this.#configured.add(ses);
-    ses.setUserAgent(cleanUserAgent());
+    // No user-agent override: a Chrome claim the page can see through gets Cloudflare's pass refused.
+    // See HISTORY.md#tab-user-agent
     // Camera, mic, geolocation, notifications, clipboard-read: denied unless a later UI grants them.
     ses.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
     ses.on("will-download", (e) => e.preventDefault());
