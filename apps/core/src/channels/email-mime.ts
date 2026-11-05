@@ -6,7 +6,7 @@ const MAX_DEPTH = 8;
 
 export type Headers = Map<string, string[]>;
 
-export type MailPart = { name: string; mime: string; data: Buffer };
+type MailPart = { name: string; mime: string; data: Buffer };
 
 export type ParsedMail = {
   headers: Headers;
@@ -146,7 +146,7 @@ function decodeBody(b: Buffer, encoding: string | undefined): Buffer {
 }
 
 /** Bytes in a charset as text; an unknown charset is read as UTF-8 (then Latin-1 if that fails). */
-export function charsetText(b: Buffer, charset: string | undefined): string {
+function charsetText(b: Buffer, charset: string | undefined): string {
   const cs = (charset ?? "utf-8").trim().toLowerCase();
   try {
     return new TextDecoder(cs === "us-ascii" || cs === "ascii" ? "utf-8" : cs).decode(b);

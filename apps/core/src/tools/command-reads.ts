@@ -79,7 +79,7 @@ function findReads(args: Word[]): boolean {
 }
 
 /** A sed script that neither writes a file (`w`, `W`, `s///w`) nor runs a command (`e`, `s///e`), nor reads one. */
-export function sedReads(s: string): boolean {
+function sedReads(s: string): boolean {
   let i = 0;
   // From a delimiter, past its closing one.
   const delimited = () => {

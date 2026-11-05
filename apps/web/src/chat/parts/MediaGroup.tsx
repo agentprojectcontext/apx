@@ -40,7 +40,7 @@ function useImageSrc(part: ImageLike, onError?: () => void): string | undefined 
 const nameOf = (part: ImageLike) => (part.type === "file" ? part.name : part.alt || "image");
 
 /** How many tiles each row of a picture grid holds (from five on, the last tile counts the ones left). */
-export function mosaicRows(count: number): number[] {
+function mosaicRows(count: number): number[] {
   if (count <= 0) return [];
   if (count === 1) return [1];
   if (count === 2) return [2];

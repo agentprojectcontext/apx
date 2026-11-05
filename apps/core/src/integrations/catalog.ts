@@ -2,7 +2,7 @@
 // variables it needs, or a Google account signed in to for APX's own tools. Connecting stores the secrets and adds the server as a global one; where it is used is the
 // usual per-project switch of global servers. The catalog is data: each entry says how its server starts.
 
-export type IntegrationField = {
+type IntegrationField = {
   name: string;
   /** Shown to the owner ("Personal access token"). */
   label: string;

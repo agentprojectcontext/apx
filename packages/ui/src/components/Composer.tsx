@@ -3,7 +3,7 @@ import { type KeyboardEvent, type ReactNode, type Ref, type SyntheticEvent, useR
 import { cx } from "../cx";
 
 /** Accessible names of the icon buttons; English by default. */
-export interface ComposerLabels {
+interface ComposerLabels {
   attach: string;
   stop: string;
   send: string;

@@ -32,7 +32,7 @@ export type MailSummary = {
 const header = (m: GMessage, name: string) =>
   m.payload?.headers?.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value ?? "";
 
-export function summary(m: GMessage): MailSummary {
+function summary(m: GMessage): MailSummary {
   const to = header(m, "To");
   return {
     id: m.id ?? "",

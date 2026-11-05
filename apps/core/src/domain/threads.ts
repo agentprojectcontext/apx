@@ -129,7 +129,7 @@ const WRITE_STRICTNESS: Record<Write, number> = { auto: 0, ask: 1, "read-only": 
 export const strictestWrite = (first: Write, ...rest: Write[]): Write =>
   rest.reduce((m, w) => (WRITE_STRICTNESS[w] > WRITE_STRICTNESS[m] ? w : m), first);
 
-export const PREVIEW_CHARS = 160;
+const PREVIEW_CHARS = 160;
 export const previewOf = (text: string) => text.slice(0, PREVIEW_CHARS);
 
 export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (thread: string) => void = () => {}) {

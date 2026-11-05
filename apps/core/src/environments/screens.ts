@@ -9,7 +9,7 @@ import { MAX_SCREEN } from "./worker.ts";
 export type Claim = { screen: number; agent: string; thread: string; run: string; at: string };
 
 /** What a running screen costs the guest: its desktop, terminal and browser. The guest keeps 1 GiB for itself. */
-export const SCREEN_GIB = 1.25;
+const SCREEN_GIB = 1.25;
 export const maxScreens = (memoryGib: number) => Math.max(1, Math.floor((memoryGib - 1) / SCREEN_GIB));
 
 export type ScreenStarter = {
@@ -18,7 +18,7 @@ export type ScreenStarter = {
 };
 
 /** Longest a claim may take, queue included: a screen that does not start by then fails its turn, not every turn. */
-export const CLAIM_MS = 90_000;
+const CLAIM_MS = 90_000;
 
 /** Settles when the signal aborts, with its reason. */
 const aborted = (signal: AbortSignal) =>
@@ -173,4 +173,3 @@ export function screenLedger(store: Store, o: { cap: () => number; screens: Scre
   };
   return ledger;
 }
-export type ScreenLedger = ReturnType<typeof screenLedger>;

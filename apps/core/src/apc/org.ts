@@ -6,7 +6,7 @@ import { OrgArea, type Organization, OrgRole } from "@apx/protocol";
 import { writeAtomic } from "../paths.ts";
 import { withoutBom } from "./read.ts";
 
-export const EMPTY_ORG: Organization = { areas: [], roles: [] };
+const EMPTY_ORG: Organization = { areas: [], roles: [] };
 
 const orgFile = (root: string) => path.join(root, ".apc", "organization.json");
 const isLink = (p: string) => {

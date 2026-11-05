@@ -24,14 +24,14 @@ export const EVERY_START: Every = { n: 1, unit: "days", at: "09:00", weekday: 1,
 export type ScheduleForm = { mode: "times"; days: DayTimes } | { mode: "every"; every: Every } | { mode: "cron" };
 
 /** At most this many crons in one schedule (the core's FLOW_CRONS_MAX). */
-export const CRONS_MAX = 7;
+const CRONS_MAX = 7;
 
 const hm = (time: string): [number, number] => {
   const [h = "0", m = "0"] = time.split(":");
   return [Number(h), Number(m)];
 };
 const pad = (n: number) => String(n).padStart(2, "0");
-export const timeOf = (h: number, m: number) => `${pad(h)}:${pad(m)}`;
+const timeOf = (h: number, m: number) => `${pad(h)}:${pad(m)}`;
 const sorted = (times: string[]) => [...new Set(times)].sort();
 
 /** The cron for these days and times; "" when no day has a time, undefined when it needs more than seven crons. */

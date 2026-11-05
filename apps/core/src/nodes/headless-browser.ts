@@ -27,7 +27,7 @@ const TAB_IDLE_MS = 15 * 60_000;
 const IDLE_MS = 5 * 60_000;
 
 /** Chrome, Chromium or Edge where they usually are; APX_CHROME (config) wins. */
-export function findChrome(configured?: string): string | undefined {
+function findChrome(configured?: string): string | undefined {
   if (configured) return fs.existsSync(configured) ? configured : undefined;
   const fixed =
     process.platform === "darwin"

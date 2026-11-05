@@ -15,7 +15,7 @@ const NATIVE = "native";
 /** CLIs run in their own sessions; every other engine is a model API on APX's own loop. */
 const isCli = (engine: string) => /^(claude|codex|aider|antigravity|acp:)/.test(engine);
 /** The harness a step runs on: the engine of its model when that is a CLI, else APX's. */
-export const harnessOf = (n: Pick<Ai, "model">) => {
+const harnessOf = (n: Pick<Ai, "model">) => {
   const engine = n.model ? splitRef(n.model).engine : "";
   return isCli(engine) ? engine : NATIVE;
 };

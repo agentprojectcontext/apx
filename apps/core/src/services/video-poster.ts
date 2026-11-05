@@ -11,7 +11,7 @@ const AT_ONCE = 2;
 /** Writes one frame of `video` to `out` as a JPEG; rejects when it cannot. */
 export type FrameMaker = (video: string, out: string) => Promise<void>;
 
-export const ffmpegFrame: FrameMaker = (video, out) =>
+const ffmpegFrame: FrameMaker = (video, out) =>
   new Promise((resolve, reject) => {
     // Seeking before -i is fast; 0.5 s skips a black first frame and still fits the shortest clip.
     const args = ["-hide_banner", "-loglevel", "error", "-y", "-ss", "0.5", "-i", video];

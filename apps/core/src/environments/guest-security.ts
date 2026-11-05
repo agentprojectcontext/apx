@@ -28,7 +28,7 @@ export const egressRules = () =>
     "",
   ].join("\n");
 
-export async function secureGuest(run: LimaRun, instance: string, signal?: AbortSignal) {
+async function secureGuest(run: LimaRun, instance: string, signal?: AbortSignal) {
   await run(["shell", instance, "--", "sudo", "-n", "install", "-d", "-m", "755", "/etc/apx-computer"], { signal });
   await run(["shell", instance, "--", "sudo", "-n", "tee", "/etc/apx-computer/egress.nft"], {
     input: egressRules(),

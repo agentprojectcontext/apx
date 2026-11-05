@@ -125,7 +125,7 @@ const projectBlock = (p: { name: string; context?: string | undefined }) =>
   `\n## Project: ${p.name}${p.context ? `\nIts AGENTS.md:\n\n${agentsMdOf(p)}` : ""}`;
 
 /** Where temporary files go; one path per chat, so the prompt stays cacheable. */
-export const scratchGuidance = (scratch: string) =>
+const scratchGuidance = (scratch: string) =>
   `- Temporary files (downloads, scripts you try, intermediate output) go in your temp folder, ${scratch}, never in the folder you work in, which holds what the owner keeps: file tools, send_file and shell's cwd take absolute paths there, and writing there never waits for the owner.`;
 
 /** What the prompt says of the project a turn works in: its files, its kind and, for a company, its areas and roles. */
@@ -401,7 +401,7 @@ export function rosterBlock(agent: AgentRecord, roster: AgentRecord[], thread: T
 }
 
 /** An agent origin that is not one of the owner's agents: an outside app's (client:…) or an unnamed one. */
-export const isOutsideAgent = (id: string) => id === "external" || id.startsWith("client:");
+const isOutsideAgent = (id: string) => id === "external" || id.startsWith("client:");
 
 /** How a run's input reaches the model: the owner and their agents speak as theirs; everyone else is untrusted data. */
 export function frameInput(origin: Origin, text: string): string {

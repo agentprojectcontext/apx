@@ -4,9 +4,9 @@
 export type CommandId = "new" | "compact" | "model" | "effort" | "stop" | "usage" | "skills";
 
 /** `sub`: picking it opens a second list (models, efforts) instead of acting. */
-export type Command = { id: CommandId; aliases: readonly string[]; sub?: boolean };
+type Command = { id: CommandId; aliases: readonly string[]; sub?: boolean };
 
-export const COMMANDS: readonly Command[] = [
+const COMMANDS: readonly Command[] = [
   { id: "new", aliases: ["clear"] },
   { id: "compact", aliases: ["summarize", "resumir"] },
   { id: "model", aliases: ["modelo"], sub: true },

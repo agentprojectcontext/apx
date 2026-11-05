@@ -103,7 +103,7 @@ export function reportCard(
 }
 
 /** A run a limit cut short (its steps or its time): what it gave is a progress report, not a result. */
-export const cutShort = (run: Pick<RunRecord, "end_reason">): boolean =>
+const cutShort = (run: Pick<RunRecord, "end_reason">): boolean =>
   run.end_reason === "step_limit" || run.end_reason === "deadline";
 
 /** How a delegated run ended, for its caller: a run that ran out of steps or time did not finish. */

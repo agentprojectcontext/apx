@@ -25,8 +25,8 @@ const DEBOUNCE_MS = 400;
 /** How long a project folder has to answer at start before it shows as waiting (rule 9). */
 export const PROJECT_READ_MS = 5_000;
 
-export const projectIdOf = (apcId: string) => `p_${apcId}`;
-export const agentIdOf = (apcId: string, slug: string) => `${apcId}-${slug}`.toLowerCase();
+const projectIdOf = (apcId: string) => `p_${apcId}`;
+const agentIdOf = (apcId: string, slug: string) => `${apcId}-${slug}`.toLowerCase();
 
 /**
  * v1 wrote "provider:model". Only an engine this install knows becomes a choice; "inherit", a bare id or v1-only

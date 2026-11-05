@@ -13,7 +13,7 @@ apx expose status`;
 
 const MAC_TAILSCALE = "/Applications/Tailscale.app/Contents/MacOS/Tailscale";
 
-export function findTailscale(): string | undefined {
+function findTailscale(): string | undefined {
   const names = process.platform === "win32" ? ["tailscale.exe"] : ["tailscale"];
   for (const dir of (process.env.PATH ?? "").split(path.delimiter).filter(Boolean))
     for (const n of names) if (fs.existsSync(path.join(dir, n))) return path.join(dir, n);

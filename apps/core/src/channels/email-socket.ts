@@ -3,7 +3,7 @@
 import net from "node:net";
 import tls from "node:tls";
 
-export type MailTls = "implicit" | "starttls" | "none";
+type MailTls = "implicit" | "starttls" | "none";
 export type Endpoint = { host: string; port: number; tls: MailTls };
 
 /** No answer within the deadline (the connection is still usable for IMAP's IDLE). */

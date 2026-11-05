@@ -468,7 +468,7 @@ export function exposedOrigins(config: Pick<CoreConfig, "host" | "publicUrl">, p
 }
 
 /** How long the core keeps an idle HTTP connection open for its next request. */
-export const KEEP_ALIVE_MS = 65_000;
+const KEEP_ALIVE_MS = 65_000;
 
 /** HTTP + WebSocket transports over one dispatcher; resolves once the port is bound. */
 export async function listen(
