@@ -19,6 +19,7 @@ export * from "./files-methods.ts";
 export * from "./frames.ts";
 export * from "./git-methods.ts";
 export * from "./hermes-methods.ts";
+export * from "./instance-methods.ts";
 export * from "./mail-methods.ts";
 export * from "./methods.ts";
 export * from "./notices.ts";

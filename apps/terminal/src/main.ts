@@ -16,6 +16,7 @@ import { extensions } from "./commands/extensions.ts";
 import { flows } from "./commands/flows.ts";
 import { hermesImport } from "./commands/hermes-import.ts";
 import { init } from "./commands/init.ts";
+import { exportInstance, importInstance } from "./commands/instance.ts";
 import { localConnection } from "./commands/local.ts";
 import { logsCommand } from "./commands/logs.ts";
 import { mcpCommand } from "./commands/mcp.ts";
@@ -94,6 +95,8 @@ Usage:
   apx artifacts [list] [--project <id>] [--json]   Widgets and apps agents made
   apx artifacts push <name> <file.html> [--title t] [--app] [--connect <origin,…>] [--project <id>]   Show a built page
   apx artifacts dir <name> [--project <id>]   Where a built artifact keeps its source (created if missing)
+  apx export [--chats] [--rows] [--out <file>]   This setup as one file, without secrets (to move or back up APX)
+  apx import <file> [--yes]   What importing it would add or change; --yes imports it
   apx artifacts export <name> [--memory] [--out <file>] [--project <id>]   Save one as an .apxart file
   apx artifacts import <file.apxart> [--project <id>]   Load an .apxart file into this APX
   apx sessions projects codex|claude   Claude Code or Codex projects and chats on this computer
@@ -212,6 +215,8 @@ function argumentsOf() {
       cwd: { type: "string" },
       write: { type: "string" },
       keys: { type: "boolean" },
+      chats: { type: "boolean" },
+      rows: { type: "boolean" },
       skills: { type: "boolean" },
       services: { type: "boolean" },
       refresh: { type: "boolean" },
@@ -484,9 +489,12 @@ try {
     case "secrets":
       await secrets(client, rest);
       break;
+    case "export":
+      await exportInstance(client, { out: values.out, chats: values.chats, rows: values.rows });
+      break;
     case "import":
-      if (rest[0] !== "hermes") throw new Error("usage: apx import hermes <folder> [--yes]");
-      await hermesImport(client, rest[1], { yes: values.yes });
+      if (rest[0] === "hermes") await hermesImport(client, rest[1], { yes: values.yes });
+      else await importInstance(client, rest[0], { yes: values.yes });
       break;
     case "import-v1":
       await importV1(client, {

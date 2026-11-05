@@ -76,6 +76,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
     "an agents' computer and all it holds go only when the owner deletes it (DECISIONS.md#d-185)",
   "storage.backups.delete":
     "a backup copy of the owner's data goes only when the owner deletes it (DECISIONS.md#d-185)",
+  "instance.import":
+    "bringing a whole setup in replaces agents, Flows and settings; the owner looks at its preview first (DECISIONS.md#d-192)",
   "desktop.set": MACHINE,
   "desktop.install": MACHINE,
   "desktop.install_cancel": MACHINE,

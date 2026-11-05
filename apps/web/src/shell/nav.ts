@@ -62,6 +62,7 @@ export const CONFIG_SECTIONS = [
   "api",
   "advanced",
   "storage",
+  "move",
   "logs",
 ] as const;
 export type ConfigSection = (typeof CONFIG_SECTIONS)[number];

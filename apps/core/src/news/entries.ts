@@ -10,6 +10,7 @@ import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
 import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
 import { LOCAL_MODELS_NEWS } from "./local-models.ts";
+import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
@@ -81,6 +82,7 @@ export const NEWS: readonly NewsEntry[] = [
   BROWSER_EDIT_NEWS,
   BROWSER_JAVASCRIPT_NEWS,
   LOCAL_MODELS_NEWS,
+  MOVE_BACKUP_NEWS,
   AGENT_FALLBACKS_NEWS,
   {
     id: "storage-screen",

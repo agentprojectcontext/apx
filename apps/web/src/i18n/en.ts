@@ -15,6 +15,7 @@ import { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
 import type { enFlow } from "./flow-en.ts";
 import type { enIngress } from "./ingress-en.ts";
+import type { enMove } from "./move-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
 import type { enSecretary } from "./secretary-en.ts";
 import type { enStorage } from "./storage-en.ts";
@@ -1081,6 +1082,7 @@ export const en = {
   "config.browser": "Browser",
   "config.advanced": "Advanced",
   "config.storage": "Storage",
+  "config.move": "Move or back up",
   "config.logs": "Logs",
   "logs.lead":
     "What the core writes while it runs: what it started, what failed and why. Newest first, refreshed every few seconds.",
@@ -1902,6 +1904,7 @@ export type MessageKey =
   | ReceivedKey
   | SysUsageKey
   | keyof typeof enStorage
+  | keyof typeof enMove
   | keyof typeof enEmailSignatures
   | keyof typeof enThreadDialogs
   | keyof typeof enIngress

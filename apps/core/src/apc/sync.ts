@@ -25,7 +25,7 @@ const DEBOUNCE_MS = 400;
 /** How long a project folder has to answer at start before it shows as waiting (rule 9). */
 export const PROJECT_READ_MS = 5_000;
 
-const projectIdOf = (apcId: string) => `p_${apcId}`;
+export const projectIdOf = (apcId: string) => `p_${apcId}`;
 const agentIdOf = (apcId: string, slug: string) => `${apcId}-${slug}`.toLowerCase();
 
 /**
