@@ -32,7 +32,7 @@ pnpm app                                   # build panel + desktop, start the co
 pnpm dev                                   # core only, on 127.0.0.1:7440, home ~/.apx/v2 (override APX_HOME/APX_PORT)
 node apps/terminal/src/main.ts status      # is the core up, and is it running my code? (code_sha)
 pnpm --filter @apx/web dev                 # panel on :7441, proxies /rpc, /ws, /health to the core
-pnpm preflight                             # check:private + check:schema + lint + typecheck + test — must be green before push
+pnpm preflight                             # check:private + schema + lint + check:ui + check:dead + typecheck + test — must be green before push
 pnpm verify                                # preflight + e2e (web, desktop) + perf budgets — what CI runs; green before merge
 pnpm package                               # this OS's installer + daemon bundle in out/ (CI: push a v2.x.y tag)
 pnpm package:linux                         # cross-build Linux or Windows (:win); :mac requires macOS + Xcode tools
