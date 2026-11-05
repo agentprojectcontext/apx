@@ -68,10 +68,10 @@ test("AI usage shows account windows, unavailable engines and a narrow-screen ac
   const summary = page.getByTestId("engine-usage-summary");
   await expect(summary.getByText("63% disponible")).toBeVisible();
   await expect(summary.getByText("9% disponible")).toBeVisible();
-  await expect(summary.getByText("5 horas", { exact: true })).toBeVisible();
+  await expect(summary.getByText("Sesión (5 h)", { exact: true })).toBeVisible();
   await expect(summary.getByText("Semanal", { exact: true })).toBeVisible();
-  await expect(summary.getByRole("img", { name: "Codex · 5 horas: 37% usado" })).toBeVisible();
-  await expect(summary.getByText(/Se renueva/)).toBeVisible();
+  await expect(summary.getByRole("img", { name: "Codex · Sesión (5 h): 37% usado" })).toBeVisible();
+  await expect(summary.getByText(/Se reinicia/)).toBeVisible();
   const claude = summary.locator("section").filter({ has: page.getByRole("heading", { name: "Claude", exact: true }) });
   await expect(claude.locator(".apx-meter")).toHaveCount(0);
   await expect(claude).toContainText("Sin fuente de cuota compatible");
