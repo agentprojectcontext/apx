@@ -1,7 +1,7 @@
 import type { CatalogEngine, ModelChoice } from "@apx/protocol";
 import { Button, Icons, Popover } from "@apx/ui";
 import { type ReactNode, Suspense, useState } from "react";
-import { choiceLabel, effectiveChoice, inCatalog, refLabel, useModels } from "../../data/models.ts";
+import { choiceLabel, effectiveChoice, forAgents, inCatalog, refLabel, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
 import { ModelList } from "../../lazy.ts";
 
@@ -16,17 +16,19 @@ export function trigger(o: {
   warn?: boolean;
   className?: string;
   icon?: ReactNode;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
+      disabled={o.disabled}
       className={o.className ?? "selectbtn"}
       aria-label={o.label}
       title={o.warn ? o.warnText : o.text}
     >
       {o.warn ? <Icons.TriangleAlert size={12} className="selectbtn__warn" /> : o.icon}
       <span className="selectbtn__text">{o.text}</span>
-      <Icons.ChevronDown size={12} />
+      <Icons.ChevronDown size={12} className="selectbtn__chevron" />
     </button>
   );
 }
@@ -46,6 +48,7 @@ export function ModelChoicePicker(props: {
   inherited?: ModelChoice;
   none?: { title: string; desc: string; action: string };
   align?: "start" | "end";
+  disabled?: boolean;
   /** Which engines it offers (a CLI's own session: that CLI); by default the model APIs agents run on. */
   only?: (e: CatalogEngine) => boolean;
 }) {
@@ -67,16 +70,24 @@ export function ModelChoicePicker(props: {
       })
     : t(config?.router.rules.length ? "models.routerRules" : "models.router");
   const text = props.text ?? current;
+  const load = useModels((s) => s.catalogLoad);
+  const empty =
+    load === "ready" &&
+    !catalog.some(props.only ?? forAgents) &&
+    !effective.model &&
+    !config?.router.chain.length &&
+    !config?.router.rules.length;
   const warn = Boolean(effective.model) && catalog.length > 0 && !inCatalog(effective.model ?? "", catalog);
   return (
     <Popover
-      open={open}
+      open={open && !props.disabled}
       onOpenChange={setOpen}
       width={560}
       align={props.align ?? "end"}
       label={props.label}
       trigger={trigger({
-        text,
+        text: empty && !props.disabled ? t("models.noneConnected") : text,
+        disabled: props.disabled,
         label: props.label,
         warn,
         warnText: t("models.notInCatalog"),
@@ -90,22 +101,26 @@ export function ModelChoicePicker(props: {
             {t("models.currentChoice", { model: current })}
           </div>
         )}
-        <Fallback
-          active={value != null && !own}
-          title={router}
-          action={t("models.routerOnly")}
-          onPick={() => pick({ router: true })}
-        />
-        <Fallback
-          active={value == null}
-          title={t("models.inheritedChoice", {
-            source: props.none?.title ?? t("models.installDefault"),
-            model: inherited,
-          })}
-          action={props.none?.action ?? t("models.useDefault")}
-          onPick={() => pick(null)}
-        />
-        <div className="mchoice__label">{t("models.ownModel")}</div>
+        {!empty && (
+          <>
+            <Fallback
+              active={value != null && !own}
+              title={router}
+              action={t("models.routerOnly")}
+              onPick={() => pick({ router: true })}
+            />
+            <Fallback
+              active={value == null}
+              title={t("models.inheritedChoice", {
+                source: props.none?.title ?? t("models.installDefault"),
+                model: inherited,
+              })}
+              action={props.none?.action ?? t("models.useDefault")}
+              onPick={() => pick(null)}
+            />
+            <div className="mchoice__label">{t("models.ownModel")}</div>
+          </>
+        )}
         <Suspense fallback={null}>
           <ModelList
             value={own}

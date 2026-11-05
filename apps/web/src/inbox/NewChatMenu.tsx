@@ -38,7 +38,18 @@ export function startChat(agent: Agent, projectId: string | undefined, code = fa
  * them by project. From the Inbox every project's agents are there (the chat goes to the agent's project); in a
  * project, its own and the super-agent, plus code sessions when the project has its folder on disk.
  */
-export function NewChatMenu({ projectId, trigger }: { projectId: string | undefined; trigger: ReactElement }) {
+export function NewChatMenu({
+  projectId,
+  trigger,
+  onStart,
+  disabled,
+}: {
+  projectId: string | undefined;
+  trigger: ReactElement;
+  /** Embedded chats stay in their window instead of navigating the full panel. */
+  onStart?: (id: string) => void;
+  disabled?: boolean;
+}) {
   const t = useT();
   const agents = useData((s) => s.agents);
   const threads = useData((s) => s.threads);
@@ -62,7 +73,17 @@ export function NewChatMenu({ projectId, trigger }: { projectId: string | undefi
     return [
       ...recent.flatMap((id) => {
         const o = byId.get(id);
-        return o ? [{ ...o, value: `recent:${id}`, group: t("chat.recentAgents") }] : [];
+        return o
+          ? [
+              {
+                ...o,
+                value: `recent:${id}`,
+                group: t("chat.recentAgents"),
+                hint: [o.group, o.hint].filter(Boolean).join(" · "),
+                keywords: `${o.keywords ?? ""} ${o.group ?? ""}`,
+              },
+            ]
+          : [];
       }),
       ...all,
       ...(onDisk
@@ -81,6 +102,11 @@ export function NewChatMenu({ projectId, trigger }: { projectId: string | undefi
     const [kind, id] = value.includes(":") ? value.split(":") : ["", value];
     const agent = agents[id ?? ""];
     if (!agent) return;
+    if (onStart) {
+      const project = projectId ? pid : agent.project_id;
+      onStart(newChatId({ agent: agent.id, ...(project ? { project } : {}), code: kind === "code" }));
+      return;
+    }
     if (projectId) return startChat(agent, projectId, kind === "code");
     // From the Inbox: the chat belongs to the agent's project, and opens here.
     go.thread(newChatId({ agent: agent.id, ...(agent.project_id ? { project: agent.project_id } : {}) }));
@@ -91,6 +117,7 @@ export function NewChatMenu({ projectId, trigger }: { projectId: string | undefi
     <Suspense fallback={trigger}>
       <SearchSelect
         trigger={trigger}
+        disabled={disabled}
         label={t("chat.newWith")}
         searchPlaceholder={t("pickers.searchAgent")}
         emptyLabel={t("pickers.noMatch")}

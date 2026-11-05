@@ -12,7 +12,7 @@ export const enChat = {
   "chat.planDone": "{done} of {count} done",
   "input.sessionScope": "This session",
 
-  "composer.offline": "No connection to the core…",
+  "composer.offline": "Not connected to APX",
   "composer.placeholder": "Message {name}…",
   "composer.yourAgent": "your agent",
   "composer.attach": "Attach",

@@ -32,6 +32,7 @@ export function useSlashMenu(o: {
   text: string;
   setText: (v: string) => void;
   busy: boolean;
+  onNew?: (id: string) => void;
 }) {
   const { thread, agent, text, setText } = o;
   const t = useT();
@@ -95,7 +96,9 @@ export function useSlashMenu(o: {
         // Made with its first message, like any new chat.
         return (
           agent &&
-          go.thread(newChatId({ agent: agent.id, ...(thread.project_id ? { project: thread.project_id } : {}) }))
+          (o.onNew ?? go.thread)(
+            newChatId({ agent: agent.id, ...(thread.project_id ? { project: thread.project_id } : {}) }),
+          )
         );
       case "compact":
         return void compactThread(thread.id);

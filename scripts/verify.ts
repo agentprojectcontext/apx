@@ -17,7 +17,13 @@ type Out = { write(chunk: string): unknown; isTTY?: boolean; columns?: number };
 const PREFLIGHT = ["pnpm preflight:static", "pnpm test"];
 export const PLANS: Record<string, string[]> = {
   preflight: PREFLIGHT,
-  verify: [...PREFLIGHT, "pnpm test:coverage:all", "node --no-warnings scripts/perf.ts"],
+  verify: [
+    ...PREFLIGHT,
+    "pnpm build:web",
+    "pnpm test:chrome-extension:browser",
+    "pnpm test:coverage:all",
+    "node --no-warnings scripts/perf.ts",
+  ],
 };
 
 // Names for the long steps whose command says little at a glance.

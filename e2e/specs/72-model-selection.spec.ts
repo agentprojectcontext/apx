@@ -39,27 +39,27 @@ test("agents and chats distinguish inheritance, primary models and explicit rout
     await expect(
       picker.locator(".mchoice__fallback:not([role])").filter({ hasText: "Predeterminado de la instalación" }),
     ).toContainText("En uso");
-    await picker.getByRole("button", { name: "Dejar solo el router" }).click();
+    await picker.getByRole("button", { name: "Elegir automáticamente" }).click();
     await expect.poll(choiceOf).toEqual({ router: true });
-    await expect(agentButton).toHaveText("Router · #1: custom/fake-1");
-    await expect(picker.locator(".mchoice__fallback:not([role])").filter({ hasText: /^Router:/ })).toContainText(
-      "En uso",
-    );
+    await expect(agentButton).toHaveText("Automático · Primero: custom/fake-1");
+    await expect(
+      picker.locator(".mchoice__fallback:not([role])").filter({ hasText: /^Automático · Primero:/ }),
+    ).toContainText("En uso");
     await picker.getByRole("option", { name: /custom\/fake-2/ }).click();
     await expect.poll(choiceOf).toEqual({ model: "custom/fake-2", router: true });
-    await expect(agentButton).toHaveText("custom/fake-2 · Respaldo: Router");
+    await expect(agentButton).toHaveText("custom/fake-2 · Respaldo automático");
     await expect(picker).toBeVisible();
     await expect(picker.getByRole("option", { selected: true })).toContainText("fake-2");
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
-    await expect(chat).toHaveText("custom/fake-2 · Respaldo: Router");
+    await expect(chat).toHaveText("custom/fake-2 · Respaldo automático");
     await page
       .getByRole("region", { name: "Model selection", exact: true })
       .getByRole("button", { name: agent.name, exact: true })
       .click();
     const detail = page.locator(".teamdetail");
     await expect(detail.getByRole("button", { name: `Modelo de ${agent.name}`, exact: true })).toHaveText(
-      "custom/fake-2 · Respaldo: Router",
+      "custom/fake-2 · Respaldo automático",
     );
     await detail.getByRole("button", { name: `Modelo de ${agent.name}`, exact: true }).click();
     await expect(picker.getByRole("option", { selected: true })).toContainText("fake-2");
@@ -67,12 +67,12 @@ test("agents and chats distinguish inheritance, primary models and explicit rout
     await chat.click();
     await expect(
       picker.locator(".mchoice__fallback:not([role])").filter({ hasText: "El modelo del agente" }),
-    ).toContainText("custom/fake-2 · Respaldo: Router");
-    await picker.getByRole("button", { name: "Dejar solo el router" }).click();
-    await expect(chat).toHaveText("Router · #1: custom/fake-1");
+    ).toContainText("custom/fake-2 · Respaldo automático");
+    await picker.getByRole("button", { name: "Elegir automáticamente" }).click();
+    await expect(chat).toHaveText("Automático · Primero: custom/fake-1");
     await expect(picker).toBeVisible();
     await picker.getByRole("button", { name: "Volver al del agente" }).click();
-    await expect(chat).toHaveText("custom/fake-2 · Respaldo: Router");
+    await expect(chat).toHaveText("custom/fake-2 · Respaldo automático");
 
     // A fixed model without fallback must stay fixed when selected again.
     await rpc("agents.update", { agent: agent.id, model_choice: { model: "custom/fake-2", router: false } });
@@ -121,19 +121,19 @@ test("router previews identify rules and do not predict the turn's selected mode
     const thread = await rpc<Thread>("threads.create", { kind: "loose", agent_id: agent.id, title: "Routing rules" });
     await open(page, `#thread=${thread.id}`);
     const chat = page.getByRole("button", { name: "Modelo de este chat", exact: true });
-    await expect(chat).toHaveText("Router · Reglas · #1: custom/fake-1");
+    await expect(chat).toHaveText("Automático · Reglas · Primero: custom/fake-1");
     await chat.click();
     await expect(
-      page.locator(".mchoice").getByText("Router: Reglas · #1: custom/fake-1", { exact: true }),
+      page.locator(".mchoice").getByText("Automático · Reglas · Primero: custom/fake-1", { exact: true }),
     ).toBeVisible();
     await expect(page.locator(".mchoice").getByRole("status")).toHaveCount(0);
     await page.keyboard.press("Escape");
     await rpc("models.set_config", { router: { chain: [], rules: [{ when: {}, model: "custom/fake-2" }] } });
     await page.reload();
-    await expect(chat).toHaveText("Router · Reglas");
+    await expect(chat).toHaveText("Automático · Reglas");
     await rpc("models.set_config", { router: { chain: [], rules: [] } });
     await page.reload();
-    await expect(chat).toHaveText("Router");
+    await expect(chat).toHaveText("Automático");
   } finally {
     await rpc("agents.update", { agent: agent.id, model_choice: agent.model_choice ?? null });
     await rpc("models.set_config", saved);
@@ -146,6 +146,7 @@ test("model choices keep effort visible and stay open while editing", async ({ p
   const { agents } = await rpc<{ agents: Agent[] }>("agents.list");
   const agent = agents.find((a) => a.kind === "secretary");
   if (!agent) throw new Error("Missing secretary");
+  const longName = "Northwind assistant with a long name and an important distinguishing version";
   await page.route("**/rpc/models.list", async (route) => {
     const response = await route.fetch();
     const body = await response.json();
@@ -153,6 +154,7 @@ test("model choices keep effort visible and stay open while editing", async ({ p
     const model = engine.models.find((m: { id: string }) => m.id === "fake-2");
     model.efforts = ["low", "high"];
     model.default_effort = "low";
+    engine.models.find((m: { id: string }) => m.id === "fake-1").name = longName;
     await route.fulfill({ response, json: body });
   });
   const thread = await rpc<Thread>("threads.create", {
@@ -213,7 +215,8 @@ test("model choices keep effort visible and stay open while editing", async ({ p
   await expect(picker.getByText("La primera regla que coincida", { exact: false })).toHaveCount(0);
   await expect(picker.getByRole("status")).toContainText("Configurado:");
   await expect(picker.locator(":scope > :first-child")).toHaveCSS("border-top-width", "0px");
-  await expect(picker.getByRole("status")).toHaveCSS("white-space", "nowrap");
+  await expect(picker.getByRole("status")).toContainText("custom/fake-1");
+  expect(await picker.getByRole("status").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 390, height: 740 });
   await trigger.click();
@@ -224,6 +227,20 @@ test("model choices keep effort visible and stay open while editing", async ({ p
   expect(popupBox.x).toBeGreaterThanOrEqual(0);
   expect(popupBox.x + popupBox.width).toBeLessThanOrEqual(390);
   await expect(effort).toBeVisible();
+  const longOption = picker.getByRole("option", { name: /custom\/fake-1/ });
+  await expect(longOption.locator(".mlist__name")).toHaveText(longName);
+  await expect(longOption.locator(".mlist__ref")).toBeVisible();
+  for (const text of [
+    longOption.locator(".mlist__name"),
+    longOption.locator(".mlist__ref"),
+    picker.getByRole("status"),
+  ]) {
+    expect(
+      await text.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth && element.scrollHeight <= element.clientHeight,
+      ),
+    ).toBe(true);
+  }
   await page.screenshot({ path: test.info().outputPath("model-picker-mobile.png") });
   await page.keyboard.press("Escape");
   await expect(picker).toBeHidden();
