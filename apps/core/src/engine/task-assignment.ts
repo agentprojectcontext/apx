@@ -79,6 +79,9 @@ function issuedAfter(store: Store, run: RunRecord, task: Task, assignment: TaskE
   );
 }
 
+/** What the owner authorized: a rewrite by anyone, even in the handoff call itself, needs the owner again. */
+const SCOPE = ["title", "description", "goal", "project_id"] as const;
+
 /** A recorded owner assignment is an execution boundary, not another historical parent. */
 export function assignmentProposalReason(
   store: Store,
@@ -86,6 +89,7 @@ export function assignmentProposalReason(
   caller: Caller,
   next: string,
   status?: string,
+  changes?: Partial<Record<(typeof SCOPE)[number], unknown>>,
 ): TransferPolicy | { verified: false; reason: string } | undefined {
   const events = store.tasks.events(task.id);
   const anchor = events.findLastIndex(
@@ -115,13 +119,12 @@ export function assignmentProposalReason(
       .slice(anchor + 1)
       .some(
         (event) =>
-          event.by === "owner" &&
-          ["title", "description", "goal", "project_id", "state", "awaits_owner"].some((key) =>
-            Object.hasOwn(event.data, key),
-          ),
+          SCOPE.some((key) => Object.hasOwn(event.data, key)) ||
+          (event.by === "owner" && ["state", "awaits_owner"].some((key) => Object.hasOwn(event.data, key))),
       )
   )
     return denied;
+  if (SCOPE.some((key) => changes?.[key] !== undefined)) return denied;
   const initial = events.slice(0, anchor + 1).findLast((e) => Object.hasOwn(e.data, "assignee"))?.data.assignee;
   if (typeof initial !== "string") return denied;
   if (events.slice(anchor + 1).some((event) => Object.hasOwn(event.data, "proposed"))) return denied;

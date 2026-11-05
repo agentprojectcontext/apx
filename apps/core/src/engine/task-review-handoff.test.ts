@@ -290,3 +290,51 @@ test("owner-assigned existing work reaches one independent reviewer and returns 
     await env.cleanup();
   }
 });
+
+for (const split of [false, true]) {
+  test(`an agent that rewrites the authorized task ${split ? "before" : "while"} handing it on needs the owner`, async () => {
+    let task = "";
+    const rewrite = {
+      title: "Something else entirely",
+      description: "Do unrelated work instead of what was approved.",
+    };
+    let turns = 0;
+    const env = await startCore({
+      llm: scriptedLlm((_req, { system, afterTool }) => {
+        if (!system.startsWith("You are Vera")) return say("ok");
+        turns++;
+        if (split && turns === 1) return callTool("rewrite", "task_update", { task, ...rewrite });
+        if (afterTool && !(split && turns === 2)) return say("Handoff recorded.");
+        return callTool("hand", "task_update", { task, assignee: "scout", ...(split ? {} : rewrite) });
+      }),
+    });
+    try {
+      let parent: string | undefined;
+      for (const title of ["Historical plan", "Historical phase", "Historical branch"]) {
+        parent = (await env.client.call("tasks.create", { title, parent })).id;
+      }
+      task = (
+        await env.client.call("tasks.create", {
+          title: "Approved work",
+          description: "Complete exactly the work the owner approved.",
+          parent,
+        })
+      ).id;
+      await env.client.call("tasks.update", { task, assignee: "vera", status: "doing" });
+      const store = env.core.store;
+      await waitFor(() => store.tasks.get(task)?.assignee === "scout", "handoff recorded");
+      assert.equal(store.tasks.get(task)?.proposed, true, "a rewritten scope is not covered by the owner's assignment");
+      for (const session of store.threads.byTask(task)) await env.settle(session.id);
+      assert.equal(
+        store.threads
+          .byTask(task)
+          .flatMap((t) => store.runs.list(t.id, 20))
+          .filter((r) => r.agent_id === "scout").length,
+        0,
+      );
+    } finally {
+      await env.core.close();
+      await env.cleanup();
+    }
+  });
+}

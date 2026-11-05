@@ -341,7 +341,7 @@ export function taskHandlers(
         // Verified owner-started execution counts actual transfers, not the task's historical hierarchy.
         const assignment =
           ctx.agent && c.assignee && c.assignee !== cur.assignee && !cur.proposed
-            ? assignmentProposalReason(store, cur, ctx.agent, c.assignee, c.status)
+            ? assignmentProposalReason(store, cur, ctx.agent, c.assignee, c.status, { ...c, project_id: project })
             : undefined;
         const forced =
           ctx.agent && c.assignee && c.assignee !== cur.assignee && !cur.proposed
