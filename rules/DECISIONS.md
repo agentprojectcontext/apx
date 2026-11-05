@@ -3628,3 +3628,42 @@ Rejected: a second tool beside `task_update` (two ways to write one task's plan)
 thread's context (the messages already hold it, and tools change chats only through the protocol), and moving the
 checklist to the newest answer by removing it from older ones (it rewrites what the owner already read; each answer
 keeps the plan as it stood).
+
+<a id="d-192"></a>
+## D-192 — 2026-11-05 — Moving or backing up a setup: one file without secrets, imported after a preview
+
+The owner had no way to take what they made in APX to another computer, nor to keep a copy of it apart from the
+database backups (which carry chats and every row, and only work on the same install). Now **Settings › Move or back
+up**, `apx export` and `apx import` make and read one JSON file (`instance.export`, `instance.preview_import`,
+`instance.import`; `apps/core/src/instance/`).
+
+- **What travels.** Agents defined in APX (a project's file agents travel with its folder), APX's own settings about
+  each project (autonomy, read-only folders, its folder as `~/…`), routines, Flows with their drawing and their
+  tables' columns, memory notes that stand, channels' configuration, the owner's own MCP servers, model providers,
+  a fixed list of preferences and the owner's skills. Table rows and chats' words only when the owner ticks them.
+  Never the database, files, the agents' computers or anything an extension brought.
+- **No secret value.** Every value this install stores is looked for in the file and replaced by its `secret://`
+  name, then the redaction durable data gets (credential fields and key shapes, `redactedJson`); a file that still
+  holds a stored value is not made. A provider's key stays only as a reference. Channel tokens and sign-ins are not
+  variables and never travel.
+- **One plan for the preview and the import.** `planImport` decides each item (add, update, same, skip, and why) and
+  keeps its step; the preview returns the plan, the import runs its steps, so what is applied is what was shown.
+  Items match by id (memory by its text in its place): the same file twice changes nothing. Another install's
+  super-agent is this one's. An item that exists here keeps its own switch; a preference or skill set here is kept,
+  not replaced.
+- **What needs a secret arrives off.** MCP servers and channels arrive off with their references, a provider whose
+  key is not here, and Google-backed checks. Every Flow arrives off as a draft, whatever it does: publishing is where
+  the owner confirms what it sends and calls (D-169), so an import never publishes one. The preview lists the
+  secret names this computer has no value for.
+- **A project without its folder waits.** Found at the same place, the folder is registered; otherwise the project
+  is kept, not present, so its routines, Flows and notes have where to land, and registering the folder later (same
+  `apx_id`) is the same project. The import never writes into a project's folder.
+- **Versioned.** The file says `format: "apx-instance"` and `version: 1`; any other version is refused whole, saying
+  whether it is newer, never read in part.
+- **The owner's own.** Both methods are `access: "human"`, and the import is placed in `settings-reach.ts`: no agent
+  exports the owner's prompts and notes or replaces their setup.
+
+Rejected: copying the database file (it carries secrets' places, chats and machine paths, and cannot merge into an
+install that already has work), importing a Flow published (it would skip the owner's confirmation of what it does),
+and turning on a server or channel whose secret name already has a value here (the value may be another account's;
+a provider whose key is here keeps its switch, as it only calls a model).

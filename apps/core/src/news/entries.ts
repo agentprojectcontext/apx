@@ -7,6 +7,7 @@ import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
+import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 
@@ -68,6 +69,7 @@ export const NEWS: readonly NewsEntry[] = [
   EXTERNAL_SESSIONS_NEWS,
   BROWSER_EDIT_NEWS,
   BROWSER_JAVASCRIPT_NEWS,
+  MOVE_BACKUP_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",
