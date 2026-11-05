@@ -45,17 +45,17 @@ Este primer alcance **no** comparte pestañas, crea grupos, inspecciona páginas
 
 La barra de Chrome, la cabecera nativa del panel lateral y la pantalla de extensiones usan el logo verde transparente oficial de APX. El paquete incluye PNG de 16, 32, 48 y 128 px generados desde el favicon web existente, sin un diseño nuevo ni permisos adicionales. Para regenerarlos, ejecutá `node apps/chrome-extension/generate-icons.ts`; `assets/README.md` documenta el recurso original y la generación. Recargá la extensión después de reconstruirla para actualizar los íconos en Chrome.
 
-## Identidad unpacked estable
+## Identidad estable
 
-El bundle incluye una clave pública RSA/SPKI en `manifest.key`. Su ID exacto de Chrome es **`pfpnbpijklnekfbnpgbohlmmmfljmklf`**, independiente de la carpeta y del puerto local de APX. El origen correspondiente es `chrome-extension://pfpnbpijklnekfbnpgbohlmmmfljmklf`: usá solamente ese origen exacto donde una política del core revisada por separado permita esta vista previa. Esto no implica un comodín ni confianza adicional para llamadas a APX.
+El bundle descomprimido incluye en `manifest.key` la clave pública RSA/SPKI del ítem de Chrome Web Store, así que su ID de Chrome es el de la tienda: **`jiffjibeffjmombaholpgbnfdajpfigm`**, independiente de la carpeta y del puerto local de APX. El origen correspondiente es `chrome-extension://jiffjibeffjmombaholpgbnfdajpfigm`, el único origen de extensión que nombra la política de marcos del core. Esto no implica un comodín ni confianza adicional para llamadas a APX. El zip para la tienda (`--store`) no lleva la clave: la tienda lo firma con su propia clave privada.
 
-Solo se conserva la clave pública en `identity.ts`. La privada se generó en memoria y se descartó, sin guardarla ni commitearla. Esto fija una identidad de desarrollo unpacked; **no autentica al autor ni al código**, porque otra extensión cargada localmente puede copiar la clave pública del manifest. No es una identidad de firma de Chrome Web Store. Publicarla o reemplazarla requiere coordinar por separado una migración de identidad y políticas.
+Solo se conserva la clave pública en `identity.ts`; la privada es de la tienda. Fijar el ID **no autentica al autor ni al código**, porque otra extensión cargada localmente puede copiar la clave pública del manifest.
 
 ## Límite de seguridad
 
 La página de la extensión incrusta un único origen loopback exacto. El frame APX usa el contrato existente desde su propio origen y conserva los controles de autenticación y aprobación. La extensión no llama al protocolo, cambia controles de origen, registra nodos, guarda tokens, recibe mensajes del frame, inyecta scripts ni inspecciona su DOM. Su CSP prohíbe conexiones directas y permite solo el origen local compilado. El frame es un cliente web APX normal y confiable, no un sandbox de agentes con permisos mínimos. La política de mismo origen lo separa de la extensión; no protege frente a un sistema operativo comprometido ni a una extensión o paquete alterado.
 
-El panel servido por el core envía `frame-ancestors 'self' chrome-extension://pfpnbpijklnekfbnpgbohlmmmfljmklf`, que limita su inclusión en marcos a su propio origen y al origen exacto de esta extensión. Esto mitiga el engaño mediante clics, pero no autentica: otra extensión descomprimida cargada localmente puede copiar la clave pública y el origen. El servidor de desarrollo Vite sirve su propio HTML y no recibe esta cabecera del core; no lo consideres protegido por esta política. Esta vista previa todavía no está aprobada para un perfil de uso diario. El laboratorio previo `examples/chrome-browser-node` es independiente: no se incluye ni se necesita.
+El panel servido por el core envía `frame-ancestors 'self' chrome-extension://jiffjibeffjmombaholpgbnfdajpfigm`, que limita su inclusión en marcos a su propio origen y al origen exacto de esta extensión. Esto mitiga el engaño mediante clics, pero no autentica: otra extensión descomprimida cargada localmente puede copiar la clave pública y el origen. El servidor de desarrollo Vite sirve su propio HTML y no recibe esta cabecera del core; no lo consideres protegido por esta política. Esta vista previa todavía no está aprobada para un perfil de uso diario. El laboratorio previo `examples/chrome-browser-node` es independiente: no se incluye ni se necesita.
 
 ## Verificación
 

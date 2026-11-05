@@ -49,7 +49,7 @@ test("panel HTML permits only same-origin and the APX Chrome extension to frame 
     assert.equal(response.status, 200);
     assert.equal(
       response.headers.get("content-security-policy"),
-      "frame-ancestors 'self' chrome-extension://pfpnbpijklnekfbnpgbohlmmmfljmklf",
+      "frame-ancestors 'self' chrome-extension://jiffjibeffjmombaholpgbnfdajpfigm",
     );
     assert.equal(response.headers.get("x-frame-options"), null);
   }

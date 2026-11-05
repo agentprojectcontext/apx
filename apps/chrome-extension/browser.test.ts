@@ -14,7 +14,7 @@ for (const invalid of [0, -1, 65536, 1.5, Number.NaN]) {
 }
 
 test("the public manifest key derives the exact stable Chrome identity at every port", () => {
-  assert.equal(EXTENSION_ID, "pfpnbpijklnekfbnpgbohlmmmfljmklf");
+  assert.equal(EXTENSION_ID, "jiffjibeffjmombaholpgbnfdajpfigm");
   for (const port of [7440, 17440]) {
     const manifest = JSON.parse(extensionBundle(port)["manifest.json"] ?? "{}");
     assert.equal(manifest.key, EXTENSION_PUBLIC_KEY);

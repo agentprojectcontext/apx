@@ -57,7 +57,7 @@ function serveStatic(dist: string, pathname: string, res: ServerResponse): boole
   res.writeHead(200, {
     "content-type": MIME[path.extname(file)] ?? "application/octet-stream",
     ...(path.extname(file) === ".html"
-      ? { "content-security-policy": "frame-ancestors 'self' chrome-extension://pfpnbpijklnekfbnpgbohlmmmfljmklf" }
+      ? { "content-security-policy": "frame-ancestors 'self' chrome-extension://jiffjibeffjmombaholpgbnfdajpfigm" }
       : {}),
     "cache-control": file.endsWith("index.html") ? "no-cache" : "public, max-age=31536000, immutable",
   });

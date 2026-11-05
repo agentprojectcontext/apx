@@ -45,17 +45,17 @@ This first scope does **not** share tabs, create tab groups, inspect the page, h
 
 The toolbar, native side-panel header and extension management screen use APX's official transparent green logo. The bundle includes 16, 32, 48 and 128 px PNGs generated from the existing web favicon, without a new design or extra permissions. To regenerate them, run `node apps/chrome-extension/generate-icons.ts`; see `assets/README.md` for the source and generation details. Reload the extension after rebuilding to refresh Chrome's icons.
 
-## Stable unpacked identity
+## Stable identity
 
-The bundle includes a public RSA/SPKI `manifest.key`. Its exact Chrome ID is **`pfpnbpijklnekfbnpgbohlmmmfljmklf`**, independent of the folder or local APX port. The corresponding origin is `chrome-extension://pfpnbpijklnekfbnpgbohlmmmfljmklf`; use only that exact origin where a separately reviewed core framing policy permits this preview. No wildcard or additional RPC trust is implied.
+The unpacked bundle includes the Chrome Web Store item's public RSA/SPKI key as `manifest.key`, so its Chrome ID is the store's: **`jiffjibeffjmombaholpgbnfdajpfigm`**, independent of the folder or local APX port. The corresponding origin is `chrome-extension://jiffjibeffjmombaholpgbnfdajpfigm`, the only extension origin the core's framing policy names. No wildcard or additional RPC trust is implied. The store upload (`--store`) leaves the key out: the store signs it with its own private key.
 
-Only the public key is kept in `identity.ts`. The private key was generated in memory and discarded, not stored or committed. This pins an unpacked development identity; it is **not authentication or proof of authorship** because another locally loaded extension can copy the public manifest key. This is not a Chrome Web Store signing identity. Publishing or replacing it requires a separately coordinated identity/policy migration.
+Only the public key is kept in `identity.ts`; the private key is the store's. Pinning the ID is **not authentication or proof of authorship**, because another locally loaded extension can copy the public manifest key.
 
 ## Security boundary
 
 The extension page frames one exact loopback origin. APX's frame calls the existing protocol from its own origin and retains the existing authentication/approval gates. The extension does not make protocol requests, change origin controls, register a node, store tokens, receive frame messages, inject scripts, or inspect that frame's DOM. Its CSP forbids direct connections and allows only the compiled local frame origin. The frame is a normal trusted APX web client, not an isolated or least-privilege agent sandbox. Same-origin protection separates it from the extension wrapper; this is not protection against an OS compromise or an altered extension/package.
 
-The core-served panel sends `frame-ancestors 'self' chrome-extension://pfpnbpijklnekfbnpgbohlmmmfljmklf`, restricting framing to its own origin and this exact extension origin. This is clickjacking mitigation, not authentication: a locally loaded unpacked extension can copy the public key and origin. The Vite development server serves its own HTML and does not receive this core header; do not treat it as protected by this policy. This preview is not yet approved for a daily browser profile. The earlier `examples/chrome-browser-node` laboratory is separate and is not bundled or required.
+The core-served panel sends `frame-ancestors 'self' chrome-extension://jiffjibeffjmombaholpgbnfdajpfigm`, restricting framing to its own origin and this exact extension origin. This is clickjacking mitigation, not authentication: a locally loaded unpacked extension can copy the public key and origin. The Vite development server serves its own HTML and does not receive this core header; do not treat it as protected by this policy. This preview is not yet approved for a daily browser profile. The earlier `examples/chrome-browser-node` laboratory is separate and is not bundled or required.
 
 ## Verification
 
