@@ -5,13 +5,14 @@ import { ago, dueWhen } from "../format";
 import { useTaskDetail } from "../hooks/useTaskDetail";
 import type { Task, Workspace } from "../hooks/useWorkspace";
 import { type Key, t } from "../i18n";
-import type { TaskEvent } from "../protocol";
+import { planSteps, type TaskEvent } from "../protocol";
 import { columnName, KIND_KEY, PRIORITY_KEY, type TaskPatch, type TaskPriority, taskValues } from "../tasks/fields";
 import { type HistoryKey, historyLines } from "../tasks/history";
 import { CommentBox, Comments } from "../tasks/TaskComments";
 import { TaskFields } from "../tasks/TaskFields";
 import { closeChoices, confirmClose, failAlert, type TaskActions, TaskMenu } from "../tasks/TaskMenu";
 import { WorkSheet } from "../tasks/TaskWork";
+import { PlanCard } from "../ui/chat/PlanCard";
 import { Icon } from "../ui/Icon";
 import {
   AgentAvatar,
@@ -177,7 +178,9 @@ export function TaskDetailPage({
             onPress={() => setWork(true)}
           />
         </View>
+        <Goal key={`goal-${task.id}`} task={task} save={(goal) => update({ goal: goal || null })} />
         <Description key={`description-${task.id}`} task={task} save={(description) => update({ description })} />
+        {task.plan?.trim() ? <Plan plan={task.plan} /> : null}
         <TaskFields data={data} value={taskValues(task)} onChange={update} closed={open ? undefined : task.state} />
         <ListGroup>
           <ListRow
@@ -375,6 +378,43 @@ function Description({ task, save }: { task: Task; save: (text: string) => void 
   );
 }
 
+/** Where the work must arrive, one line the owner can change; empty, a tap sets it. */
+function Goal({ task, save }: { task: Task; save: (text: string) => void }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
+  const goal = task.goal?.trim() ?? "";
+  return (
+    <Card style={s.descriptionCard}>
+      <View style={[s.descriptionHead, s.goalHead]}>
+        <Icon name="Flag" size={13} color={theme.fgMuted} />
+        <Text style={[type.meta, { flex: 1 }]}>{t("tkGoal")}</Text>
+      </View>
+      <EditableText
+        value={goal}
+        label={t("tkGoal")}
+        placeholder={t("tkGoalHint")}
+        maxLength={500}
+        textStyle={s.description}
+        save={(next) => {
+          const clean = next.replace(/\s+/g, " ").trim();
+          if (clean !== goal) save(clean);
+        }}
+      />
+    </Card>
+  );
+}
+
+/** The working agent's plan: a checklist when it is one, otherwise as written. */
+function Plan({ plan }: { plan: string }) {
+  const steps = planSteps(plan);
+  return (
+    <PlanCard label={t("tkPlan")} {...(steps ? { steps } : {})}>
+      <Markdown text={plan} />
+    </PlanCard>
+  );
+}
+
 function History({ events, data }: { events?: TaskEvent[]; data: Workspace }) {
   const type = useType();
   const s = useStyles();
@@ -444,6 +484,7 @@ const useStyles = makeStyles((theme) => ({
   editActions: { flexDirection: "row", justifyContent: "flex-end", gap: 8 },
   descriptionCard: { gap: 2, paddingTop: 4 },
   descriptionHead: { flexDirection: "row", alignItems: "center", paddingLeft: 4 },
+  goalHead: { gap: 6, minHeight: 32 },
   pencil: { width: 36, height: 36, marginRight: -8 },
   description: { color: theme.fg, fontSize: 14, lineHeight: 20 },
   toggleRow: { minHeight: 56, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 14 },
