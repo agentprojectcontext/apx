@@ -74,8 +74,15 @@ export type ToolContext = {
   /**
    * Asks the owner and waits (durably) for the answer; the same machine confirmations use. Unless the agent can
    * continue without it, the question stays open after the turn stops waiting and its answer wakes the agent.
+   * `appOnly`: answered only in the app, never from a channel (DECISIONS.md#d-144).
    */
-  askOwner(prompt: string, options?: string[], canContinue?: boolean, multi?: boolean): Promise<InputRecord>;
+  askOwner(
+    prompt: string,
+    options?: string[],
+    canContinue?: boolean,
+    multi?: boolean,
+    appOnly?: boolean,
+  ): Promise<InputRecord>;
   /**
    * Asks the owner for a grant on a card, whatever the agent's mode (a power, not a call: total does not skip it), and
    * waits; undefined once the owner said yes, else the text to answer with. A grant already given answers at once.

@@ -134,8 +134,26 @@ function fanOut(messages: Message[], said: string): Array<{ name: string; argume
   }));
 }
 
+/**
+ * "sign in to t1 field Password with NAME as password": a snapshot of the tab, then browser_sign_in on the field the
+ * snapshot names so (DECISIONS.md#d-193).
+ */
+function signIn(messages: Message[], said: string): { name: string; arguments: string } | undefined {
+  const m = /^sign in to (\S+) field (.+?) with (\S+) as (\w+)/i.exec(said);
+  if (!m) return undefined;
+  const [, tab, field, secret, kind] = m as unknown as [string, string, string, string, string];
+  const sinceOwner = messages.slice(messages.findLastIndex((message) => message.role === "user"));
+  const done = sinceOwner.filter((message) => message.role === "tool");
+  if (done.length === 0) return { name: "browser_snapshot", arguments: JSON.stringify({ tab }) };
+  if (done.length > 1) return undefined;
+  const ref = new RegExp(`"${field}"[^\\n]*?\\[(e\\d+)\\]`).exec(textOf(done[0]))?.[1] ?? "e999";
+  return { name: "browser_sign_in", arguments: JSON.stringify({ tab, ref, secret, kind }) };
+}
+
 /** A tool call to make instead of answering, if the conversation asks for one. */
 function toolCall(messages: Message[], said: string): { name: string; arguments: string } | undefined {
+  const signing = signIn(messages, said);
+  if (signing || /^sign in to /i.test(said)) return signing;
   if (/^evaluate browser three times/i.test(said)) {
     const sinceOwner = messages.slice(messages.findLastIndex((message) => message.role === "user"));
     const done = sinceOwner.filter((message) => message.role === "tool").length;
@@ -347,6 +365,8 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
 
 export async function fakeLlm() {
   const calls: Array<{ model: string; said: string }> = [];
+  /** Every request's body as sent: what a test looks for in what reached the model. */
+  const bodies: string[] = [];
   const server = http.createServer((req, res) => {
     let raw = "";
     req.on("data", (c) => {
@@ -364,6 +384,7 @@ export async function fakeLlm() {
         const { input } = JSON.parse(raw) as { input: string[] };
         return res.end(JSON.stringify({ embeddings: input.map(vectorOf) }));
       }
+      bodies.push(raw);
       const body = (raw ? JSON.parse(raw) : {}) as { model?: string; messages?: Message[]; stream?: boolean };
       const relay = ownerCheck(body.messages ?? []);
       const said = relay && "said" in relay ? relay.said : lastWords(body.messages ?? []);
@@ -376,8 +397,13 @@ export async function fakeLlm() {
       const system = String(body.messages?.[0]?.content ?? "");
       const slow = system.startsWith("You are Slow researcher, a worker");
       const staggered = system.startsWith("You are Staggered researcher, a worker");
+      // A sign-in ends by saying what the browser answered, so a test reads it in the chat.
+      const signed = /^sign in to /i.test(said)
+        ? `Done: ${textOf(body.messages?.findLast((m) => m.role === "tool"))}`
+        : undefined;
       const text =
-        relay && "check" in relay
+        signed ??
+        (relay && "check" in relay
           ? "It is the owner: answer them."
           : system.startsWith("You are Researcher, a worker")
             ? REPORT
@@ -392,7 +418,7 @@ export async function fakeLlm() {
                         JSON.stringify(body.messages?.findLast((m) => m.role === "user")?.content),
                       )
                     ? "REACT ❤️"
-                    : (reviewTable(said) ?? `Got it: ${said || "(nothing)"}`);
+                    : (reviewTable(said) ?? `Got it: ${said || "(nothing)"}`));
       // "fill the context" reads as a long chat: most of a 128k window (a qwen model's).
       const read = /fill the context/i.test(said) ? 82_000 : 120;
       const usage = { prompt_tokens: read, completion_tokens: 8, total_tokens: read + 8 };
@@ -458,6 +484,8 @@ export async function fakeLlm() {
   return {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
     calls,
+    /** Whether any request so far carried this text. */
+    carried: (text: string) => bodies.some((b) => b.includes(text)),
     close: () => new Promise<void>((r) => server.close(() => r())),
   };
 }

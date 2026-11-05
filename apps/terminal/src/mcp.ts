@@ -38,6 +38,7 @@ const DESCRIPTIONS: Record<BrowserMethod, string> = {
   "browser.cookie_sources": "",
   "browser.cookie_domains": "",
   "browser.import_cookies": "",
+  "browser.sign_in": "",
 };
 
 export async function runMcp(client: ApxClient, agent: string, chat = false): Promise<void> {

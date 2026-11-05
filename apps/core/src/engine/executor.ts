@@ -478,7 +478,7 @@ export function createExecutor(o: {
           }
         : {}),
       delegate: o.delegate,
-      askOwner: (prompt, options, canContinue, multi) =>
+      askOwner: (prompt, options, canContinue, multi, appOnly) =>
         o.inputs.ask({
           run,
           agent,
@@ -488,6 +488,7 @@ export function createExecutor(o: {
           prompt,
           options,
           multi,
+          ...(appOnly ? { appOnly: true as const } : {}),
           external: o.external(),
           stays: !canContinue,
           signal,

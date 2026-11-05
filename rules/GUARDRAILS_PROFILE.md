@@ -47,7 +47,8 @@ override is closed — see [`DECISIONS.md#d-005`](DECISIONS.md#d-005)).
 - `apps/core/src/config.ts` bind/token logic and any auth code.
 - The webhook listener (`apps/core/src/transport/hooks.ts`) and each channel adapter's `webhook()` verification: they
   take requests from the internet once a public address is on.
-- The embedded browser: profiles, cookie import, CDP control, take-control handoff.
+- The embedded browser: profiles, cookie import, CDP control, take-control handoff, filling a stored secret into a
+  sign-in field ([D-193](DECISIONS.md#d-193)).
 - Tools with side effects (send, pay, shell, filesystem writes) and anything that lets model output trigger them.
 - A tool that acts as the owner (`callAsOwner`): where it sits in `tools/settings-reach.ts` (`ownerSetting`,
   `keepsCard`, `TOTAL_SKIPS`) decides whether Total skips its card ([D-143](DECISIONS.md#d-143)).

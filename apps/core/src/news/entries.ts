@@ -6,6 +6,7 @@ import { CATALOG } from "../integrations/catalog.ts";
 import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
+import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
 import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
@@ -84,6 +85,7 @@ export const NEWS: readonly NewsEntry[] = [
   LOCAL_MODELS_NEWS,
   MOVE_BACKUP_NEWS,
   AGENT_FALLBACKS_NEWS,
+  BROWSER_SIGN_IN_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",

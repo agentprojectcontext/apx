@@ -33,9 +33,66 @@ Después sigue desde la página donde la dejaste.
 
 <Aside type="caution" title="Nunca escribe tus contraseñas">
 El navegador integrado se niega a escribir en campos de contraseña, de códigos de un solo uso y de tarjetas, sea cual
-sea la autonomía. Eso siempre te lo pasa a vos. Además, a los agentes se les indica que nunca te pidan contraseñas
-por chat.
+sea la autonomía. El agente inicia sesión con una variable que guardaste para ese sitio (abajo) o te pasa la pestaña.
+Además, a los agentes se les indica que nunca te pidan contraseñas por chat.
 </Aside>
+
+## Iniciar sesión con tus claves guardadas
+
+Un agente puede iniciar sesión por vos sin ver nunca tu contraseña. Guardala una vez y decí para qué sitios es:
+
+<Steps>
+
+1. En **Recursos › Variables**, agregá el valor como variable (por ejemplo `ACME_PASSWORD`). Un usuario se guarda
+   igual. Para los códigos de dos pasos, pegá la clave de configuración, o la dirección `otpauth://`, que el sitio da
+   para una app de autenticación.
+2. Abrí **Sitios para iniciar sesión** de la variable y elegí el campo donde va (**Contraseña**, **Usuario** o
+   **Código de un solo uso**) y los sitios, como `app.acme.com`. **Cualquier sitio** deja que los agentes la usen en
+   todos.
+3. Pedile al agente que inicie sesión. Nombra la variable y el campo; el navegador lo completa.
+
+</Steps>
+
+En un sitio que no está en la variable, el agente te pregunta antes en la app: **Una vez**, **Siempre en este sitio**
+o **No**. Esa tarjeta no se puede responder desde una app de chat como Telegram, y **Siempre en este sitio** agrega
+ese sitio a la variable, nunca "cualquier sitio".
+
+El agente recibe solo "rellenado" o "rechazado". El valor no llega al modelo, al chat, a los pasos de la ejecución,
+a los registros de la core ni a las imágenes de la pestaña que mira el agente. La core guarda el valor y se lo pasa
+al navegador en la misma llamada. El navegador pone el valor en ese mismo campo, como si se tipeara, desde un lugar
+que los scripts de la página no alcanzan, y antes comprueba:
+
+- **El sitio:** la dirección exacta de la página (esquema, host y puerto), sin subdominios ni parecidos. Con
+  **Cualquier sitio**, vale cualquier sitio `https://`; `http://` solo en tu propia computadora.
+- **El marco:** el marco del campo tiene que ser de ese mismo sitio. Un campo dentro de un marco de otro sitio se
+  rechaza.
+- **El campo:** tiene que ser del tipo para el que es la variable. Una contraseña nunca va en un campo de usuario ni
+  en un texto común. Los campos de tarjeta nunca se completan.
+
+Mientras la página está abierta, las capturas omiten el valor del campo y las imágenes de la pestaña lo tapan, aunque
+un botón de "mostrar contraseña" lo destape. Mientras la pestaña siga abierta, el valor también se saca de toda
+página, dirección y título que el agente lea en ella (un formulario que pone la contraseña en la dirección, una página
+de error que la repite), y el agente no puede ejecutar JavaScript en esa pestaña (ni con un permiso anterior): para
+eso, que abra otra. Justo después de completarlo, el navegador busca el valor en el resto de la página
+(otro campo, un atributo, texto o la dirección). Si la página lo copió, el navegador lo borra en todos lados, le
+oculta esa página al agente hasta que cambie, rechaza el inicio de sesión y te avisa qué sitio fue.
+
+El registro de la core anota cada uso o rechazo: el agente, el nombre de la variable, el sitio y el resultado, nunca
+el valor. La fila de la variable muestra sus sitios, y su diálogo **Sitios para iniciar sesión** muestra dónde se usó
+por última vez. Para revocarlo, quitá el sitio o la variable: el próximo uso se rechaza. Las sesiones ya abiertas en
+ese sitio siguen abiertas hasta que cierres sesión ahí.
+
+Límites que conviene saber:
+
+- Un usuario se puede ver: las imágenes de páginas posteriores pueden mostrarlo.
+- Un script del propio sitio permitido puede deshacer lo que tapa una imagen o copiar el valor en un dibujo: permití
+  sitios en los que confíes.
+- Cuando la core corre en un servidor, el valor viaja a tu app de escritorio por su conexión con la core.
+- Con **Cualquier sitio**, una página que engañe al agente puede hacer que la variable se escriba en un sitio que
+  nunca nombraste. Usalo para cuentas de prueba.
+- Los códigos de dos pasos de una clave guardada dejan que el agente pase el segundo paso de ese sitio sin vos.
+- Iniciar sesión con variables guardadas funciona en el navegador de APX (app de escritorio o sin ventana). Nunca en
+  una computadora aislada, y no se ofrece a apps de afuera por `apx mcp`.
 
 ## Editar una página que hizo un agente
 
