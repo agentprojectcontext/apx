@@ -373,6 +373,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       event(id, "create", t.by, {
         title: t.title,
         status: t.status,
+        ...(t.goal?.trim() ? { goal: t.goal.trim() } : {}),
         ...(t.proposed ? { proposed: true } : {}),
         ...(t.assignee ? { assignee: t.assignee, assignment_id: newId("assignment") } : {}),
         ...(t.from ? { from_thread: t.from.thread, from_run: t.from.run } : {}),

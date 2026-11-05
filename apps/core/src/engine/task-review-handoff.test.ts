@@ -338,3 +338,41 @@ for (const split of [false, true]) {
     }
   });
 }
+
+for (const had of [false, true]) {
+  test(`an agent ${had ? "changing the goal the owner set" : "setting the goal a task never had"} ${had ? "needs" : "keeps"} the owner's authorization`, async () => {
+    let task = "";
+    let turns = 0;
+    const env = await startCore({
+      llm: scriptedLlm((_req, { system, afterTool }) => {
+        if (!system.startsWith("You are Vera")) return say("ok");
+        turns++;
+        if (turns === 1) return callTool("goal", "task_update", { task, goal: "The figures match the report." });
+        if (afterTool && turns > 2) return say("Handoff recorded.");
+        return callTool("hand", "task_update", { task, assignee: "scout", status: "review" });
+      }),
+    });
+    try {
+      let parent: string | undefined;
+      for (const title of ["Historical plan", "Historical phase", "Historical branch"]) {
+        parent = (await env.client.call("tasks.create", { title, parent })).id;
+      }
+      task = (
+        await env.client.call("tasks.create", {
+          title: "Approved work",
+          description: "Complete exactly the work the owner approved.",
+          ...(had ? { goal: "The owner's figures are checked." } : {}),
+          parent,
+        })
+      ).id;
+      await env.client.call("tasks.update", { task, assignee: "vera", status: "doing" });
+      const store = env.core.store;
+      await waitFor(() => store.tasks.get(task)?.assignee === "scout", "handoff recorded");
+      assert.equal(Boolean(store.tasks.get(task)?.proposed), had);
+      for (const session of store.threads.byTask(task)) await env.settle(session.id);
+    } finally {
+      await env.core.close();
+      await env.cleanup();
+    }
+  });
+}

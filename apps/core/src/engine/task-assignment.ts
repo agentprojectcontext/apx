@@ -114,17 +114,22 @@ export function assignmentProposalReason(
     return denied;
 
   if (authorization.at > run.started_at) return denied;
+  // An agent setting the goal a task never had (D-187) fills it in; changing any other scope is a rewrite.
+  const fillsGoal = (event: TaskEvent, i: number) =>
+    event.by !== "owner" &&
+    Object.keys(event.data).every((key) => key === "goal" || !SCOPE.includes(key as (typeof SCOPE)[number])) &&
+    !events.slice(0, i).some((e) => typeof e.data.goal === "string" && e.data.goal.trim());
   if (
-    events
-      .slice(anchor + 1)
-      .some(
-        (event) =>
-          SCOPE.some((key) => Object.hasOwn(event.data, key)) ||
-          (event.by === "owner" && ["state", "awaits_owner"].some((key) => Object.hasOwn(event.data, key))),
-      )
+    events.some(
+      (event, i) =>
+        i > anchor &&
+        ((SCOPE.some((key) => Object.hasOwn(event.data, key)) && !fillsGoal(event, i)) ||
+          (event.by === "owner" && ["state", "awaits_owner"].some((key) => Object.hasOwn(event.data, key)))),
+    )
   )
     return denied;
-  if (SCOPE.some((key) => changes?.[key] !== undefined)) return denied;
+  const rewrites = SCOPE.filter((key) => changes?.[key] !== undefined);
+  if (rewrites.length && !(rewrites.join() === "goal" && !task.goal)) return denied;
   const initial = events.slice(0, anchor + 1).findLast((e) => Object.hasOwn(e.data, "assignee"))?.data.assignee;
   if (typeof initial !== "string") return denied;
   if (events.slice(anchor + 1).some((event) => Object.hasOwn(event.data, "proposed"))) return denied;

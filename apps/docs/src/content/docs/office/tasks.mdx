@@ -229,7 +229,8 @@ revoking or replacing that assignment does not authorize the old message again.
 
 The authorization must still match the task, its executor and its project. Clearing its assignee, changing its scope
 or pausing it for your decision prevents this continuation. That includes an agent rewriting its title, description or
-goal, even in the same change that hands it on: the new scope waits for you as a proposal. If a recorded owner assignment can no longer be verified,
+goal, even in the same change that hands it on: the new scope waits for you as a proposal. Setting a goal the task
+never had is not a rewrite. If a recorded owner assignment can no longer be verified,
 APX proposes the hand-off even for a task without historical parents. Tasks without a recorded owner assignment keep
 the parent-chain rules above: an unassigned task with no owner authorization cannot bypass those rules as an authorized
 continuation. Ordinary assignments that already passed those rules are unchanged. The orchestrator's chat is not authorization by itself: the task must belong to it and its execution must
