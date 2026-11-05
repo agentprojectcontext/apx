@@ -10,8 +10,6 @@ import { sessionText } from "./native-read.ts";
 import type { NativeEngine, NativeHomes, NativeSession } from "./native-sessions.ts";
 import { type FoundServer, serverSecrets } from "./server-secrets.ts";
 
-export type { FoundServer };
-
 /** `secrets`: where the file holds a credential (an env or header key, an argument's flag, `url`), never copied. */
 type FoundMcp = { name: string; server: FoundServer; secrets: string[] };
 type FoundNote = { key: string; text: string };
@@ -35,7 +33,7 @@ const readJson = (file: string): unknown => {
 };
 
 /** Where a credential is written (or a reference to one the owner's shell had): APX needs the owner to give it. */
-export const secretKeys = (s: FoundServer): string[] => [...new Set(serverSecrets(s).map((x) => x.key))];
+const secretKeys = (s: FoundServer): string[] => [...new Set(serverSecrets(s).map((x) => x.key))];
 
 function server(v: unknown): FoundServer | undefined {
   const o = obj(v);
