@@ -1080,6 +1080,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "config.browser": "Navegador",
   "config.advanced": "Avanzado",
   "config.storage": "Almacenamiento",
+  "config.move": "Mover o respaldar",
   "config.logs": "Registros",
   "logs.lead":
     "Lo que el core escribe mientras corre: qué arrancó, qué falló y por qué. Lo más nuevo primero, se actualiza cada pocos segundos.",
