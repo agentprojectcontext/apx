@@ -168,7 +168,8 @@ export function ChatComposer({
               : t("composer.placeholder", { name: engine ?? agentName })
         }
         labels={{ stop: t("composer.stop"), send: t("composer.send") }}
-        sendHint={t(thread.engine ? "composer.sendHintStop" : "composer.sendHint")}
+        // Claude Code takes words mid-turn as our own loop does; other engines stop and read them (DECISIONS.md#d-196).
+        sendHint={t(thread.engine && thread.engine !== "claude" ? "composer.sendHintStop" : "composer.sendHint")}
         hint={isWorking(thread.state) ? t("composer.queueHint", { mod: MOD }) : undefined}
         value={text}
         onValueChange={setText}

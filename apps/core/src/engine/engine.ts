@@ -44,6 +44,8 @@ const ENGINE_IDLE_MS = 20 * 60_000;
 const AFTER_ANSWER_MS = 60_000;
 /** How often a working engine's moving deadline is written to its run (not on every streamed token). */
 const DEADLINE_WRITE_MS = 60_000;
+/** Harnesses whose loop takes the owner's words mid-turn: ours between steps, Claude Code's between tool rounds. */
+const MIDTURN: ReadonlySet<string> = new Set(["native", "claude"]);
 
 /** "6 minutes", "2 hours", "3 seconds": how long a limit is, for the reason a turn was stopped. */
 function timeSpan(ms: number): string {
@@ -252,12 +254,12 @@ export function createEngine(deps: {
       task_assignment?: Extract<Origin, { kind: "user" }>["task_assignment"];
     }>
   >();
-  /** The running turn of `agentId` in `threadId` whose loop takes text mid-turn (ours), if any. */
+  /** The running turn of `agentId` in `threadId` whose loop takes text mid-turn (ours, Claude Code's), if any. */
   const steerable = (threadId: string, agentId?: string): RunRecord | undefined => {
     for (const [runId, a] of active) {
       if (a.thread !== threadId || a.ac.signal.aborted) continue;
       const run = store.runs.get(runId);
-      if (run?.harness !== "native" || (agentId && run.agent_id !== agentId)) return undefined;
+      if (!run?.harness || !MIDTURN.has(run.harness) || (agentId && run.agent_id !== agentId)) return undefined;
       return run;
     }
     return undefined;
@@ -498,8 +500,9 @@ export function createEngine(deps: {
   }
 
   /**
-   * Enter on a message that went into line behind a turn of an outside engine, which cannot take words mid-turn: it
-   * is "Send now" at once (DECISIONS.md#d-189). Our own loop's turn takes Enter's words itself; true when it acted.
+   * Enter on a message that went into line behind a turn of an outside engine that cannot take words mid-turn (Codex,
+   * ACP): it is "Send now" at once (DECISIONS.md#d-189). Our own loop and Claude Code take Enter's words themselves
+   * (DECISIONS.md#d-196); true when it acted.
    */
   function enterNow(messageId: string): boolean {
     const message = store.messages.get(messageId);
@@ -507,7 +510,7 @@ export function createEngine(deps: {
     const outside = [...active.entries()].some(([runId, a]) => {
       if (a.thread !== message.thread_id || a.ac.signal.aborted) return false;
       const harness = store.runs.get(runId)?.harness;
-      return harness !== undefined && harness !== "native";
+      return harness !== undefined && !MIDTURN.has(harness);
     });
     if (!outside) return false;
     sendNow(messageId);
@@ -609,8 +612,8 @@ export function createEngine(deps: {
     /** Starts the thread's queued delegations that fit (after the owner lets agents go on); how many it started. */
     release: (threadId: string) => delegations.release(threadId),
     /**
-     * Hands owner text to the thread's running turn when its loop can take it mid-turn (ours); else undefined. With
-     * `messageId`, the message shows it waits until the turn takes it.
+     * Hands owner text to the thread's running turn when its loop can take it mid-turn (ours, Claude Code's); else
+     * undefined. With `messageId`, the message shows it waits until the turn takes it.
      */
     steer(threadId: string, text: string, messageId?: string): RunRecord | undefined {
       const run = steerable(threadId);

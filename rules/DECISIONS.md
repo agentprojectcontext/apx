@@ -3563,7 +3563,7 @@ Rejected: a cap on delegations per task (good work also delegates; what matters 
 the count on any plan rewrite (an agent could rewrite its plan to go on forever).
 <a id="d-189"></a>
 
-## D-189 — 2026-11-02 — Enter on an agent in an outside engine's session sends now
+## D-189 — 2026-11-02 — Enter on an agent in an outside engine's session sends now (amended by D-196)
 
 [D-186](#d-186) left Enter in line behind a Claude Code or Codex turn, since those cannot take words mid-turn, and the
 owner then had to click **Send now** on every message. In their session Enter is now **Send now** (the owner's choice):
@@ -3579,7 +3579,8 @@ does for it. A contact's or room's chat never steered, and does not stop a turn 
   (`waiting__taken`), as a delivered mark; the panel remembers it only while open, since `waiting` is cleared when taken.
 
 Rejected: a setting to choose per agent (the owner wants one rule), and keeping the turn alive to deliver the words
-after its next step (an outside engine has no such step).
+after its next step (an outside engine has no such step). Amended by [D-196](#d-196): Claude Code has that step, so
+this holds only for Codex and ACP.
 ## D-190 — 2026-11-02 — Asking the same teammate or helper again goes on in the same conversation
 D-129 gave delegations one session per teammate. Two paths still opened a new sub-thread per ask: an @mention of a
 teammate on a task (D-120, D-132) and a delegation to a worker. The owner saw several sessions with the same
@@ -3730,3 +3731,30 @@ back on its model by itself once its limit resets.
 Rejected: a per-agent chain that replaces the router's (the owner asked for both, the agent's first); a message field
 for "answered by a fallback" (the notice already says it); a separate "back to main" timer (the per-call walk already
 returns to the main model once its hold lifts).
+
+<a id="d-196"></a>
+## D-196 — 2026-11-05 — Claude Code takes the owner's words mid-turn
+
+D-189 made Enter stop a Claude Code turn and send, since outside engines were taken to read words only between turns.
+The Agent SDK does take them mid-turn: in streaming input (an async-iterable `prompt`), a user message written while a
+turn runs is queued and folded into that turn between tool rounds, and the result lists it in `user_message_uuids`. A
+spike against the real CLI confirmed it, and that `priority: "now"` ends the turn (`error_during_execution`) and runs
+the message next in the same session. So a Claude session now behaves like our own loop.
+
+- **One rule in the engine.** `MIDTURN` (`engine/engine.ts`) is `native` and `claude`: their running turns are
+  `steerable`, so `threads.send` with `mode: "steer"` hands Enter's words to the turn (`waiting: { until: "step" }`)
+  and `enterNow` acts only for the other harnesses (Codex, ACP), which keep D-189. Results that would start a turn of
+  their own (D-162) reach a running Claude turn the same way.
+- **The harness feeds the query** from a pushable input (`harness/claude.ts`). It takes `io.takeSteered()` where
+  Claude's tools run (an assistant message with a `tool_use`, a tool result) and writes each as a user message with
+  `priority: "next"`. `io.stepSignal()` aborting ("Send now") takes them at once with `priority: "now"`, dropping
+  the half-written answer as our loop does.
+- **Words the turn did not fold** (they came while it wrote its last answer, or "now" cut it): the SDK runs them right
+  after, still in this APX run; the harness keeps reading until a result lists every message it wrote, and keeps the
+  answer before them above the next. Words still in the engine when the turn ends run as a turn of their own, as with
+  our loop. A CLI whose result has no `user_message_uuids` is taken to have folded them all.
+- **The composer** shows the usual hint for a Claude session (Enter is read at its next step) and keeps "sends now" for
+  Codex and ACP sessions.
+
+Rejected: Codex through `codex app-server` and `turn/steer` (a separate transport to adopt first; `codex exec` cannot
+take words mid-turn), and ACP (v1 has no way to add a user message to a running prompt).
