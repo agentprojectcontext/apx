@@ -91,13 +91,19 @@ export const projectShape = (p: ProjectRecord, userHome: string): InstanceProjec
 export const routineShape = (r: Routine) => InstanceRoutine.parse(r);
 export const memoryShape = (m: Memory) => InstanceMemory.parse(m);
 
+/** A variable's value travels only as a reference: one typed as text (a password in a URL, say) goes empty. */
+const references = (r: Record<string, string>) =>
+  Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v.includes("secret://") || v.startsWith("env:") ? v : ""]));
+/** An address without the user and password some carry before the host. */
+const noSignIn = (url: string) => url.replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@\s]*@/i, "$1");
+
 export const mcpShape = (d: McpDef): InstanceMcp => ({
   name: d.name,
   ...(d.command ? { command: d.command } : {}),
   args: d.args,
-  env: d.env,
-  ...(d.url ? { url: d.url } : {}),
-  headers: d.headers,
+  env: references(d.env),
+  ...(d.url ? { url: noSignIn(d.url) } : {}),
+  headers: references(d.headers),
   ...(d.only ? { project: d.only } : {}),
   enabled: d.enabled,
 });

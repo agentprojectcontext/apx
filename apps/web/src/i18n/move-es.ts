@@ -27,7 +27,7 @@ export const esMove: Record<keyof typeof enMove, string> = {
   "move.import.skipOne": "{n} queda afuera",
   "move.import.off": "Llegan apagados",
   "move.import.offHint":
-    "Prendé cada uno cuando su clave o inicio de sesión esté acá. Los Flows llegan como borradores para publicar.",
+    "Prendé cada uno cuando lo hayas mirado y su clave o inicio de sesión esté acá. Los Flows llegan como borradores para publicar.",
   "move.import.left": "Quedan afuera",
   "move.import.waiting": "Esperan su carpeta",
   "move.import.waitingHint":
@@ -47,6 +47,8 @@ export const esMove: Record<keyof typeof enMove, string> = {
   "move.refused.unreadable": "Este archivo está dañado o fue cambiado, y no se puede leer.",
   "move.refused.too_big": "Este archivo es demasiado grande para traerlo.",
   "move.reason.needs_secret": "necesita su clave o inicio de sesión",
+  "move.reason.changed": "cambió: miralo antes de prenderlo",
+  "move.reason.runs_command": "corre un comando en esta computadora",
   "move.reason.draft": "un borrador para publicar",
   "move.reason.folder_missing": "su carpeta todavía no está en esta computadora",
   "move.reason.agent_missing": "su agente no está acá",

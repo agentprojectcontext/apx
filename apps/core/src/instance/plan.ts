@@ -82,7 +82,22 @@ export function readInstanceFile(raw: unknown): InstanceFile {
     const where = parsed.error.issues[0]?.path.join(".") ?? "";
     throw new InstanceRefused("unreadable", `This export can't be read${where ? ` (at ${where})` : ""}`);
   }
-  return parsed.data;
+  const f = parsed.data;
+  const ids: Array<[string, string[]]> = [
+    ["agents", f.agents.map((a) => a.id)],
+    ["projects", f.projects.map((p) => p.id)],
+    ["routines", f.routines.map((r) => r.id)],
+    ["tables", f.tables.map((t) => `${t.project_id}/${t.name}`)],
+    ["flows", f.flows.map((x) => x.definition.id)],
+    ["channels", f.channels.map((c) => c.id)],
+    ["mcps", f.mcps.map((m) => m.name)],
+    ["skills", f.skills.map((x) => x.name.toLowerCase())],
+    ["chats", f.chats.map((c) => (c.kind === "home" ? "home" : c.id))],
+  ];
+  // The same item twice would be written twice, the second failing halfway through an import.
+  const twice = ids.find(([, list]) => new Set(list).size !== list.length);
+  if (twice) throw new InstanceRefused("unreadable", `This export can't be read (${twice[0]} listed twice)`);
+  return f;
 }
 
 type Step = () => void | Promise<void>;
@@ -204,7 +219,7 @@ function planAgents(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   }
 }
 
-/** A model API arrives off when its key is not here. */
+/** A model API arrives off when its key is not here, or when it changed. */
 function planProviders(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   const { store } = deps;
   const { push, skip, mine } = c;
@@ -229,17 +244,16 @@ function planProviders(deps: ImportDeps, file: InstanceFile, c: Ctx) {
       action,
       () => {
         const rest = store.settings.read("providers").filter((x) => x.id !== id);
-        const next = here
-          ? { ...want, key: here.key || want.key, enabled: here.enabled }
-          : { ...want, enabled: needsKey ? false : want.enabled };
+        // A changed one is off until the owner looks: its key could be sent to the address the file gives.
+        const next = here ? { ...want, key: here.key || want.key, enabled: false } : { ...want, enabled: !needsKey };
         store.settings.write("providers", [...rest, next]);
       },
-      !here && needsKey ? { off: true, reason: "needs_secret" } : {},
+      here ? { off: true, reason: "changed" } : needsKey ? { off: true, reason: "needs_secret" } : {},
     );
   }
 }
 
-/** One of the owner's servers arrives off: its variables and sign-in are filled here. */
+/** One of the owner's servers arrives off: its variables and sign-in are filled here; a changed one is checked again. */
 function planMcps(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   const { store } = deps;
   const { push, mine } = c;
@@ -255,15 +269,20 @@ function planMcps(deps: ImportDeps, file: InstanceFile, c: Ctx) {
       name,
       action,
       () => {
-        mcp.setGlobal(name, { ...server, ...(project ? { project } : {}), enabled: here ? here.enabled : false });
+        // A value the file leaves empty keeps this computer's; a changed server is off until the owner looks.
+        const keep = (file: Record<string, string>, local: Record<string, string> = {}) =>
+          Object.fromEntries(Object.entries(file).map(([k, v]) => [k, v === "" ? (local[k] ?? "") : v]));
+        const env = keep(server.env, here?.env);
+        const headers = keep(server.headers, here?.headers);
+        mcp.setGlobal(name, { ...server, env, headers, ...(project ? { project } : {}), enabled: false });
         deps.mcpChanged(name);
       },
-      here ? {} : { off: true, reason: "needs_secret" },
+      { off: true, reason: here ? "changed" : "needs_secret" },
     );
   }
 }
 
-/** A channel arrives off: its token or link is this computer's to give. */
+/** A channel arrives off: its token or link is this computer's to give; a changed one is checked again. */
 function planChannels(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   const { store } = deps;
   const { push, skip, mine, agents, agentOf } = c;
@@ -282,15 +301,16 @@ function planChannels(deps: ImportDeps, file: InstanceFile, c: Ctx) {
       id,
       ch.label,
       action,
+      // Changed, it could answer other people or as another agent: off until the owner looks.
       async () => {
-        await deps.setChannel(id, { ...config, enabled: here ? here.enabled : false });
+        await deps.setChannel(id, { ...config, enabled: false });
       },
-      here ? {} : { off: true, reason: "needs_secret" },
+      { off: true, reason: here ? "changed" : "needs_secret" },
     );
   }
 }
 
-/** A routine keeps its switch: it needs no secret. Brought again, it keeps the one it has here. */
+/** A new routine keeps its switch unless it runs a command; a changed one is off until the owner looks. */
 function planRoutines(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   const { store } = deps;
   const { push, skip, mine, projects, agents, agentOf } = c;
@@ -307,18 +327,28 @@ function planRoutines(deps: ImportDeps, file: InstanceFile, c: Ctx) {
     const here = store.routines.get(r.id);
     const compared = (x: object) => without(x, "enabled");
     const action = !here ? "add" : same(compared(mine(routineShape(here))), compared(want)) ? "same" : "update";
-    push("routines", r.id, r.name, action, () => {
-      const enabled = here ? here.enabled : want.enabled;
-      const next = enabled ? deps.nextFor(want.schedule) : undefined;
-      const { id, enabled: _e, ...rest } = want;
-      const draft = {
-        ...rest,
-        enabled: enabled && (next !== undefined || want.schedule.kind !== "once"),
-        next_run_at: next,
-      };
-      if (here) store.routines.update(id, draft);
-      else store.routines.create(draft, id);
-    });
+    // A command runs on this computer: a routine with one, or one whose work changed, waits for the owner.
+    const commands = Boolean(want.pre_command || want.post_command || want.action === "shell");
+    const wait = commands || Boolean(here);
+    push(
+      "routines",
+      r.id,
+      r.name,
+      action,
+      () => {
+        const enabled = wait ? false : want.enabled;
+        const next = enabled ? deps.nextFor(want.schedule) : undefined;
+        const { id, enabled: _e, ...rest } = want;
+        const draft = {
+          ...rest,
+          enabled: enabled && (next !== undefined || want.schedule.kind !== "once"),
+          next_run_at: next,
+        };
+        if (here) store.routines.update(id, draft);
+        else store.routines.create(draft, id);
+      },
+      wait && (here?.enabled || want.enabled) ? { off: true, reason: commands ? "runs_command" : "changed" } : {},
+    );
   }
 }
 
@@ -341,19 +371,20 @@ function planProjects(deps: ImportDeps, file: InstanceFile, c: Ctx) {
         return [];
       }
     });
+    // Total lets its agents act without asking: the owner chooses it on this computer, a copy never brings it.
     const settle = (id: string) => {
-      store.projects.setAutonomy(id, p.autonomy);
+      store.projects.setAutonomy(id, p.autonomy === "total" ? undefined : p.autonomy);
       store.projects.setReadOnlyFolders(id, folders);
     };
+    // One this computer has keeps how far its agents go and what they read here.
     if (here && here.registered !== false) {
       c.projects.add(p.id);
-      const action = same(
+      const kept = same(
         { autonomy: here.autonomy, folders: here.read_only_folders ?? [] },
         { autonomy: p.autonomy, folders },
-      )
-        ? "same"
-        : "update";
-      c.push("projects", p.id, p.name, action, () => settle(p.id));
+      );
+      if (kept) c.push("projects", p.id, p.name, "same");
+      else c.skip("projects", p.id, p.name, "kept_here");
       continue;
     }
     c.projects.add(p.id);
@@ -488,7 +519,10 @@ function planFlows(deps: ImportDeps, file: InstanceFile, c: Ctx) {
       continue;
     }
     const doc = store.flowGraphs.get(def.id);
-    const kept = [doc.published, doc.draft].flatMap((g) => (g ? [FlowDraftGraph.parse(c.mine(g))] : []));
+    const kept = [doc.published, doc.draft].flatMap((g) => {
+      const r = g ? FlowDraftGraph.safeParse(c.mine(g)) : undefined;
+      return r?.success ? [r.data] : [];
+    });
     const newGraph = graph !== null && !kept.some((g) => same(g, graph));
     const renamed = here.name !== def.name;
     c.push(
@@ -530,7 +564,11 @@ function planSkills(deps: ImportDeps, file: InstanceFile, c: Ctx) {
       const p = insideSkill(f.path);
       return p ? [{ path: p, text: f.text }] : [];
     });
-    if (files.length !== s.files.length) {
+    // The same path twice (case aside, as some disks read it) or a file where another needs a folder: not one folder.
+    const folded = files.map((f) => f.path.toLowerCase());
+    const clash =
+      new Set(folded).size !== folded.length || folded.some((p) => folded.some((q) => q.startsWith(`${p}/`)));
+    if (files.length !== s.files.length || clash) {
       c.skip("skills", s.name, s.name, "invalid");
       continue;
     }
@@ -539,12 +577,16 @@ function planSkills(deps: ImportDeps, file: InstanceFile, c: Ctx) {
       else c.skip("skills", s.name, s.name, "kept_here");
       continue;
     }
+    // Written beside it and renamed whole: a stopped import never leaves half a skill that reads as the owner's.
     c.push("skills", s.name, s.name, "add", () => {
+      const tmp = `${dir}.importing`;
+      fs.rmSync(tmp, { recursive: true, force: true });
       for (const f of files) {
-        const at = path.join(dir, ...f.path.split("/"));
+        const at = path.join(tmp, ...f.path.split("/"));
         fs.mkdirSync(path.dirname(at), { recursive: true });
         fs.writeFileSync(at, f.text);
       }
+      fs.renameSync(tmp, dir);
     });
   }
 }

@@ -95,7 +95,7 @@ test("no secret value is in an export, even one written into a prompt or a serve
   assert.ok(!text.includes("AAEhBOweik6ad9r"), "not even part of it");
   const crm = file.mcps.find((m) => m.name === "crm");
   assert.equal(crm?.env.CRM_TOKEN, "secret://acme_key", "a reference stays a reference");
-  assert.equal(crm?.env.PLAIN, "secret://acme_key", "a pasted value becomes its name");
+  assert.equal(crm?.env.PLAIN, "", "a value typed as text travels empty");
   assert.match(file.agents.find((a) => a.name === "Nora")?.prompt ?? "", /secret:\/\/acme_key/);
   assert.equal(file.format, "apx-instance");
   assert.deepEqual(file.includes, { chats: true, rows: true });
@@ -218,4 +218,77 @@ test("a copy's read-only folders pass the owner's own check: APX's home never be
   const p = target.core.store.projects.get("p_crafted");
   assert.equal(p?.present, false);
   assert.deepEqual(p?.read_only_folders ?? [], [], "neither APX's home nor the temp folder is kept");
+});
+
+test("a copy that changes what runs or where a key goes turns it off here, and a command never starts by itself", async () => {
+  const file = await exported();
+  const t = target.core.store;
+  // Already here and on: the owner's server, channel, provider and routine.
+  await target.client.call("instance.import", { file });
+  const servers = JSON.parse(t.settings.get("mcp_servers") ?? "{}");
+  servers.mcpServers.crm.enabled = true;
+  t.settings.set("mcp_servers", JSON.stringify(servers));
+  t.settings.write("providers", [
+    {
+      id: "acme",
+      transport: "openai-chat",
+      base_url: "https://api.example.com",
+      key: "secret://acme_key",
+      models: [],
+      enabled: true,
+    },
+  ]);
+  const brief = t.routines.list().find((r) => r.name === "Morning brief");
+  const crafted = {
+    ...file,
+    mcps: file.mcps.map((m) => (m.name === "crm" ? { ...m, command: "other-mcp" } : m)),
+    providers: [
+      {
+        id: "acme",
+        transport: "openai-chat",
+        base_url: "https://other.example.net",
+        key: "secret://acme_key",
+        models: [],
+      },
+    ],
+    routines: [
+      ...file.routines.map((r) => (r.id === brief?.id ? { ...r, prompt: "Something else" } : r)),
+      {
+        ...file.routines[0],
+        id: "rtn_shell",
+        name: "Sync",
+        action: "shell" as const,
+        pre_command: "echo hi",
+        enabled: true,
+      },
+    ],
+    projects: file.projects.map((p) => ({ ...p, autonomy: "total" as const })),
+  };
+  const preview = await target.client.call("instance.preview_import", { file: crafted });
+  assert.equal(byId(preview, "mcps", "crm")?.reason, "changed");
+  assert.equal(byId(preview, "providers", "acme")?.reason, "changed");
+  assert.equal(byId(preview, "routines", "rtn_shell")?.reason, "runs_command");
+  assert.equal(byId(preview, "projects", project)?.reason, "kept_here", "how far its agents go stays this computer's");
+  await target.client.call("instance.import", { file: crafted });
+  assert.equal(JSON.parse(t.settings.get("mcp_servers") ?? "{}").mcpServers.crm.enabled, false);
+  const acme = t.settings.read("providers").find((p) => p.id === "acme");
+  assert.equal(acme?.enabled, false, "its key is not sent to the new address until the owner looks");
+  assert.equal(t.routines.get("rtn_shell")?.enabled, false);
+  assert.equal(t.routines.get(brief?.id ?? "")?.enabled, false);
+  assert.equal(t.projects.get(project)?.autonomy, "plan");
+  const twice = { ...file, routines: [...file.routines, ...file.routines] };
+  await assert.rejects(target.client.call("instance.preview_import", { file: twice }), /listed twice/);
+});
+
+test("a server's variable typed as text travels empty, and its address without a password", async () => {
+  await source.client.call("mcp.set", {
+    name: "db",
+    server: { url: "https://admin:hunter22@db.example.com/mcp", env: { LEVEL: "debug", KEY: "secret://acme_key" } },
+  });
+  const file = await exported();
+  const db = file.mcps.find((m) => m.name === "db");
+  assert.equal(db?.url, "https://db.example.com/mcp");
+  assert.deepEqual(db?.env, { LEVEL: "", KEY: "secret://acme_key" });
+  assert.ok(!JSON.stringify(file).includes("hunter22"));
+  await source.client.call("mcp.set", { name: "db", server: null });
 });

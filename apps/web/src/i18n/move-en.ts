@@ -25,7 +25,8 @@ export const enMove = {
   "move.import.skip": "{n} left out",
   "move.import.skipOne": "{n} left out",
   "move.import.off": "They arrive off",
-  "move.import.offHint": "Turn each one on once its key or sign-in is set here. Flows arrive as drafts to publish.",
+  "move.import.offHint":
+    "Turn each one on once you looked at it and its key or sign-in is set here. Flows arrive as drafts to publish.",
   "move.import.left": "Left out",
   "move.import.waiting": "Waiting for their folder",
   "move.import.waitingHint":
@@ -45,6 +46,8 @@ export const enMove = {
   "move.refused.unreadable": "This file is damaged or was changed, and can't be read.",
   "move.refused.too_big": "This file is too big to bring in.",
   "move.reason.needs_secret": "needs its key or sign-in",
+  "move.reason.changed": "changed: look at it before turning it on",
+  "move.reason.runs_command": "runs a command on this computer",
   "move.reason.draft": "a draft to publish",
   "move.reason.folder_missing": "its folder isn't on this computer yet",
   "move.reason.agent_missing": "its agent isn't here",

@@ -3644,15 +3644,20 @@ up**, `apx export` and `apx import` make and read one JSON file (`instance.expor
   Never the database, files, the agents' computers or anything an extension brought.
 - **No secret value.** Every value this install stores is looked for in the file and replaced by its `secret://`
   name, then the redaction durable data gets (credential fields and key shapes, `redactedJson`); a file that still
-  holds a stored value is not made. A provider's key stays only as a reference. Channel tokens and sign-ins are not
+  holds a stored value is not made. A provider's key stays only as a reference; an MCP server's variables and headers
+  travel only as references (a value typed as text goes empty) and its address without a user and password. Channel tokens and sign-ins are not
   variables and never travel.
 - **One plan for the preview and the import.** `planImport` decides each item (add, update, same, skip, and why) and
   keeps its step; the preview returns the plan, the import runs its steps, so what is applied is what was shown.
-  Items match by id (memory by its text in its place): the same file twice changes nothing. Another install's
-  super-agent is this one's. An item that exists here keeps its own switch; a preference or skill set here is kept,
-  not replaced.
-- **What needs a secret arrives off.** MCP servers and channels arrive off with their references, a provider whose
-  key is not here, and Google-backed checks. Every Flow arrives off as a draft, whatever it does: publishing is where
+  Items match by id (memory by its text in its place): the same file twice changes nothing, and a file listing an
+  item twice is refused. Another install's super-agent is this one's. A preference, skill or project setting
+  (autonomy, read-only folders) this computer has is kept, not replaced; read-only folders pass `checkReadOnly`, and
+  Total never comes from a file.
+- **What needs a secret, or changed, arrives off.** MCP servers and channels arrive off with their references, a
+  provider whose key is not here, and Google-backed checks. One that exists here and changes (a server's command, a
+  provider's address, a channel's agent or who it answers, a routine's work) is turned off until the owner looks: a
+  file could otherwise send a key to another address or run another command under a switch the owner set. A routine
+  that runs a command arrives off. Every Flow arrives off as a draft, whatever it does: publishing is where
   the owner confirms what it sends and calls (D-169), so an import never publishes one. The preview lists the
   secret names this computer has no value for.
 - **A project without its folder waits.** Found at the same place, the folder is registered; otherwise the project

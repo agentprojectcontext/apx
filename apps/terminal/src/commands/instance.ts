@@ -21,6 +21,8 @@ const SECTIONS: Record<InstancePlanItem["section"], string> = {
 
 const WHY: Record<NonNullable<InstancePlanItem["reason"]>, string> = {
   needs_secret: "arrives off until its key or sign-in is set here",
+  changed: "arrives off: it changed, look at it before turning it on",
+  runs_command: "arrives off: it runs a command on this computer",
   draft: "arrives off, as a draft to publish",
   folder_missing: "waits for its folder on this computer",
   agent_missing: "left out: its agent is not here",

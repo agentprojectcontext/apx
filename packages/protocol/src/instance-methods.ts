@@ -154,13 +154,16 @@ export const InstanceSection = z.enum(INSTANCE_SECTIONS);
 export type InstanceSection = z.infer<typeof InstanceSection>;
 
 /**
- * Why an item comes in as it does: it arrives off until its secret is filled (`needs_secret`); a Flow arrives as a
+ * Why an item comes in as it does: it arrives off until its secret is filled (`needs_secret`), because what it runs or
+ * where it sends changed (`changed`) or because it runs a command here (`runs_command`); a Flow arrives as a
  * draft to publish (`draft`); the project's folder is not on this computer (`folder_missing`); it is not imported
  * because its agent or project is missing (`agent_missing`, `project_missing`), this computer keeps its own
  * (`kept_here`), Home already has messages (`home_not_empty`), or it did not read as this APX expects (`invalid`).
  */
 export const InstanceReason = z.enum([
   "needs_secret",
+  "changed",
+  "runs_command",
   "draft",
   "folder_missing",
   "agent_missing",
