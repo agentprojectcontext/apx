@@ -2,7 +2,7 @@
 // or off, media services and widgets. A project's autonomy and read-only folders and memory's model stay the owner's
 // (DECISIONS.md#d-060). An MCP server names its keys as secret://NAME, never their value (DECISIONS.md#d-141).
 import { memorySettings } from "../domain/memory-settings.ts";
-import { keyLike } from "../import/server-secrets.ts";
+import { keyLike } from "../log.ts";
 import { imageDefaultsOf } from "../services/registry.ts";
 import { inlineName } from "./result.ts";
 import { merged, ownersField, type Params, projectName, quoted, type Setting, str } from "./settings-kit.ts";

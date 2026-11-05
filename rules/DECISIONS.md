@@ -3717,15 +3717,20 @@ up**, `apx export` and `apx import` make and read one JSON file (`instance.expor
   name, then the redaction durable data gets (credential fields and key shapes, `redactedJson`); a file that still
   holds a stored value is not made. A provider's key stays only as a reference; an MCP server's variables and headers
   travel only as references (a value typed as text goes empty) and its address without a user and password. Channel tokens and sign-ins are not
-  variables and never travel.
+  variables and never travel. A key typed where a command or an address takes it (an MCP server's arguments, path or
+  query, a routine's command, a Flow step's header or variable) becomes a reference named after its place
+  (`secret://<server>_<flag>`), which the preview asks for; an MCP server's command and arguments carry the home as `~`.
 - **One plan for the preview and the import.** `planImport` decides each item (add, update, same, skip, and why) and
   keeps its step; the preview returns the plan, the import runs its steps, so what is applied is what was shown.
   Items match by id (memory by its text in its place): the same file twice changes nothing, and a file listing an
-  item twice is refused. Another install's super-agent is this one's. A preference, skill or project setting
+  item twice is refused. An import stops at 90 s between items (the client waits 150 s); what it wrote is whole, and
+  the same file again finishes it. A file of up to 20 MB is read, over HTTP too. Another install's super-agent is this one's. A preference, skill or project setting
   (autonomy, read-only folders) this computer has is kept, not replaced; read-only folders pass `checkReadOnly`, and
-  Total never comes from a file.
+  Total never comes from a file, for a project or an agent (one here keeps its own autonomy, a new one has none),
+  nor does an agent rule that acts outside or irreversibly without asking (the one here is kept, or the autonomy rules).
 - **What needs a secret, or changed, arrives off.** MCP servers and channels arrive off with their references, a
-  provider whose key is not here, and Google-backed checks. One that exists here and changes (a server's command, a
+  provider that uses a key or sign-in (its key here or not: the file chooses the address it goes to), and Google-backed
+  checks; only a provider with no key keeps its switch. One that exists here and changes (a server's command, a
   provider's address, a channel's agent or who it answers, a routine's work) is turned off until the owner looks: a
   file could otherwise send a key to another address or run another command under a switch the owner set. A routine
   that runs a command arrives off. Every Flow arrives off as a draft, whatever it does: publishing is where
@@ -3741,8 +3746,8 @@ up**, `apx export` and `apx import` make and read one JSON file (`instance.expor
 
 Rejected: copying the database file (it carries secrets' places, chats and machine paths, and cannot merge into an
 install that already has work), importing a Flow published (it would skip the owner's confirmation of what it does),
-and turning on a server or channel whose secret name already has a value here (the value may be another account's;
-a provider whose key is here keeps its switch, as it only calls a model).
+and turning on a server, channel or provider whose secret name already has a value here (the value may be another
+account's, and a provider would send it to the address the file gives).
 
 <a id="d-193"></a>
 ## D-193 — 2026-11-05 — An agent signs in with a stored secret it never sees

@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import {
+  type AgentRules,
   INSTANCE_FORMAT,
   INSTANCE_MAX_BYTES,
   INSTANCE_VERSION,
@@ -20,10 +21,12 @@ import { FlowDraftGraph } from "@apx/protocol/flow-graph";
 import { z } from "zod";
 import { isApcProject, readProject } from "../apc/read.ts";
 import { projectIdOf } from "../apc/sync.ts";
+import { OAUTH_CHATGPT } from "../config.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import { SETTINGS } from "../domain/setting-keys.ts";
 import { mcpConfig } from "../mcp/config.ts";
 import { expandHome } from "../paths.ts";
+import { NO_KEY } from "../providers/llm.ts";
 import type { Secrets } from "../secrets.ts";
 import { checkReadOnly } from "../tools/folders.ts";
 import {
@@ -38,7 +41,7 @@ import {
   routineShape,
   SIGNED_IN_SETTINGS,
 } from "./export.ts";
-import { knownSecrets, scrubbed, secretRefs } from "./scrub.ts";
+import { graphWithoutKeys, knownSecrets, mcpWithoutKeys, routineWithoutKeys, scrubbed, secretRefs } from "./scrub.ts";
 
 export type ImportDeps = InstanceDeps & {
   secrets: Pick<Secrets, "list" | "resolve">;
@@ -192,18 +195,33 @@ type Ctx = {
   agentOf: (id: string) => string;
 };
 
+/** Acting outside or irreversibly without asking skips the owner's card like Total, so it never comes from a file. */
+function rulesHere(asked: AgentRules, here: AgentRules | undefined): AgentRules | undefined {
+  const rules: AgentRules = { ...asked };
+  for (const risk of ["outside", "irreversible"] as const)
+    if (rules[risk] === "auto") {
+      if (here?.[risk]) rules[risk] = here[risk];
+      else delete rules[risk];
+    }
+  return Object.keys(rules).length ? rules : undefined;
+}
+
 /** An agent of this computer's own files stays as its file says. */
 function planAgents(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   const { store } = deps;
   const { push, skip, mine, projects, agents, agentOf } = c;
   for (const a of file.agents) {
     const id = agentOf(a.id);
-    const want = { ...a, id };
     if (a.project_id && !projects.has(a.project_id)) {
       skip("agents", id, a.name, "project_missing");
       continue;
     }
     const here = store.agents.get(id);
+    // As for projects, Total is the owner's choice on this computer: one here keeps its own, a new one has none.
+    const { autonomy: asked, rules: askedRules, ...rest } = a;
+    const autonomy = asked === "total" ? here?.autonomy : asked;
+    const rules = askedRules && rulesHere(askedRules, here?.rules);
+    const want = { ...rest, id, ...(autonomy ? { autonomy } : {}), ...(rules ? { rules } : {}) };
     if (here?.source === "apc") {
       agents.add(id);
       skip("agents", id, a.name, "kept_here");
@@ -219,7 +237,7 @@ function planAgents(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   }
 }
 
-/** A model API arrives off when its key is not here, or when it changed. */
+/** A model API arrives off when its key is not here, when it would use one that is, or when it changed. */
 function planProviders(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   const { store } = deps;
   const { push, skip, mine } = c;
@@ -234,7 +252,8 @@ function planProviders(deps: ImportDeps, file: InstanceFile, c: Ctx) {
     const want = providerShape(parsed.data[0] as Record<string, unknown>) as (typeof parsed.data)[number];
     const list = store.settings.read("providers");
     const here = list.find((x) => x.id === id);
-    const needsKey = !["none", "oauth:chatgpt"].includes(want.key) && !deps.secrets.resolve(want.key);
+    const keyless = want.key === NO_KEY;
+    const needsKey = !keyless && want.key !== OAUTH_CHATGPT && !deps.secrets.resolve(want.key);
     const compared = (x: object) => without(x, "enabled", "key");
     const action = !here ? "add" : same(compared(mine(providerShape(here))), compared(want)) ? "same" : "update";
     push(
@@ -244,11 +263,17 @@ function planProviders(deps: ImportDeps, file: InstanceFile, c: Ctx) {
       action,
       () => {
         const rest = store.settings.read("providers").filter((x) => x.id !== id);
-        // A changed one is off until the owner looks: its key could be sent to the address the file gives.
-        const next = here ? { ...want, key: here.key || want.key, enabled: false } : { ...want, enabled: !needsKey };
+        // Off until the owner looks, unless it needs no key: a key here could be sent to the address the file gives.
+        const next = here ? { ...want, key: here.key || want.key, enabled: false } : { ...want, enabled: keyless };
         store.settings.write("providers", [...rest, next]);
       },
-      here ? { off: true, reason: "changed" } : needsKey ? { off: true, reason: "needs_secret" } : {},
+      here
+        ? { off: true, reason: "changed" }
+        : needsKey
+          ? { off: true, reason: "needs_secret" }
+          : keyless
+            ? {}
+            : { off: true, reason: "uses_key" },
     );
   }
 }
@@ -261,7 +286,8 @@ function planMcps(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   for (const m of file.mcps) {
     const here = ownMcps(store).find((d) => d.name === m.name);
     const compared = (x: object) => without(x, "enabled");
-    const action = !here ? "add" : same(compared(mine(mcpShape(here))), compared(m)) ? "same" : "update";
+    const shaped = here && mcpWithoutKeys(mine(mcpShape(here, deps.userHome)));
+    const action = !shaped ? "add" : same(compared(shaped), compared(m)) ? "same" : "update";
     const { name, enabled: _e, project, ...server } = m;
     push(
       "mcps",
@@ -274,7 +300,17 @@ function planMcps(deps: ImportDeps, file: InstanceFile, c: Ctx) {
           Object.fromEntries(Object.entries(file).map(([k, v]) => [k, v === "" ? (local[k] ?? "") : v]));
         const env = keep(server.env, here?.env);
         const headers = keep(server.headers, here?.headers);
-        mcp.setGlobal(name, { ...server, env, headers, ...(project ? { project } : {}), enabled: false });
+        const command = server.command && expandHome(server.command, deps.userHome);
+        const args = server.args.map((a) => expandHome(a, deps.userHome));
+        mcp.setGlobal(name, {
+          ...server,
+          ...(command ? { command } : {}),
+          args,
+          env,
+          headers,
+          ...(project ? { project } : {}),
+          enabled: false,
+        });
         deps.mcpChanged(name);
       },
       { off: true, reason: here ? "changed" : "needs_secret" },
@@ -326,7 +362,8 @@ function planRoutines(deps: ImportDeps, file: InstanceFile, c: Ctx) {
     }
     const here = store.routines.get(r.id);
     const compared = (x: object) => without(x, "enabled");
-    const action = !here ? "add" : same(compared(mine(routineShape(here))), compared(want)) ? "same" : "update";
+    const shaped = here && routineWithoutKeys(mine(routineShape(here)));
+    const action = !shaped ? "add" : same(compared(shaped), compared(want)) ? "same" : "update";
     // A command runs on this computer: a routine with one, or one whose work changed, waits for the owner.
     const commands = Boolean(want.pre_command || want.post_command || want.action === "shell");
     const wait = commands || Boolean(here);
@@ -521,7 +558,7 @@ function planFlows(deps: ImportDeps, file: InstanceFile, c: Ctx) {
     const doc = store.flowGraphs.get(def.id);
     const kept = [doc.published, doc.draft].flatMap((g) => {
       const r = g ? FlowDraftGraph.safeParse(c.mine(g)) : undefined;
-      return r?.success ? [r.data] : [];
+      return r?.success ? [graphWithoutKeys(r.data, def.name)] : [];
     });
     const newGraph = graph !== null && !kept.some((g) => same(g, graph));
     const renamed = here.name !== def.name;
@@ -584,16 +621,22 @@ function planSkills(deps: ImportDeps, file: InstanceFile, c: Ctx) {
       else c.skip("skills", s.name, s.name, "kept_here");
       continue;
     }
-    // Written beside it and renamed whole: a stopped import never leaves half a skill that reads as the owner's.
+    // Written in a hidden folder beside it (never read as a skill, never one of the owner's) and renamed whole: a
+    // stopped import never leaves half a skill that reads as the owner's.
     c.push("skills", s.name, s.name, "add", () => {
-      const tmp = `${dir}.importing`;
-      fs.rmSync(tmp, { recursive: true, force: true });
-      for (const f of files) {
-        const at = path.join(tmp, ...f.path.split("/"));
-        fs.mkdirSync(path.dirname(at), { recursive: true });
-        fs.writeFileSync(at, f.text);
+      fs.mkdirSync(path.dirname(dir), { recursive: true });
+      const tmp = fs.mkdtempSync(path.join(path.dirname(dir), ".importing-"));
+      try {
+        for (const f of files) {
+          const at = path.join(tmp, ...f.path.split("/"));
+          fs.mkdirSync(path.dirname(at), { recursive: true });
+          fs.writeFileSync(at, f.text);
+        }
+        fs.renameSync(tmp, dir);
+      } catch (err) {
+        fs.rmSync(tmp, { recursive: true, force: true });
+        throw err;
       }
-      fs.renameSync(tmp, dir);
     });
   }
 }
@@ -654,9 +697,26 @@ function planChats(deps: ImportDeps, file: InstanceFile, c: Ctx) {
 /** The preview: what would change, and nothing changed. */
 export const previewImport = (deps: ImportDeps, raw: unknown): InstancePlan => planImport(deps, raw).plan;
 
+/** The import stopped at its deadline: what it wrote stays whole, and importing the file again finishes it. */
+export class ImportOutOfTime extends Error {}
+
+/** How long an import may take on the server; the client waits longer (rule 9). */
+const IMPORT_MS = 90_000;
+
 /** The import: the preview's own steps, in its order. Each item is written whole; a second run finds them here. */
-export async function applyImport(deps: ImportDeps, raw: unknown) {
+export async function applyImport(deps: ImportDeps, raw: unknown, signal = AbortSignal.timeout(IMPORT_MS)) {
   const { plan, steps } = planImport(deps, raw);
-  for (const step of steps) await step();
+  const late = () => new ImportOutOfTime("The import ran out of time: import the file again to finish it");
+  for (const step of steps) {
+    if (signal.aborted) throw late();
+    const running = step();
+    if (!(running instanceof Promise)) continue;
+    await new Promise<void>((resolve, reject) => {
+      const stop = () => reject(late());
+      if (signal.aborted) return stop();
+      signal.addEventListener("abort", stop, { once: true });
+      running.then(resolve, reject).finally(() => signal.removeEventListener("abort", stop));
+    });
+  }
   return { ...plan, applied: steps.length };
 }

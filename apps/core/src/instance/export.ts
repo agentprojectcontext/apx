@@ -30,7 +30,7 @@ import { mcpConfig } from "../mcp/config.ts";
 import { tildeHome } from "../paths.ts";
 import { NO_KEY } from "../providers/llm.ts";
 import type { Secrets } from "../secrets.ts";
-import { carriesSecret, knownSecrets, scrubbed } from "./scrub.ts";
+import { carriesSecret, knownSecrets, scrubbed, withoutTypedKeys } from "./scrub.ts";
 
 /** The owner's preferences that travel; each is read and written through its own schema. */
 export const MOVED_SETTINGS = [
@@ -97,10 +97,11 @@ const references = (r: Record<string, string>) =>
 /** An address without the user and password some carry before the host. */
 const noSignIn = (url: string) => url.replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@\s]*@/i, "$1");
 
-export const mcpShape = (d: McpDef): InstanceMcp => ({
+/** Its command and arguments with the home as `~`: another computer runs them under its own. */
+export const mcpShape = (d: McpDef, userHome: string): InstanceMcp => ({
   name: d.name,
-  ...(d.command ? { command: d.command } : {}),
-  args: d.args,
+  ...(d.command ? { command: tildeHome(d.command, userHome) } : {}),
+  args: d.args.map((a) => tildeHome(a, userHome)),
   env: references(d.env),
   ...(d.url ? { url: noSignIn(d.url) } : {}),
   headers: references(d.headers),
@@ -246,14 +247,14 @@ export function exportInstance(deps: InstanceDeps, o: { chats: boolean; rows: bo
     flows: store.flows.list().flatMap((f) => flowShape(store, f.id, o.rows) ?? []),
     memory: store.memories.standing(200_000).map(memoryShape),
     channels: store.settings.read("channels").map((c) => InstanceChannel.parse(c)),
-    mcps: ownMcps(store).map(mcpShape),
+    mcps: ownMcps(store).map((d) => mcpShape(d, deps.userHome)),
     providers: store.settings.read("providers").map(providerShape),
     settings,
     skills: skills(deps.home),
     chats: o.chats ? chats(store) : [],
   };
   const known = knownSecrets(deps.secrets);
-  const file = scrubbed(raw, known);
+  const file = withoutTypedKeys(scrubbed(raw, known));
   const text = JSON.stringify(file);
   if (carriesSecret(text, known)) throw new Error("The export still held a secret value and was not made");
   const bytes = Buffer.byteLength(text);

@@ -1,6 +1,7 @@
 // Credentials written into an MCP server's definition, found by the name they are given and by what they look like:
 // an importer never copies one (rule 11), and the owner's own MCP card never shows one.
 import { looksSecret } from "../domain/memories.ts";
+import { keyLike } from "../log.ts";
 
 export type FoundServer = {
   command?: string;
@@ -15,12 +16,6 @@ export type ServerSecret = { at: "env" | "header" | "arg" | "url"; key: string }
 
 const SECRET_REF = /secret:\/\/[a-zA-Z0-9_.-]+/g;
 const SECRET_KEY = /key|token|secret|pass|pwd|auth|credential|cookie/i;
-
-/** A value that reads like a key or token once its secret:// references are taken out. */
-export const keyLike = (v: string) => {
-  const bare = v.replace(SECRET_REF, "");
-  return /[A-Za-z0-9_-]{20,}/.test(bare) && /\d/.test(bare) && /[a-z]/i.test(bare);
-};
 
 /** A URL carrying a credential: a password before the host, or a query value named like a key or shaped like one. */
 export function urlSecret(v: string): boolean {
