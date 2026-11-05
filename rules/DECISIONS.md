@@ -3730,3 +3730,20 @@ back on its model by itself once its limit resets.
 Rejected: a per-agent chain that replaces the router's (the owner asked for both, the agent's first); a message field
 for "answered by a fallback" (the notice already says it); a separate "back to main" timer (the per-call walk already
 returns to the main model once its hold lifts).
+
+<a id="d-197"></a>
+## D-197 — 2026-11-05 — Reading through APX's own CLI does not wait for the owner
+
+Every command that ran APX's CLI from an agent's shell (`apx …`, `node …/apps/terminal/src/main.ts …`) was `always`,
+so in Auto even `apx status` put a "high-impact action" card in front of the owner, mid-work. The rule exists because
+the CLI reaches the API without naming its port and could act for the owner: answer its own confirmation, add a
+routine, send a message. Reading does none of that, and the CLI from an agent's shell already speaks as that agent
+(D-138).
+
+Now a fixed list of the CLI's list and show forms is a reader like `git log` (D-098): `status`, `version`, `help`,
+`threads` (list, `search`, `get`), `runs pending|get|wait`, `tasks` (list, `show`, `commitments`), `routines` (list,
+`show`, `log`) and `agents` (list), with only `--json`, `--plain`, `--project` and `--agent` beside them
+(`tools/apx-reads.ts`). Every part of the command line must read, as for any reader: `apx status && apx chat …`, a
+redirection into a file or an expansion still asks. Anything else, the CLI by a path (`~/.local/bin/apx`), through a
+launcher (`pnpm exec apx`, `bash -c`), `secrets` in any form, and the `127.0.0.1:<port>` rule for the API stay
+`always`. Its output still counts as outside content (`reachesOut`): what a thread holds may come from a channel.

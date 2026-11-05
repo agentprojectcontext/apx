@@ -5,6 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { findGitBash } from "../processes.ts";
+import { apxEntry, apxReads } from "./apx-reads.ts";
 import { gitLists } from "./git-reads.ts";
 
 /** A path as written, from where the command runs (`old`: from the folder it was in before its last `cd`). */
@@ -614,6 +615,13 @@ function runner(c: Call): boolean {
       return true;
     case "git":
       out.push(...gitPaths(args, home));
+      return true;
+    // APX's CLI reading names no path and writes nothing where it runs; any other use is judged as any program.
+    case "apx":
+      return apxReads(args);
+    case "node":
+      if (!args[0] || !apxEntry(args[0].text) || !apxReads(args.slice(1))) return false;
+      c.name(args[0], false);
       return true;
     case "xargs": {
       const file = c.value("-a");
