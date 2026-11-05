@@ -11,8 +11,15 @@ import type { ThreadContext } from "./threads.ts";
 export type FlowRoutineEvent = { flow: string; id: string; data: unknown };
 
 export type Origin =
-  | { kind: "user"; message_id?: string }
-  | { kind: "agent"; id: string; name: string; thread_id: string; run_id: string }
+  | { kind: "user"; message_id?: string; task_assignment?: { task: string; id: string } | null }
+  | {
+      kind: "agent";
+      id: string;
+      name: string;
+      thread_id: string;
+      run_id: string;
+      task_assignment?: { task: string; id: string };
+    }
   | { kind: "surface"; id: string; title: string }
   /** A message on a channel (Telegram…): from the owner, or from a contact (then it is a third party's text). */
   | {
@@ -51,7 +58,7 @@ export type Origin =
   /** The owner let agents go on after a pause: with a fresh budget, or with no limit this round (DECISIONS.md#d-081). */
   | { kind: "go_on"; mode: "reset" | "release" }
   /** The agent's task turn ended with the task still in progress: APX starts its next part (engine/task-continue.ts). */
-  | { kind: "task_continue"; task_id: string; title: string; part: number; of: number }
+  | { kind: "task_continue"; task_id: string; title: string; part: number; of: number; from_run?: string }
   /** APX found the agent's task open with nothing running on it, and asks it once to go on (engine/task-stall.ts). */
   | { kind: "stalled_task"; task_id: string; title: string }
   /** The owner added a project or an agent: the super-agent offers to adapt it (engine/added.ts). */
