@@ -61,10 +61,16 @@ after(async () => {
   await env.cleanup();
 });
 
+const ownerThread = () => {
+  const thread = env.core.store.threads.byConversation("tg", String(OWNER.id));
+  assert.ok(thread);
+  return thread.id;
+};
+
 test("a sticker is kept the moment it arrives, named once, and the agent reads it as what it means", async () => {
   tg.attachment(OWNER, { bytes: WEBP, mime: "image/webp", sticker: { emoji: "❤️" } });
   await waitFor(() => tg.filesTo(OWNER.id).length > 0, "the agent's sticker sent", { ms: 6000 });
-  await env.settle("home");
+  await env.settle(ownerThread());
   const [kept] = env.core.store.stickers.known("telegram");
   assert.equal(kept?.meaning, BEAR, "named once, its quotes and full stop taken off");
   assert.equal(kept?.hint, "❤️");
@@ -84,7 +90,7 @@ test("a sticker is kept the moment it arrives, named once, and the agent reads i
   assert.equal(tg.filesTo(OWNER.id).at(-1)?.method, "sendSticker");
   assert.equal(tg.filesTo(OWNER.id).at(-1)?.body.filename, "sticker.webp");
   assert.ok(!tg.messagesTo(OWNER.id).some((m) => /STICKER/.test(String(m.body.text))));
-  const home = await env.client.call("threads.get", { thread: "home" });
+  const home = await env.client.call("threads.get", { thread: ownerThread() });
   const answer = home.messages.at(-1);
   assert.ok(!answer?.parts.some((p) => p.type === "text"), "the STICKER words leave the chat");
   assert.ok(answer?.parts.some((p) => p.type === "image" && p.media_id === kept?.media_id));
@@ -125,7 +131,7 @@ async function arrives(n: number, emoji: string) {
   await waitFor(() => env.core.store.stickers.list("telegram").some((s) => s.hint === emoji && s.meaning), "named", {
     ms: 6000,
   });
-  await env.settle("home");
+  await env.settle(ownerThread());
   return env.core.store.stickers.list("telegram").find((s) => s.hint === emoji);
 }
 
@@ -136,7 +142,7 @@ test("with no model known to read images, a sticker takes its emoji and waits: n
   assert.equal(s?.meaning, "👍");
   assert.equal(s?.pending, true, "unseen, it may be anything: the owner decides");
   assert.equal(namings(), named, "no model was asked");
-  await env.settle("home");
+  await env.settle(ownerThread());
   env.core.store.settings.set("model_aux", "openai/gpt-4o-mini");
 });
 
@@ -164,7 +170,7 @@ test("what a model wrote a sticker means stays outside text on one line, in the 
   // sticker_list gives the meanings the agent may answer with, as outside text too.
   tg.message(OWNER, "which stickers do you have?");
   await waitFor(() => llm.calls.some((c) => c.messages.some((m) => m.role === "tool")), "the list read");
-  await env.settle("home");
+  await env.settle(ownerThread());
   const read = llm.calls.findLast((c) => c.messages.at(-1)?.role === "tool");
   assert.ok(read?.tools.some((t) => t.function.name === "sticker_list"));
   const listed = String(read?.messages.at(-1)?.content);
@@ -223,7 +229,7 @@ test("the owner sees a channel's stickers, says what one means, blocks one and f
     const calls = llm.calls.length;
     tg.message(OWNER, "send me the osito");
     await waitFor(() => llm.calls.length > calls, "asked", { ms: 6000 });
-    await env.settle("home");
+    await env.settle(ownerThread());
   };
   await said();
   assert.equal(tg.filesTo(OWNER.id).length, files);
@@ -258,7 +264,7 @@ test("sticker_list is offered only on a turn from a channel with stickers to sen
     () => llm.calls.some((c) => String(c.messages.at(-1)?.content).includes("hola from telegram")),
     "the turn",
   );
-  await env.settle("home");
+  await env.settle(ownerThread());
   const channel = llm.calls.findLast((c) => String(c.messages.at(-1)?.content).includes("hola from telegram"));
   assert.ok(
     channel?.tools.some((t) => t.function.name === "sticker_list"),

@@ -30,6 +30,11 @@ const store = createStore<State>({
 
 export const useChannels = <T>(select: (s: State) => T): T => useSlice(store, select);
 
+/** A stable account id that does not reveal its phone number, address or platform credential. */
+export function newChannelId(type: ChannelInfo["type"]): string {
+  return `${type}-${crypto.randomUUID().replaceAll("-", "").slice(0, 16)}`;
+}
+
 /** The channel a pairing request came on, while it still waits. */
 export const pairingChannel = (code: string) => store.get().pairing.find((r) => r.code === code)?.channel;
 

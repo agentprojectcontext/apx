@@ -56,22 +56,11 @@ export function Behavior({
       <SubHead>{t("tg.behavior")}</SubHead>
       <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: channel.label })}>
         <AgentSelect
+          all
           size="sm"
           className="tgagent"
           value={channel.agent_id}
           onChange={(id) => id && id !== channel.agent_id && void save({ agent_id: id })}
-        />
-      </SettingRow>
-      <SettingRow title={t("tg.ownerThread")} description={t("tg.ownerThreadHint", { channel: channel.label })}>
-        <SegmentedControl
-          size="sm"
-          label={t("tg.ownerThread")}
-          value={channel.owner_thread}
-          onValueChange={(v) => void save({ owner_thread: v as ChannelDraft["owner_thread"] })}
-          options={[
-            { value: "home", label: t("tg.ownerThread.home") },
-            { value: "own", label: t("tg.ownerThread.own") },
-          ]}
         />
       </SettingRow>
       <SettingRow title={t("tg.concurrency")} description={t(`ch.concurrencyHint.${channel.concurrency}`)}>

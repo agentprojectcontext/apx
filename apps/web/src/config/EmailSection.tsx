@@ -4,7 +4,7 @@ import { Badge, Button, Icons, Input, Select, SettingRow, Switch, TagInput } fro
 import { useEffect, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
-import { type ChannelDraft, loadChannels, saveChannel, useChannels } from "../data/channels.ts";
+import { type ChannelDraft, loadChannels, newChannelId, saveChannel, useChannels } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -260,7 +260,7 @@ export function EmailSection() {
 }
 
 function Setup({ onConnected }: { onConnected(id: string): void }) {
-  const [id] = useState(() => `email-${crypto.randomUUID().replaceAll("-", "").slice(0, 24)}`);
+  const [id] = useState(() => newChannelId("email"));
   const t = useT();
   const agents = useData((s) => s.agents);
   const secretary = Object.values(agents).find((a) => a.kind === "secretary");
@@ -279,7 +279,7 @@ function Setup({ onConnected }: { onConnected(id: string): void }) {
         enabled: true,
         strangers: "pair",
         concurrency: "queue",
-        owner_thread: "home",
+        owner_thread: "own",
         email: { ...form.value(), mailbox: "INBOX", allowed: [], trust_unverified: false },
       },
       password,
@@ -307,7 +307,7 @@ function Setup({ onConnected }: { onConnected(id: string): void }) {
         <span className="pform__hint">{t("em.passwordStored")}</span>
       </div>
       <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: "Email" })}>
-        <AgentSelect size="sm" className="tgagent" value={agent} onChange={(id) => id && setAgent(id)} />
+        <AgentSelect all size="sm" className="tgagent" value={agent} onChange={(id) => id && setAgent(id)} />
       </SettingRow>
       <div>
         <Button disabled={!form.ok || password.length < 8} loading={busy} onClick={() => void connect()}>

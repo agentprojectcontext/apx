@@ -57,6 +57,29 @@ export type NewsEntry = {
 export const NEWS: readonly NewsEntry[] = [
   BROWSER_JAVASCRIPT_NEWS,
   {
+    id: "channel-accounts",
+    since: "2.13.0",
+    title: { en: "More than one account per channel", es: "Más de una cuenta por canal" },
+    about: {
+      en: "Connect separate accounts of the same chat app and choose any project agent to answer each one.",
+      es: "Conectá cuentas separadas de la misma app y elegí un agente de cualquier proyecto para cada una.",
+    },
+    applies: () => true,
+    text:
+      "The owner can now connect multiple independent accounts of each channel type. Each account keeps its own " +
+      "credentials, contacts and starting agent, which may be chosen from any project. Messages from the owner and " +
+      "contacts always start with that account's agent; changing it keeps the same chat and history. iMessage stays " +
+      "a single local account because it uses the Mac's one Messages identity.",
+    actions: [
+      {
+        label: { en: "Review my channels", es: "Revisar mis canales" },
+        prompt:
+          "List my connected channel accounts and the agent that answers each one. Suggest changes, but change " +
+          "nothing until I approve them.",
+      },
+    ],
+  },
+  {
     id: "help-whats-new",
     since: "2.12.0",
     title: { en: "What's new, in the Help menu", es: "Las novedades, en el menú de ayuda" },

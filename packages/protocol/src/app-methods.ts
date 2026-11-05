@@ -1068,7 +1068,7 @@ export const appMethods = {
             agent_id: Id,
             strangers: ChannelStrangers.default("pair"),
             concurrency: z.enum(["queue", "interrupt", "steer"]).default("steer"),
-            owner_thread: z.enum(["home", "own"]).default("home"),
+            owner_thread: z.enum(["home", "own"]).default("own"),
             self_owner: z.boolean().optional(),
             rooms: ChannelRooms.optional(),
             closers: ChannelClosers.default(CHANNEL_DEFAULTS.closers),

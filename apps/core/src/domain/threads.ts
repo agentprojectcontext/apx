@@ -316,6 +316,10 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       );
       return r ? toThread(r) : undefined;
     },
+    /** Every chat belonging to one configured channel account. */
+    byChannel(channel: string): Thread[] {
+      return all(qb.selectFrom("threads").selectAll().where("channel", "=", channel)).map(toThread);
+    },
     create(
       t: Pick<Thread, "kind" | "title" | "agent_ids"> & {
         project_id?: string | undefined;
@@ -381,6 +385,13 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       if (!t) throw new Error(`unknown thread ${id}`);
       if (t.agent_ids.includes(agentId)) return t;
       return repo.write(id, { agent_ids: JSON.stringify([...t.agent_ids, agentId]) });
+    },
+    /** A channel's configured agent takes its next turn; previous message authors stay unchanged. */
+    assign(id: string, agentId: string, projectId?: string): Thread {
+      const t = repo.get(id);
+      if (!t) throw new Error(`unknown thread ${id}`);
+      if (t.agent_ids.length === 1 && t.agent_ids[0] === agentId && t.project_id === projectId) return t;
+      return repo.write(id, { agent_ids: JSON.stringify([agentId]), project_id: projectId ?? null });
     },
     /** Another agent takes the chat over: it answers there now, and what the old one said shows as its own. */
     handOver(id: string, from: string, to: string): Thread {

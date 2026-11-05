@@ -1,29 +1,40 @@
 import type { ChannelInfo } from "@apx/protocol";
 import { SUPER_AGENT_ID } from "@apx/protocol/client";
-import { Badge, Button, EmptyState, IconButton, Icons, SettingRow, Spinner, Switch } from "@apx/ui";
+import { Badge, Button, EmptyState, IconButton, Icons, Select, SettingRow, Spinner, Switch } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
 import { PhoneForm, phoneOf } from "../channels/PhoneForm.tsx";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { QrCode } from "../common/QrCode.tsx";
-import { type ChannelDraft, loadChannels, saveChannel, unlinkAddress, useChannels } from "../data/channels.ts";
+import {
+  type ChannelDraft,
+  loadChannels,
+  newChannelId,
+  saveChannel,
+  unlinkAddress,
+  useChannels,
+} from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { Behavior, Deliveries, Notices, Pairing, People, STATUS } from "./ChannelParts.tsx";
 import { SubHead } from "./SectionHead.tsx";
 import { Stickers } from "./StickersSection.tsx";
 
-const CHANNEL_ID = "whatsapp";
-const DEFAULTS = { enabled: true, strangers: "pair", concurrency: "steer", owner_thread: "home" } as const;
+const DEFAULTS = { enabled: true, strangers: "pair", concurrency: "steer", owner_thread: "own" } as const;
 
 /**
  * WhatsApp, linked like WhatsApp Web with a QR: a line of its own the owner writes to from their phone, or the owner's
  * own number (they write in "Message yourself"). Others are answered only once approved.
  */
 export function WhatsAppSection() {
+  const t = useT();
   const channels = useChannels((s) => s.channels);
   const ready = useChannels((s) => s.ready);
-  const channel = channels.find((c) => c.type === "whatsapp");
+  const accounts = channels.filter((c) => c.type === "whatsapp");
+  const [selected, setSelected] = useState("");
+  const [adding, setAdding] = useState(false);
+  const channel = accounts.find((c) => c.id === selected) ?? accounts[0];
+  const connecting = adding || !channel;
   // While a QR waits it changes every few seconds: read it often then, rarely otherwise.
   const linking = channel?.status === "starting";
   useEffect(() => {
@@ -33,8 +44,34 @@ export function WhatsAppSection() {
   }, [linking]);
   return (
     <>
-      {ready && (channel ? <Linked channel={channel} /> : <Setup />)}
-      {channel && (
+      {accounts.length > 0 && (
+        <SettingRow title={t("channels.account")}>
+          <Select
+            label={t("channels.account")}
+            value={channel?.id ?? ""}
+            onValueChange={(id) => {
+              if (id) setSelected(id);
+              setAdding(false);
+            }}
+            options={accounts.map((c) => ({ value: c.id, label: c.account ?? c.label }))}
+          />
+          <Button size="sm" variant="secondary" leadingIcon={<Icons.Plus size={14} />} onClick={() => setAdding(true)}>
+            {t("channels.addAccount")}
+          </Button>
+        </SettingRow>
+      )}
+      {ready &&
+        (connecting ? (
+          <Setup
+            onLinked={(id) => {
+              setSelected(id);
+              setAdding(false);
+            }}
+          />
+        ) : (
+          <Linked key={channel.id} channel={channel} />
+        ))}
+      {!connecting && channel && (
         <>
           {!channel.self_owner && <OwnerPhone channel={channel} />}
           <Pairing channelId={channel.id} />
@@ -59,23 +96,25 @@ function Steps() {
   );
 }
 
-function Setup() {
+function Setup({ onLinked }: { onLinked(id: string): void }) {
   const t = useT();
   const agents = useData((s) => s.agents);
   const secretary = Object.values(agents).find((a) => a.kind === "secretary");
   const [agent, setAgent] = useState(secretary?.id ?? SUPER_AGENT_ID);
+  const [id] = useState(() => newChannelId("whatsapp"));
   const [selfOwner, setSelfOwner] = useState(false);
   const [busy, setBusy] = useState(false);
   const link = async () => {
     setBusy(true);
-    await saveChannel(CHANNEL_ID, { agent_id: agent, ...DEFAULTS, self_owner: selfOwner });
+    const saved = await saveChannel(id, { type: "whatsapp", agent_id: agent, ...DEFAULTS, self_owner: selfOwner });
     setBusy(false);
+    if (saved) onLinked(id);
   };
   return (
     <div className="tgsetup">
       <Steps />
       <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: "WhatsApp" })}>
-        <AgentSelect size="sm" className="tgagent" value={agent} onChange={(id) => id && setAgent(id)} />
+        <AgentSelect all size="sm" className="tgagent" value={agent} onChange={(id) => id && setAgent(id)} />
       </SettingRow>
       <SettingRow title={t("ch.selfOwner")} description={t("ch.selfOwnerHint")}>
         <Switch size="sm" checked={selfOwner} onCheckedChange={setSelfOwner} aria-label={t("ch.selfOwner")} />

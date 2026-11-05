@@ -127,6 +127,11 @@ export function createChannels(deps: {
 
   const configs = (): ChannelConfig[] => store.settings.read("channels");
 
+  const assignAccountChats = (id: string, agentId: string) => {
+    const projectId = store.agents.get(agentId)?.project_id;
+    for (const thread of store.threads.byChannel(id)) store.threads.assign(thread.id, agentId, projectId);
+  };
+
   const delivery = createDelivery({
     store,
     log,
@@ -669,7 +674,10 @@ export function createChannels(deps: {
         if (token) secrets.set(tokenName(id), token);
         const before = configs().find((c) => c.id === id);
         const rest = configs().filter((c) => c.id !== id);
-        store.settings.write("channels", config ? [...rest, { ...config, id }] : rest);
+        store.tx(() => {
+          store.settings.write("channels", config ? [...rest, { ...config, id }] : rest);
+          if (config) assignAccountChats(id, config.agent_id);
+        });
         // Who answers, where the owner's words go, overlapping messages and strangers are read per message: the
         // connection stays up (a WhatsApp restart is seconds of "connecting"). It restarts only for what it runs
         // with, or to try again when it is down.
@@ -694,6 +702,14 @@ export function createChannels(deps: {
     /** Boot: sends cut by a restart become "uncertain", messages not handled yet are handled, channels start. */
     async start(): Promise<void> {
       stopped = false;
+      const saved = configs();
+      if (saved.some((c) => c.owner_thread === "home")) {
+        const migrated = saved.map((c) => (c.owner_thread === "home" ? { ...c, owner_thread: "own" as const } : c));
+        store.tx(() => {
+          store.settings.write("channels", migrated);
+          for (const config of migrated) assignAccountChats(config.id, config.agent_id);
+        });
+      }
       const cut = store.channels.outbox.reconcile();
       if (cut) log.warn({ items: cut }, "channel sends cut by the last restart are marked uncertain");
       unsubscribe();

@@ -56,10 +56,13 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
         })),
     }),
     "channels.set": async ({ id, channel, token }) => {
-      if (channel && !store.agents.get(channel.agent_id)) throw notFound(`agent ${channel.agent_id}`);
+      if (channel && !store.agents.list().some((agent) => agent.id === channel.agent_id))
+        throw notFound(`agent ${channel.agent_id}`);
       if (channel?.type === "telegram" && !token && !channels.info().find((c) => c.id === id)?.token_set)
         throw badRequest("a Telegram channel needs its bot token (from @BotFather)");
-      const config = channel ? { ...channel, label: channel.label || defaultLabel(channel.type) } : null;
+      const config = channel
+        ? { ...channel, owner_thread: "own" as const, label: channel.label || defaultLabel(channel.type) }
+        : null;
       return { channels: await channels.set(id, config, token) };
     },
     "channels.send": ({ thread, text, omit_signature }) => {

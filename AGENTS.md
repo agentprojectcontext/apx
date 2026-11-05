@@ -185,6 +185,12 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     ([Agents reach it](rules/FLOWS.md#agents-reach-it), [D-181](rules/DECISIONS.md#d-181)). `[gate]`
     `flow-tool.test.ts` for methods and step kinds; fields `[review]`.
 
+34. **Technical analyses are durable.** Before implementing a requested feasibility or architecture investigation,
+    record its findings under `docs/ai-analisis/dd-mm-yyyy-<short-name>.md`. Include the current behavior and evidence,
+    constraints, recommended design, risks, affected areas, verification plan and unresolved owner decisions. Keep the
+    filename generic and public-safe, update the same file as the investigation evolves, and do not present an analysis
+    document as proof that the proposed behavior has been implemented or verified. `[review]`
+
 ### Code comments
 
 1–2 lines, only the non-obvious *why*. No history, incidents, dates or rejected alternatives in code: those go to
