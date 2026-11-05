@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import os from "node:os";
 import { after, before, test } from "node:test";
 import { type InstanceFile, type InstancePlan, SUPER_AGENT_ID } from "@apx/protocol";
 import type { FlowGraph } from "@apx/protocol/flow-graph";
@@ -204,4 +205,17 @@ test("a file from another version, or one that is not an export, is refused and 
   const broken = await refused({ ...file, agents: [{ id: 3 }] } as unknown as InstanceFile);
   assert.equal(broken.detail?.reason, "unreadable");
   await assert.rejects(target.client.call("instance.import", { file: { ...file, version: 2 } }), /newer APX/);
+});
+
+test("a copy's read-only folders pass the owner's own check: APX's home never becomes one", async () => {
+  const file = await exported();
+  const there = homes[1]?.path as string;
+  const crafted = {
+    ...file,
+    projects: [{ id: "p_crafted", name: "Crafted", read_only_folders: [there, os.tmpdir()] }],
+  };
+  await target.client.call("instance.import", { file: crafted });
+  const p = target.core.store.projects.get("p_crafted");
+  assert.equal(p?.present, false);
+  assert.deepEqual(p?.read_only_folders ?? [], [], "neither APX's home nor the temp folder is kept");
 });

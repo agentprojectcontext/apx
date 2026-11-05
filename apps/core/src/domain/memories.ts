@@ -188,7 +188,12 @@ export const NOTEBOOK_TARGET = 40;
 export const forgetAllowance = (notes: number) => Math.max(1, Math.floor(notes * 0.2));
 
 /** The query for a note with this text in this place. */
-const sameNote = (m: { scope: MemoryScope; project_id?: string | undefined; agent_id?: string | undefined; text: string }) =>
+const sameNote = (m: {
+  scope: MemoryScope;
+  project_id?: string | undefined;
+  agent_id?: string | undefined;
+  text: string;
+}) =>
   qb
     .selectFrom("memories")
     .select("id")

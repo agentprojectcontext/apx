@@ -25,6 +25,7 @@ import { SETTINGS } from "../domain/setting-keys.ts";
 import { mcpConfig } from "../mcp/config.ts";
 import { expandHome } from "../paths.ts";
 import type { Secrets } from "../secrets.ts";
+import { checkReadOnly } from "../tools/folders.ts";
 import {
   agentShape,
   type InstanceDeps,
@@ -330,8 +331,16 @@ function planProjects(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   const isDir = (p: string) => fs.existsSync(p) && fs.statSync(p).isDirectory();
   for (const p of file.projects) {
     const dir = p.path ? expandHome(p.path, userHome) : undefined;
-    const folders = (p.read_only_folders ?? []).map((f) => expandHome(f, userHome)).filter(isDir);
+    // Each folder passes the check the owner's own setting does (not APX's home, not the temp folders, not the
+    // project's own); one that is not here or is refused is left out.
     const here = store.projects.get(p.id);
+    const folders = (p.read_only_folders ?? []).flatMap((f) => {
+      try {
+        return checkReadOnly(deps.home, { path: here?.path ?? dir }, [expandHome(f, userHome)]);
+      } catch {
+        return [];
+      }
+    });
     const settle = (id: string) => {
       store.projects.setAutonomy(id, p.autonomy);
       store.projects.setReadOnlyFolders(id, folders);
