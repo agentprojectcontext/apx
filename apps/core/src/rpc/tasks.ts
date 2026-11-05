@@ -20,6 +20,7 @@ import {
   dueOf,
   personOf,
   tagsOf,
+  taskDepth,
   taskProject,
   visibleTask,
 } from "../domain/tasks.ts";
@@ -338,6 +339,9 @@ export function taskHandlers(
         const target = moving ? (project ?? undefined) : cur.project_id;
         checkTaskParent(store, cur, parent, target, agentScope(ctx));
         const taskParent = parent === undefined ? cur.parent_id : (parent ?? undefined);
+        // Hand-off depth counts parents, so an agent may regroup but never make a task shallower.
+        if (ctx.agent && taskDepth(store, taskParent) < taskDepth(store, cur.parent_id))
+          throw unauthorized("parent: an agent cannot move a task higher up; the owner can");
         checkAssignee(store, c.assignee, target);
         const checker = reviewerOf(reviewer, target);
         if (c.proposed === false && agentScope(ctx)) throw unauthorized("only the owner accepts a proposed task");

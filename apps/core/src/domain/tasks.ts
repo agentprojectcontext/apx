@@ -139,6 +139,14 @@ export function checkTaskParent(
   }
 }
 
+/** How many tasks sit above one placed under `parent`. */
+export function taskDepth(store: Store, parent: string | undefined): number {
+  let depth = 0;
+  const seen = new Set<string>();
+  for (let id = parent; id && !seen.has(id); id = store.tasks.get(id)?.parent_id, depth++) seen.add(id);
+  return depth;
+}
+
 /** A column the board has. */
 export function checkColumn(store: Store, status: string | undefined): void {
   const columns = columnsOf(store);

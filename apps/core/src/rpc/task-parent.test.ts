@@ -145,3 +145,29 @@ test("reparenting refuses self, descendant cycles, missing and cross-project par
     await env.cleanup();
   }
 });
+
+test("an agent regroups a task but never moves it higher up, which would skip the hand-off depth rule", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("Complete.")) });
+  try {
+    const a = await env.client.call("tasks.create", { title: "Plan" });
+    const b = await env.client.call("tasks.create", { title: "Phase", parent: a.id });
+    const c = await env.client.call("tasks.create", { title: "Branch", parent: b.id });
+    const sibling = await env.client.call("tasks.create", { title: "Other branch", parent: b.id });
+    const work = await env.client.call("tasks.create", { title: "Work", parent: c.id });
+    const chat = env.core.store.threads.create({ kind: "loose", title: "Agent", agent_ids: ["vera"] });
+    const agent = { ...context(chat.id), agent: { id: "vera", thread_id: chat.id, run_id: "run_test" } };
+    for (const parent of [null, a.id, b.id]) {
+      const refused = await env.core.dispatch("tasks.update", { task: work.id, parent }, agent, `up-${parent}`);
+      assert.equal(refused.ok, false);
+      assert.match(!refused.ok ? refused.error.message : "", /higher up/);
+      assert.equal(env.core.store.tasks.get(work.id)?.parent_id, c.id);
+    }
+    const level = await env.core.dispatch("tasks.update", { task: work.id, parent: sibling.id }, agent, "level");
+    assert.equal(level.ok, true);
+    assert.equal(env.core.store.tasks.get(work.id)?.parent_id, sibling.id);
+    assert.equal((await env.client.call("tasks.update", { task: work.id, parent: null })).parent_id, undefined);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
