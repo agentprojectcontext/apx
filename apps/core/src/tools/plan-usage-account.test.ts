@@ -5,7 +5,7 @@ import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { fakeProgram } from "../harness/fake-program.test-support.ts";
 import { tempDir } from "../testkit/platform.ts";
 
-test("enabled quota windows reach the agent through a CLI process and opt-out hides the cached report", async () => {
+test("quota windows reach the agent through a CLI process, also for an engine the top bar leaves out", async () => {
   await using dir = tempDir();
   const program = fakeProgram(
     dir.path,
@@ -26,10 +26,13 @@ test("enabled quota windows reach the agent through a CLI process and opt-out hi
   );
   const oldPath = process.env.PATH;
   const oldOptions = process.env.NODE_OPTIONS;
-  process.env.PATH = [dir.path, oldPath].filter(Boolean).join(path.delimiter);
+  // The fake CLI and node only: the read probes every engine it detects, and this machine's own must not answer.
+  process.env.PATH = [dir.path, path.dirname(process.execPath)].join(path.delimiter);
   if (program.env.NODE_OPTIONS) process.env.NODE_OPTIONS = program.env.NODE_OPTIONS;
   const llm = scriptedLlm((req, { afterTool }) =>
-    afterTool ? say(String(req.messages.at(-1)?.content)) : callTool("quota", "plan_usage", { query: "ChatGPT" }),
+    afterTool
+      ? say(String(req.messages.at(-1)?.content))
+      : callTool("quota", "apx_settings", { method: "engines.usage", params: { query: "ChatGPT" } }),
   );
   let env: Awaited<ReturnType<typeof startCore>> | undefined;
   try {
@@ -51,12 +54,12 @@ test("enabled quota windows reach the agent through a CLI process and opt-out hi
       { id: "secondary", used_percent: 90, window_minutes: 10080 },
     ]);
     assert.ok(Number.isFinite(Date.parse(result.checked_at)));
+    // The owner asking reads every detected engine; the top bar keeps hiding the one they left out.
     await env.client.call("engines.set_usage", { engine: "codex", enabled: false });
-    // Another enabled engine keeps the tool offered while the opted-out report is hidden.
-    await env.client.call("engines.set_usage", { engine: "acp:cursor", enabled: true });
-    const hidden = JSON.parse((await ask()).split("\n")[1] ?? "");
-    assert.deepEqual(hidden.engines, []);
-    assert.equal(hidden.matched, false);
+    const asked = JSON.parse((await ask()).split("\n")[1] ?? "");
+    assert.equal(asked.matched, true);
+    assert.equal(asked.engines[0].id, "codex");
+    assert.deepEqual((await env.client.call("engines.usage", {})).engines, []);
   } finally {
     await env?.core.close();
     await env?.cleanup();

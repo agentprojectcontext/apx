@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import { test } from "node:test";
 import type { EngineUsageReport } from "@apx/protocol";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { planUsageTools } from "./plan-usage.ts";
+import { planUsage, USAGE } from "./plan-usage.ts";
 import type { ToolContext } from "./types.ts";
 
 const report: EngineUsageReport = {
@@ -44,17 +45,13 @@ const report: EngineUsageReport = {
 };
 
 async function read(query?: string) {
-  const tool = planUsageTools(() => true)[0];
-  assert.ok(tool);
   const calls: string[] = [];
-  const ctx = {
-    call: async (method: string, params: unknown) => {
-      calls.push(method);
-      assert.deepEqual(params, {});
-      return report;
-    },
-  } as unknown as ToolContext;
-  const text = await tool.run(query ? { query } : {}, ctx);
+  const call = (async (method: string, params: unknown) => {
+    calls.push(method);
+    assert.deepEqual(params, { all: true });
+    return report;
+  }) as unknown as ToolContext["call"];
+  const text = await planUsage(query, call);
   assert.deepEqual(calls, ["engines.usage"]);
   assert.match(text, /trust="untrusted"/);
   return JSON.parse(text.split("\n")[1] ?? "") as EngineUsageReport & { matched?: boolean; note: string };
@@ -90,36 +87,33 @@ test("filters span accounts independently of the current model and unknown is no
   assert.match(missing.note, /does not mean zero usage/);
 });
 
-test("tool is read-only, bounded and rejects empty or excessive filters", () => {
-  const tool = planUsageTools(() => true)[0];
-  assert.ok(tool);
-  assert.equal(tool.effect, "none");
-  assert.equal(tool.confirm({}), "never");
-  assert.equal(tool.parse({ query: " " }).ok, false);
-  assert.equal(tool.parse({ query: "x".repeat(101) }).ok, false);
-  assert.deepEqual(tool.parse({ query: " Claude " }), { ok: true, args: { query: "Claude" } });
+test("the read asks nobody, is bounded and rejects empty or excessive filters", () => {
+  const own = USAGE["engines.usage"]?.own;
+  assert.ok(own);
+  assert.equal(own.reads, true);
+  assert.equal(own.confirm, "never");
+  assert.equal(own.args.safeParse({ query: " " }).success, false);
+  assert.equal(own.args.safeParse({ query: "x".repeat(101) }).success, false);
+  assert.deepEqual(own.args.parse({ query: " Claude " }), { query: "Claude" });
 });
 
 test("reader failures remain errors rather than synthetic zero quotas", async () => {
-  const tool = planUsageTools(() => true)[0];
-  assert.ok(tool);
-  const ctx = {
-    call: async () => {
-      throw new Error("quota check failed");
-    },
-  } as unknown as ToolContext;
-  await assert.rejects(tool.run({}, ctx), /quota check failed/);
+  const call = (async () => {
+    throw new Error("quota check failed");
+  }) as unknown as ToolContext["call"];
+  await assert.rejects(planUsage(undefined, call), /quota check failed/);
 });
 
-test("agent can discover and execute plan_usage through the real tool executor and router", async () => {
+test("the super-agent reads plan usage through apx_settings and the router, without changing what the top bar shows", async () => {
   const llm = scriptedLlm((req, { afterTool }) => {
     if (afterTool) return say(String(req.messages.at(-1)?.content));
-    assert.ok(req.tools.some((tool) => tool.function.name === "plan_usage"));
-    return callTool("quota", "plan_usage", { query: "unknown-plan" });
+    return callTool("quota", "apx_settings", { method: "engines.usage", params: { query: "unknown-plan" } });
   });
+  // Only node on PATH: the read probes every engine it detects, and this machine's own CLIs must not answer.
+  const oldPath = process.env.PATH;
+  process.env.PATH = path.dirname(process.execPath);
   const env = await startCore({ llm });
   try {
-    await env.client.call("engines.set_usage", { engine: "acp:cursor", enabled: true });
     const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await env.client.call("threads.send", { thread: thread.id, text: "Check my unknown-plan usage" });
     const { messages } = await env.settle(thread.id);
@@ -130,5 +124,6 @@ test("agent can discover and execute plan_usage through the real tool executor a
   } finally {
     await env.core.close();
     await env.cleanup();
+    process.env.PATH = oldPath;
   }
 });
