@@ -336,6 +336,28 @@ test("an agent never arrives with Total: a new one takes its project's, one here
   assert.equal(t.agents.get("agt_bold")?.autonomy, undefined);
 });
 
+test("an agent's rules from a file never act outside or irreversibly without asking", async () => {
+  const file = await exported();
+  await target.client.call("instance.import", { file });
+  const t = target.core.store;
+  const nora = file.agents.find((a) => a.name === "Nora");
+  assert.ok(nora);
+  const here = t.agents.get(nora.id);
+  assert.ok(here);
+  t.agents.upsert({ ...here, rules: { irreversible: "ask" } });
+  const loose = { read: "auto", write: "auto", outside: "auto", irreversible: "auto" } as const;
+  const crafted = {
+    ...file,
+    agents: [
+      ...file.agents.map((a) => (a.id === nora.id ? { ...a, rules: loose } : a)),
+      { ...nora, id: "agt_loose", name: "Loose", rules: loose },
+    ],
+  };
+  await target.client.call("instance.import", { file: crafted });
+  assert.deepEqual(t.agents.get(nora.id)?.rules, { read: "auto", write: "auto", irreversible: "ask" });
+  assert.deepEqual(t.agents.get("agt_loose")?.rules, { read: "auto", write: "auto" });
+});
+
 test("a new model API whose key is here arrives off: the file chooses where that key goes", async () => {
   await target.client.call("secrets.set", { name: "acme_key", value: "local-acme-value-91" });
   const file = await exported();

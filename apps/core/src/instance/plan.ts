@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import {
+  type AgentRules,
   INSTANCE_FORMAT,
   INSTANCE_MAX_BYTES,
   INSTANCE_VERSION,
@@ -194,6 +195,17 @@ type Ctx = {
   agentOf: (id: string) => string;
 };
 
+/** Acting outside or irreversibly without asking skips the owner's card like Total, so it never comes from a file. */
+function rulesHere(asked: AgentRules, here: AgentRules | undefined): AgentRules | undefined {
+  const rules: AgentRules = { ...asked };
+  for (const risk of ["outside", "irreversible"] as const)
+    if (rules[risk] === "auto") {
+      if (here?.[risk]) rules[risk] = here[risk];
+      else delete rules[risk];
+    }
+  return Object.keys(rules).length ? rules : undefined;
+}
+
 /** An agent of this computer's own files stays as its file says. */
 function planAgents(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   const { store } = deps;
@@ -206,9 +218,10 @@ function planAgents(deps: ImportDeps, file: InstanceFile, c: Ctx) {
     }
     const here = store.agents.get(id);
     // As for projects, Total is the owner's choice on this computer: one here keeps its own, a new one has none.
-    const { autonomy: asked, ...rest } = a;
+    const { autonomy: asked, rules: askedRules, ...rest } = a;
     const autonomy = asked === "total" ? here?.autonomy : asked;
-    const want = { ...rest, id, ...(autonomy ? { autonomy } : {}) };
+    const rules = askedRules && rulesHere(askedRules, here?.rules);
+    const want = { ...rest, id, ...(autonomy ? { autonomy } : {}), ...(rules ? { rules } : {}) };
     if (here?.source === "apc") {
       agents.add(id);
       skip("agents", id, a.name, "kept_here");
