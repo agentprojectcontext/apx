@@ -50,6 +50,7 @@ import { extensionHandlers } from "./rpc/extensions.ts";
 import { fileHandlers } from "./rpc/files.ts";
 import { flowHandlers } from "./rpc/flows.ts";
 import { gitHandlers } from "./rpc/git.ts";
+import { instanceHandlers } from "./rpc/instance.ts";
 import { integrationHandlers } from "./rpc/integrations.ts";
 import type { InternalCall } from "./rpc/internal.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
@@ -344,6 +345,17 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
       runtimeHomes: d.runtimeHomes,
     }),
     ...providerHandlers(d.providers, d.secrets, d.chatgpt),
+    ...instanceHandlers({
+      store: d.store,
+      secrets: d.secrets,
+      home: d.app.home,
+      userHome: os.homedir(),
+      version: d.identity.version,
+      register: (dir) => void d.apc.register(dir),
+      setChannel: (id, config) => d.channels.set(id, config),
+      mcpChanged: (name) => d.mcp.drop({ scope: "global", name }),
+      nextFor: (s) => d.scheduler.nextFor(s),
+    }),
     ...app,
     "projects.create": (p: Parameters<(typeof app)["projects.create"]>[0], ctx: CallContext) => {
       const r = app["projects.create"](p);

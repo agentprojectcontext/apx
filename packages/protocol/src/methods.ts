@@ -11,6 +11,7 @@ import { emailSignatureMethods } from "./email-signatures.ts";
 import { engineUsageMethods } from "./engine-usage.ts";
 import { environmentMethods } from "./environment-methods.ts";
 import { flowMethods } from "./flow-methods.ts";
+import { instanceMethods } from "./instance-methods.ts";
 import { mailMethods } from "./mail-methods.ts";
 import { storageMethods } from "./storage-methods.ts";
 import { tableMethods } from "./table-methods.ts";
@@ -113,6 +114,7 @@ export const methods = {
   ...telemetryMethods,
   ...usageMethods,
   ...storageMethods,
+  ...instanceMethods,
   ...engineUsageMethods,
   ...emailSignatureMethods,
   ...mailMethods,
