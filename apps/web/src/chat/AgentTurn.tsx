@@ -34,6 +34,7 @@ import { NoticePart } from "./parts/NoticePart.tsx";
 import { PlanPart } from "./parts/PlanPart.tsx";
 import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
+import { planLast } from "./planLast.ts";
 import { type ReplySegment, replySegments } from "./replySegments.ts";
 import { taskCodeSpan } from "./TaskChip.tsx";
 
@@ -105,7 +106,7 @@ export function AgentTurn({
     segment?: ReplySegment;
     whole?: string;
     generation?: boolean;
-  }[] = blocks.flatMap((b) => {
+  }[] = planLast(live, blocks).flatMap((b) => {
     if (b.part.type !== "text" || b.media) return [b];
     const text = b.part.text;
     const segments = replySegments(text);

@@ -48,7 +48,7 @@ export type ToolContext = {
   /** An image the model looks at with this call's result (a picture of the screen); only native turns carry it. */
   see?(image: { media_id: string; mime: string }): void;
   /** Adds or replaces a part of the answer the owner sees (tool card, browser card, widget, sub-thread). */
-  upsertPart(match: (p: Part) => boolean, part: Part): void;
+  upsertPart(match: (p: Part) => boolean, part: Part, opts?: { last?: boolean }): void;
   /** A protocol method through the router, as this agent: the same door every client uses. */
   call<M extends MethodName>(method: M, params: Params<M>): Promise<Result<M>>;
   /**

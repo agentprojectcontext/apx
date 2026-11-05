@@ -81,3 +81,33 @@ test("an answer with nothing in it yet leaves no empty message above the owner's
     ["user", "agent"],
   );
 });
+
+const plan = (state: "doing" | "done"): Part => ({ type: "plan", steps: [{ step: "Check prices", state }] });
+
+test("a plan marked again leaves its place and goes under what was written since", async () => {
+  const { store, display } = await answerIn();
+  display.upsert((p) => p.type === "plan", plan("doing"), { last: true });
+  display.finalText("Looking now.");
+  display.upsert((p) => p.type === "subthread", card("working"));
+  display.upsert((p) => p.type === "plan", plan("done"), { last: true });
+  display.text("All checked.");
+  display.close();
+  assert.deepEqual(store.messages.get(display.message.id)?.parts, [
+    { type: "text", text: "Looking now." },
+    card("working"),
+    plan("done"),
+    { type: "text", text: "All checked." },
+  ]);
+});
+
+test("a plan marked below the owner's words leaves the message above them", async () => {
+  const { t, store, display } = await answerIn();
+  display.upsert((p) => p.type === "plan", plan("doing"), { last: true });
+  const above = display.message.id;
+  store.messages.add({ thread_id: t, author: { kind: "user" }, parts: [{ type: "text", text: "also check stock" }] });
+  display.below();
+  display.finalText("On it.");
+  display.upsert((p) => p.type === "plan", plan("done"), { last: true });
+  assert.equal(store.messages.get(above), undefined);
+  assert.deepEqual(store.messages.get(display.message.id)?.parts, [{ type: "text", text: "On it." }, plan("done")]);
+});
