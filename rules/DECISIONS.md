@@ -3675,6 +3675,68 @@ and turning on a server or channel whose secret name already has a value here (t
 a provider whose key is here keeps its switch, as it only calls a model).
 
 <a id="d-194"></a>
+## D-193 — 2026-11-05 — An agent signs in with a stored secret it never sees
+
+Amends rule 10. Until now the embedded browser never typed a password, one-time code or card data: the agent handed
+the tab to the owner. Now an agent may put one of the owner's stored secrets into a sign-in field, and the value never
+reaches the model, the transcript, the run's steps, logs, traces or a picture of the tab.
+
+**Who allows it.** The owner marks a stored secret (Resources › Variables) as usable to sign in on one or more exact
+origins (`https://app.acme.com`, scheme + host + port), each with the field kind it goes into: password, username or
+one-time code. Nothing is usable until marked. When an agent asks for a secret on an origin not marked for it, a card
+in the app names the agent, the secret's name and the origin and offers Once, Always on this site or No; the card is
+answered only in the app (never from a channel), and Total does not skip it. "Always" writes the same mark the owner
+sets in Variables. Marks belong to the secret: every one of the owner's agents may use a marked secret there (D-071),
+outside apps through `apx mcp` may not (the method is not offered to MCP clients).
+
+**Origin binding.** The fill runs in the browser node, which checks at fill time, after the secret is resolved and
+right before it is inserted: the top-level document's origin equals the marked origin exactly, and the frame holding
+the field has that same origin. A field in a cross-origin iframe, a page that navigated since the agent's last
+snapshot, a stale ref, or a tab outside the agent's own profile is refused. No subdomain or registrable-domain match.
+The owner may instead mark a secret for every site (`*`): then any `https://` origin qualifies (and `http://` only on
+loopback), the frame must still have the top document's origin, the field kind must still match, and every fill's
+step and audit line name the origin it went to. This is the owner's explicit choice: a page that steers the agent can
+then get that secret typed on a site the owner never named, so Variables shows such a secret as usable on any site.
+The "Once / Always on this site" card never creates a `*` mark; only the owner sets it in Variables.
+The fill is offered on the owner's embedded browser and APX's headless one, never in the isolated computer (the value
+would leave the owner's machine) nor in a browser an MCP server brings.
+
+**Field kinds.** Only an `<input>` that is: a password field (`type=password` or `autocomplete` current/new-password);
+a username field (`autocomplete=username|email`, `type=email`, or a text input in the same form as a password field);
+a one-time-code field (`autocomplete=one-time-code`). The field's kind must match the kind the secret is marked for:
+a password never goes into a username or plain text field. A one-time-code secret holds a TOTP seed (`otpauth://` or
+base32), and the node turns it into the current code inside the handler. Payment card fields (`cc-*`) and anything
+else are refused in this version.
+
+**What the agent gets back.** `filled` with the ref and origin, or `refused` with a reason (wrong origin, frame,
+field kind, not allowed, leaked). Never the value, its length or a hint. The tool's arguments carry the secret's name
+only. The value is inserted with `Input.insertText` on the focused field, never through the `type` or `key` tools.
+While the fill runs, screenshots of that tab (the agent's look, `screen_` pictures of the owner's screen) wait until
+it ends. Until the tab's document changes, that document is protected: `browser_evaluate` is refused there even
+under a tab or turn consent (D-165), snapshots and page text leave the filled field's value out whatever its type
+becomes (a "show password" button does not reveal it), and agent pictures of the tab cover the filled field.
+
+**After the fill.** The node scans the document (every frame it can reach, input values, attributes, text) for the
+value outside the filled field. When it appears elsewhere, or the field's value is no longer what was put in after
+the page settles into something visible: the field and every place it leaked into are cleared, the tab's document
+stays protected (no snapshot text, picture or JavaScript for the agent) until it navigates away, the tool answers
+`refused: the page copied the value`, and the owner gets a notice naming the secret and the site.
+
+**Audit.** Each fill or refusal writes a log line and a step in the chat that name the agent, the secret's name, the
+origin and the outcome, never the value. The secret's row in Variables shows when and where it was last used.
+
+**Revocation.** The owner removes an origin from a secret (or deletes the secret) in Variables; it is checked on every
+fill, so the next one is refused. A "Once" answer covers that one fill. Removing a mark does not sign anyone out of a
+site already signed into: the owner signs out there.
+
+**Still forbidden.** Typing or pasting a secret's value through `browser_type`, `browser_key` or `screen_` tools;
+reading a filled value back by any tool or JavaScript; a secret in a URL; filling card data. Handoff stays the way for
+everything else (captcha, an unmarked site, a code sent by SMS).
+
+Rejected: handing the value to the agent with a promise not to repeat it; filling by page JavaScript (the agent's own
+script could read it); matching by registrable domain (a subdomain an attacker controls would qualify); a `*` mark
+granted from an agent's card (only the owner sets one, in Variables).
+
 ## D-194 — 2026-11-05 — Teammates asked in one turn answer the caller in one turn
 
 An agent that asked three teammates at once got three result turns, one per answer, and told the owner three times. Now
