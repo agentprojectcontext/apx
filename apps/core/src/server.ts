@@ -126,6 +126,7 @@ import { createModelInstaller } from "./services/local-whisper.ts";
 import { createPush } from "./services/push.ts";
 import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
+import { createSignIn } from "./sign-in.ts";
 import { syncRuntimeSkills } from "./skills/runtimes.ts";
 import { skillsFor } from "./skills/skills.ts";
 import { createStorage, type StorageOptions } from "./storage.ts";
@@ -224,6 +225,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const terminals = createTerminals({ bus, commandEnded: (e) => wakeAfterCommand(store, engine.admit, e) });
   const store = createStore(db, bus);
   const secrets = createSecrets(config.home, config.secrets);
+  // Who may sign in where with a stored secret: shared by the agents' tool and the method it calls.
+  const signIn = createSignIn(secrets);
   seed(store, config.agentName);
   const releases =
     opts.releases ?? (config.whatsNew ? localReleases(path.resolve(import.meta.dirname, "../../..")) : undefined);
@@ -400,6 +403,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     config.runtimeSkills.homes,
     { profiles: profileRoots, templates: templateRoots },
     vm,
+    signIn,
   );
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
   // The router exists only after the engine, hence the late binding.
@@ -767,6 +771,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       asana,
       providers,
       secrets,
+      signIn,
       chatgpt: { login: chatgpt, v1Home: config.v1.home },
       localModels,
       localEmbeds,

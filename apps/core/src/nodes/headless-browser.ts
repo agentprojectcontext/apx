@@ -7,7 +7,9 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Readable, Writable } from "node:stream";
 import {
+  BROWSER_FILL_SECRET,
   BROWSER_HOLD,
+  BrowserFillSecret,
   type BrowserProfile,
   browserMethods,
   createTabHolds,
@@ -220,7 +222,7 @@ export function createHeadlessBrowser(deps: {
     if (!tab) return;
     if (m.method === "Page.loadEventFired") loads.get(tab.id)?.();
     if (m.method === "Page.navigatedWithinDocument") {
-      tab.page.forget();
+      tab.page.forget(true);
       tab.url = String((m.params as { url?: string }).url ?? tab.url);
       changed();
     }
@@ -551,6 +553,10 @@ export function createHeadlessBrowser(deps: {
           await refresh(t);
           return { ok: true, url: t.url };
         }
+        case BROWSER_FILL_SECRET: {
+          const p = BrowserFillSecret.parse(raw);
+          return drive(p.tab, p.by).page.fillSecret(p.ref, p);
+        }
         case "browser.approval_context": {
           const p = browserMethods["browser.approval_context"].params.parse(raw);
           return get(p.tab).page.approvalContext(p.origin, p.document);
@@ -598,7 +604,8 @@ export function createHeadlessBrowser(deps: {
             },
             t.session,
           );
-          const text = String(r.result.value ?? "").replace(/\n{3,}/g, "\n\n");
+          t.page.assertReadable();
+          const text = t.page.scrub(String(r.result.value ?? "")).replace(/\n{3,}/g, "\n\n");
           const slice = text.slice(p.offset, p.offset + p.max_chars);
           return { url: t.url, text: slice, total: text.length, truncated: p.offset + p.max_chars < text.length };
         }

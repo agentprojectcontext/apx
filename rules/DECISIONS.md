@@ -3701,6 +3701,8 @@ The "Once / Always on this site" card never creates a `*` mark; only the owner s
 The fill is offered on the owner's embedded browser and APX's headless one, never in the isolated computer (the value
 would leave the owner's machine) nor in a browser an MCP server brings.
 
+Exact origins may be `http://` (a site the owner named, a local test page); `*` keeps to https.
+
 **Field kinds.** Only an `<input>` that is: a password field (`type=password` or `autocomplete` current/new-password);
 a username field (`autocomplete=username|email`, `type=email`, or a text input in the same form as a password field);
 a one-time-code field (`autocomplete=one-time-code`). The field's kind must match the kind the secret is marked for:
@@ -3710,20 +3712,26 @@ else are refused in this version.
 
 **What the agent gets back.** `filled` with the ref and origin, or `refused` with a reason (wrong origin, frame,
 field kind, not allowed, leaked). Never the value, its length or a hint. The tool's arguments carry the secret's name
-only. The value is inserted with `Input.insertText` on the focused field, never through the `type` or `key` tools.
-While the fill runs, screenshots of that tab (the agent's look, `screen_` pictures of the owner's screen) wait until
-it ends. Until the tab's document changes, that document is protected: `browser_evaluate` is refused there even
-under a tab or turn consent (D-165), snapshots and page text leave the filled field's value out whatever its type
-becomes (a "show password" button does not reveal it), and agent pictures of the tab cover the filled field.
+only. The value is inserted with `Input.insertText` on the focused field, never through the `type` or `key` tools. The
+field is protected from just before the value goes in until the tab's document changes (a new address in the same
+document keeps it): `browser_evaluate` is refused there even under a tab or turn consent (D-165), snapshots leave the
+filled field's value out whatever its type becomes (a "show password" button does not reveal it), snapshots and page
+text have any filled value taken out, and agent pictures of the tab cover the filled field (the compositor fallback,
+which cannot, is refused). Pictures of the owner's whole screen (`screen_` tools) are the owner's own window and
+are not covered: a browser shows a password as dots, a username as typed.
 
-**After the fill.** The node scans the document (every frame it can reach, input values, attributes, text) for the
-value outside the filled field. When it appears elsewhere, or the field's value is no longer what was put in after
-the page settles into something visible: the field and every place it leaked into are cleared, the tab's document
-stays protected (no snapshot text, picture or JavaScript for the agent) until it navigates away, the tool answers
-`refused: the page copied the value`, and the owner gets a notice naming the secret and the site.
+**After the fill.** Once the page had a moment to react, the node scans, from an isolated world, every document of
+the tab it can reach (same-origin frames and open shadow roots: other fields' values, attributes, text and the
+address) for a value of four characters or more outside the filled field. When it appears elsewhere: the field and
+every place it leaked into are cleared, the tab's document stays protected (no snapshot, text, picture or JavaScript
+for the agent) until it navigates away, the tool answers `refused: the page copied the value`, and the owner gets a
+notice naming the secret and the site. A copy made later by the page, or a username the site shows once signed in,
+is not caught by the scan; page text is still scrubbed of the value while the document lives.
 
 **Audit.** Each fill or refusal writes a log line and a step in the chat that name the agent, the secret's name, the
-origin and the outcome, never the value. The secret's row in Variables shows when and where it was last used.
+origin and the outcome, never the value. The secret's row in Variables shows its sites, and its sign-in dialog when
+and where it was last used. In Variables a secret goes into one kind of field, and the agent's tool refuses another
+kind without asking.
 
 **Revocation.** The owner removes an origin from a secret (or deletes the secret) in Variables; it is checked on every
 fill, so the next one is refused. A "Once" answer covers that one fill. Removing a mark does not sign anyone out of a

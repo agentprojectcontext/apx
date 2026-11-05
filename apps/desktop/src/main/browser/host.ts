@@ -2,7 +2,9 @@
 // The node re-checks control on every agent call: it never trusts that the core already did.
 import { EventEmitter } from "node:events";
 import {
+  BROWSER_FILL_SECRET,
   BROWSER_HOLD,
+  BrowserFillSecret,
   type BrowserProfile,
   browserMethods,
   createTabHolds,
@@ -170,6 +172,11 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         if (p.submit) await this.#settle(tab);
         return { ok: true, url: tab.wc.getURL() };
       }
+      case BROWSER_FILL_SECRET: {
+        const p = BrowserFillSecret.parse(raw);
+        const tab = this.#drive(p.tab, p.by);
+        return tab.cdp.fillSecret(p.ref, p);
+      }
       case "browser.approval_context": {
         const p = browserMethods["browser.approval_context"].params.parse(raw);
         return this.#readable(p.tab).cdp.approvalContext(p.origin, p.document);
@@ -199,13 +206,14 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
       }
       case "browser.text": {
         const p = browserMethods["browser.text"].params.parse(raw);
-        const wc = this.#readable(p.tab).wc;
+        const tab = this.#readable(p.tab);
+        const wc = tab.wc;
         // Isolated world: the page's scripts cannot see or patch this read.
         // Resolves to the script's value (a string), not to an array of results.
         const full = (await wc.executeJavaScriptInIsolatedWorld(999, [
           { code: "document.body ? document.body.innerText : ''" },
         ])) as unknown;
-        const text = String(full ?? "").replace(/\n{3,}/g, "\n\n");
+        const text = tab.cdp.readable(String(full ?? "")).replace(/\n{3,}/g, "\n\n");
         const slice = text.slice(p.offset, p.offset + p.max_chars);
         return { url: wc.getURL(), text: slice, total: text.length, truncated: p.offset + p.max_chars < text.length };
       }

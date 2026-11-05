@@ -3,10 +3,11 @@ import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { projectName } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
-import { setSecret } from "../data/resources.ts";
+import { type SecretInfo, setSecret } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import type { TabProps } from "./ResourcesView.tsx";
+import { SignInSitesDialog, siteLabel } from "./SignInSites.tsx";
 
 type Row = {
   name: string;
@@ -15,6 +16,9 @@ type Row = {
   hint?: string | undefined;
   stored: boolean;
   usedIn: string[];
+  /** Where agents may sign in with it (DECISIONS.md#d-193). */
+  sites: SecretInfo["sites"];
+  lastUsed?: SecretInfo["last_used"];
 };
 const keyOf = (r: Row) => `${r.project ?? ""}/${r.name}`;
 const NAME = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/;
@@ -36,12 +40,21 @@ export function VariablesTab({ projectId, query, scope, adding, setAdding, res, 
   const projects = useData((s) => s.projects);
   const [editing, setEditing] = useState<Row>();
   const [removing, setRemoving] = useState<Row>();
+  const [signing, setSigning] = useState<Row>();
   // In a project: the global values and this project's own; globally: every value, each with its project.
   const stored: Row[] = (res.data.secrets ?? [])
     .filter((s) => !projectId || s.project_id === projectId || (!s.project_id && !ownOnly))
     // The global screen's scope chips: every value, only the global ones, or one project's own.
     .filter((s) => projectId || scope === "all" || (scope === "global" ? !s.project_id : s.project_id === scope))
-    .map((s) => ({ name: s.name, project: s.project_id, hint: s.hint, stored: true, usedIn: s.used_in }));
+    .map((s) => ({
+      name: s.name,
+      project: s.project_id,
+      hint: s.hint,
+      stored: true,
+      usedIn: s.used_in,
+      sites: s.sites,
+      lastUsed: s.last_used,
+    }));
   const own = new Set(stored.filter((r) => r.project).map((r) => r.name));
   const missing = new Map<string, string[]>();
   // Only the project's own: a name only its own servers ask for.
@@ -49,7 +62,7 @@ export function VariablesTab({ projectId, query, scope, adding, setAdding, res, 
     for (const v of srv.vars)
       if (!v.set && !stored.some((r) => r.name === v.name))
         missing.set(v.name, [...(missing.get(v.name) ?? []), `mcp:${srv.name}`]);
-  const empty: Row[] = [...missing].map(([name, usedIn]) => ({ name, stored: false, usedIn }));
+  const empty: Row[] = [...missing].map(([name, usedIn]) => ({ name, stored: false, usedIn, sites: [] }));
   const rows: Row[] = [...stored, ...empty]
     .filter((r) => !query || `${r.name} ${r.usedIn.join(" ")}`.toLowerCase().includes(query))
     .sort((a, b) => a.name.localeCompare(b.name) || Number(Boolean(a.project)) - Number(Boolean(b.project)));
@@ -94,6 +107,11 @@ export function VariablesTab({ projectId, query, scope, adding, setAdding, res, 
                   },
                   ...(r.stored
                     ? [
+                        {
+                          label: t("res.signIn.menu"),
+                          icon: <Icons.LogIn size={14} />,
+                          onSelect: () => setSigning(r),
+                        },
                         { type: "separator" as const },
                         {
                           label: t("res.remove"),
@@ -118,7 +136,20 @@ export function VariablesTab({ projectId, query, scope, adding, setAdding, res, 
                 <td className="resvars__value">
                   {r.stored ? <Reveal row={r} /> : <span className="resvars__missing">{t("res.noValue")}</span>}
                 </td>
-                <td className="resvars__used">{r.usedIn.join(", ") || "—"}</td>
+                <td className="resvars__used">
+                  {r.usedIn.join(", ") || (r.sites.length ? "" : "—")}
+                  {r.sites.length > 0 && (
+                    <span className="resvars__sites">
+                      {r.sites.some((x) => x.origin === "*") ? (
+                        <Badge tone="warning">{t("res.signIn.badgeAny")}</Badge>
+                      ) : (
+                        <Badge>
+                          {t("res.signIn.badge", { sites: r.sites.map((x) => siteLabel(x.origin)).join(", ") })}
+                        </Badge>
+                      )}
+                    </span>
+                  )}
+                </td>
                 <td className="resvars__actions">
                   <IconButton
                     size="sm"
@@ -126,6 +157,14 @@ export function VariablesTab({ projectId, query, scope, adding, setAdding, res, 
                     icon={<Icons.Pencil size={14} />}
                     onClick={() => setEditing(r)}
                   />
+                  {r.stored && (
+                    <IconButton
+                      size="sm"
+                      label={t("res.signIn.title", { name: r.name })}
+                      icon={<Icons.LogIn size={14} />}
+                      onClick={() => setSigning(r)}
+                    />
+                  )}
                   {r.stored && (
                     <IconButton
                       size="sm"
@@ -151,6 +190,19 @@ export function VariablesTab({ projectId, query, scope, adding, setAdding, res, 
           onSaved={async () => {
             setAdding(false);
             setEditing(undefined);
+            await reload();
+          }}
+        />
+      )}
+      {signing && (
+        <SignInSitesDialog
+          name={signing.name}
+          project={signing.project}
+          sites={signing.sites}
+          lastUsed={signing.lastUsed}
+          onClose={() => setSigning(undefined)}
+          onSaved={async () => {
+            setSigning(undefined);
             await reload();
           }}
         />

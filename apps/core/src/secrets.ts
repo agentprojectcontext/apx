@@ -18,7 +18,10 @@ import {
 
 export type { SecretsBackend } from "./secrets-stores.ts";
 
-type Entry = { value?: string; updated_at: string; hint?: string };
+/** Where agents may sign in with a secret, and its last such use (DECISIONS.md#d-193). Kept with the secret. */
+export type SecretSite = { origin: string; kind: "password" | "username" | "otp" };
+export type SecretUse = { origin: string; at: string; agent?: string };
+type Entry = { value?: string; updated_at: string; hint?: string; sites?: SecretSite[]; used?: SecretUse };
 
 /** Values at least this long keep their last four characters as a hint; shorter ones would give too much away. */
 const HINT_MIN = 12;
@@ -118,12 +121,35 @@ export function createSecrets(
       }
       return api.resolve(ref);
     },
-    list(): Array<{ name: string; updated_at: string; hint?: string }> {
+    list(): Array<{ name: string; updated_at: string; hint?: string; sites: SecretSite[]; last_used?: SecretUse }> {
       return Object.entries(read()).map(([name, e]) => ({
         name,
         updated_at: e.updated_at,
         ...(e.hint ? { hint: e.hint } : {}),
+        sites: e.sites ?? [],
+        ...(e.used ? { last_used: e.used } : {}),
       }));
+    },
+    /** The sites a stored secret may be used on to sign in; none for a name nobody stored. */
+    sites(name: string): SecretSite[] {
+      return read()[name]?.sites ?? [];
+    },
+    /** Sets them; false when no value is stored under that name. */
+    setSites(name: string, sites: SecretSite[]): boolean {
+      const all = read();
+      const e = all[name];
+      if (!e) return false;
+      if (sites.length) e.sites = sites;
+      else delete e.sites;
+      write(all);
+      return true;
+    },
+    markUsed(name: string, use: SecretUse): void {
+      const all = read();
+      const e = all[name];
+      if (!e) return;
+      e.used = use;
+      write(all);
     },
     set(name: string, value: string | null): void {
       const all = read();
@@ -132,12 +158,17 @@ export function createSecrets(
         cache.delete(name);
       }
       if (value === null) delete all[name];
-      else
+      else {
+        // A new value keeps the sites it may sign in on: the owner changed a password, not where it goes.
+        const { sites, used } = all[name] ?? {};
         all[name] = {
           ...(store ? {} : { value }),
           updated_at: new Date().toISOString(),
           ...(value.length >= HINT_MIN ? { hint: value.slice(-4) } : {}),
+          ...(sites ? { sites } : {}),
+          ...(used ? { used } : {}),
         };
+      }
       write(all);
     },
   };
