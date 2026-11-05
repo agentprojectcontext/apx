@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { sep } from "node:path";
 import { test } from "node:test";
+import { builtDocumentationRoutes } from "../src/doc-routes.mjs";
 import { publicMarketingRoutes, sitemapErrors } from "./sitemap.mjs";
 
 const dist = new URL("../dist/", import.meta.url);
@@ -14,8 +15,7 @@ test("every built documentation page has a legacy redirect and a canonical new a
   let count = 0;
   for (const prefix of ["", "es/"]) {
     const entries = await readdir(new URL(`${prefix}docs/`, dist), { recursive: true });
-    for (const file of entries.filter((entry) => entry.endsWith("index.html") && entry !== "index.html")) {
-      const route = `${prefix}docs/${file.replace(/index\.html$/, "")}`;
+    for (const route of builtDocumentationRoutes(entries, prefix)) {
       const html = await readFile(new URL(`${route}index.html`, dist), "utf8");
       const canonical = new URL(`${base}/${route}`, site).href;
       assert.ok(html.includes(`rel="canonical" href="${canonical}"`), route);

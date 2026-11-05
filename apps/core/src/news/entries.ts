@@ -13,6 +13,7 @@ import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
 import { LOCAL_MODELS_NEWS } from "./local-models.ts";
 import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
+import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
 
@@ -82,6 +83,7 @@ export const NEWS: readonly NewsEntry[] = [
   HERMES_IMPORT_NEWS,
   BROWSER_EDIT_NEWS,
   BROWSER_JAVASCRIPT_NEWS,
+  QUICK_CHAT_NEWS,
   LOCAL_MODELS_NEWS,
   MOVE_BACKUP_NEWS,
   AGENT_FALLBACKS_NEWS,

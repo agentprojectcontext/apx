@@ -161,6 +161,10 @@ process so the display does not sleep. Start native window tests in an unlocked 
 awake display; a sleeping or locked display cannot supply reliable native focus events.
 The coverage sandbox picks separate loopback ports so parallel checkouts do not collide; `E2E_PORT`,
 `E2E_CONTROL_PORT` and `E2E_WA_PORT` override them when debugging.
+Local browser coverage runs the same three Playwright shards as CI sequentially, replaying setup for each shard
+and merging their counters into the same report. An explicit `--part=web --shard=i/3` still runs only that part.
+Each E2E command retains its 15-minute deadline; a timeout fails the run and stops its owned process tree before
+the next sandbox starts. Failed builds do not run tests against stale output.
 Reports identify each unexecuted function by file and line. An executed function still needs meaningful assertions;
 unit coverage does not replace Playwright or a real phone. The default coverage command fails on suite failures;
 the separate strict command additionally requires every inventoried function to execute. CI runs all suites with

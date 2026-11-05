@@ -1,7 +1,8 @@
 ---
-title: Agentes
-description: Quién trabaja para vos en APX, cómo cada agente es un archivo markdown y cómo se pasan el trabajo entre ellos.
+title: Armá un equipo de agentes de IA para cada proyecto
+description: Creá agentes de IA por proyecto con roles, instrucciones y herramientas. Conservá sus definiciones en archivos legibles junto al proyecto.
 sidebar:
+  label: Agentes
   order: 1
 ---
 
@@ -11,9 +12,30 @@ import Terminal from "../../../../components/Terminal.astro";
 import Blob from "../../../../components/Blob.astro";
 
 
-Un agente es alguien de tu equipo: un nombre, una cara, un rol, unas instrucciones y las herramientas que puede usar.
-Algunos trabajan con vos en todos lados, otros pertenecen a un proyecto, y otros existen para un solo encargo y
-después desaparecen.
+Un proyecto suele necesitar distintos tipos de trabajo: investigación, desarrollo, revisión u operaciones. En APX,
+dales roles diferentes a los agentes de un proyecto y permití que se deleguen trabajo. Seguilo en los chats y las
+[tareas](/es/office/tasks/) del proyecto. Un proyecto puede ser un repositorio de software, un negocio u otra carpeta
+donde trabajás.
+
+Un agente tiene nombre, cara, rol, instrucciones y herramientas que puede usar. Por ejemplo, un agente puede investigar
+opciones, otro implementar un cambio y otro revisarlo. Son roles que configurás, no una promesa de que el trabajo
+salga bien sin revisión. Empezá desde la pestaña **Agentes** del proyecto para crear uno o importar una plantilla.
+
+## Conservá el contexto junto al trabajo
+
+Los proyectos de APX siguen [APC (Agent Project Context)](/es/concepts/projects/): un `AGENTS.md` en la raíz y una carpeta
+`.apc/`. Las definiciones de agentes son archivos Markdown individuales en `.apc/agents/`. Las instrucciones
+compartidas, las notas seleccionadas y las habilidades del proyecto se pueden leer y versionar junto al trabajo.
+
+APX guarda los chats, ejecuciones, tareas, rutinas y notas en su base de datos local. Los archivos del proyecto son la
+fuente de verdad de las definiciones de agentes; un repositorio no reemplaza el historial de ejecución.
+
+Configurá la [autonomía y las herramientas](/es/concepts/autonomy/) de cada agente según el trabajo. Los mensajes externos
+y las páginas web son datos, no una autorización para actuar. APX funciona en tu computadora o en un servidor propio,
+pero los modelos conectados en la nube reciben lo que necesita cada solicitud; APX local no implica inferencia sin
+conexión con modelos en la nube.
+
+Algunos agentes trabajan con vos en todos lados, otros pertenecen a un proyecto y otros existen para un solo encargo.
 
 <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", alignItems: "center", margin: "1.5rem 0" }}>
   <Blob name="menta" size={56} bob />

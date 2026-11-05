@@ -4,6 +4,7 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript-parser";
+import { runE2ESuites } from "./coverage-e2e.ts";
 import { mergeScripts, missingSourceMaps, readCoveragePayloads, snapshotSourceMaps } from "./coverage-maps.ts";
 import { sourceMapResolver } from "./coverage-source-map.ts";
 import { checkTests, repositoryFiles, testFiles } from "./test-quality.ts";
@@ -214,54 +215,6 @@ export function coveragePart(argv: readonly string[]): CoveragePart & { name?: s
       desktop: false,
     };
   throw new Error(`--part must be unit, web or desktop, not ${part}`);
-}
-
-async function runE2ESuites(
-  root: string,
-  raw: string,
-  snapshot: (directory: string) => void,
-  which: Pick<CoveragePart, "web" | "desktop">,
-): Promise<boolean> {
-  let failed = false;
-  let ports = await sandboxPorts();
-  const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-  const run = (command: string, args: string[]) => {
-    const result = spawnSync(command, args, {
-      cwd: root,
-      stdio: "inherit",
-      shell: process.platform === "win32",
-      env: { ...process.env, ...ports, APX_TEST_COVERAGE: "1", APX_TEST_COVERAGE_DIR: raw, NODE_V8_COVERAGE: raw },
-      // The web e2e alone runs ~17 min under coverage; a kill here stops pnpm, not the run under it.
-      timeout: 30 * 60_000,
-    });
-    if (result.status !== 0) {
-      failed = true;
-      if (result.error) console.error(result.error.message);
-    }
-  };
-  run(pnpm, ["build:web"]);
-  snapshot(path.join(root, "apps/web/dist"));
-  snapshot(path.join(root, "packages/ui/dist"));
-  if (which.web) {
-    const shard = typeof which.web === "string" ? [`--shard=${which.web}`] : [];
-    run(pnpm, ["exec", "playwright", "test", "--project", "chromium", ...shard]);
-  }
-  if (!which.desktop) return failed;
-  // Listeners of their own: a web sandbox still closing never makes the desktop run's server "already used".
-  ports = await sandboxPorts();
-  run(pnpm, ["--filter", "@apx/desktop", "build"]);
-  snapshot(path.join(root, "apps/desktop/dist"));
-  const desktop = ["exec", "playwright", "test", "--project", "desktop"];
-  if (process.platform === "linux" && !process.env.DISPLAY) {
-    // Xvfb supplies a display; a window manager supplies real focus and minimization transitions.
-    const launch =
-      'command -v openbox >/dev/null || { echo "Install openbox for desktop window tests" >&2; exit 1; }; openbox >/dev/null 2>&1 & exec "$@"';
-    run("xvfb-run", ["-a", "sh", "-c", launch, "apx-desktop", pnpm, ...desktop]);
-  } else if (process.platform === "darwin") {
-    // Native focus assertions need an awake display for the lifetime of the test process.
-    run("caffeinate", ["-d", "-i", pnpm, ...desktop]);
-  } else run(pnpm, desktop);
-  return failed;
 }
 
 /** An area with more test files than this runs in parts, each with its own time limit (`AREA_MS`). */
@@ -485,7 +438,8 @@ async function main() {
   };
   let failed = false;
   if (part.unit) failed = runUnitSuites(root, raw, path.join(output, "mobile"), snapshot) || failed;
-  if (part.web || part.desktop) failed = (await runE2ESuites(root, raw, snapshot, part)) || failed;
+  if (part.web || part.desktop)
+    failed = (await runE2ESuites(part, { root, raw, snapshot, ports: sandboxPorts })) || failed;
   const status = {
     failed,
     suites: [...(part.unit ? ["unit"] : []), ...(part.web ? ["web"] : []), ...(part.desktop ? ["desktop"] : [])],

@@ -147,6 +147,9 @@ jobs:
         run: node apps/desktop/node_modules/electron/install.js
       - name: Function coverage (this part, with sandboxed cores)
         run: node scripts/test-coverage.ts --e2e ${{ matrix.args }}
+      - name: Chrome extension regression suite
+        if: matrix.name == 'panel 1/3'
+        run: pnpm test:chrome-extension:browser
       - name: Keep this part
         if: always()
         uses: actions/upload-artifact@v4

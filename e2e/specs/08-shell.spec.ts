@@ -55,7 +55,7 @@ test("an agent picks its own model from the list, and one button leaves it on th
   await expect.poll(choiceOf).toBe("custom/fake-2");
 
   await expect(page.getByRole("option", { name: /fake-2/, selected: true })).toBeVisible();
-  await page.getByRole("button", { name: "Dejar solo el router" }).click();
+  await page.getByRole("button", { name: "Elegir automáticamente" }).click();
   await expect.poll(choiceOf).toBeUndefined();
   await page.keyboard.press("Escape");
 });
