@@ -21,17 +21,15 @@ for (const destination of ["agent", "home", "agent-return"] as const) {
       await choose(alpha.name);
       const release = Promise.withResolvers<void>();
       let created: string | undefined;
-      await page.route(
-        "**/rpc/threads.create",
-        async (route) => {
-          const response = await route.fetch();
-          const body = (await response.json()) as { result: { id: string } };
-          created = body.result.id;
-          await release.promise;
-          await route.fulfill({ response });
-        },
-        { times: 1 },
-      );
+      // Registered for the whole test: unrouting after one use can strand the next request of the cross-origin frame.
+      await page.route("**/rpc/threads.create", async (route) => {
+        if (created) return route.continue();
+        const response = await route.fetch();
+        const body = (await response.json()) as { result: { id: string } };
+        created = body.result.id;
+        await release.promise;
+        await route.fulfill({ response });
+      });
       try {
         await frame.locator("textarea").fill("Message for Alpha only.");
         await frame.locator("textarea").press("Enter");
