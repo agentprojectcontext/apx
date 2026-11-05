@@ -15,7 +15,7 @@ export const BROWSER_SIGN_IN_NEWS: NewsEntry = {
       "Guardá una contraseña, un usuario o una clave de autenticación en Recursos › Variables y elegí en qué " +
       "sitios sirve. Tus agentes la completan en el formulario de inicio de sesión del navegador de APX y nunca la ven.",
   },
-  applies: (facts) => facts.desktop,
+  applies: (facts) => facts.desktop === true,
   text:
     "Agents can now sign in to websites with the owner's stored variables instead of handing the tab over: a " +
     "password, a username or an authenticator setup key (they fill the current code). The owner stores the value in " +
