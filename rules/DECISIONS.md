@@ -235,6 +235,19 @@ The owner's sessions in `~/.claude` and `~/.codex` (paths injected: `CLAUDE_CONF
 read-only and gone on with as an engine session that resumes the engine's own session id; APX's own runs (framed
 turns, `codex_sdk_ts`, sub-agents) are left out.
 
+Amended 2026-11-01 (recorded 2026-11-05): an agent can open an engine session too. `start_session`
+(`tools/external-sessions.ts`, in the `agents` group) creates a visible code thread with an outside engine in a
+registered project and sends it the first task; the answer comes back to the caller later, as a delegation's does, and
+the session lists under External sessions in that project. It is not a delegation (no persona, the engine's own prompt)
+and not a shell. Limits: only a caller has it (a delegate asks no one, D-074), and only once a project is registered; a
+project-bound agent or a fenced chat cannot open one in another project; the folder stays inside the caller's folder;
+`model` must be that engine's (`engine/model#effort`, absent for the engine's default); the write policy is never more
+than the caller's and is capped at the destination project's autonomy (D-126); and the session is the caller's
+sub-thread, so the caller's spend limits pause it (a tripped breaker refuses creating it and every later message) and
+later messages from the caller queue past the active-delegation cap. Confirmation: `confirm: "always"`, so the owner
+approves each start on a card even in Auto; only Total or the agent's own rule for that risk skips it (D-047), and
+Plan mode refuses it. Inside the session, the engine's commands and edits follow the same policy as any session's.
+
 <a id="d-024"></a>
 ## D-024 — 2026-10-02 — v2 lives in ~/.apx/v2, beside v1's files
 v2 will be "APX" in the same folder v1 uses, so its state moved from `~/.apx2` to `~/.apx/v2`: one product folder,
@@ -1986,6 +1999,26 @@ those tasks become proposals, so the owner picks which go ahead; a wide `delegat
 hand-offs deep, or one for an agent that created a task above it, is a proposal too, so agents cannot pass work down
 forever or ping-pong it. Rejected: a counter on the task (it misses a chain that runs across tasks).
 
+Amended 2026-11-05 (issue #130): "three hand-offs deep" walked a task's parents, so a task the owner had assigned, under
+three older parents, stopped as a proposal when its agent handed it to an independent reviewer: the parents were
+history, not three agents passing the work on. For a task with a recorded owner assignment or acceptance
+(`engine/task-assignment.ts`), the boundary now comes from the task's own events since that assignment:
+- The agent handing it on must be working under that assignment: its run traces back to the owner's message (or the
+  assigning agent's run) that carried it. Queued, steered, sent-now and restart-recovered messages keep the assignment
+  they arrived with; the owner's follow-ups keep it without a fresh budget; a revoked or replaced one never comes back.
+- At most three active forward transfers (`task-limits.ts`, counted in `task-transfer-budget.ts`). A review asked for
+  explicitly (**Review**) may go from author to the same reviewer and back for two rounds. A fourth transfer, a third
+  round, a changed review pair, or work given back up the active chain is a proposal.
+- A rewrite of the title, description, goal or project after the owner's assignment, by anyone and even in the
+  hand-off call itself, voids it: the hand-off is a proposal. Setting a goal the task never had is not a rewrite (D-187
+  asks agents to set one).
+- A task without a recorded owner assignment keeps the parent-chain rule above, and a pending proposal is never
+  accepted by this path.
+
+This is not the counter rejected above: nothing is stored on the task to count. The count is derived from recorded
+events back to a verified owner assignment, and applies only where that assignment roots the chain; a chain that runs
+across tasks has no such root and still meets the parent-chain rule.
+
 <a id="d-132"></a>
 ## D-132 — 2026-10-22 — An agent's @mention on a task asks that teammate, and the answer comes back to it
 D-078 kept agents' @mentions silent (an agent asked with `delegate`), so agents working a task asked each other in
@@ -3655,6 +3688,15 @@ Rejected: a second tool beside `task_update` (two ways to write one task's plan)
 thread's context (the messages already hold it, and tools change chats only through the protocol), and moving the
 checklist to the newest answer by removing it from older ones (it rewrites what the owner already read; each answer
 keeps the plan as it stood).
+
+Amended 2026-11-05: within one run the plan now stays last. It stayed where the agent first wrote it, so the cards and
+words of a long turn piled up below it and the owner had to scroll up to see where the work stood. Each time the agent
+marks it, the plan card leaves its old place and goes under everything the run has shown so far (`upsert` with `last`
+in `engine/display.ts`), even out of the run's own message above words the owner sent while it worked; while the run
+works the panel draws it last (`planLast`), and once done it stays checked where it was last marked, with the answer
+below. This is the one exception to the rejection above, and only inside the run that wrote the plan: what moves is
+the live checklist of work still going on, which the owner reads for where it stands now. An earlier turn's answer
+still keeps its plan as it stood.
 
 <a id="d-192"></a>
 ## D-192 — 2026-11-05 — Moving or backing up a setup: one file without secrets, imported after a preview

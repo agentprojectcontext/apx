@@ -110,6 +110,25 @@ Debajo de las sesiones empezadas en APX, **En esta computadora** lista las sesio
 tenés en esta máquina (de `~/.claude` y `~/.codex`), con su carpeta. Tocá una para **seguirla acá**: el motor retoma
 su propia sesión, con historial y todo, y desde ahí vive también en APX.
 
+### Sesiones que abre tu agente
+
+También podés pedirle a uno de tus agentes que abra una sesión por vos: "abrí una sesión de Claude Code de sólo
+lectura para revisar el código del checkout". El agente elige el motor, el proyecto y, si nombraste uno, el modelo
+(si no, el predeterminado del motor), y le manda a la sesión su primera tarea. La sesión aparece en **Sesiones
+externas** dentro de ese proyecto, como una que abriste vos, y su respuesta vuelve al agente que la pidió, así que no
+hace falta que la vigiles.
+
+- Cada inicio te pide el OK en una tarjeta, aun en Auto. Sólo Total, o la regla **irreversible** del agente puesta en
+  correr sin preguntar, lo saltea ([Reglas por caso](/es/concepts/autonomy/#reglas-por-caso)); en Plan el agente no
+  puede abrir una.
+- La sesión nunca tiene más que el agente que la pidió: ninguna política de escritura más libre que la de su chat,
+  nada más allá de lo que permite la autonomía del proyecto, y sólo dentro de la carpeta del agente. Un agente atado
+  a un proyecto no puede abrir una sesión en otro.
+- Cuenta para los límites de gasto del agente que la pidió: cuando se alcanzan, la sesión no arranca y no toma
+  mensajes nuevos.
+- Un agente que le está respondiendo a otro no puede abrir sesiones; y una sesión no es un compañero ni una terminal:
+  es el motor en persona, con su propio prompt.
+
 <Aside type="note" title="Lo que APX controla">
 - Claude Code carga solo tu configuración de usuario, no los archivos `.claude/settings` de un repositorio (que
   podrían habilitar herramientas salteando las aprobaciones de APX). APX lee el `CLAUDE.md` de la carpeta por su
