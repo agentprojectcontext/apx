@@ -18,7 +18,7 @@ export type ExtrasResult = {
 };
 
 const OWNER = { actor: "human" } as const;
-const serverName = (name: string) =>
+export const serverName = (name: string) =>
   name
     .replace(/[^a-zA-Z0-9_-]+/g, "-")
     .replace(/^[^a-zA-Z0-9]+/, "")

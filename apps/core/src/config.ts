@@ -49,6 +49,8 @@ export type CoreConfig = {
   webDist: string | undefined;
   /** Local APX v1 daemon, only for the explicit read-only import. */
   v1: { url: string; home: string };
+  /** A Hermes home folder, only looked at to offer moving from it (hermes.preview reads the one the owner names). */
+  hermes: string;
   /** Where Claude Code and Codex keep the owner's own sessions (read-only, to go on with one in APX). */
   native: { claude: string; codex: string };
   /**
@@ -201,6 +203,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     allowedOrigins: list(env.APX_ALLOWED_ORIGINS),
     webDist: env.APX_WEB_DIST || undefined,
     v1: { url: env.APX_V1_URL ?? "http://127.0.0.1:7430", home: env.APX_V1_HOME ?? path.join(os.homedir(), ".apx") },
+    hermes: env.HERMES_HOME ?? path.join(os.homedir(), ".hermes"),
     telegramApi: env.APX_TELEGRAM_API || undefined,
     flowHttpAllow: list(env.APX_FLOW_HTTP_ALLOW).filter((a) => /^127\.0\.0\.1:\d{1,5}$/.test(a)),
     discord:
@@ -268,6 +271,7 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     hooksPort: 0,
     secrets: "file",
     v1,
+    hermes: path.join(over.home, "hermes-home"),
     native,
     runtimeSkills: { homes: { home: over.home, ...native }, auto: false },
     updates: "off",

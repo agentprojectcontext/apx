@@ -50,6 +50,7 @@ import { extensionHandlers } from "./rpc/extensions.ts";
 import { fileHandlers } from "./rpc/files.ts";
 import { flowHandlers } from "./rpc/flows.ts";
 import { gitHandlers } from "./rpc/git.ts";
+import { hermesHandlers } from "./rpc/hermes.ts";
 import { integrationHandlers } from "./rpc/integrations.ts";
 import type { InternalCall } from "./rpc/internal.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
@@ -374,6 +375,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...fileHandlers(d.store, d.desktop, d.app.home),
     ...gitHandlers(d.store, d.upkeep),
     ...terminalHandlers(d.store, d.terminals, d.app.home),
+    ...hermesHandlers(d.store, d.internal),
     ...sessionHandlers(d.store, d.native, {
       home: d.app.home,
       apc: d.apc,

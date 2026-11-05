@@ -7,6 +7,7 @@ import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
+import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
@@ -38,6 +39,8 @@ export type NewsFacts = {
   desktop?: boolean;
   /** Open tasks with an agent on them. */
   tasks?: number;
+  /** A Hermes home folder is on this machine (moving from it is offered). */
+  hermes?: boolean;
 };
 
 export type NewsAction = {
@@ -68,6 +71,7 @@ export const NEWS: readonly NewsEntry[] = [
   TASK_REGROUP_NEWS,
   QUEUED_MESSAGES_NEWS,
   EXTERNAL_SESSIONS_NEWS,
+  HERMES_IMPORT_NEWS,
   BROWSER_EDIT_NEWS,
   BROWSER_JAVASCRIPT_NEWS,
   {
@@ -1158,7 +1162,8 @@ const connectedIntegrations = (store: Store): number => {
 
 const signedIn = (store: Store, id: string) => Boolean(store.settings.get(`google_account:${id}`));
 
-export const newsFacts = (store: Store): NewsFacts => ({
+export const newsFacts = (store: Store, o: { hermes?: boolean } = {}): NewsFacts => ({
+  hermes: o.hermes ?? false,
   artifacts: store.surfaces.list().length,
   desktop: store.devices.list().some((d) => d.platform === "desktop"),
   codex: store.threads.list({ engine: "codex", limit: 1 }).length > 0,

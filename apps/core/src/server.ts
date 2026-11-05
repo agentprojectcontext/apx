@@ -575,6 +575,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     models: upkeep.voiceModels,
     notifyOwner: (body, threadId) => channels.notifyOwner(body, "notice", threadId),
     log,
+    hermesHome: config.hermes,
   });
   const sleep = opts.sleptSince ? undefined : sleepWatch(opts.runTimers);
   const engine = createEngine({
