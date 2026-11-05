@@ -88,7 +88,8 @@ function EngineModels(props: {
 }) {
   const t = useT();
   const { engine: e, models } = props;
-  const stale = e.fetched_at ? Date.now() - new Date(e.fetched_at).getTime() > STALE_MS : false;
+  // A local app is asked each time: its list is never stale.
+  const stale = !e.local && e.fetched_at ? Date.now() - new Date(e.fetched_at).getTime() > STALE_MS : false;
   const [open, setOpen] = useState(false);
   return (
     <details
@@ -101,11 +102,14 @@ function EngineModels(props: {
         <EngineIcon engine={e.id} size={16} />
         <span className="catalog__label">{e.label}</span>
         <span className="catalog__id">{e.id}</span>
+        {e.local && <span className="chip">{t("models.local")}</span>}
         <span className="catalog__meta">
-          {t(e.kind === "harness" ? "models.kind.harness" : "models.kind.provider")} ·{" "}
+          {t(e.local ? "models.kind.local" : e.kind === "harness" ? "models.kind.harness" : "models.kind.provider")} ·{" "}
           {t("models.count", { count: props.total })}
-          {e.fetched_at && ` · ${t("models.fetchedAt", { when: dayLabel(e.fetched_at) })}`}
-          {e.detail && (!e.available || stale) && ` · ${e.detail}`}
+          {e.local
+            ? !e.available && ` · ${t("models.localClosed", { app: e.label })}`
+            : e.fetched_at && ` · ${t("models.fetchedAt", { when: dayLabel(e.fetched_at) })}`}
+          {!e.local && e.detail && (!e.available || stale) && ` · ${e.detail}`}
         </span>
         {!e.available ? (
           <Badge tone="warning">{t("models.unavailable")}</Badge>

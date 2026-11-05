@@ -7,6 +7,7 @@ import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
+import { LOCAL_MODELS_NEWS } from "./local-models.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 
@@ -37,6 +38,8 @@ export type NewsFacts = {
   desktop?: boolean;
   /** Open tasks with an agent on them. */
   tasks?: number;
+  /** A model app (Ollama, LM Studio) was found running on this computer. */
+  localModels?: boolean;
 };
 
 export type NewsAction = {
@@ -68,6 +71,7 @@ export const NEWS: readonly NewsEntry[] = [
   EXTERNAL_SESSIONS_NEWS,
   BROWSER_EDIT_NEWS,
   BROWSER_JAVASCRIPT_NEWS,
+  LOCAL_MODELS_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",
@@ -1158,6 +1162,7 @@ export const newsFacts = (store: Store): NewsFacts => ({
   computer: computerHost() !== undefined && store.projects.list().length > 0,
   mac: process.platform === "darwin" && store.projects.list().length > 0,
   tasks: store.tasks.list({ state: "open", limit: 500 }).filter((t) => t.assignee).length,
+  localModels: store.settings.read("local_models_seen").length > 0,
 });
 
 /** The action a channel button stands for. */

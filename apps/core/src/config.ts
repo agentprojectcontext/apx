@@ -29,7 +29,18 @@ export type ProviderConfig = {
   models: string[];
   /** The name people read; built-in providers carry their brand's. */
   label?: string | undefined;
+  /** On this computer (a model app APX found, or one the owner set up at its address): free, asked fresh each time. */
+  local?: boolean | undefined;
 };
+
+/** A model app that may run on this computer; its OpenAI-compatible API is looked for on loopback only. */
+export type LocalApp = { id: string; label: string; port: number };
+
+/** Ollama and LM Studio at their usual ports. */
+export const LOCAL_APPS: LocalApp[] = [
+  { id: "ollama", label: "Ollama", port: 11434 },
+  { id: "lmstudio", label: "LM Studio", port: 1234 },
+];
 
 export type CoreConfig = {
   host: string;
@@ -88,6 +99,11 @@ export type CoreConfig = {
   headless: boolean | string;
   /** Ollama on this machine, for memory's embedding models (APX_OLLAMA_URL; a test points it elsewhere). */
   ollamaUrl: string;
+  /**
+   * Model apps looked for on this computer, their chat models offered with no setup (APX_LOCAL_MODELS: "off", or
+   * `id:port` pairs of LOCAL_APPS; a test core looks for none).
+   */
+  localModels: LocalApp[];
   providers: ProviderConfig[];
   secrets: SecretsBackend;
   /** Silence before the first byte of a model answer. */
@@ -163,6 +179,17 @@ const list = (v: string | undefined) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
+/** APX_LOCAL_MODELS: unset = LOCAL_APPS, "off" = none, "ollama:7623,lmstudio:off" = those apps at those ports. */
+function localApps(v: string | undefined): LocalApp[] {
+  if (!v) return LOCAL_APPS;
+  if (v === "off") return [];
+  return list(v).flatMap((pair) => {
+    const [id, port] = pair.split(":");
+    const app = LOCAL_APPS.find((a) => a.id === id);
+    return app && Number(port) > 0 ? [{ ...app, port: Number(port) }] : [];
+  });
+}
+
 /** `<home>/core.env` (written by `apx expose`) as defaults under the process environment, which always wins. */
 export function withCoreEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const home = env.APX_HOME ?? defaultHome();
@@ -229,6 +256,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
       auto: env.APX_RUNTIME_SKILLS === "on" || (!env.APX_HOME && env.APX_RUNTIME_SKILLS !== "off"),
     },
     ollamaUrl: env.APX_OLLAMA_URL || "http://127.0.0.1:11434",
+    localModels: localApps(env.APX_LOCAL_MODELS),
     providers: [...custom, ...DEFAULT_PROVIDERS],
     secrets: env.APX_SECRETS === "file" ? "file" : systemBackend(),
     llmTimeoutMs: Number(env.APX_LLM_TIMEOUT_MS ?? 45_000),
@@ -277,6 +305,7 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     releases: undefined,
     telemetry: undefined,
     headless: false,
+    localModels: [],
     agentName: "Roby",
     ...over,
   };

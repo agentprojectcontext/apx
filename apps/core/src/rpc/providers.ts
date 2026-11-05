@@ -38,6 +38,7 @@ export function providerHandlers(
       models: p.models,
       enabled: p.enabled !== false,
       builtin: p.builtin,
+      ...(p.local ? { local: true } : {}),
       ...signedIn(p.key),
     }));
   return {

@@ -178,6 +178,8 @@ export const CatalogEngine = z.object({
   fetched_at: z.string().optional(),
   /** A model API's everyday chat model: what the router chain gets when the owner adds this provider. */
   starter: z.string().optional(),
+  /** A model app on this computer (Ollama, LM Studio), found with no setup or set up at its address: free. */
+  local: z.boolean().optional(),
 });
 export type CatalogEngine = z.infer<typeof CatalogEngine>;
 
@@ -864,6 +866,8 @@ export const ProviderInfo = z.object({
   models: z.array(z.string()),
   enabled: z.boolean(),
   builtin: z.boolean(),
+  /** A model app on this computer: found running with no setup, or set up at its address. */
+  local: z.boolean().optional(),
 });
 export type ProviderInfo = z.infer<typeof ProviderInfo>;
 
