@@ -125,3 +125,22 @@ test("a turn given more steps uses them before it must answer", async () => {
   await nativeHarness(llm).run(io);
   assert.equal(llm.calls.filter((c) => c.tools.length).length, 30);
 });
+
+test("the usage reported while a turn runs names the window of the model that answered", async () => {
+  const llm = scriptedLlm(() => ({ ...say("done"), model: "fake/claude-test", usage: { input: 5000, output: 3 } }));
+  const seen: unknown[] = [];
+  const io = {
+    system: "system",
+    history: [],
+    input: { role: "user", content: "go" },
+    tools: [],
+    models: ["fake/claude-test"],
+    signal: new AbortController().signal,
+    thread: { id: "t1" },
+    onText() {},
+    onUsage: (u: unknown) => seen.push(u),
+    log() {},
+  } as unknown as TurnIO;
+  await nativeHarness(llm).run(io);
+  assert.deepEqual(seen.at(-1), { input: 5000, output: 3, context: 5000, window: 200_000 });
+});

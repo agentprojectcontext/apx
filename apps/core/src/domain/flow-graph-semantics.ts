@@ -4,7 +4,7 @@ import { evalFlowExpr, type FlowVarIndex, flowTruthy, parseFlowExpr } from "./fl
 import { FLOW_OTHERWISE, flowCases, resolveFlowBinding, validateFlowGraph } from "./flow-graph-validate.ts";
 import type { FlowApx } from "./flow-template.ts";
 
-export { FLOW_OTHERWISE, flowBranches, flowCases, flowVarIndex } from "./flow-graph-validate.ts";
+export { FLOW_OTHERWISE, flowCases, flowVarIndex } from "./flow-graph-validate.ts";
 
 type Condition = Extract<FlowNode, { kind: "condition" }>;
 export type FlowNodeState =

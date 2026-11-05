@@ -749,6 +749,38 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /** A waiting message of the owner's, changed before its turn starts; a turn that started refuses it. */
+  "runs.update_queued": {
+    params: z.object({ run: Id, text: z.string().min(1).max(50_000) }).strict(),
+    result: z.object({ message: Message }),
+    effect: true,
+    access: "human",
+  },
+  /** Takes a waiting message of the owner's out of the line and out of the chat, before its turn starts. */
+  "runs.remove_queued": {
+    params: z.object({ run: Id }).strict(),
+    result: z.object({ removed: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
+  /** The chat's waiting messages in the order they should run: all of them, each once. */
+  "runs.reorder": {
+    params: z.object({ thread: Id, runs: z.array(Id).min(1).max(100) }).strict(),
+    result: z.object({ messages: z.array(Message) }),
+    effect: true,
+    access: "human",
+  },
+  /**
+   * The owner's waiting message now: the running turn cuts its current step short and takes it. `now` false: the
+   * agent can only take it between turns (an outside engine): its turn at work is stopped and the message runs first.
+   * With no turn at work it only goes first in line.
+   */
+  "runs.send_now": {
+    params: z.object({ message: Id }).strict(),
+    result: z.object({ now: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
   /** One job; for a terminal job, the end of its output (or a page of it from `offset`). */
   "jobs.get": {
     params: z

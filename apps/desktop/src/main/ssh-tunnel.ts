@@ -24,7 +24,7 @@ export function useIdentity(file: string | undefined): void {
 }
 
 /** `-i <app key>` once the key exists; no IdentitiesOnly, so the owner's own keys keep working. */
-export function identityArgs(): string[] {
+function identityArgs(): string[] {
   return identity && fs.existsSync(identity) ? ["-i", identity] : [];
 }
 

@@ -71,6 +71,37 @@ Las versiones de la app de escritorio anteriores a este cambio escribían `core.
 (`~/Library/Logs/APX` en macOS, `%APPDATA%\APX\logs` en Windows, `~/.config/APX/logs` en Linux); las líneas
 viejas siguen ahí.
 
+## El disco está casi lleno
+
+Cuando al disco donde está la carpeta de APX le quedan menos de 5 GB libres, el panel lo avisa: una tarjeta al pie de
+la barra lateral, o una franja debajo de la barra superior en el teléfono. **Ver almacenamiento** abre
+**Configuración › Almacenamiento**, que muestra lo que APX guarda por área (chats, memoria y archivos; proyectos; las
+computadoras de los agentes; el navegador; modelos locales; registros; caché; copias de seguridad).
+
+**Liberar espacio** borra solo lo que APX vuelve a crear cuando lo necesita, y el botón dice antes cuánto es:
+
+- las vistas previas de videos, y las copias de documentos abiertos en otra app (después de un día);
+- los registros rotados, los demás registros sin cambios hace 14 días (nunca el actual) y la salida de comandos en
+  segundo plano sin cambios hace 30 días.
+
+Tus chats, memoria, archivos, proyectos, skills, secretos, copias de seguridad, las computadoras de los agentes, el
+perfil del navegador y los modelos locales no se tocan con ese botón.
+
+Si no alcanza, lo más grande suele ser las computadoras de los agentes y las copias de seguridad, y esas se borran de a
+una:
+
+- **Computadoras de los agentes** abre la lista de cada una, con su tamaño, si está encendida y cuándo se usó por
+  última vez. Una computadora que dejó una prueba aparece como tal. **Borrar** pregunta antes: se pierde todo lo que
+  tus agentes instalaron o guardaron adentro, y la computadora de tus agentes se vuelve a preparar desde cero la
+  próxima vez que un agente la necesite. Una computadora encendida no se puede borrar: primero **Apagar** (se apaga
+  para todos los agentes).
+- **Copias de seguridad** abre la lista de cada copia de tus chats, memoria y tareas, por fecha y tamaño. **Borrar**
+  pregunta antes y elimina esa copia para siempre; lo que APX tiene ahora queda como está.
+
+Cuando cerrás la tarjeta (o la franja) del disco, queda un pequeño disco con un punto de aviso al pie de la barra
+lateral, al lado del botón de ayuda, mientras el disco siga casi lleno; abre la misma pantalla, y se va solo cuando hay
+lugar.
+
 ## Una actualización de la app no se instala
 
 Si **Reiniciar ahora** no puede poner la versión nueva, la ventana de actualización dice por qué, o después de un

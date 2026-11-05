@@ -57,3 +57,26 @@ test("computer use reads as one thing while the agent works on it", async () => 
   const ui = await render(<ChatMessage message={message} agents={[]} respond={async () => {}} />);
   expect(ui.getByText(t("toolsComputerWorking"))).toBeTruthy();
 });
+
+test("the agent's plan shows as a checklist at the end of its message, with how many steps are done", async () => {
+  const message = {
+    ...turn,
+    parts: [
+      {
+        type: "plan",
+        steps: [
+          { step: "Check prices", state: "done" },
+          { step: "Compare plans", state: "doing" },
+          { step: "Write the summary", state: "pending" },
+        ],
+      },
+      { type: "text", text: "Looking at prices" },
+    ],
+  } as unknown as Message;
+  const ui = await render(<ChatMessage message={message} agents={[]} respond={async () => {}} />);
+  expect(ui.getByLabelText(t("plan"))).toBeTruthy();
+  expect(ui.getByText(t("planDone", { done: 1, count: 3 }))).toBeTruthy();
+  expect(ui.getByText("Compare plans")).toBeTruthy();
+  const tree = JSON.stringify(ui.toJSON());
+  expect(tree.indexOf("Looking at prices")).toBeLessThan(tree.indexOf("Write the summary"));
+});

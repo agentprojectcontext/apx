@@ -6,7 +6,7 @@ import { loadChannels, useChannels } from "../data/channels.ts";
 import { currentLocale, type MessageKey, useT } from "../i18n/index.ts";
 import { duePresets, REMINDERS, type Reminder } from "./when.ts";
 
-export const KINDS: readonly TaskKind[] = ["task", "commitment", "errand"];
+const KINDS: readonly TaskKind[] = ["task", "commitment", "errand"];
 export const PRIORITIES: readonly TaskPriority[] = ["urgent", "high", "normal", "low"];
 
 const KIND_KEY: Record<TaskKind, MessageKey> = {
@@ -146,7 +146,7 @@ export function OwedByControl({
 }
 
 /** Translated labels of the shared date pickers. */
-export function useDateLabels() {
+function useDateLabels() {
   const t = useT();
   return {
     placeholder: t("date.none"),

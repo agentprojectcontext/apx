@@ -89,6 +89,7 @@ necesita un reinicio.
 | `APX_RUNTIME_SKILLS` | prendido en la carpeta por defecto | `on` u `off`: mantener al día las skills de APX en Claude Code, Codex, Cursor y `~/.agents` en cada arranque. Un core con su propio `APX_HOME` no lo hace, salvo que esto diga `on`. |
 | `APX_WEB_DIST` | la compilación del workspace | El panel compilado que sirve. |
 | `APX_OLLAMA_URL` | `http://127.0.0.1:11434` | Ollama en esta máquina, para los modelos de embeddings de la búsqueda en la memoria. |
+| `APX_LOCAL_MODELS` | `ollama:11434,lmstudio:1234` | Apps de modelos cuyos modelos de chat se ofrecen cuando corren en esta computadora (siempre `127.0.0.1`). `off` no busca ninguna; `ollama:11500` cambia un puerto y deja afuera la app que no se nombra. |
 | `APX_V1_URL` | `http://127.0.0.1:7430` | El daemon de APX v1, solo para la importación (que solo lee). |
 | `APX_V1_HOME` | `~/.apx` | La carpeta de APX v1, solo para la importación. |
 | `CLAUDE_CONFIG_DIR` | `~/.claude` | Donde Claude Code guarda tus sesiones (se leen para listarlas y retomarlas). |

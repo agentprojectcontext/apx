@@ -13,14 +13,11 @@ import {
 
 test("coverage sandboxes use distinct available loopback ports and honor explicit overrides", async () => {
   const ports = await sandboxPorts({});
-  assert.deepEqual(Object.keys(ports), ["E2E_PORT", "E2E_CONTROL_PORT", "E2E_WA_PORT"]);
-  assert.equal(new Set(Object.values(ports)).size, 3);
+  assert.deepEqual(Object.keys(ports), ["E2E_PORT", "E2E_CONTROL_PORT", "E2E_WA_PORT", "E2E_PAIR_PORT"]);
+  assert.equal(new Set(Object.values(ports)).size, 4);
   assert.ok(Object.values(ports).every((port) => Number(port) > 0 && Number(port) < 65536));
-  assert.deepEqual(await sandboxPorts({ E2E_PORT: "17460", E2E_CONTROL_PORT: "17461", E2E_WA_PORT: "17462" }), {
-    E2E_PORT: "17460",
-    E2E_CONTROL_PORT: "17461",
-    E2E_WA_PORT: "17462",
-  });
+  const explicit = { E2E_PORT: "17460", E2E_CONTROL_PORT: "17461", E2E_WA_PORT: "17462", E2E_PAIR_PORT: "17466" };
+  assert.deepEqual(await sandboxPorts(explicit), explicit);
 });
 
 test("coverage includes never-loaded functions and does not invent runtime behavior for interfaces", () => {

@@ -69,6 +69,34 @@ Lines in the **Process output** source are what the core printed outside its log
 Desktop app versions before this change wrote `core.log` in the app's own logs folder (`~/Library/Logs/APX` on
 macOS, `%APPDATA%\APX\logs` on Windows, `~/.config/APX/logs` on Linux); older lines stay there.
 
+## The disk is almost full
+
+When the disk holding APX's folder has less than 5 GB free, the panel says so: a card at the foot of the sidebar, or
+a strip under the top bar on a phone. **See storage** opens **Settings › Storage**, which shows what APX keeps by area
+(chats, memory and files; projects; the agents' computers; the browser; local models; logs; caches; backups).
+
+**Free up space** removes only what APX makes again when it needs it, and the button says first how much that is:
+
+- video previews, and copies of documents opened in another app (after a day);
+- rotated logs, other logs untouched for 14 days (never the current one), and the output of background commands
+  untouched for 30 days.
+
+Your chats, memory, files, projects, skills, secrets, backups, the agents' computers, the browser profile and local
+models are never touched by it.
+
+If that is not enough, the two biggest things usually are the agents' computers and the backups, and you delete
+those one by one:
+
+- **Agents' computers** opens a list of each one, with its size, whether it is on and when it was last used. A
+  computer left behind by a test shows as such. **Delete** asks first: everything your agents installed or saved
+  inside it is lost, and your agents' computer is set up again from scratch the next time an agent needs it. A
+  computer that is on can't be deleted: turn it off first with **Turn off** (it turns off for every agent).
+- **Backups** opens a list of each copy of your chats, memory and tasks, by date and size. **Delete** asks first and
+  removes that copy for good; what APX has now stays as it is.
+
+When you close the low-disk card (or strip), a small disk with a warning dot stays at the foot of the sidebar, beside
+the help button, while the disk is still low; it opens the same screen, and goes by itself once there is room.
+
 ## An app update doesn't go in
 
 If **Restart now** can't put the new version in, the update window says why, or after a minute says APX didn't

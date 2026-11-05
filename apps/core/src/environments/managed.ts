@@ -28,7 +28,7 @@ const GIB = 1024 ** 3;
 const PROBE_MS = 1_200;
 
 /** What the owner set for the VM, held to this host's limits; read at each start, so a change applies on the next one. */
-export const ownerResources = (store: Store): ComputerResources =>
+const ownerResources = (store: Store): ComputerResources =>
   resolveResources(store.settings.read("computer"), thisHost());
 
 /** Construction and status are inert until an owner explicitly enables the computer. */
@@ -127,6 +127,13 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
   const lifecycle = createVmLifecycle({
     supported: Boolean(host),
     installed,
+    // Lima's own delete, then what a setup left without its lima.yaml and the mark that the desktop was secured.
+    async remove() {
+      await egress.close();
+      if (installed()) await run(["delete", "--tty=false", instance], { timeout: 120_000 });
+      fs.rmSync(path.join(limaHome, instance), { recursive: true, force: true });
+      fs.rmSync(prepared, { force: true });
+    },
     prepared: () => fs.existsSync(prepared),
     running,
     stop,

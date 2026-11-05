@@ -112,11 +112,14 @@ job_5f0b8e2a7c1d9346     agent    completed  Tomás: fix the checkout coupon`}</
 ## Compactación
 
 Los chats largos pesan. Cuando un hilo crece, APX resume sus turnos viejos en un resumen fijo de cinco partes y deja
-los más nuevos palabra por palabra, así el agente sigue trabajando con un contexto más chico. Un resumen de contenido
-de afuera sigue marcado como de afuera, así las reglas de seguridad no se aflojan.
+los más nuevos palabra por palabra, así el agente sigue trabajando con un contexto más chico. Pasa cuando la última
+respuesta del modelo usó el 80 % de su ventana de contexto (según lo que contó el proveedor), o cuando el chat supera
+el historial que APX manda en cada turno, lo que llegue primero; con un modelo cuya ventana APX no conoce, solo vale lo
+segundo. Un resumen de contenido de afuera sigue marcado como de afuera, así las reglas de seguridad no se aflojan.
 
 - Pasa solo con **Resumir los chats largos** en Configuración › Memoria (prendido por defecto).
 - Escribí `/compact` en un chat para hacerlo ya, o corré `apx compact <thread>`.
+- El anillo junto al selector de modelo muestra cuánto contexto se usó, como porcentaje de la ventana del modelo.
 - Las sesiones de Claude Code y Codex compactan sus propias transcripciones.
 
 ## Desde la terminal

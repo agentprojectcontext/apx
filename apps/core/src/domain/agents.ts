@@ -28,7 +28,7 @@ const toAgent = (r: Selectable<AgentsTable>): AgentRecord => ({
 type Policy = Pick<Agent, "tools" | "autonomy" | "skills" | "area" | "personality" | "orchestrator" | "rules">;
 
 /** `rules:` as `risk=policy` pairs ("write=ask"); unknown risks or policies are left out. */
-export function rulesOf(v: unknown): AgentRules | undefined {
+function rulesOf(v: unknown): AgentRules | undefined {
   const pairs = Array.isArray(v) ? v : typeof v === "string" ? v.split(",") : [];
   const out: AgentRules = {};
   for (const pair of pairs) {

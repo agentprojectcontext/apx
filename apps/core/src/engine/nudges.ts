@@ -18,12 +18,12 @@ const RATING_DAYS = 14;
 const MUTE_AFTER = 2;
 
 /** A routine's or an agent's news is rated (an anchor too: its rating shapes it, never mutes it); reminders are not. */
-export const rateable = (kind: string) => kind.startsWith("routine:") || kind.startsWith("agent:");
+const rateable = (kind: string) => kind.startsWith("routine:") || kind.startsWith("agent:");
 
 const ratingsSince = (at: Date) => new Date(at.getTime() - RATING_DAYS * 86_400_000).toISOString();
 
 /** A kind the owner marked 👎 at least twice lately, the latest rating a 👎. */
-export function muted(store: Store, kind: string, at: Date): boolean {
+function muted(store: Store, kind: string, at: Date): boolean {
   const r = store.nudges.ratings(kind, ratingsSince(at));
   return r.down >= MUTE_AFTER && r.last === "down";
 }
@@ -103,7 +103,7 @@ export type Offer = {
 };
 
 /** A relay routine is on: the super-agent tells the owner the other agents' news, in one message. */
-export const relaying = (store: Store) => store.routines.list().some((r) => r.enabled && r.action === "relay");
+const relaying = (store: Store) => store.routines.list().some((r) => r.enabled && r.action === "relay");
 
 export function createNudges(deps: {
   store: Store;

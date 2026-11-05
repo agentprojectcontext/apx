@@ -36,6 +36,7 @@ import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { contactToolNames } from "../tools/contact.ts";
 import { channelsOn } from "../tools/directory.ts";
 import { harnessDir, readOnlyFolders, scratchDir, workDir } from "../tools/folders.ts";
+import { chatPlanBlock } from "../tools/plan.ts";
 import { modeOf } from "../tools/policy.ts";
 import { waitingBlock } from "../tools/requests.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
@@ -130,6 +131,8 @@ export type TurnDeps = {
   desktopLinked?: (() => boolean) | undefined;
   /** Owner text and results steered into this turn since the last call, ready to read. */
   takeSteered(): string[];
+  /** Aborts when the owner asks the turn to take their words now: only the step in progress stops. */
+  stepSignal?: (() => AbortSignal) | undefined;
   /** The engine showed a sign of life: an outside engine's idle deadline starts over. */
   alive?: (() => void) | undefined;
   /** The turn waits on work in progress (a command running): its idle deadline holds until the returned call. */
@@ -248,10 +251,12 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     store.messages.add({ thread_id: thread.id, author: { kind: "agent", id: agent.id }, parts: [], run_id: run.id }),
   );
   run = store.runs.patch(run, { message_id: display.message.id });
-  // A delegated result arriving later: its report shows above what the caller makes of it.
-  const report =
-    start.input.origin.kind === "delegation_result" ? resultCard(store, start.input.origin.run_id) : undefined;
-  if (report) display.upsert((p) => p.type === "subthread" && p.thread_id === report.thread_id, report);
+  // Delegated results arriving later: their reports show above what the caller makes of them.
+  const o = start.input.origin;
+  const answered =
+    o.kind === "delegation_result" ? [o.run_id] : o.kind === "delegation_results" ? o.results.map((r) => r.run_id) : [];
+  for (const report of answered.flatMap((id) => resultCard(store, id) ?? []))
+    display.upsert((p) => p.type === "subthread" && p.thread_id === report.thread_id, report);
   // A routine with commands of its own: the pre-command first; its result may say the model is not needed.
   const routine = routineWithCommands(store, run);
   const pipe = routine && routinePipeline({ store, home: deps.home, routine, run, display });
@@ -341,6 +346,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     sessionId: undefined,
     outside: () => exec.untrusted,
     onText: display.text,
+    onModel: (model) => display.setModel(model, model !== undefined),
     // Kept as it grows: a turn that fails or is canceled still shows what it spent.
     onUsage: (u) => {
       run = store.runs.patch(run, { usage: u });
@@ -355,6 +361,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
       if (taken.some((t) => t.startsWith(OWNER_ADDS))) run = store.runs.patch(run, { message_id: display.below().id });
       return taken;
     },
+    ...(deps.stepSignal ? { stepSignal: deps.stepSignal } : {}),
     alive: deps.alive ?? (() => {}),
     log: (items) => store.modelLog.append(thread.id, run.id, items),
   });
@@ -568,6 +575,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
             memory: memoryBlock,
             skills: picked?.block || undefined,
             task: taskBlock(store, thread),
+            plan: chatPlanBlock(store, thread),
             flowEditor: ownerTurn ? flowEditorBlock(store, thread.id) : undefined,
             extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
             waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
@@ -745,8 +753,12 @@ function systemFor(
  * chat runs our loop over the chosen model and the router's chain; a CLI ref saved before D-043 is skipped.
  */
 function enginePick(deps: TurnDeps, turn: Turn, start: RunRecord, history: ChatItem[]): Engine {
-  // The chat's own model (picked in its composer) first, then the agent's, then the install default.
-  const chosen = deps.store.threads.context(turn.thread.id).model_choice ?? turn.agent.model_choice;
+  // The chat's own model (picked in its composer) first, then the agent's, then the install default. The agent's own
+  // fallbacks back whichever model the chat runs on (DECISIONS.md#d-195).
+  const chatChoice = deps.store.threads.context(turn.thread.id).model_choice;
+  const fallbacks = chatChoice?.fallbacks ?? turn.agent.model_choice?.fallbacks;
+  const picked = chatChoice ?? turn.agent.model_choice;
+  const chosen = picked && fallbacks ? { ...picked, fallbacks } : picked;
   const own = turn.thread.engine;
   if (own) {
     const ref = chosen?.model && engineOf(chosen.model) === own ? chosen.model : own;
@@ -837,7 +849,8 @@ async function finishRun(
   const { display, thread, outcome } = t;
   display.close();
   // The message names the effort too (a model ref); the run keeps the bare model for usage and context windows.
-  display.setModel(outcome.effort ? `${outcome.model}#${outcome.effort}` : outcome.model);
+  if (outcome.modelConfirmed !== false)
+    display.setModel(outcome.effort ? `${outcome.model}#${outcome.effort}` : outcome.model, outcome.modelConfirmed);
   // The chosen model failed and another answered: the owner sees which and why, the log keeps it too.
   const first = outcome.failed?.[0];
   if (first) {
@@ -871,7 +884,10 @@ async function finishRun(
   if (outcome.outOfSteps) display.notice("warn", "run.stepLimit", STEP_LIMIT, { vars: {} });
   const window = outcome.usage?.window ?? (outcome.usage?.context ? contextWindow(outcome.model) : undefined);
   const usage = outcome.usage && { ...outcome.usage, ...(window ? { window } : {}) };
-  let run = store.runs.patch(t.run, { model: outcome.model, ...(usage ? { usage } : {}) });
+  let run = store.runs.patch(t.run, {
+    ...(outcome.modelConfirmed !== false ? { model: outcome.model } : {}),
+    ...(usage ? { usage } : {}),
+  });
   // Only our own loop can tell; an outside engine's completed turn keeps no reason.
   const end = outcome.outOfSteps ? "step_limit" : (run.harness ?? "native") === "native" ? "normal" : undefined;
   run = store.runs.setState(run, "completed", undefined, end && { reason: end });

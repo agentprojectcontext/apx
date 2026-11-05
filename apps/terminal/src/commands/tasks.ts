@@ -1,14 +1,16 @@
 // apx tasks: the office board from the terminal.
 import fs from "node:fs";
 import type { ApxClient } from "@apx/protocol/client";
-import { authorOf, messageText } from "./threads.ts";
+import { planSteps } from "@apx/protocol/task-plan";
+import { authorOf, messageText, planText } from "./threads.ts";
 
 const USAGE = `apx tasks [--project p]                 Open tasks by column
 apx tasks add <title…> [--project p] [--agent a] [--person name --owed me|them] [--due 2026-10-05]
                          [--start 2026-10-05T09:00]   Its agent starts then, not at once
 apx tasks show <id>                      Its fields, description and comments
 apx tasks edit <id> [--title t] [--desc d | --desc-file f|-] [--agent a] [--due d] [--start d] [--tags a,b]
-                    [--reviewer owner|<agent>]   Change only what is given; --agent "", --due "", --start "" clear them
+                    [--reviewer owner|<agent>] [--parent <id>]   Change only what is given; --parent "" detaches
+                                         --agent "", --due "", --start "" clear them
 apx tasks commitments                    What you owe and what you are owed
 apx tasks settle <id> kept|missed|dropped [note…]
 apx tasks settle <id> renegotiated --due <date> [note…]
@@ -19,6 +21,7 @@ apx tasks say <id> <text…>               Comment; @agent asks that agent there
 
 type Opts = {
   project?: string | undefined;
+  parent?: string | undefined;
   agent?: string | undefined;
   person?: string | undefined;
   owed?: string | undefined;
@@ -45,6 +48,7 @@ export function taskEditOf(
     ...(o.title !== undefined ? { title: o.title } : {}),
     ...(description !== undefined ? { description } : {}),
     ...(o.agent !== undefined ? { assignee: o.agent || null } : {}),
+    ...(o.parent !== undefined ? { parent: o.parent || null } : {}),
     ...(o.due !== undefined ? { due_at: o.due || null } : {}),
     ...(o.start !== undefined ? { start_at: o.start || null } : {}),
     ...(o.reviewer !== undefined ? { reviewer: o.reviewer || null } : {}),
@@ -85,7 +89,12 @@ export async function tasks(client: ApxClient, [sub, id, ...rest]: string[], opt
       ["Worked in", sessions.map((x) => x.id).join(", ") || undefined],
     ];
     for (const [label, value] of fields) if (value) console.log(`${`${label}:`.padEnd(11)}${value}`);
+    if (t.goal) console.log(`\nGoal: ${t.goal}`);
     if (t.description.trim()) console.log(`\n${t.description.trim()}`);
+    if (t.plan?.trim()) {
+      const steps = planSteps(t.plan);
+      console.log(`\n${steps ? planText("Agent's plan", steps) : `Agent's plan\n${t.plan.trim()}`}`);
+    }
     // Comments live in the task's own conversation.
     const { messages } = await client.call("threads.get", { thread: t.thread_id });
     const comments = messages.filter((m) => m.author.kind !== "system" && messageText(m).trim());

@@ -32,6 +32,12 @@ export const PHONE_CAMERA_CAP = "camera";
  * in front. Off unless the owner opts in on that computer.
  */
 export const COMPUTER_CAP = "computer";
+/** Explicit support prevents an older node from replacing a native accessible press with a legacy click. */
+export const COMPUTER_POINTER_CAP = "computer.pointer";
+
+/** Private core-to-node display metadata, derived from the authenticated turn, never public tool input. */
+export type NodeComputerCursorAgent = { id: string; name: string };
+export type NodeComputerParams<P> = P & { cursorAgent?: NodeComputerCursorAgent };
 
 export const AccessMode = z.enum(["local", "lan", "tailscale"]);
 export type AccessMode = z.infer<typeof AccessMode>;
@@ -242,6 +248,7 @@ export const deviceMethods = {
         x: z.number().int().min(-20_000).max(20_000),
         y: z.number().int().min(-20_000).max(20_000),
         app: z.string().min(1).max(120),
+        pointer: z.literal("visible").optional(),
         /** What the agent is doing, in a few words: shown beside its pointer on the owner's screen. */
         note: z.string().max(80).optional(),
       })

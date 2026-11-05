@@ -26,7 +26,15 @@ const fake = (id: "claude" | "codex"): Harness => ({
       const said: boolean[] = [];
       for (const [i, a] of asked.entries()) {
         const input = a.command === undefined ? { path: a.path } : { command: a.command };
-        said.push(await io.approve({ callId: `${io.run.id}-p${i}`, title: a.kind, kind: a.kind, input }));
+        said.push(
+          await io.approve({
+            callId: `${io.run.id}-p${i}`,
+            title: a.kind,
+            kind: a.kind,
+            detail: JSON.stringify(input),
+            input,
+          }),
+        );
       }
       return { text: JSON.stringify(said), model: `${id}/model`, sessionId: "probe" };
     }
@@ -364,6 +372,29 @@ test("an outside agent in a delegated session that asks before changes asks for 
   );
   await env.client.call("runs.respond", { input: card.id, decision: "deny" });
   assert.equal(await answer(asking.id), "[false]");
+});
+
+test("an automatic outside session allows local commands but still asks before forced deletion", async () => {
+  const thread = await session("claude");
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "auto" });
+  try {
+    const asks = [
+      { kind: "execute", command: "python3 -c 'print(1)'" },
+      { kind: "execute", command: "rm -f audio/clip.raw.wav" },
+    ];
+    await env.client.call("threads.send", { thread: thread.id, text: `probe ${JSON.stringify(asks)}` });
+    const card = await waitFor(
+      async () => (await env.client.call("runs.pending", { thread: thread.id })).inputs[0],
+      "forced deletion confirmation",
+    );
+    assert.match(card.prompt, /Auto/);
+    assert.match(card.detail ?? "", /rm -f/);
+    await env.client.call("runs.respond", { input: card.id, decision: "deny" });
+    const done = await env.settle(thread.id);
+    assert.deepEqual(texts(done.messages.slice(-1)), ["[true,false]"]);
+  } finally {
+    await env.client.call("agents.update", { agent: "superagent", autonomy: null });
+  }
 });
 
 test("an outside agent's file tools never change git's folder, even in total, as ours never do", async () => {

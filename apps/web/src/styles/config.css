@@ -1227,7 +1227,7 @@
   min-height: 120px;
   border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-md);
-  background: #fff;
+  background: #fff; /* ui: an outside page is drawn on white, as a browser would. */
 }
 .sig__actions {
   display: flex;
@@ -1238,4 +1238,41 @@
 }
 .sig__grow {
   flex: 1;
+}
+
+/* A phone: the nav is a row of sections over the content, so the open section gets the whole width. */
+@media (max-width: 640px) {
+  .apx-dialog.config {
+    flex-direction: column;
+  }
+  .config__nav {
+    flex-direction: row;
+    align-items: center;
+    width: auto;
+    /* Clear of the dialog's close button, which floats over the top right. */
+    margin-right: 44px;
+    padding: 8px;
+    border-right: 0;
+    border-bottom: 1px solid var(--apx-border);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+  .config__nav > .apx-field,
+  .config__grouplabel {
+    display: none;
+  }
+  .config__group {
+    flex-direction: row;
+  }
+  .config__nav .config__navitem {
+    flex: none;
+    width: auto;
+  }
+  .config__inner {
+    padding: 20px 16px 32px;
+  }
+  .config__head {
+    padding-right: 0;
+  }
 }

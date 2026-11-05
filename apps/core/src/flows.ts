@@ -22,6 +22,15 @@ import type { Llm } from "./providers/llm.ts";
 import type { Dispatch } from "./rpc/router.ts";
 import type { PublicRoutes } from "./transport/hooks.ts";
 
+const wall: RunTimers = {
+  now: () => Date.now(),
+  after(ms, callback) {
+    const timer = setTimeout(callback, ms);
+    timer.unref?.();
+    return () => clearTimeout(timer);
+  },
+};
+
 export type { FlowDefinition };
 
 /** A published drawing's agent, routine or model is no longer available to it. */
@@ -180,6 +189,11 @@ export function createFlows(deps: {
         }),
       });
   };
+  // One clock for admission, deadlines and schedules: an injected office clock moves all three together.
+  const clock = deps.clock;
+  const timers: RunTimers = clock
+    ? { now: () => clock().getTime(), after: (ms, callback) => (deps.timers ?? wall).after(ms, callback) }
+    : (deps.timers ?? wall);
   const graphs = deps.llm
     ? createFlowGraphExecutor({
         store,
@@ -187,7 +201,7 @@ export function createFlows(deps: {
         llm: deps.llm,
         log: deps.log,
         cancelThread: deps.cancelThread ?? (() => {}),
-        timers: deps.timers,
+        timers,
         notifier: deps.notifier,
         http: deps.http,
         home: deps.home,
@@ -199,14 +213,6 @@ export function createFlows(deps: {
   const authorize = (flow: FlowDefinition) => (graph: FlowGraph) => {
     if (flowGraphIssues(store, flow, graph, model, deps.outside).length)
       throw new FlowBindingChanged("Flow graph binding changed");
-  };
-  const timers = deps.timers ?? {
-    now: () => Date.now(),
-    after(ms: number, callback: () => void) {
-      const timer = setTimeout(callback, ms);
-      timer.unref?.();
-      return () => clearTimeout(timer);
-    },
   };
   const tests = createFlowTests({
     store,
@@ -301,7 +307,7 @@ export function createFlows(deps: {
     /** The owner's tests with a real event (DECISIONS.md#d-178). */
     tests,
     /** The Flows' clock: injected timers in tests, the wall clock otherwise. */
-    now: () => deps.clock?.() ?? new Date(deps.timers?.now() ?? Date.now()),
+    now: () => new Date(timers.now()),
     /**
      * One beat of the routine scheduler (no clock of its own): each schedule Flow that is on and has a time due
      * admits one event for it, `schedule:<due time>`, however many times it missed (DECISIONS.md#d-168); one whose
@@ -431,7 +437,7 @@ export function createFlows(deps: {
           try {
             const flow = store.flows.get(id);
             if (!flow || flow.path !== path) return { status: 404 };
-            const at = new Date(deps.timers?.now() ?? Date.now());
+            const at = new Date(timers.now());
             const headers = shownHeaders(request.headers);
             const state = store.flows.receive(id, event.id, event.data, authorize(flow), at, undefined, headers);
             if (state === "pending") api.kick();

@@ -1,8 +1,10 @@
+// Reads the built site (dist/), so it runs in `pnpm check` after `pnpm build`, not with the unit tests.
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
+import { sep } from "node:path";
 import { test } from "node:test";
-import { comparisons } from "../src/data/comparisons.ts";
 import { builtDocumentationRoutes } from "../src/doc-routes.mjs";
+import { publicMarketingRoutes, sitemapErrors } from "./sitemap.mjs";
 
 const dist = new URL("../dist/", import.meta.url);
 const base = (process.env.DOCS_BASE ?? "/").replace(/\/$/, "");
@@ -30,27 +32,18 @@ test("every built documentation page has a legacy redirect and a canonical new a
 test("sitemap lists only canonical pages, including bilingual documentation and comparisons", async () => {
   const xml = await readFile(new URL("sitemap-0.xml", dist), "utf8");
   const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
-  const expected = [];
-  for (const prefix of ["", "es/"]) {
-    const entries = await readdir(new URL(`${prefix}docs/`, dist), { recursive: true });
-    for (const route of builtDocumentationRoutes(entries, prefix)) {
-      expected.push(`${site}${base}/${route}`);
-    }
-    for (const route of [
-      "",
-      "compare/",
-      "compare/best-ai-agent-apps/",
-      ...comparisons.map(({ slug }) => `compare/${slug}/`),
-    ]) {
-      expected.push(`${site}${base}/${prefix}${route}`);
-    }
-  }
-  assert.equal(new Set(urls).size, urls.length, "canonical URLs must not repeat");
-  assert.deepEqual(
-    urls.toSorted(),
-    expected.toSorted(),
-    "every canonical page is listed once, without redirects or extra routes",
+  const entries = (await readdir(dist, { recursive: true })).map((file) => file.split(sep).join("/"));
+  const pages = new Map(
+    await Promise.all(
+      entries
+        .filter((file) => /(?:^|\/)index\.html$/.test(file))
+        .map(async (file) => {
+          const route = `/${file.replace(/index\.html$/, "")}`;
+          return [route, await readFile(new URL(file, dist), "utf8")];
+        }),
+    ),
   );
+  assert.deepEqual(sitemapErrors(pages, urls, site, base, publicMarketingRoutes), []);
   assert.ok(urls.includes(`${site}${base}/docs/reference/website-privacy/`));
   assert.ok(urls.includes(`${site}${base}/es/docs/reference/website-privacy/`));
   assert.ok(urls.includes(`${site}${base}/docs/start/introduction/`));

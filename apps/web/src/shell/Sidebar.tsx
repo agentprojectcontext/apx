@@ -10,6 +10,7 @@ import { unreadListed } from "../inbox/groupThreads.ts";
 import { AppsDock, CornerCards, DesktopInstallNotice } from "../lazy.ts";
 import { AccountRow } from "./AccountRow.tsx";
 import { ChannelsNav } from "./ChannelsNav.tsx";
+import { DiskMark } from "./DiskMark.tsx";
 import { ExternalSessionsNav } from "./ExternalSessionsNav.tsx";
 import { HelpMenu } from "./HelpMenu.tsx";
 import { LAYOUT } from "./layout.ts";
@@ -153,6 +154,7 @@ export function Sidebar({
         </Suspense>
       )}
       <div className="sidebar__foot">
+        <DiskMark rail={rail} />
         <HelpMenu rail={rail} />
         <AccountRow rail={rail} />
       </div>

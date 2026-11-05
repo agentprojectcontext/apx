@@ -1,11 +1,15 @@
 import type { Agent, Thread } from "@apx/protocol";
-import { AgentAvatar, EngineIcon } from "@apx/ui";
+import { AgentAvatar, EngineIcon, Icons } from "@apx/ui";
 import { Suspense } from "react";
 import { AgentFace } from "../common/AgentFace.tsx";
 import { useData, useShownAgents } from "../data/state.ts";
+import { useT } from "../i18n/index.ts";
 import { ChannelFace } from "../lazy.ts";
 
-/** Keep the avatar column aligned; a delegated session shows its recipient with its caller as a small badge. */
+/**
+ * Keep the avatar column aligned; a delegated session shows its recipient with its caller as a small badge. A helper
+ * has no face of its own: a helper mark, with the agent that started it as the badge.
+ */
 export function ThreadAvatar({
   thread,
   agent,
@@ -25,11 +29,17 @@ export function ThreadAvatar({
   animated?: boolean;
   channelMark?: boolean;
 }) {
+  const t = useT();
   const agents = useShownAgents();
   const parent = useData((s) => (thread.parent_id ? s.threads[thread.parent_id] : undefined));
   const caller = agents[parent?.agent_ids[0] ?? ""];
   const group = thread.kind === "group";
-  const badge = !group && thread.kind === "a2a" && caller && caller.id !== agent?.id ? caller : undefined;
+  const helper = Boolean(thread.worker) && !group;
+  const badge = helper
+    ? agent
+    : !group && thread.kind === "a2a" && caller && caller.id !== agent?.id
+      ? caller
+      : undefined;
   const faces = group ? thread.agent_ids.slice(0, 2).map((id) => agents[id]) : [agent];
   const fallback = <AgentAvatar name={thread.title} size={size} animated={false} />;
   if (thread.channel)
@@ -42,6 +52,10 @@ export function ThreadAvatar({
     <span className="threadavatar" style={{ width: slot, minWidth: slot, height: slot, gap: 4 }}>
       {thread.engine ? (
         <EngineIcon engine={thread.engine} tile size={size} />
+      ) : helper ? (
+        <span className="threadavatar__helper" title={t("subthread.worker")} style={{ width: size, height: size }}>
+          <Icons.Bot size={Math.round(size * 0.6)} />
+        </span>
       ) : (
         faces.map((face, i) => (
           <span key={face?.id ?? i} className={group && i > 0 ? "threadavatar__group" : undefined}>

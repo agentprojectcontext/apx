@@ -9,7 +9,7 @@
     "output": "../../out",
     "buildResources": "assets"
   },
-  "files": ["dist/**", "package.json", "!node_modules/**"],
+  "files": ["dist/**", "!dist/native/**", "package.json", "!node_modules/**"],
   "extraResources": [
     {
       "from": ".stage/apx",
@@ -52,6 +52,7 @@
     }
   ],
   "mac": {
+    "extraResources": [{ "from": "dist/native/computer-observer", "to": "computer/observer" }],
     "target": ["dmg", "zip"],
     "icon": "assets/icon.png",
     "category": "public.app-category.productivity",

@@ -223,7 +223,7 @@ function transcription(config: Record<string, unknown>, out: V1MediaPlan) {
 }
 
 /** Everything v1 used for images, voices and transcription, as v2 would take it; entries v2 cannot hold are dropped. */
-export function v1Media(home: string): V1MediaPlan {
+function v1Media(home: string): V1MediaPlan {
   const config = v1Config(home);
   const out: V1MediaPlan = { services: [], order: {}, imageDefaults: {}, voiceReplies: false };
   const customs = v1Services(config);

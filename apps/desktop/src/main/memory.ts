@@ -3,7 +3,7 @@
 
 /** Electron's process metric, the part used here (sizes in kilobytes). */
 export type ProcessMetric = { pid: number; type: string; memory: { workingSetSize: number } };
-export type ProcessKind = "main" | "gpu" | "panel" | "quick" | "tab" | "page" | "app" | "helper";
+type ProcessKind = "main" | "gpu" | "panel" | "quick" | "tab" | "page" | "app" | "helper";
 /** What a process is; a browser tab also says its site. Named in the owner's language by whoever shows it. */
 export type ProcessOwner = { kind: ProcessKind; site?: string };
 export type MemoryItem = { pid: number; kind: ProcessKind; site?: string; mb: number };

@@ -13,7 +13,7 @@ import { channelTexts } from "./texts.ts";
 import type { ChannelConfig } from "./types.ts";
 
 /** What a notice shows in the tray; its kind is always "channel", its body the words unless they differ. */
-export type TrayNotice = Omit<NewNotification, "kind" | "body"> & { body?: string };
+type TrayNotice = Omit<NewNotification, "kind" | "body"> & { body?: string };
 
 /** The owner hears it in the tray and on their chat app: one notice, two places. */
 export type TellOwner = (said: Presentation, tray: TrayNotice, kind?: OutboxRow["kind"]) => void;

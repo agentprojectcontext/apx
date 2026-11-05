@@ -114,7 +114,11 @@ context like `AGENTS.md`. Titles and summaries use an auxiliary model: the `mode
 the API models the owner already chose; never a CLI and never a model name in code. A long thread is compacted after a
 run into a fixed five-section summary (rejected when the shape is wrong) that replaces the older turns as a new epoch;
 the newest turns stay verbatim, and a summary of outside content stays marked untrusted so the policy does not relax.
-Claude Code and Codex keep and compact their own transcripts.
+"Long" is either measure, whichever comes first: the last model call of the newest native run read 80% of the model's
+window (provider-reported input tokens over the reported or known window), or the history as the model sees it passed
+75% of the history budget in characters. The character rule stays even when the window is known: past the budget
+the oldest turns would leave the context with no summary of them. Claude Code and Codex keep and compact their own
+transcripts.
 
 <a id="d-014"></a>
 ## D-014 — 2026-10-01 — Channels are adapters over threads.send; who writes decides everything
@@ -709,7 +713,8 @@ agent, whatever its `tools:` list says): with only `agent` it reads that agent's
 needed); otherwise it creates one, changes only the fields given (name, role, description, prompt, personality,
 parent, a project agent's slug) or archives it, through `agents.create` / `agents.update` / `agents.archive` as the
 owner's act, each call waiting for the owner's yes (D-047 `always`; total autonomy asks nothing). Autonomy, tools,
-models and the browser profile are not among its fields: how far an agent may act stays the owner's own setting. A
+models and the browser profile are not among its fields: how far an agent may act stays the owner's own setting
+(the fallbacks behind a model the owner picked are, since [D-195](#d-195)). A
 rename keeps the agent's id, so threads, tasks, routines and messages that point at it need no rewrite; a project
 agent's new slug keeps the old one as an alias and moves its reports' `parent` along.
 
@@ -3437,3 +3442,247 @@ was also accepted on a Flow never published, which turned on something that runs
 
 Tests, the key, an address and an AI step's autonomy stay the owner's. Rejected: letting the agent read the webhook
 key to call it (a key never reaches a model, D-139), and turning on without publishing (it runs nothing).
+
+## D-185 — 2026-11-02 — Storage: the home by area, clearing only what APX rebuilds, and a low-disk warning
+
+The owner could see how big the APX folder was (system.usage, by folder) but not what of it they could let go, nor was
+anyone told when the disk ran out under APX. Settings › Storage now shows the home by area in the owner's words (chats,
+memory and files; projects; agents' computers; browser; local models; logs; caches; backups; the rest) and one action,
+**Free up space**, that says first how much it frees.
+
+- **One walk, one classification.** `apps/core/src/storage.ts` owns the measure; `system.usage`'s home parts are the
+  same areas from the same cached walk, so the usage dialog and the storage screen never disagree. The walk stops at an
+  entry cap and a deadline (marked partial) and never follows a link, so a link in the home neither counts nor clears
+  what it points to.
+- **What clearing removes.** Only what APX makes again on its own: video posters, copies of documents opened in another
+  app and Codex's image work folder (after a day: one may still be open), rotated logs, other logs untouched for 14 days
+  (never the live `core.log`) and background commands' output untouched for 30 days. Never the database (chats, memory,
+  tasks), chat files, artifacts, projects, skills, secrets, backups, the agents' computers, the browser profile or
+  models. A clear folder that is a link or resolves outside the home is skipped.
+- **Low disk.** Under 5 GB free on the volume holding the home. A percentage was rejected: on a large disk it warns with
+  tens of gigabytes still free. A background check (D-171) looks every 10 minutes and emits `storage.changed` only when
+  the state flips; the panel then reads `storage.status` and shows a corner card leading to the screen, closed for the
+  session only.
+- The browser profile's cache is not cleared: Chromium holds it while the desktop app runs.
+- **One by one.** Free up space stays caches and old logs only. The two big things it never touches are deleted one by
+  one from their areas, each behind a confirmation that says what is lost: the agents' computers
+  (`storage.computers.list|delete`: the Lima VM APX manages, and test VMs left under `labs/`) and the backup copies
+  (`storage.backups.list|delete`: database files in `backups/` with their `-wal`/`-shm`, never `core.env` or anything
+  else there). A delete names an id the core listed, never a path, checked inside the home without following links.
+  A computer that is on, starting or stopping is refused; the agents' VM goes through the computer's own lifecycle
+  (`VmLifecycle.remove`, Lima's `delete`, then its setup mark), so it is set up again from scratch on the next start.
+  A lab has no core of its own to ask: it is removed as a folder once no host agent of it runs. Both deletes are the
+  owner's own (`settings-reach.ts`): no agent deletes a computer or a backup. Once the low-disk card is closed, a disk
+  mark beside help (`IconButton` `mark`) stays while `storage.status` says low and goes by itself on room again.
+
+<a id="d-186"></a>
+## D-186 — 2026-11-02 — Writing while the agent works: sent, sent now, or in line
+
+The owner's words written while an agent works either went into its running turn at the next step (Enter) or waited
+for the turn to end (Ctrl/⌘+Enter), with nothing in the chat to tell them apart, no way to make a sent one land sooner,
+and no way to fix one that waited. Now each is the owner's choice and shows as such:
+
+- **Sent** (Enter): the running turn takes it at its next step, as before. Until it does, the message carries
+  `waiting: {until: "step"}` and shows **Send now**, which aborts only the step in progress (`TurnIO.stepSignal`: the
+  model call, or the tool call through its `ToolContext.signal`); the loop then takes the words and goes on. A cut
+  tool call tells the model it may have done part of its work; calls after it in the same step are not run.
+- **In line** (Ctrl/⌘+Enter): a run of its own, `waiting: {until: "turn", run}`, ordered by `runs.queue_order` (a
+  permutation of their places when the owner moves them, so other waiting work keeps its slot). Until it starts it
+  is edited (`runs.update_queued`), moved (`runs.reorder`, every message in line each once), removed
+  (`runs.remove_queued`: canceled, and out of the chat) or sent now (`runs.send_now`: it leaves the line and joins
+  the running turn). When its turn starts the message moves to the end of the chat, so it reads above its answer
+  whatever the order was; edits after that are refused.
+- **Stop** stays as it was: it cancels the turn and what is in line, whose messages no longer wait.
+
+Both states are rows (the message's `waiting`, the run): a restart keeps the line and its order, and words a restart
+cut off before the turn took them run as a turn of their own. An outside engine takes words only between turns, so
+**Send now** stops the turn at work as the owner's next message would (`Superseded`: what it delegated keeps going,
+the line stays) and runs the message first (`now: true`). It also does so for a message with files, which a running turn
+cannot take. [D-189](#d-189) makes Enter do the same there. With no turn at work it only goes first (`now: false`). Channel messages are unchanged: the owner's steer as before, and no
+`waiting` (the app shows them as delivered).
+<a id="d-187"></a>
+## D-187 — 2026-11-02 — A task carries the owner's words and a goal; its plan is steps
+
+The owner asked the super-agent, over a few messages, to copy what an open-source desktop agent does well: its smooth,
+animated cursor, one per agent. The super-agent wrote the task as a 600-word brief and added criteria nobody said ("no
+drawn cursor on top", "never more than one agent on the computer"), the opposite of the reference. The agent doing it
+read only that brief, reviewers stacked restrictions on it, and eight hours went by without one working click.
+Nothing on the task let anyone see the brief had drifted from the request.
+
+- **The owner's words travel with the task** (`Task.asked`, `domain/task-asked.ts`). When an agent creates a task, or
+  rewrites its title, description or goal, or comments on it, in a turn the owner started, the core keeps the owner's
+  message as written, with up to two they sent in that chat in the ten minutes before ("this repo"). It comes from the
+  run, never from the agent's arguments, so no agent can edit it. Each message is kept once; the newest twelve stay.
+  Words said in the task's own conversation are already there and are not copied.
+- **A goal** (`Task.goal`): where the work must arrive, in a line or two, as the owner would check it. `task_create`
+  refuses an assigned task without one; the owner edits it in the drawer.
+- **The task block reads them first**: goal, then the owner's words, then the brief marked as its creator's reading of
+  them. Where the brief asks for more than the owner said or goes against them, the owner's words win; when unclear,
+  the agent asks. A task without a goal tells its agent to set one before working.
+- **The plan is steps**: `task_update plan` is a Markdown checklist (`- [x] done`, `- [~] doing`, `- [ ] next`), read
+  as steps by `@apx/protocol/task-plan`; a free-text plan still reads as Markdown. The agent writes it before working
+  and keeps it current; the drawer shows it as a checklist with a count. When the work stops leading to the goal, it
+  tells the owner what is missing.
+- `task_create`'s description is capped at 3,000 and asks for short Markdown lines; the drawer shows it formatted, with
+  a pencil to edit.
+- The tools stay within the prompt budget (rules/PROMPT_SIZE.md): structured plan steps cost more than the budget left,
+  so the checklist is text, and `task_create` lost a line that only described what the core does on its own (a global
+  agent's task going to its assignee's project).
+
+Rejected: asking the creating agent to quote the owner (the same agent that paraphrased would choose what to quote),
+and keeping every owner message of the chat (Home mixes unrelated requests).
+
+<a id="d-188"></a>
+## D-188 — 2026-11-02 — Agents on a task pause when they get nowhere; a review ends in one verdict
+
+With the spend limits off by default (D-160), nothing stopped an agent that kept working without getting anywhere. On
+one task an agent spent about eight hours and seventy delegations, most of them review rounds by two teammates, each
+adding a restriction, without one step of its plan working.
+
+- **A progress guard, on by default** (`STUCK_LIMITS` in `engine/limits.ts`, `stuckTrip` in `engine/breaker.ts`): the
+  turns and fresh tokens agents spend on a task's conversation, its work chats and every session under them are counted
+  like the breaker's (delegations, results, APX's own continuations), since the latest of: a step of its plan newly
+  done or a new agent on it (`progress_at` on its conversation), the owner's last message in those chats, or their go
+  on. At 12 turns or 2M tokens the chain pauses through the breaker itself, so continuations, results and delegations
+  wait the same way and the same Go on button lets them through. The notice names the task (variants `progressRuns` and
+  `progressTokens`); the owner is also told once per stretch in the tray (`stuck:<task>`). It is not a spend cap: work
+  that keeps finishing steps never stops.
+- A step counts as done only in a checklist plan (`- [x]`), read with `planSteps`; rewriting the plan with no new done
+  step is no progress.
+- **Reviews end in one verdict**: an agent asked by another, and a worker, are told to answer Approved, Approved with
+  notes, or Blocked with the one thing that blocks it; notes never block and they ask for no other round. The task
+  block asks for one review when a whole change is done, not one per part. "Approved with notes" opens with "Approved",
+  so a task review (D-128) reads it as approved.
+
+- **Fewer, shorter task comments**: a task's conversation is read by people, and one agent left 56 dense comments on
+  one task. `task_comment` takes one comment per task per turn (a second is refused: the rest goes in the answer) and
+  at most 1,500 characters, and is for what others must know now: blocked, a decision, done. Progress shows in the
+  plan; helpers comment only when they find a block or something for the owner to decide.
+
+Rejected: a cap on delegations per task (good work also delegates; what matters is that steps get done), and resetting
+the count on any plan rewrite (an agent could rewrite its plan to go on forever).
+<a id="d-189"></a>
+
+## D-189 — 2026-11-02 — Enter on an agent in an outside engine's session sends now
+
+[D-186](#d-186) left Enter in line behind a Claude Code or Codex turn, since those cannot take words mid-turn, and the
+owner then had to click **Send now** on every message. In their session Enter is now **Send now** (the owner's choice):
+`threads.send` with `mode: "steer"`, once the message is admitted behind a turn of a harness other than `native`, calls
+`engine.enterNow`, which is `sendNow` on it (one implementation: the turn is stopped with `Superseded`, what it delegated
+keeps going, the message runs first and the rest of the line keeps its order). Ctrl/⌘+Enter (`mode: "queue"`) still waits
+for the turn to end; our own loop's turn still takes Enter at its next step; a message with files behaves as Send now
+does for it. A contact's or room's chat never steered, and does not stop a turn here either.
+
+- The composer's send tooltip for such a session says Enter sends now and stops what the agent is doing; the
+  ⌘+Enter hint is unchanged.
+- A message the owner saw waiting, once the agent has taken it, shows two ticks and "Now" under the bubble
+  (`waiting__taken`), as a delivered mark; the panel remembers it only while open, since `waiting` is cleared when taken.
+
+Rejected: a setting to choose per agent (the owner wants one rule), and keeping the turn alive to deliver the words
+after its next step (an outside engine has no such step).
+## D-190 — 2026-11-02 — Asking the same teammate or helper again goes on in the same conversation
+D-129 gave delegations one session per teammate. Two paths still opened a new sub-thread per ask: an @mention of a
+teammate on a task (D-120, D-132) and a delegation to a worker. The owner saw several sessions with the same
+teammate, each without what the last one learned.
+
+- A new @mention of the same teammate on a task, by the same asker (the owner, or the same agent), continues the
+  latest consult with that teammate when it is free: same sub-thread, with its context. The task gets a new card
+  for the new answer (the consult fills in the latest one); the answer still goes back to the asker, which may now
+  be in another chat of its own, and the consult still asks nobody. A consult still working is left alone (a new one
+  opens, so parallel asks stay parallel). A review consult is never continued, and never continues an @mention.
+- A delegation to a worker with the same name from the same chat continues that worker's free session, with the
+  instructions and tools it was first given (as `session` already did); a busy one stays apart, and another name
+  opens its own.
+
+Rejected: reusing a busy consult or session (a second ask would queue behind the first), and a consult shared by
+different askers (the answer goes to whoever asked, so two askers would read each other's context).
+
+<a id="d-191"></a>
+## D-191 — 2026-11-02 — Every chat's multi-step work has a plan, shown live under the agent's answer
+
+Only tasks had a plan (D-187, D-188); in a loose chat, Home or a code chat the owner could not see where a long piece of
+work stood until the agent answered. They want it like a coding agent's checklist, in every chat, and not left to the
+agent to decide for work of several steps.
+
+- **One tool, `plan`** (`tools/plan.ts`), kept by every agent whatever its tool list (`ALWAYS` in `tools/policy.ts`) and
+  allowed in every mode (effect `none`: it changes nothing of the owner's). It takes the whole checklist each time
+  (`- [x]`, `- [~]`, `- [ ]`, read with `planSteps`) and upserts one `plan` part in the answer, so the checklist under
+  the message changes in place while the turn works. A text that is not a checklist is refused with how to write it.
+- **In a task's chat the plan is the task's.** The tool also writes `Task.plan` through `tasks.update`, so the drawer,
+  the task block and the progress guard (D-188) read the same steps; `task_update` no longer takes `plan`, so there are
+  never two plans for one task. Its JSON is what paid for part of the tool.
+- **The next turns read it.** Outside a task, while a step is left, the turn's input carries the latest `plan` part of
+  the chat (`[your plan in this chat]`, `chatPlanBlock`), found in its messages (`messages.latestPart`): it survives a
+  summary of the chat and needs no store of its own. It is enveloped as the team's words, not as outside content: it is
+  the agent's own writing in this chat, already in its history, and marking it untrusted would make every later turn
+  ask the owner for strong actions.
+- **Native, not optional**: one line in the system prompt says work of more than two steps starts with `plan` and marks
+  each step as it goes.
+- **Budget**: the tool and that line were paid for by trimming tool descriptions with the same meaning (`send_file`,
+  attachments, `delegate`, `search_chats`, `channel_list`, `computer`, `shell`, `video_transcript`,
+  `suggest_connection`, `ask_owner`) and two sentences of the system prompt that repeated `task_create`'s and
+  `delegate`'s descriptions. The realistic turn sends fewer tool and system characters than before.
+- **Panel**: `PlanCard` (`chat/parts/PlanPart.tsx`) shows the steps with the design system's `StepList` and how many
+  are done; the task drawer's plan uses the same card.
+
+Rejected: a second tool beside `task_update` (two ways to write one task's plan), storing the chat's plan in the
+thread's context (the messages already hold it, and tools change chats only through the protocol), and moving the
+checklist to the newest answer by removing it from older ones (it rewrites what the owner already read; each answer
+keeps the plan as it stood).
+
+<a id="d-194"></a>
+## D-194 — 2026-11-05 — Teammates asked in one turn answer the caller in one turn
+
+An agent that asked three teammates at once got three result turns, one per answer, and told the owner three times. Now
+the answers of a fan-out reach the caller together (`engine/fanout.ts`).
+
+- **The group is the asking turn.** Delegations whose `parent_run_id` is the same run make one group, whether they were
+  asked in one step or across the turn. An answer that comes back after the turn ended is held while another delegation
+  of that run is still out (queued, at work, waiting on the owner, or a continuation APX started after a limit). A run
+  the engine is still executing counts as out even if its row already says it ended, so two answers landing together
+  never split the group. A single delegation, or one whose siblings all answered inside the turn, is never held.
+- **Held on the caller's chat.** The group lives in the chat's context (`fanout`: the asking run, when its hold ends and
+  the answers held so far), so a restart keeps it; the boot re-arms each hold for what is left of it.
+- **One turn, separate answers.** When the last one answers, one `a2a_result` run starts with origin
+  `delegation_results`: each answer in its own `delegation_result` envelope, capped like its card (6,000 characters), in
+  the order the caller asked. They stay the team's words (D-071), as a single result is, never the `assistant` role.
+- **The hold: 10 minutes after the first answer** (`FANOUT_HOLD_MS`). The delegations' own deadlines are no use here: a
+  teammate making progress may work two hours (D-105), far too long for the owner to wait for the first news. Past the
+  hold, the answers in go together and the group is closed: later ones come one by one, as before.
+- **Stopping the chat** (`threads.cancel`) drops its groups before the cascade: nothing held wakes the agent, and each
+  answer stays on its card. Canceling one sub-thread only takes it out of the count.
+- **The owner sees it.** Each card whose answer waits says "Waiting for answers: 2 of 3" (the subthread part's `held`);
+  the combined turn shows all the cards again above the agent's answer.
+
+Rejected: grouping by step only (a turn that delegates, reads and delegates again still answers once), holding until
+every delegation's own deadline (hours of silence), and a new table for the groups (the chat's context already persists
+per chat and survives restarts).
+
+<a id="d-195"></a>
+## D-195 — 2026-11-05 — An agent has its own fallback models before the router's chain
+
+An agent with a model of its own ran on that model and then, when it allowed, on the router's one general chain. The
+owner wants each agent to have its model and its own fallbacks, with the router's chain still after them, and the agent
+back on its model by itself once its limit resets.
+
+- **One list on the choice.** `ModelChoice.fallbacks` (at most `MAX_MODEL_FALLBACKS`, five) is part of the agent's
+  `model_choice`, stored as the JSON it already was: no config shape changed, so no `doctor --fix` step. `candidates`
+  puts them right after `model` and before the router's matching rule and chain; a router-only choice has no model to
+  back and ignores them. `agents.update` checks every ref as it checks the model (`refProblem`).
+- **The gateway does the rest.** A turn hands the whole ordered list to `llm.complete`, which already walks it per call:
+  a model held for its usage limit (`providers/llm.ts`, `engine/provider-limit.ts`) is passed over without a request
+  until its reset, a retryable error is tried four times before the next model, any other failure moves on at once. Each call starts from the top again, so the
+  main model answers the first turn (or step) after its hold lifts with nothing to switch back. The run keeps the model
+  that answered (`Run.model`).
+- **Seen under the reply.** The engine already puts an `engine.fallback` notice on an answer the first model did not
+  give; the reply's meta line reads it and adds "Fallback" beside the model, so no new message field.
+- **Where a model is taken.** A chat's own composer pick keeps the agent's fallbacks behind it. An engine session
+  (Claude Code, Codex, ACP) runs its CLI with its own model: fallbacks do not apply there.
+- **Who sets them.** The agent's editor (Model and team), `apx agents model --fallbacks`, and the super-agent through
+  `agent_set` (`fallbacks`), each change waiting for the owner's yes. This narrows D-060: the main model, autonomy and
+  tools stay the owner's own; the fallbacks behind a model the owner picked can be set on the owner's request.
+  `agent_set` refuses fallbacks for an agent with no model of its own before the owner is asked.
+
+Rejected: a per-agent chain that replaces the router's (the owner asked for both, the agent's first); a message field
+for "answered by a fallback" (the notice already says it); a separate "back to main" timer (the per-call walk already
+returns to the main model once its hold lifts).

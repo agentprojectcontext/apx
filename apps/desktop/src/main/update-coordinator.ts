@@ -1,6 +1,7 @@
 // Native update sequencing remains available when the remote panel cannot load.
 import { compareVersions, type Result } from "@apx/protocol";
-export type Coordination = Result<"system.update_prepare">;
+
+type Coordination = Result<"system.update_prepare">;
 export type UpdateState = Result<"system.update_state">;
 export type PendingUpdate = { identity: string; home: string; target: string };
 type Answer = { ok: true; ready: boolean } | { ok: false; error: string };

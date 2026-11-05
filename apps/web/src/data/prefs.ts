@@ -4,7 +4,7 @@ import { defaultLanguage, isLanguage, type Language } from "../i18n/messages.ts"
 import { createStore, useSlice } from "./createStore.ts";
 import type { NoticeSound } from "./noticeSound.ts";
 
-export type TranscriptWidth = "narrow" | "medium" | "wide";
+type TranscriptWidth = "narrow" | "medium" | "wide";
 export const TEXT_SIZES = [85, 100, 115, 130] as const;
 export type TextSize = (typeof TEXT_SIZES)[number];
 
@@ -12,7 +12,7 @@ export function textSizeOf(value: unknown): TextSize {
   return TEXT_SIZES.find((size) => size === value) ?? 100;
 }
 
-export type UiFont = "system" | "mono";
+type UiFont = "system" | "mono";
 
 export type Prefs = {
   /** How the panel calls you (account row, greetings). Empty = not set: the UI says "You" in its language. */

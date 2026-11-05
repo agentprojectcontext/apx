@@ -18,9 +18,13 @@ export type ComputerDriver = {
   /** Presses keys in the app in front; resolves to the app's name. */
   key(app: string, keys: string): Promise<string>;
   /** Presses or focuses the element at a point without the pointer: "pressed …", "focused …" or "none: why". */
-  press(app: string, x: number, y: number): Promise<string>;
+  press(app: string, x: number, y: number, signal: AbortSignal): Promise<string>;
+  /** False when the platform cannot safely restore physical input after cancellation. */
+  physicalClickSupported?: boolean;
   /** A real click at a point, putting the owner's pointer back; refused when another window covers it. */
-  click(app: string, x: number, y: number): Promise<void>;
+  click(app: string, x: number, y: number, signal: AbortSignal): Promise<void>;
+  /** Presses through the native accessibility helper without moving the physical pointer. */
+  visiblePress?(app: string, x: number, y: number, signal: AbortSignal): Promise<string>;
   /** Inserts text into the app's focused field in place (in front or not); false when that field does not take it. */
   insert(app: string, text: string): Promise<boolean>;
   /** Types text into the app in front, the way a person would. */

@@ -52,7 +52,7 @@ test("a task change that could only fail is never put to the owner; the model le
   assert.equal(column.asked, false);
   assert.match(column.result, /status: no column "someday" \(columns: backlog, todo, doing, review\)/);
 
-  const assignee = await call("task_create", { title: "Review the plan", assignee: "nobody" });
+  const assignee = await call("task_create", { goal: "Done as asked", title: "Review the plan", assignee: "nobody" });
   assert.equal(assignee.asked, false);
   assert.match(assignee.result, /assignee: agent nobody not found/);
 

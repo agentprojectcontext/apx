@@ -2,8 +2,8 @@
 // HTML. Only origins the artifact declares (`connect`) are reached, redirects included.
 import { badRequest, CallError, unavailable } from "./errors.ts";
 
-export const FETCH_DEADLINE_MS = 30_000;
-export const FETCH_BODY_MAX = 2_000_000;
+const FETCH_DEADLINE_MS = 30_000;
+const FETCH_BODY_MAX = 2_000_000;
 const MAX_REDIRECTS = 3;
 /** Request headers the page may not set: the core's own transport decides them. */
 const BLOCKED_REQUEST = new Set(["host", "cookie", "content-length", "connection", "transfer-encoding", "keep-alive"]);

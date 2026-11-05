@@ -2,6 +2,8 @@ import qrcode from "qrcode-generator";
 import { useMemo } from "react";
 import type { QrCodeProps } from "./QrCode.tsx";
 
+const QR = { light: "#fff", dark: "#000" }; // ui: a QR code is scanned dark on light, whatever the theme.
+
 /**
  * A QR code drawn as SVG squares (dark on light, with its quiet zone), from the text it carries. Every module gets the
  * same whole number of pixels: uneven modules are what a phone camera struggles with.
@@ -28,8 +30,8 @@ export function QrSvg({ value, size = 260, label }: QrCodeProps) {
       viewBox={`0 0 ${n} ${n}`}
       shapeRendering="crispEdges"
     >
-      <rect width={n} height={n} fill="#fff" />
-      <path d={path} fill="#000" />
+      <rect width={n} height={n} fill={QR.light} />
+      <path d={path} fill={QR.dark} />
     </svg>
   );
 }

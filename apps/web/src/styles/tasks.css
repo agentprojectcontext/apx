@@ -722,20 +722,60 @@ body.is-dragging {
   font-size: var(--apx-text-2xs);
 }
 
-/* The agent's plan under the description: a quiet block, read-only. */
-.taskdetail__plan {
+/* Above the description: where the work must arrive, then what the owner said, word for word. */
+.taskdetail__goal,
+.taskdetail__asked {
   display: grid;
   gap: 6px;
-  padding: 10px 12px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-surface);
 }
-.taskdetail__planhead {
+.taskdetail__sectionhead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
   font-size: var(--apx-text-xs);
   font-weight: 600;
   color: var(--apx-fg-muted);
+}
+.taskdetail__goalinput {
+  /* Grows with the goal, whatever the panel's width. */
+  field-sizing: content;
+  min-height: 0;
+  font-size: var(--apx-text-sm);
+  font-weight: 500;
+}
+.taskdetail__said {
+  margin: 0;
+  padding: 6px 10px;
+  border-left: 2px solid var(--apx-border-strong);
+  font-size: var(--apx-text-sm);
+}
+.taskdetail__said p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.taskdetail__said footer {
+  margin-top: 2px;
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-muted);
+}
+.taskdetail__asked > .apx-btn {
+  justify-self: start;
+}
+
+/* The description read as formatted text; the pencil opens it to edit. */
+.taskdetail__descview {
+  position: relative;
+  padding: 10px 36px 10px 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  overflow-wrap: anywhere;
+}
+.taskdetail__descedit {
+  position: absolute;
+  top: 6px;
+  right: 6px;
 }
 
 /* Task panel: under the properties, a rule and the buttons that open its sessions and its usage. */

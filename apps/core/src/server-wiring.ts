@@ -50,6 +50,7 @@ import { extensionHandlers } from "./rpc/extensions.ts";
 import { fileHandlers } from "./rpc/files.ts";
 import { flowHandlers } from "./rpc/flows.ts";
 import { gitHandlers } from "./rpc/git.ts";
+import { hermesHandlers } from "./rpc/hermes.ts";
 import { integrationHandlers } from "./rpc/integrations.ts";
 import type { InternalCall } from "./rpc/internal.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
@@ -68,7 +69,14 @@ import { runHandlers } from "./rpc/runs.ts";
 import { sessionHandlers } from "./rpc/sessions.ts";
 import { setupHandlers } from "./rpc/setup.ts";
 import { artifactHandlers } from "./rpc/surfaces.ts";
-import { newsHandlers, systemHandlers, telemetryHandlers, updateHandlers, usageHandlers } from "./rpc/system.ts";
+import {
+  newsHandlers,
+  storageHandlers,
+  systemHandlers,
+  telemetryHandlers,
+  updateHandlers,
+  usageHandlers,
+} from "./rpc/system.ts";
 import { taskHandlers } from "./rpc/tasks.ts";
 import { teamHandlers } from "./rpc/team.ts";
 import { terminalHandlers } from "./rpc/terminal.ts";
@@ -97,6 +105,7 @@ import { memoryTools } from "./tools/memory.ts";
 import { messageTools } from "./tools/message.ts";
 import { ownerTools } from "./tools/owner.ts";
 import { phoneTools } from "./tools/phone.ts";
+import { planTools } from "./tools/plan.ts";
 import { requestTools } from "./tools/requests.ts";
 import { routineTools } from "./tools/routines.ts";
 import { settingsTools } from "./tools/settings.ts";
@@ -182,6 +191,7 @@ export function builtinTools(
     ...phoneTools(),
     ...computerTools(store),
     ...taskTools(store, home),
+    ...planTools(),
     ...videoTools(findProgram("yt-dlp")),
     ...webTools(),
     ...contactTools(store),
@@ -261,6 +271,8 @@ type HandlerDeps = {
   terminals: Parameters<typeof terminalHandlers>[1];
   /** What the computer has and what APX takes of it. */
   usage: Parameters<typeof usageHandlers>[0];
+  /** The APX home by area, clearing what APX rebuilds, and the disk's free space. */
+  storage: Parameters<typeof storageHandlers>[0];
 };
 
 /** The handler table the router serves: one entry per protocol method. */
@@ -278,6 +290,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...telemetryHandlers(d.telemetry),
     ...newsHandlers(d.news),
     ...usageHandlers(d.usage),
+    ...storageHandlers(d.storage),
     ...systemHandlers(d.identity, d.app.home, d.panel, () => ({
       protocol: { status: "ok" },
       browser: d.broker.withCap(BROWSER_CAP)
@@ -362,6 +375,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...fileHandlers(d.store, d.desktop, d.app.home),
     ...gitHandlers(d.store, d.upkeep),
     ...terminalHandlers(d.store, d.terminals, d.app.home),
+    ...hermesHandlers(d.store, d.internal),
     ...sessionHandlers(d.store, d.native, {
       home: d.app.home,
       apc: d.apc,
@@ -456,7 +470,7 @@ export function exposedOrigins(config: Pick<CoreConfig, "host" | "publicUrl">, p
 }
 
 /** How long the core keeps an idle HTTP connection open for its next request. */
-export const KEEP_ALIVE_MS = 65_000;
+const KEEP_ALIVE_MS = 65_000;
 
 /** HTTP + WebSocket transports over one dispatcher; resolves once the port is bound. */
 export async function listen(

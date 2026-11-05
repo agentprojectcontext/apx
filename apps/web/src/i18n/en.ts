@@ -17,6 +17,7 @@ import type { enFlow } from "./flow-en.ts";
 import type { enIngress } from "./ingress-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
 import type { enSecretary } from "./secretary-en.ts";
+import type { enStorage } from "./storage-en.ts";
 import type { SysUsageKey } from "./sysusage-en.ts";
 import type { enThreadDialogs } from "./thread-dialogs-en.ts";
 
@@ -52,7 +53,14 @@ export const en = {
   ...enEngines,
   ...enTelemetry,
   "engineUsage.title": "AI quotas",
-  "engineUsage.quick": "{engine}: {pct}% available · {window}",
+  "engineUsage.remaining": "{pct}% remaining",
+  "engineUsage.primary": "Current window",
+  "engineUsage.secondary": "Extended window",
+  "engineUsage.fiveHours": "Session (5 h)",
+  "engineUsage.weekly": "Weekly",
+  "engineUsage.window": "{minutes}-minute window",
+  "engineUsage.resetsIn": "Resets in {span}",
+  "engineUsage.resetsOn": "Resets on {at}",
   "sysUsage.title": "System resources",
   "sysUsage.button": "System: {pct}% of memory in use",
   // Shared words
@@ -255,6 +263,11 @@ export const en = {
   "update.cardCta": "See what's new",
   "corner.label": "News and invitations",
   "community.title": "Join the community",
+  "storage.cardTitle": "Your disk is almost full",
+  "storage.cardDesc": "Only {free} left. When it runs out, APX can't save chats or files.",
+  "storage.cardCta": "See storage",
+  "storage.bannerText": "Disk almost full: {free} left",
+  "storage.bannerCta": "Review",
   "v1.cardTitle": "APX v1 is still running",
   "v1.cardDesc": "Your routines and bots may run twice. Turn v1 off and make apx this version; v1's files stay.",
   "v1.cardCta": "Turn v1 off",
@@ -550,6 +563,7 @@ export const en = {
   "subthread.open": "Open conversation with {name}",
   "subthread.worker": "Worker",
   "subthread.took": "Took {time}",
+  "subthread.held": "Waiting for answers: {got} of {of}",
   "subthread.more": "Show more",
   "subthread.less": "Show less",
   "subthread.noAnswer": "Ended without an answer",
@@ -804,6 +818,7 @@ export const en = {
   "link.go.project": "Open the project",
   "link.go.projectNamed": "Open the project {name}",
   "media.generating": "Generating images",
+  "media.imageLoadFailed": "Could not load the images.",
   "media.previous": "Previous",
   "media.next": "Next",
   "media.download": "Download",
@@ -1065,6 +1080,7 @@ export const en = {
   "config.agents": "Agents",
   "config.browser": "Browser",
   "config.advanced": "Advanced",
+  "config.storage": "Storage",
   "config.logs": "Logs",
   "logs.lead":
     "What the core writes while it runs: what it started, what failed and why. Newest first, refreshed every few seconds.",
@@ -1213,6 +1229,10 @@ export const en = {
   "models.routerOnly": "Choose automatically",
   "models.inUse": "In use",
   "models.withRouter": "{model} · Automatic backup",
+  "models.withFallbacks.one": "{model} · 1 fallback",
+  "models.withFallbacks.other": "{model} · {n} fallbacks",
+  "models.withFallbacksRouter.one": "{model} · 1 fallback + Automatic",
+  "models.withFallbacksRouter.other": "{model} · {n} fallbacks + Automatic",
   "models.effort": "Effort",
   "models.effortDefault": "Its default",
   "models.effortDefaultIs": "Default ({effort})",
@@ -1230,6 +1250,9 @@ export const en = {
   "models.stale": "Stale",
   "models.kind.harness": "External session",
   "models.kind.provider": "Provider · APX's own loop",
+  "models.kind.local": "Free",
+  "models.local": "Local",
+  "models.localClosed": "Open {app} to use them",
   "models.count": "{count} models",
   "models.fetchedAt": "fetched {when}",
   "models.noChatModels": "No chat models. Voice, image and embedding models are hidden.",
@@ -1879,6 +1902,7 @@ export type MessageKey =
   | ComputerKey
   | ReceivedKey
   | SysUsageKey
+  | keyof typeof enStorage
   | keyof typeof enEmailSignatures
   | keyof typeof enThreadDialogs
   | keyof typeof enIngress

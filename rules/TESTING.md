@@ -67,6 +67,7 @@ machine it was written on is a broken test. The helpers live in `apps/core/src/t
 | Wait until something is true | `waitFor(check, what, { ms })`: fails after `ms` of wall-clock time × `TEST_TIME_SCALE` | A loop of N tries, or a local `until` |
 | A run's input or its end | `pendingInput(client, thread)`, `inputOrEnd(…)` | Polling `runs.pending` by hand |
 | Idle, cap, deadline, burst | `manualTimers()` passed as `runTimers`; `tick(ms)`, or `autoAdvance` when runs chain | A window of real milliseconds |
+| A schedule's times, a date shown | `clock` on `startCore`; in e2e `world.clock(at)` with `page.clock.setFixedTime(at)`, then `world.clock(null)` | Today's date or hour |
 | A temp folder | `tempDir(prefix)` → `{ path, remove() }`; `removeDir(dir)` for a folder made otherwise | `fs.rmSync(dir, { recursive: true })` |
 | A child to be gone | `await stopped(child)` (or the product's `await stopTree(pid)`) before removing its folder | Removing the folder while it runs |
 | Compare paths | `isInside`, `samePath` (`paths.ts`), `assertPath` in tests | ``startsWith(`${root}/`)``, `===` on paths |
@@ -97,7 +98,26 @@ pnpm lint                          # Biome; `pnpm lint:fix` applies safe fixes
 pnpm check:private                 # public-safe gate (AGENTS.md rule 17)
 pnpm check:commits HEAD^..HEAD     # this commit only; use a base..head range for a change, see rules/RELEASE.md
 pnpm check:schema                  # apps/core/src/db/schema.ts matches the migrations (`node apps/core/scripts/schema.ts` rewrites it)
+pnpm check:ui                      # panel screens use @apx/ui controls and tokens (AGENTS.md rule 32)
+pnpm check:dead                    # knip: no file, export, type or dependency that nothing reaches
 ```
+
+`pnpm check:ui` (`scripts/check-ui.ts`) reads every screen under `apps/web/src` (tests and `packages/ui` aside) and
+fails on a native `<button>`, `<select>`, `<textarea>` or text/checkbox `<input>` where the design system has a
+component, and on a literal colour (hex, `rgb()`, `hsl()`, `oklch()`…) in a string, template or stylesheet instead of
+an `--apx-*` token; a `var(--token, #fallback)` counts too. A `mask` only reads alpha and passes. `data-testid` is not
+banned: the e2e suite finds elements by it. Today's hits sit in `scripts/check-ui-allowlist.json`, counted per file
+and rule with their reason; a new hit fails, and so does an allowance a file no longer needs. Fix a file, then run
+`node scripts/check-ui.ts --shrink`; never add an entry. A deliberate exception (a QR code drawn dark on light, an
+outside page on white) carries a `ui: <why>` comment on its line or the line above.
+
+`pnpm check:dead` runs knip over the workspace with `knip.jsonc`, which names the ways in it cannot see from
+`package.json` alone: runners and test fakes spawned by path, desktop's esbuild entries, the e2e configs and the
+process e2e spawns, the design-sync previews, the widget kit. It fails on an unused file, export, exported type or
+dependency. Remove what it finds after checking nothing reaches it by string (a path, a registry name); a false
+positive goes in `knip.jsonc` with a comment saying why, and a config entry no longer needed fails too, so that list
+only shrinks. `apps/mobile` and `apps/docs` install outside the workspace, so knip does not see their imports of
+`packages/*`: before removing an export there, search those two apps for it.
 
 ## 3. Tests
 ```bash
@@ -166,7 +186,7 @@ While developing against a scratch state, set `APX_HOME` to a temp dir so `~/.ap
 
 ## 5. All at once
 ```bash
-pnpm preflight                     # check:private, check:schema, lint, typecheck, unit tests
+pnpm preflight                     # check:private, check:schema, lint, check:ui, check:dead, typecheck, unit tests
 pnpm verify                        # preflight, all-suite execution coverage, then lightness budgets
 pnpm verify --stream               # the same, with every step's output as it runs
 ```
@@ -245,7 +265,7 @@ start together:
 
 | Job | What | Machines |
 |---|---|---|
-| Static checks and lightness budgets | commits, `pnpm preflight:static` (private terms, schema, lint, typecheck, test quality), mobile types, Android bundle; then `pnpm build:web` with coverage maps and `scripts/perf.ts` | 1 Linux |
+| Static checks and lightness budgets | commits, `pnpm preflight:static` (private terms, schema, lint, UI controls and tokens, dead code, typecheck, test quality), mobile types, Android bundle; then `pnpm build:web` with coverage maps and `scripts/perf.ts` | 1 Linux |
 | Unit tests | every package's tests, `node scripts/test-shard.ts <i>/2`, plus the POSIX installer onboarding | 2 Linux |
 | Coverage | `node scripts/test-coverage.ts --e2e --part=…`: unit, panel in three (`--part=web --shard=i/3`), desktop | 5 Linux |
 | Coverage report | merges the parts (`--merge --expect-parts=5`: a function ran if any part ran it; a part that never uploaded fails it) | 1 Linux |

@@ -43,11 +43,45 @@ Mientras trabaja, ves cada paso en el momento: las herramientas que usó, las p�
 les preguntó. Al terminar se pliegan en una línea, como **4 pasos · 12 s**, que se abre con un clic en cada paso
 dicho en palabras ("Leyó notes.md", "Buscó precios 2026") con un ícono según el tipo de acción (la web, leer un
 archivo, escribirlo, la memoria). Solo se marca un paso que falló, en rojo, y la línea dice cuántos fallaron. **Mostrar
-herramientas** en el encabezado prende o apaga esos pasos si solo querés las respuestas. Podés escribir mientras
-trabaja: tu mensaje entra al turno en su próximo paso, queda donde lo escribiste y lo que el agente dice después de
-leerlo aparece debajo.
+herramientas** en el encabezado prende o apaga esos pasos si solo querés las respuestas.
 Cuando un agente necesita tu OK (para correr un comando, mandar un mensaje, usar tu login en un sitio) el chat
 muestra la pregunta con **Aceptar una vez**, **Aceptar durante esta sesión** o **Aceptar siempre para este agente**.
+
+### El plan del agente
+
+Un trabajo de más de un par de pasos empieza con un plan, en cualquier chat: Home, un chat suelto, uno de código o el de
+una tarea. Aparece debajo del mensaje del agente como una lista, **Plan** con cuántos pasos van hechos, y cada paso
+cambia mientras trabaja: pendiente, en curso (un círculo que gira) o hecho (una tilde). El agente manda la lista entera
+cada vez que marca un paso, así que lo que ves es siempre su última versión. Mientras trabaja, el plan queda al final,
+debajo de todo lo que muestra; cuando lo marca por última vez queda ahí, tildado, y lo que escriba después aparece
+abajo. Sus próximos turnos leen el plan que dejó,
+aunque un chat largo se haya resumido. En el chat de una tarea el plan es el de la tarea: los mismos pasos aparecen en
+su panel.
+
+La app del teléfono muestra la misma lista en el chat y en la página de la tarea, junto con su objetivo. En la terminal,
+`apx chat` imprime el plan cada vez que cambia un paso (`✓` hecho, `▸` en curso, `○` pendiente) y
+`apx tasks show <id>` imprime el objetivo y el plan de la tarea.
+
+### Escribir mientras trabaja
+
+No hace falta esperar a que el agente termine, ni cortarlo:
+
+- **Enter** envía. El agente lee tu mensaje en su próximo paso (después de la herramienta o la respuesta en la que
+  está) y sigue teniéndolo en cuenta. El mensaje queda donde lo escribiste y lo que el agente dice después de leerlo
+  aparece debajo. Hasta que lo lea, debajo del mensaje aparece **Enviar ahora**: el agente corta el paso en el que
+  está y lee tu mensaje en el momento, sin perder lo que ya hizo. Cuando lo leyó, debajo del mensaje aparecen dos tildes
+  y **Ahora**.
+- **Ctrl/⌘+Enter** deja el mensaje **en cola** para cuando el agente termine lo que está haciendo. Los mensajes en
+  cola esperan debajo del chat con la burbuja delineada, en el orden en que van a correr. Hasta que empiece su turno
+  los podés **Editar**, **Subir** o **Bajar**, **Quitar**, o **Enviar ahora**.
+- **En una sesión de Claude Code o Codex** el agente solo lee mensajes nuevos entre turnos, así que Enter hace lo que
+  **Enviar ahora**: corta el turno en curso, como **Detener**, y corre tu mensaje en el momento, antes que el resto de
+  la cola (lo que el agente había encargado a otros sigue). Ctrl/⌘+Enter sigue dejando el mensaje en cola hasta que
+  termine el turno.
+- **Detener** (el cuadrado que reemplaza a enviar) corta todo: el turno en curso y los mensajes en cola.
+
+Lo que está en cola sobrevive a un reinicio de APX, en su orden. Los mensajes que llegan por un canal (WhatsApp,
+Telegram) siguen como antes: el agente los lee en su próximo paso.
 
 Un ejemplo. Lucía es la PM de Acme Store:
 
@@ -66,12 +100,14 @@ La caja de abajo ("Escribile a Lucía…") es donde escribís. Algunas cosas que
 
 - **Adjuntos.** Arrastrá archivos o imágenes al chat, o usá **Adjuntar** › **Archivo** / **Imagen**.
 - **Selector de modelo.** Cada chat usa el modelo de su agente. Podés elegir otro solo para este chat, o **Auto** para
-  que decida el router; **Volver al del agente** lo deshace. El chip de al lado muestra cuánto contexto se usó y abre
-  el panel de Consumo.
+  que decida el router; **Volver al del agente** lo deshace. El chip de al lado muestra cuánto del contexto del modelo
+  se usó, en porcentaje, y abre el panel de Consumo; cuando se llena, los turnos viejos se resumen
+  ([Compactación](/es/concepts/conversations/#compactación)).
 - **Dictado por voz.** **Dictar** pasa lo que decís a texto. Instalá un modelo de transcripción local (whisper.cpp)
   en Configuración › Voces para que quede todo en tu máquina.
-- **Teclas.** Enter envía (si el agente está trabajando, lo corta y responde esto). Ctrl/⌘+Enter lo deja en cola para
-  cuando termine. Shift+Enter agrega una línea.
+- **Teclas.** Enter envía (si el agente está trabajando, lo lee en su próximo paso; en una sesión de Claude Code o
+  Codex corta el turno y corre el mensaje en el momento). Ctrl/⌘+Enter lo deja en cola para
+  cuando termine; mientras el agente trabaja, el compositor te lo recuerda. Shift+Enter agrega una línea.
 
 Los borradores de adjuntos, incluidas las cargas en curso, sobreviven a cambiar de chat dentro de la página.
 Seleccioná una miniatura para previsualizar su archivo. A diferencia del texto del borrador guardado, los adjuntos

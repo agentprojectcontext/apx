@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { type ApxClient, UPLOAD_LIMITS } from "@apx/protocol/client";
 
-export const USAGE = {
+const USAGE = {
   image: `apx image "<prompt>" [--out file] [--size WxH]   Draw an image with the first image service that answers
                                                   (default file: <media id>.<ext> in this folder)`,
   transcribe: "apx transcribe <audio file>                       Speech to text; prints the words",

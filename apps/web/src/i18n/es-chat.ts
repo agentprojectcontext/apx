@@ -2,9 +2,16 @@
 import type { MessageKey } from "./en.ts";
 
 export const esChat: Partial<Record<MessageKey, string>> = {
+  "chat.modelUnconfirmed": "Modelo sin confirmar",
+  "chat.modelFallback": "Con respaldo",
+  "chat.modelFallbackHint": "Su modelo no respondió esta vez: respondió un respaldo.",
+  "chat.modelRequested": "Solicitado:",
+  "chat.modelEngineDefault": "Predeterminado de {engine}",
   "chat.agentProgress": "Avance de {name}",
   "chat.agentResponse": "Respuesta de {name}",
   "chat.agentMessage": "Mensaje de {name}",
+  "chat.plan": "Plan",
+  "chat.planDone": "{done} de {count} hechos",
   "input.sessionScope": "Esta sesión",
 
   "composer.offline": "Sin conexión con APX",
@@ -13,7 +20,19 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "composer.attach": "Adjuntar",
   "composer.stop": "Detener",
   "composer.sendHint":
-    "Enter: enviar (si está trabajando, lo corta y responde esto) · Ctrl/⌘+Enter: en cola, cuando termine · Shift+Enter: nueva línea · /: comandos y skills",
+    "Enter: enviar (si está trabajando, lo lee en su próximo paso) · Ctrl/⌘+Enter: dejarlo en cola para cuando termine · Shift+Enter: nueva línea · /: comandos y skills",
+  "composer.sendHintStop":
+    "Enter: enviar ahora (corta lo que está haciendo y lo lee) · Ctrl/⌘+Enter: dejarlo en cola para cuando termine · Shift+Enter: nueva línea · /: comandos y skills",
+  "composer.queueHint": "{mod}+Enter para dejarlo en cola",
+  "waiting.sendNow": "Enviar ahora",
+  "waiting.taken": "Ahora",
+  "waiting.lineTitle": "En cola para cuando {name} termine",
+  "waiting.edit": "Editar",
+  "waiting.save": "Guardar",
+  "waiting.remove": "Quitar",
+  "waiting.up": "Subir",
+  "waiting.down": "Bajar",
+  "waiting.error": "No se pudo cambiar el mensaje: {error}",
   "composer.send": "Enviar",
   "composer.attachFile": "Archivo",
   "composer.attachImage": "Imagen",
@@ -39,7 +58,8 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "composer.agentModel": "El modelo del agente",
   "composer.agentModelDesc": "Este chat usa lo que tiene configurado {name}.",
   "composer.backToAgentModel": "Volver al del agente",
-  "composer.contextOf": "{used} de {window} de contexto usado",
+  "composer.contextShare":
+    "Contexto usado: {share} ({used} de {window}). Cuando se llena, se resume la parte más vieja de este chat.",
   "composer.spent": "En este chat: {input} tokens de entrada (lo que leyó) y {output} de salida (lo que escribió)",
   "composer.spentCached":
     "En este chat: {input} tokens de entrada (lo que leyó, {cached} de ellos desde la caché) y {output} de salida (lo que escribió)",

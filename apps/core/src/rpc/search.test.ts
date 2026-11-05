@@ -7,8 +7,8 @@ import { after, before, test } from "node:test";
 import { createBus } from "../bus.ts";
 import { openDb } from "../db/db.ts";
 import { MIGRATIONS } from "../db/migrations.ts";
+import { snippetOf } from "../domain/messages.ts";
 import { createStore } from "../domain/store.ts";
-import { snippetOf } from "../domain/threads.ts";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
 const llm = scriptedLlm((_req, { said }) => say(`Anotado: ${said.slice(-40)}`));

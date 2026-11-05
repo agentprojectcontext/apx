@@ -15,12 +15,18 @@ import { modelSettings } from "../models/choice.ts";
 import type { Llm } from "../providers/llm.ts";
 import type { ChatItem } from "../providers/types.ts";
 import { readsImages } from "../providers/vision.ts";
+import { contextWindow } from "../providers/windows.ts";
 import { UNTRUSTED_MARK } from "../tools/result.ts";
 import { FULL_OUTPUT_RUNS, HISTORY_BUDGET_CHARS } from "./context.ts";
 import { memoryHistory } from "./memory-projection.ts";
 
-/** A thread is compacted once what the model would see since the last summary passes this. */
+/**
+ * A thread is compacted once what the model would see since the last summary passes this. It holds even when the
+ * window is known: past the history budget the oldest turns would be left out with no summary of them.
+ */
 export const COMPACT_AT_CHARS = Math.floor(HISTORY_BUDGET_CHARS * 0.75);
+/** …or once the model's last call read this share of its context window, whatever the size in characters. */
+const COMPACT_AT_SHARE = 0.8;
 /** What stays verbatim after compacting: the newest turns, up to this many and this size (always at least one). */
 const KEEP_RUNS = 4;
 const KEEP_CHARS = Math.floor(HISTORY_BUDGET_CHARS * 0.35);
@@ -31,7 +37,7 @@ const AUX_TIMEOUT_MS = 90_000;
 const RECENT_NOTICE_WINDOW = 30;
 const STUDY_TIMEOUT_MS = 180_000;
 
-export const SUMMARY_SECTIONS = ["Goal", "Facts and decisions", "Done", "Open", "References"] as const;
+const SUMMARY_SECTIONS = ["Goal", "Facts and decisions", "Done", "Open", "References"] as const;
 
 const SUMMARY_PROMPT = [
   "You compress a conversation between an owner and their AI agent so the agent can go on without the full transcript.",
@@ -82,7 +88,7 @@ export function titleFromText(text: string): string | undefined {
 }
 
 /** The model log as plain text for the summarizer: who said what, tool calls and their results, shortened. */
-export function transcriptOf(items: ChatItem[]): string {
+function transcriptOf(items: ChatItem[]): string {
   const lines = items.map((m) => {
     if (m.role === "user") return `Owner/context: ${m.content}`;
     if (m.role === "tool") return `Tool result: ${m.content.slice(0, 800)}`;
@@ -124,12 +130,29 @@ const seenSize = (g: Group, full: boolean) =>
         return n + (m.role === "tool" && m.content.length > 400 ? STUB_CHARS : JSON.stringify(e.item).length);
       }, 0);
 
+/** How much of its model's window a call read: provider-reported tokens over the window. */
+export type ContextFill = { used: number; window: number };
+
+/**
+ * How full the newest finished turn of our own loop left the context; none when it reported no usage, its model's
+ * window is unknown, or it was measured before the last summary.
+ */
+export function contextFill(runs: readonly RunRecord[], epoch?: Epoch): ContextFill | undefined {
+  const last = runs.find((r) => r.harness === "native" && r.ended_at);
+  const used = last?.usage?.context;
+  if (!last || !used) return undefined;
+  if (epoch && Date.parse(last.started_at) < Date.parse(epoch.at)) return undefined;
+  const window = last.usage?.window ?? (last.model ? contextWindow(last.model) : undefined);
+  return window ? { used, window } : undefined;
+}
+
 /** Splits what came after the last summary into the part to summarize and the newest turns kept verbatim. */
-export function planCompaction(entries: LogEntry[], epoch: Epoch | undefined, force: boolean) {
+export function planCompaction(entries: LogEntry[], epoch: Epoch | undefined, force: boolean, fill?: ContextFill) {
   const after = groups(epoch ? entries.filter((e) => e.seq > epoch.upto) : entries);
   // Measured as the model sees it: counting old tool output in full summarized chats every turn or two.
   const total = after.reduce((n, g, i) => n + seenSize(g, i >= after.length - FULL_OUTPUT_RUNS), 0);
-  if (!force && total < COMPACT_AT_CHARS) return undefined;
+  const full = fill ? fill.used >= fill.window * COMPACT_AT_SHARE : false;
+  if (!force && !full && total < COMPACT_AT_CHARS) return undefined;
   let keep = 0;
   let kept = 0;
   for (let i = after.length - 1; i >= 0 && keep < KEEP_RUNS; i--) {
@@ -265,6 +288,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
       ),
       epoch,
       force,
+      contextFill(runs, epoch),
     );
     if (!plan) return { compacted: false, reason: "nothing old enough to summarize" };
     const previous = epoch ? `Previous summary:\n${epoch.summary}\n\n` : "";

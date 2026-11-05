@@ -1,13 +1,14 @@
 import type { Agent, CatalogEngine, Run, Thread } from "@apx/protocol";
 import { Composer, EngineIcon, IconButton, Icons, Menu, SegmentedControl, withMentions } from "@apx/ui";
 import { Suspense, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { MOD } from "../../common/modKey.ts";
 import { useEngineLabel } from "../../common/useEngineLabel.ts";
 import { ModelChoicePicker } from "../../config/models/ModelPickers.tsx";
 import { cancel, loadThread, makeChat, send } from "../../data/actions.ts";
 import { sendDirect } from "../../data/channels.ts";
 import { setThreadModel } from "../../data/composer.ts";
 import { draftOf, keepDraft, subscribeDrafts } from "../../data/drafts.ts";
-import { isPending } from "../../data/identity.ts";
+import { isPending, isWorking } from "../../data/identity.ts";
 import { choiceLabel, effectiveChoice, splitRef, useModels } from "../../data/models.ts";
 import { isNewChat } from "../../data/newChat.ts";
 import { notify } from "../../data/notices.ts";
@@ -28,7 +29,8 @@ const IMAGE_TYPES = "image/png,image/jpeg,image/webp,image/gif";
 
 /**
  * The chat's composer, left to right: + (file, image), the chat's model, then how full the chat is (opens Usage),
- * the mic (records audio with its words) and send. While the agent works, Enter interrupts it and Ctrl/⌘+Enter queues.
+ * the mic (records audio with its words) and send. While the agent works, Enter sends (its next step reads it) and
+ * Ctrl/⌘+Enter puts it in line for when it finishes (DECISIONS.md#d-186).
  * A field starting with "/" opens the command and skill menu.
  * Files also arrive dragged or pasted. What is typed stays as the chat's draft until it is sent.
  * A new chat (see newChat.ts) is made with its first message; `onMade` then opens it (by default, where it was).
@@ -172,7 +174,8 @@ export function ChatComposer({
               : t("composer.placeholder", { name: engine ?? agentName })
         }
         labels={{ stop: t("composer.stop"), send: t("composer.send") }}
-        sendHint={t("composer.sendHint")}
+        sendHint={t(thread.engine ? "composer.sendHintStop" : "composer.sendHint")}
+        hint={isWorking(thread.state) ? t("composer.queueHint", { mod: MOD }) : undefined}
         value={text}
         onValueChange={setText}
         ready={att.ready && !att.uploading}

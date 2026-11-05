@@ -99,12 +99,21 @@ for (const lang of ["en", "es"] as const) {
     // A step clicked at another zoom keeps that zoom and lands in the middle of what the card leaves visible.
     await editor.getByRole("button", { name: l.zoomOut }).click();
     await expect.poll(() => zoomOf(editor)).toBeLessThan(1);
-    const zoom = await zoomOf(editor);
+    // The zoom-out animates too: its zoom is the one it settles on.
+    let zoom = await zoomOf(editor);
+    await expect
+      .poll(async () => {
+        const last = zoom;
+        zoom = await zoomOf(editor);
+        return zoom - last;
+      })
+      .toBe(0);
     await hook.click();
     await expect(card).toBeVisible();
     await expect(card.locator(".drawer__title")).toHaveText(l.hook);
     await expect.poll(offCentre(hook)).toBeLessThan(4);
-    expect(await zoomOf(editor)).toBeCloseTo(zoom, 5);
+    // The pan to the step eases the zoom on its way, so it is compared once the move ends.
+    await expect.poll(() => zoomOf(editor)).toBeCloseTo(zoom, 5);
 
     // × and Escape close it.
     await card.getByRole("button", { name: l.close }).click();
@@ -113,7 +122,7 @@ for (const lang of ["en", "es"] as const) {
     await expect(card).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(card).toBeHidden();
-    expect(await zoomOf(editor)).toBeCloseTo(zoom, 5);
+    await expect.poll(() => zoomOf(editor)).toBeCloseTo(zoom, 5);
 
     // On a phone the step types wait behind a button, and nothing runs past the edge.
     await page.setViewportSize({ width: 390, height: 844 });

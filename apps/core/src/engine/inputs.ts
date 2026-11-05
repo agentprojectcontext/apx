@@ -13,18 +13,18 @@ import type { Display } from "./display.ts";
 import type { AdmitFn } from "./engine.ts";
 
 /** How long the agent waits in its turn for an answer before it ends the turn and the input stays open. */
-export const INPUT_WAIT_MS = 15 * 60_000;
+const INPUT_WAIT_MS = 15 * 60_000;
 /** Claude Code and Codex reach our tools over a call with its own deadline: the wait must end before it. */
-export const EXTERNAL_INPUT_WAIT_MS = 5 * 60_000;
+const EXTERNAL_INPUT_WAIT_MS = 5 * 60_000;
 /** How long an input the turn stopped waiting for stays answerable; its answer wakes the agent in a new turn. */
-export const OPEN_INPUT_MS = 30 * 24 * 60 * 60_000;
+const OPEN_INPUT_MS = 30 * 24 * 60 * 60_000;
 /** The longest delay setTimeout takes; a later deadline is checked again when this one fires. */
 const MAX_TIMER_MS = 2 ** 31 - 1;
 
 export type InputWaits = { turn: number; external: number };
 
 /** Approvals requiring the complete app card cannot be answered on a channel. */
-export const APP_ONLY = "this approval is answered in the app (panel, desktop or phone), never on a channel";
+const APP_ONLY = "this approval is answered in the app (panel, desktop or phone), never on a channel";
 
 /** What a folder card's "once" answer is kept under, when it comes after the turn stopped waiting. */
 /** The grant a folder card gives for one call; one to change files there never doubles as one to read them. */

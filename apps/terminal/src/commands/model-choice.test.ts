@@ -72,12 +72,42 @@ test("agent model changes can reset inheritance without changing the install def
     ["router", { router: true }],
     ["fake/fast", { model: "fake/fast", router: false }],
   ] as const) {
-    const { client, calls } = recordingClient({ "agents.update": { name: "Scout", model_choice: choice } });
+    const { client, calls } = recordingClient({
+      "agents.get": { agent: { name: "Scout" } },
+      "agents.update": { name: "Scout", model_choice: choice },
+    });
     const out = await printed(() => agentModel(client, ["scout", ref], {}));
     assert.match(out, /^Scout:/);
     assert.equal(out.includes("install default"), choice === null);
-    assert.deepEqual(calls, [["agents.update", { agent: "scout", model_choice: choice }]]);
+    assert.deepEqual(calls.at(-1), ["agents.update", { agent: "scout", model_choice: choice }]);
   }
+});
+
+test("a new main model keeps the agent's fallbacks; --fallbacks sets or clears them", async () => {
+  const had = { model: "fake/old", router: true, fallbacks: ["fake/new", "fake/spare"] };
+  const run = async (ref: string, o: { router?: boolean; fallbacks?: string }) => {
+    const { client, calls } = recordingClient({
+      "agents.get": { agent: { name: "Scout", model_choice: had } },
+      "agents.update": { name: "Scout", model_choice: had },
+    });
+    const out = await printed(() => agentModel(client, ["scout", ref], o));
+    const sent = calls.at(-1)?.[1] as { model_choice: unknown } | undefined;
+    return { sent: sent?.model_choice, out };
+  };
+  // The new main model leaves the list behind it.
+  assert.deepEqual((await run("fake/new", { router: true })).sent, {
+    model: "fake/new",
+    router: true,
+    fallbacks: ["fake/spare"],
+  });
+  assert.deepEqual((await run("fake/old", { fallbacks: "fake/a, fake/b" })).sent, {
+    model: "fake/old",
+    router: false,
+    fallbacks: ["fake/a", "fake/b"],
+  });
+  assert.deepEqual((await run("fake/old", { fallbacks: "" })).sent, { model: "fake/old", router: false });
+  assert.deepEqual((await run("router", {})).sent, { router: true });
+  assert.match((await run("fake/old", {})).out, /fake\/old → fake\/new → fake\/spare → router/);
 });
 
 test("missing or unknown model commands cannot issue configuration writes", async () => {

@@ -21,9 +21,9 @@ const attachmentsArg = z
   .array(z.string().min(1).max(1000))
   .max(20)
   .optional()
-  .describe(
-    "selected med_ ids or readable file paths to snapshot into the task; include the request's relevant screenshot",
-  );
+  .describe("med_ ids or readable file paths to copy into the task; include the request's screenshot");
+const goalArg = z.string().trim().max(500).optional().describe("what the owner checks to call it done");
+const descriptionArg = z.string().max(3000).optional();
 const isMediaId = (value: string) => /^med_[0-9a-f]{16}$/.test(value);
 const attachmentIds = async (refs: string[] | undefined, ctx: ToolContext) =>
   refs &&
@@ -55,7 +55,7 @@ const line = (t: Task, project?: string) =>
  * Whose words a task's title and description are: the owner's, one of the owner's agents' (the owner's side,
  * DECISIONS.md#d-071), or outside text (an agent passing on a contact's request: it has a person).
  */
-export function taskSide(t: Pick<Task, "created_by" | "person_id">): "owner" | "team" | "outside" {
+function taskSide(t: Pick<Task, "created_by" | "person_id">): "owner" | "team" | "outside" {
   if (t.created_by === "owner") return "owner";
   return t.person_id ? "outside" : "team";
 }
@@ -266,10 +266,11 @@ export function taskTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "First task_list: if an open task is the same or close, continue that one. Record requested tasks or track substantial work, not every action. Capture only: omit assignee; nothing starts. To execute, give assignee and description (subtasks too): assignment already starts a task session; never also delegate that work. Immediate self-assignment transfers execution: end this turn. Reviews or another area's work: propose it; a delegate proposes to its caller. A global agent's task goes to the assignee's project. A promise: person, owed_by, due_at.",
+        "First task_list: if an open task is the same or close, continue that one. Record requested tasks or track substantial work, not every action. Capture only: omit assignee; nothing starts. To execute, give assignee, goal and a description in short Markdown lines: assignment starts its session, never also delegate it. Self-assigning now transfers execution: end this turn. Reviews or another area's work: propose it (a delegate, to its caller). A promise: person, owed_by, due_at.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
-        description: z.string().max(5000).optional(),
+        goal: goalArg,
+        description: descriptionArg,
         attachments: attachmentsArg,
         assignee: z.string().max(80).optional(),
         project: z.string().min(1).max(80).optional().describe("project id; super-agent only"),
@@ -282,7 +283,12 @@ export function taskTools(store: Store, home: string): Tool[] {
       effect: "local",
       outside: outsideAssets,
       confirm: handsOff,
-      check: (a, ctx) => checkNamed(a, a.due_at, taskProject(store, { id: ctx.agent.id, thread_id: ctx.thread.id }, a)),
+      check: (a, ctx) => {
+        checkNamed(a, a.due_at, taskProject(store, { id: ctx.agent.id, thread_id: ctx.thread.id }, a));
+        // Work handed on needs its arrival point, or whoever does it cannot tell when it drifts (DECISIONS.md#d-187).
+        if (a.assignee && !a.propose && !a.goal?.trim())
+          throw badRequest("goal: say in a line where this work must arrive, as the owner would check it");
+      },
       deadlineMs: 5_000,
       title: (a) => `Created the task ${String(a.title ?? "").slice(0, 60)}`,
       async run(a, ctx) {
@@ -307,24 +313,19 @@ export function taskTools(store: Store, home: string): Tool[] {
     }),
     defineTool({
       name: "task_update",
-      description:
-        "Update a task's fields (they mean what task_create's do); assignee:null unassigns it. Finish or drop with task_close.",
+      description: "Update a task's fields (as in task_create); null assignee/parent clears it. task_close ends it.",
       args: z.object({
         task: z.string().min(1).max(64),
+        parent: z.string().min(1).max(64).nullable().optional(),
         status: z.string().max(40).optional(),
         assignee: z.string().max(80).nullable().optional(),
         title: z.string().trim().min(3).max(200).optional(),
-        description: z.string().max(5000).optional(),
+        goal: z.string().trim().max(500).optional(),
+        description: descriptionArg,
         attachments: attachmentsArg,
         awaits_owner: z.boolean().optional(),
-        why: z
-          .string()
-          .trim()
-          .max(1000)
-          .optional()
-          .describe("with awaits_owner:true, what the owner must do or decide"),
+        why: z.string().trim().max(1000).optional().describe("awaits_owner: what the owner must do or decide"),
         reviewer: z.string().max(80).optional().describe('"owner" or agent'),
-        plan: z.string().max(4000).optional().describe("the steps, marked done as you go; replaces the last"),
         ...shapeArgs,
         ...commitmentArgs,
       }),
@@ -356,14 +357,22 @@ export function taskTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "task_comment",
       description:
-        "Comment on a task's conversation. @owner requests the owner's attention (their reply clears it); @agent asks that teammate here and its answer comes back to you.",
-      args: z.object({ task: z.string().min(1).max(64), text: z.string().trim().min(1).max(5000) }),
+        "Comment on a task only when others must know now: blocked, a decision, done. @owner asks the owner, until they reply; @agent asks a teammate; you get the answer.",
+      args: z.object({ task: z.string().min(1).max(64), text: z.string().trim().min(1).max(1500) }),
       effect: "local",
       confirm: handsOff,
       check: (a, ctx) => void taskOf(a.task, ctx),
       deadlineMs: 5_000,
       title: (a) => `Commented on ${String(a.task ?? "")}`,
       async run(a, ctx) {
+        // One comment a turn: progress shows in the plan, and a task's conversation is read by people (D-188).
+        const said = store.runs
+          .steps(ctx.run.id)
+          .some((s) => s.tool === "task_comment" && s.state === "ok" && s.args.task === a.task);
+        if (said)
+          throw badRequest(
+            "text: you already commented on this task in this turn; say the rest in your answer, or in one comment next turn",
+          );
         const r = await ctx.call("tasks.comment", a);
         return r.runs.length
           ? `commented; ${r.runs.length} agent(s) will answer there, and the answer comes back to you: do not wait for it.`

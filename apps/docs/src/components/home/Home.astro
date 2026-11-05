@@ -608,6 +608,7 @@ const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.uns
 
     <BlobEyes />
     <script>
+      import { bindInstallationCopy } from "../install-copy.mjs";
       import { fillLatest } from "../latest-release";
       import { startReveal } from "../web/reveal";
       import { startHorizon } from "./horizon";
@@ -639,18 +640,7 @@ const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.uns
       fillLatest(document.querySelectorAll<HTMLAnchorElement>(".dlc a[data-file]"));
 
       for (const b of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
-        b.addEventListener("click", async () => {
-          try {
-            await navigator.clipboard?.writeText(b.dataset.copy ?? "");
-          } catch {}
-          const label = b.querySelector(".cmd__copy");
-          if (!label) return;
-          const was = label.textContent;
-          label.textContent = b.dataset.done ?? "✓";
-          setTimeout(() => {
-            label.textContent = was;
-          }, 1500);
-        });
+        bindInstallationCopy(window, b);
       }
 
       const demo = document.querySelector<HTMLElement>(".term-demo__screen");

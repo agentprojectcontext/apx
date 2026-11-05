@@ -53,6 +53,8 @@ declare global {
       coreLocal?: boolean;
       /** Where to place the real browser view, in viewport CSS pixels (integers); null hides it. */
       setBrowserBounds(bounds: { x: number; y: number; width: number; height: number } | null): void;
+      /** A still of the page the native browser view shows (a data URL), to stand in while it steps behind. */
+      browserFrame?(): Promise<string | null>;
       /** Which tab the native browser view shows. */
       showBrowserTab?(tab: string): void;
       /** Moves the browser to a window of its own (true) or back into the side panel (false). */

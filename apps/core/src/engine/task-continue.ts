@@ -3,7 +3,7 @@
 // It stops when a part made no progress, after MAX_AUTO_PARTS in a row, or when something else is to come.
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { agentTrip, trip } from "./breaker.ts";
+import { agentTrip, tellStuck, trip } from "./breaker.ts";
 import type { AdmitFn } from "./engine.ts";
 import { MAX_AUTO_PARTS, stalled } from "./progress.ts";
 
@@ -36,16 +36,21 @@ export function continueTask(store: Store, admit: AdmitFn, run: RunRecord): RunR
     store.runs.activeDelegations(thread.id) > 0 ||
     store.runs.held(thread.id).length ||
     store.jobs.running().some((j) => j.thread_id === thread.id && j.background) ||
-    trip(store, thread.id) ||
     agentTrip(store, thread.id, run.agent_id)
   )
     return undefined;
+  // Getting nowhere stops it like a spent budget does, and the owner hears it.
+  if (trip(store, thread.id)) {
+    tellStuck(store, thread.id);
+    return undefined;
+  }
   const done = parts(store, thread.id);
   if (done.length >= MAX_AUTO_PARTS) return undefined;
   // A part after the first must have got somewhere; the first one may have stopped early, which is why it goes on.
   if (done.length && stalled(store.runs.steps(run.id), done[1] ? store.runs.steps(done[1].id) : [])) return undefined;
   const origin: Continue = {
     kind: "task_continue",
+    from_run: run.id,
     task_id: task.id,
     title: task.title.slice(0, 120),
     part: done.length + 2,

@@ -71,6 +71,11 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.enable": POWER,
   "environments.bind": POWER,
   "telemetry.set": POWER,
+  "storage.clear": "the owner frees space from Settings › Storage, having seen what it removes (DECISIONS.md#d-185)",
+  "storage.computers.delete":
+    "an agents' computer and all it holds go only when the owner deletes it (DECISIONS.md#d-185)",
+  "storage.backups.delete":
+    "a backup copy of the owner's data goes only when the owner deletes it (DECISIONS.md#d-185)",
   "desktop.set": MACHINE,
   "desktop.install": MACHINE,
   "desktop.install_cancel": MACHINE,
@@ -135,6 +140,11 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "surfaces.import": PANEL,
   "sessions.resume": PANEL,
   "runs.respond": AS_OWNER,
+  // The owner's messages waiting for their agent (DECISIONS.md#d-186): an agent never changes what the owner said.
+  "runs.update_queued": AS_OWNER,
+  "runs.remove_queued": AS_OWNER,
+  "runs.reorder": AS_OWNER,
+  "runs.send_now": AS_OWNER,
   "channels.send": AS_OWNER,
   // Agents send mail with gmail_send or a contact message, behind their own card.
   "mail.send": AS_OWNER,

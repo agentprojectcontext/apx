@@ -223,6 +223,7 @@ test("the initial task instruction shows a formatted description without adding 
   expect(await rpc("threads.get", { thread: session })).toEqual(before);
   expect(await rpc("runs.list", { agent: "superagent" })).toEqual(runs);
   await page.locator(".chat__header").getByRole("button", { name: "Ver la tarea" }).click();
+  await page.getByRole("button", { name: "Editar la descripción" }).click();
   await expect(page.getByRole("textbox", { name: "Descripción", exact: true })).toHaveValue(description);
   await rpc("tasks.update", { task: task.id, description: "" });
   await expect(block).toHaveCount(0);
@@ -242,6 +243,7 @@ test("an agent-created task shows its real generic kickoff with the formatted de
       if (afterTool) return say("Work transferred.");
       return callTool("create", "task_create", {
         title: "Real task kickoff",
+        goal: "The kickoff shows the formatted description",
         description,
         assignee: "superagent",
       });

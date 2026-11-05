@@ -15,7 +15,7 @@ import {
 } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 
-export const PROFILE_FILE = "apx-profile.json";
+const PROFILE_FILE = "apx-profile.json";
 
 export type ProfileRoot = { dir: string; source: ProfileInfo["source"] };
 type Values = ActiveProfile["values"];
@@ -24,7 +24,7 @@ const originOf = (profile: string, key: string) => `${profile}:${key}`;
 export const textIn = (l: Localized, lang: string) => l[lang] ?? l.en;
 
 /** A folder's manifest, or why it is not one. */
-export function readProfile(dir: string): ProfileManifest {
+function readProfile(dir: string): ProfileManifest {
   const raw = JSON.parse(fs.readFileSync(path.join(dir, PROFILE_FILE), "utf8")) as unknown;
   return ProfileManifest.parse(raw);
 }

@@ -592,4 +592,3 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
   };
   return api;
 }
-export type FlowGraphExecutor = ReturnType<typeof createFlowGraphExecutor>;

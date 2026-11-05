@@ -463,6 +463,19 @@
 .help__menu {
   width: 300px;
 }
+/* The low-disk mark sits beside help, the same size, its dot ringed in the sidebar's colour. */
+.sidebar__foot .diskmark {
+  --apx-mark-ring: var(--apx-sidebar);
+  width: 38px;
+  height: 38px;
+  border-radius: var(--apx-row-radius);
+}
+.sidebar.is-rail .diskmark {
+  width: 44px;
+}
+.sidebar:not(.is-rail) .diskmark {
+  order: 1;
+}
 /* The news lines have no icon of their own: no empty column before them. */
 .help__menu .apx-menu__icon:empty {
   display: none;

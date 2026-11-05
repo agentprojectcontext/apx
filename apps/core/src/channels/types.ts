@@ -16,7 +16,7 @@ export type InboundFile = NonNullable<Inbound["files"]>[number];
 
 export type ChannelConfig = Omit<ChannelInfo, "token_set" | "token_hint" | "status" | "error" | "account">;
 
-export type AdapterCaps = {
+type AdapterCaps = {
   /** Shows "typing…" while the agent works. */
   typing: boolean;
   /** Inline buttons (approve / deny, options). */

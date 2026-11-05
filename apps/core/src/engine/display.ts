@@ -39,13 +39,29 @@ export function openDisplay(store: Store, message: Message) {
     textTimer = undefined;
     if (pendingText !== undefined) writeText(pendingText);
   };
-  const upsert = (match: (p: Part) => boolean, part: Part) => {
+  /** `last`: the card leaves where it was and goes below everything so far (the plan sits where it was last marked). */
+  const upsert = (match: (p: Part) => boolean, part: Part, opts?: { last?: boolean }) => {
     const i = current.parts.findIndex(match);
-    if (i >= 0) return setAt(i, part);
+    if (i >= 0 && (!opts?.last || i === current.parts.length - 1)) return setAt(i, part);
+    if (i >= 0) {
+      flush();
+      segment = undefined;
+      current = store.messages.update({ ...current, parts: [...current.parts.filter((_, k) => k !== i), part] });
+      return;
+    }
     for (const [at, m] of earlier.entries()) {
       const j = m.parts.findIndex(match);
       if (j < 0) continue;
       const parts = [...m.parts];
+      if (opts?.last) {
+        parts.splice(j, 1);
+        if (parts.length) earlier[at] = store.messages.update({ ...m, parts });
+        else {
+          store.messages.drop(m.thread_id, [m.id]);
+          earlier.splice(at, 1);
+        }
+        break;
+      }
       parts[j] = part;
       earlier[at] = { ...m, parts };
       return store.messages.setPart(earlier[at], j);
@@ -77,6 +93,7 @@ export function openDisplay(store: Store, message: Message) {
         parts: [],
         ...(current.run_id ? { run_id: current.run_id } : {}),
         ...(current.model ? { model: current.model } : {}),
+        ...(current.model_reported !== undefined ? { model_reported: current.model_reported } : {}),
       });
       if (current.parts.length) earlier.push(current);
       else store.messages.drop(current.thread_id, [current.id]);
@@ -109,9 +126,9 @@ export function openDisplay(store: Store, message: Message) {
     ) {
       upsert((p) => p.type === "notice" && p.code === code, { type: "notice", level, code, text, ...extra });
     },
-    setModel(model: string) {
-      if (current.model === model) return;
-      current = store.messages.update({ ...current, model });
+    setModel(model: string | undefined, model_reported?: boolean) {
+      if (current.model === model && current.model_reported === model_reported) return;
+      current = store.messages.update({ ...current, model, model_reported });
     },
     close: flush,
   };

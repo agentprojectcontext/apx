@@ -14,6 +14,7 @@ import { doctor, updateOffline } from "./commands/doctor.ts";
 import { expose } from "./commands/expose.ts";
 import { extensions } from "./commands/extensions.ts";
 import { flows } from "./commands/flows.ts";
+import { hermesImport } from "./commands/hermes-import.ts";
 import { init } from "./commands/init.ts";
 import { localConnection } from "./commands/local.ts";
 import { logsCommand } from "./commands/logs.ts";
@@ -145,7 +146,7 @@ Usage:
                            Copy agents (whole definition) into a project; --rename gives each a new free name
   apx agents archive <agent>         Project agents: changes are written to .apc/agents/<slug>.md
   apx agents archived | restore <agent>   Archived agents, and bringing one back (deleting for good is in the app)
-  apx agents model <agent> <engine/model | engine | router | default> [--router]
+  apx agents model <agent> <engine/model | engine | router | default> [--router] [--fallbacks <ref>,<ref>]
                            An agent's model; --router keeps the router as its fallback
 
   apx models [--refresh]  Every engine and the models it offers (asked to the engine)
@@ -156,6 +157,9 @@ Usage:
 
   apx secrets [list] | set <name> (value on stdin) | rm <name>
   apx v1 [off]            Is APX v1 still here and running? off stops its daemon for good and makes apx this one
+  apx import hermes <folder> [--yes]
+                           What a Hermes home folder (~/.hermes) becomes in APX: agents, memory, skills,
+                           routines (off) and MCP servers. Secrets never come; --yes imports what it lists
   apx import-v1 [--keys] [--skills] [--services]
                            Import what a local APX v1 holds, from its files (read-only, v1 may be stopped):
                            projects, agents, memory, chats, channels, tasks, routines (off)… --keys also copies
@@ -223,6 +227,7 @@ function argumentsOf() {
       due: { type: "string" },
       start: { type: "string" },
       reviewer: { type: "string" },
+      parent: { type: "string" },
       every: { type: "string" },
       at: { type: "string" },
       pre: { type: "string" },
@@ -244,6 +249,7 @@ function argumentsOf() {
       yes: { type: "boolean", short: "y" },
       under: { type: "string" },
       router: { type: "boolean" },
+      fallbacks: { type: "string" },
       timeout: { type: "string" },
       run: { type: "boolean" },
       headless: { type: "boolean" },
@@ -373,6 +379,7 @@ try {
         due: values.due,
         start: values.start,
         reviewer: values.reviewer,
+        parent: values.parent,
         title: values.title,
         desc: values.desc,
         descFile: values["desc-file"],
@@ -476,6 +483,10 @@ try {
       break;
     case "secrets":
       await secrets(client, rest);
+      break;
+    case "import":
+      if (rest[0] !== "hermes") throw new Error("usage: apx import hermes <folder> [--yes]");
+      await hermesImport(client, rest[1], { yes: values.yes });
       break;
     case "import-v1":
       await importV1(client, {

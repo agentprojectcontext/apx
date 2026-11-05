@@ -1157,4 +1157,19 @@ export const MIGRATIONS: readonly string[] = [
     ), 0) = 0;
   UPDATE surfaces SET pinned = 0 WHERE page = 1;
   `,
+  // Existing model labels have unknown provenance and remain NULL.
+  `ALTER TABLE messages ADD COLUMN model_reported INTEGER;`,
+  // The owner's words their agent has not taken yet, and the order waiting turns start in (DECISIONS.md#d-186).
+  `
+  ALTER TABLE messages ADD COLUMN waiting TEXT;
+  ALTER TABLE runs ADD COLUMN queue_order INTEGER;
+  UPDATE runs SET queue_order = rowid;
+  CREATE INDEX runs_queue_order ON runs(queue_order);
+  `,
+  // Where a task's work must arrive, and the owner's own words behind it (a JSON list), read first on every turn.
+  `
+  ALTER TABLE tasks ADD COLUMN goal TEXT;
+  ALTER TABLE tasks ADD COLUMN asked TEXT;
+  `,
+  `CREATE INDEX model_log_run_seq ON model_log(run_id, seq) WHERE run_id IS NOT NULL;`,
 ];

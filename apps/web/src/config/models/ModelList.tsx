@@ -77,6 +77,7 @@ export function ModelList({
               <div className="mlist__engine">
                 <EngineIcon engine={e.id} size={14} />
                 <span>{e.label}</span>
+                {e.local && <span className="chip">{t("models.local")}</span>}
                 {!e.available && (
                   <Badge tone="warning" title={e.detail}>
                     {t("models.unavailable")}

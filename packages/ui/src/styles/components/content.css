@@ -193,6 +193,18 @@
   gap: 4px;
   padding: 4px 8px 8px;
 }
+.apx-composer__hint {
+  margin-right: 6px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+  white-space: nowrap;
+}
+/* A phone has no Ctrl or ⌘: the space goes to the controls. */
+@media (max-width: 560px) {
+  .apx-composer__hint {
+    display: none;
+  }
+}
 .apx-composer--box .apx-composer__btn {
   width: 30px;
   height: 30px;

@@ -2,11 +2,14 @@ import "../styles/corner.css";
 import { Button, ChannelIcon, IconButton, Icons, ProjectTile } from "@apx/ui";
 import type { CSSProperties, ReactNode } from "react";
 import { closeCard, useClosedCards } from "../data/cornerCards.ts";
+import { diskWarning } from "../data/diskModel.ts";
 import { LINKS } from "../data/links.ts";
+import { freeText, useDiskStatus } from "../data/storage.ts";
 import { PRIVACY_URL, setUsage, useTelemetry } from "../data/telemetry.ts";
 import { newerOf, openUpdate, restartApp, useUpdates } from "../data/updates.ts";
 import { useV1Running } from "../data/v1Running.ts";
 import { useT } from "../i18n/index.ts";
+import { go } from "./nav.ts";
 
 /**
  * A small deck: a newer APX, the Discord, a star on GitHub. Only the first that still applies shows; the next peeks
@@ -25,6 +28,7 @@ export function CornerCards({ floating = false }: { floating?: boolean }) {
   const v1 = useV1Running();
   // An install from before telemetry: asked once here; a fresh one answered in the setup.
   const ask = useTelemetry((s) => s.state?.enabled === true && s.state.usage === null);
+  const disk = useDiskStatus();
 
   const cards: ReactNode[] = [];
   // First: two APX daemons run the same routines and answer the same bots. Closed, it shows again next time.
@@ -40,6 +44,20 @@ export function CornerCards({ floating = false }: { floating?: boolean }) {
         busy={v1.busy}
         onAction={() => void v1.turnOff()}
         onClose={() => closeCard({ v1: true })}
+      />,
+    );
+  // A full disk stops chats and files from being saved: before any news.
+  if (disk && diskWarning(disk, closed.disk) === "card")
+    cards.push(
+      <CornerCard
+        key="disk"
+        id="disk"
+        icon={<ProjectTile tone="danger" size={24} icon={<Icons.HardDrive size={14} />} />}
+        title={t("storage.cardTitle")}
+        description={t("storage.cardDesc", { free: freeText(disk.free_bytes) })}
+        action={t("storage.cardCta")}
+        onAction={() => go.config("storage")}
+        onClose={() => closeCard({ disk: true })}
       />,
     );
   if (update?.version) {
@@ -167,8 +185,8 @@ function CornerCard(props: {
           loading={props.busy}
           onClick={() => {
             props.onAction();
-            // Done with it once acted on; the update, v1 and telemetry cards go when what they ask is settled.
-            if (props.id !== "update" && props.id !== "v1" && props.id !== "telemetry") props.onClose();
+            // Done with it once acted on; the update, v1, telemetry and disk cards go when what they ask is settled.
+            if (!["update", "v1", "telemetry", "disk"].includes(props.id)) props.onClose();
           }}
         >
           {props.action}

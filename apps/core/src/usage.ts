@@ -1,92 +1,13 @@
 // What the computer has and what APX takes of it (system.usage). Host numbers are read on each call, cheaply; the
-// APX home's size is a walk of every file, so it runs in the background with a deadline and is kept for a while.
+// APX home's size is the storage screen's measure (storage.ts), walked in the background and kept for a while.
 import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
-import path from "node:path";
-import type { DiskSpace, HomePart, HomeUsage, SystemUsage, VmUsage } from "@apx/protocol";
+import type { DiskSpace, HomeUsage, SystemUsage, VmUsage } from "@apx/protocol";
+import { createStorage } from "./storage.ts";
 
 const MB = 1048576;
 const mb = (bytes: number) => Math.round(bytes / MB);
-
-/** Top-level entries of the APX home by part; files ending in a database suffix are databases wherever they are. */
-const PART_OF: Record<string, HomePart> = {
-  backups: "databases",
-  logs: "logs",
-  jobs: "logs",
-  models: "models",
-  artifacts: "files",
-  media: "files",
-  "codex-images": "files",
-  browser: "browser",
-  projects: "projects",
-  work: "projects",
-  skills: "projects",
-  computer: "computer",
-  labs: "computer",
-};
-const DATABASE = /\.(db|sqlite)(-wal|-shm|-journal)?$/;
-
-export function partOf(name: string): HomePart {
-  return PART_OF[name] ?? (DATABASE.test(name) ? "databases" : "other");
-}
-
-/** Bytes a tree takes on disk (allocated blocks, so a sparse VM image counts what it holds), symlinks not followed. */
-async function treeBytes(dir: string, until: number): Promise<{ bytes: number; partial: boolean }> {
-  let bytes = 0;
-  const stack = [dir];
-  while (stack.length) {
-    if (Date.now() > until) return { bytes, partial: true };
-    const cur = stack.pop() as string;
-    let entries: fs.Dirent[];
-    try {
-      entries = await fs.promises.readdir(cur, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    const files: string[] = [];
-    for (const e of entries) (e.isDirectory() ? stack : files).push(path.join(cur, e.name));
-    for (const n of await Promise.all(files.map(sizeOf))) bytes += n;
-  }
-  return { bytes, partial: false };
-}
-
-async function sizeOf(p: string): Promise<number> {
-  try {
-    const st = await fs.promises.lstat(p);
-    return st.blocks !== undefined && st.blocks > 0 ? st.blocks * 512 : st.size;
-  } catch {
-    return 0;
-  }
-}
-
-/** The home's size by part, giving up at the deadline with what it counted (marked partial). */
-export async function measureHome(home: string, deadlineMs: number): Promise<Omit<HomeUsage, "measuring">> {
-  const until = Date.now() + deadlineMs;
-  const totals = new Map<HomePart, number>();
-  let partial = false;
-  let entries: fs.Dirent[] = [];
-  try {
-    entries = await fs.promises.readdir(home, { withFileTypes: true });
-  } catch {}
-  for (const e of entries) {
-    const p = path.join(home, e.name);
-    const r = e.isDirectory() ? await treeBytes(p, until) : { bytes: await sizeOf(p), partial: false };
-    partial ||= r.partial;
-    const part = partOf(e.name);
-    totals.set(part, (totals.get(part) ?? 0) + r.bytes);
-  }
-  const parts = [...totals]
-    .map(([id, bytes]) => ({ id, mb: mb(bytes) }))
-    .filter((p) => p.mb > 0)
-    .sort((a, b) => b.mb - a.mb);
-  return {
-    measured_at: new Date().toISOString(),
-    ...(partial ? { partial } : {}),
-    total_mb: parts.reduce((n, p) => n + p.mb, 0),
-    parts,
-  };
-}
 
 /** Memory apps can still take. macOS: total minus app memory, wired and compressed (as Activity Monitor counts). */
 export function availableFromVmStat(out: string, totalBytes: number): number | undefined {
@@ -180,9 +101,8 @@ export type UsageOptions = {
   home: string;
   /** The Linux VM's numbers, when there is one. */
   vm?: () => Promise<VmUsage | undefined> | VmUsage | undefined;
-  /** How long a home measure stays good, and how long one may walk. */
-  homeTtlMs?: number;
-  homeDeadlineMs?: number;
+  /** The APX home by part: the storage screen's measure, so both count the same way. */
+  storage?: { home(): HomeUsage };
   platform?: NodeJS.Platform;
   /** The clock CPU windows are measured on, and the CPUs' cumulative times (tests move both). */
   now?: () => number;
@@ -195,30 +115,13 @@ const CPU_WINDOW_MS = 1000;
 
 export function createUsage(o: UsageOptions): Usage {
   const platform = o.platform ?? process.platform;
-  const ttl = o.homeTtlMs ?? 5 * 60_000;
-  const deadline = o.homeDeadlineMs ?? 30_000;
+  const storage = o.storage ?? createStorage({ home: o.home });
   const clock = o.now ?? (() => performance.now());
   const cpuTimes = o.cpuTimes ?? cpuBusy;
-  let last: Omit<HomeUsage, "measuring"> | undefined;
-  let measuring: Promise<void> | undefined;
   let prevHost = cpuTimes();
   let prevCore = { cpu: process.cpuUsage(), at: clock() };
   let hostPct: number | undefined;
   let corePct: number | undefined;
-
-  const home = (): HomeUsage => {
-    const stale = !last?.measured_at || Date.now() - Date.parse(last.measured_at) > ttl;
-    if (stale && !measuring)
-      measuring = measureHome(o.home, deadline)
-        .then((m) => {
-          last = m;
-        })
-        .catch(() => undefined)
-        .finally(() => {
-          measuring = undefined;
-        });
-    return { measuring: measuring !== undefined, total_mb: 0, parts: [], ...last };
-  };
 
   return {
     async read({ disk }) {
@@ -258,7 +161,7 @@ export function createUsage(o: UsageOptions): Usage {
           heap_mb: mb(mem.heapUsed),
           ...(corePct !== undefined ? { cpu_pct: corePct } : {}),
         },
-        ...(disk ? { home: home() } : {}),
+        ...(disk ? { home: storage.home() } : {}),
         ...(vm ? { vm } : {}),
       };
     },

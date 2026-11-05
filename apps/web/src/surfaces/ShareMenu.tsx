@@ -8,7 +8,7 @@ import { notify } from "../data/notices.ts";
 import { t as tr, useT } from "../i18n/index.ts";
 import { openPublicLink, publicLink } from "./public-link.ts";
 
-export async function publicShareLink(path: string): Promise<string> {
+async function publicShareLink(path: string): Promise<string> {
   const address = await client.call("webhooks.get", {});
   return publicLink(path, address);
 }

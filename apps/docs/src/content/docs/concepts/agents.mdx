@@ -198,10 +198,24 @@ project's type becomes **Company** when you add them. Agents read them, so Lucí
 
 An agent with the `delegate` tool can hand a task to a standing agent ("ask Tomás to fix the checkout") or start a
 **worker**: a helper it defines on the spot with a name, instructions and, optionally, a shorter list of tools. A
-worker runs on its caller's model, gets no personality and no roster, asks nobody else and reports back.
+worker runs on its caller's model, gets no personality and no roster, asks nobody else and reports back. In the inbox and
+the chat a worker shows a helper mark, with the agent that started it as a small badge, so it never looks like that
+agent talking to itself. Asking a worker of the same name again from the same chat goes on in its session, with the
+instructions it was first given; one still at work stays apart.
 
 The answer comes back inside the same turn if it is quick, or later as a new turn that wakes the caller. The chat
 shows a card with the progress, the whole report (folded until you open it) and how long it took.
+
+A delegated agent does not answer "on it" first: it does the work and replies once, ending with the same four
+lines every time (Status: done or blocked, Result, Evidence: what its tools showed, Unblock: what it needs, or none).
+It never hands the task back to whoever asked for it. With you, agents answer directly, without restating your
+question.
+
+When an agent asks two or more helpers in the same turn, their answers reach it together: each card that is in says
+**Waiting for answers: 2 of 3**, and once the last one answers the agent gets a single turn with all of them, so it
+tells you once instead of three times. It waits at most 10 minutes after the first answer; past that it reads the ones
+that are in, and any that come later arrive one by one, as before. Stopping the chat lets go of what was waiting: the
+answers stay on their cards. A single delegation is not held.
 
 APX keeps delegation on a leash:
 

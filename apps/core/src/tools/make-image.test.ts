@@ -78,7 +78,15 @@ test("make_image draws from a file in the work folder and from an earlier drawin
   assert.match(other.reply, /not an image in this chat/);
 });
 
-test("without references it asks the generations endpoint", async () => {
-  await draw([]);
+test("without references it asks the generations endpoint and persists the generating call on the image", async () => {
+  const { thread } = await draw([]);
   assert.equal(calls.at(-1)?.path, "/v1/images/generations");
+  const chat = await env.client.call("threads.get", { thread: thread.id });
+  const parts = chat.messages.flatMap((m) => m.parts);
+  const image = parts.find((p) => p.type === "image");
+  const tool = parts.find((p) => p.type === "tool" && p.tool === "make_image");
+  assert.ok(image?.type === "image");
+  assert.ok(tool?.type === "tool");
+  assert.equal(image.tool_call_id, tool.call_id);
+  assert.equal(image.tool_call_id, "d1");
 });

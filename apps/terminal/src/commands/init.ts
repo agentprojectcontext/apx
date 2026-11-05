@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { ApxClient } from "@apx/protocol/client";
 
-export const INIT_USAGE = `apx init [folder] [--json]   Make a folder (default: this one) an APC project and register it with APX
+const INIT_USAGE = `apx init [folder] [--json]   Make a folder (default: this one) an APC project and register it with APX
                              Writes only what is missing (AGENTS.md naming the project, an empty .apc/); never
                              changes an existing file. Again on a registered folder: reads its files again`;
 

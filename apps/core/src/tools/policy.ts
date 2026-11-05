@@ -25,14 +25,14 @@ export type Decision =
   | { kind: "deny"; reason: string };
 
 /** A call's risk: what always asks cannot be undone; otherwise what it may change says it (DECISIONS.md#d-090). */
-export function riskOf(level: Confirm, effect: Effect): ToolRisk {
+function riskOf(level: Confirm, effect: Effect): ToolRisk {
   if (level === "always") return "irreversible";
   if (effect === "none") return "read";
   return effect === "local" ? "write" : "outside";
 }
 
 /** A tool's usual risk, from a call with no arguments (a call's own may be higher: a shell command that deletes). */
-export function toolRisk(tool: Tool): ToolRisk {
+function toolRisk(tool: Tool): ToolRisk {
   let level: Confirm = "never";
   try {
     level = tool.confirm({});
@@ -54,8 +54,8 @@ const GROUPS: Record<string, (name: string) => boolean> = {
   tasks: (n) => n.startsWith("task_"),
 };
 
-/** Tools every agent keeps whatever its list says: they only read what the turn or memory holds, or ask the owner. */
-const ALWAYS = new Set(["read_output", "ask_owner", "load_skill", "recall"]);
+/** Tools every agent keeps whatever its list says: they read what the turn or memory holds, ask the owner, or plan. */
+const ALWAYS = new Set(["read_output", "ask_owner", "load_skill", "recall", "plan"]);
 
 /** What an agent's editor offers: each assignable tool with its group, and whether every agent keeps it anyway. */
 export function toolCatalog(

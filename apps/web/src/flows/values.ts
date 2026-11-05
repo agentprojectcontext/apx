@@ -37,7 +37,7 @@ export const TEMPLATE_PATTERN = /\$(trigger|steps|vars|apx)(\.[A-Za-z0-9_-]+)*|s
 export const SECRET_PATTERN = /^secret:\/\//;
 
 /** What a step gives the next ones: the part of its result a later step receives. */
-export const RESULT: Partial<Record<FlowNode["kind"], string[]>> = {
+const RESULT: Partial<Record<FlowNode["kind"], string[]>> = {
   llm: ["text"],
   agent: ["text"],
   routine: ["text"],
@@ -51,7 +51,7 @@ export const RESULT: Partial<Record<FlowNode["kind"], string[]>> = {
 };
 
 /** Steps whose result can reach `id`: every step on a path before it, except the trigger (that is the event). */
-export function earlier(graph: FlowGraph, id: string): FlowNode[] {
+function earlier(graph: FlowGraph, id: string): FlowNode[] {
   const seen = new Set<string>();
   const todo = [id];
   while (todo.length) {
@@ -66,7 +66,7 @@ export function earlier(graph: FlowGraph, id: string): FlowNode[] {
 }
 
 /** A variable that holds a secret's reference and nothing else (D-173). */
-export const holdsSecret = (v: { value: { kind: string; value?: unknown } }) =>
+const holdsSecret = (v: { value: { kind: string; value?: unknown } }) =>
   v.value.kind === "literal" &&
   typeof v.value.value === "string" &&
   /^secret:\/\/[A-Za-z0-9_.~/-]+$/.test(v.value.value);

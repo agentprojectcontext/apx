@@ -1,6 +1,6 @@
 ---
 title: Instalar
-description: Instalá APX como app de escritorio, en un servidor o VPS, o desde el código fuente.
+description: Instalá APX, el espacio de trabajo para agentes de IA, en macOS, Windows o Linux, en un servidor o VPS, o desde el código fuente.
 sidebar:
   order: 2
 ---
@@ -10,8 +10,9 @@ import InstallCommand from "../../../../components/InstallCommand.astro";
 import Terminal from "../../../../components/Terminal.astro";
 
 APX es un proceso en segundo plano, el **core**, más las apps que le hablan. Elegí cómo querés correrlo: la app de
-escritorio trae su propio core, una instalación de servidor corre el core sin pantalla, y desde el código corrés todo
-tal cual está.
+escritorio trae su propio core, una [instalación de servidor](/es/devices/server/) corre el core sin pantalla, y desde
+el código corrés todo tal cual está. Después de instalar, seguí los [Primeros pasos](/es/start/first-steps/) para
+conectar un modelo y configurar tu primer proyecto.
 
 <Aside type="note" title="Actualizaciones">
 Salen versiones seguido y APX se actualiza solo. Tus datos quedan en `~/.apx/v2` entre actualizaciones, y los archivos
@@ -164,6 +165,8 @@ docker exec -it apx apx pair            # emparejá la app de escritorio o el te
 <TabItem label="Desde el código">
 
 Para trabajar en APX, o para correr el código más nuevo, usá un checkout. Necesitás Node 24.11 o más nuevo y pnpm.
+Para compilar la app de escritorio de macOS también necesitás las herramientas de línea de comandos de Xcode
+(`swiftc`, `lipo` y `codesign`). El comando `pnpm dev`, que corre solo el core, no compila ese ejecutable auxiliar.
 
 ```bash
 pnpm install
@@ -232,6 +235,25 @@ lo cuenta una vez, con sus palabras y en tu idioma, en su chat de la app (marcad
 de chat para los avisos, el mensaje llega ahí también, con un botón por cada cosa que ofrece; si no, lo leés en la app.
 Solo ese mensaje llama a un modelo, y solo cuando algo te aplica; a una instalación nueva no se le cuenta nada.
 `APX_NEWS=off` lo apaga, y `apx news` lista lo que hay.
+
+### Historiales grandes y backups
+
+Una actualización puede reconstruir índices de la base antes de que APX acepte conexiones. Si tenés un historial
+grande, reservá tiempo extra para el arranque y espacio libre para el índice, los archivos temporales y el registro
+de escritura de SQLite. Un timeout de conexión durante ese trabajo no significa que la actualización falló; evitá
+reiniciar varias veces mientras avanza.
+
+Antes de actualizar una instalación importante, guardá un backup consistente. Detené APX y cualquier servicio o
+supervisor que lo vuelva a iniciar, y copiá la carpeta de datos a otra ubicación protegida. Conservá juntos
+`apx.db` y sus archivos `apx.db-wal` y `apx.db-shm`, si existen; copiar solo `apx.db` mientras APX corre puede perder
+cambios recientes. Para copiar una base en uso necesitás la API de backup online de SQLite. La carpeta de datos no
+incluye los secretos guardados en el llavero del sistema operativo.
+
+Las migraciones se confirman de a una. Si se interrumpe la construcción de un índice, se revierte y vuelve a
+intentarse en el próximo arranque; las migraciones anteriores ya confirmadas quedan. Si el arranque informa un
+error de espacio o de base de datos, conservá el backup, resolvé la causa y reintentá. Para volver atrás, detené APX
+y restaurá los datos previos junto con su versión del programa, guardando aparte los datos de la actualización
+fallida. No cambies la versión del esquema a mano. Restaurar un backup descarta los cambios posteriores a esa copia.
 
 ## Desinstalar
 

@@ -68,7 +68,7 @@ export async function speak(key: string, text: string): Promise<void> {
 }
 
 /** Markdown as it would be said: no code fences, link targets, emphasis marks or list bullets. */
-export function plainWords(md: string): string {
+function plainWords(md: string): string {
   return md
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")

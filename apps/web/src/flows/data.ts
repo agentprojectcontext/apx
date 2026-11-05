@@ -10,7 +10,7 @@ import { isKey, type MessageKey, t as translate } from "../i18n/index.ts";
 import { go, nav } from "../shell/nav.ts";
 import { blank } from "./complete.ts";
 import { approveOutward } from "./outward.tsx";
-import { type Flow, type FlowGraph, type FlowNode, type FlowRun, STEP } from "./steps.tsx";
+import { type Flow, type FlowGraph, type FlowNode, STEP } from "./steps.tsx";
 
 type T = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -42,7 +42,7 @@ export async function setEnabled(flow: Flow, enabled: boolean) {
  * or calls somewhere new and the owner said no, or when an agent drew it or a step is not finished: then its editor
  * opens for the owner to look at it and save it first (DECISIONS.md#d-174, DECISIONS.md#d-177).
  */
-export async function publishSaved(flow: Flow): Promise<boolean> {
+async function publishSaved(flow: Flow): Promise<boolean> {
   const doc = await client.call("flows.graph_get", { flow: flow.id });
   if (!doc.draft || doc.draftVersion === null) return true;
   if (doc.draftBy) {
@@ -197,5 +197,3 @@ export function hostOf(url: string): string {
     return url;
   }
 }
-
-export type { FlowRun };

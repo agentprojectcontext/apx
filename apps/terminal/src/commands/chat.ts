@@ -2,6 +2,7 @@
 // it builds (tool steps, sub-threads, widgets, notices), until this send's own run ends.
 import { CoreEvent, type Part } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
+import { planText } from "./threads.ts";
 
 export type ChatOptions = {
   thread?: string | undefined;
@@ -82,6 +83,8 @@ function line(p: Part): string | undefined {
       return `  ▣ widget: ${p.title} (v${p.version})`;
     case "browser":
       return `  ◎ browser ${p.state}: ${p.url}`;
+    case "plan":
+      return planText("Plan", p.steps, "  ");
     case "notice":
       return `  ! ${p.text}${p.detail ? `\n${p.detail.replace(/^/gm, "    ")}` : ""}`;
     case "changes":
@@ -138,7 +141,8 @@ export async function chat(client: ApxClient, text: string, o: ChatOptions): Pro
             : [];
       for (const { msg, i, part } of parts) {
         const out = line(part);
-        const key = `${msg}:${i}:${out}`;
+        // The plan moves to the message's end as the turn goes on: the same plan at a new place is not new.
+        const key = `${msg}:${part.type === "plan" ? "plan" : i}:${out}`;
         if (!out || printed.has(key)) continue;
         printed.add(key);
         console.log(out);

@@ -129,11 +129,19 @@ export const ModelRef = z
   .max(200);
 export type ModelRef = z.infer<typeof ModelRef>;
 
+/** How many models of its own an agent may fall back on after its main one. */
+export const MAX_MODEL_FALLBACKS = 5;
+
 /**
  * How an agent picks its model for a turn: a fixed model; a model with the router as fallback; or the router alone
- * (`model` absent). An agent without a choice uses the install default.
+ * (`model` absent). `fallbacks` are tried in order after `model` and before the router (DECISIONS.md#d-195). An agent
+ * without a choice uses the install default.
  */
-export const ModelChoice = z.object({ model: ModelRef.optional(), router: z.boolean() });
+export const ModelChoice = z.object({
+  model: ModelRef.optional(),
+  router: z.boolean(),
+  fallbacks: z.array(ModelRef).max(MAX_MODEL_FALLBACKS).optional(),
+});
 export type ModelChoice = z.infer<typeof ModelChoice>;
 
 /** The model router: per-turn rules (first match wins) and the fallback chain after them. */
@@ -178,6 +186,8 @@ export const CatalogEngine = z.object({
   fetched_at: z.string().optional(),
   /** A model API's everyday chat model: what the router chain gets when the owner adds this provider. */
   starter: z.string().optional(),
+  /** A model app on this computer (Ollama, LM Studio), found with no setup or set up at its address: free. */
+  local: z.boolean().optional(),
 });
 export type CatalogEngine = z.infer<typeof CatalogEngine>;
 
@@ -294,6 +304,8 @@ export const Thread = z.object({
   flow: z.object({ id: Id, step: Id.optional() }).optional(),
   /** An a2a sub-thread's name: its caller continues the same session (same agent, same context) by it. */
   session: z.string().optional(),
+  /** A helper's name: a session its caller (agent_ids[0]) runs under instructions it wrote for one task. */
+  worker: z.string().optional(),
   /** Code threads: the folder the agent works in (inside its project) and what it may change there. */
   cwd: z.string().optional(),
   write: WritePolicy.optional(),
@@ -485,6 +497,8 @@ const KnownPart = z.discriminatedUnion("type", [
     asked_by: z.string().optional(),
     /** A completed run that did not go well: it gave no answer, or some of its actions failed. */
     issue: z.enum(["no_answer", "actions_failed"]).optional(),
+    /** Its answer waits for the others asked in the same turn: how many of them are in (DECISIONS.md#d-194). */
+    held: z.object({ got: z.number().int().nonnegative(), of: z.number().int().positive() }).optional(),
   }),
   z.object({
     type: z.literal("browser"),
@@ -501,6 +515,8 @@ const KnownPart = z.discriminatedUnion("type", [
     url: z.string().optional(),
     media_id: Id.optional(),
     mime: z.string().optional(),
+    /** The tool call that generated this picture, scoped to its run, including across split messages. */
+    tool_call_id: z.string().optional(),
     alt: z.string().default(""),
   }),
   /** Recorded or synthesized speech; the bytes come from media.get. */
@@ -592,6 +608,11 @@ const KnownPart = z.discriminatedUnion("type", [
    * is shown. `why`: the agent's line on what it would do with it.
    */
   z.object({ type: z.literal("connect"), why: z.string().optional(), offers: z.array(ConnectOffer) }),
+  /** The agent's plan for this chat's work: steps it marks as it goes (in a task's chat, the task's plan too). */
+  z.object({
+    type: z.literal("plan"),
+    steps: z.array(z.object({ step: z.string(), state: z.enum(["pending", "doing", "done"]) })),
+  }),
   /** A Flow an agent made or changed in this turn: the chat shows its drawing and opens it in the editor. */
   z.object({ type: z.literal("flow"), flow: z.string(), project: z.string(), name: z.string() }),
   /** Something the system says about the turn (interrupted, fallback engine, no answer): never the agent's words. */
@@ -626,6 +647,15 @@ export type MessageDelivery = z.infer<typeof MessageDelivery>;
 /** An emoji on a channel message: the agent's own, or the other side's (the contact, or the owner on their chat). */
 export const MessageReaction = z.object({ emoji: z.string().min(1).max(32), by: z.enum(["agent", "them"]) });
 export type MessageReaction = z.infer<typeof MessageReaction>;
+/** How the owner's words written while their agent works wait for it (Message.waiting). */
+export const MessageWaiting = z.object({
+  until: z.enum(["step", "turn"]),
+  run: Id.optional(),
+  /** Captured when the owner's words arrive; null means they had no task authorization. */
+  task_assignment: z.object({ task: Id, id: Id }).nullable().optional(),
+});
+export type MessageWaiting = z.infer<typeof MessageWaiting>;
+
 export const Message = z.object({
   id: Id,
   thread_id: Id,
@@ -634,12 +664,19 @@ export const Message = z.object({
   parts: z.array(Part),
   run_id: Id.optional(),
   model: z.string().optional(),
+  /** True only when the engine confirmed the model; absent means historical provenance is unknown. */
+  model_reported: z.boolean().optional(),
   /** Sent on a channel: queued, taken by the platform, on their device, seen by them, or not sent. */
   delivery: MessageDelivery.optional(),
   /** Emoji put on it on a channel, at most one per side. */
   reactions: z.array(MessageReaction).optional(),
   /** The channel (its id) it came on or went out on; a chat everyone writes into (Home) shows each channel's part. */
   via: z.string().optional(),
+  /**
+   * The owner's words their agent has not taken yet: `step`, its running turn takes them at its next step; `turn`,
+   * they wait in line (as run `run`) until that turn ends, and can still be edited, removed or moved.
+   */
+  waiting: MessageWaiting.optional(),
   created_at: z.string(),
 });
 export type Message = z.infer<typeof Message>;
@@ -844,6 +881,8 @@ export const ProviderInfo = z.object({
   models: z.array(z.string()),
   enabled: z.boolean(),
   builtin: z.boolean(),
+  /** A model app on this computer: found running with no setup, or set up at its address. */
+  local: z.boolean().optional(),
 });
 export type ProviderInfo = z.infer<typeof ProviderInfo>;
 

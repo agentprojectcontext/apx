@@ -74,6 +74,11 @@ test("commitments separate what the owner owes from what other people owe", asyn
   assert.deepEqual(calls, [["tasks.list", { commitments: true }]]);
 });
 
+test("edit changes or clears the existing parent without assigning or starting work", () => {
+  assert.deepEqual(taskEditOf("tsk_1", { parent: "tsk_parent" }), { task: "tsk_1", parent: "tsk_parent" });
+  assert.deepEqual(taskEditOf("tsk_1", { parent: "" }), { task: "tsk_1", parent: null });
+});
+
 test("edit sends only the fields given", () => {
   assert.deepEqual(taskEditOf("tsk_1", { title: "New title" }), { task: "tsk_1", title: "New title" });
   assert.deepEqual(taskEditOf("tsk_1", { agent: "superagent", due: "2026-10-09", tags: " a, b ,," }), {
@@ -120,6 +125,21 @@ test("show prints the task's fields, its description and its comments", async ()
     ["tasks.get", { task: "tsk_1" }],
     ["threads.get", { thread: "thr_t" }],
   ]);
+});
+
+test("show prints the goal and the agent's plan as a checklist, or as written when it is not one", async () => {
+  const plan = "- [x] Pull the prices\n- [~] Draft the quote\n- [ ] Send it";
+  const shown = async (withPlan: string) => {
+    const { client } = recordingClient({
+      "tasks.get": { task: { ...task, goal: "Acme has the quote", plan: withPlan }, events: [], sessions: [] },
+      "threads.get": { thread: { id: "thr_t" }, messages: [], runs: [] },
+    });
+    return printed(() => tasks(client, ["show", "tsk_1"], {}));
+  };
+  const out = await shown(plan);
+  assert.match(out, /Goal: Acme has the quote/);
+  assert.match(out, /Agent's plan · 1 of 3 done\n {2}✓ Pull the prices\n {2}▸ Draft the quote\n {2}○ Send it/);
+  assert.match(await shown("First prices, then the quote."), /Agent's plan\nFirst prices, then the quote\./);
 });
 
 test("edit calls tasks.update; help prints the usage without calling the core", async () => {

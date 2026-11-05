@@ -1,15 +1,8 @@
 import { conflict, errorMessage, unavailable } from "../errors.ts";
 
 export type Appearance = "light" | "dark";
-export type ComputerPhase =
-  | "not_installed"
-  | "stopped"
-  | "preparing"
-  | "running"
-  | "stopping"
-  | "error"
-  | "unsupported";
-export type ComputerStep = "runtime" | "guest" | "desktop";
+type ComputerPhase = "not_installed" | "stopped" | "preparing" | "running" | "stopping" | "error" | "unsupported";
+type ComputerStep = "runtime" | "guest" | "desktop";
 export type ComputerProgress = { step: ComputerStep; downloaded?: number; total?: number };
 export type VmDriver = {
   supported: boolean;
@@ -21,6 +14,8 @@ export type VmDriver = {
   connect?(): Promise<void>;
   disconnect?(): Promise<void>;
   appearance(mode: Appearance): Promise<void>;
+  /** Deletes the stopped VM and everything in it; the next start sets it up from scratch. */
+  remove?(): Promise<void>;
 };
 
 /** One lifecycle operation at a time; stopping fences new tools before canceling installation. */
@@ -170,6 +165,26 @@ export function createVmLifecycle(driver: VmDriver) {
           }
         })(),
       );
+    },
+    /** Deletes the VM while it is off, as one more lifecycle operation (a start meanwhile is refused). */
+    async remove() {
+      allowed();
+      if (!driver.remove) throw unavailable("this computer cannot be deleted from here");
+      if (operation || phase === "preparing" || phase === "stopping")
+        throw conflict("the computer is starting or stopping; wait until it is off");
+      if (driver.installed() && (await driver.running())) throw conflict("the computer is on; turn it off first");
+      // A start may have begun while the guest was asked.
+      if (operation) throw conflict("the computer is starting or stopping; wait until it is off");
+      generation++;
+      const task = driver.remove();
+      track(task);
+      try {
+        await task;
+      } finally {
+        phase = undefined;
+        progress = undefined;
+        error = undefined;
+      }
     },
     async appearance(mode: Appearance) {
       allowed();

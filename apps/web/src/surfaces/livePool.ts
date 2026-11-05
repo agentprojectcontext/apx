@@ -6,11 +6,11 @@ import { setAnyLive } from "./liveAny.ts";
 // declare apx-live, for their keep time. See DECISIONS.md#d-119.
 
 /** Live pages kept running at once; beyond it the one seen least recently is closed. */
-export const LIVE_MAX = 3;
+const LIVE_MAX = 3;
 /** Apps the owner opened, kept running at once; the seventh closes the one seen least recently. */
 export const OPEN_MAX = 6;
 
-export type LiveFit = "content" | "fill";
+type LiveFit = "content" | "fill";
 
 /** The placeholder a live page is laid over, while one is mounted. */
 export type LiveHost = { id: number; el: HTMLElement; fit: LiveFit; maxHeight: number };

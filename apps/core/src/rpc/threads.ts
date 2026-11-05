@@ -151,22 +151,24 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       });
       store.threads.patch(threadId, { preview: previewOf(text) });
       // Attachments need a turn of their own: a steer only carries words.
-      const into = steer && !files.length ? engine.steer(threadId, text) : undefined;
+      // The owner's words from the app show they wait until the turn takes them; a channel's are not shown so.
+      const into =
+        steer && !files.length
+          ? engine.steer(threadId, text, admit.origin?.kind === "user" ? message.id : undefined)
+          : undefined;
+      // As stored now: the engine may have marked it as waiting for the agent.
+      const now = () => store.messages.get(message.id) ?? message;
       if (into) {
         store.runs.setReplyTo(into.id, store.threads.context(threadId).reply_to);
-        return { message, run: publicRun(into), steered: true };
+        return { message: now(), run: publicRun(into), steered: true };
       }
-      return {
-        message,
-        run: publicRun(
-          engine.admit({
-            ...admit,
-            origin: ownerOrigin(admit.origin) ? { ...admit.origin, message_id: message.id } : admit.origin,
-            thread_id: threadId,
-            text,
-          }),
-        ),
-      };
+      const run = engine.admit({
+        ...admit,
+        origin: ownerOrigin(admit.origin) ? { ...admit.origin, message_id: message.id } : admit.origin,
+        thread_id: threadId,
+        text,
+      });
+      return { message: now(), run: publicRun(run) };
     });
   }
 
@@ -393,6 +395,8 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         origin: { kind: "user" },
         ...(attachments?.length ? { attachments: attachedFiles(store, thread, attachments) } : {}),
       });
+      // Enter behind a turn of an outside engine, which cannot take words mid-turn, runs the message at once.
+      if (mode === "steer" && !contact && !sent.steered) engine.enterNow(sent.message.id);
       // The owner writing lets a paused chain go on: tasks agents gave meanwhile start (DECISIONS.md#d-082).
       startHeld(store, engine.admit, tree(store, thread));
       return sent;

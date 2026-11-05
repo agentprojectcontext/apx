@@ -1,10 +1,12 @@
 // The spend breaker: agents waking each other (delegations, results, tasks they give) without the owner stop after a
 // number of turns or tokens, counted over the whole conversation tree since the owner last wrote in it. A task chat an
 // agent's turn started belongs to the tree of the chat it came from (DECISIONS.md#d-080). An agent the owner gave a
-// budget of its own also stops at it, in the same window, while the others go on.
+// budget of its own also stops at it, in the same window, while the others go on. Agents on a task that spend too much
+// without finishing a step of its plan stop the same way (DECISIONS.md#d-188).
+import type { Task } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import { systemNote } from "../harness/native.ts";
-import { agentLimits, unattendedLimits } from "./limits.ts";
+import { agentLimits, STUCK_LIMITS, unattendedLimits } from "./limits.ts";
 
 /** The chat above this one: its parent, or the chat whose agent gave the task this chat works on. */
 const above = (store: Store, id: string) => store.threads.get(id)?.parent_id ?? store.threads.context(id).asked_from;
@@ -26,7 +28,9 @@ export function tree(store: Store, threadId: string): string[] {
 }
 
 type Limits = { runs: number; tokens: number };
-type Trip = { limit: "runs" | "tokens"; spent: string };
+type Trip =
+  | { limit: "runs" | "tokens"; spent: string }
+  | { limit: "progress"; by: "runs" | "tokens"; spent: string; task: Task; since: string };
 
 const kTokens = (n: number) => `${Math.round(n / 1000)}k`;
 
@@ -39,18 +43,77 @@ function spent(store: Store, threadId: string, agentId?: string): Limits | undef
   return top.released_at && top.released_at > u.since ? undefined : u;
 }
 
-function over(max: Limits, u: Limits | undefined): Trip | undefined {
+function over(max: Limits, u: Limits | undefined): Extract<Trip, { limit: "runs" | "tokens" }> | undefined {
   if (!u) return undefined;
   if (max.runs && u.runs >= max.runs) return { limit: "runs", spent: String(u.runs) };
   if (max.tokens && u.tokens >= max.tokens) return { limit: "tokens", spent: kTokens(u.tokens) };
   return undefined;
 }
 
+/** The open task a chat works for: its own, or the one of a chat above it (a helper's caller, a consult's task). */
+function taskOf(store: Store, threadId: string): Task | undefined {
+  for (let id: string | undefined = threadId, hops = 0; id && hops < 5; hops++) {
+    const thread = store.threads.get(id);
+    const task = thread?.task_id ? store.tasks.get(thread.task_id) : store.tasks.byThread(id);
+    if (task) return task.state === "open" ? task : undefined;
+    id = thread?.parent_id;
+  }
+  return undefined;
+}
+
+/** A task's conversation, the chats it is worked in and every session under them. */
+function taskChats(store: Store, task: Task): string[] {
+  const ids = new Set<string>();
+  const queue = [task.thread_id, ...store.threads.byTask(task.id).map((t) => t.id)];
+  while (queue.length && ids.size < 200) {
+    const id = queue.shift() as string;
+    if (ids.has(id)) continue;
+    ids.add(id);
+    queue.push(...store.threads.children(id));
+  }
+  return [...ids];
+}
+
+/**
+ * What agents spent on `threadId`'s task without finishing a step of its plan, when it is past STUCK_LIMITS: counted
+ * since the last step done, the owner's last word in its chats, or their go on.
+ */
+export function stuckTrip(store: Store, threadId: string): Extract<Trip, { limit: "progress" }> | undefined {
+  const task = taskOf(store, threadId);
+  if (!task?.assignee) return undefined;
+  const top = store.threads.context(tree(store, threadId)[0] ?? threadId);
+  const progress = store.threads.context(task.thread_id).progress_at ?? task.created_at;
+  const after = [progress, top.budget_from ?? "", top.released_at ?? ""].sort().at(-1) ?? progress;
+  const u = store.runs.unattended(taskChats(store, task), after);
+  const t = over(STUCK_LIMITS, u);
+  return t && { limit: "progress", by: t.limit, spent: t.spent, task, since: [after, u.since].sort().at(-1) ?? after };
+}
+
+/** The owner hears once per stretch that a task got nowhere: in the tray, linked to its conversation. */
+export function tellStuck(store: Store, threadId: string): void {
+  const t = stuckTrip(store, threadId);
+  if (!t || store.threads.context(t.task.thread_id).stuck_told === t.since) return;
+  store.threads.mergeContext(t.task.thread_id, { stuck_told: t.since });
+  const en = store.settings.get("owner_language") === "en";
+  const spent = en
+    ? `${t.spent} ${t.by === "runs" ? "turns" : "tokens"}`
+    : `${t.spent} ${t.by === "runs" ? "turnos" : "tokens"}`;
+  store.notifications.add({
+    kind: "task",
+    level: "warn",
+    title: t.task.title,
+    body: en
+      ? `Paused: ${spent} without finishing a step of its plan. Write on the task to go on or change course.`
+      : `En pausa: ${spent} sin terminar un paso de su plan. Escribí en la tarea para seguir o cambiar el rumbo.`,
+    thread_id: t.task.thread_id,
+    ref: `stuck:${t.task.id}`,
+  });
+}
+
 /** Which limit stopped the chain and how much was spent, or undefined when one more unattended turn may run. */
 export function trip(store: Store, threadId: string): Trip | undefined {
   const max = unattendedLimits(store);
-  if (!max.runs && !max.tokens) return undefined;
-  return over(max, spent(store, threadId));
+  return (max.runs || max.tokens ? over(max, spent(store, threadId)) : undefined) ?? stuckTrip(store, threadId);
 }
 
 /** Which of its own limits `agentId` reached in this tree's window, or undefined when it has none or may go on. */
@@ -99,8 +162,17 @@ export function budgetLeft(
 export function tripped(store: Store, threadId: string): string | undefined {
   const t = trip(store, threadId);
   if (!t) return undefined;
+  if (t.limit === "progress")
+    return `agents spent ${t.spent} ${t.by === "runs" ? "turns" : "tokens"} on "${t.task.title.slice(0, 120)}" without finishing a step of its plan; they wait for you before going on`;
   return `agents ${t.limit === "runs" ? `started ${t.spent} turns` : `spent ${t.spent} tokens`} on their own since you last wrote here; they wait for you before going on`;
 }
+
+/** A pause notice's wording: the limit, or for a task that got nowhere what it spent. */
+const variantOf = (t: Trip) =>
+  t.limit === "progress" ? (t.by === "runs" ? "progressRuns" : "progressTokens") : t.limit;
+/** What a pause notice says besides its variant: the task that got nowhere, or where the owner changes the limit. */
+const pauseVars = (t: Trip): Record<string, string> =>
+  t.limit === "progress" ? { stuck: t.task.title.slice(0, 120) } : { link: "apx:settings/agents" };
 
 /**
  * The notice the owner sees when an agent gave a task while the chain is paused, or while `agentId` (who gets it) is
@@ -112,18 +184,18 @@ export function heldNotice(store: Store, threadId: string, who: string, task: st
   const t = chain ?? own;
   if (!t) return undefined;
   const why = chain ? tripped(store, threadId) : agentTripped(store, threadId, agentId ?? "", who);
-  const variant = chain ? t.limit : t.limit === "runs" ? "agentRuns" : "agentTokens";
+  const variant = chain ? variantOf(chain) : t.limit === "runs" ? "agentRuns" : "agentTokens";
   return {
     type: "notice" as const,
     level: "warn" as const,
     code: "breaker.held",
     text: `Paused: ${why}. ${who} starts "${task}" once you let them go on.`,
-    vars: { variant, spent: t.spent, who, task, thread: threadId, link: "apx:settings/agents" },
+    vars: { variant, spent: t.spent, who, task, thread: threadId, ...pauseVars(t) },
   };
 }
 
 /** The notice the owner sees when a result arrives while the chain is paused: `who` finished, write to go on. */
-export function pausedNotice(store: Store, threadId: string, who: string) {
+function pausedNotice(store: Store, threadId: string, who: string) {
   const t = trip(store, threadId);
   if (!t) return undefined;
   return {
@@ -131,7 +203,7 @@ export function pausedNotice(store: Store, threadId: string, who: string) {
     level: "warn" as const,
     code: "breaker.paused",
     text: `Paused: ${tripped(store, threadId)}. ${who} finished; write to continue.`,
-    vars: { variant: t.limit, spent: t.spent, who, thread: threadId, link: "apx:settings/agents" },
+    vars: { variant: variantOf(t), spent: t.spent, who, thread: threadId, ...pauseVars(t) },
   };
 }
 
@@ -145,6 +217,7 @@ export function keepWhilePaused(
 ): boolean {
   const paused = pausedNotice(store, o.thread_id, o.who);
   if (!paused) return false;
+  tellStuck(store, o.thread_id);
   store.modelLog.append(o.thread_id, o.run_id, [systemNote(o.note)]);
   store.messages.add({ thread_id: o.thread_id, author: { kind: "system" }, parts: [paused] });
   store.threads.mergeContext(o.thread_id, { kept: o.agent_id });

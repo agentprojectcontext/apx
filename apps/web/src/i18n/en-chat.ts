@@ -1,8 +1,15 @@
 // UI strings, English: the chat's composer and its Usage panel.
 export const enChat = {
+  "chat.modelUnconfirmed": "Model unconfirmed",
+  "chat.modelFallback": "Fallback",
+  "chat.modelFallbackHint": "Its own model did not answer this time: a fallback did.",
+  "chat.modelRequested": "Requested:",
+  "chat.modelEngineDefault": "{engine} default",
   "chat.agentProgress": "Progress from {name}",
   "chat.agentResponse": "Response from {name}",
   "chat.agentMessage": "Message from {name}",
+  "chat.plan": "Plan",
+  "chat.planDone": "{done} of {count} done",
   "input.sessionScope": "This session",
 
   "composer.offline": "Not connected to APX",
@@ -11,7 +18,19 @@ export const enChat = {
   "composer.attach": "Attach",
   "composer.stop": "Stop",
   "composer.sendHint":
-    "Enter: send (if it is working, stops it and answers this) · Ctrl/⌘+Enter: queue it for when it ends · Shift+Enter: new line · /: commands and skills",
+    "Enter: send (if it is working, it reads it at its next step) · Ctrl/⌘+Enter: put it in line for when it finishes · Shift+Enter: new line · /: commands and skills",
+  "composer.sendHintStop":
+    "Enter: send now (it stops what it is doing and reads it) · Ctrl/⌘+Enter: put it in line for when it finishes · Shift+Enter: new line · /: commands and skills",
+  "composer.queueHint": "{mod}+Enter to put it in line",
+  "waiting.sendNow": "Send now",
+  "waiting.taken": "Now",
+  "waiting.lineTitle": "In line for when {name} finishes",
+  "waiting.edit": "Edit",
+  "waiting.save": "Save",
+  "waiting.remove": "Remove",
+  "waiting.up": "Move up",
+  "waiting.down": "Move down",
+  "waiting.error": "Could not change the message: {error}",
   "composer.send": "Send",
   "composer.attachFile": "File",
   "composer.attachImage": "Image",
@@ -37,7 +56,8 @@ export const enChat = {
   "composer.agentModel": "The agent's model",
   "composer.agentModelDesc": "This chat uses what {name} has set up.",
   "composer.backToAgentModel": "Back to the agent's",
-  "composer.contextOf": "{used} of {window} context used",
+  "composer.contextShare":
+    "Context used: {share} ({used} of {window}). When it fills up, the older part of this chat is summarized.",
   "composer.spent": "In this chat: {input} tokens read (input), {output} written (output)",
   "composer.spentCached":
     "In this chat: {input} tokens read (input, {cached} of them from the cache), {output} written (output)",

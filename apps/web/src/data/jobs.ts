@@ -11,7 +11,7 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 export const isBackground = (j: Job) => j.kind === "terminal" || j.trigger !== "user" || j.parent_thread_id != null;
 
 /** A chat's own turn waiting for the one in progress to end (a helper's result, the owner's next message…). */
-export const isQueuedTurn = (j: Job) =>
+const isQueuedTurn = (j: Job) =>
   j.kind === "agent" && !j.ended_at && j.parent_thread_id == null && (j.state === "submitted" || j.state === "queued");
 
 /** The queued turns of one chat, in the order they will run. */

@@ -14,7 +14,7 @@ export const STALL_AFTER_MS = 20 * 60_000;
 /** Only recent stops: a task left open for days is the owner's backlog, not a stall. */
 const STALL_WITHIN_MS = 24 * 3600_000;
 
-export type Stall = { task: Task; thread: Thread; last: RunRecord; ids: string[] };
+type Stall = { task: Task; thread: Thread; last: RunRecord; ids: string[] };
 
 /** The latest finished turn in these threads, or undefined when one is still running, queued or asking the owner. */
 function lastTurn(store: Store, ids: string[]): RunRecord | undefined {
@@ -29,7 +29,7 @@ function lastTurn(store: Store, ids: string[]): RunRecord | undefined {
  * Tasks in progress whose agent's chats went quiet: not waiting for the owner, on a subtask or on the breaker, and
  * stopped neither by the owner nor by a provider's limit.
  */
-export function stalledTasks(store: Store, now: Date): Stall[] {
+function stalledTasks(store: Store, now: Date): Stall[] {
   const held = new Set(
     store.threads.holding().flatMap((id) => (store.threads.context(id).held ?? []).map((h) => h.task)),
   );
