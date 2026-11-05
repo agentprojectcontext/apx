@@ -46,7 +46,7 @@ export function signInHandler(d: SignInDeps): Handler<"browser.sign_in"> {
         {
           agent: agent.id,
           run: agent.run_id,
-          secret: p.secret,
+          variable: p.secret,
           origin: r.origin,
           outcome: r.outcome,
           reason: r.reason,

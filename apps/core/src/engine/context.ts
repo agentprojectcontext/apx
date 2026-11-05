@@ -41,7 +41,7 @@ const SAFETY = [
 /** How to reach the web; how to drive the browser is in its tools' descriptions. */
 const BROWSING = [
   "- The web: web_search and web_read to look things up; your browser only for pages that need JavaScript, clicks, forms or a login; never another browser.",
-  "- A login: browser_use_my_login (their own session, with their OK), else browser_handoff. A site that blocks you is a handoff too, not a reason to switch.",
+  "- A login: browser_sign_in, browser_use_my_login (with their OK), else browser_handoff. A site that blocks you is a handoff too, not a reason to switch.",
   "- The owner's screen (screen_ tools) only when they ask for their computer.",
 ];
 

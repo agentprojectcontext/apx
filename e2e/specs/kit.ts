@@ -44,6 +44,13 @@ export const world = {
         calls: { method: string; url: string; headers: Record<string, string>; body: string }[];
       }
     ).calls,
+  /** Whether any request the model got carried this text. */
+  modelCarried: async (text: string) =>
+    (
+      (await (await fetch(`${control}/llm/carried`, { method: "POST", body: JSON.stringify({ text }) })).json()) as {
+        carried: boolean;
+      }
+    ).carried,
   /** Stops the core's clock at `at` (ISO), or lets it run again with null. */
   clock: async (at: string | null) => {
     await post(`${control}/clock`, { at });
