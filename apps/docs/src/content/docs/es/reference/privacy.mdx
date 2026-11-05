@@ -49,6 +49,14 @@ Tus mensajes ni nada que haya escrito un agente; nombres de personas, agentes, p
 carpetas; qué modelos o proveedores usás; API keys, tokens o secretos; tu id de home; tu dirección IP a propósito (el
 servicio que recibe la ve para responder, como en cualquier pedido web, y APX no la guarda).
 
+## La extensión de Chrome
+
+La extensión de APX para Chrome muestra este APX en el panel lateral de Chrome. La extensión en sí no recolecta nada: no
+hace conexiones propias, no guarda nada, no lee páginas web y no tiene analítica. El panel es la propia pantalla de APX,
+servida desde `127.0.0.1` en tu computadora, así que lo que escribís ahí lo maneja APX igual que en la app: queda en tu
+computadora y solo se manda a los proveedores de modelos que configuraste en APX para responderlo. La extensión no
+agrega nada a los reportes de arriba.
+
 ## Adónde va
 
 A una base Google Cloud Firestore del proyecto APX (`apx-agents`, en Estados Unidos), escrita sin cuenta. Sus reglas
