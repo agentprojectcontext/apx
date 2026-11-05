@@ -181,6 +181,8 @@ export type CoreOptions = {
   runTimers?: RunTimers;
   /** How long answers of teammates asked together wait for each other is timed by these (tests). */
   fanoutTimers?: RunTimers;
+  /** When a changed project folder is read again is timed by these (tests). */
+  projectWatchTimers?: RunTimers;
   /** Whether the Mac slept since a moment (tests decide); by default the core watches its own timers. */
   sleptSince?: (since: number) => boolean;
   /** How the core holds the Mac awake (tests count it); by default `caffeinate` on macOS. */
@@ -320,6 +322,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     engines: { has: (id) => engineIds.harness.has(id) || providers.has(id) },
     read: opts.projectRead ?? projectReader?.read,
     ...(opts.runTimers ? { timers: opts.runTimers } : {}),
+    ...(opts.projectWatchTimers ? { watchTimers: opts.projectWatchTimers } : {}),
   });
   // The port this core answers on: the configured one, or the one the OS gave (tests listen on 0).
   let listening = config.port || 7440;
