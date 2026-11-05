@@ -1,7 +1,8 @@
 // apx tasks: the office board from the terminal.
 import fs from "node:fs";
 import type { ApxClient } from "@apx/protocol/client";
-import { authorOf, messageText } from "./threads.ts";
+import { planSteps } from "@apx/protocol/task-plan";
+import { authorOf, messageText, planText } from "./threads.ts";
 
 const USAGE = `apx tasks [--project p]                 Open tasks by column
 apx tasks add <title…> [--project p] [--agent a] [--person name --owed me|them] [--due 2026-10-05]
@@ -85,7 +86,12 @@ export async function tasks(client: ApxClient, [sub, id, ...rest]: string[], opt
       ["Worked in", sessions.map((x) => x.id).join(", ") || undefined],
     ];
     for (const [label, value] of fields) if (value) console.log(`${`${label}:`.padEnd(11)}${value}`);
+    if (t.goal) console.log(`\nGoal: ${t.goal}`);
     if (t.description.trim()) console.log(`\n${t.description.trim()}`);
+    if (t.plan?.trim()) {
+      const steps = planSteps(t.plan);
+      console.log(`\n${steps ? planText("Agent's plan", steps) : `Agent's plan\n${t.plan.trim()}`}`);
+    }
     // Comments live in the task's own conversation.
     const { messages } = await client.call("threads.get", { thread: t.thread_id });
     const comments = messages.filter((m) => m.author.kind !== "system" && messageText(m).trim());

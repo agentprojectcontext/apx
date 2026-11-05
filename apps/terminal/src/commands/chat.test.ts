@@ -188,6 +188,51 @@ test("chat streams useful parts once, ignores other runs and prints the complete
   assert.equal(f.closes, 1);
 });
 
+test("chat prints the plan as a checklist each time it changes, not again when it only moves to the end", {
+  timeout: 3000,
+}, async () => {
+  const at = "2026-01-01T00:00:00Z";
+  const plan = (state: "doing" | "done") => ({
+    type: "plan",
+    steps: [
+      { step: "Check prices", state: "done" },
+      { step: "Write the summary", state },
+    ],
+  });
+  const message = (parts: unknown[]) =>
+    Message.parse({
+      id: "message-1",
+      seq: 1,
+      thread_id: "home",
+      run_id: "run-1",
+      author: { kind: "agent", id: "superagent" },
+      created_at: at,
+      parts,
+    });
+  const tool = { type: "tool", call_id: "call-1", tool: "read_file", title: "Read prices", status: "ok" };
+  const final = message([tool, { type: "text", text: "All set" }, plan("done")]);
+  const f = fixture({ "threads.send": { run: { id: "run-1" } }, "threads.get": { messages: [final] } });
+  const output = printed(() => chat(f.client, "Hello", {}));
+  await setImmediate();
+  f.emit({ type: "message.created", message: message([plan("doing")]) });
+  f.emit({ type: "message.updated", message: message([tool, plan("doing")]) });
+  f.emit({ type: "message.updated", message: final });
+  f.emit({
+    type: "run.updated",
+    run: Run.parse({
+      id: "run-1",
+      thread_id: "home",
+      agent_id: "superagent",
+      state: "completed",
+      started_at: at,
+      ended_at: at,
+    }),
+  });
+  const text = await output;
+  assert.equal(text.match(/Plan · 1 of 2 done\n {4}✓ Check prices\n {4}▸ Write the summary/g)?.length, 1);
+  assert.equal(text.match(/Plan · 2 of 2 done\n {4}✓ Check prices\n {4}✓ Write the summary/g)?.length, 1);
+});
+
 test("code chat selects the closest registered project and preserves working directory and write policy", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-code-chat-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
