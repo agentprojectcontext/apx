@@ -49,7 +49,10 @@ after(async () => {
 test("on Telegram the owner hears 'on it' as soon as the agent starts working, then the answer without it", async () => {
   const before = tg.messagesTo(OWNER.id).length;
   tg.message(OWNER, "what is pending?");
-  await waitFor(() => tg.messagesTo(OWNER.id).some((m) => /Three open tasks/.test(String(m.body.text))), "the answer");
+  // A whole turn (two model calls and a tool) on a loaded runner: a budget for the turn, not for one poll.
+  await waitFor(() => tg.messagesTo(OWNER.id).some((m) => /Three open tasks/.test(String(m.body.text))), "the answer", {
+    ms: 20_000,
+  });
   const sent = tg
     .messagesTo(OWNER.id)
     .slice(before)

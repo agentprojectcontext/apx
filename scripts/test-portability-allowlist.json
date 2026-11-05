@@ -27,8 +27,7 @@
     "e2e/specs/20-pairing.spec.ts": 1
   },
   "local-wait": {
-    "apps/desktop/src/main/core-process.test.ts": 1,
-    "scripts/bundle-update.test.ts": 1
+    "apps/desktop/src/main/core-process.test.ts": 1
   },
   "path-prefix": {
     "apps/web/src/project/files/FilesPane.tsx": 2
