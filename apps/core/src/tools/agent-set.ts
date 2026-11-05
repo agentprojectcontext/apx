@@ -85,7 +85,7 @@ const ROLE_MAX = 40;
 export function agentSetTools(store: Store): Tool[] {
   const args = z.object({
     agent: z.string().trim().min(1).max(120).optional().describe("id or name"),
-    slug: Slug.optional().describe("a new agent's id, or a project agent's new file name"),
+    slug: Slug.optional().describe("new agent's id, or a project agent's file name"),
     name: z.string().trim().min(1).max(80).optional(),
     role: z.string().trim().optional(),
     area: z.string().trim().optional(),
@@ -117,7 +117,7 @@ export function agentSetTools(store: Store): Tool[] {
     defineTool({
       name: "agent_set",
       description:
-        "Run the team: no args: team, areas, roles; only agent: read it; create one (slug, role; name only if the owner chose one; project: id/name, default this chat), change one (only what is given; prompt replaces) or archive it.",
+        "Run the team: no args: team, areas, roles; only agent: read it; create (slug, role; name only if the owner gave one; project: id/name, else this chat), change (only what's given; prompt replaces) or archive one.",
       args,
       effect: "local",
       confirm: (a) => (changes(a) ? "always" : "never"),
