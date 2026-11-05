@@ -251,10 +251,12 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     store.messages.add({ thread_id: thread.id, author: { kind: "agent", id: agent.id }, parts: [], run_id: run.id }),
   );
   run = store.runs.patch(run, { message_id: display.message.id });
-  // A delegated result arriving later: its report shows above what the caller makes of it.
-  const report =
-    start.input.origin.kind === "delegation_result" ? resultCard(store, start.input.origin.run_id) : undefined;
-  if (report) display.upsert((p) => p.type === "subthread" && p.thread_id === report.thread_id, report);
+  // Delegated results arriving later: their reports show above what the caller makes of them.
+  const o = start.input.origin;
+  const answered =
+    o.kind === "delegation_result" ? [o.run_id] : o.kind === "delegation_results" ? o.results.map((r) => r.run_id) : [];
+  for (const report of answered.flatMap((id) => resultCard(store, id) ?? []))
+    display.upsert((p) => p.type === "subthread" && p.thread_id === report.thread_id, report);
   // A routine with commands of its own: the pre-command first; its result may say the model is not needed.
   const routine = routineWithCommands(store, run);
   const pipe = routine && routinePipeline({ store, home: deps.home, routine, run, display });

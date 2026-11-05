@@ -40,7 +40,7 @@ const readJson = (file: string): unknown => {
 
 const SECRET_KEY = /key|token|secret|pass|pwd|auth|credential|cookie/i;
 /** Keys whose value is a credential (or a reference to one the owner's shell had): APX needs the owner to give it. */
-function secretKeys(s: FoundServer): string[] {
+export function secretKeys(s: FoundServer): string[] {
   const env = Object.entries(s.env ?? {}).filter(([k, v]) => v && (SECRET_KEY.test(k) || v.includes("${")));
   const headers = Object.entries(s.headers ?? {}).filter(([k, v]) => v && (SECRET_KEY.test(k) || v.length >= 24));
   return [...env, ...headers].map(([k]) => k);

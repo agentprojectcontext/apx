@@ -99,12 +99,15 @@ test("the owner speaks plainly, their agents as the team; outside apps, widgets 
   assert.match(asked, /<agent_message from="Roby" trust="team">/);
   assert.doesNotMatch(asked, /trust="untrusted"/);
   assert.match(asked, /goes back to Roby on its own: answer here, never delegate back/);
+  // No acknowledgement turn, and one report shape the caller can act on.
+  assert.match(asked, /No acknowledgement: do the work, then answer once/);
+  assert.match(asked, /Status: done or blocked; Result:; Evidence: .*; Unblock: .*or none/);
   // An outside app's agent is not one of the owner's.
-  for (const id of ["external", "client:c1"])
-    assert.match(
-      frameInput({ kind: "agent", id, name: "Claude Code", thread_id: "home", run_id: "" }, "x"),
-      /<agent_message from="Claude Code" trust="untrusted">/,
-    );
+  for (const id of ["external", "client:c1"]) {
+    const outside = frameInput({ kind: "agent", id, name: "Claude Code", thread_id: "home", run_id: "" }, "x");
+    assert.match(outside, /<agent_message from="Claude Code" trust="untrusted">/);
+    assert.doesNotMatch(outside, /Status: done or blocked/);
+  }
 });
 
 test("a contact's name stays one plain line inside APX's own sentences", async () => {
@@ -219,12 +222,13 @@ test("an unreadable source is a blocker in the shared rules, not 'not verifiable
   const blocker = /unreadable source is a blocker.*never "not verifiable"/s;
   assert.match(systemPrompt(agent, { kind: "home" }, "es"), /Never bypass denied access, a login or a usage limit/);
   assert.match(systemPrompt(agent, { kind: "home" }, "es"), /A greeting with a request is a request\./);
+  assert.match(systemPrompt(agent, { kind: "home" }, "es"), /Short and direct, never restating the question/);
   assert.match(
     systemPrompt(agent, { kind: "home" }, "es"),
     /If blocked, report the exact error and what access is missing/,
   );
   const worker = workerPrompt({ name: "Helper", instructions: "audit" }, { name: "Roby" }, "es");
-  assert.match(worker, /blockers first/);
+  assert.match(worker, /your answer is your report, complete and self-contained/);
   assert.match(worker, blocker);
 });
 

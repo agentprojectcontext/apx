@@ -81,6 +81,8 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   // Listing reads every session's head; importing copies whole histories and their images.
   if (method === "sessions.projects") return 60_000;
   if (method === "sessions.import") return 5 * 60_000;
+  // A Hermes import copies its skills too (skills.import's budget).
+  if (method === "hermes.preview" || method === "hermes.import") return 90_000;
   // A long chat is read in stretches by the auxiliary model; the server stops taking notes at 8 min.
   if (method === "sessions.digest") return 11 * 60_000;
   // The owner's phone is asked again under each of a chat's addresses, then each file is downloaded (server: 150 s).

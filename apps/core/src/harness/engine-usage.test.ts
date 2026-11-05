@@ -149,7 +149,7 @@ test("report reuses installed status, keeps unsupported quotas explicit, and exc
   );
   assert.equal(methods["engines.usage"].result.safeParse(result).success, true);
   assert.equal(methods["engines.usage"].effect, false);
-  assert.equal(methodAccess("engines.usage"), "human");
+  assert.equal(methodAccess("engines.usage"), "any");
 });
 
 test("disabled Claude is never probed and independent account reads start concurrently", async () => {

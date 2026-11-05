@@ -43,5 +43,7 @@ export const silent = (store: Store, run: RunRecord): boolean =>
 /** A turn that should act on a result (a delegate's, a closed task's) but stayed silent. */
 export function droppedResult(store: Store, run: RunRecord): boolean {
   const kind = run.input?.origin.kind;
-  return (kind === "delegation_result" || kind === "task_result") && silent(store, run);
+  return (
+    (kind === "delegation_result" || kind === "delegation_results" || kind === "task_result") && silent(store, run)
+  );
 }

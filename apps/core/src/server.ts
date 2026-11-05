@@ -99,6 +99,7 @@ import { createWidgetPages } from "./nodes/widget-pages.ts";
 import { officeScheduler } from "./office-wiring.ts";
 import { createChatgptLogin } from "./providers/chatgpt-login.ts";
 import { createLlm, type Llm, NO_KEY, type SignIn } from "./providers/llm.ts";
+import { createLocalModels } from "./providers/local-models.ts";
 import { providerRegistry } from "./providers/registry.ts";
 import { createPublicCredentials } from "./public-credentials.ts";
 import { nativePublicRoutes, publishedPublicRoutes } from "./public-routes.ts";
@@ -178,6 +179,8 @@ export type CoreOptions = {
   /** The most a delegated run may work in all (tests shorten it). */
   a2aCapMs?: number;
   runTimers?: RunTimers;
+  /** How long answers of teammates asked together wait for each other is timed by these (tests). */
+  fanoutTimers?: RunTimers;
   /** Whether the Mac slept since a moment (tests decide); by default the core watches its own timers. */
   sleptSince?: (since: number) => boolean;
   /** How the core holds the Mac awake (tests count it); by default `caffeinate` on macOS. */
@@ -262,7 +265,12 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const widgetPages = headless?.available() ? createWidgetPages(() => headless.pageCdp()) : undefined;
 
   let selfUrl = "";
-  const providers = providerRegistry(store, config.providers);
+  const localApps = createLocalModels({
+    store,
+    apps: config.localModels,
+    onChange: () => bus.emit({ type: "models.changed" }),
+  });
+  const providers = providerRegistry(store, config.providers, localApps);
   const chatgpt = createChatgptLogin({ secrets });
   const signIns = { [OAUTH_CHATGPT]: chatgpt };
   const llm =
@@ -294,7 +302,14 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     }),
     ...(opts.harnesses ? { overrides: opts.harnesses } : {}),
   });
-  const catalog = createCatalog({ store, secrets, providers: providers.active, home: config.home, signIns });
+  const catalog = createCatalog({
+    store,
+    secrets,
+    providers: providers.active,
+    home: config.home,
+    signIns,
+    discover: localApps.discover,
+  });
   const engineIds = knownEngines(store, providers);
   // Live: an ACP agent or a provider added later is recognized without a restart.
   const projectReader = opts.projectRead ? undefined : createProjectReader();
@@ -573,6 +588,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     models: upkeep.voiceModels,
     notifyOwner: (body, threadId) => channels.notifyOwner(body, "notice", threadId),
     log,
+    hermesHome: config.hermes,
   });
   const sleep = opts.sleptSince ? undefined : sleepWatch(opts.runTimers);
   const engine = createEngine({
@@ -597,6 +613,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     ...(opts.turnIdleMs ? { turnIdleMs: opts.turnIdleMs } : {}),
     ...(opts.a2aCapMs ? { a2aCapMs: opts.a2aCapMs } : {}),
     ...(opts.runTimers ? { runTimers: opts.runTimers } : {}),
+    ...(opts.fanoutTimers ? { fanoutTimers: opts.fanoutTimers } : {}),
     mcpTools: mcp.toolsFor,
     mcpServers: mcp.serversFor,
     hasCap: (cap) => Boolean(broker.withCap(cap)) || (cap === BROWSER_CAP && Boolean(headless?.available())),
@@ -646,6 +663,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     flowTick: (at) => flows.tick(at),
     checks: (remind) => [
       storage.check,
+      localApps.check,
       calendarReminders({
         store,
         source: {

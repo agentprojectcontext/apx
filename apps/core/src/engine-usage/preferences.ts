@@ -15,6 +15,7 @@ export function usagePreferences(
   const enabled = (prefs: Preferences, id: string) => prefs[canonical(id)] === true;
   let key: string | undefined;
   let read: (() => Promise<EngineUsageReport>) | undefined;
+  let every: (() => Promise<EngineUsageReport>) | undefined;
   return {
     get,
     set(id: string, on: boolean) {
@@ -31,6 +32,11 @@ export function usagePreferences(
       const report = await read();
       const current = get().engines;
       return { ...report, engines: report.engines.filter((engine) => enabled(current, engine.id)) };
+    },
+    /** What the owner asked an agent for: every detected engine, whatever the top bar shows. */
+    readAll() {
+      every ??= cachedEngineUsage(makeReader(() => true));
+      return every();
     },
   };
 }

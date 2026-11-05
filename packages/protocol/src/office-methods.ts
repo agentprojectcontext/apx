@@ -125,6 +125,8 @@ export const officeMethods = {
         status: z.string().max(40).optional(),
         assignee: Id.nullable().optional(),
         project: Id.nullable().optional(),
+        /** Regroup existing work without starting it again; null detaches it. */
+        parent: Id.nullable().optional(),
         kind: TaskKind.optional(),
         priority: TaskPriority.optional(),
         tags: z.array(TaskTag).max(12).optional(),

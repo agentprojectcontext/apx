@@ -29,7 +29,18 @@ export type ProviderConfig = {
   models: string[];
   /** The name people read; built-in providers carry their brand's. */
   label?: string | undefined;
+  /** On this computer (a model app APX found, or one the owner set up at its address): free, asked fresh each time. */
+  local?: boolean | undefined;
 };
+
+/** A model app that may run on this computer; its OpenAI-compatible API is looked for on loopback only. */
+export type LocalApp = { id: string; label: string; port: number };
+
+/** Ollama and LM Studio at their usual ports. */
+export const LOCAL_APPS: LocalApp[] = [
+  { id: "ollama", label: "Ollama", port: 11434 },
+  { id: "lmstudio", label: "LM Studio", port: 1234 },
+];
 
 export type CoreConfig = {
   host: string;
@@ -49,6 +60,8 @@ export type CoreConfig = {
   webDist: string | undefined;
   /** Local APX v1 daemon, only for the explicit read-only import. */
   v1: { url: string; home: string };
+  /** A Hermes home folder, only looked at to offer moving from it (hermes.preview reads the one the owner names). */
+  hermes: string;
   /** Where Claude Code and Codex keep the owner's own sessions (read-only, to go on with one in APX). */
   native: { claude: string; codex: string };
   /**
@@ -88,6 +101,11 @@ export type CoreConfig = {
   headless: boolean | string;
   /** Ollama on this machine, for memory's embedding models (APX_OLLAMA_URL; a test points it elsewhere). */
   ollamaUrl: string;
+  /**
+   * Model apps looked for on this computer, their chat models offered with no setup (APX_LOCAL_MODELS: "off", or
+   * `id:port` pairs of LOCAL_APPS; a test core looks for none).
+   */
+  localModels: LocalApp[];
   providers: ProviderConfig[];
   secrets: SecretsBackend;
   /** Silence before the first byte of a model answer. */
@@ -163,6 +181,17 @@ const list = (v: string | undefined) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
+/** APX_LOCAL_MODELS: unset = LOCAL_APPS, "off" = none, "ollama:7623,lmstudio:off" = those apps at those ports. */
+function localApps(v: string | undefined): LocalApp[] {
+  if (!v) return LOCAL_APPS;
+  if (v === "off") return [];
+  return list(v).flatMap((pair) => {
+    const [id, port] = pair.split(":");
+    const app = LOCAL_APPS.find((a) => a.id === id);
+    return app && Number(port) > 0 ? [{ ...app, port: Number(port) }] : [];
+  });
+}
+
 /** `<home>/core.env` (written by `apx expose`) as defaults under the process environment, which always wins. */
 function withCoreEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const home = env.APX_HOME ?? defaultHome();
@@ -201,6 +230,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     allowedOrigins: list(env.APX_ALLOWED_ORIGINS),
     webDist: env.APX_WEB_DIST || undefined,
     v1: { url: env.APX_V1_URL ?? "http://127.0.0.1:7430", home: env.APX_V1_HOME ?? path.join(os.homedir(), ".apx") },
+    hermes: env.HERMES_HOME ?? path.join(os.homedir(), ".hermes"),
     telegramApi: env.APX_TELEGRAM_API || undefined,
     flowHttpAllow: list(env.APX_FLOW_HTTP_ALLOW).filter((a) => /^127\.0\.0\.1:\d{1,5}$/.test(a)),
     discord:
@@ -229,6 +259,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
       auto: env.APX_RUNTIME_SKILLS === "on" || (!env.APX_HOME && env.APX_RUNTIME_SKILLS !== "off"),
     },
     ollamaUrl: env.APX_OLLAMA_URL || "http://127.0.0.1:11434",
+    localModels: localApps(env.APX_LOCAL_MODELS),
     providers: [...custom, ...DEFAULT_PROVIDERS],
     secrets: env.APX_SECRETS === "file" ? "file" : systemBackend(),
     llmTimeoutMs: Number(env.APX_LLM_TIMEOUT_MS ?? 45_000),
@@ -268,6 +299,7 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     hooksPort: 0,
     secrets: "file",
     v1,
+    hermes: path.join(over.home, "hermes-home"),
     native,
     runtimeSkills: { homes: { home: over.home, ...native }, auto: false },
     updates: "off",
@@ -277,6 +309,7 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     releases: undefined,
     telemetry: undefined,
     headless: false,
+    localModels: [],
     agentName: "Roby",
     ...over,
   };

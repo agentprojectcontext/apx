@@ -7,8 +7,11 @@ import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
+import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
+import { LOCAL_MODELS_NEWS } from "./local-models.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
+import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
 
 /** What an entry may ask about this install before it is told. */
 export type NewsFacts = {
@@ -37,6 +40,10 @@ export type NewsFacts = {
   desktop?: boolean;
   /** Open tasks with an agent on them. */
   tasks?: number;
+  /** A Hermes home folder is on this machine (moving from it is offered). */
+  hermes?: boolean;
+  /** A model app (Ollama, LM Studio) was found running on this computer. */
+  localModels?: boolean;
 };
 
 export type NewsAction = {
@@ -64,10 +71,13 @@ export type NewsEntry = {
 export const NEWS: readonly NewsEntry[] = [
   TASK_GOALS_NEWS,
   COMPUTER_POINTER_NEWS,
+  TASK_REGROUP_NEWS,
   QUEUED_MESSAGES_NEWS,
   EXTERNAL_SESSIONS_NEWS,
+  HERMES_IMPORT_NEWS,
   BROWSER_EDIT_NEWS,
   BROWSER_JAVASCRIPT_NEWS,
+  LOCAL_MODELS_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",
@@ -88,6 +98,23 @@ export const NEWS: readonly NewsEntry[] = [
       {
         label: { en: "Where do I see it?", es: "¿Dónde lo veo?" },
         prompt: "Tell me in two lines where I see how much disk APX uses and what Free up space removes.",
+      },
+    ],
+  },
+  {
+    id: "plan-usage-tool",
+    since: "2.13.0",
+    title: { en: "Ask about your plan quotas", es: "Consultá las cuotas de tus planes" },
+    about: {
+      en: "Ask your agent how much is left on your AI plans and when they reset, for any engine on this computer, not just the ones in the top bar.",
+      es: "Preguntale a tu agente cuánto te queda en tus planes de IA y cuándo se reinician, para cualquier motor de esta computadora, no solo los de la barra superior.",
+    },
+    applies: (facts) => Boolean(facts.claude || facts.codex),
+    text: "When the owner asks about their AI plans, apx_settings method engines.usage reads the quotas of every engine detected on this computer, also those kept out of the top bar; params.query filters by engine id or provider/plan name. Claude and Codex currently report windows; other engines may be unsupported or unavailable. Keep checked_at and missing data explicit, never infer zero usage. This is a read-only query, not proactive monitoring or automatic stopping.",
+    actions: [
+      {
+        label: { en: "Check plan quotas", es: "Consultar cuotas" },
+        prompt: "Check the reported quotas and reset times for all my AI plans. Tell me which data is unavailable.",
       },
     ],
   },
@@ -1139,7 +1166,8 @@ const connectedIntegrations = (store: Store): number => {
 
 const signedIn = (store: Store, id: string) => Boolean(store.settings.get(`google_account:${id}`));
 
-export const newsFacts = (store: Store): NewsFacts => ({
+export const newsFacts = (store: Store, o: { hermes?: boolean } = {}): NewsFacts => ({
+  hermes: o.hermes ?? false,
   artifacts: store.surfaces.list().length,
   desktop: store.devices.list().some((d) => d.platform === "desktop"),
   codex: store.threads.list({ engine: "codex", limit: 1 }).length > 0,
@@ -1158,6 +1186,7 @@ export const newsFacts = (store: Store): NewsFacts => ({
   computer: computerHost() !== undefined && store.projects.list().length > 0,
   mac: process.platform === "darwin" && store.projects.list().length > 0,
   tasks: store.tasks.list({ state: "open", limit: 500 }).filter((t) => t.assignee).length,
+  localModels: store.settings.read("local_models_seen").length > 0,
 });
 
 /** The action a channel button stands for. */
