@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { publicMarketingRoutes, sitemapErrors } from "./sitemap.mjs";
 
 const dist = new URL("../dist/", import.meta.url);
+const content = new URL("../src/content/docs/", import.meta.url);
 const base = (process.env.DOCS_BASE ?? "/").replace(/\/$/, "");
 const site = process.env.DOCS_SITE ?? "https://apxagent.app";
 
@@ -26,7 +27,10 @@ test("every built documentation page has a legacy redirect and a canonical new a
       count++;
     }
   }
-  assert.equal(count, 100, "all existing documentation pages and both website privacy pages are preserved");
+  // Counted from the sources, so a new page needs no edit here and a page lost in the build still fails.
+  const pages = (await readdir(content, { recursive: true })).filter((file) => /\.mdx?$/.test(file)).length;
+  assert.ok(pages >= 100, "the documentation keeps every page it had when it moved under /docs");
+  assert.equal(count, pages, "every documentation page, in both languages, is built with its redirect");
 });
 
 test("sitemap lists only canonical pages, including bilingual documentation and comparisons", async () => {
