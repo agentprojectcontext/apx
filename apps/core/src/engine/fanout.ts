@@ -182,7 +182,9 @@ export function createFanout(deps: {
 
     /** The owner stopped the chat: what its groups held wakes nobody (each answer stays on its card). */
     drop(threadId: string): void {
-      for (const group of groupsOf(threadId)) {
+      const groups = groupsOf(threadId);
+      if (!groups.length) return;
+      for (const group of groups) {
         const parent = store.runs.get(group.run);
         if (parent) release(parent, group, false);
         else disarm(group.run);
