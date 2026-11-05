@@ -3674,7 +3674,7 @@ install that already has work), importing a Flow published (it would skip the ow
 and turning on a server or channel whose secret name already has a value here (the value may be another account's;
 a provider whose key is here keeps its switch, as it only calls a model).
 
-<a id="d-194"></a>
+<a id="d-193"></a>
 ## D-193 — 2026-11-05 — An agent signs in with a stored secret it never sees
 
 Amends rule 10. Until now the embedded browser never typed a password, one-time code or card data: the agent handed
@@ -3753,6 +3753,7 @@ Rejected: handing the value to the agent with a promise not to repeat it; fillin
 script could read it); matching by registrable domain (a subdomain an attacker controls would qualify); a `*` mark
 granted from an agent's card (only the owner sets one, in Variables).
 
+<a id="d-194"></a>
 ## D-194 — 2026-11-05 — Teammates asked in one turn answer the caller in one turn
 
 An agent that asked three teammates at once got three result turns, one per answer, and told the owner three times. Now
