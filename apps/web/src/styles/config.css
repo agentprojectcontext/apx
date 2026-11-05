@@ -1227,7 +1227,7 @@
   min-height: 120px;
   border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-md);
-  background: #fff;
+  background: #fff; /* ui: an outside page is drawn on white, as a browser would. */
 }
 .sig__actions {
   display: flex;

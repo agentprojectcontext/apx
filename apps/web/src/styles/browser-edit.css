@@ -223,7 +223,7 @@
 .bedit-host--page .bedit__page {
   border: 0;
   border-radius: 0;
-  background: #fff;
+  background: #fff; /* ui: an outside page is drawn on white, as a browser would. */
 }
 /* The page as it shows outside edit mode: edge to edge on a computer, framed as a phone at a phone's width. */
 .bedit-host--phone .bedit__page {

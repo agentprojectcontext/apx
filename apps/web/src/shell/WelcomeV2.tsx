@@ -86,6 +86,7 @@ function Confetti() {
     // The tokens are set on the app's root, not on the document: read them where the dialog sits.
     const css = getComputedStyle(anchor.current);
     const colors = TONES.map((v) => css.getPropertyValue(v).trim()).filter(Boolean);
+    if (!colors.length) return;
     const dpr = window.devicePixelRatio || 1;
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -100,7 +101,7 @@ function Confetti() {
       size: 5 + Math.random() * 6,
       spin: Math.random() * Math.PI,
       turn: (Math.random() - 0.5) * 0.3,
-      color: colors[i % colors.length] ?? "#7c5cff",
+      color: colors[i % colors.length] as string,
     }));
     let frame = 0;
     const tick = () => {

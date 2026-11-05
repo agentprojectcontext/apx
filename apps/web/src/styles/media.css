@@ -85,7 +85,7 @@
   padding: 4px 6px;
   border-radius: 999px;
   background: var(--apx-surface-raised);
-  box-shadow: var(--apx-shadow-md, 0 4px 16px rgb(0 0 0 / 0.2));
+  box-shadow: var(--apx-shadow-md);
 }
 .mediagallery__count,
 .mediacarousel__count {
@@ -130,7 +130,7 @@
 }
 .mediacarousel__card video {
   display: block;
-  background: #000;
+  background: #000; /* ui: letterbox behind a video, black in either theme. */
 }
 .mediacarousel__frame {
   position: relative;
