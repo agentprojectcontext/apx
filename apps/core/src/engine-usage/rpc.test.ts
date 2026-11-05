@@ -5,7 +5,7 @@ import { testConfig } from "../config.ts";
 import { createCore } from "../server.ts";
 import { tempDir } from "../testkit/platform.ts";
 
-test("agents cannot query owner account limits over HTTP or WebSocket", async () => {
+test("agents can read enabled account limits but cannot change preferences over HTTP or WebSocket", async () => {
   await using home = tempDir();
   const core = await createCore(testConfig({ home: home.path }), { quiet: true });
   const agent = new ApxClient({ url: core.url, actor: "agent" });
@@ -22,12 +22,21 @@ test("agents cannot query owner account limits over HTTP or WebSocket", async ()
     } finally {
       live.close();
     }
-    await assert.rejects(agent.call("engines.usage", {}), { code: "unauthorized" });
+    assert.deepEqual(await agent.call("engines.usage", {}), await owner.call("engines.usage", {}));
     await assert.rejects(agent.call("engines.usage_preferences", {}), { code: "unauthorized" });
     await assert.rejects(agent.call("engines.set_usage", { engine: "codex", enabled: true }), { code: "unauthorized" });
+    const external = await owner.call("clients.create", { name: "Acme", scopes: ["chat", "browser"] });
+    const app = new ApxClient({ url: core.url, clientToken: external.token });
+    await assert.rejects(app.call("engines.usage", {}), { code: "unauthorized" });
+    const externalSocket = await new ApxClient({ url: core.url, token: external.token }).connect();
+    try {
+      await assert.rejects(externalSocket.call("engines.usage", {}), { code: "unauthorized" });
+    } finally {
+      externalSocket.close();
+    }
     const socket = await agent.connect();
     try {
-      await assert.rejects(socket.call("engines.usage", {}), { code: "unauthorized" });
+      assert.deepEqual(await socket.call("engines.usage", {}), await owner.call("engines.usage", {}));
       await assert.rejects(socket.call("engines.usage_preferences", {}), { code: "unauthorized" });
       await assert.rejects(socket.call("engines.set_usage", { engine: "codex", enabled: true }), {
         code: "unauthorized",

@@ -638,7 +638,12 @@ export type MessageDelivery = z.infer<typeof MessageDelivery>;
 export const MessageReaction = z.object({ emoji: z.string().min(1).max(32), by: z.enum(["agent", "them"]) });
 export type MessageReaction = z.infer<typeof MessageReaction>;
 /** How the owner's words written while their agent works wait for it (Message.waiting). */
-export const MessageWaiting = z.object({ until: z.enum(["step", "turn"]), run: Id.optional() });
+export const MessageWaiting = z.object({
+  until: z.enum(["step", "turn"]),
+  run: Id.optional(),
+  /** Captured when the owner's words arrive; null means they had no task authorization. */
+  task_assignment: z.object({ task: Id, id: Id }).nullable().optional(),
+});
 export type MessageWaiting = z.infer<typeof MessageWaiting>;
 
 export const Message = z.object({
