@@ -11,13 +11,33 @@ import {
   ProjectKind,
 } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
+import type { PlanStep } from "@apx/protocol/task-plan";
 
 /** Who wrote a message, in one word: the agent's id, or the author's kind. */
 export const authorOf = (a: Author) => (a.kind === "agent" ? a.id : a.kind);
 
+const MARK = { done: "✓", doing: "▸", pending: "○" } as const;
+
+/** A plan as a checklist under a heading with how many steps are done, each line indented by `pad`. */
+export function planText(label: string, steps: readonly PlanStep[], pad = ""): string {
+  const done = steps.filter((s) => s.state === "done").length;
+  return [
+    `${pad}${label} · ${done} of ${steps.length} done`,
+    ...steps.map((s) => `${pad}  ${MARK[s.state]} ${s.step}`),
+  ].join("\n");
+}
+
+const partText = (p: Message["parts"][number]) =>
+  p.type === "text"
+    ? p.text
+    : p.type === "notice"
+      ? `[${p.text}]`
+      : p.type === "plan"
+        ? `[plan ${p.steps.filter((s) => s.state === "done").length}/${p.steps.length} done]`
+        : `[${p.type}]`;
+
 /** A message as one line of text: its text parts, notices in brackets, other parts by their type. */
-export const messageText = (m: Message) =>
-  m.parts.map((p) => (p.type === "text" ? p.text : p.type === "notice" ? `[${p.text}]` : `[${p.type}]`)).join(" ");
+export const messageText = (m: Message) => m.parts.map(partText).join(" ");
 
 export async function threads(
   client: ApxClient,

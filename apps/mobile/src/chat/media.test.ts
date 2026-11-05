@@ -34,6 +34,15 @@ test("the owner's pictures (image parts) and image files gather into one grid; w
   );
 });
 
+test("the agent's plan closes the message, whatever came after it", () => {
+  const plan: Part = { type: "plan", steps: [{ step: "Check prices", state: "doing" }] };
+  const rows = mediaRows([{ type: "text", text: "On it" }, plan, image(1), { type: "text", text: "Found one" }]);
+  assert.deepEqual(
+    rows.map((row) => (row.kind === "part" ? row.part.type : row.kind)),
+    ["text", "images", "text", "plan"],
+  );
+});
+
 test("a sound and a plain file stay on their own; a document snapshot stays a document part", () => {
   const rows = mediaRows([
     { type: "audio", media_id: "med_a", mime: "audio/ogg" },

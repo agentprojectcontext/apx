@@ -57,6 +57,7 @@ export function assignableAgents(agents: readonly Agent[], projectId?: string): 
 export type TaskPatch = {
   title?: string;
   description?: string;
+  goal?: string | null;
   status?: string;
   kind?: TaskKind;
   priority?: TaskPriority;

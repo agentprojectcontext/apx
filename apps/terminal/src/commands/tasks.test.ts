@@ -122,6 +122,21 @@ test("show prints the task's fields, its description and its comments", async ()
   ]);
 });
 
+test("show prints the goal and the agent's plan as a checklist, or as written when it is not one", async () => {
+  const plan = "- [x] Pull the prices\n- [~] Draft the quote\n- [ ] Send it";
+  const shown = async (withPlan: string) => {
+    const { client } = recordingClient({
+      "tasks.get": { task: { ...task, goal: "Acme has the quote", plan: withPlan }, events: [], sessions: [] },
+      "threads.get": { thread: { id: "thr_t" }, messages: [], runs: [] },
+    });
+    return printed(() => tasks(client, ["show", "tsk_1"], {}));
+  };
+  const out = await shown(plan);
+  assert.match(out, /Goal: Acme has the quote/);
+  assert.match(out, /Agent's plan · 1 of 3 done\n {2}✓ Pull the prices\n {2}▸ Draft the quote\n {2}○ Send it/);
+  assert.match(await shown("First prices, then the quote."), /Agent's plan\nFirst prices, then the quote\./);
+});
+
 test("edit calls tasks.update; help prints the usage without calling the core", async () => {
   const { client, calls } = recordingClient({ "tasks.update": { ...task, title: "Quote" } });
   assert.match(await printed(() => tasks(client, ["edit", "tsk_1"], { title: "Quote" })), /tsk_1 {2}saved · Quote/);
