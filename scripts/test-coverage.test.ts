@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { sourceMapResolver } from "./coverage-source-map.ts";
@@ -9,6 +10,7 @@ import {
   mergeCoverage,
   missingParts,
   sandboxPorts,
+  unitAreas,
 } from "./test-coverage.ts";
 
 test("coverage sandboxes use distinct available loopback ports and honor explicit overrides", async () => {
@@ -281,4 +283,29 @@ test("the merge fails when fewer parts reported than CI ran, and says so", () =>
   assert.equal(missingParts(5, ["--merge", "--expect-parts=5"]), undefined);
   // Without the flag (a local merge) any number of parts is a report.
   assert.equal(missingParts(1, ["--merge"]), undefined);
+});
+
+test("a package with many test files runs in parts dealt in turn, each named, every file in exactly one", () => {
+  const core = Array.from({ length: 7 }, (_, i) => path.join("apps", "core", "src", `f${i}.test.ts`));
+  const web = [path.join("apps", "web", "src", "a.test.ts")];
+  const scripts = [path.join("scripts", "s.test.ts")];
+  const areas = unitAreas([...core, ...web, ...scripts], 3);
+  const coreDir = path.join("apps", "core");
+  assert.deepEqual(
+    areas.map((a) => [a.name, a.dir, a.files.length]),
+    [
+      [`${coreDir} 1/3`, coreDir, 3],
+      [`${coreDir} 2/3`, coreDir, 2],
+      [`${coreDir} 3/3`, coreDir, 2],
+      [path.join("apps", "web"), path.join("apps", "web"), 1],
+      ["scripts", "scripts", 1],
+    ],
+  );
+  assert.deepEqual(areas[0]?.files, [core[0], core[3], core[6]], "dealt in turn, so slow and quick files mix");
+  assert.deepEqual(areas.flatMap((a) => a.files).sort(), [...core, ...web, ...scripts].sort());
+  assert.deepEqual(
+    unitAreas(core, 7).map((a) => a.name),
+    [coreDir],
+    "an area at the limit stays whole",
+  );
 });
