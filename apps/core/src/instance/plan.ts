@@ -198,12 +198,15 @@ function planAgents(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   const { push, skip, mine, projects, agents, agentOf } = c;
   for (const a of file.agents) {
     const id = agentOf(a.id);
-    const want = { ...a, id };
     if (a.project_id && !projects.has(a.project_id)) {
       skip("agents", id, a.name, "project_missing");
       continue;
     }
     const here = store.agents.get(id);
+    // As for projects, Total is the owner's choice on this computer: one here keeps its own, a new one has none.
+    const { autonomy: asked, ...rest } = a;
+    const autonomy = asked === "total" ? here?.autonomy : asked;
+    const want = { ...rest, id, ...(autonomy ? { autonomy } : {}) };
     if (here?.source === "apc") {
       agents.add(id);
       skip("agents", id, a.name, "kept_here");

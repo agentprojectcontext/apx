@@ -3654,7 +3654,7 @@ up**, `apx export` and `apx import` make and read one JSON file (`instance.expor
   item twice is refused. An import stops at 90 s between items (the client waits 150 s); what it wrote is whole, and
   the same file again finishes it. A file of up to 20 MB is read, over HTTP too. Another install's super-agent is this one's. A preference, skill or project setting
   (autonomy, read-only folders) this computer has is kept, not replaced; read-only folders pass `checkReadOnly`, and
-  Total never comes from a file.
+  Total never comes from a file, for a project or an agent (one here keeps its own autonomy, a new one has none).
 - **What needs a secret, or changed, arrives off.** MCP servers and channels arrive off with their references, a
   provider whose key is not here, and Google-backed checks. One that exists here and changes (a server's command, a
   provider's address, a channel's agent or who it answers, a routine's work) is turned off until the owner looks: a

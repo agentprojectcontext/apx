@@ -310,6 +310,29 @@ test("a file over the usual request size previews and imports", async () => {
   assert.ok(target.core.store.memories.standing(1000).some((m) => m.text.startsWith("Note 99: ")));
 });
 
+test("an agent never arrives with Total: a new one takes its project's, one here keeps its own", async () => {
+  const file = await exported();
+  await target.client.call("instance.import", { file });
+  const t = target.core.store;
+  const nora = file.agents.find((a) => a.name === "Nora");
+  assert.ok(nora);
+  const here = t.agents.get(nora.id);
+  assert.ok(here);
+  t.agents.upsert({ ...here, autonomy: "plan" });
+  const crafted = {
+    ...file,
+    agents: [
+      ...file.agents.map((a) => (a.id === nora.id ? { ...a, autonomy: "total" as const } : a)),
+      { ...nora, id: "agt_bold", name: "Bold", autonomy: "total" as const },
+    ],
+  };
+  const preview = await target.client.call("instance.preview_import", { file: crafted });
+  assert.equal(byId(preview, "agents", nora.id)?.action, "same", "only Total differs, and Total is not taken");
+  await target.client.call("instance.import", { file: crafted });
+  assert.equal(t.agents.get(nora.id)?.autonomy, "plan");
+  assert.equal(t.agents.get("agt_bold")?.autonomy, undefined);
+});
+
 test("an import that outlives its deadline stops and says so; importing again finishes it", async () => {
   const file = await exported();
   const tg = file.channels.find((ch) => ch.id === "tg");
