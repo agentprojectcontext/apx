@@ -254,7 +254,9 @@ function runUnitSuites(root: string, raw: string, nativeOutput: string, snapshot
       !file.startsWith(path.join(root, "e2e")) &&
       !file.startsWith(path.join(root, "apps/mobile/test")) &&
       // The docs site installs on its own and its tests read the built site: Pages builds it, then runs them (check).
-      !file.startsWith(path.join(root, "apps/docs")),
+      !file.startsWith(path.join(root, "apps/docs")) &&
+      // The extension's tests run through its own runner, which hides the agent CLIs this computer has.
+      !file.startsWith(path.join(root, "apps/chrome-extension")),
   );
   // UI tests consume the public build, including JSX and the design-system export boundary.
   const build = spawnSync(process.execPath, ["scripts/build.mjs"], {
@@ -284,6 +286,16 @@ function runUnitSuites(root: string, raw: string, nativeOutput: string, snapshot
         `Coverage: ${area.name} was stopped after ${AREA_MS / 60_000} min; its files still running show as "still pending" above, not as failures of their own.`,
       );
     else if (run.error) console.error(run.error.message);
+  }
+  const extension = spawnSync(process.execPath, ["apps/chrome-extension/run-tests.ts"], {
+    cwd: root,
+    env: { ...process.env, NODE_V8_COVERAGE: raw },
+    stdio: "inherit",
+    timeout: AREA_MS,
+  });
+  if (extension.status !== 0) {
+    failedAreas.push("apps/chrome-extension");
+    if (extension.error) console.error(extension.error.message);
   }
   const mobile = spawnSync(
     process.platform === "win32" ? "npm.cmd" : "npm",
