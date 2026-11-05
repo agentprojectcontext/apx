@@ -141,23 +141,24 @@ Tres lugares eligen modelo, del más puntual al más general:
 
 ### Los respaldos propios de un agente
 
-Un agente con modelo propio puede tener hasta cinco **modelos de respaldo**, en orden. Se eligen en el editor del
-agente, en **Modelo y equipo › Modelos de respaldo** (agregar, subir o bajar, quitar), con
-`apx agents model <agente> <ref> --fallbacks <ref>,<ref>`, o pidiéndoselo a tu super-agente ("ponele a Robina Groq y
-Gemini de respaldo"): te muestra el cambio y espera tu sí. Un agente que usa sólo el router no tiene respaldos; primero
-elegí su modelo.
+Un agente con modelo propio puede tener hasta cinco **modelos de respaldo**, en orden. Los elegís en el editor del
+agente, en **Modelo y equipo › Modelos de respaldo**, donde podés agregarlos, reordenarlos y quitarlos. También podés
+usar `apx agents model <agente> <ref> --fallbacks <ref>,<ref>` o pedírselo a tu super-agente ("ponele a Robina Groq y
+Gemini de respaldo"), que te muestra el cambio y espera tu sí. Un agente que usa sólo el router no tiene respaldos:
+primero elegí su modelo.
 
-Cada turno prueba primero el modelo del agente. Si está en su límite de uso (retenido hasta su reinicio, como arriba) o
-falla después de sus intentos, el turno sigue con el primer respaldo libre, después con el siguiente, y recién después
-de toda la lista con la cadena del router, si el agente tiene el router detrás. A un modelo retenido por su límite no se
-le vuelve a preguntar antes del reinicio. Cuando se reinicia el límite del modelo principal, el turno siguiente vuelve a
-él solo. Un chat con su propio modelo elegido en el compositor mantiene los respaldos del agente detrás de ese modelo.
+Cada turno prueba primero el modelo del agente. Si ese modelo está en su límite de uso (APX lo retiene hasta el
+reinicio, como se explica arriba) o sigue fallando después de sus reintentos, el turno pasa al primer respaldo libre y
+después al siguiente. Si se termina la lista y el agente tiene el router detrás, la cadena del router va al final. APX
+no le vuelve a preguntar a un modelo en su límite antes del reinicio, y cuando se reinicia el límite del modelo
+principal, el turno siguiente vuelve a él solo. Si elegís otro modelo para un chat en el compositor, los respaldos del
+agente siguen detrás de ese modelo.
 
-Debajo de cada respuesta, la línea con el nombre del agente muestra el modelo que respondió, y **Con respaldo** cuando no
-fue el suyo; el aviso de arriba dice qué modelo no respondió y por qué.
+Debajo de cada respuesta, la línea con el nombre del agente muestra qué modelo respondió y agrega **Con respaldo**
+cuando no fue el suyo. El aviso de arriba dice qué modelo no respondió y por qué.
 
-Los respaldos valen donde el turno lo corre el loop propio de APX. Una sesión de Claude Code, Codex o ACP corre su propia
-CLI con su propio modelo, así que ahí no se aplican.
+Los respaldos sólo se aplican a los turnos que corre el loop propio de APX. Una sesión de Claude Code, Codex o ACP corre
+su propia CLI con su propio modelo, así que ahí no se usan los respaldos del agente.
 
 ## Consumo
 
