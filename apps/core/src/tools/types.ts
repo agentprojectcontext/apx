@@ -70,6 +70,8 @@ export type ToolContext = {
     },
     task: string,
     waitMs: number,
+    /** The call's own signal: once it aborts, the caller stops waiting and the answer comes in a new turn. */
+    signal?: AbortSignal,
   ): Promise<string>;
   /**
    * Asks the owner and waits (durably) for the answer; the same machine confirmations use. Unless the agent can
@@ -116,6 +118,8 @@ export type Tool = {
   untrustedWhy?: UntrustedWhy | undefined;
   /** Longest the call may take before it is cut (the turn goes on with an error result). */
   deadlineMs: number;
+  /** What the model reads after "stopped part way" when the owner's "send now" cuts this call (DECISIONS.md#d-186). */
+  cut?: string | undefined;
   /**
    * The result only shows the owner's own folder (a file, a command that only reads): still framed as data, but it
    * does not count as outside content for confirmations.
@@ -181,6 +185,7 @@ export function defineTool<S extends Args>(def: {
   confirm?: Confirm | ((args: z.output<S>) => Confirm);
   untrustedWhy?: UntrustedWhy;
   deadlineMs: number;
+  cut?: string;
   local?: (args: z.output<S>) => boolean;
   reads?: (args: z.output<S>) => boolean;
   scratch?: (args: z.output<S>) => boolean;
@@ -212,6 +217,7 @@ export function defineTool<S extends Args>(def: {
       : {}),
     confirm: (a) => (typeof def.confirm === "function" ? def.confirm(a as z.output<S>) : (def.confirm ?? "never")),
     deadlineMs: def.deadlineMs,
+    ...(def.cut ? { cut: def.cut } : {}),
     ...(def.untrustedWhy ? { untrustedWhy: def.untrustedWhy } : {}),
     ...(def.workspace ? { workspace: true as const } : {}),
     ...(def.needsCap ? { needsCap: def.needsCap } : {}),
