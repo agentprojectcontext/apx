@@ -8,7 +8,7 @@ import { useT } from "../i18n/index.ts";
 type Kind = SecretInfo["sites"][number]["kind"];
 
 /** What the owner typed as a site, as the origin it is kept by ("acme.com/login" → "https://acme.com"). */
-export function siteOf(typed: string): string | undefined {
+function siteOf(typed: string): string | undefined {
   const raw = typed.trim();
   if (!raw) return undefined;
   try {

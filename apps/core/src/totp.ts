@@ -24,7 +24,7 @@ function base32(seed: string): Buffer {
 
 type Seed = { key: Buffer; digits: number; period: number; algorithm: (typeof ALGORITHMS)[keyof typeof ALGORITHMS] };
 
-export function parseSeed(stored: string): Seed {
+function parseSeed(stored: string): Seed {
   if (!stored.startsWith("otpauth://")) return { key: base32(stored), digits: 6, period: 30, algorithm: "sha1" };
   const u = new URL(stored);
   if (u.host !== "totp") throw new Error("only time-based one-time codes are supported");
