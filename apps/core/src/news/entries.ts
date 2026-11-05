@@ -9,6 +9,7 @@ import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
+import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
 
 /** What an entry may ask about this install before it is told. */
 export type NewsFacts = {
@@ -64,6 +65,7 @@ export type NewsEntry = {
 export const NEWS: readonly NewsEntry[] = [
   TASK_GOALS_NEWS,
   COMPUTER_POINTER_NEWS,
+  TASK_REGROUP_NEWS,
   QUEUED_MESSAGES_NEWS,
   EXTERNAL_SESSIONS_NEWS,
   BROWSER_EDIT_NEWS,
