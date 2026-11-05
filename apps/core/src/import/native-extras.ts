@@ -8,15 +8,11 @@ import { parseFrontmatter } from "../apc/frontmatter.ts";
 import { isInside } from "../paths.ts";
 import { sessionText } from "./native-read.ts";
 import type { NativeEngine, NativeHomes, NativeSession } from "./native-sessions.ts";
+import { type FoundServer, serverSecrets } from "./server-secrets.ts";
 
-export type FoundServer = {
-  command?: string;
-  args?: string[];
-  env?: Record<string, string>;
-  url?: string;
-  headers?: Record<string, string>;
-};
-/** `secrets`: the env or header keys holding a credential written in the file, which never go to a project's file. */
+export type { FoundServer };
+
+/** `secrets`: where the file holds a credential (an env or header key, an argument's flag, `url`), never copied. */
 type FoundMcp = { name: string; server: FoundServer; secrets: string[] };
 type FoundNote = { key: string; text: string };
 type FoundTask = { key: string; title: string; description: string; session: string };
@@ -38,13 +34,8 @@ const readJson = (file: string): unknown => {
   }
 };
 
-const SECRET_KEY = /key|token|secret|pass|pwd|auth|credential|cookie/i;
-/** Keys whose value is a credential (or a reference to one the owner's shell had): APX needs the owner to give it. */
-export function secretKeys(s: FoundServer): string[] {
-  const env = Object.entries(s.env ?? {}).filter(([k, v]) => v && (SECRET_KEY.test(k) || v.includes("${")));
-  const headers = Object.entries(s.headers ?? {}).filter(([k, v]) => v && (SECRET_KEY.test(k) || v.length >= 24));
-  return [...env, ...headers].map(([k]) => k);
-}
+/** Where a credential is written (or a reference to one the owner's shell had): APX needs the owner to give it. */
+export const secretKeys = (s: FoundServer): string[] => [...new Set(serverSecrets(s).map((x) => x.key))];
 
 function server(v: unknown): FoundServer | undefined {
   const o = obj(v);
