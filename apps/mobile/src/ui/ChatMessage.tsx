@@ -18,6 +18,7 @@ import { ImageGenerating } from "./chat/ImageGenerating";
 import { InputCard, type Respond } from "./chat/InputCard";
 import { DeliveryTicks, Reactions } from "./chat/MessageMarks";
 import { type ContinueSession, type GoOn, NoticeCard, type SessionState } from "./chat/NoticeCard";
+import { PlanCard } from "./chat/PlanCard";
 import { SkillsRow } from "./chat/SkillsRow";
 import { SubthreadCard } from "./chat/SubthreadCard";
 import { Icon } from "./Icon";
@@ -160,6 +161,8 @@ export function ChatMessage({
         ) : null;
       case "connect":
         return <ConnectCard key={key} part={part} client={client} />;
+      case "plan":
+        return <PlanCard key={key} label={t("plan")} steps={part.steps} />;
       case "file":
         // Only a document snapshot gets here; other files are media rows.
         return (
