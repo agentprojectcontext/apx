@@ -196,6 +196,7 @@
                       "**/JobList.tsx",
                       "**/LiveLayer.tsx",
                       "**/MediaGroup.tsx",
+                      "**/ModelChoiceMenu.tsx",
                       "**/ModelList.tsx",
                       "**/NewProjectDialog.tsx",
                       "**/OAuthReturn.tsx",
