@@ -668,17 +668,35 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
         running: all(
           qb.selectFrom("runs as r").selectAll("r").where("r.state", "in", LIVE).orderBy("r.created_at", "desc"),
         ).map(toRun),
-        finished: all(
-          qb
-            .selectFrom("runs as r")
-            .innerJoin("threads as t", "t.id", "r.thread_id")
-            .selectAll("r")
-            .where("r.state", "in", [...TERMINAL])
-            .where((eb) => eb.or([eb("r.trigger", "!=", "user"), eb("t.parent_id", "is not", null)]))
-            .orderBy("r.ended_at", "desc")
-            .limit(finished),
-        ).map(toRun),
+        // One walk of runs_memory_completed per state: `state IN (...)` with this order sorted every finished run.
+        finished: [...TERMINAL]
+          .flatMap((state) =>
+            all(
+              qb
+                .selectFrom("runs as r")
+                .innerJoin("threads as t", "t.id", "r.thread_id")
+                .selectAll("r")
+                .where("r.state", "=", state)
+                .where((eb) => eb.or([eb("r.trigger", "!=", "user"), eb("t.parent_id", "is not", null)]))
+                .orderBy("r.ended_at", "desc")
+                .limit(finished),
+            ),
+          )
+          .sort((a, b) => String(b.ended_at ?? "").localeCompare(String(a.ended_at ?? "")))
+          .slice(0, finished)
+          .map(toRun),
       };
+    },
+    /** Runs completed after `since`, newest first. */
+    completedSince(since: string): RunRecord[] {
+      return all(
+        qb
+          .selectFrom("runs")
+          .selectAll()
+          .where("state", "=", "completed")
+          .where("ended_at", ">", since)
+          .orderBy("ended_at", "desc"),
+      ).map(toRun);
     },
 
     // ── steps ──────────────────────────────────────────────────────────

@@ -107,6 +107,10 @@ export function agentsRepo({ one, all, run }: Sql, changed: () => void) {
       const r = one(qb.selectFrom("agents").selectAll().where("id", "=", id));
       return r ? toAgent(r) : undefined;
     },
+    /** Whether `id` is one of the active agents `list()` returns, without reading them all. */
+    active(id: string): boolean {
+      return !!one(qb.selectFrom("agents").select("id").where("id", "=", id).where("archived", "=", 0));
+    },
     /**
      * Id first; otherwise a case-insensitive name match among global agents and the given project's team.
      * More than one match is an error that lists the ids, never a guess.

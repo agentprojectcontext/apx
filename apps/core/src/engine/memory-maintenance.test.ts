@@ -192,3 +192,66 @@ test("episode, capture, dream and its timestamp roll back together before indexi
     await env.cleanup();
   }
 });
+
+test("starting picks up the last day's owner turns in chats the owner keeps, not archived chats or older turns", async () => {
+  const llm = scriptedLlm(() => say("ok"));
+  const env = await startCore({ llm });
+  const store = env.core.store;
+  const log = createLog("memory-test", true);
+  const upkeep = createUpkeep({ store, llm, log });
+  const index: MemoryIndex = {
+    model: () => undefined,
+    engine: () => undefined,
+    schedule() {},
+    stop: async () => {},
+    index: async () => ({ indexed: 0, total: 0 }),
+    search: async () => [],
+    searchEpisodes: async () => [],
+  };
+  const maintenance = createMemoryMaintenance({
+    store,
+    upkeep,
+    index,
+    log,
+    call: async () => {
+      throw new Error("unexpected internal call");
+    },
+  });
+  try {
+    const turn = async (text: string) => {
+      const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
+      await env.client.call("threads.send", { thread: thread.id, text });
+      await env.settle(thread.id);
+      const run = store.runs.list(thread.id, 1)[0];
+      assert.ok(run);
+      return run;
+    };
+    const kept = await turn("Northwind invoices use amber labels.");
+    const archived = await turn("Northwind archives use violet labels.");
+    const older = await turn("Northwind receipts use green labels.");
+    const db = openDb(env.home);
+    try {
+      const q = sql(db);
+      q.run(qb.deleteFrom("memory_work"));
+      q.run(qb.deleteFrom("memory_episodes"));
+      q.run(qb.deleteFrom("memory_episode_scans"));
+      q.run(qb.updateTable("threads").set({ archived: 1 }).where("id", "=", archived.thread_id));
+      const twoDaysAgo = new Date(Date.now() - 2 * 86_400_000).toISOString();
+      q.run(qb.updateTable("runs").set({ ended_at: twoDaysAgo }).where("id", "=", older.id));
+    } finally {
+      db.close();
+    }
+    store.settings.write("memory", { auto_capture: false, auto_dream: false });
+    maintenance.start();
+    const unchecked = store.memoryWork.uncheckedEpisodes(100);
+    assert.equal(unchecked.includes(kept.id), false);
+    assert.ok(unchecked.includes(archived.id));
+    assert.ok(unchecked.includes(older.id));
+    assert.equal(store.memoryWork.searchEpisodes("Northwind", [kept.thread_id]).length, 1);
+  } finally {
+    await maintenance.stop();
+    await upkeep.stop();
+    await env.core.close();
+    await env.cleanup();
+  }
+});
