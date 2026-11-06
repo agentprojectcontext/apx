@@ -67,7 +67,7 @@ export default defineConfig({
     installScripts(),
     starlight({
       title: "APX",
-      description: "APX: your own team of AI agents, on your machine.",
+      description: "Your own team of AI agents, on your machine.",
       logo: { src: "./src/assets/logo.png", alt: "APX" },
       favicon: "/favicon.svg",
       customCss: ["./src/styles/theme.css"],
