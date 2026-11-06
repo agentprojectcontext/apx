@@ -13,6 +13,10 @@ APX no es solo para trabajo de oficina. Un agente puede trabajar dentro de la ca
 editar archivos, correr tests y comandos, y mostrarte cada cambio como un diff. Hay dos formas: un **hilo de código**
 con uno de tus agentes, o una sesión con **Claude Code** o **Codex** en persona, dentro de APX.
 
+## Leer una revisión exacta de Git
+
+`file_read_revision` lee un archivo de texto en un commit completo de Git y devuelve los identificadores verificados del commit y del blob. No usa el archivo de trabajo como alternativa. Esto permite leer historia del repositorio: un agente limitado a `file_read` **no** recibe esa herramienta salvo que el dueño también autorice `file_read_revision` (el grupo amplio `files` la incluye). Se aplican las mismas reglas de carpetas. Requiere Git con `--no-lazy-fetch`; ante objetos ausentes, almacenes alternativos, archivos binarios o mayores a 1 MB, rechaza la lectura sin buscar datos externos.
+
 ## Hilos de código
 
 Un hilo de código es un chat cuyo agente trabaja en una carpeta de un [proyecto](/es/concepts/projects/). Su

@@ -163,6 +163,7 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   load_skill: (a) =>
     a.file ? `Leyó ${file(a.file, "")} de la habilidad ${str(a.name)}` : `Cargó la habilidad ${str(a.name)}`,
   file_read: (a) => `Leyó ${str(a.path ?? "un archivo")}`,
+  file_read_revision: (a) => `Leyó la versión de ${str(a.path ?? "un archivo")}`,
   file_write: (a) => `Escribió ${str(a.path ?? "un archivo")}`,
   file_edit: (a) => `Editó ${str(a.path ?? "un archivo")}`,
 };
