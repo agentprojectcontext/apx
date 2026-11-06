@@ -62,7 +62,8 @@ export function buildObserverResource(config: {
         "-o",
         part,
       ]);
-      execute("/usr/bin/lipo", ["-verify_arch", arch, part]);
+      // The file goes first: Xcode 26's lipo reads every word after -verify_arch as an architecture.
+      execute("/usr/bin/lipo", [part, "-verify_arch", arch]);
       parts.push(part);
     }
     const binary = path.join(workspace, "computer-observer");

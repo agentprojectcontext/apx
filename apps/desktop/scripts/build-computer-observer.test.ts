@@ -13,7 +13,7 @@ function fixture(t: TestContext, options: { archs?: string; fail?: string } = {}
   const calls: { executable: string; args: string[] }[] = [];
   const run = (executable: string, args: readonly string[]) => {
     calls.push({ executable, args: [...args] });
-    const stage = executable.endsWith("swiftc") ? "compile" : args[0];
+    const stage = executable.endsWith("swiftc") ? "compile" : args.find((a) => a.startsWith("-"));
     if (stage === options.fail) throw new Error("SYNTHETIC_PRIVATE_TOOLCHAIN_ERROR");
     if (stage === "compile" || stage === "-create") {
       const flag = stage === "compile" ? "-o" : "-output";
@@ -38,6 +38,18 @@ test("a single-architecture resource is published only after architecture and si
     f.calls.slice(-2).map((call) => call.args[0]),
     ["--force", "--verify"],
   );
+});
+
+test("each slice is checked with its file before -verify_arch, as every Xcode's lipo reads it", (t) => {
+  const f = fixture(t, { archs: "x86_64 arm64" });
+  buildObserverResource({ ...f, platform: "darwin", architectures: ["arm64", "x64"] });
+  const checks = f.calls.filter((call) => call.args.includes("-verify_arch")).map((call) => call.args);
+  assert.equal(checks.length, 2);
+  for (const [file, flag, arch, ...rest] of checks) {
+    assert.equal(flag, "-verify_arch");
+    assert.ok(file && arch && path.basename(file) === arch, `the slice ${file} is named before its architecture`);
+    assert.deepEqual(rest, [], "nothing after the architecture: lipo would read it as one");
+  }
 });
 
 test("a universal resource contains both requested architectures before signing", (t) => {
