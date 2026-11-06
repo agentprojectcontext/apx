@@ -6,7 +6,7 @@ import { after, before, test } from "node:test";
 import { type InstanceFile, type InstancePlan, SUPER_AGENT_ID } from "@apx/protocol";
 import type { FlowGraph } from "@apx/protocol/flow-graph";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { samePath } from "../paths.ts";
+import { expandHome, samePath } from "../paths.ts";
 import { tempDir } from "../testkit/platform.ts";
 import { applyImport, ImportOutOfTime } from "./plan.ts";
 
@@ -417,7 +417,8 @@ test("a key typed into a command, an address or a step's header travels as a ref
   for (const v of [API, TOKEN, PATH_KEY, HEADER]) assert.ok(!text.includes(v), `${v} is not in the file`);
   assert.ok(!text.includes(os.homedir()), "no folder of this computer");
   const tools = file.mcps.find((m) => m.name === "tools");
-  assert.equal(tools?.command, "~/bin/acme-mcp");
+  assert.match(tools?.command ?? "", /^~[/\\]/, "the command is written from the home, as ~");
+  assert.ok(samePath(expandHome(tools?.command ?? ""), bin), "and names the same file back home");
   assert.deepEqual(tools?.args, [
     "--api-key",
     "secret://tools_api_key",
