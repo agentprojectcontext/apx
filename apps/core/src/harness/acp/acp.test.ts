@@ -67,7 +67,7 @@ test("an ACP agent's session runs the turn: model picked, its edit asks the owne
 const plansIn = (messages: Message[]) =>
   messages.flatMap((m) => m.parts.filter((p): p is Extract<Part, { type: "plan" }> => p.type === "plan"));
 
-test("an ACP agent's plan, as plan updates or as its to-do tool, is APX's plan under its answer (DECISIONS.md#d-192)", async () => {
+test("an ACP agent's plan, as plan updates or as its to-do tool, is APX's plan under its answer (DECISIONS.md#d-199)", async () => {
   // Removed with the core, after the agent's processes exited.
   const repo = tempDir("apx-acp-plan-");
   cleanups.push(() => repo.remove());

@@ -3629,8 +3629,8 @@ thread's context (the messages already hold it, and tools change chats only thro
 checklist to the newest answer by removing it from older ones (it rewrites what the owner already read; each answer
 keeps the plan as it stood).
 
-<a id="d-192"></a>
-## D-192 — 2026-11-05 — An outside engine's checklist is APX's plan
+<a id="d-199"></a>
+## D-199 — 2026-11-05 — An outside engine's checklist is APX's plan
 
 D-191 gave every chat a plan, but Claude Code, Codex and ACP sessions run their own loops: a Codex or ACP agent's
 checklist never reached the chat, and Claude Code was never told to use APX's `plan`. The owner wants those engines to

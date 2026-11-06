@@ -19,7 +19,7 @@ export function zodShape(params: object): z.ZodRawShape {
 }
 
 // Claude Code's own web, file and shell tools, each asked through our policy. Its task list, subagents and questions
-// are not offered: APX's plan, delegate and ask_owner do those, with their cards (DECISIONS.md#d-192).
+// are not offered: APX's plan, delegate and ask_owner do those, with their cards (DECISIONS.md#d-199).
 const CLAUDE_BUILTINS = ["WebSearch", "WebFetch"];
 const CODE_READ = ["Read", "Glob", "Grep", "LS"];
 const CODE_WRITE = ["Edit", "MultiEdit", "Write", "NotebookEdit", "Bash"];

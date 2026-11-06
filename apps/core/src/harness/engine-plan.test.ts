@@ -11,7 +11,7 @@ import { engineChecklist } from "./engine-plan.ts";
 import { fakeProgram } from "./fake-program.test-support.ts";
 
 // An outside engine's own checklist is APX's plan, and Claude Code, which has none here, is steered to it
-// (DECISIONS.md#d-192).
+// (DECISIONS.md#d-199).
 
 let dir: TempDir;
 let env: Awaited<ReturnType<typeof startCore>>;

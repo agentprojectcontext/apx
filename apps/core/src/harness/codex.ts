@@ -60,7 +60,7 @@ export function codexHarness(opts: {
           codexPathOverride: codexPath,
           // With approval "never" Codex refuses every MCP call unless the server's tools are pre-approved; APX's gate
           // asks the owner itself when a tool needs it. Its plan tool is off unless asked for: the owner sees its
-          // checklist through it (DECISIONS.md#d-192).
+          // checklist through it (DECISIONS.md#d-199).
           config: { mcp_servers: { apx }, tools: { update_plan: { enabled: true } } },
           env,
         });

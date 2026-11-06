@@ -1,6 +1,6 @@
 // An outside engine's own checklist (Codex's plan, an ACP agent's plan updates) kept as APX's plan: the same `plan`
 // tool call, so its card, the checklist under the answer and a task's plan are what our own loop's would be.
-// See DECISIONS.md#d-192
+// See DECISIONS.md#d-199
 import type { PlanStep } from "@apx/protocol/task-plan";
 import { PLAN_CHARS, planText } from "../tools/plan.ts";
 import type { TurnIO } from "./types.ts";
