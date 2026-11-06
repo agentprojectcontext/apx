@@ -9,7 +9,7 @@ import { useData } from "../data/state.ts";
 import { t as tr, useT } from "../i18n/index.ts";
 import { nav } from "../shell/nav.ts";
 import { leaveEditing } from "./BrowserEdit.tsx";
-import { browserEdit, startEditing } from "./browserEdit.ts";
+import { browserEdit, canEditPage, startEditing } from "./browserEdit.ts";
 
 /** "example.com" → "https://example.com"; anything that is not http(s) is refused. */
 function normalizeUrl(raw: string): string | undefined {
@@ -50,19 +50,22 @@ export function BrowserToolbar({ tab, onOpened }: { tab: TabInfo | undefined; on
 
   const c = tab?.control;
   const inEdit = useSlice(browserEdit, (s) => s.target) === tab?.tab && tab != null;
-  const editButton = tab && draft == null && (c?.kind === "idle" || c?.kind === "user") && (
-    <Button
-      size="sm"
-      variant={inEdit ? "primary" : "secondary"}
-      className="btoolbar__btn"
-      title={t("browser.editHint")}
-      aria-pressed={inEdit}
-      leadingIcon={<Icons.Pencil size={13} />}
-      onClick={() => (inEdit ? void leaveEditing(tab.tab) : startEditing(tab.tab))}
-    >
-      {t("browser.edit")}
-    </Button>
-  );
+  const editButton = tab &&
+    draft == null &&
+    (c?.kind === "idle" || c?.kind === "user") &&
+    (inEdit || canEditPage(tab.url)) && (
+      <Button
+        size="sm"
+        variant={inEdit ? "primary" : "secondary"}
+        className="btoolbar__btn"
+        title={t("browser.editHint")}
+        aria-pressed={inEdit}
+        leadingIcon={<Icons.Pencil size={13} />}
+        onClick={() => (inEdit ? void leaveEditing(tab.tab) : startEditing(tab.tab))}
+      >
+        {t("browser.edit")}
+      </Button>
+    );
   return (
     <div className="btoolbar">
       <IconButton
