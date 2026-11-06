@@ -6,8 +6,8 @@ import type { Store } from "../domain/store.ts";
  * delegation, a consult) does the work itself and asks nobody else (DECISIONS.md#d-074).
  */
 export const MAX_DEPTH = 1;
-/** Delegations running at once from one thread; past it the next ones wait in a queue (DECISIONS.md#d-096). */
-export const MAX_ACTIVE_DELEGATIONS = 3;
+/** Delegations running at once from one thread; past it the next ones wait in a queue (DECISIONS.md#d-096, #d-202). */
+export const MAX_ACTIVE_DELEGATIONS = 2;
 /**
  * The most a delegated run may work, however steadily it makes progress: below it, it stops only after its idle
  * window without progress, like the owner's turns (DECISIONS.md#d-105).

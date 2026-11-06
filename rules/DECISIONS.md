@@ -1206,7 +1206,7 @@ delegation started it or not; a run waiting for the owner's answer gives its slo
 stalls the queue (once answered, that run may work beside three others). A queued run is cancelled the way an unstarted
 one is (stopping the caller's turn or thread, `jobs.cancel`), outlives a restart (the boot starts what fits only once the
 cut ones resume, so never more than three), and is cancelled rather than started if its caller's run or thread is gone.
-The cap itself is unchanged. A queued run counts against the breaker once it starts, and the breaker is checked again
+The cap itself is unchanged (lowered from three to two by [D-202](#d-202)). A queued run counts against the breaker once it starts, and the breaker is checked again
 then: past it, the run stays queued, the owner sees the paused notice once, and letting agents go on (or writing in that
 chat) starts it.
 
@@ -3617,6 +3617,7 @@ adding a restriction, without one step of its plan working.
   one task. `task_comment` takes one comment per task per turn (a second is refused: the rest goes in the answer) and
   at most 1,500 characters, and is for what others must know now: blocked, a decision, done. Progress shows in the
   plan; helpers comment only when they find a block or something for the owner to decide.
+  *Superseded by [D-202](#d-202) (2026-11-06): one comment a turn was not enough, since every continuation is a turn.*
 
 Rejected: a cap on delegations per task (good work also delegates; what matters is that steps get done), and resetting
 the count on any plan rewrite (an agent could rewrite its plan to go on forever).
@@ -4078,3 +4079,38 @@ its foreign key (a sub-thread delete took about 1 s).
   needs a second WAL reader; it is the next step only for a read that cannot use an index, never for a hot one.
 
 The migration reads each indexed table once: on a 4.5 GB store it took 0.2 to 4.9 s, once, at the first start.
+
+<a id="d-202"></a>
+## D-202 — 2026-11-06 — Comments when the plan is done or to ask someone; one agent works a task, help at the end
+
+D-188's one comment a turn did not stop the noise: a payments task reached 171 comments in a day, and a scheduler task
+23 in one night. Every continuation, result and review round is a new turn, so the agent on it posted its progress in
+each, and the reviewers it asked (security, QA, architecture) posted their verdicts on the task as well as answering
+it. The owner reads none of that; they want a comment when a plan is done, when the direction changes or when someone
+is asked something. Three agents also worked one task at once, each asked mid-way whether to do one thing or another.
+
+- **Comments, by rule** (`commentNoise` in `tools/tasks.ts`): `task_comment` posts in a turn the owner started (their
+  words, `ownerWordsOf`), when the text asks someone (`@owner`, an `@agent`), or once the plan is all done and this
+  agent has not commented since its last step was done (`progress_at`). Otherwise it is refused with "progress goes in
+  your plan". An agent answering another one (an `a2a` chat, not the task's assignee) never comments: its answer goes
+  back to whoever asked, and a consult's answer already shows on the task's card. A change of direction the owner must
+  know is a question for `@owner`. The task block and the tool's description say the same, in fewer characters.
+- **One agent works a task** (`midPlan` in `tools/agents.ts`): in a task's chat, its assignee's `delegate` is refused
+  while any step but the last is left (the last may be the review), and with no plan, unless the owner started the
+  turn. Work for someone else becomes a subtask; a lead (a CEO or CTO agent) plans with tasks and subtasks. An
+  `@teammate` in a comment still opens a consult on the task (D-132), so asking stays visible and bounded (two a
+  comment, and a consult asks nobody).
+- **Two at once**: `MAX_ACTIVE_DELEGATIONS` goes from three to two; the next ones wait in D-096's queue.
+- **No blank runs**: an answer posted on a task joins its text parts only, so the tool calls between them no longer
+  leave dozens of empty lines.
+- **Cleaning what piled up** (`tasks.tidy`, the super-agent's `task_tidy`): takes the named agents' plain comments out
+  of a task's conversation (the owner's words, cards and anything else stay, reported as `kept`) and may leave one
+  summary. The tool is offered only while an open task has 15 or more agents' messages (`tasks.noisy`), so a default
+  turn carries nothing for it; with no task it lists those tasks, with one it lists its comments, and removing always
+  shows the owner a card, whatever the mode. A release news entry (`task-comments`) offers it to owners who have such
+  tasks: the super-agent says what it would take out and the summary it would leave, and removes only after a yes.
+
+Rejected: a comment quota per task (the owner's own turns and real questions must always get through), letting
+reviewers comment when they find a block (every review found one, D-188), and removing comments by a heuristic
+without the owner seeing what goes.
+

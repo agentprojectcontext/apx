@@ -12,6 +12,9 @@ import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
 const PARTS = Array.from({ length: MAX_ACTIVE_DELEGATIONS + 1 }, (_, i) => `part-${i + 1}`);
 const FIVE = Array.from({ length: MAX_ACTIVE_DELEGATIONS + 2 }, (_, i) => `part-${i + 1}`);
+/** The first delegation past the cap, and the last of the longer fan-out. */
+const NEXT = `part-${MAX_ACTIVE_DELEGATIONS + 1}`;
+const LAST = `part-${MAX_ACTIVE_DELEGATIONS + 2}`;
 
 /** One delegate call of the fan-out: the session it names and the key its task carries. */
 type Ask = { session: string; key: string };
@@ -148,7 +151,7 @@ test("a delegation past the cap is queued, starts when one finishes, and its res
       .flatMap((m) => (m.role === "tool" ? [String(m.content)] : []));
     assert.equal(results.filter((r) => r.startsWith("queued:")).length, 1, "the tool says it is queued");
     assert.ok(!results.some((r) => r.startsWith("refused")));
-    await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "three at work");
+    await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "the cap at work");
 
     const first = subs.find((s) => s !== waiting && s.t.session);
     g.open(first?.t.session ?? "");
@@ -178,7 +181,7 @@ test("a delegation past the cap is queued, starts when one finishes, and its res
 test("stopping the caller's thread cancels a queued delegation instead of starting it", async () => {
   await withCore({}, async (env, g) => {
     const parent = await fanOut(env);
-    await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "three at work");
+    await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "the cap at work");
     const waiting = sessions(env, parent).find((s) => s.run?.state === "queued");
     assert.ok(waiting);
     await env.client.call("threads.cancel", { thread: parent });
@@ -193,7 +196,7 @@ test("stopping the caller's thread cancels a queued delegation instead of starti
 test("stopping the caller's turn while it is still working cancels its queued delegations", async () => {
   await withCore({ asks: ofParts(FIVE), holdCaller: true }, async (env, g) => {
     const parent = await fanOut(env, false);
-    await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "three at work");
+    await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "the cap at work");
     await waitFor(() => sessions(env, parent).filter((s) => s.run?.state === "queued").length === 2, "two queued");
     assert.equal(env.core.store.runs.list(parent, 1)[0]?.state, "working", "the caller is mid-turn");
     await env.client.call("threads.cancel", { thread: parent });
@@ -207,7 +210,7 @@ test("stopping the caller's turn while it is still working cancels its queued de
 test("jobs.cancel on a queued delegation ends it for whoever waits on it", async () => {
   await withCore({}, async (env, g) => {
     const parent = await fanOut(env);
-    await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "three at work");
+    await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "the cap at work");
     const waiting = sessions(env, parent).find((s) => s.run?.state === "queued");
     assert.ok(waiting?.run);
     const waited = env.core.engine.wait(waiting.run.id, 3000);
@@ -224,16 +227,16 @@ test("jobs.cancel on a queued delegation ends it for whoever waits on it", async
 test("a slot freed by a failed or canceled delegation starts the oldest queued one", async () => {
   await withCore({ asks: ofParts(FIVE), fail: ["part-1"] }, async (env, g) => {
     const parent = await fanOut(env);
-    await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "three at work");
+    await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "the cap at work");
     g.open("part-1");
     await waitFor(() => session(env, parent, "part-1").run?.state === "failed", "part-1 failed");
     await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS + 1, "the next one starting");
-    assert.equal(g.asked.at(-1), "part-4", "the oldest goes first");
-    assert.equal(session(env, parent, "part-5").run?.state, "queued");
+    assert.equal(g.asked.at(-1), NEXT, "the oldest goes first");
+    assert.equal(session(env, parent, LAST).run?.state, "queued");
 
     await env.client.call("threads.cancel", { thread: session(env, parent, "part-2").t.id });
     await waitFor(() => g.asked.length === FIVE.length, "the last one starting");
-    assert.equal(g.asked.at(-1), "part-5");
+    assert.equal(g.asked.at(-1), LAST);
     assert.ok(g.at.peak <= MAX_ACTIVE_DELEGATIONS, `at most ${MAX_ACTIVE_DELEGATIONS} at once (saw ${g.at.peak})`);
   });
 });
@@ -243,7 +246,7 @@ test("a delegation waiting for the owner's answer frees its slot", async () => {
     const parent = await fanOut(env);
     await waitFor(() => session(env, parent, "part-1").run?.state === "input-required", "part-1 asking the owner");
     await waitFor(() => g.asked.length === PARTS.length, "the queued one starting");
-    assert.notEqual(session(env, parent, "part-4").run?.state, "queued");
+    assert.notEqual(session(env, parent, NEXT).run?.state, "queued");
     assert.equal(session(env, parent, "part-1").run?.state, "input-required", "it still waits for the owner");
   });
 });
@@ -269,19 +272,21 @@ test("a turn in a session that no delegation started frees its slot when it ends
     await waitFor(() => g.asked.includes("side"), "the side turn working");
     await env.client.call("threads.send", { thread: t.id, text: "fan out" });
     await waitFor(() => env.core.store.runs.list(t.id, 1)[0]?.state === "completed", "the caller's turn");
-    await waitFor(() => g.asked.length === 3, "two delegations at work");
-    assert.equal(sessions(env, t.id).filter((s) => s.run?.state === "queued").length, 2);
+    // The side turn holds one slot: the fan-out gets the rest.
+    const working = MAX_ACTIVE_DELEGATIONS - 1;
+    await waitFor(() => g.asked.length === working + 1, "the side turn and the delegations that fit at work");
+    assert.equal(sessions(env, t.id).filter((s) => s.run?.state === "queued").length, asks.length - working);
     g.open("side");
-    await waitFor(() => g.asked.length === 4, "one queued starting once the side turn ends");
-    assert.equal(g.asked.at(-1), "part-3");
+    await waitFor(() => g.asked.length === working + 2, "one queued starting once the side turn ends");
+    assert.equal(g.asked.at(-1), `part-${working + 1}`);
   });
 });
 
 test("a queued task for a session still at work leaves that session showing it works", async () => {
-  const asks = [...ofParts(["part-1", "part-2", "part-3"]), { session: "part-1", key: "extra" }];
+  const asks = [...ofParts(PARTS.slice(0, MAX_ACTIVE_DELEGATIONS)), { session: "part-1", key: "extra" }];
   await withCore({ asks }, async (env, g) => {
     const parent = await fanOut(env);
-    await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "three at work");
+    await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "the cap at work");
     const busy = session(env, parent, "part-1");
     const extra = env.core.store.runs.list(busy.t.id, 5).find((r) => r.state === "queued");
     assert.ok(extra, "the second task for part-1 is queued");
@@ -298,7 +303,7 @@ for (const kind of ["chain", "agent"] as const)
   test(`a queued delegation waits while the ${kind} budget is spent, and starts once the owner ${kind === "chain" ? "lets agents go on" : "writes"}`, async () => {
     await withCore({}, async (env, g) => {
       const parent = await fanOut(env);
-      await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "three at work");
+      await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "the cap at work");
       if (kind === "chain") await env.client.call("agents.set_limits", { runs: MAX_ACTIVE_DELEGATIONS, tokens: 0 });
       else
         await env.client.call("agents.set_agent_limits", {
@@ -312,7 +317,7 @@ for (const kind of ["chain", "agent"] as const)
         "two done",
       );
       await pause();
-      assert.equal(session(env, parent, "part-4").run?.state, "queued", "the breaker holds it");
+      assert.equal(session(env, parent, NEXT).run?.state, "queued", "the breaker holds it");
       assert.equal(g.asked.length, MAX_ACTIVE_DELEGATIONS);
       const held = env.core.store.messages
         .list(parent)
@@ -443,12 +448,15 @@ test("the boot never runs more delegations at once than the cap", async () => {
       store.runs.activeDelegations(parentThread.id) <= MAX_ACTIVE_DELEGATIONS,
       `at most ${MAX_ACTIVE_DELEGATIONS} admitted (saw ${store.runs.activeDelegations(parentThread.id)})`,
     );
-    await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "three at work");
+    await waitFor(() => g.asked.length === MAX_ACTIVE_DELEGATIONS, "the cap at work");
     await pause();
     assert.equal(g.asked.length, MAX_ACTIVE_DELEGATIONS);
-    assert.deepEqual(g.asked.toSorted(), ["part-2", "part-3", "part-4"], "the resumed two and the oldest queued");
+    // The resumed two first, then the oldest queued while a slot is left.
+    const queued = ["part-4", "part-5"];
+    const first = ["part-2", "part-3", ...queued.slice(0, MAX_ACTIVE_DELEGATIONS - 2)];
+    assert.deepEqual(g.asked.toSorted(), first, "the resumed two and the oldest queued that fit");
     g.open("part-2");
-    await waitFor(() => g.asked.includes("part-5"), "the last one starting");
+    await waitFor(() => g.asked.includes(queued[MAX_ACTIVE_DELEGATIONS - 2] ?? ""), "the next queued one starting");
     assert.ok(g.at.peak <= MAX_ACTIVE_DELEGATIONS, `at most ${MAX_ACTIVE_DELEGATIONS} at once (saw ${g.at.peak})`);
   } finally {
     g.openAll();

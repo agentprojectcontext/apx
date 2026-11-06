@@ -1,11 +1,13 @@
 // Finding and asking other agents. `delegate` is the only way an agent talks to another one.
 import path from "node:path";
 import { WritePolicy } from "@apx/protocol";
+import { planSteps } from "@apx/protocol/task-plan";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import { APX_SERVER } from "../domain/approvals.ts";
 import type { ProjectRecord } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
+import { ownerWordsOf } from "../domain/task-asked.ts";
 import { budgetLeft } from "../engine/breaker.ts";
 import { sessionOf } from "../engine/delegation.ts";
 import { isInside } from "../paths.ts";
@@ -14,6 +16,20 @@ import { defineTool, type Tool } from "./types.ts";
 
 /** A session in one of these states is still at work: its caller may stop it. */
 const AT_WORK = new Set(["submitted", "working", "queued", "input-required"]);
+
+/**
+ * Whoever works a task does it and asks for one review at the end: mid-plan, other agents are not asked (the owner
+ * may still ask for them). Work for someone else becomes a subtask (DECISIONS.md#d-202).
+ */
+function midPlan(store: Store, taskId: string | undefined, agentId: string, runId: string): string | undefined {
+  const task = taskId ? store.tasks.get(taskId) : undefined;
+  if (!task || task.state !== "open" || task.assignee !== agentId || ownerWordsOf(store, runId).length)
+    return undefined;
+  const steps = planSteps(task.plan ?? "") ?? [];
+  // The last step may be the review itself.
+  if (steps.length && steps.slice(0, -1).every((s) => s.state === "done")) return undefined;
+  return "not asked: you do this task's work yourself. Finish your plan's steps; hand work for someone else as a subtask (task_create with parent), and ask one reviewer once the rest of the plan is done.";
+}
 
 export function agentTools(store: Store): Tool[] {
   return [
@@ -152,6 +168,8 @@ export function agentTools(store: Store): Tool[] {
       cut: "The teammate keeps working; its answer comes back in a new turn: do not delegate it again.",
       title: (a) => `Asked ${String(a.worker?.name ?? a.agent ?? a.session)}`,
       async run(a, ctx) {
+        const early = midPlan(store, ctx.thread.task_id, ctx.agent.id, ctx.run.id);
+        if (early) return early;
         let agent: AgentRecord | undefined;
         if (a.agent) {
           const found = store.agents.resolve(a.agent, ctx.thread.project_id);

@@ -8,7 +8,7 @@ import type { RunRecord } from "../domain/runs.ts";
 import type { LlmRequest } from "../providers/llm.ts";
 import type { AssistantItem } from "../providers/types.ts";
 import { type ManualTimers, manualTimers, waitFor } from "../testkit/platform.ts";
-import { FANOUT_HOLD_MS } from "./limits.ts";
+import { FANOUT_HOLD_MS, MAX_ACTIVE_DELEGATIONS } from "./limits.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 /** Scout holds each key until the test lets it answer; the caller asks for `keys` in one step. */
@@ -91,6 +91,8 @@ const carried = (run: RunRecord | undefined): string[] => {
   return [];
 };
 const pause = (ms = 150) => new Promise((r) => setTimeout(r, ms));
+/** Of three asked at once, those the cap lets work; the third starts once one answers. */
+const AT_ONCE = Math.min(3, MAX_ACTIVE_DELEGATIONS);
 
 async function fanOut(env: Env, n: number) {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "audit" });
@@ -119,7 +121,7 @@ async function withCore(
 test("three teammates asked in one step answer the caller in one turn", async () => {
   await withCore(["alpha", "beta", "gamma"], async (env, g) => {
     const parent = await fanOut(env, 3);
-    await waitFor(() => g.asked.length === 3, "all three at work");
+    await waitFor(() => g.asked.length === AT_ONCE, "as many as the cap lets work");
     g.open("alpha");
     await answered(env, parent, "alpha");
     g.open("beta");
@@ -147,8 +149,8 @@ test("three teammates asked in one step answer the caller in one turn", async ()
 test("answers arriving in any order still make one turn", async () => {
   await withCore(["alpha", "beta", "gamma"], async (env, g) => {
     const parent = await fanOut(env, 3);
-    await waitFor(() => g.asked.length === 3, "all three at work");
-    for (const k of ["gamma", "alpha", "beta"]) {
+    await waitFor(() => g.asked.length === AT_ONCE, "as many as the cap lets work");
+    for (const k of ["beta", "gamma", "alpha"]) {
       g.open(k);
       await answered(env, parent, k);
     }
@@ -162,7 +164,7 @@ test("answers arriving in any order still make one turn", async () => {
 test("past the hold the answers in go together, and a late one gets its own turn as before", async () => {
   await withCore(["alpha", "beta", "gamma"], async (env, g, timers) => {
     const parent = await fanOut(env, 3);
-    await waitFor(() => g.asked.length === 3, "all three at work");
+    await waitFor(() => g.asked.length === AT_ONCE, "as many as the cap lets work");
     g.open("alpha");
     await answered(env, parent, "alpha");
     g.open("beta");
@@ -207,7 +209,7 @@ test("a single delegation reports back exactly as before", async () => {
 test("stopping the caller's chat mid-group wakes nobody and lets go of what was held", async () => {
   await withCore(["alpha", "beta", "gamma"], async (env, g, timers) => {
     const parent = await fanOut(env, 3);
-    await waitFor(() => g.asked.length === 3, "all three at work");
+    await waitFor(() => g.asked.length === AT_ONCE, "as many as the cap lets work");
     g.open("alpha");
     await answered(env, parent, "alpha");
     await waitFor(() => card(env, parent, "alpha")?.held !== undefined, "alpha held");
@@ -232,7 +234,7 @@ test("a restart mid-group keeps what was held and still makes one turn", async (
   let parent = "";
   try {
     parent = await fanOut(first, 3);
-    await waitFor(() => g.asked.length === 3, "all three at work");
+    await waitFor(() => g.asked.length === AT_ONCE, "as many as the cap lets work");
     g.open("alpha");
     await answered(first, parent, "alpha");
     await waitFor(() => first.core.store.threads.context(parent).fanout?.[0]?.held.length === 1, "alpha held");

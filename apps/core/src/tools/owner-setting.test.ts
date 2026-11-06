@@ -11,6 +11,7 @@ import { requestTools } from "./requests.ts";
 import { routineTools } from "./routines.ts";
 import { settingsTools } from "./settings.ts";
 import { BY_TOOL, TOTAL_SKIPS } from "./settings-reach.ts";
+import { taskTools } from "./tasks.ts";
 
 let sister = "";
 
@@ -75,7 +76,13 @@ test("another agent asking the super-agent changes nothing, and nobody is asked"
 
 test("every tool only the super-agent has marks its changes as the owner's settings", () => {
   const store = env.core.store;
-  const tools = [...agentSetTools(store), ...directoryTools(store), ...settingsTools(store), ...flowTools(store)];
+  const tools = [
+    ...agentSetTools(store),
+    ...directoryTools(store),
+    ...settingsTools(store),
+    ...flowTools(store),
+    ...taskTools(store, env.home),
+  ];
   for (const name of SUPER_AGENT_TOOLS) {
     const tool = tools.find((t) => t.name === name);
     assert.ok(tool?.ownerSetting, `${name} needs ownerSetting (DECISIONS.md#d-140)`);

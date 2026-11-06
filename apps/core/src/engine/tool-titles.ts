@@ -146,6 +146,12 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
     return `Plan: ${done} de ${count} hechos`;
   },
   task_comment: (a) => `Comentó en ${str(a.task)}`,
+  task_tidy: (a) =>
+    Array.isArray(a.remove) && a.remove.length
+      ? `Limpió ${a.remove.length} comentarios de ${str(a.task)}`
+      : a.task
+        ? `Leyó los comentarios de ${str(a.task)}`
+        : "Buscó tareas con muchos comentarios",
   task_close: (a) => `Marcó ${str(a.task)} como ${TASK_STATE[str(a.state)] ?? str(a.state)}`,
   commitment_settle: (a) => `Marcó ${str(a.task)} como ${TASK_STATE[str(a.outcome)] ?? str(a.outcome)}`,
   send_file: (a) => `Adjuntó ${file(a.path, "un archivo")}`,

@@ -49,6 +49,9 @@ export const DEFAULT_COLUMNS: TaskColumn[] = [
 ];
 
 /** The board's columns: the owner's, or the default ones when none are saved (or they do not read). */
+/** Agents' messages on one open task past which cleaning it is offered (DECISIONS.md#d-202). */
+export const NOISY_COMMENTS = 15;
+
 export function columnsOf(store: Store): TaskColumn[] {
   return store.settings.read("task_columns");
 }
@@ -572,6 +575,20 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       run(qb.deleteFrom("task_events").where("task_id", "=", id));
       run(qb.deleteFrom("tasks").where("id", "=", id));
       bus.emit({ type: "task.deleted", task_id: id });
+    },
+    /** Open tasks whose conversation holds at least `min` agents' messages: the ones worth cleaning (DECISIONS.md#d-202). */
+    noisy(min: number, limit = 50): string[] {
+      return all(
+        qb
+          .selectFrom("tasks")
+          .innerJoin("messages", "messages.thread_id", "tasks.thread_id")
+          .select("tasks.id")
+          .where("tasks.state", "=", "open")
+          .where(raw<string>`json_extract(messages.author, '$.kind')`, "=", "agent")
+          .groupBy("tasks.id")
+          .having(raw<number>`count(*)`, ">=", min)
+          .limit(limit),
+      ).map((r) => r.id);
     },
     events(id: string): TaskEvent[] {
       return all(qb.selectFrom("task_events").selectAll().where("task_id", "=", id).orderBy("n")).map((r) => ({

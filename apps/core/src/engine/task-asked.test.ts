@@ -25,7 +25,8 @@ const llm = scriptedLlm(async (req, { said, afterTool }) => {
   if (req.messages[0]?.content?.toString().startsWith("You are Vera") && said.includes("Recount the stock"))
     return callTool("c7", "task_comment", {
       task: env.core.store.tasks.list({ limit: 50 }).find((t) => t.title === "Stock count")?.id ?? "",
-      text: "Started on the count.",
+      // A question for the owner: a progress note from a turn APX started is not posted (DECISIONS.md#d-202).
+      text: "@owner which shop should I count first, the north or the south one?",
     });
   if (said.includes("ask Vera to note it"))
     return callTool("c5", "delegate", { agent: "vera", task: "note it as a task" });
@@ -128,7 +129,7 @@ test("the work APX starts on a task the owner gave is not their words", async ()
     () =>
       env.core.store.messages
         .list(t.thread_id, 50)
-        .some((m) => JSON.stringify(m.parts).includes("Started on the count")),
+        .some((m) => JSON.stringify(m.parts).includes("which shop should I count first")),
     "Vera's comment",
   );
   assert.equal((await env.client.call("tasks.get", { task: t.id })).task.asked, undefined);
