@@ -1,0 +1,388 @@
+/* ── Hero ───────────────────────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  isolation: isolate;
+  /* The aura is wider than a phone; clipping it here keeps the page at the screen's width. */
+  overflow-x: clip;
+  padding: clamp(100px, 11vw, 128px) 0 20px;
+  text-align: center;
+}
+.hero__aura {
+  position: absolute;
+  top: -80px;
+  left: 50%;
+  z-index: -1;
+  width: min(1400px, 160vw);
+  height: 760px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 34% 52% at 50% 0%, color-mix(in srgb, var(--apx-brand) 34%, transparent), transparent 70%),
+    radial-gradient(ellipse 12% 70% at 50% 0%, color-mix(in srgb, var(--apx-brand) 26%, transparent), transparent 75%);
+  animation: apx-aura 7s ease-in-out infinite;
+}
+/* The aura is what shows without WebGL; with it, the horizon lights the stage card instead. */
+.hero.has-horizon .hero__aura {
+  display: none;
+}
+.hero__horizon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: -1;
+  width: 100%;
+  height: calc(100% + 760px);
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent);
+  mask-image: linear-gradient(180deg, #000 72%, transparent);
+}
+.hero__in {
+  position: relative;
+}
+.hero__pill {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 5px 14px 5px 5px;
+  border: 1px solid var(--apx-border);
+  border-radius: 999px;
+  font-size: 14px;
+  color: var(--apx-fg-muted);
+  transition: border-color 0.2s;
+}
+.hero__pill:hover {
+  border-color: var(--apx-border-strong);
+}
+.hero__new {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--apx-fg);
+  color: var(--apx-bg);
+  font: 700 10.5px / 1 var(--apx-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.hero__on {
+  color: var(--apx-fg-subtle);
+}
+.hero__os {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 8px;
+  color: var(--apx-fg);
+}
+.hero__os-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hero__os-sep {
+  margin-right: 2px;
+  color: var(--apx-fg-subtle);
+}
+.hero__title {
+  margin: clamp(24px, 4vw, 40px) 0 0;
+  font-size: clamp(44px, 6.6vw, 88px);
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
+.hero__line {
+  display: block;
+}
+.hero__line--word {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.16em;
+  min-height: 1.05em;
+}
+.hero__blob {
+  position: relative;
+  display: inline-grid;
+  /* Keep the title's line height from enlarging the agents' square grid cell. */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  flex: none;
+  width: clamp(44px, 5.3vw, 70px);
+  height: clamp(44px, 5.3vw, 70px);
+}
+.hero__blob img {
+  display: block;
+}
+.hero__blob .apx-blob,
+.status__blob .apx-blob {
+  grid-area: 1 / 1;
+  display: none;
+}
+.hero__blob .apx-blob.on,
+.status__blob .apx-blob.on {
+  display: inline-block;
+  animation: apx-pop 0.55s var(--apx-spring) both;
+}
+.hero__word {
+  display: inline-block;
+  padding-bottom: 0.08em;
+  background-image: linear-gradient(
+    95deg,
+    var(--apx-fg) 8%,
+    color-mix(in srgb, var(--apx-brand) 75%, var(--apx-fg)) 50%,
+    var(--apx-fg) 92%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: apx-sheen 6s linear infinite;
+}
+.hero__word.in {
+  animation:
+    apx-word-in 0.6s var(--apx-ease) both,
+    apx-sheen 6s linear infinite;
+}
+.hero__sub {
+  max-width: 820px;
+  margin: 28px auto 0;
+  font-size: clamp(17px, 2vw, 20px);
+  line-height: 1.5;
+  color: var(--apx-fg-muted);
+  text-wrap: pretty;
+}
+.hero__sub b {
+  font-weight: 500;
+  color: var(--apx-fg);
+}
+.hero__actions {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+.hero__term {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 22px;
+  border: 1px solid color-mix(in srgb, var(--apx-info) 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--apx-bg) 78%, var(--apx-info) 22%);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--apx-fg);
+  font-size: 15px;
+  font-weight: 500;
+  transition: border-color 0.2s;
+}
+.hero__term:hover,
+.hero__term[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--apx-info) 90%, transparent);
+}
+
+/* A fixed space under the actions: the status pill lives here and the install panel floats over it. */
+.hero__dock {
+  position: relative;
+  z-index: 4;
+  max-width: 640px;
+  height: 112px;
+  margin: 20px auto 0;
+}
+.hero__install {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  padding: 8px;
+  box-shadow: 0 24px 60px -20px rgb(0 0 0 / 0.6);
+  border: 1px solid var(--apx-border);
+  border-radius: 22px;
+  background: var(--apx-surface);
+  text-align: left;
+  animation: apx-word-in 0.35s ease both;
+}
+.hero__install[hidden],
+.hero__pane[hidden] {
+  display: none;
+}
+.hero__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 2px 8px;
+}
+.hero__tabs button {
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--apx-fg-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+.hero__tabs button[aria-pressed="true"] {
+  background: var(--apx-fg);
+  color: var(--apx-bg);
+}
+.cmd {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 48px;
+  padding: 0 6px 0 16px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--apx-bg);
+  text-align: left;
+}
+.cmd__prompt {
+  color: var(--apx-fg-subtle);
+  font: 500 13px / 1 var(--apx-font-mono);
+}
+.cmd__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: 500 13px / 1 var(--apx-font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmd .cmd__copy {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: var(--apx-fill);
+  font-size: 13px;
+  font-weight: 500;
+}
+.hero__note {
+  margin: 10px 8px 4px;
+  font-size: 13px;
+  color: var(--apx-fg-muted);
+}
+.status {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  height: 40px;
+  padding: 0 16px 0 8px;
+  border: 1px solid var(--apx-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--apx-surface) 88%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  white-space: nowrap;
+  transform: translateX(-50%);
+  transition:
+    opacity 0.25s,
+    transform 0.3s;
+  font: 13px / 1 var(--apx-font-mono);
+  color: var(--apx-fg-muted);
+}
+.status__blob {
+  display: inline-grid;
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+.status__text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.status.in .status__text {
+  animation: apx-word-in 0.5s ease both;
+}
+.status__text b {
+  flex: none;
+  font: 500 14px / 1 var(--apx-font-sans);
+  color: var(--apx-fg);
+}
+.status.is-away {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(8px);
+}
+#statusWhat {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Stage ──────────────────────────────────────────────────────────────── */
+.stage {
+  padding-top: 24px;
+}
+.stage__in {
+  position: relative;
+  max-width: 1168px;
+}
+.stage__shot {
+  overflow: hidden;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: clamp(12px, 1.6vw, 20px);
+  background: var(--apx-surface);
+  box-shadow: var(--apx-shadow-lift);
+}
+.home:has(.hero.has-horizon) .stage__shot {
+  box-shadow:
+    0 -1px 0 color-mix(in srgb, var(--apx-brand) 70%, transparent),
+    0 -40px 90px -40px color-mix(in srgb, var(--apx-brand) 55%, transparent),
+    var(--apx-shadow-lift);
+}
+.stage__note {
+  margin: 22px 0 0;
+  font-size: 14px;
+  color: var(--apx-fg-muted);
+  text-align: center;
+}
+.stage__bubble {
+  position: absolute;
+  top: -22px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: apx-float 5s ease-in-out infinite;
+}
+.stage__say {
+  padding: 9px 14px;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: 14px;
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-md);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.stage__bubble--l {
+  left: 12%;
+}
+.stage__bubble--r {
+  right: 6%;
+  animation-delay: 1.4s;
+}
+@media (max-width: 759px) {
+  .stage__bubble {
+    display: none;
+  }
+}
