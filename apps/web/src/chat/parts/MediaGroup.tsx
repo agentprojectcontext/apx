@@ -53,11 +53,15 @@ export default function MediaGroup({
   block,
   eager = false,
   onImageError,
+  view,
 }: {
   block: Exclude<MediaBlock, { kind: "part" }>;
   eager?: boolean;
   onImageError?: () => void;
+  /** Only the full-size viewer, open on this picture: for screens that show their own thumbnails. */
+  view?: { start: number; onClose: () => void };
 }) {
+  if (view && block.kind === "images") return <Gallery parts={block.parts} start={view.start} onClose={view.onClose} />;
   return block.kind === "images" ? (
     <ImageGrid parts={block.parts} eager={eager} onImageError={onImageError} />
   ) : (

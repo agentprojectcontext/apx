@@ -32,6 +32,8 @@
   the Claude Design project yet.
 - MediaLoader is new (a loading file as a moving icon of its kind: image, video, audio or file); not in the Claude
   Design project yet.
+- FileTile and FileTileGrid are new (files as same-size squares: a picture, or an icon with name and size, with
+  corner actions on hover), for task attachments; not in the Claude Design project yet.
 - MarkdownView now renders safe pipe tables; its remote preview and bundle need a re-sync.
 - Message: on the owner's side (`from="user"`) the meta line keeps to the bubble's edge and the hover controls open
   on its inner side; re-sync the shared CSS bundle.
