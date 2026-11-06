@@ -37,6 +37,13 @@ test("messages in line are edited, moved and removed, and Send now has the agent
   await line.getByRole("button", { name: "Guardar" }).click();
   await expect(queued.last()).toContainText("first, edited");
 
+  // Sent with Enter and taken back before the agent reads it.
+  await box.fill("scratch that");
+  await page.keyboard.press("Enter");
+  const scratched = page.locator(".apx-msg", { hasText: "scratch that" });
+  await scratched.getByRole("button", { name: "Quitar" }).click();
+  await expect(scratched).toHaveCount(0);
+
   // Sent with Enter: it waits for the next step, with "Send now" in sight.
   await box.fill("use metric units");
   await page.keyboard.press("Enter");
@@ -69,4 +76,5 @@ test("messages in line are edited, moved and removed, and Send now has the agent
   expect(at("first, edited")).toBeGreaterThan(at("Got it: second in line"));
   expect(at("Got it: first, edited")).toBeGreaterThan(at("first, edited"));
   expect(at("third in line")).toBe(-1);
+  expect(at("scratch that")).toBe(-1);
 });

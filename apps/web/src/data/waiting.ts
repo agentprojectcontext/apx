@@ -1,4 +1,4 @@
-// The owner's messages their agent has not taken yet: send one now, or change, move or remove one in line.
+// The owner's messages their agent has not taken yet: send one now or take it back, or change or move one in line.
 import type { Message } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
@@ -39,11 +39,10 @@ export async function editInLine(message: Message, text: string): Promise<boolea
   }
 }
 
-export async function removeFromLine(message: Message): Promise<void> {
-  const run = message.waiting?.run;
-  if (!run) return;
+/** Takes a message back before the agent reads it, whether sent into its turn or in line: out of the chat too. */
+export async function unsend(message: Message): Promise<void> {
   try {
-    await client.call("runs.remove_queued", { run });
+    await client.call("runs.unsend", { message: message.id });
     data.set((s) => ({
       messages: {
         ...s.messages,

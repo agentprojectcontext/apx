@@ -94,6 +94,7 @@ import { createCatalog } from "./models/catalog.ts";
 import { createNews } from "./news/news.ts";
 import { nodeChildEnv } from "./node-runtime.ts";
 import { createNodeBroker } from "./nodes/broker.ts";
+import { installChromeHost } from "./nodes/chrome-host.ts";
 import { createHeadlessBrowser } from "./nodes/headless-browser.ts";
 import { createWidgetPages } from "./nodes/widget-pages.ts";
 import { officeScheduler } from "./office-wiring.ts";
@@ -818,6 +819,11 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     useUsualDirs(config.supervised);
   } catch (err) {
     log.warn({ err: errorMessage(err) }, "apx command not written");
+  }
+  try {
+    installChromeHost({ home: config.home, port: listening, runner: thisRunner(), browsers: config.chromeHost });
+  } catch (err) {
+    log.warn({ err: errorMessage(err) }, "Chrome extension host not registered");
   }
   const url = transport.url;
   selfUrl = url;

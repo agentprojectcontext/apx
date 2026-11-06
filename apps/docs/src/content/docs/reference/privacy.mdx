@@ -50,11 +50,16 @@ it to answer the request, as any web request does, and APX does not store it).
 
 ## The Chrome extension
 
-The APX extension for Chrome shows this APX in Chrome's side panel. The extension itself collects nothing: it makes no
-network requests of its own, stores nothing, reads no web pages and has no analytics. The panel is APX's own screen,
-served from `127.0.0.1` on your computer, so what you type there is handled by APX as in the app: kept on your
-computer, and sent only to the model providers you set up in APX to answer it. The extension adds nothing to the
-reports above.
+The APX extension for Chrome shows this APX in Chrome's side panel, and lets APX's agents work in the tabs of its
+**APX** tab group. The extension itself collects nothing: it makes no network requests of its own, stores nothing and
+has no analytics. The panel is APX's own screen, served from `127.0.0.1` on your computer, so what you type there is
+handled by APX as in the app: kept on your computer, and sent only to the model providers you set up in APX to answer
+it.
+
+It reads and acts on a web page only in a tab of the **APX** group, only when an agent works there for something you
+wrote in the side panel. What it reads goes to APX on your computer through Chrome's native messaging (never over the
+network), and from there, like any page an agent reads, to the model provider answering. Tabs outside that group are
+never read. The extension adds nothing to the reports above.
 
 ## Where it goes
 

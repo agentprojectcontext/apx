@@ -801,6 +801,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "browser.youControl": "Tenés el control",
   "browser.agentBrowsing": "{name} está navegando · {host}",
   "browser.finished": "Terminó · {host}",
+  "browser.inChrome": "{name} lo está usando en tu Chrome",
   "browser.offline": "Sin conexión · {host}",
   "browser.reopen": "Abrir de nuevo",
   "browser.openWindow": "Abrir en una ventana aparte",

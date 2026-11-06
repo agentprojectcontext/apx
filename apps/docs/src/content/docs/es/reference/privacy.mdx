@@ -51,11 +51,16 @@ servicio que recibe la ve para responder, como en cualquier pedido web, y APX no
 
 ## La extensión de Chrome
 
-La extensión de APX para Chrome muestra este APX en el panel lateral de Chrome. La extensión en sí no recolecta nada: no
-hace conexiones propias, no guarda nada, no lee páginas web y no tiene analítica. El panel es la propia pantalla de APX,
-servida desde `127.0.0.1` en tu computadora, así que lo que escribís ahí lo maneja APX igual que en la app: queda en tu
-computadora y solo se manda a los proveedores de modelos que configuraste en APX para responderlo. La extensión no
-agrega nada a los reportes de arriba.
+La extensión de APX para Chrome muestra este APX en el panel lateral de Chrome, y deja que los agentes de APX trabajen
+en las pestañas de su grupo **APX**. La extensión en sí no recolecta nada: no hace conexiones propias, no guarda nada y
+no tiene analítica. El panel es la propia pantalla de APX, servida desde `127.0.0.1` en tu computadora, así que lo que
+escribís ahí lo maneja APX igual que en la app: queda en tu computadora y solo se manda a los proveedores de modelos que
+configuraste en APX para responderlo.
+
+Lee y actúa sobre una página web solo en una pestaña del grupo **APX**, y solo cuando un agente trabaja ahí por algo que
+escribiste en el panel lateral. Lo que lee va a APX en tu computadora por la mensajería nativa de Chrome (nunca por la
+red), y de ahí, como cualquier página que lee un agente, al proveedor de modelos que responde. Las pestañas fuera de ese
+grupo nunca se leen. La extensión no agrega nada a los reportes de arriba.
 
 ## Adónde va
 

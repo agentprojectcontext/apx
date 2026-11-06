@@ -177,6 +177,34 @@ Chrome, Chromium or Edge, without a window, on its first browser call. It browse
 over there and your own logins are not used. `APX_HEADLESS=off` turns it off; `APX_CHROME` points it to a specific
 browser.
 
+## In your own Chrome
+
+With APX's extension for Chrome, agents can also work in your own Chrome, where you are already signed in.
+
+<Steps>
+
+1. Install **APX** from the Chrome Web Store and open it from Chrome's toolbar: APX shows in the side panel.
+2. Write there: "Roby, open the Northwind admin and tell me which orders are late."
+3. The agent opens a tab in an orange tab group called **APX** and works in it while you watch. Chrome shows a bar
+   saying that APX started debugging the browser.
+
+</Steps>
+
+- Only what you write in that side panel uses your Chrome. From the app, your phone or a channel, agents keep using
+  APX's own browser.
+- Agents see only the tabs in the **APX** group. To share a tab you already have open, drag it into the group; drag it
+  out to take it back.
+- **Cancel** on Chrome's bar stops APX in that tab at once; it stays yours until you drag it out of the group and back
+  in. The agent opens a new tab if it still needs one.
+- Passwords, one-time codes and card details are yours to type: agents refuse those fields and ask you to sign in.
+  Page JavaScript and importing logins stay in APX's own browser.
+- APX must be running on the same computer: it connects the extension by itself, in Chrome, Brave, Edge, Arc and
+  Chromium on macOS and Linux. `APX_CHROME_HOST=off` turns that off.
+
+<Aside type="note">
+On Windows, agents cannot use your Chrome yet; the side panel works.
+</Aside>
+
 ## From the terminal
 
 `apx browser` drives the same browser from your shell, handy for scripts and for checking what an agent sees.

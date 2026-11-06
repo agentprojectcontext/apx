@@ -502,7 +502,8 @@ const KnownPart = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("browser"),
-    environment: z.literal("vm").optional(),
+    /** Where the tab is when it is not APX's own browser: the isolated computer, or the owner's Chrome. */
+    environment: z.enum(["vm", "chrome"]).optional(),
     tab: z.string(),
     url: z.string(),
     title: z.string(),
