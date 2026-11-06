@@ -134,9 +134,14 @@
 .hero__blob {
   position: relative;
   display: inline-grid;
+  /* Keep the title's line height from enlarging the agents' square grid cell. */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   flex: none;
   width: clamp(44px, 5.3vw, 70px);
   height: clamp(44px, 5.3vw, 70px);
+}
+.hero__blob img {
+  display: block;
 }
 .hero__blob .apx-blob,
 .status__blob .apx-blob {
