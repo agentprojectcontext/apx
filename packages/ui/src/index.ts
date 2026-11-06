@@ -48,6 +48,7 @@ export {
 } from "./components/EngineIcon";
 export { EntityCard, type EntityCardProps } from "./components/EntityCard";
 export { Field, type FieldProps } from "./components/Field";
+export { FileTile, FileTileGrid, type FileTileGridProps, type FileTileProps } from "./components/FileTile";
 export {
   FlowStep,
   type FlowStepProps,

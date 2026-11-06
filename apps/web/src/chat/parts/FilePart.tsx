@@ -3,7 +3,7 @@ import { IconButton, Icons, MediaLoader, mediaKindOf } from "@apx/ui";
 import { Suspense, useState } from "react";
 import { formatBytes } from "../../common/format.ts";
 import { audioEnded } from "../../data/audioEnd.ts";
-import { mediaUrl } from "../../data/media.ts";
+import { downloadMedia } from "../../data/media.ts";
 import { useT } from "../../i18n/index.ts";
 import { DocumentActions, FileViewer } from "../../lazy.ts";
 import { docRef } from "../../panel/documents.ts";
@@ -26,11 +26,7 @@ export function FilePart({ part }: { part: Extract<Part, { type: "file" }> }) {
   const download = async () => {
     setBusy(true);
     try {
-      const url = await mediaUrl(part.media_id);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = part.name;
-      a.click();
+      await downloadMedia(part.media_id, part.name);
     } finally {
       setBusy(false);
     }

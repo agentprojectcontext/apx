@@ -1,11 +1,14 @@
 import type { Task } from "@apx/protocol";
-import { Button, IconButton, Icons } from "@apx/ui";
-import { Suspense, useEffect, useRef, useState } from "react";
-import { FilePart } from "../chat/parts/FilePart.tsx";
+import { Button, Dialog, FileTile, FileTileGrid, IconButton, Icons, type MediaKind, mediaKindOf } from "@apx/ui";
+import { type ReactNode, Suspense, useEffect, useRef, useState } from "react";
+import { type Viewable, viewableAs } from "../chat/parts/fileKind.ts";
+import { useMediaUrl } from "../chat/parts/useMediaUrl.ts";
+import { formatBytes } from "../common/format.ts";
 import { client } from "../data/client.ts";
 import { type Attached, upload } from "../data/composer.ts";
+import { downloadMedia } from "../data/media.ts";
 import { useT } from "../i18n/index.ts";
-import { MediaGroup } from "../lazy.ts";
+import { FileViewer, MediaGroup } from "../lazy.ts";
 import { cleanupTaskUpload, discardTaskUpload } from "./draftAttachments.ts";
 import "./attachments.css";
 
@@ -27,6 +30,9 @@ export function TaskAttachments({
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [viewing, setViewing] = useState<{ index: number }>();
+  const [reading, setReading] = useState<{ file: Attached; kind: Viewable }>();
+  const [removing, setRemoving] = useState<Attached>();
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -87,6 +93,13 @@ export function TaskAttachments({
       working(false);
     }
   };
+  const images = value.filter((a) => a.kind === "image");
+  const open = (a: Attached) => {
+    if (a.kind === "image") return setViewing({ index: images.findIndex((i) => i.id === a.id) });
+    const kind = viewableAs(a.mime, a.bytes);
+    if (kind) setReading({ file: a, kind });
+    else void downloadMedia(a.id, a.name).catch((e) => setError(e instanceof Error ? e.message : String(e)));
+  };
   return (
     <section className="taskattachments" aria-label={t("tasks.attachments")} aria-busy={busy}>
       <div className="taskattachments__header">
@@ -115,27 +128,158 @@ export function TaskAttachments({
         />
       </div>
       {error && <p role="alert">{error}</p>}
-      {value.map((a) => (
-        <div className="taskattachments__item" key={a.id}>
-          <div className="taskattachments__asset">
-            {a.kind === "image" && (
-              <Suspense fallback={null}>
-                <MediaGroup
-                  block={{ kind: "images", key: a.id, parts: [{ type: "image", media_id: a.id, alt: a.name }] }}
-                />
-              </Suspense>
-            )}
-            <FilePart part={{ type: "file", media_id: a.id, name: a.name, mime: a.mime, bytes: a.bytes }} />
-          </div>
+      {value.length > 0 && (
+        <FileTileGrid label={t("tasks.attachments")}>
+          {value.map((a) => (
+            <AttachmentTile
+              key={a.id}
+              file={a}
+              disabled={busy || disabled}
+              onOpen={() => open(a)}
+              onRemove={() => setRemoving(a)}
+            />
+          ))}
+        </FileTileGrid>
+      )}
+      {viewing && viewing.index >= 0 && (
+        <Suspense fallback={null}>
+          <MediaGroup
+            block={{
+              kind: "images",
+              key: "task-attachments",
+              parts: images.map((a) => ({ type: "image", media_id: a.id, alt: a.name })),
+            }}
+            view={{ start: viewing.index, onClose: () => setViewing(undefined) }}
+          />
+        </Suspense>
+      )}
+      {reading && (
+        <Suspense fallback={null}>
+          <FileViewer
+            mediaId={reading.file.id}
+            name={reading.file.name}
+            kind={reading.kind}
+            onClose={() => setReading(undefined)}
+          />
+        </Suspense>
+      )}
+      {removing && (
+        <RemoveAttachment
+          name={removing.name}
+          saved={!!task}
+          onCancel={() => setRemoving(undefined)}
+          onConfirm={async () => {
+            await remove(removing.id);
+            setRemoving(undefined);
+          }}
+        />
+      )}
+    </section>
+  );
+}
+
+const KIND_ICON: Partial<Record<MediaKind, ReactNode>> = {
+  audio: <Icons.Music size={22} />,
+  video: <Icons.Film size={22} />,
+};
+
+/** One attachment as a square: its picture or its name and size, with download and remove on hover. */
+function AttachmentTile({
+  file,
+  disabled,
+  onOpen,
+  onRemove,
+}: {
+  file: Attached;
+  disabled: boolean;
+  onOpen: () => void;
+  onRemove: () => void;
+}) {
+  const t = useT();
+  const picture = file.kind === "image";
+  const src = useMediaUrl(picture ? file.id : undefined);
+  const [saving, setSaving] = useState(false);
+  const download = async () => {
+    setSaving(true);
+    try {
+      await downloadMedia(file.id, file.name);
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <FileTile
+      name={file.name}
+      meta={formatBytes(file.bytes)}
+      src={src}
+      loading={picture && !src ? "image" : undefined}
+      icon={KIND_ICON[mediaKindOf(file.mime, file.name)]}
+      onOpen={onOpen}
+      actions={
+        <>
           <IconButton
             size="sm"
-            disabled={busy || disabled}
-            label={t("tasks.attachments.remove", { name: a.name })}
-            icon={<Icons.X size={14} />}
-            onClick={() => void remove(a.id)}
+            label={t("file.download")}
+            icon={<Icons.Download size={14} />}
+            disabled={saving}
+            onClick={() => void download()}
           />
-        </div>
-      ))}
-    </section>
+          <IconButton
+            size="sm"
+            disabled={disabled}
+            label={t("tasks.attachments.remove", { name: file.name })}
+            icon={<Icons.X size={14} />}
+            onClick={onRemove}
+          />
+        </>
+      }
+    />
+  );
+}
+
+/** Asks before an attachment comes off: on a saved task it is gone for everyone who opens it. */
+function RemoveAttachment({
+  name,
+  saved,
+  onCancel,
+  onConfirm,
+}: {
+  name: string;
+  saved: boolean;
+  onCancel: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  return (
+    <Dialog
+      open
+      size="sm"
+      onOpenChange={(o) => !o && !busy && onCancel()}
+      title={t("tasks.attachments.removeTitle")}
+      description={t(saved ? "tasks.attachments.removeSaved" : "tasks.attachments.removeDraft", { name })}
+      closeLabel={t("common.close")}
+      footer={
+        <>
+          <Button variant="secondary" disabled={busy} onClick={onCancel}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            variant="danger"
+            loading={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await onConfirm();
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {t("tasks.attachments.removeConfirm")}
+          </Button>
+        </>
+      }
+    />
   );
 }
