@@ -18,7 +18,7 @@ const SECRET_REF = /secret:\/\/[a-zA-Z0-9_.-]+/g;
 const SECRET_KEY = /key|token|secret|pass|pwd|auth|credential|cookie/i;
 
 /** A URL carrying a credential: a password before the host, or a query value named like a key or shaped like one. */
-export function urlSecret(v: string): boolean {
+function urlSecret(v: string): boolean {
   const text = v.trim();
   if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(text)) return false;
   let url: URL;
@@ -32,7 +32,7 @@ export function urlSecret(v: string): boolean {
 }
 
 /** A value written as a credential: shaped like a key, a URL holding one, or a reference to the owner's shell. */
-export const secretValue = (v: string) => !!v && (v.includes("${") || keyLike(v) || looksSecret(v) || urlSecret(v));
+const secretValue = (v: string) => !!v && (v.includes("${") || keyLike(v) || looksSecret(v) || urlSecret(v));
 
 /** An argument that is a credential on its own, whatever flag comes before it (a package name is never one). */
 const secretArg = (v: string) => v.includes("${") || looksSecret(v) || urlSecret(v);

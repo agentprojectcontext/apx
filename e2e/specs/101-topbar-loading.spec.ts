@@ -215,7 +215,10 @@ test("cuatro engines se ven de un vistazo y colapsan en una barra ocupada y con 
     await expect(item.locator("[stroke-dasharray]")).toHaveCount(0);
   }
   await page.getByTestId("engine-usage-button").hover();
-  await expect(page.locator(".apx-tooltip[data-open]")).toContainText("claude: 20% disponible · 10080 min");
+  const tip = page.locator(".apx-tooltip[data-open]");
+  await expect(tip).toContainText("claude · Sesión (5 h) · 63% disponible");
+  await expect(tip).toContainText("claude · Semanal · 20% disponible");
+  await expect(tip).toContainText("gemini · Semanal · 20% disponible");
   // Exercise the real bar's optional occupants without depending on an updater or a live run.
   await page.locator(".topbar__right").evaluate((right) => {
     for (const name of ["updatepill", "updatepill", "running"]) {

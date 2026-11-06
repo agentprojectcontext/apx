@@ -5,7 +5,7 @@ import { projectName } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import { type SecretInfo, setSecret } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
-import { useT } from "../i18n/index.ts";
+import { usePack, useT } from "../i18n/index.ts";
 import type { TabProps } from "./ResourcesView.tsx";
 import { SignInSitesDialog, siteLabel } from "./SignInSites.tsx";
 
@@ -35,7 +35,11 @@ export const toVarName = (typed: string) =>
  * Variables: the stored secrets MCP servers, providers and channels name as `secret://NAME`. Values never come back
  * to the panel; long ones show their last four characters. A name a server uses but nobody stored shows "No value".
  */
-export function VariablesTab({ projectId, query, scope, adding, setAdding, res, ownOnly }: TabProps) {
+export function VariablesTab(props: TabProps) {
+  return usePack("signIn") ? <VariablesTabBody {...props} /> : null;
+}
+
+function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, ownOnly }: TabProps) {
   const t = useT();
   const projects = useData((s) => s.projects);
   const [editing, setEditing] = useState<Row>();
