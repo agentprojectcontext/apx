@@ -1,8 +1,8 @@
 // The tools a turn may use: the agent's, narrowed by its callers, its chat (a contact's, the computer, a phone chat)
 // and what is turned on; MCP's join behind the bridge on first use, and never in a contact's turn.
-import { BROWSER_CAP } from "@apx/protocol";
+import { BROWSER_CAP, CHROME_CAP } from "@apx/protocol";
 import { memorySettings } from "../domain/memory-settings.ts";
-import { answersChecked, inChrome, type Origin } from "../domain/runs.ts";
+import { answersChecked, inChrome, type Origin, ownerAsked } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
 import { STICKER_TOOL, stickersFor } from "../tools/directory.ts";
@@ -114,11 +114,12 @@ const VM_HOST_TOOLS = new Set([
 /** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; a contact's, by their flags. */
 export async function turnTools(deps: TurnDeps, turn: Turn) {
   const inVm = deps.vm?.hasThread(turn.thread.id);
-  // Browser tools are offered in a turn from APX's panel in Chrome even when no other browser is there: it uses Chrome.
-  const chrome = inChrome(
-    turn.input.origin,
-    (id) => deps.store.runs.get(deps.store.inputs.get(id)?.run_id ?? "")?.input?.origin,
-  );
+  // Browser tools are offered with no other browser in a turn from APX's panel in Chrome, and in the owner's own turn
+  // while their Chrome is connected: those can browse there.
+  const askedIn = (id: string) => deps.store.runs.get(deps.store.inputs.get(id)?.run_id ?? "")?.input?.origin;
+  const chrome =
+    inChrome(turn.input.origin, askedIn) ||
+    (Boolean(deps.hasCap?.(CHROME_CAP)) && ownerAsked(turn.input.origin, askedIn));
   // Offered only to an agent the owner allowed: one without it never asks to use it (DECISIONS.md#d-154).
   const computerOn = Boolean(deps.vm?.serves(turn.thread.id) && deps.vm.permitted(turn.agent.id, turn.thread.id));
   const sealed = turn.audience.kind === "contact";

@@ -103,7 +103,15 @@ export const browserMethods = {
     effect: false,
   },
   "browser.open": {
-    params: z.object({ url: Url, profile: BrowserProfile.default("shared"), by: By }).strict(),
+    params: z
+      .object({
+        url: Url,
+        profile: BrowserProfile.default("shared"),
+        by: By,
+        /** In the owner's own Chrome, through APX's extension, instead of APX's browser (DECISIONS.md#d-198). */
+        chrome: z.boolean().optional(),
+      })
+      .strict(),
     result: TabInfo,
     effect: true,
   },

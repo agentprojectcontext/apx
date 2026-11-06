@@ -3940,6 +3940,13 @@ comes back only when the owner moves it out of the group and in again. A tab sho
 driven (checked on its live address by the host, and by the worker against the panel's origin), and the worker relays
 only the DevTools methods APX's page driver uses.
 
+Revised the same day at the owner's request: in any turn of the owner's own (their words in the app, on the phone or
+as the owner on a channel, or their answer in such a turn), `browser_open` takes `chrome: true` to open the tab in
+their Chrome, and every call naming a Chrome tab (`c<n>`) goes there; that turn also lists the APX group's tabs
+beside APX's own. Such a new tab asks the owner like any `ask` action (it goes on alone where the mode allows). A
+contact's turn, a routine or another agent's request is refused by the core (`ownerAsked`), and never sees those
+tabs. The side panel's turns stay all-Chrome.
+
 Known limits, left for later: with the extension in more than one browser or profile, the Chrome node that connected
 last serves every Chrome turn. Work an agent delegates from a Chrome turn uses APX's own browser. A login form Chrome
 filled from the owner's saved passwords can be sent by an agent's click: the credential guard covers typing.

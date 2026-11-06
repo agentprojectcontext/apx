@@ -13,8 +13,8 @@ export const CHROME_TABS_NEWS: NewsEntry = {
     "With APX's Chrome extension (Chrome Web Store, then open it from Chrome's toolbar), what the owner writes in " +
     "its side panel makes the agent browse in the owner's own Chrome instead of APX's browser: tabs in an orange " +
     "group called APX, where the owner is signed in and watches. Agents see only that group; the owner shares an " +
-    "open tab by dragging it in, and Cancel on Chrome's bar stops APX in a tab. Messages from the app, the phone " +
-    "or a channel keep using APX's own browser. Agents never type passwords or card details there: the owner signs " +
+    "open tab by dragging it in, and Cancel on Chrome's bar stops APX in a tab. From the app, the phone or a " +
+    "channel the owner can also ask for their Chrome (browser_open with chrome); otherwise APX's browser is used. Agents never type passwords or card details there: the owner signs " +
     "in. APX must be running on the same computer; it works on macOS and Linux.",
   actions: [
     {
