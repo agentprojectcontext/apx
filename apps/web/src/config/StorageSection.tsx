@@ -8,6 +8,7 @@ import { loadDiskStatus } from "../data/storage.ts";
 import { size } from "../data/usageModel.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { SectionHead } from "./SectionHead.tsx";
+import { StorageCompact } from "./StorageCompact.tsx";
 import { BackupItems, ComputerItems } from "./StorageItems.tsx";
 
 const MB = 1048576;
@@ -194,6 +195,7 @@ function Storage() {
               : t("storage.nothing")}
         </Button>
       </SettingRow>
+      <StorageCompact onDone={freed} />
     </>
   );
 }

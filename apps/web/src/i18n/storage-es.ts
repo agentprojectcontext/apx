@@ -39,4 +39,17 @@ export const esStorage: Record<keyof typeof enStorage, string> = {
   "storage.backups.confirmBody":
     "Esta copia de tus chats, memoria y tareas se borra para siempre, y se liberan {size}. Lo que APX tiene ahora queda como está.",
   "storage.backups.deleted": "Copia borrada. Se liberaron {size}.",
+  "storage.compact.title": "Achicar el archivo de chats",
+  "storage.compact.hint":
+    "La salida vieja de comandos y archivos que tus agentes ya no leen queda como una nota corta, y el archivo devuelve el espacio. Antes se guarda una copia en Copias de seguridad.",
+  "storage.compact.cta": "Compactar",
+  "storage.compact.confirmTitle": "¿Compactar el archivo de chats?",
+  "storage.compact.confirmBody":
+    "Los chats y las rutinas esperan hasta que termine, de unos segundos a unos minutos. Antes se guarda una copia del archivo en Copias de seguridad; borrala desde acá cuando ya no la necesites.",
+  "storage.compact.done": "Compactado: {before} → {after}. Se guardó una copia en Copias de seguridad.",
+  "storage.compact.keptSize":
+    "Compactado, pero el archivo mantiene su tamaño hasta que el disco tenga lugar para reescribirlo. Se guardó una copia en Copias de seguridad.",
+  "storage.compact.noRoom":
+    "No se cambió nada: el disco no tiene lugar para una copia del archivo y su reescritura. Liberá espacio y probá de nuevo.",
+  "storage.compact.failed": "No se pudo compactar: {error}",
 };

@@ -77,15 +77,20 @@ turns after them, keeps a long tool output the way the agent already reads it in
 omitted). What a chat sends to its model does not change. A new install hands the freed space back to the disk by
 itself.
 
-An install from before this change has to rewrite the file once to give the space back. With the core running:
+An install from before this change has to rewrite the file once to give the space back. When the file is big, your
+super-agent tells you so. Open **Settings › Storage** and press **Compact** under **Shrink the chats' file**, or, with
+the core running:
 
 <Terminal command="apx doctor --fix">{`Compacting the database (a big one takes a few minutes; chats wait meanwhile)…
 Database: 1110 MB → 890 MB (220 MB freed)
 Old turns compacted: 2760, outputs kept twice removed: 66396
+A copy from before was saved in APX's backups folder: apx-before-compact-20261106-123045.db
 The database file was rewritten once; from now on it gives space back by itself.`}</Terminal>
 
-While it runs, chats and routines wait. Rewriting needs about twice the file's size free on the disk; with less, it
-says so and the file keeps its size until you free some space and run it again.
+Before it changes anything, it saves a copy of the file in **Backups** (`backups/` in APX's folder). The copy stays
+until you delete it from **Settings › Storage › Backups**. While it runs, chats and routines wait. It needs room on
+the disk for that copy plus about twice the file's size to rewrite it; with less, it changes nothing and says so, so
+free some space and run it again.
 
 One thing changes: if you go back to (or copy a chat from) a message more than two weeks and a few turns old, the
 agent sees those old tool results as the note and calls the tool again if it needs them.

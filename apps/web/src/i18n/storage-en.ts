@@ -38,4 +38,17 @@ export const enStorage = {
   "storage.backups.confirmBody":
     "This copy of your chats, memory and tasks is deleted for good, and {size} are freed. What APX has now stays as it is.",
   "storage.backups.deleted": "Backup deleted. Freed {size}.",
+  "storage.compact.title": "Shrink the chats' file",
+  "storage.compact.hint":
+    "Old command and file output your agents no longer read is kept as a short note, and the file gives the space back. A copy is saved in Backups first.",
+  "storage.compact.cta": "Compact",
+  "storage.compact.confirmTitle": "Compact the chats' file?",
+  "storage.compact.confirmBody":
+    "Chats and routines wait until it ends, from a few seconds to a few minutes. A copy of the file is saved in Backups first; delete it here when you no longer need it.",
+  "storage.compact.done": "Compacted: {before} → {after}. A copy was saved in Backups.",
+  "storage.compact.keptSize":
+    "Compacted, but the file keeps its size until the disk has room to rewrite it. A copy was saved in Backups.",
+  "storage.compact.noRoom":
+    "Nothing changed: the disk has no room for a copy of the file and its rewrite. Free up some space and try again.",
+  "storage.compact.failed": "Could not compact: {error}",
 };
