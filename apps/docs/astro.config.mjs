@@ -74,6 +74,7 @@ export default defineConfig({
       head: [
         { tag: "link", attrs: { rel: "icon", type: "image/png", sizes: "192x192", href: `${base}favicon.png` } },
         { tag: "link", attrs: { rel: "icon", sizes: "48x48", href: `${base}favicon.ico` } },
+        { tag: "link", attrs: { rel: "icon", type: "image/svg+xml", sizes: "any", href: `${base}favicon.svg` } },
         { tag: "link", attrs: { rel: "apple-touch-icon", href: `${base}apple-touch-icon.png` } },
         { tag: "meta", attrs: { property: "og:image", content: ogImage } },
         { tag: "meta", attrs: { property: "og:image:width", content: "1200" } },
