@@ -1172,4 +1172,28 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE tasks ADD COLUMN asked TEXT;
   `,
   `CREATE INDEX model_log_run_seq ON model_log(run_id, seq) WHERE run_id IS NOT NULL;`,
+  // Hot reads and cascade checks that scanned whole tables on a large store (DECISIONS.md#d-201).
+  `
+  CREATE INDEX threads_parent ON threads(parent_id, updated_at);
+  CREATE INDEX threads_project ON threads(project_id, updated_at);
+  CREATE INDEX threads_asked_from ON threads(json_extract(context, '$.asked_from'))
+    WHERE json_extract(context, '$.asked_from') IS NOT NULL;
+  CREATE INDEX threads_owner_unread ON threads(json_array_length(context, '$.owner_unread'))
+    WHERE json_array_length(context, '$.owner_unread') > 0;
+  CREATE INDEX threads_held ON threads(json_array_length(context, '$.held'))
+    WHERE json_array_length(context, '$.held') > 0;
+  CREATE INDEX messages_waiting ON messages(thread_id, seq) WHERE waiting IS NOT NULL;
+  CREATE INDEX runs_thread_created ON runs(thread_id, created_at);
+  CREATE INDEX runs_started ON runs(started_at);
+  CREATE INDEX jobs_ended ON jobs(ended_at);
+  CREATE INDEX outbox_created ON outbox(created_at);
+  CREATE INDEX memory_episodes_message ON memory_episodes(message_id);
+  CREATE INDEX memory_episodes_thread ON memory_episodes(thread_id);
+  CREATE INDEX memory_work_run ON memory_work(run_id);
+  CREATE INDEX memory_work_thread ON memory_work(thread_id);
+  CREATE INDEX flow_events_run ON flow_events(run_id);
+  CREATE INDEX flow_events_thread ON flow_events(thread_id);
+  CREATE INDEX flow_graph_nodes_run ON flow_graph_nodes(run_id);
+  CREATE INDEX flow_graph_nodes_thread ON flow_graph_nodes(thread_id);
+  `,
 ];

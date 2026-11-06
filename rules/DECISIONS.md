@@ -4004,3 +4004,30 @@ work with APX's plan, cards and approvals instead of their own.
 Rejected: offering Claude's task tools and mirroring them (their ids are stateful across turns and resumed sessions, and
 the model did not use them more than APX's plan), aliasing native tools to APX's (`toolAliases`: the arguments differ),
 and also telling Codex and ACP agents to call APX's `plan` (two plans for one turn).
+
+<a id="d-201"></a>
+## D-201 — 2026-11-05 — A large store stays fast through indexes, not a second thread
+
+An owner's store reached 4 GB and the panel froze. `node:sqlite` runs on the core's only thread (D-015), so every
+statement that walks a whole table stops RPC, channels and the panel for as long as it reads. On a 4.5 GB copy the core
+blocked 6.2 s and 3.4 s at startup (8.4 s of SQL) and up to 0.6 s on a panel reload; static files waited a second
+behind it. A CPU profile of the panel showed ~92% of the core's busy time inside SQLite: JSON parsing and result
+validation were small. The scans came from a handful of reads run often: the spend breaker walking a chat tree by
+`parent_id` and `context.asked_from`, the engine's ticks reading `context.owner_unread` and `held`, `waitingIn` at
+startup, finished jobs and runs ordered by `ended_at`, usage since a date, the outbox list, and memory upkeep listing
+every chat's runs and every agent once per run. A cascading delete also scanned each child table without an index on
+its foreign key (a sub-thread delete took about 1 s).
+
+- **Hot reads use an index.** The migration adds the indexes those reads need (partial or on a JSON expression where
+  only a few rows match) and the reads that sorted before their `LIMIT` were rewritten to walk an index in order.
+  `db/hot-query-plans.test.ts` runs each repo function and fails when its plan scans a growing table or sorts a paged
+  list. Without `ANALYZE` statistics SQLite plans an empty store like a large one, so the test sees the real plan; for
+  the same reason the core does not run `ANALYZE` or `PRAGMA optimize`, which would let plans change per owner.
+- **Every foreign key into a growing table has an index**, checked by the same test file, so a delete never scans its
+  children.
+- **Reads stay on the main thread.** After the indexes the same reload spends 0.7 s in SQL in total with no block over
+  150 ms, and startup has one 1.6 s block, including the migration. A read-only connection in a worker would free the
+  thread for long analytic reads (usage over months, full-text search, exports), but it makes those store calls async and
+  needs a second WAL reader; it is the next step only for a read that cannot use an index, never for a hot one.
+
+The migration reads each indexed table once: on a 4.5 GB store it took 0.2 to 4.9 s, once, at the first start.
