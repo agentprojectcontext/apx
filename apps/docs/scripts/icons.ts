@@ -1,21 +1,24 @@
 #!/usr/bin/env node
-// Draws the site's raster icons from src/assets/logo.png on the dark tile: the home-screen icon
-// (public/apple-touch-icon.png), the search-result icon (public/favicon.png, a multiple of 48 px as Google asks) and
-// public/favicon.ico for clients that only fetch /favicon.ico. Rerun it when the logo changes.
+// Draws the site's raster icons from public/favicon.svg, the app's mark, on black like the desktop app's icon: the
+// home-screen icon (public/apple-touch-icon.png), the search-result icon (public/favicon.png, a multiple of 48 px as
+// Google asks) and public/favicon.ico for clients that only fetch /favicon.ico. Rerun it when the mark changes.
 //   node --no-warnings scripts/icons.ts
 import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
 
 const docs = path.resolve(import.meta.dirname, "..");
-const logo = path.join(docs, "src/assets/logo.png");
+const svg = fs.readFileSync(path.join(docs, "public/favicon.svg"), "utf8");
+const mark = svg.slice(svg.indexOf(">") + 1, svg.lastIndexOf("</svg>")).replace(/<title[^>]*>.*?<\/title>/s, "");
 
-/** The logo centred on the dark tile, `size` px square, the mark taking `share` of it. */
-async function tile(size: number, share = 0.7) {
-  const markSize = Math.round(size * share);
-  const mark = await sharp(logo).resize(markSize, markSize).toBuffer();
-  return sharp({ create: { width: size, height: size, channels: 4, background: "#0b0d11" } })
-    .composite([{ input: mark, gravity: "center" }])
+/** The mark on black, `size` px square, the mark spanning `share` of it; `round` gives the app icon's corners. */
+function tile(size: number, { share = 0.86, round = true } = {}) {
+  const offset = (512 * (1 - share)) / 2;
+  const art = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+    <rect width="512" height="512" rx="${round ? 112 : 0}" fill="#000"/>
+    <g transform="translate(${offset} ${offset}) scale(${share})">${mark}</g></svg>`;
+  return sharp(Buffer.from(art), { density: Math.max(72, (72 * size) / 512) * 4 })
+    .resize(size, size)
     .png()
     .toBuffer();
 }
@@ -45,6 +48,7 @@ const write = (file: string, data: Buffer) => {
   console.log(`public/${file} ${(data.length / 1024).toFixed(1)} KB`);
 };
 
-write("apple-touch-icon.png", await tile(180, 124 / 180));
+// iOS rounds the home-screen icon itself, so it gets square corners and room around the mark.
+write("apple-touch-icon.png", await tile(180, { share: 0.72, round: false }));
 write("favicon.png", await tile(192));
-write("favicon.ico", ico(await Promise.all([16, 32, 48].map(async (size) => ({ size, png: await tile(size, 0.8) })))));
+write("favicon.ico", ico(await Promise.all([16, 32, 48].map(async (size) => ({ size, png: await tile(size) })))));
