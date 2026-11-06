@@ -160,7 +160,8 @@ signature is preserved after disconnection. Gmail's signature is edited in integ
 deadline, A2A-shaped states, usage), steps (one per tool call, written before it runs), surfaces (+ share tokens),
 idempotency, and the rest of the product's records (persons and their addresses, channel inbox/outbox, tasks, routines,
 memories, notifications, devices, extensions, nudges, suggestions, media); `db/migrations.ts` is the list, `db/schema.ts`
-the generated types. Channel photos/documents and voice notes enter through `threads.send` as persisted uploads; image references reach
+the generated types. Finished runs are trimmed to what every view of their chat already reads, and the file gives
+freed pages back (`engine/store-retention.ts`, [D-200](DECISIONS.md#d-200)). Channel photos/documents and voice notes enter through `threads.send` as persisted uploads; image references reach
 vision models and the panel shows attachments from both sides. Owner uploads are copied into an ignored
 `.apx-attachments/upload-*` folder inside the turn work directory so file tools can inspect PDFs and other
 documents. Contact uploads stay in their sealed chat and never get a shared work-folder copy. Voice uploads stay

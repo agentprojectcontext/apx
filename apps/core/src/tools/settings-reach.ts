@@ -74,6 +74,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.bind": POWER,
   "telemetry.set": POWER,
   "storage.clear": "the owner frees space from Settings › Storage, having seen what it removes (DECISIONS.md#d-185)",
+  "storage.compact":
+    "it blocks the core while it rewrites the database; the owner runs it with apx doctor --fix (DECISIONS.md#d-200)",
   "storage.computers.delete":
     "an agents' computer and all it holds go only when the owner deletes it (DECISIONS.md#d-185)",
   "storage.backups.delete":

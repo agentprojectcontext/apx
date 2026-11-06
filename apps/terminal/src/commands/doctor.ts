@@ -3,7 +3,15 @@
 // with the core down, so they cannot go through the protocol. See HISTORY.md#cli-without-core.
 import fs from "node:fs";
 import path from "node:path";
-import { coreBundleName, type Platform, platformOf, RELEASE_FEED, type Release } from "@apx/protocol";
+import {
+  coreBundleName,
+  type Platform,
+  platformOf,
+  RELEASE_FEED,
+  type Release,
+  type StoreCompaction,
+} from "@apx/protocol";
+import type { ApxClient } from "@apx/protocol/client";
 import {
   checkReleases,
   commandRunner,
@@ -154,8 +162,31 @@ async function newestOnline(feed: string, current: string, platform: Platform | 
   }
 }
 
-/** `apx doctor`: why the core does not answer here, and the one thing to run next. */
-export async function doctor(o: { json?: boolean | undefined; env?: NodeJS.ProcessEnv }): Promise<void> {
+const MB = 1048576;
+
+/** What `--fix` did to the store, in the owner's words. */
+export function compactionLines(r: StoreCompaction): string[] {
+  const mb = (n: number) => `${Math.round(n / MB)} MB`;
+  const freed = Math.max(0, r.before_bytes - r.after_bytes);
+  const lines = [
+    `Database: ${mb(r.before_bytes)} → ${mb(r.after_bytes)}${freed ? ` (${mb(freed)} freed)` : ""}`,
+    `Old turns compacted: ${r.runs_compacted}, outputs kept twice removed: ${r.outputs_dropped}`,
+  ];
+  if (r.reclaimed === "rebuilt")
+    lines.push("The database file was rewritten once; from now on it gives space back by itself.");
+  if (r.reclaimed === "not_enough_disk")
+    lines.push(
+      "The file stays this size until the disk has about twice its size free: free some space and run it again.",
+    );
+  return lines;
+}
+
+/** `apx doctor`: why the core does not answer here, and the one thing to run next; `fix` also compacts the store. */
+export async function doctor(o: {
+  json?: boolean | undefined;
+  env?: NodeJS.ProcessEnv;
+  fix?: Pick<ApxClient, "call">;
+}): Promise<void> {
   const env = o.env ?? process.env;
   const { url } = localConnection(env);
   const install = installOf(env);
@@ -174,6 +205,16 @@ export async function doctor(o: { json?: boolean | undefined; env?: NodeJS.Proce
   if (o.json) console.log(JSON.stringify({ ...d, facts: { ...facts, log: undefined } }, null, 2));
   else console.log(card("APX doctor", [...d.lines, ...d.next.map((n) => `Next: ${n}`)]));
   if (!d.ok) process.exitCode = 1;
+  if (!o.fix) return;
+  if (!facts.core) {
+    console.log(
+      card("APX doctor --fix", ["The core must be running to compact its database: start it, then run this again."]),
+    );
+    return;
+  }
+  if (!o.json) console.log("Compacting the database (a big one takes a few minutes; chats wait meanwhile)…");
+  const r = await o.fix.call("storage.compact", {});
+  console.log(o.json ? JSON.stringify(r, null, 2) : card("APX doctor --fix", compactionLines(r)));
 }
 
 /** `apx update` when the core does not answer: a bundle install updates itself; others are told how. */
