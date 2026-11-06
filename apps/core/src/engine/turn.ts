@@ -12,6 +12,7 @@ import {
   type Thread,
 } from "@apx/protocol";
 import { readOrganization } from "../apc/org.ts";
+import { projectOrchestrator } from "../domain/agent-directory.ts";
 import type { AgentRecord } from "../domain/agents.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
@@ -547,11 +548,16 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
         )
       : direct
         ? // An engine session gets no header, but a result or outside text still says what it is and what to do.
-          message(o.kind === "go_on" ? said : frameInput(o, files ? `${said}\n\n${files}` : said))
+          message(
+            o.kind === "go_on"
+              ? said
+              : frameInput(o, files ? `${said}\n\n${files}` : said, coordinatesProject(store, agent, thread)),
+          )
         : turnBlocks({
             origin: turn.input.origin,
             text: files ? `${said}\n\n${files}` : said,
             now: new Date(),
+            projectCoordinator: coordinatesProject(store, agent, thread),
             roster: rosterChanged ? roster.text : undefined,
             memory: memoryBlock,
             skills: picked?.block || undefined,
@@ -661,6 +667,16 @@ const DIRECT_NOTE =
   "You are running inside APX, the owner's local assistant app; they talk to you directly in this chat. APX's own tools (mcp__apx__*) are there if useful.";
 
 /** The system prompt and its parts (what the owner or a project wrote in it, and APX's own text: systemParts). */
+/** The directory's selected head, scoped to the project this turn is actually in. */
+function coordinatesProject(store: Store, agent: AgentRecord, thread: Pick<Thread, "project_id">): boolean {
+  const project = thread.project_id ?? agent.project_id;
+  return Boolean(
+    project &&
+      agent.project_id === project &&
+      projectOrchestrator(store.agents.list().filter((member) => member.project_id === project))?.agent.id === agent.id,
+  );
+}
+
 function systemFor(
   store: Store,
   turn: Turn,
@@ -712,6 +728,7 @@ function systemFor(
     computerOff,
     channelsOn(store),
     told,
+    coordinatesProject(store, turn.agent, turn.thread),
   );
   return {
     text,

@@ -45,6 +45,7 @@ export function followsOwner(origin: Origin | undefined): boolean {
     case "stalled_task":
     case "added":
     case "computer_ready":
+    case "task_feedback":
     case "task_result":
       return false;
   }

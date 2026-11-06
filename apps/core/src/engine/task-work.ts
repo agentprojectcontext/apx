@@ -5,6 +5,7 @@
 // (the question and its answer, under the task's conversation, shown there as a card); an hourly pickup starts what was
 // assigned and never began. An agent's @mention on a task is a consult whose answer comes back to it (DECISIONS.md#d-132).
 import type { Author, Part, Task, Thread } from "@apx/protocol";
+import { projectOrchestrator } from "../domain/agent-directory.ts";
 import { ownerIdentity } from "../domain/owner.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -12,7 +13,8 @@ import { noticeTaskReview } from "../domain/task-attention.ts";
 import { type HeldTask, previewOf } from "../domain/threads.ts";
 import { badRequest, conflict } from "../errors.ts";
 import { taskWords } from "../tools/tasks.ts";
-import { agentTrip, heldNotice, trip } from "./breaker.ts";
+import { agentTrip, heldNotice, keepWhilePaused, trip } from "./breaker.ts";
+import { frameInput } from "./context.ts";
 import { actionsOf, reportCard } from "./delegation.ts";
 import type { AdmitFn } from "./engine.ts";
 import { mentioned, mentionsOwner, taskCommentAttention } from "./office.ts";
@@ -20,7 +22,7 @@ import { outcomeOf } from "./run-outcome.ts";
 import { continueTask } from "./task-continue.ts";
 import { checkSelfHandoff, markHandoff, runLineage } from "./task-handoff.ts";
 import { answersOwner, ownerTurnEnded } from "./task-inbox.ts";
-import { closedIn, reportClose } from "./task-report.ts";
+import { closedIn, coordinatedTaskSource, reportClose } from "./task-report.ts";
 
 /** How often assigned tasks that never started are looked at, and how many start each time. */
 export const PICKUP_EVERY_MS = 3600_000;
@@ -107,20 +109,66 @@ export function startHeld(store: Store, admit: AdmitFn, threadIds: readonly stri
       if (waiting.includes(h)) continue;
       const task = store.tasks.get(h.task);
       const asker = store.runs.get(h.run);
-      // Reassigned or begun meanwhile: whoever has it now goes on as it is.
-      if (!task || !asker || task.assignee !== h.agent || store.threads.byTask(task.id).length) continue;
+      // A new execution since the hold wins; an older task chat is not evidence that this assignment started.
+      if (!task || !asker || task.assignee !== h.agent) continue;
+      const heads = taskRunHeads(store, task.id);
+      if (h.prior_runs ? JSON.stringify(h.prior_runs) !== JSON.stringify(heads) : store.threads.byTask(task.id).length)
+        continue;
+      if (
+        h.prior_events !== undefined &&
+        store.tasks
+          .events(task.id)
+          .slice(h.prior_events)
+          .some((e) =>
+            ["assignee", "status", "state", "proposed", "description", "start_at", "project_id"].some((k) =>
+              Object.hasOwn(e.data, k),
+            ),
+          )
+      )
+        continue;
       const name = store.agents.get(asker.agent_id)?.name ?? asker.agent_id;
       const by = { kind: "agent" as const, id: asker.agent_id, name, thread_id: id, run_id: h.run, depth: h.depth };
-      if (startTaskWork(store, admit, task, h.agent, by)) started++;
+      const work = startTaskWork(store, admit, task, h.agent, by);
+      if (work) {
+        if (h.coordination && projectCoordinatorChat(store, task, { id: by.id, thread_id: by.thread_id }))
+          store.threads.mergeContext(task.thread_id, {
+            coordination_from: { thread: id, run: h.run, work_run: work.id, ...h.coordination },
+          });
+        started++;
+      }
     }
   }
   return started;
 }
 
 /** Keeps a task an agent gave while its chat's chain is paused, and tells the owner there. */
-function hold(store: Store, task: Task, agentId: string, asker: Extract<Asker, { kind: "agent" }>): void {
+function taskRunHeads(store: Store, task: string): string[] {
+  return store.threads
+    .byTask(task)
+    .flatMap((t) => {
+      const id = store.runs.latestId(t.id);
+      return id ? [id] : [];
+    })
+    .sort();
+}
+
+function hold(
+  store: Store,
+  task: Task,
+  agentId: string,
+  asker: Extract<Asker, { kind: "agent" }>,
+  coordination?: { root_run?: string },
+): void {
   const held = (store.threads.context(asker.thread_id).held ?? []).filter((h) => h.task !== task.id);
-  const entry: HeldTask = { task: task.id, agent: agentId, run: asker.run_id, depth: asker.depth };
+  const entry: HeldTask = {
+    task: task.id,
+    agent: agentId,
+    run: asker.run_id,
+    depth: asker.depth,
+    prior_runs: taskRunHeads(store, task.id),
+    prior_events: store.tasks.events(task.id).length,
+    ...(coordination ? { coordination } : {}),
+  };
   store.threads.mergeContext(asker.thread_id, { held: [...held, entry] });
   const who = store.agents.get(agentId)?.name ?? agentId;
   const notice = heldNotice(store, asker.thread_id, who, task.title.slice(0, 120), agentId);
@@ -137,14 +185,14 @@ export function startTaskWork(
   task: Task,
   agentId: string,
   asker: Asker,
-  options: { transfer?: boolean; now?: Date } = {},
+  options: { transfer?: boolean; now?: Date; coordination?: { root_run?: string } } = {},
 ): RunRecord | undefined {
   // How far agents hand work on is the breaker's, as the owner set it (DECISIONS.md#d-082).
   if (task.state !== "open" || !task.description.trim() || !store.agents.get(agentId)) return undefined;
   // A start time still ahead: the office clock starts it then (startScheduled). A proposal waits for the owner.
   if (startsLater(task, options.now) || task.proposed) return undefined;
   if (asker.kind === "agent" && (trip(store, asker.thread_id) || agentTrip(store, asker.thread_id, agentId))) {
-    hold(store, task, agentId, asker);
+    hold(store, task, agentId, asker, options.coordination);
     return undefined;
   }
   const ownWords = task.created_by === "owner";
@@ -160,6 +208,37 @@ export function startTaskWork(
   const work = ask(store, admit, task, agentId, text, asker, author, sessionFor(store, task, agentId, source));
   if (self) markHandoff(store, task, asker, work);
   const sourceRun = asker.kind === "agent" ? store.runs.get(asker.run_id) : undefined;
+  // A coordinator-created task needs the same feedback route as an existing one it assigned. Record it only once
+  // execution really starts and only when the creation event identifies this exact coordinating chat and run.
+  if (
+    asker.kind === "agent" &&
+    sourceRun &&
+    sourceRun.agent_id === asker.id &&
+    sourceRun.thread_id === asker.thread_id &&
+    task.created_by === asker.id &&
+    projectCoordinatorChat(store, task, asker)
+  ) {
+    const created = store.tasks.events(task.id).find((event) => event.op === "create");
+    if (created?.data.from_thread === asker.thread_id && created.data.from_run === asker.run_id) {
+      // Reuse the owner-lineage verifier; the virtual assignee only asks whether this chat can trace to its root.
+      // It grants no task permission and keeps nested or unverified chains uncompressed.
+      let root: string | undefined;
+      authorizedChildHandoff(store, { ...task, assignee: asker.id }, asker, agentId, {
+        allowCoordinatorChat: true,
+        onVerifiedRoot: (id) => {
+          root = id;
+        },
+      });
+      store.threads.mergeContext(task.thread_id, {
+        coordination_from: {
+          thread: asker.thread_id,
+          run: asker.run_id,
+          work_run: work.id,
+          ...(root ? { root_run: root } : {}),
+        },
+      });
+    }
+  }
   if (asker.kind === "agent" && sourceRun && !sourceRun.ended_at) {
     const previous = store.threads.context(asker.thread_id).task_dispatches;
     const source = { id: asker.run_id, thread_id: asker.thread_id };
@@ -343,6 +422,8 @@ function consult(
 
 /** Hand-offs above a task an agent may still add to on its own; deeper, its new task is a proposal for the owner. */
 const MAX_HANDOFF_DEPTH = 3;
+/** Two review rounds are bounded separately from nested delegation. */
+const MAX_REVIEW_ROUNDS = 2;
 
 /**
  * Why an agent's new task waits for the owner instead of starting: a chain of hand-offs too deep, or work given back to
@@ -353,6 +434,7 @@ export function proposalReason(
   parentId: string | undefined,
   assignee: string | undefined,
   creator: string,
+  options: { ignoreHistoricalDepth?: boolean; ignoreHistoricalBackflow?: boolean } = {},
 ): string | undefined {
   const chain: Task[] = [];
   const seen = new Set<string>();
@@ -363,14 +445,450 @@ export function proposalReason(
     chain.push(t);
     id = t.parent_id;
   }
-  if (chain.length >= MAX_HANDOFF_DEPTH) return `it would be ${chain.length + 1} hand-offs deep`;
-  if (assignee && assignee !== creator && chain.some((t) => t.created_by === assignee))
+  if (!options.ignoreHistoricalDepth && chain.length >= MAX_HANDOFF_DEPTH)
+    return `it would be ${chain.length + 1} hand-offs deep`;
+  if (
+    !options.ignoreHistoricalBackflow &&
+    assignee &&
+    assignee !== creator &&
+    chain.some((t) => t.created_by === assignee)
+  )
     return "it gives work back up its own chain";
   return undefined;
 }
 
-/** Review rounds an agent reviewer gets on one task before the owner decides. */
-const MAX_REVIEW_ROUNDS = 2;
+/** Whether a task is being coordinated from its own project's recognized orchestrator chat. */
+export function projectCoordinatorChat(
+  store: Store,
+  task: Task | undefined,
+  agent: { id: string; thread_id: string },
+): boolean {
+  const thread = store.threads.get(agent.thread_id);
+  return Boolean(
+    task?.project_id &&
+      thread?.project_id === task.project_id &&
+      !thread.task_id &&
+      (thread.kind === "agent" || thread.kind === "loose") &&
+      projectOrchestrator(store.agents.list().filter((a) => a.project_id === task.project_id))?.agent.id === agent.id,
+  );
+}
+
+/** Reconstruct a short owner-origin chain, without trusting stored run depth or task ancestry. */
+export function authorizedChildHandoff(
+  store: Store,
+  parent: Task | undefined,
+  agent: { id: string; thread_id: string; run_id: string },
+  assignee: string | undefined,
+  options: {
+    allowCoordinatorChat?: boolean;
+    allowReviewReturn?: boolean;
+    allowCoordinatorReturn?: boolean;
+    onVerifiedRoot?: (id: string) => void;
+  } = {},
+): "allowed" | "limit" | "backflow" | undefined {
+  const thread = store.threads.get(agent.thread_id);
+  let run = store.runs.get(agent.run_id);
+  const coordinatorChat = Boolean(options.allowCoordinatorChat && projectCoordinatorChat(store, parent, agent));
+  if (
+    parent?.state !== "open" ||
+    parent.proposed ||
+    parent.awaits_owner ||
+    (parent.assignee !== agent.id && !(coordinatorChat && !parent.assignee)) ||
+    !thread ||
+    (thread.task_id !== parent.id && !coordinatorChat) ||
+    run?.thread_id !== thread.id ||
+    run.agent_id !== agent.id ||
+    run.ended_at
+  )
+    return undefined;
+  if (coordinatorChat && !parent.assignee) {
+    const ownerDecision = store.tasks
+      .events(parent.id)
+      .findLast((e) => e.by === "owner" && (Object.hasOwn(e.data, "assignee") || e.data.proposed === false));
+    if (ownerDecision?.data.assignee === null) return undefined;
+  }
+  const taskAuthority = authorizedExistingHandoff(store, parent, agent, { allowCoordinatorChat: coordinatorChat });
+  if (taskAuthority === "limit") return "limit";
+  if (taskAuthority === "denied") return undefined;
+  const initial = run.input?.origin;
+  const assignment = store.tasks.events(parent.id).findLast((e) => Object.hasOwn(e.data, "assignee"));
+  const coordination = coordinatedTaskSource(store, parent);
+  // A worker may return to the task's verified same-project coordinator; it must still trace through the exact
+  // recorded execution and owner lineage below. This never permits a return to some other earlier agent.
+  const coordinatorReturn = Boolean(
+    options.allowCoordinatorReturn &&
+      !coordinatorChat &&
+      assignee &&
+      coordination?.run.agent_id === assignee &&
+      projectCoordinatorChat(store, parent, { id: assignee, thread_id: coordination.thread }),
+  );
+  // A coordinator may create a child while working another task, rather than from a project-level chat.
+  // Trust only the exact task-create event and direct worker run; the normal lineage walk still reaches the owner.
+  const sourceThread = initial?.kind === "agent" ? store.threads.get(initial.thread_id) : undefined;
+  const created = store.tasks.events(parent.id).find((e) => e.op === "create");
+  const directEscalation = Boolean(
+    options.allowCoordinatorReturn &&
+      !coordination &&
+      assignee &&
+      initial?.kind === "agent" &&
+      initial.id === assignee &&
+      sourceThread?.project_id === parent.project_id &&
+      sourceThread?.task_id &&
+      sourceThread.task_id === parent.parent_id &&
+      (sourceThread.kind === "loose" || sourceThread.kind === "agent") &&
+      !store.threads.context(sourceThread.id).client &&
+      projectOrchestrator(store.agents.list().filter((a) => a.project_id === parent.project_id))?.agent.id ===
+        assignee &&
+      created?.by === assignee &&
+      created.data.assignee === agent.id &&
+      created.data.from_thread === initial.thread_id &&
+      created.data.from_run === initial.run_id,
+  );
+  const coordinatedWork = store.threads.context(parent.thread_id).coordination_from?.work_run;
+  // A coordinator resolving an executor's escalation may return this same task to that executor, not an arbitrary
+  // earlier agent. The exact original work and owner-root lineage must still be verified below, with normal hop limits.
+  const coordinatorResume = Boolean(
+    options.allowCoordinatorReturn &&
+      !coordinatorChat &&
+      assignee &&
+      initial?.kind === "agent" &&
+      initial.id === assignee &&
+      store.threads.get(initial.thread_id)?.task_id === parent.id &&
+      coordination?.run.agent_id === agent.id &&
+      projectCoordinatorChat(store, parent, { id: agent.id, thread_id: coordination.thread }) &&
+      assignment?.by === assignee &&
+      assignment.data.assignee === agent.id &&
+      assignment.at <= run.started_at,
+  );
+  let sawCoordinatedWork = false;
+  const reviewReturn = Boolean(
+    options.allowReviewReturn &&
+      !coordinatorChat &&
+      initial?.kind === "agent" &&
+      initial.id === assignee &&
+      store.threads.get(initial.thread_id)?.task_id === parent.id &&
+      assignment?.by === initial.id &&
+      assignment.data.assignee === agent.id &&
+      assignment.at <= run.started_at &&
+      ((parent.status === "review" && assignment.data.status === "review") ||
+        (parent.status === "doing" &&
+          assignment.data.status === "doing" &&
+          store.tasks
+            .events(parent.id)
+            .some(
+              (e) =>
+                e.by === agent.id &&
+                e.data.assignee === assignee &&
+                e.data.status === "review" &&
+                e.at <= assignment.at,
+            ))),
+  );
+  const seen = new Set<string>();
+  const agents = new Set<string>();
+  let hops = 0;
+  let reviewMoves = 0;
+  let coordinatorMoves = 0;
+  let reviewPair: string | undefined;
+  const events = store.tasks.events(parent.id);
+  while (run && seen.size < 32 && !seen.has(run.id)) {
+    seen.add(run.id);
+    if (run.id === coordinatedWork) sawCoordinatedWork = true;
+    agents.add(run.agent_id);
+    const input: RunRecord["input"] = run.input;
+    if (!input) return undefined;
+    const previousId = input.resume_of ?? input.retry_of ?? input.continues;
+    if (previousId) {
+      const previous = store.runs.get(previousId);
+      if (
+        !previous ||
+        previous.thread_id !== run.thread_id ||
+        previous.agent_id !== run.agent_id ||
+        previous.started_at > run.started_at
+      )
+        return undefined;
+      run = previous;
+      continue;
+    }
+    const origin: Origin = input.origin;
+    if (origin.kind === "input_answer") {
+      const answer = store.inputs.get(origin.input_id);
+      const previous: RunRecord | undefined = answer ? store.runs.get(answer.run_id) : undefined;
+      if (
+        run.trigger !== "user" ||
+        !answer ||
+        !["answered", "approved", "denied"].includes(answer.state) ||
+        !answer.answered_at ||
+        answer.answered_at > run.started_at ||
+        answer.thread_id !== run.thread_id ||
+        answer.agent_id !== run.agent_id ||
+        !previous ||
+        previous.thread_id !== run.thread_id ||
+        previous.agent_id !== run.agent_id ||
+        !previous.ended_at ||
+        previous.ended_at > run.started_at
+      )
+        return undefined;
+      run = previous;
+      continue;
+    }
+    if (origin.kind === "task_continue" || origin.kind === "stalled_task") {
+      const previous: RunRecord | undefined = origin.from_run ? store.runs.get(origin.from_run) : undefined;
+      if (
+        run.trigger !== "system" ||
+        store.threads.get(run.thread_id)?.task_id !== origin.task_id ||
+        !previous ||
+        previous.thread_id !== run.thread_id ||
+        previous.agent_id !== run.agent_id ||
+        !previous.ended_at ||
+        previous.ended_at > run.started_at ||
+        (origin.kind === "task_continue" && previous.state !== "completed") ||
+        (origin.kind === "stalled_task" && (previous.state === "canceled" || previous.end_reason === "provider_limit"))
+      )
+        return undefined;
+      run = previous;
+      continue;
+    }
+    const scheduledFlow =
+      origin.kind === "agent" &&
+      run.trigger === "channel" &&
+      origin.id.startsWith("client:flow:") &&
+      origin.run_id === "" &&
+      origin.thread_id === run.thread_id &&
+      parent.project_id &&
+      store.flowGraphRuns.scheduledAgentRun(
+        origin.id.slice("client:flow:".length),
+        run.id,
+        run.thread_id,
+        parent.project_id,
+      );
+    if (
+      (origin.kind === "user" && run.trigger === "user") ||
+      (origin.kind === "channel" && origin.role === "owner" && run.trigger === "channel") ||
+      scheduledFlow ||
+      (origin.kind === "routine" &&
+        run.trigger === "routine" &&
+        store.threads.get(run.thread_id)?.kind === "routine" &&
+        store.routines.ofRun(run.id) === origin.id)
+    ) {
+      if (store.threads.context(run.thread_id).client) return undefined;
+      if (hops + (reviewMoves ? 1 : 0) >= MAX_HANDOFF_DEPTH) return "limit";
+      if ((reviewReturn || coordinatorReturn || coordinatorResume) && reviewMoves >= MAX_REVIEW_ROUNDS * 2)
+        return "limit";
+      if (coordinatorMoves >= MAX_REVIEW_ROUNDS * 2) return "limit";
+      if (
+        assignee &&
+        assignee !== agent.id &&
+        agents.has(assignee) &&
+        !reviewReturn &&
+        !((coordinatorReturn || coordinatorResume) && sawCoordinatedWork) &&
+        !directEscalation
+      )
+        return "backflow";
+      // Only a flat, same-agent coordinator lineage can be compacted. Nested handoffs retain their full chain.
+      if (coordinatorChat && hops === 0 && reviewMoves === 0 && agents.size === 1 && run.agent_id === agent.id)
+        options.onVerifiedRoot?.(run.id);
+      return "allowed";
+    }
+    if (origin.kind === "agent") {
+      if (run.trigger !== "a2a") return undefined;
+      const previous = store.runs.get(origin.run_id);
+      if (
+        !previous ||
+        previous.thread_id !== origin.thread_id ||
+        previous.agent_id !== origin.id ||
+        previous.started_at > run.started_at
+      )
+        return undefined;
+      const currentRun = run;
+      const reviewEvent =
+        options.allowReviewReturn &&
+        store.threads.get(run.thread_id)?.task_id === parent.id &&
+        store.threads.get(previous.thread_id)?.task_id === parent.id &&
+        events.findLast(
+          (e) =>
+            e.by === origin.id &&
+            e.data.assignee === currentRun.agent_id &&
+            (e.data.status === "review" ||
+              (e.data.status === "doing" &&
+                events.some(
+                  (prior) =>
+                    prior.by === currentRun.agent_id &&
+                    prior.data.assignee === origin.id &&
+                    prior.data.status === "review" &&
+                    prior.at <= e.at,
+                ))) &&
+            e.at >= previous.started_at &&
+            e.at <= currentRun.started_at,
+        );
+      const pair = [origin.id, run.agent_id].sort().join("\0");
+      const coordinatorEvent =
+        options.allowCoordinatorReturn &&
+        coordination &&
+        (origin.id === coordination.run.agent_id || run.agent_id === coordination.run.agent_id) &&
+        projectCoordinatorChat(store, parent, { id: coordination.run.agent_id, thread_id: coordination.thread }) &&
+        store.threads.get(run.thread_id)?.task_id === parent.id &&
+        store.threads.get(previous.thread_id)?.task_id === parent.id &&
+        events.some(
+          (e) =>
+            e.by === origin.id &&
+            e.data.assignee === run?.agent_id &&
+            e.at >= previous.started_at &&
+            e.at <= currentRun.started_at,
+        );
+      if (reviewEvent && (!reviewPair || reviewPair === pair)) {
+        reviewPair = pair;
+        reviewMoves++;
+      } else if (coordinatorEvent) coordinatorMoves++;
+      else hops++;
+      run = previous;
+      continue;
+    }
+    if (origin.kind === "delegation_result") {
+      const child: RunRecord | undefined = store.runs.get(origin.run_id);
+      const previous: RunRecord | undefined = child?.parent_run_id ? store.runs.get(child.parent_run_id) : undefined;
+      if (
+        run.trigger !== "a2a_result" ||
+        !child ||
+        child.thread_id !== origin.thread_id ||
+        child.agent_id !== origin.agent_id ||
+        child.state !== origin.state ||
+        !child.ended_at ||
+        child.ended_at > run.started_at ||
+        !previous ||
+        previous.thread_id !== run.thread_id ||
+        previous.agent_id !== run.agent_id ||
+        previous.started_at > child.started_at
+      )
+        return undefined;
+      run = previous;
+      continue;
+    }
+    if (origin.kind === "task_feedback") {
+      const child = store.tasks.get(origin.task_id);
+      const feedback = store.runs.get(origin.run_id);
+      const coordination = child && coordinatedTaskSource(store, child);
+      if (
+        run.trigger !== "a2a_result" ||
+        !child ||
+        !feedback ||
+        !coordination ||
+        coordination.thread !== run.thread_id ||
+        coordination.run.agent_id !== run.agent_id ||
+        child.project_id !== store.threads.get(run.thread_id)?.project_id ||
+        feedback.agent_id !== origin.agent_id ||
+        !feedback.ended_at ||
+        feedback.ended_at > run.started_at ||
+        !verifiedReviewFeedback(store, child, feedback) ||
+        !store.threads.context(child.thread_id).coordination_feedback?.includes(feedback.id)
+      )
+        return undefined;
+      run = coordination.root ?? coordination.run;
+      continue;
+    }
+    if (origin.kind === "task_result") {
+      if (run.trigger !== "a2a_result") return undefined;
+      const child = store.tasks.get(origin.task_id);
+      const events = child && store.tasks.events(child.id);
+      const created = events?.find((e) => e.op === "create");
+      const closed = events?.findLast((e) => e.op === "done" || e.op === "drop" || e.op === "reopen");
+      const taskThread = store.threads.get(run.thread_id);
+      const coordination = child && coordinatedTaskSource(store, child);
+      if (
+        child &&
+        coordination?.thread === run.thread_id &&
+        coordination.run.agent_id === run.agent_id &&
+        child.project_id === taskThread?.project_id &&
+        child.state === origin.state &&
+        closed?.by === origin.agent_id &&
+        closed.op === (origin.state === "done" ? "done" : "drop") &&
+        closed.at <= run.started_at &&
+        coordination.run.started_at <= closed.at
+      ) {
+        run = coordination.root ?? coordination.run;
+        continue;
+      }
+      if (
+        !child ||
+        child.parent_id !== taskThread?.task_id ||
+        child.state !== origin.state ||
+        created?.by !== run.agent_id ||
+        !closed ||
+        closed.by !== origin.agent_id ||
+        closed.op !== (origin.state === "done" ? "done" : "drop") ||
+        closed.at > run.started_at ||
+        created.data.from_thread !== run.thread_id ||
+        typeof created.data.from_run !== "string"
+      )
+        return undefined;
+      const previous = store.runs.get(created.data.from_run);
+      if (
+        !previous ||
+        previous.thread_id !== run.thread_id ||
+        previous.agent_id !== run.agent_id ||
+        previous.started_at > created.at ||
+        previous.started_at > run.started_at
+      )
+        return undefined;
+      run = previous;
+      continue;
+    }
+    return undefined;
+  }
+  return undefined;
+}
+
+/** An owner-started task may use a bounded new handoff chain, not inherit earlier parents' depth. */
+export function authorizedExistingHandoff(
+  store: Store,
+  task: Task,
+  agent: { id: string; thread_id: string; run_id: string },
+  options: { allowCoordinatorChat?: boolean } = {},
+): "allowed" | "limit" | "denied" | undefined {
+  const thread = store.threads.get(agent.thread_id);
+  const run = store.runs.get(agent.run_id);
+  if (
+    task.assignee !== agent.id ||
+    !thread ||
+    (thread.task_id !== task.id && !options.allowCoordinatorChat) ||
+    run?.thread_id !== thread.id ||
+    run.agent_id !== agent.id ||
+    run.ended_at
+  )
+    return undefined;
+  const events = store.tasks.events(task.id);
+  const anchor = events.findLastIndex(
+    (e) => e.by === "owner" && (Object.hasOwn(e.data, "assignee") || e.data.proposed === false),
+  );
+  const authorization = events[anchor];
+  if (!authorization) return undefined;
+  if (authorization.data.assignee === null || run.started_at < authorization.at) return "denied";
+  const initial = events.slice(0, anchor + 1).findLast((e) => Object.hasOwn(e.data, "assignee"))?.data.assignee;
+  if (typeof initial !== "string") return "denied";
+  let previous: unknown = initial;
+  let transfers = 0;
+  let reviewMoves = 0;
+  let reviewPair: string | undefined;
+  for (const event of events.slice(anchor + 1)) {
+    if (!Object.hasOwn(event.data, "assignee")) continue;
+    const next = event.data.assignee;
+    if (next !== previous) {
+      if (typeof next !== "string" || event.by !== previous) return "denied";
+      const pair = [previous, next].sort().join("\0");
+      if (
+        (event.data.status === "review" && (!reviewPair || reviewPair === pair)) ||
+        (event.data.status === "doing" && reviewPair === pair)
+      ) {
+        reviewPair = pair;
+        reviewMoves++;
+      } else transfers++;
+    }
+    previous = next;
+  }
+  if (previous !== task.assignee) return "denied";
+  return transfers + (reviewMoves ? 1 : 0) >= MAX_HANDOFF_DEPTH || reviewMoves >= MAX_REVIEW_ROUNDS * 2
+    ? "limit"
+    : "allowed";
+}
 
 /** Whether a task's start time is still ahead: its work waits until then. */
 export const startsLater = (task: Pick<Task, "start_at">, now = new Date()): boolean =>
@@ -578,6 +1096,70 @@ export function addComment(store: Store, task: Task, author: Author, text: strin
   return message;
 }
 
+/** A completed review returning work to its original author, never a proposal or arbitrary update. */
+function verifiedReviewFeedback(store: Store, task: Task, run: RunRecord): boolean {
+  const origin = run.input?.origin;
+  if (
+    run.state !== "completed" ||
+    !run.ended_at ||
+    origin?.kind !== "agent" ||
+    store.threads.get(run.thread_id)?.task_id !== task.id ||
+    task.proposed
+  )
+    return false;
+  const previous = store.runs.get(origin.run_id);
+  if (
+    !previous ||
+    previous.agent_id !== origin.id ||
+    previous.thread_id !== origin.thread_id ||
+    store.threads.get(previous.thread_id)?.task_id !== task.id
+  )
+    return false;
+  const endedAt = run.ended_at;
+  return store.tasks
+    .events(task.id)
+    .some(
+      (e) =>
+        e.by === run.agent_id &&
+        e.data.assignee === origin.id &&
+        e.data.status === "review" &&
+        e.data.proposed !== true &&
+        e.at >= run.started_at &&
+        e.at <= endedAt,
+    );
+}
+
+/** Report once, durably, to the coordinator who actually dispatched this task. */
+function reportReviewFeedback(store: Store, admit: AdmitFn, task: Task, run: RunRecord, text: string): void {
+  if (!verifiedReviewFeedback(store, task, run)) return;
+  const source = coordinatedTaskSource(store, task);
+  const reviewer = store.agents.get(run.agent_id);
+  if (!source || !reviewer) return;
+  store.tx(() => {
+    const seen = store.threads.context(task.thread_id).coordination_feedback ?? [];
+    if (seen.includes(run.id)) return;
+    const origin: Origin = {
+      kind: "task_feedback",
+      task_id: task.id,
+      title: task.title.slice(0, 120),
+      agent_id: reviewer.id,
+      name: reviewer.name,
+      run_id: run.id,
+    };
+    const note = `A review returned while agents were paused:\n${frameInput(origin, text)}`;
+    if (!keepWhilePaused(store, { thread_id: source.thread, agent_id: source.run.agent_id, who: reviewer.name, note }))
+      admit({
+        thread_id: source.thread,
+        agent_id: source.run.agent_id,
+        trigger: "a2a_result",
+        origin,
+        text: text.slice(0, 4000),
+        depth: source.run.depth,
+      });
+    store.threads.mergeContext(task.thread_id, { coordination_feedback: [...seen, run.id] });
+  });
+}
+
 /**
  * After a turn in a task's chat: the task moved; its answer is posted on the task when the turn closes it (the report;
  * a close reports to the creator), answers the owner, or asks the owner (@owner). Anything else stays in the chat:
@@ -600,7 +1182,10 @@ export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): voi
     addComment(store, task, { kind: "agent", id: run.agent_id }, text, run.agent_id);
   // Closed in this turn: whoever created the task hears now, with the answer just posted as its report.
   if (closed) reportClose(store, admit, task.id);
-  else continueTask(store, admit, run);
+  else {
+    reportReviewFeedback(store, admit, task, run, text);
+    continueTask(store, admit, run);
+  }
 }
 
 /** When a task was last given to its agent (its creation with one, or the last assignment). */

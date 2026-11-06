@@ -181,6 +181,7 @@ export interface FlowSchedulesTable {
   since: string;
   skipped: Generated<number>;
   skipped_at: string | null;
+  activated_at: string | null;
 }
 
 export interface FlowSendsTable {

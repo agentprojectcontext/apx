@@ -106,6 +106,44 @@ export function flowGraphRunsRepo(db: Db) {
       .where("revision", "=", k.revision)
       .where("node_id", "=", k.node);
   const api = {
+    /** A published, enabled schedule actually admitted this graph agent run in this project. */
+    scheduledAgentRun(flow: string, runId: string, threadId: string, projectId: string): boolean {
+      return Boolean(
+        one(
+          qb
+            .selectFrom("flow_graph_nodes as n")
+            .innerJoin("flow_graph_events as g", (j) =>
+              j
+                .onRef("g.flow_id", "=", "n.flow_id")
+                .onRef("g.event_id", "=", "n.event_id")
+                .onRef("g.revision", "=", "n.revision"),
+            )
+            .innerJoin("flow_graph_revisions as v", (j) =>
+              j.onRef("v.flow_id", "=", "g.flow_id").onRef("v.revision", "=", "g.revision"),
+            )
+            .innerJoin("flow_events as e", (j) =>
+              j.onRef("e.flow_id", "=", "g.flow_id").onRef("e.event_id", "=", "g.event_id"),
+            )
+            .innerJoin("flows as f", "f.id", "g.flow_id")
+            .innerJoin("flow_schedules as s", "s.flow_id", "g.flow_id")
+            .innerJoin("flow_graph_drafts as d", "d.flow_id", "g.flow_id")
+            .select("n.run_id")
+            .where("n.flow_id", "=", flow)
+            .where("n.run_id", "=", runId)
+            .where("n.thread_id", "=", threadId)
+            .where("f.project_id", "=", projectId)
+            .where("f.enabled", "=", 1)
+            .where("e.source", "=", "schedule")
+            .where("e.test", "=", 0)
+            .where("v.test", "=", 0)
+            .whereRef("d.published_revision", "=", "g.revision")
+            .whereRef("e.scheduled_at", ">=", "s.activated_at")
+            .where("g.state", "in", ["pending", "succeeded"])
+            .where("n.state", "in", ["waiting_run", "succeeded"])
+            .limit(1),
+        ),
+      );
+    },
     /** Runs still going, oldest admission first; `test` marks an owner's test. */
     active(): { flow: string; event: string; deadline: number; test: boolean }[] {
       return all(

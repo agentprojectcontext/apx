@@ -148,7 +148,7 @@ function finished(threadId: string, agent: string, trigger: "user" | "system") {
 }
 
 /** Admits like the engine would, and the revived turn ends at once without closing the task. */
-const revives: Array<{ trigger: string; origin: { kind: string } }> = [];
+const revives: Array<{ trigger: string; origin: { kind: string; from_run?: string } }> = [];
 const admit = ((a: { thread_id: string; agent_id: string; trigger: string; origin: { kind: string } }) => {
   revives.push(a);
   return finished(a.thread_id, a.agent_id, "system");
@@ -159,11 +159,13 @@ test("a task whose work stopped is asked once to go on, then the owner hears it 
   const store = env.core.store;
   const { task, chat } = workedTask();
   revives.length = 0;
+  const prior = store.runs.list(chat.id, 1)[0];
   assert.deepEqual(reviveStalled(store, admit, at(STALL_AFTER_MS / 2)), { revived: 0, told: 0 }, "not yet");
   assert.deepEqual(reviveStalled(store, admit, at(STALL_AFTER_MS + 60_000)), { revived: 1, told: 0 });
   // APX's ask is not the owner writing: no new budget window, nothing the breaker holds released.
   assert.equal(revives[0]?.trigger, "system");
   assert.equal(revives[0]?.origin.kind, "stalled_task");
+  assert.equal(revives[0]?.origin.from_run, prior?.id);
   assert.ok(
     store.messages.list(chat.id).some((m) => m.parts.some((p) => p.type === "notice" && p.code === "task.stalled")),
     "the chat says why its agent woke up",

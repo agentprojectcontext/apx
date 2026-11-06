@@ -52,6 +52,7 @@ test("a task turn that ends with the task in progress goes on at once until the 
   );
   const cont = runs[1]?.input?.origin;
   assert.equal(cont?.kind === "task_continue" ? `${cont.part}/${cont.of}` : "", "2/9");
+  assert.equal(cont?.kind === "task_continue" ? cont.from_run : undefined, runs[0]?.id);
 });
 
 test("a part that gets nowhere is not followed by another: the stall watch has it", async () => {

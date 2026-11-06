@@ -16,6 +16,9 @@ function fromOf(origin: Origin): JobFrom {
     case "agent":
     case "channel":
     case "routine":
+    case "task_feedback":
+      // Older clients know agent messages, but not the new internal feedback origin.
+      return { kind: "agent", name: origin.name };
     case "task_result":
     case "delegation_result":
     case "added":
