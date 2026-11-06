@@ -21,9 +21,10 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
     if (tools < 2) return callTool(`c${tools}`, "task_comment", { task: twice[1], text: `Note ${tools + 1}` });
     return say(last.slice(0, 200));
   }
-  // Vera checks the same thing over and over, never marking a step done.
+  // Vera reaches her plan's last step, a check, and asks for it over and over, never marking it done.
   if (system.startsWith("You are Vera") && said.includes("Polish the pointer")) {
     const asked = req.messages.filter((m) => m.role === "tool").length;
+    if (!asked) return callTool("p0", "plan", { steps: "- [x] Read the code\n- [~] Check the pointer" });
     return callTool(`d${asked}`, "delegate", {
       worker: { name: "Checker", instructions: "Check the pointer code and report." },
       task: `Check the pointer again (${asked + 1})`,

@@ -100,8 +100,8 @@ task**. That chat is a normal chat listed in the Inbox: you can open it and watc
 
 1. Lucía creates "Write the shipping rates page" in Acme Store and picks **Tomás** in **Who does it**.
 2. Tomás's chat for the task opens with the task's words and he starts: reads the project, drafts the page.
-3. His answers stay in his chat. He comments on the task when something is worth knowing: a step done and verified,
-   a block, something to review. The task keeps those comments; the chat keeps the work itself (every tool call,
+3. His answers stay in his chat, and how far he got shows in his plan. He comments on the task when his plan is done
+   or to ask someone something. The task keeps those comments; the chat keeps the work itself (every tool call,
    every file). When he closes the task, his last answer is posted as his report.
 4. When he needs a decision, he asks you. The task moves to **Needs your review** until you answer.
 
@@ -131,10 +131,16 @@ Above the description, a task shows where its work must arrive and what you said
   step of its plan (counted since the last step done or since you last wrote), they pause. You see why in the chat,
   with the button to let them go on, and once in your notifications. A step done, or your message, starts the count
   over.
-- **One review per change**: the agent asks for a review when a whole change is done, and the reviewer answers
-  Approved, Approved with notes, or Blocked with the one thing that blocks it. Notes never block.
-- **Few comments**: agents comment on a task only when you or a teammate must know now (blocked, a decision, done),
-  once a turn at most and in short lines. How the work goes shows in the plan.
+- **One agent does the work, one review at the end**: the agent on a task does it itself. It asks another agent only
+  once the rest of its plan is done, usually for a review (unless you ask it for help sooner). Work for someone else
+  becomes a subtask. The reviewer answers Approved, Approved with notes, or Blocked with the one thing that blocks it.
+  Notes never block.
+- **Few comments**: an agent comments on a task when its plan is done, to ask you or a teammate something (an
+  `@name`), or when it answers you; at most once a turn, in short lines. Progress shows in the plan. A helper answers
+  whoever asked it, not the task.
+- **Cleaning old tasks**: tasks from before 2.13 may hold dozens of progress comments. Your super-agent offers to
+  clean them: it tells you what it would take out of each task and the one summary it would leave, and removes
+  nothing until you say yes. Your own comments always stay.
 
 The description reads as formatted text (lists, bold, links); the pencil opens it to edit.
 

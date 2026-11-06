@@ -510,5 +510,21 @@ export function taskHandlers(
         return { message, runs: runs.map(publicRun) };
       });
     },
+    "tasks.tidy": ({ task, remove, summary }, ctx) => {
+      const t = visible(task, ctx);
+      // Only an agent's plain comments go: the owner's words, cards and reports with parts of their own stay.
+      const removable = (id: string) => {
+        const m = store.messages.get(id);
+        return m?.thread_id === t.thread_id && m.author.kind === "agent" && m.parts.every((p) => p.type === "text");
+      };
+      const ids = [...new Set(remove)].filter(removable);
+      const author: Author = ctx.agent ? { kind: "agent", id: ctx.agent.id } : { kind: "user" };
+      return store.tx(() => {
+        store.messages.drop(t.thread_id, ids);
+        const message = summary ? addComment(store, t, author, summary, by(ctx)) : undefined;
+        if (!message) store.tasks.touched(t.id, by(ctx), "update");
+        return { removed: ids.length, kept: remove.filter((id) => !ids.includes(id)), ...(message ? { message } : {}) };
+      });
+    },
   } satisfies Partial<Handlers>;
 }

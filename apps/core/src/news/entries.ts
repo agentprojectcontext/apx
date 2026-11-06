@@ -2,6 +2,7 @@
 // only to an owner it applies to. See rules/DECISIONS.md#d-117
 import type { StoreSize } from "../db/db.ts";
 import type { Store } from "../domain/store.ts";
+import { NOISY_COMMENTS } from "../domain/tasks.ts";
 import { computerHost } from "../environments/host.ts";
 import { CATALOG } from "../integrations/catalog.ts";
 import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
@@ -17,6 +18,7 @@ import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
 import { STORE_COMPACT_NEWS } from "./store-compact.ts";
+import { TASK_COMMENTS_NEWS } from "./task-comments.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
 
@@ -47,6 +49,8 @@ export type NewsFacts = {
   desktop?: boolean;
   /** Open tasks with an agent on them. */
   tasks?: number;
+  /** Open tasks whose comments piled up (worth cleaning). */
+  noisyTasks?: number;
   /** A Hermes home folder is on this machine (moving from it is offered). */
   hermes?: boolean;
   /** A model app (Ollama, LM Studio) was found running on this computer. */
@@ -81,6 +85,7 @@ export type NewsEntry = {
 
 export const NEWS: readonly NewsEntry[] = [
   TASK_GOALS_NEWS,
+  TASK_COMMENTS_NEWS,
   COMPUTER_POINTER_NEWS,
   TASK_REGROUP_NEWS,
   QUEUED_MESSAGES_NEWS,
@@ -1207,6 +1212,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   computer: computerHost() !== undefined && store.projects.list().length > 0,
   mac: process.platform === "darwin" && store.projects.list().length > 0,
   tasks: store.tasks.list({ state: "open", limit: 500 }).filter((t) => t.assignee).length,
+  noisyTasks: store.tasks.noisy(NOISY_COMMENTS).length,
   localModels: store.settings.read("local_models_seen").length > 0,
   ownModels: store.agents.list().filter((a) => a.model_choice?.model).length,
 });

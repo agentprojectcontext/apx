@@ -10,7 +10,10 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
   const done = req.messages.filter((m) => m.role === "tool").length;
   if (system.startsWith("You are Scout")) return say("The orders table is the largest.");
   if (system.startsWith("You are Vera")) {
-    if (said.includes("Plan the migration") && !afterTool)
+    // A helper is asked once the rest of the plan is done (DECISIONS.md#d-202).
+    if (said.includes("Plan the migration") && done === 0)
+      return callTool("v0", "plan", { steps: "- [x] Read the legacy schema\n- [~] Size the tables with Scout" });
+    if (said.includes("Plan the migration") && done === 1)
       return callTool("v1", "delegate", { agent: "scout", task: "Which table is the largest?" });
     if (said.includes("Ask the owner")) return say("@owner Which database should I migrate first, orders or users?");
     if (said.includes("status?")) return say("Half of the tables are moved.");

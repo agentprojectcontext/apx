@@ -187,6 +187,21 @@ export const officeMethods = {
     result: z.object({ message: Message, runs: z.array(Run) }),
     effect: true,
   },
+  /**
+   * Takes the named agents' comments out of a task's conversation; the owner's words and cards stay. A summary is
+   * left in their place when given. `kept`: the named ones that were not removed.
+   */
+  "tasks.tidy": {
+    params: z
+      .object({
+        task: Id,
+        remove: z.array(Id).min(1).max(500),
+        summary: z.string().trim().min(1).max(3000).optional(),
+      })
+      .strict(),
+    result: z.object({ removed: z.number().int(), kept: z.array(Id), message: Message.optional() }),
+    effect: true,
+  },
   /** Routines, all or one project's (the global ones have no project). */
   "routines.list": {
     params: z.object({ project: Id.optional() }).strict(),

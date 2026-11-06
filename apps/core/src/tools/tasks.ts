@@ -1,17 +1,21 @@
 // task_*: agents work the office board through the tasks.* methods, like the owner does in the app.
 import { type Task, TaskKind, TaskPriority, TaskTag } from "@apx/protocol";
+import { planSteps } from "@apx/protocol/task-plan";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
+import { ownerWordsOf } from "../domain/task-asked.ts";
 import {
   boardScope,
   checkAssignee,
   checkColumn,
   checkSettle,
   dueOf,
+  NOISY_COMMENTS,
   personOf,
   taskProject,
   visibleTask,
 } from "../domain/tasks.ts";
+import { mentioned, mentionsOwner } from "../engine/office.ts";
 import { badRequest, CallError } from "../errors.ts";
 import { readsOutside } from "./folders.ts";
 import { cap, fromTeam, inlineName, untrusted } from "./result.ts";
@@ -105,6 +109,24 @@ export function boardText(tasks: Task[], where: (t: Task) => string | undefined,
   if (whole.length <= LIST_CHARS || !rest.length) return whole;
   const keep = tasks.filter((t) => pressing(t, at));
   return `${keep.length ? `${taskLines(keep, lineOf)}\n` : ""}${folded(rest, where)}`;
+}
+
+/**
+ * Why an agent's comment would only add to what the owner skips; undefined when it belongs on the task. A task's
+ * comments are read by people: the turns the owner started, a message to someone, and the plan done (DECISIONS.md#d-202).
+ */
+function commentNoise(store: Store, t: Task, text: string, ctx: ToolContext): string | undefined {
+  if (ownerWordsOf(store, ctx.run.id).length) return undefined;
+  if (ctx.thread.kind === "a2a" && t.assignee !== ctx.agent.id)
+    return "you are helping whoever asked you, and your answer goes back to them. Say it there; they decide what reaches the task.";
+  if (mentionsOwner(store, text) || mentioned(store, text, t.project_id, ctx.agent.id).length) return undefined;
+  const steps = planSteps(t.plan ?? "");
+  if (steps?.length && steps.every((s) => s.state === "done")) {
+    const since = store.threads.context(t.thread_id).progress_at ?? t.created_at;
+    const told = store.tasks.events(t.id).some((e) => e.op === "comment" && e.by === ctx.agent.id && e.at >= since);
+    if (!told) return undefined;
+  }
+  return "progress goes in your plan (mark the step, put the commit or test in its line), not in comments. Comment when the whole plan is done, or to ask someone (@owner for a decision or a change of direction, @agent for a teammate).";
 }
 
 /**
@@ -357,7 +379,7 @@ export function taskTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "task_comment",
       description:
-        "Comment on a task only when others must know now: blocked, a decision, done. @owner asks the owner, until they reply; @agent asks a teammate; you get the answer.",
+        "Comment on a task when its plan is done or to ask: @owner asks the owner, until they reply; @agent a teammate, and you get the answer.",
       args: z.object({ task: z.string().min(1).max(64), text: z.string().trim().min(1).max(1500) }),
       effect: "local",
       confirm: handsOff,
@@ -373,10 +395,77 @@ export function taskTools(store: Store, home: string): Tool[] {
           throw badRequest(
             "text: you already commented on this task in this turn; say the rest in your answer, or in one comment next turn",
           );
+        const why = commentNoise(store, taskOf(a.task, ctx), a.text, ctx);
+        if (why) throw badRequest(`not posted: ${why}`);
         const r = await ctx.call("tasks.comment", a);
         return r.runs.length
           ? `commented; ${r.runs.length} agent(s) will answer there, and the answer comes back to you: do not wait for it.`
           : "commented.";
+      },
+    }),
+    defineTool({
+      name: "task_tidy",
+      description:
+        "Clean tasks' comments. No task: the open tasks that piled them up. A task: its agents' comments. With the owner's yes, remove takes out those that add nothing (progress notes, repeats) and summary leaves one comment with what still matters.",
+      args: z.object({
+        task: z.string().min(1).max(64).optional(),
+        remove: z.array(z.string().min(1).max(64)).max(500).optional(),
+        summary: z.string().trim().min(1).max(3000).optional(),
+      }),
+      effect: "local",
+      // Offered only while some open task piled up comments: every other turn would carry it for nothing.
+      when: () => store.tasks.noisy(NOISY_COMMENTS, 1).length > 0,
+      // Deleting is never silent: the owner sees each clean-up on its card, whatever the mode.
+      confirm: (a) => (a.remove?.length ? "always" : "never"),
+      // Removing is the owner's to decide, on their own word (DECISIONS.md#d-140).
+      ownerSetting: (a) => Boolean(a.remove?.length),
+      explain: (a) =>
+        a.remove?.length
+          ? `Remove ${a.remove.length} comment(s) from ${a.task}${a.summary ? `, leaving this summary:\n${a.summary}` : ""}`
+          : undefined,
+      check: (a, ctx) => {
+        if (a.task) taskOf(a.task, ctx);
+        else if (a.remove?.length) throw badRequest("task: say which task the comments to remove are on");
+      },
+      deadlineMs: 10_000,
+      title: (a) =>
+        a.remove?.length
+          ? `Cleaned ${a.remove.length} comments of ${String(a.task)}`
+          : a.task
+            ? `Read the comments of ${String(a.task)}`
+            : "Looked for tasks with many comments",
+      async run(a, ctx) {
+        if (!a.task) {
+          const scope = scopeOf(ctx);
+          const lines = store.tasks.noisy(NOISY_COMMENTS).flatMap((id) => {
+            const t = store.tasks.get(id);
+            if (!t) return [];
+            try {
+              visibleTask(store, id, scope);
+            } catch {
+              return [];
+            }
+            const n = store.messages.list(t.thread_id, 1000).filter((m) => m.author.kind === "agent").length;
+            return [`- ${t.id} · ${n} agent messages · ${t.title}`];
+          });
+          return lines.length ? untrusted("tasks", {}, lines.join("\n")) : "no open task piled up comments.";
+        }
+        const t = taskOf(a.task, ctx);
+        if (a.remove?.length) {
+          const r = await ctx.call("tasks.tidy", { task: t.id, remove: a.remove, summary: a.summary });
+          return `removed ${r.removed}${r.kept.length ? `; kept (not an agent's plain comment on it): ${r.kept.join(", ")}` : ""}${r.message ? "; summary posted" : ""}.`;
+        }
+        const name = (id: string) => store.agents.get(id)?.name ?? id;
+        const rows = store.messages
+          .list(t.thread_id, 1000)
+          .filter((m) => m.author.kind === "agent" && m.parts.every((p) => p.type === "text"))
+          .map((m) => {
+            const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join(" ");
+            const who = m.author.kind === "agent" ? name(m.author.id) : "";
+            return `- ${m.id} · ${who} · ${m.created_at.slice(0, 16)} · ${text.replace(/\s+/g, " ").slice(0, 160)}`;
+          });
+        if (!rows.length) return "no agent comments on this task.";
+        return untrusted("task_comments", { task: t.id, count: String(rows.length) }, cap(rows.join("\n"), 60_000));
       },
     }),
     defineTool({

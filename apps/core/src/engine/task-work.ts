@@ -597,10 +597,8 @@ function reviewEnded(store: Store, admit: AdmitFn, task: Task, run: RunRecord, v
 /** The final answer of a run, as text. */
 function textOf(store: Store, run: RunRecord): string {
   const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
-  return (msg?.parts ?? [])
-    .map((p) => (p.type === "text" ? p.text : ""))
-    .join("\n")
-    .trim();
+  // Tool calls sit between an answer's text parts: they must not leave blank lines in the posted comment.
+  return (msg?.parts ?? []).flatMap((p) => (p.type === "text" && p.text.trim() ? [p.text.trim()] : [])).join("\n\n");
 }
 
 /** A comment on the task, by the owner or an agent: the task moved, and an @owner asks for the owner's attention. */
