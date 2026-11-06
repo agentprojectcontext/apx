@@ -96,7 +96,7 @@ import { recallFor } from "./recall.ts";
 import { keepContext } from "./received.ts";
 import { closeTurnLog, RESUME_NOTE } from "./recovery.ts";
 import { askedPick, type SkillPicker } from "./skill-pick.ts";
-import { channelKindOf, turnTools } from "./turn-tools.ts";
+import { channelKindOf, reactionsOff, turnTools } from "./turn-tools.ts";
 
 /** How the owner's words written while a turn works reach its model. */
 export const OWNER_ADDS = "[The owner adds, while you work]";
@@ -594,6 +594,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
             waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
             timeZone: ownerTimeZone(store),
             channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
+            noReactions: reactionsOff(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
             voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
             // A contact turn with no tools makes no call that could wait: it needs no mode.
             mode: turn.audience.kind === "contact" && !told.mode ? undefined : mode,

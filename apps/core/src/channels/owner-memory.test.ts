@@ -112,14 +112,12 @@ test("an owner correction on Telegram becomes a note in the agent's words, quoti
 
 test("a download asked on Telegram and confirmed with a closing word leaves a procedure note", async () => {
   await say_(OWNER, REQUEST, /Listo, quedó/);
-  const runs = () => env.core.store.runs.list(env.core.store.messages.get(lastOwnerMessage())?.thread_id ?? "", 50);
-  const before = runs().length;
   tg.message(OWNER, "Buenísimo");
-  // A closing word starts no turn; memory still hears it.
+  // The closing word is the agent's to answer (or not); the work it confirms becomes the note.
   await waitFor(async () => (await notes()).some((m) => m.kind === "procedure"), "the procedure note");
-  assert.equal(runs().length, before, "the closer got no turn of its own");
   const note = (await notes()).find((m) => m.kind === "procedure");
   assert.equal(note?.evidence?.[0]?.quote, REQUEST);
+  assert.equal(note?.evidence?.[1]?.quote, "Buenísimo", "the owner's word confirms it");
   assert.match(note?.text ?? "", /`download_file` `reelsaver\.example\.com\/en\/download`/);
   assert.match(note?.text ?? "", /Outputs: `~\/Downloads\/reel-aaaa\.mp4`/);
 });
@@ -154,13 +152,6 @@ test("the owner's own chat on a channel counts for memory; a contact's or a room
   env.core.store.threads.mergeContext(room.id, { room: { name: "Acme team" } });
   assert.equal(memoryEligibleChat(env.core.store, room), false);
 });
-
-function lastOwnerMessage(): string {
-  const home = env.core.store.threads
-    .list({ include_archived: false, include_subthreads: false, limit: null })
-    .find((t) => t.kind === "home");
-  return env.core.store.messages.list(home?.id ?? "", 50).findLast((m) => m.author.kind === "user")?.id ?? "";
-}
 
 function contactThread(): string {
   return (

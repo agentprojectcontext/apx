@@ -1115,9 +1115,6 @@ export const ChannelEmail = z.object({
 });
 export type ChannelEmail = z.infer<typeof ChannelEmail>;
 
-export const ChannelClosers = z.enum(["silent", "react"]);
-export type ChannelClosers = z.infer<typeof ChannelClosers>;
-
 /**
  * Who may have a sealed chat of this channel (a room, a contact's chat) search the web and read public pages: no one,
  * only the owner when they ask in a room, or anyone it answers. Nothing else of the owner's ever opens to them.
@@ -1162,11 +1159,8 @@ export const ChannelInfo = z.object({
   self_owner: z.boolean().optional(),
   /** Discord: the server rooms it reads and may speak in; Telegram: its groups. None: only direct messages. */
   rooms: ChannelRooms.optional(),
-  /**
-   * A message that needs no answer ("ok", "gracias"): left in silence (none: the same), or answered with an emoji
-   * reaction where the channel has them. Neither calls the model.
-   */
-  closers: ChannelClosers.optional(),
+  /** The agent may answer with an emoji on their message instead of words (none set: it may). See DECISIONS.md#d-202 */
+  reactions: z.boolean().optional(),
   /** Web search and reading in its sealed chats (none set: only when the owner asks). See DECISIONS.md#d-059 */
   research: ChannelResearch.optional(),
   /** When it answers contacts; none: at any hour. The owner is always answered. */

@@ -148,17 +148,6 @@ export function captureProcedure(store: Store, call: InternalCall, run: RunRecor
   return source ? saveProcedure(store, call, source, timeZone, confirmation) : Promise.resolve(false);
 }
 
-/**
- * An owner reply that got no turn of its own (a closing "genial, funcionó" on a channel) still confirms the work
- * before it.
- */
-export function captureConfirmed(store: Store, call: InternalCall, messageId: string, timeZone?: string) {
-  const message = store.messages.get(messageId);
-  if (message?.author.kind !== "user" || !confirmsSuccess(textOf(message))) return Promise.resolve(false);
-  const source = confirmedWork(store, messageId);
-  return source ? saveProcedure(store, call, source, timeZone, messageId) : Promise.resolve(false);
-}
-
 async function saveProcedure(
   store: Store,
   call: InternalCall,

@@ -94,7 +94,7 @@ function Answering({ channel }: { channel: ChannelInfo }) {
     strangers: channel.strangers,
     concurrency: channel.concurrency,
     owner_thread: channel.owner_thread,
-    closers: channel.closers,
+    reactions: channel.reactions,
     research: channel.research,
   };
   const save = (patch: Partial<ChannelDraft>) => saveChannel(channel.id, { ...draft, ...patch });

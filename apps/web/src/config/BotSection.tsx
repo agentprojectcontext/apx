@@ -410,7 +410,7 @@ function Connected({ channel, kind }: { channel: ChannelInfo; kind: BotKind }) {
     owner_thread: channel.owner_thread,
     ...(channel.self_owner ? { self_owner: true } : {}),
     ...(channel.rooms ? { rooms: channel.rooms } : {}),
-    closers: channel.closers,
+    reactions: channel.reactions,
     research: channel.research,
     hours: channel.hours,
   };

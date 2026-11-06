@@ -76,6 +76,12 @@ export function createSignals(deps: {
     }
     const emoji = reactAnswer(out);
     if (!emoji) return false;
+    // Reactions off on this channel: an emoji answer goes out as nothing, like SKIP.
+    if (to && store.settings.read("channels").find((c) => c.id === to.channel)?.reactions === false) {
+      hideWords(run.message_id);
+      showLast(run);
+      return true;
+    }
     // The owner wrote in the app to their own chat: the message it answers is only here, none on the platform.
     const ownChat = to && store.persons.byAddress(to.channel, to.conversation)?.id === OWNER_ID;
     if (to && !(ownChat && run.input?.origin.kind === "user")) await reactInstead(run, to, emoji);

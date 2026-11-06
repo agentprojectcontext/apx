@@ -586,7 +586,6 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     attention: attention.add,
     judge: upkeep.judge,
     see: upkeep.see,
-    ownerReplied: (messageId) => memoryMaintenance.ownerReplied(messageId),
     draft: createDrafter({ store, llm, fallbackModels: upkeep.auxModels }).draft,
     ...(opts.clock ? { now: opts.clock } : {}),
     ...(opts.roomBurstMs !== undefined ? { roomBurstMs: opts.roomBurstMs } : {}),

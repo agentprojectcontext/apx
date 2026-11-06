@@ -85,10 +85,19 @@ const BOT_KEEPS = new Set([
 
 /** The kind of channel a message came on ("telegram"), for how the answer should look; none for the app. */
 export function channelKindOf(store: Store, o: Origin, replyChannel?: string | null) {
-  const channel = replyChannel === null ? undefined : (replyChannel ?? (o.kind === "channel" ? o.channel : undefined));
+  const channel = channelIdOf(o, replyChannel);
   if (!channel) return undefined;
   return store.settings.read("channels").find((c) => c.id === channel)?.type ?? channel;
 }
+
+/** The owner turned emoji reactions off on the channel this turn answers on. */
+export function reactionsOff(store: Store, o: Origin, replyChannel?: string | null): boolean {
+  const channel = channelIdOf(o, replyChannel);
+  return Boolean(channel) && store.settings.read("channels").find((c) => c.id === channel)?.reactions === false;
+}
+
+const channelIdOf = (o: Origin, replyChannel?: string | null) =>
+  replyChannel === null ? undefined : (replyChannel ?? (o.kind === "channel" ? o.channel : undefined));
 
 const VM_BROWSER_TOOLS = new Set(["browser_open", "browser_snapshot", "browser_text", "browser_click", "browser_type"]);
 /**

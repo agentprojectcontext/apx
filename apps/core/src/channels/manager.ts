@@ -94,8 +94,6 @@ export function createChannels(deps: {
   draft?: (threadId: string, agentId: string, signal?: AbortSignal) => Promise<Draft>;
   /** How long a supervised contact's quick messages may keep coming before one draft answers them (tests shorten it). */
   suggestBurstMs?: number;
-  /** The owner's words kept without a turn, for memory (memory-maintenance.ts ownerReplied). */
-  ownerReplied?: (messageId: string) => void;
   /** The time attention hours are read against (tests move it). */
   now?: () => Date;
   /** When a question waiting in the app follows the owner to their channel (tests move it). */
@@ -208,11 +206,9 @@ export function createChannels(deps: {
     rooms,
     suggestions,
     stickers,
-    react: signals.reactOn,
     answeredHere: cards.answeredHere,
     held,
     now: clock,
-    ...(deps.ownerReplied ? { ownerReplied: deps.ownerReplied } : {}),
     setButtons: async (id, conversation, ref, buttons) => {
       const l = live.get(id);
       if (l?.status !== "running" || !l.adapter.setButtons) return false;
