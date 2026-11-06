@@ -92,6 +92,8 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   // The public address may wait 15 s for ngrok, or on three Tailscale commands of up to 5 s each.
   if (method === "webhooks.set") return 45_000;
   if (method === "access.set") return 30_000;
+  // Compacting a big store rewrites the whole database file once (the core blocks while it runs).
+  if (method === "storage.compact") return 30 * 60_000;
   if (method === "runs.wait") return ((params as { timeout_s?: number })?.timeout_s ?? 60) * 1000 + 10_000;
   return fallback;
 }

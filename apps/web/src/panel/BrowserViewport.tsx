@@ -129,9 +129,13 @@ function around(el: HTMLElement): Element[] {
   return [...nodes];
 }
 
+/** What floats over the panel: popups and a modal's backdrop in the portal, notices at the foot of the shell. See HISTORY.md#tab-under-floats */
+const PORTAL_FLOATS = "[role=menu], [role=dialog], [role=listbox], .apx-menu, .apx-dialog__backdrop";
+const SHELL_FLOATS = ":scope > .toasts > .toast";
+
 /**
- * Whether a menu, popover or dialog of the panel lies over the page area. The native page paints above every HTML
- * layer, so it steps behind while one is open instead of hiding it.
+ * Whether a menu, popover, dialog, its backdrop or a notice of the panel lies over the page area. The native page
+ * paints above every HTML layer, so it steps behind while one is open instead of hiding it.
  */
 function usePopupOver(slot: RefObject<HTMLDivElement | null>): boolean {
   const { portalRef } = useApx();
@@ -139,15 +143,20 @@ function usePopupOver(slot: RefObject<HTMLDivElement | null>): boolean {
   useEffect(() => {
     const portal = portalRef.current;
     if (!portal) return;
+    const shell = slot.current?.closest(".shell");
     let frame = 0;
     const check = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const el = slot.current;
         if (!el) return setOver(false);
+        // Notices come and go inside their own list, which mounts only while there is one.
+        const notices = shell?.querySelector(":scope > .toasts");
+        if (notices) mo.observe(notices, { childList: true });
         const a = el.getBoundingClientRect();
         const hit = [
-          ...portal.querySelectorAll<HTMLElement>("[role=menu], [role=dialog], [role=listbox], .apx-menu"),
+          ...portal.querySelectorAll<HTMLElement>(PORTAL_FLOATS),
+          ...(shell?.querySelectorAll<HTMLElement>(SHELL_FLOATS) ?? []),
         ].some((p) => {
           const b = p.getBoundingClientRect();
           return (
@@ -159,6 +168,7 @@ function usePopupOver(slot: RefObject<HTMLDivElement | null>): boolean {
     };
     const mo = new MutationObserver(check);
     mo.observe(portal, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "data-open"] });
+    if (shell) mo.observe(shell, { childList: true });
     check();
     return () => {
       cancelAnimationFrame(frame);

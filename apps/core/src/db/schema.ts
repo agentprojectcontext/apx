@@ -582,6 +582,7 @@ export interface RunsTable {
   end_reason: string | null;
   resets_at: string | null;
   queue_order: number | null;
+  trimmed: Generated<number>;
 }
 
 export interface StepsTable {

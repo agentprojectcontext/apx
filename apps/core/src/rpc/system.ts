@@ -1,4 +1,4 @@
-import { PROTOCOL_VERSION } from "@apx/protocol";
+import { PROTOCOL_VERSION, type StoreCompaction } from "@apx/protocol";
 import { coreLogFile, readCoreLog } from "../core-log.ts";
 import type { Identity } from "../identity.ts";
 import type { News } from "../news/news.ts";
@@ -73,12 +73,18 @@ export function usageHandlers(usage: Usage) {
 }
 
 /** The APX home by area, clearing what APX makes again by itself, and the disk's free space. */
-export function storageHandlers(storage: Pick<Storage, "usage" | "disk" | "clear"> & { items: StorageItems }) {
+export function storageHandlers(
+  storage: Pick<Storage, "usage" | "disk" | "clear"> & {
+    items: StorageItems;
+    compact: () => Promise<StoreCompaction>;
+  },
+) {
   const { items } = storage;
   return {
     "storage.usage": ({ refresh }) => storage.usage({ refresh }),
     "storage.status": () => storage.disk(),
     "storage.clear": () => storage.clear(),
+    "storage.compact": () => storage.compact(),
     "storage.computers.list": async () => ({ computers: await items.listComputers() }),
     "storage.computers.delete": ({ id }) => items.deleteComputer(id),
     "storage.backups.list": () => ({ backups: items.listBackups() }),

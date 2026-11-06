@@ -4004,3 +4004,70 @@ work with APX's plan, cards and approvals instead of their own.
 Rejected: offering Claude's task tools and mirroring them (their ids are stateful across turns and resumed sessions, and
 the model did not use them more than APX's plan), aliasing native tools to APX's (`toolAliases`: the arguments differ),
 and also telling Codex and ACP agents to call APX's `plan` (two plans for one turn).
+
+<a id="d-200"></a>
+## D-200 — 2026-11-05 — The chats' history is trimmed to what a model can still read, and the file gives space back
+
+A heavy user's `apx.db` reached 4 GB and the panel slowed; the owner's was 1.1 GB after a month. Nothing pruned,
+compacted or vacuumed it, and a tool result was kept up to three times: the step's `output` (the whole text, up to
+2 MB, for `read_output`), the step's `result` (its first 4,000 characters, read by recovery, recall, memory procedures
+and delegation checks) and the `model_log` item (what the model saw, rebuilt into every turn's history). On the owner's
+store `model_log` was 491 MB (tool results 197 MB, Responses models' encrypted reasoning 119 MB) and `steps` 416 MB
+(`output` 225 MB, of which 133 MB were texts the model had received whole). The panel renders `messages`, never these.
+
+The rule: **stored copies shrink only to what every view of the chat already reads**, so the history a live chat sends
+(and so the cached prompt prefix, rule 12) stays byte for byte the same.
+
+- **One whole copy.** A step keeps its full `output` only when the model got a cut copy with a `read_output` ref
+  (`engine/executor.ts`); otherwise the model log already holds it. `result` stays as it is.
+- **Levels per finished run** (`runs.trimmed`, `engine/store-retention.ts`): 1, whole outputs no logged ref points at
+  are dropped (any finished run, so older installs lose the duplicates); 2, at least 14 days after it ended and with at
+  least `2 × FULL_OUTPUT_RUNS` groups after it in each chat holding its log, long tool output is stored as the very stub
+  `pruneOutput` shows for it (the compactor reuses `historyGroups` and `pruneOutput`, so the stub is the same bytes),
+  and its kept outputs go (their ref is no longer shown to any view); 3, once its rows lie before the start of a view
+  four history budgets wide (or behind the chat's summary), the encrypted reasoning goes too. A chat with an unfinished
+  turn is not touched. The margins cover views that reach further back when forgotten notes remove newer turns.
+- **The file gives space back.** A new store is `auto_vacuum = INCREMENTAL`; the background check (`store-retention`,
+  every 10 minutes, 200 runs or chat views a beat) frees up to 100 MB of pages after its pass. An older store needs one
+  `VACUUM` to become incremental: `apx doctor --fix` calls `storage.compact`, which does every due pass at once and
+  rewrites the file when the disk has twice its size free (otherwise it says so and frees nothing yet). The core blocks
+  while it runs (about 20 s for 1.1 GB), so it is the owner's call, not the clock's.
+- **What changes for the owner.** Rewinding or forking a chat to a point more than 14 days and four turns back gives
+  the model those old tool outputs as the stub ("call it again if you need it"), and, further back, without its own
+  encrypted reasoning. The newest turns of every chat, including finished delegations that may be continued, stay whole.
+
+Measured on a copy of the owner's store (1,110 MB): `apx doctor --fix` today 890 MB (`steps` 416 → 259 MB, `model_log`
+491 → 438 MB) in about 30 s; with every run past the 14 days, as in steady use, 727 MB (`model_log` 305 MB). One
+background beat took 0.4–0.7 s.
+
+Rejected: deleting rows behind every view (rewind and fork to old messages need them, and compacted they are a small
+part), trimming `steps.result` (recall and memory procedures read old results), a startup migration doing the trimming
+(minutes of blocked start on a 4 GB store) and a full `VACUUM` on the clock (it blocks the core and needs the disk
+space).
+
+<a id="d-201"></a>
+## D-201 — 2026-11-05 — A large store stays fast through indexes, not a second thread
+
+An owner's store reached 4 GB and the panel froze. `node:sqlite` runs on the core's only thread (D-015), so every
+statement that walks a whole table stops RPC, channels and the panel for as long as it reads. On a 4.5 GB copy the core
+blocked 6.2 s and 3.4 s at startup (8.4 s of SQL) and up to 0.6 s on a panel reload; static files waited a second
+behind it. A CPU profile of the panel showed ~92% of the core's busy time inside SQLite: JSON parsing and result
+validation were small. The scans came from a handful of reads run often: the spend breaker walking a chat tree by
+`parent_id` and `context.asked_from`, the engine's ticks reading `context.owner_unread` and `held`, `waitingIn` at
+startup, finished jobs and runs ordered by `ended_at`, usage since a date, the outbox list, and memory upkeep listing
+every chat's runs and every agent once per run. A cascading delete also scanned each child table without an index on
+its foreign key (a sub-thread delete took about 1 s).
+
+- **Hot reads use an index.** The migration adds the indexes those reads need (partial or on a JSON expression where
+  only a few rows match) and the reads that sorted before their `LIMIT` were rewritten to walk an index in order.
+  `db/hot-query-plans.test.ts` runs each repo function and fails when its plan scans a growing table or sorts a paged
+  list. Without `ANALYZE` statistics SQLite plans an empty store like a large one, so the test sees the real plan; for
+  the same reason the core does not run `ANALYZE` or `PRAGMA optimize`, which would let plans change per owner.
+- **Every foreign key into a growing table has an index**, checked by the same test file, so a delete never scans its
+  children.
+- **Reads stay on the main thread.** After the indexes the same reload spends 0.7 s in SQL in total with no block over
+  150 ms, and startup has one 1.6 s block, including the migration. A read-only connection in a worker would free the
+  thread for long analytic reads (usage over months, full-text search, exports), but it makes those store calls async and
+  needs a second WAL reader; it is the next step only for a read that cannot use an index, never for a hot one.
+
+The migration reads each indexed table once: on a 4.5 GB store it took 0.2 to 4.9 s, once, at the first start.

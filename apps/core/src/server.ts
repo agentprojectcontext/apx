@@ -60,6 +60,7 @@ import { createNoticePush } from "./engine/notice-push.ts";
 import { createPermissions } from "./engine/permissions.ts";
 import type { ProfileRoot } from "./engine/profiles.ts";
 import { createSkillPicker } from "./engine/skill-pick.ts";
+import { createRetention } from "./engine/store-retention.ts";
 import { createDrafter } from "./engine/suggest.ts";
 import { afterWorkTurn } from "./engine/task-work.ts";
 import { wakeAfterCommand } from "./engine/terminal-wake.ts";
@@ -227,6 +228,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   // The engine exists by the time a command ends.
   const terminals = createTerminals({ bus, commandEnded: (e) => wakeAfterCommand(store, engine.admit, e) });
   const store = createStore(db, bus);
+  // What the chats' history keeps is trimmed on the office clock and by `apx doctor --fix` (storage.compact).
+  const retention = createRetention({ store, db });
   const secrets = createSecrets(config.home, config.secrets);
   // Who may sign in where with a stored secret: shared by the agents' tool and the method it calls.
   const signIn = createSignIn(secrets);
@@ -671,6 +674,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     flowTick: (at) => flows.tick(at),
     checks: (remind) => [
       storage.check,
+      retention.check,
       localApps.check,
       calendarReminders({
         store,
@@ -799,7 +803,15 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       telemetry,
       news,
       usage: createUsage({ home: config.home, storage, vm: opts.vmUsage ?? (() => vm.monitored()) }),
-      storage: { ...storage, items: storageItems },
+      storage: {
+        ...storage,
+        items: storageItems,
+        compact: async () => {
+          const r = retention.compactNow((await storage.disk()).free_bytes);
+          storage.changed();
+          return r;
+        },
+      },
       panel: () => panelEntry(servedPanel(config)),
       profileRoots,
       templateRoots,

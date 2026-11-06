@@ -69,6 +69,27 @@ Lines in the **Process output** source are what the core printed outside its log
 Desktop app versions before this change wrote `core.log` in the app's own logs folder (`~/Library/Logs/APX` on
 macOS, `%APPDATA%\APX\logs` on Windows, `~/.config/APX/logs` on Linux); older lines stay there.
 
+## APX's database is big or the panel is slow
+
+Everything your chats hold lives in one file, `apx.db` in APX's folder. APX keeps it small by itself: every few
+minutes it drops copies of tool results it holds twice and, for turns that ended more than two weeks ago and have newer
+turns after them, keeps a long tool output the way the agent already reads it in that chat (a short note that it was
+omitted). What a chat sends to its model does not change. A new install hands the freed space back to the disk by
+itself.
+
+An install from before this change has to rewrite the file once to give the space back. With the core running:
+
+<Terminal command="apx doctor --fix">{`Compacting the database (a big one takes a few minutes; chats wait meanwhile)…
+Database: 1110 MB → 890 MB (220 MB freed)
+Old turns compacted: 2760, outputs kept twice removed: 66396
+The database file was rewritten once; from now on it gives space back by itself.`}</Terminal>
+
+While it runs, chats and routines wait. Rewriting needs about twice the file's size free on the disk; with less, it
+says so and the file keeps its size until you free some space and run it again.
+
+One thing changes: if you go back to (or copy a chat from) a message more than two weeks and a few turns old, the
+agent sees those old tool results as the note and calls the tool again if it needs them.
+
 ## The disk is almost full
 
 When the disk holding APX's folder has less than 5 GB free, the panel says so: a card at the foot of the sidebar, or

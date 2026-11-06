@@ -2,7 +2,7 @@
 export type Lang = "en" | "es";
 
 const en = {
-  title: "APX: your own team of AI agents, on your machine",
+  title: "Your own team of AI agents, on your machine | APX",
   description:
     "Your own team of AI agents, on your machine. A super-agent that answers you anywhere, and a crew per project that works with your tools.",
   nav: {
@@ -502,7 +502,7 @@ const en = {
 export type HomeText = typeof en;
 
 const es: HomeText = {
-  title: "APX: tu propio equipo de agentes de IA, en tu máquina",
+  title: "Tu propio equipo de agentes de IA, en tu máquina | APX",
   description:
     "Tu propio equipo de agentes de IA, en tu máquina. Un super-agente que te responde en cualquier lado y una crew por proyecto que trabaja con tus herramientas.",
   nav: {

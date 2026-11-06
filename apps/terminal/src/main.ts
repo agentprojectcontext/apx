@@ -49,6 +49,7 @@ Usage:
   apx desktop             The desktop app (downloads and opens its installer when it is not here)
   apx upgrade [--check] [--json]   Check or apply the core's updater (a server install updates itself even when its core is down)
   apx doctor [--json]     Why the core does not answer on this machine, and what to run next
+  apx doctor --fix        Also trim old chat history the models no longer read and give the space back to the disk
   apx devices [list|pair|revoke <id>] [--json]
   apx tailscale [status|connect|off]   Expose APX through Tailscale (must already be logged in)
   apx mcp tools <server> [<tool>] [--project <id>] [--scope global|project] [--json]
@@ -273,6 +274,7 @@ function argumentsOf() {
       app: { type: "boolean" },
       connect: { type: "string" },
       memory: { type: "boolean" },
+      fix: { type: "boolean" },
     },
   });
 }
@@ -313,7 +315,7 @@ try {
       }
       break;
     case "doctor":
-      await doctor({ json: values.json });
+      await doctor({ json: values.json, ...(values.fix ? { fix: client } : {}) });
       break;
     case "devices":
     case "tailscale":

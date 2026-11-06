@@ -18,7 +18,7 @@ import {
 
 /** Encrypted reasoning kept on an assistant item, with the model that wrote it. */
 type Reasoning = { model: string; summary: unknown[]; encrypted_content: string };
-const REASONING = "responses_reasoning";
+export const REASONING = "responses_reasoning";
 
 type Event = {
   type?: string;

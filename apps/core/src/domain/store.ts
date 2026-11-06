@@ -27,6 +27,7 @@ import { notificationsRepo } from "./notifications.ts";
 import { nudgesRepo } from "./nudges.ts";
 import { personsRepo } from "./persons.ts";
 import { projectsRepo } from "./projects.ts";
+import { retentionRepo } from "./retention.ts";
 import { routinesRepo } from "./routines.ts";
 import { runContextsRepo } from "./run-contexts.ts";
 import { runsRepo } from "./runs.ts";
@@ -66,6 +67,7 @@ export function createStore(db: Db, bus: Bus) {
     threads: threadsRepo(q, bus, approvals.endSession),
     messages: messagesRepo(q, bus),
     modelLog: modelLogRepo(q),
+    retention: retentionRepo(q),
     memorySources: memorySourcesRepo(q),
     runs: runsRepo(q, bus),
     runContexts: runContextsRepo(q),

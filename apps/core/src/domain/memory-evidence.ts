@@ -17,7 +17,7 @@ export function ownerMemorySource(store: Store, run: RunRecord) {
     !thread ||
     !memoryEligibleChat(store, thread) ||
     !thread.agent_ids.includes(run.agent_id) ||
-    !store.agents.list().some((a) => a.id === run.agent_id)
+    !store.agents.active(run.agent_id)
   )
     return [];
   const view = { agent_id: run.agent_id, project_id: thread.project_id };

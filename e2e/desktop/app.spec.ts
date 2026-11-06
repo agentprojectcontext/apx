@@ -282,6 +282,9 @@ test("the browser tab follows its slot, a popup over it shows a still, and a rel
   }, `#thread=${thread.id}&panel=browser`);
   const slot = main.locator(".browser__page--native");
   await expect(slot).toBeVisible();
+  // A dialog still open (the welcome, when this test runs alone) covers the page with its backdrop.
+  await main.keyboard.press("Escape");
+  await expect(main.getByRole("dialog")).toHaveCount(0);
   const rect = async () =>
     slot.evaluate((el) => {
       const r = el.getBoundingClientRect();
@@ -307,6 +310,41 @@ test("the browser tab follows its slot, a popup over it shows a still, and a rel
   await expect.poll(async () => (await tabView())?.on).toBe("behind");
   await expect(main.locator(".browser__frame")).toBeVisible();
   await main.evaluate(() => document.getElementById("e2e-popup")?.remove());
+  await expect.poll(async () => (await tabView())?.on).toBe("top");
+
+  // A modal's backdrop covers the page even when the dialog itself sits elsewhere; so does a notice over it.
+  await main.evaluate(() => {
+    const backdrop = document.createElement("div");
+    backdrop.className = "apx-dialog__backdrop";
+    backdrop.id = "e2e-backdrop";
+    Object.assign(backdrop.style, { position: "fixed", inset: "0" });
+    document.querySelector(".apx-portal")?.append(backdrop);
+  });
+  await expect.poll(async () => (await tabView())?.on).toBe("behind");
+  await main.evaluate(() => document.getElementById("e2e-backdrop")?.remove());
+  await expect.poll(async () => (await tabView())?.on).toBe("top");
+  await main.evaluate(() => {
+    const slot = document.querySelector(".browser__page--native")?.getBoundingClientRect();
+    const list = document.createElement("div");
+    list.className = "toasts";
+    list.id = "e2e-notices";
+    // The list is what sits at the foot of the window: place it over the page.
+    Object.assign(list.style, {
+      position: "fixed",
+      left: `${slot?.left ?? 0}px`,
+      top: `${(slot?.bottom ?? 80) - 60}px`,
+      bottom: "auto",
+      width: "200px",
+      transform: "none",
+    });
+    const notice = document.createElement("div");
+    notice.className = "toast";
+    notice.textContent = "Saved";
+    list.append(notice);
+    document.querySelector(".shell")?.append(list);
+  });
+  await expect.poll(async () => (await tabView())?.on).toBe("behind");
+  await main.evaluate(() => document.getElementById("e2e-notices")?.remove());
   await expect.poll(async () => (await tabView())?.on).toBe("top");
 
   // The slot moves without changing size: the tab moves with it.

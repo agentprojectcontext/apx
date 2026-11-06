@@ -32,7 +32,7 @@ export function createMemoryMaintenance(deps: {
       ownerOrigin(run.input?.origin) &&
       !!thread &&
       thread.agent_ids.includes(run.agent_id) &&
-      store.agents.list().some((a) => a.id === run.agent_id) &&
+      store.agents.active(run.agent_id) &&
       memoryEligibleChat(store, thread)
     );
   }
@@ -99,9 +99,13 @@ export function createMemoryMaintenance(deps: {
   }
   return {
     start() {
-      for (const thread of store.threads.list({ include_archived: false, include_subthreads: false, limit: null })) {
-        for (const run of store.runs.list(thread.id, 20))
-          if (eligible(run) && Date.parse(run.ended_at ?? run.started_at) > Date.now() - 86_400_000) enqueue(run);
+      // The last day's turns, at most 20 per chat; eligible() keeps only the owner's top-level chats.
+      const perChat = new Map<string, number>();
+      for (const run of store.runs.completedSince(new Date(Date.now() - 86_400_000).toISOString())) {
+        const seen = perChat.get(run.thread_id) ?? 0;
+        if (seen >= 20) continue;
+        perChat.set(run.thread_id, seen + 1);
+        if (!store.threads.get(run.thread_id)?.archived && eligible(run)) enqueue(run);
       }
       deps.index.schedule();
       timer = setInterval(() => {
