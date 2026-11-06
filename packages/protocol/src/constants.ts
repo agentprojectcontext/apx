@@ -322,3 +322,5 @@ export const ARTIFACT_FILE_EXT = ".apxart";
 export const CALENDAR_LEAD = { min: 5, max: 7 * 24 * 60, default: 30 } as const;
 /** How often, in minutes, an integration's background check looks (Gmail's new mail, Calendar's next events). */
 export const CHECK_EVERY = { min: 1, max: 24 * 60, default: 5 } as const;
+/** A message's `via` when it was written in, or answered to, APX's panel in Chrome (not a channel's id). */
+export const CHROME_VIA = "chrome";

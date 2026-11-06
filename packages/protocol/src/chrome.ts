@@ -10,8 +10,6 @@ export const CHROME_EXTENSION_ID = "jiffjibeffjmombaholpgbnfdajpfigm";
 export const CHROME_EXTENSION_ORIGIN = `chrome-extension://${CHROME_EXTENSION_ID}/`;
 /** The native messaging host's name, as the extension asks for it and APX registers it. */
 export const CHROME_HOST = "dev.apx.chrome";
-/** A message's `via` when it was written in, or answered to, APX's panel in Chrome (not a channel's id). */
-export const CHROME_VIA = "chrome";
 /** APX's tab ids for Chrome tabs: `c` and Chrome's own number. */
 export const chromeTab = (id: number) => `c${id}`;
 export const chromeTabId = (tab: string): number | undefined => {

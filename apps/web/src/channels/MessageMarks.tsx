@@ -1,6 +1,7 @@
 // What a message sent on a channel carries besides its words: the chat app it went out or came in on, how far it got
 // (ticks) and the emoji put on it. Shared by the channel view and the main chat, so both read the same.
-import { CHROME_VIA, type Message, type MessageDelivery, type MessageReaction, type Thread } from "@apx/protocol";
+import type { Message, MessageDelivery, MessageReaction, Thread } from "@apx/protocol";
+import { CHROME_VIA } from "@apx/protocol/client";
 import { ChannelIcon, Icons, Tooltip } from "@apx/ui";
 import { createContext, type ReactNode, useContext, useEffect } from "react";
 import { loadChannels, useChannels } from "../data/channels.ts";
