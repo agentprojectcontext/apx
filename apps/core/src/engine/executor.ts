@@ -536,7 +536,9 @@ export function createExecutor(o: {
     const out = await runTool(tool, args, { ...ctx, runCommand: (c) => runCommand(c, run) }).finally(release);
     const images = out.ok && seen.length ? { images: seen } : {};
     if (out.text.includes(UNTRUSTED_MARK) && !tool.local?.(args)) untrusted = true;
-    const full = out.text.slice(0, STORED_OUTPUT_CHARS);
+    // The model gets a capped copy; only a cut text is kept whole for read_output, as the model log holds the rest.
+    const shown = cap(out.text);
+    const full = shown === out.text ? undefined : out.text.slice(0, STORED_OUTPUT_CHARS);
     store.runs.endStep(run.id, callId, out.ok ? "ok" : "error", out.text.slice(0, STEP_SUMMARY_CHARS), full);
     signal.throwIfAborted();
     if (step?.aborted) {
@@ -544,8 +546,6 @@ export function createExecutor(o: {
       return { ok: false, text: tool.cut ? `${CUT_SHORT} ${tool.cut}` : CUT_SHORT };
     }
     card(out.ok ? "ok" : "error", out.text.slice(0, CARD_DETAIL_CHARS));
-    // The model gets a capped copy; the whole text stays in the step for read_output.
-    const shown = cap(out.text);
     return {
       ok: out.ok,
       text: shown === out.text ? shown : `${shown}\n[full output: ${out.text.length} chars; read_output ref=${stepId}]`,

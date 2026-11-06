@@ -609,7 +609,7 @@ export function turnBlocks(opts: TurnOpts): InputBlock[] {
   ];
 }
 
-type Group = { run: string | undefined; items: ChatItem[]; seq: number };
+export type Group = { run: string | undefined; items: ChatItem[]; seq: number };
 
 const size = (items: ChatItem[]) => items.reduce((n, m) => n + JSON.stringify(m).length, 0);
 
@@ -654,7 +654,8 @@ function summaryBlock(epoch: { summary: string; untrusted: boolean }): string {
     : `${note}\n${epoch.summary}`;
 }
 
-function walkBack(entries: LogEntry[], budget: number): { items: ChatItem[]; from: number } {
+/** The log in the groups the history keeps or drops whole: a run's consecutive entries, or one user item. */
+export function historyGroups(entries: LogEntry[]): Group[] {
   const groups: Group[] = [];
   for (const e of entries) {
     const last = groups.at(-1);
@@ -664,6 +665,11 @@ function walkBack(entries: LogEntry[], budget: number): { items: ChatItem[]; fro
     if (same) last.items.push(item);
     else groups.push({ run: e.run_id, items: [item], seq: e.seq });
   }
+  return groups;
+}
+
+function walkBack(entries: LogEntry[], budget: number): { items: ChatItem[]; from: number } {
+  const groups = historyGroups(entries);
   const kept: ChatItem[][] = [];
   let used = 0;
   let from = Number.POSITIVE_INFINITY;
@@ -679,7 +685,8 @@ function walkBack(entries: LogEntry[], budget: number): { items: ChatItem[]; fro
   return { items: repair(kept.flat()), from };
 }
 
-function pruneOutput(items: ChatItem[]): ChatItem[] {
+/** A group past the newest FULL_OUTPUT_RUNS, as the model reads it: long tool output replaced by a stub. */
+export function pruneOutput(items: ChatItem[]): ChatItem[] {
   const names = new Map<string, string>();
   for (const m of items)
     if (m.role === "assistant") for (const c of m.tool_calls ?? []) names.set(c.id, c.function.name);

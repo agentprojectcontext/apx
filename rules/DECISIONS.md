@@ -4005,6 +4005,46 @@ Rejected: offering Claude's task tools and mirroring them (their ids are statefu
 the model did not use them more than APX's plan), aliasing native tools to APX's (`toolAliases`: the arguments differ),
 and also telling Codex and ACP agents to call APX's `plan` (two plans for one turn).
 
+<a id="d-200"></a>
+## D-200 — 2026-11-05 — The chats' history is trimmed to what a model can still read, and the file gives space back
+
+A heavy user's `apx.db` reached 4 GB and the panel slowed; the owner's was 1.1 GB after a month. Nothing pruned,
+compacted or vacuumed it, and a tool result was kept up to three times: the step's `output` (the whole text, up to
+2 MB, for `read_output`), the step's `result` (its first 4,000 characters, read by recovery, recall, memory procedures
+and delegation checks) and the `model_log` item (what the model saw, rebuilt into every turn's history). On the owner's
+store `model_log` was 491 MB (tool results 197 MB, Responses models' encrypted reasoning 119 MB) and `steps` 416 MB
+(`output` 225 MB, of which 133 MB were texts the model had received whole). The panel renders `messages`, never these.
+
+The rule: **stored copies shrink only to what every view of the chat already reads**, so the history a live chat sends
+(and so the cached prompt prefix, rule 12) stays byte for byte the same.
+
+- **One whole copy.** A step keeps its full `output` only when the model got a cut copy with a `read_output` ref
+  (`engine/executor.ts`); otherwise the model log already holds it. `result` stays as it is.
+- **Levels per finished run** (`runs.trimmed`, `engine/store-retention.ts`): 1, whole outputs no logged ref points at
+  are dropped (any finished run, so older installs lose the duplicates); 2, at least 14 days after it ended and with at
+  least `2 × FULL_OUTPUT_RUNS` groups after it in each chat holding its log, long tool output is stored as the very stub
+  `pruneOutput` shows for it (the compactor reuses `historyGroups` and `pruneOutput`, so the stub is the same bytes),
+  and its kept outputs go (their ref is no longer shown to any view); 3, once its rows lie before the start of a view
+  four history budgets wide (or behind the chat's summary), the encrypted reasoning goes too. A chat with an unfinished
+  turn is not touched. The margins cover views that reach further back when forgotten notes remove newer turns.
+- **The file gives space back.** A new store is `auto_vacuum = INCREMENTAL`; the background check (`store-retention`,
+  every 10 minutes, 200 runs or chat views a beat) frees up to 100 MB of pages after its pass. An older store needs one
+  `VACUUM` to become incremental: `apx doctor --fix` calls `storage.compact`, which does every due pass at once and
+  rewrites the file when the disk has twice its size free (otherwise it says so and frees nothing yet). The core blocks
+  while it runs (about 20 s for 1.1 GB), so it is the owner's call, not the clock's.
+- **What changes for the owner.** Rewinding or forking a chat to a point more than 14 days and four turns back gives
+  the model those old tool outputs as the stub ("call it again if you need it"), and, further back, without its own
+  encrypted reasoning. The newest turns of every chat, including finished delegations that may be continued, stay whole.
+
+Measured on a copy of the owner's store (1,110 MB): `apx doctor --fix` today 890 MB (`steps` 416 → 259 MB, `model_log`
+491 → 438 MB) in about 30 s; with every run past the 14 days, as in steady use, 727 MB (`model_log` 305 MB). One
+background beat took 0.4–0.7 s.
+
+Rejected: deleting rows behind every view (rewind and fork to old messages need them, and compacted they are a small
+part), trimming `steps.result` (recall and memory procedures read old results), a startup migration doing the trimming
+(minutes of blocked start on a 4 GB store) and a full `VACUUM` on the clock (it blocks the core and needs the disk
+space).
+
 <a id="d-201"></a>
 ## D-201 — 2026-11-05 — A large store stays fast through indexes, not a second thread
 

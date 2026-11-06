@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { commandRunner, currentVersion, switchCurrent } from "../../../../packages/install/src/release.ts";
 import { tempDir } from "../../../core/src/testkit/platform.ts";
-import { type DoctorFacts, diagnose, updateWithoutCore } from "./doctor.ts";
+import { compactionLines, type DoctorFacts, diagnose, updateWithoutCore } from "./doctor.ts";
 
 const bundle = { kind: "bundle" as const, app: "~/.apx/v2/app", version: "2.12.1" };
 const facts = (over: Partial<DoctorFacts>): DoctorFacts => ({
@@ -147,4 +147,20 @@ test("update without the core changes nothing when this is the newest, and never
   } finally {
     await f.close();
   }
+});
+
+test("--fix says how much the database shrank, and why it did not when the disk is short", () => {
+  const MB = 1048576;
+  const base = { runs_trimmed: 9, runs_compacted: 4, outputs_dropped: 12, rows: 30 };
+  const rebuilt = compactionLines({ ...base, before_bytes: 1110 * MB, after_bytes: 890 * MB, reclaimed: "rebuilt" });
+  assert.equal(rebuilt[0], "Database: 1110 MB → 890 MB (220 MB freed)");
+  assert.match(rebuilt.at(-1) ?? "", /rewritten once/);
+  const short = compactionLines({
+    ...base,
+    before_bytes: 900 * MB,
+    after_bytes: 900 * MB,
+    reclaimed: "not_enough_disk",
+  });
+  assert.equal(short[0], "Database: 900 MB → 900 MB");
+  assert.match(short.at(-1) ?? "", /twice its size free/);
 });

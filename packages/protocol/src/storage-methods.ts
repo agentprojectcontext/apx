@@ -70,6 +70,19 @@ export const StorageBackup = z.object({
 });
 export type StorageBackup = z.infer<typeof StorageBackup>;
 
+/** What compacting the chats' history did, and the database's size before and after. */
+export const StoreCompaction = z.object({
+  before_bytes: z.number(),
+  after_bytes: z.number(),
+  runs_trimmed: z.number(),
+  runs_compacted: z.number(),
+  outputs_dropped: z.number(),
+  rows: z.number(),
+  /** How the free space went back: bit by bit, a one-time rewrite, or not yet (too little free disk to rewrite). */
+  reclaimed: z.enum(["incremental", "rebuilt", "not_enough_disk"]),
+});
+export type StoreCompaction = z.infer<typeof StoreCompaction>;
+
 const ItemId = z.object({ id: z.string().min(1).max(200) }).strict();
 const Freed = z.object({ freed_bytes: z.number() });
 
@@ -90,6 +103,16 @@ export const storageMethods = {
   "storage.clear": {
     params: z.object({}).strict(),
     result: z.object({ freed_bytes: z.number(), files: z.number() }),
+    effect: true,
+    access: "human",
+  },
+  /**
+   * Trims what the chats' history keeps beyond what any model can still read (whole outputs it already holds, old
+   * turns far behind every chat's view), then gives the free space back to the disk. `apx doctor --fix` calls it.
+   */
+  "storage.compact": {
+    params: z.object({}).strict(),
+    result: StoreCompaction,
     effect: true,
     access: "human",
   },

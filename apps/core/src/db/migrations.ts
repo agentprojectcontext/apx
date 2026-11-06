@@ -1196,4 +1196,10 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX flow_graph_nodes_run ON flow_graph_nodes(run_id);
   CREATE INDEX flow_graph_nodes_thread ON flow_graph_nodes(thread_id);
   `,
+  `
+  -- How far a finished run's stored copies were trimmed: 0 as written, 1 outputs the model log holds dropped, 2 old
+  -- tool output kept as its stub, 3 also no reasoning once out of every view (engine/store-retention.ts, D-200).
+  ALTER TABLE runs ADD COLUMN trimmed INTEGER NOT NULL DEFAULT 0;
+  CREATE INDEX runs_trimmed ON runs(trimmed, ended_at) WHERE ended_at IS NOT NULL;
+  `,
 ];

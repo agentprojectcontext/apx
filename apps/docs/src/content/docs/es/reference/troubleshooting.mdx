@@ -71,6 +71,28 @@ Las versiones de la app de escritorio anteriores a este cambio escribían `core.
 (`~/Library/Logs/APX` en macOS, `%APPDATA%\APX\logs` en Windows, `~/.config/APX/logs` en Linux); las líneas
 viejas siguen ahí.
 
+## La base de datos de APX es grande o el panel está lento
+
+Todo lo que guardan tus chats vive en un archivo, `apx.db` en la carpeta de APX. APX lo mantiene chico solo: cada
+pocos minutos borra las copias de resultados de herramientas que tiene dos veces y, en los turnos que terminaron hace
+más de dos semanas y tienen turnos más nuevos después, guarda una salida larga como el agente ya la lee en ese chat
+(una nota corta de que se omitió). Lo que un chat le manda a su modelo no cambia. Una instalación nueva le devuelve
+al disco el espacio liberado sola.
+
+Una instalación anterior a este cambio tiene que reescribir el archivo una vez para devolver el espacio. Con el core
+andando:
+
+<Terminal command="apx doctor --fix">{`Compacting the database (a big one takes a few minutes; chats wait meanwhile)…
+Database: 1110 MB → 890 MB (220 MB freed)
+Old turns compacted: 2760, outputs kept twice removed: 66396
+The database file was rewritten once; from now on it gives space back by itself.`}</Terminal>
+
+Mientras corre, los chats y las rutinas esperan. Reescribir necesita libre en el disco unas dos veces el tamaño del
+archivo; con menos, lo dice y el archivo queda del mismo tamaño hasta que liberes espacio y lo corras de nuevo.
+
+Cambia una cosa: si volvés a (o copiás un chat desde) un mensaje de hace más de dos semanas y unos turnos atrás, el
+agente ve esos resultados viejos como la nota y vuelve a llamar a la herramienta si los necesita.
+
 ## El disco está casi lleno
 
 Cuando al disco donde está la carpeta de APX le quedan menos de 5 GB libres, el panel lo avisa: una tarjeta al pie de
