@@ -72,9 +72,12 @@ You don't have to wait for the agent to finish, and you don't have to stop it:
 - **Ctrl/⌘+Enter** puts the message **in line** for when the agent finishes what it is doing. Messages in line wait
   below the chat with an outlined bubble, in the order they will run. Until their turn starts you can **Edit** them,
   move them **up** or **down**, **Remove** them, or **Send now**.
-- **In a Claude Code or Codex session** the agent only reads new messages between turns, so Enter does what **Send now**
-  does: it stops the turn at work, as **Stop** does, and runs your message right away, ahead of the rest of the line
-  (what the agent had handed to others keeps going). Ctrl/⌘+Enter still leaves the message in line until the turn ends.
+- **In a Claude Code session** it works the same way: Claude reads your message once the command or edit it is on
+  finishes, in the same turn. If it is writing its answer, your message runs right after it.
+  **Send now** stops what Claude is doing and it reads your message at once.
+- **In a Codex session** the agent only reads new messages between turns, so Enter does what **Send now** does: it
+  stops the turn at work, as **Stop** does, and runs your message right away, ahead of the rest of the line (what the
+  agent had handed to others keeps going). Ctrl/⌘+Enter still leaves the message in line until the turn ends.
 - **Stop** (the square that replaces send) stops everything: the turn at work and the messages in line.
 
 What is in line survives a restart of APX, in its order. Messages that come on a channel (WhatsApp, Telegram) keep
@@ -102,8 +105,8 @@ The box at the bottom ("Message Lucía…") is where you write. A few things it 
   ([Compaction](/concepts/conversations/#compaction)).
 - **Voice dictation.** **Dictate** turns speech into text. Install a local transcription model (whisper.cpp) in
   Settings › Voices to keep it on your machine.
-- **Keys.** Enter sends (if the agent is working, it reads it at its next step; in a Claude Code or Codex session it
-  stops the turn and runs the message at once). Ctrl/⌘+Enter puts it in line for when
+- **Keys.** Enter sends (if the agent is working, it reads it at its next step; in a Codex session it stops the turn
+  and runs the message at once). Ctrl/⌘+Enter puts it in line for when
   it finishes; while the agent works the composer reminds you. Shift+Enter adds a line.
 
 Attachment drafts, including uploads in progress, survive switching chats within the page. Select a thumbnail to

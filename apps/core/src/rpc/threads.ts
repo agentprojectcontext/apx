@@ -402,7 +402,7 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         origin: { kind: "user", ...(chrome ? { via: "chrome" as const } : {}) },
         ...(attachments?.length ? { attachments: attachedFiles(store, thread, attachments) } : {}),
       });
-      // Enter behind a turn of an outside engine, which cannot take words mid-turn, runs the message at once.
+      // Enter behind a turn of an outside engine that cannot take words mid-turn (Codex, ACP) runs the message at once.
       if (mode === "steer" && !contact && !sent.steered) engine.enterNow(sent.message.id);
       // The owner writing lets a paused chain go on: tasks agents gave meanwhile start (DECISIONS.md#d-082).
       startHeld(store, engine.admit, tree(store, thread));

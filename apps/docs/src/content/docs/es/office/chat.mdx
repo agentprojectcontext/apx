@@ -74,10 +74,13 @@ No hace falta esperar a que el agente termine, ni cortarlo:
 - **Ctrl/⌘+Enter** deja el mensaje **en cola** para cuando el agente termine lo que está haciendo. Los mensajes en
   cola esperan debajo del chat con la burbuja delineada, en el orden en que van a correr. Hasta que empiece su turno
   los podés **Editar**, **Subir** o **Bajar**, **Quitar**, o **Enviar ahora**.
-- **En una sesión de Claude Code o Codex** el agente solo lee mensajes nuevos entre turnos, así que Enter hace lo que
-  **Enviar ahora**: corta el turno en curso, como **Detener**, y corre tu mensaje en el momento, antes que el resto de
-  la cola (lo que el agente había encargado a otros sigue). Ctrl/⌘+Enter sigue dejando el mensaje en cola hasta que
-  termine el turno.
+- **En una sesión de Claude Code** funciona igual: Claude lee tu mensaje cuando termina el comando o la edición en la
+  que está, en el mismo turno. Si está escribiendo su respuesta, tu mensaje corre justo después.
+  **Enviar ahora** corta lo que Claude está haciendo y lee tu mensaje en el momento.
+- **En una sesión de Codex** el agente solo lee mensajes nuevos entre turnos, así que Enter hace lo que **Enviar
+  ahora**: corta el turno en curso, como **Detener**, y corre tu mensaje en el momento, antes que el resto de la cola
+  (lo que el agente había encargado a otros sigue). Ctrl/⌘+Enter sigue dejando el mensaje en cola hasta que termine el
+  turno.
 - **Detener** (el cuadrado que reemplaza a enviar) corta todo: el turno en curso y los mensajes en cola.
 
 Lo que está en cola sobrevive a un reinicio de APX, en su orden. Los mensajes que llegan por un canal (WhatsApp,
@@ -105,8 +108,8 @@ La caja de abajo ("Escribile a Lucía…") es donde escribís. Algunas cosas que
   ([Compactación](/es/concepts/conversations/#compactación)).
 - **Dictado por voz.** **Dictar** pasa lo que decís a texto. Instalá un modelo de transcripción local (whisper.cpp)
   en Configuración › Voces para que quede todo en tu máquina.
-- **Teclas.** Enter envía (si el agente está trabajando, lo lee en su próximo paso; en una sesión de Claude Code o
-  Codex corta el turno y corre el mensaje en el momento). Ctrl/⌘+Enter lo deja en cola para
+- **Teclas.** Enter envía (si el agente está trabajando, lo lee en su próximo paso; en una sesión de Codex corta el
+  turno y corre el mensaje en el momento). Ctrl/⌘+Enter lo deja en cola para
   cuando termine; mientras el agente trabaja, el compositor te lo recuerda. Shift+Enter agrega una línea.
 
 Los borradores de adjuntos, incluidas las cargas en curso, sobreviven a cambiar de chat dentro de la página.
