@@ -55,6 +55,8 @@ export async function withPanel(
 ) {
   assert.equal(await which("claude"), undefined, "Run the extension tests through the isolated pnpm runner");
   assert.equal(await which("codex"), undefined, "Run the extension tests through the isolated pnpm runner");
+  const webDist = path.resolve(import.meta.dirname, "../web/dist");
+  await fs.access(path.join(webDist, "index.html")).catch(() => assert.fail("Build the panel first: pnpm build:web"));
   await using home = tempDir("apx-chrome-panel-core-");
   await using profile = tempDir("apx-chrome-panel-profile-");
   await using extension = tempDir("apx-chrome-panel-bundle-");
@@ -66,7 +68,7 @@ export async function withPanel(
         home: home.path,
         port,
         token,
-        webDist: path.resolve(import.meta.dirname, "../web/dist"),
+        webDist,
         agentName: "APX",
         providers: empty
           ? []

@@ -287,6 +287,13 @@ function runUnitSuites(root: string, raw: string, nativeOutput: string, snapshot
       );
     else if (run.error) console.error(run.error.message);
   }
+  // The extension's tests open the built panel in Chrome: a part that builds nothing else builds it first.
+  const panel = spawnSync(process.platform === "win32" ? "pnpm.cmd" : "pnpm", ["build:web"], {
+    cwd: root,
+    stdio: "inherit",
+    shell: process.platform === "win32",
+  });
+  if (panel.status !== 0) failedAreas.push("apps/web build");
   const extension = spawnSync(process.execPath, ["apps/chrome-extension/run-tests.ts"], {
     cwd: root,
     env: { ...process.env, NODE_V8_COVERAGE: raw },
