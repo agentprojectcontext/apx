@@ -377,6 +377,17 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       bus.emit({ type: "thread.updated", thread });
       return thread;
     },
+    /** A channel chat whose address its platform writes another way: it goes on under that one (unless one is there). */
+    readdress(channel: string, from: string, to: string): void {
+      const t = repo.byConversation(channel, from);
+      if (!t || repo.byConversation(channel, to)) return;
+      run(qb.updateTable("threads").set({ conversation: to }).where("id", "=", t.id));
+      const c = repo.context(t.id);
+      repo.mergeContext(t.id, {
+        ...(c.reply_to?.conversation === from ? { reply_to: { ...c.reply_to, conversation: to } } : {}),
+        ...(c.their_last?.conversation === from ? { their_last: { ...c.their_last, conversation: to } } : {}),
+      });
+    },
     /** A thread whose history was brought in: its last activity and preview are the history's own. */
     settle(id: string, at: string, preview: string): void {
       run(qb.updateTable("threads").set({ updated_at: at, preview }).where("id", "=", id));
