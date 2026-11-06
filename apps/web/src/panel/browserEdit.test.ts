@@ -5,6 +5,7 @@ import { enBrowserEdit } from "../i18n/browser-edit-en.ts";
 import type { T } from "../i18n/index.ts";
 import {
   browserEdit,
+  canEditPage,
   changeItem,
   type EditItem,
   editRequest,
@@ -95,4 +96,38 @@ test("one part is edited at a time: picking another drops the one before unless 
     [2],
   );
   assert.equal(browserEdit.get().selected, 2);
+});
+
+test("edit mode is offered on local files and pages from this computer or the local network, not public sites", () => {
+  for (const url of [
+    "file:///home/user/work/site/index.html",
+    "http://localhost:5173/",
+    "http://LOCALHOST:3000/a?b=1",
+    "http://app.localhost/",
+    "http://127.0.0.1:8080/",
+    "http://0.0.0.0:4321/",
+    "http://[::1]:3000/",
+    "http://192.168.1.20:5173/",
+    "http://10.0.0.7/",
+    "http://172.20.3.4:8000/",
+    "https://acme.test/",
+    "http://printer.local/",
+    "http://[fd12:3456::1]/",
+  ])
+    assert.equal(canEditPage(url), true, url);
+  for (const url of [
+    "https://en.wikipedia.org/wiki/Main_Page",
+    "https://example.com/",
+    "http://8.8.8.8/",
+    "http://172.32.0.1/",
+    "http://192.169.0.1/",
+    "https://localhost.example.com/",
+    "https://127.0.0.1.example.com/",
+    "about:blank",
+    "chrome://settings",
+    "data:text/html,<p>hi</p>",
+    "not a url",
+    "",
+  ])
+    assert.equal(canEditPage(url), false, url);
 });

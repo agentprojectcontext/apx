@@ -189,3 +189,50 @@ for (const width of [1280, 390]) {
     }
   });
 }
+
+for (const width of [1280, 390]) {
+  test(`edit mode is offered on a local page, not on a public site, at ${width}px`, async ({ page }, info) => {
+    await rpc("setup.finish", {});
+    const { core, token } = await world.info();
+    const node = await new ApxClient({ url: core, token }).connect("node", ["browser"]);
+    const tab = (id: string, url: string, title: string) => ({
+      tab: id,
+      url,
+      title,
+      profile: "shared",
+      control: { kind: "user", since: new Date().toISOString() },
+    });
+    node.onRequest(async (method) => {
+      if (method === "browser.tabs")
+        return {
+          tabs: [
+            tab("wiki-tab", "https://en.wikipedia.org/wiki/Parcel", "Parcel"),
+            tab("site-tab", "http://localhost:5173/", "Northwind"),
+          ],
+        };
+      if (method === "browser.hold") return { ok: true };
+      if (method === "browser.screenshot") {
+        // A corner of the panel stands for either page: only the toolbar is looked at.
+        const clip = { x: 0, y: 0, width: 8, height: 8 };
+        const data = (await page.screenshot({ type: "jpeg", clip })).toString("base64");
+        return { mime: "image/jpeg", data, bytes: data.length };
+      }
+      throw new Error(`Unexpected ${method}`);
+    });
+    try {
+      await page.setViewportSize({ width, height: 860 });
+      await open(page, "#panel=browser");
+      const edit = page.getByRole("button", { name: "Editar", exact: true });
+      await page.getByRole("tab", { name: /Parcel/ }).click();
+      await expect(page.getByRole("button", { name: "Devolver" })).toBeVisible();
+      await expect(edit).toHaveCount(0);
+      await page.screenshot({ path: info.outputPath(`public-${width}.png`) });
+      await page.getByRole("tab", { name: /Northwind/ }).click();
+      await expect(edit).toBeVisible();
+      await page.screenshot({ path: info.outputPath(`local-${width}.png`) });
+    } finally {
+      node.close();
+      await node.closed;
+    }
+  });
+}

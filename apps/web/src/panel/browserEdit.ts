@@ -38,6 +38,33 @@ export type BrowserEditState = { target: string | undefined; items: EditItem[]; 
 
 export const browserEdit = createStore<BrowserEditState>({ target: undefined, items: [], selected: undefined });
 
+/**
+ * Whether a tab's page is one the owner can change, so edit mode is offered: a local file, or a page served from this
+ * computer or the local network (a dev server). A public site is not, since nobody here can apply the changes.
+ */
+export function canEditPage(url: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  if (u.protocol === "file:") return true;
+  if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+  const host = u.hostname
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "");
+  if (host === "localhost" || /\.(localhost|local|test|internal|lan|home\.arpa)$/.test(host)) return true;
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    return a === 127 || a === 10 || a === 0 || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31);
+  }
+  // IPv6: loopback, unique local (fc00::/7) and link-local (fe80::/10).
+  return host === "::1" || /^f[cd][0-9a-f]{0,2}:/.test(host) || /^fe[89ab][0-9a-f]?:/.test(host);
+}
+
 export function startEditing(target: string): void {
   browserEdit.set({ target, items: [], selected: undefined });
 }
