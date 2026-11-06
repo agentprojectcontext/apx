@@ -30,9 +30,65 @@ hands the tab to you ("Vera needs you to take over") and waits up to 5 minutes w
 from the page you left it on.
 
 <Aside type="caution" title="It never types your passwords">
-The embedded browser refuses to type into password, one-time code and card fields, whatever the autonomy. Those are
-always a hand-off to you. Agents are also told never to ask for passwords in chat.
+The embedded browser refuses to type into password, one-time code and card fields, whatever the autonomy. An agent
+either signs in with a variable you saved for that site (below) or hands the tab to you. Agents are also told never to
+ask for passwords in chat.
 </Aside>
+
+## Signing in with your saved passwords
+
+An agent can sign in for you without ever seeing your password. Save it once and say where it is for:
+
+<Steps>
+
+1. In **Resources › Variables**, add the value as a variable (for example `ACME_PASSWORD`). For a username, save it
+   the same way. For two-step codes, paste the setup key, or the `otpauth://` address, that the site offers for an
+   authenticator app.
+2. Open the variable's **Sign-in sites** and choose the field it goes into (**Password**, **Username** or
+   **One-time code**) and the sites, such as `app.acme.com`. **Any site** lets agents use it on every website.
+3. Ask the agent to sign in. It names the variable and the field; the browser fills it in.
+
+</Steps>
+
+On a site the variable is not for, the agent asks you first in the app: **Once**, **Always on this site** or **No**.
+That card cannot be answered from a chat app such as Telegram, and **Always on this site** adds that site to the
+variable, never "any site".
+
+The agent gets back only "filled" or "refused". The value does not reach the model, the chat, the run's steps, the
+core's logs or the pictures of the tab the agent looks at. The core keeps the value and hands it to the browser in
+the same call. The browser sets the value on that very field, as typing would, from a place the page's own scripts
+cannot reach, and checks these first:
+
+- **The site:** the page's exact address (scheme, host and port), with no subdomain or look-alike. With **Any site**,
+  any `https://` site qualifies; plain `http://` works only on your own computer.
+- **The frame:** the field's frame must be on that same site. A field inside a frame from another site is refused.
+- **The field:** it must be the kind the variable is for. A password never goes into a username box or a plain text
+  field. Card fields are never filled.
+
+While the page is open, snapshots leave the field's value out and pictures of the tab cover it, even if a "show
+password" button reveals it. For as long as the tab is open, the value is also taken out of every page, address and
+title the agent reads in it (a form that puts the password in the address, an error page that repeats it), and the
+agent cannot run JavaScript in that tab (even with an earlier permission): open another tab for that.
+Right after filling, the browser looks for the value elsewhere in the page (another field, an attribute, text or the
+address). If the page copied it, the browser clears it everywhere, keeps that page from the agent until it moves on,
+refuses the sign-in and tells you which site did it.
+
+The core's log records each fill or refusal: the agent, the variable's name, the site and the outcome, never the
+value. The variable's row shows the sign-in sites, and its **Sign-in sites** dialog shows where it was last used.
+To revoke, remove a site or the variable: the next fill is refused. Sessions already open on that site stay open until
+you sign out there.
+
+Limits to know:
+
+- A username is meant to be seen: pictures of later pages may show it.
+- A script of the allowed site itself can undo the cover of a picture or copy the value onto a drawing: allow sites
+  you trust.
+- When the core runs on a server, the value travels to your desktop app over its connection to the core.
+- With **Any site**, a page that misleads the agent can get the variable typed on a site you never named. Keep it for
+  test accounts.
+- Two-step codes from a saved setup key let the agent pass that site's second step without you.
+- Signing in with saved variables works in the APX browser (desktop app or headless). It never works in an isolated
+  computer, and it is not offered to outside apps through `apx mcp`.
 
 ## Editing a page an agent made
 
@@ -61,7 +117,7 @@ can be picked but never read or changed.
 
 ## Approved JavaScript execution
 
-On unreleased staging builds, an agent can use `browser_evaluate` in its existing APX tab. Supply either a JavaScript
+An agent can use `browser_evaluate` in its existing APX tab. Supply either a JavaScript
 expression in `script`, or a local `.js` `path` plus the SHA-256 of its exact bytes in `sha256`. File access follows the
 agent's normal folder permissions; URLs are not script sources. VM chats accept inline code only, never host files.
 Use an async IIFE for statements and return a value:
@@ -120,6 +176,34 @@ When no desktop app lends a browser (a server, or a Mac with the app closed), th
 Chrome, Chromium or Edge, without a window, on its first browser call. It browses the same way, but nobody can take
 over there and your own logins are not used. `APX_HEADLESS=off` turns it off; `APX_CHROME` points it to a specific
 browser.
+
+## In your own Chrome
+
+With APX's extension for Chrome, agents can also work in your own Chrome, where you are already signed in.
+
+<Steps>
+
+1. Install **APX** from the Chrome Web Store and open it from Chrome's toolbar: APX shows in the side panel.
+2. Write there: "Roby, open the Northwind admin and tell me which orders are late."
+3. The agent opens a tab in an orange tab group called **APX** and works in it while you watch. Chrome shows a bar
+   saying that APX started debugging the browser.
+
+</Steps>
+
+- Only what you write in that side panel uses your Chrome. From the app, your phone or a channel, agents keep using
+  APX's own browser.
+- Agents see only the tabs in the **APX** group. To share a tab you already have open, drag it into the group; drag it
+  out to take it back.
+- **Cancel** on Chrome's bar stops APX in that tab at once; it stays yours until you drag it out of the group and back
+  in. The agent opens a new tab if it still needs one.
+- Passwords, one-time codes and card details are yours to type: agents refuse those fields and ask you to sign in.
+  Page JavaScript and importing logins stay in APX's own browser.
+- APX must be running on the same computer: it connects the extension by itself, in Chrome, Brave, Edge, Arc and
+  Chromium on macOS and Linux. `APX_CHROME_HOST=off` turns that off.
+
+<Aside type="note">
+On Windows, agents cannot use your Chrome yet; the side panel works.
+</Aside>
 
 ## From the terminal
 

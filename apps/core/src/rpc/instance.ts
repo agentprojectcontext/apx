@@ -1,13 +1,15 @@
 // Moving this setup to another computer or keeping a copy of it: the file, its preview and its import (owner only).
-import { badRequest } from "../errors.ts";
+import { ErrorCode } from "@apx/protocol";
+import { badRequest, CallError } from "../errors.ts";
 import { exportInstance, InstanceTooBig } from "../instance/export.ts";
-import { applyImport, type ImportDeps, InstanceRefused, previewImport } from "../instance/plan.ts";
+import { applyImport, type ImportDeps, ImportOutOfTime, InstanceRefused, previewImport } from "../instance/plan.ts";
 import type { Handlers } from "./router.ts";
 
 /** A file that is not read says why, for the panel to tell the owner. */
 function refusal(err: unknown): unknown {
   if (err instanceof InstanceRefused) return badRequest(err.message, { reason: err.reason });
   if (err instanceof InstanceTooBig) return badRequest(err.message, { reason: "too_big" });
+  if (err instanceof ImportOutOfTime) return new CallError({ code: ErrorCode.Timeout, message: err.message });
   return err;
 }
 

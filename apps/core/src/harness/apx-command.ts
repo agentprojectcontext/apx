@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const quoteSh = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
+export const quoteSh = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
 
 /** How this process runs the terminal: its executable, the CLI's entry, and whether it is Electron acting as Node. */
 export type CommandRunner = { exe: string; main: string; electron: boolean };

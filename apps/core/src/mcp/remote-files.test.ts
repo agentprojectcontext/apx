@@ -52,7 +52,11 @@ function postsServer(): McpServer {
   return server;
 }
 
+/** The paths the remote server was asked on. */
+const paths: string[] = [];
+
 const remote = http.createServer(async (req, res) => {
+  paths.push(req.url ?? "");
   const server = postsServer();
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on("close", () => {
@@ -183,4 +187,19 @@ test("a tool that only reads still waits for the owner, while outside content is
   } finally {
     await mcp.close();
   }
+});
+
+test("a key named in a remote server's address reaches the server as its value, and only there", async () => {
+  const { port } = remote.address() as AddressInfo;
+  await env.client.call("secrets.set", { name: "posts_url_key", value: "k7Xq92mNp4Lr" });
+  await env.client.call("mcp.set", {
+    name: "keyed",
+    server: { url: `http://127.0.0.1:${port}/secret://posts_url_key/mcp` },
+  });
+  const r = await env.client.call("mcp.test", { scope: "global", server: "keyed" });
+  assert.equal(r.error, undefined);
+  assert.ok(paths.includes("/k7Xq92mNp4Lr/mcp"), "the server is asked at the address with the key in it");
+  const listed = (await env.client.call("mcp.list", {})).servers.find((s) => s.name === "keyed");
+  assert.ok(!JSON.stringify(listed).includes("k7Xq92mNp4Lr"), "the address shown keeps the reference");
+  await env.client.call("mcp.set", { name: "keyed", server: null });
 });

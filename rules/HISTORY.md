@@ -139,6 +139,18 @@ navigation resolves at `dom-ready`.
 while the window is not painting; waiting for full `load` timed out on ad-heavy sites. Each hung a tool call.
 **Where:** `apps/desktop/src/main/browser/host.ts` (`open`, `#load`), `apps/desktop/src/main/browser/cdp.ts` (`screenshot`).
 
+<a id="tab-user-agent"></a>
+### Tabs send Electron's own user agent
+**Rule:** the desktop's tab sessions keep Electron's default user agent (with its `Electron/x` token); nothing
+overrides it.
+**Why:** tabs used to strip the token and present themselves as Chrome. On Cloudflare-protected sites (Product Hunt,
+SaaSHub) the owner's own click passed the check and Cloudflare set `cf_clearance`, but every reload came back 403
+with the check again, forever. With the default user agent the same pages passed by themselves within seconds,
+with the debugger attached and permissions as they are. Detaching the debugger, notification permission checks,
+popups and the profile partition made no difference. Google sign-in still accepts the tab (it moves on to the
+account's passkey or password).
+**Where:** `apps/desktop/src/main/browser/host.ts` (`#configure`).
+
 ## Memory
 
 <a id="memory-capture-cleanup"></a>

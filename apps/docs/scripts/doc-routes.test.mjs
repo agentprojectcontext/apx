@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { documentationId, documentationPath, sitePath } from "../src/doc-routes.mjs";
+import { builtDocumentationRoutes, documentationId, documentationPath, sitePath } from "../src/doc-routes.mjs";
+
+test("built documentation URLs normalize POSIX and Windows recursive entries before reading canonicals", () => {
+  const expected = ["es/docs/start/install/", "es/docs/reference/privacy/"];
+  for (const separator of ["/", "\\"]) {
+    const entries = [
+      "index.html",
+      `start${separator}install${separator}index.html`,
+      `reference${separator}privacy${separator}index.html`,
+      "asset.js",
+    ];
+    assert.deepEqual(builtDocumentationRoutes(entries, "es/"), expected);
+  }
+});
 
 test("documentation moves beneath docs with locale first and stable anchors", () => {
   assert.equal(documentationPath("/start/install/#windows"), "/docs/start/install/#windows");

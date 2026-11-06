@@ -146,6 +146,7 @@ FTS5 tables are declared by hand next to the generated types and queried with `s
 because its `node:sqlite` driver exists only in its 1.0 release candidate; making the whole store async to use
 Kysely's executor would have touched every caller for no gain.
 
+<a id="d-016"></a>
 ## D-016 — 2026-10-01 — Routines: one scheduler that reserves before it runs; silence is an answer
 A routine is a row (schedule, prompt, agent) and each run is an ordinary run in a `routine` thread of its own, listed
 in `routine_runs`; its state is read from `runs`, never copied. One scheduler ticks every 15 s and, in the same
@@ -158,6 +159,7 @@ persistent rule and needs its own confirmation design. Known limit: on loopback 
 rests on the client declaring itself (`x-apx-actor`); a shell command an agent runs could call the API as the owner,
 which is why the shell tool asks before any command that reaches APX's port. Per-client tokens (mobile stage) close it.
 
+<a id="d-017"></a>
 ## D-017 — 2026-10-01 — Commitments are tasks with a person; one tray for what wants the owner
 A commitment (what the owner promised someone, or what someone owes the owner) is a task with `person_id` and
 `owed_by`, not a second aggregate: it already has a state, a history, a due date and a conversation, and the board,
@@ -165,6 +167,7 @@ tools and reminders work for both. A due task is reminded once (`reminded_at`, c
 scheduler's tick. Everything that wants the owner lands in one `notifications` table with a `ref`, so a notice about
 the same thing replaces the unread one and leaves by itself once answered, done or moved; channels only mirror it.
 
+<a id="d-018"></a>
 ## D-018 — 2026-10-01 — Extensions: a declarative bundle first; code only out of process
 An extension is a folder with `apx-extension.json` that brings skills, MCP servers, routine templates and the secrets
 it needs; the manifest is validated without running anything. Installing copies the folder into the home (plain files
@@ -178,6 +181,7 @@ the runner also refuses raw socket modules and makes `fetch` refuse this machine
 guard so a plugin cannot call APX's loopback API as the owner. Plugins watch declared events and may add context to
 owner turns (outside data, capped, 2.5 s); they never call APX.
 
+<a id="d-019"></a>
 ## D-019 — 2026-10-01 — Outside apps get a scoped client token and always act as a model
 An app such as Claude Code connects with its own token (`x-apx-client`, apart from `APX_TOKEN`'s Authorization
 header): the core keeps only its sha256, the token makes the caller an agent-actor whatever it declares, and the router
@@ -230,6 +234,19 @@ own tool; MCP stays limited to APX's server and the engine's own edits and comma
 The owner's sessions in `~/.claude` and `~/.codex` (paths injected: `CLAUDE_CONFIG_DIR`, `CODEX_HOME`) are listed
 read-only and gone on with as an engine session that resumes the engine's own session id; APX's own runs (framed
 turns, `codex_sdk_ts`, sub-agents) are left out.
+
+Amended 2026-11-01 (recorded 2026-11-05): an agent can open an engine session too. `start_session`
+(`tools/external-sessions.ts`, in the `agents` group) creates a visible code thread with an outside engine in a
+registered project and sends it the first task; the answer comes back to the caller later, as a delegation's does, and
+the session lists under External sessions in that project. It is not a delegation (no persona, the engine's own prompt)
+and not a shell. Limits: only a caller has it (a delegate asks no one, D-074), and only once a project is registered; a
+project-bound agent or a fenced chat cannot open one in another project; the folder stays inside the caller's folder;
+`model` must be that engine's (`engine/model#effort`, absent for the engine's default); the write policy is never more
+than the caller's and is capped at the destination project's autonomy (D-126); and the session is the caller's
+sub-thread, so the caller's spend limits pause it (a tripped breaker refuses creating it and every later message) and
+later messages from the caller queue past the active-delegation cap. Confirmation: `confirm: "always"`, so the owner
+approves each start on a card even in Auto; only Total or the agent's own rule for that risk skips it (D-047), and
+Plan mode refuses it. Inside the session, the engine's commands and edits follow the same policy as any session's.
 
 <a id="d-024"></a>
 ## D-024 — 2026-10-02 — v2 lives in ~/.apx/v2, beside v1's files
@@ -427,6 +444,7 @@ agent's `memory.md` becomes its own notes, and the super-agent takes v1's name, 
 personality is its own field (`personality:` in its file), apart from its instructions. A variable already in the
 Keychain from an earlier install no longer stops the import: only this install's index counts.
 
+<a id="d-040"></a>
 ## D-040 — 2026-10-04 — Workers: throwaway helpers an agent starts through `delegate`
 An agent often needs focused work (a long search, a review) that would fill its own context, and no standing agent
 fits it. `delegate` takes `worker {name, instructions, tools?}` instead of an agent: the sub-thread runs as the caller
@@ -697,7 +715,10 @@ unsigned build keeps losing the macOS permissions (Accessibility, Screen Recordi
 drag; only a Developer ID signature ends that. `APX_RELEASES` also takes a base URL, so a local feed can stand in for
 GitHub to try an update between two builds (`APX_VERSION` names a build's version in `pnpm package`).
 
+<a id="d-059-routines"></a>
 ## D-059 — 2026-10-10 — Agents change routines through `routine_set`, and the owner approves each call
+(Note, 2026-11-05: this entry repeats the number of the sealed-chat search entry below, which is [D-059](#d-059);
+links to this one use `#d-059-routines`.)
 D-016 kept routines owner-only until an agent creating standing work had a confirmation design. D-047's `always`
 level is that design: `routine_set` creates a routine, changes one by id or name (only what it is given), turns it on
 or off, or runs it now, and every call waits for the owner's yes (total autonomy, the owner's explicit choice, asks
@@ -706,6 +727,7 @@ the app and `apx routines edit` use. It never sets a pre- or post-command or a s
 the owner's machine on a schedule and stay in the app and the terminal. Removing a routine stays the owner's too.
 `routine_list` with a name returns that routine's whole prompt, so an agent edits the text it read, not a guess.
 
+<a id="d-060"></a>
 ## D-060 — 2026-10-10 — The super-agent runs the team with `agent_set`; the owner approves each change
 v1 had nine tools to manage agents (create, import, configure, rename, remove, set a prompt, set identity…), offered
 to every agent. v2 has one, `agent_set`, and only the super-agent gets it (policy.ts filters it out for every other
@@ -1119,6 +1141,7 @@ Changed 2026-10-17: a chat turn gets 60 too. At 14, ordinary work (read a few fi
 the middle and the owner had to say "go on" for it; the repeat check and the six-minute stop already bound a turn
 that loops.
 
+<a id="d-092"></a>
 ## D-092 — 2026-10-16 — Telemetry: a lifecycle ping for every install, usage numbers only with a yes
 We could not tell how many people install APX, how many open it, finish the setup or use it, or how much they use it.
 APX now keeps a random install id of its own (`<home>/telemetry-id`, apart from the home id the panel shows) and reports
@@ -1138,6 +1161,7 @@ and Zed (choice on the welcome screen, a log of what was sent). The lifecycle pi
 personal data and being disclosed in the dialog and the privacy page; if that is ever judged not enough, it moves
 behind the same checkbox by changing `due()` in telemetry.ts.
 
+<a id="d-093"></a>
 ## D-093 — 2026-10-17 — The breaker counts fresh tokens, and its defaults follow whoever never changed them
 The breaker summed each run's whole input, and every model call of a turn sends the conversation again, mostly from the
 provider's cache: three helpers auditing a codebase "spent" 1.15M tokens of which 190k were new, and a 600k limit paused
@@ -1975,6 +1999,26 @@ those tasks become proposals, so the owner picks which go ahead; a wide `delegat
 hand-offs deep, or one for an agent that created a task above it, is a proposal too, so agents cannot pass work down
 forever or ping-pong it. Rejected: a counter on the task (it misses a chain that runs across tasks).
 
+Amended 2026-11-05 (issue #130): "three hand-offs deep" walked a task's parents, so a task the owner had assigned, under
+three older parents, stopped as a proposal when its agent handed it to an independent reviewer: the parents were
+history, not three agents passing the work on. For a task with a recorded owner assignment or acceptance
+(`engine/task-assignment.ts`), the boundary now comes from the task's own events since that assignment:
+- The agent handing it on must be working under that assignment: its run traces back to the owner's message (or the
+  assigning agent's run) that carried it. Queued, steered, sent-now and restart-recovered messages keep the assignment
+  they arrived with; the owner's follow-ups keep it without a fresh budget; a revoked or replaced one never comes back.
+- At most three active forward transfers (`task-limits.ts`, counted in `task-transfer-budget.ts`). A review asked for
+  explicitly (**Review**) may go from author to the same reviewer and back for two rounds. A fourth transfer, a third
+  round, a changed review pair, or work given back up the active chain is a proposal.
+- A rewrite of the title, description, goal or project after the owner's assignment, by anyone and even in the
+  hand-off call itself, voids it: the hand-off is a proposal. Setting a goal the task never had is not a rewrite (D-187
+  asks agents to set one).
+- A task without a recorded owner assignment keeps the parent-chain rule above, and a pending proposal is never
+  accepted by this path.
+
+This is not the counter rejected above: nothing is stored on the task to count. The count is derived from recorded
+events back to a verified owner assignment, and applies only where that assignment roots the chain; a chain that runs
+across tasks has no such root and still meets the parent-chain rule.
+
 <a id="d-132"></a>
 ## D-132 — 2026-10-22 — An agent's @mention on a task asks that teammate, and the answer comes back to it
 D-078 kept agents' @mentions silent (an agent asked with `delegate`), so agents working a task asked each other in
@@ -2243,6 +2287,7 @@ pause. "Pará" still stops a running turn from any channel: stopping acts for
 nobody. Steering a running turn and interrupting it are Telegram's and the app's. A public room the owner speaks in
 stays sealed as before (its turns have no owner tools).
 
+<a id="d-145"></a>
 ## D-145 — 2026-10-23 — CI in parallel parts, flaky Windows files rerun once and counted, only verified commits tagged
 `verify` took 16–28 minutes: the panel's 229 specs ran in one part (13–21 min) because they shared one sandbox, and
 Linux preflight ran every unit test in series (8.5 of its 11.5 min). The v2.9.0 tag went on a commit whose run then
@@ -2569,6 +2614,7 @@ not only news entries or commit subjects. Builds, route/anchor checks and transl
 source review; none proves every explanation correct. No source-text test or automatic check can decide semantic
 documentation relevance. See [WORKFLOW.md](WORKFLOW.md#documentation-impact-contract).
 
+<a id="d-160"></a>
 ## D-160 — 2026-10-27 — Agents finish what they were asked: limits are the owner's to turn on, and the super-agent asks how in its own words
 Supersedes the defaults of [D-069](#d-069) and [D-081](#d-081), and the fan-out check of [D-131](#d-131). A night's
 three tasks stalled: 30 unattended turns went fast because every background command that ended woke its agent as a
@@ -2698,6 +2744,7 @@ prohibited by policy and owner review, not claimed as mechanically prevented for
 Rejected: silently treating approval as technical containment, silently bypassing the ordinary guards, or calling a
 read-only snapshot console equivalent to executing code against the owner's actual page.
 
+<a id="d-166"></a>
 ## D-166 — 2026-10-28 — Screens talk to the person, and a UI change is looked at before it is done
 Flows and the public address reached the owner as a JSON form and a settings section that explained its own
 plumbing: "token bearer", "RPC", "listener", "registered routes", which channels sign their requests, what APX "does
@@ -2757,6 +2804,7 @@ and each run's steps; retirement keeps the owner's explicit `confirm-exported`),
 outbox (a canceled request is retried on every recovery pass). A routine step reuses the reviewed legacy routine
 admission, binding re-checked against the pinned revision, and keeps its usual delivery to the owner.
 
+<a id="d-168"></a>
 ## D-168 — 2026-10-28 — A schedule Flow ticks on the routine scheduler's beat and owes at most one run
 A Flow can start from a schedule (a five-field cron, in the owner's time zone) as well as from a POST. Its ticks come
 from the routine scheduler's existing beat (`officeScheduler` → `flows.tick`), not from a second loop or a timer per
@@ -3357,6 +3405,7 @@ Rejected: keeping the area inside `apx_settings` with a nicer title (the confirm
 exception), one tool per method like `routine_set` (each would add a definition to every turn), and tables in a third
 tool (they are the data Flows read and save, and the skill explains them together).
 
+<a id="d-182"></a>
 ## D-182 — 2026-10-29 — A Flow's triggers are set without cron or a second screen: days and times, GET, and the key in the card
 
 The owner never wants to type cron, and wants a schedule like "Monday at 04:00, 05:00 and 06:00, Wednesday at 09:15".
@@ -3390,6 +3439,7 @@ No news entry: these are fields of the editor, not something the super-agent off
 schedule object (a migration for every schedule Flow and a second reader in every place a cron is read), a key in the
 query string (it ends up in logs and proxies), and a GET without a key (an address anyone can trigger).
 
+<a id="d-183"></a>
 ## D-183 — 2026-10-29 — The isolated computer runs on Linux and Windows too, each with Lima's own driver
 The computer ([D-151](#d-151), [D-152](#d-152)) only ran on macOS with Apple Silicon. `environments/host.ts` now picks
 Lima's driver and pinned build per host: `vz` on macOS 13+ (Apple Silicon or Intel), `qemu` on Linux (x86-64, ARM64)
@@ -3411,8 +3461,10 @@ Windows differs in what it can promise, and the guest is checked for each point,
 - A host agent that died with the core leaves a pid Lima on Windows cannot inspect past: a dead `ha.pid` is dropped,
   a folder from a cut-short setup is cleared, and stopping terminates the distribution when Lima cannot.
 
-<a id="d-182"></a>
+<a id="d-182-news"></a>
 ## D-182 — 2026-10-30 — Release news live in a Help menu; the super-agent names one thing
+(Note, 2026-11-05: this entry repeats the number of the Flow triggers entry above, which is [D-182](#d-182); links
+to this one use `#d-182-news`.)
 Told all at once (D-117), a release with many entries made the super-agent's message a list owners skimmed past, and
 once read nothing let them go back to it. Now the sidebar foot has a Help menu: the newest entries that apply, then
 every release in a dialog, each entry with what it lets the owner do and a button that asks the super-agent for it
@@ -3423,6 +3475,7 @@ What's new for the rest; without a model it is one line with the first entry's t
 The Help button carries a dot while an entry that applies was not there the last time the menu opened on that device
 (kept per device, like the corner cards); a device that never opened it counts the newest release's entries as new.
 
+<a id="d-184"></a>
 ## D-184 — 2026-10-31 — The super-agent publishes and runs a Flow when the owner asks, each after a card
 
 The owner asked the super-agent to make a test Flow, then "turn it on and try it with a curl". It drew and validated
@@ -3443,6 +3496,7 @@ was also accepted on a Flow never published, which turned on something that runs
 Tests, the key, an address and an AI step's autonomy stay the owner's. Rejected: letting the agent read the webhook
 key to call it (a key never reaches a model, D-139), and turning on without publishing (it runs nothing).
 
+<a id="d-185"></a>
 ## D-185 — 2026-11-02 — Storage: the home by area, clearing only what APX rebuilds, and a low-disk warning
 
 The owner could see how big the APX folder was (system.usage, by folder) but not what of it they could let go, nor was
@@ -3483,9 +3537,12 @@ for the turn to end (Ctrl/⌘+Enter), with nothing in the chat to tell them apar
 and no way to fix one that waited. Now each is the owner's choice and shows as such:
 
 - **Sent** (Enter): the running turn takes it at its next step, as before. Until it does, the message carries
-  `waiting: {until: "step"}` and shows **Send now**, which aborts only the step in progress (`TurnIO.stepSignal`: the
+  `waiting: {until: "step"}` and shows **Send now** and **Remove** (`runs.unsend`: out of the turn's pending words and
+  out of the chat; it also removes a message in line), **Send now** aborting only the step in progress (`TurnIO.stepSignal`: the
   model call, or the tool call through its `ToolContext.signal`); the loop then takes the words and goes on. A cut
-  tool call tells the model it may have done part of its work; calls after it in the same step are not run.
+  tool call tells the model it may have done part of its work; calls after it in the same step are not run. A cut
+  `delegate` lets go of its wait (as when `wait_s` runs out): the teammate keeps working, its answer comes in a new
+  turn, and the model is told not to delegate it again (`Tool.cut`).
 - **In line** (Ctrl/⌘+Enter): a run of its own, `waiting: {until: "turn", run}`, ordered by `runs.queue_order` (a
   permutation of their places when the owner moves them, so other waiting work keeps its slot). Until it starts it
   is edited (`runs.update_queued`), moved (`runs.reorder`, every message in line each once), removed
@@ -3523,6 +3580,8 @@ Nothing on the task let anyone see the brief had drifted from the request.
   as steps by `@apx/protocol/task-plan`; a free-text plan still reads as Markdown. The agent writes it before working
   and keeps it current; the drawer shows it as a checklist with a count. When the work stops leading to the goal, it
   tells the owner what is missing.
+  *Superseded in part by [D-191](#d-191) (2026-11-02): the plan is written with the `plan` tool, which keeps the
+  task's plan in a task's chat; `task_update` no longer takes `plan`. The checklist format and the drawer are unchanged.*
 - `task_create`'s description is capped at 3,000 and asks for short Markdown lines; the drawer shows it formatted, with
   a pencil to edit.
 - The tools stay within the prompt budget (rules/PROMPT_SIZE.md): structured plan steps cost more than the budget left,
@@ -3581,7 +3640,10 @@ does for it. A contact's or room's chat never steered, and does not stop a turn 
 Rejected: a setting to choose per agent (the owner wants one rule), and keeping the turn alive to deliver the words
 after its next step (an outside engine has no such step). Amended by [D-196](#d-196): Claude Code has that step, so
 this holds only for Codex and ACP.
+
+<a id="d-190"></a>
 ## D-190 — 2026-11-02 — Asking the same teammate or helper again goes on in the same conversation
+
 D-129 gave delegations one session per teammate. Two paths still opened a new sub-thread per ask: an @mention of a
 teammate on a task (D-120, D-132) and a delegation to a worker. The owner saw several sessions with the same
 teammate, each without what the last one learned.
@@ -3631,6 +3693,15 @@ thread's context (the messages already hold it, and tools change chats only thro
 checklist to the newest answer by removing it from older ones (it rewrites what the owner already read; each answer
 keeps the plan as it stood).
 
+Amended 2026-11-05: within one run the plan now stays last. It stayed where the agent first wrote it, so the cards and
+words of a long turn piled up below it and the owner had to scroll up to see where the work stood. Each time the agent
+marks it, the plan card leaves its old place and goes under everything the run has shown so far (`upsert` with `last`
+in `engine/display.ts`), even out of the run's own message above words the owner sent while it worked; while the run
+works the panel draws it last (`planLast`), and once done it stays checked where it was last marked, with the answer
+below. This is the one exception to the rejection above, and only inside the run that wrote the plan: what moves is
+the live checklist of work still going on, which the owner reads for where it stands now. An earlier turn's answer
+still keeps its plan as it stood.
+
 <a id="d-192"></a>
 ## D-192 — 2026-11-05 — Moving or backing up a setup: one file without secrets, imported after a preview
 
@@ -3648,15 +3719,20 @@ up**, `apx export` and `apx import` make and read one JSON file (`instance.expor
   name, then the redaction durable data gets (credential fields and key shapes, `redactedJson`); a file that still
   holds a stored value is not made. A provider's key stays only as a reference; an MCP server's variables and headers
   travel only as references (a value typed as text goes empty) and its address without a user and password. Channel tokens and sign-ins are not
-  variables and never travel.
+  variables and never travel. A key typed where a command or an address takes it (an MCP server's arguments, path or
+  query, a routine's command, a Flow step's header or variable) becomes a reference named after its place
+  (`secret://<server>_<flag>`), which the preview asks for; an MCP server's command and arguments carry the home as `~`.
 - **One plan for the preview and the import.** `planImport` decides each item (add, update, same, skip, and why) and
   keeps its step; the preview returns the plan, the import runs its steps, so what is applied is what was shown.
   Items match by id (memory by its text in its place): the same file twice changes nothing, and a file listing an
-  item twice is refused. Another install's super-agent is this one's. A preference, skill or project setting
+  item twice is refused. An import stops at 90 s between items (the client waits 150 s); what it wrote is whole, and
+  the same file again finishes it. A file of up to 20 MB is read, over HTTP too. Another install's super-agent is this one's. A preference, skill or project setting
   (autonomy, read-only folders) this computer has is kept, not replaced; read-only folders pass `checkReadOnly`, and
-  Total never comes from a file.
+  Total never comes from a file, for a project or an agent (one here keeps its own autonomy, a new one has none),
+  nor does an agent rule that acts outside or irreversibly without asking (the one here is kept, or the autonomy rules).
 - **What needs a secret, or changed, arrives off.** MCP servers and channels arrive off with their references, a
-  provider whose key is not here, and Google-backed checks. One that exists here and changes (a server's command, a
+  provider that uses a key or sign-in (its key here or not: the file chooses the address it goes to), and Google-backed
+  checks; only a provider with no key keeps its switch. One that exists here and changes (a server's command, a
   provider's address, a channel's agent or who it answers, a routine's work) is turned off until the owner looks: a
   file could otherwise send a key to another address or run another command under a switch the owner set. A routine
   that runs a command arrives off. Every Flow arrives off as a draft, whatever it does: publishing is where
@@ -3672,8 +3748,87 @@ up**, `apx export` and `apx import` make and read one JSON file (`instance.expor
 
 Rejected: copying the database file (it carries secrets' places, chats and machine paths, and cannot merge into an
 install that already has work), importing a Flow published (it would skip the owner's confirmation of what it does),
-and turning on a server or channel whose secret name already has a value here (the value may be another account's;
-a provider whose key is here keeps its switch, as it only calls a model).
+and turning on a server, channel or provider whose secret name already has a value here (the value may be another
+account's, and a provider would send it to the address the file gives).
+
+<a id="d-193"></a>
+## D-193 — 2026-11-05 — An agent signs in with a stored secret it never sees
+
+Amends rule 10. Until now the embedded browser never typed a password, one-time code or card data: the agent handed
+the tab to the owner. Now an agent may put one of the owner's stored secrets into a sign-in field, and the value never
+reaches the model, the transcript, the run's steps, logs, traces or a picture of the tab.
+
+**Who allows it.** The owner marks a stored secret (Resources › Variables) as usable to sign in on one or more exact
+origins (`https://app.acme.com`, scheme + host + port), each with the field kind it goes into: password, username or
+one-time code. Nothing is usable until marked. When an agent asks for a secret on an origin not marked for it, a card
+in the app names the agent, the secret's name and the origin and offers Once, Always on this site or No; the card is
+answered only in the app (never from a channel), and Total does not skip it. "Always" writes the same mark the owner
+sets in Variables. Marks belong to the secret: every one of the owner's agents may use a marked secret there (D-071),
+outside apps through `apx mcp` may not (the method is not offered to MCP clients).
+
+**Origin binding.** The fill runs in the browser node, which checks at fill time, after the secret is resolved and
+right before it is inserted: the top-level document's origin equals the marked origin exactly, and the frame holding
+the field has that same origin. A field in a cross-origin iframe, a page that navigated since the agent's last
+snapshot, a stale ref, or a tab outside the agent's own profile is refused. No subdomain or registrable-domain match.
+The owner may instead mark a secret for every site (`*`): then any `https://` origin qualifies (and `http://` only on
+loopback), the frame must still have the top document's origin, the field kind must still match, and every fill's
+step and audit line name the origin it went to. This is the owner's explicit choice: a page that steers the agent can
+then get that secret typed on a site the owner never named, so Variables shows such a secret as usable on any site.
+The "Once / Always on this site" card never creates a `*` mark; only the owner sets it in Variables.
+The fill is offered on the owner's embedded browser and APX's headless one, never in the isolated computer (the value
+would leave the owner's machine) nor in a browser an MCP server brings.
+
+Exact origins may be `http://` (a site the owner named, a local test page); `*` keeps to https.
+
+**Field kinds.** Only an `<input>` that is: a password field (`type=password` or `autocomplete` current/new-password);
+a username field (`autocomplete=username|email`, `type=email`, or a text input in the same form as a password field);
+a one-time-code field (`autocomplete=one-time-code`). The field's kind must match the kind the secret is marked for:
+a password never goes into a username or plain text field. A one-time-code secret holds a TOTP seed (`otpauth://` or
+base32), and the node turns it into the current code inside the handler. Payment card fields (`cc-*`) and anything
+else are refused in this version.
+
+**What the agent gets back.** `filled` with the ref and origin, or `refused` with a reason (wrong origin, frame,
+field kind, not allowed, leaked). Never the value, its length or a hint. The tool's arguments carry the secret's name
+only. The value is set on that very field from an isolated world, with the browser's own setter and the `input` and
+`change` events typing would fire: never through the `type` or `key` tools, and never typed into whatever has the
+focus (a page that moves the focus cannot send it elsewhere). The field is protected from just before the value goes
+in until its document changes (a new address in the same document keeps it): snapshots leave its value out whatever
+its type becomes (a "show password" button does not reveal it) and agent pictures of the tab cover it (the
+compositor fallback, which cannot, is refused). For the tab's whole life, every value filled in it is taken out of
+everything the tab answers (snapshots, page text, addresses, titles), since the next page may carry it on (a form
+sent by GET, an error page, going back), and `browser_evaluate` is refused in that tab even under a tab or turn
+consent (D-165). Pictures of the owner's whole screen (`screen_` tools) are the owner's own window and are not
+covered: a browser shows a password as dots, a username as typed.
+
+**After the fill.** Once the page had a moment to react, the node scans, from an isolated world, every document of
+the tab it can reach (same-origin frames and open shadow roots: other fields' values, attributes, text and the
+address) for a value of four characters or more outside the filled field. When it appears elsewhere: the field and
+every place it leaked into are cleared, the tab's document stays protected (no snapshot, text, picture or JavaScript
+for the agent) until it navigates away, the tool answers `refused: the page copied the value`, and the owner gets a
+notice naming the secret and the site. Not caught: a copy the page makes later onto a canvas, and a page script
+on the allowed site that undoes the cover's inline style before a picture; a username a later page shows in a
+picture. The site the owner allowed is trusted that far.
+
+**Where the value travels.** From the core to the browser that holds the tab in the same call: the core's own
+headless browser, or the owner's desktop app over its connection to the core (on another machine when the core runs
+as a server).
+
+**Audit.** Each fill or refusal writes a log line and a step in the chat that name the agent, the secret's name, the
+origin and the outcome, never the value. The secret's row in Variables shows its sites, and its sign-in dialog when
+and where it was last used. In Variables a secret goes into one kind of field, and the agent's tool refuses another
+kind without asking.
+
+**Revocation.** The owner removes an origin from a secret (or deletes the secret) in Variables; it is checked on every
+fill, so the next one is refused. A "Once" answer covers that one fill. Removing a mark does not sign anyone out of a
+site already signed into: the owner signs out there.
+
+**Still forbidden.** Typing or pasting a secret's value through `browser_type`, `browser_key` or `screen_` tools;
+reading a filled value back by any tool or JavaScript; a secret in a URL; filling card data. Handoff stays the way for
+everything else (captcha, an unmarked site, a code sent by SMS).
+
+Rejected: handing the value to the agent with a promise not to repeat it; filling by page JavaScript (the agent's own
+script could read it); matching by registrable domain (a subdomain an attacker controls would qualify); a `*` mark
+granted from an agent's card (only the owner sets one, in Variables).
 
 <a id="d-194"></a>
 ## D-194 — 2026-11-05 — Teammates asked in one turn answer the caller in one turn
@@ -3758,3 +3913,61 @@ the message next in the same session. So a Claude session now behaves like our o
 
 Rejected: Codex through `codex app-server` and `turn/steer` (a separate transport to adopt first; `codex exec` cannot
 take words mid-turn), and ACP (v1 has no way to add a user message to a running prompt).
+
+<a id="d-197"></a>
+## D-197 — 2026-11-05 — Reading through APX's own CLI does not wait for the owner
+
+Every command that ran APX's CLI from an agent's shell (`apx …`, `node …/apps/terminal/src/main.ts …`) was `always`,
+so in Auto even `apx status` put a "high-impact action" card in front of the owner, mid-work. The rule exists because
+the CLI reaches the API without naming its port and could act for the owner: answer its own confirmation, add a
+routine, send a message. Reading does none of that, and the CLI from an agent's shell already speaks as that agent
+(D-138).
+
+Now a fixed list of the CLI's list and show forms is a reader like `git log` (D-098): `status`, `version`, `help`,
+`threads` (list, `search`, `get`), `runs pending|get|wait`, `tasks` (list, `show`, `commitments`), `routines` (list,
+`show`, `log`) and `agents` (list), with only `--json`, `--plain`, `--project` and `--agent` beside them
+(`tools/apx-reads.ts`). Every part of the command line must read, as for any reader: `apx status && apx chat …`, a
+redirection into a file or an expansion still asks. Anything else, the CLI by a path (`~/.local/bin/apx`), through a
+launcher (`pnpm exec apx`, `bash -c`), `secrets` in any form, and the `127.0.0.1:<port>` rule for the API stay
+`always`. Its output still counts as outside content (`reachesOut`): what a thread holds may come from a channel.
+
+<a id="d-198"></a>
+## D-198 — 2026-11-05 — Agents work in the owner's Chrome only for what they wrote in its side panel
+
+The owner wanted APX's Chrome extension to do what browser extensions of other agent apps do: drive their real
+Chrome, where they are signed in. APX already has two browsers (the desktop app's embedded one and the core's
+headless one), and the owner decided which one a turn uses: **the owner's Chrome only for words written in APX's
+panel in Chrome; everything else keeps APX's own browser.**
+
+How it fits the node model (rules 1 and 3):
+
+- The extension (`apps/chrome-extension/worker.js`) holds no APX logic. It answers four requests (list, open, close,
+  show) and relays DevTools commands through `chrome.debugger`, only for tabs of a tab group titled "APX". The
+  owner shares a tab by dragging it into the group; tabs outside it are never read. Moving a tab out detaches the
+  debugger. No host permissions and no content scripts.
+- `apx chrome-host` (`apps/terminal/src/chrome-host/`) is a native messaging host Chrome starts for the extension's
+  exact origin. It is a node with the `chrome` capability (`CHROME_CAP`), apart from `browser`, so the most recent
+  node never replaces the desktop's. It drives tabs with the same `CdpPage` as the headless and desktop browsers, so
+  credential fields stay refused (rule 10) and every document load passes `assertNavigable` through `Fetch`.
+- The core on the default home writes the launcher (`<home>/bin/apx-chrome-host`, home and port, never the token) and
+  the host manifest into each Chrome-family browser that has a data folder, at every start (`nodes/chrome-host.ts`),
+  like the `apx` command. A core with a home of its own (a test daemon, a second `pnpm dev`) registers nothing unless
+  `APX_CHROME_HOST=on`: there is one registration per browser. Windows needs the registry and is not done yet.
+- `threads.send` takes `via: "chrome"`; only a call with the owner's own access stamps it on the run's origin
+  (`inChrome`), never an agent, an outside app or a channel. The panel sends it when loaded as `?quick=chrome`, which
+  the extension's frame does; any other client with the owner's access could send it too. The flag gives no new
+  permission: it only picks the browser. An answer to an input such a turn raised stays in Chrome.
+- A Chrome turn offers the browser tools even with no other browser, and routes every `browser.*` call to the Chrome
+  node. When Chrome is not connected the tool says so: it never falls back to another browser the owner did not
+  choose. Holds, idle closing and consent epochs do not apply to the owner's own tabs.
+
+Refused in Chrome, with a reason the agent can pass on: other browser profiles, page JavaScript (D-165 binds consent
+to APX's browsers), filling stored secrets (D-193: the owner signs in themselves), importing logins (Chrome has them)
+and hand-off (the owner is right there). Cancel on Chrome's "started debugging" bar marks the tab as the owner's; it
+comes back only when the owner moves it out of the group and in again. A tab showing APX itself is never read or
+driven (checked on its live address by the host, and by the worker against the panel's origin), and the worker relays
+only the DevTools methods APX's page driver uses.
+
+Known limits, left for later: with the extension in more than one browser or profile, the Chrome node that connected
+last serves every Chrome turn. Work an agent delegates from a Chrome turn uses APX's own browser. A login form Chrome
+filled from the owner's saved passwords can be sent by an agent's click: the credential guard covers typing.

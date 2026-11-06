@@ -713,6 +713,8 @@ export const appMethods = {
         continue_run: Id.optional(),
         /** Files and images uploaded with media.upload, shown with the message and read by the agent. */
         attachments: z.array(Id).max(8).optional(),
+        /** The owner wrote from APX's panel in Chrome: this turn browses in their Chrome (DECISIONS.md#d-198). */
+        via: z.literal("chrome").optional(),
       })
       .strict(),
     /** `steered`: the text went into the running turn `run` instead of starting a new one. */
@@ -778,6 +780,13 @@ export const appMethods = {
   "runs.send_now": {
     params: z.object({ message: Id }).strict(),
     result: z.object({ now: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
+  /** Takes back a waiting message of the owner's before the agent reads it: out of its turn or the line, and the chat. */
+  "runs.unsend": {
+    params: z.object({ message: Id }).strict(),
+    result: z.object({ removed: z.literal(true) }),
     effect: true,
     access: "human",
   },

@@ -212,7 +212,7 @@ export const enTeam = {
   "agentedit.modelHint": "The router picks one by the task unless it has its own.",
   "agentedit.fallbacks": "Fallback models",
   "agentedit.fallbacksHint":
-    "When its model is at its usage limit or does not answer, these take over in order. It goes back to its model once that one is free.",
+    "If its model hits its usage limit or does not answer, the agent uses these in order and goes back to its own model once it is free.",
   "agentedit.addFallback": "Add a fallback",
   "agentedit.removeFallback": "Remove this fallback",
   "agentedit.parent": "Reports to",

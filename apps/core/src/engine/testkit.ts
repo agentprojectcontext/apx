@@ -105,6 +105,7 @@ export async function startCore(opts: {
   a2aCapMs?: number;
   runTimers?: RunTimers;
   fanoutTimers?: RunTimers;
+  projectWatchTimers?: RunTimers;
   /** Whether the Mac slept since a moment; never, unless a test says so. */
   sleptSince?: (since: number) => boolean;
   /** How the core holds the Mac awake; by default nothing is spawned. */
@@ -181,6 +182,7 @@ export async function startCore(opts: {
       ...(opts.a2aCapMs ? { a2aCapMs: opts.a2aCapMs } : {}),
       ...(opts.runTimers ? { runTimers: opts.runTimers } : {}),
       ...(opts.fanoutTimers ? { fanoutTimers: opts.fanoutTimers } : {}),
+      ...(opts.projectWatchTimers ? { projectWatchTimers: opts.projectWatchTimers } : {}),
       sleptSince: opts.sleptSince ?? (() => false),
       keepAwake: opts.keepAwake ?? (() => ({ kill: () => true, once: () => undefined })),
       ...(opts.desktop ? { desktop: opts.desktop } : {}),

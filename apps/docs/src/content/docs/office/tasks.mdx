@@ -65,7 +65,7 @@ project or shows **All projects**; this browser remembers the choice for the nex
 
 ### Group existing tasks as subtasks
 
-In the unreleased integration branch, ask your agent to put related tasks under an existing parent task. Both
+Ask your agent to put related tasks under an existing parent task. Both
 must be in the same project. This keeps their IDs, history, comments, sessions and assignees; grouping alone does
 not start work again or change whether a task is open or closed. Unrelated tasks stay separate.
 
@@ -75,7 +75,9 @@ An agent can move a task beside or below others, never higher up: detaching it o
 A task cannot become its own parent or sit below one of its descendants. The list nests tasks when both the parent
 and child are present in the current filter; opening the parent also lists its subtasks.
 Detach a child before moving it to another project (or detach and move it in the same update). Detach all
-subtasks before moving their parent. Creating a subtask also requires the same project as its parent.
+subtasks before moving their parent. Creating a subtask also requires the same project as its parent. Work your
+agent hands to another project's agent from a global task's chat stays listed under that task, and a subtask
+already linked that way can still be edited.
 
 ## Attachments and task chat actions
 
@@ -231,7 +233,7 @@ The proposals:
 - **Work given back up the chain.** A sub-task for an agent that created one of the tasks above it is proposed, so two
   agents cannot ping-pong the same work.
 
-**Unreleased:** for an existing task you explicitly assigned or accepted, APX can verify its current executor and
+For an existing task you explicitly assigned or accepted, APX can verify its current executor and
 recorded hand-offs instead of counting its historical parents. Up to three actual forward hand-offs may continue;
 an independent review may return to its direct sender for up to two rounds with the same author and reviewer. The
 handoff must explicitly request **Review**, and APX starts that separate agent with a review assignment. A previous

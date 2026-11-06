@@ -56,6 +56,7 @@ Usage:
   apx mcp check <server> [--project <id>]   Connection test
   apx mcp signin <server> [--project <id>]  Sign in to a server that asked for it
   apx ping [text]         Round-trip over the live socket
+  apx chrome-host <origin>   Started by Chrome for APX's extension: lends its APX tab group to the core
 
   apx browser tabs
   apx browser open <url> [--profile shared|incognito|agent:<id>] [--by <agent>]
@@ -518,6 +519,17 @@ try {
     case "expose":
       await expose(rest[0]);
       break;
+    case "chrome-host": {
+      // Frames go to stdout: nothing else may print there.
+      const { runChromeHost } = await import("./chrome-host/host.ts");
+      await runChromeHost({
+        origin: rest[0],
+        io: { input: process.stdin, write: (frame) => process.stdout.write(frame) },
+        client: new ApxClient({ ...connection, client: { name: "apx-chrome", version: "0.0.0" } }),
+        corePort: new URL(connection.url).port || "80",
+      });
+      break;
+    }
     case "pair":
       await pair(client);
       break;

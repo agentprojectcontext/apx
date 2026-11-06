@@ -6,12 +6,15 @@ import { CATALOG } from "../integrations/catalog.ts";
 import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
+import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
+import { CHROME_TABS_NEWS } from "./chrome-tabs.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
 import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
 import { LOCAL_MODELS_NEWS } from "./local-models.ts";
 import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
+import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
 
@@ -81,9 +84,12 @@ export const NEWS: readonly NewsEntry[] = [
   HERMES_IMPORT_NEWS,
   BROWSER_EDIT_NEWS,
   BROWSER_JAVASCRIPT_NEWS,
+  QUICK_CHAT_NEWS,
+  CHROME_TABS_NEWS,
   LOCAL_MODELS_NEWS,
   MOVE_BACKUP_NEWS,
   AGENT_FALLBACKS_NEWS,
+  BROWSER_SIGN_IN_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",

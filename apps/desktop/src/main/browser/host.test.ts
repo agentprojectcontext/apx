@@ -48,8 +48,11 @@ class View {
     return this.missing ? undefined : this.contents;
   }
 }
+const agents: string[] = [];
 const configuredSession = {
-  setUserAgent() {},
+  setUserAgent(ua: string) {
+    agents.push(ua);
+  },
   setPermissionRequestHandler() {},
   on() {},
 };
@@ -231,5 +234,13 @@ test("navigation still updates URL and invalidates document consent without reti
   assert.equal(host.list()[0]?.url, "https://example.com/next");
   assert.notEqual(host.list()[0]?.consent_epoch, before);
   assert.equal(host.active, tab.id);
+  wc.close();
+});
+
+test("tabs keep the engine's own user agent", async () => {
+  const host = new BrowserHost();
+  const { wc } = await opened(host);
+  // A tab that claims to be Chrome has Cloudflare's pass refused on every reload. See HISTORY.md#tab-user-agent
+  assert.deepEqual(agents, []);
   wc.close();
 });

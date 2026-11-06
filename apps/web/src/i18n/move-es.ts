@@ -49,6 +49,7 @@ export const esMove: Record<keyof typeof enMove, string> = {
   "move.reason.needs_secret": "necesita su clave o inicio de sesión",
   "move.reason.changed": "cambió: miralo antes de prenderlo",
   "move.reason.runs_command": "corre un comando en esta computadora",
+  "move.reason.uses_key": "usa una clave que tenés acá: revisá su dirección primero",
   "move.reason.draft": "un borrador para publicar",
   "move.reason.folder_missing": "su carpeta todavía no está en esta computadora",
   "move.reason.agent_missing": "su agente no está acá",

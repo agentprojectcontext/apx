@@ -48,6 +48,7 @@ export const enMove = {
   "move.reason.needs_secret": "needs its key or sign-in",
   "move.reason.changed": "changed: look at it before turning it on",
   "move.reason.runs_command": "runs a command on this computer",
+  "move.reason.uses_key": "uses a key you have here: check its address first",
   "move.reason.draft": "a draft to publish",
   "move.reason.folder_missing": "its folder isn't on this computer yet",
   "move.reason.agent_missing": "its agent isn't here",

@@ -41,7 +41,7 @@ const SAFETY = [
 /** How to reach the web; how to drive the browser is in its tools' descriptions. */
 const BROWSING = [
   "- The web: web_search and web_read to look things up; your browser only for pages that need JavaScript, clicks, forms or a login; never another browser.",
-  "- A login: browser_use_my_login (their own session, with their OK), else browser_handoff. A site that blocks you is a handoff too, not a reason to switch.",
+  "- A login: browser_sign_in, browser_use_my_login (with their OK), else browser_handoff. A site that blocks you is a handoff too, not a reason to switch.",
   "- The owner's screen (screen_ tools) only when they ask for their computer.",
 ];
 
@@ -411,9 +411,14 @@ const delegationBlock = (r: DelegationResult, answer: string) =>
   `${fromTeam("delegation_result", { from: r.name, sub_thread: r.thread_id, state: endedAs(r) }, answer)}\n${endNote(r, r)}${r.outcome ? outcomeNote(r.outcome) : ""}${r.actions ? `${actionsNote(r.actions)}\n` : ""}`;
 
 /** How a run's input reaches the model: the owner and their agents speak as theirs; everyone else is untrusted data. */
+/** Said with the owner's words from APX's panel in Chrome, where their own tabs are the browser (DECISIONS.md#d-198). */
+const IN_CHROME =
+  "(Written in APX's panel in the owner's Chrome: browser_ tools work in tabs of its APX group, where they watch and are signed in to their sites. When a site asks to sign in, ask them to.)";
+
 export function frameInput(origin: Origin, text: string): string {
   switch (origin.kind) {
     case "user":
+      return origin.via === "chrome" ? `${text}\n\n${IN_CHROME}` : text;
     case "input_answer":
       return text;
     case "channel":

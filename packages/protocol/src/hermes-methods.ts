@@ -31,7 +31,7 @@ export const hermesMethods = {
   },
   /**
    * Imports what the preview lists: each profile an agent, its memory as notes, its skills, its cron jobs as routines
-   * turned off, its MCP servers (with secret:// references left empty, and off). Secrets are never copied.
+   * turned off, its MCP servers (with secret:// references left empty, and off). A secret it finds is never copied.
    */
   "hermes.import": {
     params: HermesSource,

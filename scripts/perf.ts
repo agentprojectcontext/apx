@@ -9,6 +9,7 @@ import path from "node:path";
 import { fakeLlm } from "../e2e/fake-llm.ts";
 import { bootFiles, bootProblems, bootReport, sumKb } from "./bundle.ts";
 import { compileCacheEnv } from "./compile-cache.ts";
+import { performanceProcess } from "./perf-process.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
 const budget = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "perf-budget.json"), "utf8")) as Record<
@@ -82,9 +83,10 @@ if (
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-perf-"));
 const llm = await fakeLlm();
+const measured = performanceProcess();
 const startCore = (apxHome: string) =>
   spawn(
-    process.execPath,
+    measured.command,
     ["--no-warnings", ...(diagnostics ? ["--trace-gc"] : []), path.join(root, "apps/core/src/main.ts")],
     {
       cwd: root,
@@ -111,8 +113,8 @@ const t0 = performance.now();
 const core = startCore(path.join(home, "apx"));
 function coreEnv(apxHome: string): NodeJS.ProcessEnv {
   return {
-    // No agent CLIs: the numbers are the core's own, whatever this machine has installed.
-    PATH: [path.dirname(process.execPath), "/usr/bin", "/bin"].join(path.delimiter),
+    // Exclude Node's global CLI siblings; operating-system directories can still contain external CLIs.
+    PATH: measured.searchPath,
     HOME: process.env.HOME ?? os.homedir(),
     ...compileCacheEnv(root),
     APX_HOME: apxHome,

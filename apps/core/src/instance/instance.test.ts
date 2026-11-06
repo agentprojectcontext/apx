@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import os from "node:os";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import { type InstanceFile, type InstancePlan, SUPER_AGENT_ID } from "@apx/protocol";
 import type { FlowGraph } from "@apx/protocol/flow-graph";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { samePath } from "../paths.ts";
 import { tempDir } from "../testkit/platform.ts";
+import { applyImport, ImportOutOfTime } from "./plan.ts";
 
 type Env = Awaited<ReturnType<typeof startCore>>;
 
@@ -291,4 +295,200 @@ test("a server's variable typed as text travels empty, and its address without a
   assert.deepEqual(db?.env, { LEVEL: "", KEY: "secret://acme_key" });
   assert.ok(!JSON.stringify(file).includes("hunter22"));
   await source.client.call("mcp.set", { name: "db", server: null });
+});
+
+test("a file over the usual request size previews and imports", async () => {
+  const file = await exported();
+  const page = "Northwind keeps its spring catalog in the shared drive. ".repeat(280);
+  const notes = Array.from({ length: 100 }, (_v, i) => ({
+    scope: "global" as const,
+    text: `Note ${i}: ${page}`,
+    source: "owner" as const,
+  }));
+  const big = { ...file, memory: [...file.memory, ...notes] };
+  assert.ok(Buffer.byteLength(JSON.stringify(big)) > 1.5 * 1024 * 1024);
+  const preview = await target.client.call("instance.preview_import", { file: big });
+  assert.equal(preview.items.filter((i) => i.section === "memory" && i.label.startsWith("Note ")).length, 100);
+  await target.client.call("instance.import", { file: big });
+  assert.ok(target.core.store.memories.standing(1000).some((m) => m.text.startsWith("Note 99: ")));
+});
+
+test("an agent never arrives with Total: a new one takes its project's, one here keeps its own", async () => {
+  const file = await exported();
+  await target.client.call("instance.import", { file });
+  const t = target.core.store;
+  const nora = file.agents.find((a) => a.name === "Nora");
+  assert.ok(nora);
+  const here = t.agents.get(nora.id);
+  assert.ok(here);
+  t.agents.upsert({ ...here, autonomy: "plan" });
+  const crafted = {
+    ...file,
+    agents: [
+      ...file.agents.map((a) => (a.id === nora.id ? { ...a, autonomy: "total" as const } : a)),
+      { ...nora, id: "agt_bold", name: "Bold", autonomy: "total" as const },
+    ],
+  };
+  const preview = await target.client.call("instance.preview_import", { file: crafted });
+  assert.equal(byId(preview, "agents", nora.id)?.action, "same", "only Total differs, and Total is not taken");
+  await target.client.call("instance.import", { file: crafted });
+  assert.equal(t.agents.get(nora.id)?.autonomy, "plan");
+  assert.equal(t.agents.get("agt_bold")?.autonomy, undefined);
+});
+
+test("an agent's rules from a file never act outside or irreversibly without asking", async () => {
+  const file = await exported();
+  await target.client.call("instance.import", { file });
+  const t = target.core.store;
+  const nora = file.agents.find((a) => a.name === "Nora");
+  assert.ok(nora);
+  const here = t.agents.get(nora.id);
+  assert.ok(here);
+  t.agents.upsert({ ...here, rules: { irreversible: "ask" } });
+  const loose = { read: "auto", write: "auto", outside: "auto", irreversible: "auto" } as const;
+  const crafted = {
+    ...file,
+    agents: [
+      ...file.agents.map((a) => (a.id === nora.id ? { ...a, rules: loose } : a)),
+      { ...nora, id: "agt_loose", name: "Loose", rules: loose },
+    ],
+  };
+  await target.client.call("instance.import", { file: crafted });
+  assert.deepEqual(t.agents.get(nora.id)?.rules, { read: "auto", write: "auto", irreversible: "ask" });
+  assert.deepEqual(t.agents.get("agt_loose")?.rules, { read: "auto", write: "auto" });
+});
+
+test("a new model API whose key is here arrives off: the file chooses where that key goes", async () => {
+  await target.client.call("secrets.set", { name: "acme_key", value: "local-acme-value-91" });
+  const file = await exported();
+  const crafted = {
+    ...file,
+    providers: [
+      {
+        id: "northwind",
+        transport: "openai-chat",
+        base_url: "https://other.example.net",
+        key: "secret://acme_key",
+        models: [],
+      },
+    ],
+  };
+  const preview = await target.client.call("instance.preview_import", { file: crafted });
+  assert.equal(byId(preview, "providers", "northwind")?.action, "add");
+  assert.equal(byId(preview, "providers", "northwind")?.off, true);
+  assert.equal(byId(preview, "providers", "northwind")?.reason, "uses_key");
+  await target.client.call("instance.import", { file: crafted });
+  assert.equal(target.core.store.settings.read("providers").find((p) => p.id === "northwind")?.enabled, false);
+});
+
+test("a key typed into a command, an address or a step's header travels as a reference", async () => {
+  const c = source.client;
+  const API = "nw9c2e71f04ab35d8e11";
+  const TOKEN = "zz81ab27c3d4e5f6a7b8";
+  const PATH_KEY = "a1B2c3D4e5F6g7H8i9J0k1L2";
+  const HEADER = "kk55ab27c3d4e5f6a7b8";
+  const bin = path.join(os.homedir(), "bin", "acme-mcp");
+  await c.call("mcp.set", {
+    name: "tools",
+    server: { command: bin, args: ["--api-key", API, "--model=claude-x", `--token=${TOKEN}`, "serve"] },
+  });
+  await c.call("mcp.set", {
+    name: "remote",
+    server: { url: `https://mcp.example.com/${PATH_KEY}/sse?apikey=${TOKEN}&region=eu` },
+  });
+  const nora = (await c.call("agents.list", {})).agents.find((a) => a.name === "Nora");
+  await c.call("routines.set", {
+    name: "Sync CRM",
+    agent: nora?.id ?? "",
+    schedule: { kind: "cron", cron: "0 9 * * *" },
+    prompt: "Sync",
+    pre_command: `CRM_TOKEN=${TOKEN} sync-crm --password ${API} --verbose`,
+    enabled: true,
+  });
+  const notify = (
+    await c.call("flows.create", {
+      project,
+      name: "Notify",
+      graph: { ...graph, nodes: [hook, { ...call, headers: [{ name: "X-Api-Key", value: HEADER }] }] },
+    })
+  ).flow.id;
+  const file = await exported();
+  const text = JSON.stringify(file);
+  for (const v of [API, TOKEN, PATH_KEY, HEADER]) assert.ok(!text.includes(v), `${v} is not in the file`);
+  assert.ok(!text.includes(os.homedir()), "no folder of this computer");
+  const tools = file.mcps.find((m) => m.name === "tools");
+  assert.equal(tools?.command, "~/bin/acme-mcp");
+  assert.deepEqual(tools?.args, [
+    "--api-key",
+    "secret://tools_api_key",
+    "--model=claude-x",
+    "--token=secret://tools_token",
+    "serve",
+  ]);
+  assert.equal(
+    file.mcps.find((m) => m.name === "remote")?.url,
+    "https://mcp.example.com/secret://remote_url_key/sse?apikey=secret://remote_apikey&region=eu",
+  );
+  assert.equal(
+    file.routines.find((r) => r.name === "Sync CRM")?.pre_command,
+    "CRM_TOKEN=secret://sync_crm_crm_token sync-crm --password secret://sync_crm_password --verbose",
+  );
+  const step = file.flows.find((f) => f.definition.id === notify)?.graph?.nodes.find((n) => n.id === "enroll");
+  assert.deepEqual(step && "headers" in step ? step.headers : undefined, [
+    { name: "X-Api-Key", value: "secret://notify_x_api_key" },
+  ]);
+
+  const preview = await target.client.call("instance.preview_import", { file });
+  for (const name of ["tools_api_key", "tools_token", "remote_url_key", "remote_apikey", "notify_x_api_key"])
+    assert.ok(preview.secrets.includes(name), `${name} is named to fill here`);
+  await target.client.call("instance.import", { file });
+  const there = JSON.parse(target.core.store.settings.get("mcp_servers") ?? "{}").mcpServers.tools;
+  assert.ok(samePath(there.command, bin), "the command is found under this computer's home");
+  const again = await target.client.call("instance.preview_import", { file });
+  assert.equal(byId(again, "mcps", "tools")?.action, "same");
+  assert.equal(byId(again, "mcps", "remote")?.action, "same");
+  const mine = await source.client.call("instance.preview_import", { file });
+  assert.equal(
+    byId(mine, "mcps", "tools")?.action,
+    "same",
+    "its own copy changes nothing on the computer it came from",
+  );
+  for (const name of ["tools", "remote"]) await c.call("mcp.set", { name, server: null });
+});
+
+test("a new skill never removes an owner's skill named like its temporary folder", async () => {
+  const skills = path.join(homes[1]?.path as string, "skills");
+  fs.mkdirSync(path.join(skills, "notes.importing"), { recursive: true });
+  fs.writeFileSync(path.join(skills, "notes.importing", "SKILL.md"), "# Mine\n");
+  const file = await exported();
+  const crafted = { ...file, skills: [{ name: "notes", files: [{ path: "SKILL.md", text: "# Notes\n" }] }] };
+  await target.client.call("instance.import", { file: crafted });
+  assert.equal(fs.readFileSync(path.join(skills, "notes", "SKILL.md"), "utf8"), "# Notes\n");
+  assert.equal(fs.readFileSync(path.join(skills, "notes.importing", "SKILL.md"), "utf8"), "# Mine\n");
+});
+
+test("an import that outlives its deadline stops and says so; importing again finishes it", async () => {
+  const file = await exported();
+  const tg = file.channels.find((ch) => ch.id === "tg");
+  assert.ok(tg);
+  const crafted = { ...file, channels: [{ ...tg, id: "tg_late", label: "Late bot" }] };
+  const deadline = new AbortController();
+  const deps = {
+    store: target.core.store,
+    secrets: target.core.secrets,
+    home: homes[1]?.path as string,
+    userHome: os.homedir(),
+    version: "test",
+    register: () => {},
+    mcpChanged: () => {},
+    nextFor: () => undefined,
+  };
+  // The channel never answers: the deadline passes while the import waits on it.
+  const stuck = () => {
+    deadline.abort();
+    return new Promise<never>(() => {});
+  };
+  await assert.rejects(applyImport({ ...deps, setChannel: stuck }, crafted, deadline.signal), ImportOutOfTime);
+  const done = await applyImport({ ...deps, setChannel: async () => {} }, crafted);
+  assert.equal(byId(done, "channels", "tg_late")?.action, "add");
 });

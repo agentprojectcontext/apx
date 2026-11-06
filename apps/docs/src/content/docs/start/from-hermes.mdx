@@ -1,6 +1,6 @@
 ---
 title: Moving from Hermes
-description: Bring your Hermes agents, memory, skills, scheduled jobs and MCP servers into APX. See what comes first; secrets never do.
+description: Bring your Hermes agents, memory, skills, scheduled jobs and MCP servers into APX. See what comes first; the secrets APX finds stay in Hermes.
 sidebar:
   order: 6
 ---
@@ -18,7 +18,8 @@ If you use [Hermes Agent](https://hermes-agent.nousresearch.com/docs/), APX can 
    apx import hermes ~/.hermes
    ```
 
-   Each line says what would be **added**, **updated** or **skipped**, and why.
+   Each line says what would be **added**, **updated** or **skipped**, and why. Asked in a chat instead, the
+   super-agent waits for your OK on a card that names each MCP server it adds and the command it runs.
 
 2. Import exactly that list:
 
@@ -44,9 +45,13 @@ If you use [Hermes Agent](https://hermes-agent.nousresearch.com/docs/), APX can 
 
 ## What never comes
 
-- **Secrets.** `.env`, `auth.json`, provider keys and every credential in an MCP server's `env` or `headers` stay in
-  Hermes. A server that needs one comes with an empty `secret://` reference and **turned off**; the list names each
-  secret so you can give it in APX.
+- **Secrets.** `.env`, `auth.json` and provider keys stay in Hermes, and so does each credential APX finds in an MCP
+  server, by its name (`API_TOKEN`) or its shape (a key, a URL with a password). A server with one in its `env` or
+  `headers` comes with an empty `secret://` reference and **turned off**; the list names each secret so you can give
+  it in APX. A server with one in its arguments or its address is not brought: add it yourself, the key in `env`.
+  A `SOUL.md` holding a key comes without its instructions, and a memory entry holding one is left out. A file that
+  is a link to somewhere else is not read. Look over the list before importing: a credential with no telling name or
+  shape cannot be found.
 - **Things APX does differently:** the model and providers (choose them in APX), messaging platforms (connect the
   channel in APX), personalities, chat history, and cron jobs that run a script.
 - **Jobs APX cannot schedule as they are:** every less than 5 minutes, or a one-time job already past.

@@ -161,6 +161,10 @@ process so the display does not sleep. Start native window tests in an unlocked 
 awake display; a sleeping or locked display cannot supply reliable native focus events.
 The coverage sandbox picks separate loopback ports so parallel checkouts do not collide; `E2E_PORT`,
 `E2E_CONTROL_PORT` and `E2E_WA_PORT` override them when debugging.
+Local browser coverage runs the same three Playwright shards as CI sequentially, replaying setup for each shard
+and merging their counters into the same report. An explicit `--part=web --shard=i/3` still runs only that part.
+Each E2E command retains its 15-minute deadline; a timeout fails the run and stops its owned process tree before
+the next sandbox starts. Failed builds do not run tests against stale output.
 Reports identify each unexecuted function by file and line. An executed function still needs meaningful assertions;
 unit coverage does not replace Playwright or a real phone. The default coverage command fails on suite failures;
 the separate strict command additionally requires every inventoried function to execute. CI runs all suites with
@@ -266,6 +270,11 @@ start together:
 | Coverage | `node scripts/test-coverage.ts --e2e --part=…`: unit, panel in three (`--part=web --shard=i/3`), desktop | 5 Linux |
 | Coverage report | merges the parts (`--merge --expect-parts=5`: a function ran if any part ran it; a part that never uploaded fails it) | 1 Linux |
 | Unit tests (portability) | the unit tests only, `test-shard.ts` over 4 Windows and 2 macOS machines | 6 |
+
+The unit part runs each package's tests as one `node --test` with a 10-minute limit; a package with more than 160
+test files (the core) runs in parts dealt out in turn (`apps/core 1/3`…), each with its own limit, all into the same
+report. A part that runs out of time is named as such; its files still running show as "still pending", not as
+failures of their own. That job sets `TEST_TIME_SCALE=2`: coverage slows every test.
 
 Static checks and unit tests together are `pnpm preflight`; coverage does not replace them (it runs the suites
 another way, with instrumentation). The budgets share the static job: a separate one sat in the runner queue for a

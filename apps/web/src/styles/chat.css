@@ -782,6 +782,24 @@
   max-width: 100%;
 }
 
+/* A tab in the owner's Chrome: they see it there, so the chat only says what happens in it. */
+.browserpart__chrome {
+  display: flex;
+  align-items: center;
+  gap: var(--apx-space-2);
+  margin: 0;
+  max-width: 100%;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+
+.browserpart__chrome span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .browserpart__compact .apx-btn__label {
   min-width: 0;
   overflow: hidden;

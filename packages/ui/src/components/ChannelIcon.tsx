@@ -1,11 +1,11 @@
-import { Mail, MessageCircle, Smartphone } from "lucide-react";
+import { Chrome, Mail, MessageCircle, Smartphone } from "lucide-react";
 import { type CSSProperties, useId } from "react";
 import { CHANNEL_MARKS, type ChannelBrand, type ChannelMark, type MarkArt } from "../channel-marks";
 import { cx } from "../cx";
 import { drawMarkArt } from "../mark-art";
 
 export interface ChannelIconProps {
-  /** Channel kind (`telegram`, `whatsapp`, `slack`…). Email and SMS have no brand: a generic icon. */
+  /** Channel kind (`telegram`, `whatsapp`, `slack`…). Email, SMS and `chrome` (APX's panel there): a generic icon. */
   channel: string;
   /** Pixel size (default 16). */
   size?: number;
@@ -24,7 +24,8 @@ export function ChannelIcon({ channel, size = 16, label, className }: ChannelIco
   const prefix = `c${useId().replace(/[^\w-]/g, "")}-`;
   const cls = cx("apx-chanicon", className);
   if (!isBrand(channel)) {
-    const Icon = channel === "email" ? Mail : channel === "sms" ? Smartphone : MessageCircle;
+    const Icon =
+      channel === "email" ? Mail : channel === "sms" ? Smartphone : channel === "chrome" ? Chrome : MessageCircle;
     return (
       <span className={cx(cls, "apx-chanicon--none")} style={box} {...a11y}>
         <Icon size={size} />

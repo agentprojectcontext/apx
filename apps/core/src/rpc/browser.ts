@@ -1,6 +1,15 @@
-import { BROWSER_CAP, BROWSER_HOLD, BROWSER_METHODS, type BrowserMethod, type TabInfo } from "@apx/protocol";
+import {
+  BROWSER_CAP,
+  BROWSER_FILL_SECRET,
+  BROWSER_HOLD,
+  BROWSER_METHODS,
+  type BrowserMethod,
+  CHROME_CAP,
+  siteOrigin,
+  type TabInfo,
+} from "@apx/protocol";
 import type { Bus } from "../bus.ts";
-import { TERMINAL } from "../domain/runs.ts";
+import { inChrome, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Computer } from "../environments/computer.ts";
 import { conflict, unauthorized, unavailable } from "../errors.ts";
@@ -9,6 +18,7 @@ import { bindBrowserEpoch, browserEpochBackend, unbindBrowserEpoch } from "../no
 import { browserConsentCurrent, reconcileBrowserConsents } from "../nodes/browser-consent-reconcile.ts";
 import { createBrowserHolds } from "../nodes/browser-holds.ts";
 import type { HeadlessBrowser } from "../nodes/headless-browser.ts";
+import { type SignInDeps, signInHandler } from "./browser-sign-in.ts";
 import type { Handler } from "./router.ts";
 
 // Under the client's 15s default so the caller gets our typed timeout, not its own.
@@ -25,7 +35,8 @@ function deadlineFor(method: BrowserMethod, params: unknown): number {
 
 /**
  * Every browser.* method is executed by the desktop node when one is connected; with none, by the core's own headless
- * browser (when there is one); the core only routes.
+ * browser (when there is one); a turn the owner started from APX's panel in Chrome, by their Chrome. The core only
+ * routes.
  */
 export function browserHandlers(
   broker: NodeBroker,
@@ -33,6 +44,7 @@ export function browserHandlers(
   bus?: Bus,
   vm?: Computer,
   store?: Store,
+  signIn?: Omit<SignInDeps, "store" | "tabOrigin" | "fill">,
 ) {
   const local = () => !broker.withCap(BROWSER_CAP) && headless?.available();
   // A tab an agent's turn uses stays open (not closed for being idle) until that turn ends.
@@ -48,6 +60,20 @@ export function browserHandlers(
     );
   });
   const backend = () => (local() ? "headless" : (broker.withCap(BROWSER_CAP)?.session ?? "unavailable"));
+  /** An agent's call in a turn that browses in the owner's Chrome. */
+  const chromeTurn = (ctx: Parameters<Handler<"browser.tabs">>[1]): boolean => {
+    const run = ctx.agent && store?.runs.get(ctx.agent.run_id);
+    return Boolean(
+      run && inChrome(run.input?.origin, (id) => store?.runs.get(store.inputs.get(id)?.run_id ?? "")?.input?.origin),
+    );
+  };
+  const inOwnersChrome = (method: BrowserMethod, params: unknown) => {
+    if (!broker.withCap(CHROME_CAP))
+      throw unavailable(
+        "the owner's Chrome is not connected: ask them to open APX's panel in Chrome (APX's extension must be installed there)",
+      );
+    return broker.invoke(CHROME_CAP, method, params, deadlineFor(method, params));
+  };
   let connection = backend();
   let observedTabs: readonly TabInfo[] | undefined;
   store?.approvals.setBrowserConsentGuard((context, agent) => {
@@ -116,6 +142,8 @@ export function browserHandlers(
           vm.browser(run.id).handle(method, bound),
         )) as never;
       }
+      // The owner's own tabs: nothing is held or bound here, their Chrome closes nothing for being idle.
+      if (chromeTurn(ctx)) return (await inOwnersChrome(method, params)) as never;
       const isLocal = local();
       const backend = isLocal ? "headless" : (broker.withCap(BROWSER_CAP)?.session ?? "unavailable");
       const out = await invokeBound(method, params, backend, async (bound) =>
@@ -131,10 +159,35 @@ export function browserHandlers(
   const handlers = Object.fromEntries(BROWSER_METHODS.map((m) => [m, forward(m)])) as {
     [M in BrowserMethod]: Handler<M>;
   };
+  if (signIn && store) {
+    const tabsOf = (ctx: Parameters<Handler<"browser.tabs">>[1]) => handlers["browser.tabs"]({}, ctx);
+    handlers["browser.sign_in"] = signInHandler({
+      ...signIn,
+      store,
+      tabOrigin: async (tab, ctx) => siteOrigin((await tabsOf(ctx)).tabs.find((t) => t.tab === tab)?.url ?? "") ?? "",
+      async fill(params, ctx) {
+        // The isolated computer's browser is another machine: a stored secret never goes there.
+        if (ctx.agent && store.settings.read("computer_chats").includes(ctx.agent.thread_id))
+          throw unavailable("signing in with a stored secret works only in the owner's browser");
+        if (chromeTurn(ctx))
+          throw unavailable("in the owner's Chrome they sign in themselves: ask them to, then go on");
+        if (local()) return headless?.handle(BROWSER_FILL_SECRET, params);
+        const out = await broker.invoke(
+          BROWSER_CAP,
+          BROWSER_FILL_SECRET,
+          params,
+          deadlineFor("browser.sign_in", params),
+        );
+        if (ctx.agent) holds.hold(ctx.agent.run_id, String(params.tab));
+        return out;
+      },
+    });
+  }
   // With no browser at all there are no tabs: an empty list, not an error the panel would log on every load.
   const tabs = handlers["browser.tabs"];
   handlers["browser.tabs"] = (params, ctx) =>
     (ctx.agent && store?.settings.read("computer_chats").includes(ctx.agent.thread_id)) ||
+    chromeTurn(ctx) ||
     broker.withCap(BROWSER_CAP) ||
     headless?.running()
       ? tabs(params, ctx)

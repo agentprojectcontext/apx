@@ -267,8 +267,9 @@ export function taskHandlers(
       if (p.assignee && !p.propose) refuseHandOn(ctx);
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
       if (p.parent) visible(p.parent, ctx);
+      // Work handed out from a task's chat stays under it even in another project, so its hand-off depth still counts.
       const parent = p.parent ?? chatTask(ctx);
-      checkTaskParent(store, undefined, parent, project, agentScope(ctx));
+      checkTaskParent(store, undefined, p.parent, project, agentScope(ctx));
       requireSubtaskWork(ctx, parent, p.assignee, p.description);
       const person = p.person ? personOf(store, p.person) : undefined;
       const due = dueOf(p.due_at);

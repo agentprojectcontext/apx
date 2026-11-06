@@ -30,13 +30,13 @@ itself, in a folder, from **External sessions**. They are not models for your ag
 
 ## See an external session's model
 
-In the next unreleased update, the external chat header shows **Requested:** followed by the selected model and effort, or the engine's default.
+The external chat header shows **Requested:** followed by the selected model and effort, or the engine's default.
 That is a request, not confirmation of what ran. Each response's footer shows the model reported by the engine;
 **Model unconfirmed** means APX has not received that information. This is visible in read-only conversations
 between agents too. Older responses without saved evidence of an engine report also show **Model unconfirmed**;
 APX does not promote their previously saved model choice into a confirmed model.
 
-In the next unreleased update, Claude Code reports its model as the turn starts, so it remains visible while waiting
+Claude Code reports its model as the turn starts, so it remains visible while waiting
 for your approval or after cancellation. The saved response keeps that model when you reload or resume the chat.
 Later responses can report a different model without changing earlier ones. Effort appears with the confirmed model
 only when reported; an effort shown under **Requested:** is still only the one you asked for.
@@ -134,23 +134,23 @@ Three places pick a model, most specific first:
 
 ### An agent's own fallbacks
 
-An agent with a model of its own can have up to five **fallback models**, in order. Set them in the agent's editor,
-under **Model and team › Fallback models** (add, move up or down, remove), with
+An agent with a model of its own can have up to five **fallback models**, in order. You set them in the agent's editor
+under **Model and team › Fallback models**, where you can add, reorder and remove them. You can also use
 `apx agents model <agent> <ref> --fallbacks <ref>,<ref>`, or ask your super-agent ("give Robina Groq and Gemini as
-fallbacks"): it shows you the change and waits for your yes. An agent on the router alone has no fallbacks; pick its
-model first.
+fallbacks"), which shows you the change and waits for your yes. An agent that runs only on the router has no
+fallbacks, so pick its model first.
 
-Each turn tries the agent's model first. If it is at its usage limit (held until its reset, as above) or fails after
-its tries, the turn goes on with the first fallback that is free, then the next one, and only after the whole list
-with the router's chain, when the agent has the router behind it. A model held for its limit is never asked again
-before its reset. Once the main model's limit resets, the next turn goes back to it by itself. A chat whose own model
-was picked in the composer keeps the agent's fallbacks behind that model.
+Each turn tries the agent's model first. If that model is at its usage limit (APX holds it until the reset, as described
+above) or still fails after its retries, the turn moves to the first free fallback, then the next. When the whole list
+is used up and the agent has the router behind it, the router's chain comes last. APX does not ask a model at its limit
+again before the reset, and once the main model's limit resets, the next turn goes back to it on its own. If you pick
+a different model for one chat in the composer, the agent's fallbacks still stand behind that model.
 
-Under each reply, the line with the agent's name shows the model that answered, and **Fallback** when it was not the
-agent's own; the notice above it says which model did not answer and why.
+Under each reply, the line with the agent's name shows which model answered and adds **Fallback** when it was not the
+agent's own. The notice above it says which model did not answer and why.
 
-Fallbacks apply where APX's own loop runs the turn. A Claude Code, Codex or ACP session runs its own CLI with its own
-model, so an agent's fallbacks do not apply there.
+Fallbacks only apply to turns that APX's own loop runs. A Claude Code, Codex or ACP session runs its own CLI with its
+own model, so the agent's fallbacks are not used there.
 
 ## Usage
 
