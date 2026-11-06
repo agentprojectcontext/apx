@@ -62,6 +62,3 @@ export function splitSpoken(text: string, max = 320): { spoken: string; rest: st
     .join("\n\n");
   return { spoken: plainText(said), rest };
 }
-
-/** The first paragraph of an answer, short enough to listen to. */
-export const spokenPart = (text: string, max = 320): string => splitSpoken(text, max).spoken;

@@ -22,12 +22,15 @@ body {
   color: var(--apx-fg-subtle);
 }
 /* Thin thumbs with air around them: the transparent border is the padding (background-clip keeps it clear). They
-   show only while the pointer is over what scrolls, and keep their width when grabbed. */
+   show only while the pointer is over what scrolls, and keep their width when grabbed. A very long content (a task's
+   whole conversation) would shrink the thumb under its own border, so it keeps a length that can be seen and grabbed. */
 .apx ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 .apx ::-webkit-scrollbar-thumb {
+  min-width: 40px;
+  min-height: 40px;
   border: 3px solid transparent;
   border-radius: 10px;
   background: transparent;

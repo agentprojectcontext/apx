@@ -4,7 +4,7 @@
   aspect-ratio: 16 / 9;
   border-radius: var(--apx-radius-md);
   overflow: hidden;
-  background: #000;
+  background: #000; /* ui: letterbox behind a video, black in either theme. */
 }
 .welcome__video iframe,
 .welcome__video video {

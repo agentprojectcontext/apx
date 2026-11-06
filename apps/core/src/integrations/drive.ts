@@ -37,7 +37,7 @@ export type DriveFile = { id: string; name: string; type: string; modified?: str
 
 const kindOf = (mime: string) => (Object.entries(KINDS).find(([, m]) => m === mime)?.[0] as Kind | undefined) ?? mime;
 
-export function flattenFile(f: GFile): DriveFile {
+function flattenFile(f: GFile): DriveFile {
   const owner = f.owners?.[0]?.emailAddress;
   return {
     id: f.id ?? "",

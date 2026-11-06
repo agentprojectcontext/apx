@@ -1,5 +1,5 @@
 import type { ProjectKind } from "@apx/protocol";
-import { Button, Dialog, Field, Icons, Input, SegmentedControl, Select, Textarea } from "@apx/ui";
+import { Button, Checkbox, Dialog, Field, Icons, Input, SegmentedControl, Select, Textarea } from "@apx/ui";
 import { type KeyboardEvent, useEffect, useState } from "react";
 import { bootstrap } from "../data/actions.ts";
 import { client } from "../data/client.ts";
@@ -135,10 +135,7 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
       }
     >
       <div className="newproject">
-        <label>
-          <input type="checkbox" checked={helper} onChange={(e) => setHelper(e.currentTarget.checked)} />{" "}
-          {t("helper.enable")}
-        </label>
+        <Checkbox checked={helper} onCheckedChange={setHelper} label={t("helper.enable")} />
         <SegmentedControl
           label={t("project.new.where")}
           value={where}

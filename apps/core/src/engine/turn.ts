@@ -2,6 +2,7 @@
 import path from "node:path";
 import {
   type Autonomy,
+  CHROME_VIA,
   COMPUTER_CAP,
   type HarnessId,
   type MethodName,
@@ -16,7 +17,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
 import { engineOf, harnessOf, isCliRef } from "../domain/refs.ts";
-import { type RunRecord, runsOnComputer } from "../domain/runs.ts";
+import { inChrome, type RunRecord, runsOnComputer } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
 import { computerBriefing, HOME_COMPUTER } from "../environments/briefing.ts";
@@ -141,7 +142,7 @@ export type TurnDeps = {
   call: ToolCall;
   /** How the agent acts and how far its files reach: every permission question goes here. */
   permissions: Permissions;
-  delegate(caller: Caller, to: DelegateTo, task: string, waitMs: number): Promise<string>;
+  delegate(caller: Caller, to: DelegateTo, task: string, waitMs: number, signal?: AbortSignal): Promise<string>;
 };
 
 export type ToolCall = <M extends MethodName>(
@@ -246,15 +247,28 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   const before = worksInFolder(thread) && thread.cwd ? gitSnapshot(thread.cwd) : undefined;
   let run = store.runs.setState(start, "working");
   store.threads.patch(thread.id, { state: "working" });
+  // The answer to words from APX's panel in Chrome carries the same mark as they do.
+  const chrome = inChrome(
+    start.input.origin,
+    (id) => store.runs.get(store.inputs.get(id)?.run_id ?? "")?.input?.origin,
+  );
   const display = openDisplay(
     store,
-    store.messages.add({ thread_id: thread.id, author: { kind: "agent", id: agent.id }, parts: [], run_id: run.id }),
+    store.messages.add({
+      thread_id: thread.id,
+      author: { kind: "agent", id: agent.id },
+      parts: [],
+      run_id: run.id,
+      ...(chrome ? { via: CHROME_VIA } : {}),
+    }),
   );
   run = store.runs.patch(run, { message_id: display.message.id });
-  // A delegated result arriving later: its report shows above what the caller makes of it.
-  const report =
-    start.input.origin.kind === "delegation_result" ? resultCard(store, start.input.origin.run_id) : undefined;
-  if (report) display.upsert((p) => p.type === "subthread" && p.thread_id === report.thread_id, report);
+  // Delegated results arriving later: their reports show above what the caller makes of them.
+  const o = start.input.origin;
+  const answered =
+    o.kind === "delegation_result" ? [o.run_id] : o.kind === "delegation_results" ? o.results.map((r) => r.run_id) : [];
+  for (const report of answered.flatMap((id) => resultCard(store, id) ?? []))
+    display.upsert((p) => p.type === "subthread" && p.thread_id === report.thread_id, report);
   // A routine with commands of its own: the pre-command first; its result may say the model is not needed.
   const routine = routineWithCommands(store, run);
   const pipe = routine && routinePipeline({ store, home: deps.home, routine, run, display });
@@ -315,7 +329,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     workDir: harnessDir(store, deps.home, thread),
     permissions: deps.permissions,
     // Harnesses and delegations see the agent as it acts here (its project's and callers' mode), never its bare record.
-    delegate: (to, task, waitMs) => deps.delegate({ run, agent: policy.agent, display }, to, task, waitMs),
+    delegate: (to, task, waitMs, signal) =>
+      deps.delegate({ run, agent: policy.agent, display }, to, task, waitMs, signal),
   });
   const system = () =>
     thread.engine
@@ -751,8 +766,12 @@ function systemFor(
  * chat runs our loop over the chosen model and the router's chain; a CLI ref saved before D-043 is skipped.
  */
 function enginePick(deps: TurnDeps, turn: Turn, start: RunRecord, history: ChatItem[]): Engine {
-  // The chat's own model (picked in its composer) first, then the agent's, then the install default.
-  const chosen = deps.store.threads.context(turn.thread.id).model_choice ?? turn.agent.model_choice;
+  // The chat's own model (picked in its composer) first, then the agent's, then the install default. The agent's own
+  // fallbacks back whichever model the chat runs on (DECISIONS.md#d-195).
+  const chatChoice = deps.store.threads.context(turn.thread.id).model_choice;
+  const fallbacks = chatChoice?.fallbacks ?? turn.agent.model_choice?.fallbacks;
+  const picked = chatChoice ?? turn.agent.model_choice;
+  const chosen = picked && fallbacks ? { ...picked, fallbacks } : picked;
   const own = turn.thread.engine;
   if (own) {
     const ref = chosen?.model && engineOf(chosen.model) === own ? chosen.model : own;

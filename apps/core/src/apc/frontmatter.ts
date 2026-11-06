@@ -15,6 +15,12 @@ const unquote = (v: string) => {
 };
 const indent = (l: string) => l.match(/^[ \t]*/)?.[0].length ?? 0;
 
+/** Lines that are a list: their first item is at their own indent, not inside a nested map. */
+const isList = (child: string[]) => {
+  const first = child.find((l) => l.trim());
+  return first !== undefined && first.trimStart().startsWith("- ");
+};
+
 /** Splits a file into its frontmatter fields and its body. A file without frontmatter is all body. */
 export function parseFrontmatter(text: string): { fields: Fields; body: string } {
   const all = text.replace(/\r\n/g, "\n").split("\n");
@@ -50,7 +56,7 @@ function parseLines(lines: string[], prefix: string): Fields {
       const base = Math.min(...child.filter((l) => l.trim()).map(indent));
       const text = child.map((l) => l.slice(base));
       out[key] = value.trim().startsWith(">") ? text.join(" ").replace(/ {2,}/g, " ").trim() : text.join("\n").trim();
-    } else if (value.trim() === "" && child.some((l) => l.trim().startsWith("- "))) {
+    } else if (value.trim() === "" && isList(child)) {
       out[key] = child.filter((l) => l.trim().startsWith("- ")).map((l) => unquote(l.trim().slice(2)));
     } else if (value.trim() === "" && child.length) {
       const base = Math.min(...child.filter((l) => l.trim()).map(indent));

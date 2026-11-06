@@ -129,11 +129,19 @@ export const ModelRef = z
   .max(200);
 export type ModelRef = z.infer<typeof ModelRef>;
 
+/** How many models of its own an agent may fall back on after its main one. */
+export const MAX_MODEL_FALLBACKS = 5;
+
 /**
  * How an agent picks its model for a turn: a fixed model; a model with the router as fallback; or the router alone
- * (`model` absent). An agent without a choice uses the install default.
+ * (`model` absent). `fallbacks` are tried in order after `model` and before the router (DECISIONS.md#d-195). An agent
+ * without a choice uses the install default.
  */
-export const ModelChoice = z.object({ model: ModelRef.optional(), router: z.boolean() });
+export const ModelChoice = z.object({
+  model: ModelRef.optional(),
+  router: z.boolean(),
+  fallbacks: z.array(ModelRef).max(MAX_MODEL_FALLBACKS).optional(),
+});
 export type ModelChoice = z.infer<typeof ModelChoice>;
 
 /** The model router: per-turn rules (first match wins) and the fallback chain after them. */
@@ -178,6 +186,8 @@ export const CatalogEngine = z.object({
   fetched_at: z.string().optional(),
   /** A model API's everyday chat model: what the router chain gets when the owner adds this provider. */
   starter: z.string().optional(),
+  /** A model app on this computer (Ollama, LM Studio), found with no setup or set up at its address: free. */
+  local: z.boolean().optional(),
 });
 export type CatalogEngine = z.infer<typeof CatalogEngine>;
 
@@ -487,10 +497,13 @@ const KnownPart = z.discriminatedUnion("type", [
     asked_by: z.string().optional(),
     /** A completed run that did not go well: it gave no answer, or some of its actions failed. */
     issue: z.enum(["no_answer", "actions_failed"]).optional(),
+    /** Its answer waits for the others asked in the same turn: how many of them are in (DECISIONS.md#d-194). */
+    held: z.object({ got: z.number().int().nonnegative(), of: z.number().int().positive() }).optional(),
   }),
   z.object({
     type: z.literal("browser"),
-    environment: z.literal("vm").optional(),
+    /** Where the tab is when it is not APX's own browser: the isolated computer, or the owner's Chrome. */
+    environment: z.enum(["vm", "chrome"]).optional(),
     tab: z.string(),
     url: z.string(),
     title: z.string(),
@@ -636,7 +649,12 @@ export type MessageDelivery = z.infer<typeof MessageDelivery>;
 export const MessageReaction = z.object({ emoji: z.string().min(1).max(32), by: z.enum(["agent", "them"]) });
 export type MessageReaction = z.infer<typeof MessageReaction>;
 /** How the owner's words written while their agent works wait for it (Message.waiting). */
-export const MessageWaiting = z.object({ until: z.enum(["step", "turn"]), run: Id.optional() });
+export const MessageWaiting = z.object({
+  until: z.enum(["step", "turn"]),
+  run: Id.optional(),
+  /** Captured when the owner's words arrive; null means they had no task authorization. */
+  task_assignment: z.object({ task: Id, id: Id }).nullable().optional(),
+});
 export type MessageWaiting = z.infer<typeof MessageWaiting>;
 
 export const Message = z.object({
@@ -653,7 +671,10 @@ export const Message = z.object({
   delivery: MessageDelivery.optional(),
   /** Emoji put on it on a channel, at most one per side. */
   reactions: z.array(MessageReaction).optional(),
-  /** The channel (its id) it came on or went out on; a chat everyone writes into (Home) shows each channel's part. */
+  /**
+   * The channel (its id) it came on or went out on; a chat everyone writes into (Home) shows each channel's part.
+   * `chrome` (CHROME_VIA): written in, or answered to, APX's panel in Chrome.
+   */
   via: z.string().optional(),
   /**
    * The owner's words their agent has not taken yet: `step`, its running turn takes them at its next step; `turn`,
@@ -864,6 +885,8 @@ export const ProviderInfo = z.object({
   models: z.array(z.string()),
   enabled: z.boolean(),
   builtin: z.boolean(),
+  /** A model app on this computer: found running with no setup, or set up at its address. */
+  local: z.boolean().optional(),
 });
 export type ProviderInfo = z.infer<typeof ProviderInfo>;
 

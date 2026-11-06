@@ -35,7 +35,7 @@ type Cmd = Extract<FlowNode, { kind: "cmd" }>;
 
 /** Commands and database writes a Flow may make in an hour; the next one fails, not run. */
 export const FLOW_COMMANDS_PER_HOUR = 60;
-export const FLOW_WRITES_PER_HOUR = 120;
+const FLOW_WRITES_PER_HOUR = 120;
 /** Most of a code step's answer read, and of a query's rows. */
 const CODE_OUT = 64 * 1024;
 const SQL_OUT = 256 * 1024;
@@ -46,7 +46,7 @@ const HEAP_MB = 64;
 const JS_RUNNER = path.join(import.meta.dirname, "flow-js-runner.mjs");
 const SQL_RUNNER = path.join(import.meta.dirname, "flow-sql-runner.mjs");
 
-export const WORK_WHY = {
+const WORK_WHY = {
   missing: "missing_value",
   value: "value_too_large",
   commandsLimited: "command_limited",
@@ -251,7 +251,7 @@ export function flowDatabaseFile(folder: string, home: string | undefined, node:
 }
 
 /** A command's environment: the owner's minus credentials, as routines' commands get, and minus connection strings. */
-export function flowCommandEnv(): Record<string, string> {
+function flowCommandEnv(): Record<string, string> {
   const env = commandEnv();
   for (const k of Object.keys(env)) if (CONNECTION_NAME.test(k)) delete env[k];
   return env;

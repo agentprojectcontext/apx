@@ -102,7 +102,7 @@ document.addEventListener("DOMContentLoaded",function(){size();if(window.ResizeO
 }
 
 /** What a page may ask the core through the bridge (APX.store, APX.db, APX.fetch), by the name it uses. */
-export const BRIDGE_METHODS = {
+const BRIDGE_METHODS = {
   store_get: "surfaces.store_get",
   store_set: "surfaces.store_set",
   db_query: "surfaces.db_query",

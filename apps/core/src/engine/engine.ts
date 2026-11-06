@@ -9,23 +9,24 @@ import { Canceled, conflict, DeadlineExceeded, notFound, Shutdown, Superseded } 
 import type { Harnesses } from "../harness/index.ts";
 import type { Log } from "../log.ts";
 import type { RuntimeHomes } from "../skills/runtimes.ts";
-import { fromTeam } from "../tools/result.ts";
 import type { Tool } from "../tools/types.ts";
-import { agentTrip, keepWhilePaused, trip } from "./breaker.ts";
+import { agentTrip, trip } from "./breaker.ts";
 import { frameInput } from "./context.ts";
-import { actionsNote, actionsOf, createDelegations, endedAs, endNote } from "./delegation.ts";
+import { createDelegations } from "./delegation.ts";
 import type { Display } from "./display.ts";
+import { createFanout, deliverResults } from "./fanout.ts";
 import type { Hooks } from "./hooks.ts";
 import { createInputs, type InputWaits } from "./inputs.ts";
 import { createJobs } from "./jobs.ts";
-import { A2A_CAP_MS } from "./limits.ts";
+import { A2A_CAP_MS, FANOUT_HOLD_MS } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { relayEnded } from "./owner-relay.ts";
 import type { Permissions } from "./permissions.ts";
 import type { ProfileRoot } from "./profiles.ts";
 import { recoverInterrupted } from "./recovery.ts";
-import { droppedResult, outcomeNote } from "./run-outcome.ts";
+import { droppedResult } from "./run-outcome.ts";
 import type { SkillPicker } from "./skill-pick.ts";
+import { ownerTaskAssignment } from "./task-assignment.ts";
 import { OWNER_ADDS, runTurn, type ToolCall } from "./turn.ts";
 import { askedIn, editInLine, lineOf, removeFromLine, reorderLine } from "./waiting.ts";
 
@@ -33,16 +34,18 @@ import { askedIn, editInLine, lineOf, removeFromLine, reorderLine } from "./wait
  * A turn on our own loop ends after this long without progress (a token, a tool's result): a long browser or
  * computer session keeps going while it works, and its step limit bounds it. See DECISIONS.md#d-067
  */
-export const RUN_DEADLINE_MS = 6 * 60_000;
+const RUN_DEADLINE_MS = 6 * 60_000;
 /**
  * A session with an outside engine (Claude Code, Codex, an ACP agent) has no time limit while it works: it ends
  * only after this long without a single event from it. See DECISIONS.md#d-061
  */
-export const ENGINE_IDLE_MS = 20 * 60_000;
+const ENGINE_IDLE_MS = 20 * 60_000;
 /** Time a turn gets back after the owner answers, even if its clock had almost run out. */
 const AFTER_ANSWER_MS = 60_000;
 /** How often a working engine's moving deadline is written to its run (not on every streamed token). */
 const DEADLINE_WRITE_MS = 60_000;
+/** Harnesses whose loop takes the owner's words mid-turn: ours between steps, Claude Code's between tool rounds. */
+const MIDTURN: ReadonlySet<string> = new Set(["native", "claude"]);
 
 /** "6 minutes", "2 hours", "3 seconds": how long a limit is, for the reason a turn was stopped. */
 function timeSpan(ms: number): string {
@@ -217,6 +220,8 @@ export function createEngine(deps: {
   a2aCapMs?: number;
   /** Timer source for run deadlines, independent of transports and background work. */
   runTimers?: RunTimers;
+  /** Timer source for how long answers of teammates asked together wait for each other (tests drive it). */
+  fanoutTimers?: RunTimers;
   /** Whether the Mac slept since a moment (engine/awake.ts): a turn it cut short gets one more window. */
   sleptSince?: (since: number) => boolean;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */
@@ -240,13 +245,21 @@ export function createEngine(deps: {
    * What reaches a running turn between its steps, not yet taken by its loop: the owner's words, or (`apx`) a result
    * that would otherwise start a turn of its own, such as a background command's end (DECISIONS.md#d-162).
    */
-  const steered = new Map<string, Array<{ text: string; apx?: Admit; message_id?: string }>>();
-  /** The running turn of `agentId` in `threadId` whose loop takes text mid-turn (ours), if any. */
+  const steered = new Map<
+    string,
+    Array<{
+      text: string;
+      apx?: Admit;
+      message_id?: string;
+      task_assignment?: Extract<Origin, { kind: "user" }>["task_assignment"];
+    }>
+  >();
+  /** The running turn of `agentId` in `threadId` whose loop takes text mid-turn (ours, Claude Code's), if any. */
   const steerable = (threadId: string, agentId?: string): RunRecord | undefined => {
     for (const [runId, a] of active) {
       if (a.thread !== threadId || a.ac.signal.aborted) continue;
       const run = store.runs.get(runId);
-      if (run?.harness !== "native" || (agentId && run.agent_id !== agentId)) return undefined;
+      if (!run?.harness || !MIDTURN.has(run.harness) || (agentId && run.agent_id !== agentId)) return undefined;
       return run;
     }
     return undefined;
@@ -267,43 +280,16 @@ export function createEngine(deps: {
     live,
     ended,
     windowMs: (threadId) => runLimit(store, threadId, "a2a", deps).ms,
-    deliver: (parent, child, answer, stopped, outcome) => {
-      const agent = store.agents.get(child.agent_id);
-      const name = store.threads.context(child.thread_id).worker?.name ?? agent?.name ?? child.agent_id;
-      const session = store.threads.get(child.thread_id)?.session;
-      // Paused: the result is kept for the caller's next turn, and the owner sees why it stopped.
-      if (
-        keepWhilePaused(store, {
-          thread_id: parent.thread_id,
-          agent_id: parent.agent_id,
-          who: name,
-          run_id: child.id,
-          note: `A task you delegated to ${name} ended (${endedAs(child)}) while agents were paused:\n${fromTeam("delegation_result", { from: name }, answer.slice(0, 4000))}\n${endNote(child, { session, stopped })}${outcome ? outcomeNote(outcome) : ""}${actionsNote(actionsOf(store, child))}`,
-        })
-      )
-        return;
-      admit({
-        thread_id: parent.thread_id,
-        agent_id: parent.agent_id,
-        trigger: "a2a_result",
-        origin: {
-          kind: "delegation_result",
-          agent_id: child.agent_id,
-          name,
-          thread_id: child.thread_id,
-          run_id: child.id,
-          state: child.state,
-          ...(child.end_reason ? { end_reason: child.end_reason } : {}),
-          actions: actionsOf(store, child),
-          ...(session ? { session } : {}),
-          ...(stopped ? { stopped } : {}),
-          ...(outcome && outcome.level !== "ok" ? { outcome: { level: outcome.level, why: outcome.why } } : {}),
-        },
-        text: answer,
-        depth: parent.depth,
-        reply_to: parent.input?.reply_to,
-      });
-    },
+    deliver: (parent, child, stopped) => fanout.arrive(parent, child, stopped),
+  });
+
+  const fanout = createFanout({
+    store,
+    timers: deps.fanoutTimers ?? wallRunTimers,
+    holdMs: FANOUT_HOLD_MS,
+    running: (runId) => active.has(runId),
+    deliver: (parent, results) => deliverResults(store, admit, parent, results),
+    mark: (parent, child, held) => delegations.mark(parent, child, held),
   });
 
   const jobs = createJobs({ store, home: deps.home, log, admit: (a) => admit(a), steer: (a) => steerResult(a) });
@@ -326,6 +312,15 @@ export function createEngine(deps: {
   });
 
   function admit(a: Admit): RunRecord {
+    // Null records missing authority at arrival; replay must not acquire a later assignment.
+    const origin =
+      a.trigger === "user" &&
+      a.origin.kind === "user" &&
+      a.origin.task_assignment === undefined &&
+      !a.resume_of &&
+      !a.retry_of
+        ? { ...a.origin, task_assignment: ownerTaskAssignment(store, a.thread_id, a.agent_id) ?? null }
+        : a.origin;
     // The owner's words from the app wait in line when a turn is ahead of them (DECISIONS.md#d-186).
     const asked = a.trigger === "user" && a.origin.kind === "user" && !a.resume_of ? a.origin.message_id : undefined;
     const behind = Boolean(asked) && (busy.has(a.thread_id) || Boolean(store.runs.nextQueued(a.thread_id)));
@@ -335,7 +330,7 @@ export function createEngine(deps: {
       ...(a.queued ? { state: "queued" as const } : {}),
       trigger: a.trigger,
       input: {
-        origin: a.origin,
+        origin,
         text: a.text,
         ...(a.attachments?.length ? { attachments: a.attachments } : {}),
         reply_to: a.reply_to !== undefined ? a.reply_to : (store.threads.context(a.thread_id).reply_to ?? null),
@@ -447,7 +442,11 @@ export function createEngine(deps: {
             thread_id: run.thread_id,
             agent_id: run.agent_id,
             trigger: "user",
-            origin: { kind: "user", ...(s.message_id ? { message_id: s.message_id } : {}) },
+            origin: {
+              kind: "user",
+              task_assignment: s.task_assignment ?? null,
+              ...(s.message_id ? { message_id: s.message_id } : {}),
+            },
             text: s.text,
           },
         );
@@ -473,10 +472,15 @@ export function createEngine(deps: {
       return { now: Boolean(running) };
     }
     const queued = store.runs.get(message.waiting.run ?? "");
-    if (!queued || queued.state !== "submitted" || askedIn(queued) !== messageId)
-      throw conflict("its turn already started");
+    if (queued?.state !== "submitted" || askedIn(queued) !== messageId) throw conflict("its turn already started");
     const into = steerable(message.thread_id, queued.agent_id);
-    if (!into || !running || queued.input?.attachments?.length) {
+    const origin = queued.input?.origin;
+    const task_assignment = origin?.kind === "user" ? (origin.task_assignment ?? null) : null;
+    const target = into?.input?.origin;
+    const targetAssignment = target?.kind === "user" || target?.kind === "agent" ? target.task_assignment : undefined;
+    const sameAssignment =
+      task_assignment?.task === targetAssignment?.task && task_assignment?.id === targetAssignment?.id;
+    if (!into || !running || queued.input?.attachments?.length || !sameAssignment) {
       const rest = lineOf(store, message.thread_id).flatMap((l) => (l.run.id === queued.id ? [] : [l.run.id]));
       reorderLine(store, message.thread_id, [queued.id, ...rest]);
       return { now: Boolean(running) && stopRunning(message.thread_id, new Superseded()) > 0 };
@@ -487,17 +491,39 @@ export function createEngine(deps: {
       store.messages.toEnd(messageId);
       steered.set(into.id, [
         ...(steered.get(into.id) ?? []),
-        { text: queued.input?.text ?? "", message_id: messageId },
+        { text: queued.input?.text ?? "", message_id: messageId, task_assignment },
       ]);
-      store.messages.setWaiting(messageId, { until: "step" });
+      store.messages.setWaiting(messageId, { until: "step", ...(task_assignment ? { task_assignment } : {}) });
     });
     running[1].cut.abort();
     return { now: true };
   }
 
+  /** Takes a waiting message back before the agent reads it: out of the running turn or the line, and the chat. */
+  function unsend(messageId: string): void {
+    const message = store.messages.get(messageId);
+    if (!message) throw notFound(`message ${messageId}`);
+    if (!message.waiting) throw conflict("your agent already took this message");
+    if (message.waiting.until === "turn") {
+      removeFromLine(store, message.waiting.run ?? "", ended);
+      return;
+    }
+    for (const [runId, list] of steered) {
+      if (!list.some((s) => s.message_id === messageId)) continue;
+      steered.set(
+        runId,
+        list.filter((s) => s.message_id !== messageId),
+      );
+      store.messages.drop(message.thread_id, [messageId]);
+      return;
+    }
+    throw conflict("your agent already took this message");
+  }
+
   /**
-   * Enter on a message that went into line behind a turn of an outside engine, which cannot take words mid-turn: it
-   * is "Send now" at once (DECISIONS.md#d-189). Our own loop's turn takes Enter's words itself; true when it acted.
+   * Enter on a message that went into line behind a turn of an outside engine that cannot take words mid-turn (Codex,
+   * ACP): it is "Send now" at once (DECISIONS.md#d-189). Our own loop and Claude Code take Enter's words themselves
+   * (DECISIONS.md#d-196); true when it acted.
    */
   function enterNow(messageId: string): boolean {
     const message = store.messages.get(messageId);
@@ -505,7 +531,7 @@ export function createEngine(deps: {
     const outside = [...active.entries()].some(([runId, a]) => {
       if (a.thread !== message.thread_id || a.ac.signal.aborted) return false;
       const harness = store.runs.get(runId)?.harness;
-      return harness !== undefined && harness !== "native";
+      return harness !== undefined && !MIDTURN.has(harness);
     });
     if (!outside) return false;
     sendNow(messageId);
@@ -530,7 +556,7 @@ export function createEngine(deps: {
         thread_id: m.thread_id,
         agent_id: agent,
         trigger: "user",
-        origin: { kind: "user", message_id: m.id },
+        origin: { kind: "user", message_id: m.id, task_assignment: m.waiting.task_assignment ?? null },
         text,
       });
       store.messages.setWaiting(m.id, { until: "turn", run: run.id });
@@ -560,6 +586,7 @@ export function createEngine(deps: {
     for (const w of waiters.get(run.id) ?? []) w(run);
     waiters.delete(run.id);
     delegations.childEnded(run);
+    fanout.settle(run);
     relayEnded(store, admit, run);
   }
 
@@ -581,6 +608,7 @@ export function createEngine(deps: {
 
   /** Cancels the thread's queued and running turns and, recursively, its sub-threads'. */
   function cancel(threadId: string): number {
+    fanout.drop(threadId);
     let n = 0;
     for (const id of store.runs.queuedIds(threadId)) {
       const r = store.runs.get(id);
@@ -605,14 +633,19 @@ export function createEngine(deps: {
     /** Starts the thread's queued delegations that fit (after the owner lets agents go on); how many it started. */
     release: (threadId: string) => delegations.release(threadId),
     /**
-     * Hands owner text to the thread's running turn when its loop can take it mid-turn (ours); else undefined. With
-     * `messageId`, the message shows it waits until the turn takes it.
+     * Hands owner text to the thread's running turn when its loop can take it mid-turn (ours, Claude Code's); else
+     * undefined. With `messageId`, the message shows it waits until the turn takes it.
      */
     steer(threadId: string, text: string, messageId?: string): RunRecord | undefined {
       const run = steerable(threadId);
       if (!run) return undefined;
-      steered.set(run.id, [...(steered.get(run.id) ?? []), { text, ...(messageId ? { message_id: messageId } : {}) }]);
-      if (messageId) store.messages.setWaiting(messageId, { until: "step" });
+      const task_assignment = messageId ? (ownerTaskAssignment(store, threadId, run.agent_id) ?? null) : null;
+      steered.set(run.id, [
+        ...(steered.get(run.id) ?? []),
+        { text, task_assignment, ...(messageId ? { message_id: messageId } : {}) },
+      ]);
+      if (messageId)
+        store.messages.setWaiting(messageId, { until: "step", ...(task_assignment ? { task_assignment } : {}) });
       return run;
     },
     /** Changes the words of a message in line, before its turn starts. */
@@ -621,6 +654,7 @@ export function createEngine(deps: {
     removeQueued: (runId: string) => removeFromLine(store, runId, ended),
     reorderQueued: (threadId: string, runs: readonly string[]) => reorderLine(store, threadId, runs),
     sendNow,
+    unsend,
     enterNow,
     /** The owner's answer to something an agent asked (runs.respond). */
     respond: inputs.respond,
@@ -648,6 +682,7 @@ export function createEngine(deps: {
     },
     /** Boot: close what a restart interrupted, then pick the durable queue back up. */
     start(): void {
+      fanout.restore();
       inputs.restore();
       jobs.reconcile();
       const interrupted = recoverInterrupted(store);
@@ -683,6 +718,7 @@ export function createEngine(deps: {
     /** Shutdown: stops every running turn (left open, so the next boot resumes it) and waits for them to finish writing. */
     async stop(): Promise<void> {
       stopping = true;
+      fanout.stop();
       for (const a of active.values()) a.ac.abort(new Shutdown());
       await Promise.allSettled([...running, jobs.stopAll()]);
     },

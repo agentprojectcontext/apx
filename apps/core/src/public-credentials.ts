@@ -21,7 +21,7 @@ const Saved = z
   .max(1000);
 const KEY = "public-route-credentials";
 /** What a key may be: APX's own (`apxp_` and 64 hex) or one the owner chose (DECISIONS.md#d-182). */
-export const PUBLIC_TOKEN = /^[A-Za-z0-9._~-]{24,200}$/;
+const PUBLIC_TOKEN = /^[A-Za-z0-9._~-]{24,200}$/;
 const digest = (value: string) => createHash("sha256").update(value).digest();
 const deliveryHeaders = (headers: Record<string, string>) =>
   Object.fromEntries(Object.entries(headers).filter(([name]) => name === "content-type" || name === "idempotency-key"));

@@ -10,7 +10,7 @@ export const sourceDir = () => path.resolve(import.meta.dirname, "../../../termi
  * Folders APX once installed in runtimes and no longer ships: removed when found. Only names on this list or in
  * the shipped set are ever touched; every other skill in a runtime's folder belongs to someone else.
  */
-export const RETIRED = [
+const RETIRED = [
   "apx-agency-agents",
   "apx-agent",
   "apx-mcp-builder",
@@ -87,8 +87,8 @@ function readFiles(dir: string): Record<string, string> {
   return out;
 }
 
-export type Action = "create" | "update" | "unchanged" | "remove" | "skip-link";
-export type Step = { runtime: Runtime; name: string; dir: string; action: Action };
+type Action = "create" | "update" | "unchanged" | "remove" | "skip-link";
+type Step = { runtime: Runtime; name: string; dir: string; action: Action };
 export type Plan = { steps: Step[]; missing: Runtime[] };
 
 const lstat = (p: string) => {

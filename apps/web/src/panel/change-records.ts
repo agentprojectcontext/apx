@@ -1,6 +1,6 @@
 import type { Message, Part } from "@apx/protocol";
 
-export type ChangePart = Extract<Part, { type: "changes" }>;
+type ChangePart = Extract<Part, { type: "changes" }>;
 export type ChangeRow = {
   file: ChangePart["files"][number];
   cwd: string;

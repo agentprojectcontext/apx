@@ -1,7 +1,8 @@
 import "../styles/screens.css";
-import { Dialog, Icons, NavItem, SearchField } from "@apx/ui";
-import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
+import { Dialog, Icons, NavItem, SearchField, Skeleton } from "@apx/ui";
+import { type CSSProperties, type ReactNode, Suspense, useEffect, useState } from "react";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { MoveSection } from "../lazy.ts";
 import { LAYOUT } from "../shell/layout.ts";
 import { type ConfigSection, go, useNav } from "../shell/nav.ts";
 import { AdvancedSection } from "./AdvancedSection.tsx";
@@ -68,6 +69,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
       { id: "desktop", label: "config.desktop", icon: <Icons.Monitor /> },
       { id: "advanced", label: "config.advanced", icon: <Icons.Wrench /> },
       { id: "storage", label: "config.storage", icon: <Icons.HardDrive /> },
+      { id: "move", label: "config.move", icon: <Icons.ArrowRightLeft /> },
       { id: "logs", label: "config.logs", icon: <Icons.Activity /> },
     ],
   },
@@ -183,6 +185,12 @@ function Body({ section }: { section: ConfigSection }) {
       return <AdvancedSection />;
     case "storage":
       return <StorageSection />;
+    case "move":
+      return (
+        <Suspense fallback={<Skeleton height={240} shape="block" />}>
+          <MoveSection />
+        </Suspense>
+      );
     case "logs":
       return <LogsSection />;
   }

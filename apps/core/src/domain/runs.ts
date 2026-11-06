@@ -11,8 +11,21 @@ import type { ThreadContext } from "./threads.ts";
 export type FlowRoutineEvent = { flow: string; id: string; data: unknown };
 
 export type Origin =
-  | { kind: "user"; message_id?: string }
-  | { kind: "agent"; id: string; name: string; thread_id: string; run_id: string }
+  | {
+      kind: "user";
+      message_id?: string;
+      task_assignment?: { task: string; id: string } | null;
+      /** Written in APX's panel in Chrome: the turn browses in the owner's Chrome (DECISIONS.md#d-198). */
+      via?: "chrome";
+    }
+  | {
+      kind: "agent";
+      id: string;
+      name: string;
+      thread_id: string;
+      run_id: string;
+      task_assignment?: { task: string; id: string };
+    }
   | { kind: "surface"; id: string; title: string }
   /** A message on a channel (Telegram…): from the owner, or from a contact (then it is a third party's text). */
   | {
@@ -51,7 +64,7 @@ export type Origin =
   /** The owner let agents go on after a pause: with a fresh budget, or with no limit this round (DECISIONS.md#d-081). */
   | { kind: "go_on"; mode: "reset" | "release" }
   /** The agent's task turn ended with the task still in progress: APX starts its next part (engine/task-continue.ts). */
-  | { kind: "task_continue"; task_id: string; title: string; part: number; of: number }
+  | { kind: "task_continue"; task_id: string; title: string; part: number; of: number; from_run?: string }
   /** APX found the agent's task open with nothing running on it, and asks it once to go on (engine/task-stall.ts). */
   | { kind: "stalled_task"; task_id: string; title: string }
   /** The owner added a project or an agent: the super-agent offers to adapt it (engine/added.ts). */
@@ -71,24 +84,28 @@ export type Origin =
       name: string;
       by?: string;
     }
-  | {
-      kind: "delegation_result";
-      agent_id: string;
-      name: string;
-      thread_id: string;
-      run_id: string;
-      state: RunState;
-      /** Why it ended (`step_limit`: it reported progress, not a result); absent on runs older than the field. */
-      end_reason?: RunEndReason;
-      /** Its calls with an effect as APX recorded them (`actionsOf`), absent on runs older than the field. */
-      actions?: string[];
-      /** The session's name, to continue it with its context. */
-      session?: string;
-      /** Why APX stopped going on with it after a limit cut it short (DECISIONS.md#d-116): the owner decides. */
-      stopped?: string;
-      /** How it went when not well (`outcomeOf`): no answer, failed actions, an error. */
-      outcome?: { level: "warn" | "error"; why: string };
-    };
+  | ({ kind: "delegation_result" } & DelegationResult)
+  /** Answers of teammates asked in one turn, delivered together once all are in or the hold ran out (DECISIONS.md#d-194). */
+  | { kind: "delegation_results"; results: Array<DelegationResult & { answer: string }> };
+
+/** A delegated run that ended, as its caller hears of it. */
+export type DelegationResult = {
+  agent_id: string;
+  name: string;
+  thread_id: string;
+  run_id: string;
+  state: RunState;
+  /** Why it ended (`step_limit`: it reported progress, not a result); absent on runs older than the field. */
+  end_reason?: RunEndReason;
+  /** Its calls with an effect as APX recorded them (`actionsOf`), absent on runs older than the field. */
+  actions?: string[];
+  /** The session's name, to continue it with its context. */
+  session?: string;
+  /** Why APX stopped going on with it after a limit cut it short (DECISIONS.md#d-116): the owner decides. */
+  stopped?: string;
+  /** How it went when not well (`outcomeOf`): no answer, failed actions, an error. */
+  outcome?: { level: "warn" | "error"; why: string };
+};
 
 /**
  * What speaks for the owner in a chat on the computer, and so may run there: their words (from the app or as the owner
@@ -108,6 +125,7 @@ export const runsOnComputer = (o: Origin): boolean => {
     case "task_continue":
     case "task_result":
     case "delegation_result":
+    case "delegation_results":
       return true;
     case "channel":
       return o.role === "owner";
@@ -117,6 +135,16 @@ export const runsOnComputer = (o: Origin): boolean => {
       return false;
   }
 };
+
+/**
+ * The turn browses in the owner's Chrome: they wrote from APX's panel there, or answered something such a turn asked.
+ * Every other turn uses APX's own browser (DECISIONS.md#d-198).
+ */
+export function inChrome(o: Origin | undefined, askedIn: (inputId: string) => Origin | undefined, depth = 0): boolean {
+  if (o?.kind === "user") return o.via === "chrome";
+  if (o?.kind !== "input_answer" || depth >= 10) return false;
+  return inChrome(askedIn(o.input_id), askedIn, depth + 1);
+}
 
 /** The owner speaking: from the app, or on a channel as the owner (never a contact). */
 export const ownerOrigin = (o: Origin | undefined): o is Extract<Origin, { kind: "user" | "channel" }> =>

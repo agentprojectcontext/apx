@@ -179,7 +179,7 @@ function connect(graph: Graph, from: string, to: string, when?: string): Graph {
 }
 
 /** The drawing after each edit in order; every new step gets a place beside the one it follows. */
-export function applyEdits(start: Graph, edits: readonly Edit[]): Graph {
+function applyEdits(start: Graph, edits: readonly Edit[]): Graph {
   let g = start;
   for (const e of edits) {
     if (e.op === "add") {

@@ -427,6 +427,20 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
     "Tareas que un agente propone: no arrancan hasta que las aceptás. Aceptá las que sirven y descartá el resto.",
   "tasks.accept": "Aceptar",
   "tasks.acceptAll": "Aceptar todas",
+  "tasks.acceptAll.changed": "Estas propuestas cambiaron. Revisá la lista y volvé a intentar; no se aceptó ninguna.",
+  "tasks.acceptAll.title": "¿Aceptar estas propuestas?",
+  "tasks.acceptAll.titleOne": "¿Aceptar esta propuesta?",
+  "tasks.acceptAll.failedOne": "No pudimos confirmar si se aceptó. Revisá las propuestas antes de volver a intentar.",
+  "tasks.acceptAll.failed":
+    "No pudimos confirmar si se aceptaron estas propuestas. Revisá la lista antes de volver a intentar.",
+  "tasks.acceptAll.partial":
+    "Confirmamos la aceptación de {n} de {total} propuestas. Revisá las restantes antes de volver a intentar.",
+  "tasks.acceptAll.body":
+    "Vas a aceptar {n} propuestas de esta lista. Los agentes asignados pueden empezar a trabajar en ellas.",
+  "tasks.acceptAll.bodyOne":
+    "Vas a aceptar 1 propuesta de esta lista. El agente asignado puede empezar a trabajar en ella.",
+  "tasks.acceptAll.confirm": "Aceptar {n} propuestas",
+  "tasks.acceptAll.confirmOne": "Aceptar 1 propuesta",
   "tasks.row.proposedBy": "Propone {name}",
   "tasks.row.proposed": "Propuesta",
   "tasks.group.closed": "Cerradas hace poco",

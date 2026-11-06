@@ -94,8 +94,8 @@ export function routinesRepo({ one, all, run }: Sql) {
       else if (project) q = q.where("project_id", "=", project);
       return all(q.orderBy("name")).map((r) => toRoutine(r, lastOf(r.id)));
     },
-    create(d: RoutineDraft): Routine {
-      const id = newId("rtn");
+    /** `id`: one brought from another computer keeps its own. */
+    create(d: RoutineDraft, id = newId("rtn")): Routine {
       const at = now();
       run(
         qb.insertInto("routines").values({

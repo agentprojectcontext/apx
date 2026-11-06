@@ -4,7 +4,7 @@ import path from "node:path";
 import { findProgram } from "../programs.ts";
 import { mirroredNetworking } from "./wsl-seed.ts";
 
-export type VmType = "vz" | "qemu" | "wsl2";
+type VmType = "vz" | "qemu" | "wsl2";
 export type GuestArch = "aarch64" | "x86_64";
 
 /** How this host runs the computer: Lima's own driver for its OS, the pinned Lima build for it and the tools around it. */
@@ -59,7 +59,7 @@ const systemRoot = () => process.env.SystemRoot ?? "C:\\Windows";
  * Git for Windows' ssh. Lima feeds its guest scripts through ssh's stdin, which Windows' own OpenSSH never passes
  * on, so its readiness check hangs; Lima's own docs name Git's ssh for Windows.
  */
-export function gitSsh(envPath = process.env.PATH ?? ""): string | undefined {
+function gitSsh(envPath = process.env.PATH ?? ""): string | undefined {
   const git = findProgram("git", envPath);
   const candidates = [
     // …\Git\cmd\git.exe and …\Git\bin\git.exe sit beside …\Git\usr\bin\ssh.exe.
@@ -114,7 +114,7 @@ export function computerHost(
 
 /** A step the owner takes once on this host before the computer can start: what is missing and the command for it. */
 export type ComputerNeed = { reason: ComputerNeedReason; command?: string; message: string };
-export type ComputerNeedReason = "qemu" | "kvm_group" | "kvm_missing" | "wsl" | "git" | "wsl_mirrored";
+type ComputerNeedReason = "qemu" | "kvm_group" | "kvm_missing" | "wsl" | "git" | "wsl_mirrored";
 
 type Installer = "apt" | "dnf" | "pacman" | "zypper";
 

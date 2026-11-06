@@ -53,13 +53,15 @@ export function ModelList({
   return (
     <div className="mlist">
       <div className="mlist__catalog">
-        <SearchField
-          size="sm"
-          autoFocus
-          placeholder={t("models.search")}
-          value={q}
-          onChange={(e) => setQ(e.currentTarget.value)}
-        />
+        {(load !== "ready" || catalog.some(only) || q) && (
+          <SearchField
+            size="sm"
+            autoFocus
+            placeholder={t("models.search")}
+            value={q}
+            onChange={(e) => setQ(e.currentTarget.value)}
+          />
+        )}
         <div className="mlist__scroll" role="listbox" aria-label={t("models.catalog")}>
           {groups.length === 0 && (
             <p className="mlist__empty">
@@ -75,6 +77,7 @@ export function ModelList({
               <div className="mlist__engine">
                 <EngineIcon engine={e.id} size={14} />
                 <span>{e.label}</span>
+                {e.local && <span className="chip">{t("models.local")}</span>}
                 {!e.available && (
                   <Badge tone="warning" title={e.detail}>
                     {t("models.unavailable")}
@@ -107,7 +110,7 @@ export function ModelList({
           ))}
         </div>
       </div>
-      {onEffort && <EffortRow value={effortValue} onChange={onEffort} />}
+      {onEffort && (catalog.some(only) || effortValue) && <EffortRow value={effortValue} onChange={onEffort} />}
     </div>
   );
 }

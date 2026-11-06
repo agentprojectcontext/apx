@@ -1,5 +1,6 @@
-// An agent whose engine only reads words between turns (DECISIONS.md#d-186, #d-189): "Send now", and plain Enter, stop
-// the turn at work, as the composer's stop does, and the owner's message runs at once, ahead of anything else in line.
+// An agent whose engine only reads words between turns, such as Codex (DECISIONS.md#d-186, #d-189, #d-196): "Send now",
+// and plain Enter, stop the turn at work, as the composer's stop does, and the owner's message runs at once, ahead of
+// anything else in line.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import type { Message } from "@apx/protocol";
@@ -9,13 +10,13 @@ import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 /** An outside engine: a turn asking for "work" goes on until it is stopped; any other answers with what it read. */
 let started = 0;
-const claude: Harness = {
-  id: "claude",
+const codex: Harness = {
+  id: "codex",
   run: (io) =>
     new Promise((resolve, reject) => {
       const text = String(io.input.content);
       started++;
-      if (!text.includes("work")) return resolve({ text: `Heard: ${text}`, model: "claude/model" });
+      if (!text.includes("work")) return resolve({ text: `Heard: ${text}`, model: "codex/model" });
       io.signal.addEventListener("abort", () => reject(io.signal.reason), { once: true });
     }),
 };
@@ -32,7 +33,7 @@ before(async () => {
         })
       : say(`Plain: ${said}`),
   );
-  env = await startCore({ llm, harnesses: { claude } });
+  env = await startCore({ llm, harnesses: { codex } });
   repo = tempDir("apx-outside-");
   project = (await env.client.call("projects.register", { path: repo.path, init: true })).project.id;
 });
@@ -50,7 +51,7 @@ test("send now stops an outside engine's turn and runs the message at once, ahea
       kind: "code",
       agent_id: "superagent",
       project_id: project,
-      engine: "claude",
+      engine: "codex",
     })
   ).id;
   const first = await env.client.call("threads.send", { thread, text: "work for long" });
@@ -77,7 +78,7 @@ const outsideThread = async () =>
       kind: "code",
       agent_id: "superagent",
       project_id: project,
-      engine: "claude",
+      engine: "codex",
     })
   ).id;
 

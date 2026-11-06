@@ -71,6 +71,11 @@ export type ThreadContext = {
   /** On a task's conversation: the owner's comments no agent has had yet (message ids), and those handed to a turn. */
   owner_unread?: string[];
   owner_handed?: Array<{ run: string; messages: string[] }>;
+  /**
+   * Answers of teammates its agent asked in one turn (`run`), held until the others are in or `until` passes; `closed`
+   * once it passed, so later ones come one by one (DECISIONS.md#d-194).
+   */
+  fanout?: FanoutGroup[];
   /** Queued delegations from this chat the breaker holds (run ids) whose notice the owner already saw. */
   queue_held?: string[];
   /** A result or report reached this chat's agent (its id) while paused: kept for its next turn, which going on starts. */
@@ -96,6 +101,14 @@ export type ThreadContext = {
 
 /** A release-notes chat: up to which version, from which one (its commits are previous..version), and where built. */
 export type ReleaseContext = { version: string; previous?: string; branch?: string; repo_dir?: string };
+
+/** One turn's delegations whose answers reach it together: the answers held so far (`stopped` as `deliver` got it). */
+export type FanoutGroup = {
+  run: string;
+  until: string;
+  held: Array<{ child: string; stopped?: string | undefined }>;
+  closed?: boolean;
+};
 
 /** A task's start an agent asked for, kept until the owner lets agents go on: who works it, and who asked. */
 export type HeldTask = { task: string; agent: string; run: string; depth: number };
@@ -129,7 +142,7 @@ const WRITE_STRICTNESS: Record<Write, number> = { auto: 0, ask: 1, "read-only": 
 export const strictestWrite = (first: Write, ...rest: Write[]): Write =>
   rest.reduce((m, w) => (WRITE_STRICTNESS[w] > WRITE_STRICTNESS[m] ? w : m), first);
 
-export const PREVIEW_CHARS = 160;
+const PREVIEW_CHARS = 160;
 export const previewOf = (text: string) => text.slice(0, PREVIEW_CHARS);
 
 export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (thread: string) => void = () => {}) {
@@ -259,6 +272,12 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
     unreadByAgents(): string[] {
       return all(
         qb.selectFrom("threads").select("id").where(sql`json_array_length(context, '$.owner_unread')`, ">", 0),
+      ).map((r) => r.id);
+    },
+    /** The chats holding answers of a fan-out for their agent's next turn (`fanout`). */
+    withFanout(): string[] {
+      return all(
+        qb.selectFrom("threads").select("id").where(sql`json_extract(context, '$.fanout')`, "is not", null),
       ).map((r) => r.id);
     },
     /** The task chats an agent's turn in `threadId` started (`asked_from`). */

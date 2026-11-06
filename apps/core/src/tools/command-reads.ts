@@ -1,6 +1,7 @@
 // Whether a shell command line only reads, on this machine: every program in it a known local reader, nothing written
 // anywhere and nothing sent out. Such a call is risk `read` and never waits for the owner (DECISIONS.md#d-098).
 import os from "node:os";
+import { apxEntry, apxReads } from "./apx-reads.ts";
 import { namedPaths, segments, type Word } from "./command-paths.ts";
 import { gitReads } from "./git-reads.ts";
 
@@ -44,6 +45,10 @@ function reader(words: Word[]): boolean {
   switch (program) {
     case "git":
       return gitReads(args);
+    case "apx":
+      return apxReads(args);
+    case "node":
+      return Boolean(args[0] && !args[0].unknown && apxEntry(args[0].text)) && apxReads(args.slice(1));
     case "find":
       return findReads(args);
     case "sed": {
@@ -79,7 +84,7 @@ function findReads(args: Word[]): boolean {
 }
 
 /** A sed script that neither writes a file (`w`, `W`, `s///w`) nor runs a command (`e`, `s///e`), nor reads one. */
-export function sedReads(s: string): boolean {
+function sedReads(s: string): boolean {
   let i = 0;
   // From a delimiter, past its closing one.
   const delimited = () => {

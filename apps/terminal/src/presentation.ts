@@ -78,7 +78,7 @@ export function portrait(name?: string, color = false): string[] {
   }
   return rows;
 }
-export function portraitColor(name?: string): number[] {
+function portraitColor(name?: string): number[] {
   const rgb = blob(name)?.color ?? [58, 231, 176];
   const scale = Math.max(1, 190 / Math.max(...rgb, 1));
   return rgb.map((n) => Math.min(255, Math.round(n * scale)));

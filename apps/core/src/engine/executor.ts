@@ -88,7 +88,7 @@ function describe(args: Record<string, unknown>): string {
 
 /** What the model reads when the owner has not said yes: still waiting, or declined (or never answered). */
 /** A tool call the owner's "send now" stopped part way: the model reads their words next. */
-export const CUT_SHORT =
+const CUT_SHORT =
   "stopped part way: the owner sent you a message to read now. It may have done part of its work; check before repeating it.";
 
 function unanswered(answer: InputRecord): { card: string; text: string } | undefined {
@@ -478,7 +478,7 @@ export function createExecutor(o: {
           }
         : {}),
       delegate: o.delegate,
-      askOwner: (prompt, options, canContinue, multi) =>
+      askOwner: (prompt, options, canContinue, multi, appOnly) =>
         o.inputs.ask({
           run,
           agent,
@@ -488,6 +488,7 @@ export function createExecutor(o: {
           prompt,
           options,
           multi,
+          ...(appOnly ? { appOnly: true as const } : {}),
           external: o.external(),
           stays: !canContinue,
           signal,
@@ -540,7 +541,7 @@ export function createExecutor(o: {
     signal.throwIfAborted();
     if (step?.aborted) {
       card("error", "stopped for your message");
-      return { ok: false, text: CUT_SHORT };
+      return { ok: false, text: tool.cut ? `${CUT_SHORT} ${tool.cut}` : CUT_SHORT };
     }
     card(out.ok ? "ok" : "error", out.text.slice(0, CARD_DETAIL_CHARS));
     // The model gets a capped copy; the whole text stays in the step for read_output.

@@ -2,16 +2,18 @@
 // The node re-checks control on every agent call: it never trusts that the core already did.
 import { EventEmitter } from "node:events";
 import {
+  BROWSER_FILL_SECRET,
   BROWSER_HOLD,
+  BrowserFillSecret,
   type BrowserProfile,
   browserMethods,
   createTabHolds,
   type TabControl,
   type TabInfo,
 } from "@apx/protocol";
-import { assertNavigable as checkNavigable } from "@apx/protocol/cdp";
+import { assertNavigable as checkNavigable, scrubDeep } from "@apx/protocol/cdp";
 import { ApxError } from "@apx/protocol/client";
-import { app, type Session, session, type WebContents, WebContentsView } from "electron";
+import { type Session, session, type WebContents, WebContentsView } from "electron";
 import type { ProcessOwner } from "../memory.ts";
 import { CdpTab } from "./cdp.ts";
 import { discoverSources, importCookies, listDomains } from "./cookies.ts";
@@ -33,11 +35,6 @@ type Tab = {
 const MAX_TABS = 8;
 const NAV_TIMEOUT_MS = 8_000;
 
-/** The honest Chromium UA: no "Electron/x" or app token. Client hints stay untouched (removing them breaks Google login). */
-function cleanUserAgent(): string {
-  return app.userAgentFallback.replace(/\sElectron\/\S+/, "").replace(/\s@?apx[^\s]*\/\S+/i, "");
-}
-
 function partitionFor(profile: BrowserProfile, seq: number): string {
   if (profile === "shared") return "persist:apx-shared";
   if (profile === "incognito") return `apx-incog-${seq}`; // no "persist:" → memory only
@@ -51,7 +48,7 @@ export function blockAppOrigins(urls: string[]): void {
   blockedPorts = new Set(urls.map((u) => new URL(u).port || "80"));
 }
 
-export const assertNavigable = (url: string): void => checkNavigable(url, blockedPorts);
+const assertNavigable = (url: string): void => checkNavigable(url, blockedPorts);
 
 export class BrowserHost extends EventEmitter<{ changed: [] }> {
   #tabs = new Map<string, Tab>();
@@ -81,8 +78,9 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
     const wc = tab.wc;
     return {
       tab: tab.id,
-      url: wc.getURL(),
-      title: wc.getTitle(),
+      // A page may carry a filled value on into its address or title (a form sent by GET).
+      url: tab.cdp.scrub(wc.getURL()),
+      title: tab.cdp.scrub(wc.getTitle()),
       profile: tab.profile,
       control: tab.control,
       consent_epoch: tab.cdp.consentEpoch,
@@ -101,7 +99,9 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
     // The tab is locked while the call runs: closing it for being idle would pull the page from under the agent.
     this.#busy.set(id, (this.#busy.get(id) ?? 0) + 1);
     try {
-      return await this.#run(method, raw);
+      const out = await this.#run(method, raw);
+      const tab = this.#tabs.get(id);
+      return tab && method !== "browser.screenshot" ? scrubDeep(out, (t) => tab.cdp.scrub(t)) : out;
     } finally {
       const left = (this.#busy.get(id) ?? 1) - 1;
       if (left > 0) this.#busy.set(id, left);
@@ -170,6 +170,11 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         if (p.submit) await this.#settle(tab);
         return { ok: true, url: tab.wc.getURL() };
       }
+      case BROWSER_FILL_SECRET: {
+        const p = BrowserFillSecret.parse(raw);
+        const tab = this.#drive(p.tab, p.by);
+        return tab.cdp.fillSecret(p.ref, p);
+      }
       case "browser.approval_context": {
         const p = browserMethods["browser.approval_context"].params.parse(raw);
         return this.#readable(p.tab).cdp.approvalContext(p.origin, p.document);
@@ -199,13 +204,14 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
       }
       case "browser.text": {
         const p = browserMethods["browser.text"].params.parse(raw);
-        const wc = this.#readable(p.tab).wc;
+        const tab = this.#readable(p.tab);
+        const wc = tab.wc;
         // Isolated world: the page's scripts cannot see or patch this read.
         // Resolves to the script's value (a string), not to an array of results.
         const full = (await wc.executeJavaScriptInIsolatedWorld(999, [
           { code: "document.body ? document.body.innerText : ''" },
         ])) as unknown;
-        const text = String(full ?? "").replace(/\n{3,}/g, "\n\n");
+        const text = tab.cdp.readable(String(full ?? "")).replace(/\n{3,}/g, "\n\n");
         const slice = text.slice(p.offset, p.offset + p.max_chars);
         return { url: wc.getURL(), text: slice, total: text.length, truncated: p.offset + p.max_chars < text.length };
       }
@@ -493,7 +499,8 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
   #configure(ses: Session): void {
     if (this.#configured.has(ses)) return;
     this.#configured.add(ses);
-    ses.setUserAgent(cleanUserAgent());
+    // No user-agent override: a Chrome claim the page can see through gets Cloudflare's pass refused.
+    // See HISTORY.md#tab-user-agent
     // Camera, mic, geolocation, notifications, clipboard-read: denied unless a later UI grants them.
     ses.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
     ses.on("will-download", (e) => e.preventDefault());

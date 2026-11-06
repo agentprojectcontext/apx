@@ -32,7 +32,7 @@ const TEXT_MAX = 100_000;
 const LOG_CHARS = 200_000;
 
 type Row = { ts: string; type: string; body: string; author?: string; meta: Record<string, unknown> };
-export type V1Chat = {
+type V1Chat = {
   key: string;
   title: string;
   channel: string;
@@ -181,7 +181,7 @@ function agentChats(home: string): V1Chat[] {
   return out;
 }
 
-export function v1Chats(home: string): V1Chat[] {
+function v1Chats(home: string): V1Chat[] {
   return [...ledgerChats(home), ...agentChats(home)];
 }
 

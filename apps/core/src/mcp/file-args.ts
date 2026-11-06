@@ -7,10 +7,10 @@ import { mimeOf } from "../services/attachment-files.ts";
 import { chatMedia, MEDIA_ID, mediaName, mediaToTemp } from "../services/media-temp.ts";
 import { type FolderThread, folderAccess } from "../tools/folders.ts";
 
-export const FILE_REF = "apx-file:";
+const FILE_REF = "apx-file:";
 
 /** Largest file sent inline: the same cap as a chat attachment, whatever a server claims to take. */
-export const INLINE_MAX_BYTES = 20 * 1024 * 1024;
+const INLINE_MAX_BYTES = 20 * 1024 * 1024;
 
 /** A file an agent may hand on. `path()` is a real path on this machine (a kept file is copied to the temp folder). */
 export type AgentFile = { name: string; mime: string; bytes: number; read(): Buffer; path(): string };

@@ -27,9 +27,11 @@ messages or spends money on the owner's behalf).
 | Tests | `pnpm test` | Router, idempotency, safe bind, HTTP ≡ WS, origin/token gate, static path safety, agent runs (streaming, cancel, interrupted turns), delegation (sync + async wake-up), artifacts isolation, node routing, cookie mapping/decryption; prompt budget (rule 23: a default turn's system prompt and tools within [`PROMPT_SIZE.md`](PROMPT_SIZE.md)) |
 | Test quality | `pnpm check:tests` | AST checks for disabled/exclusive/empty tests, literal-only assertions and unobserved Node/Jest promise assertions; portability (rule 26: real-time windows, counted waits, raw temp folders and removal, path prefixes, `process.exit`), with an allowlist that only shrinks; does not establish behavioral coverage (rule 24) |
 | Execution coverage | `pnpm test:coverage:all` | Unit, mounted mobile, browser and desktop suites must pass; repository build mappings must be present, including intermediate library maps. Reports include unexecuted functions; only `pnpm test:coverage:all:strict` also fails on remaining execution gaps |
+| UI controls and tokens | `pnpm check:ui` | Rule 32 — panel screens (`apps/web/src`) use `@apx/ui` controls, not a native `<button>`/`<select>`/`<textarea>`/text or checkbox `<input>`, and `--apx-*` tokens, not literal colours; a deliberate exception carries `ui: <why>`; today's debt is in `scripts/check-ui-allowlist.json`, each entry with its reason, and only shrinks |
+| Dead code | `pnpm check:dead` | knip (`knip.jsonc`): no file, export, exported type or dependency that nothing reaches; false positives sit in `knip.jsonc` with their reason, and an entry no longer needed fails |
 | Private data | `pnpm check:private` | Rule 17 — local denylist (never committed) + public shapes (phone numbers, `/Users`/`/Volumes` paths); `pnpm check:commits` runs it over commit messages and authors |
 | Schema | `pnpm check:schema` | `db/schema.ts` (the typed queries' tables) matches the migrations |
-| All | `pnpm preflight` | Private data, schema, lint, typecheck and tests; run before every push. `pnpm verify` adds e2e and perf |
+| All | `pnpm preflight` | Private data, schema, lint, UI controls and tokens, dead code, typecheck and tests; run before every push. `pnpm verify` adds e2e and perf |
 
 Convention-only today (review must catch them): no a2a side path (rule 2), untrusted content handling (rule 10),
 secrets by reference (rule 11), no tests reading source (rule 13), meaningful regression protection and affected
@@ -45,7 +47,8 @@ override is closed — see [`DECISIONS.md#d-005`](DECISIONS.md#d-005)).
 - `apps/core/src/config.ts` bind/token logic and any auth code.
 - The webhook listener (`apps/core/src/transport/hooks.ts`) and each channel adapter's `webhook()` verification: they
   take requests from the internet once a public address is on.
-- The embedded browser: profiles, cookie import, CDP control, take-control handoff.
+- The embedded browser: profiles, cookie import, CDP control, take-control handoff, filling a stored secret into a
+  sign-in field ([D-193](DECISIONS.md#d-193)).
 - Tools with side effects (send, pay, shell, filesystem writes) and anything that lets model output trigger them.
 - A tool that acts as the owner (`callAsOwner`): where it sits in `tools/settings-reach.ts` (`ownerSetting`,
   `keepsCard`, `TOTAL_SKIPS`) decides whether Total skips its card ([D-143](DECISIONS.md#d-143)).

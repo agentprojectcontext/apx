@@ -63,6 +63,22 @@ project or shows **All projects**; this browser remembers the choice for the nex
   It is asked to review at once: asking for changes sends it back to whoever did it; approving makes it yours.
 - **Closed recently**: done or dropped, newest first.
 
+### Group existing tasks as subtasks
+
+Ask your agent to put related tasks under an existing parent task. Both
+must be in the same project. This keeps their IDs, history, comments, sessions and assignees; grouping alone does
+not start work again or change whether a task is open or closed. Unrelated tasks stay separate.
+
+The CLI equivalent is `apx tasks edit <id> --parent <parent-id>`; `--parent ""` detaches the task. The agent's
+`task_update` tool and `tasks.update` protocol method accept `parent` (an existing task ID, or `null` to detach).
+An agent can move a task beside or below others, never higher up: detaching it or moving it toward the top is yours.
+A task cannot become its own parent or sit below one of its descendants. The list nests tasks when both the parent
+and child are present in the current filter; opening the parent also lists its subtasks.
+Detach a child before moving it to another project (or detach and move it in the same update). Detach all
+subtasks before moving their parent. Creating a subtask also requires the same project as its parent. Work your
+agent hands to another project's agent from a global task's chat stays listed under that task, and a subtask
+already linked that way can still be edited.
+
 ## Attachments and task chat actions
 
 Tasks can keep selected screenshots and files as independent snapshots, when created or later. Preview or download
@@ -197,6 +213,16 @@ hands out it creates and starts; the rest it **proposes**. A proposed task waits
 it, until you accept it (it starts like any assigned task) or drop it. You get one notice per agent with how many it
 has waiting.
 
+To accept just one open proposal, right-click it and choose **Accept**, or use **Accept** in its drawer.
+Opening or dismissing the menu changes nothing.
+
+**Accept all** asks you to confirm the number of proposals in the current list, including those behind **See more**.
+Only confirming accepts them and lets assigned agents start; cancelling or closing the dialog changes nothing.
+Proposals that arrive while the dialog is open are not included. Before accepting, APX checks the selected proposals
+again. If that check finds one changed or no longer available, acceptance does not start: review the list and try again.
+Acceptance runs one proposal at a time. If it stops or a response is lost, some proposals may already be accepted;
+check the updated list before trying again. An error message counts only acceptances whose responses were confirmed.
+
 Some tasks are proposals whatever the agent asks for. When you ask your super-agent for several things without saying how, it asks
 you first (a plan, one task each, or doing it itself); once you said how, it goes ahead.
 
@@ -207,8 +233,35 @@ The proposals:
 - **Work given back up the chain.** A sub-task for an agent that created one of the tasks above it is proposed, so two
   agents cannot ping-pong the same work.
 
-The same goes when an agent hands an existing task to another agent: if giving it new would make it a proposal, the
-hand-off is proposed too, and it starts once you accept it.
+For an existing task you explicitly assigned or accepted, APX can verify its current executor and
+recorded hand-offs instead of counting its historical parents. Up to three actual forward hand-offs may continue;
+an independent review may return to its direct sender for up to two rounds with the same author and reviewer. The
+handoff must explicitly request **Review**, and APX starts that separate agent with a review assignment. A previous
+Review status alone does not establish a review round. A third round, a changed review pair or unrelated work sent
+back up the active chain waits for you. This does not accept a proposal already waiting.
+Your follow-up messages in the task conversation or its current agent's work chat keep the same assignment and do not
+reset these limits. A pending message keeps the authorization it had when it arrived, including after a restart;
+revoking or replacing that assignment does not authorize the old message again.
+
+The authorization must still match the task, its executor and its project. Clearing its assignee, changing its scope
+or pausing it for your decision prevents this continuation. That includes an agent rewriting its title, description or
+goal, even in the same change that hands it on: the new scope waits for you as a proposal. Setting a goal the task
+never had is not a rewrite. If a recorded owner assignment can no longer be verified,
+APX proposes the hand-off even for a task without historical parents. Tasks without a recorded owner assignment keep
+the parent-chain rules above: an unassigned task with no owner authorization cannot bypass those rules as an authorized
+continuation. Ordinary assignments that already passed those rules are unchanged. The orchestrator's chat is not authorization by itself: the task must belong to it and its execution must
+be linked to your current assignment. Accept the proposal yourself when you want it to start; removing historical
+parents is not an authorization step.
+
+### A reviewer or a new assignee?
+
+To ask for a review while keeping the same responsible agent, move the task to **Review** and choose an independent
+agent in **Reviewer** (or ask your agent to set it). APX opens a review consultation, for at most two rounds: requested
+changes go back to the responsible agent; an approval is brought to you. Approval does not automatically restart the
+responsible agent for delivery. A proposed task starts no review until you accept it.
+
+Changing the **assignee** instead transfers responsibility and starts a task work session. That is the hand-off
+covered above, not the review consultation. Your review gate and the agents' budgets still apply.
 
 ## Commitments
 

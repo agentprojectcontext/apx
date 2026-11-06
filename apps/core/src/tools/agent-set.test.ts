@@ -19,6 +19,9 @@ const CALLS: Record<string, [string, object]> = {
   "let the writer go": ["agent_set", { agent: "acme-writer", archive: true }],
   "show the team": ["agent_set", {}],
   "hire a designer": ["agent_set", { slug: "designer", name: "Designer", role: "Designer", area: "Design" }],
+  "back the coder up": ["agent_set", { agent: "acme-coder", fallbacks: ["fake/backup-1", "fake/backup-2"] }],
+  "back the writer up": ["agent_set", { agent: "acme-reader", fallbacks: ["fake/backup-1"] }],
+  "show me the coder": ["agent_set", { agent: "acme-coder" }],
   "hire a lead": [
     "agent_set",
     { slug: "lead", name: "Lead", role: "Head of design", area: "design", orchestrator: true },
@@ -38,6 +41,13 @@ before(async () => {
     role: "Writes copy",
     prompt: "Write long.",
   });
+  await env.client.call("agents.create", {
+    slug: "acme-coder",
+    name: "Acme Coder",
+    prompt: "Code.",
+    model_choice: { model: "fake/main", router: true },
+  });
+  await env.client.call("agents.create", { slug: "acme-reader", name: "Acme Reader", prompt: "Read." });
 });
 after(async () => {
   await env.core.close();
@@ -161,5 +171,19 @@ test("a new agent with no name given gets a person's name from APX's generator, 
 test("a sentence as a role is sent back before the owner is asked: the longer text goes in description", async () => {
   assert.match(await ask("hire a wordy one"), /role is a short title .*put the longer text in description/);
   assert.equal(await agent("wordy"), undefined);
+  assert.equal((await env.client.call("runs.pending", {})).inputs.length, 0);
+});
+
+test("the owner can ask for an agent's fallback models; its main model stays theirs to pick", async () => {
+  assert.match(await ask("back the coder up", "superagent", "approve"), /saved: Acme Coder/);
+  assert.deepEqual((await agent("acme-coder"))?.model_choice, {
+    model: "fake/main",
+    router: true,
+    fallbacks: ["fake/backup-1", "fake/backup-2"],
+  });
+  assert.match(await ask("show me the coder"), /model: fake\/main\nfallbacks: fake\/backup-1, fake\/backup-2/);
+  // An agent on the router has no model of its own to back: told before the owner is asked.
+  assert.match(await ask("back the writer up"), /runs on the router, not a model of its own/);
+  assert.equal((await agent("acme-reader"))?.model_choice, undefined);
   assert.equal((await env.client.call("runs.pending", {})).inputs.length, 0);
 });

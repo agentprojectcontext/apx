@@ -41,7 +41,7 @@ test("a widget plays its project's MP4 behind it and shows the project's images"
   });
 
   await open(page);
-  await page.getByRole("button", { name: /^Northwind/ }).click();
+  await page.getByRole("button", { name: "Northwind", exact: true }).click();
   const tile = page.getByRole("region", { name: "Tablero" }).getByRole("article", { name: "Tomas del reel" });
   const frame = tile.frameLocator("iframe");
   await expect(frame.getByText("Toma 1: gancho en el primer segundo")).toBeVisible();

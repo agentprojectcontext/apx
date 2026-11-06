@@ -11,8 +11,8 @@ import { isInside, realpath, tildeHome } from "../paths.ts";
 import { type RuntimeHomes, runtimes, shippedNames } from "./runtimes.ts";
 
 /** The other agent apps whose skills APX reads: `~/.<app>/skills`, and `.<app>/skills` inside a project. */
-export const APPS = ["claude", "codex", "cursor", "agents"] as const;
-export type App = (typeof APPS)[number];
+const APPS = ["claude", "codex", "cursor", "agents"] as const;
+type App = (typeof APPS)[number];
 
 export type Skill = {
   name: string;
@@ -29,7 +29,7 @@ export type Skill = {
 };
 
 /** Another folder with a skill of the same name; `same` when its SKILL.md is identical. */
-export type SkillCopy = Pick<Skill, "source" | "scope" | "dir"> & { same: boolean };
+type SkillCopy = Pick<Skill, "source" | "scope" | "dir"> & { same: boolean };
 
 /** Where skills are looked for: APX's home and, when given, the homes of the other agent apps. */
 export type SkillRoots = { home: string; apps?: RuntimeHomes | undefined };

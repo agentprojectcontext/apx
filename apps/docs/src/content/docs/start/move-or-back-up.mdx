@@ -1,0 +1,71 @@
+---
+title: Move or back up
+description: Take your agents, projects and settings to another computer, or keep a copy, without your keys going with them.
+sidebar:
+  order: 6
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+One file holds what you made in APX: agents with their instructions, models and skills, your projects' APX settings,
+routines, Flows with their tables, memory notes, channels, MCP servers, model providers, preferences and your own
+skills. Bring it into APX on another computer, or keep it as a copy of your setup.
+
+<Aside type="caution">
+No key, token or password goes in the file, nor a channel's sign-in. Where something needs one, the file keeps the
+**variable's name** (`secret://name`) and you add the value again on the other computer. A key typed straight into
+an MCP server's arguments or address, a routine's command or a Flow step's header gets a name after where it was (for
+example `secret://crm_api_key`), listed with the keys to add. Folders in your home travel as `~/…`.
+</Aside>
+
+## Download a copy
+
+In **Settings › Move or back up**, press **Download**. Tick **Include chats** to take your chats' words too (without
+their files), and **Include table rows** to take what your tables hold (without it, only their columns go).
+
+From the terminal: `apx export` (add `--chats`, `--rows`, or `--out file.json`).
+
+## Bring it in
+
+<Steps>
+
+1. On the other computer, open **Settings › Move or back up** and press **Choose file**.
+
+2. Read what it would do: how much is new, changed, already here or left out, what **arrives off**, which projects
+   **wait for their folder**, and the **keys to add here**. Nothing has changed yet.
+
+3. Press **Import**.
+
+4. Add the listed keys in **Variables** with the same names, then turn on each server, channel or Flow that uses them.
+   Flows arrive as drafts: publish each one from its page, where you confirm what it sends and calls.
+
+</Steps>
+
+From the terminal: `apx import file.json` shows the same preview; `apx import file.json --yes` imports it.
+
+## What arrives how
+
+| What | How it arrives |
+|---|---|
+| Agents, routines, memory notes, preferences | As they were. An agent set to Total arrives with its project's autonomy (or keeps the one it has here). A routine keeps its switch, unless it runs a command on this computer: then it arrives off. |
+| Projects | APX's settings about each project. If its folder is at the same place here, it is added; if not, the project waits until you copy or clone the folder and add it in **Projects**, and keeps what came in. A project's own files (`AGENTS.md`, `.apc/`) travel with its folder. |
+| MCP servers, channels | **Off**, with their variable names kept (a value typed as text arrives empty). A channel needs its token or link again. |
+| Flows | **Off**, as drafts to publish. Their tables come with their columns, and with their rows if you ticked them. |
+| Model providers | Off, so you check where each one sends your key. One that needs no key keeps its switch. |
+| Calendar reminders and mail check | Off until Google is connected here. |
+| Your skills | Added when this computer has none with that name. |
+| Chats (when ticked) | Their words, in chats of their own. Home is filled only if it is empty here. |
+
+Never in the file: secret values, tokens and passwords, the database itself, chats you did not tick, files, and your
+agents' computers.
+
+## Importing twice
+
+Everything is matched by its identifier (memory notes by their text), so bringing the same file in again changes
+nothing, and an import that ran out of time finishes when you bring the file in again. A preference, skill or project
+setting you set on this computer is kept. A server, channel, model provider
+or routine that is here and **changed** in the file is updated and turned off, so you look at it before it runs again.
+A project's or an agent's autonomy never arrives as Total, and an agent's rules never arrive set to send, post or
+delete without asking you.
+
+A file made by an APX with another format is refused and says so: update APX on both computers and export again.

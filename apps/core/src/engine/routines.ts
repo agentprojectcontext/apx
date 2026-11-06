@@ -28,7 +28,7 @@ type RecordedRun = Pick<RunRecord, "id" | "thread_id" | "state">;
  * The run already wrote to the owner (message_contact to "me", notify_owner): its answer is a report of having done
  * so, not news, and the owner is not told twice.
  */
-export function toldOwner(store: Store, runId: string): boolean {
+function toldOwner(store: Store, runId: string): boolean {
   return store.runs
     .steps(runId)
     .some(
@@ -40,7 +40,7 @@ export function toldOwner(store: Store, runId: string): boolean {
 }
 
 /** When a schedule runs next after `from`: after a run, never sooner than the minimum gap from it. */
-export function nextTime(r: Pick<Routine, "schedule">, from: Date, lastRun?: Date): string | undefined {
+function nextTime(r: Pick<Routine, "schedule">, from: Date, lastRun?: Date): string | undefined {
   const floor = lastRun ? Math.max(from.getTime(), lastRun.getTime() + (MIN_GAP_MIN - 1) * 60_000) : from.getTime();
   const next = nextRun(r.schedule, r.schedule.kind === "cron" ? new Date(floor) : from, lastRun);
   return next && next.getTime() > from.getTime() ? next.toISOString() : undefined;

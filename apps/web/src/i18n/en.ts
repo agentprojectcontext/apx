@@ -15,6 +15,7 @@ import { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
 import type { enFlow } from "./flow-en.ts";
 import type { enIngress } from "./ingress-en.ts";
+import type { enMove } from "./move-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
 import type { enSecretary } from "./secretary-en.ts";
 import type { enStorage } from "./storage-en.ts";
@@ -53,7 +54,14 @@ export const en = {
   ...enEngines,
   ...enTelemetry,
   "engineUsage.title": "AI quotas",
-  "engineUsage.quick": "{engine}: {pct}% available · {window}",
+  "engineUsage.remaining": "{pct}% remaining",
+  "engineUsage.primary": "Current window",
+  "engineUsage.secondary": "Extended window",
+  "engineUsage.fiveHours": "Session (5 h)",
+  "engineUsage.weekly": "Weekly",
+  "engineUsage.window": "{minutes}-minute window",
+  "engineUsage.resetsIn": "Resets in {span}",
+  "engineUsage.resetsOn": "Resets on {at}",
   "sysUsage.title": "System resources",
   "sysUsage.button": "System: {pct}% of memory in use",
   // Shared words
@@ -556,6 +564,7 @@ export const en = {
   "subthread.open": "Open conversation with {name}",
   "subthread.worker": "Worker",
   "subthread.took": "Took {time}",
+  "subthread.held": "Waiting for answers: {got} of {of}",
   "subthread.more": "Show more",
   "subthread.less": "Show less",
   "subthread.noAnswer": "Ended without an answer",
@@ -791,6 +800,7 @@ export const en = {
   "browser.youControl": "You're in control",
   "browser.agentBrowsing": "{name} is browsing · {host}",
   "browser.finished": "Finished · {host}",
+  "browser.inChrome": "{name} is using it in your Chrome",
   "browser.offline": "Offline · {host}",
   "browser.reopen": "Open again",
   "browser.openWindow": "Open in a separate window",
@@ -1073,6 +1083,7 @@ export const en = {
   "config.browser": "Browser",
   "config.advanced": "Advanced",
   "config.storage": "Storage",
+  "config.move": "Move or back up",
   "config.logs": "Logs",
   "logs.lead":
     "What the core writes while it runs: what it started, what failed and why. Newest first, refreshed every few seconds.",
@@ -1206,21 +1217,25 @@ export const en = {
   "models.ownModel": "Primary model",
   "models.routerOnlyDesc":
     "The first matching rule runs before the chain. Without a matching rule, #1 is tried first. Availability and failures can change which model answers.",
-  "models.routerFirst": "Router · #1: {model}",
-  "models.routerRulesFirst": "Router · Rules · #1: {model}",
-  "models.routerRules": "Router · Rules",
+  "models.routerFirst": "Automatic · First: {model}",
+  "models.routerRulesFirst": "Automatic · Rules · First: {model}",
+  "models.routerRules": "Automatic · Rules",
   "models.installDefault": "Install default",
   "models.useDefault": "Use install default",
   "models.currentChoice": "Configured: {model}",
-  "models.routerSummary": "Router: {model}",
-  "models.routerSummaryRules": "Router: Rules · #1: {model}",
+  "models.routerSummary": "Automatic · First: {model}",
+  "models.routerSummaryRules": "Automatic · Rules · First: {model}",
   "models.effortUnavailable": "Not available",
   "models.effortPickModel": "Pick a model",
   "models.inheritedChoice": "{source} · {model}",
-  "models.router": "Router",
-  "models.routerOnly": "Use only the router",
+  "models.router": "Automatic",
+  "models.routerOnly": "Choose automatically",
   "models.inUse": "In use",
-  "models.withRouter": "{model} · Router fallback",
+  "models.withRouter": "{model} · Automatic backup",
+  "models.withFallbacks.one": "{model} · 1 fallback",
+  "models.withFallbacks.other": "{model} · {n} fallbacks",
+  "models.withFallbacksRouter.one": "{model} · 1 fallback + Automatic",
+  "models.withFallbacksRouter.other": "{model} · {n} fallbacks + Automatic",
   "models.effort": "Effort",
   "models.effortDefault": "Its default",
   "models.effortDefaultIs": "Default ({effort})",
@@ -1228,7 +1243,8 @@ export const en = {
   "models.search": "Search models",
   "models.showAll": "Also show voice, image and embedding models",
   "models.noMatch": "No model matches.",
-  "models.noEngine": "No engine is connected yet. Sign in to one or paste its API key, and its models show up here.",
+  "models.noneConnected": "No models",
+  "models.noEngine": "No models available yet. Connect a service in APX.",
   "models.catalog": "Models",
   "models.catalogLead": "What each engine offers, asked to the engine itself and cached for a day.",
   "models.catalogUnavailable": "This core does not report models yet. Update and restart it.",
@@ -1237,6 +1253,9 @@ export const en = {
   "models.stale": "Stale",
   "models.kind.harness": "External session",
   "models.kind.provider": "Provider · APX's own loop",
+  "models.kind.local": "Free",
+  "models.local": "Local",
+  "models.localClosed": "Open {app} to use them",
   "models.count": "{count} models",
   "models.fetchedAt": "fetched {when}",
   "models.noChatModels": "No chat models. Voice, image and embedding models are hidden.",
@@ -1887,6 +1906,7 @@ export type MessageKey =
   | ReceivedKey
   | SysUsageKey
   | keyof typeof enStorage
+  | keyof typeof enMove
   | keyof typeof enEmailSignatures
   | keyof typeof enThreadDialogs
   | keyof typeof enIngress

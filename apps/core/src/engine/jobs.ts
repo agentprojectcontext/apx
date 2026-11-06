@@ -12,7 +12,7 @@ import { frameInput } from "./context.ts";
 import type { Admit, AdmitFn } from "./engine.ts";
 
 /** Set on an agent's commands, so the apx CLI knows an agent runs it, not the owner. */
-export const AGENT_ENV = "APX_AGENT";
+const AGENT_ENV = "APX_AGENT";
 
 /** A job's output file stops growing here; the rest is dropped with a note. */
 const OUTPUT_CAP = 20 * 1024 * 1024;

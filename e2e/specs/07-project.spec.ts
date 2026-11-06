@@ -6,7 +6,7 @@ import { expect, open, rpc, test, world } from "./kit.ts";
 
 test("the imported project shows its team", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: /^Northwind/ }).click();
+  await page.getByRole("button", { name: "Northwind", exact: true }).click();
   await page.getByRole("tab", { name: /^Agentes/ }).click();
   await expect(page.getByText("Dev").first()).toBeVisible();
   await expect(page.getByText("Ops").first()).toBeVisible();
@@ -14,7 +14,7 @@ test("the imported project shows its team", async ({ page }) => {
 
 test("another project opened from the sidebar keeps the tab that was open", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: /^Northwind/ }).click();
+  await page.getByRole("button", { name: "Northwind", exact: true }).click();
   await page.getByRole("tab", { name: "Memoria" }).click();
   await page.getByRole("button", { name: /^acme/i }).click();
   await expect(page.getByRole("tab", { name: "Memoria" })).toHaveAttribute("aria-selected", "true");
@@ -22,7 +22,7 @@ test("another project opened from the sidebar keeps the tab that was open", asyn
 
 test("the imported project keeps its notes and its routine, which came in off", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: /^Northwind/ }).click();
+  await page.getByRole("button", { name: "Northwind", exact: true }).click();
   await page.getByRole("tab", { name: "Memoria" }).click();
   await expect(page.getByText("Deploys go out on Fridays")).toBeVisible();
   await page.getByRole("tab", { name: "Rutinas" }).click();

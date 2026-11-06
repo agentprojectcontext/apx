@@ -5,7 +5,7 @@ import net from "node:net";
 import { WebSocketServer } from "ws";
 import { ircLine, parseIrcLine } from "./irc.ts";
 
-export type Sent = { to: string; text: string; tags: Record<string, string> };
+type Sent = { to: string; text: string; tags: Record<string, string> };
 
 export type FakeIrc = {
   url: string;

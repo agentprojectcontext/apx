@@ -30,6 +30,7 @@ export type {
 } from "../../../packages/protocol/src/index.ts";
 export type { MailRoute, SentDraft } from "../../../packages/protocol/src/mail-methods.ts";
 export { noticeChannelChoice, noticeText } from "../../../packages/protocol/src/notices.ts";
+export { type PlanStep, planSteps } from "../../../packages/protocol/src/task-plan.ts";
 
 /** The owner's answer to a pending input: a decision (with how long it lasts) or a text. */
 export type Answer = Omit<Params<"runs.respond">, "input">;

@@ -9,7 +9,7 @@ import { areaTool } from "./settings.ts";
 import type { Setting } from "./settings-kit.ts";
 import type { Tool } from "./types.ts";
 
-export const FLOW_TOOL = "apx_flow";
+const FLOW_TOOL = "apx_flow";
 
 /** What the super-agent may read and change in Flows and tables, by method. */
 export const FLOW_SETTINGS: Readonly<Record<string, Setting>> = { ...FLOWS, ...FLOW_PUBLISH, ...TABLES };

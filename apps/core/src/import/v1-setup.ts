@@ -1,6 +1,3 @@
-// The setup's v1 import: what v1 has (counted per group) and bringing the chosen groups into v2. v1's folder is only
-// read. Routines come in turned off (v1 may still run them) and a Telegram bot v2 already has is kept.
-import fs from "node:fs";
 import path from "node:path";
 import type { CallModel, RoutineAction, Schedule, TaskPriority } from "@apx/protocol";
 import type { ApcSync } from "../apc/sync.ts";
@@ -37,7 +34,7 @@ import { importV1Engines, v1EngineCount } from "./v1-engines.ts";
 import { v1McpFile, v1Mcps, v2Server } from "./v1-mcps.ts";
 import { importV1Media, v1MediaCount } from "./v1-services.ts";
 
-export const V1_GROUPS = [
+const V1_GROUPS = [
   "projects",
   "skills",
   "keys",
@@ -441,9 +438,6 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
   if (groups.includes("memory") || groups.includes("embeddings")) deps.reindex?.();
   return { imported: done, errors };
 }
-
-/** Whether v1's folder is there at all (a config.json). */
-export const hasV1 = (home: string) => fs.existsSync(path.join(home, "config.json"));
 
 /** v1's Telegram bot, the owner's chat on it and its contacts; a bot v2 already runs is the owner's current one. */
 function importTelegram(deps: V1ImportDeps, agentId: string): number {

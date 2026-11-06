@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
-import { type ClientScope, FILE_PAYLOAD_BYTES, methodOpen } from "@apx/protocol";
+import { type ClientScope, FILE_PAYLOAD_BYTES, INSTANCE_MAX_BYTES, methodOpen } from "@apx/protocol";
 import { type PublicPages, surfacePage } from "../surface-pages.ts";
 
 export type { PublicPages } from "../surface-pages.ts";
@@ -24,6 +24,11 @@ const FILE_METHODS: ReadonlySet<string> = new Set([
   "surfaces.import",
 ]);
 const MAX_FILE_BODY = FILE_PAYLOAD_BYTES;
+/** An export travels as JSON, not base64: its own limit and room for the envelope. */
+const INSTANCE_METHODS: ReadonlySet<string> = new Set(["instance.preview_import", "instance.import"]);
+const MAX_INSTANCE_BODY = INSTANCE_MAX_BYTES + 64 * 1024;
+const bodyLimit = (method: string) =>
+  FILE_METHODS.has(method) ? MAX_FILE_BODY : INSTANCE_METHODS.has(method) ? MAX_INSTANCE_BODY : MAX_BODY;
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -51,6 +56,9 @@ function serveStatic(dist: string, pathname: string, res: ServerResponse): boole
   if (!fs.existsSync(file)) return false;
   res.writeHead(200, {
     "content-type": MIME[path.extname(file)] ?? "application/octet-stream",
+    ...(path.extname(file) === ".html"
+      ? { "content-security-policy": "frame-ancestors 'self' chrome-extension://jiffjibeffjmombaholpgbnfdajpfigm" }
+      : {}),
     "cache-control": file.endsWith("index.html") ? "no-cache" : "public, max-age=31536000, immutable",
   });
   fs.createReadStream(file).pipe(res);
@@ -99,7 +107,7 @@ export function httpHandler(
       }
       let body: unknown;
       try {
-        body = await readJson(req, FILE_METHODS.has(url.pathname.slice(5)) ? MAX_FILE_BODY : MAX_BODY);
+        body = await readJson(req, bodyLimit(url.pathname.slice(5)));
       } catch (err) {
         return send(res, 400, { ok: false, error: { code: "bad_request", message: String(err) } });
       }

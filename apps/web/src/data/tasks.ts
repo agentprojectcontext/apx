@@ -88,6 +88,44 @@ export async function updateTask(task: string, c: Omit<Params<"tasks.update">, "
   }
 }
 
+/** Rechecks the reviewed selection before making any acceptance writes. */
+export async function acceptReviewedTasks(tasks: Task[]): Promise<void> {
+  let accepted = 0;
+  try {
+    if (tasks.some((task) => !store.get().tasks[task.id])) {
+      notify(t("tasks.acceptAll.changed"));
+      return;
+    }
+    const current = await Promise.all(tasks.map((task) => client.call("tasks.get", { task: task.id })));
+    if (
+      current.some(({ task }, i) => !task.proposed || task.state !== "open" || task.updated_at !== tasks[i]?.updated_at)
+    ) {
+      notify(t("tasks.acceptAll.changed"));
+      return;
+    }
+    for (const task of tasks) {
+      await client.call("tasks.update", { task: task.id, proposed: false }).then(
+        (updated) => {
+          taskChanged(updated);
+          accepted++;
+        },
+        () => undefined,
+      );
+    }
+    if (accepted < tasks.length) reportAcceptanceFailure(accepted, tasks.length);
+  } catch {
+    reportAcceptanceFailure(accepted, tasks.length);
+  }
+}
+
+function reportAcceptanceFailure(accepted: number, total: number): void {
+  notify(
+    accepted > 0
+      ? t("tasks.acceptAll.partial", { n: accepted, total })
+      : t(total === 1 ? "tasks.acceptAll.failedOne" : "tasks.acceptAll.failed"),
+  );
+}
+
 /** Accepts an agent's proposed tasks: each starts as if it had just been given. */
 export async function acceptTasks(tasks: string[]) {
   for (const task of tasks) await updateTask(task, { proposed: false });

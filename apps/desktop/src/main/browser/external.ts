@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { shell } from "electron";
 
-export type InstalledBrowser = { id: string; name: string };
+type InstalledBrowser = { id: string; name: string };
 type Found = InstalledBrowser & { launch: string };
 
 /** id · shown name · macOS app · Windows executable (under Program Files / LocalAppData) · Linux commands. */
@@ -80,7 +80,7 @@ export function isWebUrl(url: unknown): url is string {
 }
 
 /** A mail to write (an email card's "Open"): only the system's mail app opens it. */
-export function isMailUrl(url: unknown): url is string {
+function isMailUrl(url: unknown): url is string {
   return typeof url === "string" && /^mailto:[^\s]*$/i.test(url);
 }
 

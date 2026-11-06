@@ -39,6 +39,23 @@ const Fraction = z.number().min(0).max(1);
 /** Only a hex color: a value that can never close the declaration it goes into. */
 const HexColor = z.string().regex(/^#[0-9a-fA-F]{3,8}$/);
 
+/** The name a stored secret goes by (`secret://NAME`). */
+const SecretName = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/);
+
+/** The kind of sign-in field a stored secret may go into. */
+export const SecretFieldKind = z.enum(["password", "username", "otp"]);
+export type SecretFieldKind = z.infer<typeof SecretFieldKind>;
+
+/** `filled`, or `refused` with why; the site it went to (or would have). Never the value. */
+export const SignInResult = z.object({
+  outcome: z.enum(["filled", "refused"]),
+  origin: z.string().max(4096),
+  reason: z.string().max(500).optional(),
+  /** The page copied the value elsewhere: it was cleared, and the page is kept from the agent. */
+  leaked: z.boolean().optional(),
+});
+export type SignInResult = z.infer<typeof SignInResult>;
+
 /** An element of the page the owner picked in edit mode. Its name and text are untrusted page content. */
 export const PickedElement = z.object({
   /** The page's own id for the element while its document lives (a backend node id). */
@@ -86,7 +103,15 @@ export const browserMethods = {
     effect: false,
   },
   "browser.open": {
-    params: z.object({ url: Url, profile: BrowserProfile.default("shared"), by: By }).strict(),
+    params: z
+      .object({
+        url: Url,
+        profile: BrowserProfile.default("shared"),
+        by: By,
+        /** In the owner's own Chrome, through APX's extension, instead of APX's browser (DECISIONS.md#d-198). */
+        chrome: z.boolean().optional(),
+      })
+      .strict(),
     result: TabInfo,
     effect: true,
   },
@@ -230,6 +255,15 @@ export const browserMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * An APX agent's turn only: puts a stored secret the owner marked for the tab's site into a sign-in field. The core
+   * resolves it and the browser checks site, frame and field; the value never comes back. See DECISIONS.md#d-193
+   */
+  "browser.sign_in": {
+    params: z.object({ tab: Tab, ref: Ref, secret: SecretName, kind: SecretFieldKind, by: By }).strict(),
+    result: SignInResult,
+    effect: true,
+  },
   "browser.close": {
     params: z.object({ tab: Tab }).strict(),
     result: z.object({ ok: z.literal(true) }),
@@ -246,6 +280,23 @@ export const BROWSER_METHODS = Object.keys(browserMethods) as BrowserMethod[];
  */
 export const BROWSER_HOLD = "browser.hold";
 export const BrowserHold = z.object({ run: z.string().min(1).max(128), tabs: z.array(Tab).max(64) }).strict();
+
+/**
+ * Core → browser only, never a client method: fill a sign-in field with a value the core resolved from a stored
+ * secret. `origins` are the exact ones the owner marked ("*": any https site, or http on loopback).
+ */
+export const BROWSER_FILL_SECRET = "browser.fill_secret";
+export const BrowserFillSecret = z
+  .object({
+    tab: Tab,
+    ref: Ref,
+    by: z.string().min(1).max(64),
+    kind: SecretFieldKind,
+    origins: z.array(z.string().min(1).max(4096)).min(1).max(64),
+    value: z.string().min(1).max(16_384),
+  })
+  .strict();
+export type BrowserFillSecret = z.infer<typeof BrowserFillSecret>;
 
 /**
  * The browser's side of browser.hold: which tabs a running turn still holds. `onRelease` hears each tab no turn holds
@@ -267,4 +318,26 @@ export function createTabHolds(onRelease?: (tab: string) => void) {
     /** The link to the core dropped: a core that comes back tells its holds again. */
     clear: (): void => runs.clear(),
   };
+}
+
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+
+/** The origin a site is marked by (`https://app.acme.com`), or undefined for anything that is not an http(s) URL. */
+export function siteOrigin(url: string): string | undefined {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.origin : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Whether a page's origin is one the owner marked: exactly, or by `*` (any https site, http only on loopback). */
+export function siteAllowed(marked: readonly string[], origin: string): boolean {
+  const exact = siteOrigin(origin);
+  if (exact !== origin) return false;
+  if (marked.includes(origin)) return true;
+  if (!marked.includes("*")) return false;
+  const u = new URL(origin);
+  return u.protocol === "https:" || LOOPBACK_HOSTS.has(u.hostname);
 }

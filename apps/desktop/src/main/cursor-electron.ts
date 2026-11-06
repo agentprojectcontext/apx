@@ -52,8 +52,6 @@ window.pulse=()=>{keep();r.classList.remove("on");void r.offsetWidth;r.classList
 window.setLabel=(s)=>{keep();note(s)};
 </script></body></html>`;
 
-export type AgentCursor = ReturnType<typeof createCursor>;
-
 export function createCursor() {
   let win: BrowserWindow | undefined;
   let display: number | undefined;

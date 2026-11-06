@@ -9,6 +9,7 @@ import { client } from "./client.ts";
 import { flowDraftChanged } from "./flowDrafts.ts";
 import { flowRunMoved, flowTestHeard } from "./flowTests.ts";
 import { jobsChanged } from "./jobs.ts";
+import { loadCatalog, models } from "./models.ts";
 import { loadNotifications, notificationChanged } from "./notifications.ts";
 import { denied } from "./pairing.ts";
 import { routineRunChanged } from "./routines.ts";
@@ -236,6 +237,10 @@ function apply(ev: CoreEvent): void {
       return;
     case "storage.changed":
       void loadDiskStatus();
+      return;
+    case "models.changed":
+      // Only a list already shown: the next screen that needs one asks for it anyway.
+      if (models.get().catalogLoad !== "idle") void loadCatalog();
       return;
     case "computer.progress":
       data.set((s) => ({ computerProgress: { ...s.computerProgress, [ev.thread_id]: ev.stage } }));

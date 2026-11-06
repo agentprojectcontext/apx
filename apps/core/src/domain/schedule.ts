@@ -169,7 +169,7 @@ export function checkSchedule(s: Schedule): void {
 }
 
 /** At most this many crons in one Flow schedule: one per day of the week. */
-export const FLOW_CRONS_MAX = 7;
+const FLOW_CRONS_MAX = 7;
 
 /**
  * A Flow's schedule: one cron, or several joined by `;` when days have different times (DECISIONS.md#d-182). Throws

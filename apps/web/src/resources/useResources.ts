@@ -68,5 +68,3 @@ export function useResources(projectId: string | undefined, projectIds: string[]
   }, [loadSkills, loadServers, loadSecrets, loadExtensions]);
   return { data, setData, loadSkills, loadServers, loadSecrets, loadExtensions };
 }
-
-export type Resources = ReturnType<typeof useResources>;

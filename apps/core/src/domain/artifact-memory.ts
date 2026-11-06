@@ -13,7 +13,7 @@ export type SqlParam = string | number | null | boolean;
 
 /** Rows and bytes a query may return before the rest is cut. */
 export const QUERY_MAX_ROWS = 2000;
-export const QUERY_MAX_BYTES = 2_000_000;
+const QUERY_MAX_BYTES = 2_000_000;
 
 const KV = "kv";
 const SQLITE_HEADER = "SQLite format 3\0";
@@ -380,7 +380,6 @@ export function artifactMemory(deps: { home: string; dbMax?: number; storeMax?: 
   };
   return api;
 }
-export type ArtifactMemoryStore = ReturnType<typeof artifactMemory>;
 
 /** One line for an agent: store keys and bytes, database tables with their rows (never the contents). */
 export function memorySummary(home: string, a: ArtifactRef): string {

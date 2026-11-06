@@ -1,0 +1,5 @@
+{
+  "extends": "../../packages/config/tsconfig.base.json",
+  "compilerOptions": { "noEmit": true, "lib": ["ES2024", "DOM", "DOM.Iterable"] },
+  "include": ["*.ts"]
+}

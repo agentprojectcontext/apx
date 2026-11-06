@@ -55,7 +55,7 @@ const line = (t: Task, project?: string) =>
  * Whose words a task's title and description are: the owner's, one of the owner's agents' (the owner's side,
  * DECISIONS.md#d-071), or outside text (an agent passing on a contact's request: it has a person).
  */
-export function taskSide(t: Pick<Task, "created_by" | "person_id">): "owner" | "team" | "outside" {
+function taskSide(t: Pick<Task, "created_by" | "person_id">): "owner" | "team" | "outside" {
   if (t.created_by === "owner") return "owner";
   return t.person_id ? "outside" : "team";
 }
@@ -313,10 +313,10 @@ export function taskTools(store: Store, home: string): Tool[] {
     }),
     defineTool({
       name: "task_update",
-      description:
-        "Update a task's fields (they mean what task_create's do); assignee:null unassigns it. Finish or drop with task_close.",
+      description: "Update a task's fields (as in task_create); null assignee/parent clears it. task_close ends it.",
       args: z.object({
         task: z.string().min(1).max(64),
+        parent: z.string().min(1).max(64).nullable().optional(),
         status: z.string().max(40).optional(),
         assignee: z.string().max(80).nullable().optional(),
         title: z.string().trim().min(3).max(200).optional(),
@@ -324,12 +324,7 @@ export function taskTools(store: Store, home: string): Tool[] {
         description: descriptionArg,
         attachments: attachmentsArg,
         awaits_owner: z.boolean().optional(),
-        why: z
-          .string()
-          .trim()
-          .max(1000)
-          .optional()
-          .describe("with awaits_owner:true, what the owner must do or decide"),
+        why: z.string().trim().max(1000).optional().describe("awaits_owner: what the owner must do or decide"),
         reviewer: z.string().max(80).optional().describe('"owner" or agent'),
         ...shapeArgs,
         ...commitmentArgs,

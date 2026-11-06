@@ -7,7 +7,7 @@ import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 
 /** Silence this long, or a new day after a few hours, earns a greeting. */
-export const GREET_AFTER_MS = 6 * 3600_000;
+const GREET_AFTER_MS = 6 * 3600_000;
 const NEW_DAY_AFTER_MS = 3 * 3600_000;
 
 /** A turn whose answer reaches the owner without their having just written: the ones that could open with a hello. */
@@ -20,6 +20,7 @@ export function unasked(origin: Origin): boolean {
     case "stalled_task":
     case "task_result":
     case "delegation_result":
+    case "delegation_results":
     case "added":
       return true;
     case "user":

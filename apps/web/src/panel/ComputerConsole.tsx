@@ -7,7 +7,7 @@ import { useT } from "../i18n/index.ts";
  * The least the pane may be: its title, a few lines of output and the command box at its tallest, so a drag never
  * hides any of them.
  */
-export const CONSOLE_MIN_PX = 220;
+const CONSOLE_MIN_PX = 220;
 /** The command box grows with a long command up to this, then scrolls. */
 const COMMAND_MAX_PX = 96;
 

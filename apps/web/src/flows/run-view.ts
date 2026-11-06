@@ -144,7 +144,7 @@ export type StepView = {
   started?: string;
   ended?: string;
 };
-export type LogLine = { at: string; node: string; text: string; tone?: "ok" | "err" };
+type LogLine = { at: string; node: string; text: string; tone?: "ok" | "err" };
 export type RunView = { steps: Map<string, StepView>; log: LogLine[]; ran: number };
 
 /** What each step of the drawn flow did in one run. Steps follow the chain the definition runs in. */
@@ -296,7 +296,7 @@ function actionStep(
 }
 
 /** The step's settings as one readable line: what it was given. */
-export function inputOf(n: FlowNode, flow: string, t: T, who: (n: FlowNode) => string): string {
+function inputOf(n: FlowNode, flow: string, t: T, who: (n: FlowNode) => string): string {
   switch (n.kind) {
     case "webhook":
       return `${hookVerbs(n)} ${hookPath(flow)}`;

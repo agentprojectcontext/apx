@@ -347,12 +347,6 @@
 }
 .wchanges__scope {
   max-width: 60%;
-  padding: 4px 6px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-bg);
-  color: var(--apx-fg);
-  font: inherit;
 }
 .wchanges__notice {
   margin: 8px 12px;

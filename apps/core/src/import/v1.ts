@@ -25,7 +25,7 @@ function v1Value(config: unknown, dotted: string): string | undefined {
 }
 
 /** v1's model API keys into v2's secrets, once each (a name v2 already has stays); the names copied. */
-export function importKeys(home: string, secrets: Secrets): string[] {
+function importKeys(home: string, secrets: Secrets): string[] {
   const keys: string[] = [];
   try {
     const config = jsonFile(path.join(home, "config.json"));

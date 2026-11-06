@@ -6,8 +6,8 @@ import zlib from "node:zlib";
 import { isInside } from "../paths.ts";
 import type { NativeEngine } from "./native-sessions.ts";
 
-export type NativeImage = { mime: string; bytes: Buffer };
-export type NativeTool = { name: string; detail: string };
+type NativeImage = { mime: string; bytes: Buffer };
+type NativeTool = { name: string; detail: string };
 /** A page the engine published as an artifact, or a document it wrote (Claude Code's Artifact and Write calls). */
 export type NativeFile = { kind: "artifact" | "document"; path: string };
 export type NativeItem = {

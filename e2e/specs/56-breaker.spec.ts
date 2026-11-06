@@ -6,10 +6,21 @@ import { expect, open, rpc, test, until, world } from "./kit.ts";
 const owner = { id: 4242, name: "Ana" };
 
 type Thread = { id: string; title: string };
-const workerSessions = async () =>
-  (await rpc<{ threads: Thread[] }>("threads.list", { include_subthreads: true })).threads.filter((t) =>
+// Asking the same worker again goes on in its session (D-190): count its answers, not its sessions.
+const workerAnswers = async () => {
+  const threads = (await rpc<{ threads: Thread[] }>("threads.list", { include_subthreads: true })).threads.filter((t) =>
     t.title.includes("→ Researcher: check the sources"),
-  ).length;
+  );
+  let answers = 0;
+  for (const t of threads) {
+    const { messages } = await rpc<{ messages: { author: { kind: string; id?: string }; run_id?: string }[] }>(
+      "threads.get",
+      { thread: t.id },
+    );
+    answers += messages.filter((m) => m.author.kind === "agent" && m.run_id).length;
+  }
+  return answers;
+};
 
 test.afterEach(async () => {
   await rpc("agents.set_limits", { runs: 0, tokens: 0 });
@@ -17,15 +28,15 @@ test.afterEach(async () => {
 
 test("the owner writing on Telegram gives agents a fresh budget each time", async () => {
   await rpc("agents.set_limits", { runs: 1, tokens: 0 });
-  const before = await workerSessions();
+  const before = await workerAnswers();
   await world.telegram(owner, "start a worker for the first source");
-  await until(async () => (await workerSessions()) === before + 1);
+  await until(async () => (await workerAnswers()) === before + 1);
   await until(async () =>
     (await world.sentTo(owner.id)).some((m) => m.text?.includes("Got it: start a worker for the first source")),
   );
   // One unattended turn spent: only the owner's new message lets the next delegation run.
   await world.telegram(owner, "start a worker for the second source");
-  await until(async () => (await workerSessions()) === before + 2);
+  await until(async () => (await workerAnswers()) === before + 2);
 });
 
 for (const mode of ["reset", "release"] as const) {

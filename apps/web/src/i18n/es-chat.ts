@@ -3,6 +3,8 @@ import type { MessageKey } from "./en.ts";
 
 export const esChat: Partial<Record<MessageKey, string>> = {
   "chat.modelUnconfirmed": "Modelo sin confirmar",
+  "chat.modelFallback": "Con respaldo",
+  "chat.modelFallbackHint": "Esta vez su modelo no respondió y contestó uno de respaldo.",
   "chat.modelRequested": "Solicitado:",
   "chat.modelEngineDefault": "Predeterminado de {engine}",
   "chat.agentProgress": "Avance de {name}",
@@ -12,7 +14,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "chat.planDone": "{done} de {count} hechos",
   "input.sessionScope": "Esta sesión",
 
-  "composer.offline": "Sin conexión con el core…",
+  "composer.offline": "Sin conexión con APX",
   "composer.placeholder": "Escribile a {name}…",
   "composer.yourAgent": "tu agente",
   "composer.attach": "Adjuntar",

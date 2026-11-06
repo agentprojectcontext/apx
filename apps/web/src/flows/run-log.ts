@@ -15,7 +15,7 @@ export type LogWords = {
 };
 /** How much of a value one block shows; the step's card shows the whole preview. */
 export const LOG_CAP = 2000;
-export type LogBlock = { label: string; text: string; cut: boolean };
+type LogBlock = { label: string; text: string; cut: boolean };
 export type LogEntry = {
   key: string;
   at: string;

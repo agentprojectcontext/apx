@@ -1,0 +1,68 @@
+---
+title: Mudarse desde Hermes
+description: Traé a APX tus agentes, memoria, skills, tareas programadas y servidores MCP de Hermes. Primero ves qué viene; los secretos que APX encuentra quedan en Hermes.
+sidebar:
+  order: 6
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Si usás [Hermes Agent](https://hermes-agent.nousresearch.com/docs/), APX puede leer su carpeta (`~/.hermes`, o
+`$HERMES_HOME`) y traer lo que tiene lugar acá. La carpeta de Hermes solo se lee: podés seguir usando Hermes.
+
+<Steps>
+
+1. Mirá qué vendría. Todavía no cambia nada:
+
+   ```bash
+   apx import hermes ~/.hermes
+   ```
+
+   Cada línea dice qué se **agrega**, se **actualiza** o se **saltea**, y por qué. Si se lo pedís en un chat, el
+   super-agente espera tu OK en una tarjeta que nombra cada servidor MCP que agrega y el comando que corre.
+
+2. Importá exactamente esa lista:
+
+   ```bash
+   apx import hermes ~/.hermes --yes
+   ```
+
+3. Dale a APX cada secreto que nombró la lista, con el valor por stdin (`pbpaste | apx secrets set <name>`), y
+   después encendé las rutinas y servidores que quieras.
+
+</Steps>
+
+## Qué viene, y adónde
+
+| En Hermes | En APX |
+|---|---|
+| La carpeta y cada perfil en `profiles/<name>/` | Un agente cada uno: **Hermes**, y **Hermes &lt;nombre&gt;** para un perfil. `SOUL.md` pasa a ser sus instrucciones. |
+| `memories/MEMORY.md` | Las notas de memoria propias de ese agente, una por entrada. |
+| `memories/USER.md` | Notas sobre vos, que comparten todos los agentes. |
+| `skills/` | Tus skills. Una skill con el mismo nombre en dos perfiles viene una vez. |
+| `cron/jobs.json` | Rutinas de ese agente, **apagadas**: Hermes puede seguir corriéndolas, y dos veces nunca se quiere. Las skills de una tarea quedan nombradas en sus instrucciones. |
+| `mcp_servers` en `config.yaml` | Tus servidores MCP. |
+
+## Qué nunca viene
+
+- **Secretos.** `.env`, `auth.json` y las claves de proveedores quedan en Hermes, y también cada credencial que APX
+  encuentra en un servidor MCP, por su nombre (`API_TOKEN`) o por su forma (una clave, una URL con contraseña). Un
+  servidor con una en su `env` o sus `headers` viene con una referencia `secret://` vacía y **apagado**; la lista
+  nombra cada secreto para que lo cargues en APX. Un servidor con una en sus argumentos o su dirección no se trae:
+  agregalo vos, con la clave en `env`. Un `SOUL.md` que tiene una clave viene sin sus instrucciones, y una entrada de
+  memoria que tiene una queda afuera. Un archivo que es un enlace a otro lado no se lee. Revisá la lista antes de
+  importar: una credencial sin un nombre o una forma que la delate no se puede encontrar.
+- **Lo que APX hace distinto:** el modelo y los proveedores (elegilos en APX), las plataformas de mensajería
+  (conectá el canal en APX), las personalidades, el historial de chats y las tareas que corren un script.
+- **Tareas que APX no puede programar así:** cada menos de 5 minutos, o una tarea de una sola vez que ya pasó.
+
+## Importar de nuevo
+
+Importar la misma carpeta otra vez no cambia nada. Lo que cambió en Hermes desde entonces se actualiza: el `SOUL.md`
+de un agente, una tarea, un servidor. Una rutina que encendiste sigue encendida, y lo que borraste en APX no vuelve.
+Las notas y las skills solo se agregan.
+
+<Aside>
+`config.yaml` se lee en estilo bloque, como lo escribe Hermes. Un servidor escrito en línea (`docs: {command: npx}`)
+no se lee; escribilo como bloque para traerlo.
+</Aside>

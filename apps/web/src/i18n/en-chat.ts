@@ -1,6 +1,8 @@
 // UI strings, English: the chat's composer and its Usage panel.
 export const enChat = {
   "chat.modelUnconfirmed": "Model unconfirmed",
+  "chat.modelFallback": "Fallback",
+  "chat.modelFallbackHint": "Its own model did not answer this time, so a fallback model did.",
   "chat.modelRequested": "Requested:",
   "chat.modelEngineDefault": "{engine} default",
   "chat.agentProgress": "Progress from {name}",
@@ -10,7 +12,7 @@ export const enChat = {
   "chat.planDone": "{done} of {count} done",
   "input.sessionScope": "This session",
 
-  "composer.offline": "No connection to the core…",
+  "composer.offline": "Not connected to APX",
   "composer.placeholder": "Message {name}…",
   "composer.yourAgent": "your agent",
   "composer.attach": "Attach",

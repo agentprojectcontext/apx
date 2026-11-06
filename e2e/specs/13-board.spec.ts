@@ -20,7 +20,7 @@ test("a pinned widget lives on its project's board and is updated by its name", 
   await show("100");
 
   await open(page);
-  await page.getByRole("button", { name: /^Northwind/ }).click();
+  await page.getByRole("button", { name: "Northwind", exact: true }).click();
   const board = page.getByRole("region", { name: "Tablero" });
   const tile = board.getByRole("article", { name: "Ventas del mes" });
   await expect(tile).toBeVisible();
@@ -65,7 +65,7 @@ test("a widget never pinned is added from the board's +, once, and opens beside 
   });
 
   await open(page);
-  await page.getByRole("button", { name: /^Northwind/ }).click();
+  await page.getByRole("button", { name: "Northwind", exact: true }).click();
   const board = page.getByRole("region", { name: "Tablero" });
   await expect(board.getByRole("article", { name: "Ventas del año" })).toHaveCount(0);
   await board.getByRole("button", { name: "Sumar un widget" }).click();
@@ -127,7 +127,7 @@ test("the board is ordered from the grip, takes the full width, and both stay af
     );
   try {
     await open(page);
-    await page.getByRole("button", { name: /^Northwind/ }).click();
+    await page.getByRole("button", { name: "Northwind", exact: true }).click();
     const board = page.getByRole("region", { name: "Tablero" });
     const names = () => board.getByRole("article").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
     await expect.poll(names).toEqual(["Primero", "Segundo"]);
@@ -178,7 +178,7 @@ test("a widget of another project is copied onto this board, and a new one is as
     html: "<h1>99.9%</h1>",
   });
   await open(page);
-  await page.getByRole("button", { name: /^Northwind/ }).click();
+  await page.getByRole("button", { name: "Northwind", exact: true }).click();
   const board = page.getByRole("region", { name: "Tablero" });
   await board.getByRole("button", { name: "Sumar un widget" }).click();
   await page.getByRole("menuitem", { name: "Copiar de otro proyecto" }).hover();
@@ -202,7 +202,7 @@ test("a widget of another project is copied onto this board, and a new one is as
 
 test("the board's dashed tile asks an agent for a new widget, picked by its blob", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: /^Northwind/ }).click();
+  await page.getByRole("button", { name: "Northwind", exact: true }).click();
   const board = page.getByRole("region", { name: "Tablero" });
   await board.getByRole("button", { name: "Crear", exact: true }).click();
   await board.getByRole("button", { name: /super-agente/ }).click();

@@ -17,7 +17,7 @@ const words = (s: string): string[] => s.toLowerCase().match(/[\p{L}\p{N}]{2,}/g
 const serverOf = (t: Tool) => /^\[([^\]]+)\]/.exec(t.description)?.[1] ?? "";
 
 /** Best first: words in the tool's name count double. */
-export function rank(tools: Tool[], query: string): Tool[] {
+function rank(tools: Tool[], query: string): Tool[] {
   const q = [...new Set(words(query))];
   if (!q.length) return tools;
   const scored = tools.map((t) => {

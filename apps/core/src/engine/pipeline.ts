@@ -18,11 +18,11 @@ import type { Display } from "./display.ts";
 import { takeTeamNews } from "./team-news.ts";
 
 /** A step runs at most this long (and never past its run's own deadline). */
-export const STEP_TIMEOUT_MS = 120_000;
+const STEP_TIMEOUT_MS = 120_000;
 /** The post-command's limit when the run already missed its deadline. */
 export const POST_AFTER_DEADLINE_MS = 15_000;
 /** The end of a step's output that is kept: the prompt, the environment and the transcript get at most this. */
-export const STEP_OUTPUT_CHARS = 8000;
+const STEP_OUTPUT_CHARS = 8000;
 /** Where the owner's prompt takes the pre-command's output (its first one); without it, after the prompt. */
 const PRE_SLOT = "{{pre_output}}";
 
@@ -154,7 +154,7 @@ export function stepsFor(store: Store, run: RunRecord): number {
 }
 
 /** A message routine's text: the owner's words with the pre-command's output, as it is, in its slot. */
-export function messageText(text: string, pre: StepResult | undefined): string {
+function messageText(text: string, pre: StepResult | undefined): string {
   const out = pre?.output.trim() ?? "";
   return text.includes(PRE_SLOT) ? text.replace(PRE_SLOT, out) : text;
 }

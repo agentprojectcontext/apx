@@ -64,6 +64,23 @@ lista en un solo proyecto o muestra **Todos los proyectos**; este navegador recu
   nombra). Se le pide la revisión enseguida: si pide cambios, vuelve al que la hizo; si aprueba, pasa a la tuya.
 - **Cerradas hace poco**: hechas o descartadas, las más nuevas primero.
 
+### Agrupar tareas existentes como subtareas
+
+Pedile a tu agente que ponga tareas relacionadas debajo de una
+tarea madre existente. Ambas deben estar en el mismo proyecto. Conservan sus IDs, historial, comentarios, sesiones
+y responsables; agruparlas por sí solo no vuelve a iniciar el trabajo ni cambia si están abiertas o cerradas.
+Las tareas ajenas quedan separadas.
+
+Desde la terminal: `apx tasks edit <id> --parent <parent-id>`; `--parent ""` separa la tarea. La herramienta
+`task_update` y el método `tasks.update` aceptan `parent` (el ID de una tarea existente o `null` para separarla).
+Un agente puede moverla al lado o debajo de otras, nunca más arriba: separarla o subirla hacia el inicio te toca a vos.
+Una tarea no puede ser su propia madre ni quedar debajo de una descendiente. La lista anida tareas cuando madre
+e hija aparecen en el filtro actual; abrir la madre también muestra sus subtareas.
+Separá una hija antes de moverla a otro proyecto (o separala y movela en la misma actualización). Separá todas
+las subtareas antes de mover su madre. Al crear una subtarea también debe coincidir el proyecto de su madre. El
+trabajo que tu agente le pasa al agente de otro proyecto desde el chat de una tarea global queda listado debajo de
+esa tarea, y una subtarea ya vinculada así se puede seguir editando.
+
 ## Adjuntos y acciones de los chats de una tarea
 
 Las tareas pueden guardar capturas y archivos seleccionados como copias independientes, al crearlas o después.
@@ -201,6 +218,17 @@ rol reparte lo crea y lo arranca; el resto lo **propone**. Una tarea propuesta e
 propuso, hasta que la aceptás (arranca como cualquier tarea asignada) o la descartás. Te llega un aviso por agente con
 cuántas tiene esperando.
 
+Para aceptar solo una propuesta abierta, hacé clic derecho sobre ella y elegí **Aceptar**, o usá **Aceptar** en su panel.
+Abrir o cerrar el menú no cambia nada.
+
+**Aceptar todas** te pide confirmar la cantidad de propuestas de la lista actual, incluidas las que están detrás de
+**Ver más**. Solo al confirmar se aceptan y los agentes asignados pueden arrancar; cancelar o cerrar el diálogo no
+cambia nada. Las propuestas que llegan mientras el diálogo está abierto no se incluyen. Antes de aceptar, APX vuelve
+a comprobar las propuestas seleccionadas. Si esa comprobación detecta algún cambio o una propuesta que ya no está
+disponible, la aceptación no empieza: revisá la lista y volvé a intentar.
+La aceptación avanza de a una propuesta. Si se interrumpe o se pierde una respuesta, algunas pueden haberse aceptado;
+revisá la lista actualizada antes de volver a intentar. El mensaje de error cuenta solo las aceptaciones confirmadas.
+
 Algunas tareas son propuestas pida lo que pida el agente. Cuando le pedís a tu superagente varias cosas sin decir cómo, primero
 te pregunta (un plan, una tarea por cada una o hacerlo él); si ya le dijiste cómo, sigue sin preguntar.
 
@@ -211,8 +239,38 @@ Las propuestas:
 - **Trabajo devuelto hacia arriba.** Una subtarea para un agente que creó una de las tareas de arriba queda propuesta,
   así dos agentes no se pasan el mismo trabajo de ida y vuelta.
 
-Lo mismo pasa cuando un agente le pasa una tarea que ya existe a otro agente: si darla nueva la volvería propuesta, el
-pase también queda propuesto y arranca cuando lo aceptás.
+Para una tarea existente que asignaste o aceptaste explícitamente, APX puede verificar al
+agente que la ejecuta y los pases registrados en vez de contar sus padres históricos. Pueden continuar hasta tres
+pases reales hacia adelante; una revisión independiente puede volver a quien la pidió durante hasta dos rondas con el
+mismo autor y revisor. El pase tiene que pedir **Revisión** explícitamente y APX inicia al otro agente con un encargo de
+revisión. Un estado Revisión anterior no demuestra por sí solo una ronda. Una tercera ronda, cambiar la pareja de
+revisión o devolver trabajo ajeno hacia arriba en la cadena activa espera tu decisión. Esto no acepta una propuesta que
+ya esté esperando.
+Tus mensajes de seguimiento en la conversación de la tarea o en el chat de trabajo de su agente actual conservan la
+misma asignación y no reinician estos límites. Un mensaje pendiente conserva la autorización que tenía cuando llegó,
+incluso después de un reinicio; revocar o reemplazar esa asignación no vuelve a autorizar el mensaje anterior.
+
+La autorización tiene que seguir correspondiendo a la tarea, al agente que la ejecuta y a su proyecto. Desasignarla,
+cambiar su alcance o pausarla para tu decisión impide esta continuación. También cuando un agente reescribe su título,
+descripción u objetivo, aunque sea en el mismo cambio con que la pasa: el alcance nuevo te espera como propuesta.
+Poner un objetivo que la tarea nunca tuvo no cuenta como reescribirla. Si una asignación tuya registrada ya no se puede
+verificar, APX propone el pase incluso en una tarea sin padres históricos. Las tareas sin una asignación tuya registrada
+conservan las reglas por la cadena de padres de arriba: una tarea sin asignar y sin tu autorización no puede saltárselas
+como continuación autorizada. Las asignaciones ordinarias que ya pasaban esas reglas no cambian. El chat del orquestador no autoriza por sí solo: la tarea tiene que pertenecerle y su
+ejecución tiene que estar vinculada con tu asignación vigente. Aceptá vos la propuesta cuando quieras que arranque;
+quitar padres históricos no es un paso de autorización.
+
+### ¿Revisor o nuevo responsable?
+
+Para pedir una revisión sin cambiar al agente responsable, mové la tarea a **Revisión** y elegí un agente independiente
+en **Revisor** (o pedile a tu agente que lo configure). APX abre una consulta de revisión, durante un máximo de dos
+rondas: los cambios pedidos vuelven al responsable; una aprobación se te comunica a vos. La aprobación no vuelve a
+arrancar automáticamente al responsable para entregar el trabajo. Una tarea propuesta no inicia revisión hasta que la
+aceptás.
+
+Cambiar el **responsable**, en cambio, transfiere la responsabilidad y arranca una sesión de trabajo de la tarea. Ese es
+el pase explicado arriba, no la consulta de revisión. Tu instancia de revisión y los presupuestos de los agentes siguen
+vigentes.
 
 ## Compromisos
 

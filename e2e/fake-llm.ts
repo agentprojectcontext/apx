@@ -2,7 +2,8 @@
 // ("Got it: <the last line you wrote>"). Streams like a real one when asked. It calls two tools: "start a worker"
 // delegates to a worker, which answers with a long report ("start two workers" delegates twice in one turn, "start a
 // worker in <project id>" into that project, "start four slow workers" four at once, each taking a few seconds, so one
-// waits for a slot; "start a worker and keep going" hands one off and takes a while to answer, so the worker's result
+// waits for a slot; "ask three staggered workers" three at once that answer a few seconds apart, so their answers wait
+// for each other; "start a worker and keep going" hands one off and takes a while to answer, so the worker's result
 // waits behind that turn); "write an email" answers with an email draft; "make a note file" runs a command that
 // needs the owner's OK; "look around the parent folder" reads outside the project's folder (a folder card); "show a
 // widget" makes one; "open a report" writes one and opens it as a document; "show a table for task_…" answers with a wide table whose last
@@ -109,9 +110,23 @@ const KEEP_GOING = /^start a worker and keep going/i;
 /** A Flow's model step whose instruction starts "Take your time" answers this late: long enough to stop its run. */
 const LONG_MS = 30_000;
 
-/** Four delegations in one step: past the three at once from a thread, the fourth is queued. */
+/** How far apart the staggered workers answer: part n after n times this. */
+const STAGGER_MS = 2500;
+
+/**
+ * Four delegations in one step: past the three at once from a thread, the fourth is queued. Or three that answer
+ * apart, whose answers reach the caller in one turn.
+ */
 function fanOut(messages: Message[], said: string): Array<{ name: string; arguments: string }> | undefined {
-  if (!/^start four slow workers/i.test(said) || messages.at(-1)?.role === "tool") return undefined;
+  if (messages.at(-1)?.role === "tool") return undefined;
+  if (/^ask three staggered workers/i.test(said)) {
+    const worker = { name: "Staggered researcher", instructions: "Check the part you are given." };
+    return [1, 2, 3].map((n) => ({
+      name: "delegate",
+      arguments: JSON.stringify({ worker, task: `check part ${n}`, wait_s: 0 }),
+    }));
+  }
+  if (!/^start four slow workers/i.test(said)) return undefined;
   const worker = { name: "Slow researcher", instructions: "Check the part you are given." };
   return [1, 2, 3, 4].map((n) => ({
     name: "delegate",
@@ -119,8 +134,26 @@ function fanOut(messages: Message[], said: string): Array<{ name: string; argume
   }));
 }
 
+/**
+ * "sign in to t1 field Password with NAME as password": a snapshot of the tab, then browser_sign_in on the field the
+ * snapshot names so (DECISIONS.md#d-193).
+ */
+function signIn(messages: Message[], said: string): { name: string; arguments: string } | undefined {
+  const m = /^sign in to (\S+) field (.+?) with (\S+) as (\w+)/i.exec(said);
+  if (!m) return undefined;
+  const [, tab, field, secret, kind] = m as unknown as [string, string, string, string, string];
+  const sinceOwner = messages.slice(messages.findLastIndex((message) => message.role === "user"));
+  const done = sinceOwner.filter((message) => message.role === "tool");
+  if (done.length === 0) return { name: "browser_snapshot", arguments: JSON.stringify({ tab }) };
+  if (done.length > 1) return undefined;
+  const ref = new RegExp(`"${field}"[^\\n]*?\\[(e\\d+)\\]`).exec(textOf(done[0]))?.[1] ?? "e999";
+  return { name: "browser_sign_in", arguments: JSON.stringify({ tab, ref, secret, kind }) };
+}
+
 /** A tool call to make instead of answering, if the conversation asks for one. */
 function toolCall(messages: Message[], said: string): { name: string; arguments: string } | undefined {
+  const signing = signIn(messages, said);
+  if (signing || /^sign in to /i.test(said)) return signing;
   if (/^evaluate browser three times/i.test(said)) {
     const sinceOwner = messages.slice(messages.findLastIndex((message) => message.role === "user"));
     const done = sinceOwner.filter((message) => message.role === "tool").length;
@@ -332,6 +365,8 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
 
 export async function fakeLlm() {
   const calls: Array<{ model: string; said: string }> = [];
+  /** Every request's body as sent: what a test looks for in what reached the model. */
+  const bodies: string[] = [];
   const server = http.createServer((req, res) => {
     let raw = "";
     req.on("data", (c) => {
@@ -349,18 +384,30 @@ export async function fakeLlm() {
         const { input } = JSON.parse(raw) as { input: string[] };
         return res.end(JSON.stringify({ embeddings: input.map(vectorOf) }));
       }
+      bodies.push(raw);
       const body = (raw ? JSON.parse(raw) : {}) as { model?: string; messages?: Message[]; stream?: boolean };
       const relay = ownerCheck(body.messages ?? []);
       const said = relay && "said" in relay ? relay.said : lastWords(body.messages ?? []);
       calls.push({ model: body.model ?? "", said });
+      // A plan out of its usage limit: an agent with fallbacks goes on with the next model.
+      if (body.model === "fake-limited") {
+        res.writeHead(429, { "content-type": "application/json" });
+        return res.end(JSON.stringify({ error: { type: "usage_limit_reached", message: "usage limit reached" } }));
+      }
       const system = String(body.messages?.[0]?.content ?? "");
       const slow = system.startsWith("You are Slow researcher, a worker");
+      const staggered = system.startsWith("You are Staggered researcher, a worker");
+      // A sign-in ends by saying what the browser answered, so a test reads it in the chat.
+      const signed = /^sign in to /i.test(said)
+        ? `Done: ${textOf(body.messages?.findLast((m) => m.role === "tool"))}`
+        : undefined;
       const text =
-        relay && "check" in relay
+        signed ??
+        (relay && "check" in relay
           ? "It is the owner: answer them."
           : system.startsWith("You are Researcher, a worker")
             ? REPORT
-            : slow
+            : slow || staggered
               ? "Part checked."
               : /^suggest a command/i.test(said)
                 ? SUGGESTION
@@ -371,7 +418,7 @@ export async function fakeLlm() {
                         JSON.stringify(body.messages?.findLast((m) => m.role === "user")?.content),
                       )
                     ? "REACT ❤️"
-                    : (reviewTable(said) ?? `Got it: ${said || "(nothing)"}`);
+                    : (reviewTable(said) ?? `Got it: ${said || "(nothing)"}`));
       // "fill the context" reads as a long chat: most of a 128k window (a qwen model's).
       const read = /fill the context/i.test(said) ? 82_000 : 120;
       const usage = { prompt_tokens: read, completion_tokens: 8, total_tokens: read + 8 };
@@ -421,8 +468,13 @@ export async function fakeLlm() {
       };
       const keepGoing = KEEP_GOING.test(said) && body.messages?.at(-1)?.role === "tool";
       const long = system.startsWith("Take your time");
-      if (slow || keepGoing || long) {
-        const timer = setTimeout(answer, long ? LONG_MS : slow ? SLOW_MS : KEEP_GOING_MS);
+      if (slow || staggered || keepGoing || long) {
+        const asked = JSON.stringify(body.messages?.findLast((m) => m.role === "user")?.content);
+        const part = Number(/check part (\d)/.exec(asked)?.[1] ?? 1);
+        const timer = setTimeout(
+          answer,
+          long ? LONG_MS : slow ? SLOW_MS : staggered ? part * STAGGER_MS : KEEP_GOING_MS,
+        );
         // A caller that gave up (a stopped Flow run) leaves nothing to answer.
         res.on("close", () => clearTimeout(timer));
       } else answer();
@@ -432,6 +484,8 @@ export async function fakeLlm() {
   return {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
     calls,
+    /** Whether any request so far carried this text. */
+    carried: (text: string) => bodies.some((b) => b.includes(text)),
     close: () => new Promise<void>((r) => server.close(() => r())),
   };
 }

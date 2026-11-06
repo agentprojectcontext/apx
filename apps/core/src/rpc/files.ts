@@ -47,10 +47,10 @@ const MEDIA: Record<string, string> = {
 };
 /** What a widget may show of a project: never a PDF or a file it could run as a page. */
 const WIDGET_MEDIA = /^(image|video|audio)\//;
-export const mediaType = (name: string) => MEDIA[name.split(".").pop()?.toLowerCase() ?? ""];
+const mediaType = (name: string) => MEDIA[name.split(".").pop()?.toLowerCase() ?? ""];
 
 /** The folder a chat works in: a code session's own, its project's, or else APX's work folder. */
-export function threadFolder(store: Store, home: string, threadId: string): string {
+function threadFolder(store: Store, home: string, threadId: string): string {
   if (store.settings.read("computer_chats").includes(threadId))
     throw conflict("this chat works inside its computer; use the terminal in the Computer panel");
   const t = store.threads.get(threadId);

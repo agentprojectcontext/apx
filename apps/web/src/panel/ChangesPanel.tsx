@@ -1,5 +1,5 @@
 import type { Message, Result, Thread } from "@apx/protocol";
-import { EmptyState, IconButton, Icons, SectionLabel, Skeleton } from "@apx/ui";
+import { EmptyState, IconButton, Icons, SectionLabel, Select, Skeleton } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
 import { useData } from "../data/state.ts";
@@ -81,16 +81,18 @@ export function ChangesPanel({ thread, ws }: { thread: Thread; ws?: Workspace | 
       </PanelHeader>
       <div className="sidepanel__body wchanges">
         <div className="wchanges__bar">
-          <select
-            aria-label={t("changes.scope")}
-            value={scope}
-            onChange={(e) => setScope(e.target.value as typeof scope)}
+          <Select
+            label={t("changes.scope")}
+            size="sm"
             className="wchanges__scope"
-          >
-            <option value="latest">{t("changes.latest")}</option>
-            <option value="all">{t("changes.all")}</option>
-            {ws && <option value="folder">{t("changes.folder")}</option>}
-          </select>
+            value={scope}
+            onValueChange={(v) => v && setScope(v as typeof scope)}
+            options={[
+              { value: "latest", label: t("changes.latest") },
+              { value: "all", label: t("changes.all") },
+              ...(ws ? [{ value: "folder", label: t("changes.folder") }] : []),
+            ]}
+          />
           <span className="wchanges__spacer" />
           {!!rows.length && (
             <span className="wchanges__stat">

@@ -51,7 +51,7 @@ const hasFlags = (p: Person | undefined) =>
   Boolean(p && (p.muted || p.supervised || p.rules?.trim() || Object.values(p.perms).some(Boolean)));
 
 /** What is set for a contact, as small marks: silenced, rules of their own, and each thing their chat may do. */
-export function ContactFlags({ person }: { person: Person | undefined }) {
+function ContactFlags({ person }: { person: Person | undefined }) {
   const t = useT();
   if (!person || !hasFlags(person)) return null;
   const flags = [

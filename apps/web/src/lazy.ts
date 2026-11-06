@@ -176,6 +176,7 @@ export const ReceivedDialog = lazy(() =>
 );
 
 // A model picker's list shows only once it opens (the composer has a picker).
+export const MoveSection = lazy(() => import("./config/MoveSection.tsx").then((m) => ({ default: m.MoveSection })));
 export const ModelList = lazy(() => import("./config/models/ModelList.tsx").then((m) => ({ default: m.ModelList })));
 
 // The editor and its languages load when the first text file opens.

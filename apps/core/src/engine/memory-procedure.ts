@@ -117,7 +117,7 @@ function workedBefore(store: Store, threadId: string, at: string, skip?: string)
  * The run whose way of working deserves a note after `run` ended: `run` itself when it succeeded after failures (in
  * it or in the chat's previous turn), or the previous turn when this message confirms it worked.
  */
-export function procedureRun(store: Store, run: RunRecord): RunRecord | undefined {
+function procedureRun(store: Store, run: RunRecord): RunRecord | undefined {
   const message = store.memorySources.forRun(run.id)[0];
   const said = message ? store.messages.get(message) : undefined;
   if (said && confirmsSuccess(textOf(said))) return workedBefore(store, run.thread_id, run.started_at, run.id);

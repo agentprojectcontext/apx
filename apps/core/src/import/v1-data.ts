@@ -299,7 +299,7 @@ export function v1Discord(home: string): V1Discord | undefined {
   };
 }
 
-export type V1WhatsAppContact = {
+type V1WhatsAppContact = {
   name: string;
   /** Every address v1 knew for them (their number and private ids), as WhatsApp ids. */
   addresses: string[];

@@ -1,9 +1,9 @@
-// The owner's words their agent has not taken yet: "Send now" under a message sent while it works, and the messages
-// in line for its next turn, below the chat, each with its controls in sight (a phone has no hover).
+// The owner's words their agent has not taken yet: "Send now" and "Remove" under a message sent while it works, and
+// the messages in line for its next turn, below the chat, each with its controls in sight (a phone has no hover).
 import type { Message as Msg } from "@apx/protocol";
 import { Button, IconButton, Icons, Message, Textarea } from "@apx/ui";
 import { type ReactNode, useState } from "react";
-import { editInLine, moveInLine, removeFromLine, sendNow } from "../data/waiting.ts";
+import { editInLine, moveInLine, sendNow, unsend } from "../data/waiting.ts";
 import { useT } from "../i18n/index.ts";
 
 const textOf = (m: Msg) => m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n\n");
@@ -46,6 +46,19 @@ export function SendNowButton({ message }: { message: Msg }) {
     >
       {t("waiting.sendNow")}
     </Button>
+  );
+}
+
+/** Takes the message back before the agent reads it. */
+export function UnsendButton({ message }: { message: Msg }) {
+  const t = useT();
+  return (
+    <IconButton
+      size="sm"
+      label={t("waiting.remove")}
+      icon={<Icons.Trash2 size={13} />}
+      onClick={() => void unsend(message)}
+    />
   );
 }
 
@@ -157,12 +170,7 @@ function InLineMessage({
               />
             </>
           )}
-          <IconButton
-            size="sm"
-            label={t("waiting.remove")}
-            icon={<Icons.Trash2 size={13} />}
-            onClick={() => void removeFromLine(message)}
-          />
+          <UnsendButton message={message} />
         </>
       }
     >

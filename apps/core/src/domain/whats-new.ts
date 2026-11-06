@@ -32,7 +32,7 @@ function releaseText(r: Release, w = WORDS): string {
 }
 
 /** The message: one release as it is, several (an install that skipped some) each under its version, newest first. */
-export function whatsNewText(version: string, releases: Release[]): string {
+function whatsNewText(version: string, releases: Release[]): string {
   const w = WORDS;
   const body =
     releases.length === 1 && releases[0]

@@ -210,6 +210,11 @@ export const enTeam = {
   "agentedit.unknownToolsRemove": "Remove them",
   "agentedit.model": "Model",
   "agentedit.modelHint": "The router picks one by the task unless it has its own.",
+  "agentedit.fallbacks": "Fallback models",
+  "agentedit.fallbacksHint":
+    "If its model hits its usage limit or does not answer, the agent uses these in order and goes back to its own model once it is free.",
+  "agentedit.addFallback": "Add a fallback",
+  "agentedit.removeFallback": "Remove this fallback",
   "agentedit.parent": "Reports to",
   "agentedit.parentHint": "Who it passes results and doubts to.",
   "agentedit.orchestrator": "Orchestrator",

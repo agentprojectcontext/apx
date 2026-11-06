@@ -8,7 +8,7 @@
 import type { ChannelMark, MarkArt } from "./channel-marks";
 import { INTEGRATION_MARKS_MORE } from "./integration-marks-more";
 
-export type { MarkArt, MarkNode } from "./channel-marks";
+export type { MarkArt } from "./channel-marks";
 export type IntegrationMark = ChannelMark | MarkArt;
 
 export const INTEGRATION_MARKS = {

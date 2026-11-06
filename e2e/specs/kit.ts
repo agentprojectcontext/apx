@@ -44,10 +44,23 @@ export const world = {
         calls: { method: string; url: string; headers: Record<string, string>; body: string }[];
       }
     ).calls,
+  /** Whether any request the model got carried this text. */
+  modelCarried: async (text: string) =>
+    (
+      (await (await fetch(`${control}/llm/carried`, { method: "POST", body: JSON.stringify({ text }) })).json()) as {
+        carried: boolean;
+      }
+    ).carried,
   /** Stops the core's clock at `at` (ISO), or lets it run again with null. */
   clock: async (at: string | null) => {
     await post(`${control}/clock`, { at });
   },
+  /** The model app on this computer (Ollama-like) opens or closes. */
+  localModels: async (open: boolean) => {
+    await post(`${control}/local-models`, { open });
+  },
+  /** Chats the model app on this computer answered. */
+  localChats: async () => ((await (await fetch(`${control}/local-models`)).json()) as { chats: number }).chats,
   desktopTrash: async () => (await (await fetch(`${control}/desktop/trash`)).json()) as { paths: string[] },
   telegram: async (from: { id: number; name: string }, text: string) => {
     await fetch(`${control}/tg/message`, { method: "POST", body: JSON.stringify({ from, text }) });
