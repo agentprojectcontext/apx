@@ -2,6 +2,7 @@
 import path from "node:path";
 import {
   type Autonomy,
+  CHROME_VIA,
   COMPUTER_CAP,
   type HarnessId,
   type MethodName,
@@ -16,7 +17,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
 import { engineOf, harnessOf, isCliRef } from "../domain/refs.ts";
-import { type RunRecord, runsOnComputer } from "../domain/runs.ts";
+import { inChrome, type RunRecord, runsOnComputer } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
 import { computerBriefing, HOME_COMPUTER } from "../environments/briefing.ts";
@@ -246,9 +247,20 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   const before = worksInFolder(thread) && thread.cwd ? gitSnapshot(thread.cwd) : undefined;
   let run = store.runs.setState(start, "working");
   store.threads.patch(thread.id, { state: "working" });
+  // The answer to words from APX's panel in Chrome carries the same mark as they do.
+  const chrome = inChrome(
+    start.input.origin,
+    (id) => store.runs.get(store.inputs.get(id)?.run_id ?? "")?.input?.origin,
+  );
   const display = openDisplay(
     store,
-    store.messages.add({ thread_id: thread.id, author: { kind: "agent", id: agent.id }, parts: [], run_id: run.id }),
+    store.messages.add({
+      thread_id: thread.id,
+      author: { kind: "agent", id: agent.id },
+      parts: [],
+      run_id: run.id,
+      ...(chrome ? { via: CHROME_VIA } : {}),
+    }),
   );
   run = store.runs.patch(run, { message_id: display.message.id });
   // Delegated results arriving later: their reports show above what the caller makes of them.

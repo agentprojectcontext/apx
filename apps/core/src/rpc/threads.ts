@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { Author, Task } from "@apx/protocol";
+import { type Author, CHROME_VIA, type Task } from "@apx/protocol";
 import { ownerActsOn } from "../domain/channels.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { engineOf } from "../domain/refs.ts";
@@ -131,7 +131,12 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       const message = store.messages.add({
         thread_id: threadId,
         author,
-        via: admit.origin?.kind === "channel" ? admit.origin.channel : undefined,
+        via:
+          admit.origin?.kind === "channel"
+            ? admit.origin.channel
+            : admit.origin?.kind === "user" && admit.origin.via === "chrome"
+              ? CHROME_VIA
+              : undefined,
         parts: [
           { type: "text", text },
           ...files.map((f) =>
