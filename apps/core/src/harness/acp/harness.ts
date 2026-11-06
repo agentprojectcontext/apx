@@ -26,7 +26,7 @@ type PlanEntry = { content?: unknown; status?: unknown };
 const STATE: Record<string, PlanStep["state"]> = { completed: "done", in_progress: "doing" };
 
 /** An ACP `plan` update, or a to-do tool's list (the whole plan each time), as steps; a dropped step is left out. */
-export const acpSteps = (entries: unknown): PlanStep[] =>
+const acpSteps = (entries: unknown): PlanStep[] =>
   (Array.isArray(entries) ? (entries as PlanEntry[]) : [])
     .filter((e) => e?.status !== "cancelled")
     .map((e) => ({ step: String(e?.content ?? ""), state: STATE[String(e?.status)] ?? "pending" }));

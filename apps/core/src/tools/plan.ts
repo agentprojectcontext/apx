@@ -18,7 +18,7 @@ export function planProgress(text: unknown): { done: number; count: number } {
 }
 
 /** A plan's steps written back as the checklist the agent reads. */
-const planText = (steps: PlanStep[]) => steps.map((s) => `- [${MARK[s.state]}] ${s.step}`).join("\n");
+export const planText = (steps: PlanStep[]) => steps.map((s) => `- [${MARK[s.state]}] ${s.step}`).join("\n");
 
 /**
  * The chat's plan for its next turn while a step is left: the latest one its agent wrote, from the answers it is shown

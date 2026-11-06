@@ -33,7 +33,7 @@ const MAX_IMAGES = 8;
  * Codex's own plan as steps. It says only which are completed: the first open one is the one at work, until its list
  * completes with the turn.
  */
-export function codexSteps(items: TodoListItem["items"], turnOver: boolean): PlanStep[] {
+function codexSteps(items: TodoListItem["items"], turnOver: boolean): PlanStep[] {
   const at = turnOver ? -1 : items.findIndex((t) => !t.completed);
   return items.map((t, i) => ({ step: t.text, state: t.completed ? "done" : i === at ? "doing" : "pending" }));
 }

@@ -45,12 +45,11 @@ function subjectOf(input: Record<string, unknown>): string {
 }
 
 /** Claude Code has no task list of its own here: its checklist is APX's plan, as our loop's is. */
-export const PLAN_NOTE =
+const PLAN_NOTE =
   "\n\nYour checklist here is mcp__apx__plan, shown to the owner under your answer: work of more than two steps starts with it, sent whole again as each step is done.";
 
 /** The line that steers Claude Code to APX's plan, when the turn offers it. */
-export const planNote = (io: Pick<TurnIO, "tools">) =>
-  io.tools.some((t) => t.function.name === "plan") ? PLAN_NOTE : "";
+const planNote = (io: Pick<TurnIO, "tools">) => (io.tools.some((t) => t.function.name === "plan") ? PLAN_NOTE : "");
 
 const CLAUDE_MD_CAP = 12_000;
 
