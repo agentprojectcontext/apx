@@ -72,6 +72,19 @@ del estilo "[video — APX cannot read this kind of message yet]". Tocá **Recup
 `apx channels recover <thread>`: APX le pide a tu teléfono que vuelva a mandar esos mensajes y pone cada archivo en
 su mensaje, sin que el agente vuelva a contestar. El teléfono tiene que estar en línea para responder.
 
+## Números de teléfono
+
+WhatsApp necesita cada número con su código de país. Un número guardado a la manera local (`976 666 004` en Perú,
+`11 2345 6789` en Argentina) se completa con el código de país de tu propia línea cuando vos o tu agente lo guardan, y
+otra vez antes de que salga cada mensaje. Los celulares de Argentina van como `+54 9`, como los espera WhatsApp.
+
+Antes de escribirle a un número, APX revisa que esté en WhatsApp. Si un número no está en WhatsApp, o no se puede
+convertir en uno válido (es de otro país y se guardó sin su código), no se manda nada: a tu agente se le avisa que no
+salió y por qué. Guardá el número de ese contacto con su código de país (`+51 976 666 004`) y pedilo de nuevo.
+
+Un contacto guardado antes sin el código de país sigue funcionando: el primer mensaje que le llega corrige su número, y
+su respuesta vuelve al mismo chat.
+
 ## Desconocidos
 
 Los desconocidos funcionan como en cualquier canal (**Mandar código**, **Avisarme**, **Contestar**, **Ignorar**), con

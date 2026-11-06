@@ -5,6 +5,7 @@ import { type ChannelType, ErrorCode } from "@apx/protocol";
 import { CHANNEL_CATALOG } from "../channels/catalog.ts";
 import { pairingRef } from "../channels/inbound.ts";
 import type { Channels } from "../channels/manager.ts";
+import { countryOf, whatsappDigits } from "../channels/phone.ts";
 import { autoApproves } from "../channels/stickers.ts";
 import { normalJid } from "../channels/whatsapp.ts";
 import { publicOutbox } from "../domain/channels.ts";
@@ -223,10 +224,14 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
     "contacts.address": ({ channel, address, person }) => {
       const cfg = channels.info().find((c) => c.id === channel);
       if (!cfg) throw notFound(`channel ${channel}`);
-      const external = typedAddress(cfg.type, address);
-      if (!external) throw badRequest(`"${address}" is not a ${cfg.label} address`);
       const who = person ? store.persons.get(person) : store.persons.owner();
       if (!who) throw notFound(`person ${person}`);
+      // A number without its country code is read in the contact's country, else the owner's.
+      const phones = [who, store.persons.owner()].flatMap((p) => p.addresses.flatMap((a) => phoneIn(a.external_id)));
+      const typed = typedAddress(cfg.type, address, phones.map(countryOf).find(Boolean));
+      if ("problem" in typed) throw badRequest(typed.problem);
+      const external = typed.external;
+      if (!external) throw badRequest(`"${address}" is not a ${cfg.label} address`);
       store.tx(() => store.persons.link(who.id, { channel, external_id: external, label: cfg.label }));
       return store.persons.get(who.id) as NonNullable<ReturnType<typeof store.persons.get>>;
     },
@@ -272,13 +277,27 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
   } satisfies Partial<Handlers>;
 }
 
-/** What the owner typed as the address the channel uses: a WhatsApp number's account, a Telegram chat id. */
-function typedAddress(type: string, typed: string): string | undefined {
+/**
+ * What the owner typed as the address the channel uses: a WhatsApp number's account (its country code filled in from
+ * `country` when it has none, or why not), a Telegram chat id.
+ */
+function typedAddress(
+  type: string,
+  typed: string,
+  country?: ReturnType<typeof countryOf>,
+): { external: string | undefined } | { problem: string } {
   if (type === "whatsapp") {
-    if (typed.includes("@")) return normalJid(typed) || undefined;
-    const digits = typed.replace(/\D/g, "");
-    return digits.length >= 8 && digits.length <= 15 ? `${digits}@s.whatsapp.net` : undefined;
+    const jid = typed.includes("@") ? normalJid(typed) : "";
+    if (jid && !jid.endsWith("@s.whatsapp.net")) return { external: jid };
+    const n = whatsappDigits(jid ? (jid.split("@")[0] ?? "") : typed, { country, stored: Boolean(jid) });
+    return "problem" in n ? n : { external: `${n.digits}@s.whatsapp.net` };
   }
+  return { external: otherAddress(type, typed) };
+}
+/** The phone number an address is, when it is one (a WhatsApp number's account, an SMS or iMessage number). */
+const phoneIn = (external: string): string[] =>
+  /^(\+\d{6,15}|\d{6,15}@s\.whatsapp\.net)$/.test(external) ? [external] : [];
+function otherAddress(type: string, typed: string): string | undefined {
   const a = typed.trim().toLowerCase();
   const mail = /^[^\s<>@,;"]+@[^\s<>@,;"]+\.[^\s<>@,;"]+$/.test(a) ? a : undefined;
   if (type === "email") return mail;

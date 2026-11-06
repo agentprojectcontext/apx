@@ -29,6 +29,9 @@ export function fakeWhatsApp(owner = OWNER_PN) {
   const resendAsked: WaKey[] = [];
   /** Private ids WhatsApp told this device, by phone address. */
   const lids = new Map<string, string>();
+  /** Numbers nobody has WhatsApp on (anyone else has it); and every number this device asked about. */
+  const absent = new Set<string>();
+  const checked: string[] = [];
   const creds = () => path.join(dir, "creds.json");
 
   const makeSocket = (): WaSocket & { emit(event: string, arg: unknown): void } => {
@@ -51,6 +54,11 @@ export function fakeWhatsApp(owner = OWNER_PN) {
         return { key: { id } };
       },
       async sendPresenceUpdate() {},
+      async onWhatsApp(...numbers: string[]) {
+        checked.push(...numbers);
+        const digits = numbers.map((n) => n.split("@")[0] ?? "");
+        return digits.filter((d) => !absent.has(d)).map((d) => ({ jid: `${d}@s.whatsapp.net`, exists: true }));
+      },
       signalRepository: { lidMapping: { getLIDForPN: async (pn: string) => lids.get(pn) } },
       // The phone sends one message again, found by its id under the address it came on.
       async requestPlaceholderResend(key: WaKey) {
@@ -215,6 +223,9 @@ export function fakeWhatsApp(owner = OWNER_PN) {
       const m = phone.history.find((x) => x.key.id === id);
       if (m) m.message = content as WaContent;
     },
+    /** Numbers (digits) nobody is on WhatsApp with. */
+    absent,
+    checked,
     textsTo: (jid: string) => sent.filter((s) => s.jid === jid).map((s) => String(s.content.text ?? "")),
     loggedOut,
   };

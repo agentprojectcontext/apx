@@ -304,6 +304,17 @@ refused or unresolved connections are retried; everything else is "uncertain". A
 continues from the part that failed (`Presentation.skip`) instead of being dropped. Where:
 `apps/core/src/channels/telegram.ts`, `delivery.ts`.
 
+<a id="whatsapp-country-code"></a>
+### A WhatsApp number gets its country code, and is checked before a send
+WhatsApp accepts a message for any number and drops it when nobody has that number, so an agent sending reminders to
+contacts saved the local way (`976 666 004`, no `51`) was told "sent" while only the numbers written with their
+country code got anything. Numbers are now completed with the contact's or the owner's country when saved
+(`contacts.address`) and with the line's own country before each send; Argentine mobiles get WhatsApp's `54 9`. The
+adapter asks `onWhatsApp` before the first send to a number on a connection: a number without WhatsApp, or one that
+cannot be made valid, fails the send ("not sent", with why) instead of being counted as sent. When WhatsApp's address
+differs from the stored one, the contact's address and their chat move to it, so their answer lands in the same
+thread. Where: `apps/core/src/channels/phone.ts`, `whatsapp.ts`, `delivery.ts`, `rpc/channels.ts`.
+
 <a id="shell-symlink-cwd"></a>
 ### The shell's folder check resolves links
 `shell` compared its working folder with the project's as written, so `cwd: "escape"` where `escape` is a symlink to

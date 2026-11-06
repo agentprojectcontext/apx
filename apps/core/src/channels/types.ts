@@ -119,7 +119,8 @@ export interface ChannelAdapter {
    */
   webhook?(req: HookRequest, signal?: AbortSignal): Promise<HookResponse>;
   /** Text, then `files` (the presentation's media, already read). */
-  send(conversation: string, p: Presentation, files?: OutFile[]): Promise<{ external_id?: string }>;
+  /** `address`: the conversation's address as the platform uses it, when it is not the one given (a number fixed). */
+  send(conversation: string, p: Presentation, files?: OutFile[]): Promise<{ external_id?: string; address?: string }>;
   /** A new mail the owner wrote (a mailbox channel): sent from its address as they reviewed it, signed. */
   compose?(mail: { to: string[]; cc: string[]; subject: string; body: string }): Promise<{ external_id?: string }>;
   typing?(conversation: string): Promise<void>;

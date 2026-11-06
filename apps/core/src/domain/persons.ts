@@ -186,6 +186,19 @@ export function personsRepo({ one, all, run, tx }: Sql) {
       );
       return toAddress(one(qb.selectFrom("addresses").selectAll().where("id", "=", id)) as Selectable<AddressesTable>);
     },
+    /** An address written another way by its platform (a number given its country code): the same person under it. */
+    readdress(channel: string, from: string, to: string): void {
+      if (repo.byAddress(channel, to))
+        run(qb.deleteFrom("addresses").where("channel", "=", channel).where("external_id", "=", from));
+      else
+        run(
+          qb
+            .updateTable("addresses")
+            .set({ external_id: to })
+            .where("channel", "=", channel)
+            .where("external_id", "=", from),
+        );
+    },
     /**
      * "This account is mine": an address approved as someone else's becomes the owner's. Its chats on that channel
      * become the owner's own, and the person, left with no address, is removed (their commitments stay as tasks).

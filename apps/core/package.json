@@ -19,6 +19,7 @@
     "@openai/codex-sdk": "0.159.3",
     "@whiskeysockets/baileys": "7.0.0-rc14",
     "kysely": "0.29.6",
+    "libphonenumber-js": "^1.13.15",
     "ws": "^8.22.0",
     "zod": "^4.6.6"
   },
