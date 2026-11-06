@@ -136,6 +136,8 @@ one you started, and its answer comes back to the agent that asked, so you don't
   the session read, unless the agent's own rules ask before writing or turn it off; on Manual or Plan it runs
   read-only (and says why), unless its rules let it write on its own. A session another agent delegated with
   **Asks before changes** stays read-only for Codex even on Total, since it cannot ask.
+- The engine's checklist is APX's plan, under its answer (in a task's chat, the task's plan). Claude Code's own task
+  list, subagents and questions are not offered: it uses APX's plan, delegation and questions, with their approvals.
 - Once an engine session reads outside content (a web page, a message), the rest of that session is treated as
   untrusted, as an APX agent's would be.
 </Aside>

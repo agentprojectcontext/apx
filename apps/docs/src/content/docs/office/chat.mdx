@@ -60,6 +60,9 @@ The phone app shows the same checklist in the chat and on the task's page, with 
 `apx chat` prints the plan each time a step changes (`✓` done, `▸` under way, `○` pending), and `apx tasks show <id>`
 prints the task's goal and plan.
 
+Claude Code, Codex and ACP sessions show the same plan. Codex and ACP agents keep their own checklist, and APX shows
+it as the plan; Claude Code is asked to keep it with APX's plan, since its own task list is not offered there.
+
 ### Writing while it works
 
 You don't have to wait for the agent to finish, and you don't have to stop it:

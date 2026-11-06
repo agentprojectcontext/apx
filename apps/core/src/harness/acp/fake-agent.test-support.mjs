@@ -1,4 +1,5 @@
-// A tiny ACP agent for tests: offers two models, asks permission to edit, reports a tool call and answers. With
+// A tiny ACP agent for tests: offers two models, asks permission to edit, reports a tool call and answers; asked to,
+// it sends a plan. With
 // FAKE_SIGNED_OUT it is a CLI nobody signed in to, whose `authenticate` would open a browser (counted in FAKE_AUTH_LOG).
 import fs from "node:fs";
 import readline from "node:readline";
@@ -51,6 +52,38 @@ rl.on("line", async (line) => {
   if (m.method === "session/prompt") {
     const sid = m.params.sessionId;
     const text = m.params.prompt[0].text;
+    // Its plan as ACP updates (the whole plan each time), or as a to-do tool's call as OpenCode sends it.
+    if (text.includes("plan it")) {
+      const entry = (content, status) => ({ content, priority: "medium", status });
+      update(sid, {
+        sessionUpdate: "plan",
+        entries: [entry("Count shelf A", "in_progress"), entry("Count shelf B", "pending")],
+      });
+      update(sid, {
+        sessionUpdate: "plan",
+        entries: [entry("Count shelf A", "completed"), entry("Count shelf B", "in_progress")],
+      });
+      update(sid, { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "planned" } });
+      return out({ id: m.id, result: { stopReason: "end_turn" } });
+    }
+    if (text.includes("todo it")) {
+      const todos = [
+        { content: "Count shelf A", status: "completed", priority: "high", id: "1" },
+        { content: "Skip shelf C", status: "cancelled", priority: "low", id: "2" },
+        { content: "Count shelf B", status: "pending", priority: "high", id: "3" },
+      ];
+      update(sid, {
+        sessionUpdate: "tool_call",
+        toolCallId: "td1",
+        title: "todowrite",
+        kind: "other",
+        status: "pending",
+        rawInput: { todos },
+      });
+      update(sid, { sessionUpdate: "tool_call_update", toolCallId: "td1", status: "completed" });
+      update(sid, { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "listed" } });
+      return out({ id: m.id, result: { stopReason: "end_turn" } });
+    }
     // Garbage an agent might print: none of it may take the core down.
     process.stdout.write('null\n[1,2]\n"text"\n');
     out({ method: "session/update" });

@@ -3978,3 +3978,29 @@ tabs. The side panel's turns stay all-Chrome.
 Known limits, left for later: with the extension in more than one browser or profile, the Chrome node that connected
 last serves every Chrome turn. Work an agent delegates from a Chrome turn uses APX's own browser. A login form Chrome
 filled from the owner's saved passwords can be sent by an agent's click: the credential guard covers typing.
+
+<a id="d-199"></a>
+## D-199 — 2026-11-05 — An outside engine's checklist is APX's plan
+
+D-191 gave every chat a plan, but Claude Code, Codex and ACP sessions run their own loops: a Codex or ACP agent's
+checklist never reached the chat, and Claude Code was never told to use APX's `plan`. The owner wants those engines to
+work with APX's plan, cards and approvals instead of their own.
+
+- **One path.** An engine's checklist goes through the same `plan` tool call our loop makes (`harness/engine-plan.ts`,
+  `io.execute`): the same card and step, the checklist under the answer, `Task.plan` in a task's chat, and the progress
+  guard reading it (D-188). Each change is sent once, in order, and the answer is written after it. Steps are cut to one
+  line and to the tool's cap, never refused.
+- **Codex**: its plan tool is off by default since 0.152, so the harness turns it on (`tools.update_plan.enabled`) and
+  maps its `todo_list` item. `codex exec` says only which steps are completed: the first open one is shown under way
+  until the turn ends.
+- **ACP**: `plan` session updates (the whole list each time) map by status; a tool call whose input carries a `todos`
+  list (OpenCode's todowrite, which sends no `plan` update) is shown as the plan and gets no card of its own; cancelled
+  steps are left out.
+- **Claude Code**: 2.1.x has no TodoWrite; its task list (TaskCreate/TaskUpdate), subagents and AskUserQuestion stay off
+  (the `tools` list), so `plan`, `delegate` and `ask_owner` do those with APX's cards. One line in its appended prompt
+  says its checklist is `mcp__apx__plan`. In a spike, Sonnet then planned and marked each step; Haiku skipped a
+  three-step job with or without the line, and Claude's own task tools went unused when offered.
+
+Rejected: offering Claude's task tools and mirroring them (their ids are stateful across turns and resumed sessions, and
+the model did not use them more than APX's plan), aliasing native tools to APX's (`toolAliases`: the arguments differ),
+and also telling Codex and ACP agents to call APX's `plan` (two plans for one turn).
