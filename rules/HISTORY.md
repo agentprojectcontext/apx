@@ -151,6 +151,17 @@ popups and the profile partition made no difference. Google sign-in still accept
 account's passkey or password).
 **Where:** `apps/desktop/src/main/browser/host.ts` (`#configure`).
 
+<a id="tab-under-floats"></a>
+### The live tab steps behind every float over it, backdrops and notices included
+**Rule:** the panel sends the tab behind (a still holds its place) whenever a popup, a dialog, a modal's backdrop or a
+notice overlaps the page area. Something new that floats over the panel joins `PORTAL_FLOATS` or `SHELL_FLOATS`.
+**Why:** the native page paints above every HTML layer. Only menus, dialogs and listboxes were checked, so a dialog
+centred elsewhere left the page bright and clickable over its backdrop, and a notice at the foot of the window was
+hidden under the page. A report of a gray band over the page while scrolling did not reproduce on a 1x display with
+synthetic or real trackpad scrolling, agent screenshots, resizes or tab switches; the bounds and viewport stayed in
+step throughout.
+**Where:** `apps/web/src/panel/BrowserViewport.tsx` (`usePopupOver`), `e2e/desktop/app.spec.ts`.
+
 ## Memory
 
 <a id="memory-capture-cleanup"></a>
