@@ -172,11 +172,14 @@ export function compactionLines(r: StoreCompaction): string[] {
     `Database: ${mb(r.before_bytes)} → ${mb(r.after_bytes)}${freed ? ` (${mb(freed)} freed)` : ""}`,
     `Old turns compacted: ${r.runs_compacted}, outputs kept twice removed: ${r.outputs_dropped}`,
   ];
+  if (r.backup) lines.push(`A copy from before was saved in APX's backups folder: ${r.backup}`);
   if (r.reclaimed === "rebuilt")
     lines.push("The database file was rewritten once; from now on it gives space back by itself.");
   if (r.reclaimed === "not_enough_disk")
     lines.push(
-      "The file stays this size until the disk has about twice its size free: free some space and run it again.",
+      r.backup
+        ? "The file stays this size until the disk has about twice its size free: free some space and run it again."
+        : "Nothing was changed: the disk needs room for a copy of the database and about twice its size to rewrite it. Free some space and run it again.",
     );
   return lines;
 }

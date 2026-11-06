@@ -1,5 +1,6 @@
 // Release news worth acting on: what a release lets the super-agent do for this owner. Each entry is told once, and
 // only to an owner it applies to. See rules/DECISIONS.md#d-117
+import type { StoreSize } from "../db/db.ts";
 import type { Store } from "../domain/store.ts";
 import { computerHost } from "../environments/host.ts";
 import { CATALOG } from "../integrations/catalog.ts";
@@ -15,6 +16,7 @@ import { LOCAL_MODELS_NEWS } from "./local-models.ts";
 import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
+import { STORE_COMPACT_NEWS } from "./store-compact.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
 
@@ -51,6 +53,8 @@ export type NewsFacts = {
   localModels?: boolean;
   /** Agents that run on a model of their own (not the router alone). */
   ownModels?: number;
+  /** The chats' database is over 500 MB and keeps its free space until it is rewritten once (compacted). */
+  bigStore?: boolean;
 };
 
 export type NewsAction = {
@@ -90,6 +94,7 @@ export const NEWS: readonly NewsEntry[] = [
   MOVE_BACKUP_NEWS,
   AGENT_FALLBACKS_NEWS,
   BROWSER_SIGN_IN_NEWS,
+  STORE_COMPACT_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",
@@ -1178,8 +1183,12 @@ const connectedIntegrations = (store: Store): number => {
 
 const signedIn = (store: Store, id: string) => Boolean(store.settings.get(`google_account:${id}`));
 
-export const newsFacts = (store: Store, o: { hermes?: boolean } = {}): NewsFacts => ({
+/** A store this big that cannot give space back is worth one compaction. */
+const BIG_STORE_BYTES = 500 * 1024 * 1024;
+
+export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: StoreSize } = {}): NewsFacts => ({
   hermes: o.hermes ?? false,
+  bigStore: o.storeSize !== undefined && !o.storeSize.incremental && o.storeSize.bytes >= BIG_STORE_BYTES,
   artifacts: store.surfaces.list().length,
   desktop: store.devices.list().some((d) => d.platform === "desktop"),
   codex: store.threads.list({ engine: "codex", limit: 1 }).length > 0,

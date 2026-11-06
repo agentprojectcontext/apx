@@ -79,16 +79,20 @@ más de dos semanas y tienen turnos más nuevos después, guarda una salida larg
 (una nota corta de que se omitió). Lo que un chat le manda a su modelo no cambia. Una instalación nueva le devuelve
 al disco el espacio liberado sola.
 
-Una instalación anterior a este cambio tiene que reescribir el archivo una vez para devolver el espacio. Con el core
-andando:
+Una instalación anterior a este cambio tiene que reescribir el archivo una vez para devolver el espacio. Cuando el
+archivo es grande, tu super-agente te avisa. Abrí **Configuración › Almacenamiento** y tocá **Compactar** en **Achicar
+el archivo de chats**, o, con el core andando:
 
 <Terminal command="apx doctor --fix">{`Compacting the database (a big one takes a few minutes; chats wait meanwhile)…
 Database: 1110 MB → 890 MB (220 MB freed)
 Old turns compacted: 2760, outputs kept twice removed: 66396
+A copy from before was saved in APX's backups folder: apx-before-compact-20261106-123045.db
 The database file was rewritten once; from now on it gives space back by itself.`}</Terminal>
 
-Mientras corre, los chats y las rutinas esperan. Reescribir necesita libre en el disco unas dos veces el tamaño del
-archivo; con menos, lo dice y el archivo queda del mismo tamaño hasta que liberes espacio y lo corras de nuevo.
+Antes de cambiar nada, guarda una copia del archivo en **Copias de seguridad** (`backups/` en la carpeta de APX). La
+copia queda hasta que la borres desde **Configuración › Almacenamiento › Copias de seguridad**. Mientras corre, los
+chats y las rutinas esperan. Necesita lugar en el disco para esa copia más unas dos veces el tamaño del archivo para
+reescribirlo; con menos, no cambia nada y lo dice: liberá espacio y corrélo de nuevo.
 
 Cambia una cosa: si volvés a (o copiás un chat desde) un mensaje de hace más de dos semanas y unos turnos atrás, el
 agente ve esos resultados viejos como la nota y vuelve a llamar a la herramienta si los necesita.

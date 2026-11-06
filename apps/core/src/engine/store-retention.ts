@@ -2,7 +2,8 @@
 // the whole outputs its model log already holds; once enough turns follow it, its long tool output is kept as the stub
 // every view of the chat already shows; once it is behind any view, its encrypted reasoning goes too. See
 // DECISIONS.md#d-200
-import { type Db, storeRebuild, storeReclaim, storeSize } from "../db/db.ts";
+import path from "node:path";
+import { type Db, storeCopy, storeRebuild, storeReclaim, storeSize } from "../db/db.ts";
 import type { LogEntry } from "../domain/model-log.ts";
 import { type LogRow, TRIMMED, type Trimmed } from "../domain/retention.ts";
 import type { Store } from "../domain/store.ts";
@@ -59,6 +60,10 @@ function compactedRows(rows: LogRow[], runId: string, o: { reasoning: boolean })
 
 /** Where a chat's widest view starts, and where each of the groups a view counts starts. */
 type View = { from: number; starts: number[] };
+
+/** The copy `compactNow` writes first: dated to the second, so two compactions never meet the same file. */
+export const compactBackupName = (now: Date): string =>
+  `apx-before-compact-${now.toISOString().slice(0, 19).replace(/[-:]/g, "").replace("T", "-")}.db`;
 
 export function createRetention(o: { store: Store; db: Db; now?: () => Date }) {
   const { store, db } = o;
@@ -151,19 +156,37 @@ export function createRetention(o: { store: Store; db: Db; now?: () => Date }) {
     pass,
     /**
      * Everything due now, then the free pages back to the disk: a store not yet incremental is rewritten once, which
-     * needs about twice its size free. `freeBytes` is the free space on the disk holding it.
+     * needs about twice its size free. `freeBytes` is the free space on the disk holding it. With `backup`, a copy of
+     * the store is written there first, and nothing is trimmed when the disk has no room for the copy and the rewrite.
      */
-    compactNow(freeBytes: number) {
+    compactNow(freeBytes: number, backup?: string) {
       const before = storeSize(db);
+      const copyBytes = backup ? before.bytes - before.free_bytes : 0;
+      if (backup && freeBytes < copyBytes + (before.incremental ? 0 : 2 * before.bytes)) {
+        const none = { runs_trimmed: 0, runs_compacted: 0, outputs_dropped: 0, rows: 0 };
+        return {
+          ...none,
+          before_bytes: before.bytes,
+          after_bytes: before.bytes,
+          reclaimed: "not_enough_disk" as const,
+        };
+      }
+      if (backup) storeCopy(db, backup);
       const counts = pass();
       const grown = storeSize(db);
       let reclaimed: "incremental" | "rebuilt" | "not_enough_disk" = "incremental";
       if (grown.incremental) storeReclaim(db);
-      else if (freeBytes >= 2 * grown.bytes) {
+      else if (freeBytes - copyBytes >= 2 * grown.bytes) {
         storeRebuild(db);
         reclaimed = "rebuilt";
       } else reclaimed = "not_enough_disk";
-      return { ...counts, before_bytes: before.bytes, after_bytes: storeSize(db).bytes, reclaimed };
+      return {
+        ...counts,
+        before_bytes: before.bytes,
+        after_bytes: storeSize(db).bytes,
+        reclaimed,
+        ...(backup ? { backup: path.basename(backup) } : {}),
+      };
     },
     /** On the office clock: a bounded pass, then some free pages back to the disk. */
     check: {

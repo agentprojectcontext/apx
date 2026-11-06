@@ -3,6 +3,7 @@
 // no model call; a fresh install is told nothing. See rules/DECISIONS.md#d-117
 import fs from "node:fs";
 import { buttonId } from "../channels/notices.ts";
+import type { StoreSize } from "../db/db.ts";
 import { postAgentWords } from "../domain/agent-words.ts";
 import type { Presentation } from "../domain/channels.ts";
 import { ownerTimeZone } from "../domain/owner.ts";
@@ -57,10 +58,16 @@ export function createNews(deps: {
   timeoutMs?: number;
   /** A Hermes home folder: when it is there, moving from Hermes is told. */
   hermesHome?: string;
+  /** The chats' database size: a big one that keeps its free space is told how to compact it. */
+  storeSize?: () => StoreSize;
 }) {
   const { store, log } = deps;
   const entries = deps.entries ?? NEWS;
-  const facts_ = () => newsFacts(store, { hermes: !!deps.hermesHome && fs.existsSync(deps.hermesHome) });
+  const facts_ = () =>
+    newsFacts(store, {
+      hermes: !!deps.hermesHome && fs.existsSync(deps.hermesHome),
+      ...(deps.storeSize ? { storeSize: deps.storeSize() } : {}),
+    });
   const ac = new AbortController();
   let running: Promise<unknown> = Promise.resolve();
 

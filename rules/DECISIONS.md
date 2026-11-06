@@ -4036,6 +4036,13 @@ The rule: **stored copies shrink only to what every view of the chat already rea
   the model those old tool outputs as the stub ("call it again if you need it"), and, further back, without its own
   encrypted reasoning. The newest turns of every chat, including finished delegations that may be continued, stay whole.
 
+**A copy first, and the owner can find it.** `storage.compact` writes a compact copy of the store
+(`VACUUM INTO`, `backups/apx-before-compact-<date>.db`) before it trims anything, and changes nothing when the disk has
+no room for the copy plus the rewrite. The copy is the owner's like any backup: it goes only when they delete it
+([D-185](#d-185)). Besides `apx doctor --fix`, **Settings › Storage › Compact** runs it after a confirmation, and a
+news entry (`store-compact`) tells an owner whose store is over 500 MB and not yet incremental; agents still cannot
+run it, because chats wait while it does.
+
 Measured on a copy of the owner's store (1,110 MB): `apx doctor --fix` today 890 MB (`steps` 416 → 259 MB, `model_log`
 491 → 438 MB) in about 30 s; with every run past the 14 days, as in steady use, 727 MB (`model_log` 305 MB). One
 background beat took 0.4–0.7 s.

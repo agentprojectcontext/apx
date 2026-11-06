@@ -41,6 +41,11 @@ export function storeReclaim(db: Db, pages?: number): void {
   db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
 }
 
+/** Writes a compact copy of the store to `file` (a new file, without free pages), consistent while the core runs. */
+export function storeCopy(db: Db, file: string): void {
+  db.prepare("VACUUM INTO ?").run(file);
+}
+
 /** Rewrites the whole file without its free pages, incremental from then on. Blocks while it runs. */
 export function storeRebuild(db: Db): void {
   db.exec("PRAGMA auto_vacuum = INCREMENTAL");

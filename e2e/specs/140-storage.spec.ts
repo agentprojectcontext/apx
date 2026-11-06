@@ -49,6 +49,39 @@ test("the owner sees APX's storage by area and frees caches, never a chat's file
   expect(fs.existsSync(chatFile)).toBe(true);
 });
 
+test("the owner compacts the chats' file after confirming, and a copy is kept in Backups first", async ({ page }) => {
+  await rpc("setup.finish");
+  const { home } = await world.info();
+  const copies = () =>
+    fs.existsSync(path.join(home, "backups"))
+      ? fs.readdirSync(path.join(home, "backups")).filter((n) => /^apx-before-compact-\d{8}-\d{6}\.db$/.test(n))
+      : [];
+  const before = copies().length;
+
+  await open(page);
+  await openSettings(page);
+  const dialog = page.getByRole("dialog", { name: "Configuración" });
+  await dialog.getByRole("button", { name: "Almacenamiento" }).click();
+  await expect(dialog.getByText("Achicar el archivo de chats")).toBeVisible();
+  await dialog.getByRole("button", { name: "Compactar" }).click();
+  const confirm = page.getByRole("dialog", { name: "¿Compactar el archivo de chats?" });
+  await expect(confirm).toBeVisible();
+  // Cancelled, nothing runs.
+  await confirm.getByRole("button", { name: "Cancelar" }).click();
+  await expect(confirm).toHaveCount(0);
+  expect(copies().length).toBe(before);
+
+  await dialog.getByRole("button", { name: "Compactar" }).click();
+  await page
+    .getByRole("dialog", { name: "¿Compactar el archivo de chats?" })
+    .getByRole("button", { name: "Compactar" })
+    .click();
+  await expect(page.getByText(/^Compactado: .+ Se guardó una copia en Copias de seguridad\.$/)).toBeVisible({
+    timeout: 30_000,
+  });
+  expect(copies().length).toBe(before + 1);
+});
+
 test.describe("a disk running out", () => {
   test.use({ diskWarning: true });
 

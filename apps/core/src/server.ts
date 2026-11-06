@@ -39,7 +39,7 @@ import type { AdapterFactory } from "./channels/types.ts";
 import { whatsappAdapter } from "./channels/whatsapp.ts";
 import { type CoreConfig, OAUTH_CHATGPT } from "./config.ts";
 import { coreLogSink } from "./core-log.ts";
-import { openDb } from "./db/db.ts";
+import { openDb, storeSize } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { signatureFor } from "./domain/email-signature-settings.ts";
 import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
@@ -60,7 +60,7 @@ import { createNoticePush } from "./engine/notice-push.ts";
 import { createPermissions } from "./engine/permissions.ts";
 import type { ProfileRoot } from "./engine/profiles.ts";
 import { createSkillPicker } from "./engine/skill-pick.ts";
-import { createRetention } from "./engine/store-retention.ts";
+import { compactBackupName, createRetention } from "./engine/store-retention.ts";
 import { createDrafter } from "./engine/suggest.ts";
 import { afterWorkTurn } from "./engine/task-work.ts";
 import { wakeAfterCommand } from "./engine/terminal-wake.ts";
@@ -600,6 +600,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     notifyOwner: (body, threadId) => channels.notifyOwner(body, "notice", threadId),
     log,
     hermesHome: config.hermes,
+    storeSize: () => storeSize(db),
   });
   const sleep = opts.sleptSince ? undefined : sleepWatch(opts.runTimers);
   const engine = createEngine({
@@ -807,7 +808,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
         ...storage,
         items: storageItems,
         compact: async () => {
-          const r = retention.compactNow((await storage.disk()).free_bytes);
+          const backups = path.join(config.home, "backups");
+          fs.mkdirSync(backups, { recursive: true });
+          const free = (await storage.disk()).free_bytes;
+          const r = retention.compactNow(free, path.join(backups, compactBackupName(new Date())));
           storage.changed();
           return r;
         },

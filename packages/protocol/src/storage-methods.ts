@@ -80,6 +80,8 @@ export const StoreCompaction = z.object({
   rows: z.number(),
   /** How the free space went back: bit by bit, a one-time rewrite, or not yet (too little free disk to rewrite). */
   reclaimed: z.enum(["incremental", "rebuilt", "not_enough_disk"]),
+  /** The copy of the store written to the backups folder before anything was trimmed. */
+  backup: z.string().optional(),
 });
 export type StoreCompaction = z.infer<typeof StoreCompaction>;
 

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
@@ -10,7 +11,7 @@ import type { ChatItem } from "../providers/types.ts";
 import { tempDir } from "../testkit/platform.ts";
 import { HISTORY_BUDGET_CHARS, project } from "./context.ts";
 import { memoryHistory } from "./memory-projection.ts";
-import { createRetention } from "./store-retention.ts";
+import { compactBackupName, createRetention } from "./store-retention.ts";
 
 const DAY = 86_400_000;
 const later = (days: number) => () => new Date(Date.now() + days * DAY);
@@ -187,6 +188,42 @@ test("compacting gives the space back: an older store is rewritten once, then fr
     const grown = storeSize(db).bytes;
     retention.check.run(new Date());
     assert.ok(storeSize(db).bytes < grown / 2, "the office clock gives free pages back");
+    db.close();
+  } finally {
+    home.remove();
+  }
+});
+
+const keptOutputs = (db: DatabaseSync) =>
+  Number((db.prepare("SELECT count(*) AS n FROM steps WHERE output IS NOT NULL").get() as { n: number }).n);
+
+test("compacting saves a copy of the store first, and changes nothing when the disk has no room for the copy", () => {
+  const { home, db, store, thread } = setup();
+  try {
+    for (let i = 0; i < 3; i++) turn(store, thread, i, { output: `${i}:${"y".repeat(20_000)}` });
+    const retention = createRetention({ store, db });
+    const backups = path.join(home.path, "backups");
+    fs.mkdirSync(backups);
+    const backup = path.join(backups, compactBackupName(new Date("2026-11-06T12:30:45Z")));
+    assert.equal(path.basename(backup), "apx-before-compact-20261106-123045.db");
+
+    const short = retention.compactNow(0, backup);
+    assert.equal(short.reclaimed, "not_enough_disk");
+    assert.equal(short.outputs_dropped, 0);
+    assert.equal(short.backup, undefined);
+    assert.equal(fs.existsSync(backup), false);
+    assert.equal(keptOutputs(db), 3);
+
+    const done = retention.compactNow(Number.MAX_SAFE_INTEGER, backup);
+    assert.equal(done.backup, path.basename(backup));
+    assert.ok(done.outputs_dropped > 0);
+    assert.ok(keptOutputs(db) < 3);
+    const copy = new DatabaseSync(backup, { readOnly: true });
+    try {
+      assert.equal(keptOutputs(copy), 3, "the copy holds the store as it was before trimming");
+    } finally {
+      copy.close();
+    }
     db.close();
   } finally {
     home.remove();
