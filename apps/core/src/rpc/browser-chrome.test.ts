@@ -76,12 +76,27 @@ test("a turn from APX's panel in Chrome opens its tab in the owner's Chrome", as
       .flatMap((m) => m.parts)
       .find((p) => p.type === "browser");
     assert.equal(card && "environment" in card ? card.environment : undefined, "chrome");
+    // The owner's words and the answer carry Chrome's mark, as a channel's do.
+    assert.deepEqual(
+      env.core.store.messages.list(thread, 10).map((m) => [m.author.kind, m.via]),
+      [
+        ["user", "chrome"],
+        ["agent", "chrome"],
+      ],
+    );
     // Nothing of the owner's Chrome is held for idle closing.
     assert.equal(calls.filter((c) => c.node === "desktop").length, 0);
 
     // The same words written anywhere else use APX's own browser.
     calls.length = 0;
     assert.match(await turn(thread), /tab t1 · desktop orders/);
+    assert.deepEqual(
+      env.core.store.messages
+        .list(thread, 10)
+        .slice(2)
+        .map((m) => m.via),
+      [undefined, undefined],
+    );
     assert.equal(calls.filter((c) => c.node === "chrome").length, 0);
   } finally {
     chrome.close();

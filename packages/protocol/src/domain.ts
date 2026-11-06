@@ -671,7 +671,10 @@ export const Message = z.object({
   delivery: MessageDelivery.optional(),
   /** Emoji put on it on a channel, at most one per side. */
   reactions: z.array(MessageReaction).optional(),
-  /** The channel (its id) it came on or went out on; a chat everyone writes into (Home) shows each channel's part. */
+  /**
+   * The channel (its id) it came on or went out on; a chat everyone writes into (Home) shows each channel's part.
+   * `chrome` (CHROME_VIA): written in, or answered to, APX's panel in Chrome.
+   */
   via: z.string().optional(),
   /**
    * The owner's words their agent has not taken yet: `step`, its running turn takes them at its next step; `turn`,

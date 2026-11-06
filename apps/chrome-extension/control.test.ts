@@ -7,7 +7,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 import { expect } from "@playwright/test";
 import { callTool, say } from "../core/src/engine/testkit.ts";
-import { withPanel } from "./testkit.ts";
+import { capture, withPanel } from "./testkit.ts";
 
 const ORDERS = `<!doctype html><html lang="en"><head><title>Northwind orders</title></head>
 <body><h1>Orders</h1><button type="button">Ship order 42</button></body></html>`;
@@ -24,7 +24,7 @@ test("a turn written in the panel opens and reads a tab of Chrome's APX group, a
     await withPanel(
       "en",
       false,
-      async ({ client, core, context, frame, worker }) => {
+      async ({ client, core, context, frame, page, worker }) => {
         // Read in the extension's own worker: the addresses of the tabs in Chrome's APX group.
         const groupTabs = async () =>
           (await worker.evaluate(`(async () => {
@@ -45,6 +45,9 @@ test("a turn written in the panel opens and reads a tab of Chrome's APX group, a
         );
         // The chat says the tab is in Chrome instead of offering APX's browser for it.
         await expect(frame.locator(".browserpart__chrome")).toContainText("Northwind orders");
+        // Like a channel's, the owner's words and the answer show they were written and answered in Chrome.
+        await expect(frame.locator('.chan__via[data-via="chrome"]')).toHaveCount(2);
+        await capture(page, frame, "en", "chrome-turn");
 
         // Moved out of the group the tab is the owner's again; moved back in, the agent can read it again.
         await worker
