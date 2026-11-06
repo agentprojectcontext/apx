@@ -5,11 +5,12 @@ import {
   BROWSER_METHODS,
   type BrowserMethod,
   CHROME_CAP,
+  chromeTabId,
   siteOrigin,
   type TabInfo,
 } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
-import { inChrome, TERMINAL } from "../domain/runs.ts";
+import { inChrome, ownerAsked, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Computer } from "../environments/computer.ts";
 import { conflict, unauthorized, unavailable } from "../errors.ts";
@@ -60,13 +61,18 @@ export function browserHandlers(
     );
   });
   const backend = () => (local() ? "headless" : (broker.withCap(BROWSER_CAP)?.session ?? "unavailable"));
-  /** An agent's call in a turn that browses in the owner's Chrome. */
-  const chromeTurn = (ctx: Parameters<Handler<"browser.tabs">>[1]): boolean => {
-    const run = ctx.agent && store?.runs.get(ctx.agent.run_id);
-    return Boolean(
-      run && inChrome(run.input?.origin, (id) => store?.runs.get(store.inputs.get(id)?.run_id ?? "")?.input?.origin),
-    );
-  };
+  type Ctx = Parameters<Handler<"browser.tabs">>[1];
+  const askedIn = (id: string) => store?.runs.get(store.inputs.get(id)?.run_id ?? "")?.input?.origin;
+  const runOf = (ctx: Ctx) => (ctx.agent ? store?.runs.get(ctx.agent.run_id) : undefined);
+  /** An agent's call in a turn written in APX's panel in Chrome: all of its browsing is in the owner's Chrome. */
+  const chromeTurn = (ctx: Ctx): boolean => inChrome(runOf(ctx)?.input?.origin, askedIn);
+  /** The owner's own turn (their words, or their answer in a turn they asked for): it may also use their Chrome. */
+  const ownersTurn = (ctx: Ctx): boolean => ownerAsked(runOf(ctx)?.input?.origin, askedIn);
+  /** A call for the owner's Chrome in any other turn: a tab of theirs, or a new one asked for there. */
+  const forChrome = (method: BrowserMethod, params: unknown): boolean =>
+    method === "browser.open"
+      ? (params as { chrome?: unknown }).chrome === true
+      : chromeTabId(String((params as { tab?: unknown }).tab ?? "")) !== undefined;
   const inOwnersChrome = (method: BrowserMethod, params: unknown) => {
     if (!broker.withCap(CHROME_CAP))
       throw unavailable(
@@ -144,6 +150,11 @@ export function browserHandlers(
       }
       // The owner's own tabs: nothing is held or bound here, their Chrome closes nothing for being idle.
       if (chromeTurn(ctx)) return (await inOwnersChrome(method, params)) as never;
+      if (forChrome(method, params)) {
+        // A contact's words, a routine or another agent never reach the owner's signed-in Chrome.
+        if (ctx.agent && !ownersTurn(ctx)) throw unauthorized("only a turn the owner asked for may use their Chrome");
+        return (await inOwnersChrome(method, params)) as never;
+      }
       const isLocal = local();
       const backend = isLocal ? "headless" : (broker.withCap(BROWSER_CAP)?.session ?? "unavailable");
       const out = await invokeBound(method, params, backend, async (bound) =>
@@ -169,7 +180,7 @@ export function browserHandlers(
         // The isolated computer's browser is another machine: a stored secret never goes there.
         if (ctx.agent && store.settings.read("computer_chats").includes(ctx.agent.thread_id))
           throw unavailable("signing in with a stored secret works only in the owner's browser");
-        if (chromeTurn(ctx))
+        if (chromeTurn(ctx) || chromeTabId(String(params.tab)) !== undefined)
           throw unavailable("in the owner's Chrome they sign in themselves: ask them to, then go on");
         if (local()) return headless?.handle(BROWSER_FILL_SECRET, params);
         const out = await broker.invoke(
@@ -185,12 +196,19 @@ export function browserHandlers(
   }
   // With no browser at all there are no tabs: an empty list, not an error the panel would log on every load.
   const tabs = handlers["browser.tabs"];
-  handlers["browser.tabs"] = (params, ctx) =>
+  const ownBrowserTabs = (params: Parameters<typeof tabs>[0], ctx: Ctx) =>
     (ctx.agent && store?.settings.read("computer_chats").includes(ctx.agent.thread_id)) ||
     chromeTurn(ctx) ||
     broker.withCap(BROWSER_CAP) ||
     headless?.running()
       ? tabs(params, ctx)
       : { tabs: [] };
+  // In the owner's own turn the agent also sees the tabs of their Chrome's APX group, beside APX's browser.
+  handlers["browser.tabs"] = async (params, ctx) => {
+    const own = await ownBrowserTabs(params, ctx);
+    if (!ctx.agent || chromeTurn(ctx) || !ownersTurn(ctx) || !broker.withCap(CHROME_CAP)) return own;
+    const chrome = (await inOwnersChrome("browser.tabs", {}).catch(() => ({ tabs: [] }))) as { tabs: TabInfo[] };
+    return { tabs: [...own.tabs, ...chrome.tabs] };
+  };
   return handlers;
 }

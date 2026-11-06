@@ -124,20 +124,34 @@ export function browserTools(
         url: z.string().describe("http(s) URL"),
         tab: tabArg.optional().describe("tab id to load it in"),
         new_tab: z.boolean().optional().describe("open another tab instead of reusing this chat's"),
+        chrome: z
+          .boolean()
+          .optional()
+          .describe(
+            "in the owner's own Chrome (signed in, they watch): when they ask for it, or a site needs their login",
+          ),
       }),
       effect: "external",
-      confirm: (a) => urlConfirm(a.url),
+      // The owner's signed-in Chrome is theirs: a new tab there asks, unless the mode lets the agent act alone.
+      confirm: (a) => (a.chrome ? "ask" : urlConfirm(a.url)),
       untrustedWhy: "url_data",
       deadlineMs: 30_000,
       title: (a) => `Opened ${host(a.url)}`,
       async run(a, ctx) {
-        const reuse = a.tab ? await own(ctx, a.tab) : a.new_tab ? undefined : await chatTab(ctx);
+        const shown = a.tab ? await own(ctx, a.tab) : a.new_tab ? undefined : await chatTab(ctx);
+        // Asked for the owner's Chrome, a tab of APX's browser is not reused.
+        const reuse = a.chrome && shown && chromeTabId(shown) === undefined ? undefined : shown;
         if (reuse) {
           const r = await ctx.call("browser.navigate", { tab: reuse, url: a.url, by: ctx.agent.id });
           await card(ctx, reuse, "agent");
           return `tab ${reuse} · ${r.title} · ${r.url}\nNext: browser_snapshot to see the page.`;
         }
-        const t = await ctx.call("browser.open", { url: a.url, profile: profileFor(ctx.agent), by: ctx.agent.id });
+        const t = await ctx.call("browser.open", {
+          url: a.url,
+          profile: profileFor(ctx.agent),
+          by: ctx.agent.id,
+          ...(a.chrome ? { chrome: true } : {}),
+        });
         await card(ctx, t.tab, "agent");
         return `tab ${t.tab} · ${t.title} · ${t.url}\nNext: browser_snapshot to see the page.`;
       },
