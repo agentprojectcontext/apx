@@ -194,6 +194,7 @@ export function startTaskWork(
 /** Reopens a delivery and records the correction request and its run together, or leaves it unchanged. */
 export function reworkTask(store: Store, admit: AdmitFn, task: Task, note: string | undefined, asker: Asker): Task {
   if (task.state === "open") throw conflict("rework requires a closed task");
+  if (task.proposed) throw conflict("rework requires accepting the proposed task first");
   if (!task.assignee) throw badRequest("rework requires an assignee");
   const reason = note?.trim();
   if (!reason) throw badRequest("rework requires a note explaining the corrections");
@@ -574,7 +575,7 @@ function reviewEnded(store: Store, admit: AdmitFn, task: Task, run: RunRecord, v
   const reviewer = store.agents.get(run.agent_id);
   const name = reviewer?.name ?? run.agent_id;
   // Closed or taken out of review meanwhile: the verdict stays on its card, nobody is asked.
-  if (task.state !== "open" || task.status !== "review") return;
+  if (task.state !== "open" || task.status !== "review" || task.proposed) return;
   const doer = task.assignee && store.agents.get(task.assignee) ? task.assignee : undefined;
   const paused = doer && (trip(store, task.thread_id) || agentTrip(store, task.thread_id, doer));
   if (APPROVED.test(verdict) || !doer || paused) {

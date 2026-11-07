@@ -377,8 +377,14 @@ export function taskHandlers(
           Boolean(cur.start_at) &&
           !startsLater({ ...cur, start_at: dueOf(start_at) ?? undefined }) &&
           store.threads.byTask(cur.id).length === 0;
+        // Accepting a card already in review starts its reviewer (below), not its assignee again.
+        const acceptingReview = accepting && (c.status ?? cur.status) === "review";
         const starting =
-          !forced && !unassign && keeper && (keeper !== cur.assignee || completing || unscheduled || accepting);
+          !forced &&
+          !unassign &&
+          keeper &&
+          !acceptingReview &&
+          (keeper !== cur.assignee || completing || unscheduled || accepting);
         if (starting) {
           refuseHandOn(ctx);
           checkTransfer(ctx, {
