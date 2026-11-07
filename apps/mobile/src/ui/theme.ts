@@ -6,7 +6,8 @@ import type { Tone } from "./tone";
 export type { Tone };
 export type Scheme = keyof typeof palettes;
 
-type Palette = { [K in keyof typeof palettes.dark]: (typeof palettes.dark)[K] extends number ? number : string };
+// The light scheme names every token both schemes have (a dark-only token stays out).
+type Palette = { [K in keyof typeof palettes.light]: (typeof palettes.light)[K] extends number ? number : string };
 
 /** The panel's minimal tokens for one scheme (generated from packages/ui), under the short names the app's styles use. */
 function build(scheme: Scheme) {

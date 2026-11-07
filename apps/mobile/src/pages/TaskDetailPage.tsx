@@ -7,7 +7,7 @@ import type { Task, Workspace } from "../hooks/useWorkspace";
 import { type Key, t } from "../i18n";
 import { planSteps, type TaskEvent } from "../protocol";
 import { columnName, KIND_KEY, PRIORITY_KEY, type TaskPatch, type TaskPriority, taskValues } from "../tasks/fields";
-import { type HistoryKey, historyLines } from "../tasks/history";
+import { type HistoryLine, historyLines } from "../tasks/history";
 import { CommentBox, Comments } from "../tasks/TaskComments";
 import { TaskFields } from "../tasks/TaskFields";
 import { closeChoices, confirmClose, failAlert, type TaskActions, TaskMenu } from "../tasks/TaskMenu";
@@ -34,7 +34,7 @@ import {
 import { Markdown } from "../ui/Markdown";
 import { makeStyles, useTheme } from "../ui/theme";
 
-const EVENT_KEY: Record<HistoryKey, Key> = {
+const EVENT_KEY: Record<HistoryLine["key"], Key> = {
   create: "tkEvCreate",
   move: "tkEvMove",
   assign: "tkEvAssign",

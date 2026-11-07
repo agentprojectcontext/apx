@@ -32,6 +32,8 @@ const names = [
   "Plus",
   "Play",
   "ArrowUp",
+  "ArrowDown",
+  "Chrome",
   "Zap",
   "Check",
   "TriangleAlert",
@@ -158,6 +160,13 @@ writeFileSync(
 
 mkdirSync(resolve(mobile, "assets"), { recursive: true });
 writeFileSync(resolve(mobile, "assets/logo.png"), readFileSync(resolve(mobile, "../web/src/assets/logo.png")));
+
+// The week as both apps order it, which the routines' cron reading below imports.
+mkdirSync(resolve(mobile, "src/common"), { recursive: true });
+writeFileSync(
+  resolve(mobile, "src/common/week.ts"),
+  `// Synced from apps/web/src/common/week.ts by scripts/sync-design-assets.mjs.\n${readFileSync(resolve(mobile, "../web/src/common/week.ts"), "utf8")}`,
+);
 
 // The panel's routine activation slots and weekly-cron reading, so both apps draw the same bars.
 mkdirSync(resolve(mobile, "src/routines"), { recursive: true });
