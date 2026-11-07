@@ -111,7 +111,16 @@ export type FanoutGroup = {
 };
 
 /** A task's start an agent asked for, kept until the owner lets agents go on: who works it, and who asked. */
-export type HeldTask = { task: string; agent: string; run: string; depth: number };
+export type HeldTask = {
+  task: string;
+  agent: string;
+  run: string;
+  depth: number;
+  /** Latest run in each existing task chat when the start was held; missing on older records. */
+  prior_runs?: string[];
+  /** Event count at the hold, so later owner reassignment or scope changes cannot revive stale work. */
+  prior_events?: number;
+};
 
 /** A throwaway helper an agent starts for one task: a name, its instructions and (optionally) fewer tools. */
 /**
