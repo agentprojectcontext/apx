@@ -51,6 +51,8 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "engines.usage") return 35_000;
   if (method === "browser.handoff") return ((params as { timeout_s?: number })?.timeout_s ?? 300) * 1000 + 20_000;
   if (method === "browser.import_cookies") return 130_000;
+  // Opening a tab in the owner's Chrome may start Chrome first and wait for its extension (the server: about 30 s).
+  if (method === "browser.open" && (params as { chrome?: unknown })?.chrome === true) return 40_000;
   if (method === "mcp.call") return 180_000;
   if (method === "mcp.describe" || method === "mcp.tools" || method === "mcp.test" || method === "mcp.signIn")
     return 45_000;

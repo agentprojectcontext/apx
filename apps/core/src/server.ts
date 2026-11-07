@@ -96,6 +96,7 @@ import { createNews } from "./news/news.ts";
 import { nodeChildEnv } from "./node-runtime.ts";
 import { createNodeBroker } from "./nodes/broker.ts";
 import { installChromeHost } from "./nodes/chrome-host.ts";
+import { openOwnersChrome } from "./nodes/chrome-launch.ts";
 import { createHeadlessBrowser } from "./nodes/headless-browser.ts";
 import { createWidgetPages } from "./nodes/widget-pages.ts";
 import { officeScheduler } from "./office-wiring.ts";
@@ -107,6 +108,7 @@ import { createPublicCredentials } from "./public-credentials.ts";
 import { nativePublicRoutes, publishedPublicRoutes } from "./public-routes.ts";
 import { createPublicTunnel, type NgrokStart } from "./public-tunnel.ts";
 import { localReleases, type ReleaseSource } from "./release-notes.ts";
+import type { OwnersChrome } from "./rpc/browser.ts";
 import { useLocalEmbedder } from "./rpc/embeddings.ts";
 import { internalCaller } from "./rpc/internal.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
@@ -196,6 +198,8 @@ export type CoreOptions = {
   unseenAfterMs?: number;
   /** Finder and the trash; tests record the calls instead. */
   desktop?: DesktopOps;
+  /** How a turn gets the owner's Chrome when it is closed; tests pass their own instead of starting a browser. */
+  ownersChrome?: OwnersChrome;
   desktopInstaller?: DesktopInstaller;
   /** Messages on this Mac (by default only on macOS); tests pass their own, null for none. */
   imessage?: IMessageOps | null;
@@ -797,6 +801,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       engines: engineIds,
       tools,
       desktop: opts.desktop ?? systemDesktop,
+      ownersChrome: opts.ownersChrome ?? { open: () => openOwnersChrome({ browsers: config.chromeHost }) },
       desktopInstaller,
       native: config.native,
       runtimeHomes: config.runtimeSkills.homes,

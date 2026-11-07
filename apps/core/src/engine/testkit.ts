@@ -17,6 +17,7 @@ import type { Llm, LlmRequest } from "../providers/llm.ts";
 import type { AssistantItem, Completion } from "../providers/types.ts";
 import type { NgrokStart } from "../public-tunnel.ts";
 import type { ReleaseSource } from "../release-notes.ts";
+import type { OwnersChrome } from "../rpc/browser.ts";
 import { createCore } from "../server.ts";
 import type { TelemetrySink } from "../telemetry-sink.ts";
 import { removeDir, waitFor } from "../testkit/platform.ts";
@@ -111,6 +112,8 @@ export async function startCore(opts: {
   /** How the core holds the Mac awake; by default nothing is spawned. */
   keepAwake?: (cmd: string, args: string[]) => { kill(): boolean; once(event: "exit", listener: () => void): unknown };
   desktop?: DesktopOps;
+  /** The owner's Chrome started for a turn; by default nothing is started and nothing is waited for. */
+  ownersChrome?: OwnersChrome;
   /** Messages on a Mac; none by default, so a test never reads the machine's own. */
   imessage?: IMessageOps | null;
   /** The tailscale CLI (by default one that is not connected, never the machine's) and ngrok. */
@@ -186,6 +189,7 @@ export async function startCore(opts: {
       sleptSince: opts.sleptSince ?? (() => false),
       keepAwake: opts.keepAwake ?? (() => ({ kill: () => true, once: () => undefined })),
       ...(opts.desktop ? { desktop: opts.desktop } : {}),
+      ownersChrome: opts.ownersChrome ?? { open: async () => "failed", graceMs: 0 },
       imessage: opts.imessage ?? null,
       tailscale: opts.tailscale ?? (async () => ({ ok: false, out: "not connected" })),
       ...(opts.ngrok ? { ngrok: opts.ngrok } : {}),

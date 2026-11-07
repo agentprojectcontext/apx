@@ -18,6 +18,7 @@ import type { NodeBroker } from "../nodes/broker.ts";
 import { bindBrowserEpoch, browserEpochBackend, unbindBrowserEpoch } from "../nodes/browser-consent-binding.ts";
 import { browserConsentCurrent, reconcileBrowserConsents } from "../nodes/browser-consent-reconcile.ts";
 import { createBrowserHolds } from "../nodes/browser-holds.ts";
+import type { ChromeOpen } from "../nodes/chrome-launch.ts";
 import type { HeadlessBrowser } from "../nodes/headless-browser.ts";
 import { type SignInDeps, signInHandler } from "./browser-sign-in.ts";
 import type { Handler } from "./router.ts";
@@ -25,6 +26,17 @@ import type { Handler } from "./router.ts";
 // Under the client's 15s default so the caller gets our typed timeout, not its own.
 const DEADLINE_MS = 12_000;
 const HOLD_MS = 5_000;
+// The extension reconnecting (its worker restarted) is back within a moment; a browser just opened takes longer.
+const CHROME_GRACE_MS = 2_000;
+const CHROME_START_MS = 12_000;
+
+/** How the core gets the owner's Chrome when a turn asks for it and it is not connected. */
+export type OwnersChrome = {
+  open(): Promise<ChromeOpen>;
+  /** Tests shorten the waits; by default CHROME_GRACE_MS and CHROME_START_MS. */
+  graceMs?: number;
+  startMs?: number;
+};
 
 function deadlineFor(method: BrowserMethod, params: unknown): number {
   // A handoff waits for the human: its deadline is the timeout they were given, plus a margin.
@@ -46,6 +58,7 @@ export function browserHandlers(
   vm?: Computer,
   store?: Store,
   signIn?: Omit<SignInDeps, "store" | "tabOrigin" | "fill">,
+  ownersChrome?: OwnersChrome,
 ) {
   const local = () => !broker.withCap(BROWSER_CAP) && headless?.available();
   // A tab an agent's turn uses stays open (not closed for being idle) until that turn ends.
@@ -73,11 +86,39 @@ export function browserHandlers(
     method === "browser.open"
       ? (params as { chrome?: unknown }).chrome === true
       : chromeTabId(String((params as { tab?: unknown }).tab ?? "")) !== undefined;
-  const inOwnersChrome = (method: BrowserMethod, params: unknown) => {
-    if (!broker.withCap(CHROME_CAP))
+  /** Whether the owner's Chrome is connected within `ms`: decided by its connection, the wait only bounds it. */
+  const chromeWithin = (ms: number) =>
+    new Promise<boolean>((resolve) => {
+      if (broker.withCap(CHROME_CAP)) return resolve(true);
+      const done = (ok: boolean) => {
+        clearTimeout(timer);
+        stop();
+        resolve(ok);
+      };
+      const stop = broker.onConnectionChange(() => {
+        if (broker.withCap(CHROME_CAP)) done(true);
+      });
+      const timer = setTimeout(() => done(false), ms);
+    });
+  /** Opening a tab with Chrome closed starts Chrome first; its extension connects by itself once it runs. */
+  const reachChrome = async (method: BrowserMethod) => {
+    if (await chromeWithin(ownersChrome?.graceMs ?? CHROME_GRACE_MS)) return;
+    if (method !== "browser.open" || !ownersChrome)
       throw unavailable(
-        "the owner's Chrome is not connected: ask them to open APX's panel in Chrome (APX's extension must be installed there)",
+        "the owner's Chrome is not connected: ask them to open Chrome (APX's extension must be on there)",
       );
+    const opened = await ownersChrome.open().catch((): ChromeOpen => "failed");
+    if (opened === "no_extension")
+      throw unavailable("APX's extension is not installed in the owner's Chrome: ask them to add it, then try again");
+    if (opened === "failed")
+      throw unavailable("the owner's Chrome is closed and APX could not open it: ask them to open Chrome");
+    if (!(await chromeWithin(ownersChrome.startMs ?? CHROME_START_MS)))
+      throw unavailable(
+        "APX opened the owner's Chrome but its APX extension did not connect: ask them to check it is turned on there",
+      );
+  };
+  const inOwnersChrome = async (method: BrowserMethod, params: unknown) => {
+    await reachChrome(method);
     return broker.invoke(CHROME_CAP, method, params, deadlineFor(method, params));
   };
   let connection = backend();

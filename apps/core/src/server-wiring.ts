@@ -35,7 +35,7 @@ import { accessHandlers } from "./rpc/access.ts";
 import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { asanaHandlers } from "./rpc/asana.ts";
-import { browserHandlers } from "./rpc/browser.ts";
+import { browserHandlers, type OwnersChrome } from "./rpc/browser.ts";
 import { channelHandlers } from "./rpc/channels.ts";
 import { clientHandlers } from "./rpc/clients.ts";
 import { composerHandlers } from "./rpc/composer.ts";
@@ -240,6 +240,8 @@ type HandlerDeps = {
   providers: Parameters<typeof providerHandlers>[0];
   secrets: Parameters<typeof providerHandlers>[1];
   signIn?: SignIn;
+  /** Starts the owner's Chrome when a turn asks for it closed. */
+  ownersChrome?: OwnersChrome;
   chatgpt: Parameters<typeof providerHandlers>[2];
   localModels: Parameters<typeof transcriptionHandlers>[1];
   localEmbeds: Parameters<typeof embeddingHandlers>[0];
@@ -311,6 +313,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
       d.vm,
       d.store,
       d.signIn && { secrets: d.secrets, signIn: d.signIn },
+      d.ownersChrome,
     ),
     ...threadHandlers(d.store, d.engine, d.upkeep),
     ...threadAdminHandlers(d.store, d.app.home, d.vm?.beforeDelete),
