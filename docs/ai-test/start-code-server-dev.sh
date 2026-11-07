@@ -28,6 +28,7 @@ fi
 
 core_pid=""
 web_pid=""
+dev_token="$(node --input-type=module -e 'import { randomBytes } from "node:crypto"; process.stdout.write(randomBytes(32).toString("hex"))')"
 
 stop_services() {
   trap - EXIT INT TERM
@@ -40,16 +41,31 @@ stop_services() {
 trap stop_services EXIT INT TERM
 
 cd "$repo_dir"
+APX_TOKEN="$dev_token" \
 NODE_COMPILE_CACHE="${NODE_COMPILE_CACHE:-$repo_dir/node_modules/.cache/node-compile}" \
   node --watch apps/core/src/main.ts &
 core_pid=$!
 
 cd "$repo_dir/apps/web"
+APX_CODE_SERVER_DEV_TOKEN="$dev_token" \
 __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS="$APX_CODE_SERVER_HOST" \
   node --input-type=module -e '
     import { createServer } from "vite";
 
     const base = process.env.APX_CODE_SERVER_BASE;
+    const core = "http://127.0.0.1:7440";
+    const token = process.env.APX_CODE_SERVER_DEV_TOKEN;
+    const proxy = (ws = false) => ({
+      target: ws ? core.replace(/^http/, "ws") : core,
+      ws,
+      changeOrigin: true,
+      headers: { authorization: `Bearer ${token}` },
+      configure(server) {
+        const localOrigin = "http://127.0.0.1:7441";
+        server.on("proxyReq", (request) => request.setHeader("origin", localOrigin));
+        server.on("proxyReqWs", (request) => request.setHeader("origin", localOrigin));
+      },
+    });
     const bridge = {
       name: "code-server-path-bridge",
       transform(code, id) {
@@ -83,7 +99,17 @@ __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS="$APX_CODE_SERVER_HOST" \
       configFile: "./vite.config.ts",
       base,
       plugins: [bridge],
-      server: { host: "0.0.0.0", port: 7441 },
+      server: {
+        host: "0.0.0.0",
+        port: 7441,
+        proxy: {
+          "/rpc": proxy(),
+          "/health": proxy(),
+          "/a/": proxy(),
+          "/_apx/": proxy(),
+          "/ws": proxy(true),
+        },
+      },
     });
 
     await server.listen();
