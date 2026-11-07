@@ -176,7 +176,7 @@ test("asked in the app for their Chrome, the agent opens and reads a tab there; 
 test("with Chrome not connected, the agent is told so instead of using another browser", async () => {
   await waitFor(() => (env.core.broker.withCap("chrome") ? undefined : true), "Chrome gone", { ms: 5000 });
   calls.length = 0;
-  assert.match(await turn(await chat(), "chrome"), /Chrome is not connected/);
+  assert.match(await turn(await chat(), "chrome"), /Chrome is closed and APX could not open it/);
   assert.equal(calls.filter((c) => c.method === "browser.open").length, 0);
 });
 

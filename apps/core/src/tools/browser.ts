@@ -135,7 +135,8 @@ export function browserTools(
       // The owner's signed-in Chrome is theirs: a new tab there asks, unless the mode lets the agent act alone.
       confirm: (a) => (a.chrome ? "ask" : urlConfirm(a.url)),
       untrustedWhy: "url_data",
-      deadlineMs: 30_000,
+      // Over the core's own wait when the owner's Chrome has to be started first (rule 9).
+      deadlineMs: 45_000,
       title: (a) => `Opened ${host(a.url)}`,
       async run(a, ctx) {
         const shown = a.tab ? await own(ctx, a.tab) : a.new_tab ? undefined : await chatTab(ctx);

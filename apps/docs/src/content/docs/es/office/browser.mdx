@@ -215,6 +215,9 @@ sesión.
   y te piden que inicies sesión. El JavaScript de página y la importación de sesiones quedan en el navegador de APX.
 - APX tiene que estar abierto en la misma computadora: conecta la extensión solo, en Chrome, Brave, Edge, Arc y
   Chromium en macOS y Linux. `APX_CHROME_HOST=off` lo apaga.
+- No hace falta abrir el panel lateral para que los agentes usen tu Chrome: la extensión se conecta apenas arranca
+  Chrome. Si Chrome está cerrado cuando un agente lo necesita, APX lo abre y espera a la extensión; el agente te pide
+  ayuda solo si la extensión falta, está apagada o no se conecta.
 
 <Aside type="note">
 En Windows los agentes todavía no pueden usar tu Chrome; el panel lateral funciona.

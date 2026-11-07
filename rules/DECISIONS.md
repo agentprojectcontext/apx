@@ -3976,6 +3976,11 @@ beside APX's own. Such a new tab asks the owner like any `ask` action (it goes o
 contact's turn, a routine or another agent's request is refused by the core (`ownerAsked`), and never sees those
 tabs. The side panel's turns stay all-Chrome.
 
+Revised 2026-11-06 at the owner's request: a call for their Chrome with no Chrome node first waits briefly for one
+(the extension's worker reconnects within a moment), and `browser.open` then starts the browser whose profile has the
+extension (`nodes/chrome-launch.ts`, Chrome first) and waits for it to connect. The agent hears what the owner has to
+do only after that: add the extension, turn it on, or open Chrome. The side panel is never needed for the connection.
+
 Known limits, left for later: with the extension in more than one browser or profile, the Chrome node that connected
 last serves every Chrome turn. Work an agent delegates from a Chrome turn uses APX's own browser. A login form Chrome
 filled from the owner's saved passwords can be sent by an agent's click: the credential guard covers typing.

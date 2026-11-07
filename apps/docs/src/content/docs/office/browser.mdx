@@ -204,6 +204,9 @@ With APX's extension for Chrome, agents can also work in your own Chrome, where 
   Page JavaScript and importing logins stay in APX's own browser.
 - APX must be running on the same computer: it connects the extension by itself, in Chrome, Brave, Edge, Arc and
   Chromium on macOS and Linux. `APX_CHROME_HOST=off` turns that off.
+- You do not need to open the side panel for agents to use your Chrome: the extension connects as soon as Chrome
+  starts. If Chrome is closed when an agent needs it, APX opens it and waits for the extension; the agent asks you
+  for help only if the extension is missing, turned off or does not connect.
 
 <Aside type="note">
 On Windows, agents cannot use your Chrome yet; the side panel works.
