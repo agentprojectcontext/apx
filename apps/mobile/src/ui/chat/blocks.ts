@@ -21,6 +21,12 @@ export function isGeneratingImage(part: Part, state: string | undefined): boolea
   );
 }
 
+/** A picture still forming in a message: a running make_image call whose picture has not come in yet. */
+export function formsImage(parts: readonly Part[], state: string | undefined): boolean {
+  const made = new Set(parts.flatMap((p) => (p.type === "image" && p.tool_call_id ? [p.tool_call_id] : [])));
+  return parts.some((p) => isGeneratingImage(p, state) && p.type === "tool" && !made.has(p.call_id));
+}
+
 export type SkillKind = "loaded" | "strong" | "hinted" | "considered";
 /** Near misses worth showing: under this, every skill resembles every message a little. */
 const CONSIDERED_MIN_SIM = 0.3;

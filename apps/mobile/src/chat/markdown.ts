@@ -13,12 +13,33 @@ export type Block =
   | { kind: "list"; ordered: boolean; items: Array<{ marker: string; inline: Inline[] }> }
   /** `lang`: what follows the opening backticks ("bash", "email"), lowercased; absent when nothing does. */
   | { kind: "code"; text: string; lang?: string }
-  | { kind: "quote"; blocks: Block[] };
+  | { kind: "quote"; blocks: Block[] }
+  | { kind: "table"; align: Align[]; header: Inline[][]; rows: Inline[][][] };
+
+export type Align = "left" | "center" | "right";
 
 const BULLET = /^\s*[-*•]\s+(.*)$/;
 const NUMBERED = /^\s*(\d+)[.)]\s+(.*)$/;
 const HEADING = /^(#{1,6})\s+(.*)$/;
 const QUOTE = /^\s*>\s?(.*)$/;
+const TABLE_DELIMITER = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+
+/** A row's cells: outer pipes are optional and `\|` is a pipe inside a cell. */
+function tableCells(line: string): string[] {
+  const row = line.trim().replace(/\\\|/g, "\uE000").replace(/^\|/, "").replace(/\|$/, "");
+  return row.split("|").map((cell) => cell.trim().replace(/\uE000/g, "|"));
+}
+
+/** A GFM table starts with a header row whose cells match the delimiter row under it. */
+function tableAt(lines: string[], i: number): Align[] | undefined {
+  const header = lines[i] ?? "";
+  const delimiter = lines[i + 1] ?? "";
+  if (!header.includes("|") || !TABLE_DELIMITER.test(delimiter) || !delimiter.includes("-")) return undefined;
+  const marks = tableCells(delimiter);
+  if (marks.length !== tableCells(header).length) return undefined;
+  if (marks.length < 2 && !delimiter.includes("|")) return undefined;
+  return marks.map((mark) => (mark.endsWith(":") ? (mark.startsWith(":") ? "center" : "right") : "left"));
+}
 
 /** A link into the desktop panel ([Config › Desktop](apx:settings/desktop)): the phone keeps its label. */
 const APP_LINK = /\[([^\]\n]+)\]\(apx:[^)\s]*\)/gi;
@@ -48,6 +69,22 @@ export function parseMarkdown(source: string): Block[] {
       for (; i < lines.length && QUOTE.test(lines[i] ?? ""); i++) quoted.push(QUOTE.exec(lines[i] ?? "")?.[1] ?? "");
       i--;
       blocks.push({ kind: "quote", blocks: parseMarkdown(quoted.join("\n")) });
+      continue;
+    }
+    const align = tableAt(lines, i);
+    if (align) {
+      flush();
+      // GFM: a row with fewer cells is padded, one with more is cut to the header's width.
+      const rowCells = (line: string) => {
+        const cells = tableCells(line);
+        return align.map((_, column) => parseInline(cells[column] ?? ""));
+      };
+      const header = rowCells(line);
+      const rows: Inline[][][] = [];
+      for (i += 2; i < lines.length && (lines[i] ?? "").includes("|") && (lines[i] ?? "").trim(); i++)
+        rows.push(rowCells(lines[i] ?? ""));
+      i--;
+      blocks.push({ kind: "table", align, header, rows });
       continue;
     }
     const heading = HEADING.exec(line);
@@ -117,9 +154,22 @@ export function plainText(blocks: Block[]): string {
           return block.text;
         case "quote":
           return plainText(block.blocks);
+        case "table":
+          return [block.header, ...block.rows].map((row) => row.map(runsText).join("\t")).join("\n");
         default:
           return runsText(block.inline);
       }
     })
     .join("\n\n");
 }
+
+/** A message's lines as they read, without marks or list bullets: what a list row builds its title and preview from. */
+export function plainLines(source: string): string[] {
+  return plainText(parseMarkdown(source))
+    .split("\n")
+    .map((line) => line.replace(/^• /, "").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
+/** A chat list's one line: the words of a message, marks and line breaks gone. */
+export const previewLine = (source: string): string => plainLines(source).join(" ");

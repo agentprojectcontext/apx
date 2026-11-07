@@ -237,3 +237,35 @@ test("a queued delegation is marked queued, never in progress or done, and says 
   assert.equal(translator("en")("queued"), "Queued");
   assert.equal(translator("es")("queued"), "En cola");
 });
+
+test("a chat's preview reads as words, without the markdown its last message was written in", () => {
+  const launch = thread("launch", {
+    preview: "Here's a first cut of the **Q4 launch**:\n\n| Week | What |\n|---|---|\n| 1 | Freeze the catalog |",
+  });
+  assert.equal(chatPreview(launch), "Here's a first cut of the Q4 launch: Week What 1 Freeze the catalog");
+  const told = thread("told", {
+    kind: "routine",
+    title: "Tip · 10/12/26",
+    preview: "## Grip\n\n*Hold* it **light**. Then `swing`.",
+  });
+  assert.equal(chatTitle(told), "Grip");
+  assert.equal(chatPreview(told), "Hold it light. Then swing.");
+});
+
+test("a routine run that told a table is titled by its words, not its pipes", () => {
+  const run = thread("run", {
+    kind: "routine",
+    title: "Numbers · 10/12/26",
+    preview: "Weekly numbers.\n\n| Day | Sales |\n|---|---|\n| Mon | 12 |",
+  });
+  assert.equal(chatTitle(run), "Weekly numbers.");
+  assert.equal(chatPreview(run), "Day Sales Mon 12");
+});
+
+test("a chat a Flow's step opened says so under its preview", () => {
+  const tr = translator("es");
+  assert.equal(
+    threadContext(thread("f", { flow: { id: "flow_1" } }), { projects: [], channels: [] }, tr),
+    `${tr("defaultProject")} · Paso de un flujo`,
+  );
+});

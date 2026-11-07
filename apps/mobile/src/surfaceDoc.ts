@@ -47,6 +47,17 @@ ${surfaceLayoutCss(opts.layout)}</style>
   return injectSurfaceHead(html, head);
 }
 
+/**
+ * A web page an agent made, as a browser shows it: its own styles on a light page and its inline code, with no kit,
+ * no memory and no bridge to APX (the panel's PageFrame), and still nothing loading from the web.
+ */
+export function pageDoc(html: string): string {
+  const head = `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="${SURFACE_CSP}; base-uri 'none'">
+<style>html{color-scheme:light;background:#fff;color:#111;font-family:system-ui,sans-serif}</style>`;
+  return injectSurfaceHead(html, head);
+}
+
 /** What a page may ask the core from the phone: its own store and database (no fetch here). */
 const PHONE_METHODS = {
   store_get: "surfaces.store_get",

@@ -6,9 +6,10 @@ import { APP_CLIENT } from "./appInfo";
 import type { Creds } from "./creds";
 import { t } from "./i18n";
 import { ApxClient, type Surface } from "./protocol";
-import { readSurfaceMessage, surfaceDoc, surfaceResult } from "./surfaceDoc";
+import { pageDoc, readSurfaceMessage, surfaceDoc, surfaceResult } from "./surfaceDoc";
 import { EmptyState, IconTile, ListGroup, ListRow, Screen, Spinner, SubHeader } from "./ui/kit";
 import { makeStyles, useTheme } from "./ui/theme";
+import { palettes } from "./ui/tokens";
 
 /** Least time between two prompts from one widget, as in the panel. */
 const PROMPT_GAP_MS = 1500;
@@ -64,9 +65,13 @@ function SurfaceView({ surface, client, onBack }: { surface: Surface; client: Ap
   const styles = useStyles();
   // A widget is drawn in the app's scheme.
   const nonce = useMemo(() => Math.random().toString(36).slice(2) + Date.now().toString(36), []);
+  // A web page shows as a browser shows it; a widget or an app is drawn in the app's scheme with its bridge.
   const html = useMemo(
-    () => surfaceDoc(surface.html, { mode: theme.scheme, nonce, layout: surface.app ? "app" : "widget" }),
-    [surface.html, surface.app, nonce, theme.scheme],
+    () =>
+      surface.page
+        ? pageDoc(surface.html)
+        : surfaceDoc(surface.html, { mode: theme.scheme, nonce, layout: surface.app ? "app" : "widget" }),
+    [surface.html, surface.app, surface.page, nonce, theme.scheme],
   );
   const last = useRef(0);
   const view = useRef<WebView>(null);
@@ -77,7 +82,7 @@ function SurfaceView({ surface, client, onBack }: { surface: Surface; client: Ap
       <SubHeader title={surface.title} back={onBack} />
       <WebView
         ref={view}
-        style={{ backgroundColor: theme.bg }}
+        style={{ backgroundColor: surface.page ? palettes.light.surface : theme.bg }}
         originWhitelist={["about:blank"]}
         source={{ html }}
         javaScriptEnabled
@@ -85,6 +90,8 @@ function SurfaceView({ surface, client, onBack }: { surface: Surface; client: Ap
         onShouldStartLoadWithRequest={(r) => r.url === "about:blank" || r.url.startsWith("data:")}
         setSupportMultipleWindows={false}
         onMessage={(e) => {
+          // A web page has no bridge: nothing it posts reaches the core.
+          if (surface.page) return;
           const m = readSurfaceMessage(e.nativeEvent.data, nonce, surface.id);
           if (m && "refused" in m) return answer({ id: m.refused, ok: false, error: "not allowed" });
           if (m && "call" in m) {

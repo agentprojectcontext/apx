@@ -77,6 +77,21 @@ test("the task shows its goal, which the owner can change, and the agent's plan"
   await ui.unmount();
 });
 
+test("the task keeps the owner's own words that asked for it, the newest first in sight", async () => {
+  const asked = ["one", "two", "three", "four"].map((text, i) => ({
+    text: `Words ${text}`,
+    at: `2026-11-0${i + 1}T10:00:00Z`,
+    by: "nobody_known",
+  }));
+  const ui = await render(view({ ...task, asked }, actions()));
+  expect(ui.getByText(t("tkAsked"))).toBeVisible();
+  expect(ui.queryByText("Words one")).toBeNull();
+  expect(ui.getByText("Words four")).toBeVisible();
+  await fireEvent.press(ui.getByRole("button", { name: t("tkAskedAll", { n: 4 }) }));
+  expect(ui.getByText("Words one")).toBeVisible();
+  await ui.unmount();
+});
+
 test("comments preserve the draft until success, prevent duplicate sends and reload detail", async () => {
   const api = actions();
   const pending = deferred<void>();
