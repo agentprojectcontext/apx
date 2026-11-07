@@ -408,6 +408,7 @@ function Connected({ channel, kind }: { channel: ChannelInfo; kind: BotKind }) {
     strangers: channel.strangers,
     concurrency: channel.concurrency,
     owner_thread: channel.owner_thread,
+    contacts_agent_id: channel.contacts_agent_id,
     ...(channel.self_owner ? { self_owner: true } : {}),
     ...(channel.rooms ? { rooms: channel.rooms } : {}),
     closers: channel.closers,

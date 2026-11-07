@@ -97,6 +97,7 @@ function Linked({ channel }: { channel: ChannelInfo }) {
     strangers: channel.strangers,
     concurrency: channel.concurrency,
     owner_thread: channel.owner_thread,
+    contacts_agent_id: channel.contacts_agent_id,
     self_owner: channel.self_owner,
     closers: channel.closers,
     research: channel.research,
