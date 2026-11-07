@@ -1,7 +1,13 @@
 // Driving one page over the Chrome DevTools Protocol, the same way wherever the page lives: the desktop app's tabs
 // (Electron's debugger) or the core's own headless Chrome. Refs are backendNodeIds from the accessibility tree
 // (stable while the document lives, DOM untouched).
+import type { BrowserFillSecret, ElementEdit, PickedElement, SignInResult } from "./browser.ts";
+import { PageEdits } from "./cdp-edit.ts";
 import { captureDocument, evaluatePage } from "./cdp-evaluate.ts";
+import { SecretFields } from "./cdp-fill.ts";
+
+export { scrubDeep } from "./cdp-fill.ts";
+
 import { ApxError } from "./client.ts";
 
 type AXNode = {
@@ -57,25 +63,69 @@ export class CdpPage {
   #refs = new Map<string, number>();
   #epoch = crypto.randomUUID();
   #review: { document: string; epoch: string } | undefined;
+  readonly #edits: PageEdits;
+  readonly #secrets: SecretFields;
 
   /** `selectAllModifiers`: the modifier bits for "select all" on the machine the page runs on (Meta=4 on a Mac). */
   constructor(send: CdpSend, opts: { selectAllModifiers: number }) {
     this.#send = send;
     this.#selectAll = opts.selectAllModifiers;
+    this.#edits = new PageEdits(send);
+    this.#secrets = new SecretFields(send);
   }
 
   get consentEpoch(): string {
     return this.#epoch;
   }
 
-  /** A new document: the refs of the last snapshot point at nothing now. */
-  forget(): void {
+  /**
+   * A new document, or a new address in the same one (`sameDocument`): the refs of the last snapshot point at nothing
+   * now. A field filled from a secret stays protected while its document lives.
+   */
+  forget(sameDocument = false): void {
+    if (!sameDocument) this.#secrets.forget();
     this.#refs.clear();
+    this.#edits.forget();
     this.#review = undefined;
     this.#epoch = crypto.randomUUID();
   }
 
+  /** Whether this document holds a value filled from a stored secret: pictures of it must cover it. */
+  get holdsSecret(): boolean {
+    return this.#secrets.holds;
+  }
+
+  /** Refuses any read of a page that copied a secret's value, until the tab leaves it. */
+  assertReadable(): void {
+    if (this.#secrets.leaked)
+      throw new ApxError({
+        code: "credential_field",
+        message: "this page copied a secret's value: it is not shown until the tab goes to another page",
+      });
+  }
+
+  /** Text read from the page with any secret's value filled into it taken out. */
+  scrub(text: string): string {
+    return this.#secrets.scrub(text);
+  }
+
+  #assertNoSecret(): void {
+    // For the tab's life: going back may bring the filled page back as it was.
+    if (this.#secrets.held || this.#secrets.leaked)
+      throw new ApxError({
+        code: "credential_field",
+        message: "a secret was filled in this tab: page JavaScript is not run in it; open another tab",
+      });
+  }
+
+  /** Puts a value the core resolved from a stored secret into a sign-in field. See DECISIONS.md#d-193 */
+  fillSecret(ref: string, req: Pick<BrowserFillSecret, "kind" | "origins" | "value">): Promise<SignInResult> {
+    const backendNodeId = this.#backend(ref);
+    return withTimeout(this.#secrets.fill(backendNodeId, req), 10_000);
+  }
+
   async approvalContext(origin: string, document: string): Promise<{ epoch: string }> {
+    this.#assertNoSecret();
     const epoch = this.#epoch;
     if (this.#review?.document !== document || this.#review.epoch !== epoch)
       throw new ApxError({ code: "bad_request", message: "Page review changed; take a new snapshot" });
@@ -90,6 +140,7 @@ export class CdpPage {
   }
 
   async snapshot(maxChars: number): Promise<{ tree: string; refs: number; truncated: boolean; document: string }> {
+    this.assertReadable();
     const epoch = this.#epoch;
     const document = await captureDocument(this.#send);
     this.#review = { document, epoch };
@@ -116,7 +167,9 @@ export class CdpPage {
           line += ` [${ref}]`;
         }
         const value = node.value?.value;
-        if (value !== undefined && value !== "") line += ` = "${String(value).slice(0, 60)}"`;
+        if (node.backendDOMNodeId && this.#secrets.isFilled(node.backendDOMNodeId)) line += " (filled by APX)";
+        else if (value !== undefined && value !== "") line += ` = "${String(value).slice(0, 60)}"`;
+        line = this.#secrets.scrub(line);
         size += line.length + 1;
         if (size > maxChars) {
           truncated = true;
@@ -134,12 +187,23 @@ export class CdpPage {
   }
 
   evaluate(script: string, origin: string, document: string, epoch?: string) {
+    this.#assertNoSecret();
     if (epoch !== undefined) {
       this.#assertEpoch(epoch);
       if (this.#review?.document !== document || this.#review.epoch !== epoch)
         throw new ApxError({ code: "bad_request", message: "Page review changed; take a new snapshot" });
     }
     return withTimeout(evaluatePage(this.#send, script, origin, document), 7_000);
+  }
+
+  /** Edit mode: the element under a point of the visible page, as fractions of it. */
+  inspect(x: number, y: number, whole?: { height: number }): Promise<PickedElement | null> {
+    return withTimeout(this.#edits.inspect(x, y, whole), 4_000);
+  }
+
+  /** Edit mode: these edits shown in the page until it reloads, the earlier ones undone. */
+  previewEdits(edits: readonly ElementEdit[]): Promise<{ shown: number }> {
+    return withTimeout(this.#edits.show(edits), 6_000);
   }
 
   async click(ref: string): Promise<void> {
@@ -162,6 +226,7 @@ export class CdpPage {
 
   /** A JPEG of what the page shows (base64), at most SHOT_WIDTH pixels wide, bounded in time. */
   async screenshot(timeoutMs = 4_000): Promise<string> {
+    this.assertReadable();
     const shoot = async () => {
       const clip = await this.#viewportClip().catch(() => undefined);
       return this.#send<{ data: string }>("Page.captureScreenshot", {
@@ -171,7 +236,7 @@ export class CdpPage {
         ...(clip ? { clip, captureBeyondViewport: false } : {}),
       });
     };
-    const { data } = await withTimeout(shoot(), timeoutMs);
+    const { data } = await withTimeout(this.#secrets.holds ? this.#secrets.masked(shoot) : shoot(), timeoutMs);
     return data;
   }
 

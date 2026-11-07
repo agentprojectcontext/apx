@@ -8,19 +8,13 @@ import { parseFrontmatter } from "../apc/frontmatter.ts";
 import { isInside } from "../paths.ts";
 import { sessionText } from "./native-read.ts";
 import type { NativeEngine, NativeHomes, NativeSession } from "./native-sessions.ts";
+import { type FoundServer, serverSecrets } from "./server-secrets.ts";
 
-export type FoundServer = {
-  command?: string;
-  args?: string[];
-  env?: Record<string, string>;
-  url?: string;
-  headers?: Record<string, string>;
-};
-/** `secrets`: the env or header keys holding a credential written in the file, which never go to a project's file. */
-export type FoundMcp = { name: string; server: FoundServer; secrets: string[] };
-export type FoundNote = { key: string; text: string };
-export type FoundTask = { key: string; title: string; description: string; session: string };
-export type FoundRoutine = { key: string; name: string; prompt: string; cron: string; active: boolean };
+/** `secrets`: where the file holds a credential (an env or header key, an argument's flag, `url`), never copied. */
+type FoundMcp = { name: string; server: FoundServer; secrets: string[] };
+type FoundNote = { key: string; text: string };
+type FoundTask = { key: string; title: string; description: string; session: string };
+type FoundRoutine = { key: string; name: string; prompt: string; cron: string; active: boolean };
 export type Extras = { mcps: FoundMcp[]; notes: FoundNote[]; tasks: FoundTask[]; routines: FoundRoutine[] };
 
 const NOTE_CHARS = 2000;
@@ -38,13 +32,8 @@ const readJson = (file: string): unknown => {
   }
 };
 
-const SECRET_KEY = /key|token|secret|pass|pwd|auth|credential|cookie/i;
-/** Keys whose value is a credential (or a reference to one the owner's shell had): APX needs the owner to give it. */
-function secretKeys(s: FoundServer): string[] {
-  const env = Object.entries(s.env ?? {}).filter(([k, v]) => v && (SECRET_KEY.test(k) || v.includes("${")));
-  const headers = Object.entries(s.headers ?? {}).filter(([k, v]) => v && (SECRET_KEY.test(k) || v.length >= 24));
-  return [...env, ...headers].map(([k]) => k);
-}
+/** Where a credential is written (or a reference to one the owner's shell had): APX needs the owner to give it. */
+const secretKeys = (s: FoundServer): string[] => [...new Set(serverSecrets(s).map((x) => x.key))];
 
 function server(v: unknown): FoundServer | undefined {
   const o = obj(v);
@@ -135,7 +124,7 @@ function claudeExtras(homes: NativeHomes, cwd: string, sessions: NativeSession[]
 }
 
 /** The values of a flat TOML file (Codex's automation.toml): strings, string arrays, numbers and booleans. */
-export function tomlValues(text: string): Record<string, string | string[] | number | boolean> {
+function tomlValues(text: string): Record<string, string | string[] | number | boolean> {
   const out: Record<string, string | string[] | number | boolean> = {};
   for (const line of text.split("\n")) {
     const m = /^\s*([A-Za-z0-9_]+)\s*=\s*(.+?)\s*$/.exec(line);
@@ -151,7 +140,7 @@ export function tomlValues(text: string): Record<string, string | string[] | num
 }
 
 /** Codex's `[mcp_servers.<name>]` tables (and their `.env` / `.headers` sub-tables) from a config.toml. */
-export function tomlServers(text: string): Record<string, unknown> {
+function tomlServers(text: string): Record<string, unknown> {
   const servers: Record<string, Record<string, unknown>> = {};
   let at: { name: string; sub?: string | undefined } | undefined;
   const lines: string[] = [];
@@ -178,7 +167,7 @@ export function tomlServers(text: string): Record<string, unknown> {
 
 const DAYS: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
 /** An iCalendar RRULE as cron, for the shapes automations use; undefined for the rest. */
-export function cronOf(rrule: string): string | undefined {
+function cronOf(rrule: string): string | undefined {
   const p = Object.fromEntries(rrule.split(";").map((kv) => kv.split("=") as [string, string]));
   const minute = p.BYMINUTE ?? "0";
   const hour = p.BYHOUR ?? "0";

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { sourceMapResolver } from "./coverage-source-map.ts";
@@ -9,18 +10,16 @@ import {
   mergeCoverage,
   missingParts,
   sandboxPorts,
+  unitAreas,
 } from "./test-coverage.ts";
 
 test("coverage sandboxes use distinct available loopback ports and honor explicit overrides", async () => {
   const ports = await sandboxPorts({});
-  assert.deepEqual(Object.keys(ports), ["E2E_PORT", "E2E_CONTROL_PORT", "E2E_WA_PORT"]);
-  assert.equal(new Set(Object.values(ports)).size, 3);
+  assert.deepEqual(Object.keys(ports), ["E2E_PORT", "E2E_CONTROL_PORT", "E2E_WA_PORT", "E2E_PAIR_PORT"]);
+  assert.equal(new Set(Object.values(ports)).size, 4);
   assert.ok(Object.values(ports).every((port) => Number(port) > 0 && Number(port) < 65536));
-  assert.deepEqual(await sandboxPorts({ E2E_PORT: "17460", E2E_CONTROL_PORT: "17461", E2E_WA_PORT: "17462" }), {
-    E2E_PORT: "17460",
-    E2E_CONTROL_PORT: "17461",
-    E2E_WA_PORT: "17462",
-  });
+  const explicit = { E2E_PORT: "17460", E2E_CONTROL_PORT: "17461", E2E_WA_PORT: "17462", E2E_PAIR_PORT: "17466" };
+  assert.deepEqual(await sandboxPorts(explicit), explicit);
 });
 
 test("coverage includes never-loaded functions and does not invent runtime behavior for interfaces", () => {
@@ -284,4 +283,29 @@ test("the merge fails when fewer parts reported than CI ran, and says so", () =>
   assert.equal(missingParts(5, ["--merge", "--expect-parts=5"]), undefined);
   // Without the flag (a local merge) any number of parts is a report.
   assert.equal(missingParts(1, ["--merge"]), undefined);
+});
+
+test("a package with many test files runs in parts dealt in turn, each named, every file in exactly one", () => {
+  const core = Array.from({ length: 7 }, (_, i) => path.join("apps", "core", "src", `f${i}.test.ts`));
+  const web = [path.join("apps", "web", "src", "a.test.ts")];
+  const scripts = [path.join("scripts", "s.test.ts")];
+  const areas = unitAreas([...core, ...web, ...scripts], 3);
+  const coreDir = path.join("apps", "core");
+  assert.deepEqual(
+    areas.map((a) => [a.name, a.dir, a.files.length]),
+    [
+      [`${coreDir} 1/3`, coreDir, 3],
+      [`${coreDir} 2/3`, coreDir, 2],
+      [`${coreDir} 3/3`, coreDir, 2],
+      [path.join("apps", "web"), path.join("apps", "web"), 1],
+      ["scripts", "scripts", 1],
+    ],
+  );
+  assert.deepEqual(areas[0]?.files, [core[0], core[3], core[6]], "dealt in turn, so slow and quick files mix");
+  assert.deepEqual(areas.flatMap((a) => a.files).sort(), [...core, ...web, ...scripts].sort());
+  assert.deepEqual(
+    unitAreas(core, 7).map((a) => a.name),
+    [coreDir],
+    "an area at the limit stays whole",
+  );
 });

@@ -21,11 +21,13 @@ import { mediaRepo } from "./media.ts";
 import { memoriesRepo } from "./memories.ts";
 import { memorySourcesRepo } from "./memory-sources.ts";
 import { memoryWorkRepo } from "./memory-work.ts";
+import { messagesRepo } from "./messages.ts";
 import { modelLogRepo } from "./model-log.ts";
 import { notificationsRepo } from "./notifications.ts";
 import { nudgesRepo } from "./nudges.ts";
 import { personsRepo } from "./persons.ts";
 import { projectsRepo } from "./projects.ts";
+import { retentionRepo } from "./retention.ts";
 import { routinesRepo } from "./routines.ts";
 import { runContextsRepo } from "./run-contexts.ts";
 import { runsRepo } from "./runs.ts";
@@ -37,7 +39,7 @@ import { suggestionsRepo } from "./suggestions.ts";
 import { surfacesRepo } from "./surfaces.ts";
 import { taskAttachmentsRepo } from "./task-attachments.ts";
 import { tasksRepo } from "./tasks.ts";
-import { messagesRepo, threadsRepo } from "./threads.ts";
+import { threadsRepo } from "./threads.ts";
 
 export function createStore(db: Db, bus: Bus) {
   const q = sql(db);
@@ -65,6 +67,7 @@ export function createStore(db: Db, bus: Bus) {
     threads: threadsRepo(q, bus, approvals.endSession),
     messages: messagesRepo(q, bus),
     modelLog: modelLogRepo(q),
+    retention: retentionRepo(q),
     memorySources: memorySourcesRepo(q),
     runs: runsRepo(q, bus),
     runContexts: runContextsRepo(q),
@@ -96,4 +99,3 @@ export function createStore(db: Db, bus: Bus) {
 }
 
 export type Store = ReturnType<typeof createStore>;
-export type { AgentRecord } from "./agents.ts";

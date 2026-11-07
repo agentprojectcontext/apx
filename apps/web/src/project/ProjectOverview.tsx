@@ -1,4 +1,4 @@
-import { AgentAvatar, EmptyState, Icons, ProjectTile, Spinner } from "@apx/ui";
+import { AgentAvatar, EmptyState, Icons, Spinner } from "@apx/ui";
 import { useMemo } from "react";
 import { shortWhen } from "../common/format.ts";
 import { blobOf, inProject, isListed, isWorking, type ProjectEntry, teamOf, threadAgent } from "../data/identity.ts";
@@ -6,6 +6,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { standsAlone } from "../inbox/groupThreads.ts";
 import { go } from "../shell/nav.ts";
+import { KindTile, kindLabel, kindOf } from "../surfaces/artifactKind.tsx";
 import { ProjectBoard } from "./ProjectBoard.tsx";
 import { ProjectHelper } from "./ProjectHelper.tsx";
 
@@ -28,8 +29,8 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
   const team = useMemo(() => teamOf(agents, pid), [agents, pid]);
   const unread = chats.reduce((n, t) => n + t.unread, 0);
   const apps = useMemo(
-    // Pinned widgets live on the board above; this lists the apps.
-    () => Object.values(surfaces).filter((s) => s.app && inProject(s, pid)),
+    // Pinned widgets live on the board above; this lists what is in Apps.
+    () => Object.values(surfaces).filter((s) => s.in_apps && inProject(s, pid)),
     [surfaces, pid],
   );
 
@@ -107,16 +108,10 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
             <section className="overview__block">
               <h2 className="overview__h">{t("overview.appsOnly")}</h2>
               {apps.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  className="overview__row"
-                  onClick={() => (s.app ? go.app(s.id) : undefined)}
-                  disabled={!s.app}
-                >
-                  <ProjectTile tone="violet" icon={<Icons.LayoutGrid />} size={20} />
+                <button key={s.id} type="button" className="overview__row" onClick={() => go.app(s.id)}>
+                  <KindTile kind={kindOf(s)} size={20} />
                   <span className="overview__rowname">{s.title}</span>
-                  <span className="overview__rowwhen">{s.app ? t("common.app") : t("overview.pinned")}</span>
+                  <span className="overview__rowwhen">{kindLabel(kindOf(s), t)}</span>
                 </button>
               ))}
             </section>

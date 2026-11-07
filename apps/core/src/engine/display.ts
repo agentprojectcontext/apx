@@ -1,6 +1,7 @@
 // The answer the owner sees for one run: a message whose parts are added and replaced as the turn goes, in the order
 // things happened. Text comes in segments: once a card (a tool, an approval, a widget) lands after it, what the model
-// says next starts a new text part below that card instead of rewriting the one above.
+// says next starts a new text part below that card instead of rewriting the one above. When the owner's words reach
+// the turn while it works, what follows goes in a message of its own below theirs: the chat keeps the order.
 import type { Message, Part } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 
@@ -10,6 +11,8 @@ export type Display = ReturnType<typeof openDisplay>;
 
 export function openDisplay(store: Store, message: Message) {
   let current = message;
+  /** This run's messages above the current one, whose cards (a delegation, a job) may still change. */
+  const earlier: Message[] = [];
   let lastText = 0;
   let pendingText: string | undefined;
   let textTimer: ReturnType<typeof setTimeout> | undefined;
@@ -36,9 +39,33 @@ export function openDisplay(store: Store, message: Message) {
     textTimer = undefined;
     if (pendingText !== undefined) writeText(pendingText);
   };
-  const upsert = (match: (p: Part) => boolean, part: Part) => {
+  /** `last`: the card leaves where it was and goes below everything so far (the plan sits where it was last marked). */
+  const upsert = (match: (p: Part) => boolean, part: Part, opts?: { last?: boolean }) => {
     const i = current.parts.findIndex(match);
-    if (i >= 0) return setAt(i, part);
+    if (i >= 0 && (!opts?.last || i === current.parts.length - 1)) return setAt(i, part);
+    if (i >= 0) {
+      flush();
+      segment = undefined;
+      current = store.messages.update({ ...current, parts: [...current.parts.filter((_, k) => k !== i), part] });
+      return;
+    }
+    for (const [at, m] of earlier.entries()) {
+      const j = m.parts.findIndex(match);
+      if (j < 0) continue;
+      const parts = [...m.parts];
+      if (opts?.last) {
+        parts.splice(j, 1);
+        if (parts.length) earlier[at] = store.messages.update({ ...m, parts });
+        else {
+          store.messages.drop(m.thread_id, [m.id]);
+          earlier.splice(at, 1);
+        }
+        break;
+      }
+      parts[j] = part;
+      earlier[at] = { ...m, parts };
+      return store.messages.setPart(earlier[at], j);
+    }
     // A new card closes the text above it: what streamed so far is written first, so it stays above the card.
     flush();
     segment = undefined;
@@ -50,6 +77,30 @@ export function openDisplay(store: Store, message: Message) {
       return current;
     },
     upsert,
+    /** A card of this run's answer, in whichever of its messages it is. */
+    find(match: (p: Part) => boolean): Part | undefined {
+      return current.parts.find(match) ?? earlier.flatMap((m) => m.parts).find(match);
+    },
+    /**
+     * The owner's words just reached the turn: what it says next goes in a new message, below theirs. A message
+     * still empty has nothing to keep above them and is taken out.
+     */
+    below(): Message {
+      flush();
+      const next = store.messages.add({
+        thread_id: current.thread_id,
+        author: current.author,
+        parts: [],
+        ...(current.run_id ? { run_id: current.run_id } : {}),
+        ...(current.model ? { model: current.model } : {}),
+        ...(current.model_reported !== undefined ? { model_reported: current.model_reported } : {}),
+      });
+      if (current.parts.length) earlier.push(current);
+      else store.messages.drop(current.thread_id, [current.id]);
+      current = next;
+      segment = undefined;
+      return next;
+    },
     /** Streaming text: at most one update every ~120 ms; the last value is never lost. */
     text(soFar: string) {
       if (Date.now() - lastText >= TEXT_THROTTLE_MS) return writeText(soFar);
@@ -75,9 +126,9 @@ export function openDisplay(store: Store, message: Message) {
     ) {
       upsert((p) => p.type === "notice" && p.code === code, { type: "notice", level, code, text, ...extra });
     },
-    setModel(model: string) {
-      if (current.model === model) return;
-      current = store.messages.update({ ...current, model });
+    setModel(model: string | undefined, model_reported?: boolean) {
+      if (current.model === model && current.model_reported === model_reported) return;
+      current = store.messages.update({ ...current, model, model_reported });
     },
     close: flush,
   };

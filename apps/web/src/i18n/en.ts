@@ -1,5 +1,6 @@
 import { noticeEn } from "@apx/protocol/notices";
 import type { ApprovalKey } from "./approvals-en.ts";
+import type { BrowserEditKey } from "./browser-edit-en.ts";
 import type { ComputerKey } from "./computer-en.ts";
 import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
@@ -14,8 +15,11 @@ import { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
 import type { enFlow } from "./flow-en.ts";
 import type { enIngress } from "./ingress-en.ts";
+import type { enMove } from "./move-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
 import type { enSecretary } from "./secretary-en.ts";
+import type { enSignIn } from "./signin-en.ts";
+import type { enStorage } from "./storage-en.ts";
 import type { SysUsageKey } from "./sysusage-en.ts";
 import type { enThreadDialogs } from "./thread-dialogs-en.ts";
 
@@ -51,7 +55,14 @@ export const en = {
   ...enEngines,
   ...enTelemetry,
   "engineUsage.title": "AI quotas",
-  "engineUsage.quick": "{engine}: {pct}% available · {window}",
+  "engineUsage.remaining": "{pct}% remaining",
+  "engineUsage.primary": "Current window",
+  "engineUsage.secondary": "Extended window",
+  "engineUsage.fiveHours": "Session (5 h)",
+  "engineUsage.weekly": "Weekly",
+  "engineUsage.window": "{minutes}-minute window",
+  "engineUsage.resetsIn": "Resets in {span}",
+  "engineUsage.resetsOn": "Resets on {at}",
   "sysUsage.title": "System resources",
   "sysUsage.button": "System: {pct}% of memory in use",
   // Shared words
@@ -254,6 +265,11 @@ export const en = {
   "update.cardCta": "See what's new",
   "corner.label": "News and invitations",
   "community.title": "Join the community",
+  "storage.cardTitle": "Your disk is almost full",
+  "storage.cardDesc": "Only {free} left. When it runs out, APX can't save chats or files.",
+  "storage.cardCta": "See storage",
+  "storage.bannerText": "Disk almost full: {free} left",
+  "storage.bannerCta": "Review",
   "v1.cardTitle": "APX v1 is still running",
   "v1.cardDesc": "Your routines and bots may run twice. Turn v1 off and make apx this version; v1's files stay.",
   "v1.cardCta": "Turn v1 off",
@@ -306,11 +322,11 @@ export const en = {
   "phone.hint":
     "You need the APX app installed. If the phone is not paired yet, the scan pairs it; the code works once, for 10 minutes.",
   "phone.failed": "Could not create the code",
-  "nav.collapse": "Fold the sidebar",
-  "nav.expand": "Unfold the sidebar",
   "nav.back": "Back",
   "nav.forward": "Forward",
-  "nav.resize": "Resize the sidebar",
+  "nav.resize": "Fold or resize the sidebar",
+  "nav.resizeHint": "Click to fold the sidebar · drag to resize it",
+  "nav.unfoldHint": "Click to open the sidebar",
   "nav.rowsResize": "Show more or fewer {section}",
   "inbox.resize": "Resize the list",
   "nav.label": "Navigation",
@@ -481,6 +497,7 @@ export const en = {
   "inbox.routineBundle.runs.other": "{n} runs",
   "thread.routine": "Routine",
   "thread.routineOf": "Routine · {name}",
+  "thread.flowStep": "Flow step",
   "thread.routineHint": "What the routine {name} told",
   "thread.routinePrompt": "Routine {name}: its instructions",
   "thread.group": "Group · {n} agents",
@@ -529,9 +546,11 @@ export const en = {
   "chat.agentWorking": "{name} is working…",
   "chat.agentWaiting": "{name} is waiting for you",
   "chat.agentQueued": "Queued: {name} starts once one of the running delegations finishes",
-  "tools.working": "Working · action {n}",
-  "tools.waiting": "Waiting for you · action {n}",
-  "tools.summary": "Actions 1–{n} of {n}",
+  "tools.working": "Working · step {n}",
+  "tools.waiting": "Waiting for you · step {n}",
+  "tools.steps.one": "1 step",
+  "tools.steps.other": "{n} steps",
+  "tools.stepsTook": "{steps} · {time}",
   "tools.computer.working": "Controlling the computer…",
   "tools.computer.done": "Controlled the computer · {n} actions",
   "tools.failed.one": "failed",
@@ -546,18 +565,19 @@ export const en = {
   "subthread.open": "Open conversation with {name}",
   "subthread.worker": "Worker",
   "subthread.took": "Took {time}",
+  "subthread.held": "Waiting for answers: {got} of {of}",
   "subthread.more": "Show more",
   "subthread.less": "Show less",
   "subthread.noAnswer": "Ended without an answer",
   "subthread.actionsFailed": "Some actions failed",
 
   // Widgets, apps, sharing
-  "widget.gone": "The widget “{title}” no longer exists.",
+  "widget.gone": "“{title}” no longer exists.",
   "widget.eyebrow": "Widget · {title}",
   "widget.connects": "Live data from {hosts}",
   "widget.chat": "Ask its agent for changes",
-  "widget.delete": "Delete widget",
-  "widget.delete.title": "Delete this widget?",
+  "artifact.delete": "Delete",
+  "artifact.delete.title": "Delete it for good?",
   "widget.delete.body": "It is deleted for good, with what it remembers. The chats that showed it keep their messages.",
   "widget.delete.what": "“{title}” will be deleted.",
   "widget.chatOf": "Chat of the widget {title}",
@@ -569,7 +589,7 @@ export const en = {
   "widget.askWaiting": "The widget shows here as soon as the agent makes it.",
   "widget.chatNoAgent": "There is no agent to keep this widget.",
   "widget.chatDraft": 'Keep editing the widget "{title}" (name: {name}): ',
-  "widget.openApp": "Open as app",
+  "widget.openApp": "Open full screen",
   "widget.installApp": "Pin to Apps",
   "widget.unavailable": "Widget not available",
   "widget.toPanel": "Show in the side panel",
@@ -586,10 +606,7 @@ export const en = {
   "app.remove": "Unpin from Apps",
   "share.copied": "Link copied.",
   "share.copyFailed": "Could not copy the link.",
-  "share.hint":
-    "Private by default. Publishing makes the HTML readable by anyone with its link. Public pages cannot access APX state, private files or actions.",
-  "share.tunnelHint":
-    "Copy and open require a public address (Settings › Devices). Enabling it also exposes previously shared HTML; review its content first.",
+  "share.tunnelHint": "Copy and open need a public address (Settings › Devices).",
   "share.linkUnavailable":
     "Public link unavailable. Check the public address in Settings › Devices and allow new tabs.",
   "share.private": "Private",
@@ -610,11 +627,21 @@ export const en = {
   "artifact.outsideHint": "This app shows in a window of its own. Close that window, or bring it back here.",
   "artifact.bringBack": "Bring it back here",
   "artifact.launcher": "Open an artifact",
-  "artifact.launcherSearch": "Search apps and widgets",
+  "artifact.launcherSearch": "Search apps, widgets and pages",
   "artifact.launcherEmpty": "Nothing by that name",
   "artifact.kindApp": "App",
   "artifact.kindWidget": "Widget",
-  "artifact.pinned": "Pinned",
+  "artifact.kindPage": "Web page",
+  "page.sub": "Web page in {project} · made by {author}",
+  "page.width": "Width",
+  "page.desktop": "Desktop",
+  "page.phone": "Phone",
+  "page.preparing": "Getting edit mode ready…",
+  "page.download": "Download (.html)",
+  "artifact.noMemory": "No memory",
+  "artifact.noMemoryHint": "It keeps nothing: no settings, data or records.",
+  "artifact.popupBlocked": "The browser blocked the window. Allow pop-ups for APX.",
+  "artifact.pinned": "In Apps",
   "artifact.download": "Download (.apxart)",
   "artifact.downloadPlain": "The artifact alone",
   "artifact.downloadMemory": "With what it remembers",
@@ -637,7 +664,7 @@ export const en = {
   "artifact.installClash":
     "There is already an artifact named {name} there: this one installs beside it with another name.",
   "artifact.installPin": "Pin to Apps",
-  "artifact.installPinHint": "Pinned, it is an app: in the sidebar and running until you close it.",
+  "artifact.installPinHint": "Listed in Apps in the sidebar, and running until you close it.",
   "artifact.installMemory": "With its data",
   "artifact.installMemoryHint": "What it remembers in the file: your settings, its last saved reading, its records.",
   "artifact.part.state": "your settings",
@@ -774,6 +801,7 @@ export const en = {
   "browser.youControl": "You're in control",
   "browser.agentBrowsing": "{name} is browsing · {host}",
   "browser.finished": "Finished · {host}",
+  "browser.inChrome": "{name} is using it in your Chrome",
   "browser.offline": "Offline · {host}",
   "browser.reopen": "Open again",
   "browser.openWindow": "Open in a separate window",
@@ -793,6 +821,7 @@ export const en = {
   "link.go.project": "Open the project",
   "link.go.projectNamed": "Open the project {name}",
   "media.generating": "Generating images",
+  "media.imageLoadFailed": "Could not load the images.",
   "media.previous": "Previous",
   "media.next": "Next",
   "media.download": "Download",
@@ -819,6 +848,8 @@ export const en = {
   "browser.agentUsing": "{name} is using this tab",
   "browser.takeControl": "Take control",
   "browser.giveBack": "Give back",
+  "browser.edit": "Edit",
+  "browser.editHint": "Pick parts of the page and ask for changes",
   "browser.handoffDone": "When you finish, press Done and it takes the tab back.",
   "browser.handedYou": "handed you the tab",
   "browser.liveView": "Live view of the tab",
@@ -1054,6 +1085,8 @@ export const en = {
   "config.agents": "Agents",
   "config.browser": "Browser",
   "config.advanced": "Advanced",
+  "config.storage": "Storage",
+  "config.move": "Move or back up",
   "config.logs": "Logs",
   "logs.lead":
     "What the core writes while it runs: what it started, what failed and why. Newest first, refreshed every few seconds.",
@@ -1187,21 +1220,25 @@ export const en = {
   "models.ownModel": "Primary model",
   "models.routerOnlyDesc":
     "The first matching rule runs before the chain. Without a matching rule, #1 is tried first. Availability and failures can change which model answers.",
-  "models.routerFirst": "Router · #1: {model}",
-  "models.routerRulesFirst": "Router · Rules · #1: {model}",
-  "models.routerRules": "Router · Rules",
+  "models.routerFirst": "Automatic · First: {model}",
+  "models.routerRulesFirst": "Automatic · Rules · First: {model}",
+  "models.routerRules": "Automatic · Rules",
   "models.installDefault": "Install default",
   "models.useDefault": "Use install default",
   "models.currentChoice": "Configured: {model}",
-  "models.routerSummary": "Router: {model}",
-  "models.routerSummaryRules": "Router: Rules · #1: {model}",
+  "models.routerSummary": "Automatic · First: {model}",
+  "models.routerSummaryRules": "Automatic · Rules · First: {model}",
   "models.effortUnavailable": "Not available",
   "models.effortPickModel": "Pick a model",
   "models.inheritedChoice": "{source} · {model}",
-  "models.router": "Router",
-  "models.routerOnly": "Use only the router",
+  "models.router": "Automatic",
+  "models.routerOnly": "Choose automatically",
   "models.inUse": "In use",
-  "models.withRouter": "{model} · Router fallback",
+  "models.withRouter": "{model} · Automatic backup",
+  "models.withFallbacks.one": "{model} · 1 fallback",
+  "models.withFallbacks.other": "{model} · {n} fallbacks",
+  "models.withFallbacksRouter.one": "{model} · 1 fallback + Automatic",
+  "models.withFallbacksRouter.other": "{model} · {n} fallbacks + Automatic",
   "models.effort": "Effort",
   "models.effortDefault": "Its default",
   "models.effortDefaultIs": "Default ({effort})",
@@ -1209,7 +1246,8 @@ export const en = {
   "models.search": "Search models",
   "models.showAll": "Also show voice, image and embedding models",
   "models.noMatch": "No model matches.",
-  "models.noEngine": "No engine is connected yet. Sign in to one or paste its API key, and its models show up here.",
+  "models.noneConnected": "No models",
+  "models.noEngine": "No models available yet. Connect a service in APX.",
   "models.catalog": "Models",
   "models.catalogLead": "What each engine offers, asked to the engine itself and cached for a day.",
   "models.catalogUnavailable": "This core does not report models yet. Update and restart it.",
@@ -1218,6 +1256,9 @@ export const en = {
   "models.stale": "Stale",
   "models.kind.harness": "External session",
   "models.kind.provider": "Provider · APX's own loop",
+  "models.kind.local": "Free",
+  "models.local": "Local",
+  "models.localClosed": "Open {app} to use them",
   "models.count": "{count} models",
   "models.fetchedAt": "fetched {when}",
   "models.noChatModels": "No chat models. Voice, image and embedding models are hidden.",
@@ -1863,9 +1904,13 @@ export const en = {
 export type MessageKey =
   | keyof typeof en
   | ApprovalKey
+  | BrowserEditKey
   | ComputerKey
   | ReceivedKey
   | SysUsageKey
+  | keyof typeof enStorage
+  | keyof typeof enSignIn
+  | keyof typeof enMove
   | keyof typeof enEmailSignatures
   | keyof typeof enThreadDialogs
   | keyof typeof enIngress

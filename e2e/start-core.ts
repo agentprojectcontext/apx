@@ -30,9 +30,10 @@ const core = await createCore(config, {
     disk_mb: 8200,
   }),
 });
-for (const signal of ["SIGINT", "SIGTERM"] as const) {
-  process.once(signal, async () => {
-    await core.close();
-    process.exit(0);
-  });
-}
+const close = async () => {
+  await core.close();
+  process.exit(0);
+};
+for (const signal of ["SIGINT", "SIGTERM"] as const) process.once(signal, close);
+// e2e/env.ts gone without a signal (killed): this core goes too, or it keeps the sandbox's port.
+process.once("disconnect", close);

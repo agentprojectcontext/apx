@@ -33,15 +33,19 @@ reads only files the widget names, inside its own project, and only media (no do
 
 ## The Widget side panel
 
-Open the side panel on **Widget** to see every widget the agent built in this chat, larger. Each widget's header has
-the same actions wherever it shows (chat, panel, Board, Apps):
+Open the side panel on **Widget** to see every widget the agent built in this chat, larger. A widget's header keeps
+the same few actions wherever it shows, and the rest under **More**:
 
 | Action | What it does |
 |---|---|
-| **Ask its agent for changes** | Opens the widget's chat with the agent that keeps it. |
-| **Pin to the board** / **Unpin from the board** | Puts it on (or takes it off) the project's Board. |
-| **Pin to Apps** / **Open as app** | Lists it under Apps in the sidebar and opens it fullscreen. |
+| **Edit** (pencil) | Edit mode: point at a part and change it. |
+| **Ask its agent for changes** | Opens the widget's chat with the agent that keeps it. Shown where there is no chat (Board, Apps, Files). |
 | **Share** | Private by default; **Anyone with the link** can view it without editing. **Copy link** to send it. |
+| **More › Pin to the board** / **Unpin from the board** | Puts it on (or takes it off) the project's Board. |
+| **More › Pin to Apps** | Lists it under Apps in the sidebar, to open full screen. It stays a widget: violet, and laid out as one. |
+| **More › Open in another window** | The widget alone, in a window of its own. |
+| **More › Memory** | What it keeps (settings, saved data, records), or **No memory** when it keeps nothing; export or clear it. |
+| **More › Delete** | Deletes it for good. Offered on the Board and in lists, not in a chat. |
 
 ## Pin to the project Board
 
@@ -67,13 +71,20 @@ link**. Use the menu to stop sharing when no longer needed. The link needs a rea
 publish your loopback-only core to the internet. Do not expose the whole panel just to make a widget link reachable.
 
 Agents cannot replace a published artifact's HTML: unpublish it yourself before requesting changes, or ask for a
-separate artifact. A public page has no owner chat to approve actions. Export without memory when distributing a
+separate artifact. A public page shows only its own HTML: it cannot reach APX's state, your private files or any
+action, and it has no owner chat to approve one. Turning on a public address (Settings › Devices) makes every page
+already shared reachable too, so review them first. Export without memory when distributing a
 template rather than sharing your records. See [artifact memory and export](/office/artifacts/).
 
-## Apps: a widget fullscreen
+## Apps: what you keep at hand
 
-**Apps** in the sidebar lists the widgets you installed as apps. Each opens fullscreen, from any project, with who
-made it and where it lives. **Remove from apps** takes it off the list (the widget itself stays).
+**Apps** in the sidebar lists the apps agents made (green) and any widget you pinned there (violet). Being in Apps is
+where you keep it, not what it is: a widget pinned there stays a widget, and an app you take out of Apps stays an app.
+Each opens full screen, from any project, with who made it and where it lives. **Unpin from Apps** takes it off the
+list; the artifact itself stays.
+
+Web pages are documents, not board tiles: they are not pinned to a board. You find them in their chat and in the
+project's **Artifacts** list, and open them on their own screen.
 
 <Shot name="app-widget" alt="A widget opened fullscreen as an App, with its title and the project and agent that made it" caption="A widget as an App" />
 

@@ -81,6 +81,7 @@ async function turn(
     agent: { autonomy: opts.autonomy ?? "auto" },
     outside: () => false,
     models: ["codex"],
+    tools: [],
     input: { role: "user", content: "commit it" },
     sessionId: opts.sessionId,
     signal: AbortSignal.timeout(20_000),

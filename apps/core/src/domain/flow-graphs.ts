@@ -26,7 +26,7 @@ export class FlowTriggerMismatch extends Error {}
 export type FlowSave = { by: string | null; kind?: Exclude<FlowHistoryKind, "published">; restoredFrom?: number };
 
 /** The trigger kind a published Flow starts from, or undefined when it runs no drawing. */
-export function publishedFlowTrigger(db: Db, flow: string): "webhook" | "schedule" | undefined {
+function publishedFlowTrigger(db: Db, flow: string): "webhook" | "schedule" | undefined {
   const row = db
     .prepare(
       "SELECT r.graph FROM flow_graph_drafts d JOIN flow_graph_revisions r ON r.flow_id=d.flow_id AND r.revision=d.published_revision WHERE d.flow_id=?",

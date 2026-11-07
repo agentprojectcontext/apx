@@ -16,6 +16,8 @@ export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
   shape?: "circle" | "square";
   /** Toggle state for toolbar buttons (e.g. tools panel open). */
   active?: boolean;
+  /** A small dot on the icon's corner: `brand` for something new, `warning` for something to look at. */
+  mark?: "brand" | "warning";
   onClick?: ButtonHTMLAttributes<HTMLButtonElement>["onClick"];
   disabled?: boolean;
   type?: "button" | "submit" | "reset";
@@ -32,6 +34,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
     size = "md",
     shape = "square",
     active = false,
+    mark,
     className,
     type = "button",
     ...rest
@@ -50,11 +53,13 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
         `apx-iconbtn--${size}`,
         `apx-iconbtn--${shape}`,
         active && "is-active",
+        mark && "has-mark",
         className,
       )}
       {...rest}
     >
       {icon}
+      {mark && <span className={`apx-iconbtn__mark apx-iconbtn__mark--${mark}`} aria-hidden="true" />}
     </button>
   );
   if (tooltip === false) return button;

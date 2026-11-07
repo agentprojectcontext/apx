@@ -139,6 +139,29 @@ navigation resolves at `dom-ready`.
 while the window is not painting; waiting for full `load` timed out on ad-heavy sites. Each hung a tool call.
 **Where:** `apps/desktop/src/main/browser/host.ts` (`open`, `#load`), `apps/desktop/src/main/browser/cdp.ts` (`screenshot`).
 
+<a id="tab-user-agent"></a>
+### Tabs send Electron's own user agent
+**Rule:** the desktop's tab sessions keep Electron's default user agent (with its `Electron/x` token); nothing
+overrides it.
+**Why:** tabs used to strip the token and present themselves as Chrome. On Cloudflare-protected sites (Product Hunt,
+SaaSHub) the owner's own click passed the check and Cloudflare set `cf_clearance`, but every reload came back 403
+with the check again, forever. With the default user agent the same pages passed by themselves within seconds,
+with the debugger attached and permissions as they are. Detaching the debugger, notification permission checks,
+popups and the profile partition made no difference. Google sign-in still accepts the tab (it moves on to the
+account's passkey or password).
+**Where:** `apps/desktop/src/main/browser/host.ts` (`#configure`).
+
+<a id="tab-under-floats"></a>
+### The live tab steps behind every float over it, backdrops and notices included
+**Rule:** the panel sends the tab behind (a still holds its place) whenever a popup, a dialog, a modal's backdrop or a
+notice overlaps the page area. Something new that floats over the panel joins `PORTAL_FLOATS` or `SHELL_FLOATS`.
+**Why:** the native page paints above every HTML layer. Only menus, dialogs and listboxes were checked, so a dialog
+centred elsewhere left the page bright and clickable over its backdrop, and a notice at the foot of the window was
+hidden under the page. A report of a gray band over the page while scrolling did not reproduce on a 1x display with
+synthetic or real trackpad scrolling, agent screenshots, resizes or tab switches; the bounds and viewport stayed in
+step throughout.
+**Where:** `apps/web/src/panel/BrowserViewport.tsx` (`usePopupOver`), `e2e/desktop/app.spec.ts`.
+
 ## Memory
 
 <a id="memory-capture-cleanup"></a>
@@ -281,6 +304,17 @@ refused or unresolved connections are retried; everything else is "uncertain". A
 continues from the part that failed (`Presentation.skip`) instead of being dropped. Where:
 `apps/core/src/channels/telegram.ts`, `delivery.ts`.
 
+<a id="whatsapp-country-code"></a>
+### A WhatsApp number gets its country code, and is checked before a send
+WhatsApp accepts a message for any number and drops it when nobody has that number, so an agent sending reminders to
+contacts saved the local way (`976 666 004`, no `51`) was told "sent" while only the numbers written with their
+country code got anything. Numbers are now completed with the contact's or the owner's country when saved
+(`contacts.address`) and with the line's own country before each send; Argentine mobiles get WhatsApp's `54 9`. The
+adapter asks `onWhatsApp` before the first send to a number on a connection: a number without WhatsApp, or one that
+cannot be made valid, fails the send ("not sent", with why) instead of being counted as sent. When WhatsApp's address
+differs from the stored one, the contact's address and their chat move to it, so their answer lands in the same
+thread. Where: `apps/core/src/channels/phone.ts`, `whatsapp.ts`, `delivery.ts`, `rpc/channels.ts`.
+
 <a id="shell-symlink-cwd"></a>
 ### The shell's folder check resolves links
 `shell` compared its working folder with the project's as written, so `cwd: "escape"` where `escape` is a symlink to
@@ -372,6 +406,15 @@ desktop app it is Electron with `ELECTRON_RUN_AS_NODE=1` inherited (checked with
 for at most 3 seconds, and any failure to run it passes the script. Where: `apps/core/src/tools/widget-syntax.ts`.
 
 <a id="read-only-continuation"></a>
+### apps-listing
+Being an app and being listed in Apps were one flag (`surfaces.app`), so the owner's "Pin to Apps" turned a widget into
+an app: green in lists and laid out fullscreen. `in_apps` now says where it is listed; `app` stays what it is, set when
+it is made (`show_widget app: true`, the page's `apx-surface` app meta) or by its agent. The migration kept everything
+in Apps there and left an app only what its page declares or its agent last made one: on the owner's data the page meta
+alone would have turned an app made with `app: true` into a widget. Web pages were unpinned from boards in the same
+migration: a page is a document, reached from its chat, its project's list and its own screen, not a board tile.
+Where: `apps/core/src/db/migrations.ts`, `domain/surfaces.ts` (`placed`), test in `domain/surfaces.test.ts`.
+
 ### A consult opened read-only no longer keeps the work it leads to read-only
 The super-agent asked a developer agent to look at a task read-only, then told the same session to go on and finish it
 without naming a write policy. The session kept `read-only`, so the developer could neither run tests nor fix code, and

@@ -12,7 +12,7 @@ const SCOPE = z
     "global: about the owner (preferences, people, how they work), every agent sees it; project: about this thread's project; agent: your own notebook",
   );
 
-export const MEMORY_BLOCK_CHARS = 2400;
+const MEMORY_BLOCK_CHARS = 2400;
 
 const line = (m: Memory) =>
   `- [${m.id}] (${m.scope}${m.source === "owner" ? ", by the owner" : m.pending ? ", not confirmed by the owner" : ""}; updated ${m.updated_at}) ${m.text.replace(/\s+/g, " ")}`;

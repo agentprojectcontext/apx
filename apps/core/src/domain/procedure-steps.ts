@@ -166,7 +166,7 @@ export function placesOf(store: Store, threadId: string): Places {
 }
 
 /** Prefixes of a procedure note's line of attempts that failed (the older one still in saved notes). */
-export const FAILED_LINE = /^(Tried first, failed:|Failed attempts \(not the successful method\):)/;
+const FAILED_LINE = /^(Tried first, failed:|Failed attempts \(not the successful method\):)/;
 
 /**
  * Every `quoted` fragment of a procedure note is a tool, an argument, or the reduced form of one of the run's own

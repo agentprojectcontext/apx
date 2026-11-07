@@ -28,7 +28,7 @@ const toAgent = (r: Selectable<AgentsTable>): AgentRecord => ({
 type Policy = Pick<Agent, "tools" | "autonomy" | "skills" | "area" | "personality" | "orchestrator" | "rules">;
 
 /** `rules:` as `risk=policy` pairs ("write=ask"); unknown risks or policies are left out. */
-export function rulesOf(v: unknown): AgentRules | undefined {
+function rulesOf(v: unknown): AgentRules | undefined {
   const pairs = Array.isArray(v) ? v : typeof v === "string" ? v.split(",") : [];
   const out: AgentRules = {};
   for (const pair of pairs) {
@@ -106,6 +106,10 @@ export function agentsRepo({ one, all, run }: Sql, changed: () => void) {
     get(id: string): AgentRecord | undefined {
       const r = one(qb.selectFrom("agents").selectAll().where("id", "=", id));
       return r ? toAgent(r) : undefined;
+    },
+    /** Whether `id` is one of the active agents `list()` returns, without reading them all. */
+    active(id: string): boolean {
+      return !!one(qb.selectFrom("agents").select("id").where("id", "=", id).where("archived", "=", 0));
     },
     /**
      * Id first; otherwise a case-insensitive name match among global agents and the given project's team.

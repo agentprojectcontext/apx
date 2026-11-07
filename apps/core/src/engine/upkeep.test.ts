@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import type { LogEntry } from "../domain/model-log.ts";
+import type { RunRecord } from "../domain/runs.ts";
 import { waitFor } from "../testkit/platform.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { projectHistory } from "./context.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
-import { COMPACT_AT_CHARS, planCompaction, titleFromText, validSummary, validTitle } from "./upkeep.ts";
+import { COMPACT_AT_CHARS, contextFill, planCompaction, titleFromText, validSummary, validTitle } from "./upkeep.ts";
 
 const SUMMARY = [
   "## Goal",
@@ -27,6 +28,9 @@ const llm = scriptedLlm((req) => {
   if (system.startsWith("You compress"))
     return { ...say(badSummary ? "Sure! Here is a summary: it went fine." : SUMMARY), usage };
   if (system.startsWith("Write a title")) return { ...say('"Northwind launch plan."'), usage };
+  // A model with a known window whose last call read most of it.
+  if (String(req.messages.at(-1)?.content).includes("fill the window"))
+    return { ...say("noted"), model: "fake/claude-test", usage: { input: 170_000, output: 5 } };
   return say("noted");
 });
 
@@ -146,4 +150,64 @@ test("old tool output counts as the stub the model sees: long reads alone do not
     entries.push(entry(i * 3 + 3, `r${i}`, { role: "tool", tool_call_id: `c${i}`, content: i < 4 ? huge : "short" }));
   }
   assert.equal(planCompaction(entries, undefined, false), undefined, "four huge old outputs are four stubs");
+});
+
+test("a short chat is compacted once its model's last call read 80% of the window", () => {
+  const entries: LogEntry[] = [];
+  for (let i = 0; i < 6; i++) {
+    entries.push(entry(i * 2 + 1, `r${i}`, { role: "user", content: `q${i}` }));
+    entries.push(entry(i * 2 + 2, `r${i}`, { role: "assistant", content: "short answer" }));
+  }
+  assert.equal(planCompaction(entries, undefined, false), undefined, "small in characters, window unknown");
+  assert.equal(planCompaction(entries, undefined, false, { used: 150_000, window: 200_000 }), undefined);
+  const plan = planCompaction(entries, undefined, false, { used: 160_000, window: 200_000 });
+  assert.ok(plan, "80% of the window is full");
+  assert.equal(plan.runs, 2, "the newest four turns stay verbatim");
+});
+
+test("the context fill comes from the newest finished native run, measured after the last summary", () => {
+  const run = (o: Partial<RunRecord>): RunRecord =>
+    ({
+      id: "r",
+      thread_id: "t",
+      agent_id: "a",
+      state: "completed",
+      started_at: "2026-01-02T00:00:00.000Z",
+      ...o,
+    }) as RunRecord;
+  const used = { input: 9000, output: 10, context: 170_000 };
+  const done = { harness: "native" as const, ended_at: "2026-01-02T00:01:00.000Z" };
+  assert.deepEqual(contextFill([run({ ...done, model: "anthropic/claude-sonnet-4-5", usage: used })]), {
+    used: 170_000,
+    window: 200_000,
+  });
+  assert.deepEqual(contextFill([run({ ...done, model: "fake/fake-1", usage: { ...used, window: 32_000 } })]), {
+    used: 170_000,
+    window: 32_000,
+  });
+  assert.equal(contextFill([run({ ...done, model: "fake/fake-1", usage: used })]), undefined, "window unknown");
+  assert.equal(contextFill([run({ ...done, model: "claude/opus", harness: "claude", usage: used })]), undefined);
+  assert.equal(contextFill([run({ ...done, model: "x/claude", usage: { input: 1, output: 1 } })]), undefined);
+  // A turn still going says nothing yet: the newest finished one counts.
+  const busy = run({ harness: "native", state: "working", model: "x/claude" });
+  assert.equal(contextFill([busy, run({ ...done, model: "x/claude", usage: used })])?.used, 170_000);
+  // Read before the summary that followed it: that size is gone.
+  const epoch = { upto: 4, summary: SUMMARY, untrusted: false, runs: 2, at: "2026-01-03T00:00:00.000Z" };
+  assert.equal(contextFill([run({ ...done, model: "x/claude", usage: used })], epoch), undefined);
+});
+
+test("after a turn that filled the model's window the chat is summarized on its own", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
+  for (const n of [1, 2, 3, 4, 5]) {
+    await env.client.call("threads.send", { thread: t.id, text: `short step ${n}` });
+    await env.settle(t.id);
+  }
+  const compacted = async () =>
+    (await env.client.call("threads.get", { thread: t.id })).messages.some((m) =>
+      m.parts.some((p) => p.type === "notice" && p.code === "thread.compacted"),
+    );
+  assert.equal(await compacted(), false, "a short chat with no known window is not summarized");
+  await env.client.call("threads.send", { thread: t.id, text: "now fill the window" });
+  await env.settle(t.id);
+  await waitFor(compacted);
 });

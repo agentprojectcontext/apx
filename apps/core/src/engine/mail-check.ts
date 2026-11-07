@@ -34,7 +34,7 @@ const SEEN_KEY = "mail_seen";
 const SLACK_MS = 30_000;
 
 /** The mail worth a look, one line each, for the super-agent to judge. */
-export function mailLines(mail: MailArrival[]): string {
+function mailLines(mail: MailArrival[]): string {
   return mail
     .map((m) =>
       JSON.stringify({

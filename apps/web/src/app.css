@@ -21,19 +21,23 @@ body {
 :where(.apx) ::placeholder {
   color: var(--apx-fg-subtle);
 }
-/* Thin thumbs with air around them: the transparent border is the padding (background-clip keeps it clear). */
+/* Thin thumbs with air around them: the transparent border is the padding (background-clip keeps it clear). They stay
+   visible, since Chromium does not repaint a thumb when what scrolls is hovered, and darken when grabbed. A very
+   long content (a task's whole conversation) would shrink the thumb under its own border, so it keeps a usable length. */
 .apx ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 .apx ::-webkit-scrollbar-thumb {
+  min-width: 40px;
+  min-height: 40px;
   border: 3px solid transparent;
   border-radius: 10px;
-  background: var(--apx-fill-strong);
+  background: var(--apx-border-strong);
   background-clip: padding-box;
 }
-.apx ::-webkit-scrollbar-thumb:hover {
-  border-width: 2px;
+.apx ::-webkit-scrollbar-thumb:hover,
+.apx ::-webkit-scrollbar-thumb:active {
   background-color: var(--apx-fg-subtle);
 }
 .apx ::-webkit-scrollbar-track,
@@ -59,12 +63,19 @@ body {
   flex: 1;
   min-height: 0;
   display: flex;
+  background: var(--apx-sidebar);
 }
+/* The main pane is a card on the sidebar's colour, open at the bottom (its frame is --shell-main-inset). */
 .shell__main {
   flex: 1;
   min-width: 0;
   display: flex;
+  margin-right: calc(var(--shell-main-inset) - 2px);
+  border: 1px solid var(--apx-border);
+  border-bottom: 0;
+  border-radius: var(--apx-radius-md) var(--apx-radius-md) 0 0;
   background: var(--apx-bg);
+  overflow: hidden;
 }
 
 /* ── Offline banner / toasts ───────────────────────────────────────────────── */

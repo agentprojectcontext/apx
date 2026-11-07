@@ -46,6 +46,16 @@
   color: var(--apx-fg-muted);
   white-space: nowrap;
 }
+.chat__header:has(.chat__modelrequest) {
+  height: auto;
+  min-height: var(--shell-header-h);
+  padding-block: 8px;
+}
+.chat__modelrequest {
+  flex-wrap: wrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .chat__crumbsep {
   color: var(--apx-fg-subtle);
 }
@@ -184,7 +194,7 @@
 .turn .apx-msg__bare {
   width: 100%;
 }
-.turn:has(.surfacecard) .apx-msg__col,
+.turn:has(.surfacecard, .pagepart) .apx-msg__col,
 .apx-msg__col:has(.inputcard.has-change) {
   max-width: 100%;
   width: 100%;
@@ -411,6 +421,17 @@
   text-decoration: underline;
 }
 
+/* A block the agent wrote (code, a page, a diagram, an email), as a card between its bubbles, wider than words. */
+.turn .apx-msg__col:has(> .apx-msg__bare > .turn__card) {
+  width: min(100%, 760px);
+  max-width: none;
+}
+/* It keeps the reply's Markdown class, so a block looks as it would among the words. */
+.turn__card {
+  width: 100%;
+  min-width: 0;
+}
+
 /* An agent's face and name open its block beside the chat. */
 .chat__agentbtn,
 .turn__agentbtn {
@@ -508,7 +529,7 @@
   border: 1px solid var(--apx-border);
   border-radius: 10px;
   background: var(--apx-surface-raised);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--apx-shadow-md);
   overflow: hidden;
 }
 .screenlive--mini {
@@ -541,7 +562,7 @@
 }
 .screenlive__view {
   position: relative;
-  background: #000;
+  background: #000; /* ui: letterbox behind a video, black in either theme. */
 }
 .screenlive__view img {
   display: block;
@@ -561,8 +582,8 @@
   margin: -7px 0 0 -7px;
   border-radius: 50%;
   border: 2px solid #fff;
-  background: #2fb67c;
-  box-shadow: 0 0 0 4px rgba(47, 182, 124, 0.35);
+  background: var(--apx-brand);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--apx-brand) 35%, transparent);
   pointer-events: none;
 }
 /* Hidden, it waits as a pill at the top right of the chat, under its header: easy to find, out of the way. */
@@ -583,7 +604,7 @@
   cursor: pointer;
 }
 .computer-icon {
-  color: var(--apx-brand, #2fb67c);
+  color: var(--apx-brand);
   flex: none;
 }
 .computer-icon.is-busy .computer-icon__pointer {
@@ -759,6 +780,24 @@
 
 .browserpart__compact {
   max-width: 100%;
+}
+
+/* A tab in the owner's Chrome: they see it there, so the chat only says what happens in it. */
+.browserpart__chrome {
+  display: flex;
+  align-items: center;
+  gap: var(--apx-space-2);
+  margin: 0;
+  max-width: 100%;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+
+.browserpart__chrome span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .browserpart__compact .apx-btn__label {

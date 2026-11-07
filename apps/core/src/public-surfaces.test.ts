@@ -66,3 +66,28 @@ test("only explicitly published widgets are readable through public ingress, nev
     await env.cleanup();
   }
 });
+
+test("a published web page is served as a browser shows it, without APX's look", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("unused")) });
+  try {
+    const surface = env.core.store.surfaces.upsert({
+      name: "landing",
+      title: "Northwind landing",
+      html: "<!doctype html><html><head><style>body{background:#f4e7d3}</style></head><body><h1>Fresh coffee</h1></body></html>",
+      created_by: "superagent",
+      page: true,
+    });
+    const port = (await env.client.call("webhooks.get", {})).port;
+    const shared = await env.client.call("surfaces.share", { surface: surface.id, shared: true });
+    const html = await (await fetch(`http://127.0.0.1:${port}${shared.share_path}`)).text();
+    assert.ok(html.includes("<h1>Fresh coffee</h1>"));
+    assert.ok(html.includes("<title>Northwind landing</title>"));
+    assert.ok(html.includes("background:#f4e7d3"));
+    // No APX colors, dark mode or padding laid over the page's own styles.
+    assert.equal(html.includes("--apx-"), false);
+    assert.equal(html.includes("prefers-color-scheme"), false);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});

@@ -8,6 +8,7 @@ import { UPLOAD_LIMITS } from "@apx/protocol";
 import type { Inbound, Presentation } from "../domain/channels.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
+import { countryOf, whatsappDigits } from "./phone.ts";
 import { chunks } from "./telegram-format.ts";
 import {
   type AdapterIO,
@@ -43,6 +44,8 @@ export type WaSocket = {
   end(err?: Error): void;
   /** Where someone's profile picture is (none when they hide it). */
   profilePictureUrl?(jid: string, type: "image" | "preview"): Promise<string | undefined>;
+  /** Which numbers have WhatsApp, each under the address WhatsApp uses for it (a number without it is left out). */
+  onWhatsApp?(...numbers: string[]): Promise<Array<{ jid: string; exists: unknown }> | undefined>;
   /** Asks to hear when someone comes online or leaves (until the connection closes). */
   presenceSubscribe?(jid: string): Promise<void>;
   /** Asks the sender's phone to upload an expired file again (its download link is old). */
@@ -127,6 +130,8 @@ const ECHOES = 500;
 const SERVICE = new Set(["16505361212", "16508638904"]);
 /** How long the phone has to send messages again under one address before the next one is tried. */
 const RESEND_WAIT_MS = 12_000;
+/** Numbers found on WhatsApp kept on one connection, so a run of sends asks once each. */
+const REACH_KEPT = 1_000;
 
 /** `5491100000000:12@s.whatsapp.net` → `5491100000000@s.whatsapp.net` (the device suffix is not the person). */
 export const normalJid = (jid: string | null | undefined): string => {
@@ -284,6 +289,8 @@ export function whatsappAdapter(opts: {
   const resending = new Map<string, (m: WaMessage) => void>();
   /** The menu each chat's other side offered last (a business's buttons), so an answer naming an option taps it. */
   const menus = new Map<string, Menu>();
+  /** Phone addresses checked on WhatsApp, and the address it uses for each. */
+  const reach = new Map<string, string>();
 
   const hasCreds = () => fs.existsSync(path.join(dir, "creds.json"));
   const remember = (id: string | null | undefined) => {
@@ -368,6 +375,7 @@ export function whatsappAdapter(opts: {
       io.qr?.(undefined);
       // A new connection hears nobody until asked again.
       watching.clear();
+      reach.clear();
       attempts = 0;
       qrRounds = 0;
       me = { pn: normalJid(s.user?.id), lid: normalJid(s.user?.lid) };
@@ -575,6 +583,35 @@ export function whatsappAdapter(opts: {
     return got;
   }
 
+  /**
+   * Where a chat with a phone number really goes: the number with its country code (the account's own country when it
+   * has none), checked on WhatsApp. WhatsApp accepts a message for a number nobody has and drops it, so that is refused
+   * here instead of counted as sent. See HISTORY.md#whatsapp-country-code
+   */
+  async function addressOf(conversation: string): Promise<string> {
+    const s = sock;
+    if (!s || !me) throw new SendError("retry", "WhatsApp is not connected");
+    if (!isPhone(conversation) || isSelf(conversation)) return conversation;
+    const fixed = whatsappDigits(digitsOf(conversation), { country: countryOf(digitsOf(me.pn)), stored: true });
+    if ("problem" in fixed) throw new SendError("fatal", fixed.problem);
+    const jid = `${fixed.digits}@s.whatsapp.net`;
+    if (!s.onWhatsApp) return jid;
+    const known = reach.get(jid);
+    if (known) return known;
+    let found: Awaited<ReturnType<NonNullable<WaSocket["onWhatsApp"]>>>;
+    try {
+      found = await s.onWhatsApp(jid);
+    } catch (err) {
+      throw new SendError("retry", `WhatsApp could not check +${fixed.digits}: ${errorMessage(err, 200)}`);
+    }
+    if (!found) throw new SendError("retry", `WhatsApp could not check +${fixed.digits}`);
+    const there = normalJid(found.find((r) => r.exists)?.jid);
+    if (!there) throw new SendError("fatal", `+${fixed.digits} is not on WhatsApp`);
+    reach.set(jid, there);
+    while (reach.size > REACH_KEPT) reach.delete(reach.keys().next().value as string);
+    return there;
+  }
+
   async function sendOne(jid: string, content: Record<string, unknown>): Promise<string | undefined> {
     if (!sock || !me) throw new SendError("retry", "WhatsApp is not connected");
     try {
@@ -637,7 +674,10 @@ export function whatsappAdapter(opts: {
       await stop();
       fs.rmSync(dir, { recursive: true, force: true });
     },
-    async send(conversation, p: Presentation, files = []) {
+    async send(stored, p: Presentation, files = []) {
+      const conversation = await addressOf(stored);
+      // Told back when it differs, so the contact's address (and their answer) is the one WhatsApp uses.
+      const moved = conversation !== stored ? { address: conversation } : {};
       const options = p.buttons?.length ? p.buttons : undefined;
       // Answering a business's menu with one of its options: that button, pressed.
       const menu = menus.get(conversation);
@@ -645,7 +685,7 @@ export function whatsappAdapter(opts: {
       if (menu && picked) {
         const id = await sendOne(conversation, tapFor(menu, picked));
         menus.delete(conversation);
-        return id ? { external_id: id } : {};
+        return id ? { external_id: id, ...moved } : moved;
       }
       const body = [
         p.text.trim() ? toWhatsApp(p.text) : "",
@@ -669,7 +709,7 @@ export function whatsappAdapter(opts: {
         }
       }
       if (options) offered.set(conversation, options);
-      return last ? { external_id: last } : {};
+      return last ? { external_id: last, ...moved } : moved;
     },
     async avatar(jid) {
       if (!sock?.profilePictureUrl) return undefined;

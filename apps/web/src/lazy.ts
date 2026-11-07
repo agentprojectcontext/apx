@@ -155,18 +155,32 @@ export const DelegationActions = lazy(() =>
 );
 export const GoOn = lazy(() => import("./chat/parts/GoOn.tsx").then((m) => ({ default: m.GoOn })));
 
+// A file from the chat opened inside APX (a PDF, text).
+export const FileViewer = lazy(() => import("./chat/parts/FileViewer.tsx").then((m) => ({ default: m.FileViewer })));
+
 export const DocumentActions = lazy(() =>
   import("./panel/DocumentActions.tsx").then((m) => ({ default: m.DocumentActions })),
 );
 
 // The run button and its terminal load the first time a chat shows a shell block.
 export const RunnableCode = lazy(() => import("./chat/RunnableCode.tsx").then((m) => ({ default: m.RunnableCode })));
+// Any other code block's frame (copy, expand, an HTML page's preview) loads the first time a chat shows one; the
+// Mermaid renderer, much larger, only when a block is a diagram.
+export const CodeBlock = lazy(() => import("./chat/CodeBlock.tsx").then((m) => ({ default: m.CodeBlock })));
+export const MermaidDiagram = lazy(() =>
+  import("./chat/MermaidDiagram.tsx").then((m) => ({ default: m.MermaidDiagram })),
+);
+export const EmailCard = lazy(() => import("./chat/EmailCard.tsx").then((m) => ({ default: m.EmailCard })));
 export const ReceivedDialog = lazy(() =>
   import("./chat/ReceivedDialog.tsx").then((m) => ({ default: m.ReceivedDialog })),
 );
 
 // A model picker's list shows only once it opens (the composer has a picker).
+export const MoveSection = lazy(() => import("./config/MoveSection.tsx").then((m) => ({ default: m.MoveSection })));
 export const ModelList = lazy(() => import("./config/models/ModelList.tsx").then((m) => ({ default: m.ModelList })));
+export const ModelChoiceMenu = lazy(() =>
+  import("./config/models/ModelChoiceMenu.tsx").then((m) => ({ default: m.ModelChoiceMenu })),
+);
 
 // The editor and its languages load when the first text file opens.
 export const CodeView = lazy(() => import("./project/files/CodeView.tsx").then((m) => ({ default: m.CodeView })));

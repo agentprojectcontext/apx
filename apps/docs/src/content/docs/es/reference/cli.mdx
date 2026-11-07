@@ -49,7 +49,7 @@ pipe) la consola no arranca: `apx` muestra la ayuda.
 | `apx wizard` | Configuración y mantenimiento guiados en la terminal. |
 | `apx upgrade --check` | ¿Hay un APX más nuevo? |
 | `apx upgrade` | Aplicarlo, igual que **Actualizar ahora** en el panel. Si el core no responde, un APX instalado con el script de instalación se actualiza igual: baja el paquete más nuevo, lo verifica y hace que el servicio lo arranque. `apx update` es el mismo comando. |
-| `apx doctor` | Por qué el core no responde en esta computadora (qué dice su log, el servicio, si hay una versión más nueva) y el comando a correr. Funciona sin el core; `--json`. |
+| `apx doctor` | Por qué el core no responde en esta computadora (qué dice su log, el servicio, si hay una versión más nueva) y el comando a correr. Funciona sin el core; `--json`. `--fix` además compacta la base de datos de los chats y le devuelve el espacio al disco (necesita el core). |
 | `apx logs` | Las líneas más nuevas del log del core, a través del core: `-n 200`, `--level info\|warn\|error`, `--grep texto`, `--scope core\|output`, `--json`. Si ningún core responde, el archivo de esta computadora. |
 | `apx service logs` | El archivo de log de esta computadora (`<home>/logs/core.log`); `-n 100`, `-f` para seguirlo. |
 | `apx daemon` | Explica qué comando `apx service` usar (el core en segundo plano ahora es un servicio). |
@@ -80,8 +80,11 @@ aceptan `--json`. `apx status --plain` saca la tarjeta y el retrato.
 | `apx devices pair` | Igual que `apx pair`. |
 | `apx devices revoke <id>` | Revoca la llave de un dispositivo. |
 | `apx setup --headless` | Un servidor sin escritorio: servicio, importación opcional (`--import`), exposición opcional (`--expose tailscale` o `--expose lan`) y después un código para vincular. |
+| `apx export` | Esta configuración en un archivo sin secretos, para mover o respaldar APX. `--chats` suma los chats, `--rows` las filas de las tablas, `--out` le pone nombre al archivo. Ver [Mover o respaldar](/es/start/move-or-back-up/). |
+| `apx import <archivo>` | Qué agregaría, cambiaría o dejaría afuera importar una copia, qué llega apagado y las claves para agregar; `--yes` la importa. El mismo archivo dos veces no cambia nada. |
 | `apx import-v1` | Registra las carpetas de proyecto que conoce un APX v1 local (solo lee v1). `--keys` también copia sus claves de API de modelos, `--skills` sus skills, `--services` sus motores de imágenes y voces. |
 | `apx v1` | ¿Sigue APX v1 acá y corriendo? `apx v1 off` detiene su daemon para siempre y hace que `apx` sea este. |
+| `apx import hermes <folder>` | Qué se vuelve en APX una carpeta de Hermes (`~/.hermes`); `--yes` la importa ([Mudarse desde Hermes](/es/start/from-hermes/)). |
 
 `apx expose` edita `<home>/core.env` directamente; después reiniciá el core (`apx service restart`). `apx tailscale`
 pasa por el core que está corriendo, que se reinicia solo cuando corre bajo un supervisor como el servicio, y si no te
@@ -138,7 +141,7 @@ Hay dos tareas abiertas en Acme Store: el catálogo de primavera (en curso, Luc�
 | `apx agents clone <agent…>` | Copia agentes a un proyecto (`--project <id>`); `--rename` le da a cada uno un nombre libre, `--under <slug>` fija el padre. |
 | `apx agents archive <agent>` | Archiva un agente (el archivo de un agente de proyecto pasa a `.apc/agents/.archived/`). |
 | `apx agents archived` | Agentes archivados; `apx agents restore <agent>` trae uno de vuelta. |
-| `apx agents model <agent> <ref>` | Su modelo: `<engine>/<model>`, `<engine>`, `router` o `default`; `--router` deja el router como respaldo. |
+| `apx agents model <agent> <ref>` | Su modelo: `<engine>/<model>`, `<engine>`, `router` o `default`; `--router` deja el router como respaldo; `--fallbacks <ref>,<ref>` define sus modelos de respaldo en orden (`""` los borra). |
 | `apx projects [list]` | Los proyectos (un `!` marca una carpeta que no está). |
 | `apx projects register <folder>` | Registra una carpeta con `AGENTS.md` y/o `.apc/`. |
 | `apx projects create "<Name>"` | Un proyecto nuevo, en `--path <folder>` (se crea si falta) o en una carpeta propia en el home de APX; `--kind personal\|app\|company\|software\|other`, `--desc "…"`. |

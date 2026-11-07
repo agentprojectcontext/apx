@@ -4,19 +4,44 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import ts from "typescript-parser";
 import type { CoverageSourceMap, V8Script } from "./test-coverage.ts";
 
+type V8Function = V8Script["functions"][number];
+
+/** Folds one process's scripts in: per function range, the run that counted most (as many runs share a module). */
+function foldScripts(merged: Map<string, Map<string, V8Function>>, scripts: V8Script[]): void {
+  for (const script of scripts) {
+    const functions = merged.get(script.url) ?? new Map<string, V8Function>();
+    for (const fn of script.functions) {
+      const range = fn.ranges[0];
+      if (!range) continue;
+      const key = `${range.startOffset}:${range.endOffset}`;
+      const old = functions.get(key);
+      if (!old || range.count > (old.ranges[0]?.count ?? 0)) functions.set(key, fn);
+    }
+    merged.set(script.url, functions);
+  }
+}
+
+export function mergeScripts(scripts: V8Script[]): V8Script[] {
+  const merged = new Map<string, Map<string, V8Function>>();
+  foldScripts(merged, scripts);
+  return [...merged].map(([url, functions]) => ({ url, functions: [...functions.values()] }));
+}
+
+/** Every process's counters, merged file by file: a full run writes gigabytes, more than fit in memory at once. */
 export function readCoveragePayloads(directory: string): { scripts: V8Script[]; sourceMaps: CoverageSourceMap[] } {
-  const scripts: V8Script[] = [];
-  const sourceMaps: CoverageSourceMap[] = [];
+  const merged = new Map<string, Map<string, V8Function>>();
+  const sourceMaps = new Map<string, CoverageSourceMap>();
   for (const entry of fs.readdirSync(directory)) {
     if (!entry.endsWith(".json")) continue;
     const data = JSON.parse(fs.readFileSync(path.join(directory, entry), "utf8")) as {
       result: V8Script[];
       sourceMaps?: CoverageSourceMap[];
     };
-    scripts.push(...data.result);
-    sourceMaps.push(...(data.sourceMaps ?? []));
+    foldScripts(merged, data.result);
+    for (const map of data.sourceMaps ?? []) sourceMaps.set(map.url, map);
   }
-  return { scripts, sourceMaps };
+  const scripts = [...merged].map(([url, functions]) => ({ url, functions: [...functions.values()] }));
+  return { scripts, sourceMaps: [...sourceMaps.values()] };
 }
 
 /** Keep generated text and mappings together before another build can replace dist/. */

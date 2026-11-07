@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   /** darwin | win32 | linux — panel pads the unified title bar for traffic lights / overlay. */
   platform: process.platform,
   setBrowserBounds: (b: Bounds | null) => ipcRenderer.send("panel:browser-bounds", b),
+  browserFrame: (): Promise<unknown> => ipcRenderer.invoke("panel:browser-frame"),
   showBrowserTab: (tab: string) => ipcRenderer.send("panel:browser-tab", tab),
   /** The browser in a window of its own (true) or back in the side panel (false). */
   popOutBrowser: (open: boolean) => ipcRenderer.send("browser:popout", open === true),

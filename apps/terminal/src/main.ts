@@ -14,7 +14,9 @@ import { doctor, updateOffline } from "./commands/doctor.ts";
 import { expose } from "./commands/expose.ts";
 import { extensions } from "./commands/extensions.ts";
 import { flows } from "./commands/flows.ts";
+import { hermesImport } from "./commands/hermes-import.ts";
 import { init } from "./commands/init.ts";
+import { exportInstance, importInstance } from "./commands/instance.ts";
 import { localConnection } from "./commands/local.ts";
 import { logsCommand } from "./commands/logs.ts";
 import { mcpCommand } from "./commands/mcp.ts";
@@ -47,6 +49,7 @@ Usage:
   apx desktop             The desktop app (downloads and opens its installer when it is not here)
   apx upgrade [--check] [--json]   Check or apply the core's updater (a server install updates itself even when its core is down)
   apx doctor [--json]     Why the core does not answer on this machine, and what to run next
+  apx doctor --fix        Also trim old chat history the models no longer read and give the space back to the disk
   apx devices [list|pair|revoke <id>] [--json]
   apx tailscale [status|connect|off]   Expose APX through Tailscale (must already be logged in)
   apx mcp tools <server> [<tool>] [--project <id>] [--scope global|project] [--json]
@@ -54,6 +57,7 @@ Usage:
   apx mcp check <server> [--project <id>]   Connection test
   apx mcp signin <server> [--project <id>]  Sign in to a server that asked for it
   apx ping [text]         Round-trip over the live socket
+  apx chrome-host <origin>   Started by Chrome for APX's extension: lends its APX tab group to the core
 
   apx browser tabs
   apx browser open <url> [--profile shared|incognito|agent:<id>] [--by <agent>]
@@ -93,6 +97,8 @@ Usage:
   apx artifacts [list] [--project <id>] [--json]   Widgets and apps agents made
   apx artifacts push <name> <file.html> [--title t] [--app] [--connect <origin,…>] [--project <id>]   Show a built page
   apx artifacts dir <name> [--project <id>]   Where a built artifact keeps its source (created if missing)
+  apx export [--chats] [--rows] [--out <file>]   This setup as one file, without secrets (to move or back up APX)
+  apx import <file> [--yes]   What importing it would add or change; --yes imports it
   apx artifacts export <name> [--memory] [--out <file>] [--project <id>]   Save one as an .apxart file
   apx artifacts import <file.apxart> [--project <id>]   Load an .apxart file into this APX
   apx sessions projects codex|claude   Claude Code or Codex projects and chats on this computer
@@ -145,7 +151,7 @@ Usage:
                            Copy agents (whole definition) into a project; --rename gives each a new free name
   apx agents archive <agent>         Project agents: changes are written to .apc/agents/<slug>.md
   apx agents archived | restore <agent>   Archived agents, and bringing one back (deleting for good is in the app)
-  apx agents model <agent> <engine/model | engine | router | default> [--router]
+  apx agents model <agent> <engine/model | engine | router | default> [--router] [--fallbacks <ref>,<ref>]
                            An agent's model; --router keeps the router as its fallback
 
   apx models [--refresh]  Every engine and the models it offers (asked to the engine)
@@ -156,6 +162,9 @@ Usage:
 
   apx secrets [list] | set <name> (value on stdin) | rm <name>
   apx v1 [off]            Is APX v1 still here and running? off stops its daemon for good and makes apx this one
+  apx import hermes <folder> [--yes]
+                           What a Hermes home folder (~/.hermes) becomes in APX: agents, memory, skills,
+                           routines (off) and MCP servers. Secrets never come; --yes imports what it lists
   apx import-v1 [--keys] [--skills] [--services]
                            Import what a local APX v1 holds, from its files (read-only, v1 may be stopped):
                            projects, agents, memory, chats, channels, tasks, routines (off)… --keys also copies
@@ -208,6 +217,8 @@ function argumentsOf() {
       cwd: { type: "string" },
       write: { type: "string" },
       keys: { type: "boolean" },
+      chats: { type: "boolean" },
+      rows: { type: "boolean" },
       skills: { type: "boolean" },
       services: { type: "boolean" },
       refresh: { type: "boolean" },
@@ -223,6 +234,7 @@ function argumentsOf() {
       due: { type: "string" },
       start: { type: "string" },
       reviewer: { type: "string" },
+      parent: { type: "string" },
       every: { type: "string" },
       at: { type: "string" },
       pre: { type: "string" },
@@ -244,6 +256,7 @@ function argumentsOf() {
       yes: { type: "boolean", short: "y" },
       under: { type: "string" },
       router: { type: "boolean" },
+      fallbacks: { type: "string" },
       timeout: { type: "string" },
       run: { type: "boolean" },
       headless: { type: "boolean" },
@@ -261,6 +274,7 @@ function argumentsOf() {
       app: { type: "boolean" },
       connect: { type: "string" },
       memory: { type: "boolean" },
+      fix: { type: "boolean" },
     },
   });
 }
@@ -301,7 +315,7 @@ try {
       }
       break;
     case "doctor":
-      await doctor({ json: values.json });
+      await doctor({ json: values.json, ...(values.fix ? { fix: client } : {}) });
       break;
     case "devices":
     case "tailscale":
@@ -373,6 +387,7 @@ try {
         due: values.due,
         start: values.start,
         reviewer: values.reviewer,
+        parent: values.parent,
         title: values.title,
         desc: values.desc,
         descFile: values["desc-file"],
@@ -477,6 +492,13 @@ try {
     case "secrets":
       await secrets(client, rest);
       break;
+    case "export":
+      await exportInstance(client, { out: values.out, chats: values.chats, rows: values.rows });
+      break;
+    case "import":
+      if (rest[0] === "hermes") await hermesImport(client, rest[1], { yes: values.yes });
+      else await importInstance(client, rest[0], { yes: values.yes });
+      break;
     case "import-v1":
       await importV1(client, {
         keys: values.keys ?? false,
@@ -499,6 +521,17 @@ try {
     case "expose":
       await expose(rest[0]);
       break;
+    case "chrome-host": {
+      // Frames go to stdout: nothing else may print there.
+      const { runChromeHost } = await import("./chrome-host/host.ts");
+      await runChromeHost({
+        origin: rest[0],
+        io: { input: process.stdin, write: (frame) => process.stdout.write(frame) },
+        client: new ApxClient({ ...connection, client: { name: "apx-chrome", version: "0.0.0" } }),
+        corePort: new URL(connection.url).port || "80",
+      });
+      break;
+    }
     case "pair":
       await pair(client);
       break;

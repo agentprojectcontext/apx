@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { shell } from "electron";
 
-export type InstalledBrowser = { id: string; name: string };
+type InstalledBrowser = { id: string; name: string };
 type Found = InstalledBrowser & { launch: string };
 
 /** id · shown name · macOS app · Windows executable (under Program Files / LocalAppData) · Linux commands. */
@@ -79,8 +79,17 @@ export function isWebUrl(url: unknown): url is string {
   }
 }
 
-/** `browser` undefined = the system default. An unknown id or a non-web URL does nothing. */
+/** A mail to write (an email card's "Open"): only the system's mail app opens it. */
+function isMailUrl(url: unknown): url is string {
+  return typeof url === "string" && /^mailto:[^\s]*$/i.test(url);
+}
+
+/** `browser` undefined = the system default (a mailto: link: the mail app). An unknown id or another URL does nothing. */
 export async function openExternal(url: unknown, browser?: unknown): Promise<boolean> {
+  if (browser == null && isMailUrl(url)) {
+    await shell.openExternal(url);
+    return true;
+  }
   if (!isWebUrl(url)) return false;
   if (browser == null) {
     await shell.openExternal(url);

@@ -239,6 +239,138 @@ test("the app lends its browser to the core, and a tab opened through the core i
   await rpc("browser.close", { tab });
 });
 
+/** Where the main window's browser tab is: its bounds, and whether it paints over the panel or sits behind it. */
+async function tabView(): Promise<{
+  on: "top" | "behind";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} | null> {
+  return app.evaluate(({ BaseWindow }) => {
+    const win = BaseWindow.getAllWindows().find((w) => w.contentView.children.length > 0);
+    const kids = win?.contentView.children ?? [];
+    if (kids.length < 2) return null;
+    const full = win?.getContentBounds();
+    // The panel fills the window; the tab is the other view.
+    const i = kids.findIndex((k) => {
+      const b = k.getBounds();
+      return !(b.x === 0 && b.y === 0 && b.width === full?.width && b.height === full?.height);
+    });
+    const at = i < 0 ? 0 : i;
+    const view = kids[at];
+    if (!view) return null;
+    return { on: at === kids.length - 1 ? ("top" as const) : ("behind" as const), ...view.getBounds() };
+  });
+}
+
+test("the browser tab follows its slot, a popup over it shows a still, and a reloaded panel takes it back", async () => {
+  await until(async () => {
+    const h = await rpc<{ subsystems: Record<string, { status: string; detail?: string }> }>("system.health");
+    return h.subsystems.browser?.status === "ok" && h.subsystems.browser.detail === "apx-desktop";
+  }, 20_000);
+  const main = await page("main");
+  const url = `http://127.0.0.1:${process.env.E2E_CONTROL_PORT ?? 7461}/info`;
+  const { tab } = await rpc<{ tab: string }>("browser.open", { url, by: "e2e" });
+  const thread = await rpc<{ id: string }>("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "Browser slot",
+  });
+  await main.evaluate((hash) => {
+    location.hash = hash;
+  }, `#thread=${thread.id}&panel=browser`);
+  const slot = main.locator(".browser__page--native");
+  await expect(slot).toBeVisible();
+  // A dialog still open (the welcome, when this test runs alone) covers the page with its backdrop.
+  await main.keyboard.press("Escape");
+  await expect(main.getByRole("dialog")).toHaveCount(0);
+  const rect = async () =>
+    slot.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: Math.round(r.left), y: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) };
+    });
+  await expect.poll(tabView).toEqual({ on: "top", ...(await rect()) });
+
+  // A popup over the page: the live tab steps behind and a still of it holds the place.
+  await main.evaluate(() => {
+    const slot = document.querySelector(".browser__page--native")?.getBoundingClientRect();
+    const pop = document.createElement("div");
+    pop.setAttribute("role", "dialog");
+    pop.id = "e2e-popup";
+    Object.assign(pop.style, {
+      position: "fixed",
+      left: `${slot?.left ?? 0}px`,
+      top: `${slot?.top ?? 0}px`,
+      width: "120px",
+      height: "80px",
+    });
+    document.querySelector(".apx-portal")?.append(pop);
+  });
+  await expect.poll(async () => (await tabView())?.on).toBe("behind");
+  await expect(main.locator(".browser__frame")).toBeVisible();
+  await main.evaluate(() => document.getElementById("e2e-popup")?.remove());
+  await expect.poll(async () => (await tabView())?.on).toBe("top");
+
+  // A modal's backdrop covers the page even when the dialog itself sits elsewhere; so does a notice over it.
+  await main.evaluate(() => {
+    const backdrop = document.createElement("div");
+    backdrop.className = "apx-dialog__backdrop";
+    backdrop.id = "e2e-backdrop";
+    Object.assign(backdrop.style, { position: "fixed", inset: "0" });
+    document.querySelector(".apx-portal")?.append(backdrop);
+  });
+  await expect.poll(async () => (await tabView())?.on).toBe("behind");
+  await main.evaluate(() => document.getElementById("e2e-backdrop")?.remove());
+  await expect.poll(async () => (await tabView())?.on).toBe("top");
+  await main.evaluate(() => {
+    const slot = document.querySelector(".browser__page--native")?.getBoundingClientRect();
+    const list = document.createElement("div");
+    list.className = "toasts";
+    list.id = "e2e-notices";
+    // The list is what sits at the foot of the window: place it over the page.
+    Object.assign(list.style, {
+      position: "fixed",
+      left: `${slot?.left ?? 0}px`,
+      top: `${(slot?.bottom ?? 80) - 60}px`,
+      bottom: "auto",
+      width: "200px",
+      transform: "none",
+    });
+    const notice = document.createElement("div");
+    notice.className = "toast";
+    notice.textContent = "Saved";
+    list.append(notice);
+    document.querySelector(".shell")?.append(list);
+  });
+  await expect.poll(async () => (await tabView())?.on).toBe("behind");
+  await main.evaluate(() => document.getElementById("e2e-notices")?.remove());
+  await expect.poll(async () => (await tabView())?.on).toBe("top");
+
+  // The slot moves without changing size: the tab moves with it.
+  await main.evaluate(() => {
+    const side = document.querySelector<HTMLElement>(".sidepanel");
+    if (side) side.style.marginLeft = "-40px";
+  });
+  await expect.poll(tabView).toEqual({ on: "top", ...(await rect()) });
+  await main.evaluate(() => document.querySelector<HTMLElement>(".sidepanel")?.style.removeProperty("margin-left"));
+
+  // A slot left over from before a reload never keeps the tab over the page that loads.
+  await main.evaluate((hash) => {
+    location.hash = hash;
+  }, `#thread=${thread.id}`);
+  await expect(slot).toHaveCount(0);
+  await main.evaluate(() =>
+    (
+      window as { apxDesktop?: { setBrowserBounds(b: { x: number; y: number; width: number; height: number }): void } }
+    ).apxDesktop?.setBrowserBounds({ x: 40, y: 40, width: 400, height: 300 }),
+  );
+  await expect.poll(async () => (await tabView())?.on).toBe("top");
+  await main.reload();
+  await expect.poll(async () => (await tabView())?.on).toBe("behind");
+  await rpc("browser.close", { tab });
+});
+
 test("native tab destruction during CDP invalidation removes only that tab and the browser keeps working", async () => {
   await until(async () => {
     const h = await rpc<{ subsystems: Record<string, { status: string; detail?: string }> }>("system.health");

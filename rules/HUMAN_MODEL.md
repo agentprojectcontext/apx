@@ -13,6 +13,27 @@ boundary changes.
 | **desktop** | `apps/desktop` (`pnpm --filter @apx/desktop dev`) | Panel on the left, embedded browser on the right; connects to core as a **node** offering `browser`. | While the app is open. |
 | **mobile** | `apps/mobile` (Expo) | Operator + node (camera, notify). | App lifecycle. |
 
+The macOS Desktop build also carries an experimental private observation helper at `Resources/computer/observer`
+(outside ASAR); its Swift sources live in `apps/desktop/native/computer-observer`. Its observation mode remains
+experimental and unconnected; its private pointer mode serves the unreleased Desktop preview below. The helper is
+not included in the standalone daemon bundle. Building it requires macOS and Xcode command-line tools; installed
+apps do not compile it.
+
+The unreleased macOS pointer preview uses a persistent native indicator rather than Electron's cursor window.
+Its per-agent label comes from private `NodeComputerParams.cursorAgent` metadata: `rpc/computer.ts` derives the id
+from `ctx.agent` and the name from `store.agents`; public computer inputs remain strict and cannot claim an identity.
+All five computer operations forward that metadata; direct operators omit it and Desktop uses the action note or APX.
+The native 20-point white/green cursor uses a quadratic curve with a 20% perpendicular control offset and eased
+300–700 ms Core Animation travel. It retains glow, three twinkling sparks, a click ring and an 11-point rounded action
+label. It draws one overlay window per screen, since macOS shows a window spanning several displays on one only when each
+has its own Spaces. It stays between actions and hides on stop/disconnection. Windows keeps the Electron indicator.
+Only the drawn cursor travels. The explicit native accessible mode performs one AXPress without moving the physical
+pointer, validating the destination app/window/control, not origin, idle time or trajectory. Recognized web content
+and secure or unsupported controls refuse without physical fallback or uncertain retry. In the coordinate path a
+control without a press still gets a physical click (jump, click, pointer restored); Stop can end the wait for the
+owner's mouse but never splits mouse down from up, and cancels queued undelivered clicks.
+These are unreleased development contracts with bounded fixture evidence, not general product validation.
+
 Desktop supervises only a bundled child for its explicitly local home/port. URL and SSH connections never grant
 implicit lifecycle control over the server. Explicit remote updates use the owner-authenticated shared release plan:
 the core installs once, confirms its running target after restart, then Desktop clients may activate their own package.
@@ -112,8 +133,10 @@ settings (`integrations.settings` / `integrations.configure`, a `SETTINGS` entry
   (Telegram, WhatsApp, Discord, Slack, iMessage, email, Signal, Matrix, Mattermost) and enters through `threads.send`.
 - `apps/*` never import each other; `packages/*` never import `apps/*`.
 
-The top bar's AI usage panel calls owner-only `engines.usage`. The core probes CLI availability on its own
-computer and asks the local Codex app-server or Claude Code's structured `/usage` report for account rate-limit
+The top bar's AI usage panel and the super-agent share `engines.usage`. The panel reads the engines the owner turned
+on; the super-agent, when the owner asks, reads every detected engine (`all: true`, through `apx_settings`, so it costs
+the prompt nothing until used). Changing usage preferences remains owner-only. It can filter by engine id or
+provider/plan name, but the source identifies neither subscription tiers nor multiple accounts per engine. The core probes CLI availability on its own computer and asks the local Codex app-server or Claude Code's structured `/usage` report for account rate-limit
 metadata, with bounded child lifetimes, validated windows and a short shared cache. Claude requires version 2.1.273
 or later and runs isolated with safe mode, zero model turns, no session persistence, hooks, tools or MCP servers.
 Only global session and weekly limits are used; model-specific quotas are not substituted. It starts no model turn
@@ -137,11 +160,20 @@ signature is preserved after disconnection. Gmail's signature is edited in integ
 deadline, A2A-shaped states, usage), steps (one per tool call, written before it runs), surfaces (+ share tokens),
 idempotency, and the rest of the product's records (persons and their addresses, channel inbox/outbox, tasks, routines,
 memories, notifications, devices, extensions, nudges, suggestions, media); `db/migrations.ts` is the list, `db/schema.ts`
-the generated types. Channel photos/documents and voice notes enter through `threads.send` as persisted uploads; image references reach
+the generated types. Finished runs are trimmed to what every view of their chat already reads, and the file gives
+freed pages back (`engine/store-retention.ts`, [D-200](DECISIONS.md#d-200)). Channel photos/documents and voice notes enter through `threads.send` as persisted uploads; image references reach
 vision models and the panel shows attachments from both sides. Owner uploads are copied into an ignored
 `.apx-attachments/upload-*` folder inside the turn work directory so file tools can inspect PDFs and other
 documents. Contact uploads stay in their sealed chat and never get a shared work-folder copy. Voice uploads stay
 playable beside their words, even if transcription fails; `media.transcribe` can reuse the uploaded file by id.
+Generated pictures carry an optional `tool_call_id` on their image part, supplied by `make_image` from the
+executing tool context. The panel groups only matching pictures from agent messages in the same run into the call's
+stable inline slot, including when an owner reply splits that run across messages. Cubes remain until the media
+loads, then the same container resizes and reveals the existing image grid.
+Reduced motion disables the transition. A failed media load stops the cubes and offers a retry without generating
+again. Historical and unrelated pictures keep the ordinary media layout; no
+new media endpoint, permission, persistence table or tool-result parsing is involved.
+
 Agents share local project files through `send_file` → `media.attach`: a snapshot, at most 20 MB, scoped to
 their running owner's chat and work folder. Images appear inline; video/audio files play and download in the
 panel. Attachments survive changes to the source file and a chat reload.
@@ -295,7 +327,11 @@ notice when there is no text. Tools that touch core state call protocol methods 
   a project folder; opening an owner's shell and browsing files still need a folder.
 - **Terminal jobs** (`engine/jobs.ts`): the `shell` tool runs commands in the project's folder; background ones
   are `jobs` rows with an output file, and their end wakes the agent.
-- **Steer**: `threads.send` with `mode: "steer"` puts the owner's text into the running turn at its next step.
+- **Steer**: `threads.send` with `mode: "steer"` puts the owner's text into the running turn at its next step; the
+  message carries `waiting: {until: "step"}` until the loop takes it. `runs.send_now` cuts the step in progress
+  (`TurnIO.stepSignal`) so the loop takes it at once; `runs.unsend` takes a waiting message back before it is read. `mode: "queue"` while a turn works puts the message in line
+  (`waiting: {until: "turn", run}`), ordered by `runs.queue_order`; `runs.update_queued`, `runs.reorder` and
+  `runs.remove_queued` change it until the run starts (`engine/waiting.ts`, [D-186](DECISIONS.md#d-186)).
 
 On start, `engine/recovery.ts` closes runs a crash cut (effect UNKNOWN for started tools), expired inputs and cut
 jobs are closed, and queued runs are picked up.

@@ -27,8 +27,10 @@ import type { Handlers } from "./router.ts";
 export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, tools: readonly Tool[] = []) {
   /** A choice that names a model nothing can run is refused when it is set, not on every turn after. */
   const checkChoice = (c: ModelChoice | null | undefined) => {
-    const why = c?.model ? refProblem(c.model, engines) : undefined;
-    if (why) throw badRequest(why);
+    for (const ref of [c?.model, ...(c?.fallbacks ?? [])]) {
+      const why = ref ? refProblem(ref, engines) : undefined;
+      if (why) throw badRequest(why);
+    }
   };
   /** The folder of a project agent's project, or a clear refusal. */
   const rootOf = (projectId: string): string => {

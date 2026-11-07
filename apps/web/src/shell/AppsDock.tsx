@@ -1,5 +1,5 @@
 import type { SurfaceSummary } from "@apx/protocol";
-import { ContextMenu, IconButton, Icons, NavItem, Popover, ProjectTile, SearchField } from "@apx/ui";
+import { ContextMenu, IconButton, Icons, NavItem, Popover, SearchField } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { setSurfaceFlags } from "../data/actions.ts";
 import { projectName } from "../data/identity.ts";
@@ -14,6 +14,7 @@ import { createArtifact } from "../surfaces/widgetChatActions.ts";
 import { go, useNav } from "./nav.ts";
 import { SidebarSection } from "./SidebarSection.tsx";
 import "../styles/artifacts.css";
+import { KindTile, kindLabel, kindOf } from "../surfaces/artifactKind.tsx";
 
 /** Folds accents and case, so "estadisticas" finds "Estadísticas". */
 const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -35,7 +36,7 @@ export function AppsDock({ rail }: { rail: boolean }) {
   const pinned = useMemo(
     () =>
       Object.values(surfaces)
-        .filter((s) => s.app)
+        .filter((s) => s.in_apps)
         .sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
     [surfaces],
   );
@@ -45,7 +46,7 @@ export function AppsDock({ rail }: { rail: boolean }) {
     if (view === "app" && appId && !ids.includes(appId)) ids.push(appId);
     return ids.flatMap((id) => {
       const s = surfaces[id];
-      return s && !s.app ? [s] : [];
+      return s && !s.in_apps && !s.page ? [s] : [];
     });
   }, [runningIds, surfaces, view, appId]);
 
@@ -62,7 +63,7 @@ export function AppsDock({ rail }: { rail: boolean }) {
         collapsed={rail}
         icon={
           <span className="appsdock__icon">
-            <ProjectTile tone="violet" icon={<Icons.LayoutGrid />} />
+            <KindTile kind={kindOf(a)} />
             {/* The rail hides trailing content, so there the dot sits on the icon. */}
             {rail && running.has(a.id) && <span className="navitem__running appsdock__dot" />}
           </span>
@@ -85,7 +86,9 @@ export function AppsDock({ rail }: { rail: boolean }) {
         rail={rail}
         title={t("nav.apps")}
         action={
+          // In the rail "+" leads the card, like every section's.
           <span className="appsdock__actions">
+            {rail && <AppLauncher running={running} />}
             <IconButton
               size="sm"
               className="sidebar__add"
@@ -93,37 +96,38 @@ export function AppsDock({ rail }: { rail: boolean }) {
               icon={<Icons.Upload size={14} />}
               onClick={() => openInstall()}
             />
-            <AppLauncher running={running} />
+            {!rail && <AppLauncher running={running} />}
           </span>
         }
-      />
-      {pinned.map(item)}
-      {loose.length > 0 && pinned.length > 0 && <hr className="appsdock__sep" />}
-      {loose.map((a) => (
-        <div key={a.id} className="appsdock__loose">
-          {item(a)}
-          {!rail && (
-            <span className="appsdock__looseactions">
-              <IconButton
-                size="sm"
-                label={t("widget.installApp")}
-                icon={<Icons.Pin size={14} />}
-                onClick={() => void setSurfaceFlags(a.id, { app: true })}
-              />
-              <IconButton
-                size="sm"
-                className="appsdock__close"
-                label={t("artifact.closeApp")}
-                icon={<Icons.X size={14} />}
-                onClick={() => {
-                  dropLive(a.id);
-                  if (view === "app" && appId === a.id) go.inbox();
-                }}
-              />
-            </span>
-          )}
-        </div>
-      ))}
+      >
+        {pinned.map(item)}
+        {loose.length > 0 && pinned.length > 0 && <hr className="appsdock__sep" />}
+        {loose.map((a) => (
+          <div key={a.id} className="appsdock__loose">
+            {item(a)}
+            {!rail && (
+              <span className="appsdock__looseactions">
+                <IconButton
+                  size="sm"
+                  label={t("widget.installApp")}
+                  icon={<Icons.Pin size={14} />}
+                  onClick={() => void setSurfaceFlags(a.id, { in_apps: true })}
+                />
+                <IconButton
+                  size="sm"
+                  className="appsdock__close"
+                  label={t("artifact.closeApp")}
+                  icon={<Icons.X size={14} />}
+                  onClick={() => {
+                    dropLive(a.id);
+                    if (view === "app" && appId === a.id) go.inbox();
+                  }}
+                />
+              </span>
+            )}
+          </div>
+        ))}
+      </SidebarSection>
       {memory && <ArtifactMemoryDialog surface={memory} onClose={() => setMemoryOf(undefined)} />}
       {props && <ArtifactPropertiesDialog surface={props} onClose={() => setPropsOf(undefined)} />}
     </>
@@ -194,15 +198,16 @@ function AppLauncher({ running }: { running: ReadonlySet<string> }) {
               role="option"
               aria-selected={false}
               className="appsdock__row"
-              data-pinned={s.app || undefined}
+              data-pinned={s.in_apps || undefined}
               onClick={() => launch(s)}
             >
-              <Icons.LayoutGrid size={14} />
+              <KindTile kind={kindOf(s)} size={18} />
               <span className="appsdock__name">
                 {s.title}
                 <small>
-                  {projectName(projects, s.project_id)} · {t(s.app ? "artifact.kindApp" : "artifact.kindWidget")}
-                  {s.app ? ` · ${t("artifact.pinned")}` : ""}
+                  {projectName(projects, s.project_id)} · {kindLabel(kindOf(s), t)}
+                  {/* An app is one wherever it is; a widget or page says when it is kept in Apps. */}
+                  {s.in_apps && !s.app ? ` · ${t("artifact.pinned")}` : ""}
                 </small>
               </span>
               {running.has(s.id) && <span className="navitem__running" title={t("artifact.running")} />}

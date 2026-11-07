@@ -43,6 +43,18 @@ test("a foreign web page cannot open the socket", async () => {
   assert.equal(outcome, "refused");
 });
 
+test("panel HTML permits only same-origin and the APX Chrome extension to frame it", async () => {
+  for (const pathname of ["/", "/?quick", "/index.html", "/nonexistent-panel-route"]) {
+    const response = await fetch(`${core.url}${pathname}`);
+    assert.equal(response.status, 200);
+    assert.equal(
+      response.headers.get("content-security-policy"),
+      "frame-ancestors 'self' chrome-extension://jiffjibeffjmombaholpgbnfdajpfigm",
+    );
+    assert.equal(response.headers.get("x-frame-options"), null);
+  }
+});
+
 test("malformed paths do not crash the core and cannot escape the panel folder", async () => {
   assert.equal((await fetch(`${core.url}/%`)).status, 404);
   const escaped = await fetch(`${core.url}/..%2f${path.basename(dist)}-old%2fsecret.txt`);

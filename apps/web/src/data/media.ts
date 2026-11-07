@@ -18,6 +18,14 @@ export function mediaUrl(id: string): Promise<string> {
   return p;
 }
 
+/** Saves a media file APX holds to the person's downloads, under its own name. */
+export async function downloadMedia(id: string, name: string): Promise<void> {
+  const a = document.createElement("a");
+  a.href = await mediaUrl(id);
+  a.download = name;
+  a.click();
+}
+
 const widgetCache = new Map<string, Promise<Blob>>();
 /** Files kept for widgets that redraw (a theme change reloads the frame); the oldest go first. */
 const WIDGET_CACHE_MAX = 24;

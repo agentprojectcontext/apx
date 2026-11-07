@@ -1,9 +1,11 @@
 // Any CLI that speaks the Agent Client Protocol as a harness: one process per turn in the thread's folder, its own
 // session resumed when the agent can, APX tools through the per-run MCP proxy, its permission requests through our
 // policy, its own tool calls shown as cards.
+import type { PlanStep } from "@apx/protocol/task-plan";
 import { engineOf } from "../../domain/refs.ts";
 import type { Usage } from "../../providers/types.ts";
 import type { McpCommand } from "../codex.ts";
+import { enginePlan } from "../engine-plan.ts";
 import { type Harness, modelPart, type TurnIO, type TurnOutcome } from "../types.ts";
 import { type AcpAgent, acpEngine, openSession } from "./agents.ts";
 import { RpcError } from "./rpc.ts";
@@ -18,6 +20,21 @@ type ToolUpdate = {
   status?: string;
   rawInput?: unknown;
   content?: Array<{ type?: string; content?: { type?: string; text?: string } }>;
+};
+
+type PlanEntry = { content?: unknown; status?: unknown };
+const STATE: Record<string, PlanStep["state"]> = { completed: "done", in_progress: "doing" };
+
+/** An ACP `plan` update, or a to-do tool's list (the whole plan each time), as steps; a dropped step is left out. */
+const acpSteps = (entries: unknown): PlanStep[] =>
+  (Array.isArray(entries) ? (entries as PlanEntry[]) : [])
+    .filter((e) => e?.status !== "cancelled")
+    .map((e) => ({ step: String(e?.content ?? ""), state: STATE[String(e?.status)] ?? "pending" }));
+
+/** A to-do tool's list in a tool call's input (OpenCode's todowrite sends no `plan` update). */
+const todosOf = (t: ToolUpdate): unknown[] | undefined => {
+  const todos = (t.rawInput as { todos?: unknown } | null | undefined)?.todos;
+  return Array.isArray(todos) ? todos : undefined;
 };
 
 const textOf = (u: ToolUpdate) =>
@@ -50,6 +67,9 @@ export function acpHarness(opts: {
       const titles = new Map<string, { title: string; kind: string }>();
       // How full its context is, when the agent says (`usage_update`).
       let context: { used?: number; size?: number } = {};
+      const plan = enginePlan(io);
+      // Its to-do tool's calls: shown as the plan, not as cards of their own.
+      const todoCalls = new Set<string>();
       const session = await openSession(agent, {
         apxAgent: io.agent.id,
         binary,
@@ -75,12 +95,21 @@ export function acpHarness(opts: {
               said += c.text;
               io.onText(said);
             }
+          } else if (kind === "plan") {
+            // Its own plan is APX's plan: the checklist under the answer, and a task's plan in its work chat.
+            plan.update(acpSteps(u.entries));
           } else if (kind === "usage_update") {
             context = u as { used?: number; size?: number };
           } else if (kind === "tool_call" || kind === "tool_call_update") {
             if (kind === "tool_call") said = "";
             const t = u as ToolUpdate;
             if (!t.toolCallId) return;
+            const todos = todosOf(t);
+            if (todos) {
+              todoCalls.add(t.toolCallId);
+              plan.update(acpSteps(todos));
+            }
+            if (todoCalls.has(t.toolCallId)) return;
             const known = titles.get(t.toolCallId);
             const title = t.title ?? known?.title ?? "tool";
             const tk = t.kind ?? known?.kind ?? "other";
@@ -137,6 +166,7 @@ export function acpHarness(opts: {
             }),
           ]);
           io.signal.throwIfAborted();
+          await plan.settled();
           if (r.stopReason === "refusal") throw new Error(`${agent.label} refused to answer`);
           return {
             // The answer is what it said last; the earlier segments are already above their tool cards.

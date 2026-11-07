@@ -3,13 +3,15 @@
 import type { Message as Msg, Thread } from "@apx/protocol";
 import { Button, Dialog, IconButton, Icons, Message, Textarea } from "@apx/ui";
 import { type ReactNode, useState } from "react";
+import { useVia, ViaMark } from "../channels/MessageMarks.tsx";
 import { isWorking } from "../data/identity.ts";
 import { rewindThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
 import { MessageActions } from "./MessageActions.tsx";
+import { SendNowButton, TakenMark, UnsendButton, useTaken } from "./WaitingMessage.tsx";
 
 /** Whether this chat can go back: nothing running, not a channel's chat (delivered), not an engine session. */
-export function canRewind(thread: Thread): boolean {
+function canRewind(thread: Thread): boolean {
   return (
     !thread.channel &&
     !thread.engine &&
@@ -87,6 +89,8 @@ export function UserMessage({
   const [draft, setDraft] = useState<string>();
   const { ask, dialog } = useConfirm();
   const pending = message.id.startsWith("local_");
+  const via = useVia(thread, message);
+  const taken = useTaken(message);
   const send = () => {
     const next = draft?.trim();
     if (!next || next === text.trim()) return setDraft(undefined);
@@ -103,6 +107,18 @@ export function UserMessage({
       variant={draft === undefined ? "bubble" : "bare"}
       className={cx(pending && "is-pending", draft !== undefined && "is-editing")}
       reactions={draft === undefined ? reactions : undefined}
+      // Where it came in from (or went out on) stays in sight, unlike the controls; so do "Send now" and "Remove" while
+      // the agent has not taken it.
+      meta={
+        draft === undefined && (via || message.waiting || taken) ? (
+          <>
+            {via && <ViaMark thread={thread} message={message} />}
+            {message.waiting && <SendNowButton message={message} />}
+            {message.waiting && !pending && <UnsendButton message={message} />}
+            {taken && <TakenMark />}
+          </>
+        ) : undefined
+      }
       actions={
         draft === undefined ? (
           <MessageActions thread={thread} message={message} text={text} speechKey={message.id} speak={false}>

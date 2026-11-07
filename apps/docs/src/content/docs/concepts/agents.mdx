@@ -1,7 +1,8 @@
 ---
-title: Agents
-description: Who works for you in APX, how each agent is a markdown file, and how they hand work to each other.
+title: Build an AI agent team for each project
+description: Create project-specific AI agents with roles, instructions and tools. Keep their definitions in readable files alongside your project.
 sidebar:
+  label: Agents
   order: 1
 ---
 
@@ -11,8 +12,28 @@ import Terminal from "../../../components/Terminal.astro";
 import Blob from "../../../components/Blob.astro";
 
 
-An agent is someone on your crew: a name, a face, a role, a set of instructions and the tools it may use. Some work
-with you everywhere, some belong to one project, and some exist for a single errand and then disappear.
+A project often needs more than one kind of work: research, development, review or operations. In APX, give agents
+distinct roles inside a project and let them hand work to one another. Follow the work in project chats and
+[tasks](/office/tasks/). A project can be a software repository, a business or another folder where work happens.
+
+An agent has a name, a face, a role, instructions and tools it may use. For example, a researcher can examine options,
+a developer can implement a change and a reviewer can check it. These are roles you configure, not a promise that a
+task succeeds without review. Start from the project's **Agents** tab to create an agent or import a template.
+
+## Keep project context with the work
+
+APX projects follow [APC (Agent Project Context)](/concepts/projects/): a root `AGENTS.md` and an `.apc/` folder.
+Project agent definitions live in individual Markdown files under `.apc/agents/`. Shared instructions, curated notes
+and project skills can be read and versioned alongside the work.
+
+APX keeps chats, runs, tasks, routines and notes in its local database. Project files are the source of truth for
+agent definitions; a repository is not a replacement for runtime history.
+
+Configure each agent's [autonomy and tools](/concepts/autonomy/) to fit the job. External messages and web pages are
+data, not authority to act. APX runs on your computer or your own server, but connected cloud models still receive
+what each request needs; local APX does not mean offline cloud inference.
+
+Some agents work with you everywhere, some belong to one project, and some exist for a single errand.
 
 <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", alignItems: "center", margin: "1.5rem 0" }}>
   <Blob name="menta" size={56} bob />
@@ -198,17 +219,31 @@ project's type becomes **Company** when you add them. Agents read them, so Lucí
 
 An agent with the `delegate` tool can hand a task to a standing agent ("ask Tomás to fix the checkout") or start a
 **worker**: a helper it defines on the spot with a name, instructions and, optionally, a shorter list of tools. A
-worker runs on its caller's model, gets no personality and no roster, asks nobody else and reports back.
+worker runs on its caller's model, gets no personality and no roster, asks nobody else and reports back. In the inbox and
+the chat a worker shows a helper mark, with the agent that started it as a small badge, so it never looks like that
+agent talking to itself. Asking a worker of the same name again from the same chat goes on in its session, with the
+instructions it was first given; one still at work stays apart.
 
 The answer comes back inside the same turn if it is quick, or later as a new turn that wakes the caller. The chat
 shows a card with the progress, the whole report (folded until you open it) and how long it took.
+
+A delegated agent does not answer "on it" first: it does the work and replies once, ending with the same four
+lines every time (Status: done or blocked, Result, Evidence: what its tools showed, Unblock: what it needs, or none).
+It never hands the task back to whoever asked for it. With you, agents answer directly, without restating your
+question.
+
+When an agent asks two or more helpers in the same turn, their answers reach it together: each card that is in says
+**Waiting for answers: 2 of 3**, and once the last one answers the agent gets a single turn with all of them, so it
+tells you once instead of three times. It waits at most 10 minutes after the first answer; past that it reads the ones
+that are in, and any that come later arrive one by one, as before. Stopping the chat lets go of what was waiting: the
+answers stay on their cards. A single delegation is not held.
 
 APX keeps delegation on a leash:
 
 | Limit | Value |
 |---|---|
 | How deep delegations nest | 1 (your agent → a helper; the helper does the work itself and asks nobody else) |
-| Delegations running at once from one chat | 3 |
+| Delegations running at once from one chat | 2 (the next ones wait their turn) |
 | Time a delegated run may go without progress | 6 minutes; a command still running counts as progress |
 | Time one delegated run may work, progress or not | 2 hours |
 | Turns agents start on their own without you | No limit by default: they finish what you asked. Turn limits on under **When agents work on their own** (it starts from 100 turns or 5,000,000 fresh tokens; what a provider reads from its cache does not count) and the chain pauses there until you write |

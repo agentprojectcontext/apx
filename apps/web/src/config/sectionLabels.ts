@@ -16,5 +16,7 @@ export const CONFIG_SECTION_LABELS: Partial<Record<ConfigSection, MessageKey>> =
   desktop: "config.desktop",
   devices: "config.devices",
   advanced: "config.advanced",
+  storage: "config.storage",
+  move: "config.move",
   logs: "config.logs",
 };

@@ -174,6 +174,7 @@ function SignatureEditor({ initialTarget }: { initialTarget?: Target }) {
                   className="sig__preview"
                   title={t("signature.preview")}
                   sandbox=""
+                  // ui: an email is read on white, whatever the panel's theme.
                   srcDoc={`<!doctype html><meta charset="utf-8"><style>body{margin:12px;font:14px/1.45 system-ui,sans-serif;color:#222;background:#fff}img{max-width:100%}</style>${draft.html}`}
                 />
               )}

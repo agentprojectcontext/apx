@@ -13,14 +13,14 @@ const START_TIMEOUT_MS = 60_000;
 const IDLE_MS = 10 * 60_000;
 
 /** A model path as the owner wrote it ("~/models/ggml-small.bin" works). */
-export const modelPath = (p: string) => path.resolve(p.startsWith("~/") ? path.join(os.homedir(), p.slice(2)) : p);
+const modelPath = (p: string) => path.resolve(p.startsWith("~/") ? path.join(os.homedir(), p.slice(2)) : p);
 
 /** The program by absolute path, or the first one found (PATH, then where package managers put it). */
 const binary = (command: string): string | undefined =>
   path.isAbsolute(command) ? (fs.existsSync(command) ? command : undefined) : findProgram(command);
 
 /** Threads for whisper on a CPU: most cores, leaving room for the rest of the machine. */
-export const whisperThreads = (cpus = os.cpus().length) => Math.max(2, Math.min(8, cpus - 2));
+const whisperThreads = (cpus = os.cpus().length) => Math.max(2, Math.min(8, cpus - 2));
 
 const freePort = () =>
   new Promise<number>((resolve, reject) => {

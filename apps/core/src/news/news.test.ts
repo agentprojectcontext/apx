@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { createBus } from "../bus.ts";
 import { buttonId, parseButton } from "../channels/notices.ts";
-import { openDb } from "../db/db.ts";
+import { openDb, type StoreSize } from "../db/db.ts";
 import type { Presentation } from "../domain/channels.ts";
 import { seed } from "../domain/seed.ts";
 import { createStore, type Store } from "../domain/store.ts";
@@ -20,7 +20,15 @@ const SOME_NEWS = NEWS.filter((e) =>
   ["artifacts-kit", "google", "mail-alerts", "channel-hours", "more-apps", "more-channels"].includes(e.id),
 );
 
-function setup(o: { entries?: readonly NewsEntry[]; models?: string[]; fail?: boolean; noGoogle?: boolean } = {}) {
+function setup(
+  o: {
+    entries?: readonly NewsEntry[];
+    models?: string[];
+    fail?: boolean;
+    noGoogle?: boolean;
+    storeSize?: () => StoreSize;
+  } = {},
+) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-news-"));
   const db = openDb(home);
   const store = createStore(db, createBus());
@@ -42,6 +50,7 @@ function setup(o: { entries?: readonly NewsEntry[]; models?: string[]; fail?: bo
     },
     log: quiet,
     entries: o.entries ?? SOME_NEWS,
+    ...(o.storeSize ? { storeSize: o.storeSize } : {}),
   });
   const done = () => {
     db.close();
@@ -66,6 +75,26 @@ const entry = (id: string, since = "2.7.3"): NewsEntry => ({
     { label: { en: `Do ${id}`, es: `Hacer ${id}` }, prompt: `Please do ${id}.` },
     { label: { en: `Other ${id}`, es: `Otro ${id}` }, prompt: `Other ${id}.` },
   ],
+});
+
+test("compacting the chats' file is told only while a big store keeps its free space", async () => {
+  const compact = NEWS.find((item) => item.id === "store-compact");
+  assert.ok(compact);
+  const GB = 1024 ** 3;
+  let size: StoreSize = { bytes: 4 * GB, free_bytes: GB, incremental: false };
+  const { store, news, done } = setup({ entries: [compact], storeSize: () => size });
+  try {
+    ownerWrote(store);
+    assert.equal(compact.applies(newsFacts(store)), false, "no size known, nothing told");
+    assert.equal(compact.applies(newsFacts(store, { storeSize: { ...size, bytes: 100 * 1024 * 1024 } })), false);
+    assert.equal(compact.applies(newsFacts(store, { storeSize: { ...size, incremental: true } })), false);
+    size = { ...size, incremental: true };
+    assert.deepEqual((await news.atBoot("2.12.5")).told, [], "a compacted store is not told");
+    size = { ...size, incremental: false };
+    assert.deepEqual((await news.atBoot("2.12.5")).told, [compact.id]);
+  } finally {
+    done();
+  }
 });
 
 test("public ingress news applies to widget or channel owners and is told once without publishing anything", async () => {

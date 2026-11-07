@@ -1,8 +1,8 @@
 // The tools a turn may use: the agent's, narrowed by its callers, its chat (a contact's, the computer, a phone chat)
 // and what is turned on; MCP's join behind the bridge on first use, and never in a contact's turn.
-import { BROWSER_CAP } from "@apx/protocol";
+import { BROWSER_CAP, CHROME_CAP } from "@apx/protocol";
 import { memorySettings } from "../domain/memory-settings.ts";
-import { answersChecked, type Origin } from "../domain/runs.ts";
+import { answersChecked, inChrome, type Origin, ownerAsked } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
 import { STICKER_TOOL, stickersFor } from "../tools/directory.ts";
@@ -17,7 +17,7 @@ import { MAX_DEPTH } from "./limits.ts";
 import type { Turn, TurnDeps } from "./turn.ts";
 
 /** What only a caller may use: a delegate asks no one (DECISIONS.md#d-074). */
-const SESSION_TOOLS = new Set(["delegate", "list_sessions", "stop_session"]);
+const SESSION_TOOLS = new Set(["delegate", "list_sessions", "stop_session", "start_session"]);
 const MEMORY_TOOLS = new Set(["remember", "recall", "forget", "search_owner_notes"]);
 /**
  * The owner's turns on WhatsApp keep notes, write to people and rooms, and hand the rest off: a phone chat is no place
@@ -114,6 +114,12 @@ const VM_HOST_TOOLS = new Set([
 /** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; a contact's, by their flags. */
 export async function turnTools(deps: TurnDeps, turn: Turn) {
   const inVm = deps.vm?.hasThread(turn.thread.id);
+  // Browser tools are offered with no other browser in a turn from APX's panel in Chrome, and in the owner's own turn
+  // while their Chrome is connected: those can browse there.
+  const askedIn = (id: string) => deps.store.runs.get(deps.store.inputs.get(id)?.run_id ?? "")?.input?.origin;
+  const chrome =
+    inChrome(turn.input.origin, askedIn) ||
+    (Boolean(deps.hasCap?.(CHROME_CAP)) && ownerAsked(turn.input.origin, askedIn));
   // Offered only to an agent the owner allowed: one without it never asks to use it (DECISIONS.md#d-154).
   const computerOn = Boolean(deps.vm?.serves(turn.thread.id) && deps.vm.permitted(turn.agent.id, turn.thread.id));
   const sealed = turn.audience.kind === "contact";
@@ -146,7 +152,7 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
           : !inVm || t.name === "shell" || VM_BROWSER_TOOLS.has(t.name) || VM_HOST_TOOLS.has(t.name)) &&
       (memoryOn || !MEMORY_TOOLS.has(t.name)) &&
       (imessageOn || !IMESSAGE_TOOLS.has(t.name)) &&
-      (!t.needsCap || (inVm && t.needsCap === BROWSER_CAP) || Boolean(deps.hasCap?.(t.needsCap))) &&
+      (!t.needsCap || ((inVm || chrome) && t.needsCap === BROWSER_CAP) || Boolean(deps.hasCap?.(t.needsCap))) &&
       (!t.when || t.when(turn.thread)),
   );
   // A contact's turn gets only what the owner allowed for that person (nothing by default); the owner's turns never

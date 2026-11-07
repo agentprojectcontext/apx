@@ -11,6 +11,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { LAYOUT } from "../shell/layout.ts";
 import { attachLive, detachLive, useLiveHeight } from "./livePool.ts";
+import { PageFrame } from "./PageFrame.tsx";
 import { bridgeCall, buildSrcdoc, themeCss } from "./srcdoc.ts";
 
 /** Minimum gap between two sendPrompt() calls from one widget. */
@@ -20,7 +21,7 @@ const MEDIA_MAX = 40;
 /** A widget's state changes are merged and saved at most this often, whatever it sends. */
 const STATE_GAP_MS = 500;
 /** An app shown inline (in a chat) gets a window of its own height: it fills its viewport rather than grow. */
-export const APP_INLINE_H = 640;
+const APP_INLINE_H = 640;
 /** Bridge calls (store, db, fetch) one page may have waiting at once. */
 const CALLS_MAX = 16;
 
@@ -39,7 +40,17 @@ export type SurfaceFrameProps = {
  */
 export function SurfaceFrame(props: SurfaceFrameProps) {
   const doc = useData((s) => s.surfaceDocs[props.surfaceId]);
-  const keepMs = useMemo(() => (doc ? declaresLive(doc.html) : undefined), [doc]);
+  const page = useData((s) => s.surfaces[props.surfaceId]?.page ?? s.surfaceDocs[props.surfaceId]?.page ?? false);
+  const keepMs = useMemo(() => (doc && !page ? declaresLive(doc.html) : undefined), [doc, page]);
+  // A web page is shown as a browser shows it, wherever it is placed.
+  if (page)
+    return (
+      <PageFrame
+        surfaceId={props.surfaceId}
+        fit={props.fit ?? "content"}
+        {...(props.maxHeight ? { maxHeight: props.maxHeight } : {})}
+      />
+    );
   if (props.open) return <LivePlaceholder {...props} keepMs={Number.POSITIVE_INFINITY} />;
   if (keepMs !== undefined) return <LivePlaceholder {...props} keepMs={keepMs} />;
   return <FrameView {...props} />;

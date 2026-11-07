@@ -184,6 +184,21 @@ test("edits change the latest draft, place new steps beside theirs and say why i
   assert.equal((await doc(id)).draftVersion, 4);
 });
 
+test("an AI step whose prompt names placeholders can run, and the agent hears they reach the model as written", async () => {
+  const id = madeId((await h.ask(leads())).answer);
+  const edit = (edits: object[]) => h.ask({ method: "flows.draft_save", params: { flow: id, edits } });
+  const step = { kind: "agent", id: "think", label: "Think", agent: "superagent", prompt: "Sum up $steps.save.row." };
+  const named = (await edit([{ op: "add", after: "hook", step }])).answer;
+  assert.match(
+    named,
+    /It can run as drawn[^\n]*\n\nCheck before publishing:\n- step "think" \(Think\): its prompt names \$steps\.save\.row, /,
+  );
+  assert.match((await h.ask({ method: "flows.validate", params: { flow: id } })).answer, /Check before publishing/);
+  const plain = (await edit([{ op: "update", step: "think", set: { prompt: "Sum up the row." } }])).answer;
+  assert.match(plain, /It can run as drawn/);
+  assert.doesNotMatch(plain, /Check before publishing/);
+});
+
 test("a whole drawing needs the version it was read at, so the owner's newer save is never overwritten", async () => {
   const id = madeId((await h.ask(leads())).answer);
   const read = JSON.parse((await h.ask({ method: "flows.graph_get", params: { flow: id } })).answer);

@@ -17,7 +17,7 @@ export type PanelKind =
   | "processes"
   | "document";
 
-export type View =
+type View =
   | "inbox"
   | "project"
   | "app"
@@ -61,6 +61,8 @@ export const CONFIG_SECTIONS = [
   "devices",
   "api",
   "advanced",
+  "storage",
+  "move",
   "logs",
 ] as const;
 export type ConfigSection = (typeof CONFIG_SECTIONS)[number];

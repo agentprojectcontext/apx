@@ -18,7 +18,7 @@ const LIVE: ReadonlySet<Run["state"]> = new Set(["queued", "submitted", "working
 export function engineOf(a: Agent): string {
   return a.harness ?? a.model_choice?.model ?? "inherit";
 }
-export const engineLabelOf = (engine: string) => engine.split(/[/:]/)[0] ?? engine;
+const engineLabelOf = (engine: string) => engine.split(/[/:]/)[0] ?? engine;
 
 /**
  * What each card shows: live state from runs, counters (chats, open tasks, routines) and the engine; plus the

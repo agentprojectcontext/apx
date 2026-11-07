@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
+import { MAX_ACTIVE_DELEGATIONS } from "../engine/limits.ts";
 import { say, scriptedLlm, startCore, texts } from "../engine/testkit.ts";
 import { createLog } from "../log.ts";
 
@@ -104,7 +105,7 @@ for (const budget of ["none", "chain", "agent"] as const)
     const { env, root, sub, stopped, parent } = await fixture();
     try {
       const { store } = env.core;
-      const busy = Array.from({ length: 3 }, (_, i) => {
+      const busy = Array.from({ length: MAX_ACTIVE_DELEGATIONS }, (_, i) => {
         const t = store.threads.create({
           kind: "a2a",
           title: `Part ${i}`,
@@ -152,7 +153,7 @@ for (const budget of ["none", "chain", "agent"] as const)
       });
       assert.equal(sent.run.state, "queued");
       assert.equal(store.threads.get(sub.id)?.state, "queued");
-      assert.equal(store.runs.activeDelegations(root.id), 3);
+      assert.equal(store.runs.activeDelegations(root.id), MAX_ACTIVE_DELEGATIONS);
       const first = busy[0];
       assert.ok(first);
       await env.client.call("threads.cancel", { thread: first.t.id });

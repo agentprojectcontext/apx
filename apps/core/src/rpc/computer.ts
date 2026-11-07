@@ -1,7 +1,7 @@
 // The owner's computer, as a node, when they turned computer use on in the desktop app: a picture of the screen and
 // a click or typing on the app in front. The core only routes; the desktop checks the app is still the one approved.
 // The emergency stop (the desktop says so) ends the turns that were using the computer: only those, only that time.
-import { COMPUTER_CAP } from "@apx/protocol";
+import { COMPUTER_CAP, COMPUTER_POINTER_CAP, type NodeComputerParams } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import { CallError } from "../errors.ts";
 import type { NodeBroker } from "../nodes/broker.ts";
@@ -61,10 +61,15 @@ export function computerHandlers(
     using.set(a.run_id, { thread: a.thread_id, at: Date.now() });
   };
 
+  const forNode = <P extends object>(params: P, ctx: CallContext): NodeComputerParams<P> => ({
+    ...params,
+    ...(ctx.agent ? { cursorAgent: { id: ctx.agent.id, name: store.agents.get(ctx.agent.id)?.name ?? "APX" } } : {}),
+  });
+
   return {
     "computer.snapshot": async ({ thread, app, note }, ctx) => {
       enter(ctx);
-      const ask = { ...(app ? { app } : {}), ...(note ? { note } : {}) };
+      const ask = forNode({ ...(app ? { app } : {}), ...(note ? { note } : {}) }, ctx);
       const r = (await broker.invoke(COMPUTER_CAP, "computer.snapshot", ask, SNAPSHOT_MS)) as {
         mime?: string;
         data?: string;
@@ -88,21 +93,29 @@ export function computerHandlers(
     },
     "computer.click": async (p, ctx) => {
       enter(ctx);
-      return (await broker.invoke(COMPUTER_CAP, "computer.click", p, CLICK_MS)) as { app: string; how?: string };
+      return (await broker.invoke(
+        p.pointer === "visible" ? COMPUTER_POINTER_CAP : COMPUTER_CAP,
+        "computer.click",
+        forNode(p, ctx),
+        CLICK_MS,
+      )) as { app: string; how?: string };
     },
     "computer.type": async (p, ctx) => {
       enter(ctx);
-      return (await broker.invoke(COMPUTER_CAP, "computer.type", p, ACT_MS)) as { app: string };
+      return (await broker.invoke(COMPUTER_CAP, "computer.type", forNode(p, ctx), ACT_MS)) as { app: string };
     },
     "computer.key": async (p, ctx) => {
       enter(ctx);
-      return (await broker.invoke(COMPUTER_CAP, "computer.key", p, ACT_MS)) as { app: string };
+      return (await broker.invoke(COMPUTER_CAP, "computer.key", forNode(p, ctx), ACT_MS)) as { app: string };
     },
     "computer.open": async (p, ctx) => {
       enter(ctx);
       if (!p.url && !p.app) throw new CallError({ code: "bad_request", message: "say a url, an app, or both" });
       // An app that was closed takes a few seconds to start and show its window.
-      return (await broker.invoke(COMPUTER_CAP, "computer.open", p, ACT_MS + 8_000)) as { app: string; where?: string };
+      return (await broker.invoke(COMPUTER_CAP, "computer.open", forNode(p, ctx), ACT_MS + 8_000)) as {
+        app: string;
+        where?: string;
+      };
     },
   } satisfies Partial<Handlers>;
 }

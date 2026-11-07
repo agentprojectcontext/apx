@@ -44,7 +44,8 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
   const mine = useMemo(
     () =>
       Object.values(surfaces)
-        .filter((s) => inProject(s, projectId))
+        // A web page is a document, never a board tile.
+        .filter((s) => inProject(s, projectId) && !s.page)
         .sort((a, b) => a.title.localeCompare(b.title)),
     [surfaces, projectId],
   );

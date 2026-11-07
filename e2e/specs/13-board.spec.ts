@@ -20,7 +20,7 @@ test("a pinned widget lives on its project's board and is updated by its name", 
   await show("100");
 
   await open(page);
-  await page.getByRole("button", { name: /^Northwind/ }).click();
+  await page.getByRole("button", { name: "Northwind", exact: true }).click();
   const board = page.getByRole("region", { name: "Tablero" });
   const tile = board.getByRole("article", { name: "Ventas del mes" });
   await expect(tile).toBeVisible();
@@ -30,16 +30,20 @@ test("a pinned widget lives on its project's board and is updated by its name", 
   await expect(tile.frameLocator("iframe").getByText("Ventas: 250")).toBeVisible();
   await expect(board.getByRole("article")).toHaveCount(1);
 
-  // Installed as an app, its button lights up like the pin's, and the app shows in the sidebar.
-  await tile.getByRole("button", { name: "Fijar en Apps" }).click();
-  await expect(tile.getByRole("button", { name: "Abrir como app" })).toHaveAttribute("aria-pressed", "true");
-  await expect(tile.getByRole("button", { name: /^Quitar del tablero/ })).toHaveAttribute("aria-pressed", "true");
+  // Installed as an app from its More menu, the menu then opens it, and the app shows in the sidebar.
+  await tile.getByRole("button", { name: "Más" }).click();
+  await page.getByRole("menuitem", { name: "Fijar en Apps" }).click();
+  await tile.getByRole("button", { name: "Más" }).click();
+  await expect(page.getByRole("menuitem", { name: "Abrir a pantalla completa" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /^Quitar del tablero/ })).toBeVisible();
+  await page.keyboard.press("Escape");
   await expect(
     page.getByRole("complementary", { name: "Navegación" }).getByRole("button", { name: "Ventas del mes" }),
   ).toBeVisible();
-  await rpc("surfaces.update", { surface: (await show("250")).id, app: false });
+  await rpc("surfaces.update", { surface: (await show("250")).id, in_apps: false });
 
-  await tile.getByRole("button", { name: /^Quitar del tablero/ }).click();
+  await tile.getByRole("button", { name: "Más" }).click();
+  await page.getByRole("menuitem", { name: /^Quitar del tablero/ }).click();
   await expect(board.getByRole("article")).toHaveCount(0);
 });
 
@@ -61,7 +65,7 @@ test("a widget never pinned is added from the board's +, once, and opens beside 
   });
 
   await open(page);
-  await page.getByRole("button", { name: /^Northwind/ }).click();
+  await page.getByRole("button", { name: "Northwind", exact: true }).click();
   const board = page.getByRole("region", { name: "Tablero" });
   await expect(board.getByRole("article", { name: "Ventas del año" })).toHaveCount(0);
   await board.getByRole("button", { name: "Sumar un widget" }).click();
@@ -82,10 +86,8 @@ test("a widget never pinned is added from the board's +, once, and opens beside 
   await expect(panel).toBeHidden();
 
   await page.getByRole("tab", { name: "Resumen" }).click();
-  await board
-    .getByRole("article", { name: "Ventas del año" })
-    .getByRole("button", { name: /^Quitar del tablero/ })
-    .click();
+  await board.getByRole("article", { name: "Ventas del año" }).getByRole("button", { name: "Más" }).click();
+  await page.getByRole("menuitem", { name: /^Quitar del tablero/ }).click();
 });
 
 test("the base project's files are APX's work folder, where its chats work", async ({ page }) => {
@@ -125,7 +127,7 @@ test("the board is ordered from the grip, takes the full width, and both stay af
     );
   try {
     await open(page);
-    await page.getByRole("button", { name: /^Northwind/ }).click();
+    await page.getByRole("button", { name: "Northwind", exact: true }).click();
     const board = page.getByRole("region", { name: "Tablero" });
     const names = () => board.getByRole("article").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
     await expect.poll(names).toEqual(["Primero", "Segundo"]);
@@ -176,7 +178,7 @@ test("a widget of another project is copied onto this board, and a new one is as
     html: "<h1>99.9%</h1>",
   });
   await open(page);
-  await page.getByRole("button", { name: /^Northwind/ }).click();
+  await page.getByRole("button", { name: "Northwind", exact: true }).click();
   const board = page.getByRole("region", { name: "Tablero" });
   await board.getByRole("button", { name: "Sumar un widget" }).click();
   await page.getByRole("menuitem", { name: "Copiar de otro proyecto" }).hover();
@@ -200,7 +202,7 @@ test("a widget of another project is copied onto this board, and a new one is as
 
 test("the board's dashed tile asks an agent for a new widget, picked by its blob", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: /^Northwind/ }).click();
+  await page.getByRole("button", { name: "Northwind", exact: true }).click();
   const board = page.getByRole("region", { name: "Tablero" });
   await board.getByRole("button", { name: "Crear", exact: true }).click();
   await board.getByRole("button", { name: /super-agente/ }).click();

@@ -28,6 +28,19 @@ itself, in a folder, from **External sessions**. They are not models for your ag
   lives in Claude Code sessions, and agents that should think with Claude use an Anthropic API key.
 </Aside>
 
+## See an external session's model
+
+The external chat header shows **Requested:** followed by the selected model and effort, or the engine's default.
+That is a request, not confirmation of what ran. Each response's footer shows the model reported by the engine;
+**Model unconfirmed** means APX has not received that information. This is visible in read-only conversations
+between agents too. Older responses without saved evidence of an engine report also show **Model unconfirmed**;
+APX does not promote their previously saved model choice into a confirmed model.
+
+Claude Code reports its model as the turn starts, so it remains visible while waiting
+for your approval or after cancellation. The saved response keeps that model when you reload or resume the chat.
+Later responses can report a different model without changing earlier ones. Effort appears with the confirmed model
+only when reported; an effort shown under **Requested:** is still only the one you asked for.
+
 ## Add a provider
 
 Open **Settings › Engines and models**. Under **Model APIs (APX's own loop)**, click **Add provider** and pick its
@@ -37,6 +50,17 @@ model list is asked to the provider itself.
 Presets: **OpenCode Zen**, **Gemini**, **Anthropic**, **OpenAI**, **OpenRouter**, **Groq**, **Cerebras**,
 **DeepSeek**, **Mistral**, **Ollama**, **LM Studio**, and **OpenAI-compatible** for anything else that speaks that
 API. Ollama and LM Studio run on your machine and need no key.
+
+### Models on this computer
+
+When **Ollama** or **LM Studio** is running on this computer, APX finds it on its own: its chat models show up under
+**Models** as one row per app, marked **Local** and **Free**, ready to pick for an agent with no setup. APX
+looks for them only on this computer (`127.0.0.1`, ports `11434` and `1234`), when the list opens or is refreshed and
+every ten minutes in the background. Embedding models stay under **Show voice, image and embedding models too**.
+
+When you close the app, its models stay listed as unavailable, so an agent that uses one keeps it; open the app again
+and they work at once. If you had already added Ollama by hand at that address, it is not listed twice: your entry is
+marked as on this computer. To stop offering a found app, remove it from the list of model APIs.
 
 <Shot name="settings-engines" alt="Settings, Engines and models: the ChatGPT plan card and a list of model APIs with their status" caption="Settings › Engines and models" />
 
@@ -91,6 +115,13 @@ model in the chain. This holds for any step of a turn, before or after a tool ra
 to do next, so nothing runs twice. When it does switch, the chat shows a notice saying which model didn't answer, why,
 and which one went on.
 
+A model that hits its account's usage limit (a plan's quota, a long rate limit) is skipped until the time the provider
+gave for its reset, or for 10 minutes when it gave none: later turns go to the next model at once instead of asking it
+again. When no model of the chain can answer, the turn stops and says when the limit lifts; once it lifts, APX picks
+the turn back up in the same chat, with what it had done, and the agent finishes it. It does this only for the chat's
+last turn and up to three times in a row, never for a routine (its next run comes on schedule) nor while agents are
+paused. A turn stopped more than a day ago stays as it is.
+
 ## Per agent, per chat, by default
 
 Three places pick a model, most specific first:
@@ -100,6 +131,26 @@ Three places pick a model, most specific first:
 | A chat | The model picker in the composer | Only this chat. |
 | An agent | The agent's panel, or `apx agents model` | A fixed model, a model with the router behind it (`--router`), the router alone, or the install default. |
 | The install | `apx models default`, or the router's chain | Every agent without its own choice. |
+
+### An agent's own fallbacks
+
+An agent with a model of its own can have up to five **fallback models**, in order. You set them in the agent's editor
+under **Model and team › Fallback models**, where you can add, reorder and remove them. You can also use
+`apx agents model <agent> <ref> --fallbacks <ref>,<ref>`, or ask your super-agent ("give Robina Groq and Gemini as
+fallbacks"), which shows you the change and waits for your yes. An agent that runs only on the router has no
+fallbacks, so pick its model first.
+
+Each turn tries the agent's model first. If that model is at its usage limit (APX holds it until the reset, as described
+above) or still fails after its retries, the turn moves to the first free fallback, then the next. When the whole list
+is used up and the agent has the router behind it, the router's chain comes last. APX does not ask a model at its limit
+again before the reset, and once the main model's limit resets, the next turn goes back to it on its own. If you pick
+a different model for one chat in the composer, the agent's fallbacks still stand behind that model.
+
+Under each reply, the line with the agent's name shows which model answered and adds **Fallback** when it was not the
+agent's own. The notice above it says which model did not answer and why.
+
+Fallbacks only apply to turns that APX's own loop runs. A Claude Code, Codex or ACP session runs its own CLI with its
+own model, so the agent's fallbacks are not used there.
 
 ## Usage
 
@@ -118,10 +169,26 @@ not necessarily your desktop. Claude requires Claude Code 2.1.273 or later. APX 
 checks and does not read CLI credentials. Unsupported or unavailable accounts show that state, not an estimated
 subscription balance.
 
+When an account has two limits at once (for example Claude's 5-hour session and its weekly limit), the button shows
+the one closest to running out. Hover it, or tap it on a phone, to see each limit with the share left and when it
+resets.
+
 Each engine card has a **Usage** switch, independent of model power. It defaults off except for a linked ChatGPT
 plan; Codex metadata still needs its separately linked local CLI account. Turning it off stops account probes and
 hides cached results. Your explicit choice is remembered. Chat tokens, costs and context usage remain separate
 from these account limits.
+
+Ask your super-agent “Check all my plan quotas” or “How much of my Claude weekly limit have I used?” It reads every
+engine detected on this computer, including those you keep out of the top bar, with the menu's source and cache (up to
+60 seconds), regardless of its own model. It can ask about all of them or filter by a provider/plan name or engine id
+(`Claude`, `Claude Auto`, `Codex`, `ChatGPT`, `Cursor`), and gets reported percentages, window durations, reset times
+and the report's check time. What the top bar shows is still your choice: the agent's read does not change it.
+
+Only Claude and Codex currently provide quota windows. Other configured engines can report unsupported or unavailable
+limits. A disabled or unknown account may be absent entirely; a missing match is not zero usage. `not_available` means
+the source returned no usable data, not a confirmed empty balance; it cannot distinguish every CLI error from missing
+account data. Failed requests remain errors. This source does not identify subscription tiers or multiple accounts per
+engine. No proactive warnings or automatic stopping are added.
 
 ## From the terminal
 
@@ -149,7 +216,7 @@ router chain: gemini/gemini-3.8-flash → chatgpt/gpt-6-sol
 | `apx models default <engine/model \| engine \| router> [--router]` | Sets the install default. |
 | `apx models chain <ref> [<ref>…]` | Sets the router's fallback chain, in order. |
 | `apx models rules < rules.json` | Replaces the router's rules (JSON on stdin). |
-| `apx agents model <agent> <ref \| router \| default> [--router]` | Sets one agent's model. |
+| `apx agents model <agent> <ref \| router \| default> [--router] [--fallbacks <ref>,<ref>]` | Sets one agent's model, and its fallbacks in order (`--fallbacks ""` clears them; without it, a new model keeps them). |
 
 A rules file is a list. Every condition in `when` must hold; `model` is what the rule picks:
 

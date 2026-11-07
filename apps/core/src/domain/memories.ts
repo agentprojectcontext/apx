@@ -187,6 +187,22 @@ export const NOTEBOOK_TARGET = 40;
 /** One consolidation pass never forgets more than this share of an agent's notes (at least one). */
 export const forgetAllowance = (notes: number) => Math.max(1, Math.floor(notes * 0.2));
 
+/** The query for a note with this text in this place. */
+const sameNote = (m: {
+  scope: MemoryScope;
+  project_id?: string | undefined;
+  agent_id?: string | undefined;
+  text: string;
+}) =>
+  qb
+    .selectFrom("memories")
+    .select("id")
+    .where("scope", "=", m.scope)
+    .where(raw<string>`ifnull(project_id, '')`, "=", m.project_id ?? "")
+    .where(raw<string>`ifnull(agent_id, '')`, "=", m.agent_id ?? "")
+    // Both sides through SQLite's own lower(): the same text matches whatever its accents.
+    .where(raw<string>`lower(trim(text))`, "=", raw<string>`lower(trim(${m.text}))`);
+
 export function memoriesRepo({ one, all, run, tx }: Sql) {
   const record = (m: Memory, reason: string) =>
     run(
@@ -229,6 +245,23 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
       const r = one(qb.selectFrom("memories").selectAll().where("id", "=", id));
       return r ? toMemory(r) : undefined;
     },
+    /** The note with this text in this place (even forgotten), as `add` finds it. */
+    find(m: { scope: MemoryScope; project_id?: string | undefined; agent_id?: string | undefined; text: string }) {
+      const r = one(sameNote(m));
+      return r ? repo.get(r.id) : undefined;
+    },
+    /** Every note that stands (not forgotten, not waiting for the owner), oldest first. */
+    standing(limit: number): Memory[] {
+      return all(
+        qb
+          .selectFrom("memories")
+          .selectAll()
+          .where("forgotten_at", "is", null)
+          .where("pending", "=", 0)
+          .orderBy("created_at")
+          .limit(limit),
+      ).map(toMemory);
+    },
     /** Adds a note; the same text already in the same place (even forgotten) is returned instead of a copy. */
     add(m: {
       scope: MemoryScope;
@@ -245,16 +278,7 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
       evidence?: MemoryEvidence[];
     }): Memory {
       return tx(() => {
-        const same = one(
-          qb
-            .selectFrom("memories")
-            .select("id")
-            .where("scope", "=", m.scope)
-            .where(raw<string>`ifnull(project_id, '')`, "=", m.project_id ?? "")
-            .where(raw<string>`ifnull(agent_id, '')`, "=", m.agent_id ?? "")
-            // Both sides through SQLite's own lower(): the same text matches whatever its accents.
-            .where(raw<string>`lower(trim(text))`, "=", raw<string>`lower(trim(${m.text}))`),
-        );
+        const same = one(sameNote(m));
         if (same) return repo.get(same.id) as Memory;
         const id = newId("mem");
         const at = now();

@@ -1,14 +1,20 @@
 ---
-title: WhatsApp
-description: Vinculá WhatsApp con un QR, como una línea aparte para tu agente o como tu propio número.
+title: Hablá con tu agente de IA en WhatsApp
+description: Vinculá WhatsApp a APX con un QR y hablá con tu agente de IA desde una línea separada o tu chat de mensajes a vos mismo.
 sidebar:
+  label: WhatsApp
   order: 3
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-APX se vincula a WhatsApp como lo hace WhatsApp Web: como un dispositivo vinculado de un número, escaneando un QR. No
-es la API de WhatsApp Business, y no hay ninguna cuenta de bot que crear.
+Conectá WhatsApp a APX y contactá a tu agente desde un chat privado. APX se vincula como dispositivo de WhatsApp
+mediante un código QR. No usa la API de WhatsApp Business ni requiere crear una cuenta de bot.
+
+APX tiene que estar funcionando en tu computadora o en tu propio servidor. La conexión de WhatsApp te permite
+acceder a esa instalación desde el teléfono. Antes de empezar, [instalá APX](/es/start/install/) y tené a mano el teléfono
+con el número que querés vincular. Elegí una línea separada para tu agente o tu chat de mensajes a vos mismo y
+escaneá el QR.
 
 ## Dos formas de usarlo
 
@@ -68,6 +74,19 @@ Un archivo que no se pudo descargar cuando llegó (o que llegó antes de que APX
 del estilo "[video — APX cannot read this kind of message yet]". Tocá **Recuperar archivos** en ese chat, o corré
 `apx channels recover <thread>`: APX le pide a tu teléfono que vuelva a mandar esos mensajes y pone cada archivo en
 su mensaje, sin que el agente vuelva a contestar. El teléfono tiene que estar en línea para responder.
+
+## Números de teléfono
+
+WhatsApp necesita cada número con su código de país. Un número guardado a la manera local (`976 666 004` en Perú,
+`11 2345 6789` en Argentina) se completa con el código de país de tu propia línea cuando vos o tu agente lo guardan, y
+otra vez antes de que salga cada mensaje. Los celulares de Argentina van como `+54 9`, como los espera WhatsApp.
+
+Antes de escribirle a un número, APX revisa que esté en WhatsApp. Si un número no está en WhatsApp, o no se puede
+convertir en uno válido (es de otro país y se guardó sin su código), no se manda nada: a tu agente se le avisa que no
+salió y por qué. Guardá el número de ese contacto con su código de país (`+51 976 666 004`) y pedilo de nuevo.
+
+Un contacto guardado antes sin el código de país sigue funcionando: el primer mensaje que le llega corrige su número, y
+su respuesta vuelve al mismo chat.
 
 ## Desconocidos
 

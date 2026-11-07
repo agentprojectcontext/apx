@@ -17,7 +17,7 @@ export function mediaTools(store: Store, home: string, vm?: { hasThread(id: stri
     defineTool({
       name: "send_file",
       description:
-        "Attach an existing file you can read directly to your reply in this chat. Use when the owner asks to see or download a file, image, video, audio or document here. Images appear inline; videos play in the chat; files can be downloaded. Path relative to your work folder, absolute, or a med_ id from a readable owner's chat or task; maximum 20 MB per file. Call once per file; a website link is no substitute.",
+        "Attach a file you can read to your reply in this chat, when the owner asks to see or download it here: images show inline, videos play, other files download. Path relative to your work folder, absolute, or a med_ id from a readable owner's chat or task; 20 MB at most per file. Call once per file; a website link is no substitute.",
       args: z.object({ path: z.string().trim().min(1).max(1000) }),
       // Only to this chat, the owner's: contacts and rooms never get it (CONTACT_TOOLS).
       effect: "local",
@@ -97,6 +97,7 @@ export function mediaTools(store: Store, home: string, vm?: { hasThread(id: stri
             media_id: m.id,
             mime: m.mime,
             alt: a.prompt.slice(0, 200),
+            ...(ctx.callId ? { tool_call_id: ctx.callId } : {}),
           });
         const note = r.skipped.length ? ` (skipped: ${r.skipped.join("; ")})` : "";
         const ids = r.media.map((m) => m.id).join(", ");

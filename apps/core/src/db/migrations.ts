@@ -1136,4 +1136,70 @@ export const MIGRATIONS: readonly string[] = [
     DELETE FROM message_media WHERE message_id = old.id;
   END;
   `,
+  // A web page an agent made to look at and edit, shown in a page's frame instead of a widget's card.
+  `ALTER TABLE surfaces ADD COLUMN page INTEGER NOT NULL DEFAULT 0;`,
+  // Being listed in Apps is apart from being an app. Whatever was in Apps stays there; it is an app only when its page
+  // says so (apx-surface app) or its agent last made it one, so a widget the owner put in Apps is a widget again.
+  // A web page is a document, never a board tile. See HISTORY.md#apps-listing.
+  `
+  ALTER TABLE surfaces ADD COLUMN in_apps INTEGER NOT NULL DEFAULT 0;
+  UPDATE surfaces SET in_apps = app;
+  UPDATE surfaces SET app = 0
+  WHERE app = 1
+    AND NOT (html LIKE '%apx-surface%' AND (html LIKE '%content="app"%' OR html LIKE '%content=''app''%'
+      OR html LIKE '%content=app%'))
+    AND html NOT LIKE '%data-ax-surface="app"%'
+    AND COALESCE((
+      SELECT json_extract(st.args, '$.app') FROM steps st
+      WHERE st.tool IN ('show_widget', 'edit_widget') AND json_valid(st.args)
+        AND json_extract(st.args, '$.name') = surfaces.name AND json_extract(st.args, '$.app') IS NOT NULL
+      ORDER BY st.started_at DESC LIMIT 1
+    ), 0) = 0;
+  UPDATE surfaces SET pinned = 0 WHERE page = 1;
+  `,
+  // Existing model labels have unknown provenance and remain NULL.
+  `ALTER TABLE messages ADD COLUMN model_reported INTEGER;`,
+  // The owner's words their agent has not taken yet, and the order waiting turns start in (DECISIONS.md#d-186).
+  `
+  ALTER TABLE messages ADD COLUMN waiting TEXT;
+  ALTER TABLE runs ADD COLUMN queue_order INTEGER;
+  UPDATE runs SET queue_order = rowid;
+  CREATE INDEX runs_queue_order ON runs(queue_order);
+  `,
+  // Where a task's work must arrive, and the owner's own words behind it (a JSON list), read first on every turn.
+  `
+  ALTER TABLE tasks ADD COLUMN goal TEXT;
+  ALTER TABLE tasks ADD COLUMN asked TEXT;
+  `,
+  `CREATE INDEX model_log_run_seq ON model_log(run_id, seq) WHERE run_id IS NOT NULL;`,
+  // Hot reads and cascade checks that scanned whole tables on a large store (DECISIONS.md#d-201).
+  `
+  CREATE INDEX threads_parent ON threads(parent_id, updated_at);
+  CREATE INDEX threads_project ON threads(project_id, updated_at);
+  CREATE INDEX threads_asked_from ON threads(json_extract(context, '$.asked_from'))
+    WHERE json_extract(context, '$.asked_from') IS NOT NULL;
+  CREATE INDEX threads_owner_unread ON threads(json_array_length(context, '$.owner_unread'))
+    WHERE json_array_length(context, '$.owner_unread') > 0;
+  CREATE INDEX threads_held ON threads(json_array_length(context, '$.held'))
+    WHERE json_array_length(context, '$.held') > 0;
+  CREATE INDEX messages_waiting ON messages(thread_id, seq) WHERE waiting IS NOT NULL;
+  CREATE INDEX runs_thread_created ON runs(thread_id, created_at);
+  CREATE INDEX runs_started ON runs(started_at);
+  CREATE INDEX jobs_ended ON jobs(ended_at);
+  CREATE INDEX outbox_created ON outbox(created_at);
+  CREATE INDEX memory_episodes_message ON memory_episodes(message_id);
+  CREATE INDEX memory_episodes_thread ON memory_episodes(thread_id);
+  CREATE INDEX memory_work_run ON memory_work(run_id);
+  CREATE INDEX memory_work_thread ON memory_work(thread_id);
+  CREATE INDEX flow_events_run ON flow_events(run_id);
+  CREATE INDEX flow_events_thread ON flow_events(thread_id);
+  CREATE INDEX flow_graph_nodes_run ON flow_graph_nodes(run_id);
+  CREATE INDEX flow_graph_nodes_thread ON flow_graph_nodes(thread_id);
+  `,
+  `
+  -- How far a finished run's stored copies were trimmed: 0 as written, 1 outputs the model log holds dropped, 2 old
+  -- tool output kept as its stub, 3 also no reasoning once out of every view (engine/store-retention.ts, D-200).
+  ALTER TABLE runs ADD COLUMN trimmed INTEGER NOT NULL DEFAULT 0;
+  CREATE INDEX runs_trimmed ON runs(trimmed, ended_at) WHERE ended_at IS NOT NULL;
+  `,
 ];

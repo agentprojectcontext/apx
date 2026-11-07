@@ -40,9 +40,55 @@ Abrí un chat y escribí. La cara y el nombre del agente están en el encabezado
 abrir el panel del agente con su rol, su modelo y su memoria.
 
 Mientras trabaja, ves cada paso en el momento: las herramientas que usó, las páginas que abrió, los agentes a los que
-les preguntó. **Mostrar herramientas** en el encabezado prende o apaga esos pasos si solo querés las respuestas.
+les preguntó. Al terminar se pliegan en una línea, como **4 pasos · 12 s**, que se abre con un clic en cada paso
+dicho en palabras ("Leyó notes.md", "Buscó precios 2026") con un ícono según el tipo de acción (la web, leer un
+archivo, escribirlo, la memoria). Solo se marca un paso que falló, en rojo, y la línea dice cuántos fallaron. **Mostrar
+herramientas** en el encabezado prende o apaga esos pasos si solo querés las respuestas.
 Cuando un agente necesita tu OK (para correr un comando, mandar un mensaje, usar tu login en un sitio) el chat
 muestra la pregunta con **Aceptar una vez**, **Aceptar durante esta sesión** o **Aceptar siempre para este agente**.
+
+### El plan del agente
+
+Un trabajo de más de un par de pasos empieza con un plan, en cualquier chat: Home, un chat suelto, uno de código o el de
+una tarea. Aparece debajo del mensaje del agente como una lista, **Plan** con cuántos pasos van hechos, y cada paso
+cambia mientras trabaja: pendiente, en curso (un círculo que gira) o hecho (una tilde). El agente manda la lista entera
+cada vez que marca un paso, así que lo que ves es siempre su última versión. Mientras trabaja, el plan queda al final,
+debajo de todo lo que muestra; cuando lo marca por última vez queda ahí, tildado, y lo que escriba después aparece
+abajo. Cuando el agente escribe un plan nuevo en el chat, reemplaza al anterior: se ve uno solo. Sus próximos turnos leen el plan que dejó,
+aunque un chat largo se haya resumido. En el chat de una tarea el plan es el de la tarea: los mismos pasos aparecen en
+su panel.
+
+La app del teléfono muestra la misma lista en el chat y en la página de la tarea, junto con su objetivo. En la terminal,
+`apx chat` imprime el plan cada vez que cambia un paso (`✓` hecho, `▸` en curso, `○` pendiente) y
+`apx tasks show <id>` imprime el objetivo y el plan de la tarea.
+
+Las sesiones de Claude Code, Codex y agentes ACP muestran el mismo plan. Codex y los agentes ACP llevan su propia
+lista, y APX la muestra como el plan; a Claude Code se le pide que lo lleve con el plan de APX, porque ahí no tiene su
+propia lista de tareas.
+
+### Escribir mientras trabaja
+
+No hace falta esperar a que el agente termine, ni cortarlo:
+
+- **Enter** envía. El agente lee tu mensaje en su próximo paso (después de la herramienta o la respuesta en la que
+  está) y sigue teniéndolo en cuenta. El mensaje queda donde lo escribiste y lo que el agente dice después de leerlo
+  aparece debajo. Hasta que lo lea, debajo del mensaje aparece **Enviar ahora**: el agente corta el paso en el que
+  está y lee tu mensaje en el momento, sin perder lo que ya hizo. Si estaba esperando a un compañero, ese sigue
+  trabajando y su respuesta llega cuando esté lista. **Quitar** lo retira antes de que el agente lo lea. Cuando lo leyó, debajo del mensaje aparecen dos tildes y **Ahora**.
+- **Ctrl/⌘+Enter** deja el mensaje **en cola** para cuando el agente termine lo que está haciendo. Los mensajes en
+  cola esperan debajo del chat con la burbuja delineada, en el orden en que van a correr. Hasta que empiece su turno
+  los podés **Editar**, **Subir** o **Bajar**, **Quitar**, o **Enviar ahora**.
+- **En una sesión de Claude Code** funciona igual: Claude lee tu mensaje cuando termina el comando o la edición en la
+  que está, en el mismo turno. Si está escribiendo su respuesta, tu mensaje corre justo después.
+  **Enviar ahora** corta lo que Claude está haciendo y lee tu mensaje en el momento.
+- **En una sesión de Codex** el agente solo lee mensajes nuevos entre turnos, así que Enter hace lo que **Enviar
+  ahora**: corta el turno en curso, como **Detener**, y corre tu mensaje en el momento, antes que el resto de la cola
+  (lo que el agente había encargado a otros sigue). Ctrl/⌘+Enter sigue dejando el mensaje en cola hasta que termine el
+  turno.
+- **Detener** (el cuadrado que reemplaza a enviar) corta todo: el turno en curso y los mensajes en cola.
+
+Lo que está en cola sobrevive a un reinicio de APX, en su orden. Los mensajes que llegan por un canal (WhatsApp,
+Telegram) siguen como antes: el agente los lee en su próximo paso.
 
 Un ejemplo. Lucía es la PM de Acme Store:
 
@@ -61,12 +107,14 @@ La caja de abajo ("Escribile a Lucía…") es donde escribís. Algunas cosas que
 
 - **Adjuntos.** Arrastrá archivos o imágenes al chat, o usá **Adjuntar** › **Archivo** / **Imagen**.
 - **Selector de modelo.** Cada chat usa el modelo de su agente. Podés elegir otro solo para este chat, o **Auto** para
-  que decida el router; **Volver al del agente** lo deshace. El chip de al lado muestra cuánto contexto se usó y abre
-  el panel de Consumo.
+  que decida el router; **Volver al del agente** lo deshace. El chip de al lado muestra cuánto del contexto del modelo
+  se usó, en porcentaje, y abre el panel de Consumo; cuando se llena, los turnos viejos se resumen
+  ([Compactación](/es/concepts/conversations/#compactación)).
 - **Dictado por voz.** **Dictar** pasa lo que decís a texto. Instalá un modelo de transcripción local (whisper.cpp)
   en Configuración › Voces para que quede todo en tu máquina.
-- **Teclas.** Enter envía (si el agente está trabajando, lo corta y responde esto). Ctrl/⌘+Enter lo deja en cola para
-  cuando termine. Shift+Enter agrega una línea.
+- **Teclas.** Enter envía (si el agente está trabajando, lo lee en su próximo paso; en una sesión de Codex corta el
+  turno y corre el mensaje en el momento). Ctrl/⌘+Enter lo deja en cola para
+  cuando termine; mientras el agente trabaja, el compositor te lo recuerda. Shift+Enter agrega una línea.
 
 Los borradores de adjuntos, incluidas las cargas en curso, sobreviven a cambiar de chat dentro de la página.
 Seleccioná una miniatura para previsualizar su archivo. A diferencia del texto del borrador guardado, los adjuntos
@@ -148,13 +196,33 @@ Cuando un agente escribe un bloque de shell en su respuesta (por ejemplo, un com
 trae **Ejecutar en una terminal**. Se abre en el panel Terminal sobre una terminal real, así podés escribir ahí una
 contraseña; cuando termina, al agente que lo escribió le llega cómo salió.
 
+### Tablas, código, páginas y diagramas en las respuestas
+
+Cada bloque de código que escribe un agente (un comando, una página, un diagrama, un email) aparece como una tarjeta
+propia entre los globos de su texto, a todo el ancho de la conversación. Mientras el agente lo está escribiendo, la
+tarjeta dice **Generando…** y el código va entrando línea por línea; la página o el diagrama aparecen cuando el bloque
+está terminado.
+
+- **Tablas**: debajo tienen **Copiar como Markdown** y **Copiar como CSV** (el CSV se pega en una planilla; las
+  celdas con comas o comillas quedan enteras). El botón de la esquina abre la tabla más grande.
+- **Código**: se muestra en un marco con su lenguaje, números de línea y colores, más **Copiar** y **Expandir** (una
+  vista más grande).
+- **HTML** que un agente escribe en un bloque `html` se ve como la página que dibuja, con **Vista previa** / **Código**
+  para cambiar. La página se muestra en un marco aislado: sus propios scripts no corren, no puede llegar a APX ni a
+  tus cuentas y no carga nada de la web, así que las imágenes de otros sitios no aparecen.
+- **Diagramas Mermaid** en un bloque `mermaid` se dibujan como imagen, con el mismo cambio a su código. Si el código no
+  es un diagrama válido, se muestra el código con un aviso.
+- **Archivos** que adjunta un agente aparecen como una tarjeta con su nombre y tamaño: **Descargar** los guarda y
+  **Abrir** muestra un PDF o un archivo de texto (CSV, Markdown, código) dentro de APX, como texto, sin ejecutarlo.
+
 ### Los documentos son copias guardadas
 
 Pedile al agente que abra un informe o plan como documento después de escribirlo. Los archivos Markdown y de texto
 (`.md`, `.markdown`, `.txt`, hasta 400 KB) se abren en **Documentos**, con vistas de Markdown, código fuente y
 descarga. Incluso `.txt` se muestra como Markdown. Es una copia guardada: editar el archivo después no la cambia ni
 la abre automáticamente. No es una app ni un widget. Los agentes también pueden adjuntar archivos al chat (hasta
-20 MB); las imágenes se muestran ahí y los audios y videos se pueden reproducir.
+20 MB); las imágenes se muestran ahí, los audios y videos se pueden reproducir y los demás archivos aparecen como
+una tarjeta para descargar o abrir.
 
 ## Buscá todo con ⌘K
 

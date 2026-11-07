@@ -15,7 +15,7 @@ export type LogWords = {
 };
 /** How much of a value one block shows; the step's card shows the whole preview. */
 export const LOG_CAP = 2000;
-export type LogBlock = { label: string; text: string; cut: boolean };
+type LogBlock = { label: string; text: string; cut: boolean };
 export type LogEntry = {
   key: string;
   at: string;
@@ -67,15 +67,18 @@ export function runLog(run: RunDetail, view: Pick<RunView, "steps">, address: st
         ...block(t("flow.tlog.data"), pretty(run.arrived.body), run.arrived.truncated),
       ],
     });
-  } else
+  } else {
+    // Run now may carry data; a schedule's run brings none.
+    const data = run.steps.find((x) => x.node === trigger?.id)?.output ?? "";
     entries.push({
       key: "arrived",
       at: run.created_at,
       node: trigger?.id ?? null,
       tone: undefined,
       title: t(run.source === "schedule" ? "flow.tlog.due" : "flow.tlog.byYou"),
-      blocks: [],
+      blocks: data === "{}" || data === "null" ? [] : block(t("flow.tlog.data"), pretty(data)),
     });
+  }
   if (run.state === "ignored")
     entries.push({
       key: "ignored",

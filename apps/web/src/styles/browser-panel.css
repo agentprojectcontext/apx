@@ -109,6 +109,14 @@
 .browser__page--native {
   background: transparent;
 }
+/* The still that holds the page's place while a popup or a column drag sits over it. */
+.browser__frame {
+  align-self: flex-start;
+  height: auto;
+  max-width: none;
+  display: block;
+  pointer-events: none;
+}
 .browser__shot {
   width: 100%;
   height: 100%;

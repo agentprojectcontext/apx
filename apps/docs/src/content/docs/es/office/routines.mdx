@@ -43,7 +43,7 @@ Una corrida que se perdió con el core apagado corre una vez cuando vuelve, nunc
 
 ## Flows
 
-En la rama de integración todavía no publicada, abrí **Flows** en el sidebar global junto a **Tareas** y **Recursos**.
+Abrí **Flows** en el sidebar global junto a **Tareas** y **Recursos**.
 La lista muestra todos los flows de todos los proyectos con sus pasos, cuántos usan IA, una barra por cada una de sus
 últimas rondas y un interruptor de encendido; el menú de proyecto la acota. El acceso de Rutinas abre esta misma
 pantalla global. Los enlaces directos usan `#view=flows`, `#view=flows&scope=<project-id>`,
@@ -112,7 +112,10 @@ Una ronda de prueba aparece entre las rondas del flow, marcada **Prueba**, con e
 
 Un flow es de un proyecto, que se elige arriba al crear el flow: los pasos que lo necesitan (agentes, tablas, rutinas,
 una carpeta) lo dicen hasta que lo elegís. Los campos de texto ofrecen valores mientras escribís `$`, `{{` o
-`secret://`, o con su botón de llaves; donde puede ir una clave, la lista también ofrece **Guardar una clave**.
+`secret://`, o con su botón de llaves; donde puede ir una clave, la lista también ofrece **Guardar una clave**. La
+**Instrucción** de un paso Modelo IA es la excepción: se manda tal como está, así que un valor como `$steps.leer.respuesta`
+le llega al modelo como ese texto, y el paso lo avisa abajo. Elegí con qué trabaja en **Qué recibe**, que le llega como
+datos.
 
 **Quién responde** es **Un agente** (uno del crew, con sus instrucciones, personalidad, memoria y herramientas) o **Un
 bot de este flow**: un nombre y **Cómo trabaja**, el prompt de sistema que escribís. Un bot arranca de cero en cada
@@ -132,7 +135,9 @@ propio navegador, nunca con tus chats, correo, calendario o cuentas. Después el
   sus herramientas y su memoria, pero no puede pasarle trabajo a tus otros agentes, escribirles, ni crearles o
   comentarles tareas. Prendido, trabaja como en un chat.
 
-La ronda muestra quién respondió, en qué harness y modelo, y **Abrir chat** abre la conversación que tuvo.
+La ronda muestra quién respondió, en qué harness y modelo, y **Abrir chat** abre la conversación que tuvo. Cada ronda
+tiene su propio chat, que también está en tu Inbox bajo ese agente, marcado **Paso de un flujo**; **Ver el flujo**, arriba,
+te lleva de vuelta.
 
 Un flow tiene un solo disparador. Un flow corre como está dibujado: los pasos pueden abrirse en caminos y volver a
 juntarse, y cada paso puede recibir lo que llegó o el resultado de un paso anterior. En **Sigue con** elegís por cuál
@@ -154,15 +159,21 @@ Guardar nunca corre nada, y un flow nuevo arranca apagado.
 
 Cada vez que guardás un cambio en el dibujo queda una versión: un borrador que guardaste, uno que pasó a ser lo que
 corre, uno que te dibujó un agente o uno que restauraste. En la página del flow, cambiá la lista de la derecha de
-**Rondas** a **Historial** para verlas, de la más nueva a la más vieja, con cuándo, quién y cuántos pasos. Elegí una
+**Rondas** a **Versiones** para verlas, de la más nueva a la más vieja, con cuándo, quién y cuántos pasos. Elegí una
 para ver su dibujo (no corre) y **Restaurar como borrador** para seguir desde ahí: pasa a ser el borrador, y lo que
 corre no cambia hasta que lo guardes. En el editor, el botón de historial de la barra de arriba abre la misma lista;
 restaurar ahí reemplaza el lienzo y, si tenés cambios sin guardar, pregunta antes. Se guardan las últimas 50
 versiones y todas las que usó alguna ronda.
 
 Al abrir un flow ves sus pasos como corrieron en la ronda elegida (numerados, en verde si corrieron, punteados si no,
-en rojo si fallaron), qué recibió y qué dio cada paso, cuándo empezó y terminó, un log y las rondas a la derecha con su
-duración y tokens. Una ronda hecha con un dibujo anterior muestra ese dibujo y dice **Versión anterior**. Una ronda que
+en rojo si fallaron) y las rondas a la derecha con su duración y tokens. Al tocar un paso queda marcado con un anillo; el
+panel de abajo muestra cuándo empezó y cuánto tardó, y su **Entrada** y **Salida**: los datos como **Campos** que se
+pliegan, o como **Texto**, con botones para copiarlos y agrandarlos. Una parte que solo repite lo que se ve arriba (una
+lectura de tabla da su fila como columnas, como `row` y bajo su clave en `rows`) arranca plegada, marcada **Igual que
+arriba**. La entrada del disparador dice cómo arrancó la ronda (su dirección, **Correr ahora** o la hora que tocaba) y su
+salida son los datos que los pasos siguientes leen como `$trigger`. Un paso que guarda en una tabla también muestra sus
+últimas filas en columnas: tocá la clave de una fila para verla entera. **Ronda completa** muestra **Paso a paso** qué
+llegó y qué recibió y dio cada paso. Una ronda hecha con un dibujo anterior muestra ese dibujo y dice **Versión anterior**. Una ronda que
 cortó una condición marca esa condición con **no** y los pasos siguientes como no corridos. Un paso que le pasó trabajo
 a un agente abre su chat.
 

@@ -1,0 +1,116 @@
+/* Web pages an agent made: their frame, their screen and their code in the chat. */
+.pageframe {
+  display: flex;
+  justify-content: center;
+}
+.pageframe--fill {
+  flex: 1;
+  min-height: 0;
+}
+.pageframe__iframe {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  border: 0;
+  background: #fff; /* ui: an outside page is drawn on white, as a browser would. */
+}
+.pageframe--fill .pageframe__iframe {
+  height: 100%;
+}
+.pagescreen__body {
+  display: flex;
+  flex-direction: column;
+}
+.pagescreen__view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.pagescreen__view--phone {
+  justify-content: center;
+  padding: 16px;
+  background: var(--apx-bg);
+}
+.pagescreen__view--phone .pageframe__iframe {
+  border-radius: 18px;
+  box-shadow: var(--apx-shadow-md);
+  outline: 1px solid var(--apx-border);
+}
+/* Edit mode takes the screen once its picture is up; until then the page shows as it is, under a quiet note. */
+.pagescreen__edit {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.pagescreen__edit--hidden {
+  display: none;
+}
+.pagescreen__view {
+  position: relative;
+}
+.pagescreen__preparing {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  z-index: 1;
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-md);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.pagescreen__code {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+/* On a phone the header keeps one row: its buttons show only their icons (their names stay for screen readers). */
+@media (max-width: 767px) {
+  .pagescreen .appscreen__head {
+    gap: 4px;
+    padding-inline: 4px 8px;
+  }
+  .pagescreen .appscreen__sub,
+  .pagescreen__tile {
+    display: none;
+  }
+  .pagescreen .appscreen__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pagescreen .appscreen__head .apx-btn__label,
+  .pagescreen__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .pagescreen .apx-segmented__item {
+    padding-inline: 8px;
+  }
+  .pagescreen__view--phone {
+    padding: 0;
+  }
+  .pagescreen__view--phone .pageframe__iframe {
+    border-radius: 0;
+    box-shadow: none;
+    outline: 0;
+  }
+}
+/* A web page's code in its chat frame sits at its own height; the frame's body scrolls past its limit. */
+.pagepart .codeview--snippet .cm-editor {
+  height: auto;
+}
+.pagepart .codeview--snippet .cm-content {
+  padding: 8px 0;
+}
+/* In a chat it takes the message's width, as a widget's card does. */
+.pagepart {
+  width: 100%;
+  min-width: 0;
+}

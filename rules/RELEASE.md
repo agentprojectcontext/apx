@@ -98,7 +98,7 @@ with a button or two to start ([D-117](DECISIONS.md#d-117)). They are written by
 `apps/core/src/news/entries.ts`, one entry per thing worth acting on, by whoever ships that thing (AGENTS.md rule 25):
 `since` is the first release that has it, `applies` reads the install's facts (`newsFacts`: widgets, Google parts,
 the running profile…) so only owners it helps hear it. `title` and `about` are what the owner reads in Help › What's
-new, in English and Spanish and in their words; `text` is what the super-agent is told ([D-182](DECISIONS.md#d-182)). An owner who updates past several releases hears every entry
+new, in English and Spanish and in their words; `text` is what the super-agent is told ([D-182](DECISIONS.md#d-182-news)). An owner who updates past several releases hears every entry
 they have not heard that applies; a fresh install hears none. Before tagging, check that each owner-facing `feat`
 since the last tag either has an entry or is not worth offering.
 
@@ -137,6 +137,15 @@ e2e/install/servers.sh feed out/                    # …and the feed beside the
 e2e/install/servers.sh up fresh 2222                # ssh -p 2222 tester@<docker host>; `up old 2223 v1` has APX v1
 e2e/install/servers.sh clean
 ```
+
+The macOS Desktop build requires a macOS host with Xcode command-line tools. `scripts/package.ts` passes its exact
+`APX_TARGET` to the desktop build; the private Swift observer is compiled and checked for that architecture before
+packaging, then copied outside ASAR to `Resources/computer/observer`. It is not part of the standalone daemon bundle.
+Non-macOS targets do not compile or ship it. Cross-packaging macOS on another OS is refused, not silently skipped.
+Any native build error aborts packaging, even when filesystem permissions prevent removal of an old binary. Do not
+invoke electron-builder on stale build output after such an error. Ad hoc signing verifies consistency only; it does
+not authenticate a publisher. Final nested package signing and accessibility permission behavior require separate
+runtime verification before the observer can be enabled.
 
 On a server: `curl -fsSL http://apx-feed:7480/install.sh | bash -s -- --feed http://apx-feed:7480`; the install
 keeps updating from that feed (`apx upgrade`). The desktop app installs onto one with `APX_RELEASES=<feed>` set.

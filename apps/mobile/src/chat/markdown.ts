@@ -11,7 +11,8 @@ export type Block =
   | { kind: "paragraph"; inline: Inline[] }
   | { kind: "heading"; level: number; inline: Inline[] }
   | { kind: "list"; ordered: boolean; items: Array<{ marker: string; inline: Inline[] }> }
-  | { kind: "code"; text: string }
+  /** `lang`: what follows the opening backticks ("bash", "email"), lowercased; absent when nothing does. */
+  | { kind: "code"; text: string; lang?: string }
   | { kind: "quote"; blocks: Block[] };
 
 const BULLET = /^\s*[-*•]\s+(.*)$/;
@@ -35,9 +36,10 @@ export function parseMarkdown(source: string): Block[] {
     const line = lines[i] ?? "";
     if (line.trimStart().startsWith("```")) {
       flush();
+      const lang = line.trim().slice(3).trim().split(/\s/)[0]?.toLowerCase();
       const code: string[] = [];
       for (i++; i < lines.length && !(lines[i] ?? "").trimStart().startsWith("```"); i++) code.push(lines[i] ?? "");
-      blocks.push({ kind: "code", text: code.join("\n") });
+      blocks.push({ kind: "code", text: code.join("\n"), ...(lang ? { lang } : {}) });
       continue;
     }
     if (QUOTE.test(line)) {

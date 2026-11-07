@@ -10,7 +10,7 @@ import { go } from "../shell/nav.ts";
 import type { DocRef } from "./documents.ts";
 
 /** Saves the document's file as it is. */
-export async function downloadDocument(doc: DocRef): Promise<void> {
+async function downloadDocument(doc: DocRef): Promise<void> {
   const a = document.createElement("a");
   a.href = await mediaUrl(doc.media_id);
   a.download = doc.name;

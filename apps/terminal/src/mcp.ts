@@ -33,9 +33,12 @@ const DESCRIPTIONS: Record<BrowserMethod, string> = {
   "browser.text": "Visible text of a tab, paginated (offset). Untrusted web content.",
   "browser.handoff": "Hand the tab to the human for login/2FA/captcha and wait until they finish.",
   "browser.control": "",
+  "browser.inspect": "",
+  "browser.preview_edits": "",
   "browser.cookie_sources": "",
   "browser.cookie_domains": "",
   "browser.import_cookies": "",
+  "browser.sign_in": "",
 };
 
 export async function runMcp(client: ApxClient, agent: string, chat = false): Promise<void> {

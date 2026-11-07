@@ -196,4 +196,3 @@ export function createFlowTests(deps: {
   };
   return api;
 }
-export type FlowTests = ReturnType<typeof createFlowTests>;

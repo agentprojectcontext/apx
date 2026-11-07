@@ -1,3 +1,11 @@
+/** Convert recursive directory entries from either platform into canonical documentation URLs. */
+export function builtDocumentationRoutes(entries, prefix = "") {
+  return entries
+    .map((entry) => entry.replace(/\\/g, "/"))
+    .filter((entry) => entry.endsWith("index.html") && entry !== "index.html")
+    .map((entry) => `${prefix}docs/${entry.replace(/index\.html$/, "")}`);
+}
+
 export const docSections = [
   "start",
   "concepts",

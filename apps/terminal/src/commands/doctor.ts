@@ -3,7 +3,15 @@
 // with the core down, so they cannot go through the protocol. See HISTORY.md#cli-without-core.
 import fs from "node:fs";
 import path from "node:path";
-import { coreBundleName, type Platform, platformOf, RELEASE_FEED, type Release } from "@apx/protocol";
+import {
+  coreBundleName,
+  type Platform,
+  platformOf,
+  RELEASE_FEED,
+  type Release,
+  type StoreCompaction,
+} from "@apx/protocol";
+import type { ApxClient } from "@apx/protocol/client";
 import {
   checkReleases,
   commandRunner,
@@ -17,7 +25,7 @@ import { apxHome, localConnection } from "./local.ts";
 import { lastLines, restart, serviceState } from "./service.ts";
 import { appRoot, coreMain } from "./service-files.ts";
 
-export type Install = { kind: "bundle"; app: string; version?: string | undefined } | { kind: "checkout" | "app" };
+type Install = { kind: "bundle"; app: string; version?: string | undefined } | { kind: "checkout" | "app" };
 export type ServiceState = "running" | "stopped" | "none" | "unknown";
 export type DoctorFacts = {
   url: string;
@@ -34,7 +42,7 @@ export type DoctorFacts = {
 };
 
 /** What the log says about the core's last start, when it is something known: its cause and what to do. */
-export function logCause(lines: string[], port: string): { cause: string; fix: string } | undefined {
+function logCause(lines: string[], port: string): { cause: string; fix: string } | undefined {
   const started = lines.findLastIndex((l) => l.includes("apx core listening"));
   const since = lines.slice(started + 1).join("\n");
   if (since.includes("ERR_MODULE_NOT_FOUND"))
@@ -99,7 +107,7 @@ export function diagnose(f: DoctorFacts): { ok: boolean; lines: string[]; next: 
 }
 
 /** The newest of `newer` with this computer's bundle. */
-export function newestFor(newer: Release[], platform: Platform): Release | undefined {
+function newestFor(newer: Release[], platform: Platform): Release | undefined {
   return newer.find((r) => r.assets.some((a) => a.name === coreBundleName(r.version, platform)));
 }
 
@@ -154,8 +162,34 @@ async function newestOnline(feed: string, current: string, platform: Platform | 
   }
 }
 
-/** `apx doctor`: why the core does not answer here, and the one thing to run next. */
-export async function doctor(o: { json?: boolean | undefined; env?: NodeJS.ProcessEnv }): Promise<void> {
+const MB = 1048576;
+
+/** What `--fix` did to the store, in the owner's words. */
+export function compactionLines(r: StoreCompaction): string[] {
+  const mb = (n: number) => `${Math.round(n / MB)} MB`;
+  const freed = Math.max(0, r.before_bytes - r.after_bytes);
+  const lines = [
+    `Database: ${mb(r.before_bytes)} → ${mb(r.after_bytes)}${freed ? ` (${mb(freed)} freed)` : ""}`,
+    `Old turns compacted: ${r.runs_compacted}, outputs kept twice removed: ${r.outputs_dropped}`,
+  ];
+  if (r.backup) lines.push(`A copy from before was saved in APX's backups folder: ${r.backup}`);
+  if (r.reclaimed === "rebuilt")
+    lines.push("The database file was rewritten once; from now on it gives space back by itself.");
+  if (r.reclaimed === "not_enough_disk")
+    lines.push(
+      r.backup
+        ? "The file stays this size until the disk has about twice its size free: free some space and run it again."
+        : "Nothing was changed: the disk needs room for a copy of the database and about twice its size to rewrite it. Free some space and run it again.",
+    );
+  return lines;
+}
+
+/** `apx doctor`: why the core does not answer here, and the one thing to run next; `fix` also compacts the store. */
+export async function doctor(o: {
+  json?: boolean | undefined;
+  env?: NodeJS.ProcessEnv;
+  fix?: Pick<ApxClient, "call">;
+}): Promise<void> {
   const env = o.env ?? process.env;
   const { url } = localConnection(env);
   const install = installOf(env);
@@ -174,6 +208,16 @@ export async function doctor(o: { json?: boolean | undefined; env?: NodeJS.Proce
   if (o.json) console.log(JSON.stringify({ ...d, facts: { ...facts, log: undefined } }, null, 2));
   else console.log(card("APX doctor", [...d.lines, ...d.next.map((n) => `Next: ${n}`)]));
   if (!d.ok) process.exitCode = 1;
+  if (!o.fix) return;
+  if (!facts.core) {
+    console.log(
+      card("APX doctor --fix", ["The core must be running to compact its database: start it, then run this again."]),
+    );
+    return;
+  }
+  if (!o.json) console.log("Compacting the database (a big one takes a few minutes; chats wait meanwhile)…");
+  const r = await o.fix.call("storage.compact", {});
+  console.log(o.json ? JSON.stringify(r, null, 2) : card("APX doctor --fix", compactionLines(r)));
 }
 
 /** `apx update` when the core does not answer: a bundle install updates itself; others are told how. */

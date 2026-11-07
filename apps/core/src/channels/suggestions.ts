@@ -29,7 +29,7 @@ const SAID_MAX = 10;
 const LINE_CHARS = 500;
 const DRAFT_CHARS = 2500;
 
-export const suggestionRef = (id: string) => `suggestion:${id}`;
+const suggestionRef = (id: string) => `suggestion:${id}`;
 
 const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max)}…` : text);
 

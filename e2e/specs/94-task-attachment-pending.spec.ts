@@ -41,7 +41,7 @@ test("task creation waits for uploads and keeps selected assets after a failed s
     release();
   }
   const source = (await (await uploaded).json()).result.media.id as string;
-  await expect(dialog.getByRole("button", { name: /^pending\.txt / })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "pending.txt", exact: true })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Crear", exact: true })).toBeEnabled();
   await page.route("**/rpc/tasks.create", (route) =>
     route.fulfill({ json: { ok: false, error: { code: "unavailable", message: "Task save refused" } } }),
@@ -49,7 +49,7 @@ test("task creation waits for uploads and keeps selected assets after a failed s
   await dialog.getByRole("button", { name: "Crear", exact: true }).click();
   await expect(page.getByText(/Tasks:|Tareas:/).last()).toBeVisible();
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("button", { name: /^pending\.txt / })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "pending.txt", exact: true })).toBeVisible();
   expect((await rpc<{ bytes: number }>("media.get", { id: source })).bytes).toBeGreaterThan(0);
   await page.unroute("**/rpc/tasks.create");
   await dialog.getByRole("button", { name: "Crear", exact: true }).click();
@@ -70,6 +70,11 @@ test("removing or cancelling draft assets discards only pending uploads", async 
   const source = (await (await uploaded).json()).result.media.id as string;
   expect((await rpc<{ bytes: number }>("media.get", { id: source })).bytes).toBeGreaterThan(0);
   await dialog.getByRole("button", { name: "Quitar adjunto remove.txt", exact: true }).click();
+  const confirm = page.getByRole("dialog", { name: "Quitar adjunto" });
+  await expect(confirm).toContainText("“remove.txt” no se va a adjuntar a la tarea nueva.");
+  expect((await rpc<{ bytes: number }>("media.get", { id: source })).bytes).toBeGreaterThan(0);
+  await confirm.getByRole("button", { name: "Quitar", exact: true }).click();
+  await expect(confirm).toBeHidden();
   await expectDiscarded(source);
   await expect(dialog.getByRole("button", { name: "Quitar adjunto remove.txt", exact: true })).toBeHidden();
   await expect(dialog.getByRole("button", { name: "Adjuntar archivos", exact: true })).toBeEnabled();
@@ -78,7 +83,7 @@ test("removing or cancelling draft assets discards only pending uploads", async 
     .getByLabel("Adjuntar archivos", { exact: true })
     .setInputFiles({ name: "cancel.txt", mimeType: "text/plain", buffer: Buffer.from("Cancel") });
   const cancelled = (await (await second).json()).result.media.id as string;
-  await expect(dialog.getByRole("button", { name: /^cancel\.txt / })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "cancel.txt", exact: true })).toBeVisible();
   await page.route("**/rpc/tasks.create", (route) =>
     route.fulfill({ json: { ok: false, error: { code: "unavailable", message: "Task save refused" } } }),
   );

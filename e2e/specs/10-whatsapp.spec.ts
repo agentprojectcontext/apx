@@ -112,7 +112,8 @@ test("a contact's video plays in the chat's own player, and a document of any ty
   await page.getByRole("button", { name: /Lucía/ }).first().click();
   await expect(page.locator('video[aria-label="video.mp4"]')).toBeVisible();
   await expect(page.getByText("Mirá cómo quedó")).toBeVisible();
-  await expect(page.getByRole("button", { name: /planilla\.ods/ })).toBeVisible();
+  const sheet = page.locator(".filechip", { hasText: "planilla.ods" });
+  await expect(sheet.getByRole("button", { name: "Descargar" })).toBeVisible();
   await expect(page.getByText("[attached files]")).toHaveCount(0);
   await expect(page.getByText(/cannot read this kind/)).toHaveCount(0);
 });

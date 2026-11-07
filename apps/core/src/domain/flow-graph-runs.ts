@@ -24,7 +24,7 @@ export const flowUncertainWhy = (kind: FlowNode["kind"] | undefined) =>
           : "model_uncertain";
 /** Which step of which run: the revision is part of the key, so a step of another version never matches. */
 export type FlowStepKey = { flow: string; event: string; revision: number; node: string };
-export type FlowStepRow = {
+type FlowStepRow = {
   node: string;
   state: FlowNodeState;
   input: unknown;

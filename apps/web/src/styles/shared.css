@@ -35,6 +35,12 @@
 .chan__ticks.is-failed {
   color: var(--apx-danger);
 }
+/* The chat app a message also went out or came in on: a quiet mark beside its time, never a label. */
+.chan__via {
+  display: inline-flex;
+  vertical-align: -2px;
+  opacity: 0.85;
+}
 /* A QR code's box, also while it loads. */
 .qrcode {
   flex: none;
@@ -74,6 +80,10 @@
 .selectbtn__warn {
   flex: none;
   color: var(--apx-warning);
+}
+/* A long, truncated name gives way; the arrow keeps its size. */
+.selectbtn__chevron {
+  flex: none;
 }
 
 /* Catalog list inside a picker */
@@ -150,16 +160,14 @@
 .mlist__name {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 .mlist__ref {
   flex: none;
   max-width: 50%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-2xs);
   color: var(--apx-fg-subtle);
@@ -176,9 +184,8 @@
   display: block;
   min-width: 0;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
   font-size: var(--apx-text-sm);
 }
 .mchoice__title {
@@ -228,8 +235,21 @@
   width: 160px;
 }
 @media (max-width: 480px) {
+  .mlist__opt {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr);
+    gap: 2px 8px;
+  }
+  .mlist__check {
+    grid-row: 1 / span 2;
+  }
+  .mlist__name,
   .mlist__ref {
-    display: none;
+    grid-column: 2;
+    max-width: 100%;
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 }
 .mlist__engine .apx-engine {

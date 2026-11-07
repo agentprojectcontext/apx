@@ -50,7 +50,7 @@ console doesn't start: `apx` prints the help instead.
 | `apx wizard` | Guided terminal setup and maintenance. |
 | `apx upgrade --check` | Is there a newer APX? |
 | `apx upgrade` | Apply it, the same as **Update now** in the panel. When the core does not answer, an APX installed with the install script updates itself anyway: it downloads the newest bundle, checks it and has the service start it. `apx update` is the same command. |
-| `apx doctor` | Why the core does not answer on this computer (what its log says, the service, a newer release) and the one command to run next. Works without the core; `--json`. |
+| `apx doctor` | Why the core does not answer on this computer (what its log says, the service, a newer release) and the one command to run next. Works without the core; `--json`. `--fix` also compacts the chats' database and gives the space back to the disk (needs the core). |
 | `apx logs` | The newest lines of the core's log, through the core: `-n 200`, `--level info\|warn\|error`, `--grep text`, `--scope core\|output`, `--json`. With no core answering, the file on this computer. |
 | `apx service logs` | The log file on this computer (`<home>/logs/core.log`); `-n 100`, `-f` to follow it. |
 | `apx daemon` | Explains which `apx service` command to use (the background core is now a service). |
@@ -81,8 +81,11 @@ take `--json`. `apx status --plain` drops the card and the portrait.
 | `apx devices pair` | Same as `apx pair`. |
 | `apx devices revoke <id>` | Revoke one device's key. |
 | `apx setup --headless` | A server with no desktop: service, optional import (`--import`), optional exposure (`--expose tailscale` or `--expose lan`), then a pair code. |
+| `apx export` | This setup as one file without secrets, to move or back up APX. `--chats` adds chats, `--rows` table rows, `--out` names the file. See [Move or back up](/start/move-or-back-up/). |
+| `apx import <file>` | What importing a copy would add, change or leave out, what arrives off and the keys to add; `--yes` imports it. The same file twice changes nothing. |
 | `apx import-v1` | Register the project folders a local APX v1 knows (read-only on v1). `--keys` also copies its model API keys, `--skills` its skills, `--services` its image engines and voices. |
 | `apx v1` | Is APX v1 still here and running? `apx v1 off` stops its daemon for good so `apx` is this one. |
+| `apx import hermes <folder>` | What a Hermes home folder (`~/.hermes`) becomes in APX; `--yes` imports it ([Moving from Hermes](/start/from-hermes/)). |
 
 `apx expose` edits `<home>/core.env` directly; restart the core afterwards (`apx service restart`). `apx tailscale`
 goes through the running core, which restarts itself when it runs under a supervisor such as the service, and
@@ -139,7 +142,7 @@ Two tasks are open in Acme Store: the spring catalog (in progress, Lucía) and t
 | `apx agents clone <agent…>` | Copy agents into a project (`--project <id>`); `--rename` gives each a free name, `--under <slug>` sets the parent. |
 | `apx agents archive <agent>` | Archive an agent (a project agent's file moves to `.apc/agents/.archived/`). |
 | `apx agents archived` | Archived agents; `apx agents restore <agent>` brings one back. |
-| `apx agents model <agent> <ref>` | Its model: `<engine>/<model>`, `<engine>`, `router` or `default`; `--router` keeps the router as its fallback. |
+| `apx agents model <agent> <ref>` | Its model: `<engine>/<model>`, `<engine>`, `router` or `default`; `--router` keeps the router as its fallback; `--fallbacks <ref>,<ref>` sets its own fallback models in order (`""` clears them). |
 | `apx projects [list]` | Projects (a `!` marks a folder that is missing). |
 | `apx projects register <folder>` | Register a folder with `AGENTS.md` and/or `.apc/`. |
 | `apx projects create "<Name>"` | A new project, in `--path <folder>` (made if missing) or a folder of its own in APX's home; `--kind personal\|app\|company\|software\|other`, `--desc "…"`. |

@@ -18,7 +18,7 @@ import {
 
 /** Encrypted reasoning kept on an assistant item, with the model that wrote it. */
 type Reasoning = { model: string; summary: unknown[]; encrypted_content: string };
-const REASONING = "responses_reasoning";
+export const REASONING = "responses_reasoning";
 
 type Event = {
   type?: string;
@@ -97,7 +97,7 @@ export function toInput(messages: ChatItem[], model: string): { instructions: st
 }
 
 /** A chat's id as the UUID Codex would send for a conversation: the same chat, the same one. */
-export function sessionUuid(key: string): string {
+function sessionUuid(key: string): string {
   const h = createHash("sha256").update(key).digest("hex");
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${((Number.parseInt(h[16] ?? "0", 16) & 3) | 8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }

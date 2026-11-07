@@ -14,6 +14,20 @@ export function runHandlers(store: Store, engine: Engine) {
     // A channel's answer carries the channel the owner wrote on (set by the channel manager, never by a request).
     "runs.respond": ({ input, decision, text, scope }, ctx) =>
       publicInput(engine.respond(input, { decision, text, scope }, Boolean(ctx.channel))),
+    "runs.update_queued": ({ run, text }) => ({ message: engine.editQueued(run, text) }),
+    "runs.remove_queued": ({ run }) => {
+      engine.removeQueued(run);
+      return { removed: true as const };
+    },
+    "runs.reorder": ({ thread, runs }) => {
+      if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
+      return { messages: engine.reorderQueued(thread, runs) };
+    },
+    "runs.send_now": ({ message }) => engine.sendNow(message),
+    "runs.unsend": ({ message }) => {
+      engine.unsend(message);
+      return { removed: true as const };
+    },
     "runs.list": ({ agent, limit, before }) => {
       const runs = store.runs.byAgent(agent, limit, before);
       const threads = [...new Set(runs.map((r) => r.thread_id))].flatMap((id) => {

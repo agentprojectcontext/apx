@@ -10,8 +10,10 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
     const { name, args } = JSON.parse(said.slice(6)) as { name: string; args: object };
     return callTool("task", name, args);
   }
-  if (said.startsWith("create: ")) return callTool("make", "task_create", { title: said.slice(8) });
-  if (said.startsWith("for ann: ")) return callTool("make", "task_create", { title: said.slice(9), person: "Ann" });
+  if (said.startsWith("create: "))
+    return callTool("make", "task_create", { goal: "Done as asked", title: said.slice(8) });
+  if (said.startsWith("for ann: "))
+    return callTool("make", "task_create", { goal: "Done as asked", title: said.slice(9), person: "Ann" });
   return callTool("list", "task_list", JSON.parse(said) as object);
 });
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -76,7 +78,11 @@ test("task_create tells the agent to look for the same open task before making a
 
 test("task tools report that assigned work with no description is waiting, never started", async () => {
   const invoke = (name: string, args: object) => list(`tool: ${JSON.stringify({ name, args })}`);
-  const created = await invoke("task_create", { title: "Waiting specification", assignee: "vera" });
+  const created = await invoke("task_create", {
+    goal: "Done as asked",
+    title: "Waiting specification",
+    assignee: "vera",
+  });
   assert.match(created, /It has not started: add a non-empty description with task_update/);
   assert.doesNotMatch(created, /starts on it now/);
   const id = /created (task_\w+)/.exec(created)?.[1];
@@ -88,6 +94,22 @@ test("task tools report that assigned work with no description is waiting, never
   const assigned = await invoke("task_update", { task: pending.id, assignee: "vera" });
   assert.match(assigned, /It has not started/);
   assert.deepEqual(env.core.store.threads.byTask(pending.id), []);
+});
+
+test("task_update groups existing assigned work without a second execution", async () => {
+  const parent = await env.client.call("tasks.create", { title: "Delivery" });
+  const child = await env.client.call("tasks.create", {
+    title: "Review",
+    description: "Review delivery.",
+    assignee: "vera",
+    start_at: "2200-01-01",
+  });
+  const result = await list(
+    `tool: ${JSON.stringify({ name: "task_update", args: { task: child.id, parent: parent.id } })}`,
+  );
+  assert.doesNotMatch(result, /error/i);
+  assert.equal(env.core.store.tasks.get(child.id)?.parent_id, parent.id);
+  assert.deepEqual(env.core.store.threads.byTask(child.id), []);
 });
 
 test("a board too long to show whole keeps promises, dates, waits and recent moves on their lines, the rest counted", () => {

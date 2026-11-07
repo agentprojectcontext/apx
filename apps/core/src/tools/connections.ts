@@ -17,7 +17,7 @@ export function connectionTools(): Tool[] {
     defineTool({
       name: "suggest_connection",
       description:
-        "When what the owner asks needs an app or channel that may not be connected (Figma, Notion, GitHub, WhatsApp, Telegram, email…): finds it and, if it is not connected, shows the owner a card to connect it. Use it instead of saying you cannot.",
+        "When what the owner asks needs an app or channel that may not be connected (Figma, Notion, GitHub, WhatsApp, email…): finds it and, if it is not connected, shows the owner a card to connect it. Use it instead of saying you cannot.",
       args: z.object({
         query: z.string().trim().min(1).max(200).describe("the app's or channel's name, or what it does, in English"),
         why: z.string().trim().max(200).optional().describe("one line for the owner: what you would do with it"),

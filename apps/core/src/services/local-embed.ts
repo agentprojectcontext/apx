@@ -16,7 +16,7 @@ export function recommendEmbedder(memoryGb = os.totalmem() / 2 ** 30): string {
 }
 
 /** Names that are embedding models, for an Ollama too old to say so itself. */
-const EMBED_NAME = /(embed|bge|minilm|e5-|gte-|arctic|nomic)/i;
+export const EMBED_NAME = /(embed|bge|minilm|e5-|gte-|arctic|nomic)/i;
 
 export type OllamaState = {
   url: string;

@@ -11,7 +11,7 @@ const PROXY =
   "Environment=http_proxy=http://127.0.0.1:3128\nEnvironment=https_proxy=http://127.0.0.1:3128\nEnvironment=no_proxy=localhost,127.0.0.1,::1\n";
 
 /** User units every agent's screen user starts with its display number (`apx-desktop@103`). */
-export const screenUnits = () => ({
+const screenUnits = () => ({
   "apx-desktop@.service": `[Unit]\nDescription=APX screen :%i\n[Service]\nEnvironment=DISPLAY=:%i\n${PROXY}ExecStart=/usr/local/bin/apx-desktop :%i\nRestart=no\n`,
   "apx-agent-terminal@.service": `[Unit]\nDescription=APX agent terminal :%i\n[Service]\nEnvironment=DISPLAY=:%i\nEnvironment=XAUTHORITY=%h/.Xauthority\n${PROXY}ExecStart=/usr/bin/xfce4-terminal --disable-server --title=APX-Agent --geometry=75x16+570+440 --command="tail -n 60 -f %h/work/.apx-terminal.log"\nRestart=no\n`,
 });
@@ -101,4 +101,3 @@ export function screenDriver(run: LimaRun, instance: string, ownLoopbackOnly = f
     },
   };
 }
-export type ScreenDriver = ReturnType<typeof screenDriver>;

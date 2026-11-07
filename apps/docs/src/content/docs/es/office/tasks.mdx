@@ -64,10 +64,29 @@ lista en un solo proyecto o muestra **Todos los proyectos**; este navegador recu
   nombra). Se le pide la revisión enseguida: si pide cambios, vuelve al que la hizo; si aprueba, pasa a la tuya.
 - **Cerradas hace poco**: hechas o descartadas, las más nuevas primero.
 
+### Agrupar tareas existentes como subtareas
+
+Pedile a tu agente que ponga tareas relacionadas debajo de una
+tarea madre existente. Ambas deben estar en el mismo proyecto. Conservan sus IDs, historial, comentarios, sesiones
+y responsables; agruparlas por sí solo no vuelve a iniciar el trabajo ni cambia si están abiertas o cerradas.
+Las tareas ajenas quedan separadas.
+
+Desde la terminal: `apx tasks edit <id> --parent <parent-id>`; `--parent ""` separa la tarea. La herramienta
+`task_update` y el método `tasks.update` aceptan `parent` (el ID de una tarea existente o `null` para separarla).
+Un agente puede moverla al lado o debajo de otras, nunca más arriba: separarla o subirla hacia el inicio te toca a vos.
+Una tarea no puede ser su propia madre ni quedar debajo de una descendiente. La lista anida tareas cuando madre
+e hija aparecen en el filtro actual; abrir la madre también muestra sus subtareas.
+Separá una hija antes de moverla a otro proyecto (o separala y movela en la misma actualización). Separá todas
+las subtareas antes de mover su madre. Al crear una subtarea también debe coincidir el proyecto de su madre. El
+trabajo que tu agente le pasa al agente de otro proyecto desde el chat de una tarea global queda listado debajo de
+esa tarea, y una subtarea ya vinculada así se puede seguir editando.
+
 ## Adjuntos y acciones de los chats de una tarea
 
 Las tareas pueden guardar capturas y archivos seleccionados como copias independientes, al crearlas o después.
-Podés previsualizarlos o descargarlos desde la tarea. Cada tarea admite hasta 50 archivos de hasta 20 MB cada uno.
+La tarea los muestra como cuadrados del mismo tamaño: la miniatura de una imagen, o el nombre y el tamaño de un
+archivo. Hacé clic en uno para abrirlo (las imágenes en un visor que podés recorrer, los textos y PDF en un lector, el
+resto se descarga); pasá el mouse para descargarlo o quitarlo. Quitar siempre pide confirmación. Cada tarea admite hasta 50 archivos de hasta 20 MB cada uno.
 Borrar el chat original no borra la copia de la tarea; quitar el adjunto borra esa copia, no otras que ya se hayan
 compartido. Los agentes autorizados pueden consultar los adjuntos sin obtener acceso a chats privados de contactos.
 Enviar un archivo fuera de APX sigue siendo una acción separada del dueño.
@@ -85,8 +104,8 @@ tarea**. Ese chat es uno más del Inbox: podés abrirlo y mirar, o hablar ahí c
 
 1. Lucía crea "Escribir la página de tarifas de envío" en Acme Store y elige a **Tomás** en **Quién la hace**.
 2. Se abre el chat de Tomás para la tarea con el texto de la tarea, y arranca: lee el proyecto, arma un borrador.
-3. Sus respuestas quedan en su chat. Comenta en la tarea cuando hay algo que vale la pena saber: un paso hecho y
-   verificado, un bloqueo, algo para revisar. La tarea guarda esos comentarios; el chat guarda el trabajo en sí (cada
+3. Sus respuestas quedan en su chat, y hasta dónde llegó se ve en su plan. Comenta en la tarea cuando termina su plan
+   o para preguntarle algo a alguien. La tarea guarda esos comentarios; el chat guarda el trabajo en sí (cada
    herramienta, cada archivo). Cuando la cierra, su última respuesta se publica como su informe.
 4. Cuando necesita una decisión, te pregunta. La tarea pasa a **Necesita tu revisión** hasta que respondas.
 
@@ -96,6 +115,38 @@ Abrí una tarea y su panel muestra la descripción, los campos, los **Comentario
 movió, asignó o cerró). **Sesiones**, arriba, cuenta los chats en los que se trabajó la tarea y abre su lista, para ir
 a donde pasa el trabajo. Si la reasignás, el nuevo agente tiene su propio chat y se entera de quién la trabajó antes y
 dónde leerlo.
+
+### Objetivo, lo que pediste y el plan
+
+Arriba de la descripción, una tarea muestra adónde tiene que llegar su trabajo y lo que dijiste sobre ella:
+
+- **Objetivo**: una o dos líneas con el resultado que vas a revisar ("el computer use se mueve como el de referencia,
+  con un cursor por agente"). Un agente que le pasa una tarea a otro tiene que escribirlo; podés editarlo en el panel.
+  El agente que trabaja la tarea lo lee primero, en cada turno.
+- **Lo que pediste**: cuando un agente crea una tarea para vos, o la cambia, mientras te responde, APX guarda tu
+  mensaje tal como lo escribiste, con el o los dos que mandaste justo antes. El agente que trabaja la tarea lee tus
+  palabras antes que la descripción, que es el resumen que hizo el otro agente; si el resumen pide más de lo que
+  dijiste, o lo contrario, mandan tus palabras, y si no queda claro el agente te pregunta.
+- **Plan**: antes de trabajar, el agente escribe sus pasos hacia el objetivo y marca cada uno como pendiente, en curso
+  o hecho a medida que avanza. El panel los muestra como una lista con cuántos van hechos, y también el chat de la
+  tarea, debajo del mensaje del agente ([El plan del agente](/es/office/chat/#el-plan-del-agente)). Si el trabajo deja de
+  llevar al objetivo, el agente te dice qué falta en vez de seguir.
+- **Una pausa cuando no avanza**: si los agentes de una tarea hacen 12 turnos o gastan 2 millones de tokens sin
+  terminar un paso de su plan (contando desde el último paso hecho o desde tu último mensaje), se pausan. Ves el
+  motivo en el chat, con el botón para dejarlos seguir, y una vez en tus notificaciones. Un paso hecho, o tu mensaje,
+  vuelve a empezar la cuenta.
+- **Un agente hace el trabajo, una revisión al final**: el agente de una tarea la hace él mismo. Le pide algo a otro
+  agente recién cuando terminó el resto de su plan, en general una revisión (salvo que vos le pidas ayuda antes). Lo
+  que tiene que hacer otro pasa a ser una subtarea. Quien revisa responde Aprobado, Aprobado con notas, o Bloqueado con
+  lo único que lo bloquea. Las notas nunca frenan.
+- **Pocos comentarios**: un agente comenta en una tarea cuando termina su plan, para preguntarte algo a vos o a un
+  compañero (con `@nombre`), o cuando te responde; como mucho una vez por turno y en líneas cortas. El avance se ve en
+  el plan. Un ayudante le responde a quien le preguntó, no a la tarea.
+- **Limpiar tareas viejas**: las tareas de antes de 2.13 pueden tener decenas de comentarios de avance. Tu
+  super-agente te ofrece limpiarlas: te dice qué sacaría de cada tarea y el único resumen que dejaría, y no borra nada
+  hasta que le digas que sí. Tus propios comentarios quedan siempre.
+
+La descripción se lee con formato (listas, negritas, enlaces); el lápiz la abre para editarla.
 
 <Shot name="task-drawer" alt="Una tarea abierta en su panel: título, responsable, prioridad y una conversación con comentarios del dueño y de un agente" caption="El panel de una tarea: comentarios, campos y el chat de trabajo" />
 
@@ -126,6 +177,10 @@ Un agente le pregunta a un compañero igual: su `@nombre` en un comentario abre 
 como una tarjeta con la pregunta y la respuesta, y la respuesta le vuelve al agente que preguntó, que sigue con su
 trabajo. Un comentario pregunta a dos compañeros como mucho, y el que responde una consulta no puede preguntarle a
 nadie más. Un agente también te puede mencionar a vos para llamarte la atención.
+
+Quien le pregunta de nuevo al mismo compañero (vos, o el mismo agente) sigue en esa misma consulta, con lo que el
+compañero ya sabe, y la tarea muestra una tarjeta nueva para la nueva respuesta. Si el compañero sigue trabajando en
+una pregunta anterior, la nueva abre una consulta propia, así que las preguntas hechas a la vez quedan separadas.
 
 ### Un agente trabaja una tarea hasta terminarla
 
@@ -170,6 +225,17 @@ rol reparte lo crea y lo arranca; el resto lo **propone**. Una tarea propuesta e
 propuso, hasta que la aceptás (arranca como cualquier tarea asignada) o la descartás. Te llega un aviso por agente con
 cuántas tiene esperando.
 
+Para aceptar solo una propuesta abierta, hacé clic derecho sobre ella y elegí **Aceptar**, o usá **Aceptar** en su panel.
+Abrir o cerrar el menú no cambia nada.
+
+**Aceptar todas** te pide confirmar la cantidad de propuestas de la lista actual, incluidas las que están detrás de
+**Ver más**. Solo al confirmar se aceptan y los agentes asignados pueden arrancar; cancelar o cerrar el diálogo no
+cambia nada. Las propuestas que llegan mientras el diálogo está abierto no se incluyen. Antes de aceptar, APX vuelve
+a comprobar las propuestas seleccionadas. Si esa comprobación detecta algún cambio o una propuesta que ya no está
+disponible, la aceptación no empieza: revisá la lista y volvé a intentar.
+La aceptación avanza de a una propuesta. Si se interrumpe o se pierde una respuesta, algunas pueden haberse aceptado;
+revisá la lista actualizada antes de volver a intentar. El mensaje de error cuenta solo las aceptaciones confirmadas.
+
 Algunas tareas son propuestas pida lo que pida el agente. Cuando le pedís a tu superagente varias cosas sin decir cómo, primero
 te pregunta (un plan, una tarea por cada una o hacerlo él); si ya le dijiste cómo, sigue sin preguntar.
 
@@ -180,8 +246,38 @@ Las propuestas:
 - **Trabajo devuelto hacia arriba.** Una subtarea para un agente que creó una de las tareas de arriba queda propuesta,
   así dos agentes no se pasan el mismo trabajo de ida y vuelta.
 
-Lo mismo pasa cuando un agente le pasa una tarea que ya existe a otro agente: si darla nueva la volvería propuesta, el
-pase también queda propuesto y arranca cuando lo aceptás.
+Para una tarea existente que asignaste o aceptaste explícitamente, APX puede verificar al
+agente que la ejecuta y los pases registrados en vez de contar sus padres históricos. Pueden continuar hasta tres
+pases reales hacia adelante; una revisión independiente puede volver a quien la pidió durante hasta dos rondas con el
+mismo autor y revisor. El pase tiene que pedir **Revisión** explícitamente y APX inicia al otro agente con un encargo de
+revisión. Un estado Revisión anterior no demuestra por sí solo una ronda. Una tercera ronda, cambiar la pareja de
+revisión o devolver trabajo ajeno hacia arriba en la cadena activa espera tu decisión. Esto no acepta una propuesta que
+ya esté esperando.
+Tus mensajes de seguimiento en la conversación de la tarea o en el chat de trabajo de su agente actual conservan la
+misma asignación y no reinician estos límites. Un mensaje pendiente conserva la autorización que tenía cuando llegó,
+incluso después de un reinicio; revocar o reemplazar esa asignación no vuelve a autorizar el mensaje anterior.
+
+La autorización tiene que seguir correspondiendo a la tarea, al agente que la ejecuta y a su proyecto. Desasignarla,
+cambiar su alcance o pausarla para tu decisión impide esta continuación. También cuando un agente reescribe su título,
+descripción u objetivo, aunque sea en el mismo cambio con que la pasa: el alcance nuevo te espera como propuesta.
+Poner un objetivo que la tarea nunca tuvo no cuenta como reescribirla. Si una asignación tuya registrada ya no se puede
+verificar, APX propone el pase incluso en una tarea sin padres históricos. Las tareas sin una asignación tuya registrada
+conservan las reglas por la cadena de padres de arriba: una tarea sin asignar y sin tu autorización no puede saltárselas
+como continuación autorizada. Las asignaciones ordinarias que ya pasaban esas reglas no cambian. El chat del orquestador no autoriza por sí solo: la tarea tiene que pertenecerle y su
+ejecución tiene que estar vinculada con tu asignación vigente. Aceptá vos la propuesta cuando quieras que arranque;
+quitar padres históricos no es un paso de autorización.
+
+### ¿Revisor o nuevo responsable?
+
+Para pedir una revisión sin cambiar al agente responsable, mové la tarea a **Revisión** y elegí un agente independiente
+en **Revisor** (o pedile a tu agente que lo configure). APX abre una consulta de revisión, durante un máximo de dos
+rondas: los cambios pedidos vuelven al responsable; una aprobación se te comunica a vos. La aprobación no vuelve a
+arrancar automáticamente al responsable para entregar el trabajo. Una tarea propuesta no inicia revisión hasta que la
+aceptás.
+
+Cambiar el **responsable**, en cambio, transfiere la responsabilidad y arranca una sesión de trabajo de la tarea. Ese es
+el pase explicado arriba, no la consulta de revisión. Tu instancia de revisión y los presupuestos de los agentes siguen
+vigentes.
 
 ## Compromisos
 
@@ -242,6 +338,7 @@ el tablero para Tomás" funciona en cualquier chat.
 - Cada sección tiene un límite para el modelo, con marcas cuando se omite contenido o hay comentarios anteriores. El contenido se devuelve como datos, no como instrucciones.
 - Los agentes de proyecto pueden leer tareas de su proyecto y globales, pero no tareas ni trabajo relacionado de otros proyectos. Un ID inexistente o fuera del ámbito devuelve el mismo error seguro. La secretaria global conserva su visibilidad de todo el tablero.
 - `task_create`, `task_update`, `task_comment` y `task_close` crean y mantienen tareas; `commitment_settle` registra el resultado acordado de un compromiso.
+- `plan` guarda la lista de pasos del agente; en el chat de una tarea es el plan de la tarea.
 
 ## Lo que sigue
 

@@ -3,7 +3,7 @@ import { type KeyboardEvent, type ReactNode, type Ref, type SyntheticEvent, useR
 import { cx } from "../cx";
 
 /** Accessible names of the icon buttons; English by default. */
-export interface ComposerLabels {
+interface ComposerLabels {
   attach: string;
   stop: string;
   send: string;
@@ -23,6 +23,8 @@ export interface ComposerProps {
   onSubmit?: (value: string, opts: { queue: boolean }) => void;
   /** Tooltip on the send button (its shortcuts). */
   sendHint?: string;
+  /** A short line beside the send button (box layout): the shortcut worth knowing now. Hidden on narrow screens. */
+  hint?: ReactNode;
   /** Called by the mic button (shown while the field is empty). Omit it to keep a (disabled) send button there. */
   onVoice?: () => void;
   /** Something besides text can be sent (attachments): send works with an empty field. */
@@ -67,6 +69,7 @@ export function Composer({
   onValueChange,
   onSubmit,
   sendHint,
+  hint,
   onVoice,
   ready = false,
   onAttach,
@@ -188,6 +191,7 @@ export function Composer({
           {attach}
           {toolbar}
           <span className="apx-composer__spacer" />
+          {hint && <span className="apx-composer__hint">{hint}</span>}
           {primary}
         </div>
       )}

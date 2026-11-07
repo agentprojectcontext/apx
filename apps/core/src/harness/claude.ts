@@ -1,5 +1,6 @@
 // Claude Code in its own sessions: the owner's own `claude` (their login, CLAUDE.md and settings) through the Agent
 // SDK; every APX tool call comes back through `io.execute`. See DECISIONS.md#d-007
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
@@ -18,7 +19,8 @@ export function zodShape(params: object): z.ZodRawShape {
   return s instanceof z.ZodObject ? s.shape : {};
 }
 
-// Claude Code's own web, file and shell tools, each asked through our policy.
+// Claude Code's own web, file and shell tools, each asked through our policy. Its task list, subagents and questions
+// are not offered: APX's plan, delegate and ask_owner do those, with their cards (DECISIONS.md#d-199).
 const CLAUDE_BUILTINS = ["WebSearch", "WebFetch"];
 const CODE_READ = ["Read", "Glob", "Grep", "LS"];
 const CODE_WRITE = ["Edit", "MultiEdit", "Write", "NotebookEdit", "Bash"];
@@ -41,6 +43,13 @@ const KIND: Record<string, string> = {
 function subjectOf(input: Record<string, unknown>): string {
   return String(input.file_path ?? input.path ?? input.command ?? input.url ?? input.query ?? "");
 }
+
+/** Claude Code has no task list of its own here: its checklist is APX's plan, as our loop's is. */
+const PLAN_NOTE =
+  "\n\nYour checklist here is mcp__apx__plan, shown to the owner under your answer: work of more than two steps starts with it, sent whole again as each step is done.";
+
+/** The line that steers Claude Code to APX's plan, when the turn offers it. */
+const planNote = (io: Pick<TurnIO, "tools">) => (io.tools.some((t) => t.function.name === "plan") ? PLAN_NOTE : "");
 
 const CLAUDE_MD_CAP = 12_000;
 
@@ -121,10 +130,12 @@ type Tally = ReturnType<typeof claudeUsage>;
 type Sdk = typeof import("@anthropic-ai/claude-agent-sdk");
 type ImageReader = (id: string) => { mime: string; data: string } | undefined;
 
-async function* imagePrompt(io: TurnIO, readImage: ImageReader) {
-  const content: import("@anthropic-ai/claude-agent-sdk").SDKUserMessage["message"]["content"] = [
-    { type: "text", text: io.input.content },
-  ];
+type UserMessage = import("@anthropic-ai/claude-agent-sdk").SDKUserMessage;
+
+/** The turn's words and images, as the SDK takes a user message's content; words alone as text, as typed. */
+function promptContent(io: TurnIO, readImage: ImageReader): UserMessage["message"]["content"] {
+  if (!io.input.images?.length) return io.input.content;
+  const content: UserMessage["message"]["content"] = [{ type: "text", text: io.input.content }];
   for (const image of io.input.images ?? []) {
     const stored = readImage(image.media_id);
     if (!stored) throw new Error(`Image attachment ${image.media_id} is no longer available`);
@@ -139,11 +150,92 @@ async function* imagePrompt(io: TurnIO, readImage: ImageReader) {
       },
     });
   }
-  yield {
-    type: "user" as const,
+  return content;
+}
+
+/**
+ * `priority`: "next" folds the words into the running turn after its tool round; "now" stops the step it is on and
+ * runs them next, in the same session.
+ */
+function userMessage(
+  io: TurnIO,
+  content: UserMessage["message"]["content"],
+  priority?: "next" | "now",
+): UserMessage & { uuid: string } {
+  return {
+    type: "user",
     session_id: io.sessionId ?? "",
-    message: { role: "user" as const, content },
+    message: { role: "user", content },
     parent_tool_use_id: null,
+    uuid: randomUUID(),
+    ...(priority ? { priority } : {}),
+  };
+}
+
+/** The query's input: the turn's prompt, then the owner's words as the turn takes them; it ends with the turn. */
+function inputStream() {
+  const queue: UserMessage[] = [];
+  let wake: (() => void) | undefined;
+  let closed = false;
+  const notify = () => {
+    const w = wake;
+    wake = undefined;
+    w?.();
+  };
+  return {
+    push(m: UserMessage): void {
+      queue.push(m);
+      notify();
+    },
+    close(): void {
+      closed = true;
+      notify();
+    },
+    async *messages(): AsyncGenerator<UserMessage> {
+      for (;;) {
+        for (let m = queue.shift(); m; m = queue.shift()) yield m;
+        if (closed) return;
+        await new Promise<void>((resolve) => {
+          wake = resolve;
+        });
+      }
+    },
+  };
+}
+
+/**
+ * The owner's words into a running query (DECISIONS.md#d-196): taken where Claude's tools run ("next", folded in after
+ * the round) or at once on "send now" ("now"); the turn goes on until a result lists every one.
+ */
+function ownerWords(io: TurnIO, input: ReturnType<typeof inputStream>, beforeNow: () => void) {
+  const unanswered = new Set<string>();
+  let cut: AbortSignal | undefined;
+  const take = (priority: "next" | "now") => {
+    for (const words of io.takeSteered?.() ?? []) {
+      const m = userMessage(io, words, priority);
+      unanswered.add(m.uuid);
+      input.push(m);
+    }
+  };
+  const onCut = () => {
+    beforeNow();
+    take("now");
+    listen();
+  };
+  const listen = () => {
+    cut = io.stepSignal?.();
+    cut?.addEventListener("abort", onCut, { once: true });
+  };
+  return {
+    take,
+    listen,
+    /** What a result took; true while words handed over still wait. A CLI that lists none folded them all. */
+    waiting(taken: string[] | undefined): boolean {
+      if (taken) for (const id of taken) unanswered.delete(id);
+      else unanswered.clear();
+      return unanswered.size > 0;
+    },
+    stop: () => cut?.removeEventListener("abort", onCut),
   };
 }
 
@@ -191,7 +283,10 @@ function toolOptions(io: TurnIO, counts: Counts) {
   };
 }
 
-/** Runs one query and reads its stream: text as it comes, its own tools as cards, the result at the end. */
+/**
+ * Runs one query and reads its stream: text as it comes, its own tools as cards, the result at the end. The owner's
+ * words reach it mid-turn, as they reach our own loop (DECISIONS.md#d-196).
+ */
 async function attempt(
   io: TurnIO,
   o: {
@@ -209,22 +304,44 @@ async function attempt(
   const onAbort = () => ac.abort();
   io.signal.addEventListener("abort", onAbort, { once: true });
   let text = "";
-  let model = o.chosen ?? "default";
+  // A finished answer before words the SDK ran right after it: kept above the next one.
+  let prefix = "";
+  // The turn's own model call is writing: a "send now" drops what it wrote so far.
+  let streaming = false;
+  let model = "default";
+  let modelConfirmed = false;
+  const reportModel = (reported: string | undefined) => {
+    // Startup aliases do not identify the model that will actually answer.
+    if (!reported || /^(default|opus|sonnet|haiku|opusplan)(\[.*\])?$/.test(reported) || reported === "<synthetic>")
+      return;
+    model = reported;
+    modelConfirmed = true;
+    io.onModel?.(`claude/${reported}`);
+  };
   let sessionId = o.resume;
   // The call each stream is on (the turn's own, keyed "", and each subagent's), for the tokens its deltas add.
   const current = new Map<string, string>();
+  const input = inputStream();
+  // "Send now" drops the answer it is writing, as our own loop does.
+  const words = ownerWords(io, input, () => {
+    if (!streaming) return;
+    text = "";
+    io.onText(prefix);
+  });
   try {
+    input.push(userMessage(io, promptContent(io, o.readImage)));
+    words.listen();
     const sdk = await loadSdk();
     const cwd = o.cwd(io);
     const q = sdk.query({
-      prompt: io.input.images?.length ? imagePrompt(io, o.readImage) : io.input.content,
+      prompt: input.messages(),
       options: {
         abortController: ac,
         pathToClaudeCodeExecutable: o.claudePath,
         cwd,
         // Claude Code itself: its own prompt and the owner's own CLAUDE.md and settings; the folder's settings are a
         // repo's word, not the owner's, so only its CLAUDE.md comes in. See DECISIONS.md#d-057
-        systemPrompt: { type: "preset", preset: "claude_code", append: io.system + folderClaudeMd(cwd) },
+        systemPrompt: { type: "preset", preset: "claude_code", append: io.system + planNote(io) + folderClaudeMd(cwd) },
         ...toolOptions(io, o.counts),
         settingSources: ["user"],
         strictMcpConfig: true,
@@ -239,7 +356,10 @@ async function attempt(
     });
     for await (const m of q) {
       io.alive?.();
-      if (m.type === "stream_event") {
+      if (m.type === "system" && m.subtype === "init") {
+        sessionId = m.session_id;
+        reportModel(m.model);
+      } else if (m.type === "stream_event") {
         const ev = m.event;
         const main = !m.parent_tool_use_id;
         if (ev.type === "message_start") {
@@ -247,15 +367,19 @@ async function attempt(
           o.tally.call(ev.message.id, ev.message.usage, main);
         } else if (ev.type === "message_delta") o.tally.call(current.get(m.parent_tool_use_id ?? ""), ev.usage, main);
         if (!main) continue;
-        if (ev.type === "message_start") text = "";
+        if (ev.type === "message_start") {
+          text = "";
+          streaming = true;
+          reportModel(ev.message.model);
+        } else if (ev.type === "message_stop") streaming = false;
         if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
           text += ev.delta.text;
-          io.onText(text);
+          io.onText(prefix + text);
         }
       } else if (m.type === "assistant") {
         o.tally.call(m.message.id, m.message.usage, !m.parent_tool_use_id);
         if (m.parent_tool_use_id) continue;
-        model = m.message.model || model;
+        reportModel(m.message.model);
         sessionId = m.session_id;
         // Its own tools are shown as cards and recorded as steps; web tools also tell the policy that outside text
         // is now in the turn.
@@ -269,9 +393,19 @@ async function attempt(
               status: "ok",
             });
           }
+        // Its tools run now: words that arrived go in, and the SDK folds them in after this round.
+        if (m.message.content.some((b) => b.type === "tool_use")) words.take("next");
+      } else if (m.type === "user") {
+        if (!m.parent_tool_use_id) words.take("next");
       } else if (m.type === "result") {
         sessionId = m.session_id;
         o.tally.window(m.modelUsage[model]?.contextWindow);
+        // Words that came after its last tool round, or a "send now" that stopped it: the SDK runs them next.
+        if (words.waiting(m.user_message_uuids)) {
+          if (m.subtype === "success" && m.result) prefix = `${prefix}${m.result}\n\n`;
+          text = "";
+          continue;
+        }
         if (m.subtype !== "success") throw new Error(`claude: ${m.subtype}`);
         const usage = o.tally.total() ?? {
           input:
@@ -280,12 +414,14 @@ async function attempt(
             (m.usage.cache_creation_input_tokens ?? 0),
           output: m.usage.output_tokens ?? 0,
         };
-        return { text: m.result || text, model: `claude/${model}`, effort: o.effort, sessionId, usage };
+        return { text: prefix + (m.result || text), model: `claude/${model}`, modelConfirmed, sessionId, usage };
       }
     }
-    return { text, model: `claude/${model}`, effort: o.effort, sessionId, usage: o.tally.total() };
+    return { text: prefix + text, model: `claude/${model}`, modelConfirmed, sessionId, usage: o.tally.total() };
   } finally {
     io.signal.removeEventListener("abort", onAbort);
+    words.stop();
+    input.close();
   }
 }
 
@@ -314,8 +450,10 @@ export function claudeHarness(opts: {
         // but only for that, and never after any tool ran (ours or Claude's), since a rerun would repeat its effect.
         // See DECISIONS.md#d-007
         const gone = /session|conversation/i.test(errorMessage(err));
-        if (io.sessionId && gone && !io.signal.aborted && counts.apx === 0 && counts.builtins === 0)
+        if (io.sessionId && gone && !io.signal.aborted && counts.apx === 0 && counts.builtins === 0) {
+          io.onModel?.(undefined);
           return attempt(io, { ...base, counts, tally, resume: undefined });
+        }
         throw err;
       }
     },

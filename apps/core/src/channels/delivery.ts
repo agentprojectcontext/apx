@@ -81,6 +81,16 @@ export function createDelivery(deps: {
       const r = await target.adapter.send(o.conversation, o.body, files);
       store.channels.outbox.sent(o.id, r.external_id);
       if (o.message_id) store.messages.setDelivery(o.message_id, "sent");
+      // The platform uses another address for this chat (a number missing its country code): the contact and the
+      // chat move to it, so their answer comes back to the same person and thread.
+      if (r.address && r.address !== o.conversation) {
+        const { channel, conversation } = o;
+        const to = r.address;
+        store.tx(() => {
+          store.persons.readdress(channel, conversation, to);
+          store.threads.readdress(channel, conversation, to);
+        });
+      }
     } catch (err) {
       settleFailure(o, err);
     }

@@ -142,19 +142,25 @@ test("moving an agent subtask cannot silently clear its project-scoped assignee"
       prompt: "",
       extra: {},
     });
+    const projectParent = await env.client.call("tasks.create", { title: "Project delivery", project: "northwind" });
     const task = await env.client.call("tasks.create", {
       title: "Prepare delivery",
-      parent: parent.id,
+      parent: projectParent.id,
       project: "northwind",
       assignee: "northwind-builder",
       description: "Review the delivery.",
     });
-    const result = await env.core.dispatch("tasks.update", { task: task.id, project: null }, context(work.id), "move");
+    const result = await env.core.dispatch(
+      "tasks.update",
+      { task: task.id, project: null, parent: parent.id },
+      context(work.id),
+      "move",
+    );
     assert.equal(result.ok, false);
     assert.match(!result.ok ? result.error.message : "", /assignee:/);
     assert.equal(env.core.store.tasks.get(task.id)?.project_id, "northwind");
     assert.equal(env.core.store.tasks.get(task.id)?.assignee, "northwind-builder");
-    const moved = await env.client.call("tasks.update", { task: task.id, project: null });
+    const moved = await env.client.call("tasks.update", { task: task.id, project: null, parent: parent.id });
     assert.equal(moved.project_id, undefined);
     assert.equal(moved.assignee, undefined, "the owner can deliberately move and unassign work");
   } finally {

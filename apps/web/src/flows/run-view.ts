@@ -140,8 +140,11 @@ export type StepView = {
   retry?: boolean;
   /** An AI model step: who answered, on which harness and model. */
   answered?: string;
+  /** When the step started and ended, as the core recorded them. */
+  started?: string;
+  ended?: string;
 };
-export type LogLine = { at: string; node: string; text: string; tone?: "ok" | "err" };
+type LogLine = { at: string; node: string; text: string; tone?: "ok" | "err" };
 export type RunView = { steps: Map<string, StepView>; log: LogLine[]; ran: number };
 
 /** What each step of the drawn flow did in one run. Steps follow the chain the definition runs in. */
@@ -276,6 +279,8 @@ function actionStep(
     input,
     output,
     ...(run ? { run } : {}),
+    ...(e.run_started_at ? { started: e.run_started_at } : {}),
+    ...(e.run_ended_at ? { ended: e.run_ended_at } : {}),
   });
   if (e.run_started_at) log.push({ at: e.run_started_at, node: n.id, text: t("flow.log.started", { who: name }) });
   if (e.run_ended_at)
@@ -291,7 +296,7 @@ function actionStep(
 }
 
 /** The step's settings as one readable line: what it was given. */
-export function inputOf(n: FlowNode, flow: string, t: T, who: (n: FlowNode) => string): string {
+function inputOf(n: FlowNode, flow: string, t: T, who: (n: FlowNode) => string): string {
   switch (n.kind) {
     case "webhook":
       return `${hookVerbs(n)} ${hookPath(flow)}`;
@@ -486,7 +491,7 @@ export function viewGraphRun(run: RunDetail, flow: string, t: T, who: (n: FlowNo
               : "skipped";
     const output =
       r.state === "succeeded" && isTrigger(n.kind)
-        ? startedText(run, t)
+        ? triggerData(r.output, t)
         : r.state === "succeeded"
           ? matched === undefined
             ? (outwardOutput(n, r.output, t) ?? JSON_TEXT(r.output))
@@ -527,8 +532,9 @@ export function viewGraphRun(run: RunDetail, flow: string, t: T, who: (n: FlowNo
       ...(counted ? { order: ++order } : {}),
       ...(badge ? { badge } : {}),
       // A check shows its rules, and the value it compared when a case compares one.
-      input:
-        n.kind === "condition"
+      input: isTrigger(n.kind)
+        ? startedHow(run, settings, t)
+        : n.kind === "condition"
           ? [
               settings,
               ...(r.input !== null && r.input !== "null" ? [t("flow.in.compared", { value: JSON_TEXT(r.input) })] : []),
@@ -537,6 +543,8 @@ export function viewGraphRun(run: RunDetail, flow: string, t: T, who: (n: FlowNo
             ? settings
             : (outwardInput(n, r.input, t) ?? JSON_TEXT(r.input)),
       output,
+      ...(r.started_at ? { started: r.started_at } : {}),
+      ...(r.ended_at ? { ended: r.ended_at } : {}),
       ...(r.run_id ? { run: r.run_id } : {}),
       ...(n.kind === "agent" && r.answered
         ? {
@@ -600,6 +608,18 @@ function startedText(run: RunDetail, t: T): string {
     return t(ranLate(run) ? "flow.out.dueLate" : "flow.out.due", { time: due });
   }
   return JSON_TEXT(trigger?.output ?? null);
+}
+
+/** How a run came to start, as its trigger's input: its address for a POST, Run now, or the time it was due. */
+function startedHow(run: RunDetail, settings: string, t: T): string {
+  if (run.source === "owner") return t("flow.in.runNow");
+  return run.source === "schedule" && run.scheduled_at ? startedText(run, t) : settings;
+}
+
+/** What the run started with, as later steps read it (`$trigger`): its fields keep their names, even a lone `text`. */
+function triggerData(output: string | null, t: T): string {
+  const text = output === null ? "" : pretty(output);
+  return !text.trim() || text === "{}" || text === "null" ? t("flow.out.noData") : text;
 }
 
 /** The way a check went, from its record: `{case}`, or `{matched}` for a yes/no check's older runs. */

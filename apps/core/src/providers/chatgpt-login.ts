@@ -32,7 +32,7 @@ const claims = (jwt: string): Record<string, unknown> => {
 };
 const authClaims = (jwt: string) => (claims(jwt)["https://api.openai.com/auth"] ?? {}) as Record<string, unknown>;
 
-export class LoginError extends Error {
+class LoginError extends Error {
   /** The owner has to sign in again (the refresh token was refused). */
   readonly relogin: boolean;
   constructor(message: string, relogin = false) {

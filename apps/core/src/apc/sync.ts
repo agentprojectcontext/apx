@@ -26,7 +26,7 @@ const DEBOUNCE_MS = 400;
 export const PROJECT_READ_MS = 5_000;
 
 export const projectIdOf = (apcId: string) => `p_${apcId}`;
-export const agentIdOf = (apcId: string, slug: string) => `${apcId}-${slug}`.toLowerCase();
+const agentIdOf = (apcId: string, slug: string) => `${apcId}-${slug}`.toLowerCase();
 
 /**
  * v1 wrote "provider:model". Only an engine this install knows becomes a choice; "inherit", a bare id or v1-only
@@ -59,11 +59,14 @@ export function createApcSync(deps: {
   /** Where `load` reads folders: worker threads in the core, a stand-in in tests. */
   read?: ReadProjectFiles;
   timers?: Timers;
+  /** The watcher's debounce: a clock of its own, so a test's run clock counts only what the test started. */
+  watchTimers?: Timers;
   readMs?: number;
 }) {
   const { store, log } = deps;
   const watchers = new Map<string, fs.FSWatcher[]>();
-  const timers = new Map<string, ReturnType<typeof setTimeout>>();
+  // Each folder's queued reindex, as its cancel.
+  const queued = new Map<string, () => void>();
   // A folder still being read is not read a second time: one held read holds one thread.
   const reading = new Map<string, Promise<ProjectFiles>>();
   // Each start-up read still inside its deadline; closing ends them.
@@ -207,17 +210,18 @@ export function createApcSync(deps: {
   function watch(root: string): void {
     if (watchers.has(root)) return;
     const changed = () => {
-      clearTimeout(timers.get(root));
-      timers.set(
+      queued.get(root)?.();
+      queued.set(
         root,
-        setTimeout(() => {
+        (deps.watchTimers ?? realTimers).after(DEBOUNCE_MS, () => {
+          queued.delete(root);
           try {
             const r = syncRoot(root);
             log.info({ project: r.project, agents: r.agents }, "project files changed; reindexed");
           } catch (err) {
             log.warn({ root, err: String(err) }, "could not reindex project");
           }
-        }, DEBOUNCE_MS),
+        }),
       );
     };
     const list: fs.FSWatcher[] = [];
@@ -247,8 +251,8 @@ export function createApcSync(deps: {
       if (project.path) {
         for (const watcher of watchers.get(project.path) ?? []) watcher.close();
         watchers.delete(project.path);
-        clearTimeout(timers.get(project.path));
-        timers.delete(project.path);
+        queued.get(project.path)?.();
+        queued.delete(project.path);
       }
       store.projects.unregister(projectId);
     },
@@ -288,7 +292,8 @@ export function createApcSync(deps: {
       closed = true;
       for (const end of waits) end();
       for (const list of watchers.values()) for (const w of list) w.close();
-      for (const t of timers.values()) clearTimeout(t);
+      for (const cancel of queued.values()) cancel();
+      queued.clear();
       watchers.clear();
     },
   };

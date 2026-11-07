@@ -67,6 +67,10 @@ export type Task = {
   id: string;
   title: string;
   description?: string;
+  /** Where the work must arrive: the result the owner will check. */
+  goal?: string;
+  /** The working agent's plan, as a Markdown checklist. */
+  plan?: string;
   status: string;
   state: string;
   kind: "task" | "commitment" | "errand";

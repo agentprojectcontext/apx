@@ -66,5 +66,3 @@ export function createStderrLogs(limits: { lines?: number; lineChars?: number } 
     },
   };
 }
-
-export type StderrLogs = ReturnType<typeof createStderrLogs>;

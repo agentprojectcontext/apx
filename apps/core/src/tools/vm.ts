@@ -83,7 +83,7 @@ export function vmTools(vm: Computer | undefined): Tool[] {
     defineTool({
       name: COMPUTER_TOOL,
       description:
-        "The Linux computer the agents share (a VM apart from the owner's machine; you get your own user, files and screen with a desktop and browser): status, start (moves this chat there; your shell and browser then run on your screen) or stop (this chat back on this machine, your screen freed). Only for work the owner wants on it: if they did not say where, ask them first (the computer or this machine). The web (look-ups, sites, their logins) goes through web_search, web_read and their browser on this machine unless they ask for the computer. Starting needs free memory.",
+        "The Linux computer the agents share (a VM apart from the owner's machine, with your own user, files, screen, desktop and browser): status, start (moves this chat there; your shell and browser then run on your screen) or stop (this chat back on this machine, your screen freed). Only for work the owner wants on it: if they did not say where, ask them first (the computer or this machine). The web (look-ups, sites, their logins) goes through web_search, web_read and their browser on this machine unless they ask for the computer. Starting needs free memory.",
       args: z.object({ action: z.enum(["status", "start", "stop"]) }),
       effect: "local",
       reads: (a) => a.action === "status",

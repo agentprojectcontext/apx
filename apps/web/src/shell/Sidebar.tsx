@@ -10,14 +10,29 @@ import { unreadListed } from "../inbox/groupThreads.ts";
 import { AppsDock, CornerCards, DesktopInstallNotice } from "../lazy.ts";
 import { AccountRow } from "./AccountRow.tsx";
 import { ChannelsNav } from "./ChannelsNav.tsx";
+import { DiskMark } from "./DiskMark.tsx";
 import { ExternalSessionsNav } from "./ExternalSessionsNav.tsx";
 import { HelpMenu } from "./HelpMenu.tsx";
 import { LAYOUT } from "./layout.ts";
 import { go, useNav } from "./nav.ts";
 import { ProjectsNav } from "./ProjectsNav.tsx";
 
-/** Inbox · Tasks · Flows · Resources · Files (pinned) · Channels · Projects · External sessions · Apps · account (with Settings). `rail` = 60px icons. */
-export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
+/**
+ * Inbox · Tasks · Flows · Resources · Files (pinned) · Channels · Projects · External sessions · Apps · account (with
+ * Settings). `rail` = 60px icons. Its edge folds and unfolds it (click or drag) and sets its width; `narrow`: the
+ * window is narrow enough to fold it on its own; `fixed`: a phone, where it stays a rail.
+ */
+export function Sidebar({
+  rail,
+  width,
+  narrow,
+  fixed,
+}: {
+  rail: boolean;
+  width: number;
+  narrow: boolean;
+  fixed: boolean;
+}) {
   const t = useT();
   const view = useNav((s) => s.view);
   const threads = useData((s) => s.threads);
@@ -28,6 +43,8 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
   }, []);
 
   const routines = usePrefs((s) => s.inboxRoutines);
+  // The width it opens to: the one the owner dragged it to.
+  const open = usePrefs((s) => s.sidebarW) || undefined;
   // The same chats the Inbox's own button reads.
   const unreadIds = useMemo(() => unreadListed(threads, { routines }), [threads, routines]);
   const unread = useMemo(() => {
@@ -38,15 +55,22 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
 
   return (
     <aside className={rail ? "sidebar is-rail" : "sidebar"} aria-label={t("nav.label")}>
-      {!rail && (
+      {!fixed && (
         <ResizeHandle
           className="sidebar__resize"
-          width={width}
+          width={rail ? (open ?? LAYOUT.sidebarW) : width}
           min={LAYOUT.sidebarMinW}
           max={LAYOUT.sidebarMaxW}
           onResize={(w) => setPrefs({ sidebarW: w })}
-          onReset={() => setPrefs({ sidebarW: 0 })}
+          collapsed={rail}
+          collapsedWidth={LAYOUT.sidebarRailW}
+          onCollapsedChange={(fold) =>
+            setPrefs(
+              fold ? { sidebarCollapsed: true, sidebarOpen: false } : { sidebarCollapsed: false, sidebarOpen: narrow },
+            )
+          }
           label={t("nav.resize")}
+          hint={t(rail ? "nav.unfoldHint" : "nav.resizeHint")}
         />
       )}
       <div className="sidebar__top">
@@ -130,6 +154,7 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
         </Suspense>
       )}
       <div className="sidebar__foot">
+        <DiskMark rail={rail} />
         <HelpMenu rail={rail} />
         <AccountRow rail={rail} />
       </div>

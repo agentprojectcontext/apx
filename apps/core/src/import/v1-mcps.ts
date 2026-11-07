@@ -27,7 +27,7 @@ export function v1Mcps(file: string): V1Mcp[] {
 export const v1McpFile = (storage: string) => path.join(storage, "mcps.json");
 
 /** `${var.NAME}` and `${NAME}` (v1's references to its variables) as v2's `secret://NAME`. */
-export const v1Refs = (v: string) => v.replace(/\$\{(?:var\.)?([a-zA-Z0-9_.-]+)\}/g, "secret://$1");
+const v1Refs = (v: string) => v.replace(/\$\{(?:var\.)?([a-zA-Z0-9_.-]+)\}/g, "secret://$1");
 
 /**
  * One v1 server as v2 keeps it: references become secret://, and a credential written in plain text is handed to

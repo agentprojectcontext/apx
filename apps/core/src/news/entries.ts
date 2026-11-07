@@ -1,9 +1,26 @@
 // Release news worth acting on: what a release lets the super-agent do for this owner. Each entry is told once, and
 // only to an owner it applies to. See rules/DECISIONS.md#d-117
+import type { StoreSize } from "../db/db.ts";
 import type { Store } from "../domain/store.ts";
+import { NOISY_COMMENTS } from "../domain/tasks.ts";
 import { computerHost } from "../environments/host.ts";
 import { CATALOG } from "../integrations/catalog.ts";
+import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
+import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
+import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
+import { CHROME_TABS_NEWS } from "./chrome-tabs.ts";
+import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
+import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
+import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
+import { LOCAL_MODELS_NEWS } from "./local-models.ts";
+import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
+import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
+import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
+import { STORE_COMPACT_NEWS } from "./store-compact.ts";
+import { TASK_COMMENTS_NEWS } from "./task-comments.ts";
+import { TASK_GOALS_NEWS } from "./task-goals.ts";
+import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
 
 /** What an entry may ask about this install before it is told. */
 export type NewsFacts = {
@@ -30,6 +47,18 @@ export type NewsFacts = {
   claude?: boolean;
   /** At least one paired Desktop can use coordinated remote updates. */
   desktop?: boolean;
+  /** Open tasks with an agent on them. */
+  tasks?: number;
+  /** Open tasks whose comments piled up (worth cleaning). */
+  noisyTasks?: number;
+  /** A Hermes home folder is on this machine (moving from it is offered). */
+  hermes?: boolean;
+  /** A model app (Ollama, LM Studio) was found running on this computer. */
+  localModels?: boolean;
+  /** Agents that run on a model of their own (not the router alone). */
+  ownModels?: number;
+  /** The chats' database is over 500 MB and keeps its free space until it is rewritten once (compacted). */
+  bigStore?: boolean;
 };
 
 export type NewsAction = {
@@ -55,7 +84,83 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  TASK_GOALS_NEWS,
+  TASK_COMMENTS_NEWS,
+  COMPUTER_POINTER_NEWS,
+  TASK_REGROUP_NEWS,
+  QUEUED_MESSAGES_NEWS,
+  EXTERNAL_SESSIONS_NEWS,
+  HERMES_IMPORT_NEWS,
+  BROWSER_EDIT_NEWS,
   BROWSER_JAVASCRIPT_NEWS,
+  QUICK_CHAT_NEWS,
+  CHROME_TABS_NEWS,
+  LOCAL_MODELS_NEWS,
+  MOVE_BACKUP_NEWS,
+  AGENT_FALLBACKS_NEWS,
+  BROWSER_SIGN_IN_NEWS,
+  STORE_COMPACT_NEWS,
+  {
+    id: "storage-screen",
+    since: "2.13.0",
+    title: { en: "See and free up APX's disk space", es: "Mirá y liberá el espacio que usa APX" },
+    about: {
+      en: "Settings › Storage shows what APX keeps on your computer by area, and Free up space clears caches and old logs. You can also delete an agents' computer or an old backup one by one. APX also tells you when your disk is almost full.",
+      es: "Configuración › Almacenamiento muestra lo que APX guarda en tu computadora por área, y Liberar espacio borra la caché y los registros viejos. También podés borrar de a una las computadoras de los agentes o las copias viejas. APX también te avisa cuando tu disco está casi lleno.",
+    },
+    applies: () => true,
+    text:
+      "Settings, Storage now shows how much disk APX uses, split into chats and files, projects, the agents' " +
+      "computers, the browser, local models, logs, caches and backups. Free up space removes only what APX makes " +
+      "again by itself (caches and old logs) and says first how much; chats, memory, files and projects stay. When " +
+      "the disk holding APX has less than 5 GB free, the panel says so with a link to that screen. Only the owner " +
+      "frees space, from the screen. The agents' computers and the backups open into a list of each one, which " +
+      "the owner deletes one by one after a confirmation (a computer only once it is off).",
+    actions: [
+      {
+        label: { en: "Where do I see it?", es: "¿Dónde lo veo?" },
+        prompt: "Tell me in two lines where I see how much disk APX uses and what Free up space removes.",
+      },
+    ],
+  },
+  {
+    id: "plan-usage-tool",
+    since: "2.13.0",
+    title: { en: "Ask about your plan quotas", es: "Consultá las cuotas de tus planes" },
+    about: {
+      en: "Ask your agent how much is left on your AI plans and when they reset, for any engine on this computer, not just the ones in the top bar.",
+      es: "Preguntale a tu agente cuánto te queda en tus planes de IA y cuándo se reinician, para cualquier motor de esta computadora, no solo los de la barra superior.",
+    },
+    applies: (facts) => Boolean(facts.claude || facts.codex),
+    text: "When the owner asks about their AI plans, apx_settings method engines.usage reads the quotas of every engine detected on this computer, also those kept out of the top bar; params.query filters by engine id or provider/plan name. Claude and Codex currently report windows; other engines may be unsupported or unavailable. Keep checked_at and missing data explicit, never infer zero usage. This is a read-only query, not proactive monitoring or automatic stopping.",
+    actions: [
+      {
+        label: { en: "Check plan quotas", es: "Consultar cuotas" },
+        prompt: "Check the reported quotas and reset times for all my AI plans. Tell me which data is unavailable.",
+      },
+    ],
+  },
+  {
+    id: "email-cards",
+    since: "2.13.0",
+    title: { en: "Emails as cards in the chat", es: "Los emails, como tarjetas en el chat" },
+    about: {
+      en: "An email your agent writes shows as a card you can send from Gmail or an Email channel, with a few seconds to undo, or open in your mail app.",
+      es: "Un email que escribe tu agente aparece como una tarjeta que podés mandar desde Gmail o un canal de Email, con unos segundos para deshacer, o abrir en tu app de correo.",
+    },
+    applies: () => true,
+    text:
+      "An email an agent writes for the owner now shows as a card in the chat, on the computer and on the phone. " +
+      "With Gmail or an Email channel connected the owner sends it from the card, with a few seconds to undo; " +
+      "otherwise it opens in their mail app, Gmail or Outlook on the web, or is copied. Mail that reaches an Email " +
+      "channel shows the same way.",
+    actions: [
+      {
+        label: { en: "Write one to try it", es: "Escribí uno para probarlo" },
+        prompt: "Draft a short test email to me so I can see the new email card and how I send it from there.",
+      },
+    ],
+  },
   {
     id: "channel-accounts",
     since: "2.13.0",
@@ -1106,7 +1211,12 @@ const connectedIntegrations = (store: Store): number => {
 
 const signedIn = (store: Store, id: string) => Boolean(store.settings.get(`google_account:${id}`));
 
-export const newsFacts = (store: Store): NewsFacts => ({
+/** A store this big that cannot give space back is worth one compaction. */
+const BIG_STORE_BYTES = 500 * 1024 * 1024;
+
+export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: StoreSize } = {}): NewsFacts => ({
+  hermes: o.hermes ?? false,
+  bigStore: o.storeSize !== undefined && !o.storeSize.incremental && o.storeSize.bytes >= BIG_STORE_BYTES,
   artifacts: store.surfaces.list().length,
   desktop: store.devices.list().some((d) => d.platform === "desktop"),
   codex: store.threads.list({ engine: "codex", limit: 1 }).length > 0,
@@ -1124,6 +1234,10 @@ export const newsFacts = (store: Store): NewsFacts => ({
   integrations: connectedIntegrations(store),
   computer: computerHost() !== undefined && store.projects.list().length > 0,
   mac: process.platform === "darwin" && store.projects.list().length > 0,
+  tasks: store.tasks.list({ state: "open", limit: 500 }).filter((t) => t.assignee).length,
+  noisyTasks: store.tasks.noisy(NOISY_COMMENTS).length,
+  localModels: store.settings.read("local_models_seen").length > 0,
+  ownModels: store.agents.list().filter((a) => a.model_choice?.model).length,
 });
 
 /** The action a channel button stands for. */

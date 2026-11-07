@@ -106,6 +106,44 @@ test("splitter clamps keyboard and pointer resize, ends drag and resets on doubl
     await expect(splitter).toHaveAttribute("aria-valuenow", "240");
   }));
 
+test("a foldable splitter toggles on click and Enter, snaps past halfway and keeps the chosen width", async () =>
+  mounted(async (page) => {
+    const splitter = page.getByRole("separator", { name: "Fold or resize the rail", exact: true });
+    const rail = page.getByTestId("rail");
+    await splitter.click();
+    await expect(rail).toHaveText("folded 260");
+    await expect(splitter).toHaveAttribute("aria-valuenow", "60");
+    await splitter.click();
+    await expect(rail).toHaveText("open 260");
+    const drag = async (dx: number) => {
+      const box = await splitter.boundingBox();
+      assert.ok(box);
+      const y = box.y + box.height / 2;
+      await page.mouse.move(box.x + box.width / 2, y);
+      await page.mouse.down();
+      for (let i = 1; i <= 10; i++) await page.mouse.move(box.x + box.width / 2 + (dx * i) / 10, y);
+      await page.mouse.up();
+    };
+    // Narrower than the minimum but not past halfway to the rail: it stops at the minimum.
+    await drag(-100);
+    await expect(rail).toHaveText("open 200");
+    await drag(40);
+    await expect(rail).toHaveText("open 240");
+    // Past halfway (130px): it snaps closed and keeps 240 for when it opens.
+    await drag(-130);
+    await expect(rail).toHaveText("folded 240");
+    // Dragged out of the rail it opens under the pointer, never under the minimum.
+    await drag(100);
+    await expect(rail).toHaveText("open 200");
+    await splitter.focus();
+    await splitter.press("ArrowLeft");
+    await expect(rail).toHaveText("folded 200");
+    await splitter.press("ArrowRight");
+    await expect(rail).toHaveText("open 200");
+    await splitter.press("Enter");
+    await expect(rail).toHaveText("folded 200");
+  }));
+
 test("browser tabs select by keyboard, close without selecting and create a new tab", async () =>
   mounted(async (page) => {
     const second = page.getByRole("tab", { name: "Northwind", exact: false });

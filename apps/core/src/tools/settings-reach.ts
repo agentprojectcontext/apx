@@ -38,6 +38,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "email.signature_import": "it only fills the owner's signature editor with Gmail's; saving it is theirs",
   "engines.set_usage": "the owner chooses whether APX queries and displays their external account limits",
   "secrets.set": SECRET,
+  "secrets.set_sites":
+    "where agents may sign in with a stored secret is the owner's to say; an agent asks with its own card (DECISIONS.md#d-193)",
   "providers.set": SECRET,
   "services.set": SECRET,
   "clients.create": SECRET,
@@ -71,6 +73,15 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.enable": POWER,
   "environments.bind": POWER,
   "telemetry.set": POWER,
+  "storage.clear": "the owner frees space from Settings › Storage, having seen what it removes (DECISIONS.md#d-185)",
+  "storage.compact":
+    "it blocks the core while it rewrites the database; the owner runs it from Settings › Storage › Compact or apx doctor --fix (DECISIONS.md#d-200)",
+  "storage.computers.delete":
+    "an agents' computer and all it holds go only when the owner deletes it (DECISIONS.md#d-185)",
+  "storage.backups.delete":
+    "a backup copy of the owner's data goes only when the owner deletes it (DECISIONS.md#d-185)",
+  "instance.import":
+    "bringing a whole setup in replaces agents, Flows and settings; the owner looks at its preview first (DECISIONS.md#d-192)",
   "desktop.set": MACHINE,
   "desktop.install": MACHINE,
   "desktop.install_cancel": MACHINE,
@@ -80,6 +91,11 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.configure": MACHINE,
   "environments.stop": MACHINE,
   "browser.control": MACHINE,
+  "browser.preview_edits": "the owner's own preview of a page's edits; agents change the page's code instead",
+  "surfaces.edit_open": "the owner's own edit view of a widget; agents change the widget itself instead",
+  "surfaces.edit_preview": "the owner's own preview of a widget's edits; agents change the widget itself instead",
+  "surfaces.edit_save": "the owner's own edits saved into a widget; agents use edit_widget instead",
+  "surfaces.edit_close": "the owner's own edit view of a widget; agents change the widget itself instead",
   "system.update": MACHINE,
   "system.update_prepare": MACHINE,
   "system.import_v1": MACHINE,
@@ -130,7 +146,15 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "surfaces.import": PANEL,
   "sessions.resume": PANEL,
   "runs.respond": AS_OWNER,
+  // The owner's messages waiting for their agent (DECISIONS.md#d-186): an agent never changes what the owner said.
+  "runs.update_queued": AS_OWNER,
+  "runs.remove_queued": AS_OWNER,
+  "runs.reorder": AS_OWNER,
+  "runs.send_now": AS_OWNER,
+  "runs.unsend": AS_OWNER,
   "channels.send": AS_OWNER,
+  // Agents send mail with gmail_send or a contact message, behind their own card.
+  "mail.send": AS_OWNER,
   "email.signatures_set": "the owner's identity appended to outgoing mail is configured only by the owner",
   "contacts.suggestions.send": AS_OWNER,
   "contacts.suggestions.discard": AS_OWNER,

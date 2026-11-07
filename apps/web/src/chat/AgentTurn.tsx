@@ -1,11 +1,11 @@
 import type { Agent, Message as Msg, Part, Thread } from "@apx/protocol";
 import { AgentAvatar, EngineIcon, IconButton, Icons, MarkdownView, Message, MessageMeta } from "@apx/ui";
 import { type ReactNode, Suspense, useState } from "react";
-import { DeliveryTicks, ReactionList } from "../channels/MessageMarks.tsx";
+import { DeliveryTicks, ReactionList, ViaMark } from "../channels/MessageMarks.tsx";
 import { isSignal } from "../channels/signal.ts";
 import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
 import { blobOf } from "../data/identity.ts";
-import { baseRef, effortLabel, splitRef } from "../data/models.ts";
+import { baseRef, effortLabel, modelOf, splitRef, useModels } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import {
@@ -21,18 +21,21 @@ import {
 } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { copyableQuote } from "./CopyableQuote.tsx";
-import { runnableCode } from "./codeRunner.tsx";
+import { replyBlock, runnableCode } from "./codeRunner.tsx";
 import { linkMenu } from "./LinkMenu.tsx";
 import { MessageActions } from "./MessageActions.tsx";
 import { ChangesPart } from "./parts/ChangesPart.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { ImageGenerationPreview } from "./parts/ImageGenerationPreview.tsx";
-import { isGeneratingImage } from "./parts/imageGeneration.ts";
+import { imageGenerationBlocks } from "./parts/imageGeneration.ts";
 import { AudioPart } from "./parts/lazyAudio.tsx";
-import { type MediaBlock, mediaBlocks } from "./parts/mediaGroups.ts";
+import type { MediaBlock } from "./parts/mediaGroups.ts";
 import { NoticePart } from "./parts/NoticePart.tsx";
+import { PlanPart } from "./parts/PlanPart.tsx";
 import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
+import { planLast } from "./planLast.ts";
+import { type ReplySegment, replySegments } from "./replySegments.ts";
 import { taskCodeSpan } from "./TaskChip.tsx";
 
 type ToolPart = Extract<Part, { type: "tool" }>;
@@ -41,7 +44,8 @@ type SkillsPick = Extract<Part, { type: "skills" }>;
 /**
  * One agent message: the skills picked for it and its tool calls folded into one group on top, then everything else
  * in the order it happened (what it said, sub-agent cards, widgets, approvals, its answer). The meta line closes it.
- * Each bubble has its own controls (copy, fork, read aloud), shown on hover.
+ * Each bubble has its own controls (copy, fork, read aloud), shown on hover. Each block it wrote (code, a page, a
+ * diagram, an email) is a card of its own between the bubbles of its words; their controls are on the last bubble.
  */
 export function AgentTurn({
   thread,
@@ -50,6 +54,8 @@ export function AgentTurn({
   showAvatar,
   showTools,
   showSkills = true,
+  showPlan = true,
+  generationImages,
   engine,
   actions,
 }: {
@@ -60,6 +66,10 @@ export function AgentTurn({
   showTools: boolean;
   /** The skills picked for the turn, as chips on top (a task's conversation leaves them out). */
   showSkills?: boolean;
+  /** Whether its plan shows: a newer message's plan replaces it. */
+  showPlan?: boolean;
+  /** Result pictures from the same run, including messages split by an intervening owner reply. */
+  generationImages?: Parameters<typeof imageGenerationBlocks>[3];
   /** An engine session: its answers are signed by the engine ("Codex"), not by the agent behind the run. */
   engine?: { id: string; label: string } | undefined;
   /** Extra controls for the whole answer (ask again), with the last bubble's. */
@@ -73,17 +83,44 @@ export function AgentTurn({
   const skills = showSkills ? message.parts.find((p): p is SkillsPick => p.type === "skills") : undefined;
   const projectId = useData((s) => s.threads[message.thread_id]?.project_id);
   // Pictures and videos side by side become one grid or one carousel; everything else is a block of its own.
-  const blocks: { key: string; part: Part; media?: Exclude<MediaBlock, { kind: "part" }> }[] = mediaBlocks(
+  const blocks: {
+    key: string;
+    part: Part;
+    media?: Exclude<MediaBlock, { kind: "part" }>;
+    generation?: boolean;
+  }[] = imageGenerationBlocks(
     message.parts,
-    (p) =>
-      (p.type === "tool" && !isGeneratingImage(p, runState)) ||
-      p.type === "skills" ||
-      (p.type === "text" && (!p.text.trim() || isSignal(p.text))),
+    runState,
+    (p) => p.type === "skills" || (p.type === "text" && (!p.text.trim() || isSignal(p.text))),
+    generationImages,
   ).map((b) =>
-    b.kind === "part"
-      ? { key: b.part.type === "text" ? `x:${b.index}` : cardKey(b.part, b.index), part: b.part }
-      : { key: b.key, part: b.parts[0] as Part, media: b },
+    b.kind === "generation"
+      ? { key: b.key, part: b.part, generation: true, ...(b.media ? { media: b.media } : {}) }
+      : b.kind === "part"
+        ? { key: b.part.type === "text" ? `x:${b.index}` : cardKey(b.part, b.index), part: b.part }
+        : { key: b.key, part: b.parts[0] as Part, media: b },
   );
+  const live = runState === "working" || runState === "submitted" || runState === "queued";
+  // A text part's words, cut where a block draws something of its own; `whole` is the part's text, for its controls.
+  const items: {
+    key: string;
+    part: Part;
+    media?: Exclude<MediaBlock, { kind: "part" }>;
+    segment?: ReplySegment;
+    whole?: string;
+    generation?: boolean;
+  }[] = planLast(live, showPlan, blocks).flatMap((b) => {
+    if (b.part.type !== "text" || b.media) return [b];
+    const text = b.part.text;
+    const segments = replySegments(text);
+    const lastWords = segments.findLastIndex((n) => n.kind === "text");
+    return segments.map((segment, j) => ({
+      key: j === 0 ? b.key : `${b.key}:${j}`,
+      part: b.part,
+      segment,
+      ...(j === lastWords ? { whole: text } : {}),
+    }));
+  });
   const avatar = !showAvatar ? undefined : engine ? (
     <EngineIcon engine={engine.id} size={24} />
   ) : agent ? (
@@ -101,13 +138,26 @@ export function AgentTurn({
   const lookIn = message.run_id ? (
     <IconButton size="sm" label={t("msg.received")} icon={<Icons.Eye size={13} />} onClick={() => setReceived(true)} />
   ) : null;
-  const effort = message.model ? splitRef(message.model).effort : undefined;
+  const catalog = useModels((s) => s.catalog);
+  const reported = message.model ? splitRef(message.model) : undefined;
+  const confirmed =
+    message.model_reported === true && reported?.model && reported.model !== "default" ? message.model : undefined;
+  const effort = engine ? undefined : reported?.effort;
+  const model = engine
+    ? confirmed
+      ? (modelOf(confirmed, catalog)?.name ?? <code>{splitRef(confirmed).model}</code>)
+      : t("chat.modelUnconfirmed")
+    : message.model && baseRef(message.model);
+  // The engine notes when the agent's own model did not answer and a fallback did (engine.fallback).
+  const fellBack = message.parts.some((p) => p.type === "notice" && p.code === "engine.fallback");
   const meta = (
-    <MessageMeta
-      agent={engine?.label ?? agent?.name}
-      model={message.model && baseRef(message.model)}
-      effort={effort && effortLabel(effort)}
-    >
+    <MessageMeta agent={engine?.label ?? agent?.name} model={model} effort={effort && effortLabel(effort)}>
+      {fellBack && (
+        <span className="apx-msgmeta__part" title={t("chat.modelFallbackHint")}>
+          {t("chat.modelFallback")}
+        </span>
+      )}
+      <ViaMark thread={thread} message={message} />
       {message.delivery && <DeliveryTicks state={message.delivery} />}
     </MessageMeta>
   );
@@ -116,14 +166,16 @@ export function AgentTurn({
     <div className="turn">
       {skills && <SkillsPart part={skills} projectId={projectId} />}
       {tools.length > 0 && <ToolGroup parts={tools} waiting={waiting} />}
-      {blocks.map(({ key, part, media }, i) => {
-        if (isGeneratingImage(part, runState)) return <ImageGenerationPreview key={key} />;
-        const last = i === blocks.length - 1;
+      {items.map(({ key, part, media, segment, whole, generation }, i) => {
+        if (generation) return <ImageGenerationPreview key={key} block={media} />;
+        const last = i === items.length - 1;
+        const card = segment?.kind === "block";
+        const words = part.type === "text" && !card;
         return (
           <Message
             key={key}
             from="agent"
-            variant={part.type === "text" ? "bubble" : "bare"}
+            variant={words ? "bubble" : "bare"}
             avatar={i === 0 ? avatar : undefined}
             grouped={i > 0}
             meta={last ? meta : undefined}
@@ -133,8 +185,13 @@ export function AgentTurn({
               ) : undefined
             }
             actions={
-              part.type === "text" ? (
-                <MessageActions thread={thread} message={message} text={part.text} speechKey={`${message.id}:${key}`}>
+              words && (whole !== undefined || !segment) ? (
+                <MessageActions
+                  thread={thread}
+                  message={message}
+                  text={whole ?? (part.type === "text" ? part.text : "")}
+                  speechKey={`${message.id}:${key}`}
+                >
                   {last && lookIn}
                   {last && actions}
                 </MessageActions>
@@ -150,10 +207,14 @@ export function AgentTurn({
               <Suspense fallback={null}>
                 <MediaGroup block={media} />
               </Suspense>
+            ) : segment?.kind === "block" ? (
+              <div className="apx-md apx-md--md turn__card">
+                {replyBlock(thread, message.id, segment, segment.open && live)}
+              </div>
             ) : part.type === "text" ? (
               <MarkdownView
                 labels={mdLabels}
-                source={part.text}
+                source={segment?.kind === "text" ? segment.text : part.text}
                 renderLink={linkMenu}
                 renderCode={runnableCode(thread, message.id)}
                 renderQuote={copyableQuote}
@@ -180,6 +241,7 @@ function cardKey(p: Part, i: number): string {
   if (p.type === "browser") return `b:${p.tab}`;
   if (p.type === "input") return `i:${p.input_id}`;
   if (p.type === "flow") return `f:${p.flow}`;
+  if (p.type === "plan") return "plan";
   return `${p.type}:${i}`;
 }
 
@@ -212,6 +274,8 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
       return <AudioPart part={p} />;
     case "notice":
       return <NoticePart part={p} />;
+    case "plan":
+      return <PlanPart part={p} />;
     case "input":
       return (
         <Suspense fallback={null}>

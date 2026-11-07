@@ -55,6 +55,11 @@ let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 const pending = async () => (await env.client.call("runs.pending", {})).inputs;
 const tgTexts = () => tg.messagesTo(OWNER.id).map((m) => String(m.body.text ?? ""));
 const note = () => env.core.store.persons.get(sister)?.note;
+const accountThread = () => {
+  const thread = env.core.store.threads.byChannel("ntfy")[0];
+  assert.ok(thread, "ntfy has its own account chat");
+  return thread.id;
+};
 
 before(async () => {
   ntfy = await fakeNtfy();
@@ -94,14 +99,14 @@ after(async () => {
 test("off Telegram, words as the owner start no owner turn: the super-agent checks them and its answer goes back", async () => {
   ntfy.write("what is up");
   await waitFor(() => ntfy.published().some((t) => t.includes("Checked: on its way")), "the answer on ntfy");
-  const runs = env.core.store.runs.list("home", 50);
+  const runs = env.core.store.runs.list(accountThread(), 50);
   assert.ok(!runs.some((r) => r.input?.origin.kind === "channel"), "no owner run from the channel");
   const check = runs.find((r) => r.input?.origin.kind === "delegation_result");
-  assert.ok(check, "the check's answer came back to Home");
+  assert.ok(check, "the check's answer came back to the account chat");
   const sub = env.core.store.threads.get(
     check.input?.origin.kind === "delegation_result" ? check.input.origin.thread_id : "",
   );
-  assert.equal(sub?.parent_id, "home");
+  assert.equal(sub?.parent_id, accountThread());
   assert.equal(sub?.session, "owner-check");
   const asked = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("what is up"));
   assert.match(String(asked?.messages.at(-1)?.content), /trust="untrusted"/);
@@ -181,8 +186,8 @@ test("each message off Telegram starts a new spend window, as the owner's own di
             .some((t) => t.includes("Checked")),
         `answer ${n}`,
       );
-      await env.settle("home");
-      assert.equal(trip(env.core.store, "home"), undefined, `no pause after message ${n}`);
+      await env.settle(accountThread());
+      assert.equal(trip(env.core.store, accountThread()), undefined, `no pause after message ${n}`);
     }
   } finally {
     await env.client.call("agents.set_limits", { runs: 30, tokens: 1_500_000 });

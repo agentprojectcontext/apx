@@ -1,8 +1,10 @@
 // Computer use, lent to the core as the "computer" capability once the owner turns it on (Config › Desktop), on macOS
 // and Windows. Every look starts by finding the window in front, on whichever screen it is, and pictures that window
 // alone. The picture comes from Electron; the window, its elements, a click and typing come from the platform's driver.
+import type { NodeComputerParams } from "@apx/protocol";
 import { desktopCapturer, type NativeImage, screen, shell, systemPreferences } from "electron";
 import type { Bounds, ComputerDriver } from "./computer-driver.ts";
+import { createGestureGate } from "./computer-gesture.ts";
 import { macDriver } from "./computer-mac.ts";
 import { windowsDriver } from "./computer-win.ts";
 import type { AgentCursor } from "./cursor.ts";
@@ -22,14 +24,14 @@ export type ComputerActivity = { kind: "look" | "click" | "type"; app: string; w
  * A picture of `bounds` (a window) from the screen it is on, or of the main screen when there are none: each screen
  * is looked up again every time, so a window moved to another monitor is still found.
  */
-async function picture(bounds: Bounds | undefined, max: number): Promise<NativeImage> {
+async function picture(bounds: Bounds | undefined, max: number): Promise<{ image: NativeImage; bounds: Bounds }> {
   const display = bounds ? screen.getDisplayMatching(bounds) : screen.getPrimaryDisplay();
   const all = screen.getAllDisplays();
   // One size for every screen's thumbnail: big enough for the largest one at its own density.
   const width = Math.max(...all.map((d) => d.size.width * d.scaleFactor));
   const height = Math.max(...all.map((d) => d.size.height * d.scaleFactor));
   const sources = await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width, height } });
-  const src = sources.find((s) => s.display_id === String(display.id)) ?? sources[0];
+  const src = sources.find((s) => s.display_id === String(display.id));
   if (!src || src.thumbnail.isEmpty())
     throw new Error(
       process.platform === "darwin"
@@ -39,17 +41,29 @@ async function picture(bounds: Bounds | undefined, max: number): Promise<NativeI
   let img = src.thumbnail;
   const size = img.getSize();
   // The thumbnail keeps the screen's proportions inside the size asked: scale points to its pixels.
-  const k = size.width / display.size.width;
+  const kx = size.width / display.bounds.width;
+  const ky = size.height / display.bounds.height;
+  let captured = { ...display.bounds };
   if (bounds) {
-    const x = Math.max(0, Math.round((bounds.x - display.bounds.x) * k));
-    const y = Math.max(0, Math.round((bounds.y - display.bounds.y) * k));
-    const w = Math.min(size.width - x, Math.round(bounds.width * k));
-    const h = Math.min(size.height - y, Math.round(bounds.height * k));
-    if (w > 0 && h > 0) img = img.crop({ x, y, width: w, height: h });
+    const x = Math.max(0, Math.round((bounds.x - display.bounds.x) * kx));
+    const y = Math.max(0, Math.round((bounds.y - display.bounds.y) * ky));
+    const right = Math.min(size.width, Math.round((bounds.x + bounds.width - display.bounds.x) * kx));
+    const bottom = Math.min(size.height, Math.round((bounds.y + bounds.height - display.bounds.y) * ky));
+    if (right <= x || bottom <= y) throw new Error("the window is outside the captured screen");
+    img = img.crop({ x, y, width: right - x, height: bottom - y });
+    captured = {
+      x: display.bounds.x + x / kx,
+      y: display.bounds.y + y / ky,
+      width: (right - x) / kx,
+      height: (bottom - y) / ky,
+    };
   }
   const s = img.getSize();
   const scale = Math.min(1, max / Math.max(s.width, s.height));
-  return scale < 1 ? img.resize({ width: Math.round(s.width * scale), quality: "good" }) : img;
+  return {
+    image: scale < 1 ? img.resize({ width: Math.round(s.width * scale), quality: "good" }) : img,
+    bounds: captured,
+  };
 }
 
 /** Browsers, by their app names (and Windows' process names): their pages are read from the picture. */
@@ -92,6 +106,7 @@ function screensText(bounds?: Bounds): string {
 export function createComputer(o: {
   cursor: AgentCursor;
   driver?: ComputerDriver;
+  available?(): boolean;
   onActivity(a: ComputerActivity): void;
   onStopped(stopped: boolean): void;
   /** macOS refused something computer use needs: show the owner where to allow it. */
@@ -99,6 +114,8 @@ export function createComputer(o: {
 }) {
   const d = o.driver ?? (process.platform === "win32" ? windowsDriver : macDriver);
   const front = d.front;
+  const gestures = createGestureGate();
+  let inFlight = 0;
   /** The window an agent is working on: what the panel's live view follows. */
   let target: Target | undefined;
   /** Just after the emergency stop: what was on its way does not reach the screen. */
@@ -138,8 +155,8 @@ export function createComputer(o: {
     target = { app: f.app, window: f.window, bounds: f.bounds };
     // What it is doing, by the window it looks at (the pointer never shows in the picture).
     const b0 = f.bounds;
-    if (b0) void o.cursor.moveTo(b0.x + b0.width / 2, b0.y + 40, note || "👀");
-    const img = await picture(f.bounds, SHOT_MAX);
+    if (b0) void o.cursor.moveTo(b0.x + b0.width / 2, b0.y + 40, note || "👀").catch(() => {});
+    const { image: img, bounds: captured } = await picture(f.bounds, SHOT_MAX);
     const where = f.bounds
       ? `window at ${f.bounds.x},${f.bounds.y}, ${f.bounds.width}x${f.bounds.height} points`
       : "the main screen";
@@ -150,10 +167,7 @@ export function createComputer(o: {
       over && over.pid !== f.pid ? `; covered by a window of ${over.name}: the picture shows that one` : "";
     // How a point in the picture maps to the screen, to click what only the picture shows.
     const size = img.getSize();
-    const scale = b ? b.width / size.width : 1;
-    const map = b
-      ? `; the picture is ${size.width}x${size.height} px: its pixel (px,py) is the screen point (${b.x} + px*${scale.toFixed(3)}, ${b.y} + py*${scale.toFixed(3)})`
-      : "";
+    const map = `; the picture is ${size.width}x${size.height} px: its pixel (px,py) is the screen point (${captured.x} + px*${(captured.width / size.width).toFixed(3)}, ${captured.y} + py*${(captured.height / size.height).toFixed(3)})`;
     const header = `${screensText(b)}.\n${where}${covered}${map}; positions are screen points, centers to click\nrole\tname\tdescription\tvalue\tx,y`;
     o.onActivity({ kind: "look", app: f.app, window: f.window });
     return {
@@ -174,6 +188,7 @@ export function createComputer(o: {
       keys?: string;
       url?: string;
       note?: string;
+      pointer?: "visible";
     };
     if (method === "computer.snapshot") return look(p.app, p.note);
     if (method === "computer.open") {
@@ -214,29 +229,67 @@ export function createComputer(o: {
     if (method === "computer.click") {
       const x = Number(p.x);
       const y = Number(p.y);
-      await o.cursor.moveTo(x, y, p.note || p.app || "");
-      // The stop may come while the pointer glides there: then no click.
-      go();
-      const name = String(p.app ?? "");
-      // Pressed through accessibility when it can (the owner's pointer stays where it is); else a real click that
-      // puts their pointer straight back.
-      const done = await d.press(name, x, y).catch((e: unknown) => `none: ${errorText(e)}`);
-      // Refused for want of the permission, a real click would be refused too (after waiting on the owner's mouse).
-      if (ASSISTIVE.test(done)) throw missing("accessibility");
-      let how = done;
-      if (done.startsWith("none")) {
-        await d.activate(name).catch(() => {});
-        await d.click(name, x, y);
-        how = `a real click (nothing there takes a press: ${done.replace(/^none:? ?/, "")})`;
+      if (p.pointer === "visible") {
+        const press = d.visiblePress;
+        if (!press) throw new Error("visible pointer actions are unsupported on this computer");
+        return gestures.run(async ({ signal, check }) => {
+          const ready = () => {
+            check();
+            go();
+            if (o.available && !o.available()) throw new Error("computer use is off or disconnected");
+            allowed(method);
+          };
+          ready();
+          await o.cursor.moveTo(x, y, p.note || `Click in ${p.app || "app"}`);
+          ready();
+          const app = String(p.app ?? "");
+          const how = await press(app, x, y, signal);
+          try {
+            ready();
+          } catch {
+            throw new Error("pointer action outcome uncertain after delivery; do not retry");
+          }
+          o.onActivity({ kind: "click", app, window: target?.window ?? "", x, y });
+          return { app, how };
+        });
       }
-      const app = String(p.app ?? "");
-      o.cursor.pulse();
-      o.onActivity({ kind: "click", app, window: target?.window ?? "", x, y });
-      return { app, how };
+      return gestures.run(async ({ signal, check }) => {
+        const ready = () => {
+          check();
+          go();
+          if (o.available && !o.available()) throw new Error("computer use is off or disconnected");
+        };
+        ready();
+        await o.cursor.moveTo(x, y, p.note || `Click in ${p.app || "app"}`);
+        ready();
+        const app = String(p.app ?? "");
+        const done = await d.press(app, x, y, signal);
+        ready();
+        if (ASSISTIVE.test(done)) throw missing("accessibility");
+        let how = done;
+        if (done.startsWith("none")) {
+          if (d.physicalClickSupported === false)
+            throw new Error(
+              "not clicked: this control does not support accessibility and physical mouse fallback is disabled; ask the owner to click",
+            );
+          await d.activate(app).catch(() => {});
+          ready();
+          await d.click(app, x, y, signal);
+          try {
+            ready();
+          } catch {
+            throw new Error("clicked just as computer use stopped; do not retry");
+          }
+          how = `a real click (nothing there takes a press: ${done.replace(/^none:? ?/, "")})`;
+        }
+        o.cursor.pulse();
+        o.onActivity({ kind: "click", app, window: target?.window ?? "", x, y });
+        return { app, how };
+      });
     }
     if (method === "computer.type") {
       go();
-      o.cursor.say(p.note || "⌨");
+      o.cursor.say(p.note || `Typing in ${p.app || "app"}`);
       const name = String(p.app ?? "");
       const text = String(p.text ?? "");
       if (!(await d.insert(name, text))) {
@@ -253,20 +306,33 @@ export function createComputer(o: {
   return {
     async handle(method: string, params: unknown): Promise<unknown> {
       go();
+      gestures.assertIdle();
+      if (inFlight) throw new Error("another computer action is still finishing; do not retry automatically");
       allowed(method);
+      inFlight++;
       try {
+        const identity = (params as NodeComputerParams<object> | null)?.cursorAgent;
+        o.cursor.selectAgent?.(identity ?? { id: "owner", name: "APX" });
         return await act(method, params);
       } catch (e) {
         // Allowed as macOS reports it, yet refused when used: an entry left behind by a reinstall.
         if (ASSISTIVE.test(errorText(e))) throw missing("accessibility");
         throw e;
+      } finally {
+        inFlight--;
       }
     },
+    cancelPointer() {
+      gestures.invalidate();
+      o.cursor.hide();
+    },
+    drainPointer: () => gestures.drain(),
     /**
      * The emergency stop, for this time only: drops what is on its way, takes the pointer off the screen and tells the
      * core, which ends the turns that were using the computer. The next request works as usual.
      */
     stop() {
+      gestures.invalidate();
       if (stopped) return;
       stopped = true;
       o.cursor.hide();
@@ -284,10 +350,10 @@ export function createComputer(o: {
         // Follow the same app; if the owner brought another one forward, keep the last place known.
         if (f.app === target.app) target = { app: f.app, window: f.window, bounds: f.bounds };
       } catch {}
-      const img = await picture(target.bounds, FRAME_MAX);
+      const { image: img, bounds } = await picture(target.bounds, FRAME_MAX);
       return {
         data: `data:image/jpeg;base64,${img.toJPEG(60).toString("base64")}`,
-        ...(target.bounds ? { bounds: target.bounds } : {}),
+        bounds,
         app: target.app,
         window: target.window,
       };

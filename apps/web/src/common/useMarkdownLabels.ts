@@ -9,10 +9,9 @@ export function useMarkdownLabels(): MarkdownLabels {
     () => ({
       table: t("md.table"),
       maximize: t("md.maximize"),
-      copy: t("md.copyTable"),
       copied: t("msg.copied"),
       copyMarkdown: t("md.copyMarkdown"),
-      copyTsv: t("md.copyTsv"),
+      copyCsv: t("md.copyCsv"),
       close: t("common.close"),
     }),
     [t],

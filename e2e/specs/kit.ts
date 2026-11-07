@@ -44,10 +44,23 @@ export const world = {
         calls: { method: string; url: string; headers: Record<string, string>; body: string }[];
       }
     ).calls,
+  /** Whether any request the model got carried this text. */
+  modelCarried: async (text: string) =>
+    (
+      (await (await fetch(`${control}/llm/carried`, { method: "POST", body: JSON.stringify({ text }) })).json()) as {
+        carried: boolean;
+      }
+    ).carried,
   /** Stops the core's clock at `at` (ISO), or lets it run again with null. */
   clock: async (at: string | null) => {
     await post(`${control}/clock`, { at });
   },
+  /** The model app on this computer (Ollama-like) opens or closes. */
+  localModels: async (open: boolean) => {
+    await post(`${control}/local-models`, { open });
+  },
+  /** Chats the model app on this computer answered. */
+  localChats: async () => ((await (await fetch(`${control}/local-models`)).json()) as { chats: number }).chats,
   desktopTrash: async () => (await (await fetch(`${control}/desktop/trash`)).json()) as { paths: string[] },
   telegram: async (from: { id: number; name: string }, text: string) => {
     await fetch(`${control}/tg/message`, { method: "POST", body: JSON.stringify({ from, text }) });
@@ -123,21 +136,41 @@ export async function until<T>(fn: () => Promise<T | undefined | false>, ms = 10
   }
 }
 
-// Noise that is not the app's: the favicon, a fetch the browser aborts when a test navigates away, and this kit's own
-// init script refused by a preview frame that runs no scripts (the signature preview).
-const IGNORED = [/favicon/i, /net::ERR_ABORTED/, /^Blocked script execution in 'about:srcdoc'.*'allow-scripts'/];
+// Noise that is not the app's: the favicon, a fetch the browser aborts when a test navigates away, this kit's own
+// init script refused by a preview frame that runs no scripts (the signature preview), and an agent's HTML whose own
+// scripts the chat's preview frame refuses (only its nonce'd sizing script runs there).
+const IGNORED = [
+  /favicon/i,
+  /net::ERR_ABORTED/,
+  /^Blocked script execution in 'about:srcdoc'.*'allow-scripts'/,
+  /^Executing inline (script|event handler) violates the following Content Security Policy directive 'script-src 'nonce-[\w-]+''/,
+];
 
 export const test = base.extend<{
   page: Page;
   cornerCards: boolean;
   welcome: boolean;
   desktopInstallNotice: boolean;
+  diskWarning: boolean;
 }>({
   // The corner cards and the welcome cover what sits under them, so they start closed unless a spec is about them.
   cornerCards: [false, { option: true }],
   welcome: [false, { option: true }],
   desktopInstallNotice: [false, { option: true }],
-  page: async ({ page, cornerCards, welcome, desktopInstallNotice }, use) => {
+  // The machine running the tests may be short of disk: its warning card stays out unless a spec is about it.
+  diskWarning: [false, { option: true }],
+  page: async ({ page, cornerCards, welcome, desktopInstallNotice, diskWarning }, use) => {
+    if (!diskWarning) {
+      const gb = 1024 ** 3;
+      await page.route("**/rpc/storage.status", (route) =>
+        route.fulfill({
+          json: {
+            ok: true,
+            result: { free_bytes: 100 * gb, total_bytes: 500 * gb, low: false, threshold_bytes: 5 * gb },
+          },
+        }),
+      );
+    }
     if (!desktopInstallNotice) {
       await page.route("**/rpc/desktop.install_status", (route) =>
         route.fulfill({

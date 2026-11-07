@@ -1,7 +1,8 @@
 import "../styles/screens.css";
-import { Dialog, Icons, NavItem, SearchField } from "@apx/ui";
-import { type CSSProperties, type ReactNode, useState } from "react";
+import { Dialog, Icons, NavItem, SearchField, Skeleton } from "@apx/ui";
+import { type CSSProperties, type ReactNode, Suspense, useEffect, useState } from "react";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { MoveSection } from "../lazy.ts";
 import { LAYOUT } from "../shell/layout.ts";
 import { type ConfigSection, go, useNav } from "../shell/nav.ts";
 import { AdvancedSection } from "./AdvancedSection.tsx";
@@ -21,6 +22,7 @@ import { ProfileSection } from "./ProfileSection.tsx";
 import { RouterSection } from "./RouterSection.tsx";
 import { ServicesSection } from "./ServicesSection.tsx";
 import { SoundsSection } from "./SoundsSection.tsx";
+import { StorageSection } from "./StorageSection.tsx";
 
 type NavEntry = { id: ConfigSection; label: MessageKey; icon: ReactNode; soon?: boolean };
 
@@ -66,6 +68,8 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
       { id: "browser", label: "config.browser", icon: <Icons.Globe /> },
       { id: "desktop", label: "config.desktop", icon: <Icons.Monitor /> },
       { id: "advanced", label: "config.advanced", icon: <Icons.Wrench /> },
+      { id: "storage", label: "config.storage", icon: <Icons.HardDrive /> },
+      { id: "move", label: "config.move", icon: <Icons.ArrowRightLeft /> },
       { id: "logs", label: "config.logs", icon: <Icons.Activity /> },
     ],
   },
@@ -84,6 +88,14 @@ export function ConfigModal() {
   const section = useNav((s) => s.config);
   const [q, setQ] = useState("");
   const query = q.trim().toLowerCase();
+  // On a phone the nav is a row: the open section is scrolled into it once the dialog is drawn.
+  useEffect(() => {
+    if (!section) return;
+    const id = requestAnimationFrame(() =>
+      document.querySelector(".config__navitem.is-active")?.scrollIntoView({ block: "nearest", inline: "nearest" }),
+    );
+    return () => cancelAnimationFrame(id);
+  }, [section]);
   const groups = GROUPS.map((g) => ({
     label: t(g.label),
     items: g.items
@@ -171,6 +183,14 @@ function Body({ section }: { section: ConfigSection }) {
       return <DevicesSection />;
     case "advanced":
       return <AdvancedSection />;
+    case "storage":
+      return <StorageSection />;
+    case "move":
+      return (
+        <Suspense fallback={<Skeleton height={240} shape="block" />}>
+          <MoveSection />
+        </Suspense>
+      );
     case "logs":
       return <LogsSection />;
   }

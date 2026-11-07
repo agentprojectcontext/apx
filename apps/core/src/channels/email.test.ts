@@ -114,7 +114,7 @@ describe("sending mail", () => {
   const one = (text: string) =>
     composeMail({
       from: { address: USER, name: "Ágent" },
-      to: "ana@example.org",
+      to: ["ana@example.org"],
       subject: "Re: Café",
       text,
       inReplyTo: "<a@example.org>",
@@ -149,7 +149,7 @@ describe("sending mail", () => {
     const html = "<p>Hello</p><b>Acme</b>";
     const out = composeMail({
       from: { address: USER },
-      to: "user@example.org",
+      to: ["user@example.org"],
       subject: "Reply",
       text: "Hello\nAcme",
       html,
@@ -377,6 +377,35 @@ describe("the email channel", () => {
     await waitFor(() => to("owner@example.org").some((m) => m.text.includes("You said: after ana")), "marker answer");
     assert.equal(to("ana@example.net").length, 1);
     assert.equal(llm.calls.length, calls + 2);
+  });
+
+  test("the owner sends a chat's draft from the mailbox once: subject and copy kept, not marked as automatic", async () => {
+    const { routes } = await env.client.call("mail.routes", {});
+    const route = routes.find((r) => r.kind === "channel");
+    assert.deepEqual(route && { id: route.id, address: route.address }, { id: "email", address: USER });
+    const draft = {
+      route: { kind: "channel" as const, id: "email" },
+      key: "msg_1:abc",
+      to: ["northwind@example.org"],
+      cc: ["bo@example.org"],
+      subject: "Pre-approval inquiry",
+      body: "Hello team,\n\nCould you confirm?",
+    };
+    const sent = await env.client.call("mail.send", draft);
+    assert.equal(sent.via, USER);
+    const got = to("northwind@example.org").at(-1);
+    assert.equal(got?.h("subject"), "Pre-approval inquiry");
+    assert.equal(got?.h("cc"), "<bo@example.org>");
+    assert.equal(got?.h("auto-submitted"), "", "the owner wrote it");
+    assert.ok(got?.text.startsWith("Hello team,"));
+    assert.ok(smtp.sent.at(-1)?.to.includes("bo@example.org"), "the copy is a recipient");
+    const before = smtp.sent.length;
+    await assert.rejects(env.client.call("mail.send", draft), /already sent/);
+    assert.equal(smtp.sent.length, before, "the same card never sends twice");
+    assert.deepEqual(
+      (await env.client.call("mail.routes", { sent: ["msg_1:abc", "msg_2:x"] })).sent.map((s) => s.key),
+      ["msg_1:abc"],
+    );
   });
 
   test("a wrong password stops the channel with a reason, without retrying", async () => {

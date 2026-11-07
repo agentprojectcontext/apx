@@ -44,7 +44,7 @@ async function setup(t: TestContext, llm: Llm, extraTools: Tool[] = [probe]) {
         telegramAdapter(c, token, tg.url),
     },
   };
-  const f = { tg, options, env: await startCore(options) };
+  const f = { tg, options, env: await startCore(options), account: "" };
   t.after(async () => {
     await f.env.core.close();
     await tg.close();
@@ -58,6 +58,12 @@ async function setup(t: TestContext, llm: Llm, extraTools: Tool[] = [probe]) {
   });
   const owner = f.env.core.store.persons.owner();
   f.env.core.store.persons.link(owner.id, { channel: "tg", external_id: String(OWNER.id) });
+  f.account = f.env.core.store.threads.create({
+    kind: "channel",
+    title: "Telegram",
+    agent_ids: ["superagent"],
+    channel: { id: "tg", conversation: String(OWNER.id), person_id: owner.id },
+  }).id;
   return f;
 }
 
@@ -102,15 +108,15 @@ test("a free-form Telegram reply resumes the exact delivered question from anoth
   await waitFor(() => f.env.core.store.runs.list(project.id)[0]?.state === "completed", "resumed run", { ms: 6000 });
   assert.equal(f.env.core.store.inputs.get(question.id)?.answer, "Green, please");
   assert.equal(f.env.core.store.runs.list(project.id).length, 1);
-  // Only Home talks on the owner's phone: this chat's answer stays in the app.
+  // Only the account chat talks on the owner's phone: this chat's answer stays in the app.
   await new Promise((r) => setTimeout(r, 200));
   assert.ok(!f.tg.messagesTo(OWNER.id).some((m) => String(m.body.text).includes("Answer received")));
   assert.equal(f.env.core.store.threads.context(project.id).reply_to, undefined);
 
-  // What the owner writes next goes to Home, whose agent sees what that chat sent them and where it is.
+  // What the owner writes next goes to the account chat, whose agent sees what that chat sent them and where it is.
   const calls = llm.calls.length;
   f.tg.message(OWNER, "what was that color for?");
-  await waitFor(() => llm.calls.length > calls, "Home's turn", { ms: 6000 });
+  await waitFor(() => llm.calls.length > calls, "account turn", { ms: 6000 });
   const seen = String(llm.calls.at(-1)?.messages.at(-1)?.content);
   assert.match(seen, new RegExp(`<sent_to_owner from_chat="${project.id}"[^>]*>\\nWhich color\\?`));
   assert.match(seen, /pass their answer to that chat's agent with delegate/);
@@ -153,7 +159,7 @@ test("a question something else was sent after is not answered by the owner's ne
   );
 
   f.tg.message(OWNER, "remind me to call the dentist");
-  await waitFor(() => f.env.core.store.runs.list("home").length > 0, "normal Home message", { ms: 6000 });
+  await waitFor(() => f.env.core.store.runs.list(f.account).length > 0, "normal account message", { ms: 6000 });
   assert.equal(f.env.core.store.inputs.get(question.id)?.state, "pending", "the old question is still open");
 });
 
@@ -164,18 +170,18 @@ test("a message does not answer a question that was not delivered to that chat",
   await waitFor(() => f.env.core.store.inputs.pending(project.id).length > 0, "project question", { ms: 6000 });
 
   f.tg.message(OWNER, "unrelated message");
-  await waitFor(() => f.env.core.store.runs.list("home").length > 0, "normal Home message", { ms: 6000 });
+  await waitFor(() => f.env.core.store.runs.list(f.account).length > 0, "normal account message", { ms: 6000 });
   assert.equal(f.env.core.store.inputs.pending(project.id).length, 1);
 });
 
 test("approving in the app keeps a Telegram turn on Telegram while an app turn is queued", async (t) => {
   const f = await setup(t, probeLlm());
   f.tg.message(OWNER, "start probe");
-  await waitFor(() => f.env.core.store.inputs.pending("home").length > 0, "approval", { ms: 6000 });
-  const input = f.env.core.store.inputs.pending("home")[0];
-  await f.env.client.call("threads.send", { thread: "home", text: "from app", mode: "queue" });
+  await waitFor(() => f.env.core.store.inputs.pending(f.account).length > 0, "approval", { ms: 6000 });
+  const input = f.env.core.store.inputs.pending(f.account)[0];
+  await f.env.client.call("threads.send", { thread: f.account, text: "from app", mode: "queue" });
   await f.env.client.call("runs.respond", { input: input?.id ?? "", decision: "approve" });
-  await f.env.settle("home");
+  await f.env.settle(f.account);
   await waitFor(() => f.tg.messagesTo(OWNER.id).some((m) => m.body.text === "Probe finished"), "Telegram result", {
     ms: 6000,
   });
@@ -184,13 +190,13 @@ test("approving in the app keeps a Telegram turn on Telegram while an app turn i
 
 test("an app turn does not leak its answer to a Telegram message queued behind it", async (t) => {
   const f = await setup(t, probeLlm());
-  await f.env.client.call("threads.send", { thread: "home", text: "start probe" });
-  await waitFor(() => f.env.core.store.inputs.pending("home").length > 0, "approval", { ms: 6000 });
-  const input = f.env.core.store.inputs.pending("home")[0];
+  await f.env.client.call("threads.send", { thread: f.account, text: "start probe" });
+  await waitFor(() => f.env.core.store.inputs.pending(f.account).length > 0, "approval", { ms: 6000 });
+  const input = f.env.core.store.inputs.pending(f.account)[0];
   f.tg.message(OWNER, "hello");
-  await waitFor(() => f.env.core.store.runs.list("home").length === 2, "queued channel turn", { ms: 6000 });
+  await waitFor(() => f.env.core.store.runs.list(f.account).length === 2, "queued channel turn", { ms: 6000 });
   await f.env.client.call("runs.respond", { input: input?.id ?? "", decision: "approve" });
-  await f.env.settle("home");
+  await f.env.settle(f.account);
   await waitFor(() => f.tg.messagesTo(OWNER.id).some((m) => m.body.text === "App answer"), "channel answer", {
     ms: 6000,
   });
@@ -201,15 +207,15 @@ test("a Telegram approval resumed after restart retains its destination and chan
   const llm = probeLlm();
   const f = await setup(t, llm);
   f.tg.message(OWNER, "start probe");
-  await waitFor(() => f.env.core.store.inputs.pending("home").length > 0, "approval", { ms: 6000 });
-  const input = f.env.core.store.inputs.pending("home")[0];
+  await waitFor(() => f.env.core.store.inputs.pending(f.account).length > 0, "approval", { ms: 6000 });
+  const input = f.env.core.store.inputs.pending(f.account)[0];
   const home = f.env.home;
   await f.env.core.close();
   f.env = await startCore({ ...f.options, home });
-  await f.env.client.call("threads.send", { thread: "home", text: "from app" });
-  await f.env.settle("home");
+  await f.env.client.call("threads.send", { thread: f.account, text: "from app" });
+  await f.env.settle(f.account);
   await f.env.client.call("runs.respond", { input: input?.id ?? "", decision: "approve" });
-  await f.env.settle("home");
+  await f.env.settle(f.account);
   await waitFor(
     () => f.tg.messagesTo(OWNER.id).some((m) => m.body.text === "Probe finished"),
     "resumed Telegram answer",
@@ -219,7 +225,7 @@ test("a Telegram approval resumed after restart retains its destination and chan
     c.messages.some((m) => String(m.content).includes("it will run without asking")),
   );
   assert.match(String(resumed?.messages.findLast((m) => m.role === "user")?.content), /channel: telegram/);
-  assert.equal(f.env.core.store.inputs.pending("home").length, 0);
+  assert.equal(f.env.core.store.inputs.pending(f.account).length, 0);
 });
 
 test("a late delegation result returns on its caller's channel after the owner writes in the app", async (t) => {
@@ -248,8 +254,8 @@ test("a late delegation result returns on its caller's channel after the owner w
   await waitFor(() => f.tg.messagesTo(OWNER.id).some((m) => m.body.text === "Research started"), "caller finished", {
     ms: 6000,
   });
-  await f.env.client.call("threads.send", { thread: "home", text: "from app" });
-  await f.env.settle("home");
+  await f.env.client.call("threads.send", { thread: f.account, text: "from app" });
+  await f.env.settle(f.account);
   release();
   await waitFor(() => f.tg.messagesTo(OWNER.id).some((m) => m.body.text === "Research complete"), "late result", {
     ms: 6000,

@@ -285,6 +285,7 @@ export function startGlyphPortrait(canvas: HTMLCanvasElement, language: Language
           }
         }
         if (ch === " " || a < 0.02) continue;
+        // ui: canvas pixels tinted from the sampled image.
         ctx.fillStyle = `rgba(${c.r | 0},${c.g | 0},${c.b | 0},${a.toFixed(2)})`;
         ctx.fillText(ch, px + ox, py + oy);
       }

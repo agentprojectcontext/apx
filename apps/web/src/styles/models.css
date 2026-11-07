@@ -222,9 +222,17 @@
   font-weight: var(--apx-weight-medium);
 }
 .catalog__id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-2xs);
   color: var(--apx-fg-subtle);
+}
+.catalog__summary .chip {
+  flex: none;
+  white-space: nowrap;
 }
 .catalog__meta {
   flex: 1;

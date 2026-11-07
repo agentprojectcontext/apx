@@ -1,7 +1,6 @@
 .desktop-launch {
   flex: none;
-  padding: 8px;
-  border-top: 1px solid var(--apx-border);
+  padding: 8px 8px 0;
 }
 .desktop-install {
   position: fixed;
@@ -17,7 +16,7 @@
   border-radius: 14px;
   background: var(--apx-bg);
   color: var(--apx-fg);
-  box-shadow: 0 8px 30px #0002;
+  box-shadow: var(--apx-shadow-md);
   font-size: var(--apx-text-sm);
 }
 .desktop-install > svg {

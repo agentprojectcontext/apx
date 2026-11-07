@@ -79,10 +79,11 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
   // A command that talks to APX's own API could act as the owner (answer its own confirmation): always asked.
   if (apxPort && new RegExp(`(127\\.0\\.0\\.1|localhost|\\[::1\\]|0\\.0\\.0\\.0):${apxPort}\\b`).test(c))
     return "always";
-  // So does APX's own CLI, which finds the port by itself.
-  if (runsApxCli(c)) return "always";
   // Only reading, here: where it reads is the folder rule's to judge (commandFolder), not the owner's to approve.
+  // That includes APX's CLI's list and show commands (DECISIONS.md#d-197).
   if (readsOnly(c)) return "never";
+  // Anything else APX's own CLI does, which finds the port by itself, could act as the owner too.
+  if (runsApxCli(c)) return "always";
   // APC definitions and AGENTS.md set agents' modes: changed by a command as by file_write, the owner says yes first.
   return c.split(/[\s;&|<>()'"`=]+/).some((w) => w && namesApc(w)) ? "always" : "ask";
 }
@@ -231,7 +232,7 @@ export function shellTools(
   return [
     defineTool({
       name: "shell",
-      description: `Run a ${commandShell().name} command in the project's folder. In the foreground it waits up to timeout_s and returns the output; background=true returns a job id at once, and the end of its output reaches you in a new turn when it ends (servers, long builds, watchers). Commands that change things may wait for the owner's OK.`,
+      description: `Run a ${commandShell().name} command in the project's folder. In the foreground it waits up to timeout_s and returns the output; background=true returns a job id at once, and the end of its output reaches you in a new turn (servers, long builds, watchers). Commands that change things may wait for the owner's OK.`,
       args: z.object({
         command: z
           .string()

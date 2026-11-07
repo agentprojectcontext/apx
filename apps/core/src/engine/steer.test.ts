@@ -32,6 +32,20 @@ test("steer puts the owner's text into the running turn at its next step", async
   const { messages, runs } = await env.settle(t);
   assert.equal(runs.length, 1);
   assert.ok(texts(messages).includes("Steered: use metric units"));
+  // The chat reads in the order things happened: what the agent says after taking the words sits below them.
+  const said = (m: (typeof messages)[number]) =>
+    m.parts.flatMap((p) => (p.type === "text" ? [p.text] : p.type === "tool" ? [`[${p.tool}]`] : [])).join(" ");
+  assert.deepEqual(
+    messages.map((m) => `${m.author.kind}: ${said(m)}`),
+    ["user: work a bit", "agent: [shell]", "user: use metric units", "agent: Steered: use metric units"],
+  );
+  // The step keeps how long it took, for the folded "1 step · 0 s".
+  const step = messages.flatMap((m) => m.parts).find((p) => p.type === "tool");
+  assert.ok(step?.type === "tool" && typeof step.ms === "number" && step.ms >= 300);
+  // Both parts belong to the one run, which points at the answer it ended with.
+  const answers = messages.filter((m) => m.author.kind === "agent");
+  assert.ok(answers.every((m) => m.run_id === first.run.id));
+  assert.equal(env.core.store.runs.get(first.run.id)?.message_id, answers.at(-1)?.id);
 });
 
 test("with nothing running, steer simply queues a normal turn", async () => {

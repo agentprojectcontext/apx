@@ -128,6 +128,10 @@ export async function refetchLoaded(): Promise<void> {
   await Promise.all([...ids.map((id) => loadThread(id)), refetchDelegations()]);
 }
 
+/** APX's panel in Chrome loads the panel with ?quick=chrome: what the owner writes there browses in their Chrome. */
+const inChrome = () =>
+  typeof location !== "undefined" && new URLSearchParams(location.search).get("quick") === "chrome";
+
 /**
  * Sends the owner's text, with any attached files. While the agent works it stops the running turn and answers
  * this (`interrupt`), or waits for that turn to end (`queue`).
@@ -161,6 +165,7 @@ export async function send(
       // Written while the agent works, it joins that turn instead of cutting it (the core queues it when it can't).
       mode: busy && !opts.queue ? "steer" : "queue",
       ...(files.length ? { attachments: files.map((f) => f.id) } : {}),
+      ...(inChrome() ? { via: "chrome" as const } : {}),
     });
     data.set((s) => {
       const without = (s.messages[threadId] ?? []).filter((m) => m.id !== local.id);
@@ -295,7 +300,7 @@ export async function loadSurfaceDoc(id: string): Promise<void> {
   }
 }
 
-export async function setSurfaceFlags(id: string, flags: { pinned?: boolean; app?: boolean }): Promise<void> {
+export async function setSurfaceFlags(id: string, flags: { pinned?: boolean; in_apps?: boolean }): Promise<void> {
   try {
     const summary = await client.call("surfaces.update", { surface: id, ...flags });
     data.set((s) => ({ surfaces: { ...s.surfaces, [id]: summary } }));

@@ -42,7 +42,7 @@ A run missed while the core was off runs once when it comes back, never twice.
 
 ## Flows
 
-In the unreleased integration branch, open **Flows** in the global sidebar beside **Tasks** and **Resources**. The list
+Open **Flows** in the global sidebar beside **Tasks** and **Resources**. The list
 shows every flow across projects with its steps, how many of them use AI, a bar for each of its last runs and an
 on/off switch; the project menu narrows it. The Routines tab's shortcut opens this same global screen. Direct links use
 `#view=flows`, `#view=flows&scope=<project-id>`, `#view=flows&flow=<flow-id>` (its runs) or
@@ -107,7 +107,9 @@ the list, and a schedule doesn't skip its time because of it.
 
 A flow belongs to one project, chosen at the top of a new flow: the steps that need it (agents, tables, routines, a
 folder) say so until it is chosen. Text fields offer values as you type `$`, `{{` or `secret://`, or with their braces
-button; where a secret can go, the list also offers **Save a secret**.
+button; where a secret can go, the list also offers **Save a secret**. An AI model step's **Instruction** is the
+exception: it is sent as written, so a value like `$steps.read.answer` in it reaches the model as that text, and the
+step says so under it. Pick what it works on in **What it receives**, which reaches it as data.
 
 **Who answers** is **An agent** (one of the crew, with its instructions, personality, memory and tools) or **A bot for
 this flow**: a name and **How it works**, the system prompt you write. A bot starts from scratch on every run: no memory,
@@ -125,7 +127,8 @@ with your chats, mail, calendar or accounts. Then pick:
   memory but can't hand work to your other agents, message them, or create or comment tasks for them. On, it works as
   it does in a chat.
 
-The run shows who answered, on which harness and model, and **Open chat** opens the conversation it had.
+The run shows who answered, on which harness and model, and **Open chat** opens the conversation it had. Each run has
+its own chat, also in your Inbox under that agent and marked **Flow step**; **Open the flow** at its top takes you back.
 
 A flow has one trigger. A flow runs as drawn: steps can branch and join, and each step can receive what arrived or the
 result of a step before it. In **Goes on to** you pick by which of a check's ways out each connection leaves; a step
@@ -144,15 +147,21 @@ and branches and marks the steps it would reach, without saving, reading a table
 that needs another step's answer says it depends on it. Saving never runs anything, and a new flow starts off.
 
 Every save that changes the drawing leaves a version: a draft you saved, one that became what runs, one an agent drew
-for you, or one you restored. On the flow's page, switch the list at the right from **Runs** to **History** to see
+for you, or one you restored. On the flow's page, switch the list at the right from **Runs** to **Versions** to see
 them, newest first, with when, who and how many steps. Pick one to see its drawing (it doesn't run), and **Restore as
 draft** to keep working from it: it becomes the draft, and what runs doesn't change until you save it. In the editor,
 the history button in the top bar opens the same list; restoring there replaces the canvas, and asks first when you
 have unsaved changes. The last 50 versions are kept, and every one a run still used.
 
 Opening a flow shows its steps as they ran in the chosen run (numbered, green when they ran, dashed when they didn't,
-red when they failed), what each step got and gave, when it started and ended, a log, and the runs at the right with
-their duration and tokens. A run made with an earlier drawing shows that drawing and says **Previous version**. A run
+red when they failed) and the runs at the right with their duration and tokens. Click a step and it gets a ring; the
+panel below shows when it started and how long it took, and its **Input** and **Output**: data as **Fields** whose parts
+fold, or as **Text**, with buttons to copy it and to expand it. A part that only repeats what shows above it (a
+table read gives its row as columns, as `row` and under its key in `rows`) starts folded, marked **Same as above**. The
+trigger's input says how the run started (its address, **Run now** or the time it was due) and its output is the data
+later steps read as `$trigger`. A save step also shows the table's latest rows in
+columns: click a row's key to see it whole. **Whole run** shows **Step by step** what arrived and what each step got and
+gave. A run made with an earlier drawing shows that drawing and says **Previous version**. A run
 a check stopped marks that check **no** and the steps after it as not run. A step that handed work to an agent opens
 its chat.
 

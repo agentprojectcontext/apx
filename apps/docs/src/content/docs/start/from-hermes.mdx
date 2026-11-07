@@ -1,0 +1,68 @@
+---
+title: Moving from Hermes
+description: Bring your Hermes agents, memory, skills, scheduled jobs and MCP servers into APX. See what comes first; the secrets APX finds stay in Hermes.
+sidebar:
+  order: 6
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+If you use [Hermes Agent](https://hermes-agent.nousresearch.com/docs/), APX can read its home folder (`~/.hermes`, or
+`$HERMES_HOME`) and bring what has a place here. The Hermes folder is only read: you can keep using Hermes.
+
+<Steps>
+
+1. See what would come. Nothing is changed yet:
+
+   ```bash
+   apx import hermes ~/.hermes
+   ```
+
+   Each line says what would be **added**, **updated** or **skipped**, and why. Asked in a chat instead, the
+   super-agent waits for your OK on a card that names each MCP server it adds and the command it runs.
+
+2. Import exactly that list:
+
+   ```bash
+   apx import hermes ~/.hermes --yes
+   ```
+
+3. Give APX each secret the list named, the value on stdin (`pbpaste | apx secrets set <name>`), then turn on the
+   routines and servers you want.
+
+</Steps>
+
+## What comes, and where
+
+| In Hermes | In APX |
+|---|---|
+| The home folder and each profile in `profiles/<name>/` | An agent each: **Hermes**, and **Hermes &lt;name&gt;** for a profile. `SOUL.md` becomes its instructions. |
+| `memories/MEMORY.md` | That agent's own memory notes, one per entry. |
+| `memories/USER.md` | Notes about you, shared by every agent. |
+| `skills/` | Your skills. A skill with the same name in two profiles comes once. |
+| `cron/jobs.json` | Routines of that agent, **turned off**: Hermes may still run them, and twice is never wanted. A job's skills are named in its instructions. |
+| `mcp_servers` in `config.yaml` | Your MCP servers. |
+
+## What never comes
+
+- **Secrets.** `.env`, `auth.json` and provider keys stay in Hermes, and so does each credential APX finds in an MCP
+  server, by its name (`API_TOKEN`) or its shape (a key, a URL with a password). A server with one in its `env` or
+  `headers` comes with an empty `secret://` reference and **turned off**; the list names each secret so you can give
+  it in APX. A server with one in its arguments or its address is not brought: add it yourself, the key in `env`.
+  A `SOUL.md` holding a key comes without its instructions, and a memory entry holding one is left out. A file that
+  is a link to somewhere else is not read. Look over the list before importing: a credential with no telling name or
+  shape cannot be found.
+- **Things APX does differently:** the model and providers (choose them in APX), messaging platforms (connect the
+  channel in APX), personalities, chat history, and cron jobs that run a script.
+- **Jobs APX cannot schedule as they are:** every less than 5 minutes, or a one-time job already past.
+
+## Importing again
+
+Importing the same folder again changes nothing. What changed in Hermes since is updated: an agent's `SOUL.md`, a
+job, a server. A routine you turned on stays on, and what you removed in APX is not brought back. Notes and skills
+are only ever added.
+
+<Aside>
+`config.yaml` is read in block style, as Hermes writes it. A server written inline (`docs: {command: npx}`) is not
+read; write it as a block to bring it.
+</Aside>

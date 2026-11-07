@@ -63,10 +63,28 @@ project or shows **All projects**; this browser remembers the choice for the nex
   It is asked to review at once: asking for changes sends it back to whoever did it; approving makes it yours.
 - **Closed recently**: done or dropped, newest first.
 
+### Group existing tasks as subtasks
+
+Ask your agent to put related tasks under an existing parent task. Both
+must be in the same project. This keeps their IDs, history, comments, sessions and assignees; grouping alone does
+not start work again or change whether a task is open or closed. Unrelated tasks stay separate.
+
+The CLI equivalent is `apx tasks edit <id> --parent <parent-id>`; `--parent ""` detaches the task. The agent's
+`task_update` tool and `tasks.update` protocol method accept `parent` (an existing task ID, or `null` to detach).
+An agent can move a task beside or below others, never higher up: detaching it or moving it toward the top is yours.
+A task cannot become its own parent or sit below one of its descendants. The list nests tasks when both the parent
+and child are present in the current filter; opening the parent also lists its subtasks.
+Detach a child before moving it to another project (or detach and move it in the same update). Detach all
+subtasks before moving their parent. Creating a subtask also requires the same project as its parent. Work your
+agent hands to another project's agent from a global task's chat stays listed under that task, and a subtask
+already linked that way can still be edited.
+
 ## Attachments and task chat actions
 
-Tasks can keep selected screenshots and files as independent snapshots, when created or later. Preview or download
-them from the task. Each task holds up to 50 files, at most 20 MB each. Deleting the original chat does not delete
+Tasks can keep selected screenshots and files as independent snapshots, when created or later. The task shows them as
+same-size squares: a picture's thumbnail, or a file's name and size. Click one to open it (pictures in a viewer you can
+step through, text and PDFs in a reader, anything else downloads); hover it to download or remove it. Removing always
+asks first. Each task holds up to 50 files, at most 20 MB each. Deleting the original chat does not delete
 the task's copy; removing the attachment deletes that copy, not copies already shared elsewhere. Authorized agents
 can inspect task attachments without gaining access to private contact chats. Sending a file outside APX remains
 a separate owner action.
@@ -84,8 +102,8 @@ task**. That chat is a normal chat listed in the Inbox: you can open it and watc
 
 1. Lucía creates "Write the shipping rates page" in Acme Store and picks **Tomás** in **Who does it**.
 2. Tomás's chat for the task opens with the task's words and he starts: reads the project, drafts the page.
-3. His answers stay in his chat. He comments on the task when something is worth knowing: a step done and verified,
-   a block, something to review. The task keeps those comments; the chat keeps the work itself (every tool call,
+3. His answers stay in his chat, and how far he got shows in his plan. He comments on the task when his plan is done
+   or to ask someone something. The task keeps those comments; the chat keeps the work itself (every tool call,
    every file). When he closes the task, his last answer is posted as his report.
 4. When he needs a decision, he asks you. The task moves to **Needs your review** until you answer.
 
@@ -95,6 +113,38 @@ Open a task and its drawer shows the description, the fields, the **Comments** a
 moved, assigned or closed it). **Sessions** at the top counts the chats the task was worked in and opens their list,
 to jump to where the work happens. If you reassign it, the new agent gets its own chat and is told who worked on it
 before, and where to read it.
+
+### Goal, what you asked and the plan
+
+Above the description, a task shows where its work must arrive and what you said about it:
+
+- **Goal**: one or two lines with the result you will check ("computer use moves like the reference, with one cursor
+  per agent"). An agent that hands a task to another one must write it; you can edit it in the drawer. The agent
+  working the task reads it first, every turn.
+- **What you asked**: when an agent creates a task for you, or changes it, while answering you, APX keeps your
+  message as you wrote it, with the one or two you sent just before it. The agent working the task reads your words
+  before the description, which is the other agent's summary of them; where the summary asks for more than you said,
+  or for the opposite, your words win, and when it is not clear the agent asks you.
+- **Plan**: before working, the agent writes its steps toward the goal and marks each one pending, under way or done
+  as it goes. The drawer shows them as a checklist with how many are done, and so does the task's chat, under the
+  agent's message ([The agent's plan](/office/chat/#the-agents-plan)). When the work stops leading to the goal,
+  the agent tells you what is missing instead of going on.
+- **A pause when it gets nowhere**: if the agents on a task take 12 turns or 2 million tokens without finishing a
+  step of its plan (counted since the last step done or since you last wrote), they pause. You see why in the chat,
+  with the button to let them go on, and once in your notifications. A step done, or your message, starts the count
+  over.
+- **One agent does the work, one review at the end**: the agent on a task does it itself. It asks another agent only
+  once the rest of its plan is done, usually for a review (unless you ask it for help sooner). Work for someone else
+  becomes a subtask. The reviewer answers Approved, Approved with notes, or Blocked with the one thing that blocks it.
+  Notes never block.
+- **Few comments**: an agent comments on a task when its plan is done, to ask you or a teammate something (an
+  `@name`), or when it answers you; at most once a turn, in short lines. Progress shows in the plan. A helper answers
+  whoever asked it, not the task.
+- **Cleaning old tasks**: tasks from before 2.13 may hold dozens of progress comments. Your super-agent offers to
+  clean them: it tells you what it would take out of each task and the one summary it would leave, and removes
+  nothing until you say yes. Your own comments always stay.
+
+The description reads as formatted text (lists, bold, links); the pencil opens it to edit.
 
 <Shot name="task-drawer" alt="A task open in its drawer: title, assignee, priority, and a conversation of comments from the owner and an agent" caption="A task's drawer: comments, fields and the work chat" />
 
@@ -124,6 +174,10 @@ An agent asks a teammate the same way: its `@name` in a comment opens a consult 
 the question and the answer, and the answer comes back to the agent that asked, which goes on with its work. One
 comment asks two teammates at most, and the one answering a consult cannot ask anyone further. An agent can also
 mention you to get your attention.
+
+Whoever asks the same teammate again (you, or the same agent) goes on in that consult, with what the teammate already
+knows, and the task shows a new card for the new answer. If the teammate is still working on an earlier question, the
+new one opens a consult of its own, so questions asked together stay apart.
 
 ### An agent works a task until it is done
 
@@ -167,6 +221,16 @@ hands out it creates and starts; the rest it **proposes**. A proposed task waits
 it, until you accept it (it starts like any assigned task) or drop it. You get one notice per agent with how many it
 has waiting.
 
+To accept just one open proposal, right-click it and choose **Accept**, or use **Accept** in its drawer.
+Opening or dismissing the menu changes nothing.
+
+**Accept all** asks you to confirm the number of proposals in the current list, including those behind **See more**.
+Only confirming accepts them and lets assigned agents start; cancelling or closing the dialog changes nothing.
+Proposals that arrive while the dialog is open are not included. Before accepting, APX checks the selected proposals
+again. If that check finds one changed or no longer available, acceptance does not start: review the list and try again.
+Acceptance runs one proposal at a time. If it stops or a response is lost, some proposals may already be accepted;
+check the updated list before trying again. An error message counts only acceptances whose responses were confirmed.
+
 Some tasks are proposals whatever the agent asks for. When you ask your super-agent for several things without saying how, it asks
 you first (a plan, one task each, or doing it itself); once you said how, it goes ahead.
 
@@ -177,8 +241,35 @@ The proposals:
 - **Work given back up the chain.** A sub-task for an agent that created one of the tasks above it is proposed, so two
   agents cannot ping-pong the same work.
 
-The same goes when an agent hands an existing task to another agent: if giving it new would make it a proposal, the
-hand-off is proposed too, and it starts once you accept it.
+For an existing task you explicitly assigned or accepted, APX can verify its current executor and
+recorded hand-offs instead of counting its historical parents. Up to three actual forward hand-offs may continue;
+an independent review may return to its direct sender for up to two rounds with the same author and reviewer. The
+handoff must explicitly request **Review**, and APX starts that separate agent with a review assignment. A previous
+Review status alone does not establish a review round. A third round, a changed review pair or unrelated work sent
+back up the active chain waits for you. This does not accept a proposal already waiting.
+Your follow-up messages in the task conversation or its current agent's work chat keep the same assignment and do not
+reset these limits. A pending message keeps the authorization it had when it arrived, including after a restart;
+revoking or replacing that assignment does not authorize the old message again.
+
+The authorization must still match the task, its executor and its project. Clearing its assignee, changing its scope
+or pausing it for your decision prevents this continuation. That includes an agent rewriting its title, description or
+goal, even in the same change that hands it on: the new scope waits for you as a proposal. Setting a goal the task
+never had is not a rewrite. If a recorded owner assignment can no longer be verified,
+APX proposes the hand-off even for a task without historical parents. Tasks without a recorded owner assignment keep
+the parent-chain rules above: an unassigned task with no owner authorization cannot bypass those rules as an authorized
+continuation. Ordinary assignments that already passed those rules are unchanged. The orchestrator's chat is not authorization by itself: the task must belong to it and its execution must
+be linked to your current assignment. Accept the proposal yourself when you want it to start; removing historical
+parents is not an authorization step.
+
+### A reviewer or a new assignee?
+
+To ask for a review while keeping the same responsible agent, move the task to **Review** and choose an independent
+agent in **Reviewer** (or ask your agent to set it). APX opens a review consultation, for at most two rounds: requested
+changes go back to the responsible agent; an approval is brought to you. Approval does not automatically restart the
+responsible agent for delivery. A proposed task starts no review until you accept it.
+
+Changing the **assignee** instead transfers responsibility and starts a task work session. That is the hand-off
+covered above, not the review consultation. Your review gate and the agents' budgets still apply.
 
 ## Commitments
 
@@ -238,6 +329,7 @@ works in any chat.
 - Detail sections are bounded for the model, with omission markers for long content and older comments. Task and conversation content is returned as data, not instructions.
 - Project agents can read their project's and global tasks, not other projects' tasks or related work. Missing and out-of-scope IDs return the same safe error. The global secretary keeps its board-wide visibility.
 - `task_create`, `task_update`, `task_comment` and `task_close` create and maintain tasks; `commitment_settle` records an agreed commitment outcome.
+- `plan` keeps the agent's checklist; in a task's chat it is the task's plan.
 
 ## Next
 

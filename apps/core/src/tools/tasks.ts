@@ -1,17 +1,21 @@
 // task_*: agents work the office board through the tasks.* methods, like the owner does in the app.
 import { type Task, TaskKind, TaskPriority, TaskTag } from "@apx/protocol";
+import { planSteps } from "@apx/protocol/task-plan";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
+import { ownerWordsOf } from "../domain/task-asked.ts";
 import {
   boardScope,
   checkAssignee,
   checkColumn,
   checkSettle,
   dueOf,
+  NOISY_COMMENTS,
   personOf,
   taskProject,
   visibleTask,
 } from "../domain/tasks.ts";
+import { mentioned, mentionsOwner } from "../engine/office.ts";
 import { badRequest, CallError } from "../errors.ts";
 import { readsOutside } from "./folders.ts";
 import { cap, fromTeam, inlineName, untrusted } from "./result.ts";
@@ -21,9 +25,9 @@ const attachmentsArg = z
   .array(z.string().min(1).max(1000))
   .max(20)
   .optional()
-  .describe(
-    "selected med_ ids or readable file paths to snapshot into the task; include the request's relevant screenshot",
-  );
+  .describe("med_ ids or readable file paths to copy into the task; include the request's screenshot");
+const goalArg = z.string().trim().max(500).optional().describe("what the owner checks to call it done");
+const descriptionArg = z.string().max(3000).optional();
 const isMediaId = (value: string) => /^med_[0-9a-f]{16}$/.test(value);
 const attachmentIds = async (refs: string[] | undefined, ctx: ToolContext) =>
   refs &&
@@ -55,7 +59,7 @@ const line = (t: Task, project?: string) =>
  * Whose words a task's title and description are: the owner's, one of the owner's agents' (the owner's side,
  * DECISIONS.md#d-071), or outside text (an agent passing on a contact's request: it has a person).
  */
-export function taskSide(t: Pick<Task, "created_by" | "person_id">): "owner" | "team" | "outside" {
+function taskSide(t: Pick<Task, "created_by" | "person_id">): "owner" | "team" | "outside" {
   if (t.created_by === "owner") return "owner";
   return t.person_id ? "outside" : "team";
 }
@@ -105,6 +109,24 @@ export function boardText(tasks: Task[], where: (t: Task) => string | undefined,
   if (whole.length <= LIST_CHARS || !rest.length) return whole;
   const keep = tasks.filter((t) => pressing(t, at));
   return `${keep.length ? `${taskLines(keep, lineOf)}\n` : ""}${folded(rest, where)}`;
+}
+
+/**
+ * Why an agent's comment would only add to what the owner skips; undefined when it belongs on the task. A task's
+ * comments are read by people: the turns the owner started, a message to someone, and the plan done (DECISIONS.md#d-202).
+ */
+function commentNoise(store: Store, t: Task, text: string, ctx: ToolContext): string | undefined {
+  if (ownerWordsOf(store, ctx.run.id).length) return undefined;
+  if (ctx.thread.kind === "a2a" && t.assignee !== ctx.agent.id)
+    return "you are helping whoever asked you, and your answer goes back to them. Say it there; they decide what reaches the task.";
+  if (mentionsOwner(store, text) || mentioned(store, text, t.project_id, ctx.agent.id).length) return undefined;
+  const steps = planSteps(t.plan ?? "");
+  if (steps?.length && steps.every((s) => s.state === "done")) {
+    const since = store.threads.context(t.thread_id).progress_at ?? t.created_at;
+    const told = store.tasks.events(t.id).some((e) => e.op === "comment" && e.by === ctx.agent.id && e.at >= since);
+    if (!told) return undefined;
+  }
+  return "progress goes in your plan (mark the step, put the commit or test in its line), not in comments. Comment when the whole plan is done, or to ask someone (@owner for a decision or a change of direction, @agent for a teammate).";
 }
 
 /**
@@ -266,10 +288,11 @@ export function taskTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "First task_list: if an open task is the same or close, continue that one. Record requested tasks or track substantial work, not every action. Capture only: omit assignee; nothing starts. To execute, give assignee and description (subtasks too): assignment already starts a task session; never also delegate that work. Immediate self-assignment transfers execution: end this turn. Reviews or another area's work: propose it; a delegate proposes to its caller. A global agent's task goes to the assignee's project. A promise: person, owed_by, due_at.",
+        "First task_list: if an open task is the same or close, continue that one. Record requested tasks or track substantial work, not every action. Capture only: omit assignee; nothing starts. To execute, give assignee, goal and a description in short Markdown lines: assignment starts its session, never also delegate it. Self-assigning now transfers execution: end this turn. Reviews or another area's work: propose it (a delegate, to its caller). A promise: person, owed_by, due_at.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
-        description: z.string().max(5000).optional(),
+        goal: goalArg,
+        description: descriptionArg,
         attachments: attachmentsArg,
         assignee: z.string().max(80).optional(),
         project: z.string().min(1).max(80).optional().describe("project id; super-agent only"),
@@ -282,7 +305,12 @@ export function taskTools(store: Store, home: string): Tool[] {
       effect: "local",
       outside: outsideAssets,
       confirm: handsOff,
-      check: (a, ctx) => checkNamed(a, a.due_at, taskProject(store, { id: ctx.agent.id, thread_id: ctx.thread.id }, a)),
+      check: (a, ctx) => {
+        checkNamed(a, a.due_at, taskProject(store, { id: ctx.agent.id, thread_id: ctx.thread.id }, a));
+        // Work handed on needs its arrival point, or whoever does it cannot tell when it drifts (DECISIONS.md#d-187).
+        if (a.assignee && !a.propose && !a.goal?.trim())
+          throw badRequest("goal: say in a line where this work must arrive, as the owner would check it");
+      },
       deadlineMs: 5_000,
       title: (a) => `Created the task ${String(a.title ?? "").slice(0, 60)}`,
       async run(a, ctx) {
@@ -307,24 +335,19 @@ export function taskTools(store: Store, home: string): Tool[] {
     }),
     defineTool({
       name: "task_update",
-      description:
-        "Update a task's fields (they mean what task_create's do); assignee:null unassigns it. Finish or drop with task_close.",
+      description: "Update a task's fields (as in task_create); null assignee/parent clears it. task_close ends it.",
       args: z.object({
         task: z.string().min(1).max(64),
+        parent: z.string().min(1).max(64).nullable().optional(),
         status: z.string().max(40).optional(),
         assignee: z.string().max(80).nullable().optional(),
         title: z.string().trim().min(3).max(200).optional(),
-        description: z.string().max(5000).optional(),
+        goal: z.string().trim().max(500).optional(),
+        description: descriptionArg,
         attachments: attachmentsArg,
         awaits_owner: z.boolean().optional(),
-        why: z
-          .string()
-          .trim()
-          .max(1000)
-          .optional()
-          .describe("with awaits_owner:true, what the owner must do or decide"),
+        why: z.string().trim().max(1000).optional().describe("awaits_owner: what the owner must do or decide"),
         reviewer: z.string().max(80).optional().describe('"owner" or agent'),
-        plan: z.string().max(4000).optional().describe("the steps, marked done as you go; replaces the last"),
         ...shapeArgs,
         ...commitmentArgs,
       }),
@@ -356,18 +379,93 @@ export function taskTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "task_comment",
       description:
-        "Comment on a task's conversation. @owner requests the owner's attention (their reply clears it); @agent asks that teammate here and its answer comes back to you.",
-      args: z.object({ task: z.string().min(1).max(64), text: z.string().trim().min(1).max(5000) }),
+        "Comment on a task when its plan is done or to ask: @owner asks the owner, until they reply; @agent a teammate, and you get the answer.",
+      args: z.object({ task: z.string().min(1).max(64), text: z.string().trim().min(1).max(1500) }),
       effect: "local",
       confirm: handsOff,
       check: (a, ctx) => void taskOf(a.task, ctx),
       deadlineMs: 5_000,
       title: (a) => `Commented on ${String(a.task ?? "")}`,
       async run(a, ctx) {
+        // One comment a turn: progress shows in the plan, and a task's conversation is read by people (D-188).
+        const said = store.runs
+          .steps(ctx.run.id)
+          .some((s) => s.tool === "task_comment" && s.state === "ok" && s.args.task === a.task);
+        if (said)
+          throw badRequest(
+            "text: you already commented on this task in this turn; say the rest in your answer, or in one comment next turn",
+          );
+        const why = commentNoise(store, taskOf(a.task, ctx), a.text, ctx);
+        if (why) throw badRequest(`not posted: ${why}`);
         const r = await ctx.call("tasks.comment", a);
         return r.runs.length
           ? `commented; ${r.runs.length} agent(s) will answer there, and the answer comes back to you: do not wait for it.`
           : "commented.";
+      },
+    }),
+    defineTool({
+      name: "task_tidy",
+      description:
+        "Clean tasks' comments. No task: the open tasks that piled them up. A task: its agents' comments. With the owner's yes, remove takes out those that add nothing (progress notes, repeats) and summary leaves one comment with what still matters.",
+      args: z.object({
+        task: z.string().min(1).max(64).optional(),
+        remove: z.array(z.string().min(1).max(64)).max(500).optional(),
+        summary: z.string().trim().min(1).max(3000).optional(),
+      }),
+      effect: "local",
+      // Offered only while some open task piled up comments: every other turn would carry it for nothing.
+      when: () => store.tasks.noisy(NOISY_COMMENTS, 1).length > 0,
+      // Deleting is never silent: the owner sees each clean-up on its card, whatever the mode.
+      confirm: (a) => (a.remove?.length ? "always" : "never"),
+      // Removing is the owner's to decide, on their own word (DECISIONS.md#d-140).
+      ownerSetting: (a) => Boolean(a.remove?.length),
+      explain: (a) =>
+        a.remove?.length
+          ? `Remove ${a.remove.length} comment(s) from ${a.task}${a.summary ? `, leaving this summary:\n${a.summary}` : ""}`
+          : undefined,
+      check: (a, ctx) => {
+        if (a.task) taskOf(a.task, ctx);
+        else if (a.remove?.length) throw badRequest("task: say which task the comments to remove are on");
+      },
+      deadlineMs: 10_000,
+      title: (a) =>
+        a.remove?.length
+          ? `Cleaned ${a.remove.length} comments of ${String(a.task)}`
+          : a.task
+            ? `Read the comments of ${String(a.task)}`
+            : "Looked for tasks with many comments",
+      async run(a, ctx) {
+        if (!a.task) {
+          const scope = scopeOf(ctx);
+          const lines = store.tasks.noisy(NOISY_COMMENTS).flatMap((id) => {
+            const t = store.tasks.get(id);
+            if (!t) return [];
+            try {
+              visibleTask(store, id, scope);
+            } catch {
+              return [];
+            }
+            const n = store.messages.list(t.thread_id, 1000).filter((m) => m.author.kind === "agent").length;
+            return [`- ${t.id} · ${n} agent messages · ${t.title}`];
+          });
+          return lines.length ? untrusted("tasks", {}, lines.join("\n")) : "no open task piled up comments.";
+        }
+        const t = taskOf(a.task, ctx);
+        if (a.remove?.length) {
+          const r = await ctx.call("tasks.tidy", { task: t.id, remove: a.remove, summary: a.summary });
+          return `removed ${r.removed}${r.kept.length ? `; kept (not an agent's plain comment on it): ${r.kept.join(", ")}` : ""}${r.message ? "; summary posted" : ""}.`;
+        }
+        const name = (id: string) => store.agents.get(id)?.name ?? id;
+        const rows = store.messages
+          .list(t.thread_id, 1000)
+          .filter((m) => m.author.kind === "agent" && m.parts.every((p) => p.type === "text"))
+          .map((m) => {
+            const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join(" ");
+            const who = m.author.kind === "agent" ? name(m.author.id) : "";
+            return `- ${m.id} · ${who} · ${m.created_at.slice(0, 16)} · ${text.replace(/\s+/g, " ").slice(0, 160)}`;
+          });
+        if (!rows.length) return "no agent comments on this task.";
+        return untrusted("task_comments", { task: t.id, count: String(rows.length) }, cap(rows.join("\n"), 60_000));
       },
     }),
     defineTool({

@@ -4,7 +4,8 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript-parser";
-import { missingSourceMaps, readCoveragePayloads, snapshotSourceMaps } from "./coverage-maps.ts";
+import { runE2ESuites } from "./coverage-e2e.ts";
+import { mergeScripts, missingSourceMaps, readCoveragePayloads, snapshotSourceMaps } from "./coverage-maps.ts";
 import { sourceMapResolver } from "./coverage-source-map.ts";
 import { checkTests, repositoryFiles, testFiles } from "./test-quality.ts";
 
@@ -25,7 +26,7 @@ export async function sandboxPorts(env: NodeJS.ProcessEnv = process.env): Promis
   const ports: Record<string, string> = {};
   const servers: net.Server[] = [];
   try {
-    for (const name of ["E2E_PORT", "E2E_CONTROL_PORT", "E2E_WA_PORT"]) {
+    for (const name of ["E2E_PORT", "E2E_CONTROL_PORT", "E2E_WA_PORT", "E2E_PAIR_PORT"]) {
       if (env[name]) {
         ports[name] = env[name];
         continue;
@@ -46,22 +47,6 @@ export async function sandboxPorts(env: NodeJS.ProcessEnv = process.env): Promis
 
 function lineStarts(text: string): number[] {
   return [0, ...Array.from(text.matchAll(/\r\n?|\n/g), (match) => match.index + match[0].length)];
-}
-
-function mergeScripts(scripts: V8Script[]): V8Script[] {
-  const merged = new Map<string, Map<string, V8Function>>();
-  for (const script of scripts) {
-    const functions = merged.get(script.url) ?? new Map<string, V8Function>();
-    for (const fn of script.functions) {
-      const range = fn.ranges[0];
-      if (!range) continue;
-      const key = `${range.startOffset}:${range.endOffset}`;
-      const old = functions.get(key);
-      if (!old || range.count > (old.ranges[0]?.count ?? 0)) functions.set(key, fn);
-    }
-    merged.set(script.url, functions);
-  }
-  return [...merged].map(([url, functions]) => ({ url, functions: [...functions.values()] }));
 }
 
 function sourceFiles(root: string): string[] {
@@ -232,94 +217,92 @@ export function coveragePart(argv: readonly string[]): CoveragePart & { name?: s
   throw new Error(`--part must be unit, web or desktop, not ${part}`);
 }
 
-async function runE2ESuites(
-  root: string,
-  raw: string,
-  snapshot: (directory: string) => void,
-  which: Pick<CoveragePart, "web" | "desktop">,
-): Promise<boolean> {
-  let failed = false;
-  const ports = await sandboxPorts();
-  const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-  const run = (command: string, args: string[]) => {
-    const result = spawnSync(command, args, {
-      cwd: root,
-      stdio: "inherit",
-      shell: process.platform === "win32",
-      env: { ...process.env, ...ports, APX_TEST_COVERAGE: "1", APX_TEST_COVERAGE_DIR: raw, NODE_V8_COVERAGE: raw },
-      timeout: 15 * 60_000,
-    });
-    if (result.status !== 0) {
-      failed = true;
-      if (result.error) console.error(result.error.message);
-    }
-  };
-  run(pnpm, ["build:web"]);
-  snapshot(path.join(root, "apps/web/dist"));
-  snapshot(path.join(root, "packages/ui/dist"));
-  if (which.web) {
-    const shard = typeof which.web === "string" ? [`--shard=${which.web}`] : [];
-    run(pnpm, ["exec", "playwright", "test", "--project", "chromium", ...shard]);
+/** An area with more test files than this runs in parts, each with its own time limit (`AREA_MS`). */
+export const AREA_FILES = 160;
+/** How long one area (or part of one) may run: a slow runner gets room, a hung test still ends the run. */
+const AREA_MS = 10 * 60_000;
+
+export type UnitArea = { name: string; dir: string; files: string[] };
+
+/**
+ * The unit test files (relative to the root) by package, a large package dealt out in turn into parts of at most
+ * `AREA_FILES`: each part's slow and quick files mix as in the whole, and one part running out of time names itself.
+ */
+export function unitAreas(files: readonly string[], max = AREA_FILES): UnitArea[] {
+  const groups = new Map<string, string[]>();
+  for (const file of files) {
+    const dir = file.startsWith(`scripts${path.sep}`) ? "scripts" : file.split(path.sep).slice(0, 2).join(path.sep);
+    groups.set(dir, [...(groups.get(dir) ?? []), file]);
   }
-  if (!which.desktop) return failed;
-  run(pnpm, ["--filter", "@apx/desktop", "build"]);
-  snapshot(path.join(root, "apps/desktop/dist"));
-  const desktop = ["exec", "playwright", "test", "--project", "desktop"];
-  if (process.platform === "linux" && !process.env.DISPLAY) {
-    // Xvfb supplies a display; a window manager supplies real focus and minimization transitions.
-    const launch =
-      'command -v openbox >/dev/null || { echo "Install openbox for desktop window tests" >&2; exit 1; }; openbox >/dev/null 2>&1 & exec "$@"';
-    run("xvfb-run", ["-a", "sh", "-c", launch, "apx-desktop", pnpm, ...desktop]);
-  } else if (process.platform === "darwin") {
-    // Native focus assertions need an awake display for the lifetime of the test process.
-    run("caffeinate", ["-d", "-i", pnpm, ...desktop]);
-  } else run(pnpm, desktop);
-  return failed;
+  return [...groups].flatMap(([dir, group]) => {
+    const parts = Math.ceil(group.length / max);
+    if (parts <= 1) return [{ name: dir, dir, files: group }];
+    return Array.from({ length: parts }, (_, i) => ({
+      name: `${dir} ${i + 1}/${parts}`,
+      dir,
+      files: group.filter((_, n) => n % parts === i),
+    }));
+  });
 }
 
 /** The unit suites, area by area, then the mobile app's own; their coverage lands in `raw` and `nativeOutput`. */
 function runUnitSuites(root: string, raw: string, nativeOutput: string, snapshot: (directory: string) => void) {
-  let failed = false;
+  const failedAreas: string[] = [];
   const allTests = testFiles(root).filter(
     (file) =>
       file.includes(".test.") &&
       !file.startsWith(path.join(root, "e2e")) &&
       !file.startsWith(path.join(root, "apps/mobile/test")) &&
       // The docs site installs on its own and its tests read the built site: Pages builds it, then runs them (check).
-      !file.startsWith(path.join(root, "apps/docs")),
+      !file.startsWith(path.join(root, "apps/docs")) &&
+      // The extension's tests run through its own runner, which hides the agent CLIs this computer has.
+      !file.startsWith(path.join(root, "apps/chrome-extension")),
   );
-  const groups = new Map<string, string[]>();
-  for (const file of allTests) {
-    const relative = path.relative(root, file);
-    const area = relative.startsWith("scripts/") ? "scripts" : relative.split(path.sep).slice(0, 2).join(path.sep);
-    const group = groups.get(area) ?? [];
-    group.push(relative);
-    groups.set(area, group);
-  }
   // UI tests consume the public build, including JSX and the design-system export boundary.
   const build = spawnSync(process.execPath, ["scripts/build.mjs"], {
     cwd: path.join(root, "packages/ui"),
     stdio: "inherit",
   });
-  if (build.status !== 0) failed = true;
+  if (build.status !== 0) failedAreas.push("packages/ui build");
   snapshot(path.join(root, "packages/ui/dist"));
-  for (const [area, files] of groups) {
-    console.log(`\nCoverage: ${area} (${files.length} files)`);
-    const cwd = area === "scripts" ? root : path.join(root, area);
+  for (const area of unitAreas(allTests.map((file) => path.relative(root, file)))) {
+    console.log(`\nCoverage: ${area.name} (${area.files.length} files)`);
+    const cwd = area.dir === "scripts" ? root : path.join(root, area.dir);
     const run = spawnSync(
       process.execPath,
-      ["--test", ...files.map((file) => path.relative(cwd, path.join(root, file)))],
+      ["--test", ...area.files.map((file) => path.relative(cwd, path.join(root, file)))],
       {
         cwd,
         env: { ...process.env, NODE_V8_COVERAGE: raw, APX_UI_TEST_COVERAGE_DIR: raw },
         stdio: "inherit",
-        timeout: 10 * 60_000,
+        timeout: AREA_MS,
       },
     );
-    if (run.status !== 0) {
-      failed = true;
-      if (run.error) console.error(run.error.message);
-    }
+    if (run.status === 0) continue;
+    const timedOut = (run.error as NodeJS.ErrnoException | undefined)?.code === "ETIMEDOUT";
+    failedAreas.push(timedOut ? `${area.name} (out of time)` : area.name);
+    if (timedOut)
+      console.error(
+        `Coverage: ${area.name} was stopped after ${AREA_MS / 60_000} min; its files still running show as "still pending" above, not as failures of their own.`,
+      );
+    else if (run.error) console.error(run.error.message);
+  }
+  // The extension's tests open the built panel in Chrome: a part that builds nothing else builds it first.
+  const panel = spawnSync(process.platform === "win32" ? "pnpm.cmd" : "pnpm", ["build:web"], {
+    cwd: root,
+    stdio: "inherit",
+    shell: process.platform === "win32",
+  });
+  if (panel.status !== 0) failedAreas.push("apps/web build");
+  const extension = spawnSync(process.execPath, ["apps/chrome-extension/run-tests.ts"], {
+    cwd: root,
+    env: { ...process.env, NODE_V8_COVERAGE: raw },
+    stdio: "inherit",
+    timeout: AREA_MS,
+  });
+  if (extension.status !== 0) {
+    failedAreas.push("apps/chrome-extension");
+    if (extension.error) console.error(extension.error.message);
   }
   const mobile = spawnSync(
     process.platform === "win32" ? "npm.cmd" : "npm",
@@ -333,10 +316,11 @@ function runUnitSuites(root: string, raw: string, nativeOutput: string, snapshot
     },
   );
   if (mobile.status !== 0) {
-    failed = true;
+    failedAreas.push("apps/mobile (Jest)");
     if (mobile.error) console.error(mobile.error.message);
   }
-  return failed;
+  if (failedAreas.length) console.error(`\nCoverage: unit suites failed in ${failedAreas.join(", ")}`);
+  return failedAreas.length > 0;
 }
 
 type PartStatus = { failed: boolean; suites: string[] };
@@ -473,7 +457,8 @@ async function main() {
   };
   let failed = false;
   if (part.unit) failed = runUnitSuites(root, raw, path.join(output, "mobile"), snapshot) || failed;
-  if (part.web || part.desktop) failed = (await runE2ESuites(root, raw, snapshot, part)) || failed;
+  if (part.web || part.desktop)
+    failed = (await runE2ESuites(part, { root, raw, snapshot, ports: sandboxPorts })) || failed;
   const status = {
     failed,
     suites: [...(part.unit ? ["unit"] : []), ...(part.web ? ["web"] : []), ...(part.desktop ? ["desktop"] : [])],

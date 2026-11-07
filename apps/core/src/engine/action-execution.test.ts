@@ -19,6 +19,7 @@ for (const mode of ["creation", "assignment", "batch"] as const) {
       const results = req.messages.filter((m) => m.role === "tool");
       if (!afterTool) {
         const create = callTool("capture", "task_create", {
+          goal: "Done as asked",
           title: "Analyze the report",
           description: "Analyze the report and return findings.",
           ...(!assign ? { assignee: "vera" } : {}),
@@ -72,7 +73,11 @@ test("capture-only records a task without execution or pressure to assign", asyn
   const llm = scriptedLlm((req, { afterTool }) =>
     afterTool
       ? say(String(req.messages.at(-1)?.content))
-      : callTool("capture", "task_create", { title: "Consider a future report", description: "Not for execution." }),
+      : callTool("capture", "task_create", {
+          goal: "Done as asked",
+          title: "Consider a future report",
+          description: "Not for execution.",
+        }),
   );
   const env = await startCore({ llm });
   try {

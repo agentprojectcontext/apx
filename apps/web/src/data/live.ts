@@ -9,10 +9,12 @@ import { client } from "./client.ts";
 import { flowDraftChanged } from "./flowDrafts.ts";
 import { flowRunMoved, flowTestHeard } from "./flowTests.ts";
 import { jobsChanged } from "./jobs.ts";
+import { loadCatalog, models } from "./models.ts";
 import { loadNotifications, notificationChanged } from "./notifications.ts";
 import { denied } from "./pairing.ts";
 import { routineRunChanged } from "./routines.ts";
 import { data, upsertMessage } from "./state.ts";
+import { loadDiskStatus } from "./storage.ts";
 import { loadTasks, taskChanged, taskDeleted, tasksLoaded } from "./tasks.ts";
 import { teamChanged } from "./team.ts";
 import { forgetThreads } from "./threadAdmin.ts";
@@ -77,6 +79,7 @@ async function connect(): Promise<void> {
     await refetchLoaded();
     void loadNotifications();
     void loadUpdates();
+    void loadDiskStatus();
     if (tasksLoaded()) void loadTasks();
     routineRunChanged();
     data.set({ connection: "online", error: undefined });
@@ -231,6 +234,13 @@ function apply(ev: CoreEvent): void {
     case "browser.tabs":
       // The core checks a node's tabs before pushing them.
       data.set({ tabs: ev.tabs });
+      return;
+    case "storage.changed":
+      void loadDiskStatus();
+      return;
+    case "models.changed":
+      // Only a list already shown: the next screen that needs one asks for it anyway.
+      if (models.get().catalogLoad !== "idle") void loadCatalog();
       return;
     case "computer.progress":
       data.set((s) => ({ computerProgress: { ...s.computerProgress, [ev.thread_id]: ev.stage } }));

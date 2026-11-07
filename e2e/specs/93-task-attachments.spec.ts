@@ -10,7 +10,7 @@ const image = {
 };
 type Detail = { task: { id: string }; attachments: Array<{ media_id: string; name: string }> };
 
-test("task attachments persist across creation and reload, preview, download, and detach independently of comments", async ({
+test("task attachments persist as same-size tiles that open, download, and detach only after confirming", async ({
   page,
 }) => {
   await rpc("setup.finish", {});
@@ -35,7 +35,8 @@ test("task attachments persist across creation and reload, preview, download, an
   await assets
     .getByLabel("Adjuntar archivos", { exact: true })
     .setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("Northwind attachment snapshot") });
-  await expect(assets.getByRole("button", { name: /^notes\.txt / })).toBeVisible();
+  const notes = assets.getByRole("button", { name: "notes.txt", exact: true });
+  await expect(notes).toBeVisible();
   const listed = await rpc<{ tasks: Array<{ id: string; title: string }> }>("tasks.list", {});
   const task = listed.tasks.find((t) => t.title === "Northwind durable assets");
   expect(task).toBeDefined();
@@ -44,16 +45,41 @@ test("task attachments persist across creation and reload, preview, download, an
     .poll(async () => (await detail()).attachments.map((a) => a.name).sort())
     .toEqual(["brief.png", "notes.txt"]);
   await page.reload();
-  await expect(assets.getByRole("button", { name: /^notes\.txt / })).toBeVisible();
+  // Every attachment is the same square, whether a picture or a file.
+  const tiles = assets.getByRole("list", { name: "Adjuntos" }).getByRole("listitem");
+  await expect(tiles).toHaveCount(2);
+  const boxes = await Promise.all([0, 1].map(async (i) => tiles.nth(i).boundingBox()));
+  for (const box of boxes) {
+    expect(box).not.toBeNull();
+    expect(Math.abs((box?.width ?? 0) - (box?.height ?? 1))).toBeLessThan(1.5);
+    expect(Math.abs((box?.width ?? 0) - (boxes[0]?.width ?? 0))).toBeLessThan(1.5);
+  }
+  await notes.click();
+  const viewer = page.getByRole("dialog", { name: "notes.txt" });
+  await expect(viewer).toContainText("Northwind attachment snapshot");
+  await page.keyboard.press("Escape");
+  await expect(viewer).toBeHidden();
+  const notesTile = tiles.filter({ has: page.getByRole("button", { name: "notes.txt", exact: true }) });
+  await notesTile.hover();
   const download = page.waitForEvent("download");
-  await assets.getByRole("button", { name: /^notes\.txt / }).click();
+  await notesTile.getByRole("button", { name: "Descargar" }).click();
   const file = await download;
   expect(file.suggestedFilename()).toBe("notes.txt");
   const stream = await file.createReadStream();
   const chunks: Buffer[] = [];
   for await (const chunk of stream) chunks.push(Buffer.from(chunk));
   expect(Buffer.concat(chunks).toString()).toBe("Northwind attachment snapshot");
+  // Removing asks first: cancelling keeps it, confirming takes it off.
+  const confirm = page.getByRole("dialog", { name: "Quitar adjunto" });
   await assets.getByRole("button", { name: "Quitar adjunto brief.png", exact: true }).click();
+  await expect(confirm).toContainText("“brief.png” se quita de esta tarea");
+  await confirm.getByRole("button", { name: "Cancelar", exact: true }).click();
+  await expect(confirm).toBeHidden();
+  await expect(assets.getByRole("img", { name: "brief.png", exact: true })).toBeVisible();
+  expect((await detail()).attachments).toHaveLength(2);
+  await assets.getByRole("button", { name: "Quitar adjunto brief.png", exact: true }).click();
+  await confirm.getByRole("button", { name: "Quitar", exact: true }).click();
+  await expect(confirm).toBeHidden();
   await expect(assets.getByRole("img", { name: "brief.png", exact: true })).toBeHidden();
   await expect.poll(async () => (await detail()).attachments.map((a) => a.name).sort()).toEqual(["notes.txt"]);
 });
@@ -81,6 +107,10 @@ test("task uploads show size errors and enforce the attachment count before crea
   await expect(dialog.getByRole("alert")).toHaveCount(0);
   await expect(dialog.getByRole("button", { name: "brief.png", exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "Quitar adjunto brief.png", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Quitar adjunto" })
+    .getByRole("button", { name: "Quitar", exact: true })
+    .click();
   await expect(dialog.getByRole("button", { name: "brief.png", exact: true })).toBeHidden();
 });
 
@@ -117,7 +147,7 @@ test("existing tasks accept more than 20 attachments and stop at 50", async ({ p
   await assets
     .getByLabel("Adjuntar archivos", { exact: true })
     .setInputFiles({ name: "last.txt", mimeType: "text/plain", buffer: Buffer.from("Last") });
-  await expect(assets.getByRole("button", { name: /^last\.txt / })).toBeVisible();
+  await expect(assets.getByRole("button", { name: "last.txt", exact: true })).toBeVisible();
   await expect(assets.getByRole("button", { name: "Adjuntar archivos", exact: true })).toBeDisabled();
   await expect.poll(async () => (await rpc<Detail>("tasks.get", { task: task.id })).attachments.length).toBe(50);
 });

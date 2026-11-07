@@ -1,7 +1,8 @@
 ---
-title: Agentes
-description: Quién trabaja para vos en APX, cómo cada agente es un archivo markdown y cómo se pasan el trabajo entre ellos.
+title: Armá un equipo de agentes de IA para cada proyecto
+description: Creá agentes de IA por proyecto con roles, instrucciones y herramientas. Conservá sus definiciones en archivos legibles junto al proyecto.
 sidebar:
+  label: Agentes
   order: 1
 ---
 
@@ -11,9 +12,30 @@ import Terminal from "../../../../components/Terminal.astro";
 import Blob from "../../../../components/Blob.astro";
 
 
-Un agente es alguien de tu equipo: un nombre, una cara, un rol, unas instrucciones y las herramientas que puede usar.
-Algunos trabajan con vos en todos lados, otros pertenecen a un proyecto, y otros existen para un solo encargo y
-después desaparecen.
+Un proyecto suele necesitar distintos tipos de trabajo: investigación, desarrollo, revisión u operaciones. En APX,
+dales roles diferentes a los agentes de un proyecto y permití que se deleguen trabajo. Seguilo en los chats y las
+[tareas](/es/office/tasks/) del proyecto. Un proyecto puede ser un repositorio de software, un negocio u otra carpeta
+donde trabajás.
+
+Un agente tiene nombre, cara, rol, instrucciones y herramientas que puede usar. Por ejemplo, un agente puede investigar
+opciones, otro implementar un cambio y otro revisarlo. Son roles que configurás, no una promesa de que el trabajo
+salga bien sin revisión. Empezá desde la pestaña **Agentes** del proyecto para crear uno o importar una plantilla.
+
+## Conservá el contexto junto al trabajo
+
+Los proyectos de APX siguen [APC (Agent Project Context)](/es/concepts/projects/): un `AGENTS.md` en la raíz y una carpeta
+`.apc/`. Las definiciones de agentes son archivos Markdown individuales en `.apc/agents/`. Las instrucciones
+compartidas, las notas seleccionadas y las habilidades del proyecto se pueden leer y versionar junto al trabajo.
+
+APX guarda los chats, ejecuciones, tareas, rutinas y notas en su base de datos local. Los archivos del proyecto son la
+fuente de verdad de las definiciones de agentes; un repositorio no reemplaza el historial de ejecución.
+
+Configurá la [autonomía y las herramientas](/es/concepts/autonomy/) de cada agente según el trabajo. Los mensajes externos
+y las páginas web son datos, no una autorización para actuar. APX funciona en tu computadora o en un servidor propio,
+pero los modelos conectados en la nube reciben lo que necesita cada solicitud; APX local no implica inferencia sin
+conexión con modelos en la nube.
+
+Algunos agentes trabajan con vos en todos lados, otros pertenecen a un proyecto y otros existen para un solo encargo.
 
 <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", alignItems: "center", margin: "1.5rem 0" }}>
   <Blob name="menta" size={56} bob />
@@ -204,17 +226,31 @@ proyecto pasa a **Empresa** cuando los agregás. Los agentes los leen, así Luc�
 Un agente con la herramienta `delegate` puede pasarle una tarea a un agente fijo ("pedile a Tomás que arregle el
 checkout") o arrancar un **ayudante**: alguien que define en el momento con un nombre, instrucciones y, si quiere, una
 lista más corta de herramientas. El ayudante usa el modelo de quien lo llamó, no tiene personalidad ni conoce al
-resto del equipo, no le pregunta a nadie más y reporta.
+resto del equipo, no le pregunta a nadie más y reporta. En el inbox y en el chat un ayudante lleva una marca de
+ayudante, con el agente que lo creó como insignia chica, para que nunca parezca ese agente hablando consigo mismo.
+Pedirle otra vez a un ayudante con el mismo nombre desde el mismo chat sigue en su sesión, con las instrucciones que
+recibió al principio; si todavía está trabajando, la nueva pregunta queda aparte.
 
 La respuesta vuelve en el mismo turno si es rápida, o más tarde como un turno nuevo que despierta a quien la pidió. El
 chat muestra una tarjeta con el avance, el informe completo (plegado hasta que lo abrís) y cuánto tardó.
+
+Un agente al que le delegan no contesta "ya voy" primero: hace el trabajo y responde una sola vez, terminando
+siempre con las mismas cuatro líneas (Status: done o blocked, Result, Evidence: lo que mostraron sus herramientas,
+Unblock: lo que necesita, o none). Nunca le devuelve la tarea a quien se la pidió. Con vos, los agentes contestan
+directo, sin repetir tu pregunta.
+
+Cuando un agente le pide algo a dos o más ayudantes en el mismo turno, sus respuestas le llegan juntas: cada tarjeta
+que ya respondió dice **Esperando respuestas: 2 de 3**, y cuando responde el último el agente recibe un solo turno con
+todas, así te cuenta una vez en lugar de tres. Espera como mucho 10 minutos desde la primera respuesta; pasado ese
+tiempo lee las que llegaron, y las que lleguen después vienen de a una, como antes. Si detenés el chat, lo que esperaba
+se suelta: las respuestas quedan en sus tarjetas. Una sola delegación no espera a nadie.
 
 APX mantiene la delegación con correa:
 
 | Límite | Valor |
 |---|---|
 | Cuántos niveles se anidan | 1 (tu agente → un ayudante; el ayudante hace el trabajo él mismo y no le pide nada a nadie más) |
-| Delegaciones a la vez desde un chat | 3 |
+| Delegaciones a la vez desde un chat | 2 (las siguientes esperan su turno) |
 | Tiempo que una delegación puede pasar sin avanzar | 6 minutos; un comando que sigue corriendo cuenta como avance |
 | Tiempo que puede trabajar una sola delegación, avance o no | 2 horas |
 | Turnos que los agentes arrancan solos sin vos | Sin límite por defecto: terminan lo que les pediste. Si prendés **Poner límites** en **Cuando los agentes trabajan solos** (arranca en 100 turnos o 5.000.000 tokens nuevos; lo leído de la caché no cuenta), la cadena se pausa ahí hasta que escribas |

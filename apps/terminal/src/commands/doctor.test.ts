@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { commandRunner, currentVersion, switchCurrent } from "../../../../packages/install/src/release.ts";
 import { tempDir } from "../../../core/src/testkit/platform.ts";
-import { type DoctorFacts, diagnose, updateWithoutCore } from "./doctor.ts";
+import { compactionLines, type DoctorFacts, diagnose, updateWithoutCore } from "./doctor.ts";
 
 const bundle = { kind: "bundle" as const, app: "~/.apx/v2/app", version: "2.12.1" };
 const facts = (over: Partial<DoctorFacts>): DoctorFacts => ({
@@ -147,4 +147,43 @@ test("update without the core changes nothing when this is the newest, and never
   } finally {
     await f.close();
   }
+});
+
+test("--fix says how much the database shrank, where its copy is, and why it did not when the disk is short", () => {
+  const MB = 1048576;
+  const base = { runs_trimmed: 9, runs_compacted: 4, outputs_dropped: 12, rows: 30 };
+  const backup = "apx-before-compact-20261106-123045.db";
+  const rebuilt = compactionLines({
+    ...base,
+    before_bytes: 1110 * MB,
+    after_bytes: 890 * MB,
+    reclaimed: "rebuilt",
+    backup,
+  });
+  assert.equal(rebuilt[0], "Database: 1110 MB → 890 MB (220 MB freed)");
+  assert.ok(
+    rebuilt.some((l) => l.includes(backup)),
+    "the copy's name is told",
+  );
+  assert.match(rebuilt.at(-1) ?? "", /rewritten once/);
+  const short = compactionLines({
+    ...base,
+    before_bytes: 900 * MB,
+    after_bytes: 900 * MB,
+    reclaimed: "not_enough_disk",
+    backup,
+  });
+  assert.equal(short[0], "Database: 900 MB → 900 MB");
+  assert.match(short.at(-1) ?? "", /twice its size free/);
+  const noRoom = compactionLines({
+    runs_trimmed: 0,
+    runs_compacted: 0,
+    outputs_dropped: 0,
+    rows: 0,
+    before_bytes: 900 * MB,
+    after_bytes: 900 * MB,
+    reclaimed: "not_enough_disk",
+  });
+  assert.ok(!noRoom.some((l) => l.includes("backups folder")), "no copy, none told");
+  assert.match(noRoom.at(-1) ?? "", /Nothing was changed/);
 });

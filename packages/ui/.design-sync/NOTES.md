@@ -14,12 +14,17 @@
 - Preview content uses generic names only (Acme, Northwind, Globex, Roby, Ledger, Scout…). Never real client/project names.
 
 ## Pending re-sync
+- ResizeHandle can fold its column (`collapsed`, `collapsedWidth`, `onCollapsedChange`): a click or Enter toggles
+  it, a drag past halfway to the rail snaps it. The panel's sidebar uses it in place of a topbar button; not in the
+  Claude Design project yet.
 - FlowStep (a Flow step card on a canvas, with its run state) and RunBars (recent runs as bars) are new, for the
   Flows screens; neither is in the Claude Design project yet. Their CSS is `dist/flow.css`, outside `styles.css` (it
   stays off the panel's first load): a re-sync bundles it too.
 - AgentAvatar's eye canvas now keeps its full size inside icon buttons; re-sync the shared CSS bundle.
 - Meter is new (single or stacked bar with a legend) and the icon set gained Gauge, Cpu, HardDrive and MemoryStick:
   neither is in the Claude Design project yet.
+- Meter gained `shape="ring"` (one amount as a small circle beside text, for the composer's context use); not in the
+  Claude Design project yet.
 - TemplateField is new (a text field whose placeholders read as badges, with a grouped value picker), for Flow
   steps, and the icon set gained Braces: neither is in the Claude Design project yet.
 - AgentGrid is new (agents as two-column cards, for a Flow's AI step); TemplateField gained one-line fields and a
@@ -27,7 +32,11 @@
   the Claude Design project yet.
 - MediaLoader is new (a loading file as a moving icon of its kind: image, video, audio or file); not in the Claude
   Design project yet.
+- FileTile and FileTileGrid are new (files as same-size squares: a picture, or an icon with name and size, with
+  corner actions on hover), for task attachments; not in the Claude Design project yet.
 - MarkdownView now renders safe pipe tables; its remote preview and bundle need a re-sync.
+- Message: on the owner's side (`from="user"`) the meta line keeps to the bubble's edge and the hover controls open
+  on its inner side; re-sync the shared CSS bundle.
 - Lint fixes (DECISIONS.md#d-005) changed markup in Avatar, AgentAvatar, Checkbox, Switch, SegmentedControl (now a
   Base UI RadioGroup), DayDivider, VoiceNote and the list keys of ActionGroup/StepList/EntityCard/Menu/Kbd/
   AvatarStack/MessageMeta. Pixel-identical in all four looks, same public API; the remote bundle is just stale.

@@ -36,7 +36,9 @@ test("the topbar gauge opens memory, CPU, disk, the VM and APX's top consumers, 
   const dialog = page.getByRole("dialog", { name: "Recursos del sistema" });
   await expect(dialog.getByRole("heading", { name: "Procesos de APX" })).toBeVisible();
   // The APX folder is measured in the background: its parts come on a later read.
-  await expect(dialog.getByTestId("usage-home").getByText("Bases de datos")).toBeVisible({ timeout: 15_000 });
+  await expect(dialog.getByTestId("usage-home").getByText("Chats, memoria y archivos")).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(dialog.getByText(/Volumen (del sistema|de la carpeta de APX)/).first()).toBeVisible();
   await dialog.getByRole("button", { name: "Cerrar" }).last().click();
   await expect(dialog).toHaveCount(0);

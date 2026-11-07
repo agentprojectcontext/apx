@@ -57,6 +57,12 @@ test("a plan expands chained root scripts into their parts, in order, without re
   const preflight = expand(PLANS.preflight ?? [], root.scripts).map((s) => s.command);
   assert.deepEqual(verify.slice(0, preflight.length), preflight);
   assert.ok(verify.includes("pnpm test:coverage:all"));
+  assert.ok(verify.includes("pnpm test:chrome-extension:browser"));
+  const browserGate = verify.indexOf("pnpm test:chrome-extension:browser");
+  assert.ok(
+    verify.some((command, index) => index < browserGate && command.includes("build")),
+    "the extension gate runs against built assets",
+  );
   assert.ok(!verify.some((c) => /scripts\/verify\.ts/.test(c)), "the runner never runs itself");
 });
 

@@ -213,6 +213,11 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "agentedit.unknownToolsRemove": "Quitarlas",
   "agentedit.model": "Modelo",
   "agentedit.modelHint": "El router elige según la tarea, salvo que tenga uno propio.",
+  "agentedit.fallbacks": "Modelos de respaldo",
+  "agentedit.fallbacksHint":
+    "Si su modelo llega al límite de uso o no responde, el agente usa estos en orden y vuelve al suyo cuando se libera.",
+  "agentedit.addFallback": "Agregar respaldo",
+  "agentedit.removeFallback": "Quitar este respaldo",
   "agentedit.parent": "Reporta a",
   "agentedit.parentHint": "A quién le pasa resultados y dudas.",
   "agentedit.orchestrator": "Orquestador",

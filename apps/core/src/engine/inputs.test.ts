@@ -23,6 +23,7 @@ const llm = scriptedLlm(async (_req, { said, afterTool }) => {
     return callTool("q1", "ask_owner", { question: "Which color?", options: ["red", "blue"] });
   if (said.includes("bad args")) return callTool("b1", "show_widget", { title: "no name" });
   if (said.includes("big output")) return callTool("o1", "big_output", {});
+  if (said.includes("small output")) return callTool("s1", "small_output", {});
   return say("Hi.");
 });
 
@@ -34,6 +35,16 @@ const big = defineTool({
   deadlineMs: 5_000,
   title: () => "Made a big output",
   run: async () => `${"a".repeat(20_000)}END`,
+});
+
+const small = defineTool({
+  name: "small_output",
+  description: "test tool",
+  args: z.object({}),
+  effect: "none",
+  deadlineMs: 5_000,
+  title: () => "Made a small output",
+  run: async () => "small result",
 });
 
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -67,7 +78,7 @@ const pendingOf = async (thread: string) => {
 };
 
 before(async () => {
-  env = await startCore({ llm, extraTools: [big] });
+  env = await startCore({ llm, extraTools: [big, small] });
   careful = await carefulAgent(env.client);
 });
 after(async () => {
@@ -165,13 +176,23 @@ test("a big output reaches the model capped, with a ref read_output pages throug
   assert.equal(env.core.store.runs.output(ref, "home"), undefined);
 });
 
+test("an output the model got whole is stored once: in its log, with the step's summary, not a second full copy", async () => {
+  const t = await newThread("superagent");
+  await env.client.call("threads.send", { thread: t.id, text: "small output" });
+  const { runs } = await env.settle(t.id);
+  const run = runs.at(-1)?.id ?? "";
+  assert.equal(String(llm.calls.at(-1)?.messages.at(-1)?.content), "small result");
+  assert.equal(env.core.store.runs.steps(run)[0]?.result, "small result");
+  assert.deepEqual(env.core.store.retention.keptOutputs(run), []);
+});
+
 test("an answer that arrives after a restart wakes the agent, and the approved call runs once without asking", async () => {
   const t = await newThread(careful);
   await env.client.call("threads.send", { thread: t.id, text: "make the ok widget" });
   const [input] = await pendingOf(t.id);
   const home = env.home;
   await env.core.close();
-  env = await startCore({ llm, home, extraTools: [big] });
+  env = await startCore({ llm, home, extraTools: [big, small] });
   const still = (await env.client.call("runs.pending", { thread: t.id })).inputs;
   assert.equal(still[0]?.id, input?.id);
   await env.client.call("runs.respond", { input: input?.id ?? "", decision: "approve" });

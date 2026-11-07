@@ -325,8 +325,133 @@
   height: 8px;
   border-radius: 2px;
 }
+.apx-meter-ring {
+  flex: none;
+}
+.apx-meter-ring__track,
+.apx-meter-ring__fill {
+  fill: none;
+  stroke-width: 2.5;
+}
+.apx-meter-ring__track {
+  stroke: var(--apx-border);
+}
+.apx-meter-ring__fill {
+  stroke: var(--apx-brand);
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.3s ease;
+}
+.apx-meter-ring--warning .apx-meter-ring__fill {
+  stroke: var(--apx-warning);
+}
+.apx-meter-ring--danger .apx-meter-ring__fill {
+  stroke: var(--apx-danger);
+}
 @media (prefers-reduced-motion: reduce) {
-  .apx-meter__fill {
+  .apx-meter__fill,
+  .apx-meter-ring__fill {
+    transition: none;
+  }
+}
+
+/* ── FileTile ──────────────────────────────────────────────────────────────── */
+.apx-filetiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--apx-filetile-size, 104px), 1fr));
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.apx-filetile {
+  position: relative;
+  aspect-ratio: 1;
+  min-width: 0;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+  overflow: hidden;
+}
+.apx-filetile__open {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  border: 0;
+  background: none;
+  color: var(--apx-fg);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+.apx-filetile__open:disabled {
+  cursor: default;
+}
+.apx-filetile.is-picture .apx-filetile__open {
+  padding: 0;
+}
+.apx-filetile__open img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.apx-filetile__open:hover:not(:disabled) {
+  background: var(--apx-fill-hover);
+}
+.apx-filetile__open:focus-visible {
+  outline: 2px solid var(--apx-accent);
+  outline-offset: -2px;
+  border-radius: inherit;
+}
+.apx-filetile__icon {
+  display: grid;
+  color: var(--apx-fg-muted);
+  margin-bottom: 2px;
+}
+.apx-filetile__name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: var(--apx-text-xs);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.apx-filetile__meta {
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+}
+.apx-filetile__actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-surface);
+  box-shadow: var(--apx-shadow-sm);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.apx-filetile:hover .apx-filetile__actions,
+.apx-filetile:focus-within .apx-filetile__actions {
+  opacity: 1;
+}
+@media (hover: none) {
+  .apx-filetile__actions {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .apx-filetile__actions {
     transition: none;
   }
 }

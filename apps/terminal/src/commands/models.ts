@@ -5,7 +5,8 @@ import type { ModelChoice, RouterConfig } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
 import { agentPatch } from "./agent-fields.ts";
 
-const show = (c: ModelChoice) => (c.model ? `${c.model}${c.router ? " → router" : ""}` : "router");
+const show = (c: ModelChoice) =>
+  c.model ? [c.model, ...(c.fallbacks ?? []), ...(c.router ? ["router"] : [])].join(" → ") : "router";
 
 /** "router" | "default" | "<engine>[/<model>]" (+ --router) → a choice; "default" → null. */
 function parseChoice(arg: string | undefined, router: boolean): ModelChoice | null {
@@ -59,10 +60,26 @@ export async function models(client: ApxClient, [sub, ...args]: string[], o: { r
   throw new Error(`unknown models command: ${sub}`);
 }
 
-export async function agentModel(client: ApxClient, [agent, ref]: string[], o: { router?: boolean }) {
+export async function agentModel(
+  client: ApxClient,
+  [agent, ref]: string[],
+  o: { router?: boolean; fallbacks?: string | undefined },
+) {
   if (!agent || !ref)
-    throw new Error("usage: apx agents model <agent> <engine/model|engine|router|default> [--router]");
-  const a = await client.call("agents.update", { agent, model_choice: parseChoice(ref, o.router ?? false) });
+    throw new Error(
+      "usage: apx agents model <agent> <engine/model|engine|router|default> [--router] [--fallbacks <ref>,<ref>]",
+    );
+  const choice = parseChoice(ref, o.router ?? false);
+  // A new main model keeps the fallbacks behind it unless --fallbacks names others ("" clears them).
+  const fallbacks =
+    o.fallbacks !== undefined
+      ? o.fallbacks
+          .split(",")
+          .map((r) => r.trim())
+          .filter(Boolean)
+      : (await client.call("agents.get", { agent })).agent.model_choice?.fallbacks?.filter((r) => r !== choice?.model);
+  const model_choice = choice?.model && fallbacks?.length ? { ...choice, fallbacks } : choice;
+  const a = await client.call("agents.update", { agent, model_choice });
   console.log(`${a.name}: ${a.model_choice ? show(a.model_choice) : "install default"}`);
 }
 

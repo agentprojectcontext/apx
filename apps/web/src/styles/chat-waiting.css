@@ -1,0 +1,28 @@
+/* The owner's messages their agent has not taken yet (chat/WaitingMessage.tsx). */
+.waiting__line {
+  display: flex;
+  flex-direction: column;
+  padding-top: 6px;
+}
+.waiting__label {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  padding: 0 4px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.waiting__line > .apx-msg:first-of-type {
+  margin-top: 6px;
+}
+.waiting__now {
+  color: var(--apx-fg-muted);
+}
+.waiting__taken {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}

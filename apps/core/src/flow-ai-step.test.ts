@@ -63,7 +63,10 @@ test("an agent in a Flow keeps its tools but delegates to no one unless the step
   try {
     const off = await runOnce(env, "solo", ai({ agent: "superagent" }));
     assert.equal(off.step.state, "succeeded");
-    assert.deepEqual(off.context.flow_step, { delegate: false });
+    // The chat knows the Flow and step that opened it, and shows them.
+    assert.deepEqual(off.context.flow_step, { delegate: false, flow: "solo", node: "ask" });
+    const listed = await env.client.call("threads.get", { thread: off.thread });
+    assert.deepEqual(listed.thread.flow, { id: "solo", step: "ask" });
     const offCall = llm.calls.at(-1);
     assert.ok(offCall);
     for (const name of ["delegate", "list_agents", "task_create", "task_comment"])
@@ -77,7 +80,7 @@ test("an agent in a Flow keeps its tools but delegates to no one unless the step
       ai({ agent: "superagent", delegate: true, model: "fake/fake-1", autonomy: "total" }),
     );
     assert.equal(on.step.state, "succeeded");
-    assert.deepEqual(on.context.flow_step, { delegate: true, autonomy: "total" });
+    assert.deepEqual(on.context.flow_step, { delegate: true, autonomy: "total", flow: "team", node: "ask" });
     assert.deepEqual(on.context.model_choice, { model: "fake/fake-1", router: false });
     const onCall = llm.calls.at(-1);
     assert.ok(onCall && toolNames(onCall).includes("delegate"), "the step allowed delegating");
@@ -114,7 +117,7 @@ test("a bot of the Flow answers with its own system prompt, no memory and no tea
     const { step, context } = await runOnce(env, "triage", ai({ bot }));
     assert.equal(step.state, "succeeded");
     assert.equal(JSON.parse(step.output ?? "{}").text, "Category: damage");
-    assert.deepEqual(context.flow_step, { delegate: false, bot: true });
+    assert.deepEqual(context.flow_step, { delegate: false, bot: true, flow: "triage", node: "ask" });
     assert.deepEqual(context.worker, { name: "Triage", instructions: bot.system });
     const call = llm.calls.at(-1);
     assert.ok(call);

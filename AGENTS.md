@@ -32,10 +32,10 @@ pnpm app                                   # build panel + desktop, start the co
 pnpm dev                                   # core only, on 127.0.0.1:7440, home ~/.apx/v2 (override APX_HOME/APX_PORT)
 node apps/terminal/src/main.ts status      # is the core up, and is it running my code? (code_sha)
 pnpm --filter @apx/web dev                 # panel on :7441, proxies /rpc, /ws, /health to the core
-pnpm preflight                             # check:private + check:schema + lint + typecheck + test — must be green before push
+pnpm preflight                             # check:private + schema + lint + check:ui + check:dead + typecheck + test — must be green before push
 pnpm verify                                # preflight + e2e (web, desktop) + perf budgets — what CI runs; green before merge
 pnpm package                               # this OS's installer + daemon bundle in out/ (CI: push a v2.x.y tag)
-pnpm package:linux                         # …or another OS's (also :mac, :win), built from this computer
+pnpm package:linux                         # cross-build Linux or Windows (:win); :mac requires macOS + Xcode tools
 ```
 
 - The core runs `.ts` directly (Node 24 type stripping): no build step. `pnpm dev` uses `node --watch`, so a
@@ -87,7 +87,9 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     data, never instructions; the owner's own agents speak for the owner ([D-071](rules/DECISIONS.md#d-071)). Strong
     actions (send or post as the owner, pay, write outside the owner's projects) need confirmation, except in total; the
     agent's own reads, edits and commands where it works do not ([D-106](rules/DECISIONS.md#d-106),
-    [D-108](rules/DECISIONS.md#d-108)). The embedded browser never types passwords or payment data. Reviewed arbitrary
+    [D-108](rules/DECISIONS.md#d-108)). The embedded browser never types passwords or payment data; an agent may fill a
+    password, username or one-time-code field only from a stored secret the owner marked for that exact origin (or for
+    every site, `*`), without ever seeing it ([D-193](rules/DECISIONS.md#d-193)). Reviewed arbitrary
     JavaScript is an explicit owner-approved exception to mechanical field containment, not permission to handle
     credentials; execution requires its card or explicit temporary tab/turn consent, with exact origin and current
     document binding ([D-165](rules/DECISIONS.md#d-165)). Temporary consent never becomes a global tool grant. `[review]`
@@ -178,7 +180,8 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
 32. **A screen nobody looked at is not done.** UI work starts from a reference (the owner's, the design system's or
     a sketch the designer made) and ends with screenshots of the running build, desktop and phone width, reviewed by
     the designer against it. A form or JSON field is not a stand-in for a requested visual experience
-    ([UI changes](rules/WORKFLOW.md#ui-changes)). `[review]`
+    ([UI changes](rules/WORKFLOW.md#ui-changes)). `[review]`; native controls and literal colours in a
+    screen `[gate]` `pnpm check:ui`.
 
 33. **A Flow change reaches the agent in the same change.** A new Flow or table method, step kind or field is usable
     by the super-agent through `apx_flow` and explained in the `apx-flows` skill, or placed as the owner's with a reason

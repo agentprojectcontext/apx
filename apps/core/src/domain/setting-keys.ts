@@ -18,6 +18,7 @@ import {
   Organization,
   ProviderInfo,
   RouterConfig,
+  SentDraft,
   ServiceSettings,
   TaskColumn,
   TelemetryEvent,
@@ -175,12 +176,16 @@ export const SETTINGS = {
   model_router: entry(RouterConfig, { rules: [], chain: [] }),
   image_defaults: entry(ImageDefaults.partial(), {}),
   providers: entry(listOf(Provider), []),
+  /** Model apps once found on this computer (providers/local-models.ts): they stay offered while closed. */
+  local_models_seen: entry(z.array(z.string()).catch([]), []),
   acp_agents: entry(listOf(AcpAgent), []),
   /** The owner's media services, in the order they are tried. */
   services: entry(listOf(ServiceSettings.extend({ id: z.string() })), []),
   /** Services APX added on its own once (Codex's images): one the owner removed is not added again. */
   services_offered: entry(z.array(z.string()).catch([]), []),
   channels: entry(listOf(Channel), []),
+  /** Drafts the owner sent from a chat's email card, newest first (mail.ts): a card never sends twice. */
+  mail_sent: entry(listOf(SentDraft), []),
   /**
    * The restricted public ingress address the owner chose (public-tunnel.ts), applied again at every start, and the
    * last address ngrok gave (a new one is pointed out to the owner).

@@ -58,16 +58,6 @@
   padding: 0 14px 0 10px;
   border-bottom: 1px solid var(--apx-border);
 }
-.appscreen__tile {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--apx-violet-soft);
-  color: var(--apx-violet-soft-fg);
-}
 .appscreen__titles {
   flex: 1;
   min-width: 0;
@@ -495,4 +485,35 @@ textarea.inputcard__detail {
 }
 .transcript__task-description :is(p, li) {
   white-space: pre-wrap;
+}
+
+/* An agent's plan (under its answer, and on a task): a quiet read-only checklist with how many steps are done. */
+.plancard {
+  display: grid;
+  gap: 6px;
+  max-width: 560px;
+  padding: 10px 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
+}
+.plancard__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--apx-text-xs);
+  font-weight: 600;
+  color: var(--apx-fg-muted);
+}
+.plancard__count {
+  font-weight: 400;
+}
+.plancard__steps {
+  margin: 0;
+}
+.plancard .apx-steps__row.is-done .apx-steps__label {
+  font-weight: 400;
+  color: var(--apx-fg-muted);
 }

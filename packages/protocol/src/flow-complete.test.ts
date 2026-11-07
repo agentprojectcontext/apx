@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { flowGraphGaps, flowStepGap } from "./flow-complete.ts";
+import { flowGraphGaps, flowStepGap, flowTaskRefs } from "./flow-complete.ts";
 import { newNode } from "./flow-edit.ts";
 import { FlowDraftGraph, FlowDraftNode, FlowGraph, FlowNode } from "./flow-graph.ts";
 
@@ -255,4 +255,17 @@ test("the steps a new drawing starts with say what they still need", () => {
   // Every new step parses as a draft.
   for (const k of ["webhook", "schedule", "condition", "vars", "js", "sql", "cmd", "llm", "agent", "notify"] as const)
     assert.equal(FlowDraftNode.safeParse(newNode(k, k, k)).success, true, k);
+});
+
+test("an AI step's task names the placeholders it holds, each once, and nothing else", () => {
+  assert.deepEqual(flowTaskRefs("Resumí $steps.leer.respuesta."), ["$steps.leer.respuesta"]);
+  assert.deepEqual(flowTaskRefs("From $trigger.form.email on $apx.now, with $vars.tone and $trigger.form.email"), [
+    "$trigger.form.email",
+    "$apx.now",
+    "$vars.tone",
+  ]);
+  assert.deepEqual(flowTaskRefs("Everything: $trigger"), ["$trigger"]);
+  assert.deepEqual(flowTaskRefs("Sum up the request in two lines."), []);
+  // A price or a word that only starts like one is not a placeholder.
+  assert.deepEqual(flowTaskRefs("Costs $5 and $stepsize, $variable or $apxl"), []);
 });

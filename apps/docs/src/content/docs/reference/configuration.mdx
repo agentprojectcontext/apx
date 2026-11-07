@@ -87,6 +87,7 @@ The process environment always wins over the file. The core reads it when it sta
 | `APX_RUNTIME_SKILLS` | on for the default home | `on` or `off`: keep APX's skills current in Claude Code, Codex, Cursor and `~/.agents` at every start. A core with its own `APX_HOME` doesn't, unless this says `on`. |
 | `APX_WEB_DIST` | the workspace build | The built panel to serve. |
 | `APX_OLLAMA_URL` | `http://127.0.0.1:11434` | Ollama on this machine, used for the embedding models behind memory search. |
+| `APX_LOCAL_MODELS` | `ollama:11434,lmstudio:1234` | Model apps whose chat models are offered when they run on this computer (always `127.0.0.1`). `off` looks for none; `ollama:11500` changes a port and leaves out the app not named. |
 | `APX_V1_URL` | `http://127.0.0.1:7430` | APX v1's daemon, only for the read-only import. |
 | `APX_V1_HOME` | `~/.apx` | APX v1's folder, only for the read-only import. |
 | `CLAUDE_CONFIG_DIR` | `~/.claude` | Where Claude Code keeps your sessions (read to list and resume them). |
@@ -179,7 +180,7 @@ Open **Settings** with `⌘,` or from your account menu. The sections, by group:
 - **Mode**: Light or Dark. The first time it follows your system.
 - **Style**: Minimal (v2's look) or Classic v1 (v1's green and type).
 - **Interface font**: System or Mono, for menus, sidebars and panels.
-- **Text size** (next release): 85%, 100% (normal), 115% or 130%, applied immediately to interface and chat text. Saved only on this device; it does not zoom images, embedded apps or the browser window. Embedded terminal text keeps its own sizing.
+- **Text size**: 85%, 100% (normal), 115% or 130%, applied immediately to interface and chat text. Saved only on this device; it does not zoom images, embedded apps or the browser window. Embedded terminal text keeps its own sizing.
 - **Transcript width**: Narrow, Medium or Wide, the maximum width of the chat and the composer.
 - **Language**: English or Spanish. It follows your browser's language until you pick one, and applies only on that
   device.

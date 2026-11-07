@@ -3,8 +3,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export const LOG_LEVELS = ["info", "warn", "error"] as const;
-export type LogLevel = (typeof LOG_LEVELS)[number];
+const LOG_LEVELS = ["info", "warn", "error"] as const;
+type LogLevel = (typeof LOG_LEVELS)[number];
 
 /** Where a core on this home writes its log. */
 export const coreLogFile = (home: string) => path.join(home, "logs", "core.log");

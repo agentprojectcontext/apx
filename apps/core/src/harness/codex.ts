@@ -1,10 +1,12 @@
 // Codex in its own sessions: the owner's own `codex` (their ChatGPT login and config). APX tools reach it through a
 // per-run MCP proxy (`apx mcp --run <token>`) that calls back into this core. See DECISIONS.md#d-007
 import path from "node:path";
-import { Codex, type ModelReasoningEffort } from "@openai/codex-sdk";
+import type { PlanStep } from "@apx/protocol/task-plan";
+import { Codex, type ModelReasoningEffort, type TodoListItem } from "@openai/codex-sdk";
 import { worksInFolder } from "../domain/threads.ts";
 import { codexImageDir, imagesIn } from "../services/codex-images.ts";
 import { editsInFolder, modeOf, sessionGate } from "../tools/policy.ts";
+import { enginePlan } from "./engine-plan.ts";
 import { harnessEnv } from "./env.ts";
 import { effortPart, type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
 import { linkedWorktreeWritableDirs } from "./worktree.ts";
@@ -27,6 +29,15 @@ export function codexWrites(io: Pick<TurnIO, "thread" | "agent" | "outside">): b
 /** More than this in one turn is a batch the owner asked for in files, not in the chat. */
 const MAX_IMAGES = 8;
 
+/**
+ * Codex's own plan as steps. It says only which are completed: the first open one is the one at work, until its list
+ * completes with the turn.
+ */
+function codexSteps(items: TodoListItem["items"], turnOver: boolean): PlanStep[] {
+  const at = turnOver ? -1 : items.findIndex((t) => !t.completed);
+  return items.map((t, i) => ({ step: t.text, state: t.completed ? "done" : i === at ? "doing" : "pending" }));
+}
+
 export type McpCommand = { command: string; args: string[]; env: Record<string, string> };
 
 export function codexHarness(opts: {
@@ -48,8 +59,9 @@ export function codexHarness(opts: {
         const codex = new Codex({
           codexPathOverride: codexPath,
           // With approval "never" Codex refuses every MCP call unless the server's tools are pre-approved; APX's gate
-          // asks the owner itself when a tool needs it.
-          config: { mcp_servers: { apx } },
+          // asks the owner itself when a tool needs it. Its plan tool is off unless asked for: the owner sees its
+          // checklist through it (DECISIONS.md#d-199).
+          config: { mcp_servers: { apx }, tools: { update_plan: { enabled: true } } },
           env,
         });
         const madeBefore = new Set(io.sessionId ? imagesIn(codexImageDir(env, io.sessionId)) : []);
@@ -82,9 +94,13 @@ export function codexHarness(opts: {
         let text = "";
         let sessionId = io.sessionId;
         let sessionUsage: TurnOutcome["sessionUsage"];
+        const plan = enginePlan(io);
         for await (const ev of events) {
           io.alive?.();
           if (ev.type === "thread.started") sessionId = ev.thread_id;
+          // Its own plan is APX's plan: the checklist under the answer, and a task's plan in its work chat.
+          else if (ev.type.startsWith("item.") && "item" in ev && ev.item.type === "todo_list")
+            plan.update(codexSteps(ev.item.items, ev.type === "item.completed"));
           // Codex's own commands, edits and searches: shown as cards and recorded as steps.
           else if ((ev.type === "item.started" || ev.type === "item.completed") && ev.item.type !== "agent_message") {
             const it = ev.item;
@@ -123,6 +139,7 @@ export function codexHarness(opts: {
           } else if (ev.type === "turn.failed") throw new Error(`codex: ${ev.error.message}`);
           else if (ev.type === "error") throw new Error(`codex: ${ev.message}`);
         }
+        await plan.settled();
         if (sessionId && io.showImage) {
           // Codex reports no event for what its image_gen made: its thread's folder says.
           const dir = codexImageDir(env, sessionId);

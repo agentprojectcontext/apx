@@ -1,9 +1,9 @@
 import type { CatalogEngine, ModelChoice } from "@apx/protocol";
-import { Button, Icons, Popover } from "@apx/ui";
+import { Icons, Popover } from "@apx/ui";
 import { type ReactNode, Suspense, useState } from "react";
-import { choiceLabel, effectiveChoice, inCatalog, refLabel, useModels } from "../../data/models.ts";
+import { choiceLabel, effectiveChoice, forAgents, inCatalog, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
-import { ModelList } from "../../lazy.ts";
+import { ModelChoiceMenu } from "../../lazy.ts";
 
 /**
  * The select-like button a picker opens from (a plain element: the Popover merges its trigger props into it).
@@ -16,23 +16,25 @@ export function trigger(o: {
   warn?: boolean;
   className?: string;
   icon?: ReactNode;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
+      disabled={o.disabled}
       className={o.className ?? "selectbtn"}
       aria-label={o.label}
       title={o.warn ? o.warnText : o.text}
     >
       {o.warn ? <Icons.TriangleAlert size={12} className="selectbtn__warn" /> : o.icon}
       <span className="selectbtn__text">{o.text}</span>
-      <Icons.ChevronDown size={12} />
+      <Icons.ChevronDown size={12} className="selectbtn__chevron" />
     </button>
   );
 }
 
 /** A primary model, the router alone, or an inherited choice; inheritance is not an explicit router choice. */
-export function ModelChoicePicker(props: {
+export type ModelChoiceProps = {
   value: ModelChoice | null;
   onChange: (choice: ModelChoice | null) => void;
   label: string;
@@ -46,37 +48,37 @@ export function ModelChoicePicker(props: {
   inherited?: ModelChoice;
   none?: { title: string; desc: string; action: string };
   align?: "start" | "end";
+  disabled?: boolean;
   /** Which engines it offers (a CLI's own session: that CLI); by default the model APIs agents run on. */
   only?: (e: CatalogEngine) => boolean;
-}) {
+};
+
+/** The trigger is on the first screen (the composer has one); what it opens loads when it first opens. */
+export function ModelChoicePicker(props: ModelChoiceProps) {
   const t = useT();
   const catalog = useModels((s) => s.catalog);
   const [open, setOpen] = useState(false);
-  const { value } = props;
-  const pick = props.onChange;
   const config = useModels((s) => s.config);
-  const own = value?.model;
-  const effective = effectiveChoice(value, props.inherited, config);
-  const current = choiceLabel(effective, catalog, config);
-  const inheritedChoice = effectiveChoice(null, props.inherited, config);
-  const inherited = inheritedChoice.model ? choiceLabel(inheritedChoice, catalog, config) : t("models.router");
-  const first = config?.router.chain[0];
-  const router = first
-    ? t(config?.router.rules.length ? "models.routerSummaryRules" : "models.routerSummary", {
-        model: refLabel(first, catalog),
-      })
-    : t(config?.router.rules.length ? "models.routerRules" : "models.router");
-  const text = props.text ?? current;
+  const effective = effectiveChoice(props.value, props.inherited, config);
+  const text = props.text ?? choiceLabel(effective, catalog, config);
+  const load = useModels((s) => s.catalogLoad);
+  const empty =
+    load === "ready" &&
+    !catalog.some(props.only ?? forAgents) &&
+    !effective.model &&
+    !config?.router.chain.length &&
+    !config?.router.rules.length;
   const warn = Boolean(effective.model) && catalog.length > 0 && !inCatalog(effective.model ?? "", catalog);
   return (
     <Popover
-      open={open}
+      open={open && !props.disabled}
       onOpenChange={setOpen}
       width={560}
       align={props.align ?? "end"}
       label={props.label}
       trigger={trigger({
-        text,
+        text: empty && !props.disabled ? t("models.noneConnected") : text,
+        disabled: props.disabled,
         label: props.label,
         warn,
         warnText: t("models.notInCatalog"),
@@ -84,60 +86,9 @@ export function ModelChoicePicker(props: {
         icon: props.icon,
       })}
     >
-      <div className="mchoice">
-        {effective.model && (
-          <div className="mchoice__current" role="status" title={current}>
-            {t("models.currentChoice", { model: current })}
-          </div>
-        )}
-        <Fallback
-          active={value != null && !own}
-          title={router}
-          action={t("models.routerOnly")}
-          onPick={() => pick({ router: true })}
-        />
-        <Fallback
-          active={value == null}
-          title={t("models.inheritedChoice", {
-            source: props.none?.title ?? t("models.installDefault"),
-            model: inherited,
-          })}
-          action={props.none?.action ?? t("models.useDefault")}
-          onPick={() => pick(null)}
-        />
-        <div className="mchoice__label">{t("models.ownModel")}</div>
-        <Suspense fallback={null}>
-          <ModelList
-            value={own}
-            effortValue={effective.model}
-            {...(props.only ? { only: props.only } : {})}
-            onPick={(model) => pick({ model, router: own === model ? (value?.router ?? true) : true })}
-            onEffort={(model) => props.onChange({ model, router: effective.router })}
-          />
-        </Suspense>
-      </div>
+      <Suspense fallback={null}>
+        <ModelChoiceMenu {...props} empty={empty} />
+      </Suspense>
     </Popover>
-  );
-}
-
-/** What runs with no model of its own: a button goes back to it, or it reads "in use". */
-function Fallback(props: { active: boolean; title: string; action: string; onPick: () => void }) {
-  const t = useT();
-  return (
-    <div className="mchoice__fallback">
-      <span className="mchoice__title" title={props.title}>
-        {props.title}
-      </span>
-      {props.active ? (
-        <span className="mchoice__inuse">
-          <Icons.Check size={14} />
-          {t("models.inUse")}
-        </span>
-      ) : (
-        <Button size="sm" variant="secondary" onClick={props.onPick}>
-          {props.action}
-        </Button>
-      )}
-    </div>
   );
 }

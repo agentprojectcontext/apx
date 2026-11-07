@@ -14,7 +14,7 @@ const UNITS = [
 ] as const;
 type Unit = (typeof UNITS)[number]["id"];
 /** The largest unit the minutes divide into: 120 → 2 hours. */
-export function everyParts(minutes: number): { n: number; unit: Unit } {
+function everyParts(minutes: number): { n: number; unit: Unit } {
   const u = [...UNITS].reverse().find((x) => minutes % x.n === 0) ?? UNITS[0];
   return { n: minutes / u.n, unit: u.id };
 }

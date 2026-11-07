@@ -15,10 +15,10 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #94a3b8;
+  background: var(--apx-fg-subtle);
 }
 .computer__status.is-on {
-  background: #34d399;
+  background: var(--apx-online);
 }
 .computer__badge {
   color: var(--apx-fg-muted);
@@ -96,7 +96,7 @@
 }
 .computer__error {
   padding: 10px 14px;
-  color: #dc2626;
+  color: var(--apx-danger);
   font-size: calc(12px * var(--apx-text-scale, 1));
 }
 .computer__needs {
@@ -178,7 +178,7 @@
 }
 .computer__resize:hover::after,
 .computer__resize:focus-visible::after {
-  background: #10b981;
+  background: var(--apx-brand);
 }
 .computer__console-title {
   display: flex;
@@ -189,7 +189,7 @@
   font-size: calc(12px * var(--apx-text-scale, 1));
 }
 .computer__console-title > svg {
-  color: #10b981;
+  color: var(--apx-brand);
 }
 .computer__console-title code {
   margin-left: auto;
@@ -208,12 +208,12 @@
 }
 .computer__prompt {
   align-self: center;
-  color: #10b981;
+  color: var(--apx-brand);
   font-family: monospace;
   font-size: calc(12px * var(--apx-text-scale, 1));
 }
 .computer__console form:focus-within {
-  border-color: #10b981;
+  border-color: var(--apx-brand);
 }
 .computer__console textarea {
   display: block;
@@ -259,9 +259,9 @@
   cursor: default;
 }
 .computer__button.is-primary {
-  color: #059669;
-  border-color: #05966966;
-  background: #05966912;
+  color: var(--apx-brand-soft-fg);
+  border-color: color-mix(in srgb, var(--apx-brand) 40%, transparent);
+  background: var(--apx-brand-soft);
 }
 .computer__output {
   flex: 1;
@@ -464,7 +464,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--apx-accent, #3b82f6);
+  background: var(--apx-accent);
   animation: chat-computer-pulse 1.2s ease-in-out infinite;
 }
 @keyframes chat-computer-pulse {

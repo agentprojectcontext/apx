@@ -1,13 +1,14 @@
 import type { Agent, CatalogEngine, Run, Thread } from "@apx/protocol";
 import { Composer, EngineIcon, IconButton, Icons, Menu, SegmentedControl, withMentions } from "@apx/ui";
 import { Suspense, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { MOD } from "../../common/modKey.ts";
 import { useEngineLabel } from "../../common/useEngineLabel.ts";
 import { ModelChoicePicker } from "../../config/models/ModelPickers.tsx";
 import { cancel, loadThread, makeChat, send } from "../../data/actions.ts";
 import { sendDirect } from "../../data/channels.ts";
 import { setThreadModel } from "../../data/composer.ts";
 import { draftOf, keepDraft, subscribeDrafts } from "../../data/drafts.ts";
-import { isPending } from "../../data/identity.ts";
+import { isPending, isWorking } from "../../data/identity.ts";
 import { choiceLabel, effectiveChoice, splitRef, useModels } from "../../data/models.ts";
 import { isNewChat } from "../../data/newChat.ts";
 import { notify } from "../../data/notices.ts";
@@ -28,7 +29,8 @@ const IMAGE_TYPES = "image/png,image/jpeg,image/webp,image/gif";
 
 /**
  * The chat's composer, left to right: + (file, image), the chat's model, then how full the chat is (opens Usage),
- * the mic (records audio with its words) and send. While the agent works, Enter interrupts it and Ctrl/⌘+Enter queues.
+ * the mic (records audio with its words) and send. While the agent works, Enter sends (its next step reads it) and
+ * Ctrl/⌘+Enter puts it in line for when it finishes (DECISIONS.md#d-186).
  * A field starting with "/" opens the command and skill menu.
  * Files also arrive dragged or pasted. What is typed stays as the chat's draft until it is sent.
  * A new chat (see newChat.ts) is made with its first message; `onMade` then opens it (by default, where it was).
@@ -38,11 +40,17 @@ export function ChatComposer({
   thread,
   agent,
   onMade = (id) => go.madeThread(thread.id, id),
+  onNew = go.thread,
   prepare,
+  offlineHint = true,
 }: {
   thread: Thread;
   agent: Agent | undefined;
   onMade?: (id: string) => void;
+  /** Embedded chats handle /new without navigating the full panel. */
+  onNew?: (id: string) => void;
+  /** Hide the repeated placeholder notice when the surrounding screen already explains the offline state. */
+  offlineHint?: boolean;
   /** Runs before each message goes: the words to send (with what the screen adds), or null to keep them unsent. */
   prepare?: (words: string) => Promise<string | null>;
 }) {
@@ -75,7 +83,7 @@ export function ChatComposer({
   const room = thread.channel && !thread.channel.person_id ? thread.title : undefined;
   const [direct, setDirect] = useState(false);
   const agentName = agent?.name ?? t("composer.yourAgent");
-  const slash = useSlashMenu({ thread, agent, text, setText, busy });
+  const slash = useSlashMenu({ thread, agent, text, setText, busy, onNew });
   const runs = useMemo(
     () =>
       Object.values(runsById)
@@ -159,14 +167,16 @@ export function ChatComposer({
       <Composer
         highlight={withMentions}
         placeholder={
-          offline
+          offline && offlineHint
             ? t("composer.offline")
             : room
               ? t(direct ? "ch.room.writeMe" : "ch.room.writeAgent", { agent: agentName, room })
               : t("composer.placeholder", { name: engine ?? agentName })
         }
         labels={{ stop: t("composer.stop"), send: t("composer.send") }}
-        sendHint={t("composer.sendHint")}
+        // Claude Code takes words mid-turn as our own loop does; other engines stop and read them (DECISIONS.md#d-196).
+        sendHint={t(thread.engine && thread.engine !== "claude" ? "composer.sendHintStop" : "composer.sendHint")}
+        hint={isWorking(thread.state) ? t("composer.queueHint", { mod: MOD }) : undefined}
         value={text}
         onValueChange={setText}
         ready={att.ready && !att.uploading}
@@ -263,6 +273,7 @@ export function ChatComposer({
 /** The chat's own model, tried before the agent's; "the agent's model" goes back to it. */
 function ChatModel({ thread, agent }: { thread: Thread; agent: Agent | undefined }) {
   const t = useT();
+  const offline = useData((s) => s.connection !== "online");
   const catalog = useModels((s) => s.catalog);
   const config = useModels((s) => s.config);
   const own = thread.model_choice;
@@ -273,7 +284,8 @@ function ChatModel({ thread, agent }: { thread: Thread; agent: Agent | undefined
       label={t("composer.modelOfChat")}
       value={own ?? null}
       {...(agent?.model_choice ? { inherited: agent.model_choice } : {})}
-      text={text}
+      text={offline ? t("models.unavailable") : text}
+      disabled={offline}
       align="start"
       className={`composer__model${own ? " is-own" : ""}`}
       icon={

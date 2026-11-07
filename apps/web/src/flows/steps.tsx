@@ -1,4 +1,4 @@
-import type { Params, Result } from "@apx/protocol";
+import type { Result } from "@apx/protocol";
 import type { FlowShape } from "@apx/protocol/flow-shape";
 import { type FlowStepTone, Icons } from "@apx/ui";
 import type { ReactNode } from "react";
@@ -11,7 +11,6 @@ export { branchesOf, chainOrder, dotted, hookVerbs, isTrigger, literal } from ".
 
 export type Flow = Result<"flows.set">;
 export type FlowRun = Result<"flows.events">["events"][number];
-export type FlowDraftParams = Params<"flows.set">;
 export type FlowBinding = import("../../../../packages/protocol/src/flow-graph.ts").FlowBinding;
 export type { FlowGraph, FlowNode };
 

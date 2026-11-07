@@ -4,6 +4,7 @@
 // apx-flows skill, read on demand, never in the prompt.
 
 import { flowBranches } from "@apx/protocol/flow-cases";
+import { flowTaskRefs } from "@apx/protocol/flow-complete";
 import {
   connectionError,
   connectNodes,
@@ -178,7 +179,7 @@ function connect(graph: Graph, from: string, to: string, when?: string): Graph {
 }
 
 /** The drawing after each edit in order; every new step gets a place beside the one it follows. */
-export function applyEdits(start: Graph, edits: readonly Edit[]): Graph {
+function applyEdits(start: Graph, edits: readonly Edit[]): Graph {
   let g = start;
   for (const e of edits) {
     if (e.op === "add") {
@@ -229,15 +230,27 @@ function refusal(error: unknown): string {
 }
 
 function issuesText(graph: Graph, issues: readonly FlowGraphIssue[]): string {
-  if (!issues.length) return "It can run as drawn: the owner publishes it from the editor (Save with the Flow on).";
   const step = (id?: string) => {
     const n = id ? graph.nodes.find((x) => x.id === id) : undefined;
     return n ? `step "${n.id}" (${n.label}): ` : "";
   };
+  // Not an issue: such a task runs, but the model gets the placeholder's text, never its value (DECISIONS.md#d-172).
+  const refs = graph.nodes.flatMap((n) => {
+    const names = n.kind === "agent" || n.kind === "llm" ? flowTaskRefs(n.prompt) : [];
+    return names.length
+      ? [
+          `- ${step(n.id)}its prompt names ${names.slice(0, 3).join(", ")}, which reach the model as written, never filled in. Say in words what to do and give it the value through input.`,
+        ]
+      : [];
+  });
+  const warn = refs.length ? ["", "Check before publishing:", ...refs] : [];
+  if (!issues.length)
+    return ["It can run as drawn: the owner publishes it from the editor (Save with the Flow on).", ...warn].join("\n");
   return [
     "It can't run yet:",
     ...issues.slice(0, 12).map((i) => `- ${step(i.node)}${i.message} [${i.code}]`),
     "Fix these with flows.draft_save edits.",
+    ...warn,
   ].join("\n");
 }
 

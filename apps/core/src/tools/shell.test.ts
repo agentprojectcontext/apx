@@ -105,16 +105,58 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
   assert.equal(commandRisk("apx routines add x y --agent roby"), "always");
   assert.equal(commandRisk("ls && apx notifications read"), "always");
   assert.equal(commandRisk("~/.local/bin/apx tasks"), "always");
-  assert.equal(commandRisk("node apps/terminal/src/main.ts routines"), "always");
+  assert.equal(commandRisk("node apps/terminal/src/main.ts routines run nightly"), "always");
   assert.equal(commandRisk("cat apx-notes.md"), "never");
   for (const c of [
     "APX_AGENT=x apx tasks",
     "echo x | xargs apx",
     "bash -c 'apx tasks'",
     "pnpm exec apx",
-    "(apx tasks)",
+    "(apx tasks add x)",
+    "apx runs respond inp_1 approve",
+    "apx chat hola",
+    "apx secrets set openai sk-x",
+    "apx secrets",
+    "apx tasks add 'Ship it'",
+    "apx tasks done tsk_1",
+    "apx threads cancel thr_1",
+    "apx routines on nightly",
+    "apx agents roby --model x",
+    "apx status && apx notifications read",
+    "apx status; apx tasks move tsk_1 done",
+    "apx status | apx chat",
+    "cat $(apx tasks show tsk_1)",
+    "apx tasks --title x show tsk_1",
+    "apx status > notes.txt",
+    "apx --help chat x",
+    "node apps/terminal/src/main.ts runs respond inp_1 approve",
   ])
     assert.equal(commandRisk(c), "always", c);
+  // Reading through APX's CLI is reading: it waits for nobody (DECISIONS.md#d-197).
+  for (const c of [
+    "node apps/terminal/src/main.ts status",
+    "apx status",
+    "apx status --json",
+    "apx --version",
+    "apx version",
+    "apx help",
+    "apx tasks",
+    "apx tasks --project acme",
+    "apx tasks show tsk_1",
+    "apx threads",
+    "apx threads get thr_1",
+    "apx runs get run_1",
+    "apx runs pending",
+    "apx routines",
+    "apx routines show nightly",
+    "apx routines log nightly",
+    "apx agents",
+    "apx agents list",
+    "apx status && git status | head -5",
+    "node apps/terminal/src/main.ts routines",
+    "(apx tasks)",
+  ])
+    assert.equal(commandRisk(c), "never", c);
   // A folder named apx is only read: going into it or listing it is not running the CLI.
   for (const c of [
     "cd /code/agentprojectcontext/apx && rg -n teams docs | head -100",

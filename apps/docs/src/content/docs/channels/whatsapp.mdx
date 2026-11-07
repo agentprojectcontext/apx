@@ -1,14 +1,19 @@
 ---
-title: WhatsApp
-description: Link WhatsApp by QR, as a line of its own for your agent or as your own number.
+title: Talk to your AI agent on WhatsApp
+description: Link WhatsApp to APX by QR and talk to your AI agent using a separate number or your own Message yourself chat.
 sidebar:
+  label: WhatsApp
   order: 3
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-APX links to WhatsApp the way WhatsApp Web does: as a linked device of a number, scanned with a QR. It isn't the
-WhatsApp Business API, and there's no bot account to create.
+Connect WhatsApp to APX and reach your agent from a private chat. APX links as a WhatsApp linked device using a
+QR code. It does not use the WhatsApp Business API and does not require creating a bot account.
+
+APX must be running on your computer or your own server. The WhatsApp connection lets you reach that installation
+from your phone. Before you start, [install APX](/start/install/) and have the phone with the number you want to
+link ready. Choose a separate line for your agent or your own **Message yourself** chat, then scan the QR.
 
 ## Two ways to use it
 
@@ -69,6 +74,19 @@ A file that could not be downloaded when it came (or that arrived before APX rea
 "[video — APX cannot read this kind of message yet]". Press **Recover files** in that chat, or run
 `apx channels recover <thread>`: APX asks your phone to send those messages again and puts each file in its message,
 without a new answer from the agent. Your phone has to be online for it to answer.
+
+## Phone numbers
+
+WhatsApp needs every number with its country code. A number saved the local way (`976 666 004` in Peru, `11 2345 6789`
+in Argentina) is completed with your own line's country code when you or your agent save it, and again before each
+message goes out. Argentine mobiles go as `+54 9`, as WhatsApp expects them.
+
+Before writing to a number, APX checks that it is on WhatsApp. When a number is not on WhatsApp, or can't be made
+into a valid one (its country is not yours and it was saved without its code), nothing is sent: your agent is told it
+did not go out, and why. Save that contact's number with its country code (`+51 976 666 004`) and ask again.
+
+A contact saved before without the country code keeps working: the first message to them fixes their number, and
+their answer comes back to the same chat.
 
 ## Strangers
 

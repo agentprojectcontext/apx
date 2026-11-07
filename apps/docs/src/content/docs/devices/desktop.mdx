@@ -32,6 +32,11 @@ APX puts an icon in the menu bar (the system tray on Windows and Linux):
 When something is waiting for you, the icon gets a badge with the count (on a Mac, also next to the icon and on the
 Dock).
 
+Use **New chat** in the quick-chat header to search your agents by name, role or project, including your super-agent.
+Recent agents appear first. Choosing one opens a draft with that agent's project and model settings; it is saved
+with your first message. Dismissing the picker keeps your current conversation. **Back to Home** returns to your
+main chat.
+
 The quick chat also has a **global shortcut** that opens and closes it from any app, centered near the top of the
 screen. It is `Alt+Space` until you change it. You'll also find **Quick chat** in the app's **Window** menu.
 
@@ -64,6 +69,24 @@ Some things hold in every autonomy level, even total:
 Looking at the screen changes nothing, so it runs without asking (Manual still asks); opening an app is an `ask` tool;
 clicking, typing and pressing keys are `always` tools, so they ask in every autonomy except total (see
 [Autonomy](/concepts/autonomy/)). Linux does not lend this capability yet.
+
+### Native agent cursor
+
+On macOS, APX shows a small native agent cursor, with a curved, eased movement toward its next action.
+The white and green arrow, twinkling sparks, click pulse and rounded action label explain what the agent is about
+to do. Agent names distinguish their labels. Only the drawn cursor travels; your physical pointer stays where it is.
+Windows keeps its existing indicator.
+
+Agents can request `pointer: "visible"` in `screen_do` for a native accessible press. That mode checks the destination
+app, window and control, refusing recognized web content, secure fields and destinations it cannot inspect. It does
+not inspect your pointer's origin or route, and does not move it. Unsupported controls fail without a physical-click
+fallback or automatic retry. Without this option, coordinate clicks try accessibility first; when the control does not
+take it, your pointer jumps there, clicks and comes straight back to where you had it.
+
+The indicator stays visible between actions and hides on emergency stop or disconnection. The emergency stop,
+turning computer use off, changing connections or quitting cancels the gesture, including a queued click not yet
+delivered. Cancellation cannot withdraw an action already delivered; an uncertain result must not be retried
+automatically. This preview is still awaiting native runtime and safety validation.
 
 ## The browser your agents drive
 
@@ -148,7 +171,8 @@ The first update of a server without coordination support still uses its existin
 
 ## Running it from a checkout
 
-Working on APX itself? From the repository:
+Working on APX itself? On macOS, install Apple's Xcode command-line tools first: the desktop build uses
+`swiftc`, `lipo` and `codesign`. Installed apps do not need these build tools. From the repository:
 
 ```bash
 pnpm install

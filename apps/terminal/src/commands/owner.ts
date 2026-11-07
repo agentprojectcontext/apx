@@ -1,7 +1,7 @@
 // apx owner / org / profiles: who the owner is, a project's areas and roles, and what the super-agent is for.
 import type { ApxClient } from "@apx/protocol/client";
 
-export const USAGE = {
+const USAGE = {
   owner: `apx owner                                  Who you are, for your agents
 apx owner set key=value…                   name, about, language (es, en…), timezone (America/New_York; "" = this machine's)`,
   org: `apx org [--project p]                      A project's areas and roles (no project: the base project's)
@@ -15,7 +15,7 @@ apx profiles restore <routine>             Put back a profile routine's default 
 const OWNER_KEYS = ["name", "about", "language", "timezone"] as const;
 
 /** key=value pairs, in order; the value may hold "=" and may be empty. */
-export function pairsOf(pairs: string[]): Record<string, string> {
+function pairsOf(pairs: string[]): Record<string, string> {
   const out: Record<string, string> = {};
   for (const p of pairs) {
     const i = p.indexOf("=");

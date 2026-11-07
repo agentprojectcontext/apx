@@ -89,7 +89,7 @@ export function verifiedSender(h: ReturnType<typeof parseMail>["headers"], from:
 }
 
 /** Whether `address` is on the allow list (an exact address, or "@domain"). An empty list allows anyone. */
-export function allowedSender(allowed: readonly string[], address: string): boolean {
+function allowedSender(allowed: readonly string[], address: string): boolean {
   if (!allowed.length) return true;
   const a = address.toLowerCase();
   return allowed.some((x) => {
@@ -308,7 +308,7 @@ export function emailAdapter(
       );
       const out = composeMail({
         from: { address: mail.address, name: mail.name },
-        to,
+        to: [to],
         subject: thread ? reSubject(thread.subject) : mail.name || "APX",
         ...body,
         inReplyTo: thread?.ids.at(-1),
@@ -329,6 +329,18 @@ export function emailAdapter(
         at: Date.now(),
       };
       save();
+      return { external_id: out.id };
+    },
+    async compose(m) {
+      if (!mail) throw new SendError("fatal", "the email channel has no mailbox");
+      const body = renderEmailDraft(withEmailSignature({ content: { text: m.body } }, opts.signature?.()));
+      const out = composeMail({ from: { address: mail.address, name: mail.name }, ...m, ...body });
+      await smtpSend(
+        mail.smtp,
+        auth,
+        { from: mail.address, to: [...m.to, ...m.cc], data: out.data },
+        AbortSignal.any([ac.signal, AbortSignal.timeout(SEND_MS)]),
+      );
       return { external_id: out.id };
     },
   } satisfies ChannelAdapter;

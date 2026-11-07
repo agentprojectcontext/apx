@@ -7,7 +7,7 @@ export type PageCdp = { send: Send; listen(session: string, fn: (m: Message) => 
 export type PageCall = (method: string, params: Record<string, unknown>) => Promise<unknown>;
 
 /** How long a page may run its start-up code (loads, first queries) before it is judged. */
-export const CHECK_WAIT_MS = 2_500;
+const CHECK_WAIT_MS = 2_500;
 const MAX_ERRORS = 8;
 
 /** The bridge the panel gives a page (window.apx), with calls sent to the checker and fetch/WebSocket that never answer. */
@@ -35,7 +35,7 @@ const describe = (d: Details) =>
   `${(d.exception?.description ?? d.text ?? "error").split("\n")[0]}${d.lineNumber ? ` (line ${d.lineNumber + 1})` : ""}`;
 
 /** One view of an app as the check saw it: its trigger's label and what its panel shows. */
-export type PageView = { view: string; text: string };
+type PageView = { view: string; text: string };
 /** The errors a page threw while starting, the text it shows after, and each of an app's views. */
 export type PageCheck = { errors: string[]; text: string; views: PageView[] };
 const MAX_VIEWS = 12;

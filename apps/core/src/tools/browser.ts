@@ -1,12 +1,14 @@
 // Browser tools: the agent drives the embedded browser through the desktop node, in its own profile and tabs.
 // Every call goes through the router (browser.* methods), the same door the panel uses.
 import { setTimeout } from "node:timers/promises";
-import { BROWSER_CAP, type TabInfo } from "@apx/protocol";
+import { BROWSER_CAP, chromeTabId, type TabInfo } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
 import { pruneUploads, saveUpload } from "../services/uploads.ts";
+import type { SignIn } from "../sign-in.ts";
 import { browserEvaluateTool } from "./browser-evaluate.ts";
+import { browserSignInTool } from "./browser-sign-in.ts";
 import { cap, untrusted } from "./result.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 import { urlConfirm } from "./web.ts";
@@ -18,7 +20,7 @@ const SNAPSHOTS_KEPT = 4;
 /** Messages back a chat's own tab is looked for: past them a new tab opens. */
 const CHAT_TAB_LOOKBACK = 40;
 
-export function profileFor(agent: AgentRecord): string {
+function profileFor(agent: AgentRecord): string {
   if (agent.browser_profile === "incognito") return "incognito";
   if (agent.browser_profile === "isolated") return `agent:${agent.id.toLowerCase().replace(/[^a-z0-9-]/g, "-")}`;
   return "shared";
@@ -38,7 +40,12 @@ const refArg = z
   .regex(/^e\d+$/)
   .describe("ref like e12, from the last snapshot");
 
-export function browserTools(store: Store, home: string, vm?: { hasThread(id: string): boolean }): Tool[] {
+export function browserTools(
+  store: Store,
+  home: string,
+  vm?: { hasThread(id: string): boolean },
+  signIn?: SignIn,
+): Tool[] {
   /** The model looks at the tab itself: the tree alone misses images, charts and slides. */
   const look = async (ctx: ToolContext, tab: string) => {
     if (!ctx.see) return;
@@ -64,7 +71,11 @@ export function browserTools(store: Store, home: string, vm?: { hasThread(id: st
     const t = tabs.find((x) => x.tab === tab);
     ctx.upsertPart((p) => p.type === "browser" && p.tab === tab, {
       type: "browser",
-      ...(vm?.hasThread(ctx.thread.id) ? { environment: "vm" as const } : {}),
+      ...(vm?.hasThread(ctx.thread.id)
+        ? { environment: "vm" as const }
+        : chromeTabId(tab) !== undefined
+          ? { environment: "chrome" as const }
+          : {}),
       tab,
       url: t?.url ?? "",
       title: t?.title ?? "",
@@ -103,6 +114,7 @@ export function browserTools(store: Store, home: string, vm?: { hasThread(id: st
 
   return [
     browserEvaluateTool(store, home, own, vm),
+    browserSignInTool(store, signIn, own, vm),
     defineTool({
       needsCap: BROWSER_CAP,
       name: "browser_open",
@@ -112,20 +124,34 @@ export function browserTools(store: Store, home: string, vm?: { hasThread(id: st
         url: z.string().describe("http(s) URL"),
         tab: tabArg.optional().describe("tab id to load it in"),
         new_tab: z.boolean().optional().describe("open another tab instead of reusing this chat's"),
+        chrome: z
+          .boolean()
+          .optional()
+          .describe(
+            "in the owner's own Chrome (signed in, they watch): when they ask for it, or a site needs their login",
+          ),
       }),
       effect: "external",
-      confirm: (a) => urlConfirm(a.url),
+      // The owner's signed-in Chrome is theirs: a new tab there asks, unless the mode lets the agent act alone.
+      confirm: (a) => (a.chrome ? "ask" : urlConfirm(a.url)),
       untrustedWhy: "url_data",
       deadlineMs: 30_000,
       title: (a) => `Opened ${host(a.url)}`,
       async run(a, ctx) {
-        const reuse = a.tab ? await own(ctx, a.tab) : a.new_tab ? undefined : await chatTab(ctx);
+        const shown = a.tab ? await own(ctx, a.tab) : a.new_tab ? undefined : await chatTab(ctx);
+        // Asked for the owner's Chrome, a tab of APX's browser is not reused.
+        const reuse = a.chrome && shown && chromeTabId(shown) === undefined ? undefined : shown;
         if (reuse) {
           const r = await ctx.call("browser.navigate", { tab: reuse, url: a.url, by: ctx.agent.id });
           await card(ctx, reuse, "agent");
           return `tab ${reuse} · ${r.title} · ${r.url}\nNext: browser_snapshot to see the page.`;
         }
-        const t = await ctx.call("browser.open", { url: a.url, profile: profileFor(ctx.agent), by: ctx.agent.id });
+        const t = await ctx.call("browser.open", {
+          url: a.url,
+          profile: profileFor(ctx.agent),
+          by: ctx.agent.id,
+          ...(a.chrome ? { chrome: true } : {}),
+        });
         await card(ctx, t.tab, "agent");
         return `tab ${t.tab} · ${t.title} · ${t.url}\nNext: browser_snapshot to see the page.`;
       },
@@ -187,7 +213,7 @@ export function browserTools(store: Store, home: string, vm?: { hasThread(id: st
       needsCap: BROWSER_CAP,
       name: "browser_type",
       description:
-        "Type text into a field by ref. Password, 2FA and card fields are refused: use browser_handoff instead.",
+        "Type text into a field by ref. Password, 2FA and card fields are refused: use browser_sign_in with a stored secret, or browser_handoff.",
       args: z.object({
         tab: tabArg,
         ref: refArg,

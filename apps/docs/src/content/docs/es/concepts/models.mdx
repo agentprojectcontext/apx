@@ -30,6 +30,20 @@ modelos para tus agentes.
   de Anthropic.
 </Aside>
 
+## Ver el modelo de una sesión externa
+
+El encabezado del chat externo muestra **Solicitado:** seguido
+del modelo y esfuerzo elegidos, o del predeterminado del motor. Eso es un pedido, no la confirmación de lo que corrió.
+El pie de cada respuesta muestra el modelo informado por el motor; **Modelo sin confirmar** significa que APX todavía
+no recibió ese dato. También se ve en las conversaciones entre agentes de solo lectura. Las respuestas anteriores
+sin evidencia guardada de un informe del motor también muestran **Modelo sin confirmar**: APX no presenta una
+selección guardada anteriormente como un modelo confirmado.
+
+Claude Code informa su modelo al empezar el turno, así queda visible mientras espera tu aprobación o después de
+cancelarlo. La respuesta guardada conserva ese modelo al recargar o retomar el chat. Las respuestas siguientes pueden
+informar otro modelo sin cambiar las anteriores. El esfuerzo aparece junto al modelo confirmado solo si fue informado;
+el esfuerzo bajo **Solicitado:** sigue siendo únicamente el que pediste.
+
 ## Sumar un proveedor
 
 Abrí **Configuración › Motores y modelos**. En **APIs de modelos (loop propio de APX)**, tocá **Agregar proveedor** y
@@ -39,6 +53,19 @@ mostrar) y la lista de modelos se le pide al proveedor mismo.
 Presets: **OpenCode Zen**, **Gemini**, **Anthropic**, **OpenAI**, **OpenRouter**, **Groq**, **Cerebras**,
 **DeepSeek**, **Mistral**, **Ollama**, **LM Studio**, y **OpenAI-compatible** para cualquier otra cosa que hable esa
 API. Ollama y LM Studio corren en tu máquina y no necesitan key.
+
+### Modelos en esta computadora
+
+Cuando **Ollama** o **LM Studio** está abierto en esta computadora, APX lo encuentra solo: sus modelos de chat aparecen
+en **Modelos** en una fila por app, marcados **En tu equipo** y **Gratis**, listos para elegir para un agente sin
+configurar nada. APX los busca solo en esta computadora (`127.0.0.1`, puertos `11434` y `1234`), cuando se abre o se
+actualiza la lista y cada diez minutos en segundo plano. Los modelos de embeddings quedan bajo **Mostrar también los de
+voz, imagen y embeddings**.
+
+Si cerrás la app, sus modelos siguen en la lista como no disponibles, así un agente que usa uno lo conserva; al abrirla
+de nuevo funcionan enseguida. Si ya habías agregado Ollama a mano en esa dirección, no aparece dos veces: tu entrada
+queda marcada como de esta computadora. Para dejar de ofrecer una app encontrada, quitala de la lista de APIs de
+modelos.
 
 <Shot name="settings-engines" alt="Configuración, Engines and models: la tarjeta del plan de ChatGPT y una lista de APIs de modelos con su estado" caption="Configuración › Motores y modelos" />
 
@@ -95,6 +122,13 @@ Después ese paso va al modelo siguiente de la cadena. Vale para cualquier paso 
 corra una herramienta: cada paso sólo le pregunta al modelo qué hacer, así que nada corre dos veces. Cuando cambia, el
 chat muestra un aviso con qué modelo no respondió, por qué y cuál siguió.
 
+Un modelo que llega al límite de uso de su cuenta (la cuota de un plan, un límite de frecuencia largo) se saltea hasta
+la hora de reinicio que dio el proveedor, o 10 minutos si no dio ninguna: los turnos siguientes van directo al modelo
+siguiente en lugar de volver a preguntarle. Si ningún modelo de la cadena puede responder, el turno se detiene y dice
+cuándo se levanta el límite; cuando se levanta, APX retoma el turno en el mismo chat, con lo que ya había hecho, y el
+agente lo termina. Lo hace solo con el último turno del chat y hasta tres veces seguidas, nunca con una rutina (su
+próxima corrida llega a su hora) ni con los agentes en pausa. Un turno detenido hace más de un día queda como está.
+
 ## Por agente, por chat, por defecto
 
 Tres lugares eligen modelo, del más puntual al más general:
@@ -104,6 +138,27 @@ Tres lugares eligen modelo, del más puntual al más general:
 | Un chat | El selector de modelo del compositor | Sólo este chat. |
 | Un agente | El panel del agente, o `apx agents model` | Un modelo fijo, un modelo con el router detrás (`--router`), el router solo, o el por defecto de la instalación. |
 | La instalación | `apx models default`, o la cadena del router | Todos los agentes que no eligieron otro. |
+
+### Los respaldos propios de un agente
+
+Un agente con modelo propio puede tener hasta cinco **modelos de respaldo**, en orden. Los elegís en el editor del
+agente, en **Modelo y equipo › Modelos de respaldo**, donde podés agregarlos, reordenarlos y quitarlos. También podés
+usar `apx agents model <agente> <ref> --fallbacks <ref>,<ref>` o pedírselo a tu super-agente ("ponele a Robina Groq y
+Gemini de respaldo"), que te muestra el cambio y espera tu sí. Un agente que usa sólo el router no tiene respaldos:
+primero elegí su modelo.
+
+Cada turno prueba primero el modelo del agente. Si ese modelo está en su límite de uso (APX lo retiene hasta el
+reinicio, como se explica arriba) o sigue fallando después de sus reintentos, el turno pasa al primer respaldo libre y
+después al siguiente. Si se termina la lista y el agente tiene el router detrás, la cadena del router va al final. APX
+no le vuelve a preguntar a un modelo en su límite antes del reinicio, y cuando se reinicia el límite del modelo
+principal, el turno siguiente vuelve a él solo. Si elegís otro modelo para un chat en el compositor, los respaldos del
+agente siguen detrás de ese modelo.
+
+Debajo de cada respuesta, la línea con el nombre del agente muestra qué modelo respondió y agrega **Con respaldo**
+cuando no fue el suyo. El aviso de arriba dice qué modelo no respondió y por qué.
+
+Los respaldos sólo se aplican a los turnos que corre el loop propio de APX. Una sesión de Claude Code, Codex o ACP corre
+su propia CLI con su propio modelo, así que ahí no se usan los respaldos del agente.
 
 ## Consumo
 
@@ -122,10 +177,28 @@ corren en la **computadora del core**, no necesariamente en tu escritorio. Claud
 posterior. APX no inicia turnos de modelo para consultarlas ni lee las credenciales de los CLI. Las cuentas no
 compatibles o no disponibles muestran ese estado, no un saldo estimado de suscripción.
 
+Cuando una cuenta tiene dos límites a la vez (por ejemplo la sesión de 5 horas de Claude y su límite semanal), el
+botón muestra el que está más cerca de agotarse. Pasá el mouse por encima, o tocalo en el teléfono, para ver cada límite
+con lo que queda y cuándo se reinicia.
+
 Cada tarjeta de motor tiene un interruptor **Uso**, independiente de la potencia del modelo. Está desactivado por
 defecto salvo para un plan ChatGPT vinculado; los datos de Codex igual requieren su cuenta de CLI local vinculada
 por separado. Desactivarlo detiene las consultas y oculta los resultados guardados. Tu elección explícita se
 conserva. Los tokens, costos y contexto del chat siguen separados de estos límites de cuenta.
+
+Pedile a tu superagente «Consultá las cuotas de todos mis planes» o «¿Cuánto usé del límite semanal de Claude?». Lee
+todos los motores que encuentra en esta computadora, también los que dejaste fuera de la barra superior, con la fuente y
+la caché del menú (hasta 60 segundos), sin depender de su propio modelo. Puede consultar todos o filtrar por nombre del
+proveedor/plan o identificador del motor (`Claude`, `Claude Auto`, `Codex`, `ChatGPT`, `Cursor`), y obtiene los
+porcentajes informados, las duraciones de las ventanas, los horarios de reinicio y la fecha de consulta del informe. Lo
+que muestra la barra superior sigue siendo tu elección: la consulta del agente no la cambia.
+
+Hoy solo Claude y Codex aportan ventanas de cuota. Otros motores configurados pueden informar límites no compatibles
+o no disponibles. Una cuenta desactivada o desconocida puede no aparecer: no encontrarla no significa consumo cero.
+`not_available` indica que la fuente no devolvió datos utilizables, no un saldo vacío confirmado; no permite distinguir
+todos los errores del CLI de la falta de datos de cuenta. Las solicitudes fallidas siguen siendo errores. Esta fuente
+no identifica categorías de suscripción ni múltiples cuentas por motor. No se agregan alertas proactivas ni detención
+automática.
 
 ## Desde la terminal
 
@@ -153,7 +226,7 @@ router chain: gemini/gemini-3.8-flash → chatgpt/gpt-6-sol
 | `apx models default <engine/model \| engine \| router> [--router]` | Define el modelo por defecto de la instalación. |
 | `apx models chain <ref> [<ref>…]` | Define la cadena de respaldo del router, en orden. |
 | `apx models rules < rules.json` | Reemplaza las reglas del router (JSON por stdin). |
-| `apx agents model <agent> <ref \| router \| default> [--router]` | Define el modelo de un agente. |
+| `apx agents model <agent> <ref \| router \| default> [--router] [--fallbacks <ref>,<ref>]` | Define el modelo de un agente y sus respaldos en orden (`--fallbacks ""` los borra; sin la opción, un modelo nuevo los mantiene). |
 
 Un archivo de reglas es una lista. Todas las condiciones de `when` tienen que cumplirse; `model` es lo que elige la
 regla:

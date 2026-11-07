@@ -1,6 +1,7 @@
 // Settings of the AI model step: who answers (an agent of the crew, or a bot just for this flow), on which harness,
 // model and effort, how freely it acts, and whether it may hand work to other agents (DECISIONS.md#d-172).
 import type { Agent, CatalogEngine } from "@apx/protocol";
+import { flowTaskRefs } from "@apx/protocol/flow-complete";
 import { AgentGrid, EngineIcon, Field, Input, SegmentedControl, Select, Switch, Textarea } from "@apx/ui";
 import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
@@ -14,7 +15,7 @@ const NATIVE = "native";
 /** CLIs run in their own sessions; every other engine is a model API on APX's own loop. */
 const isCli = (engine: string) => /^(claude|codex|aider|antigravity|acp:)/.test(engine);
 /** The harness a step runs on: the engine of its model when that is a CLI, else APX's. */
-export const harnessOf = (n: Pick<Ai, "model">) => {
+const harnessOf = (n: Pick<Ai, "model">) => {
   const engine = n.model ? splitRef(n.model).engine : "";
   return isCli(engine) ? engine : NATIVE;
 };
@@ -150,7 +151,7 @@ export function AiFields({
           )}
         </div>
       )}
-      <Field label={t("flow.f.task")}>
+      <Field label={t("flow.f.task")} hint={taskHint(n.prompt, t)}>
         {(id) => (
           <Textarea
             id={id}
@@ -251,6 +252,12 @@ export function AiFields({
       )}
     </>
   );
+}
+
+/** Under an AI step's task, when it names values: those are sent as written (DECISIONS.md#d-172). */
+export function taskHint(prompt: string, t: ReturnType<typeof useT>) {
+  const [ref] = flowTaskRefs(prompt);
+  return ref ? t("flow.f.taskRefs", { ref }) : undefined;
 }
 
 /** What the step's note says: what it keeps of the agent, or what a bot or a CLI starts from. */

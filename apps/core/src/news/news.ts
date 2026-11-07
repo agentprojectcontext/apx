@@ -1,7 +1,9 @@
 // Release news told by the super-agent: once per entry, only the entries that apply to this owner, in one short
 // message in its voice and the owner's language, on their preferred channel. A release with nothing that applies costs
 // no model call; a fresh install is told nothing. See rules/DECISIONS.md#d-117
+import fs from "node:fs";
 import { buttonId } from "../channels/notices.ts";
+import type { StoreSize } from "../db/db.ts";
 import { postAgentWords } from "../domain/agent-words.ts";
 import type { Presentation } from "../domain/channels.ts";
 import { ownerTimeZone } from "../domain/owner.ts";
@@ -54,9 +56,18 @@ export function createNews(deps: {
   /** APX's own entries unless a test brings its own. */
   entries?: readonly NewsEntry[];
   timeoutMs?: number;
+  /** A Hermes home folder: when it is there, moving from Hermes is told. */
+  hermesHome?: string;
+  /** The chats' database size: a big one that keeps its free space is told how to compact it. */
+  storeSize?: () => StoreSize;
 }) {
   const { store, log } = deps;
   const entries = deps.entries ?? NEWS;
+  const facts_ = () =>
+    newsFacts(store, {
+      hermes: !!deps.hermesHome && fs.existsSync(deps.hermesHome),
+      ...(deps.storeSize ? { storeSize: deps.storeSize() } : {}),
+    });
   const ac = new AbortController();
   let running: Promise<unknown> = Promise.resolve();
 
@@ -75,7 +86,7 @@ export function createNews(deps: {
 
   function list(): NewsItem[] {
     const seen = seenIds() ?? new Set();
-    const facts = newsFacts(store);
+    const facts = facts_();
     return entries.map((e) => ({
       id: e.id,
       since: e.since,
@@ -115,7 +126,7 @@ export function createNews(deps: {
 
   const pending = () => {
     const seen = seenIds() ?? new Set();
-    const facts = newsFacts(store);
+    const facts = facts_();
     return entries.filter((e) => !seen.has(e.id) && e.applies(facts));
   };
 
@@ -212,7 +223,7 @@ const voicePrompt = (boss: { name: string; personality?: string | undefined }) =
   `You are ${boss.name}, the owner's assistant in APX, the app you run in.${boss.personality ? ` Your personality: ${boss.personality}` : ""}`;
 
 /** A few hundred characters: what is new for this owner, and how the message should read. */
-export function newsInput(told: NewsEntry[], lang: string, moreActions: number, talk?: string): string {
+function newsInput(told: NewsEntry[], lang: string, moreActions: number, talk?: string): string {
   const items = told.map((e) => `- ${e.text}`).join("\n");
   const offers = told
     .flatMap((e) => (told.length === 1 ? e.actions : e.actions.slice(0, 1)))

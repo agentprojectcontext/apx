@@ -89,6 +89,7 @@ necesita un reinicio.
 | `APX_RUNTIME_SKILLS` | prendido en la carpeta por defecto | `on` u `off`: mantener al día las skills de APX en Claude Code, Codex, Cursor y `~/.agents` en cada arranque. Un core con su propio `APX_HOME` no lo hace, salvo que esto diga `on`. |
 | `APX_WEB_DIST` | la compilación del workspace | El panel compilado que sirve. |
 | `APX_OLLAMA_URL` | `http://127.0.0.1:11434` | Ollama en esta máquina, para los modelos de embeddings de la búsqueda en la memoria. |
+| `APX_LOCAL_MODELS` | `ollama:11434,lmstudio:1234` | Apps de modelos cuyos modelos de chat se ofrecen cuando corren en esta computadora (siempre `127.0.0.1`). `off` no busca ninguna; `ollama:11500` cambia un puerto y deja afuera la app que no se nombra. |
 | `APX_V1_URL` | `http://127.0.0.1:7430` | El daemon de APX v1, solo para la importación (que solo lee). |
 | `APX_V1_HOME` | `~/.apx` | La carpeta de APX v1, solo para la importación. |
 | `CLAUDE_CONFIG_DIR` | `~/.claude` | Donde Claude Code guarda tus sesiones (se leen para listarlas y retomarlas). |
@@ -182,7 +183,7 @@ Abrí **Configuración** con `⌘,` o desde el menú de tu cuenta. Las secciones
 - **Modo**: Claro u Oscuro. La primera vez sigue a tu sistema.
 - **Estilo**: Minimal (el look de v2) o Clásico v1 (el verde y la tipografía de v1).
 - **Fuente de la interfaz**: Sistema o Mono, para menús, barras laterales y paneles.
-- **Tamaño del texto** (próxima versión): 85%, 100% (normal), 115% o 130%, aplicado al instante al texto de la interfaz y el chat. Se guarda solo en este dispositivo; no agranda imágenes, apps incrustadas ni la ventana del navegador. El texto del terminal incrustado mantiene su propio tamaño.
+- **Tamaño del texto**: 85%, 100% (normal), 115% o 130%, aplicado al instante al texto de la interfaz y el chat. Se guarda solo en este dispositivo; no agranda imágenes, apps incrustadas ni la ventana del navegador. El texto del terminal incrustado mantiene su propio tamaño.
 - **Ancho de la transcripción**: Estrecho, Medio o Ancho, el ancho máximo del chat y del cuadro de redacción.
 - **Idioma**: inglés o español. Sigue el idioma de tu navegador hasta que elijas uno, y aplica solo en ese
   dispositivo.

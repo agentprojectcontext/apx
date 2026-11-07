@@ -96,19 +96,18 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
   ) : null;
   const moreLabel = t("nav.moreChannels", { n: rest.length });
   return (
-    <>
-      <SidebarSection
-        rail={rail}
-        title={t("nav.channels")}
-        action={add}
-        folded={folded}
-        unread={totalUnread}
-        unreadLabel={t("nav.channelsUnread", { unread: totalUnread })}
-        onToggle={() => {
-          setMoreOpen(false);
-          setPrefs({ channelsFolded: !folded });
-        }}
-      />
+    <SidebarSection
+      rail={rail}
+      title={t("nav.channels")}
+      action={add}
+      folded={folded}
+      unread={totalUnread}
+      unreadLabel={t("nav.channelsUnread", { unread: totalUnread })}
+      onToggle={() => {
+        setMoreOpen(false);
+        setPrefs({ channelsFolded: !folded });
+      }}
+    >
       {!hidden && <div className="channelsnav__shown">{shown.map((channel) => row(channel))}</div>}
       {!hidden && rest.length > 0 && (
         <SidebarOverflow
@@ -126,6 +125,6 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
         </SidebarOverflow>
       )}
       {!hidden && !rail && <SidebarRowsGrip section="channels" total={ordered.length} title={t("nav.channels")} />}
-    </>
+    </SidebarSection>
   );
 }

@@ -8,19 +8,52 @@ sidebar:
 import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
 
 Un **artefacto** es lo que un agente arma para que mires o uses: una página HTML que APX muestra en un marco seguro.
-Hay dos tipos:
+Hay tres tipos, cada uno con su color y su ícono en las listas:
 
 | Tipo | Qué es | Dónde se ve |
 |---|---|---|
-| **Widget** | Un gráfico, una tabla, una tarjeta de estado, un formulario, una herramientita. Lo normal. | En el chat, en el [Tablero](/es/office/board/) de un proyecto, en el teléfono. |
-| **App** | Una ventana entera con su propia navegación, muchas veces con registros que vas sumando. | A pantalla completa, en **Apps**. |
+| **Widget** (violeta) | Un gráfico, una tabla, una tarjeta de estado, un formulario, una herramientita. Lo normal. | En el chat, en el [Tablero](/es/office/board/) de un proyecto, en el teléfono. |
+| **App** (verde) | Una ventana entera con su propia navegación, muchas veces con registros que vas sumando. | A pantalla completa, en **Apps**. |
+| **Página web** (azul, un mundo) | Una página entera, una landing o un sitio, como la muestra cualquier navegador. | En el chat como un bloque HTML, y en su propia pantalla. |
 
 Los agentes arman un widget simple salvo que pidas una app o que tenga que guardar registros (un log, una lista de
 clientes, un inventario). Un widget hecho para mostrarte algo durante un chat es una página simple, nada más.
 
 Cada artefacto pertenece a un proyecto (o es global si se hizo fuera de uno), mantiene su nombre entre versiones y se
-actualiza en vivo donde esté abierto. Los dos tipos usan **APX Kit**, los componentes y el tema de APX, que APX suma a
+actualiza en vivo donde esté abierto. Los widgets y las apps usan **APX Kit**, los componentes y el tema de APX, que APX suma a
 la página donde se muestre: sin descargas, nada fuera de tu máquina.
+
+## Páginas web
+
+Pedile a un agente una página web ("haceme una landing para…", "una página que pueda editar") y aparece en el chat como
+un bloque HTML: **HTML** y su título, **Vista previa** o **Código**, **Copiar** (su HTML), **Expandir**, **Editar**, y en
+**Más** compartir su enlace, abrirla en otra ventana y **Descargar (.html)**. Una página web tiene sus propios estilos
+sobre fondo claro, no el aspecto de APX, no guarda memoria y no llega a nada fuera de su marco; sus scripts chicos (un
+menú que se abre) sí corren.
+
+**Expandir** la abre en su propia pantalla, donde ocupa todo el lugar y se recorre como en un navegador. **Escritorio**
+y **Teléfono** la acomodan al ancho de una compu o de un teléfono, y **Código** muestra su HTML. **Editar** activa ahí el
+modo edición: la página entera a ese ancho, con su propio scroll, y el panel de edición fijo al costado (abajo en un
+teléfono), así una página larga o un sitio entero se cambia igual de cómodo abajo que arriba. Cuando algo que pedís
+necesita al agente, volvés al chat de la página con el pedido en el cuadro de mensaje. Un agente puede pasar un widget a
+página, o al revés, si se lo pedís.
+
+## Señalar qué cambiar
+
+El lápiz de un widget en el chat, o a su lado en el panel lateral **Widget**, activa el modo edición, igual que
+[editar una página en el navegador](/es/office/browser/#editar-una-página-que-hizo-un-agente): tocá una parte, cambiá
+su texto, colores, tamaño de letra o espaciado y miralo al instante. Tocá otra parte para editar esa; **Tus cambios**
+guarda solo las partes que cambiaste.
+
+Lo que cambiás ahí es la página misma: **Guardar cambios** lo escribe en el widget como una versión nueva, sin pasar por
+el agente. Lo que escribís en **¿Algo más?** (un cambio de diseño, una sección nueva) va al agente: **Guardar y pedirle
+a Vera** guarda lo demás y pone ese pedido en el cuadro de mensaje para que lo envíes. Una parte que dibuja el código del
+widget cuando corre no está en su página, así que ese cambio también va al agente. Descartar, o Esc, deja el widget
+como estaba.
+
+El widget que editás corre aparte del panel, en una página del navegador propio de APX sin internet y sin tus
+sesiones: lee lo que recuerda pero no cambia nada. Para editar un widget hace falta Chrome, Chromium o Edge en la
+computadora donde corre APX.
 
 ## Qué recuerda un artefacto
 

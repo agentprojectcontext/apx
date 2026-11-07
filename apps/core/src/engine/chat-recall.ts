@@ -3,9 +3,9 @@ import { canRecallOwnChat, memoryEligibleChat } from "../domain/chat-access.ts";
 import { ftsQuery, type MemoryView, memorySensitive } from "../domain/memories.ts";
 import { isMemoryGreeting } from "../domain/memory-content.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
+import { snippetOf } from "../domain/messages.ts";
 import { ownerOrigin } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { snippetOf } from "../domain/threads.ts";
 import { cap, fromTeam } from "../tools/result.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 

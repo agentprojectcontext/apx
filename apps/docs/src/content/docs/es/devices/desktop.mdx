@@ -33,6 +33,11 @@ APX pone un ícono en la barra de menú (en la bandeja del sistema en Windows y 
 Cuando algo te está esperando, el ícono muestra un globito con la cantidad (en una Mac, también al lado del ícono y en
 el Dock).
 
+Usá **Nuevo chat** en el encabezado del chat rápido para buscar agentes por nombre, rol o proyecto, incluyendo tu
+superagente. Los recientes aparecen primero. Elegir uno abre un borrador con el proyecto y la configuración de
+modelos de ese agente; se guarda con tu primer mensaje. Cerrar el selector conserva la conversación actual.
+**Volver a Home** regresa a tu chat principal.
+
 El chat rápido además tiene un **atajo global** que lo abre y lo cierra desde cualquier app, centrado cerca del borde
 de arriba de la pantalla. Es `Alt+Space` hasta que lo cambies. También está **Chat rápido** en el menú **Ventana** de
 la app.
@@ -67,6 +72,24 @@ Algunas cosas valen en cualquier nivel de autonomía, incluso total:
 Mirar la pantalla no cambia nada, así que corre sin preguntar (en Manual sí pregunta); abrir una app es una
 herramienta `ask`; hacer clic, escribir y apretar teclas son herramientas `always`, así que preguntan en cualquier
 autonomía menos total (mirá [Autonomía](/es/concepts/autonomy/)). Linux todavía no presta esta capacidad.
+
+### Cursor nativo del agente
+
+En macOS, APX muestra un cursor nativo chico, que viaja con una curva y una
+aceleración suave hacia su próxima acción. La flecha blanca y verde, las chispas titilando, el pulso del clic y la
+etiqueta redondeada explican qué está por hacer el agente. Los nombres distinguen sus etiquetas. Sólo viaja el cursor
+dibujado; tu puntero físico queda donde está. Windows conserva su indicador actual.
+
+Los agentes pueden pedir `pointer: "visible"` en `screen_do` para una activación accesible nativa. Ese modo verifica
+la app, la ventana y el control de destino; rechaza contenido web reconocido, campos protegidos y destinos que no
+puede inspeccionar. No inspecciona el origen ni el recorrido de tu puntero y no lo mueve. Los controles no compatibles
+fallan sin clic físico alternativo ni reintento automático. Sin esta opción, los clics por coordenadas intentan primero
+por accesibilidad; si el control no lo acepta, tu puntero salta ahí, hace clic y vuelve enseguida a donde lo tenías.
+
+El indicador queda visible entre acciones y se oculta ante el freno de emergencia o una desconexión. El freno de
+emergencia, desactivar el uso de la computadora, cambiar de conexión o salir cancela el gesto, incluido un clic en
+espera que todavía no se entregó. La cancelación no puede retirar una acción ya entregada; un resultado incierto no
+debe reintentarse automáticamente. Esta vista previa todavía requiere validación nativa de funcionamiento y seguridad.
 
 ## El navegador que manejan tus agentes
 
@@ -153,7 +176,8 @@ sin coordinación todavía usa su mecanismo anterior.
 
 ## Correrla desde el código
 
-¿Trabajás en APX? Desde el repositorio:
+¿Trabajás en APX? En macOS, instalá primero las herramientas de línea de comandos de Xcode: el build de la app usa
+`swiftc`, `lipo` y `codesign`. La app ya instalada no necesita esas herramientas de compilación. Desde el repositorio:
 
 ```bash
 pnpm install

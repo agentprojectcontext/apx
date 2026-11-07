@@ -38,10 +38,53 @@ markers in bulk. Canceling leaves them unchanged. Marking one chat read is still
 Open a chat and write. The agent's face and name sit in the header; click them (**View** its name) to open the agent
 side panel with its role, model and memory.
 
-While it works you see each step as it happens: tools it used, pages it opened, agents it asked. **Show tools** in the
-header toggles those steps if you only want the answers. When an agent needs your OK (to run a command, send a
+While it works you see each step as it happens: tools it used, pages it opened, agents it asked. Once done they fold
+into one line, such as **4 steps · 12 s**, that opens on click into each step in words ("Read notes.md", "Searched
+prices 2026") with an icon for its kind of action (the web, a file read, a file written, memory). Only a step that
+failed is marked, in red, and the line says how many failed. **Show tools** in the header toggles those steps if
+you only want the answers. When an agent needs your OK (to run a command, send a
 message, use your login on a site) the chat shows the question with **Approve once**, **Approve for this session** or
 **Always allow for this agent**.
+
+### The agent's plan
+
+Work of more than a couple of steps starts with a plan, in any chat: Home, a loose chat, a code chat or a task's.
+It shows under the agent's message as a checklist, **Plan** with how many steps are done, and each step changes as
+the agent works: pending, under way (a spinner) or done (a check). The agent sends the whole list every time it marks
+a step, so the checklist you see is always its latest. While the agent works the plan stays at the bottom, under
+everything it shows; once it is marked for the last time it stays there, checked, and what the agent writes after it
+comes below. When the agent writes a new plan in the chat, it replaces the earlier one, so only one shows. Its next turns read the plan it left, even after a long chat is
+summarized. In a task's chat the plan is the task's own: the same steps show in the task's drawer.
+
+The phone app shows the same checklist in the chat and on the task's page, with its goal. In the terminal,
+`apx chat` prints the plan each time a step changes (`✓` done, `▸` under way, `○` pending), and `apx tasks show <id>`
+prints the task's goal and plan.
+
+Claude Code, Codex and ACP sessions show the same plan. Codex and ACP agents keep their own checklist, and APX shows
+it as the plan; Claude Code is asked to keep it with APX's plan, since its own task list is not offered there.
+
+### Writing while it works
+
+You don't have to wait for the agent to finish, and you don't have to stop it:
+
+- **Enter** sends. The agent reads your message at its next step (after the tool or the answer it is on) and goes on
+  with it in mind. The message stays where you wrote it, and what the agent says after reading it comes below. Until it
+  reads it, **Send now** shows under the message: the agent stops the step it is on and reads your message at once,
+  keeping what it did so far. A teammate it was waiting for keeps working, and its answer comes in when it is ready.
+  **Remove** takes the message back before the agent reads it. Once it has read it, two ticks and **Now** show under the message.
+- **Ctrl/⌘+Enter** puts the message **in line** for when the agent finishes what it is doing. Messages in line wait
+  below the chat with an outlined bubble, in the order they will run. Until their turn starts you can **Edit** them,
+  move them **up** or **down**, **Remove** them, or **Send now**.
+- **In a Claude Code session** it works the same way: Claude reads your message once the command or edit it is on
+  finishes, in the same turn. If it is writing its answer, your message runs right after it.
+  **Send now** stops what Claude is doing and it reads your message at once.
+- **In a Codex session** the agent only reads new messages between turns, so Enter does what **Send now** does: it
+  stops the turn at work, as **Stop** does, and runs your message right away, ahead of the rest of the line (what the
+  agent had handed to others keeps going). Ctrl/⌘+Enter still leaves the message in line until the turn ends.
+- **Stop** (the square that replaces send) stops everything: the turn at work and the messages in line.
+
+What is in line survives a restart of APX, in its order. Messages that come on a channel (WhatsApp, Telegram) keep
+working as before: the agent reads them at its next step.
 
 A quick example. Lucía is Acme Store's PM:
 
@@ -60,12 +103,14 @@ The box at the bottom ("Message Lucía…") is where you write. A few things it 
 
 - **Attachments.** Drag and drop files or images onto the chat, or use **Attach** › **File** / **Image**.
 - **Model picker.** Each chat follows its agent's model by default. Pick another one for this chat only, or **Auto**
-  to let the router choose; **Back to the agent's** undoes it. The chip next to it shows how much context is used and
-  opens the Usage panel.
+  to let the router choose; **Back to the agent's** undoes it. The chip next to it shows how much of the model's context
+  is used, as a percentage, and opens the Usage panel; when it fills, older turns are summarized
+  ([Compaction](/concepts/conversations/#compaction)).
 - **Voice dictation.** **Dictate** turns speech into text. Install a local transcription model (whisper.cpp) in
   Settings › Voices to keep it on your machine.
-- **Keys.** Enter sends (if the agent is working, it stops and answers this instead). Ctrl/⌘+Enter queues the message
-  for when it ends. Shift+Enter adds a line.
+- **Keys.** Enter sends (if the agent is working, it reads it at its next step; in a Codex session it stops the turn
+  and runs the message at once). Ctrl/⌘+Enter puts it in line for when
+  it finishes; while the agent works the composer reminds you. Shift+Enter adds a line.
 
 Attachment drafts, including uploads in progress, survive switching chats within the page. Select a thumbnail to
 preview its file. Unlike saved draft text, attachment drafts do not survive reloading or closing the page; they are
@@ -145,13 +190,30 @@ When an agent writes a shell block in its answer (say, a command that needs `sud
 terminal**. It opens in the Terminal panel on a real terminal, so you can type a password there; when it ends, the
 agent that wrote it is told how it went.
 
+### Tables, code, pages and diagrams in answers
+
+Each block of code an agent writes (a command, a page, a diagram, an email) shows as a card of its own between the
+bubbles of its words, as wide as the conversation. While the agent is still writing it, the card says **Writing…**
+and its code comes in line by line; a page or diagram appears when the block is finished.
+
+- **Tables** have **Copy as Markdown** and **Copy as CSV** under them (CSV pastes into a spreadsheet; cells with
+  commas or quotes stay whole). The corner button opens the table larger.
+- **Code** shows in a frame with its language, line numbers and colors, plus **Copy** and **Expand** (a larger view).
+- **HTML** an agent writes in an `html` block shows as the page it draws, with **Preview** / **Code** to switch. The
+  page is shown in an isolated frame: its own scripts do not run, it cannot reach APX or your accounts, and it loads
+  nothing from the web, so pictures from other sites do not appear.
+- **Mermaid** diagrams in a `mermaid` block are drawn as a picture, with the same switch to their code. When the code
+  is not a valid diagram, its code shows with a note.
+- **Files** an agent attaches show as a card with their name and size: **Download** saves them, and **Open** shows a
+  PDF or a text file (CSV, Markdown, code) inside APX, as text, without running it.
+
 ### Documents are saved snapshots
 
 Ask an agent to open a report or plan as a document after writing it. Markdown and text files (`.md`, `.markdown`,
 `.txt`, up to 400 KB) open in **Documents**, with rendered Markdown, source and download views. Even `.txt` is
 rendered as Markdown. The document is a saved snapshot: later file edits do not change it or open it automatically.
-It is not an app or widget. Agents can also attach files directly in the chat (up to 20 MB); images appear inline
-and audio/video can play there.
+It is not an app or widget. Agents can also attach files directly in the chat (up to 20 MB); images appear inline,
+audio/video can play there, and other files show as a card to download or open.
 
 ## Search everything with ⌘K
 

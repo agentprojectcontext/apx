@@ -1,8 +1,8 @@
 import type { CdpSend } from "./cdp.ts";
 import { ApxError } from "./client.ts";
 
-export const SCRIPT_LIMIT = 64_000;
-export const EVALUATION_LIMIT = 16_000;
+const SCRIPT_LIMIT = 64_000;
+const EVALUATION_LIMIT = 16_000;
 
 /** One retained document per tab; another snapshot invalidates an older review rather than leaking handles. */
 export async function captureDocument(send: CdpSend): Promise<string> {

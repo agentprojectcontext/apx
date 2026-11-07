@@ -20,6 +20,8 @@ function fromOf(origin: Origin): JobFrom {
     case "delegation_result":
     case "added":
       return { kind: origin.kind, name: origin.name };
+    case "delegation_results":
+      return { kind: "delegation_result", name: origin.results.map((r) => r.name).join(", ") };
     case "surface":
       return { kind: origin.kind, name: origin.title };
     // A contact's messages answered once the channel's hours began: shown as theirs.

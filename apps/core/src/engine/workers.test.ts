@@ -5,12 +5,13 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import type { Part } from "@apx/protocol";
 import { realpath } from "../paths.ts";
-import { removeDir } from "../testkit/platform.ts";
+import { removeDir, waitFor } from "../testkit/platform.ts";
 import { workspaceOf } from "./delegation.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
 const worker = { name: "Researcher", instructions: "Dig through sources; list each with its link." };
 let subpathProjectRoot: string | undefined;
+let releaseHeld: (() => void) | undefined;
 
 const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
   if (system.startsWith("You are Researcher")) {
@@ -19,6 +20,7 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
         ? say(`Read: ${String(req.messages.at(-1)?.content).slice(0, 200)}`)
         : callTool("r1", "file_read", { path: "marker.txt" });
     if (said.includes("slowly")) await new Promise((r) => setTimeout(r, 300));
+    if (said.includes("look held")) await new Promise<void>((r) => (releaseHeld = r));
     return say("## Report\n- Found 2 sources.\n- One is stale.");
   }
   if (said.includes("<delegation_result")) return say("The researcher is back: 2 sources.");
@@ -51,6 +53,16 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
       write: "read-only",
       task: "read marker.txt",
     });
+  if (said.includes("helper first") && !afterTool) return callTool("h1", "delegate", { worker, task: "first pass" });
+  if (said.includes("helper again") && !afterTool)
+    return callTool("h2", "delegate", {
+      worker: { name: "Researcher", instructions: "Be brief." },
+      task: "second pass",
+    });
+  if (said.includes("helper other") && !afterTool)
+    return callTool("h3", "delegate", { worker: { name: "Analyst", instructions: "Count things." }, task: "count" });
+  if (said.includes("helper held") && !afterTool)
+    return callTool("h4", "delegate", { worker, task: "look held", wait_s: 0 });
   if (said.includes("use a worker") && !afterTool)
     return callTool("w1", "delegate", { worker: { ...worker, tools: ["recall"] }, task: "look into A2A" });
   if (said.includes("worker slowly") && !afterTool)
@@ -87,6 +99,10 @@ test("a worker runs as the caller under the instructions it wrote, with only the
   assert.equal(c.state, "completed");
   assert.match(c.summary ?? "", /## Report[\s\S]*One is stale/, "the whole report, not a clipped line");
   assert.equal(typeof c.ms, "number");
+  // The panel shows its session as a helper of the caller, not as the caller talking to itself.
+  const session = await env.client.call("threads.get", { thread: c.thread_id });
+  assert.equal(session.thread.worker, "Researcher");
+  assert.equal((await env.client.call("threads.get", { thread: t.id })).thread.worker, undefined);
 
   const call = llm.calls.find((x) => String(x.messages[0]?.content).startsWith("You are Researcher"));
   assert.ok(call);
@@ -118,6 +134,55 @@ test("a worker's session goes on with the same instructions", async () => {
     llm.calls.slice(from).some((x) => /Dig through sources/.test(String(x.messages[0]?.content))),
     "the continued turn kept the worker's prompt",
   );
+});
+
+const helperSessions = (thread: string) =>
+  env.core.store.threads.sessions(thread).filter((s) => env.core.store.threads.context(s.id).worker);
+
+test("asking the same worker again from the same chat goes on in its session, with its first instructions", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "w-same" });
+  await env.client.call("threads.send", { thread: t.id, text: "helper first" });
+  await env.settle(t.id);
+  const from = llm.calls.length;
+  await env.client.call("threads.send", { thread: t.id, text: "helper again" });
+  await waitFor(
+    () => llm.calls.slice(from).some((x) => String(x.messages[0]?.content).startsWith("You are Researcher")),
+    "the helper answers again",
+  );
+  await env.settle(t.id);
+  const [only, ...rest] = helperSessions(t.id);
+  assert.equal(rest.length, 0, "one helper session, not one per request");
+  const runs = env.core.store.runs.list(only?.id ?? "");
+  assert.equal(runs.length, 2, "both requests ran in it");
+  const second = llm.calls.slice(from).find((x) => String(x.messages[0]?.content).startsWith("You are Researcher"));
+  assert.match(String(second?.messages[0]?.content), /Dig through sources/);
+  assert.doesNotMatch(String(second?.messages[0]?.content), /Be brief/);
+  assert.ok(JSON.stringify(second?.messages).includes("first pass"), "the helper sees its earlier exchange");
+});
+
+test("a worker with another name gets its own session, and a busy one is not reused", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "w-other" });
+  await env.client.call("threads.send", { thread: t.id, text: "helper first" });
+  await env.settle(t.id);
+  await env.client.call("threads.send", { thread: t.id, text: "helper other" });
+  await env.settle(t.id);
+  assert.deepEqual(
+    helperSessions(t.id)
+      .map((s) => env.core.store.threads.context(s.id).worker?.name)
+      .sort(),
+    ["Analyst", "Researcher"],
+  );
+  // The Researcher is held at work: asking it again opens a second session, so parallel asks stay parallel.
+  try {
+    await env.client.call("threads.send", { thread: t.id, text: "helper held" });
+    await waitFor(() => Boolean(releaseHeld), "the first helper is held at work");
+    assert.equal(helperSessions(t.id).length, 2, "the free Researcher took the third request");
+    await env.client.call("threads.send", { thread: t.id, text: "helper again" });
+    await waitFor(() => helperSessions(t.id).length === 3, "a second Researcher session while the first is busy");
+  } finally {
+    releaseHeld?.();
+  }
+  await env.settle(t.id);
 });
 
 test("a late worker result shows its report above the caller's new answer", async () => {

@@ -7,17 +7,19 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Readable, Writable } from "node:stream";
 import {
+  BROWSER_FILL_SECRET,
   BROWSER_HOLD,
+  BrowserFillSecret,
   type BrowserProfile,
   browserMethods,
   createTabHolds,
   type TabControl,
   type TabInfo,
 } from "@apx/protocol";
-import { assertNavigable, CdpPage } from "@apx/protocol/cdp";
+import { assertNavigable, CdpPage, scrubDeep } from "@apx/protocol/cdp";
 import { ApxError } from "@apx/protocol/client";
 import { findProgram } from "../programs.ts";
-import { type PageCall, type PageCheck, runPageCheck } from "./page-check.ts";
+import { type PageCall, type PageCdp, type PageCheck, runPageCheck } from "./page-check.ts";
 
 const MAX_TABS = 6;
 const NAV_TIMEOUT_MS = 10_000;
@@ -27,7 +29,7 @@ const TAB_IDLE_MS = 15 * 60_000;
 const IDLE_MS = 5 * 60_000;
 
 /** Chrome, Chromium or Edge where they usually are; APX_CHROME (config) wins. */
-export function findChrome(configured?: string): string | undefined {
+function findChrome(configured?: string): string | undefined {
   if (configured) return fs.existsSync(configured) ? configured : undefined;
   const fixed =
     process.platform === "darwin"
@@ -183,8 +185,8 @@ export function createHeadlessBrowser(deps: {
 
   const info = (t: Tab): TabInfo => ({
     tab: t.id,
-    url: t.url,
-    title: t.title,
+    url: t.page.scrub(t.url),
+    title: t.page.scrub(t.title),
     profile: t.profile,
     control: t.control,
     consent_epoch: t.page.consentEpoch,
@@ -220,7 +222,7 @@ export function createHeadlessBrowser(deps: {
     if (!tab) return;
     if (m.method === "Page.loadEventFired") loads.get(tab.id)?.();
     if (m.method === "Page.navigatedWithinDocument") {
-      tab.page.forget();
+      tab.page.forget(true);
       tab.url = String((m.params as { url?: string }).url ?? tab.url);
       changed();
     }
@@ -445,6 +447,18 @@ export function createHeadlessBrowser(deps: {
     return t;
   }
 
+  /** Each command goes through ready(): a page in use keeps the browser from stopping as idle. */
+  async function pageCdp(): Promise<PageCdp> {
+    await ready();
+    return {
+      send: async (method, params, session) => (await ready()).send(method, params ?? {}, session),
+      listen: (session, fn) => {
+        listeners.set(session, fn);
+        return () => listeners.delete(session);
+      },
+    };
+  }
+
   const noHuman = () =>
     new ApxError({
       code: "unavailable",
@@ -463,158 +477,173 @@ export function createHeadlessBrowser(deps: {
     },
     /** Runs an artifact's page in a throwaway tab (no network, no cookies): the errors it threw and what it shows. */
     async checkPage(html: string, onCall: PageCall): Promise<PageCheck> {
-      const p = await ready();
-      return runPageCheck(
-        {
-          send: (method, params, session) => p.send(method, params ?? {}, session),
-          listen: (session, fn) => {
-            listeners.set(session, fn);
-            return () => listeners.delete(session);
-          },
-        },
-        html,
-        onCall,
-      );
+      return runPageCheck(await pageCdp(), html, onCall);
     },
+    /** The browser itself, for pages the core runs on its own (a widget in edit mode), started if needed. */
+    pageCdp,
     async handle(method: string, raw: unknown): Promise<unknown> {
-      switch (method) {
-        case BROWSER_HOLD:
-          return holds.set(raw);
-        case "browser.tabs":
-          return { tabs: [...tabs.values()].map(info) };
-        case "browser.open": {
-          const p = browserMethods["browser.open"].params.parse(raw);
-          const control: TabControl =
-            p.by === "operator" ? { kind: "idle" } : { kind: "agent", by: p.by, since: new Date().toISOString() };
-          return info(await open(p.url, p.profile, control));
-        }
-        case "browser.navigate": {
-          const p = browserMethods["browser.navigate"].params.parse(raw);
-          const t = p.by === "operator" ? get(p.tab) : drive(p.tab, p.by);
-          await load(t, p.url);
-          return { url: t.url, title: t.title };
-        }
-        case "browser.history": {
-          const p = browserMethods["browser.history"].params.parse(raw);
-          const t = p.by === "operator" ? get(p.tab) : drive(p.tab, p.by);
-          const pp = await ready();
-          if (p.action === "reload") {
-            const waiting = settle(t);
-            await pp.send("Page.reload", {}, t.session);
-            await waiting;
-          } else {
-            const h = await pp.send<{ currentIndex: number; entries: Array<{ id: number }> }>(
-              "Page.getNavigationHistory",
-              {},
-              t.session,
-            );
-            const entry = h.entries[h.currentIndex + (p.action === "back" ? -1 : 1)];
-            if (entry) {
-              const waiting = settle(t);
-              await pp.send("Page.navigateToHistoryEntry", { entryId: entry.id }, t.session);
-              await waiting;
-            }
-          }
-          return { url: t.url, title: t.title };
-        }
-        case "browser.snapshot": {
-          const p = browserMethods["browser.snapshot"].params.parse(raw);
-          const t = get(p.tab);
-          const snap = await t.page.snapshot(p.max_chars);
-          // Page text is data, never instructions, wherever it ends up (rule 10).
-          const tree = `<untrusted_web source="${t.url}">\n${snap.tree}\n</untrusted_web>`;
-          return {
-            url: t.url,
-            title: t.title,
-            tree,
-            refs: snap.refs,
-            truncated: snap.truncated,
-            document: snap.document,
-          };
-        }
-        case "browser.click": {
-          const p = browserMethods["browser.click"].params.parse(raw);
-          const t = drive(p.tab, p.by);
-          await t.page.click(p.ref);
-          await Promise.race([settle(t), new Promise((r) => setTimeout(r, 1500))]);
-          await refresh(t);
-          return { ok: true, url: t.url };
-        }
-        case "browser.type": {
-          const p = browserMethods["browser.type"].params.parse(raw);
-          const t = drive(p.tab, p.by);
-          await t.page.type(p.ref, p.text, p.submit);
-          if (p.submit) await Promise.race([settle(t), new Promise((r) => setTimeout(r, 2000))]);
-          await refresh(t);
-          return { ok: true, url: t.url };
-        }
-        case "browser.approval_context": {
-          const p = browserMethods["browser.approval_context"].params.parse(raw);
-          return get(p.tab).page.approvalContext(p.origin, p.document);
-        }
-        case "browser.evaluate": {
-          const p = browserMethods["browser.evaluate"].params.parse(raw);
-          const t = drive(p.tab, p.by);
-          const result = await t.page.evaluate(p.script, p.origin, p.document, p.epoch);
-          return { url: t.url, ...result };
-        }
-        case "browser.screenshot": {
-          const p = browserMethods["browser.screenshot"].params.parse(raw);
-          const data = await get(p.tab).page.screenshot();
-          return { mime: "image/jpeg", data, bytes: Buffer.byteLength(data, "base64") };
-        }
-        case "browser.text": {
-          const p = browserMethods["browser.text"].params.parse(raw);
-          const t = get(p.tab);
-          const pp = await ready();
-          const tree = await pp.send<{ frameTree: { frame: { id: string } } }>("Page.getFrameTree", {}, t.session);
-          // An isolated world: the page's scripts cannot see or patch this read.
-          const { executionContextId } = await pp.send<{ executionContextId: number }>(
-            "Page.createIsolatedWorld",
-            { frameId: tree.frameTree.frame.id, worldName: "apx" },
-            t.session,
-          );
-          const r = await pp.send<{ result: { value?: unknown } }>(
-            "Runtime.evaluate",
-            {
-              expression: "document.body ? document.body.innerText : ''",
-              contextId: executionContextId,
-              returnByValue: true,
-            },
-            t.session,
-          );
-          const text = String(r.result.value ?? "").replace(/\n{3,}/g, "\n\n");
-          const slice = text.slice(p.offset, p.offset + p.max_chars);
-          return { url: t.url, text: slice, total: text.length, truncated: p.offset + p.max_chars < text.length };
-        }
-        case "browser.control": {
-          const p = browserMethods["browser.control"].params.parse(raw);
-          const t = get(p.tab);
-          if (p.mode === "user") throw noHuman();
-          t.control = { kind: "idle" };
-          changed();
-          return info(t);
-        }
-        case "browser.handoff":
-          throw noHuman();
-        case "browser.cookie_sources":
-          return { sources: [] };
-        case "browser.cookie_domains":
-        case "browser.import_cookies":
-          throw new ApxError({
-            code: "unavailable",
-            message: "the owner's logins come from the APX app on their computer: open it to bring them in",
-          });
-        case "browser.close": {
-          const p = browserMethods["browser.close"].params.parse(raw);
-          await close(p.tab);
-          return { ok: true };
-        }
-        default:
-          throw new ApxError({ code: "unknown_method", message: `the headless browser does not serve ${method}` });
-      }
+      const out = await serve(method, raw);
+      // A page may carry a filled value on into its address or title (a form sent by GET).
+      const t = tabs.get(String((raw as { tab?: unknown } | null)?.tab ?? ""));
+      return t && method !== "browser.screenshot" ? scrubDeep(out, (x) => t.page.scrub(x)) : out;
     },
   };
+
+  async function serve(method: string, raw: unknown): Promise<unknown> {
+    switch (method) {
+      case BROWSER_HOLD:
+        return holds.set(raw);
+      case "browser.tabs":
+        return { tabs: [...tabs.values()].map(info) };
+      case "browser.open": {
+        const p = browserMethods["browser.open"].params.parse(raw);
+        const control: TabControl =
+          p.by === "operator" ? { kind: "idle" } : { kind: "agent", by: p.by, since: new Date().toISOString() };
+        return info(await open(p.url, p.profile, control));
+      }
+      case "browser.navigate": {
+        const p = browserMethods["browser.navigate"].params.parse(raw);
+        const t = p.by === "operator" ? get(p.tab) : drive(p.tab, p.by);
+        await load(t, p.url);
+        return { url: t.url, title: t.title };
+      }
+      case "browser.history": {
+        const p = browserMethods["browser.history"].params.parse(raw);
+        const t = p.by === "operator" ? get(p.tab) : drive(p.tab, p.by);
+        const pp = await ready();
+        if (p.action === "reload") {
+          const waiting = settle(t);
+          await pp.send("Page.reload", {}, t.session);
+          await waiting;
+        } else {
+          const h = await pp.send<{ currentIndex: number; entries: Array<{ id: number }> }>(
+            "Page.getNavigationHistory",
+            {},
+            t.session,
+          );
+          const entry = h.entries[h.currentIndex + (p.action === "back" ? -1 : 1)];
+          if (entry) {
+            const waiting = settle(t);
+            await pp.send("Page.navigateToHistoryEntry", { entryId: entry.id }, t.session);
+            await waiting;
+          }
+        }
+        return { url: t.url, title: t.title };
+      }
+      case "browser.snapshot": {
+        const p = browserMethods["browser.snapshot"].params.parse(raw);
+        const t = get(p.tab);
+        const snap = await t.page.snapshot(p.max_chars);
+        // Page text is data, never instructions, wherever it ends up (rule 10).
+        const tree = `<untrusted_web source="${t.url}">\n${snap.tree}\n</untrusted_web>`;
+        return {
+          url: t.url,
+          title: t.title,
+          tree,
+          refs: snap.refs,
+          truncated: snap.truncated,
+          document: snap.document,
+        };
+      }
+      case "browser.click": {
+        const p = browserMethods["browser.click"].params.parse(raw);
+        const t = drive(p.tab, p.by);
+        await t.page.click(p.ref);
+        await Promise.race([settle(t), new Promise((r) => setTimeout(r, 1500))]);
+        await refresh(t);
+        return { ok: true, url: t.url };
+      }
+      case "browser.type": {
+        const p = browserMethods["browser.type"].params.parse(raw);
+        const t = drive(p.tab, p.by);
+        await t.page.type(p.ref, p.text, p.submit);
+        if (p.submit) await Promise.race([settle(t), new Promise((r) => setTimeout(r, 2000))]);
+        await refresh(t);
+        return { ok: true, url: t.url };
+      }
+      case BROWSER_FILL_SECRET: {
+        const p = BrowserFillSecret.parse(raw);
+        return drive(p.tab, p.by).page.fillSecret(p.ref, p);
+      }
+      case "browser.approval_context": {
+        const p = browserMethods["browser.approval_context"].params.parse(raw);
+        return get(p.tab).page.approvalContext(p.origin, p.document);
+      }
+      case "browser.evaluate": {
+        const p = browserMethods["browser.evaluate"].params.parse(raw);
+        const t = drive(p.tab, p.by);
+        const result = await t.page.evaluate(p.script, p.origin, p.document, p.epoch);
+        return { url: t.url, ...result };
+      }
+      case "browser.screenshot": {
+        const p = browserMethods["browser.screenshot"].params.parse(raw);
+        const data = await get(p.tab).page.screenshot();
+        return { mime: "image/jpeg", data, bytes: Buffer.byteLength(data, "base64") };
+      }
+      case "browser.inspect": {
+        const p = browserMethods["browser.inspect"].params.parse(raw);
+        return { element: await get(p.tab).page.inspect(p.x, p.y) };
+      }
+      case "browser.preview_edits": {
+        const p = browserMethods["browser.preview_edits"].params.parse(raw);
+        const t = get(p.tab);
+        // Changing the page under an agent would hand it a page its own code never made.
+        if (t.control.kind === "agent")
+          throw new ApxError({ code: "paused_by_user", message: `tab ${p.tab} is in use by ${t.control.by}` });
+        return t.page.previewEdits(p.edits);
+      }
+      case "browser.text": {
+        const p = browserMethods["browser.text"].params.parse(raw);
+        const t = get(p.tab);
+        const pp = await ready();
+        const tree = await pp.send<{ frameTree: { frame: { id: string } } }>("Page.getFrameTree", {}, t.session);
+        // An isolated world: the page's scripts cannot see or patch this read.
+        const { executionContextId } = await pp.send<{ executionContextId: number }>(
+          "Page.createIsolatedWorld",
+          { frameId: tree.frameTree.frame.id, worldName: "apx" },
+          t.session,
+        );
+        const r = await pp.send<{ result: { value?: unknown } }>(
+          "Runtime.evaluate",
+          {
+            expression: "document.body ? document.body.innerText : ''",
+            contextId: executionContextId,
+            returnByValue: true,
+          },
+          t.session,
+        );
+        t.page.assertReadable();
+        const text = t.page.scrub(String(r.result.value ?? "")).replace(/\n{3,}/g, "\n\n");
+        const slice = text.slice(p.offset, p.offset + p.max_chars);
+        return { url: t.url, text: slice, total: text.length, truncated: p.offset + p.max_chars < text.length };
+      }
+      case "browser.control": {
+        const p = browserMethods["browser.control"].params.parse(raw);
+        const t = get(p.tab);
+        if (p.mode === "user") throw noHuman();
+        t.control = { kind: "idle" };
+        changed();
+        return info(t);
+      }
+      case "browser.handoff":
+        throw noHuman();
+      case "browser.cookie_sources":
+        return { sources: [] };
+      case "browser.cookie_domains":
+      case "browser.import_cookies":
+        throw new ApxError({
+          code: "unavailable",
+          message: "the owner's logins come from the APX app on their computer: open it to bring them in",
+        });
+      case "browser.close": {
+        const p = browserMethods["browser.close"].params.parse(raw);
+        await close(p.tab);
+        return { ok: true };
+      }
+      default:
+        throw new ApxError({ code: "unknown_method", message: `the headless browser does not serve ${method}` });
+    }
+  }
 }
 
 export type HeadlessBrowser = ReturnType<typeof createHeadlessBrowser>;

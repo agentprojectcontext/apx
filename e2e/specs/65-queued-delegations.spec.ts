@@ -1,9 +1,13 @@
-// Past three delegations at once from a chat, the next one waits: its card and the chat's processes show it as
-// queued, and it starts and reports back once a slot frees.
+// Past the delegations a chat may run at once, the next ones wait: their cards and the chat's processes show them
+// as queued, and they start and report back as slots free.
+import { MAX_ACTIVE_DELEGATIONS } from "../../apps/core/src/engine/limits.ts";
 import type { Agent, Thread } from "../../packages/protocol/src/domain.ts";
 import { expect, open, rpc, test } from "./kit.ts";
 
-test("a fourth delegation shows as queued, then runs once one of the three ends", async ({ page }) => {
+/** Four workers asked at once: those past the cap wait. */
+const QUEUED = 4 - MAX_ACTIVE_DELEGATIONS;
+
+test("delegations past the cap show as queued, then run as the others end", async ({ page }) => {
   await rpc("setup.finish");
   const { agents } = await rpc<{ agents: Agent[] }>("agents.list");
   const agent = agents.find((a) => a.kind === "secretary");
@@ -18,15 +22,16 @@ test("a fourth delegation shows as queued, then runs once one of the three ends"
 
   const cards = mainChat.locator(".apx-subthread");
   await expect(cards).toHaveCount(4);
-  await expect(cards.getByText("En cola", { exact: true })).toHaveCount(1);
+  await expect(cards.getByText("En cola", { exact: true })).toHaveCount(QUEUED);
 
   const side = page.getByRole("complementary", { name: "Panel lateral" });
   await expect(side.getByText("Activos (4)")).toBeVisible();
-  await expect(side.locator(".processes__row").getByText("En cola", { exact: true })).toHaveCount(1);
+  await expect(side.locator(".processes__row").getByText("En cola", { exact: true })).toHaveCount(QUEUED);
 
   // Opening the queued session says it starts once a slot frees (a delegated session is read-only: no composer).
   await cards
     .filter({ hasText: "En cola" })
+    .first()
     .getByRole("button", { name: /^Abrir conversación con/ })
     .click();
   await expect(page.getByText(/^En cola: .+ empieza cuando termine una de las delegaciones en curso$/)).toBeVisible();
@@ -34,6 +39,6 @@ test("a fourth delegation shows as queued, then runs once one of the three ends"
 
   await expect(side.getByText("Terminados (4)")).toBeVisible({ timeout: 15_000 });
   await expect(cards.getByText("En cola", { exact: true })).toHaveCount(0);
-  // Each result comes back as its own turn, which shows its card again.
+  // Asked in one turn, their results come back together in one turn, which shows their cards again.
   await expect(cards.getByText("Listo", { exact: true })).toHaveCount(8);
 });

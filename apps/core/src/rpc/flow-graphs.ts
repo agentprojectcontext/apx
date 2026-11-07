@@ -25,7 +25,7 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stri
  * and what runs: an AI step's limits stay as they are, and a step the owner limited keeps who it runs as and stays in
  * the drawing (removing it and adding another would drop the limit).
  */
-export function ownersFieldChange(saved: readonly (FlowGraph | null)[], after: FlowGraph): string | undefined {
+function ownersFieldChange(saved: readonly (FlowGraph | null)[], after: FlowGraph): string | undefined {
   const steps = (g: FlowGraph | null) => (g?.nodes ?? []).filter((n): n is AiStep => n.kind === "agent");
   const current = saved.find((g) => g !== null) ?? null;
   for (const n of steps(after)) {
@@ -73,7 +73,7 @@ export function flowReach(store: Store, missing: string) {
 }
 
 /** What a drawing does outside, for the project it belongs to: where its commands run is part of it. */
-export function outwardOf(store: Store, outside: FlowOutside | undefined, projectId: string, graph: FlowGraph) {
+function outwardOf(store: Store, outside: FlowOutside | undefined, projectId: string, graph: FlowGraph) {
   const project = store.projects.get(projectId);
   const local = graph.nodes.some((n) => n.kind === "cmd" || n.kind === "sql");
   const place = local ? (flowFolder(store, outside?.home, projectId) ?? "") : "";

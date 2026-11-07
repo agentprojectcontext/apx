@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { Organization, ProjectKind } from "@apx/protocol";
+import { type Organization, type ProjectKind, siteOrigin } from "@apx/protocol";
 import { declaresApp } from "../../../../packages/surfaces/src/kit.ts";
 import { readOrganization, writeOrganization } from "../apc/org.ts";
 import type { ApcSync } from "../apc/sync.ts";
@@ -101,6 +101,20 @@ export function appHandlers(deps: {
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
       secrets.set(project ? projectSecretName(project, name) : name, value);
       return { ok: true as const };
+    },
+    "secrets.set_sites": ({ name, project, sites }) => {
+      if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
+      // An exact origin (scheme, host and port), or "*" for every site: nothing that could match more than the owner said.
+      const clean = sites.map((s) => {
+        const origin = s.origin === "*" ? "*" : siteOrigin(s.origin);
+        if (!origin || (origin !== "*" && origin !== s.origin.replace(/\/$/, "")))
+          throw badRequest(`not a site's address: ${s.origin}`);
+        return { origin, kind: s.kind };
+      });
+      const unique = clean.filter((s, i) => clean.findIndex((o) => o.origin === s.origin && o.kind === s.kind) === i);
+      if (!secrets.setSites(project ? projectSecretName(project, name) : name, unique))
+        throw notFound(`variable ${name}`);
+      return { sites: unique };
     },
     "models.list": async ({ refresh }) => ({ engines: await deps.catalog.list(refresh) }),
     "models.config": () => ({ default: models.defaultChoice(), router: models.router() }),
@@ -238,6 +252,7 @@ export function appHandlers(deps: {
           pinned: p.pinned,
           // A page written as an app (its apx-surface meta) is one unless the call says otherwise.
           app: p.app ?? (declaresApp(p.html) ? true : undefined),
+          page: p.page,
           connect: p.connect,
         }),
       );
@@ -258,12 +273,15 @@ export function appHandlers(deps: {
           project_id: target,
           created_by: "owner",
           pinned,
+          ...(from.page ? { page: true } : {}),
           ...(from.connect ? { connect: from.connect } : {}),
         }),
       );
     },
-    "surfaces.update": ({ surface, pinned, app }) => {
-      const s = store.surfaces.patch(surface, { pinned, app });
+    "surfaces.update": ({ surface, pinned, app, page, in_apps }) => {
+      if (pinned && (page ?? store.surfaces.get(surface)?.page))
+        throw badRequest("a web page is a document, not a board tile: it cannot be pinned to a board");
+      const s = store.surfaces.patch(surface, { pinned, app, page, in_apps });
       if (!s) throw notFound(`surface ${surface}`);
       return s;
     },
@@ -286,7 +304,7 @@ export function appHandlers(deps: {
       if (!s) throw notFound(`surface ${surface}`);
       return s;
     },
-    "engines.usage": () => engineUsage.read(),
+    "engines.usage": ({ all }) => (all ? engineUsage.readAll() : engineUsage.read()),
     "engines.usage_preferences": () => engineUsage.get(),
     "engines.set_usage": ({ engine, enabled }) => engineUsage.set(engine, enabled),
     "engines.status": async ({ refresh }) => ({

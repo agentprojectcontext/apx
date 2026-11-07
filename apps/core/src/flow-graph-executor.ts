@@ -319,7 +319,10 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
         thread = (made.result as { id: string }).id;
       }
       // Before its first turn: who answers, on which model, and what it may do beyond answering.
-      store.threads.mergeContext(thread, plan.context);
+      store.threads.mergeContext(thread, {
+        ...plan.context,
+        flow_step: { delegate: false, ...plan.context.flow_step, flow: run.flow, node: node.id },
+      });
       const sent = await dispatch("threads.send", { thread, text: plan.text, mode: "queue" }, ctx, idem("run", k));
       if (!sent.ok) throw new Error("Agent admission failed");
     } catch {
@@ -589,4 +592,3 @@ export function createFlowGraphExecutor(deps: FlowGraphExecutorDeps) {
   };
   return api;
 }
-export type FlowGraphExecutor = ReturnType<typeof createFlowGraphExecutor>;

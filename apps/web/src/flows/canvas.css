@@ -30,9 +30,8 @@
   outline: none;
 }
 .fc .react-flow__node-step:focus-visible .apx-flowstep {
-  box-shadow:
-    0 0 0 3px var(--apx-fill-strong),
-    var(--apx-shadow-md);
+  outline: 2px solid var(--apx-fg-muted);
+  outline-offset: 3px;
 }
 .fc .fc-handle {
   width: 9px;

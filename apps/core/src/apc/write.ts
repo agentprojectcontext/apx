@@ -26,7 +26,7 @@ export type AgentFileFields = {
 };
 
 const agentsDir = (root: string) => path.join(root, ".apc", "agents");
-export const agentFile = (root: string, slug: string) => path.join(agentsDir(root), `${slug}.md`);
+const agentFile = (root: string, slug: string) => path.join(agentsDir(root), `${slug}.md`);
 
 const isLink = (p: string) => {
   try {

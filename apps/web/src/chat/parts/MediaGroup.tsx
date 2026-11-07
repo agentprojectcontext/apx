@@ -12,32 +12,35 @@ import "../../styles/media.css";
 const SAFE = /^(https?:|data:image\/)/i;
 
 /** The object URL of a media file APX holds, once loaded (its own copy: a shared hook would be a chunk of its own). */
-function useMediaUrl(id: string | undefined): string | undefined {
+function useMediaUrl(id: string | undefined, onError?: () => void): string | undefined {
   const [url, setUrl] = useState<string>();
   useEffect(() => {
     if (!id) return;
     let live = true;
     mediaUrl(id).then(
       (u) => live && setUrl(u),
-      () => {},
+      () => live && onError?.(),
     );
     return () => {
       live = false;
     };
-  }, [id]);
+  }, [id, onError]);
   return url;
 }
 
-function useImageSrc(part: ImageLike): string | undefined {
-  const own = useMediaUrl(part.media_id);
-  if (part.media_id) return own;
-  return part.type === "image" && part.url && SAFE.test(part.url) ? part.url : undefined;
+function useImageSrc(part: ImageLike, onError?: () => void): string | undefined {
+  const own = useMediaUrl(part.media_id, onError);
+  const remote = part.type === "image" && part.url && SAFE.test(part.url) ? part.url : undefined;
+  useEffect(() => {
+    if (!part.media_id && !remote) onError?.();
+  }, [part.media_id, remote, onError]);
+  return part.media_id ? own : remote;
 }
 
 const nameOf = (part: ImageLike) => (part.type === "file" ? part.name : part.alt || "image");
 
 /** How many tiles each row of a picture grid holds (from five on, the last tile counts the ones left). */
-export function mosaicRows(count: number): number[] {
+function mosaicRows(count: number): number[] {
   if (count <= 0) return [];
   if (count === 1) return [1];
   if (count === 2) return [2];
@@ -46,11 +49,27 @@ export function mosaicRows(count: number): number[] {
   return [2, 3];
 }
 
-export default function MediaGroup({ block }: { block: Exclude<MediaBlock, { kind: "part" }> }) {
-  return block.kind === "images" ? <ImageGrid parts={block.parts} /> : <VideoCarousel parts={block.parts} />;
+export default function MediaGroup({
+  block,
+  eager = false,
+  onImageError,
+  view,
+}: {
+  block: Exclude<MediaBlock, { kind: "part" }>;
+  eager?: boolean;
+  onImageError?: () => void;
+  /** Only the full-size viewer, open on this picture: for screens that show their own thumbnails. */
+  view?: { start: number; onClose: () => void };
+}) {
+  if (view && block.kind === "images") return <Gallery parts={block.parts} start={view.start} onClose={view.onClose} />;
+  return block.kind === "images" ? (
+    <ImageGrid parts={block.parts} eager={eager} onImageError={onImageError} />
+  ) : (
+    <VideoCarousel parts={block.parts} />
+  );
 }
 
-function ImageGrid({ parts }: { parts: ImageLike[] }) {
+function ImageGrid({ parts, eager, onImageError }: { parts: ImageLike[]; eager: boolean; onImageError?: () => void }) {
   const [open, setOpen] = useState<number>();
   const rows = mosaicRows(parts.length);
   const shown = rows.reduce((sum, n) => sum + n, 0);
@@ -72,6 +91,8 @@ function ImageGrid({ parts }: { parts: ImageLike[] }) {
                   part={part}
                   more={more}
                   single={parts.length === 1}
+                  eager={eager}
+                  onImageError={onImageError}
                   wide={count === 1 && rows.length > 1}
                   onOpen={() => setOpen(index)}
                 />
@@ -89,16 +110,20 @@ function Tile({
   part,
   more,
   single,
+  eager,
   wide,
   onOpen,
+  onImageError,
 }: {
   part: ImageLike;
   more: number;
   single: boolean;
+  eager: boolean;
   wide: boolean;
   onOpen: () => void;
+  onImageError?: () => void;
 }) {
-  const src = useImageSrc(part);
+  const src = useImageSrc(part, onImageError);
   const [shown, setShown] = useState(false);
   const items = useImageMenu(src, nameOf(part), !part.media_id, onOpen);
   const cls = `mediagrid__tile${wide ? " is-wide" : ""}${shown ? "" : " is-loading"}`;
@@ -114,7 +139,7 @@ function Tile({
       <img
         src={src}
         alt={part.type === "image" ? part.alt : part.name}
-        loading={single ? "eager" : "lazy"}
+        loading={single || eager ? "eager" : "lazy"}
         onLoad={() => setShown(true)}
         onError={() => setShown(true)}
       />

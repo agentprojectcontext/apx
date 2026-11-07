@@ -102,11 +102,32 @@ plan, and APX gives it its chat, panels, approvals and history.
 
 <Shot name="external-sessions" alt="External sessions, Claude Code: sessions started in APX at the top and, under On this computer, sessions found on disk with their folders" caption="External sessions" />
 
+You can write while the session works. Claude Code reads your message once the command or edit it is on finishes,
+without stopping. Codex reads messages only between turns, so Enter there stops the turn and sends your message at
+once. See [Writing while it works](/office/chat/#writing-while-it-works).
+
 ### Resuming your own sessions
 
 Below the sessions started in APX, **On this computer** lists the Claude Code and Codex sessions you already have on
 this machine (from `~/.claude` and `~/.codex`), with their folder. Click one to **go on with it here**: the engine
 picks up its own session, history included, and from then on it lives in APX too.
+
+### Sessions your agent starts
+
+You can also ask one of your agents to open a session for you: "open a read-only Claude Code session to review the
+checkout code". The agent picks the engine, the project and, if you named one, the model (otherwise the engine's
+default), and sends the session its first task. The session shows under **External sessions** in that project, like
+one you started, and its answer comes back to the agent that asked, so you don't need to check on it.
+
+- Each start asks for your OK on a card, even in Auto. Only Total, or the agent's **irreversible** rule set to run
+  without asking, skips it ([Rules by case](/concepts/autonomy/#rules-by-case)); in Plan the agent can't start one.
+- The session never gets more than the agent that asked: no freer write policy than its chat, no more than the
+  project's autonomy allows, and only inside the agent's folder. An agent tied to one project can't open a session in
+  another.
+- It counts against the asking agent's spending limits: when those are reached, the session doesn't start and takes
+  no new messages.
+- An agent answering another agent can't start sessions; and a session is not a teammate or a shell: it is the engine
+  itself, with its own prompt.
 
 <Aside type="note" title="What APX keeps in check">
 - Claude Code loads only your own user settings, not a repository's `.claude/settings` files (which could allow tools
@@ -115,6 +136,8 @@ picks up its own session, history included, and from then on it lives in APX too
   the session read, unless the agent's own rules ask before writing or turn it off; on Manual or Plan it runs
   read-only (and says why), unless its rules let it write on its own. A session another agent delegated with
   **Asks before changes** stays read-only for Codex even on Total, since it cannot ask.
+- The engine's checklist is APX's plan, under its answer (in a task's chat, the task's plan). Claude Code's own task
+  list, subagents and questions are not offered: it uses APX's plan, delegation and questions, with their approvals.
 - Once an engine session reads outside content (a web page, a message), the rest of that session is treated as
   untrusted, as an APX agent's would be.
 </Aside>

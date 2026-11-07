@@ -104,11 +104,34 @@ plan, y APX le da su chat, sus paneles, sus aprobaciones y su historial.
 
 <Shot name="external-sessions" alt="Sesiones externas, Claude Code: arriba las sesiones empezadas en APX y, bajo En esta computadora, las sesiones encontradas en disco con sus carpetas" caption="Sesiones externas" />
 
+Podés escribir mientras la sesión trabaja. Claude Code lee tu mensaje cuando termina el comando o la edición en la que
+está, sin cortar. Codex solo lee mensajes entre turnos, así que ahí Enter corta el turno y manda tu mensaje en el
+momento. Mirá [Escribir mientras trabaja](/es/office/chat/#escribir-mientras-trabaja).
+
 ### Retomar tus propias sesiones
 
 Debajo de las sesiones empezadas en APX, **En esta computadora** lista las sesiones de Claude Code y Codex que ya
 tenés en esta máquina (de `~/.claude` y `~/.codex`), con su carpeta. Tocá una para **seguirla acá**: el motor retoma
 su propia sesión, con historial y todo, y desde ahí vive también en APX.
+
+### Sesiones que abre tu agente
+
+También podés pedirle a uno de tus agentes que abra una sesión por vos: "abrí una sesión de Claude Code de sólo
+lectura para revisar el código del checkout". El agente elige el motor, el proyecto y, si nombraste uno, el modelo
+(si no, el predeterminado del motor), y le manda a la sesión su primera tarea. La sesión aparece en **Sesiones
+externas** dentro de ese proyecto, como una que abriste vos, y su respuesta vuelve al agente que la pidió, así que no
+hace falta que la vigiles.
+
+- Cada inicio te pide el OK en una tarjeta, aun en Auto. Sólo Total, o la regla **irreversible** del agente puesta en
+  correr sin preguntar, lo saltea ([Reglas por caso](/es/concepts/autonomy/#reglas-por-caso)); en Plan el agente no
+  puede abrir una.
+- La sesión nunca tiene más que el agente que la pidió: ninguna política de escritura más libre que la de su chat,
+  nada más allá de lo que permite la autonomía del proyecto, y sólo dentro de la carpeta del agente. Un agente atado
+  a un proyecto no puede abrir una sesión en otro.
+- Cuenta para los límites de gasto del agente que la pidió: cuando se alcanzan, la sesión no arranca y no toma
+  mensajes nuevos.
+- Un agente que le está respondiendo a otro no puede abrir sesiones; y una sesión no es un compañero ni una terminal:
+  es el motor en persona, con su propio prompt.
 
 <Aside type="note" title="Lo que APX controla">
 - Claude Code carga solo tu configuración de usuario, no los archivos `.claude/settings` de un repositorio (que
@@ -119,6 +142,9 @@ su propia sesión, con historial y todo, y desde ahí vive también en APX.
   Manual o Plan corre en sólo lectura (y explica por qué), salvo que sus reglas lo dejen escribir solo. Una sesión que
   otro agente delegó con **Pregunta antes de cambiar** queda en sólo lectura para Codex aun en Total, porque no puede
   preguntar.
+- La lista de pasos del motor es el plan de APX, debajo de su respuesta (en el chat de una tarea, el plan de la tarea).
+  Claude Code no tiene su propia lista de tareas, subagentes ni preguntas: usa el plan, las delegaciones y las preguntas
+  de APX, con sus aprobaciones.
 - Una vez que una sesión de motor lee contenido de afuera (una página web, un mensaje), el resto de esa sesión se
   trata como no confiable, igual que la de un agente de APX.
 </Aside>

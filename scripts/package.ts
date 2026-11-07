@@ -46,7 +46,7 @@ const version =
 const env = { ...process.env, APX_VERSION: version };
 
 step("pnpm", ["build:web"], repo, env);
-step("pnpm", ["--filter", "@apx/desktop", "build"]);
+step("pnpm", ["--filter", "@apx/desktop", "build"], repo, { ...env, APX_TARGET: `${os}-${arch}` });
 step("node", ["apps/desktop/scripts/stage.ts"], repo, { ...env, APX_TARGET: `${os}-${arch}` });
 // A cross-built bundle's native modules cannot load here; its own platform's build starts it.
 if (host?.os === os && host.arch === arch) step("node", ["apps/desktop/scripts/smoke.ts"]);

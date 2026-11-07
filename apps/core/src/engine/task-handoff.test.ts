@@ -31,6 +31,7 @@ test("self-assignment transfers execution, preserves findings and reports back w
     if (!results.length) return callTool("findings", "task_list", {});
     if (results.length === 1) {
       const create = callTool("transfer", "task_create", {
+        goal: "Done as asked",
         title: "Single execution goal",
         description: "Use the existing findings and finish.",
         assignee: "superagent",
@@ -110,6 +111,7 @@ test("creating a self-task after delegation is refused without starting duplicat
       });
     if (tools.length === 1)
       return callTool("duplicate-task", "task_create", {
+        goal: "Done as asked",
         title: "Duplicated subscription research",
         description: "Research subscription limits again.",
         assignee: "superagent",
@@ -228,6 +230,7 @@ for (const busy of ["helper", "job", "queued turn", "tool"] as const) {
         });
       }
       return callTool("transfer", "task_create", {
+        goal: "Done as asked",
         title: "No second executor",
         description: "Keep the existing work.",
         assignee: "superagent",
@@ -258,6 +261,7 @@ for (const mode of ["draft", "proposal", "scheduled", "other agent"] as const) {
       const count = req.messages.filter((m) => m.role === "tool").length;
       if (!count)
         return callTool("create", "task_create", {
+          goal: "Done as asked",
           title: `Independent ${mode}`,
           description: mode === "draft" ? undefined : "Separate work.",
           assignee: mode === "other agent" ? "vera" : "superagent",
@@ -289,7 +293,11 @@ test("assigning an existing draft to self also transfers execution", async () =>
     if (said.includes("Work on this task.")) return say("Task owns execution.");
     const tools = req.messages.filter((m) => m.role === "tool");
     if (!tools.length)
-      return callTool("draft", "task_create", { title: "Draft transfer", description: "Finish this work." });
+      return callTool("draft", "task_create", {
+        goal: "Done as asked",
+        title: "Draft transfer",
+        description: "Finish this work.",
+      });
     if (tools.length === 1)
       return callTool("assign", "task_update", {
         task: /created (task_\w+)/.exec(String(tools[0]?.content))?.[1],
@@ -322,6 +330,7 @@ test("external harness handoff refuses further APX and native tools and preserve
     id: "claude",
     async run(io) {
       const result = await io.execute("transfer", "task_create", {
+        goal: "Done as asked",
         title: "External transfer",
         description: "Finish once.",
         assignee: "superagent",

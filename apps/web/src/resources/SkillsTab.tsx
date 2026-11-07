@@ -16,7 +16,7 @@ const keyOf = (s: SkillInfo) => `${s.scope}:${s.project_id ?? ""}:${s.name}`;
 const folderOf = (skillMd: string) => skillMd.replace(/[\\/]SKILL\.md$/, "");
 
 /** Another app's skill copied into APX: its folder, into APX's skills (or the project's, for a project's own). */
-export const copyStart = (s: SkillInfo): ImportStart => ({
+const copyStart = (s: SkillInfo): ImportStart => ({
   source: { kind: "folder", path: folderOf(s.path) },
   project: s.scope === "project" ? s.project_id : undefined,
 });

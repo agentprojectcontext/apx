@@ -89,6 +89,7 @@ export const officeMethods = {
       .object({
         title: z.string().trim().min(1).max(200),
         description: z.string().max(10_000).optional(),
+        goal: z.string().trim().max(500).optional(),
         attachments: z.array(Id).max(20).optional(),
         project: Id.optional(),
         assignee: Id.optional(),
@@ -124,6 +125,8 @@ export const officeMethods = {
         status: z.string().max(40).optional(),
         assignee: Id.nullable().optional(),
         project: Id.nullable().optional(),
+        /** Regroup existing work without starting it again; null detaches it. */
+        parent: Id.nullable().optional(),
         kind: TaskKind.optional(),
         priority: TaskPriority.optional(),
         tags: z.array(TaskTag).max(12).optional(),
@@ -132,6 +135,7 @@ export const officeMethods = {
         start_at: z.string().max(40).nullable().optional(),
         /** Who checks it in review: "owner" or an agent (id or name); null: the owner again. */
         reviewer: z.string().max(80).nullable().optional(),
+        goal: z.string().trim().max(500).nullable().optional(),
         plan: z.string().max(4000).nullable().optional(),
         /** false accepts a proposal (the owner only): its work starts as if it had just been given. */
         proposed: z.literal(false).optional(),
@@ -181,6 +185,21 @@ export const officeMethods = {
   "tasks.comment": {
     params: z.object({ task: Id, text: z.string().trim().min(1).max(20_000) }).strict(),
     result: z.object({ message: Message, runs: z.array(Run) }),
+    effect: true,
+  },
+  /**
+   * Takes the named agents' comments out of a task's conversation; the owner's words and cards stay. A summary is
+   * left in their place when given. `kept`: the named ones that were not removed.
+   */
+  "tasks.tidy": {
+    params: z
+      .object({
+        task: Id,
+        remove: z.array(Id).min(1).max(500),
+        summary: z.string().trim().min(1).max(3000).optional(),
+      })
+      .strict(),
+    result: z.object({ removed: z.number().int(), kept: z.array(Id), message: Message.optional() }),
     effect: true,
   },
   /** Routines, all or one project's (the global ones have no project). */

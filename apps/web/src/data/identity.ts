@@ -37,7 +37,7 @@ export const baseName = (): string => data.get().base.name;
 export const DELEGATED_SHOWN = 5;
 
 /** Threads the chat lists show: not archived, a sub-thread between agents, nor a task's or a routine's conversation. */
-export function isListed(t: Pick<Thread, "parent_id" | "kind" | "archived">): boolean {
+export function isListed(t: Pick<Thread, "parent_id" | "kind" | "engine" | "archived">): boolean {
   return !t.archived && isTopLevel(t);
 }
 
@@ -45,16 +45,21 @@ export function isListed(t: Pick<Thread, "parent_id" | "kind" | "archived">): bo
  * What the Inbox lists: the chats, and with `routines` the routine runs that told something (a quiet run is archived;
  * one still running waits until it has said it).
  */
-export function inInbox(t: Pick<Thread, "parent_id" | "kind" | "archived" | "state">, routines: boolean): boolean {
+export function inInbox(
+  t: Pick<Thread, "parent_id" | "kind" | "engine" | "archived" | "state">,
+  routines: boolean,
+): boolean {
   return isListed(t) || (routines && t.kind === "routine" && !t.parent_id && !t.archived && !isWorking(t.state));
 }
 
 /** A routine run's chat is titled "<routine> · <when>". */
 export const routineName = (t: Pick<Thread, "title">): string => t.title.split(" · ")[0] ?? t.title;
 
-/** A chat of its own (not a sub-thread, a task's or a routine's), archived or not. */
-export function isTopLevel(t: Pick<Thread, "parent_id" | "kind">): boolean {
-  return !t.parent_id && t.kind !== "a2a" && t.kind !== "task" && t.kind !== "routine";
+/** A listed chat, archived or not. External code sessions keep their delivery parent without hiding from lists. */
+export function isTopLevel(t: Pick<Thread, "parent_id" | "kind" | "engine">): boolean {
+  return (
+    (t.kind === "code" && !!t.engine) || (!t.parent_id && t.kind !== "a2a" && t.kind !== "task" && t.kind !== "routine")
+  );
 }
 
 export function isWorking(state: Thread["state"] | undefined): boolean {

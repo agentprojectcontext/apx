@@ -6,7 +6,7 @@ import { taskStateActions } from "../common/taskStateActions.tsx";
 import { blobOf } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import { archiveTaskChats } from "../data/taskChats.ts";
-import { closeTask, updateTask } from "../data/tasks.ts";
+import { acceptReviewedTasks, closeTask, updateTask } from "../data/tasks.ts";
 import type { T } from "../i18n/index.ts";
 import { PRIORITIES, PRIORITY_KEY, PriorityDot } from "./TaskFields.tsx";
 import { type GroupId, moveTo } from "./taskGroups.ts";
@@ -57,6 +57,15 @@ export function taskMenu(
   const { t } = o;
   return [
     { label: t("tasks.menu.open"), icon: <Icons.PanelRight />, onSelect: o.onOpen },
+    ...(task.proposed && task.state === "open"
+      ? [
+          {
+            label: t("tasks.accept"),
+            icon: <Icons.Check />,
+            onSelect: () => void acceptReviewedTasks([task]),
+          },
+        ]
+      : []),
     ...copyItems(task, t),
     { type: "separator" },
     ...taskStateActions(task, o.columns, t),

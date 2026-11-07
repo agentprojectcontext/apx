@@ -26,9 +26,10 @@ import {
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { taskChatIds } from "../data/taskChats.ts";
-import { acceptTasks, loadTasks, useTasks } from "../data/tasks.ts";
+import { loadTasks, useTasks } from "../data/tasks.ts";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
+import { AcceptProposals } from "./AcceptProposals.tsx";
 import { CommitmentMeta } from "./Commitments.tsx";
 import { kindLabel, PriorityDot } from "./TaskFields.tsx";
 import { DeleteTask, NewTask } from "./TaskForms.tsx";
@@ -106,6 +107,7 @@ export function TasksList({
   const [more, setMore] = useState<Set<GroupId>>(new Set());
   const [closedOpen, setClosedOpen] = useState(false);
   const [deleting, setDeleting] = useState<Task>();
+  const [accepting, setAccepting] = useState<Task[]>();
   const [folded, setFolded] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => {
     void loadTasks();
@@ -256,7 +258,7 @@ export function TasksList({
                   )}
                   <span className="tasks__groupcount">{g.items.length}</span>
                   {g.id === "proposed" && (
-                    <Button size="sm" variant="ghost" onClick={() => void acceptTasks(g.items.map((x) => x.id))}>
+                    <Button size="sm" variant="ghost" onClick={() => setAccepting(g.items)}>
                       {t("tasks.acceptAll")}
                     </Button>
                   )}
@@ -283,6 +285,7 @@ export function TasksList({
       )}
       {current && <TaskPanel key={current.id} task={current} onClose={() => setOpen(undefined)} />}
       {creating && <NewTask projectId={projectId} onClose={() => setCreating(false)} />}
+      {accepting && <AcceptProposals tasks={accepting} onClose={() => setAccepting(undefined)} />}
       {deleting && <DeleteTask task={deleting} onClose={() => setDeleting(undefined)} />}
     </div>
   );

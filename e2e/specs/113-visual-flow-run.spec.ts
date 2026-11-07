@@ -122,7 +122,18 @@ for (const lang of ["en", "es"] as const) {
     await expect(page.locator(".fd__runline")).toContainText(l.done);
     await expect(page.locator('.react-flow__node[data-id="condition-1"]')).toContainText("No");
     await page.locator('.react-flow__node[data-id="table_write-2"]').click();
-    await expect(page.locator(".fd__io")).toContainText('"item": "Chair"');
+    // The step picked is ringed; its data reads as fields, and as the JSON it is.
+    await expect(page.locator(".apx-flowstep--selected")).toHaveCount(1);
+    await expect(page.locator('.react-flow__node[data-id="table_write-2"] .apx-flowstep--selected')).toBeVisible();
+    const input = page.locator(".fd__io .sv").first();
+    await expect(input.locator(".sv__leaf").filter({ hasText: /^item/ }).first()).toContainText("Chair");
+    await input.getByRole("radio", { name: lang === "en" ? "Text" : "Texto" }).click();
+    await expect(input).toContainText('"item": "Chair"');
+    // The table it saves to shows its latest rows by column; a row's key opens it whole.
+    const rows = page.locator(".fd__grid");
+    await expect(rows).toContainText("others");
+    await rows.getByRole("button", { name: "others" }).click();
+    await expect(page.locator(".fd__rowopen")).toContainText("Chair");
     await page.locator('.react-flow__node[data-id="table_write-1"]').click();
     await expect(page.locator(".fd__io")).toContainText(
       lang === "en" ? "its branch wasn't taken" : "no se tomó su camino",

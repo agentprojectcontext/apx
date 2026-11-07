@@ -476,14 +476,14 @@
   color: var(--apx-fg-muted);
 }
 .git__letter.is-M {
-  color: var(--apx-warning, #d4a72c);
+  color: var(--apx-warning);
 }
 .git__letter.is-A,
 .git__letter.is-U {
-  color: var(--apx-success, #3fb950);
+  color: var(--apx-brand);
 }
 .git__letter.is-D {
-  color: var(--apx-danger, #f85149);
+  color: var(--apx-danger);
 }
 .git__name {
   flex: none;
@@ -510,10 +510,10 @@
   font-size: var(--apx-text-xs);
 }
 .git__counts .is-add {
-  color: var(--apx-success, #3fb950);
+  color: var(--apx-brand);
 }
 .git__counts .is-del {
-  color: var(--apx-danger, #f85149);
+  color: var(--apx-danger);
 }
 /* The stage/unstage button shows on hover or focus, so rows stay quiet. */
 .git__move {
