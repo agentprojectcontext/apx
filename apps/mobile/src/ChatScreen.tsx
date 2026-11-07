@@ -16,6 +16,7 @@ import { isNewChat } from "./chat/newChat";
 import { showsStartHint, type TranscriptRow, usageText, withDays } from "./chat/transcript";
 import { useAttachments } from "./chat/useAttachments";
 import { useVoiceNote } from "./chat/useVoiceNote";
+import { inLine, outOfLine } from "./chat/waiting";
 import type { Creds } from "./creds";
 import { dayLabel } from "./format";
 import { channelIdentity, engineName, isWorking, routineName, threadContext } from "./hooks/chatSelectors";
@@ -29,6 +30,7 @@ import { ChatComposer } from "./ui/ChatComposer";
 import { ChatMenu } from "./ui/ChatMenu";
 import { ChatMessage } from "./ui/ChatMessage";
 import { ComputerProgress } from "./ui/chat/ComputerProgress";
+import { LineLabel } from "./ui/chat/WaitingControls";
 import { EngineIcon } from "./ui/EngineIcon";
 import { Icon } from "./ui/Icon";
 import { ActivityPill, AgentAvatar, BottomSheet, EmptyState, IconButton, ListRow, Spinner } from "./ui/kit";
@@ -101,7 +103,10 @@ export function ChatScreen({
     const later = InteractionManager.runAfterInteractions(() => setSettled(true));
     return () => later.cancel();
   }, []);
-  const rows = useMemo(() => withDays(live.messages).reverse(), [live.messages]);
+  // What waits for the agent's next turn sits below the chat, in the order it will run, not where it was written.
+  const line = useMemo(() => inLine(live.messages), [live.messages]);
+  const rows = useMemo(() => withDays(outOfLine(live.messages)).reverse(), [live.messages]);
+  const queue = useMemo(() => ({ actions: live.waiting }), [live.waiting]);
   const mailChannels = useMemo(
     () => new Set(data.channels.filter((c) => c.type === "email").map((c) => c.id)),
     [data.channels],
@@ -244,11 +249,23 @@ export function ChatScreen({
             contentContainerStyle={s.transcript}
             // The list is inverted: its header sits below the newest message, where the panel shows activity.
             ListHeaderComponent={
-              working ? (
-                <ActivityPill tone="brand" label={doing} from={avatar} />
-              ) : live.state === "input-required" ? (
-                <ActivityPill tone="danger" label={t("isWaitingForYou", { name })} />
-              ) : null
+              <>
+                {working ? (
+                  <ActivityPill tone="brand" label={doing} from={avatar} />
+                ) : live.state === "input-required" ? (
+                  <ActivityPill tone="danger" label={t("isWaitingForYou", { name })} />
+                ) : null}
+                {line.length ? <LineLabel name={name} /> : null}
+                {line.map((message) => (
+                  <ChatMessage
+                    key={message.id}
+                    message={message}
+                    agents={data.agents}
+                    respond={live.respond}
+                    queue={{ actions: live.waiting, line }}
+                  />
+                ))}
+              </>
             }
             ListHeaderComponentStyle={s.activity}
             renderItem={({ item }) =>
@@ -276,6 +293,7 @@ export function ChatScreen({
                     sessionState={(session) => sessionState(live.client, session)}
                     {...(onOpenThread ? { openThread: onOpenThread } : {})}
                     mailChannels={mailChannels}
+                    queue={queue}
                   />
                 </View>
               )

@@ -712,4 +712,11 @@ export const es: Record<Key, string> = {
   mailOutlookWeb: "Outlook en la web",
   mailMore: "Ver todo",
   mailLess: "Ver menos",
+  waitingSendNow: "Enviar ahora",
+  waitingTaken: "Ahora",
+  waitingLine: "En cola para cuando {name} termine",
+  waitingEdit: "Editar",
+  waitingRemove: "Quitar",
+  waitingUp: "Subir",
+  waitingDown: "Bajar",
 };

@@ -708,6 +708,13 @@ export const en = {
   mailOutlookWeb: "Outlook on the web",
   mailMore: "Show all",
   mailLess: "Show less",
+  waitingSendNow: "Send now",
+  waitingTaken: "Now",
+  waitingLine: "In line for when {name} finishes",
+  waitingEdit: "Edit",
+  waitingRemove: "Remove",
+  waitingUp: "Move up",
+  waitingDown: "Move down",
 } as const;
 
 export type Key = keyof typeof en;

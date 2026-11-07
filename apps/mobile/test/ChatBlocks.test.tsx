@@ -1,4 +1,4 @@
-import { render, within } from "@testing-library/react-native";
+import { fireEvent, render, within } from "@testing-library/react-native";
 import { t } from "../src/i18n";
 import type { Message } from "../src/protocol";
 import { ChatMessage } from "../src/ui/ChatMessage";
@@ -100,4 +100,57 @@ test("a table the agent wrote shows as a grid that scrolls sideways, not as pipe
   expect(within(table).getByText("Freeze the catalog")).toBeTruthy();
   expect(within(table).getByText("Vera")).toBeTruthy();
   expect(ui.queryByText(/\|/)).toBeNull();
+});
+
+test("the owner's words waiting for the agent can be sent now, taken back, edited and moved", async () => {
+  const actions = {
+    sendNow: jest.fn(async () => {}),
+    unsend: jest.fn(async () => {}),
+    editQueued: jest.fn(async () => true),
+    moveQueued: jest.fn(async () => {}),
+  };
+  const mine = (id: string, waiting: Message["waiting"]) =>
+    ({
+      ...turn,
+      id,
+      author: { kind: "user" },
+      parts: [{ type: "text", text: `words ${id}` }],
+      waiting,
+    }) as unknown as Message;
+  const steer = mine("steer", { until: "step" });
+  const step = await render(<ChatMessage message={steer} agents={[]} respond={async () => {}} queue={{ actions }} />);
+  await fireEvent.press(step.getByRole("button", { name: t("waitingSendNow") }));
+  expect(actions.sendNow).toHaveBeenCalledWith(steer);
+  expect(step.queryByRole("button", { name: t("waitingEdit") })).toBeNull();
+  await fireEvent.press(step.getByRole("button", { name: t("waitingRemove") }));
+  expect(actions.unsend).toHaveBeenCalledWith(steer);
+  await step.unmount();
+
+  const line = [mine("a", { until: "turn", run: "run_a" }), mine("b", { until: "turn", run: "run_b" })];
+  const second = await render(
+    <ChatMessage message={line[1] as Message} agents={[]} respond={async () => {}} queue={{ actions, line }} />,
+  );
+  expect(second.queryByRole("button", { name: t("waitingDown") })).toBeNull();
+  await fireEvent.press(second.getByRole("button", { name: t("waitingUp") }));
+  expect(actions.moveQueued).toHaveBeenCalledWith(line, line[1], -1);
+  await fireEvent.press(second.getByRole("button", { name: t("waitingEdit") }));
+  await fireEvent.changeText(second.getByDisplayValue("words b"), "new words");
+  await fireEvent.press(second.getByRole("button", { name: t("save") }));
+  expect(actions.editQueued).toHaveBeenCalledWith(line[1], "new words");
+  await second.unmount();
+});
+
+test("a message the agent took after it waited reads as taken", async () => {
+  const waiting = {
+    ...turn,
+    id: "w1",
+    author: { kind: "user" },
+    parts: [{ type: "text", text: "hey" }],
+  } as unknown as Message;
+  const ui = await render(
+    <ChatMessage message={{ ...waiting, waiting: { until: "step" } }} agents={[]} respond={async () => {}} />,
+  );
+  expect(ui.queryByText(t("waitingTaken"))).toBeNull();
+  await ui.rerender(<ChatMessage message={waiting} agents={[]} respond={async () => {}} />);
+  expect(ui.getByText(t("waitingTaken"))).toBeTruthy();
 });

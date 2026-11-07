@@ -21,6 +21,7 @@ import { type ContinueSession, type GoOn, NoticeCard, type SessionState } from "
 import { PlanCard } from "./chat/PlanCard";
 import { SkillsRow } from "./chat/SkillsRow";
 import { SubthreadCard } from "./chat/SubthreadCard";
+import { TakenMark, useTaken, type WaitingActions, WaitingControls } from "./chat/WaitingControls";
 import { Icon } from "./Icon";
 import { AgentAvatar } from "./kit";
 import { Markdown } from "./Markdown";
@@ -57,6 +58,7 @@ export function ChatMessage({
   sessionState,
   openThread,
   mailChannels,
+  queue,
 }: {
   message: Message;
   agents: Agent[];
@@ -78,6 +80,8 @@ export function ChatMessage({
   openThread?: (id: string) => void;
   /** The email channels' ids: what a contact wrote on one shows as a mail. */
   mailChannels?: ReadonlySet<string>;
+  /** What the owner can do with their own message while it waits; `line` when it waits in line for the next turn. */
+  queue?: { actions: WaitingActions; line?: Message[] };
 }) {
   const theme = useTheme();
   const s = useStyles();
@@ -202,6 +206,7 @@ export function ChatMessage({
   // An emoji "by the agent" is the chat's own agent's, whoever wrote the message.
   const chatAgent = agents.find((one) => one.id === thread?.agent_ids[0])?.name;
   const ticks = message.delivery ? <DeliveryTicks state={message.delivery} /> : null;
+  const taken = useTaken(message);
   return (
     <MailContext.Provider value={mailContext}>
       <View style={[s.wrap, mine ? s.mineWrap : s.theirsWrap]}>
@@ -219,10 +224,20 @@ export function ChatMessage({
         )}
         {message.reactions?.length ? <Reactions list={message.reactions} agentName={chatAgent ?? name} /> : null}
         {mine ? (
-          <View style={[s.metaRow, { marginRight: 6 }]}>
-            <Text style={s.meta}>{clock(message.created_at)}</Text>
-            {ticks}
-          </View>
+          <>
+            {message.waiting && queue ? (
+              <WaitingControls
+                message={message}
+                actions={queue.actions}
+                {...(queue.line ? { line: queue.line } : {})}
+              />
+            ) : null}
+            <View style={[s.metaRow, { marginRight: 6 }]}>
+              <Text style={s.meta}>{clock(message.created_at)}</Text>
+              {ticks}
+              {taken ? <TakenMark /> : null}
+            </View>
+          </>
         ) : hasText || message.model || message.delivery ? (
           <View style={[s.metaRow, { marginLeft: author.kind === "person" ? 40 : 6 }]}>
             <Text numberOfLines={1} style={[s.meta, { flexShrink: 1 }]}>
