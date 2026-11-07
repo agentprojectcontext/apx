@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { draftOf, keepDraft } from "./chat/drafts";
+import { latestPlan } from "./chat/media";
 import { type CatalogEngine, choiceLabel, type ModelChoice } from "./chat/models";
 import { isNewChat } from "./chat/newChat";
 import { showsStartHint, type TranscriptRow, usageText, withDays } from "./chat/transcript";
@@ -107,6 +108,7 @@ export function ChatScreen({
   const line = useMemo(() => inLine(live.messages), [live.messages]);
   const rows = useMemo(() => withDays(outOfLine(live.messages)).reverse(), [live.messages]);
   const queue = useMemo(() => ({ actions: live.waiting }), [live.waiting]);
+  const planAt = useMemo(() => latestPlan(live.messages), [live.messages]);
   const mailChannels = useMemo(
     () => new Set(data.channels.filter((c) => c.type === "email").map((c) => c.id)),
     [data.channels],
@@ -295,6 +297,7 @@ export function ChatScreen({
                     mailChannels={mailChannels}
                     channels={data.channels}
                     queue={queue}
+                    showPlan={item.message.id === planAt}
                   />
                 </View>
               )

@@ -10,7 +10,7 @@ import { type ApxClient, type Message, receivedMail } from "../protocol";
 import { ActionGroup } from "./ActionGroup";
 import { AgentEventCard } from "./chat/AgentEventCard";
 import { BrowserCard } from "./chat/BrowserCard";
-import { isAgentEvent, isGeneratingImage } from "./chat/blocks";
+import { formsImage, isAgentEvent } from "./chat/blocks";
 import { ChangesCard } from "./chat/ChangesCard";
 import { ChoicesCard } from "./chat/ChoicesCard";
 import { ConnectCard } from "./chat/ConnectCard";
@@ -66,6 +66,7 @@ export function ChatMessage({
   mailChannels,
   channels = [],
   queue,
+  showPlan = true,
 }: {
   message: Message;
   agents: Agent[];
@@ -87,6 +88,8 @@ export function ChatMessage({
   openThread?: (id: string) => void;
   /** The email channels' ids: what a contact wrote on one shows as a mail. */
   mailChannels?: ReadonlySet<string>;
+  /** Whether its plan shows: only the chat's newest one does. */
+  showPlan?: boolean;
   /** The office's chat apps: a message that came in or went out on one says so. */
   channels?: ReadonlyArray<{ id: string; type: string; label: string }>;
   /** What the owner can do with their own message while it waits; `line` when it waits in line for the next turn. */
@@ -108,8 +111,9 @@ export function ChatMessage({
           ? author.title
           : "APX";
   const hasText = message.parts.some((part) => part.type === "text" && part.text.trim());
-  const rows = useMemo(() => mediaRows(message.parts), [message.parts]);
-  const generating = tools.some((part) => isGeneratingImage(part, runState));
+  const live = runState === "working" || runState === "submitted" || runState === "queued";
+  const rows = useMemo(() => mediaRows(message.parts, { shown: showPlan, live }), [message.parts, showPlan, live]);
+  const generating = formsImage(message.parts, runState);
   const event = thread ? isAgentEvent(thread, message) : false;
   const skills = event ? undefined : message.parts.find((part) => part.type === "skills");
   const [open, setOpen] = useState<Open>();

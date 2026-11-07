@@ -99,7 +99,10 @@ export function mediaOf(part: Part, key: string): MediaItem | undefined {
  * A message's parts as rows: pictures next to each other become one grid, videos one carousel. Tool calls show in
  * their own group above, so they do not split a run.
  */
-export function mediaRows(parts: readonly Part[]): Row[] {
+export function mediaRows(
+  parts: readonly Part[],
+  plan: { shown: boolean; live: boolean } = { shown: true, live: true },
+): Row[] {
   const rows: Row[] = [];
   const seen = new Map<string, number>();
   for (const part of parts) {
@@ -118,9 +121,11 @@ export function mediaRows(parts: readonly Part[]): Row[] {
     } else if (item) rows.push({ kind: "media", item, key });
     else rows.push({ kind: "part", part, key });
   }
-  // The plan closes the message while the agent works, as on the web panel.
+  // Only the chat's newest plan shows; while the run works it closes the message, then it keeps its place.
   const isPlan = (row: Row) => row.kind === "part" && row.part.type === "plan";
-  return [...rows.filter((row) => !isPlan(row)), ...rows.filter(isPlan)];
+  const rest = rows.filter((row) => !isPlan(row));
+  if (!plan.shown) return rest;
+  return plan.live ? [...rest, ...rows.filter(isPlan)] : rows;
 }
 
 /**
@@ -143,3 +148,7 @@ export function sizeText(bytes: number | undefined): string {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
+
+/** The chat's newest message with a plan: the only one whose plan is drawn (each turn writes its own). */
+export const latestPlan = (messages: readonly Message[]): string | undefined =>
+  messages.findLast((m) => m.parts.some((p) => p.type === "plan"))?.id;

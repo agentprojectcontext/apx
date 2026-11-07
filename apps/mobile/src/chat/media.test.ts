@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Message } from "../protocol";
-import { extensionOf, fileName, galleryFileName, mediaRows, mosaicRows, sizeText } from "./media.ts";
+import { extensionOf, fileName, galleryFileName, latestPlan, mediaRows, mosaicRows, sizeText } from "./media.ts";
 
 type Part = Message["parts"][number];
 
@@ -106,4 +106,18 @@ test("a local copy keeps the file's own name, made safe, with an extension", () 
   assert.equal(fileName({ name: "01-chela.mp4", mime: "video/mp4" }), "01-chela.mp4");
   assert.equal(fileName({ name: "a/b:c", mime: "image/png" }), "a_b_c.png");
   assert.equal(fileName({ name: "..", mime: "image/jpeg" }), "file.jpg");
+});
+
+test("only the chat's newest plan shows; once its run ends it stays where it was written", () => {
+  const plan: Part = { type: "plan", steps: [{ step: "Check prices", state: "done" }] };
+  const parts: Part[] = [{ type: "text", text: "On it" }, plan, { type: "text", text: "Found one" }];
+  const kinds = (rows: ReturnType<typeof mediaRows>) =>
+    rows.map((row) => (row.kind === "part" ? row.part.type : row.kind));
+  assert.deepEqual(kinds(mediaRows(parts, { shown: false, live: false })), ["text", "text"]);
+  assert.deepEqual(kinds(mediaRows(parts, { shown: true, live: false })), ["text", "plan", "text"]);
+  assert.deepEqual(kinds(mediaRows(parts, { shown: true, live: true })), ["text", "text", "plan"]);
+  const msg = (id: string, p: Part[]) =>
+    ({ id, thread_id: "t", seq: 1, author: { kind: "agent", id: "a" }, parts: p, created_at: "" }) as Message;
+  assert.equal(latestPlan([msg("a", [plan]), msg("b", [plan]), msg("c", [{ type: "text", text: "x" }])]), "b");
+  assert.equal(latestPlan([msg("c", [])]), undefined);
 });
