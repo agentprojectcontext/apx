@@ -6,6 +6,24 @@ The long *why* behind rules the code enforces: quirks, fixes and workarounds tha
 
 ## Runtime
 
+<a id="migration-lineage"></a>
+### A migration number does not prove an additive schema exists
+**Rule:** the canonical migration array remains append-only. A recognized discrepancy in the additive 104–108
+suffix is reconciled by object presence and compatible definitions, never by ignoring a duplicate-object error or
+blindly advancing the counter. The pre-104 schema must be present and compatible. Missing columns and indexes,
+queue initialization only for a newly added column, and the final counter commit together after a consistent,
+private database backup. Existing values are not backfilled again. Unsupported definitions fail closed; failed opens
+close their SQLite connection. Newer-than-supported or malformed counters are refused rather than silently opened.
+**Why:** a synthetic database marked 105 with the run-log index already present reproduces
+`index model_log_run_seq already exists` at startup; it can also lack task and queue columns that the counter skips.
+A duplicate-index guard alone hides those missing columns. This reproduces a reported v2.13.1 failure mechanism,
+not the provenance of a particular installation: the affected database and its prior build were not inspected.
+The stable v2.12.5 prefix ends at migration 100; the v2.13.1 tag and the integration branch have the same 108-entry
+migration array. Recovery is deliberately limited to the additive suffix after 103 so it cannot replay earlier
+transformations of messages, artifacts or Flow history. A concurrent writer detected across backup and write-lock
+acquisition aborts the repair. A backup or transaction failure leaves the original schema counter and data intact.
+**Where:** `apps/core/src/db/{db,migration-lineage}.ts`; migration-lineage regression tests; EN/ES installation guides.
+
 <a id="task-execution-handoff"></a>
 ### A self-task transfers execution, not just a board entry
 **Rule:** an immediate self-assignment transfers execution to the task session. The source run stops using tools;
