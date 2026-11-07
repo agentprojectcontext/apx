@@ -7,7 +7,8 @@ const NONE = "~none";
 
 /**
  * Who does something: an agent, with its avatar, grouped by project. `none` adds a "nobody" choice; `all` lists every
- * project's agents (picking one from a project tells the caller that project through `onPick`).
+ * project's agents (picking one from a project tells the caller that project through `onPick`). `channel` lists who a
+ * channel can be handed to: the super-agent and the head of each project's team.
  */
 export function AgentSelect({
   value,
@@ -15,6 +16,7 @@ export function AgentSelect({
   projectId,
   all,
   globalAgents,
+  channel,
   none,
   label,
   size,
@@ -25,6 +27,7 @@ export function AgentSelect({
   projectId?: string | undefined;
   all?: boolean;
   globalAgents?: "all" | "secretary";
+  channel?: boolean;
   /** The label of "nobody"; without it an agent must be picked. */
   none?: string;
   label?: string;
@@ -33,7 +36,7 @@ export function AgentSelect({
 }) {
   const t = useT();
   const agents = useData((s) => s.agents);
-  const options = useAgentOptions(projectId, all, globalAgents);
+  const options = useAgentOptions(projectId, all, globalAgents, channel, value);
   return (
     <SearchSelect
       label={label ?? t("pickers.agent")}

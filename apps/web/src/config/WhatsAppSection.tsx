@@ -75,7 +75,7 @@ function Setup() {
     <div className="tgsetup">
       <Steps />
       <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: "WhatsApp" })}>
-        <AgentSelect size="sm" className="tgagent" value={agent} onChange={(id) => id && setAgent(id)} />
+        <AgentSelect size="sm" className="tgagent" channel value={agent} onChange={(id) => id && setAgent(id)} />
       </SettingRow>
       <SettingRow title={t("ch.selfOwner")} description={t("ch.selfOwnerHint")}>
         <Switch size="sm" checked={selfOwner} onCheckedChange={setSelfOwner} aria-label={t("ch.selfOwner")} />
@@ -97,6 +97,7 @@ function Linked({ channel }: { channel: ChannelInfo }) {
     strangers: channel.strangers,
     concurrency: channel.concurrency,
     owner_thread: channel.owner_thread,
+    contacts_agent_id: channel.contacts_agent_id,
     self_owner: channel.self_owner,
     closers: channel.closers,
     research: channel.research,
