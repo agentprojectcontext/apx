@@ -184,3 +184,59 @@ test("model clients cannot bypass subtask ownership through HTTP or WebSocket", 
     await env.cleanup();
   }
 });
+
+test("agents can triage an existing unassigned owner draft without starting work", async () => {
+  const { env, parent, work } = await fixture();
+  try {
+    const draft = await env.client.call("tasks.create", {
+      title: "Existing owner draft",
+      description: "Initial evidence",
+      parent: parent.id,
+    });
+    const result = await env.core.dispatch(
+      "tasks.update",
+      { task: draft.id, status: "review", description: "Verified evidence and remaining decision." },
+      context(work.id),
+      "triage-existing-draft",
+    );
+    assert.ok(result.ok, JSON.stringify(result));
+    const updated = env.core.store.tasks.get(draft.id);
+    assert.equal(updated?.assignee, undefined);
+    assert.equal(updated?.description, "Verified evidence and remaining decision.");
+    assert.equal(updated?.status, "review");
+    assert.equal(env.core.store.threads.byTask(draft.id).length, 0);
+    const reviewerAttempt = await env.core.dispatch(
+      "tasks.update",
+      { task: draft.id, description: "Changed", reviewer: "scout" },
+      context(work.id),
+      "draft-reviewer-dispatch",
+    );
+    assert.equal(reviewerAttempt.ok, false, "annotation exception must not admit a reviewer");
+    assert.match(!reviewerAttempt.ok ? reviewerAttempt.error.message : "", /assignee:/);
+    assert.equal(env.core.store.threads.byTask(draft.id).length, 0);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("an agent cannot annotate and parent an unassigned task in one update to make an unassigned subtask", async () => {
+  const { env, parent, work } = await fixture();
+  try {
+    const draft = await env.client.call("tasks.create", { title: "Top-level draft", description: "Initial" });
+    const result = await env.core.dispatch(
+      "tasks.update",
+      { task: draft.id, parent: parent.id, description: "Annotated while being parented" },
+      context(work.id),
+      "annotate-and-parent",
+    );
+    assert.equal(result.ok, false, "annotation exception must not admit a new parent");
+    assert.match(!result.ok ? result.error.message : "", /assignee:/);
+    const unchanged = env.core.store.tasks.get(draft.id);
+    assert.equal(unchanged?.parent_id, undefined);
+    assert.equal(unchanged?.description, "Initial");
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});

@@ -369,7 +369,15 @@ export function taskHandlers(
           !cur.description.trim() &&
           Boolean(c.description?.trim()) &&
           store.threads.byTask(cur.id).length === 0;
-        if (moving || c.assignee !== undefined || c.description !== undefined)
+        // A legacy/owner draft may be annotated without implicitly assigning or starting work. Moving it, giving
+        // it a parent, assigning it or putting it in review with a checker keeps the subtask rules.
+        const annotationOnly =
+          !moving &&
+          parent === undefined &&
+          !cur.assignee &&
+          c.assignee === undefined &&
+          !((c.status ?? cur.status) === "review" && (checker === undefined ? cur.reviewer : checker));
+        if ((moving || c.assignee !== undefined || c.description !== undefined) && !annotationOnly)
           requireSubtaskWork(ctx, taskParent, unassign ? null : keeper, c.description ?? cur.description);
         // Its start moved to now (or cleared) before its work began: it begins now.
         const unscheduled =
