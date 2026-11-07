@@ -4114,3 +4114,26 @@ Rejected: a comment quota per task (the owner's own turns and real questions mus
 reviewers comment when they find a block (every review found one, D-188), and removing comments by a heuristic
 without the owner seeing what goes.
 
+
+<a id="d-203"></a>
+## D-203 — 2026-11-07 — A project head's task reports back to the chat it was started from
+
+A project's head (the team head the agent directory names) that hands a task to a specialist from its own project chat never heard how it
+ended: the close report went to whoever created the task and to the super-agent, and a reviewer's request for changes
+went only to the task's author. The head then reported "assigned" to the owner and stopped, or asked the owner what
+happened to work it had started itself.
+
+- **Recorded at the start** (`startTaskWork` in `engine/task-work.ts`): when the head starts a task from a project chat
+  that is not a task's own, the task's chat keeps `coordination_from` (that chat, the head's run, the work run). A held
+  start that resumes later goes through the same place, so it is recorded then.
+- **Trusted only if it checks out** (`coordinatedTaskSource` in `engine/task-report.ts`): the record counts only while
+  the head's run is in that chat, the chat is in the task's project, and the work run is in a chat of that task, was
+  started by that same run and began after it. Anything else, a forged or stale record included, is ignored.
+- **What the head hears**: the task's close report, as any recipient (D-076's report). A reviewer that sends the task
+  back (`reviewEnded`) also tells the head with a `task_feedback` turn, framed as team feedback and not an approval,
+  once per reviewer run (`coordination_feedback` in the head's chat) and not while that chat is paused (D-081).
+- **No new authority**: hearing a result grants nothing. What the head does next goes through the same assignment,
+  proposal and review rules (D-079, D-131).
+
+Rejected: sending results to every project chat of the head (the owner would see reports in chats that never asked),
+and trusting `coordination_from` without checking the runs (a task chat's context is not proof of who started it).
