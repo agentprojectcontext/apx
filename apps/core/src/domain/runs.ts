@@ -67,6 +67,8 @@ export type Origin =
   | { kind: "task_continue"; task_id: string; title: string; part: number; of: number; from_run?: string }
   /** APX found the agent's task open with nothing running on it, and asks it once to go on (engine/task-stall.ts). */
   | { kind: "stalled_task"; task_id: string; title: string }
+  /** A reviewer returned a task that a project's coordinator started: the coordinator hears it (engine/task-work.ts). */
+  | { kind: "task_feedback"; task_id: string; title: string; agent_id: string; name: string; run_id: string }
   /** The owner added a project or an agent: the super-agent offers to adapt it (engine/added.ts). */
   | { kind: "added"; what: "project" | "agent"; id: string; name: string }
   /** The computer the agent started in this chat is up, or did not start (environments/ready.ts). */
