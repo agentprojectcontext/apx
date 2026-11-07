@@ -319,6 +319,8 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       parent?: string;
       from_thread?: string;
       limit: number;
+      exhaustive?: boolean;
+      after?: string;
     }): Task[] {
       let q = tasksQuery();
       if (o.projects) {
@@ -348,6 +350,10 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
               .where(raw<string>`json_extract(task_events.data, '$.from_thread')`, "=", o.from_thread as string),
           ),
         );
+      if (o.exhaustive) {
+        if (o.after) q = q.where("tasks.id", ">", o.after);
+        return all(q.orderBy("tasks.id", "asc").limit(o.limit)).map(toTask);
+      }
       return all(q.orderBy("tasks.activity_at", "desc").limit(o.limit)).map(toTask);
     },
     create(t: {
