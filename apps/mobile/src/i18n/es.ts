@@ -730,4 +730,7 @@ export const es: Record<Key, string> = {
   modelFallback: "Con respaldo",
   flowStep: "Paso de un flujo",
   subthreadHeld: "Esperando respuestas: {got} de {of}",
+  tkAsked: "Lo que pediste",
+  tkAskedTo: "{when} · a {agent}",
+  tkAskedAll: "Ver todo ({n})",
 };

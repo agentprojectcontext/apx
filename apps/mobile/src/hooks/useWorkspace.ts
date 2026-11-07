@@ -71,6 +71,8 @@ export type Task = {
   description?: string;
   /** Where the work must arrive: the result the owner will check. */
   goal?: string;
+  /** What the owner said that asked for the task or changed it, word for word, and which agent passed it on. */
+  asked?: Array<{ text: string; at: string; by: string; message_id?: string }>;
   /** The working agent's plan, as a Markdown checklist. */
   plan?: string;
   status: string;

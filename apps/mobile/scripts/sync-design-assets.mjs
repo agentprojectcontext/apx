@@ -33,6 +33,7 @@ const names = [
   "Play",
   "ArrowUp",
   "ArrowDown",
+  "Quote",
   "Chrome",
   "Zap",
   "Check",

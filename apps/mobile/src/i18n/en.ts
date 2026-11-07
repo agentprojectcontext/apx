@@ -726,6 +726,9 @@ export const en = {
   modelFallback: "Fallback",
   flowStep: "Flow step",
   subthreadHeld: "Waiting for answers: {got} of {of}",
+  tkAsked: "What you asked",
+  tkAskedTo: "{when} · to {agent}",
+  tkAskedAll: "Show all ({n})",
 } as const;
 
 export type Key = keyof typeof en;
