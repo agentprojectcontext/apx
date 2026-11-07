@@ -12,7 +12,10 @@ The long *why* behind rules the code enforces: quirks, fixes and workarounds tha
 suffix is reconciled by object presence and compatible definitions, never by ignoring a duplicate-object error or
 blindly advancing the counter. The stable migration-100 schema must be present and compatible, including complete table
 constraints and the declarations of any existing suffix columns. `foreign_key_check` cannot detect a missing
-foreign key, so validation compares the canonical declarations while allowing only the recognized columns to differ. Missing columns and indexes,
+foreign key, so validation compares the canonical declarations while allowing only the recognized columns to differ.
+Unrecognized triggers are refused before backup or writes: initializing a column must not activate hidden data
+transformations. Rollback tests deny the final counter write with SQLite's authorizer rather than adding triggers.
+Missing columns and indexes,
 queue initialization only for a newly added column, and the final counter commit together after a consistent,
 private database backup. Existing values are not backfilled again. Unsupported definitions fail closed; failed opens
 close their SQLite connection. Newer-than-supported or malformed counters are refused rather than silently opened.

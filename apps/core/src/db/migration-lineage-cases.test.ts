@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import { constants, DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { tempDir } from "../testkit/platform.ts";
 import { openDb } from "./db.ts";
+import { reconcileMigrationLineage } from "./migration-lineage.ts";
 import { MIGRATIONS } from "./migrations.ts";
 
 function fixture(home: string, version: number) {
@@ -92,16 +93,24 @@ for (const fault of ["wrong index", "wrong column", "missing base", "backup unav
       if (fault === "wrong column") db.exec("ALTER TABLE tasks ADD COLUMN goal INTEGER");
       if (fault === "missing base") db.exec("DROP TRIGGER message_media_ad");
       if (fault === "backup unavailable") fs.writeFileSync(path.join(home.path, "backups"), "Not a directory");
-      if (fault === "commit rejected")
-        db.exec(`CREATE TRIGGER reject_version BEFORE UPDATE OF value ON meta
-        WHEN new.key = 'schema_version' BEGIN SELECT RAISE(ABORT, 'fixture rejects commit'); END`);
       const before = schema(db);
       const tasks = db.prepare("SELECT * FROM tasks").all();
-      db.close();
-      assert.throws(
-        () => openDb(home.path),
-        fault === "backup unavailable" ? /ENOTDIR/ : /incompatible|unsupported base|fixture rejects commit/,
-      );
+      if (fault === "commit rejected") {
+        db.setAuthorizer((action, table, column) =>
+          action === constants.SQLITE_UPDATE && table === "meta" && column === "value"
+            ? constants.SQLITE_DENY
+            : constants.SQLITE_OK,
+        );
+        assert.throws(() => reconcileMigrationLineage(db, home.path, 105), /not authorized/);
+        db.setAuthorizer(null);
+        db.close();
+      } else {
+        db.close();
+        assert.throws(
+          () => openDb(home.path),
+          fault === "backup unavailable" ? /ENOTDIR/ : /incompatible|unsupported base/,
+        );
+      }
       db = new DatabaseSync(path.join(home.path, "apx.db"));
       assert.deepEqual(schema(db), before);
       assert.deepEqual(db.prepare("SELECT * FROM tasks").all(), tasks);
@@ -109,7 +118,6 @@ for (const fault of ["wrong index", "wrong column", "missing base", "backup unav
       // A failed open must release its connection so another writer can take the database immediately.
       db.exec("BEGIN EXCLUSIVE; ROLLBACK");
       if (fault === "commit rejected") {
-        db.exec("DROP TRIGGER reject_version");
         db.close();
         db = openDb(home.path);
         assert.equal(

@@ -13,6 +13,7 @@ for (const fault of [
   "missing uniqueness",
   "extra check",
   "extra column constraint",
+  "extra data-changing trigger",
 ]) {
   test(`recovery rejects ${fault} before backup or writes, even when existing rows pass foreign_key_check`, async () => {
     const home = tempDir();
@@ -40,11 +41,17 @@ for (const fault of [
       if (fault === "extra column constraint") db.exec("ALTER TABLE tasks ADD COLUMN goal TEXT COLLATE NOCASE");
       db.exec(`INSERT INTO meta VALUES ('schema_version', '105');
         INSERT INTO projects (id, name, created_at) VALUES ('pr_kept', 'Kept project', '2026-10-01')`);
+      if (fault === "extra data-changing trigger")
+        db.exec(`CREATE TRIGGER change_owner_data AFTER UPDATE OF queue_order ON runs
+        BEGIN UPDATE projects SET name='Changed without permission'; END;
+        INSERT INTO threads (id,kind,title,agent_ids,created_at,updated_at)
+        VALUES ('th_kept','loose','Kept','[]','2026-10-01','2026-10-01');
+        INSERT INTO runs (id,thread_id,agent_id,state,started_at) VALUES ('run_kept','th_kept','agent_kept','done','2026-10-01');`);
       assert.equal(db.prepare("PRAGMA foreign_key_check").all().length, 0);
       const before = db.prepare("SELECT * FROM sqlite_schema ORDER BY name").all();
       const rows = db.prepare("SELECT * FROM projects").all();
       db.close();
-      assert.throws(() => openDb(home.path), /incompatible (base object|column)/);
+      assert.throws(() => openDb(home.path), /incompatible (base object|column)|unrecognized trigger/);
       db = new DatabaseSync(path.join(home.path, "apx.db"));
       assert.deepEqual(db.prepare("SELECT * FROM sqlite_schema ORDER BY name").all(), before);
       assert.deepEqual(db.prepare("SELECT * FROM projects").all(), rows);

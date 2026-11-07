@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import { constants, DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { tempDir } from "../testkit/platform.ts";
 import { openDb } from "./db.ts";
+import { reconcileMigrationLineage } from "./migration-lineage.ts";
 import { MIGRATIONS } from "./migrations.ts";
 
 for (const shape of [
@@ -37,17 +38,18 @@ for (const shape of [
         db.exec("ALTER TABLE surfaces ADD COLUMN in_apps INTEGER NOT NULL DEFAULT 0");
       }
       if (shape === "Apps conversion rolled back") {
-        db.exec(`CREATE TRIGGER reject_version BEFORE UPDATE OF value ON meta
-          WHEN new.key='schema_version' BEGIN SELECT RAISE(ABORT, 'fixture rejects conversion'); END`);
         const schema = db.prepare("SELECT * FROM sqlite_schema ORDER BY name").all();
         const surfaces = db.prepare("SELECT * FROM surfaces ORDER BY id").all();
-        db.close();
-        assert.throws(() => openDb(home.path), /fixture rejects conversion/);
-        db = new DatabaseSync(path.join(home.path, "apx.db"));
+        db.setAuthorizer((action, table, column) =>
+          action === constants.SQLITE_UPDATE && table === "meta" && column === "value"
+            ? constants.SQLITE_DENY
+            : constants.SQLITE_OK,
+        );
+        assert.throws(() => reconcileMigrationLineage(db, home.path, 105), /not authorized/);
+        db.setAuthorizer(null);
         assert.deepEqual(db.prepare("SELECT * FROM sqlite_schema ORDER BY name").all(), schema);
         assert.deepEqual(db.prepare("SELECT * FROM surfaces ORDER BY id").all(), surfaces);
         assert.equal(db.prepare("SELECT value FROM meta WHERE key='schema_version'").get()?.value, "105");
-        db.exec("DROP TRIGGER reject_version");
       }
       db.close();
       db = openDb(home.path);

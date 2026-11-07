@@ -266,9 +266,9 @@ la cola y los marcadores de retención existentes. Si falta la columna que regis
 conversión original una sola vez; nunca vuelve a convertir las elecciones existentes. Las actualizaciones normales
 siguen confirmando las migraciones de a una y no crean esta copia adicional.
 
-No es una reparación general de cambios locales arbitrarios. Una definición incompatible, una versión desconocida,
-falta de espacio para el backup o una comprobación de integridad fallida detienen el arranque sin confirmar la
-reparación. Conservá los datos y cualquier backup; no borres índices, agregues columnas ni cambies `schema_version`
+No es una reparación general de cambios locales arbitrarios. Una definición incompatible, un trigger no reconocido,
+una versión desconocida, falta de espacio para el backup o una comprobación de integridad fallida detienen el arranque
+sin confirmar la reparación. Conservá los datos y cualquier backup; no borres índices, agregues columnas ni cambies `schema_version`
 a mano. Detené los otros cores que usen la misma carpeta antes de reintentar. La copia automática contiene chats
 privados, no los archivos multimedia ni los secretos del llavero; mantenela protegida. Para restaurarla, detené APX
 y guardá por separado la base fallida y sus archivos WAL antes de reemplazarla. Usá una versión del programa

@@ -78,6 +78,14 @@ function validate(
 ): void {
   const actual = objects(db);
   const desired = objects(reference);
+  for (const object of actual) {
+    if (
+      object.type === "trigger" &&
+      !desired.some((expected) => expected.type === "trigger" && expected.name === object.name)
+    ) {
+      reject(`unrecognized trigger ${object.name}`);
+    }
+  }
   for (const object of baseline) {
     const found = actual.find((row) => row.name === object.name);
     if (!found || found.type !== object.type) reject(`unsupported base object ${object.name}`);
