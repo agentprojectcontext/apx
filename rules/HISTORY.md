@@ -10,7 +10,9 @@ The long *why* behind rules the code enforces: quirks, fixes and workarounds tha
 ### A migration number does not prove an additive schema exists
 **Rule:** the canonical migration array remains append-only. A recognized discrepancy in the additive 104–108
 suffix is reconciled by object presence and compatible definitions, never by ignoring a duplicate-object error or
-blindly advancing the counter. The pre-104 schema must be present and compatible. Missing columns and indexes,
+blindly advancing the counter. The pre-104 schema must be present and compatible, including complete table
+constraints and the declarations of any existing suffix columns. `foreign_key_check` cannot detect a missing
+foreign key, so validation compares the canonical declarations while allowing only the recognized columns to differ. Missing columns and indexes,
 queue initialization only for a newly added column, and the final counter commit together after a consistent,
 private database backup. Existing values are not backfilled again. Unsupported definitions fail closed; failed opens
 close their SQLite connection. Newer-than-supported or malformed counters are refused rather than silently opened.

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { compatibleMigrationTable, sameSchemaSql } from "./migration-schema.ts";
 import { MIGRATIONS } from "./migrations.ts";
 
 // Only the additive tail is reconcilable; earlier migrations transform owner data. See HISTORY.md#migration-lineage.
@@ -47,7 +48,6 @@ const tableColumns = (db: DatabaseSync, table: string) =>
   db.prepare(`PRAGMA table_xinfo(${quote(table)})`).all() as Column[];
 const objects = (db: DatabaseSync) =>
   db.prepare("SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%'").all() as ObjectRow[];
-const normalize = (sql: string | null) => sql?.trim().replace(/;$/, "").replace(/\s+/g, " ");
 const columnShape = (column: Column) =>
   JSON.stringify([column.type.toUpperCase(), column.notnull, column.dflt_value, column.pk, column.hidden]);
 
@@ -74,12 +74,20 @@ function validate(
   baseColumns: Map<string, Column[]>,
 ): void {
   const actual = objects(db);
+  const desired = objects(reference);
   for (const object of baseline) {
     const found = actual.find((row) => row.name === object.name);
     if (!found || found.type !== object.type) reject(`unsupported base object ${object.name}`);
-    if (object.type !== "table" && normalize(found.sql) !== normalize(object.sql)) {
-      reject(`incompatible base object ${object.name}`);
-    }
+    const compatible =
+      object.type === "table"
+        ? compatibleMigrationTable(
+            found.sql,
+            object.sql,
+            desired.find((row) => row.name === object.name)?.sql ?? null,
+            columns.filter((column) => column.table === object.name).map((column) => column.name),
+          )
+        : sameSchemaSql(found.sql, object.sql);
+    if (!compatible) reject(`incompatible base object ${object.name}`);
   }
   for (const [table, expected] of baseColumns) {
     const found = tableColumns(db, table);
@@ -96,11 +104,10 @@ function validate(
       reject(`incompatible column ${column.table}.${column.name}`);
     }
   }
-  const desired = objects(reference);
   for (const index of indexes) {
     const current = actual.find((row) => row.name === index.name);
     const expected = desired.find((row) => row.name === index.name);
-    if (!expected || (current && (current.type !== "index" || normalize(current.sql) !== normalize(expected.sql)))) {
+    if (!expected || (current && (current.type !== "index" || !sameSchemaSql(current.sql, expected.sql)))) {
       reject(`incompatible index ${index.name}`);
     }
   }
