@@ -141,12 +141,13 @@ export function mosaicRows(count: number): number[] {
   return [2, 3];
 }
 
-/** "4.2 MB" for a file size. */
+/** "4.2 MB" for a file size, "3.1 GB" for a disk's free space. */
 export function sizeText(bytes: number | undefined): string {
   if (bytes === undefined) return "";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
 }
 
 /** The chat's newest message with a plan: the only one whose plan is drawn (each turn writes its own). */

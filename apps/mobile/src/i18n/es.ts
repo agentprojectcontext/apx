@@ -733,4 +733,9 @@ export const es: Record<Key, string> = {
   tkAsked: "Lo que pediste",
   tkAskedTo: "{when} · a {agent}",
   tkAskedAll: "Ver todo ({n})",
+  diskLow: "Disco casi lleno: quedan {free}",
+  diskLowHint:
+    "Cuando se llene, APX no va a poder guardar chats ni archivos. Liberar espacio solo borra cachés y registros viejos.",
+  diskFree: "Liberar espacio",
+  diskFreed: "Se liberaron {size}.",
 };

@@ -729,6 +729,10 @@ export const en = {
   tkAsked: "What you asked",
   tkAskedTo: "{when} · to {agent}",
   tkAskedAll: "Show all ({n})",
+  diskLow: "Disk almost full: {free} left",
+  diskLowHint: "When it runs out, APX can't save chats or files. Freeing space removes only caches and old logs.",
+  diskFree: "Free up space",
+  diskFreed: "Freed {size}.",
 } as const;
 
 export type Key = keyof typeof en;

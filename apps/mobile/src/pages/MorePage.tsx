@@ -9,6 +9,7 @@ import { Icon } from "../ui/Icon";
 import { Dot, IconTile, ListGroup, ListRow, OwnerAvatar, PageTitle, Screen, useType } from "../ui/kit";
 import { makeStyles, useTheme } from "../ui/theme";
 import type { Tone } from "../ui/tone";
+import { DiskWarning } from "./DiskWarning";
 
 const DISCORD = "https://discord.gg/vxdZuT5WuE";
 
@@ -68,11 +69,14 @@ export function MorePage({
   host,
   online,
   onSelect,
+  freeSpace,
 }: {
   data: Workspace;
   host: string;
   online: boolean;
   onSelect: (id: MoreId) => void;
+  /** Removes what APX rebuilds on its own, when the disk is almost full; the bytes it freed. */
+  freeSpace?: () => Promise<number>;
 }) {
   const type = useType();
   const theme = useTheme();
@@ -116,6 +120,7 @@ export function MorePage({
         </View>
         <Icon name="ChevronRight" size={18} color={theme.fgMuted} />
       </Pressable>
+      {data.disk?.low && freeSpace ? <DiskWarning free={data.disk.free_bytes} freeSpace={freeSpace} /> : null}
       <ListGroup>
         {ROWS.map((row) => {
           const detail = detailOf(row.id, data);

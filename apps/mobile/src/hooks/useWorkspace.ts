@@ -206,6 +206,8 @@ export type Workspace = {
   memories?: number;
   /** The owner's name as set in APX ("" until loaded or when unset). */
   owner: string;
+  /** The disk holding APX: `low` while free space is under the core's threshold (storage.status). */
+  disk?: { free_bytes: number; low: boolean };
 };
 
 export const emptyWorkspace: Workspace = {
@@ -275,6 +277,7 @@ export function useWorkspace(creds: Creds) {
       channels,
       memory,
       contacts,
+      disk,
     ] = await Promise.all([
       get<{ projects: Project[] }>("projects.list", { include_unregistered: true }),
       get<{ agents: Agent[] }>("agents.list", {}),
@@ -290,6 +293,7 @@ export function useWorkspace(creds: Creds) {
       get<{ channels: Channel[] }>("channels.list", {}),
       get<{ total: number }>("memory.settings", {}),
       get<{ persons: Person[] }>("contacts.list", {}),
+      get<Workspace["disk"]>("storage.status", {}),
     ]);
     // Each engine's sessions, or undefined where the list did not load (it keeps the one it had).
     let native: Array<[string, NativeSession[] | undefined]> | undefined;
@@ -322,6 +326,7 @@ export function useWorkspace(creds: Creds) {
         channels: channels?.channels ?? d.channels,
         persons: contacts?.persons ?? d.persons,
         memories: memory?.total ?? d.memories,
+        disk: disk ?? d.disk,
       }),
     );
   }, [client]);
@@ -360,6 +365,11 @@ export function useWorkspace(creds: Creds) {
         socket.onEvent((frame) => {
           if (stopped || frame.stream !== "core") return;
           const event = frame.payload as CoreEvent;
+          if (event.type === "storage.changed") {
+            void rpc<Workspace["disk"]>(client, "storage.status", {})
+              .then((disk) => setData((current) => ({ ...current, disk })))
+              .catch(() => {});
+          }
           if (event.type === "notification.updated") {
             void showLiveNotice(event.notification, creds.device).catch((error) => setError(String(error)));
           }
@@ -619,6 +629,13 @@ export function useWorkspace(creds: Creds) {
     [client, putTask],
   );
 
+  /** Removes only what APX rebuilds on its own (caches, old logs); never chats, memory or projects. */
+  const freeSpace = useCallback(async () => {
+    const freed = await rpc<{ freed_bytes: number }>(client, "storage.clear", {});
+    const disk = await rpc<Workspace["disk"]>(client, "storage.status", {}).catch(() => undefined);
+    setData((current) => ({ ...current, disk: disk ?? current.disk }));
+    return freed.freed_bytes;
+  }, [client]);
   const memories = useCallback(
     async (params: MemoryQuery) =>
       (await rpc<{ memories: Memory[] }>(client, "memory.list", { limit: 100, ...params })).memories,
@@ -778,6 +795,7 @@ export function useWorkspace(creds: Creds) {
     deleteTask,
     commentTask,
     memories,
+    freeSpace,
     addMemory,
     removeMemory,
     noticePrefs,

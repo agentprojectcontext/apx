@@ -76,6 +76,7 @@ test("a saved copy keeps its own extension, or gets one from its type", () => {
   assert.equal(extensionOf("image/jpeg"), "jpg");
   assert.equal(extensionOf("application/x-unknown", "noext"), "bin");
   assert.equal(sizeText(5_624_722), "5.4 MB");
+  assert.equal(sizeText(3.2 * 1024 ** 3), "3.2 GB");
 });
 
 test("gallery copies use an Android-recognized extension and URI-safe name, not an image caption", () => {

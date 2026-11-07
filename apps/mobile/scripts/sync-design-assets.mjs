@@ -34,6 +34,7 @@ const names = [
   "ArrowUp",
   "ArrowDown",
   "Quote",
+  "HardDrive",
   "Chrome",
   "Zap",
   "Check",
