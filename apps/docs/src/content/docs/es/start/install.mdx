@@ -257,7 +257,7 @@ fallida. No cambies la versión del esquema a mano. Restaurar un backup descarta
 
 ### Una migración informa que un índice ya existe
 
-En builds de código fuente todavía no publicados, posteriores a v2.13.1, el arranque puede reconciliar una
+A partir de v2.13.2, el arranque puede reconciliar una
 diferencia reconocida entre el contador de migraciones y las columnas e índices de las migraciones
 101–108. Primero comprueba el esquema anterior completo, incluidas las restricciones de las tablas, y las definiciones existentes. Antes de cambiar nada, guarda una
 copia consistente de la base en `backups/migration-<id-único>/apx.db`, dentro de la carpeta de datos, y aplica

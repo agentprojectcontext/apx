@@ -249,7 +249,7 @@ backup discards changes made since that backup.
 
 ### A migration reports an existing index
 
-In unreleased source builds after v2.13.1, startup can reconcile a recognized mismatch between the migration
+Starting with v2.13.2, startup can reconcile a recognized mismatch between the migration
 counter and the columns and indexes from migrations 101–108. It checks the complete earlier schema, including
 table constraints, and existing object definitions first. Before changing anything, it saves a consistent database-only copy in
 `backups/migration-<unique-id>/apx.db` inside the data folder, then applies only missing changes in one transaction.
