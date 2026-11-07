@@ -202,12 +202,27 @@ export function taskHandlers(
       return { attachments: assets.list(task) };
     },
     "tasks.detach": ({ task, media_id }, ctx) => assets.detach(visible(task, ctx), media_id, ctx),
-    "tasks.list": ({ project, state, assignee, commitments, person, limit }, ctx) => {
+    "tasks.list": ({ project, state, assignee, commitments, person, limit, exhaustive, after }, ctx) => {
+      if (after && !exhaustive) throw badRequest("after requires exhaustive listing");
       const scope = agentScope(ctx);
       const projects = scope ? [scope.project, undefined] : project ? [project] : undefined;
+      const found = store.tasks.list({
+        projects,
+        state: state ?? "open",
+        assignee,
+        commitments,
+        person,
+        limit: limit + 1,
+        exhaustive,
+        after,
+      });
+      const tasks = found.slice(0, limit);
       return {
-        tasks: store.tasks.list({ projects, state: state ?? "open", assignee, commitments, person, limit }),
+        tasks,
         columns: columnsOf(store),
+        ...(exhaustive
+          ? { next_cursor: found.length > limit ? (tasks.at(-1)?.id ?? null) : null }
+          : { truncated: found.length > limit }),
       };
     },
     "tasks.get": ({ task }, ctx) => {

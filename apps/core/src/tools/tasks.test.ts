@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import type { Task } from "@apx/protocol";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { boardText } from "./tasks.ts";
+import { boardText, descriptionCut } from "./tasks.ts";
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(String(req.messages.at(-1)?.content));
@@ -145,6 +145,7 @@ test("a board too long to show whole keeps promises, dates, waits and recent mov
   for (const t of pressing) assert.ok(text.includes(t.title), t.title);
   assert.doesNotMatch(text, /Quiet task number/);
   assert.match(text, /120 more not listed one by one/);
+  assert.match(text, /use task_list with cursor/);
   assert.match(text, /project Acme: 60 \(60 todo\), last activity 2026-10-04, quiet since 2026-10-02/);
   assert.match(text, /project Northwind: 60 \(60 todo\), last activity 2026-10-03, quiet since 2026-10-01/);
   // A board that fits is listed whole.
@@ -152,4 +153,171 @@ test("a board too long to show whole keeps promises, dates, waits and recent mov
     boardText(quiet.slice(0, 5), () => undefined, at),
     /Quiet task number 4/,
   );
+});
+
+test("exhaustive task pages enumerate IDs without folding or silent truncation", async () => {
+  const created: string[] = [];
+  for (let i = 0; i < 25; i++) {
+    const task = await env.client.call("tasks.create", { title: `Inventory ${i} ${"x".repeat(100)}` });
+    created.push(task.id);
+  }
+  const seen: string[] = [];
+  let after: string | undefined;
+  do {
+    const page = await env.client.call("tasks.list", { exhaustive: true, after, limit: 7 });
+    seen.push(...page.tasks.map((t) => t.id));
+    after = page.next_cursor ?? undefined;
+  } while (after);
+  assert.equal(new Set(seen).size, seen.length);
+  for (const id of created) assert.ok(seen.includes(id), id);
+  const compact = await list({ limit: 2 });
+  assert.match(compact, /More tasks exist; use cursor start/);
+  const truncated = await env.client.call("tasks.list", { limit: 2 });
+  assert.equal(truncated.truncated, true);
+  const first = await list({ cursor: "start", limit: 20 });
+  assert.match(first, /next_cursor: task_/);
+  assert.doesNotMatch(first, /more not listed one by one/);
+  const cursor = first.match(/next_cursor: (task_\w+)/)?.[1];
+  assert.ok(cursor);
+  const second = await list({ cursor });
+  assert.doesNotMatch(second, new RegExp(`\\[${cursor}\\]`));
+  await assert.rejects(env.client.call("tasks.list", { after: cursor }), /after requires exhaustive/);
+});
+
+test("exhaustive traversal reaches tasks beyond the ordinary 200-row limit", async () => {
+  const created: string[] = [];
+  for (let i = 0; i < 205; i++) {
+    const task = await env.client.call("tasks.create", { title: `Bulk inventory ${i}` });
+    created.push(task.id);
+  }
+  const seen = new Set<string>();
+  let after: string | undefined;
+  do {
+    const page = await env.client.call("tasks.list", { exhaustive: true, after, limit: 37 });
+    for (const task of page.tasks) {
+      assert.ok(!seen.has(task.id), `duplicate ${task.id}`);
+      seen.add(task.id);
+    }
+    after = page.next_cursor ?? undefined;
+  } while (after);
+  for (const id of created) assert.ok(seen.has(id), `missing ${id}`);
+  const limited = await env.client.call("tasks.list", {});
+  assert.equal(limited.tasks.length, 200);
+  assert.equal(limited.truncated, true);
+});
+
+test("task lists distinguish a pending proposal from running work", async () => {
+  const task = await env.client.call("tasks.create", { title: "Pending proposed work", propose: true });
+  assert.equal(task.proposed, true);
+  assert.match(await list({}), /Pending proposed work[^\n]*proposal: awaits owner acceptance/);
+  let after: string | undefined;
+  let found = "";
+  do {
+    const page = await list({ cursor: after ?? "start" });
+    if (page.includes(task.id)) found = page;
+    after = page.match(/next_cursor: (task_\w+)/)?.[1];
+  } while (after);
+  assert.match(found, /Pending proposed work[^\n]*proposal: awaits owner acceptance/);
+});
+
+test("a long task description is explicitly paged and cannot silently change between pages", async () => {
+  const text = `START ${"a".repeat(2500)} MIDDLE ${"b".repeat(3000)} END`;
+  const task = await env.client.call("tasks.create", { title: "Long source packet", description: text });
+  const read = (args: object) => list(`tool: ${JSON.stringify({ name: "task_get", args })}`);
+  const detail = await list(`tool: ${JSON.stringify({ name: "task_get", args: { task: task.id } })}`);
+  assert.match(detail, /The description is cut/);
+  let page = "0";
+  let revision: string | undefined;
+  let firstStale = "";
+  const pages: string[] = [];
+  while (true) {
+    const result = await read({ task: task.id, description_page: page });
+    const hash = result.match(/"revision":"([a-f0-9]{64})"/)?.[1];
+    assert.ok(hash, result);
+    revision ??= hash;
+    assert.equal(hash, revision);
+    const content = result.match(/"text":"([^"]*)"/)?.[1];
+    assert.ok(content !== undefined, result);
+    pages.push(content);
+    const next = result.match(/"next_page":("[^"]*"|null)/)?.[1];
+    assert.ok(next, result);
+    if (next === "null") break;
+    page = JSON.parse(next);
+    firstStale ||= page;
+  }
+  assert.equal(pages.join(""), text);
+  await env.client.call("tasks.update", { task: task.id, description: `${text}!` });
+  assert.match(
+    await read({ task: task.id, description_page: firstStale }),
+    /description changed; restart from offset 0/,
+  );
+  assert.match(await read({ task: task.id, description_page: "4000" }), /revision is required after the first page/);
+  assert.match(await read({ task: task.id, description_page: "abc" }), /use 0, then next_page/);
+});
+
+test("description pages preserve Unicode boundaries", async () => {
+  const content = `${"x".repeat(3999)}😀end`;
+  const task = await env.client.call("tasks.create", { title: "Unicode page", description: content });
+  const read = (args: object) => list(`tool: ${JSON.stringify({ name: "task_get", args })}`);
+  const first = await read({ task: task.id, description_page: "0" });
+  const nextPage = first.match(/"next_page":"([^"]+)"/)?.[1];
+  assert.ok(nextPage);
+  assert.match(first, /"next_page":"3999:/);
+  const second = await read({ task: task.id, description_page: nextPage });
+  assert.match(second, /😀end/);
+  const splitting = `4000:${nextPage.split(":")[1]}`;
+  assert.match(await read({ task: task.id, description_page: splitting }), /offset splits a Unicode character/);
+});
+
+test("a board of many urgent tasks explicitly discloses omitted rows instead of truncating them silently", () => {
+  const tasks: Task[] = Array.from({ length: 180 }, (_, i) => ({
+    id: `task_urgent_${i}`,
+    title: `Urgent ${i} ${"x".repeat(200)}`,
+    description: "",
+    status: "doing",
+    state: "open",
+    kind: "task",
+    priority: "normal",
+    tags: [],
+    thread_id: `th_${i}`,
+    awaits_owner: true,
+    renegotiated: 0,
+    created_by: "owner",
+    created_at: "2026-10-01T10:00:00Z",
+    updated_at: "2026-10-01T10:00:00Z",
+    chats: 0,
+    activity_at: "2026-10-13T12:00:00Z",
+  }));
+  const text = boardText(tasks, () => undefined, Date.parse("2026-10-13T21:30:00Z"));
+  assert.ok(text.length <= 10_000, `${text.length} characters`);
+  assert.match(text, /tasks omitted from this summary; use task_list with cursor/);
+  assert.match(text, /\[task_urgent_0\]/);
+  assert.doesNotMatch(text, /\[task_urgent_179\]/);
+});
+
+test("the description hint fires only when the description itself is cut", () => {
+  const base = {
+    id: "task_x",
+    title: "t",
+    status: "doing",
+    state: "open",
+    kind: "task",
+    priority: "normal",
+    tags: [],
+    thread_id: "th_x",
+    created_by: "owner",
+  } as unknown as Task;
+  const long = { ...base, goal: "g".repeat(3000), description: "Brief." } as Task;
+  assert.equal(descriptionCut(long, 2_000), false, "long JSON, short description");
+  const cut = { ...base, description: "d".repeat(3000) } as Task;
+  assert.equal(descriptionCut(cut, 2_000), true, "long description");
+  assert.equal(descriptionCut({ ...base, description: "short" } as Task, 2_000), false);
+});
+
+test("an exhaustive page holds up to 25 tasks and never exceeds the list cap", async () => {
+  for (let i = 0; i < 30; i++) await env.client.call("tasks.create", { title: `Wide ${i} ${"w".repeat(150)}` });
+  const page = await list({ cursor: "start", limit: 200 });
+  assert.ok(page.length <= 10_000, `${page.length} characters`);
+  assert.equal((page.match(/^- \[task_/gm) ?? []).length, 25);
+  assert.match(page, /next_cursor: task_/);
 });

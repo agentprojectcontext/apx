@@ -54,9 +54,17 @@ export const officeMethods = {
         commitments: z.boolean().optional(),
         person: Id.optional(),
         limit: z.number().int().min(1).max(500).default(200),
+        /** Stable ID order for traversing all matching tasks, rather than the recent-activity summary. */
+        exhaustive: z.boolean().optional(),
+        after: Id.optional(),
       })
       .strict(),
-    result: z.object({ tasks: z.array(Task), columns: z.array(TaskColumn) }),
+    result: z.object({
+      tasks: z.array(Task),
+      columns: z.array(TaskColumn),
+      next_cursor: Id.nullable().optional(),
+      truncated: z.boolean().optional(),
+    }),
     effect: false,
   },
   "tasks.get": {
