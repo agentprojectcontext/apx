@@ -719,4 +719,8 @@ export const es: Record<Key, string> = {
   waitingRemove: "Quitar",
   waitingUp: "Subir",
   waitingDown: "Bajar",
+  viaSent: "Enviado por {channel}",
+  viaReceived: "Llegó por {channel}",
+  viaOtherApp: "otra app de chat",
+  browserInChrome: "{name} lo está usando en tu Chrome",
 };

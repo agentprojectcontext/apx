@@ -2,6 +2,7 @@ import { type ReactNode, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { parseMarkdown, plainText } from "../chat/markdown";
 import { type MediaItem, mediaRows } from "../chat/media";
+import { viaOf } from "../chat/via";
 import { clock } from "../format";
 import type { Agent } from "../hooks/useWorkspace";
 import { t } from "../i18n";
@@ -16,7 +17,7 @@ import { ConnectCard } from "./chat/ConnectCard";
 import { EmailCard, MailContext } from "./chat/EmailCard";
 import { ImageGenerating } from "./chat/ImageGenerating";
 import { InputCard, type Respond } from "./chat/InputCard";
-import { DeliveryTicks, Reactions } from "./chat/MessageMarks";
+import { DeliveryTicks, Reactions, ViaMark } from "./chat/MessageMarks";
 import { type ContinueSession, type GoOn, NoticeCard, type SessionState } from "./chat/NoticeCard";
 import { PlanCard } from "./chat/PlanCard";
 import { SkillsRow } from "./chat/SkillsRow";
@@ -40,7 +41,12 @@ type Open =
   | { kind: "media"; item: MediaItem }
   | { kind: "viewer"; items: MediaItem[]; start: number };
 /** The chat a message is in, as far as its blocks need it. */
-export type ChatOf = { kind: string; agent_ids: string[]; project_id?: string | undefined };
+export type ChatOf = {
+  kind: string;
+  agent_ids: string[];
+  project_id?: string | undefined;
+  channel?: { id: string } | undefined;
+};
 
 export function ChatMessage({
   message,
@@ -58,6 +64,7 @@ export function ChatMessage({
   sessionState,
   openThread,
   mailChannels,
+  channels = [],
   queue,
 }: {
   message: Message;
@@ -80,6 +87,8 @@ export function ChatMessage({
   openThread?: (id: string) => void;
   /** The email channels' ids: what a contact wrote on one shows as a mail. */
   mailChannels?: ReadonlySet<string>;
+  /** The office's chat apps: a message that came in or went out on one says so. */
+  channels?: ReadonlyArray<{ id: string; type: string; label: string }>;
   /** What the owner can do with their own message while it waits; `line` when it waits in line for the next turn. */
   queue?: { actions: WaitingActions; line?: Message[] };
 }) {
@@ -207,6 +216,8 @@ export function ChatMessage({
   const chatAgent = agents.find((one) => one.id === thread?.agent_ids[0])?.name;
   const ticks = message.delivery ? <DeliveryTicks state={message.delivery} /> : null;
   const taken = useTaken(message);
+  const via = viaOf(message, thread?.channel?.id, channels);
+  const viaMark = via ? <ViaMark via={via} /> : null;
   return (
     <MailContext.Provider value={mailContext}>
       <View style={[s.wrap, mine ? s.mineWrap : s.theirsWrap]}>
@@ -234,15 +245,17 @@ export function ChatMessage({
             ) : null}
             <View style={[s.metaRow, { marginRight: 6 }]}>
               <Text style={s.meta}>{clock(message.created_at)}</Text>
+              {viaMark}
               {ticks}
               {taken ? <TakenMark /> : null}
             </View>
           </>
-        ) : hasText || message.model || message.delivery ? (
+        ) : hasText || message.model || message.delivery || via ? (
           <View style={[s.metaRow, { marginLeft: author.kind === "person" ? 40 : 6 }]}>
             <Text numberOfLines={1} style={[s.meta, { flexShrink: 1 }]}>
               {[name, message.model, clock(message.created_at)].filter(Boolean).join(" · ")}
             </Text>
+            {viaMark}
             {ticks}
           </View>
         ) : null}

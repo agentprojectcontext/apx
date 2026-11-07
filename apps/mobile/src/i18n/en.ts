@@ -715,6 +715,10 @@ export const en = {
   waitingRemove: "Remove",
   waitingUp: "Move up",
   waitingDown: "Move down",
+  viaSent: "Sent on {channel}",
+  viaReceived: "Came in on {channel}",
+  viaOtherApp: "another chat app",
+  browserInChrome: "{name} is using it in your Chrome",
 } as const;
 
 export type Key = keyof typeof en;

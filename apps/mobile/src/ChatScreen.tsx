@@ -293,6 +293,7 @@ export function ChatScreen({
                     sessionState={(session) => sessionState(live.client, session)}
                     {...(onOpenThread ? { openThread: onOpenThread } : {})}
                     mailChannels={mailChannels}
+                    channels={data.channels}
                     queue={queue}
                   />
                 </View>

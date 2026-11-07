@@ -154,3 +154,47 @@ test("a message the agent took after it waited reads as taken", async () => {
   await ui.rerender(<ChatMessage message={waiting} agents={[]} respond={async () => {}} />);
   expect(ui.getByText(t("waitingTaken"))).toBeTruthy();
 });
+
+test("a message that came in on another app, or in Chrome, says so; in that app's own chat it does not", async () => {
+  const channels = [{ id: "tg_1", type: "telegram", label: "Telegram" }];
+  const said = (via: string) =>
+    ({
+      ...turn,
+      id: `m_${via}`,
+      author: { kind: "user" },
+      parts: [{ type: "text", text: "hi" }],
+      via,
+    }) as unknown as Message;
+  const home = { kind: "loose", agent_ids: ["superagent"] };
+  const ui = await render(
+    <ChatMessage message={said("tg_1")} agents={[]} thread={home} channels={channels} respond={async () => {}} />,
+  );
+  expect(ui.getByLabelText(t("viaReceived", { channel: "Telegram" }))).toBeTruthy();
+  await ui.rerender(
+    <ChatMessage message={said("chrome")} agents={[]} thread={home} channels={channels} respond={async () => {}} />,
+  );
+  expect(ui.getByLabelText(t("viaReceived", { channel: "Chrome" }))).toBeTruthy();
+  await ui.rerender(
+    <ChatMessage
+      message={said("tg_1")}
+      agents={[]}
+      thread={{ ...home, channel: { id: "tg_1" } }}
+      channels={channels}
+      respond={async () => {}}
+    />,
+  );
+  expect(ui.queryByLabelText(t("viaReceived", { channel: "Telegram" }))).toBeNull();
+});
+
+test("a page the agent uses in the owner's Chrome says so, not that it browses in APX", async () => {
+  const message = {
+    ...turn,
+    parts: [
+      { type: "browser", tab: "t1", url: "https://example.com/a", title: "A", state: "agent", environment: "chrome" },
+    ],
+  } as unknown as Message;
+  const ui = await render(
+    <ChatMessage message={message} agents={[{ id: "superagent", name: "Roby" }]} respond={async () => {}} />,
+  );
+  expect(ui.getByText(t("browserInChrome", { name: "Roby" }))).toBeTruthy();
+});
