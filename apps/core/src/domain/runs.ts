@@ -66,7 +66,7 @@ export type Origin =
   /** The agent's task turn ended with the task still in progress: APX starts its next part (engine/task-continue.ts). */
   | { kind: "task_continue"; task_id: string; title: string; part: number; of: number; from_run?: string }
   /** APX found the agent's task open with nothing running on it, and asks it once to go on (engine/task-stall.ts). */
-  | { kind: "stalled_task"; task_id: string; title: string }
+  | { kind: "stalled_task"; task_id: string; title: string; from_run?: string }
   /** The owner added a project or an agent: the super-agent offers to adapt it (engine/added.ts). */
   | { kind: "added"; what: "project" | "agent"; id: string; name: string }
   /** The computer the agent started in this chat is up, or did not start (environments/ready.ts). */
@@ -265,6 +265,17 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
       return all(
         qb.selectFrom("runs").selectAll().where("thread_id", "=", threadId).orderBy("created_at", "desc").limit(limit),
       ).map(toRun);
+    },
+    /** Latest inserted run in a chat: rowid distinguishes starts that share a timestamp. */
+    latestId(threadId: string): string | undefined {
+      return one(
+        qb
+          .selectFrom("runs")
+          .select("id")
+          .where("thread_id", "=", threadId)
+          .orderBy(raw<number>`rowid`, "desc")
+          .limit(1),
+      )?.id;
     },
     /** Memory jobs can run long after their turn; select before the anchor, not from the newest chat page. */
     memoryWindow(anchor: RunRecord): RunRecord[] {

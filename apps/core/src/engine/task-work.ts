@@ -114,8 +114,24 @@ export function startHeld(store: Store, admit: AdmitFn, threadIds: readonly stri
       if (waiting.includes(h)) continue;
       const task = store.tasks.get(h.task);
       const asker = store.runs.get(h.run);
-      // Reassigned or begun meanwhile: whoever has it now goes on as it is.
-      if (!task || !asker || task.assignee !== h.agent || store.threads.byTask(task.id).length) continue;
+      if (!task || !asker || task.assignee !== h.agent) continue;
+      // A new execution since the hold wins; an older task chat is not evidence that this assignment started.
+      const heads = taskRunHeads(store, task.id);
+      if (h.prior_runs ? JSON.stringify(h.prior_runs) !== JSON.stringify(heads) : store.threads.byTask(task.id).length)
+        continue;
+      // Reassigned, re-scoped or re-statused since the hold: the owner's later change decides, not this old start.
+      if (
+        h.prior_events !== undefined &&
+        store.tasks
+          .events(task.id)
+          .slice(h.prior_events)
+          .some((e) =>
+            ["assignee", "status", "state", "proposed", "description", "start_at", "project_id"].some((k) =>
+              Object.hasOwn(e.data, k),
+            ),
+          )
+      )
+        continue;
       const name = store.agents.get(asker.agent_id)?.name ?? asker.agent_id;
       const by = { kind: "agent" as const, id: asker.agent_id, name, thread_id: id, run_id: h.run, depth: h.depth };
       if (startTaskWork(store, admit, task, h.agent, by)) started++;
@@ -124,10 +140,28 @@ export function startHeld(store: Store, admit: AdmitFn, threadIds: readonly stri
   return started;
 }
 
+/** The latest run in each existing chat of a task: what a held start was waiting on. */
+function taskRunHeads(store: Store, task: string): string[] {
+  return store.threads
+    .byTask(task)
+    .flatMap((t) => {
+      const id = store.runs.latestId(t.id);
+      return id ? [id] : [];
+    })
+    .sort();
+}
+
 /** Keeps a task an agent gave while its chat's chain is paused, and tells the owner there. */
 function hold(store: Store, task: Task, agentId: string, asker: Extract<Asker, { kind: "agent" }>): void {
   const held = (store.threads.context(asker.thread_id).held ?? []).filter((h) => h.task !== task.id);
-  const entry: HeldTask = { task: task.id, agent: agentId, run: asker.run_id, depth: asker.depth };
+  const entry: HeldTask = {
+    task: task.id,
+    agent: agentId,
+    run: asker.run_id,
+    depth: asker.depth,
+    prior_runs: taskRunHeads(store, task.id),
+    prior_events: store.tasks.events(task.id).length,
+  };
   store.threads.mergeContext(asker.thread_id, { held: [...held, entry] });
   const who = store.agents.get(agentId)?.name ?? agentId;
   const notice = heldNotice(store, asker.thread_id, who, task.title.slice(0, 120), agentId);
