@@ -8,9 +8,9 @@ The long *why* behind rules the code enforces: quirks, fixes and workarounds tha
 
 <a id="migration-lineage"></a>
 ### A migration number does not prove an additive schema exists
-**Rule:** the canonical migration array remains append-only. A recognized discrepancy in the additive 104–108
+**Rule:** the canonical migration array remains append-only. A recognized discrepancy in the 101–108
 suffix is reconciled by object presence and compatible definitions, never by ignoring a duplicate-object error or
-blindly advancing the counter. The pre-104 schema must be present and compatible, including complete table
+blindly advancing the counter. The stable migration-100 schema must be present and compatible, including complete table
 constraints and the declarations of any existing suffix columns. `foreign_key_check` cannot detect a missing
 foreign key, so validation compares the canonical declarations while allowing only the recognized columns to differ. Missing columns and indexes,
 queue initialization only for a newly added column, and the final counter commit together after a consistent,
@@ -21,8 +21,11 @@ close their SQLite connection. Newer-than-supported or malformed counters are re
 A duplicate-index guard alone hides those missing columns. This reproduces a reported v2.13.1 failure mechanism,
 not the provenance of a particular installation: the affected database and its prior build were not inspected.
 The stable v2.12.5 prefix ends at migration 100; the v2.13.1 tag and the integration branch have the same 108-entry
-migration array. Recovery is deliberately limited to the additive suffix after 103 so it cannot replay earlier
-transformations of messages, artifacts or Flow history. A concurrent writer detected across backup and write-lock
+migration array. Recovery is deliberately limited to the suffix after 100 so it cannot replay earlier
+transformations of messages or Flow history. The Apps-listing conversion (102) runs only when its column is newly
+created; existing Apps choices remain untouched. This covers synthetic fixtures of the reported missing page,
+Apps-listing and model-provenance columns as well as queue columns, without assuming the report establishes their
+actual provenance. A concurrent writer detected across backup and write-lock
 acquisition aborts the repair. A backup or transaction failure leaves the original schema counter and data intact.
 **Where:** `apps/core/src/db/{db,migration-lineage}.ts`; migration-lineage regression tests; EN/ES installation guides.
 

@@ -5,10 +5,13 @@ import { DatabaseSync } from "node:sqlite";
 import { compatibleMigrationTable, sameSchemaSql } from "./migration-schema.ts";
 import { MIGRATIONS } from "./migrations.ts";
 
-// Only the additive tail is reconcilable; earlier migrations transform owner data. See HISTORY.md#migration-lineage.
-const BASE = 103;
+// Recovery stops at the stable prefix and never replays an existing column's transformation. See HISTORY.md#migration-lineage.
+const BASE = 100;
 const END = 108;
 const columns = [
+  { table: "surfaces", name: "page", version: 101 },
+  { table: "surfaces", name: "in_apps", version: 102 },
+  { table: "messages", name: "model_reported", version: 103 },
   { table: "messages", name: "waiting", version: 104 },
   { table: "runs", name: "queue_order", version: 104 },
   { table: "tasks", name: "goal", version: 105 },
@@ -140,6 +143,13 @@ export function reconcileMigrationLineage(db: DatabaseSync, home: string, versio
       validate(db, reference, baseline, baseColumns);
       for (const column of columns) {
         if (tableColumns(db, column.table).some((row) => row.name === column.name)) continue;
+        if (column.table === "surfaces" && column.name === "in_apps") {
+          // The Apps-listing conversion is safe only with its new column, never after an owner's later choices.
+          const migration = MIGRATIONS[column.version - 1];
+          if (!migration) reject("missing Apps-listing migration");
+          db.exec(migration);
+          continue;
+        }
         const expected = tableColumns(reference, column.table).find((row) => row.name === column.name);
         if (!expected) reject(`missing reference column ${column.table}.${column.name}`);
         db.exec(
